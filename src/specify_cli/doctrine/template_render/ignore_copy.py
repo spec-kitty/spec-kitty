@@ -7,7 +7,9 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-BUILT_IN_EXCLUDES: tuple[str, ...] = (".git/", ".templateignore")
+# Always excluded from PACK_PATH, even when `.templateignore` is absent or
+# omits them. Keep both `.git` and `.git/` so directory and bare-name forms match.
+BUILT_IN_EXCLUDES: tuple[str, ...] = (".git", ".git/", ".templateignore")
 TEMPLATEIGNORE_NAME = ".templateignore"
 
 

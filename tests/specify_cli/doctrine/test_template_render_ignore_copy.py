@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.doctrine.template_render.ignore_copy import (
+    BUILT_IN_EXCLUDES,
     copy_template_tree,
     load_ignore_rules,
 )
@@ -41,5 +42,48 @@ def test_copy_excludes_templateignore_git_and_listed_paths(tmp_path: Path) -> No
     assert (dest / "pack" / "org-charter.yaml").is_file()
     assert (dest / "README.md").is_file()
     assert not (dest / "kitty-specs").exists()
+    assert not (dest / ".git").exists()
+    assert not (dest / ".templateignore").exists()
+
+
+def test_built_in_excludes_apply_without_templateignore_file(tmp_path: Path) -> None:
+    """`.git` and `.templateignore` stay out of PACK_PATH with no ignore file."""
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    (src / "pack").mkdir()
+    (src / "pack" / "README.md").write_text("keep\n", encoding="utf-8")
+    (src / ".git").mkdir()
+    (src / ".git" / "config").write_text("gitdir\n", encoding="utf-8")
+    # Simulate a stray ignore file name that must still be excluded by built-ins
+    # even when it is not the loaded rules file (rules load finds none).
+    assert not (src / ".templateignore").exists()
+
+    rules = load_ignore_rules(src)
+    assert ".git" in rules.patterns
+    assert ".git/" in rules.patterns
+    assert ".templateignore" in rules.patterns
+    assert set(BUILT_IN_EXCLUDES).issubset(set(rules.patterns))
+
+    copy_template_tree(src, dest, rules)
+
+    assert (dest / "pack" / "README.md").is_file()
+    assert not (dest / ".git").exists()
+    assert not (dest / ".templateignore").exists()
+
+
+def test_built_in_excludes_drop_templateignore_even_if_present(tmp_path: Path) -> None:
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    (src / "ok.txt").write_text("ok\n", encoding="utf-8")
+    (src / ".templateignore").write_text("# empty defaults only\n", encoding="utf-8")
+    (src / ".git").mkdir()
+    (src / ".git" / "HEAD").write_text("ref\n", encoding="utf-8")
+
+    rules = load_ignore_rules(src)
+    copy_template_tree(src, dest, rules)
+
+    assert (dest / "ok.txt").is_file()
     assert not (dest / ".git").exists()
     assert not (dest / ".templateignore").exists()

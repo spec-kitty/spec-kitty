@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +49,29 @@ def test_parse_ssh_url_with_fragment() -> None:
     assert parsed.encoded_ref == "main"
 
 
+def test_parse_ssh_url_at_ref_preserves_git_userinfo_and_slash_branch() -> None:
+    """ssh:// with git@ userinfo and feat/... branch via @ref."""
+    template = (
+        "ssh://git@git.example.com:7999/org/doctrine-template.git"
+        "@feat/make-embeddable-template"
+    )
+    parsed = parse_template_ref(template)
+    assert parsed.kind == "git"
+    assert parsed.location == (
+        "ssh://git@git.example.com:7999/org/doctrine-template.git"
+    )
+    assert parsed.encoded_ref == "feat/make-embeddable-template"
+
+
+def test_parse_https_at_ref_allows_slash_in_branch() -> None:
+    parsed = parse_template_ref(
+        "https://github.com/org/repo.git@feat/make-embeddable-template"
+    )
+    assert parsed.kind == "git"
+    assert parsed.location == "https://github.com/org/repo.git"
+    assert parsed.encoded_ref == "feat/make-embeddable-template"
+
+
 def test_parse_scp_git_at_does_not_eat_userinfo() -> None:
     parsed = parse_template_ref("git@github.com:org/repo.git")
     assert parsed.kind == "git"
@@ -87,6 +111,26 @@ def test_resolve_local_ok(tmp_path: Path) -> None:
     assert source.cleanup is False
 
 
+def test_resolve_local_folder_template_tree(tmp_path: Path) -> None:
+    """Local TEMPLATE is a real directory tree (operator local-folder path)."""
+    root = tmp_path / "doctrine-template"
+    (root / "pack").mkdir(parents=True)
+    (root / "pack" / "org-charter.yaml").write_text(
+        'org_name: "{{ORG_NAME}}"\n', encoding="utf-8"
+    )
+    (root / ".templateignore").write_text(".git/\n", encoding="utf-8")
+    (root / ".git").mkdir()
+    (root / ".git" / "HEAD").write_text("ref\n", encoding="utf-8")
+
+    source, err = resolve_template_source(str(root))
+    assert err is None
+    assert source is not None
+    assert source.kind == "local"
+    assert source.root == root.resolve()
+    assert (source.root / "pack" / "org-charter.yaml").is_file()
+    assert source.cleanup is False
+
+
 def test_resolve_local_missing(tmp_path: Path) -> None:
     missing = tmp_path / "nope"
     source, err = resolve_template_source(str(missing))
@@ -121,6 +165,44 @@ def test_resolve_git_uses_factory(tmp_path: Path) -> None:
     assert calls["url"] == "https://example.com/org/repo.git"
     assert calls["ref"] == "main"
     assert source.root.exists()
+
+
+def test_resolve_ssh_url_at_ref_branch(tmp_path: Path) -> None:
+    """ssh://git@…@feat/… splits URL vs ref and passes both to GitSource."""
+    calls: dict[str, Any] = {}
+    template = (
+        "ssh://git@git.example.com:7999/org/doctrine-template.git"
+        "@feat/make-embeddable-template"
+    )
+
+    class FakeGitSource:
+        def __init__(self, url: str, ref: str | None = None) -> None:
+            calls["url"] = url
+            calls["ref"] = ref
+
+        def fetch(self, target_dir: Path) -> FetchResult:
+            (target_dir / "pack").mkdir()
+            (target_dir / "pack" / "org-charter.yaml").write_text(
+                'org_name: "{{ORG_NAME}}"\nlocal: "{{LOCAL_PATH}}"\n',
+                encoding="utf-8",
+            )
+            return FetchResult(ok=True, artifacts_written=1, pack_version="abc", errors=[])
+
+    source, err = resolve_template_source(
+        template,
+        branch=None,
+        git_source_factory=FakeGitSource,
+    )
+    assert err is None
+    assert source is not None
+    assert source.kind == "git"
+    assert source.ref == "feat/make-embeddable-template"
+    assert calls["url"] == (
+        "ssh://git@git.example.com:7999/org/doctrine-template.git"
+    )
+    assert calls["ref"] == "feat/make-embeddable-template"
+    assert (source.root / "pack" / "org-charter.yaml").is_file()
+    shutil.rmtree(source.root, ignore_errors=True)
 
 
 def test_resolve_git_fetch_failure() -> None:

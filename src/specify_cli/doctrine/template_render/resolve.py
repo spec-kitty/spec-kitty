@@ -52,8 +52,11 @@ class ResolveError:
     message: str
 
 
-_HTTPS_AT_REF = re.compile(r"^(https://.+?)@([^@/]+)$")
-_SSH_URL_AT_REF = re.compile(r"^(ssh://.+?)@([^@/]+)$")
+# Allow ``/`` in refs (e.g. ``feat/make-embeddable-template``). Reject ``@`` so
+# ``ssh://git@host/...`` userinfo is not taken as the ref separator — the engine
+# backtracks to the final ``@`` before the ref.
+_HTTPS_AT_REF = re.compile(r"^(https://.+?)@([^@]+)$")
+_SSH_URL_AT_REF = re.compile(r"^(ssh://.+?)@([^@]+)$")
 
 
 def parse_template_ref(template: str) -> ParsedTemplate:
