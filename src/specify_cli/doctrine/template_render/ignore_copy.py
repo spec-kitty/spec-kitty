@@ -49,6 +49,9 @@ def copy_template_tree(source_root: Path, destination: Path, rules: IgnoreRules)
             continue
         if rules.matches(rel) or _any_parent_ignored(rel, rules):
             continue
+        # Never follow symlinks into host content (FR-003 / FR-004).
+        if path.is_symlink():
+            continue
         target = destination / rel_path
         if path.is_dir():
             target.mkdir(parents=True, exist_ok=True)

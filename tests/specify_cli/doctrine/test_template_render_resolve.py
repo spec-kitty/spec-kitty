@@ -13,6 +13,7 @@ from specify_cli.doctrine.template_render.resolve import (
     RULE_BRANCH_CONFLICT,
     RULE_TEMPLATE_GIT_FETCH,
     RULE_TEMPLATE_MISSING,
+    RULE_TEMPLATE_SCHEME_REJECTED,
     merge_branch_refs,
     parse_template_ref,
     resolve_template_source,
@@ -143,9 +144,16 @@ def test_resolve_git_uses_factory(tmp_path: Path) -> None:
     calls: dict[str, Any] = {}
 
     class FakeGitSource:
-        def __init__(self, url: str, ref: str | None = None) -> None:
+        def __init__(
+            self,
+            url: str,
+            ref: str | None = None,
+            *,
+            inject_token: bool = True,
+        ) -> None:
             calls["url"] = url
             calls["ref"] = ref
+            calls["inject_token"] = inject_token
 
         def fetch(self, target_dir: Path) -> FetchResult:
             calls["target"] = target_dir
@@ -164,6 +172,7 @@ def test_resolve_git_uses_factory(tmp_path: Path) -> None:
     assert source.ref == "main"
     assert calls["url"] == "https://example.com/org/repo.git"
     assert calls["ref"] == "main"
+    assert calls["inject_token"] is False
     assert source.root.exists()
 
 
@@ -176,9 +185,16 @@ def test_resolve_ssh_url_at_ref_branch(tmp_path: Path) -> None:
     )
 
     class FakeGitSource:
-        def __init__(self, url: str, ref: str | None = None) -> None:
+        def __init__(
+            self,
+            url: str,
+            ref: str | None = None,
+            *,
+            inject_token: bool = True,
+        ) -> None:
             calls["url"] = url
             calls["ref"] = ref
+            calls["inject_token"] = inject_token
 
         def fetch(self, target_dir: Path) -> FetchResult:
             (target_dir / "pack").mkdir()
@@ -201,13 +217,20 @@ def test_resolve_ssh_url_at_ref_branch(tmp_path: Path) -> None:
         "ssh://git@git.example.com:7999/org/doctrine-template.git"
     )
     assert calls["ref"] == "feat/make-embeddable-template"
+    assert calls["inject_token"] is False
     assert (source.root / "pack" / "org-charter.yaml").is_file()
     shutil.rmtree(source.root, ignore_errors=True)
 
 
 def test_resolve_git_fetch_failure() -> None:
     class FailingGitSource:
-        def __init__(self, url: str, ref: str | None = None) -> None:
+        def __init__(
+            self,
+            url: str,
+            ref: str | None = None,
+            *,
+            inject_token: bool = True,
+        ) -> None:
             pass
 
         def fetch(self, target_dir: Path) -> FetchResult:
@@ -227,6 +250,30 @@ def test_resolve_git_fetch_failure() -> None:
     assert err is not None
     assert err.rule_id == RULE_TEMPLATE_GIT_FETCH
     assert "clone exploded" in err.message
+
+
+def test_resolve_rejects_http_scheme() -> None:
+    source, err = resolve_template_source("http://example.invalid/repo.git")
+    assert source is None
+    assert err is not None
+    assert err.rule_id == RULE_TEMPLATE_SCHEME_REJECTED
+
+
+def test_resolve_rejects_git_scheme() -> None:
+    source, err = resolve_template_source("git://example.invalid/repo.git")
+    assert source is None
+    assert err is not None
+    assert err.rule_id == RULE_TEMPLATE_SCHEME_REJECTED
+
+
+def test_git_source_inject_token_false_skips_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from specify_cli.doctrine.sources.git_source import GitSource
+
+    monkeypatch.setenv("GIT_TOKEN", "super-secret-token")
+    source = GitSource(url="https://attacker.example/repo.git", inject_token=False)
+    assert source._inject_token(source.url) == "https://attacker.example/repo.git"
 
 
 def test_resolve_branch_conflict_short_circuits() -> None:

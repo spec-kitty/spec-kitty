@@ -17,10 +17,17 @@ RULE_BRANCH_CONFLICT = "branch.conflict"
 RULE_TEMPLATE_MISSING = "template.missing"
 RULE_TEMPLATE_NOT_DIR = "template.not_directory"
 RULE_TEMPLATE_GIT_FETCH = "template.git_fetch"
+RULE_TEMPLATE_SCHEME_REJECTED = "template.scheme_rejected"
 
 
 class _GitSourceLike(Protocol):
-    def __init__(self, url: str, ref: str | None = None) -> None: ...
+    def __init__(
+        self,
+        url: str,
+        ref: str | None = None,
+        *,
+        inject_token: bool = True,
+    ) -> None: ...
 
     def fetch(self, target_dir: Path) -> FetchResult: ...
 
@@ -140,11 +147,29 @@ def resolve_template_source(
     if conflict is not None:
         return None, conflict
 
+    if _is_rejected_scheme(parsed.location):
+        return None, ResolveError(
+            rule_id=RULE_TEMPLATE_SCHEME_REJECTED,
+            message=(
+                f"TEMPLATE scheme rejected ({RULE_TEMPLATE_SCHEME_REJECTED}): "
+                f"only https://, ssh://, git@, and local paths are allowed "
+                f"(got {parsed.location!r})"
+            ),
+        )
+
     if parsed.kind == "local":
         return _resolve_local(parsed.location)
 
     factory: type[_GitSourceLike] = git_source_factory or GitSource
     return _resolve_git(parsed.location, effective_ref, factory)
+
+
+def _is_rejected_scheme(location: str) -> bool:
+    """Reject plaintext remote schemes (http://, git://) fail-closed."""
+    if location.startswith(("http://", "git://")):
+        return True
+    parsed = urlparse(location)
+    return parsed.scheme in {"http", "git"}
 
 
 def _classify_location(location: str) -> str:
@@ -186,7 +211,8 @@ def _resolve_git(
     factory: type[_GitSourceLike],
 ) -> tuple[ResolvedTemplateSource | None, ResolveError | None]:
     target = Path(tempfile.mkdtemp(prefix="spec-kitty-template-"))
-    source = factory(url=url, ref=ref)
+    # Never inject GIT_TOKEN into arbitrary --template remotes (FR-001).
+    source = factory(url=url, ref=ref, inject_token=False)
     result = source.fetch(target)
     if not result.ok:
         detail = "; ".join(result.errors) if result.errors else "git fetch failed"

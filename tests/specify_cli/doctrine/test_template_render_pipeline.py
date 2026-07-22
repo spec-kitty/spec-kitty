@@ -87,3 +87,27 @@ def test_pipeline_refuses_existing_without_force(tmp_path: Path) -> None:
     )
     assert err is not None
     assert err.rule_id == "pack_path.exists"
+
+
+def test_pipeline_force_overwrites_existing(tmp_path: Path) -> None:
+    tpl = tmp_path / "tpl"
+    tpl.mkdir()
+    _make_template(tpl)
+    dest = tmp_path / "out"
+    dest.mkdir()
+    (dest / "old.txt").write_text("prior\n", encoding="utf-8")
+
+    err = render_org_pack(
+        RenderRequest(
+            pack_path=dest,
+            template=str(tpl),
+            org_name="acme-corp",
+            force=True,
+        )
+    )
+    assert err is None
+    assert (dest / "pack" / "org-charter.yaml").is_file()
+    assert not (dest / "old.txt").exists()
+    # No leftover backup dirs from successful force swap
+    leftovers = list(tmp_path.glob("out.bak-*"))
+    assert leftovers == []

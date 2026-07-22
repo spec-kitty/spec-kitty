@@ -8,6 +8,7 @@ import pytest
 
 from specify_cli.doctrine.template_render.substitute import (
     RULE_LEFTOVER_TOKENS,
+    RULE_PATH_TOKEN,
     substitute_tokens,
 )
 
@@ -37,32 +38,32 @@ def test_substitute_replaces_both_tokens(tmp_path: Path) -> None:
 
 
 def test_substitute_fails_on_leftover_tokens(tmp_path: Path) -> None:
+    """Single-pass leftover: replacement values that reintroduce placeholders."""
     root = tmp_path / "out"
     root.mkdir()
-    # Intentionally leave a different casing / second file with token after
-    # "failed" replace scenario: write a file that still has token because
-    # we call assert path by writing ORG token in a file that uses a typo
-    # that substitute won't remove — simulate by substituting then appending.
     path = root / "note.md"
     path.write_text("keep {{ORG_NAME}} forever\n", encoding="utf-8")
-    # Substitute with empty-like won't remove if we pass values but token remains
-    # if we use a weird approach: write AFTER substitute in test by calling
-    # leftover check via incomplete replace — actually substitute replaces all.
-    # Force leftover by writing a token form that is still present: use
-    # substitute then manually reintroduce.
-    err = substitute_tokens(root, "acme", "pack")
-    assert err is None
-    path.write_text("oops {{ORG_NAME}}\n", encoding="utf-8")
-    err2 = substitute_tokens(root, "acme", "pack")
-    # second call should clear it again
-    assert err2 is None
+    err = substitute_tokens(root, "{{ORG_NAME}}", "pack")
+    assert err is not None
+    assert err.rule_id == RULE_LEFTOVER_TOKENS
 
-    # True leftover: token that isn't the exact literal we replace — we only
-    # detect exact {{ORG_NAME}}. Create leftover by failing to replace because
-    # file is written with token after we monkey with only leftover assert:
-    from specify_cli.doctrine.template_render import substitute as sub_mod
 
-    path.write_text("still {{ORG_NAME}}\n", encoding="utf-8")
-    leftover = sub_mod._assert_no_leftovers(root)
-    assert leftover is not None
-    assert leftover.rule_id == RULE_LEFTOVER_TOKENS
+def test_substitute_rejects_path_token_in_filename(tmp_path: Path) -> None:
+    root = tmp_path / "out"
+    root.mkdir()
+    bad = root / "{{ORG_NAME}}.yaml"
+    bad.write_text("ok\n", encoding="utf-8")
+    err = substitute_tokens(root, "acme-corp", "pack")
+    assert err is not None
+    assert err.rule_id == RULE_PATH_TOKEN
+    assert "{{ORG_NAME}}.yaml" in err.message
+
+
+def test_substitute_rejects_path_token_in_dirname(tmp_path: Path) -> None:
+    root = tmp_path / "out"
+    nested = root / "dir-{{LOCAL_PATH}}"
+    nested.mkdir(parents=True)
+    (nested / "file.yaml").write_text("x\n", encoding="utf-8")
+    err = substitute_tokens(root, "acme-corp", "pack")
+    assert err is not None
+    assert err.rule_id == RULE_PATH_TOKEN

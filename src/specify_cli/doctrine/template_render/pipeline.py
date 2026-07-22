@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 import shutil
 import tempfile
 from dataclasses import dataclass
@@ -28,6 +29,8 @@ from specify_cli.doctrine.template_render.substitute import (
 RULE_ORG_REQUIRED = "org_name.required"
 RULE_DEST_EXISTS = "pack_path.exists"
 RULE_TEMPLATE_REQUIRED = "template.required"
+RULE_SOURCE_MISSING = "pipeline.source_missing"
+RULE_INSTALL_EXISTS = "pipeline.dest_exists"
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +70,13 @@ def render_org_pack(request: RenderRequest) -> PipelineError | None:
     source, resolve_err = resolve_template_source(request.template, request.branch)
     if resolve_err is not None:
         return _from_resolve(resolve_err)
-    assert source is not None
+    if source is None:
+        return PipelineError(
+            rule_id=RULE_SOURCE_MISSING,
+            message=(
+                f"TEMPLATE resolve returned no source ({RULE_SOURCE_MISSING})"
+            ),
+        )
 
     pack_path = Path(request.pack_path)
     exists_err = _check_destination(pack_path, force=request.force)
@@ -82,7 +91,9 @@ def render_org_pack(request: RenderRequest) -> PipelineError | None:
         sub_err = substitute_tokens(staging, request.org_name, local_path)
         if sub_err is not None:
             return _from_substitute(sub_err)
-        _install_staging(staging, pack_path, force=request.force)
+        install_err = _install_staging(staging, pack_path, force=request.force)
+        if install_err is not None:
+            return install_err
     except OSError as exc:
         return PipelineError(
             rule_id="pipeline.copy",
@@ -108,15 +119,51 @@ def _check_destination(pack_path: Path, *, force: bool) -> PipelineError | None:
     return None
 
 
-def _install_staging(staging: Path, pack_path: Path, *, force: bool) -> None:
+def _install_staging(
+    staging: Path, pack_path: Path, *, force: bool
+) -> PipelineError | None:
+    """Move staging into pack_path; on --force use move-aside-then-swap."""
     if pack_path.exists():
         if not force:
-            raise RuntimeError(f"destination exists without force: {pack_path}")
-        shutil.rmtree(pack_path)
+            return PipelineError(
+                rule_id=RULE_INSTALL_EXISTS,
+                message=(
+                    f"destination exists without force ({RULE_INSTALL_EXISTS}): "
+                    f"{pack_path}"
+                ),
+            )
+        return _force_swap(staging, pack_path)
+
     pack_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(staging), str(pack_path))
-    # staging path is consumed; recreate empty dir so finally rmtree is safe
     staging.mkdir(parents=True, exist_ok=True)
+    return None
+
+
+def _force_swap(staging: Path, pack_path: Path) -> PipelineError | None:
+    nonce = secrets.token_hex(4)
+    backup = pack_path.with_name(f"{pack_path.name}.bak-{nonce}")
+    try:
+        shutil.move(str(pack_path), str(backup))
+    except OSError as exc:
+        return PipelineError(
+            rule_id="pipeline.force_backup",
+            message=f"Failed to move aside existing pack (pipeline.force_backup): {exc}",
+        )
+    try:
+        pack_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(staging), str(pack_path))
+        staging.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        # Best-effort restore prior pack
+        if backup.exists() and not pack_path.exists():
+            shutil.move(str(backup), str(pack_path))
+        return PipelineError(
+            rule_id="pipeline.force_swap",
+            message=f"Failed to install staging over pack (pipeline.force_swap): {exc}",
+        )
+    shutil.rmtree(backup, ignore_errors=True)
+    return None
 
 
 def _cleanup_source(root: Path, cleanup: bool) -> None:

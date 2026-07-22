@@ -31,10 +31,14 @@ class GitSource:
         url: Repository URL (SSH or HTTPS).
         ref: Optional branch, tag, or commit SHA to check out.  When omitted,
             the default branch is used (``origin/HEAD`` on update).
+        inject_token: When True (default), embed ``GIT_TOKEN`` as HTTPS
+            userinfo for CI-authenticated fetches. Set False for untrusted
+            template URLs (doctrine ``org init --template``).
     """
 
     url: str
     ref: str | None = None
+    inject_token: bool = True
 
     # ------------------------------------------------------------------
     # Public API
@@ -137,8 +141,9 @@ class GitSource:
         version = describe.stdout.strip()
         return version or None
 
-    @staticmethod
-    def _inject_token(url: str) -> str:
+    def _inject_token(self, url: str) -> str:
+        if not self.inject_token:
+            return url
         token = os.environ.get("GIT_TOKEN")
         if not token:
             return url

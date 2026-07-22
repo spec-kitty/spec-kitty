@@ -87,3 +87,25 @@ def test_built_in_excludes_drop_templateignore_even_if_present(tmp_path: Path) -
     assert (dest / "ok.txt").is_file()
     assert not (dest / ".git").exists()
     assert not (dest / ".templateignore").exists()
+
+
+def test_copy_skips_symlink_to_host_secret(tmp_path: Path) -> None:
+    """Symlink to a host file must not materialise that file's bytes (FR-003)."""
+    secret = tmp_path / "host-secret"
+    secret.write_text("PRIVATE_KEY_MATERIAL\n", encoding="utf-8")
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    (src / "keep.txt").write_text("ok\n", encoding="utf-8")
+    link = src / "leaked"
+    link.symlink_to(secret)
+
+    rules = load_ignore_rules(src)
+    copy_template_tree(src, dest, rules)
+
+    assert (dest / "keep.txt").is_file()
+    assert not (dest / "leaked").exists()
+    # No copied regular file anywhere under dest contains the secret
+    for path in dest.rglob("*"):
+        if path.is_file() and not path.is_symlink():
+            assert "PRIVATE_KEY_MATERIAL" not in path.read_text(encoding="utf-8")
