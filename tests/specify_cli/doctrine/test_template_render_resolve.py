@@ -64,6 +64,12 @@ def test_parse_ssh_url_at_ref_preserves_git_userinfo_and_slash_branch() -> None:
     assert parsed.encoded_ref == "feat/make-embeddable-template"
 
 
+def test_parse_bare_ssh_url_preserves_userinfo_without_inventing_ref() -> None:
+    parsed = parse_template_ref("ssh://git@github.com/org/repo.git")
+    assert parsed.location == "ssh://git@github.com/org/repo.git"
+    assert parsed.encoded_ref is None
+
+
 def test_parse_https_at_ref_allows_slash_in_branch() -> None:
     parsed = parse_template_ref(
         "https://github.com/org/repo.git@feat/make-embeddable-template"

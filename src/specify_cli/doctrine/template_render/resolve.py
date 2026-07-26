@@ -65,7 +65,6 @@ class ResolveError:
 # ``ssh://git@host/...`` userinfo is not taken as the ref separator — the engine
 # backtracks to the final ``@`` before the ref.
 _HTTPS_AT_REF = re.compile(r"^(https://.+?)@([^@]+)$")
-_SSH_URL_AT_REF = re.compile(r"^(ssh://.+?)@([^@]+)$")
 
 
 def parse_template_ref(template: str) -> ParsedTemplate:
@@ -92,13 +91,18 @@ def parse_template_ref(template: str) -> ParsedTemplate:
             encoded_ref=https_match.group(2),
             kind="git",
         )
-    ssh_match = _SSH_URL_AT_REF.match(stripped)
-    if ssh_match:
-        return ParsedTemplate(
-            location=ssh_match.group(1),
-            encoded_ref=ssh_match.group(2),
-            kind="git",
-        )
+    if stripped.startswith("ssh://"):
+        authority, separator, path = stripped.removeprefix("ssh://").partition("/")
+        if separator and "@" in path:
+            repo_path, _, ref = path.rpartition("@")
+            if repo_path and ref:
+                return ParsedTemplate(
+                    location=f"ssh://{authority}/{repo_path}",
+                    encoded_ref=ref,
+                    kind="git",
+                )
+        # An ``@`` in the authority is SSH userinfo, never a ref separator.
+        return ParsedTemplate(location=stripped, encoded_ref=None, kind="git")
 
     return ParsedTemplate(
         location=stripped,
