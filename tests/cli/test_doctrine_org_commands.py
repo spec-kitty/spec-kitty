@@ -319,9 +319,16 @@ def test_doctrine_org_init_from_bitbucket_ssh_at_ref(
     calls: dict[str, object] = {}
 
     class FakeGitSource:
-        def __init__(self, url: str, ref: str | None = None) -> None:
+        def __init__(
+            self,
+            url: str,
+            ref: str | None = None,
+            *,
+            inject_token: bool = True,
+        ) -> None:
             calls["url"] = url
             calls["ref"] = ref
+            calls["inject_token"] = inject_token
 
         def fetch(self, target_dir: Path) -> FetchResult:
             _write_mini_template(target_dir)
@@ -358,6 +365,7 @@ def test_doctrine_org_init_from_bitbucket_ssh_at_ref(
         "ssh://git@git.example.com:7999/org/doctrine-template.git"
     )
     assert calls["ref"] == "feat/make-embeddable-template"
+    assert calls["inject_token"] is False
     assert (dest / "pack" / "org-charter.yaml").is_file()
     assert "acme-corp" in (dest / "pack" / "org-charter.yaml").read_text(
         encoding="utf-8"

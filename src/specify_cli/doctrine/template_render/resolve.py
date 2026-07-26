@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,6 +19,7 @@ RULE_TEMPLATE_MISSING = "template.missing"
 RULE_TEMPLATE_NOT_DIR = "template.not_directory"
 RULE_TEMPLATE_GIT_FETCH = "template.git_fetch"
 RULE_TEMPLATE_SCHEME_REJECTED = "template.scheme_rejected"
+RULE_TEMPLATE_USERINFO_REJECTED = "template.userinfo_rejected"
 
 
 class _GitSourceLike(Protocol):
@@ -142,6 +144,15 @@ def resolve_template_source(
     For git templates, clones into a temp directory (``cleanup=True``).
     ``git_source_factory`` is injectable for tests (defaults to ``GitSource``).
     """
+    if _https_authority_has_userinfo(template):
+        return None, ResolveError(
+            rule_id=RULE_TEMPLATE_USERINFO_REJECTED,
+            message=(
+                "TEMPLATE HTTPS URLs must not contain credentials "
+                f"({RULE_TEMPLATE_USERINFO_REJECTED}); use SSH or a credential helper"
+            ),
+        )
+
     parsed = parse_template_ref(template)
     effective_ref, conflict = merge_branch_refs(parsed.encoded_ref, branch)
     if conflict is not None:
@@ -170,6 +181,15 @@ def _is_rejected_scheme(location: str) -> bool:
         return True
     parsed = urlparse(location)
     return parsed.scheme in {"http", "git"}
+
+
+def _https_authority_has_userinfo(template: str) -> bool:
+    """Reject userinfo without echoing or misparsing credential material."""
+    stripped = template.strip()
+    if not stripped.startswith("https://"):
+        return False
+    authority = stripped.removeprefix("https://").split("/", 1)[0]
+    return "@" in authority
 
 
 def _classify_location(location: str) -> str:
@@ -216,6 +236,7 @@ def _resolve_git(
     result = source.fetch(target)
     if not result.ok:
         detail = "; ".join(result.errors) if result.errors else "git fetch failed"
+        shutil.rmtree(target, ignore_errors=True)
         return None, ResolveError(
             rule_id=RULE_TEMPLATE_GIT_FETCH,
             message=f"TEMPLATE git resolve failed ({RULE_TEMPLATE_GIT_FETCH}): {detail}",

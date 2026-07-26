@@ -19,7 +19,7 @@ class SubstituteError:
 
 
 RULE_LEFTOVER_TOKENS = "substitute.leftover_tokens"
-RULE_PATH_TOKEN = "substitute.path_token"
+RULE_PATH_TOKEN = "substitute.path_token"  # noqa: S105 - validation rule id
 
 
 def substitute_tokens(
