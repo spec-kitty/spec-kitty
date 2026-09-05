@@ -16,7 +16,7 @@ from ruamel.yaml import YAML
 from charter.activation._drg_helpers import load_validated_graph
 from charter.drg import resolve_context
 from charter.offering.missions.step_contracts import MissionStepContractRepository
-from specify_cli.invocation.writer import EVENTS_DIR
+from specify_cli.invocation.writer import EVENTS_DIR, INDEX_PATH
 from specify_cli.mission_step_contracts.executor import (
     StepContractExecutionContext,
     StepContractExecutionError,
@@ -25,6 +25,8 @@ from specify_cli.mission_step_contracts.executor import (
 
 
 pytestmark = pytest.mark.fast
+
+_OPS_INDEX_FILENAME = Path(INDEX_PATH).name
 
 
 def test_charter_mission_steps_facade_reexports_step_inputs() -> None:
@@ -375,7 +377,7 @@ def test_three_delegated_steps_execute_end_to_end_via_profile_invocation_executo
     jsonl_files = sorted(
         path
         for path in (repo_root / EVENTS_DIR).glob("*.jsonl")
-        if "index" not in path.name  # exclude the ops-index file (lives in EVENTS_DIR since #1714)
+        if path.name != _OPS_INDEX_FILENAME
     )
     assert len(jsonl_files) == 3
 

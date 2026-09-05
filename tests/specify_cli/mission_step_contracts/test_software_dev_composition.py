@@ -29,7 +29,7 @@ from unittest.mock import patch
 import pytest
 
 from charter.offering.missions.step_contracts import MissionStepContractRepository
-from specify_cli.invocation.writer import EVENTS_DIR
+from specify_cli.invocation.writer import EVENTS_DIR, INDEX_PATH
 from specify_cli.mission_step_contracts.executor import (
     _ACTION_PROFILE_DEFAULTS,
     StepContractExecutionContext,
@@ -38,6 +38,8 @@ from specify_cli.mission_step_contracts.executor import (
 
 
 pytestmark = pytest.mark.fast
+
+_OPS_INDEX_FILENAME = Path(INDEX_PATH).name
 
 
 # ---------------------------------------------------------------------------
@@ -219,6 +221,23 @@ def _read_jsonl_records(path: Path) -> list[dict[str, object]]:
     return records
 
 
+def _invocation_jsonl_files(events_dir: Path) -> list[Path]:
+    """Return per-invocation logs without hiding filenames that contain ``index``."""
+    return sorted(
+        path for path in events_dir.glob("*.jsonl") if path.name != _OPS_INDEX_FILENAME
+    )
+
+
+def test_invocation_jsonl_files_excludes_only_ops_index(tmp_path: Path) -> None:
+    """A legitimate invocation log such as ``reindex.jsonl`` remains observable."""
+    ops_index = tmp_path / _OPS_INDEX_FILENAME
+    reindex = tmp_path / "reindex.jsonl"
+    ops_index.touch()
+    reindex.touch()
+
+    assert _invocation_jsonl_files(tmp_path) == [reindex]
+
+
 def _run_software_dev_specify(
     repo_root: Path,
     *,
@@ -290,11 +309,7 @@ def test_governance_context_uses_contract_action_when_hint_supplied(tmp_path: Pa
 
     result = _run_software_dev_specify(repo_root)
 
-    jsonl_files = sorted(
-        path
-        for path in (repo_root / EVENTS_DIR).glob("*.jsonl")
-        if "index" not in path.name  # exclude the ops-index file (lives in EVENTS_DIR since #1714)
-    )
+    jsonl_files = _invocation_jsonl_files(repo_root / EVENTS_DIR)
     assert len(jsonl_files) == len(result.steps)
 
     for path in jsonl_files:
@@ -314,11 +329,7 @@ def test_composed_action_pairs_started_with_completed(tmp_path: Path) -> None:
 
     result = _run_software_dev_specify(repo_root)
 
-    jsonl_files = sorted(
-        path
-        for path in (repo_root / EVENTS_DIR).glob("*.jsonl")
-        if "index" not in path.name  # exclude the ops-index file (lives in EVENTS_DIR since #1714)
-    )
+    jsonl_files = _invocation_jsonl_files(repo_root / EVENTS_DIR)
     assert len(jsonl_files) == len(result.steps)
 
     for path in jsonl_files:
@@ -381,11 +392,7 @@ def test_composed_step_failure_writes_failed_completion(tmp_path: Path) -> None:
             )
         )
 
-    jsonl_files = sorted(
-        path
-        for path in (repo_root / EVENTS_DIR).glob("*.jsonl")
-        if "index" not in path.name  # exclude the ops-index file (lives in EVENTS_DIR since #1714)
-    )
+    jsonl_files = _invocation_jsonl_files(repo_root / EVENTS_DIR)
     # Two invocations: the first closed with done, the second closed with failed.
     assert len(jsonl_files) == 2
 
@@ -535,11 +542,7 @@ def test_composed_action_outcome_is_done_even_though_composition_does_not_run_ll
 
     result = _run_software_dev_specify(repo_root)
 
-    jsonl_files = sorted(
-        path
-        for path in (repo_root / EVENTS_DIR).glob("*.jsonl")
-        if "index" not in path.name  # exclude the ops-index file (lives in EVENTS_DIR since #1714)
-    )
+    jsonl_files = _invocation_jsonl_files(repo_root / EVENTS_DIR)
     assert len(jsonl_files) == len(result.steps)
     assert jsonl_files, "expected at least one composed-step JSONL"
 

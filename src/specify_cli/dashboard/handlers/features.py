@@ -310,12 +310,17 @@ class FeatureHandler(DashboardHandler):
         self.end_headers()
 
     def _handle_artifact_directory(self, path: str, directory_name: str, md_icon: str = "📝") -> None:
-        """Generic handler for artifact directories (contracts, checklists, etc).
+        """Serve an artifact-directory listing or a contained file.
+
+        The endpoint accepts ``/api/{directory_name}/{mission}`` for a JSON
+        listing and appends one URL-encoded repository-relative path to serve a
+        file.  The Mission planning directory is resolved through the canonical
+        planning seam; file requests that escape that directory receive ``404``.
 
         Args:
-            path: The request path
-            directory_name: Name of the subdirectory (e.g., 'contracts', 'checklists')
-            md_icon: Icon to use for .md files (default: '📝')
+            path: Request path, including the Mission selector and optional file.
+            directory_name: Artifact subdirectory, such as ``contracts``.
+            md_icon: Icon used for Markdown files in a listing.
         """
         parts = path.split("/")
         if len(parts) < 4:

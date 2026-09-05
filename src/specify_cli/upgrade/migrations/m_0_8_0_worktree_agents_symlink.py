@@ -41,11 +41,8 @@ class WorktreeAgentsSymlinkMigration(BaseMigration):
         for worktree in worktrees_dir.iterdir():
             if worktree.is_dir() and not worktree.name.startswith("."):
                 wt_agents = worktree / ".kittify" / "AGENTS.md"
-                # Check if missing or broken symlink
-                if not wt_agents.exists() and not wt_agents.is_symlink():
-                    return True
-                # Also check for broken symlinks
-                if wt_agents.is_symlink() and not wt_agents.exists():
+                # ``exists()`` is false for both a missing path and a broken symlink.
+                if not wt_agents.exists():
                     return True
 
         return False
