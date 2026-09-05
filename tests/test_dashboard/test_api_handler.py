@@ -300,6 +300,73 @@ class TestFeaturesEndpointErrorHandling:
             features_module.FeatureHandler.handle_artifact(handler, "/api/artifact/001-test/spec")
 
 
+class TestArtifactDirectoryEndpoint:
+    """Artifact-directory routes return only the directory they advertise."""
+
+    @staticmethod
+    def _handler(project_dir: Path) -> MagicMock:
+        handler = MagicMock()
+        handler.project_dir = str(project_dir)
+        handler.send_response = MagicMock()
+        handler.send_header = MagicMock()
+        handler.end_headers = MagicMock()
+        handler.wfile = io.BytesIO()
+        return handler
+
+    def test_contract_listing_returns_files_below_contracts_directory(self, tmp_path: Path):
+        from specify_cli.dashboard.handlers import features as features_module
+
+        mission_dir = tmp_path / "kitty-specs" / "001-test-mission"
+        contracts_dir = mission_dir / "contracts"
+        contracts_dir.mkdir(parents=True)
+        (contracts_dir / "api.md").write_text("# API contract\n")
+        (mission_dir / "spec.md").write_text("# Mission specification\n")
+        handler = self._handler(tmp_path)
+
+        with patch.object(
+            features_module,
+            "resolve_feature_planning_dir",
+            return_value=mission_dir,
+        ):
+            features_module.FeatureHandler._handle_artifact_directory(
+                handler,
+                "/api/contracts/001-test-mission",
+                "contracts",
+            )
+
+        handler.send_response.assert_called_once_with(200)
+        response = json.loads(handler.wfile.getvalue())
+        assert response == {
+            "files": [
+                {"name": "api.md", "path": "contracts/api.md", "icon": "📝"},
+            ]
+        }
+
+    def test_contract_endpoint_refuses_file_outside_contracts_directory(self, tmp_path: Path):
+        from specify_cli.dashboard.handlers import features as features_module
+
+        mission_dir = tmp_path / "kitty-specs" / "001-test-mission"
+        contracts_dir = mission_dir / "contracts"
+        contracts_dir.mkdir(parents=True)
+        (mission_dir / "spec.md").write_text("# Mission specification\n")
+        handler = self._handler(tmp_path)
+
+        with patch.object(
+            features_module,
+            "resolve_feature_planning_dir",
+            return_value=mission_dir,
+        ):
+            features_module.FeatureHandler._handle_artifact_directory(
+                handler,
+                "/api/contracts/001-test-mission/spec.md",
+                "contracts",
+            )
+
+        handler.send_response.assert_called_once_with(404)
+        handler.wfile.seek(0)
+        assert handler.wfile.read() == b""
+
+
 class TestDossierEndpointRouting:
     def _make_handler(self, tmp_path, path: str):
         from specify_cli.dashboard.handlers import api as api_module

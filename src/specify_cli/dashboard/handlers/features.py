@@ -315,7 +315,8 @@ class FeatureHandler(DashboardHandler):
         The endpoint accepts ``/api/{directory_name}/{mission}`` for a JSON
         listing and appends one URL-encoded repository-relative path to serve a
         file.  The Mission planning directory is resolved through the canonical
-        planning seam; file requests that escape that directory receive ``404``.
+        planning seam; file requests must remain below the named artifact
+        directory or receive ``404``.
 
         Args:
             path: Request path, including the Mission selector and optional file.
@@ -374,9 +375,10 @@ class FeatureHandler(DashboardHandler):
             file_path_encoded = parts[4]
             file_path_str = urllib.parse.unquote(file_path_encoded)
             artifact_file = (feature_dir / file_path_str).resolve()
+            artifact_dir = (feature_dir / directory_name).resolve()
 
             try:
-                artifact_file.relative_to(feature_dir.resolve())
+                artifact_file.relative_to(artifact_dir)
             except ValueError:
                 self.send_response(404)
                 send_csp_header(self)
