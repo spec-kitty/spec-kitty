@@ -20,7 +20,7 @@ and ``docs/context/testing-taxonomy.md`` under "Fast".
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import pytest
 from typer.testing import CliRunner
@@ -46,27 +46,36 @@ pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]
 
 
 def _make_uv_runtime(
-    tool_dir: Path | None = None,
+    tool_dir: str | None = None,
     is_default_tool_dir: bool = True,
     python: str | None = None,
     platform: str = "posix",
     *,
     requirements: tuple[object, ...] | None = None,
-    bin_dir: Path | None = None,
+    bin_dir: str | None = None,
     is_default_bin_dir: bool = True,
 ) -> object:
     """Return a UV_TOOL InstalledCliRuntime for use in detect_runtime() mocks.
 
     Args:
-        tool_dir: The uv tool directory. Defaults to a sentinel Path when None
-            (only needed if is_default_tool_dir=False).
+        tool_dir: The uv tool directory (raw path text). Defaults to a
+            sentinel path when None (only needed if is_default_tool_dir=False).
         is_default_tool_dir: Whether tool_dir is the default uv tool dir.
         python: Optional python version override from the receipt.
         platform: "posix" or "windows".
         requirements: uv receipt requirement entries (provenance). Defaults to a
             single bare ``spec-kitty-cli`` entry so the reinstall path preserves
             provenance instead of conservatively refusing.
-        bin_dir / is_default_bin_dir: uv tool bin dir provenance.
+        bin_dir / is_default_bin_dir: uv tool bin dir provenance (raw path text).
+
+    Issue #3726: path fields are built with the DECLARED platform's flavor
+    (PurePosixPath / PureWindowsPath), never a host ``Path``. On a Windows
+    host ``Path("/opt/uv-t")`` renders ``\\opt\\uv-t``; the backslash falls
+    outside CHK028's character allowlist (compat/remediation.py), so
+    ``RemediationCommand.render("posix")`` degrades a mocked POSIX runtime
+    to the provenance fallback note instead of the reconstructed uv tool
+    command. Pure flavors pin the path semantics to the declared platform
+    on any host.
     """
     from typing import Literal
 
@@ -77,16 +86,21 @@ def _make_uv_runtime(
         UvRequirement,
     )
 
-    resolved_tool_dir = tool_dir if tool_dir is not None else Path("/home/user/.local/share/uv/tools")
     resolved_platform: Literal["posix", "windows"] = "windows" if platform == "windows" else "posix"
+    path_cls: type[PurePosixPath] | type[PureWindowsPath] = PurePosixPath if resolved_platform == "posix" else PureWindowsPath
+    resolved_tool_dir = path_cls(tool_dir if tool_dir is not None else "/home/user/.local/share/uv/tools")
+    resolved_bin_dir = path_cls(bin_dir if bin_dir is not None else "/home/user/.local/share/uv/bin")
     resolved_reqs: tuple[object, ...] = requirements if requirements is not None else (UvRequirement(name="spec-kitty-cli"),)
 
     return InstalledCliRuntime(
         install_method=InstallMethod.UV_TOOL,
         executable="/home/user/.local/share/uv/tools/spec-kitty-cli/bin/python",
-        receipt_path=resolved_tool_dir / "spec-kitty-cli" / "uv-receipt.toml",
-        tool_dir=resolved_tool_dir,
-        bin_dir=bin_dir if bin_dir is not None else Path("/home/user/.local/share/uv/bin"),
+        # PurePath is the honest fixture type: InstalledCliRuntime's consumers
+        # only None-check / str() these fields (issue #3726), so a pure path
+        # of the declared platform's flavor is safe on any host.
+        receipt_path=resolved_tool_dir / "spec-kitty-cli" / "uv-receipt.toml",  # type: ignore[arg-type]
+        tool_dir=resolved_tool_dir,  # type: ignore[arg-type]
+        bin_dir=resolved_bin_dir,  # type: ignore[arg-type]
         is_default_tool_dir=is_default_tool_dir,
         is_default_bin_dir=is_default_bin_dir,
         python=python,
@@ -396,7 +410,7 @@ def test_uv_tool_remediation_non_default_tool_dir_adds_env_prefix(
     import specify_cli.cli.commands.review as review_mod
 
     # Short path keeps the composed command within CHK028's 128-char ceiling.
-    tool_dir = Path("/opt/uv-tools")
+    tool_dir = "/opt/uv-tools"
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
         lambda: _make_uv_runtime(tool_dir=tool_dir, is_default_tool_dir=False),
@@ -448,7 +462,7 @@ def test_uv_tool_remediation_uses_with_pytest_not_extra_test(
     """
     import specify_cli.cli.commands.review as review_mod
 
-    tool_dir = Path("/opt/uv-t")
+    tool_dir = "/opt/uv-t"
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
         lambda: _make_uv_runtime(tool_dir=tool_dir, is_default_tool_dir=False),
@@ -516,8 +530,8 @@ def test_uv_tool_remediation_preserves_custom_bin_dir(
     """
     import specify_cli.cli.commands.review as review_mod
 
-    tool_dir = Path("/opt/uv-t")
-    bin_dir = Path("/opt/bin")
+    tool_dir = "/opt/uv-t"
+    bin_dir = "/opt/bin"
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
         lambda: _make_uv_runtime(
@@ -542,7 +556,7 @@ def test_uv_tool_remediation_preserves_receipt_python(
     import specify_cli.cli.commands.review as review_mod
 
     # Short path keeps the composed command within CHK028's 128-char ceiling.
-    tool_dir = Path("/opt/uv")
+    tool_dir = "/opt/uv"
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
         lambda: _make_uv_runtime(tool_dir=tool_dir, is_default_tool_dir=False, python="3.13"),
@@ -562,7 +576,7 @@ def test_uv_tool_remediation_uses_powershell_env_prefix_on_windows(
 
     # A path with a space triggers the CHK028 violation in render("windows")
     # because $env:KEY='value with space'; contains chars outside the allowed set.
-    tool_dir = tmp_path / "tool dir"  # has a space
+    tool_dir = str(tmp_path / "tool dir")  # has a space
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
         lambda: _make_uv_runtime(tool_dir=tool_dir, is_default_tool_dir=False, platform="windows"),
@@ -600,7 +614,7 @@ def test_uv_tool_remediation_quotes_specifier_receipt(
     """
     import specify_cli.cli.commands.review as review_mod
 
-    tool_dir = Path("/opt/uv-t")
+    tool_dir = "/opt/uv-t"
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
         lambda: _make_uv_runtime(
@@ -629,6 +643,27 @@ def test_uv_tool_remediation_omits_uv_tool_dir_for_default_tool_dir(
     assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
         "uv tool install --force --with pytest spec-kitty-cli"
     )
+
+
+def test_uv_runtime_fixture_paths_carry_declared_platform_flavor() -> None:
+    """Issue #3726 regression: fixture path fields use the DECLARED platform's flavor.
+
+    On a Windows host a bare host ``Path("/opt/uv-t")`` renders ``\\opt\\uv-t``;
+    the backslash falls outside CHK028's character allowlist, so the mocked
+    POSIX runtime degrades to the provenance fallback note instead of the
+    reconstructed uv tool command. The fixture must therefore build its path
+    fields with the declared platform's PurePath flavor on every host — this
+    guard fails on a Windows host the moment a host-flavored Path sneaks back
+    into the fixture.
+    """
+    posix_runtime = _make_uv_runtime(tool_dir="/opt/uv-t", is_default_tool_dir=False)
+    assert str(posix_runtime.tool_dir) == "/opt/uv-t"
+    assert str(posix_runtime.bin_dir) == "/home/user/.local/share/uv/bin"
+    assert str(posix_runtime.receipt_path) == "/opt/uv-t/spec-kitty-cli/uv-receipt.toml"
+
+    windows_runtime = _make_uv_runtime(tool_dir="C:\\uv-tools", is_default_tool_dir=False, platform="windows")
+    assert str(windows_runtime.tool_dir) == "C:\\uv-tools"
+    assert str(windows_runtime.receipt_path) == "C:\\uv-tools\\spec-kitty-cli\\uv-receipt.toml"
 
 
 # ---------------------------------------------------------------------------

@@ -14,7 +14,7 @@ gates pick these up in the same bucket as the existing review tests).
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import PurePosixPath, PureWindowsPath
 from typing import Literal
 
 import pytest
@@ -30,23 +30,31 @@ pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]
 def _make_runtime(
     install_method_name: str,
     *,
-    tool_dir: Path | None = None,
+    tool_dir: str | None = None,
     is_default_tool_dir: bool | None = True,
     python: str | None = None,
     platform: str = "posix",
-    receipt_path: Path | None = None,
+    receipt_path: str | None = None,
     requirements: tuple[object, ...] = (),
 ) -> object:
     """Construct an InstalledCliRuntime for monkeypatching detect_runtime().
 
     Args:
         install_method_name: enum name, e.g. "UV_TOOL", "PIPX", "UNKNOWN".
-        tool_dir: uv tool directory; only meaningful for UV_TOOL.
+        tool_dir: uv tool directory (raw path text); only meaningful for UV_TOOL.
         is_default_tool_dir: True/False/None depending on install context.
         python: Python version override from receipt (UV_TOOL only).
         platform: "posix" or "windows".
-        receipt_path: Path to the receipt file, or None.
+        receipt_path: receipt file path text, or None.
         requirements: uv receipt requirement entries (provenance).
+
+    Issue #3726: path fields are built with the DECLARED platform's flavor
+    (PurePosixPath / PureWindowsPath), never a host ``Path``. On a Windows
+    host ``Path("/opt/uv")`` renders ``\\opt\\uv``; the backslash falls
+    outside CHK028's character allowlist (compat/remediation.py), so a
+    mocked POSIX runtime degrades to the provenance fallback note instead
+    of the byte-for-byte reinstall snapshot below. Pure flavors pin the
+    path semantics to the declared platform on any host.
     """
     from specify_cli.compat._detect.install_method import (
         InstallMethod,
@@ -58,12 +66,18 @@ def _make_runtime(
     resolved_platform: Literal["posix", "windows"] = (
         "windows" if platform == "windows" else "posix"
     )
+    path_cls: type[PurePosixPath] | type[PureWindowsPath] = (
+        PurePosixPath if resolved_platform == "posix" else PureWindowsPath
+    )
 
     return InstalledCliRuntime(
         install_method=method,
         executable="/usr/local/bin/python",
-        receipt_path=receipt_path,
-        tool_dir=tool_dir,
+        # PurePath is the honest fixture type: InstalledCliRuntime's consumers
+        # only None-check / str() these fields (issue #3726), so a pure path
+        # of the declared platform's flavor is safe on any host.
+        receipt_path=path_cls(receipt_path) if receipt_path is not None else None,  # type: ignore[arg-type]
+        tool_dir=path_cls(tool_dir) if tool_dir is not None else None,  # type: ignore[arg-type]
         bin_dir=None,
         is_default_tool_dir=is_default_tool_dir,
         is_default_bin_dir=None,
@@ -104,13 +118,13 @@ def test_uv_tool_custom_tool_dir_and_python_snapshot(
     """
     import specify_cli.cli.commands.review as review_mod
 
-    tool_dir = Path("/opt/uv")
+    tool_dir = "/opt/uv"
     runtime = _make_runtime(
         "UV_TOOL",
         tool_dir=tool_dir,
         is_default_tool_dir=False,
         python="3.13",
-        receipt_path=tool_dir / "uv-receipt.toml",
+        receipt_path=f"{tool_dir}/uv-receipt.toml",
         requirements=(_spec_kitty_req(specifier="==3.2.0rc25"),),
     )
     monkeypatch.setattr(
@@ -145,7 +159,7 @@ def test_uv_tool_directory_source_not_clobbered(
     runtime = _make_runtime(
         "UV_TOOL",
         is_default_tool_dir=True,
-        receipt_path=Path("/t/uv-receipt.toml"),
+        receipt_path="/t/uv-receipt.toml",
         requirements=(_spec_kitty_req(directory="/src"),),
     )
     monkeypatch.setattr(
@@ -228,13 +242,13 @@ def test_windows_non_default_tool_dir_chk028_fallback(
     """
     import specify_cli.cli.commands.review as review_mod
 
-    tool_dir = Path("/opt/uv")
+    tool_dir = "/opt/uv"
     runtime = _make_runtime(
         "UV_TOOL",
         tool_dir=tool_dir,
         is_default_tool_dir=False,
         platform="windows",
-        receipt_path=tool_dir / "uv-receipt.toml",
+        receipt_path=f"{tool_dir}/uv-receipt.toml",
         requirements=(_spec_kitty_req(specifier="==3.2.0rc25"),),
     )
     monkeypatch.setattr(
@@ -243,8 +257,8 @@ def test_windows_non_default_tool_dir_chk028_fallback(
     )
 
     result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
-    # render("windows") raises ValueError (CHK028): $env:UV_TOOL_DIR='/opt/uv';
-    # contains $, ', ; which are outside the CHK028 character class.
+    # render("windows") raises ValueError (CHK028): $env:UV_TOOL_DIR='\opt\uv';
+    # contains $, ', ; (and \) which are outside the CHK028 character class.
     # -> fallback to cmd.note, which carries the safe provenance guidance.
     assert "could not preserve uv receipt provenance" in result
 
@@ -268,7 +282,7 @@ def test_windows_default_tool_dir_renders_successfully(
         "UV_TOOL",
         is_default_tool_dir=True,
         platform="windows",
-        receipt_path=Path("/t/uv-receipt.toml"),
+        receipt_path="/t/uv-receipt.toml",
         requirements=(_spec_kitty_req(specifier="==3.2.0rc25"),),
     )
     monkeypatch.setattr(
