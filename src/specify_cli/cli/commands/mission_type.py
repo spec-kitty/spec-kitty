@@ -1017,6 +1017,7 @@ def _teardown_coordination_worktree(
     # with completion provenance.
     from specify_cli.coordination.teardown import teardown_coordination_topology
     from specify_cli.coordination.workspace import CoordinationWorkspace
+    from specify_cli.lanes.branch_naming import coord_mission_dir_name
 
     teardown_coordination_topology(
         repo_root, mission_slug, mid8_value, provenance_kind=provenance_kind
@@ -1027,9 +1028,12 @@ def _teardown_coordination_worktree(
             "present after teardown; manual cleanup may be required."
         )
     else:
+        # The slug read from the feature dir already embeds the mid8, so name
+        # the identity through the seam's idempotent composer instead of
+        # appending the mid8 a second time (#4163).
         console.print(
             f"[green]✓[/green] Coordination worktree torn down for "
-            f"{mission_slug}-{mid8_value}"
+            f"{coord_mission_dir_name(mission_slug, mid8=mid8_value)}"
         )
 
 
