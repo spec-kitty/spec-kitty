@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#2519": {
+      "evidence_ref": "Parent epic; stays open \u2014 mission delivers children #4239/#4240",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4185": {
+      "evidence_ref": "Provenance reference in spec.md: already-landed issue; this mission handles its deferred robustness items",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4194": {
+      "evidence_ref": "Provenance reference in spec.md: already-landed issue; this mission handles its deferred robustness items",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4239": {
+      "evidence_ref": "WP01 approved (reviewer-renata); memoization landed, tests green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4240": {
+      "evidence_ref": "WP02 approved (reviewer-renata); warning landed, tests green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}
