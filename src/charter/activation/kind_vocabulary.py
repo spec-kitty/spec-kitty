@@ -296,24 +296,59 @@ def _layer_scan_dirs(kind: ArtifactKind, layer_roots: dict[str, Path] | None) ->
     return dirs
 
 
+#: A resolution-pass-scoped memo of `_iter_artifact_paths` results, keyed on
+#: its resolved inputs. Callers that perform several scans within a single
+#: logical resolution (e.g. `resolve_config_id`'s per-stem directive
+#: round-trip) create one of these and thread it through every nested scan
+#: call so each distinct layer set is walked at most once per pass (FR-001).
+#: The memo is never module-level or persisted across calls -- a caller
+#: that omits it (the default) gets the old unmemoized behaviour, and a
+#: fresh pass (a new dict) always re-scans, so a later resolution after an
+#: on-disk change is unaffected (FR-002; no invalidation logic is needed
+#: because nothing outlives its own pass).
+_ScanCache = dict[tuple[object, ...], list[Path]]
+
+
+def _scan_cache_key(
+    kind: ArtifactKind,
+    doctrine_root: Path,
+    org_roots: list[Path] | None,
+    layer_roots: dict[str, Path] | None,
+) -> tuple[object, ...]:
+    """Return a hashable key identifying one `_iter_artifact_paths` input set."""
+    org_key = tuple(org_roots) if org_roots else ()
+    layer_key = tuple(sorted((layer_roots or {}).items()))
+    return (kind, doctrine_root, org_key, layer_key)
+
+
 def _iter_artifact_paths(
     kind: ArtifactKind,
     *,
     doctrine_root: Path,
     org_roots: list[Path] | None,
     layer_roots: dict[str, Path] | None,
+    _scan_cache: _ScanCache | None = None,
 ) -> list[Path]:
+    cache_key = None
+    if _scan_cache is not None:
+        cache_key = _scan_cache_key(kind, doctrine_root, org_roots, layer_roots)
+        cached = _scan_cache.get(cache_key)
+        if cached is not None:
+            return cached
     pattern = kind.glob_pattern
     if not pattern:
-        return []
-    paths: list[Path] = []
-    for scan_dir, recursive in _scan_roots(
-        kind,
-        _doctrine_root=doctrine_root,
-        org_roots=org_roots,
-        layer_roots=layer_roots,
-    ):
-        paths.extend(sorted(_scan_dir_matches(scan_dir, pattern, recursive=recursive)))
+        paths: list[Path] = []
+    else:
+        paths = []
+        for scan_dir, recursive in _scan_roots(
+            kind,
+            _doctrine_root=doctrine_root,
+            org_roots=org_roots,
+            layer_roots=layer_roots,
+        ):
+            paths.extend(sorted(_scan_dir_matches(scan_dir, pattern, recursive=recursive)))
+    if _scan_cache is not None and cache_key is not None:
+        _scan_cache[cache_key] = paths
     return paths
 
 
@@ -362,6 +397,7 @@ def resolve_artifact_urn(
     doctrine_root: Path,
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
+    _scan_cache: _ScanCache | None = None,
 ) -> str:
     """Resolve a config/file-stem ID to its DRG URN node ID.
 
@@ -393,6 +429,7 @@ def resolve_artifact_urn(
         doctrine_root=doctrine_root,
         org_roots=org_roots,
         layer_roots=layer_roots,
+        _scan_cache=_scan_cache,
     ):
         if _config_stem(path) == config_id:
             artifact_id = _read_id(path, id_field, yaml)
@@ -408,6 +445,7 @@ def resolve_artifact_urn(
                 doctrine_root=doctrine_root,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
+                _scan_cache=_scan_cache,
             )
             return f"{kind.value}:{config_id}"
         except ValueError:
@@ -473,6 +511,7 @@ def resolve_config_id(
     doctrine_root: Path,
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
+    _scan_cache: _ScanCache | None = None,
 ) -> str:
     """Resolve a DRG URN node ID back to its config/file-stem ID.
 
@@ -507,11 +546,20 @@ def resolve_config_id(
 
     yaml = YAML(typ="safe")
     id_field = _id_field_for(kind)
+    # A fresh, pass-scoped memo (unless the caller is itself part of a larger
+    # pass and threaded one in): every `_iter_artifact_paths` call this
+    # resolution makes -- the initial scan below and each per-stem
+    # round-trip check further down -- shares it, so each distinct layer set
+    # is walked at most once for the whole call (FR-001). The memo is
+    # discarded when this call returns, so it can never make a *later*,
+    # independent resolution observe stale content (FR-002).
+    scan_cache: _ScanCache = _scan_cache if _scan_cache is not None else {}
     paths = _iter_artifact_paths(
         kind,
         doctrine_root=doctrine_root,
         org_roots=org_roots,
         layer_roots=layer_roots,
+        _scan_cache=scan_cache,
     )
     # `_iter_artifact_paths` already returns the authoritative highest-to-lowest
     # layer precedence order (project, then org packs last-declared-first, then
@@ -534,6 +582,7 @@ def resolve_config_id(
                         doctrine_root=doctrine_root,
                         org_roots=org_roots,
                         layer_roots=layer_roots,
+                        _scan_cache=scan_cache,
                     )
                     != urn
                 ):
