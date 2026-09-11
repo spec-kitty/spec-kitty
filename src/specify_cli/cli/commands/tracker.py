@@ -497,11 +497,16 @@ def discover_command(
     _check_readiness(require_mission_binding=False, probe_reachability=False)
     normalized = normalize_provider(provider)
 
-    try:
-        resources = _service().discover(provider=normalized)
-    except TrackerServiceError as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(1) from exc
+    # Route the service call through the shared ``_run_or_exit`` helper, which
+    # catches the ``RuntimeError`` family (both ``TrackerServiceError`` and its
+    # sibling ``SaaSTrackerClientError`` derive from ``RuntimeError``). Every
+    # other tracker command already renders errors this way; ``discover`` alone
+    # hand-rolled a narrow ``except TrackerServiceError`` that let a SaaS non-2xx
+    # (``SaaSTrackerClientError`` on 403/404/429/5xx) escape as an uncaught
+    # exception, leaking a raw Rich traceback with internal module paths
+    # (issue #4233). Reusing the helper closes the class rather than enumerating
+    # one sibling at a time.
+    resources = _run_or_exit(lambda: _service().discover(provider=normalized))
 
     if not resources:
         typer.echo(f"No bindable resources found for provider '{normalized}'.")

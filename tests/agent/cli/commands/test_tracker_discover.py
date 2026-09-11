@@ -16,6 +16,7 @@ from typer.testing import CliRunner
 
 from specify_cli.tracker.saas_readiness import ReadinessResult, ReadinessState
 from specify_cli.tracker.discovery import BindableResource
+from specify_cli.tracker.saas_client import SaaSTrackerClientError
 from specify_cli.tracker.service import TrackerServiceError
 
 pytestmark = pytest.mark.fast
@@ -177,6 +178,51 @@ def test_discover_service_error(mock_service_fn, monkeypatch) -> None:
     result = runner.invoke(app, ["discover", "--provider", "linear"])
     assert result.exit_code == 1
     assert "Connection refused" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Issue #4233: a SaaS non-2xx (403/404/429/5xx) is raised as
+# ``SaaSTrackerClientError`` — a *sibling* of ``TrackerServiceError`` (both
+# derive from ``RuntimeError``, neither from the other). The command must
+# render it as a clean CLI error, never leak an uncaught traceback that
+# exposes internal module paths.
+# ---------------------------------------------------------------------------
+
+
+@patch("specify_cli.cli.commands.tracker._service")
+def test_discover_saas_client_error_renders_clean(mock_service_fn, monkeypatch) -> None:
+    """A SaaS 403 becomes a one-line CLI error + Exit(1), not a raw traceback."""
+    app = _make_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_svc.discover.side_effect = SaaSTrackerClientError("HTTP 403")
+    mock_service_fn.return_value = mock_svc
+
+    result = runner.invoke(app, ["discover", "--provider", "linear"])
+
+    assert result.exit_code == 1
+    # The failure must be surfaced as rendered CLI output, not swallowed.
+    assert "HTTP 403" in result.output
+    # And it must be a handled exit, NOT the raw client error propagating out
+    # (which is what leaks the Rich traceback with internal module paths).
+    assert not isinstance(result.exception, SaaSTrackerClientError), (
+        "SaaSTrackerClientError propagated uncaught out of discover — the operator would see a raw traceback"
+    )
+    assert "Traceback (most recent call last)" not in result.output
+
+
+@patch("specify_cli.cli.commands.tracker._service")
+def test_discover_saas_client_error_json(mock_service_fn, monkeypatch) -> None:
+    """The SaaS-error clean path also holds under ``--json``."""
+    app = _make_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_svc.discover.side_effect = SaaSTrackerClientError("HTTP 429")
+    mock_service_fn.return_value = mock_svc
+
+    result = runner.invoke(app, ["discover", "--provider", "linear", "--json"])
+
+    assert result.exit_code == 1
+    assert "HTTP 429" in result.output
+    assert not isinstance(result.exception, SaaSTrackerClientError)
 
 
 # ---------------------------------------------------------------------------
