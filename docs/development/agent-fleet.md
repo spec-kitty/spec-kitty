@@ -1,6 +1,6 @@
 ---
 title: The SkyKitty Agent Fleet
-description: 'SkyKitty is the company agent fleet that executes Spec Kitty missions under an operator who stays human-in-command: who is in the fleet, the roles they play, and the ready-for-squad label handshake that hands work from an implementer to the review squad and CI.'
+description: 'SkyKitty, the Spec Kitty company agent fleet: its roles and the ready-for-squad handshake that hands a PR from the implementer to the review squad and CI.'
 doc_status: active
 updated: '2026-09-11'
 audience: docs/context/audience/internal/maintainer.md

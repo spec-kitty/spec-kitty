@@ -6907,7 +6907,7 @@ pages:
   - path: "docs/development/agent-fleet.md"
     title: "The SkyKitty Agent Fleet"
     divio_type: "explanation"
-    abstract: "SkyKitty is the company agent fleet that executes Spec Kitty missions under an operator who stays human-in-command: who is in the fleet, the roles they play, and the ready-for-squad label handshake that hands work from an implementer to the review squad and CI."
+    abstract: "SkyKitty, the Spec Kitty company agent fleet: its roles and the ready-for-squad handshake that hands a PR from the implementer to the review squad and CI."
     anchors:
     - {slug: "skykitty-is-the-fleet-spec-kitty-is-the-toolkit", text: "SkyKitty is the fleet; Spec Kitty is the toolkit", level: 2}
     - {slug: "roles-in-the-fleet", text: "Roles in the fleet", level: 2}
