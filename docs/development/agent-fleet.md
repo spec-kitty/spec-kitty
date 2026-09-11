@@ -17,10 +17,11 @@ related:
 
 **SkyKitty** is the proper name of the Spec Kitty **company agent fleet** — the set of
 governed AI agents that execute missions on this repository under an **operator** who
-stays human-in-command. The charter's [Collaboration Strategy](../../.kittify/charter/charter.md)
-already governs how the operator and the fleet divide the work; this page names the fleet,
-enumerates the roles inside it, and documents the tracker signals — chiefly the
-`ready-for-squad` label — through which those roles hand work to one another.
+stays human-in-command. The charter's Collaboration Strategy already governs how the
+operator and the fleet divide the work (see the [charter overview](../context/charter-overview.md));
+this page names the fleet, enumerates the roles inside it, and documents the tracker
+signals — chiefly the `ready-for-squad` label — through which those roles hand work to one
+another.
 
 ## SkyKitty is the fleet; Spec Kitty is the toolkit
 
@@ -31,6 +32,10 @@ Keep the two terms distinct:
 - **SkyKitty** is the **fleet of agents that operate *with* Spec Kitty** — the crew the
   operator dispatches to run those missions. The charter's shorthand for the same thing is
   "the fleet" / "fleet agents"; **SkyKitty** is that fleet's proper name.
+- **Team Kitty** is a third, unrelated Kitty-branded noun: the **hosted SaaS product**
+  (CLI → Zeitgeist relay → Team Kitty Pulse projection). It is neither the toolkit nor the
+  fleet — see [Team Kitty and Zeitgeist](../context/team-kitty.md). The tool-vs-agent split
+  behind these names is the [tool-vs-agent naming decision](../context/naming-decision-tool-vs-agent.md).
 
 The operator is not part of the fleet. SkyKitty executes; the operator commands, sets
 scope, and performs the mainline merge (see [Roles](#roles-in-the-fleet)).
@@ -53,10 +58,13 @@ are held by different agents.
 
 Two invariants bind every role:
 
-- **Implementers never merge.** The fleet owns CI, squad review, and the merge mechanics;
-  the **operator, not an agent, performs the mainline merge** (directive
-  `045-prs-only-and-read-intent`). `spec-kitty merge` consolidates lanes into **local**
-  `main` only — it never publishes to origin.
+- **Implementers never merge — agent consolidates, operator publishes.** The overloaded
+  term `merge` has three senses (see the
+  [orchestration glossary](../context/orchestration.md#lane-consolidation)); keep them
+  apart here. The fleet owns CI, squad review, and the merge *mechanics* — the merge agent
+  runs **lane consolidation** (`spec-kitty merge` → **local** `main` only, never origin).
+  The **operator, not an agent, performs the mainline merge** — in the glossary's terms the
+  **publish to origin/`main`** (directive `045-prs-only-and-read-intent`).
 - **Reviewer ≠ implementer.** Squad review is independent of the agent that wrote the code.
 
 For the mechanics of how a governed profile is dispatched, its doctrine context injected,
