@@ -60,10 +60,7 @@ def _scan_path_tokens(destination: Path) -> SubstituteError | None:
     more = f" (+{len(offenders) - 5} more)" if len(offenders) > 5 else ""
     return SubstituteError(
         rule_id=RULE_PATH_TOKEN,
-        message=(
-            f"Template path tokens are not allowed ({RULE_PATH_TOKEN}) in: "
-            f"{sample}{more}"
-        ),
+        message=(f"Template path tokens are not allowed ({RULE_PATH_TOKEN}) in: {sample}{more}"),
     )
 
 
@@ -72,16 +69,12 @@ def _substitute_file(path: Path, org_name: str, local_path: str) -> SubstituteEr
         text = path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
         return None
-    replaced = text.replace(ORG_NAME_PLACEHOLDER, org_name).replace(
-        LOCAL_PATH_PLACEHOLDER, local_path
-    )
+    replaced = text.replace(ORG_NAME_PLACEHOLDER, org_name).replace(LOCAL_PATH_PLACEHOLDER, local_path)
     if ORG_NAME_PLACEHOLDER in replaced or LOCAL_PATH_PLACEHOLDER in replaced:
         rel = path.name
         return SubstituteError(
             rule_id=RULE_LEFTOVER_TOKENS,
-            message=(
-                f"Unfilled template tokens remain ({RULE_LEFTOVER_TOKENS}) in: {rel}"
-            ),
+            message=(f"Unfilled template tokens remain ({RULE_LEFTOVER_TOKENS}) in: {rel}"),
         )
     if replaced != text:
         path.write_text(replaced, encoding="utf-8")

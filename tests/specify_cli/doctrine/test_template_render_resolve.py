@@ -52,15 +52,10 @@ def test_parse_ssh_url_with_fragment() -> None:
 
 def test_parse_ssh_url_at_ref_preserves_git_userinfo_and_slash_branch() -> None:
     """ssh:// with git@ userinfo and feat/... branch via @ref."""
-    template = (
-        "ssh://git@git.example.com:7999/org/doctrine-template.git"
-        "@feat/make-embeddable-template"
-    )
+    template = "ssh://git@git.example.com:7999/org/doctrine-template.git@feat/make-embeddable-template"
     parsed = parse_template_ref(template)
     assert parsed.kind == "git"
-    assert parsed.location == (
-        "ssh://git@git.example.com:7999/org/doctrine-template.git"
-    )
+    assert parsed.location == ("ssh://git@git.example.com:7999/org/doctrine-template.git")
     assert parsed.encoded_ref == "feat/make-embeddable-template"
 
 
@@ -71,9 +66,7 @@ def test_parse_bare_ssh_url_preserves_userinfo_without_inventing_ref() -> None:
 
 
 def test_parse_https_at_ref_allows_slash_in_branch() -> None:
-    parsed = parse_template_ref(
-        "https://github.com/org/repo.git@feat/make-embeddable-template"
-    )
+    parsed = parse_template_ref("https://github.com/org/repo.git@feat/make-embeddable-template")
     assert parsed.kind == "git"
     assert parsed.location == "https://github.com/org/repo.git"
     assert parsed.encoded_ref == "feat/make-embeddable-template"
@@ -122,9 +115,7 @@ def test_resolve_local_folder_template_tree(tmp_path: Path) -> None:
     """Local TEMPLATE is a real directory tree (operator local-folder path)."""
     root = tmp_path / "doctrine-template"
     (root / "pack").mkdir(parents=True)
-    (root / "pack" / "org-charter.yaml").write_text(
-        'org_name: "{{ORG_NAME}}"\n', encoding="utf-8"
-    )
+    (root / "pack" / "org-charter.yaml").write_text('org_name: "{{ORG_NAME}}"\n', encoding="utf-8")
     (root / ".templateignore").write_text(".git/\n", encoding="utf-8")
     (root / ".git").mkdir()
     (root / ".git" / "HEAD").write_text("ref\n", encoding="utf-8")
@@ -185,10 +176,7 @@ def test_resolve_git_uses_factory(tmp_path: Path) -> None:
 def test_resolve_ssh_url_at_ref_branch(tmp_path: Path) -> None:
     """ssh://git@…@feat/… splits URL vs ref and passes both to GitSource."""
     calls: dict[str, Any] = {}
-    template = (
-        "ssh://git@git.example.com:7999/org/doctrine-template.git"
-        "@feat/make-embeddable-template"
-    )
+    template = "ssh://git@git.example.com:7999/org/doctrine-template.git@feat/make-embeddable-template"
 
     class FakeGitSource:
         def __init__(
@@ -219,18 +207,14 @@ def test_resolve_ssh_url_at_ref_branch(tmp_path: Path) -> None:
     assert source is not None
     assert source.kind == "git"
     assert source.ref == "feat/make-embeddable-template"
-    assert calls["url"] == (
-        "ssh://git@git.example.com:7999/org/doctrine-template.git"
-    )
+    assert calls["url"] == ("ssh://git@git.example.com:7999/org/doctrine-template.git")
     assert calls["ref"] == "feat/make-embeddable-template"
     assert calls["inject_token"] is False
     assert (source.root / "pack" / "org-charter.yaml").is_file()
     shutil.rmtree(source.root, ignore_errors=True)
 
 
-def test_resolve_git_fetch_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_resolve_git_fetch_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     clone_dir = tmp_path / "failed-clone"
     clone_dir.mkdir()
     monkeypatch.setattr(
@@ -283,9 +267,7 @@ def test_resolve_rejects_git_scheme() -> None:
 
 
 def test_resolve_rejects_https_userinfo_without_echoing_secret() -> None:
-    source, err = resolve_template_source(
-        "https://alice:s3cr3t@example.com/org/repo.git@main"
-    )
+    source, err = resolve_template_source("https://alice:s3cr3t@example.com/org/repo.git@main")
     assert source is None
     assert err is not None
     assert err.rule_id == "template.userinfo_rejected"

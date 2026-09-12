@@ -79,9 +79,7 @@ def _pattern_matches(pattern: str, rel: str) -> bool:
         base = pat.rstrip("/")
         if rel == base or rel.startswith(base + "/"):
             return True
-        return fnmatch.fnmatch(rel, pat.rstrip("/")) or fnmatch.fnmatch(
-            rel, pat + "*"
-        )
+        return fnmatch.fnmatch(rel, pat.rstrip("/")) or fnmatch.fnmatch(rel, pat + "*")
     if fnmatch.fnmatch(rel, pat):
         return True
     # Match basename-only patterns (e.g. ``*.pyc``)

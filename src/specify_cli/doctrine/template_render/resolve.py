@@ -129,10 +129,7 @@ def merge_branch_refs(
     if opt is not None and enc is not None and opt != enc:
         return None, ResolveError(
             rule_id=RULE_BRANCH_CONFLICT,
-            message=(
-                f"Conflicting git refs ({RULE_BRANCH_CONFLICT}): "
-                f"--branch={opt!r} vs TEMPLATE-encoded={enc!r}"
-            ),
+            message=(f"Conflicting git refs ({RULE_BRANCH_CONFLICT}): --branch={opt!r} vs TEMPLATE-encoded={enc!r}"),
         )
     return opt or enc, None
 
@@ -151,10 +148,7 @@ def resolve_template_source(
     if _https_authority_has_userinfo(template):
         return None, ResolveError(
             rule_id=RULE_TEMPLATE_USERINFO_REJECTED,
-            message=(
-                "TEMPLATE HTTPS URLs must not contain credentials "
-                f"({RULE_TEMPLATE_USERINFO_REJECTED}); use SSH or a credential helper"
-            ),
+            message=(f"TEMPLATE HTTPS URLs must not contain credentials ({RULE_TEMPLATE_USERINFO_REJECTED}); use SSH or a credential helper"),
         )
 
     parsed = parse_template_ref(template)
@@ -166,9 +160,7 @@ def resolve_template_source(
         return None, ResolveError(
             rule_id=RULE_TEMPLATE_SCHEME_REJECTED,
             message=(
-                f"TEMPLATE scheme rejected ({RULE_TEMPLATE_SCHEME_REJECTED}): "
-                f"only https://, ssh://, git@, and local paths are allowed "
-                f"(got {parsed.location!r})"
+                f"TEMPLATE scheme rejected ({RULE_TEMPLATE_SCHEME_REJECTED}): only https://, ssh://, git@, and local paths are allowed (got {parsed.location!r})"
             ),
         )
 
@@ -219,9 +211,7 @@ def _resolve_local(
     if not root.is_dir():
         return None, ResolveError(
             rule_id=RULE_TEMPLATE_NOT_DIR,
-            message=(
-                f"TEMPLATE path is not a directory ({RULE_TEMPLATE_NOT_DIR}): {root}"
-            ),
+            message=(f"TEMPLATE path is not a directory ({RULE_TEMPLATE_NOT_DIR}): {root}"),
         )
     return (
         ResolvedTemplateSource(kind="local", root=root, ref=None, cleanup=False),

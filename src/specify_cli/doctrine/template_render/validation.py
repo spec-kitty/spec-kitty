@@ -48,20 +48,17 @@ def validate_org_name(value: str) -> ValidationResult:
     if not (ORG_NAME_MIN_LEN <= len(value) <= ORG_NAME_MAX_LEN):
         return _fail(
             RULE_ORG_LENGTH,
-            f"ORG_NAME length must be {ORG_NAME_MIN_LEN}-{ORG_NAME_MAX_LEN} "
-            f"({RULE_ORG_LENGTH}): {value!r} (len={len(value)})",
+            f"ORG_NAME length must be {ORG_NAME_MIN_LEN}-{ORG_NAME_MAX_LEN} ({RULE_ORG_LENGTH}): {value!r} (len={len(value)})",
         )
     if value.casefold() == RESERVED_ORG_NAME:
         return _fail(
             RULE_ORG_RESERVED,
-            f"ORG_NAME must not equal reserved base pack name "
-            f"{RESERVED_ORG_NAME!r} ({RULE_ORG_RESERVED}): {value!r}",
+            f"ORG_NAME must not equal reserved base pack name {RESERVED_ORG_NAME!r} ({RULE_ORG_RESERVED}): {value!r}",
         )
     if ORG_NAME_PATTERN.fullmatch(value) is None:
         return _fail(
             RULE_ORG_FORMAT,
-            f"ORG_NAME must be lowercase kebab-case "
-            f"({RULE_ORG_FORMAT}): {value!r}",
+            f"ORG_NAME must be lowercase kebab-case ({RULE_ORG_FORMAT}): {value!r}",
         )
     return _ok()
 

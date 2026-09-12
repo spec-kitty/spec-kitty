@@ -73,9 +73,7 @@ def render_org_pack(request: RenderRequest) -> PipelineError | None:
     if source is None:
         return PipelineError(
             rule_id=RULE_SOURCE_MISSING,
-            message=(
-                f"TEMPLATE resolve returned no source ({RULE_SOURCE_MISSING})"
-            ),
+            message=(f"TEMPLATE resolve returned no source ({RULE_SOURCE_MISSING})"),
         )
 
     pack_path = Path(request.pack_path)
@@ -111,26 +109,18 @@ def _check_destination(pack_path: Path, *, force: bool) -> PipelineError | None:
     if pack_path.exists() and not force:
         return PipelineError(
             rule_id=RULE_DEST_EXISTS,
-            message=(
-                f"Target directory already exists ({RULE_DEST_EXISTS}): {pack_path}. "
-                "Pass --force to overwrite."
-            ),
+            message=(f"Target directory already exists ({RULE_DEST_EXISTS}): {pack_path}. Pass --force to overwrite."),
         )
     return None
 
 
-def _install_staging(
-    staging: Path, pack_path: Path, *, force: bool
-) -> PipelineError | None:
+def _install_staging(staging: Path, pack_path: Path, *, force: bool) -> PipelineError | None:
     """Move staging into pack_path; on --force use move-aside-then-swap."""
     if pack_path.exists():
         if not force:
             return PipelineError(
                 rule_id=RULE_INSTALL_EXISTS,
-                message=(
-                    f"destination exists without force ({RULE_INSTALL_EXISTS}): "
-                    f"{pack_path}"
-                ),
+                message=(f"destination exists without force ({RULE_INSTALL_EXISTS}): {pack_path}"),
             )
         return _force_swap(staging, pack_path)
 

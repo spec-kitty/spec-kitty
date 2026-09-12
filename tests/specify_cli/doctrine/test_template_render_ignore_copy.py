@@ -24,8 +24,7 @@ def _write_tree(root: Path) -> None:
     (root / ".git").mkdir()
     (root / ".git" / "config").write_text("gitdir\n", encoding="utf-8")
     (root / ".templateignore").write_text(
-        "# Spec Kitty Template Renderer ignores these items\n"
-        "kitty-specs/\n",
+        "# Spec Kitty Template Renderer ignores these items\nkitty-specs/\n",
         encoding="utf-8",
     )
 
