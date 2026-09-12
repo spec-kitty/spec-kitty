@@ -46,6 +46,15 @@ def _require_project_path(project_dir: str | None) -> Path:
     return Path(project_dir).resolve()
 
 
+def _artifact_path_is_contained(path: Path, mission_dir: Path, artifact_dir: Path) -> bool:
+    """Require both boundaries, including when the artifact root is a symlink."""
+    try:
+        resolved = path.resolve()
+        return resolved.is_relative_to(mission_dir.resolve()) and resolved.is_relative_to(artifact_dir.resolve())
+    except (OSError, RuntimeError):
+        return False
+
+
 def _string_field(mapping: dict[str, object], key: str, default: str = "") -> str:
     value = mapping.get(key, default)
     return value if isinstance(value, str) else str(value)
@@ -345,9 +354,9 @@ class FeatureHandler(DashboardHandler):
 
             if feature_dir:
                 artifact_dir = feature_dir / directory_name
-                if artifact_dir.exists() and artifact_dir.is_dir():
+                if _artifact_path_is_contained(artifact_dir, feature_dir, artifact_dir) and artifact_dir.is_dir():
                     for file_path in sorted(artifact_dir.rglob("*")):
-                        if file_path.is_file():
+                        if file_path.is_file() and _artifact_path_is_contained(file_path, feature_dir, artifact_dir):
                             relative_path = str(file_path.relative_to(feature_dir))
                             icon = "📄"
                             if file_path.suffix == ".md":
@@ -377,9 +386,7 @@ class FeatureHandler(DashboardHandler):
             artifact_file = (feature_dir / file_path_str).resolve()
             artifact_dir = (feature_dir / directory_name).resolve()
 
-            try:
-                artifact_file.relative_to(artifact_dir)
-            except ValueError:
+            if not _artifact_path_is_contained(artifact_file, feature_dir, artifact_dir):
                 self.send_response(404)
                 send_csp_header(self)
                 self.end_headers()
