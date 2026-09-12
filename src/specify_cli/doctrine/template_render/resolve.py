@@ -119,6 +119,9 @@ def merge_branch_refs(
 
     Returns ``(effective_ref, error)``. Error is set on conflict.
     """
+    for raw_ref in (encoded_ref, branch_option):
+        if raw_ref is not None and (raw_ref.lstrip().startswith("-") or any(ord(char) < 32 or ord(char) == 127 for char in raw_ref)):
+            return None, ResolveError("branch.invalid", "Git ref must not be an option or contain control characters (branch.invalid).")
     opt = branch_option.strip() if branch_option else None
     if opt == "":
         opt = None
@@ -151,12 +154,16 @@ def resolve_template_source(
             message=(f"TEMPLATE HTTPS URLs must not contain credentials ({RULE_TEMPLATE_USERINFO_REJECTED}); use SSH or a credential helper"),
         )
 
-    parsed = parse_template_ref(template)
+    try:
+        parsed = parse_template_ref(template)
+        rejected_scheme = _is_rejected_scheme(parsed.location)
+    except ValueError:
+        return None, ResolveError("template.invalid", "Malformed template location (template.invalid).")
     effective_ref, conflict = merge_branch_refs(parsed.encoded_ref, branch)
     if conflict is not None:
         return None, conflict
 
-    if _is_rejected_scheme(parsed.location):
+    if rejected_scheme:
         return None, ResolveError(
             rule_id=RULE_TEMPLATE_SCHEME_REJECTED,
             message=(
@@ -182,9 +189,9 @@ def _is_rejected_scheme(location: str) -> bool:
 def _https_authority_has_userinfo(template: str) -> bool:
     """Reject userinfo without echoing or misparsing credential material."""
     stripped = template.strip()
-    if not stripped.startswith("https://"):
+    if not stripped.lower().startswith("https://"):
         return False
-    authority = stripped.removeprefix("https://").split("/", 1)[0]
+    authority = stripped[len("https://") :].split("/", 1)[0]
     return "@" in authority
 
 
@@ -226,8 +233,15 @@ def _resolve_git(
 ) -> tuple[ResolvedTemplateSource | None, ResolveError | None]:
     target = Path(tempfile.mkdtemp(prefix="spec-kitty-template-"))
     # Never inject GIT_TOKEN into arbitrary --template remotes (FR-001).
-    source = factory(url=url, ref=ref, inject_token=False)
-    result = source.fetch(target)
+    try:
+        source = factory(url=url, ref=ref, inject_token=False)
+        result = source.fetch(target)
+    except OSError as exc:
+        shutil.rmtree(target, ignore_errors=True)
+        return None, ResolveError(
+            rule_id=RULE_TEMPLATE_GIT_FETCH,
+            message=f"TEMPLATE git resolve failed ({RULE_TEMPLATE_GIT_FETCH}): {exc.strerror or 'Git execution failed'}",
+        )
     if not result.ok:
         detail = "; ".join(result.errors) if result.errors else "git fetch failed"
         shutil.rmtree(target, ignore_errors=True)

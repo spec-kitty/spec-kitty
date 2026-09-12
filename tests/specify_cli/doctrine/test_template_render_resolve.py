@@ -94,6 +94,44 @@ def test_merge_branch_equal_dual_ok() -> None:
     assert ref == "main"
 
 
+@pytest.mark.parametrize("ref", ["--orphan=new", "-b", "main\x00", "main\nother"])
+def test_rejects_git_options_and_control_characters_as_refs(ref: str) -> None:
+    resolved, error = merge_branch_refs(None, ref)
+    assert resolved is None
+    assert error is not None and error.rule_id == "branch.invalid"
+
+
+def test_rejects_uppercase_https_userinfo_without_echoing_credentials() -> None:
+    source, error = resolve_template_source("HTTPS://user:review-secret@example.test/pack.git")
+    assert source is None
+    assert error is not None and error.rule_id == "template.userinfo_rejected"
+    assert "review-secret" not in error.message
+
+
+def test_malformed_url_is_a_clean_resolution_error() -> None:
+    source, error = resolve_template_source("https://[invalid/pack.git")
+    assert source is None
+    assert error is not None and error.rule_id == "template.invalid"
+
+
+def test_git_execution_failure_cleans_temporary_clone() -> None:
+    targets: list[Path] = []
+
+    class MissingGit:
+        def __init__(self, url: str, ref: str | None = None, *, inject_token: bool = True) -> None:
+            pass
+
+        def fetch(self, target_dir: Path) -> FetchResult:
+            targets.append(target_dir)
+            (target_dir / "partial.txt").write_text("incomplete clone")
+            raise FileNotFoundError(2, "No such file or directory", "git")
+
+    source, error = resolve_template_source("https://example.test/pack.git", git_source_factory=MissingGit)
+    assert source is None
+    assert error is not None and error.rule_id == RULE_TEMPLATE_GIT_FETCH
+    assert len(targets) == 1 and not targets[0].exists()
+
+
 def test_merge_branch_option_only() -> None:
     ref, err = merge_branch_refs(None, "feature")
     assert err is None

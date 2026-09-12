@@ -76,14 +76,21 @@ def render_org_pack(request: RenderRequest) -> PipelineError | None:
             message=(f"TEMPLATE resolve returned no source ({RULE_SOURCE_MISSING})"),
         )
 
-    pack_path = Path(request.pack_path)
+    pack_path = Path(request.pack_path).absolute()
     exists_err = _check_destination(pack_path, force=request.force)
     if exists_err is not None:
         _cleanup_source(source.root, source.cleanup)
         return exists_err
+    if pack_path.resolve().is_relative_to(source.root) or source.root.is_relative_to(pack_path.resolve()):
+        _cleanup_source(source.root, source.cleanup)
+        return PipelineError("pack_path.overlap", "Template source and destination must not contain one another (pack_path.overlap).")
 
-    staging = Path(tempfile.mkdtemp(prefix="spec-kitty-render-"))
+    staging: Path | None = None
     try:
+        # The final rename must stay on the destination filesystem. shutil.move
+        # from the system temp directory can silently become a partial copy.
+        pack_path.parent.mkdir(parents=True, exist_ok=True)
+        staging = Path(tempfile.mkdtemp(prefix=".spec-kitty-render-", dir=pack_path.parent))
         rules = load_ignore_rules(source.root)
         copy_template_tree(source.root, staging, rules)
         sub_err = substitute_tokens(staging, request.org_name, local_path)
@@ -98,7 +105,7 @@ def render_org_pack(request: RenderRequest) -> PipelineError | None:
             message=f"Template render failed (pipeline.copy): {exc}",
         )
     finally:
-        if staging.exists():
+        if staging is not None and staging.exists():
             shutil.rmtree(staging, ignore_errors=True)
         _cleanup_source(source.root, source.cleanup)
 
@@ -106,6 +113,8 @@ def render_org_pack(request: RenderRequest) -> PipelineError | None:
 
 
 def _check_destination(pack_path: Path, *, force: bool) -> PipelineError | None:
+    if pack_path.is_symlink():
+        return PipelineError("pack_path.symlink", "Template destination must not be a symlink (pack_path.symlink).")
     if pack_path.exists() and not force:
         return PipelineError(
             rule_id=RULE_DEST_EXISTS,
@@ -115,7 +124,9 @@ def _check_destination(pack_path: Path, *, force: bool) -> PipelineError | None:
 
 
 def _install_staging(staging: Path, pack_path: Path, *, force: bool) -> PipelineError | None:
-    """Move staging into pack_path; on --force use move-aside-then-swap."""
+    """Publish the complete staging directory using a same-filesystem rename."""
+    if pack_path.is_symlink():
+        return PipelineError("pack_path.symlink", "Template destination must not be a symlink (pack_path.symlink).")
     if pack_path.exists():
         if not force:
             return PipelineError(
@@ -124,36 +135,55 @@ def _install_staging(staging: Path, pack_path: Path, *, force: bool) -> Pipeline
             )
         return _force_swap(staging, pack_path)
 
-    pack_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(staging), str(pack_path))
-    staging.mkdir(parents=True, exist_ok=True)
+    staging.rename(pack_path)
     return None
 
 
 def _force_swap(staging: Path, pack_path: Path) -> PipelineError | None:
-    nonce = secrets.token_hex(4)
+    nonce = secrets.token_hex(16)
     backup = pack_path.with_name(f"{pack_path.name}.bak-{nonce}")
     try:
-        shutil.move(str(pack_path), str(backup))
+        pack_path.rename(backup)
     except OSError as exc:
         return PipelineError(
             rule_id="pipeline.force_backup",
             message=f"Failed to move aside existing pack (pipeline.force_backup): {exc}",
         )
     try:
-        pack_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(staging), str(pack_path))
-        staging.mkdir(parents=True, exist_ok=True)
+        staging.rename(pack_path)
     except OSError as exc:
-        # Best-effort restore prior pack
-        if backup.exists() and not pack_path.exists():
-            shutil.move(str(backup), str(pack_path))
-        return PipelineError(
-            rule_id="pipeline.force_swap",
-            message=f"Failed to install staging over pack (pipeline.force_swap): {exc}",
-        )
-    shutil.rmtree(backup, ignore_errors=True)
+        return _restore_backup(backup, pack_path, exc)
+    if backup.is_dir():
+        shutil.rmtree(backup, ignore_errors=True)
+    else:
+        backup.unlink(missing_ok=True)
     return None
+
+
+def _restore_backup(backup: Path, pack_path: Path, promotion_error: OSError) -> PipelineError:
+    """Restore the old pack, preserving unexpected destination contents for recovery.
+
+    An atomic rename cannot leave a partial tree, but a concurrent writer or a
+    faulting filesystem adapter can leave the target occupied. Preserve that
+    tree separately instead of leaving the original stranded or deleting data.
+    """
+    interrupted: Path | None = None
+    try:
+        if pack_path.exists() or pack_path.is_symlink():
+            interrupted = pack_path.with_name(f"{pack_path.name}.interrupted-{secrets.token_hex(16)}")
+            pack_path.rename(interrupted)
+        backup.rename(pack_path)
+    except OSError as restore_error:
+        return PipelineError(
+            "pipeline.force_restore",
+            f"Installation failed: {promotion_error}. Could not restore the prior pack: {restore_error}. "
+            f"Original pack preserved at {backup}." + (f" Interrupted destination preserved at {interrupted}." if interrupted is not None else ""),
+        )
+    return PipelineError(
+        "pipeline.force_swap",
+        f"Failed to install staging over pack (pipeline.force_swap): {promotion_error}. Original pack restored."
+        + (f" Interrupted destination preserved at {interrupted}." if interrupted is not None else ""),
+    )
 
 
 def _cleanup_source(root: Path, cleanup: bool) -> None:
