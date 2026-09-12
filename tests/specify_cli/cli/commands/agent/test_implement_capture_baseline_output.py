@@ -87,7 +87,10 @@ def test_commit_refusal_reason_is_shown_verbatim_not_parsed_as_markup(tmp_path: 
     )
 
     out = capsys.readouterr().out
-    assert "Warning: baseline artifact was not committed" in out
+    # The notice is longer than a default terminal, so the reason can be folded
+    # across lines: normalize whitespace instead of pinning the harness width.
+    folded = " ".join(out.split())
+    assert "Warning: baseline artifact was not committed" in folded
     # Without escaping, Rich eats ``[rejected]`` and raises on the stray ``[/]``.
-    assert "! [rejected] main -> main (protected) [/]" in out
+    assert "! [rejected] main -> main (protected) [/]" in folded
     assert "[yellow]" not in out
