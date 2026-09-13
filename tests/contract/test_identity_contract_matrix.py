@@ -32,9 +32,10 @@ Design notes
   whenever possible.  The tests emit synthetic payloads through the real
   ``to_dict()`` paths.
 - The former surface 5 (the sync ``EventEmitter``'s mission-lifecycle
-  emissions) died with the sync transport (issue #5); when epic E3 registers
-  a new producer via ``register_runtime_emitter_factory``
-  (``runtime.next._internal_runtime.events``) it must rejoin this matrix.
+  emissions) died with the sync transport (issue #5). Surface 5 is now the
+  runtime-moment envelope published by epic E3's producer, registered via
+  ``register_runtime_emitter_factory`` (``runtime.next._internal_runtime.events``,
+  #3929): its payload carries the mission's ``mission_id`` and ``mission_slug``.
 - Each parametrised case emits an assertion with a clear surface name so
   a regression immediately identifies the offending payload.
 """
@@ -133,6 +134,43 @@ def _build_lanes_manifest() -> dict[str, Any]:
     return manifest.to_dict()
 
 
+def _build_runtime_moment_envelope() -> dict[str, Any]:
+    """Surface 5: the E3 runtime-moment envelope's payload carries the mission ULID and slug."""
+    import json
+    import tempfile
+    from pathlib import Path
+    from unittest.mock import patch
+
+    from spec_kitty_events.mission_next import MissionRunStartedPayload, RuntimeActorIdentity
+
+    from specify_cli.events.runtime_moments import RuntimeMomentProducer
+    from specify_cli.status import adapters
+
+    run_id = "0123456789abcdef0123456789abcdef"
+    payload = MissionRunStartedPayload(
+        run_id=run_id,
+        mission_type="software-dev",
+        actor=RuntimeActorIdentity(actor_id="claude", actor_type="llm"),
+    )
+    published: list[dict[str, Any]] = []
+    with (
+        tempfile.TemporaryDirectory() as tmp,
+        patch.object(adapters, "fire_lifecycle_saas_fanout", side_effect=lambda **kwargs: published.append(kwargs)),
+    ):
+        root = Path(tmp)
+        feature_dir = root / "kitty-specs" / MISSION_SLUG
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(json.dumps({"mission_id": ULID_CANONICAL}), encoding="utf-8")
+        run_dir = root / ".kittify" / "runtime" / "runs" / run_id
+        run_dir.mkdir(parents=True)
+        record = {"event_type": "MissionRunStarted", "timestamp": "2026-04-11T12:00:00+00:00", "payload": payload.model_dump(mode="json")}
+        (run_dir / "run.events.jsonl").write_text(json.dumps(record, sort_keys=True) + "\n", encoding="utf-8")
+        producer = RuntimeMomentProducer.for_mission(feature_dir=feature_dir, mission_slug=MISSION_SLUG, mission_type="software-dev")
+        producer.emit_mission_run_started(payload)
+    envelope: dict[str, Any] = published[0]["envelope"]
+    return envelope
+
+
 # ---------------------------------------------------------------------------
 # Contract matrix
 # ---------------------------------------------------------------------------
@@ -180,6 +218,12 @@ CONTRACT_MATRIX: tuple[ContractSurface, ...] = (
         builder=_build_lanes_manifest,
         identity_locations=("mission_id", "mission_slug"),
         ulid_equals=("mission_id",),
+    ),
+    ContractSurface(
+        name="runtime_moment_envelope",
+        builder=_build_runtime_moment_envelope,
+        identity_locations=("payload.mission_id", "payload.mission_slug", "payload.run_id"),
+        ulid_equals=("payload.mission_id",),
     ),
 )
 
