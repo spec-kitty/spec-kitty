@@ -10,10 +10,12 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 import typer
 from typer.testing import CliRunner
 
+from specify_cli.tracker import saas_client as saas_client_module
 from specify_cli.tracker.saas_readiness import ReadinessResult, ReadinessState
 from specify_cli.tracker.discovery import BindableResource
 from specify_cli.tracker.saas_client import SaaSTrackerClientError
@@ -223,6 +225,281 @@ def test_discover_saas_client_error_json(mock_service_fn, monkeypatch) -> None:
     assert result.exit_code == 1
     assert "HTTP 429" in result.output
     assert not isinstance(result.exception, SaaSTrackerClientError)
+
+
+# ---------------------------------------------------------------------------
+# Issue #4233 September extension: drive the REAL CLI command against mocked
+# SaaS HTTP error responses (not injected service errors) and pin the full
+# error-boundary contract — structured server error codes preserved, the
+# distinct failure classes actionable, a machine-readable failure object on
+# stdout in ``--json`` mode, nonzero exit, no raw traceback, no secrets, and
+# no conversion of a failure into a successful empty result.
+# ---------------------------------------------------------------------------
+
+
+def _http_response(status_code: int, json_body: dict[str, object]) -> httpx.Response:
+    """Build a fake ``httpx.Response`` carrying a server error payload."""
+    resp = httpx.Response(
+        status_code=status_code,
+        request=httpx.Request("GET", "https://saas.test.example/api/v1/tracker/resources/"),
+    )
+    resp._content = json.dumps(json_body).encode()
+    resp.headers["content-type"] = "application/json"
+    return resp
+
+
+def _mock_saas_http(monkeypatch, tmp_path, responses: list[httpx.Response]) -> None:
+    """Point the real tracker stack at a mocked SaaS HTTP transport.
+
+    Only the wire is faked: ``httpx.Client`` inside the tracker client (the
+    documented patch seam — 130+ tests under ``tests/tracker/`` use it) and
+    the two process-wide auth bridges. The service facade, the client's
+    retry/error classification, the PRI-12 envelope parser, and the command's
+    error boundary are all the real code under test, driven through a real
+    CLI invocation.
+    """
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    (tmp_path / ".kittify").mkdir(exist_ok=True)
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://saas.test.example")
+    monkeypatch.setattr(
+        "specify_cli.tracker.saas_client._fetch_access_token_sync",
+        lambda: "test-access-token",
+    )
+    monkeypatch.setattr(
+        "specify_cli.tracker.saas_client._hosted_authority_for_token",
+        lambda _token: saas_client_module._HostedTrackerAuthority(
+            account_identity="test-account",
+            private_teamspace_id="test-private-teamspace",
+            collaborative_team_slug="test-team",
+        ),
+    )
+    mock_http = MagicMock()
+    mock_http.request.side_effect = list(responses)
+    mock_cls = MagicMock(return_value=MagicMock())
+    mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+    mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+    monkeypatch.setattr("specify_cli.tracker.saas_client.httpx.Client", mock_cls)
+
+
+def test_discover_saas_403_feature_disabled_renders_clean(monkeypatch, tmp_path) -> None:
+    """The exact observed #4233 payload: a clean, actionable error, no traceback.
+
+    ``{"ok": false, "error": "Feature not available.", "error_code":
+    "FEATURE_DISABLED"}`` on HTTP 403 must surface the server message, the
+    structured code, and a rollout/permission hint — never a raw traceback.
+    """
+    app = _make_app(monkeypatch)
+    _mock_saas_http(
+        monkeypatch,
+        tmp_path,
+        [
+            _http_response(
+                403,
+                {"ok": False, "error": "Feature not available.", "error_code": "FEATURE_DISABLED"},
+            )
+        ],
+    )
+
+    result = runner.invoke(app, ["discover", "--provider", "github"])
+
+    assert result.exit_code == 1
+    assert not isinstance(result.exception, SaaSTrackerClientError)
+    assert "Traceback (most recent call last)" not in result.output
+    # The server message and the structured machine code are both preserved.
+    assert "Feature not available." in result.output
+    assert "FEATURE_DISABLED" in result.output
+    assert "403" in result.output
+    # Distinguishing the failure class gives the operator an actionable hint.
+    assert "dashboard" in result.output
+    # No secrets: the bearer token never reaches operator output.
+    assert "test-access-token" not in result.output
+    # A failure is never converted into a successful empty result.
+    assert "No bindable resources found" not in result.output
+
+
+def test_discover_saas_403_feature_disabled_json_machine_readable(monkeypatch, tmp_path) -> None:
+    """Under ``--json`` the failure is a parseable machine-readable object."""
+    app = _make_app(monkeypatch)
+    _mock_saas_http(
+        monkeypatch,
+        tmp_path,
+        [
+            _http_response(
+                403,
+                {"ok": False, "error": "Feature not available.", "error_code": "FEATURE_DISABLED"},
+            )
+        ],
+    )
+
+    result = runner.invoke(app, ["discover", "--provider", "github", "--json"])
+
+    assert result.exit_code == 1
+    assert not isinstance(result.exception, SaaSTrackerClientError)
+    assert "Traceback (most recent call last)" not in result.output
+    # stdout carries exactly one parseable JSON failure object.
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert payload["error"] == "Feature not available."
+    assert payload["error_code"] == "FEATURE_DISABLED"
+    assert payload["http_status"] == 403
+    assert "action" in payload
+    # The human line still reaches stderr; no secrets anywhere.
+    assert "test-access-token" not in result.output
+
+
+def test_discover_saas_429_rate_limited_pri12_code(monkeypatch, tmp_path) -> None:
+    """A PRI-12 ``code`` envelope on 429 renders the rate-limit class.
+
+    The client backs off once (``retry_after_seconds: 0``) and re-requests;
+    the second 429 raises ``rate_limited``. Parsing the canonical ``code``
+    key (not just legacy ``error_code``) is the #2944 coordination.
+    """
+    app = _make_app(monkeypatch)
+    _mock_saas_http(
+        monkeypatch,
+        tmp_path,
+        [
+            _http_response(
+                429,
+                {"code": "rate_limited", "message": "Too many requests", "retry_after_seconds": 0},
+            ),
+            _http_response(
+                429,
+                {"code": "rate_limited", "message": "Too many requests", "retry_after_seconds": 0},
+            ),
+        ],
+    )
+
+    result = runner.invoke(app, ["discover", "--provider", "github"])
+
+    assert result.exit_code == 1
+    assert not isinstance(result.exception, SaaSTrackerClientError)
+    assert "Traceback (most recent call last)" not in result.output
+    assert "Too many requests" in result.output
+    assert "rate_limited" in result.output
+    assert "429" in result.output
+    assert "rate limiting" in result.output
+
+
+def test_discover_saas_401_session_expired(monkeypatch, tmp_path) -> None:
+    """A 401 whose token refresh fails renders the re-authenticate class."""
+    from specify_cli.auth.errors import AuthenticationError
+
+    app = _make_app(monkeypatch)
+    _mock_saas_http(monkeypatch, tmp_path, [_http_response(401, {"message": "Unauthorized"})])
+    monkeypatch.setattr(
+        "specify_cli.tracker.saas_client._force_refresh_sync",
+        MagicMock(side_effect=AuthenticationError("refresh token expired")),
+    )
+
+    result = runner.invoke(app, ["discover", "--provider", "github"])
+
+    assert result.exit_code == 1
+    assert not isinstance(result.exception, SaaSTrackerClientError)
+    assert "Traceback (most recent call last)" not in result.output
+    assert "auth login" in result.output
+    assert "session_expired" in result.output
+
+
+def test_discover_saas_5xx_server_failure_pri12_code(monkeypatch, tmp_path) -> None:
+    """A 5xx with a canonical ``code`` envelope renders the server-failure class."""
+    app = _make_app(monkeypatch)
+    _mock_saas_http(
+        monkeypatch,
+        tmp_path,
+        [_http_response(503, {"code": "remote_unavailable", "message": "Backend unavailable"})],
+    )
+
+    result = runner.invoke(app, ["discover", "--provider", "github"])
+
+    assert result.exit_code == 1
+    assert not isinstance(result.exception, SaaSTrackerClientError)
+    assert "Traceback (most recent call last)" not in result.output
+    assert "Backend unavailable" in result.output
+    assert "remote_unavailable" in result.output
+    assert "503" in result.output
+    assert "server failure" in result.output
+
+
+def test_discover_saas_binding_not_found_rebind_hint(monkeypatch, tmp_path) -> None:
+    """A canonical-code stale-binding envelope renders the rebind class.
+
+    ``code`` must outrank ``error_category`` on the raised error (the old
+    category-first order masked ``binding_not_found`` from every code-driven
+    consumer — the #2944 coordination).
+    """
+    app = _make_app(monkeypatch)
+    _mock_saas_http(
+        monkeypatch,
+        tmp_path,
+        [
+            _http_response(
+                404,
+                {
+                    "code": "binding_not_found",
+                    "category": "identity_resolution",
+                    "message": "No binding",
+                },
+            )
+        ],
+    )
+
+    result = runner.invoke(app, ["discover", "--provider", "github"])
+
+    assert result.exit_code == 1
+    assert not isinstance(result.exception, SaaSTrackerClientError)
+    assert "Traceback (most recent call last)" not in result.output
+    assert "No binding" in result.output
+    assert "binding_not_found" in result.output
+    assert "Rebind" in result.output
+
+
+def test_list_tickets_saas_error_json_shared_boundary(monkeypatch, tmp_path) -> None:
+    """The shared error boundary covers the other SaaS read commands too."""
+    app = _make_app(monkeypatch)
+    _mock_saas_http(
+        monkeypatch,
+        tmp_path,
+        [
+            _http_response(
+                403,
+                {"ok": False, "error": "Feature not available.", "error_code": "FEATURE_DISABLED"},
+            )
+        ],
+    )
+
+    result = runner.invoke(app, ["list-tickets", "--provider", "github", "--json"])
+
+    assert result.exit_code == 1
+    assert not isinstance(result.exception, SaaSTrackerClientError)
+    assert "Traceback (most recent call last)" not in result.output
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert payload["error_code"] == "FEATURE_DISABLED"
+
+
+@pytest.mark.parametrize(
+    ("error_code", "status_code", "expected_fragment"),
+    [
+        ("session_expired", 401, "auth login"),
+        ("binding_not_found", None, "Rebind"),
+        ("mapping_disabled", None, "Rebind"),
+        ("rate_limited", 429, "rate limiting"),
+        (None, 503, "server failure"),
+        ("FEATURE_DISABLED", 403, "dashboard"),
+        (None, None, "__none__"),
+    ],
+)
+def test_saas_error_hint_classification(error_code, status_code, expected_fragment) -> None:
+    """The hint classifier distinguishes the #4233 failure classes."""
+    from specify_cli.cli.commands.tracker import _saas_error_hint
+
+    hint = _saas_error_hint(error_code, status_code)
+    if expected_fragment == "__none__":
+        assert hint is None
+    else:
+        assert hint is not None
+        assert expected_fragment in hint
 
 
 # ---------------------------------------------------------------------------

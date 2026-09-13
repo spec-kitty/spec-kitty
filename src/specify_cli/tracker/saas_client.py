@@ -209,6 +209,15 @@ def _parse_error_envelope(response: httpx.Response) -> dict[str, Any]:
     Returns a dict with keys: error_code, error_category, message, retryable,
     user_action_required, source, retry_after_seconds.
     Missing keys default to ``None`` (or ``False`` for booleans).
+
+    Canonical-code coordination with #2944: the frozen PRI-12 ``ErrorEnvelope``
+    spells the machine code ``code`` and current SaaS runtime producers emit
+    ``code``, while the discovery-era control plane (and the observed
+    ``FEATURE_DISABLED`` 403 in #4233) emits ``error_code``. ``code`` is read
+    as canonical with ``error_code`` retained as a documented fallback — no
+    second code taxonomy is invented here. Likewise the human message is read
+    from ``message`` first, then a string ``error`` (the shape the live
+    discovery 403 payload carries), then the bare HTTP status.
     """
     try:
         body: dict[str, Any] = response.json()
@@ -223,10 +232,17 @@ def _parse_error_envelope(response: httpx.Response) -> dict[str, Any]:
             "retry_after_seconds": None,
         }
 
+    code = body.get("code")
+    if not isinstance(code, str):
+        code = body.get("error_code") if isinstance(body.get("error_code"), str) else None
+    message = body.get("message")
+    if not isinstance(message, str):
+        error_field = body.get("error")
+        message = error_field if isinstance(error_field, str) else None
     return {
-        "error_code": body.get("error_code"),
+        "error_code": code,
         "error_category": body.get("error_category"),
-        "message": body.get("message", f"HTTP {response.status_code}"),
+        "message": message or f"HTTP {response.status_code}",
         "retryable": body.get("retryable", False),
         "user_action_required": body.get("user_action_required"),
         "source": body.get("source"),
@@ -646,7 +662,12 @@ class SaaSTrackerClient:
                 msg += " (action required — check the Spec Kitty dashboard)"
             raise SaaSTrackerClientError(
                 msg,
-                error_code=envelope.get("error_category") or envelope.get("error_code"),
+                # PRI-12 ``code`` is canonical (#2944 coordination): the stable
+                # machine code must survive onto the exception, with the
+                # category kept only as a fallback when no code was emitted —
+                # the old category-first order masked ``binding_not_found`` and
+                # friends from every code-driven consumer.
+                error_code=envelope.get("error_code") or envelope.get("error_category"),
                 status_code=response.status_code,
                 details=envelope,
                 user_action_required=bool(envelope.get("user_action_required")),
