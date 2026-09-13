@@ -18,7 +18,7 @@ that is red on the planning base before implementation.
 The mission preserves #3030's consent-bearing selection, SQL identity filtering,
 final transmit recheck, terminal parking, and explicit purge. It does not absorb
 #3108/PR #3135. No WP may inspect or mutate the historical 1,322 SaaS events,
-mutate production `app.spec-kitty.ai`, publish, open a PR, integrate to a protected
+mutate production `team.spec-kitty.ai`, publish, open a PR, integrate to a protected
 branch, release, or deploy without separate Human-in-Charge authorization.
 
 SaaS WP04 must provide an explicit candidate checkout/ref and canonical-contract

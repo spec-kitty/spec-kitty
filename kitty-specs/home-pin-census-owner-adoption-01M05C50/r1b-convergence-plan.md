@@ -1,3 +1,5 @@
+> Hostname cleanup: `retired-host.example` redacts the former Team Kitty hostname in historical evidence; the current endpoint is `https://team.spec-kitty.ai`.
+
 # R1b Convergence Plan — Closing #3121 (`SPEC_KITTY_HOME` pin census owner-adoption)
 
 **Status:** SCOPING (read-only analysis). Nothing in the tree was mutated to produce this document.
@@ -211,7 +213,7 @@ load-bearing; production also re-creates it on demand, `VERDICT.md:334-336`).
 
 | # | member | extra | note | class |
 |---|---|---|---|---|
-| 29 | `tests/sync/test_daemon_publish_consent_3030.py::_isolated_home` (`:71-84`) | `SAAS set` + **`SPEC_KITTY_SAAS_URL="https://app.spec-kitty.ai"`** | arm2 **RED**, **in P** ⇒ owner-convert the home dimension, but `SAAS_URL` is set by no autouse and must be retained (keep a one-line residual pin, or a tiny local `saas_url` fixture). Converting drops it silently otherwise. | **CR** |
+| 29 | `tests/sync/test_daemon_publish_consent_3030.py::_isolated_home` (`:71-84`) | `SAAS set` + **`SPEC_KITTY_SAAS_URL="https://retired-host.example"`** | arm2 **RED**, **in P** ⇒ owner-convert the home dimension, but `SAAS_URL` is set by no autouse and must be retained (keep a one-line residual pin, or a tiny local `saas_url` fixture). Converting drops it silently otherwise. | **CR** |
 
 ### 4.4 DELETION-SCOPE (arm-2 GREEN; OUT OF #3121) — 3
 

@@ -80,7 +80,7 @@ An operator upgrades an existing project. Two independently-idempotent migration
 
 ### User Story 5 - Documented Team Kitty (SaaS) architecture (Priority: P3)
 
-A contributor needs to understand the hosted-sync flow. A dedicated Team Kitty (SaaS) architecture section with interaction diagrams documents opt-in/consent → store migration → admission/delivery-target → auth → drain-to-ledger → sync to `app.spec-kitty.ai`, plus ADR(s) recording the config-resolution, provenance-form, kernel-layering, and channel decisions.
+A contributor needs to understand the hosted-sync flow. A dedicated Team Kitty (SaaS) architecture section with interaction diagrams documents opt-in/consent → store migration → admission/delivery-target → auth → drain-to-ledger → sync to `team.spec-kitty.ai`, plus ADR(s) recording the config-resolution, provenance-form, kernel-layering, and channel decisions.
 
 **Why this priority**: Documentation/architecture debt — high onboarding value, not blocking the functional slices.
 

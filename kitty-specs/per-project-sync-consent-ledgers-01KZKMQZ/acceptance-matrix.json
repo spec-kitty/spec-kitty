@@ -478,7 +478,7 @@
       "criterion_id": "C-007",
       "description": "No production mutation: implementation, testing, review, and retrospective use local/test environments only; production configuration, data, consent, and admission state untouched.",
       "proof_type": "manual_qa",
-      "evidence": "WP05/WP10 review notes in status.json attest no app.spec-kitty.ai mutation; hosted mutation confined to local/test SaaS.",
+      "evidence": "WP05/WP10 review notes in status.json attest no retired-host.example mutation; hosted mutation confined to local/test SaaS.",
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,

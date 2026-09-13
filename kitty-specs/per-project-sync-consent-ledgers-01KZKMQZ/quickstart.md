@@ -79,7 +79,7 @@ environment. Core owns conforming A-only bytes, local isolation, stale-generatio
 parking, and its benchmark. SaaS owns B-F bypass refusal, zero server-side effects,
 anti-rematerialization evidence, hosted benchmark, and any authorized Upsun canary. No artifact
 may make the same claim for both owners. Do not run mutating canaries against
-`app.spec-kitty.ai`; it is production.
+`team.spec-kitty.ai`; it is production.
 
 ## Compound revocation recovery gate
 

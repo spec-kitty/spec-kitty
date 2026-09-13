@@ -754,7 +754,7 @@ class TestAuthStatusSaasLine:
 
     def test_status_prints_session_endpoint_when_env_points_elsewhere(self):
         """The status output must name the server the token belongs to (#213)."""
-        session = _make_session(issuer_url="https://app.spec-kitty.ai")
+        session = _make_session(issuer_url="https://team.spec-kitty.ai")
         mock_storage = _mock_storage_returning(session, backend="file")
         with patch(
             "specify_cli.auth.secure_storage.SecureStorage.from_environment",
@@ -769,8 +769,8 @@ class TestAuthStatusSaasLine:
         assert "https://saas.test" in flat
         assert "(from SPEC_KITTY_SAAS_URL)" in flat
         assert "Session SaaS:" in flat
-        assert "https://app.spec-kitty.ai" in flat
-        assert "Session is for https://app.spec-kitty.ai" in flat
+        assert "https://team.spec-kitty.ai" in flat
+        assert "Session is for https://team.spec-kitty.ai" in flat
 
     def test_status_reports_packaged_default_when_config_server_url_is_blank(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
         """#182 squad MAJOR, retargeted by #3980: a blank ``[sync].server_url``

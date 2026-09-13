@@ -156,13 +156,10 @@ sequenceDiagram
 - Stages 1, 2, and the preview/confirm parts of stage 5 are **local-only** — no network
   participant is touched. Only the auth exchange, the admission `PUT`, and the two actual
   batch `POST`s (stage 5's `--apply` and stage 6) cross the wire.
-- The hosted API host is shown generically as "Hosted Auth" / "Hosted Admission" / "Hosted
-  Events API" rather than a literal domain. In the current codebase `app.spec-kitty.ai` does
-  not appear as a hardcoded default anywhere — `get_saas_base_url()`
-  (`src/specify_cli/auth/config.py`) has **no built-in fallback** and raises a
-  `ConfigurationError` unless `SPEC_KITTY_SAAS_URL` is set; see [ADR: operator config
-  env-expansion seam](../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md) for how
-  operators now set that once via `.kitty.env` instead of a per-shell export.
+- This diagram describes the retired sync architecture; see [Team Kitty and Zeitgeist](../context/team-kitty.md) for the current transport.
+  The current hosted default is `https://team.spec-kitty.ai`. OAuth login resolves its target through
+  `src/specify_cli/auth/server_target.py`; a saved `config.toml [sync].server_url` can select another host.
+  Remove stale saved targets or set them to the canonical Team Kitty URL.
 - The admission client/outbox machinery (`AdmissionOperationService`, `SaasAdmissionClient`)
   is fully built and is what the diagram's step 4 shows, but at the time this page was
   written no traced CLI command path actually *invokes* `.perform()` — live command paths

@@ -1,3 +1,5 @@
+> Hostname cleanup: `retired-host.example` redacts the former Team Kitty hostname in historical evidence; the current endpoint is `https://team.spec-kitty.ai`.
+
 # Approach Trace
 
 ## 2026-08-09 — Planning approach
@@ -33,5 +35,5 @@
    checksums, producer/claim ownership, retention coordinates, and issue-to-WP
    mappings before integration handoff.
 
-Production `app.spec-kitty.ai` remains read-only without separate authorization,
+Production `retired-host.example` remains read-only without separate authorization,
 and the historical 1,322-event cohort remains outside this mission.

@@ -7,7 +7,7 @@
 # ~/.spec-kitty/.kitty.env  (machine-wide) — or <repo>/.kittify/.kitty.env (per-repo override)
 cat > ~/.spec-kitty/.kitty.env <<'EOF'
 SPEC_KITTY_ENABLE_SAAS_SYNC=1
-SPEC_KITTY_SAAS_URL=https://app.spec-kitty.ai
+SPEC_KITTY_SAAS_URL=https://team.spec-kitty.ai
 SPEC_KITTY_SAAS_TOKEN=...        # secret — file is gitignored + claudeignored
 SPEC_KITTY_PRERELEASE=1          # opt into rc catfooding (default off)
 EOF

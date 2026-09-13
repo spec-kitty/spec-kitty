@@ -1,3 +1,5 @@
+> Hostname cleanup: `retired-host.example` redacts the former Team Kitty hostname in historical evidence; the current endpoint is `https://team.spec-kitty.ai`.
+
 # Research: Per-Project Sync Consent Ledgers
 
 ## Decision 1 — One transactionally coherent database per project
@@ -78,7 +80,7 @@
 
 ## Decision 12 — SaaS contract is upstream, pinned authority
 
-**Decision**: After SaaS WP04 publishes the generated shape, core receives an explicit SaaS candidate checkout path and commit, reads `contracts/cli-saas-current-api.yaml` from that checkout, verifies the expected SHA-256 digest, and records path/ref/digest in its compatibility evidence. Ambient `../spec-kitty-saas` resolution, package version strings, and branch names are not authority. Use local/test SaaS or a dynamically discovered Upsun branch environment for mutation; `app.spec-kitty.ai` is production and read-only absent separate authorization.
+**Decision**: After SaaS WP04 publishes the generated shape, core receives an explicit SaaS candidate checkout path and commit, reads `contracts/cli-saas-current-api.yaml` from that checkout, verifies the expected SHA-256 digest, and records path/ref/digest in its compatibility evidence. Ambient `../spec-kitty-saas` resolution, package version strings, and branch names are not authority. Use local/test SaaS or a dynamically discovered Upsun branch environment for mutation; `retired-host.example` is production and read-only absent separate authorization.
 
 **Rationale**: Core cannot safely invent a server protocol, and production is not an acceptable candidate-branch test target.
 
