@@ -13,6 +13,15 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **An explicitly-set `SPEC_KITTY_SAAS_URL` is a real opinion again, even when its value equals the packaged default `https://team.spec-kitty.ai`** (#4259). The 4.0.0rc1 resolver treated such a value as "no opinion", so a stale `config.toml [sync].server_url` naming the retired first-party app endpoint `https://app.spec-kitty.ai` won resolution and login targeted dead infrastructure. An explicit env value now wins in a whole-process context (login) and fails closed as a split-brain against a different configured target in setup-only contexts, exactly like any other env/config disagreement.
+- **A new 4.0.0 upgrade migration rewrites exactly the retired first-party address in `config.toml [sync].server_url` to the canonical hosted target** (#4259). Machine-scoped and idempotent; hostname-exact matching only (never substring), so custom and self-hosted endpoints, ports, paths, and every unrelated setting are untouched. A missing, unreadable, or unparseable `config.toml` is a no-op.
+- **`spec-kitty auth login` now shows the resolved target and its configuration source before any OAuth flow starts**, and warns — never rejects — when the target is the retired first-party endpoint or another noncanonical `spec-kitty.ai` host, naming the canonical endpoint and the upgrade remedy (#4259). A custom/self-hosted endpoint is labelled custom and left unchanged.
+- **`spec-kitty auth login` never relabels or forwards a stored session minted for a different endpoint** (#4259). Plain `login` on an issuer mismatch now refuses with the stale-session remedy instead of reporting "Already logged in"; only `--force` re-authenticates, minting fresh credentials against the resolved target (the non-interactive bridge already enforced this boundary since #234).
+
 ## [4.0.0rc1] - 2026-09-13
 
 First public release candidate for the Team Kitty 4.x line. This is a testing

@@ -16,6 +16,7 @@ before any network call.
 from __future__ import annotations
 
 import os
+from urllib.parse import urlsplit
 
 _ENV_VAR = "SPEC_KITTY_SAAS_URL"
 
@@ -26,6 +27,66 @@ _ENV_VAR = "SPEC_KITTY_SAAS_URL"
 #: when neither ``SPEC_KITTY_SAAS_URL`` nor ``config.toml [sync].server_url``
 #: names a target.
 DEFAULT_HOSTED_SAAS_URL = "https://team.spec-kitty.ai"
+
+#: The retired first-party hosted target (#4259): the pre-launch app
+#: subdomain ``config.toml [sync].server_url`` still carries on machines
+#: configured before #3980 promoted :data:`DEFAULT_HOSTED_SAAS_URL`. It is
+#: dead first-party infrastructure — not a self-hosted endpoint — so the
+#: 4.0.0 upgrade migration
+#: (``m_4_0_0_retired_hosted_target``) replaces exactly this address with
+#: the canonical one, and ``auth login`` warns when a resolved target still
+#: names it. Hostname-exact matching only (``_hostname_of`` below): never a
+#: substring test, which could fire on an unrelated domain that merely
+#: contains the literal.
+RETIRED_HOSTED_SAAS_URL = "https://app.spec-kitty.ai"
+RETIRED_HOSTED_SAAS_HOSTNAME = "app.spec-kitty.ai"
+
+
+def _hostname_of(url: str) -> str | None:
+    """Return ``url``'s parsed, lowercased hostname, or ``None``.
+
+    ``urlsplit(...).hostname`` is the exact-host parse (component-wise, never
+    a substring of the whole URL), lowercased by the property itself, with
+    any port/path/query already excluded. ``None`` for a value with no host
+    or one that does not parse.
+    """
+    try:
+        return urlsplit(url.strip()).hostname
+    except ValueError:
+        # A value that is not a URL at all (e.g. a bare token) — no hostname
+        # to compare, so never a retired-host match.
+        return None
+
+
+def is_retired_first_party_url(url: str) -> bool:
+    """True when ``url`` points at the retired first-party app endpoint.
+
+    Hostname-exact against :data:`RETIRED_HOSTED_SAAS_HOSTNAME` (scheme,
+    port, and path are ignored: any URL whose host is the retired app host
+    is the retired first-party address). Every other URL — a custom or
+    self-hosted endpoint on any other domain, or a look-alike domain that
+    merely contains the literal — is ``False``.
+    """
+    return _hostname_of(url) == RETIRED_HOSTED_SAAS_HOSTNAME
+
+
+def is_noncanonical_first_party_url(url: str) -> bool:
+    """True when ``url`` is first-party (``spec-kitty.ai``) but not canonical.
+
+    Canonical is the packaged default host (:data:`DEFAULT_HOSTED_SAAS_URL`).
+    Anything else under the first-party domain — the retired app subdomain,
+    a docs/staging host — is first-party infrastructure the operator almost
+    certainly did not mean to target, so ``auth login`` warns (never
+    rejects). A self-hosted endpoint on any other domain is ``False``:
+    legitimate self-hosting is supported and is not nagged as
+    "noncanonical" merely for differing from the packaged default.
+    """
+    host = _hostname_of(url)
+    if host is None:
+        return False
+    if host == _hostname_of(DEFAULT_HOSTED_SAAS_URL):
+        return False
+    return host == "spec-kitty.ai" or host.endswith(".spec-kitty.ai")
 
 
 def get_saas_url_env_override() -> str | None:
