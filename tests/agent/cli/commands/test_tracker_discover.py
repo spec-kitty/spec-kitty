@@ -437,7 +437,7 @@ def test_discover_saas_binding_not_found_rebind_hint(monkeypatch, tmp_path) -> N
                 404,
                 {
                     "code": "binding_not_found",
-                    "category": "identity_resolution",
+                    "error_category": "identity_resolution",
                     "message": "No binding",
                 },
             )
