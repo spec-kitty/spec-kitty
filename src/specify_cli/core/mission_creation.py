@@ -809,9 +809,13 @@ def _create_mission_core_impl(
     # FR-004/NFR-003); mission_dir_name composes <human-slug>-<mid8> canonically,
     # stripping any NNN- prefix (FR-032, FR-044).
     mission_id = str(ULID())
+    # One authoritative derivation (FR-004/NFR-003) feeds both consumers: the
+    # directory name below and the ``mid8`` meta backfill in section 6 (#3474),
+    # so the two can never drift.
+    mid8 = resolve_mid8("", mission_id=mission_id)
     mission_slug_formatted = mission_dir_name(
         mission_slug,
-        mid8=resolve_mid8("", mission_id=mission_id),
+        mid8=mid8,
     )
 
     feature_dir = effective_root / KITTY_SPECS_DIR / mission_slug_formatted
@@ -880,6 +884,11 @@ def _create_mission_core_impl(
     # mission_number is null pre-merge; a dense display number is assigned only
     # at merge time (single-writer context on main). See FR-044.
     meta.setdefault("mission_id", mission_id)
+    # Backfill the canonical mid8 (first 8 chars of the ULID) so meta.json is
+    # the single canonical identity source: the directory name already embeds
+    # it, and any surface reading ``mid8`` from meta.json saw absence where the
+    # value was knowable (#3474).
+    meta.setdefault("mid8", mid8)
     meta.setdefault("mission_number", None)  # JSON null — pre-merge missions have no number
     meta.setdefault("slug", mission_slug_formatted)
     meta.setdefault("mission_slug", mission_slug_formatted)
