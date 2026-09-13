@@ -49,10 +49,13 @@ _BRIDGE_BYPASS_NEEDLES = ("flush(ctx.sync_emitter)", "sync_emitter=ctx.sync_emit
 # THIS GATE IS A TRIPWIRE, NOT A PROHIBITION -- and it has a planned exit.
 # The ADR's ADR-BLOCKED list bound *Mission B* (`dead-port-disposition`),
 # which is merged and closed; it is not a standing ban on ever wiring a
-# producer. Wiring one is exactly what E3 (spec-kitty#3929) is for. When E3
-# lands, add its producer module to ``_ALLOWED_REGISTRATION_SITES`` below --
-# do not delete the gate, which still catches an *unplanned* second site.
-_ALLOWED_REGISTRATION_SITES: tuple[str, ...] = (_CANONICAL_SEAM,)
+# producer. Wiring one is exactly what E3 (spec-kitty#3929) is for. E3 took
+# that exit: the one planned production registration site is the status
+# seam's ``ensure_zeitgeist_moment_handlers``, which registers
+# ``specify_cli.events.runtime_moments.RuntimeMomentProducer``. The gate stays
+# and still catches an *unplanned* third site.
+_PLANNED_PRODUCER_REGISTRATION_SITE = "src/specify_cli/status/adapters.py"
+_ALLOWED_REGISTRATION_SITES: tuple[str, ...] = (_CANONICAL_SEAM, _PLANNED_PRODUCER_REGISTRATION_SITE)
 
 # Matched as a regex, not a bare substring, so ``name (args)`` and stray
 # whitespace do not slip past; ``_registration_sites`` additionally resolves

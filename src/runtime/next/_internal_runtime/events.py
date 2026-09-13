@@ -187,29 +187,33 @@ class NullEmitter:
 # Runtime emitter seam (factory + registry)
 # ---------------------------------------------------------------------------
 #
-# This is the reserved E3 *producer* seam for the six ``mission_next`` runtime
-# moments (mission run started/completed, next step issued/auto-completed,
-# decision input requested/answered). Nothing registers here today; the seam
-# returns :class:`NullEmitter` so the bridge's instrumentation points survive
-# intact.
+# This is the E3 *producer* seam for the six ``mission_next`` runtime moments
+# (mission run started/completed, next step issued/auto-completed, decision
+# input requested/answered). With no producer registered the seam returns
+# :class:`NullEmitter`, so the bridge's instrumentation points survive intact.
 #
-# A future producer registers once at its import tail via
-# :func:`register_runtime_emitter_factory`, under the moment-handler gate
-# (#3980: ``SPEC_KITTY_NO_MOMENT_HANDLERS``, the kill switch, or the
-# deprecated ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` alias), mirroring
-# ``specify_cli.status.adapters.ensure_zeitgeist_moment_handlers``::
-#
-#     if moment_handlers_disabled_reason() is None:
-#         register_runtime_emitter_factory(MyProducer.for_mission)
-#
-# The zeitgeist *moment fan-out* is a separate, already-live seam in
-# ``specify_cli/status/adapters.py`` (``WPStatusChanged`` and lifecycle events);
-# it is NOT what registers here. This seam carries only the runtime-loop
-# moments listed above.
+# The live producer (#3929) is
+# ``specify_cli.events.runtime_moments.RuntimeMomentProducer``. It is
+# registered by ``specify_cli.status.adapters.ensure_zeitgeist_moment_handlers``
+# under the moment-handler gate (#3980: ``SPEC_KITTY_NO_MOMENT_HANDLERS``, the
+# kill switch, or the deprecated ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` alias) and
+# publishes each moment through that module's lifecycle fan-out slot. The
+# status package loads before the bridge first calls
+# :func:`runtime_emitter_for_mission`, so a normal CLI process always has it.
 #
 # Governing ADR: ``docs/adr/3.x/2026-09-06-2-runtime-event-emitter-disposition.md``.
 
-RuntimeEmitterFactory = Callable[..., RuntimeEventEmitter]
+class RuntimeEmitterFactory(Protocol):
+    """A producer factory: keyword-only mission identity in, a conforming emitter out.
+
+    Typed as a keyword ``Protocol`` rather than ``Callable[..., ...]`` so a
+    factory whose product does not satisfy :class:`RuntimeEventEmitter` is a
+    static type error at the registration call, while the seam itself still
+    passes the product through unmodified (S3).
+    """
+
+    def __call__(self, *, feature_dir: Path, mission_slug: str, mission_type: str) -> RuntimeEventEmitter: ...
+
 _registered_factory: RuntimeEmitterFactory | None = None
 
 
@@ -237,7 +241,7 @@ def _callable_key(fn: Callable[..., Any]) -> str:
 
 
 def register_runtime_emitter_factory(factory: RuntimeEmitterFactory) -> None:
-    """Register the producer factory a future E3 adapter installs at import tail.
+    """Register the runtime producer factory (the E3 producer is registered by the status seam).
 
     The callable must accept ``feature_dir``, ``mission_slug`` and
     ``mission_type`` as keywords and return an object satisfying
@@ -271,6 +275,7 @@ def register_runtime_emitter_factory(factory: RuntimeEmitterFactory) -> None:
             # Idempotent: same logical callable re-registered (e.g. a
             # classmethod re-accessed, or a module re-import) rebinds the
             # slot to the newest object rather than raising.
+            logging.getLogger(__name__).debug("register_runtime_emitter_factory: rebinding %s", new_key)
             _registered_factory = factory
             return
         raise RuntimeError(f"A different runtime emitter factory is already registered: {_registered_factory!r}. Cannot register {factory!r}.")
