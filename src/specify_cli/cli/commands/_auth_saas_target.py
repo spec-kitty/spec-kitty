@@ -164,12 +164,15 @@ def _normalize_endpoint(url: str) -> str:
     return url.strip().rstrip("/")
 
 
+# format_saas_provenance was demoted to module-private (#176/#192) when this
+# module was its only consumer; #4259's pre-login target diagnostic in
+# _auth_login.py is a second src/ consumer of the exact same provenance
+# suffix, so it is re-exported rather than duplicated — login and auth
+# status/whoami must never render different provenance for one target.
 __all__ = [
     "print_saas_endpoint",
     "print_saas_target",
     "saas_source_name",
     "format_saas_mismatch_warning",
-    # format_saas_provenance: demoted — called within this module (and
-    # unit-tested directly), with no other src/ consumer (#176, carried
-    # forward from _auth_status by #192).
+    "format_saas_provenance",
 ]

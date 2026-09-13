@@ -298,31 +298,88 @@ def test_env_equals_config_does_not_log_warning(
 
 
 # ---------------------------------------------------------------------------
-# #3980 (D-5 revised): the packaged default is "no opinion"
+# #3980 (D-5 revised) + #4259: an unset env is "no opinion"; an explicit one
+# is a real opinion even when its value equals the packaged default
 # ---------------------------------------------------------------------------
 
 
-def test_env_naming_the_packaged_default_is_no_opinion_config_wins(
+def test_env_naming_the_packaged_default_is_a_real_opinion_and_wins(
     target_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """An env variable explicitly set to the packaged default never disagrees
-    with a configured target: the config wins without a split-brain."""
+    """#4259 (restoring explicit env precedence): an env variable explicitly
+    set to the packaged default is a real opinion — in a whole-process
+    context it wins over a *different* configured target instead of letting
+    the stale value through (the 4.0.0rc1 regression resolved the retired
+    first-party ``app.spec-kitty.ai`` even with
+    ``SPEC_KITTY_SAAS_URL=https://team.spec-kitty.ai`` set). In a setup-only
+    context the same disagreement fails closed as a split-brain (tested
+    below)."""
     _write_config(target_root, CONFIG_URL)
     monkeypatch.setenv(SAAS_URL_ENV_VAR, DEFAULT_HOSTED_SAAS_URL)
 
-    target = resolve_server_target(process_wide_override=False)
+    target = resolve_server_target()
 
-    assert target.override_mode is OverrideMode.NONE
-    assert target.resolved_server_url == CONFIG_URL
+    assert target.override_mode is OverrideMode.PROCESS_OVERRIDE
+    assert target.resolved_server_url == DEFAULT_HOSTED_SAAS_URL
 
 
-def test_env_naming_the_packaged_default_with_no_config_yields_default(
+def test_env_naming_the_packaged_default_with_no_config_resolves_to_default(
     target_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Explicit env (even == the packaged default) with nothing configured
+    resolves to the env value with process-override provenance, not the
+    packaged-default mode — the variable really was set."""
     monkeypatch.setenv(SAAS_URL_ENV_VAR, DEFAULT_HOSTED_SAAS_URL)
     target = resolve_server_target(process_wide_override=False)
-    assert target.override_mode is OverrideMode.PACKAGED_DEFAULT
+    assert target.override_mode is OverrideMode.PROCESS_OVERRIDE
     assert target.resolved_server_url == DEFAULT_HOSTED_SAAS_URL
+
+
+def test_explicit_canonical_env_overrides_stale_retired_saved_target(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The exact #4259 reproduction, now green: an explicit canonical
+    ``SPEC_KITTY_SAAS_URL`` beats a stale ``config.toml [sync].server_url``
+    naming the retired first-party endpoint — in the whole-process context
+    ``auth login`` resolves with."""
+    _write_config(target_root, "https://app.spec-kitty.ai")
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, DEFAULT_HOSTED_SAAS_URL)
+
+    target = resolve_server_target()
+
+    assert target.resolved_server_url == DEFAULT_HOSTED_SAAS_URL
+    assert target.override_mode is OverrideMode.PROCESS_OVERRIDE
+
+
+def test_explicit_canonical_env_vs_stale_retired_saved_target_fails_closed_setup_only(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same disagreement in a setup-only context (no whole-process
+    override) fails closed as a split-brain, exactly like any other
+    env/config disagreement — an explicit env value equal to the packaged
+    default is no longer special-cased out of the guard (#4259)."""
+    _write_config(target_root, "https://app.spec-kitty.ai")
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, DEFAULT_HOSTED_SAAS_URL)
+
+    with pytest.raises(ServerTargetSplitBrainError):
+        resolve_server_target(process_wide_override=False)
+
+
+def test_env_equals_default_redirecting_configured_target_logs_warning(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """An explicit env value equal to the packaged default that redirects a
+    *configured* target is a real redirection and logs the #117 warning."""
+    _write_config(target_root, CONFIG_URL)
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, DEFAULT_HOSTED_SAAS_URL)
+
+    with caplog.at_level("WARNING", logger="specify_cli.auth.server_target"):
+        target = resolve_server_target(process_wide_override=True)
+
+    assert target.override_mode is OverrideMode.PROCESS_OVERRIDE
+    [record] = caplog.records
+    assert CONFIG_URL in record.getMessage()
+    assert DEFAULT_HOSTED_SAAS_URL in record.getMessage()
 
 
 def test_configured_dev_host_with_no_env_resolves_to_dev_host(

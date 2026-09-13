@@ -209,6 +209,13 @@ Override the packaged default Spec Kitty SaaS base URL
 (`https://team.spec-kitty.ai`, #3980 — the env var is a dev/self-host
 override, not a requirement).
 
+An explicitly exported value is always a real opinion (#4259): it wins over
+`config.toml [sync].server_url` even when it equals the packaged default, so
+exporting the canonical URL is a positive way to pin the target on a machine
+whose saved target is stale. (`spec-kitty upgrade` migrates a saved retired
+first-party address to the canonical one; self-hosted values are never
+rewritten.)
+
 **Scope**: machine-global when **exported**; repo-scoped when set in a per-repo
 `.kitty.env` (see the warning at the top of this section). Exporting this in a
 shell points every project that shell touches at the named instance.

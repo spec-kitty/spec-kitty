@@ -12,13 +12,28 @@ module that WP05 will supply. Until WP05 lands, attempting to use
 This module never hardcodes a SaaS URL. It resolves the login target through the
 canonical resolver :func:`specify_cli.auth.server_target.resolve_server_target`,
 which folds ``SPEC_KITTY_SAAS_URL`` (env) over ``[sync].server_url`` in
-``config.toml`` and fails closed (#179) when neither names a target — the same
+``config.toml`` and falls back to the packaged default — the same
 precedence every hosted surface uses.
 This is deliberate (#3406, FR-005): login previously read the env-only accessor
 ``get_saas_base_url`` and errored when the env var was unset, even when the user
 had already set a server via ``config.toml``. That inconsistency meant
 a token could be obtained one way while sync targeted another; resolving both the
 same way removes it.
+
+#4259 adds two pre-flight duties on top of that resolution:
+
+- **Target/provenance diagnostics.** Before any browser or device flow starts,
+  login prints the resolved target *and* the configuration source it came from
+  (the same provenance suffix ``auth status`` renders), and warns — never
+  rejects — when the target is a noncanonical first-party endpoint (the retired
+  ``app.spec-kitty.ai`` address foremost). A custom/self-hosted endpoint is
+  never rewritten and never blocked, only labelled as custom.
+- **Issuer-safe session handling.** A stored session minted for a different
+  endpoint is never *relabeled* as valid for the resolved target nor silently
+  forwarded to it: plain ``auth login`` refuses with the mismatch remedy, and
+  only ``--force`` re-authenticates (minting fresh credentials against the
+  resolved target). The non-interactive bridge enforces the same boundary at
+  :func:`specify_cli.saas_client.auth._guard_session_issuer` (#234).
 """
 
 from __future__ import annotations
@@ -28,7 +43,7 @@ from typing import TYPE_CHECKING, cast
 
 import typer
 from rich.markup import escape
-from specify_cli.cli.console import console
+from specify_cli.cli.console import console, sanitize_terminal_text
 
 from specify_cli.auth import (
     AuthenticationError,
@@ -37,8 +52,18 @@ from specify_cli.auth import (
     CallbackValidationError,
     get_token_manager,
 )
+from specify_cli.auth.config import (
+    DEFAULT_HOSTED_SAAS_URL,
+    is_noncanonical_first_party_url,
+    is_retired_first_party_url,
+)
 from specify_cli.auth.errors import ConfigurationError
-from specify_cli.auth.server_target import resolve_server_target
+from specify_cli.auth.server_target import ResolvedServerTarget, resolve_server_target
+from specify_cli.cli.commands._auth_saas_target import (
+    format_saas_mismatch_warning,
+    format_saas_provenance,
+    saas_source_name,
+)
 
 if TYPE_CHECKING:
     from specify_cli.auth.session import StorageBackend, StoredSession
@@ -64,9 +89,11 @@ async def login_impl(*, headless: bool, force: bool) -> None:
         the commands that actually depend on TeamSpace state.
     """
     # Resolve the login target the same way every hosted surface does — env over
-    # config.toml (#3406, FR-005). The resolver fails closed (#179) when neither
-    # source names a server; surface its remedy verbatim instead of duplicating
-    # the message here so login and the resolver cannot drift apart again.
+    # config.toml (#3406, FR-005; #4259: an explicitly-set env value is a real
+    # opinion even when it equals the packaged default). The resolver fails
+    # closed (#179) when neither source names a server; surface its remedy
+    # verbatim instead of duplicating the message here so login and the
+    # resolver cannot drift apart again.
     try:
         target = resolve_server_target()
     except ConfigurationError as exc:
@@ -75,12 +102,33 @@ async def login_impl(*, headless: bool, force: bool) -> None:
         console.print(f"[red]X {escape(str(exc))}[/red]")
         raise typer.Exit(1) from None
     saas_url = target.resolved_server_url
+    # Before any flow starts (#4259): show what will be authenticated against
+    # and where that target came from, and warn — never reject — on a
+    # noncanonical first-party endpoint.
+    _print_login_target(target)
 
     tm = get_token_manager()
 
     if tm.is_authenticated and not force:
         session = tm.get_current_session()
         assert session is not None  # is_authenticated guarantees this
+        mismatch = format_saas_mismatch_warning(
+            session.issuer_url,
+            source_name=saas_source_name(target),
+            resolved_server_url=saas_url,
+        )
+        if mismatch is not None:
+            # Issuer boundary (#4259, same refusal as #234's non-interactive
+            # guard): the stored session was minted for a different endpoint.
+            # It is never relabeled as valid for this target, and its bearer
+            # is never forwarded here — fresh authentication is required.
+            # escape(): both URLs are operator-controlled (#182/#202).
+            console.print(f"[yellow]! {escape(sanitize_terminal_text(mismatch))}[/yellow]")
+            console.print(
+                "Credentials minted for one endpoint are never reused against "
+                "another; fresh authentication is required."
+            )
+            return
         console.print(
             f"[green]+ Already logged in as {escape(session.email)}[/green]"
         )
@@ -100,14 +148,57 @@ async def login_impl(*, headless: bool, force: bool) -> None:
         await _run_browser_flow(tm, saas_url)
 
 
+def _print_login_target(target: ResolvedServerTarget) -> None:
+    """Print the resolved login target, its configuration source, and any
+    noncanonical-endpoint warning (#4259).
+
+    Printed once in :func:`login_impl`, before the already-logged-in check
+    and before either flow starts, so the operator sees *what* will be
+    authenticated against and *where it came from* (the same provenance
+    suffix ``auth status`` renders — shared via
+    :func:`format_saas_provenance`) with enough time to abort. The warnings
+    never reject and never rewrite: a retired or otherwise noncanonical
+    first-party endpoint is named as such, and a custom/self-hosted
+    endpoint is labelled custom — self-hosting is supported, so it gets an
+    informational line, not a warning.
+    """
+    url = target.resolved_server_url
+    # escape()+sanitize_terminal_text() over each rendered message: url and
+    # any remedy naming `[sync].server_url` are operator-controlled and
+    # bracket-shaped — unescaped, Rich markup drops or chokes on them
+    # (#182/#202). The canonical URL is a fixed safe literal.
+    console.print(
+        f"[dim]SaaS: {escape(sanitize_terminal_text(url))} "
+        f"{escape(sanitize_terminal_text(format_saas_provenance(target)))}[/dim]"
+    )
+    if is_retired_first_party_url(url):
+        message = (
+            f"{url} is the retired first-party endpoint; the canonical hosted "
+            f"endpoint is {DEFAULT_HOSTED_SAAS_URL}. Run spec-kitty upgrade to "
+            "migrate a stale config.toml target, or correct SPEC_KITTY_SAAS_URL / "
+            "config.toml [sync].server_url — proceeding against the configured target."
+        )
+        console.print(f"[yellow]! {escape(sanitize_terminal_text(message))}[/yellow]")
+        return
+    if is_noncanonical_first_party_url(url):
+        message = (
+            f"{url} is a noncanonical first-party endpoint; the canonical "
+            f"hosted endpoint is {DEFAULT_HOSTED_SAAS_URL}."
+        )
+        console.print(f"[yellow]! {escape(sanitize_terminal_text(message))}[/yellow]")
+        return
+    if url != DEFAULT_HOSTED_SAAS_URL:
+        console.print(
+            f"[dim]Custom endpoint (not the canonical {escape(DEFAULT_HOSTED_SAAS_URL)}); "
+            "self-hosted targets are supported and left unchanged.[/dim]"
+        )
+
+
 async def _run_browser_flow(tm: TokenManager, saas_url: str) -> None:
     """Run the browser-based OAuth Authorization Code + PKCE flow."""
     from specify_cli.auth.flows.authorization_code import AuthorizationCodeFlow
 
     console.print("Opening browser for OAuth authentication...")
-    # escape(): saas_url is operator-controlled (env or config.toml); unescaped,
-    # a value like `https://x.test[/]` raises MarkupError out of login (#202).
-    console.print(f"[dim]SaaS: {escape(saas_url)}[/dim]")
 
     flow = AuthorizationCodeFlow(
         saas_base_url=saas_url,
