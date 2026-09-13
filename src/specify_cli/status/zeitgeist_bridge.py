@@ -13,11 +13,14 @@ are registered into the existing slots by
 Three slots, one broadcast core:
 
 * ``fire_saas_fanout`` (WP lane transitions) → ``WPStatusChanged``;
-* ``fire_lifecycle_saas_fanout`` (mission lifecycle log) → the volatile subset
-  of that log's event types. Today that is exactly ``MissionCreated``: no
-  local producer emits ``MissionClosed`` or ``PhaseEntered`` (their only
-  producers live in the doomed sync package), and this bridge adds none — the
-  same code path carries them the moment a producer exists.
+* ``fire_lifecycle_saas_fanout`` (mission lifecycle and decision logs) → the
+  volatile subset of those logs' event types
+  (:data:`spec_kitty_events.zeitgeist_attrs.VOLATILE_EVENT_TYPES`): mission
+  created, the specify/plan/tasks Started and Completed phases, and decision
+  points. A local-only field the canonical payload does not declare (a Started
+  phase's ``artifact_path``) is projected away here, at the wire boundary, by
+  the lifecycle module's own SaaS projection; the persisted event keeps it
+  (#4214).
 * ``fire_resolved_binding_fanout`` → nothing yet: ``WPResolvedBindingChanged``
   is not part of the volatile vocabulary
   (:data:`spec_kitty_events.zeitgeist_attrs.VOLATILE_EVENT_TYPES`), and
@@ -203,9 +206,13 @@ def _broadcast_status_transition(kwargs: Mapping[str, Any]) -> None:
 def _broadcast_lifecycle_envelope(kwargs: Mapping[str, Any]) -> None:
     """Build the volatile moment carried by one local lifecycle-log envelope.
 
-    Non-volatile lifecycle types (``SpecifyStarted`` &c.) are logged and
-    skipped: they are not part of the ephemeral vocabulary, and fabricating
-    attrs for them is exactly what the design forbids.
+    Non-volatile lifecycle types (``WPCreated``, ``ProjectInitialized``) are
+    logged and skipped: they are not part of the ephemeral vocabulary, and
+    fabricating attrs for them is exactly what the design forbids. A volatile
+    payload is first projected to its canonical wire shape (a Started phase's
+    local-only ``artifact_path`` is dropped, #4214); any other field the
+    canonical model does not declare still fails strict validation and drops
+    the moment.
     """
     envelope_dict = kwargs.get("envelope")
     if not isinstance(envelope_dict, Mapping):
@@ -224,11 +231,12 @@ def _broadcast_lifecycle_envelope(kwargs: Mapping[str, Any]) -> None:
     # is private to the codec module and not exported for reuse here.
     models = PAYLOAD_MODEL_BY_EVENT_TYPE[event_type]
     candidates = models if isinstance(models, tuple) else (models,)
+    wire_payload = _wire_lifecycle_payload(str(event_type), envelope_dict.get("payload"))
     payload: BaseModel | None = None
     last_exc: ValidationError | None = None
     for candidate in candidates:
         try:
-            payload = candidate.model_validate(dict(envelope_dict.get("payload") or {}))
+            payload = candidate.model_validate(wire_payload)
             break
         except ValidationError as exc:
             last_exc = exc
@@ -255,6 +263,20 @@ def _broadcast_lifecycle_envelope(kwargs: Mapping[str, Any]) -> None:
     # the moment was produced in, which beats the process working directory.
     log_path = kwargs.get("log_path")
     _broadcast_moment(payload, envelope, cwd=log_path.parent if isinstance(log_path, Path) else Path.cwd())
+
+
+def _wire_lifecycle_payload(event_type: str, payload: Any) -> dict[str, Any]:
+    """Project a persisted lifecycle payload to its canonical wire shape (#4214).
+
+    Delegates to the lifecycle module's SaaS projection, the one authority on
+    which local-only fields leave a lifecycle payload, so the persisted event
+    and every local consumer keep them.
+    """
+    # Local import: the status package imports this bridge while it initialises.
+    from .lifecycle_events import _canonical_lifecycle_payload_for_saas  # noqa: PLC0415, PLC2701 -- same-package canonical projection
+
+    projected: dict[str, Any] = _canonical_lifecycle_payload_for_saas(event_type, dict(payload or {}))
+    return projected
 
 
 def _normalise_evidence(evidence: Any) -> Any:

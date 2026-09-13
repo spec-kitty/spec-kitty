@@ -1108,7 +1108,8 @@ def test_mission_creation_publishes_specify_started_after_local_persistence(
     assert "artifact_path" not in args["attrs"]
     assert args["attrs"]["event_id"] == local["event_id"]
     assert args["attrs"]["actor"] == local["payload"]["actor"]
-    assert args["attrs"]["at"] == local["payload"]["at"]
+    # The codec renders timestamps canonically (``+00:00`` for ``Z``); the instant is what must survive.
+    assert _dt.fromisoformat(args["attrs"]["at"]) == _dt.fromisoformat(local["payload"]["at"].replace("Z", "+00:00"))
 
 
 @pytest.mark.parametrize("artifact_path", ["kitty-specs/demo-mission/artifact.md", None])
