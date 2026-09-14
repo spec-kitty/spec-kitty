@@ -2,14 +2,16 @@
 title: Coverage signals — reconciling the three "coverage" numbers
 description: 'Why SonarCloud coverage, new_coverage, and the internal diff-coverage CI gate disagree — and how to tell an expected scope difference from a real coverage regression.'
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-14'
 audience: docs/context/audience/internal/lead-developer.md
 type: explanation
 related:
 - docs/development/testing/testing-flakiness.md
 - docs/development/testing/testing-parallel.md
 - docs/development/how-to/review-gates.md
-- .github/workflows/ci-quality.yml
+- .github/workflows/ci-aggregate.yml
+- .github/workflows/sonar.yml
+- .github/workflows/module-tests.yml
 - sonar-project.properties
 - scripts/ci/sonarcloud_branch_review.sh
 ---
@@ -31,13 +33,26 @@ the normal, healthy state — not a contradiction.**
 
 | Signal | Where it runs | Which files it scores | Which lines it counts | Threshold |
 |---|---|---|---|---|
-| **Internal `diff-coverage` gate** | CI `diff-coverage` job, **on `pull_request` only** (`.github/workflows/ci-quality.yml`) | A deliberate **critical-path subset** of `src/` (see list below) | **Only the lines your PR changed** vs the base branch (`diff-cover --compare-branch=origin/<base>`) | **90%**, blocking |
-| **SonarCloud `coverage`** | Nightly Sonar analysis (cron `17 2 * * *`) / manual dispatch — **never per PR** | The **whole `src/` tree** (`sonar.sources=src`) | **Every** executable line in the tree, cumulative | No blocking floor on the overall number (the gate uses the `new_*` metrics) |
+| **Internal `diff-cover` gate** | The `diff-cover` job in `.github/workflows/ci-aggregate.yml`, which runs on `workflow_run` after **CI Modules** completes | A deliberate **critical-path subset** of `src/` (see list below) | **Only the lines your change touched**, as the statement-level diff `scripts/ci/validate_diff_coverage.py` derives | **90%**, blocking |
+| **SonarCloud `coverage`** | Nightly Sonar analysis (`.github/workflows/sonar.yml`, cron `0 3 * * *`) / manual dispatch | The **whole `src/` tree** (`sonar.sources=src`) | **Every** executable line in the tree, cumulative | No blocking floor on the overall number (the gate uses the `new_*` metrics) |
 | **SonarCloud `new_coverage`** | Same nightly analysis | The whole `src/` tree | Lines in the **New Code Period** (since the `projectVersion` baseline) | **80%**, blocking Sonar's own gate |
 
-There is also a **second, advisory** `diff-cover` step in the same CI job that
-scores the *full* PR diff (all changed files, not just critical-path) with no
-`--fail-under`; it prints a number but never blocks a merge.
+**One measurement, several readers.** Every number above is computed from the
+*same* per-module coverage reports: `module-tests.yml`'s shards each run pytest
+with dotted `--cov=` targets and upload a `coverage-<tier>-<module>-shard<n>.xml`;
+`ci-aggregate.yml`'s `collect` job reconciles that set for one change, and both
+the `diff-cover` gate and the per-change Sonar report read the reconciliation.
+Nothing re-runs the suite to obtain a coverage number.
+
+There is also a **per-change SonarCloud report** — the `sonar-pr` job in
+`ci-aggregate.yml` (spec-kitty#4334) — which analyses the same reconciled
+measurement. It is informational and **can never block a merge**: it carries
+`continue-on-error` and is excluded from the terminal verdict's `needs:`. Until
+spec-kitty#4350 clears, it may refuse to publish; see [Known
+caveats](#known-caveats-and-follow-ups). Before that mission, the per-PR Sonar
+surface was a `sonarcloud` job in `ci-quality.yml` that re-ran the fast tier
+under `pytest --cov` purely to produce a report the shards had already produced
+for the same commit — a second measurement of the same tests, discarded.
 
 ### The internal gate's critical-path allowlist
 
@@ -68,27 +83,24 @@ That is roughly **247 Python files** — a strict subset of the **~969 tracked
 Moving (`git mv`) a module *into* one of the critical-path directories above
 subjects its relocated lines to the enforced 90% diff-coverage floor — but the
 coverage numerator that floor is judged against does not come from "however
-the module is tested somewhere in the suite." Each critical-path directory has
-its own dedicated CI coverage job scoped by a `fast`-only pytest marker filter
-(for example `kernel-tests` runs `pytest tests/kernel/ -m "fast and not
-windows_ci" --cov=src/kernel --cov-report=xml:.../coverage-kernel.xml`; the
-`doctrine`, `charter`, `status`, `merge`, and `next` critical-path directories
-each have an analogous per-directory job). The `diff-coverage` job
-(`.github/workflows/ci-quality.yml`) then downloads every job's
-`coverage-*.xml` artifact and runs `diff-cover` over the combined set with
-`--include <critical-paths>`.
+the module is tested somewhere in the suite." The numerator comes from the
+per-module shards `module-tests.yml` runs, each scoped by the module registry's
+tier marker filter and measuring the full top-level package set derived from `src/` (#4334)
+(`.github/ci-module-registry.yml`). `ci-aggregate.yml`'s `collect` job
+reconciles every shard's `coverage-*.xml` for the change, and `diff-cover`
+scores the critical-path statement diff over that combined set.
 
-If the moved module's real tests carry a non-`fast` marker (`git_repo`,
-`non_sandbox`, `integration`), they never execute inside that directory's
-`fast`-only job, so the module's lines are effectively absent from — or
+If the moved module's real tests carry a marker its shard's filter excludes,
+they never execute inside that shard, so the module's lines are effectively
+absent from — or
 reported near-0% in — the aggregated XML, and `diff-cover` fails the
 critical-path move even though the module is well-tested elsewhere in the
 suite by its non-fast parity tests.
 
-**Fix:** add a `pytest.mark.fast` test module in `tests/<critical-path-dir>/`
-that covers the moved module with mocked/stubbed dependencies (no real
-subprocess/filesystem/git calls), reaching the module's own coverage floor via
-that directory's `fast`-only job. Keep the original real-integration tests
+**Fix:** add a test module in `tests/<critical-path-dir>/` carrying a marker
+the covering shard *does* select, exercising the moved module with
+mocked/stubbed dependencies (no real subprocess/filesystem/git calls), so its
+lines reach the reconciled set. Keep the original real-integration tests
 (`git_repo`/`non_sandbox`/`integration`-marked) where they already are — the
 new fast module is additive, not a replacement.
 
@@ -208,10 +220,25 @@ the PR so the next reader does not re-litigate it.
 
 ## Where each signal is configured
 
-- **Internal `diff-coverage` gate** — the `diff-coverage` job that used to
-  live in `.github/workflows/ci-quality.yml` (deleted per PROGRAM.md §2 /
-  planning#57 — this repo runs no GitHub Actions)
-  (`--fail-under=90`, `--include <critical-paths>`, `--compare-branch`).
+- **Internal `diff-cover` gate** — the `diff-cover` job in
+  [`.github/workflows/ci-aggregate.yml`](../../../.github/workflows/ci-aggregate.yml)
+  (`--fail-under=90` over the statement diff produced by
+  `scripts/ci/validate_diff_coverage.py`). The critical-path list itself is
+  single-sourced as `CRITICAL_PATHS` in
+  [`scripts/ci/aggregate_source.py`](../../../scripts/ci/aggregate_source.py),
+  which materialises the diff the gate scores.
+  *(An earlier revision of this page said this job "used to live in
+  ci-quality.yml … this repo runs no GitHub Actions". That was wrong on both
+  counts and is what spec-kitty#4011 was filed for: the repository runs the lean
+  modular CI reinstated in spec-kitty#3995.)*
+- **Per-change SonarCloud report** — the `sonar-pr` job in the same file,
+  driven by `scripts/ci/sonar_pr_analysis.py`. Informational only.
+- **Nightly SonarCloud analysis** —
+  [`.github/workflows/sonar.yml`](../../../.github/workflows/sonar.yml)
+  (cron `0 3 * * *`), which aggregates the same shard coverage artefacts.
+- **The measurement itself** —
+  [`.github/workflows/module-tests.yml`](../../../.github/workflows/module-tests.yml)
+  and the module registry `.github/ci-module-registry.yml`.
 - **SonarCloud scope and exclusions** —
   [`sonar-project.properties`](../../../sonar-project.properties)
   (`sonar.sources=src`, `sonar.tests=tests`, `sonar.exclusions=...`).
@@ -225,14 +252,22 @@ the PR so the next reader does not re-litigate it.
 
 ## Known caveats and follow-ups
 
-- **`projectVersion` baseline is frozen.** Every recent nightly reports
-  `projectVersion = "not provided"`, so SonarCloud's New Code Period never resets
-  and `new_coverage` currently behaves like a whole-repo metric. The
-  `projectVersion` wiring that once addressed this (`scripts/ci/sonar_project_version.py`,
-  driven by the retired sonarcloud CI job) has been retired with that job;
-  resetting the baseline per release cycle is part of the operator's pending
-  Sonar decision, and any fix takes effect on the **next nightly run after it
-  merges**, not on merge itself.
+- **`projectVersion` baseline is frozen, and the cause is upstream.** Recent
+  analyses report `projectVersion = "not provided"`, so SonarCloud's New Code
+  Period never resets and `new_coverage` behaves like a whole-repo metric. The
+  `projectVersion` wiring is **not** missing — `scripts/ci/sonar_project_version.py`
+  derives it from `pyproject.toml` and both `sonar.yml` and `ci-aggregate.yml`'s
+  `sonar-pr` job stamp it. What blocks it is **spec-kitty#4350**: SonarCloud's
+  server-side *Automatic Analysis* is enabled on the `spec-kitty_spec-kitty`
+  project, and an Automatic Analysis result cannot be replaced by a pipeline
+  upload — so a correctly-wired upload is refused and is indistinguishable, from
+  the pipeline side, from a broken one. Disabling Automatic Analysis is an
+  action inside the vendor's interface; until it is taken, **do not read a green
+  CI run as evidence that a report was published**. Any fix also takes effect on
+  the **next analysis after it merges**, not on merge itself.
+  *(An earlier revision said this wiring "has been retired"; it had not — it was
+  reinstated by spec-kitty#3993, and spec-kitty#4334 moved its caller from the
+  retired `sonarcloud` job to `sonar-pr`.)*
 - **Internal allowlist entry repointed.** The critical-path `--include` list
   references `src/specify_cli/lanes/branch_naming.py`
   (`parse_mission_slug_from_branch`) — the real defining home of the
