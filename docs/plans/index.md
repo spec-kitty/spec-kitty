@@ -4,6 +4,7 @@ description: 'Plans landing page: durable domain throughlines plus the distil-th
 doc_status: active
 updated: '2026-08-12'
 related:
+- docs/plans/4-0-0-milestone-roadmap.md
 - docs/plans/code-quality/index.md
 - docs/plans/domains/index.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
@@ -51,6 +52,11 @@ All four throughlines are catalogued one hop away in the
 Release-scoped strategy for the current cycle. These follow the distil-then-retire
 lifecycle and each links up to the domain throughline it serves.
 
+- [4.0.0 Milestone Roadmap](4-0-0-milestone-roadmap.md) — **the active cycle.** The
+  operator-facing execution roadmap for milestone 4.0.0 (rc-stage): the four goal themes
+  (stability, maturity, extensibility, Team Kitty enablers), the epic dependency spine,
+  per-theme progress, exit criteria, and watch items. Its declaration of intent is
+  [`4.0.0.md`](../changelog/4.0.0.md).
 - [3.2.x Executive Overview](3-2-x-executive-overview.md) — PO / C-suite synthesis:
   goals and progress since 3.2.4, framed as business outcomes; the top-level
   stakeholder entry point.
@@ -60,9 +66,10 @@ lifecycle and each links up to the domain throughline it serves.
   framing where they disagree.
 - [3.2.x Delivery Approach](3-2-x-approach.md) — cross-mission sequencing intent,
   stress-tested by a two-round dialectic squad. Doctrine-first confirmed.
-- [3.2.x Milestone Roadmap](3-2-x-milestone-roadmap.md) — the operator-facing execution
-  roadmap for the current milestone; the durable declarations of intent it executes
-  live in [release goals](../changelog/release-goals.md).
+- [3.2.x Milestone Roadmap](3-2-x-milestone-roadmap.md) — the prior-cycle execution roadmap;
+  re-anchored on 2026-09-14 to hand active-cycle authority to the
+  [4.0.0 roadmap](4-0-0-milestone-roadmap.md) above. The durable declarations of intent it
+  executes live in [release goals](../changelog/release-goals.md).
 
 ## Working collections (by area)
 

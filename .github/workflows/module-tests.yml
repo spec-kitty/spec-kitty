@@ -117,27 +117,34 @@ jobs:
       - name: Compute shard identifiers
         id: shard-info
         shell: bash
+        env:
+          SHARD: ${{ inputs.shard }}
+          MODULE: ${{ inputs.module }}
+          ROOTS: ${{ inputs.roots }}
         run: |
           set -euo pipefail
-          shard="${{ inputs.shard }}"
+          shard="$SHARD"
           idx="${shard%%/*}"
           total="${shard##*/}"
           slug="${idx}-of-${total}"
           echo "idx=$idx" >> "$GITHUB_OUTPUT"
           echo "total=$total" >> "$GITHUB_OUTPUT"
           echo "slug=$slug" >> "$GITHUB_OUTPUT"
-          echo "module-tests: roots for ${{ inputs.module }} = ${{ inputs.roots }}"
+          echo "module-tests: roots for $MODULE = $ROOTS"
 
       - name: Select this shard's tests (greedy-LPT bin-packing over the registry shard structure)
         id: select
         shell: bash
+        env:
+          MODULE: ${{ inputs.module }}
+          TEST_DIRS: ${{ inputs.test_dirs }}
         run: |
           set -euo pipefail
           venv_python="${{ steps.warmup.outputs.venv-path }}/bin/python"
-          module="${{ inputs.module }}"
+          module="$MODULE"
           idx="${{ steps.shard-info.outputs.idx }}"
           total="${{ steps.shard-info.outputs.total }}"
-          registry_test_dirs='${{ inputs.test_dirs }}'
+          registry_test_dirs="$TEST_DIRS"
 
           "$venv_python" - "$module" "$idx" "$total" "$venv_python" "$registry_test_dirs" <<'PY'
           import json
@@ -225,13 +232,18 @@ jobs:
       - name: Run pytest for this shard
         id: pytest-run
         shell: bash
+        env:
+          TIER: ${{ inputs.tier }}
+          MODULE: ${{ inputs.module }}
+          MODE: ${{ inputs.mode }}
+          COV_TARGET: ${{ inputs.cov_target }}
         run: |
           set -euo pipefail
           venv_python="${{ steps.warmup.outputs.venv-path }}/bin/python"
-          tier="${{ inputs.tier }}"
-          mod="${{ inputs.module }}"
+          tier="$TIER"
+          mod="$MODULE"
           slug="${{ steps.shard-info.outputs.slug }}"
-          mode="${{ inputs.mode }}"
+          mode="$MODE"
           run_id="${{ github.run_id }}"
 
           mkdir -p out/reports/coverage out/reports/xunit-reports
@@ -239,7 +251,7 @@ jobs:
           cov_args=()
           while IFS= read -r target; do
             [ -n "$target" ] && cov_args+=("--cov=$target")
-          done < <("$venv_python" -c 'import json,sys; [print(t) for t in json.loads(sys.argv[1])]' '${{ inputs.cov_target }}')
+          done < <("$venv_python" -c 'import json,sys; [print(t) for t in json.loads(sys.argv[1])]' "$COV_TARGET")
 
           coverage_xml="out/reports/coverage/coverage-${tier}-${mod}-shard${slug}.xml"
           xunit_xml="out/reports/xunit-reports/xunit-result-${mod}-shard${slug}-${run_id}.xml"

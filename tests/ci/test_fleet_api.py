@@ -20,13 +20,16 @@ TOKEN = "test-private-token-should-never-appear"
 
 def test_report_job_has_only_pr_comment_write_permission() -> None:
     workflow = yaml.safe_load((Path(__file__).resolve().parents[2] / ".github/workflows/ci-fleet-verdict.yml").read_text())
-    assert workflow["permissions"] == {"contents": "read", "actions": "read"}
+    # Least-privilege permissions live at job scope (#4342 GitHub Actions
+    # hardening, S8264): no workflow-level default; identify carries the read
+    # baseline and only report escalates with pull-requests: write.
+    assert "permissions" not in workflow
+    assert workflow["jobs"]["identify"]["permissions"] == {"contents": "read", "actions": "read"}
     assert workflow["jobs"]["report"]["permissions"] == {
         "contents": "read",
         "actions": "read",
         "pull-requests": "write",
     }
-    assert "permissions" not in workflow["jobs"]["identify"]
 
 
 def test_http_post_success_sends_exact_payload_once(monkeypatch: pytest.MonkeyPatch) -> None:

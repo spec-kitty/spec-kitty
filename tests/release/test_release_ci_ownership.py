@@ -323,7 +323,11 @@ def test_ci_windows_has_no_sync_path_filters() -> None:
 def test_ci_windows_filter_can_read_pull_request_files() -> None:
     workflow = load_workflow("ci-windows.yml")
 
-    assert workflow["permissions"] == {
+    # Least-privilege permissions live at job scope (#4342 GitHub Actions
+    # hardening, S8264): the 'changes' job runs dorny/paths-filter and must be
+    # able to read PR files, so the read grants are asserted on that job rather
+    # than at the (now absent) workflow level.
+    assert workflow["jobs"]["changes"]["permissions"] == {
         "contents": "read",
         "pull-requests": "read",
     }

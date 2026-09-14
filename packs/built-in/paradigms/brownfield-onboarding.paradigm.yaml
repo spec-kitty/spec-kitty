@@ -62,6 +62,6 @@ references:
 #   spec-kitty CaaCS run; a broader evidence base from other brownfield
 #   engagements would strengthen or qualify the claim.
 # - Cross-links into the doctrine graph are declared in the per-kind
-#   src/doctrine/<kind>.graph.yaml fragments alongside this file. The motivating tactic is forensic-repository-audit
+#   packs/built-in/<kind>.graph.yaml fragments at this pack's root. The motivating tactic is forensic-repository-audit
 #   and the motivating procedure is legacy-codebase-triage; the structural
 #   overlays are domain-driven-design and deep-module-design.

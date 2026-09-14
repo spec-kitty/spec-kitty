@@ -142,7 +142,7 @@ function render() {
     (groups[ch] = groups[ch] || []).push(t);
   });
 
-  Object.keys(groups).sort().forEach(ch => {
+  Object.keys(groups).sort((a, b) => a.localeCompare(b)).forEach(ch => {
     const section = document.createElement('section');
     section.className = 'letter-section';
     section.id = 'sec-' + ch;

@@ -1,0 +1,159 @@
+{
+  "event_count": 35,
+  "last_event_id": "01M2G27DWT2E2GWDKFZH5ED2J3",
+  "materialized_at": "2026-09-14T13:38:10.458568+00:00",
+  "mission_number": "200",
+  "mission_slug": "ghactions-sonar-hardening-01M2FYX1",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2G276Z5D3WRZ9VQCFTKD0X8",
+      "last_transition_at": "2026-09-14T13:38:03.365268+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "9 S7630 sites env-indirected, behavior-identical, YAML valid",
+        "S7630 closed: 9 run-body inputs.* env-indirected + var-refs, JSON-argv (test_dirs/cov_target) preserved, YAML valid, behavior-identical, scope-clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "S7630 closed: 9 run-body inputs.* env-indirected + var-refs, JSON-argv (test_dirs/cov_target) preserved, YAML valid, behavior-identical, scope-clean",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1725924,
+      "shell_pid_created_at": "1789391335.6",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2G278QG4MSY1G3H9JD13V2D",
+      "last_transition_at": "2026-09-14T13:38:05.168168+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "S7637 SHA-pins + ci-windows perm relocation, behavior-identical",
+        "S7637: setup-uv->v5.4.2 SHA d4b2f3b6 (x4) + dorny/paths-filter->v4.0.3 SHA ceb8a2b8 both ls-remote-verified, no bump; S8264: ci-windows perms per-job, scopes retained; S8544 untouched; YAML valid"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "S7637: setup-uv->v5.4.2 SHA d4b2f3b6 (x4) + dorny/paths-filter->v4.0.3 SHA ceb8a2b8 both ls-remote-verified, no bump; S8264: ci-windows perms per-job, scopes retained; S8544 untouched; YAML valid",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1789247,
+      "shell_pid_created_at": "1789391710.07",
+      "subtasks": {
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2G27AEMP5J3TFASWWNZASD3",
+      "last_transition_at": "2026-09-14T13:38:06.932499+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Least-privilege perms relocated + install pins; uv-sync untouched",
+        "S8264/S8233: ci-aggregate+fleet-verdict perms relocated per-job, fail-dangerous audit OK (diff-cover same-run downloads need no actions:read; report/report-main pre-scoped); --only-binary :all: on 3rd-party pyyaml/diff-cover/defusedxml (wheels exist); uv sync --frozen untouched; YAML valid"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "S8264/S8233: ci-aggregate+fleet-verdict perms relocated per-job, fail-dangerous audit OK (diff-cover same-run downloads need no actions:read; report/report-main pre-scoped); --only-binary :all: on 3rd-party pyyaml/diff-cover/defusedxml (wheels exist); uv sync --frozen untouched; YAML valid",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1803268,
+      "shell_pid_created_at": "1789391846.26",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2G27C6VNHJKJP3M5855317Q",
+      "last_transition_at": "2026-09-14T13:38:08.731780+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "pyyaml/packaging/claude-code pinned; uv-sync + npm-lifecycle untouched",
+        "3rd-party installs pinned: packaging==26.2 (matches uv.lock), pyyaml==6.0.2 unchanged+only-binary, claude-code@2.1.270 (current npm latest, verified); --only-binary=:all:; no --ignore-scripts; uv sync untouched; YAML valid"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "3rd-party installs pinned: packaging==26.2 (matches uv.lock), pyyaml==6.0.2 unchanged+only-binary, claude-code@2.1.270 (current npm latest, verified); --only-binary=:all:; no --ignore-scripts; uv sync untouched; YAML valid",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1813253,
+      "shell_pid_created_at": "1789391966.0",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2G27DWT2E2GWDKFZH5ED2J3",
+      "last_transition_at": "2026-09-14T13:38:10.458568+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Adjudication dossier authored; zero code edits"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Adjudication only, zero code edits; hatchling.build backend + 1420 sha256 hashes verified (A1 correct); Section D honestly flags real gaps (release-readiness unpinned pyyaml, release.yml non-frozen); B1 FP analysis sound",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1824304,
+      "shell_pid_created_at": "1789392067.99",
+      "subtasks": {
+        "T009": "done"
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@
 title: Contributing to Spec Kitty
 description: The full contributor guide for Spec Kitty — developer setup, running tests, submitting pull requests, AI-assistance disclosure, and the release process.
 doc_status: active
-updated: '2026-08-22'
+updated: '2026-09-14'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -396,6 +396,28 @@ Here are a few things you can do that will increase the likelihood of your pull 
 - If your change is user-facing, add a consumer-focused entry to `docs/changelog/CHANGELOG.md` under `[Unreleased]` — impact-first, one line a user understands, not an internal-mechanism summary. See [Review gates: Changelog update and style](how-to/review-gates.md#changelog-update-and-style).
 - Test your changes with the Spec-Driven Development workflow to ensure compatibility.
 - Don't request review while your PR title is prefixed `WIP` / `[WIP]` -- a non-draft WIP-titled PR fails the `quality-gate` by design. Drop the prefix or keep the PR in draft. See [Review Gates](how-to/review-gates.md#pr-draft-and-wip-title-conventions).
+
+## Label-driven fleet workflow
+
+This repo is one of the programme's repos worked by the **[SkyKitty agent fleet](agent-fleet.md)**,
+and the fleet runs on a **label-driven queue**: GitHub labels are the *only* admission
+control. Agents and humans move work by changing labels, never by out-of-band assignment.
+As a contributor, two things follow:
+
+- **Issues** flow through a `status:*` lifecycle — `status:triage` → `status:ready` (the
+  fleet's admission queue) → `status:claimed` (an implementer VM holds a lease) →
+  `status:blocked`. **Never hand-set `status:claimed`**: it is a dispatcher-only lease, and a
+  hand-set claim poisons the queue (the dispatcher counts it as occupied capacity, so the
+  issue can sit invisible indefinitely).
+- **Pull requests** flow through their own lane labels — `ready-for-squad` (request
+  adversarial review) → `squad:running` → `squad:passed` / `squad:majors` — plus
+  `needs:implementer`, which is **mandatory on any fix/rebase request that expects a new
+  push** (the dispatcher only sees fix requests carrying that label).
+
+The full label tables, the dispatcher admission/reaping loop, and the source control files
+are documented in
+[Managing the issue tracker → Label-driven fleet workflow](how-to/manage-issue-tracker.md#label-driven-fleet-workflow).
+For the roles behind the queue, see [The SkyKitty agent fleet](agent-fleet.md).
 
 ## Maintainer guides
 

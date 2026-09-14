@@ -1,0 +1,192 @@
+{
+  "event_count": 42,
+  "last_event_id": "01M2FY8W1KE9KC8HDM7V9WSNA6",
+  "materialized_at": "2026-09-14T12:29:03.411529+00:00",
+  "mission_number": "",
+  "mission_slug": "post-merge-partition-integrity-01M2FQ80",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2FY8K1467CPJB6C9G5DYYD5",
+      "last_transition_at": "2026-09-14T12:28:54.180827+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first #3942 clobber test; confirmed RED raw, xfail-strict applied",
+        "Review passed (reviewer-renata): real SQUASH path no mocks; raw RED (target-newer spec.md clobbered via -X theirs); xfail-strict #3942; driver-uncovered specimens; ruff+format clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): real SQUASH path no mocks; raw RED (target-newer spec.md clobbered via -X theirs); xfail-strict #3942; driver-uncovered specimens; ruff+format clean",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 948735,
+      "shell_pid_created_at": "1789383844.12",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2FY8PMS4ZXBT54ESDY4YPDP",
+      "last_transition_at": "2026-09-14T12:28:57.881231+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Kind-aware target-newer restore; WP01 green; #2709/#2804 preserved; recency helper unit-tested",
+        "Review passed (architect-alphonso, seam/topology lens). DEVIATION ADJUDICATED SOUND — arguably superior to locked D-A2(a). Placement in _merge_branch_into (amend into squash commit) not merge/executor.py is CORRECT: (1) _merge_branch_into is the true shared seam where the -X theirs clobber occurs, and integrate_mission_into_target has TWO production callers — merge/executor AND orchestrator_api/commands.py:924 — so an executor-only restore would leave the orchestrator_api path (and the public integrate_mission_into_target API/WP01 red-first test) still clobbering; the fix is now correct-by-construction for ALL callers. amend SHA-rewrite is SAFE: amend runs inside _merge_branch_into BEFORE merge_commit=rev-parse HEAD and BEFORE advance_branch_ref, so the advanced/returned SHA is post-amend; target_baseline_sha is the PRE-merge parent (captured in _phase_baseline_and_surface, amend-irrelevant); mission_number bakes into the MISSION branch + meta.json (kind=None, EXCLUDED from the restore) so it is never clobbered; WP04 merged_commit reads post-advance HEAD=amended SHA (consistent); the #2804 gate restore touches only driver-covered/non-primary kinds via a separate bookkeeping commit — fully independent. --allow-empty empty-commit is BENIGN/low-severity: real (code-carrying) missions never empty; planning-only missions short-circuit before the squash; the pathological all-target-newer-planning case yields a git-benign empty commit and is actually exercised+green by the WP01 test. -X theirs command byte-identical; #2709/#2804 suites GREEN. Recency helper is pure (git reads only), correctly gated on is_primary_artifact_kind (meta.json/status/acceptance excluded — FR-003), 5 unit tests non-vacuous under --runxfail, both-advanced committer-date tiebreak (target-wins-on-tie) sound. WP01 xfail-strict removed, green, real entry point. FR-002 divergence surfaced to stderr (non-silent). 29/29 passed; ruff check+format+C901 clean on touched files (executor.py format flag is PRE-EXISTING base debris, untouched by WP02). Anti-pattern checklist all PASS. ONE NON-BLOCKING NIT for WP06/next touch: the SQUASH-block comment (lanes/merge.py:718) references 'executor._restore_target_newer_planning_artifacts' — a symbol/module that does not exist post-deviation; the real function is _preserve_target_newer_planning_artifacts in lanes/merge.py itself. Correct the comment on next touch (living-doc-sync). Shared file lanes/merge.py owned by WP02; WP06 depends on WP02 — rebase onto this."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (architect-alphonso, seam/topology lens). DEVIATION ADJUDICATED SOUND — arguably superior to locked D-A2(a). Placement in _merge_branch_into (amend into squash commit) not merge/executor.py is CORRECT: (1) _merge_branch_into is the true shared seam where the -X theirs clobber occurs, and integrate_mission_into_target has TWO production callers — merge/executor AND orchestrator_api/commands.py:924 — so an executor-only restore would leave the orchestrator_api path (and the public integrate_mission_into_target API/WP01 red-first test) still clobbering; the fix is now correct-by-construction for ALL callers. amend SHA-rewrite is SAFE: amend runs inside _merge_branch_into BEFORE merge_commit=rev-parse HEAD and BEFORE advance_branch_ref, so the advanced/returned SHA is post-amend; target_baseline_sha is the PRE-merge parent (captured in _phase_baseline_and_surface, amend-irrelevant); mission_number bakes into the MISSION branch + meta.json (kind=None, EXCLUDED from the restore) so it is never clobbered; WP04 merged_commit reads post-advance HEAD=amended SHA (consistent); the #2804 gate restore touches only driver-covered/non-primary kinds via a separate bookkeeping commit — fully independent. --allow-empty empty-commit is BENIGN/low-severity: real (code-carrying) missions never empty; planning-only missions short-circuit before the squash; the pathological all-target-newer-planning case yields a git-benign empty commit and is actually exercised+green by the WP01 test. -X theirs command byte-identical; #2709/#2804 suites GREEN. Recency helper is pure (git reads only), correctly gated on is_primary_artifact_kind (meta.json/status/acceptance excluded — FR-003), 5 unit tests non-vacuous under --runxfail, both-advanced committer-date tiebreak (target-wins-on-tie) sound. WP01 xfail-strict removed, green, real entry point. FR-002 divergence surfaced to stderr (non-silent). 29/29 passed; ruff check+format+C901 clean on touched files (executor.py format flag is PRE-EXISTING base debris, untouched by WP02). Anti-pattern checklist all PASS. ONE NON-BLOCKING NIT for WP06/next touch: the SQUASH-block comment (lanes/merge.py:718) references 'executor._restore_target_newer_planning_artifacts' — a symbol/module that does not exist post-deviation; the real function is _preserve_target_newer_planning_artifacts in lanes/merge.py itself. Correct the comment on next touch (living-doc-sync). Shared file lanes/merge.py owned by WP02; WP06 depends on WP02 — rebase onto this.",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1244175,
+      "shell_pid_created_at": "1789386179.53",
+      "subtasks": {
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2FY8MTSP8F3PQB7NZH3HH8R",
+      "last_transition_at": "2026-09-14T12:28:56.025887+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first #4090 disagreement test; both real readers driven; confirmed RED, xfail-strict applied",
+        "Review passed: genuine red-first #4090 disagreement, BOTH real readers driven. Retrospect leg = real _check_mission_completed -> _canonical_events_path -> resolve_status_surface (resolved the .worktrees/-coord husk = 11 open). Doctor leg = real _anchor_repair_root (re-anchors to primary root) + run_audit (scans repo_root/kitty-specs, mission found); structurally divergent (doctor path never imports resolve_status_surface). Raw --runxfail FAILS 11!=0; normal run 1 xfailed (XFAIL not XPASS). Load-bearing assert retrospect_open==doctor_open encodes FIXED expectation; HEAD-only surface facts are diagnostic-only, so WP04 flips green by removing the strict-xfail marker without editing the core assertion. Primary meta.json has NO merged_at; husk genuinely diverged (approved vs done, .worktrees path, non-ancestor). run_audit is integrity-only (no open-WP field), so reducing the doctor partition via the canonical status reducer is faithful. Scope = one new test file, no product changes. ruff check + format clean. Anti-pattern checklist: all PASS/N-A. Issue-matrix gate populated (all rows in-mission; #4090 attributed to WP03)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: genuine red-first #4090 disagreement, BOTH real readers driven. Retrospect leg = real _check_mission_completed -> _canonical_events_path -> resolve_status_surface (resolved the .worktrees/-coord husk = 11 open). Doctor leg = real _anchor_repair_root (re-anchors to primary root) + run_audit (scans repo_root/kitty-specs, mission found); structurally divergent (doctor path never imports resolve_status_surface). Raw --runxfail FAILS 11!=0; normal run 1 xfailed (XFAIL not XPASS). Load-bearing assert retrospect_open==doctor_open encodes FIXED expectation; HEAD-only surface facts are diagnostic-only, so WP04 flips green by removing the strict-xfail marker without editing the core assertion. Primary meta.json has NO merged_at; husk genuinely diverged (approved vs done, .worktrees path, non-ancestor). run_audit is integrity-only (no open-WP field), so reducing the doctor partition via the canonical status reducer is faithful. Scope = one new test file, no product changes. ruff check + format clean. Anti-pattern checklist: all PASS/N-A. Issue-matrix gate populated (all rows in-mission; #4090 attributed to WP03).",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 958657,
+      "shell_pid_created_at": "1789384152.64",
+      "subtasks": {
+        "T008": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2FY8RDXFFAF1YX0Y4B18G32",
+      "last_transition_at": "2026-09-14T12:28:59.709027+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "merged_at writer restored (baseline.py) + reopen-aware guard; WP03 green; reopened-not-merged proven; lifecycle green",
+        "Review passed: coupled #4090 Track B fix. (1) merged_at+merged_commit writer restored in baseline.py, folds into existing bookkeeping commit path via run.baseline_meta_path->files_to_commit; executor.py NOT edited. (2) is_mission_merged is event-sourced reopen-aware (_last_reopen_at vs _last_merge_marker_at); reopen test empirically non-vacuous (old predicate True, new False with merged_at deliberately left in place; emit_mission_reopened does not clear meta). (3) WP03 xfail flipped green, core retrospect==doctor assertion intact. (4) 82 passed on required+blast-radius suite. (5) merged_commit best-effort rev-parse non-raising, falls back to baseline. (6) ruff/format/mypy clean, complexity<=15. (7) two out-of-map test edits load-bearing."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: coupled #4090 Track B fix. (1) merged_at+merged_commit writer restored in baseline.py, folds into existing bookkeeping commit path via run.baseline_meta_path->files_to_commit; executor.py NOT edited. (2) is_mission_merged is event-sourced reopen-aware (_last_reopen_at vs _last_merge_marker_at); reopen test empirically non-vacuous (old predicate True, new False with merged_at deliberately left in place; emit_mission_reopened does not clear meta). (3) WP03 xfail flipped green, core retrospect==doctor assertion intact. (4) 82 passed on required+blast-radius suite. (5) merged_commit best-effort rev-parse non-raising, falls back to baseline. (6) ruff/format/mypy clean, complexity<=15. (7) two out-of-map test edits load-bearing.",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1231709,
+      "shell_pid_created_at": "1789386004.29",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2FY8T80T2YZ1MMV6A6CYJJC",
+      "last_transition_at": "2026-09-14T12:29:01.569001+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "#4091 GREEN-verified-and-closed: coord-fixture proves status.json.event_count == unique-transition count of unioned log (union+re-reduce already correct; no product change)",
+        "Review passed: honest verify-and-close for #4091; characterization guard against transition-count oracle; no product change"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: honest verify-and-close for #4091; characterization guard against transition-count oracle; no product change",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1314060,
+      "shell_pid_created_at": "1789386905.21",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2FY8W1KE9KC8HDM7V9WSNA6",
+      "last_transition_at": "2026-09-14T12:29:03.411529+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "FR-009 synthesis + CHANGELOG + stale-comment fix; combined regression green; complexity census <=15",
+        "Review passed: FR-009 synthesis cites both seams + defended verdict; CHANGELOG honest; comment fix; combined regression green; complexity <=15"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: FR-009 synthesis cites both seams + defended verdict; CHANGELOG honest; comment fix; combined regression green; complexity <=15",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1349538,
+      "shell_pid_created_at": "1789387781.74",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done"
+      }
+    }
+  }
+}

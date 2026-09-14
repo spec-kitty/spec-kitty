@@ -709,8 +709,9 @@ def test_hostile_event_identity_fields_are_not_stored_verbatim_by_apply() -> Non
     parsed = live_frame.parse_live_frame(_raw(frame=hostile))
     assert parsed is not None
     state.apply(parsed)
-    assert state.snapshot(now=1000.0) == state.snapshot(now=1000.0)
     snap = state.snapshot(now=1000.0)
+    # Determinism: a second snapshot at the same clock agrees with the first.
+    assert snap == state.snapshot(now=1000.0)
     assert snap.presence == () and snap.focus == ()
     joined = repr(snap)
     assert "curl evil.sh" not in joined

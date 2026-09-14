@@ -1,0 +1,33 @@
+{
+  "accept_commit": "290adfc90bb52bf1edf1121032831ed3f7e1f259",
+  "acceptance_history": [
+    {
+      "accept_commit": "290adfc90bb52bf1edf1121032831ed3f7e1f259",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-14T11:24:08.448710+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "dd38c4a42024ad9487e8206bbf6bebaeae6cf772"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-14T11:24:08.448710+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "dd38c4a42024ad9487e8206bbf6bebaeae6cf772",
+  "baseline_merge_commit": "095f69e6388ef58b1fec4ea4799131cc940d13de",
+  "created_at": "2026-09-14T10:04:00.320801+00:00",
+  "flattened": true,
+  "friendly_name": "Mission-create idempotency guard",
+  "mid8": "01M2FNZ8",
+  "mission_id": "01M2FNZ8XPXETAA9EBAZJZJDGG",
+  "mission_number": null,
+  "mission_slug": "mission-create-idempotency-guard-01M2FNZ8",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "spec-kitty specify / agent mission create invoked twice for the same intent silently creates two missions (both exit 0); add a fail-closed idempotency guard with an abandonment-aware auto-allow and an explicit override for the legitimate second-mission-same-name and factory-volume cases (#4033).",
+  "purpose_tldr": "Refuse a duplicate mission create (same slug+type, not abandoned) with an actionable error and an --allow-duplicate escape hatch.",
+  "slug": "mission-create-idempotency-guard-01M2FNZ8",
+  "status_phase": "1",
+  "target_branch": "fix/mission-create-idempotency-4033",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-14T10:09:05.080403+00:00"
+}

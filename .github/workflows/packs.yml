@@ -191,7 +191,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install claude CLI
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install -g @anthropic-ai/claude-code@2.1.270
       - name: Build plugin bundle + claude plugin validate --strict
         run: |
           uv sync --frozen --all-extras

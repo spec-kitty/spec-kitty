@@ -5,20 +5,19 @@ on:
   push:
     branches: [main]
 
-permissions:
-  contents: read
-  pull-requests: read
-
 jobs:
   changes:
     name: Detect Windows-critical changes
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     outputs:
       windows_critical: ${{ steps.filter.outputs.windows_critical }}
     steps:
       - uses: actions/checkout@v6
-      - uses: dorny/paths-filter@v4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
           filters: |
@@ -55,6 +54,8 @@ jobs:
   windows-critical:
     name: Windows critical (skips when unaffected; pipx, pytest -m windows_ci)
     needs: [changes]
+    permissions:
+      contents: read
     # `|| github.event_name == 'push'` keeps the 30 `windows_ci` tests
     # collectable on a push to main: no Linux job selects them (every Linux gate
     # carries `not windows_ci`), so without this disjunct a main push whose diff

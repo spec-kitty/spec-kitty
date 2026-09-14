@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "mission-create-idempotency-guard-01M2FNZ8",
+  "mission_id": "01M2FNZ8XPXETAA9EBAZJZJDGG",
+  "mission_branch": "kitty/mission-mission-create-idempotency-guard-01M2FNZ8",
+  "target_branch": "fix/mission-create-idempotency-4033",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_create.py",
+        "src/specify_cli/core/mission_creation.py",
+        "tests/core/test_mission_create_idempotency_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-14T10:08:25.093805+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "0187e0ab1fd98d13cc6098ed12a78bd12a9f3ba7"
+}
