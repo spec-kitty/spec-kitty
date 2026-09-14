@@ -45,3 +45,46 @@ exact id, or known catalog id emits nothing (FR-004).
 
 No dependency added/upgraded/removed — stdlib `logging` only. Supply-chain install-safety
 directive (051) N/A for this mission.
+
+## Implementation notes — SonarCloud review findings (post-landing)
+
+SonarCloud analysis of the integrated change (PR #4241). The per-PR `SonarCloud`
+job is `continue-on-error` / outside `quality-gate.needs` — reported, not
+required — and the **enforced** per-PR coverage gate (`ci-aggregate.yml`
+diff-cover ≥90%) passed; the notes below are the standing Sonar findings and
+their disposition.
+
+### F1 — `python:S3776` [CRITICAL] `kind_vocabulary.resolve_config_id` cognitive complexity 19 > 15
+
+- **Cause:** WP01's per-resolution memo threads cache-key build + cache-hit
+  early-return + cache-miss scan-then-store branches **nested inside** the
+  existing directive round-trip / ambiguity logic. Cognitive complexity
+  penalises nesting, so it rose to 19.
+- **Note the metric split:** `ruff` C901 (cyclomatic ≤15) is **clean** — the
+  memo added little cyclomatic branching. Sonar S3776 is *cognitive*; the two
+  diverge here (CLAUDE.md treats them as aligned, but nesting can separate
+  them). This is not a ruff/mypy regression.
+- **Disposition:** correct and fully behaviour-tested; recommended cleanup is to
+  extract the memo handling (`_scan_cache` key/get/store) into a small helper so
+  `resolve_config_id` reads as one linear pass and cognitive complexity drops
+  back ≤15. Deferred from this PR as a mechanical follow-up (no behaviour
+  change); fold it in if a subsequent pass touches this function.
+
+### F2 — `new_coverage` 65% < 80% (Sonar new-code threshold)
+
+- **Where:** `kind_vocabulary.py` file coverage 95.1% (8 uncovered lines, ~4 of
+  them in the new memo region — the cache-miss store path, the malformed-URN
+  guard, and the `_directive_ids_by_stem` tail); `resolver.py` is **100%**
+  covered (0 uncovered). The scan-count + mtime tests exercise the hit path and
+  the outcome path but not every new guard/branch line.
+- **Disposition:** the *enforced* `ci-aggregate.yml` diff-cover ≥90% gate
+  **passed**; Sonar's 80% `new_coverage` is the non-blocking advisory measure.
+  Adding a couple of narrow tests for the cache-miss-store and malformed-URN
+  branches would clear it; grouped with the F1 helper extraction as the same
+  optional follow-up.
+
+### F3 — No new bugs/vulnerabilities/hotspots
+
+- Sonar reliability / security / maintainability / duplication / hotspots-reviewed
+  conditions all **OK** on the new code; `resolver.py` carries 0 open issues.
+  (Pre-existing `S1192` on `compiler.py` is unrelated main code, not this PR.)
