@@ -169,11 +169,31 @@ It is currently **stale-advisory in five directories** untouched by any recent
 work: `tests/auth` +1, `tests/ci` +1, `tests/doctrine` +4, `tests/retrospective`
 24 vs 21, `tests/specify_cli` 240 vs 238. Nobody has acted on the warning.
 
-Cost: **993 exclusive lines**, including `test_shape_guard_membership.py` (191
-lines) which exists only to police the demotion. `_golden_count_baseline.json` is
-also a **second baseline authority** outside the canonical
-`tests/architectural/_baselines.yaml`, against the charter's single-canonical-
-authority principle.
+Cost: **993 exclusive lines**. `_golden_count_baseline.json` is also a **second
+baseline authority** outside the canonical `tests/architectural/_baselines.yaml`,
+against the charter's single-canonical-authority principle.
+
+**Correction (post-spec adversarial squad, 2026-09-14).** An earlier draft of this
+ADR counted `test_shape_guard_membership.py` (191 lines) as machinery that "exists
+only to police the demotion". That is **false**, and the error would have caused a
+real enforcement loss. Of its six tests only
+`test_shape_guard_demotion_does_not_raise_under_a_manufactured_breach` is
+golden-count-specific. Two others hold the **C-007 enforcement canon**:
+`test_enforcement_allowlist_set_is_exactly_the_c007_canon` pins the four
+always-on allowlists by set-equality against a tuple held in test *code* (so a
+yaml-only edit can neither demote a member out nor promote one in), and
+`test_enforcement_allowlists_still_carry_real_blocking_assertions` AST-proves each
+still contains a real `assert` inside a `test_*` function — an anti-silent-demotion
+guard. Its subjects are exactly the four gates this ADR promises to leave
+untouched.
+
+Two further facts make the loss concrete. `test_p1_planted_regression.py:242`
+branches on `_MEMBERSHIP_PATH.exists()` and **returns early** on a substring check,
+so deleting the governing test while keeping the yaml would degrade P1's T080 to
+"these three names appear somewhere in a YAML file no test governs". And its
+`_ENFORCEMENT_GATE_NAMES` lists only **three** gates — `test_integration_boundary.py`
+is in the yaml canon but absent from that fallback, so the membership test is its
+only machine cover.
 
 ### Gate 3 — marker baseline
 
@@ -251,13 +271,38 @@ collapse to zero still reds. Only the *tightness* of the pin changes.
 
 ### 2. `test_golden_count_ban` → **retire, and sweep the annotations**
 
-Delete `test_convert_sites_do_not_exceed_frozen_baseline`,
-`_golden_count_baseline.json`, its `shape_guard_membership.yaml` row and the
-`test_shape_guard_membership.py` coverage that exists only to police the
-demotion. Retain the classifier and scanner as an opt-in
-`python -m tests.architectural.test_golden_count_ban --emit-inventory` tool: the
-inventory is a useful artifact; the *ceiling* is the instrument with no catch
-record.
+Delete `tests/architectural/test_golden_count_ban.py` **in full** — the ceiling
+guard, the classifier, the scanner, their unit tests and the `--emit-inventory`
+entrypoint — together with `_golden_count_baseline.json`, the module's
+`shape_guard_membership.yaml` row, and
+`test_shape_guard_demotion_does_not_raise_under_a_manufactured_breach` (which
+asserts the `shape-guard` class is non-empty and so cannot outlive the row).
+
+**Operator decision, 2026-09-14:** an earlier draft of this verdict retained the
+classifier behind `--emit-inventory`. The operator chose wholesale deletion — if
+the annotations are swept, the vocabulary that produced them goes too; the
+inventory is reconstructible from git history and nothing in-tree consumes it.
+This ADR records the reversal rather than letting the decision record and the code
+disagree.
+
+**Explicitly NOT deleted**, against the earlier draft:
+
+- `shape_guard_membership.yaml` and the rest of `test_shape_guard_membership.py` —
+  see the Correction above. Only the golden-count row and the one demotion-specific
+  test go. The `shape-guard` class is left defined but empty.
+- `kitty-specs/test-suite-friction-remediation-01KXDKBX/golden-count-inventory.md` —
+  it lives in a **prior mission's committed dossier**, which the charter treats as
+  an immutable snapshot. Retiring live machinery and rewriting a landed mission's
+  artifacts are different acts.
+
+One fold wholesale deletion forces that retaining the scanner would not:
+`test_gate_remedy_presence.py:188` registers
+`tests/architectural/test_golden_count_ban.py::ratchet_violations` as a
+**known-good remedy exemplar** — deliberately chosen as one "this WP did not
+author" — and reads the file with `read_text()` at `:200`, so deletion raises
+`FileNotFoundError` rather than failing an assertion. Repoint that entry at another
+unauthored content-anchored remedy; do not simply drop it, or the property check
+loses the independence the entry exists to provide.
 
 Sweep the **387 `# golden-count: cardinality-is-contract` annotations across 194
 test files** in the same mission. Leaving them would preserve a toll contributors
@@ -296,12 +341,28 @@ is the substrate they police, because nothing selects it:
   `.github/ci-module-registry.yml` — the live directory-based CI sharding, whose
   own non-vacuity floor is *derived* (`ceiling // 2`), not pinned.
 
-Two folds the deletion forces, recorded so they are not discovered late:
-`tests/architectural/test_arch_shard_marker_completeness.py` sits in
-`[tool.ruff.format].exclude`, whose shrink-only ratchet requires every entry to
-exist on disk and to still genuinely reformat — the entry and its pinned count
-must move in the same commit. The two duplicate `next` rows and the dead
-`_gate_read_callshape.py` row disappear with the tables.
+**Folds the deletions force — corrected count and corrected mechanics.** An earlier
+draft named "two folds", one of them wrongly. The real shape, measured in
+`pyproject.toml`:
+
+`[tool.ruff.format].exclude` carries an entry for **four** of the files these two
+verdicts delete — `tests/architectural/test_golden_count_ban.py` (`:1087`),
+`tests/_shard_registry.py` (`:974`),
+`tests/test_shard_registry_fallback.py` (`:2757`) and
+`tests/architectural/test_arch_shard_marker_completeness.py` (`:1060`). All four
+entries must be removed, or `test_ruff_format_exclude_ratchet.py::test_every_exclude_entry_exists_on_disk`
+reds. The earlier draft named only the last of the four.
+
+The pinned-count coupling was also stated backwards. `_BASELINE_EXCLUDE_COUNT`
+(2809) is enforced as `len(entries) <= baseline`, so **removal never requires
+touching it** — only growth does. The mandatory half is the entry removal; the
+count edit is optional. Stating it the other way round would have sent an
+implementer looking for a coupling that does not exist in the direction this work
+moves, while leaving the one that does bite unnamed for three of four entries.
+
+`tests/_arch_shard_map.py` and `tests/_next_shard_map.py` carry no exclude entry.
+The two duplicate `next` rows and the dead `_gate_read_callshape.py` row disappear
+with the tables.
 
 ## Consequences
 
@@ -320,10 +381,26 @@ must move in the same commit. The two duplicate `next` rows and the dead
 **Bad / accepted risk**
 
 - The routed census may now drift far from its floor unobserved. Accepted: the
-  *defect* — inline reads regrowing outside the reader family — is caught exactly
-  by the retained ceiling + allowlist, which is the gate with the real catch
-  record. A falling routed count with a flat inline ceiling is a refactor, not a
-  regression.
+  *defect* — inline reads regrowing outside the reader family — is caught by the
+  retained ceiling + allowlist, which is the gate with the real catch record. A
+  falling routed count with a flat inline ceiling is a refactor, not a regression.
+- **The tripwire opens one genuine hole this ADR must not paper over
+  (adversarial squad, 2026-09-14).** `EXCLUDED_REL_PATHS` removes
+  `src/specify_cli/mission_metadata.py` and `src/specify_cli/task_utils/support.py`
+  from the *inline* scan entirely — correctly, since the first is the canonical
+  reader's own implementation. But those two files hold **17 of the 157 routed
+  sites** (measured), so inside them the routed floor is the *only* cover.
+  Replacing their internal delegations with hand-rolled parsing drops the census
+  157 → 140: red today (`140 < 153`), **green at a floor of 100**, with the new
+  inline reads unscanned. Not accepted silently — the implementing mission closes
+  it with a small pinned count of decode sites *inside* the two excluded files
+  (the shape `_count_kernel_l1_meta_decoders` already uses). That is a debt
+  ceiling over a two-file set, which is stable, not a goodness floor over the
+  tree, which is not.
+  Counterweight, recorded for honesty: defeating the tripwire outright requires
+  removing 58 routed sites across ≥10 files, so it still bites on collapse; and
+  both historical drops this gate ever detected were answered by lowering the
+  pin, never by investigating a regression.
 - Retiring the golden-count ceiling means a future `len(X) == N` regrowth is caught
   by review rather than CI. Accepted: it has always been caught by review, since
   the gate caught nothing in its lifetime and has been advisory since 2026-09-07.
@@ -334,6 +411,31 @@ must move in the same commit. The two duplicate `next` rows and the dead
   registry, not from these tables.
 - The annotation sweep touches 194 test files. Accepted deliberately, to stop the
   cargo-culted toll; it is comment-only and behaviour-preserving.
+
+**Corrections to this ADR's own claims (post-spec adversarial squad, 2026-09-14)**
+
+- **"The real invariant stays a hard gate" overstates the retained scanner.** A
+  squad lens built a scratch `src/` tree and ran the real `scan_inline_meta_reads`
+  against eight plausible new inline reads plus one canonical control: **one
+  caught, eight evaded.** The evasions include `json.loads(path.read_bytes())`
+  (the read-base matcher only knows `read_text`/`open`), `Path(dir, "meta.json")`
+  and `os.path.join(...)` (the join matcher requires a `/` `BinOp`), a module-level
+  `META_NAME` constant (it requires a literal), an interprocedural one-line helper,
+  and `yaml.safe_load(...)` — which parses JSON correctly and is idiomatic in this
+  codebase. **None of this is a regression introduced here** — all eight pass today
+  with the margin intact — but the retained gate closes one AST *spelling* of the
+  defect class, not the class. The verdicts stand; the confidence behind them is
+  hereby narrowed to what was measured.
+- **A second, tighter de-routing detector already exists and was unnamed.**
+  `tests/specify_cli/test_meta_fail_closed_full_census_contract.py` keeps an
+  independent `_ACCOUNTED_SITES` ledger checked for **exact equality** against a
+  live scan, keyed on `load_meta_fail_closed`. It does not depend on
+  `ROUTED_LOAD_META_FLOOR` and is unaffected by this ADR — so the de-routing class
+  retains cover this ADR did not credit.
+- **Sequencing dependency.** This ADR is not an ancestor of the implementing
+  mission's branch. The mission must rebase onto the landed ADR before it can flip
+  this document `Proposed` → `Accepted`; that flip cannot happen inside the
+  mission's three workstream commits.
 
 **Neutral**
 
