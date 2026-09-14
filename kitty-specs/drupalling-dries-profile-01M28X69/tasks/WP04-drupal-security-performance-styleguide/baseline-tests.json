@@ -1,0 +1,79 @@
+{
+  "wp_id": "WP04",
+  "captured_at": "2026-09-11T20:40:06Z",
+  "base_branch": "feat/drupalling-dries-profile",
+  "base_commit": "4dff7355323a62d2d243e30d13e8ae03c5317261",
+  "test_runner": "pytest",
+  "total": 13,
+  "passed": 0,
+  "failed": 13,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "tests.architectural",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.auth.test_http_transport",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.auth.test_me_fetch",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.auth.test_refresh_flow",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.auth.test_token_manager",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.core.test_upgrade_probe_and_notifier",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.review.test_verdict_save_performance",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.compat.test_channel_aware_latest",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.compat.test_provider_pypi",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.distribution.test_prerelease_channel",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.next.test_next_cold_start_performance",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.saas_client.test_repo_admission_check",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.zeitgeist_client.test_resolution",
+      "error": "collection failure",
+      "file": "unknown:?"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}
