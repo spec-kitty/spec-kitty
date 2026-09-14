@@ -1786,7 +1786,6 @@ exclude = [
     "tests/integration/test_review_handoff.py",
     "tests/integration/test_sc008_topology_resolution.py",
     "tests/integration/test_slice_f_cross_axis.py",
-    "tests/integration/test_status_emit_on_alloc_failure.py",
     "tests/integration/test_surface_translation_seam.py",
     "tests/integration/test_three_layer_drg_end_to_end.py",
     "tests/integration/test_token_refresh_dedup.py",
