@@ -17,6 +17,12 @@ folds — single-data-source (a new module is a row, not a workflow file) and
 the <=20-reusable-workflows-per-caller ceiling — are machine-checked here
 rather than left as prose.
 
+Also asserts test-directory coverage (spec-kitty#4369): every test-bearing
+directory under ``tests/`` is claimed by exactly one registry row (mirrored
+``tests/<module>`` or an explicit ``test_dirs`` entry) or explicitly recorded
+in the registry's ``out_of_matrix_test_dirs`` inventory with a reason — a
+directory that is neither is silently unrun by every shard.
+
 Both YAML/JSON artefacts are loaded lazily inside each test (never at import
 time) so a missing registry reds for the right reason — file absent — never
 an ``ImportError`` or a collection-time crash.
@@ -389,3 +395,142 @@ def test_reusable_workflow_ceiling_respected() -> None:
     assert not per_module_workflow_files, (
         f"one-workflow-file-per-module anti-pattern detected (breaches the ceiling for any non-trivial module count): {per_module_workflow_files}"
     )
+
+
+# ---------------------------------------------------------------------------
+# spec-kitty#4369: test-directory coverage. Every test-bearing directory
+# under tests/ must be claimed by EXACTLY ONE registry row (its
+# tests/<module> mirror or an explicit test_dirs entry) or explicitly
+# recorded in the registry's out_of_matrix_test_dirs inventory with a
+# reason. A directory that is neither is selected by no shard: its tests
+# can neither fail a PR nor contribute coverage evidence -- exactly the
+# tests/test_dashboard/ defect (its containment suites ran nowhere; the
+# gap surfaced only as a confusing diff-cover failure on #4249).
+# ---------------------------------------------------------------------------
+# pytest's default python_files patterns (pytest.ini does not override
+# python_files) -- the collection basis for "a directory that holds tests".
+_PYTHON_FILE_PATTERNS = ("test_*.py", "*_test.py")
+
+
+def _test_bearing_dirs() -> set[str]:
+    """Every directory under tests/ that directly holds a collectible test module."""
+    tests_root = _REPO_ROOT / "tests"
+    dirs: set[str] = set()
+    for pattern in _PYTHON_FILE_PATTERNS:
+        for path in tests_root.rglob(pattern):
+            if path.is_file():
+                dirs.add(path.parent.relative_to(_REPO_ROOT).as_posix())
+    assert dirs, "no test-bearing directories found under tests/ (scanner is broken, not the tree empty)"
+    return dirs
+
+
+def _effective_test_dir_claims(registry: dict[str, Any]) -> dict[str, list[str]]:
+    """dir -> claiming module names, mirroring module-tests.yml's selection step.
+
+    A row's explicit ``test_dirs`` list wins when present; otherwise the row
+    claims its mirrored ``tests/<module>`` directory. This is the same
+    precedence the shard-selection step in ``.github/workflows/module-tests.yml``
+    applies, so what this gate computes as "claimed" is what CI actually runs.
+    """
+    claims: dict[str, list[str]] = {}
+    for row in _modules(registry):
+        name = str(row.get("module", ""))
+        for entry in row.get("test_dirs") or [f"tests/{name}"]:
+            claims.setdefault(str(entry), []).append(name)
+    return claims
+
+
+def _claimants(claims: dict[str, list[str]], test_dir: str) -> list[str]:
+    """Modules whose effective test dirs select *test_dir* (pytest runs a
+    directory recursively, so a descendant of a claimed dir is claimed too)."""
+    return sorted({name for claimed, names in claims.items() if test_dir == claimed or test_dir.startswith(claimed + "/") for name in names})
+
+
+def _out_of_matrix_dirs(registry: dict[str, Any]) -> set[str]:
+    entries = registry.get("out_of_matrix_test_dirs", [])
+    assert isinstance(entries, list), "out_of_matrix_test_dirs must be a list of {reason, dirs} entries"
+    recorded: set[str] = set()
+    for entry in entries:
+        assert isinstance(entry, dict), f"out_of_matrix entry is not a mapping: {entry!r}"
+        for d in entry.get("dirs", []):
+            recorded.add(str(d))
+    return recorded
+
+
+def test_every_test_directory_is_claimed_once_or_recorded_out_of_matrix() -> None:
+    """No test-bearing tests/ directory may be silently unrun (spec-kitty#4369).
+
+    Each directory must be claimed by exactly one registry row (two claimants
+    double-run its tests in both shards) or carry an explicit out-of-matrix
+    record -- never both, never neither.
+    """
+    registry = _load_registry()
+    claims = _effective_test_dir_claims(registry)
+    recorded = _out_of_matrix_dirs(registry)
+
+    problems: list[str] = []
+    for test_dir in sorted(_test_bearing_dirs()):
+        claimants = _claimants(claims, test_dir)
+        if len(claimants) > 1:
+            problems.append(f"tests/{test_dir} is claimed by more than one registry row ({claimants}) -- every shard would double-run it")
+        elif len(claimants) == 1:
+            if test_dir in recorded:
+                problems.append(f"{test_dir} is claimed by row {claimants[0]!r} AND recorded out-of-matrix (remove one)")
+        elif test_dir not in recorded:
+            problems.append(
+                f"{test_dir} is selected by no registry row and recorded nowhere -- its tests can neither "
+                "fail a PR nor contribute coverage (the tests/test_dashboard/ defect, spec-kitty#4369); "
+                "claim it in a row or record it in out_of_matrix_test_dirs with a reason"
+            )
+    assert not problems, "test-directory coverage gaps:\n" + "\n".join(problems)
+
+
+def test_out_of_matrix_inventory_entries_are_real_directories_with_real_reasons() -> None:
+    """The out-of-matrix inventory is alive: entries exist, hold tests, and reason.
+
+    A recorded directory that has vanished (or never held a test module) is
+    stale inventory; a placeholder reason is no reason.
+    """
+    registry = _load_registry()
+    entries = registry.get("out_of_matrix_test_dirs")
+    assert isinstance(entries, list) and entries, (
+        "registry declares no out_of_matrix_test_dirs inventory (spec-kitty#4369: every unclaimed "
+        "test directory must be recorded here with a reason, or claimed by a row)"
+    )
+
+    universe = _test_bearing_dirs()
+    seen: set[str] = set()
+    problems: list[str] = []
+    for entry in entries:
+        reason = entry.get("reason")
+        assert isinstance(reason, str) and reason.strip(), f"out_of_matrix entry carries no reason: {entry!r}"
+        assert reason.strip().lower() not in {"n/a", "none", "tbd", "todo", "pending"}, f"out_of_matrix reason is a placeholder, not a reason: {reason!r}"
+        dirs = entry.get("dirs")
+        assert isinstance(dirs, list) and dirs, f"out_of_matrix entry declares no dirs: {entry!r}"
+        for d in dirs:
+            assert isinstance(d, str) and d, f"out_of_matrix dirs entry is not a path string: {d!r}"
+            if d in seen:
+                problems.append(f"{d} is recorded out-of-matrix more than once")
+            seen.add(d)
+            if d not in universe:
+                problems.append(f"{d} is recorded out-of-matrix but is not a test-bearing directory on disk (stale inventory)")
+    assert not problems, "out-of-matrix inventory problems:\n" + "\n".join(problems)
+
+
+def test_registry_test_dirs_are_pairwise_non_nested() -> None:
+    """No row's effective test dir may contain another row's.
+
+    pytest collects a directory recursively, so a nested pair of claims would
+    run the nested directory's tests in BOTH modules' shards -- double wall
+    clock and double-counted coverage for the same module set.
+    """
+    registry = _load_registry()
+    claims = _effective_test_dir_claims(registry)
+    dirs = sorted(claims)
+    nested = [
+        f"{ancestor} ({claims[ancestor]}) contains {descendant} ({claims[descendant]})"
+        for ancestor in dirs
+        for descendant in dirs
+        if ancestor != descendant and descendant.startswith(ancestor + "/")
+    ]
+    assert not nested, "registry test_dirs are nested across rows (double-run):\n" + "\n".join(nested)
