@@ -198,9 +198,14 @@ class TestBaselineMergeCommitMetadata:
 
         result = _record_baseline_merge_commit(feature_dir, "new-value")
 
-        assert result is None
         data = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+        # The existing baseline_merge_commit is still preserved advance-only (#3311)...
         assert data["baseline_merge_commit"] == "already-set"
+        # ...but the coupled merged_at writer (#4090) fills the absent completion
+        # marker in the same call, so the function reports the meta path it wrote
+        # (the return contract changed from None → the written path).
+        assert result == feature_dir / "meta.json"
+        assert "merged_at" in data
 
 
 # ---------------------------------------------------------------------------
