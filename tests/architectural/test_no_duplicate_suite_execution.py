@@ -1340,6 +1340,8 @@ def test_faultinjection_shell_dash_c_wrapper_is_resolved(tmp_path: Path) -> None
         ("mid-line segment", 'echo hi && bash -c "pytest tests/unit"'),
         ("operators inside the payload", 'bash -c "make lint && make test-fast"'),
         ("sibling command after the wrapper", 'bash -c "make lint" && make test-fast'),
+        ("two wrappers on one line, semicolon", "bash -c 'make lint'; bash -c 'pytest tests/unit -m fast'"),
+        ("two wrappers on one line, double quotes", 'bash -c "make lint" && bash -c "pytest tests/unit"'),
         ("runner-prefixed wrapper", 'xvfb-run bash -c "pytest tests/unit"'),
     ],
 )
@@ -1349,7 +1351,11 @@ def test_faultinjection_shell_dash_c_spellings_resolve(tmp_path: Path, spelling:
     Whole-line wrappers (including a payload carrying ``&&``, which the shell
     splitter would tear apart mid-quote), segment-level wrappers, and a
     wrapper behind a runner prefix all resolve to exactly the suite
-    execution they run — never zero, and never a path-less over-claim.
+    execution they run — never zero, and never a path-less over-claim. A
+    line carrying TWO wrappers declines the whole-line unwrap (the payload
+    is quote-exclusive and cannot cross the first closing quote) and is
+    unwrapped segment-by-segment instead, so the second wrapper's execution
+    is seen rather than swallowed into an unparseable payload.
     """
     invocations = gc.suite_invocations(command)
     assert invocations, f"{spelling}: {command!r} resolved to no suite invocation"

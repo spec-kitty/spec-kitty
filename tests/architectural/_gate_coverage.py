@@ -479,12 +479,19 @@ _VIA_ACTION = "action {name}"
 # token (bare ``-c``, combined ``-ec``, or a run of plain flags before a final
 # ``-c``) is accepted; the payload is the single quoted string, and trailing
 # arguments after it (``sh -c 'cmd' name arg``) are ignored — they are $0/$1,
-# not commands. Trailing content containing a shell operator (``bash -c 'x' &&
-# make test-fast``) does NOT match: the wrapper is then one segment of a larger
-# line, and claiming the whole line would swallow the sibling command.
+# not commands. The payload is QUOTE-EXCLUSIVE (``[^']*`` / ``[^"]*``): it
+# cannot cross a closing quote, so a line carrying two wrappers
+# (``bash -c 'x'; bash -c 'y'``) never whole-line-matches — a greedy payload
+# would swallow both wrappers up to the LAST closing quote, hiding the second
+# execution inside an unparseable payload. Trailing content containing a
+# shell operator (``bash -c 'x' && make test-fast``) likewise does NOT
+# match: the wrapper is then one segment of a larger line, and claiming the
+# whole line would swallow the sibling command. Both declined shapes are
+# handled by the per-segment unwrap in :func:`suite_invocations`.
 _SHELL_C_RE = re.compile(
     r"^(?:ba|da|k|z)?sh\s+(?:-[A-Za-z]+\s+)*(?:-[A-Za-z]*c\b\s+)"
-    r"(?P<q>['\"])(?P<payload>.*)(?P=q)(?:\s+[^;&|]*)?$",
+    r"(?:'(?P<sq>[^']*)'|\"(?P<dq>[^\"]*)\")"
+    r"(?:\s+[^;&|]*)?$",
 )
 
 
@@ -493,10 +500,14 @@ def _shell_c_payload(command: str) -> str | None:
 
     ``None`` for anything else — a partial match (no closing quote) returns
     ``None`` rather than a truncated payload, so a wrapper torn apart by the
-    shell-segment splitter is simply not unwrapped.
+    shell-segment splitter is simply not unwrapped. The payload also cannot
+    contain the wrapping quote character, so a line with two wrappers returns
+    ``None`` here and is unwrapped segment-by-segment instead.
     """
     match = _SHELL_C_RE.match(command)
-    return match.group("payload") if match else None
+    if match is None:
+        return None
+    return match.group("sq") if match.group("sq") is not None else match.group("dq")
 
 
 @dataclass(frozen=True)

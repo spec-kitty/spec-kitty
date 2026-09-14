@@ -122,8 +122,8 @@
         426,
         428,
         434,
-        483,
-        876
+        487,
+        887
       ],
       "dependency": true,
       "disposition": "rewrite",
@@ -153,7 +153,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        2048
+        2059
       ],
       "dependency": true,
       "disposition": "none",
@@ -347,7 +347,7 @@
         289,
         1341,
         1342,
-        1649
+        1655
       ],
       "dependency": true,
       "disposition": "rewrite",
@@ -377,8 +377,8 @@
       ],
       "form": "synthetic-fixture",
       "lines": [
-        1762,
-        1771
+        1768,
+        1777
       ],
       "dependency": false,
       "disposition": "none",
@@ -408,8 +408,8 @@
       ],
       "form": "synthetic-fixture",
       "lines": [
-        1732,
-        1742
+        1738,
+        1748
       ],
       "dependency": false,
       "disposition": "none",
