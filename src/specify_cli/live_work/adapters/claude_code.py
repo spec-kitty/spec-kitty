@@ -411,8 +411,14 @@ def _parse_test_counts(tool_response: Any) -> tuple[int, int, int] | None:
 
 
 def _compact_selector(command: str) -> str:
-    """A bounded, space-free selector for a test-run observation."""
-    tokens = command.split()
+    """A bounded, space-free selector for a test-run observation.
+
+    Derived from the *redacted* command summary, never the raw command —
+    the selector rides the wire like the summary does, so a credential
+    shape that the summary would lose must never survive here either.
+    """
+    sanitized = redact_command_summary(command)
+    tokens = (sanitized.value or "").split()
     if not tokens:
         return "test-run"
     parts = [tokens[0]]

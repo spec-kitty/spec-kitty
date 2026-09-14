@@ -8,9 +8,12 @@ reusing the canonical registrars — never a second settings writer:
   :class:`specify_cli.session_presence.hooks.ClaudeCodeHookRegistrar`,
   the same atomic merge/preserve/unregister path the lint and presence
   hooks already use;
-* Codex — a ``notify`` entry in ``config.toml``. The notify key is merged
-  *textually* (append-only): parsing and re-serializing a user's TOML
-  would destroy their comments, and an existing non-spec-kitty ``notify``
+* Codex — a ``notify`` entry in ``config.toml``. Scope and presence are
+  decided by *parsing* the TOML (a textual EOF append would land the key
+  inside the last table, where Codex never reads it), while the write
+  itself stays textual — inserting the key at the top of the file, before
+  the first table header, never re-serializes the user's TOML and never
+  destroys their comments. An existing non-spec-kitty top-level ``notify``
   is never clobbered — the install reports refusal instead.
 
 Both directions are idempotent, and uninstall removes exactly the
@@ -19,9 +22,10 @@ spec-kitty entries, never sibling hooks.
 
 from __future__ import annotations
 
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 from .adapters.claude_code import CLAUDE_HOOK_COMMANDS
 
@@ -117,16 +121,38 @@ def _install_codex(project_root: Path) -> InstallOutcome:
         config.write_text(f"{CODEX_NOTIFY_LINE}\n", encoding="utf-8")
         return InstallOutcome("codex", True, "created .codex/config.toml with the live-work notify entry")
     text = config.read_text(encoding="utf-8")
-    if CODEX_NOTIFY_LINE in text:
+    try:
+        parsed = tomllib.loads(text)
+    except tomllib.TOMLDecodeError as exc:
+        return InstallOutcome(
+            "codex",
+            False,
+            f".codex/config.toml is not valid TOML ({exc}); fix the file before installing",
+        )
+    notify_commands = _notify_commands(parsed)
+    if CODEX_LIVE_WORK_COMMAND in notify_commands:
         return InstallOutcome("codex", True, "live-work notify entry already present")
-    if _has_notify_key(text):
+    if "notify" in parsed:
+        # A top-level notify we do not own — never clobbered. (A notify
+        # nested inside a table, e.g. [tui.notifications], is not this key
+        # and does not block the install.)
         return InstallOutcome(
             "codex",
             False,
             "an existing notify key is configured; refusing to clobber it (add the spec-kitty live-work command to the existing list by hand)",
         )
-    config.write_text(text.rstrip("\n") + f"\n{CODEX_NOTIFY_LINE}\n", encoding="utf-8")
-    return InstallOutcome("codex", True, "appended the live-work notify entry")
+    # No top-level notify: insert at the TOP of the file — a TOML top-level
+    # key must precede the first table header, so an EOF append would land
+    # inside the last table where Codex never reads it. Any exact-line copy
+    # already sitting inside a table (a pre-scope-fix install's misplaced
+    # append) is dropped in the same write; the merge stays textual, so the
+    # user's comments and formatting are never re-serialized.
+    lines = [line for line in text.splitlines() if line.strip() != CODEX_NOTIFY_LINE]
+    misplaced = any(line.strip() == CODEX_NOTIFY_LINE for line in text.splitlines())
+    config.write_text(CODEX_NOTIFY_LINE + "\n" + "\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+    if misplaced:
+        return InstallOutcome("codex", True, "moved a misplaced live-work notify entry to the top level")
+    return InstallOutcome("codex", True, "inserted the live-work notify entry at the top of the file")
 
 
 def _uninstall_codex(project_root: Path) -> InstallOutcome:
@@ -141,9 +167,11 @@ def _uninstall_codex(project_root: Path) -> InstallOutcome:
     return InstallOutcome("codex", True, "removed the live-work notify entry")
 
 
-def _has_notify_key(text: str) -> bool:
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("notify") and ("=" in stripped):
-            return True
-    return False
+def _notify_commands(parsed: dict[str, Any]) -> list[str]:
+    """The top-level ``notify`` entry's commands, as strings (empty if absent)."""
+    notify = parsed.get("notify")
+    if isinstance(notify, list):
+        return [str(item) for item in notify]
+    if isinstance(notify, str):
+        return [notify]
+    return []

@@ -150,6 +150,65 @@ def test_non_test_bash_command_produces_no_test_observation(repo: Path) -> None:
     assert WorkEmissionKind.TEST_EXECUTED not in {obs.kind for obs in observations}
 
 
+@pytest.mark.parametrize(
+    ("command", "secret"),
+    [
+        # Env-assignment prefix: the key survives, the value must not.
+        ("GITHUB_TOKEN=ghp_AbCdEf1234567890abcdefghijklmnop uv run pytest tests/live -q", "ghp_AbCdEf1234567890abcdefghijklmnop"),
+        # Trailing inline assignment inside the selector's token window.
+        ("make test DEPLOY_KEY=AKIAIOSFODNN7EXAMPLE", "AKIAIOSFODNN7EXAMPLE"),
+        # A secret-named flag's value inside the token window.
+        ("npm test --api-key=sk-proj-abcdefghijklmnop123456789", "sk-proj-abcdefghijklmnop123456789"),
+        # A quoted Authorization header riding a test command.
+        (
+            'pytest tests/ -q -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJVadQssw5c"',
+            "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJVadQssw5c",
+        ),
+    ],
+)
+def test_test_run_selector_never_carries_a_credential(repo: Path, command: str, secret: str) -> None:
+    """The wire selector is a command derivative — it must be redacted like the summary.
+
+    Pass-2 squad MAJOR: ``_compact_selector`` read the raw command, so the
+    selector attr carried credential shapes the ``x-summary`` attr correctly
+    lost, past the key-only ``assert_clean`` projection guard, onto a frame
+    the publisher offers to the relay.
+    """
+    adapter = ClaudeCodeHookAdapter()
+    observations = adapter.parse(
+        _payload(
+            repo,
+            tool_name="Bash",
+            tool_input={"command": command},
+            tool_response={"stdout": "7 passed in 0.1s", "is_error": False},
+        ),
+        repo_root=repo,
+    )
+    test_observation = next(obs for obs in observations if obs.kind == WorkEmissionKind.TEST_EXECUTED)
+    detail = test_observation.action
+    assert isinstance(detail, TestRunDetail)
+    assert secret not in detail.selector
+    # And nowhere else on the whole wire payload either.
+    dumped = json.dumps(test_observation.model_dump())
+    assert secret not in dumped
+
+
+def test_test_run_selector_survives_for_benign_commands(repo: Path) -> None:
+    adapter = ClaudeCodeHookAdapter()
+    observations = adapter.parse(
+        _payload(
+            repo,
+            tool_name="Bash",
+            tool_input={"command": "uv run pytest tests/unit -q"},
+            tool_response={"stdout": "7 passed in 0.1s", "is_error": False},
+        ),
+        repo_root=repo,
+    )
+    detail = next(obs.action for obs in observations if obs.kind == WorkEmissionKind.TEST_EXECUTED)
+    assert isinstance(detail, TestRunDetail)
+    assert detail.selector == "uv--run--pytest"  # '::' joins scrub to '--' in the wire grammar
+
+
 def test_delegation_pair_maps_to_session_delegation_kinds(repo: Path) -> None:
     adapter = ClaudeCodeHookAdapter()
     started = adapter.parse(
