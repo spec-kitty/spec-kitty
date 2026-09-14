@@ -12,7 +12,10 @@ Originally: mission ``doctrine-silence-guards-01KYFV7Q`` WP07 (FR-008, FR-009,
 NFR-003).
 
 ``A`` -- the DRG monolith ``src/doctrine/graph.yaml``, sharded out of
-existence by #2680 into one ``<kind>.graph.yaml`` fragment per kind.
+existence by #2680 into one ``<kind>.graph.yaml`` fragment per kind, and the
+``src/doctrine/<kind>.graph.yaml`` fragment home those shards first landed in,
+itself emptied when mission ``relocate-builtin-doctrine-packs-01KYT87F`` moved
+the fragments to the ``packs/built-in/`` pack root (#2715).
 
 ``B`` -- the ``<kind>/shipped/`` pack layer, which has never existed on disk;
 the shipped pack layer is ``<kind>/built-in/``.
@@ -59,11 +62,15 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 # Gate A -- the dead DRG monolith path
 # ---------------------------------------------------------------------------
 
-#: Any slash-joined literal naming a ``graph.yaml`` directly inside a
+#: Any slash-joined literal naming a ``graph.yaml`` -- the monolith, or a
+#: ``<kind>.graph.yaml`` / ``*.graph.yaml`` fragment -- directly inside a
 #: ``doctrine`` directory. Deliberately broader than the exact built-in
-#: string: the defect class is "names a doctrine graph monolith", and a gate
-#: keyed only on ``src/doctrine/graph.yaml`` is evaded by rewording the prefix.
-_GRAPH_MONOLITH_RE = re.compile(r"[\w./<>-]*doctrine/graph\.yaml")
+#: string: the defect class is "names a doctrine-directory DRG graph file", and
+#: a gate keyed only on ``src/doctrine/graph.yaml`` is evaded by rewording the
+#: prefix or by naming a fragment instead of the monolith (#2715). The live
+#: fragments sit at ``packs/built-in/<kind>.graph.yaml``, which has no
+#: ``doctrine/`` segment and so never matches.
+_GRAPH_MONOLITH_RE = re.compile(r"[\w./<>*-]*doctrine/(?:[\w<>*-]+\.)?graph\.yaml")
 
 #: Discriminator A1. The project tier really does write a single
 #: ``graph.yaml`` under ``.kittify/doctrine/``; that path is live, not dead.
@@ -300,11 +307,13 @@ def scan_shipped_pack_shipped() -> ShippedLayerScan:
 
 def test_no_source_site_names_the_dead_drg_monolith() -> None:
     """FR-008 / SC-007: nothing under the shipped trees (``src/`` +
-    ``packs/built-in/``) points at the sharded-away ``src/doctrine/graph.yaml``."""
+    ``packs/built-in/``) points at the sharded-away ``src/doctrine/graph.yaml``
+    or at the relocated-away ``src/doctrine/<kind>.graph.yaml`` fragments."""
     scan = scan_graph_monolith_shipped()
     assert not scan.violations, (
-        "These sites name a doctrine graph monolith that #2680 deleted. "
-        "Point them at the per-kind fragment (src/doctrine/<kind>.graph.yaml):\n" + _render(scan.violations)
+        "These sites name a doctrine-directory graph file that no longer exists (#2680 sharded the "
+        "monolith; the fragments then moved to the pack root). "
+        "Point them at the per-kind fragment (packs/built-in/<kind>.graph.yaml):\n" + _render(scan.violations)
     )
 
 
@@ -413,6 +422,35 @@ def test_gate_a_rejects_a_planted_violation(tmp_path: Path) -> None:
     planted.write_text("Add the edge to src/doctrine/graph.yaml.\n", encoding="utf-8")
     scan = scan_graph_monolith_paths(tmp_path)
     assert [site.text for site in scan.violations] == ["src/doctrine/graph.yaml"]
+
+
+def test_gate_a_rejects_a_planted_dead_fragment_path(tmp_path: Path) -> None:
+    """Self-mutation (#2715): a fragment path under the retired
+    ``src/doctrine/`` home is dead in every spelling -- placeholder, glob, or a
+    concrete kind -- while the live pack-root fragment path is not flagged.
+
+    Scans a dedicated subroot: ``_text_files`` caches by root path, and this
+    test's ``tmp_path`` shares its 30-character truncated prefix with
+    ``test_gate_a_rejects_a_planted_violation``'s, so a bare ``tmp_path`` can be
+    handed that test's cached read (see ``_dead_path_scan._text_files``)."""
+    root = tmp_path / "dead-fragment"
+    root.mkdir()
+    planted = root / "guidance.yaml"
+    planted.write_text(
+        "a: the per-kind src/doctrine/<kind>.graph.yaml fragments\n"
+        "b: every src/doctrine/*.graph.yaml fragment\n"
+        "c: src/doctrine/tactic.graph.yaml\n"
+        "d: the per-kind packs/built-in/<kind>.graph.yaml fragments\n",
+        encoding="utf-8",
+    )
+    scan = scan_graph_monolith_paths(root)
+    assert [(site.line, site.text) for site in scan.violations] == [
+        (1, "src/doctrine/<kind>.graph.yaml"),
+        (2, "src/doctrine/*.graph.yaml"),
+        (3, "src/doctrine/tactic.graph.yaml"),
+    ]
+    assert not scan.project_tier
+    assert not scan.forbidding_mentions
 
 
 def test_gate_a_discriminators_do_not_swallow_a_planted_violation(tmp_path: Path) -> None:
