@@ -9643,6 +9643,7 @@ pages:
     abstract: "Operator-facing roadmap for the 3.2.x milestone: the epic dependency spine, degod/unshim wave status, milestone census, exit criteria, and watch items."
     anchors:
     - {slug: "intent-of-3-2-x", text: "Intent of 3.2.x", level: 2}
+    - {slug: "addendum-2026-09-14-4-0-x-is-now-the-active-cycle-authority-moved", text: "Addendum 2026-09-14 — 4.0.x is now the active cycle (authority moved)", level: 2}
     - {slug: "addendum-2026-09-04-milestone-taxonomy-re-anchor-the-delayed-action-r", text: "Addendum 2026-09-04 — milestone-taxonomy re-anchor (the delayed Action R)", level: 2}
     - {slug: "1-the-milestone-taxonomy-the-body-speaks-no-longer-exists", text: "1. The milestone taxonomy the body speaks no longer exists", level: 3}
     - {slug: "2-resolved-but-unstruck-items-in-this-doc-and-its-siblings", text: "2. Resolved-but-unstruck items in this doc and its siblings", level: 3}
@@ -9685,6 +9686,25 @@ pages:
     - {slug: "3-remaining-work-sequenced", text: "3. Remaining work, sequenced", level: 2}
     - {slug: "4-consumer-communication-plan", text: "4. Consumer communication plan", level: 2}
     - {slug: "5-open-decisions-for-the-po", text: "5. Open decisions for the PO", level: 2}
+  - path: "docs/plans/4-0-0-milestone-roadmap.md"
+    title: "4.0.0 Milestone — Roadmap"
+    divio_type: "explanation"
+    abstract: "Operator-facing roadmap for the active 4.0.0 cycle: the four goal themes (stability, maturity, extensibility, Team Kitty enablers), the epic dependency spine, per-theme progress and exit criteria, and watch items — at rc2/rc3 with the structural/debt half riding as a post-rc tail."
+    anchors:
+    - {slug: "intent-of-4-0-0", text: "Intent of 4.0.0", level: 2}
+    - {slug: "release-posture-2026-09-14", text: "Release posture (2026-09-14)", level: 2}
+    - {slug: "drift-since-the-declaration-convergence-re-homing", text: "Drift since the declaration (convergence re-homing)", level: 2}
+    - {slug: "the-dependency-spine", text: "The dependency spine", level: 2}
+    - {slug: "per-theme-progress-and-scope", text: "Per-theme progress and scope", level: 2}
+    - {slug: "theme-1-stability-reliability-honest-reporting", text: "Theme 1 — Stability (reliability, honest reporting)", level: 3}
+    - {slug: "theme-2-maturity-one-honest-event-store-post-convergence-settle", text: "Theme 2 — Maturity (one honest event store, post-convergence settle)", level: 3}
+    - {slug: "theme-3-extensibility-governed-front-door-stable-api", text: "Theme 3 — Extensibility (governed front door + stable API)", level: 3}
+    - {slug: "theme-4-team-kitty-enablers-auth-launch-consent-identity", text: "Theme 4 — Team Kitty enablers (auth, launch, consent/identity)", level: 3}
+    - {slug: "cross-cutting-sonar-quality-debt-standing-campsite-epic", text: "Cross-cutting — Sonar / quality debt (standing campsite epic)", level: 3}
+    - {slug: "exit-criteria-for-4-0-0", text: "Exit criteria for 4.0.0", level: 2}
+    - {slug: "risks-watch-items", text: "Risks / watch items", level: 2}
+    - {slug: "immediate-next-steps", text: "Immediate next steps", level: 2}
+    - {slug: "links", text: "Links", level: 2}
   - path: "docs/plans/charter-resolution/README.md"
     title: "Charter-Resolution Program"
     divio_type: "none"

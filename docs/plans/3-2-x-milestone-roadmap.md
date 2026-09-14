@@ -2,8 +2,9 @@
 title: 3.2.x Milestone — Roadmap
 description: 'Operator-facing roadmap for the 3.2.x milestone: the epic dependency spine, degod/unshim wave status, milestone census, exit criteria, and watch items.'
 doc_status: active
-updated: '2026-09-04'
+updated: '2026-09-14'
 related:
+- docs/plans/4-0-0-milestone-roadmap.md
 - docs/changelog/index.md
 - docs/plans/index.md
 - docs/plans/code-quality/index.md
@@ -19,6 +20,34 @@ related:
 ## Intent of 3.2.x
 
 3.2.x is the **stabilization + structural debt paydown** cycle: (G1) deepen Doctrine/Charter/DRG impact on runtime execution, (G2) strangle the core domains — naming, identity, read/write paths — onto canonical SSOTs by *adopting* the existing execution-context machinery rather than building new construction, and (G3) land the DevEx enablers that make (G1)/(G2) enforceable. No new shadow paths. The milestone stays open until all three goals hold (full declaration: [`docs/release-goals/3.2.x.md`](../changelog/3.2.x.md)). Everything experience-shaped — UX, dashboard, SaaS tie-in — is deliberately deferred to 3.3.x, which builds on the SSOTs this cycle establishes. The SaaS deferral covers the hosted *product launch* (the #1800 / #1091 / #3322 epics, all milestone 3.3.x), **not** the core **sync and consent integrity P0s** (#3178 / #3278 / #3307), which are in-cycle 3.2.x stabilization work; the SaaS & Hosted Sync domain plan was the domain's canonical map of that split (retired 2026-09-06 (Convergence #3881): the hosted-sync surface re-homed to the authoritative upstream repos; see the convergence-retirement ADR).
+
+## Addendum 2026-09-14 — 4.0.x is now the active cycle (authority moved)
+
+*Read-only reconciliation against live GitHub milestone/issue state on 2026-09-14
+(`gh issue list --repo spec-kitty/spec-kitty --milestone 4.0.0 --state all`, `GITHUB_TOKEN`
+unset). This addendum records only the **4.0.0 status change** and hands the active-cycle
+authority to a dedicated roadmap; it does **not** rewrite the historical body below.*
+
+The [2026-09-04 addendum](#addendum-2026-09-04--milestone-taxonomy-re-anchor-the-delayed-action-r)
+recorded 4.0.0 as **declared, not yet active, 80 open**. That snapshot is now **stale**:
+
+- **4.0.0 is the active cycle.** It is at **rc-stage** — **rc2 and rc3 are tagged**, and the
+  `4.0.0rc3` development cycle is open on `main` (#4313).
+- **The milestone is ~76% burned** — **66 closed / 22 open of 88 milestoned** (down from the
+  80-open 2026-09-04 snapshot). The hosted-collaboration and reliability body has substantially
+  landed; what remains is a short auth/consent P1 residual cluster plus the two open
+  post-convergence client-integrity epics (**#3892** zeitgeist-client auth, **#3893** local
+  event-log integrity), with the extensibility (#645, #901) and Sonar-debt (#1928 → #4299–#4305)
+  work riding a **post-rc structural tail**.
+- **Several declared 4.0.0 advances re-homed after the Convergence** (#3881, 2026-09-06): #1800
+  and #3549/#3322 **closed** (the last two superseded client-side by #3893/#3892), #1091 closed
+  and moved to **3.2.7**, and #2519 / #2173 moved to **3.2.7** — no longer 4.0.0 advances.
+
+**Authority for the active cycle now lives in a dedicated roadmap:
+[4.0.0 Milestone — Roadmap](4-0-0-milestone-roadmap.md).** It carries the four operator goal
+themes (stability, maturity, extensibility, Team Kitty enablers), the current epic spine,
+per-theme progress, exit criteria, and watch items. Everything below this addendum is the
+**3.2.x historical record** and is preserved unchanged.
 
 ## Addendum 2026-09-04 — milestone-taxonomy re-anchor (the delayed Action R)
 
