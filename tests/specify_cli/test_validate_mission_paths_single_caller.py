@@ -7,9 +7,10 @@ caller of ``validators.paths.validate_mission_paths`` appears in ``src/`` that d
 
 This guard walks the shipped ``specify_cli`` package with the AST and asserts the set of *production* call
 sites is exactly ``{evaluate_path_conventions}``. It is deliberately placed OUTSIDE ``tests/architectural/``
-so it does not trip that suite's shard-orphan / golden-count cascade (WP02 guidance); it is a plain
-module-scoped guard. The assertions are set/equality based (never ``len() == N``), so a violation names the
-offending caller instead of an opaque count mismatch.
+so it does not trip that suite's shard-orphan cascade (and, before its retirement by #4315, the
+golden-count cascade too) (WP02 guidance); it is a plain module-scoped guard. The assertions are
+set/equality based (never ``len() == N``), so a violation names the offending caller instead of an
+opaque count mismatch.
 """
 
 from __future__ import annotations
