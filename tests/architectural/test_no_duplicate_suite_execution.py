@@ -239,6 +239,14 @@ AUTHORIZED_PER_CHANGE_SUITE_JOBS: dict[JobKey, str] = {
     ),
     ("ci-router.yml", "terminology"): "Path-routed lane: the terminology guard.",
     ("ci-router.yml", "layer-rules"): "Path-routed lane: layer/pyproject shape rules.",
+    ("ci-router.yml", "archive-freeze"): (
+        "Path-routed lane: the always-on archive freeze (#4365) — the only "
+        "gate policing the immutable archive roots that a docs-only PR "
+        "meets, because the heavy battery is code-scoped and #4260's "
+        "archived-dossier rewrite merged unjudged through exactly that gap. "
+        "The heavy battery deselects this file, so a code PR still executes "
+        "it exactly once."
+    ),
     ("ci-router.yml", "architectural-heavy"): "Path-routed lane: the architectural pole.",
     ("ci-router.yml", "tests-merge"): "Path-routed lane: tests/merge.",
     ("ci-router.yml", "tests-status"): "Path-routed lane: tests/status.",

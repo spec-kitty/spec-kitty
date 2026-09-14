@@ -351,6 +351,30 @@ jobs:
           uv sync --frozen --all-extras
           uv run --frozen pytest tests/architectural/test_layer_rules.py tests/architectural/test_pyproject_shape.py -q
 
+  # FAST always-on archive freeze (NFR-002 / #4365): the heavy battery below is
+  # CODE-SCOPED, so a docs-only PR that rewrites archived kitty-specs/**
+  # dossiers in place pays for neither it nor a code shard — the exact shape
+  # #4260 used to rewrite archived mission dossiers unjudged (it was a
+  # docs-only PR). This gate runs the one freeze file unconditionally (~6 s
+  # plus setup) so every PR shape meets the archive freeze. fetch-depth: 0
+  # because the freeze test merge-bases against this repository's main and
+  # reads archived history. The heavy battery deselects this file (as it does
+  # terminology/layer-rules) so it is not executed twice on a code PR.
+  archive-freeze:
+    name: archive freeze (fast, always-on)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          python-version: '3.12'
+      - run: |
+          uv sync --frozen --all-extras
+          uv run --frozen pytest tests/architectural/test_archive_root_byte_identical.py -q
+
   # ---------------------------------------------------------------------------
   # HEAVY architectural battery (FR-008 / NFR-002): CODE-SCOPED. Its `if:` is
   # authority #2 — the OR of every src-backed filter group — so ANY code change
@@ -405,7 +429,8 @@ jobs:
             -n auto --dist loadfile \
             --deselect tests/architectural/test_no_legacy_terminology.py \
             --deselect tests/architectural/test_layer_rules.py \
-            --deselect tests/architectural/test_pyproject_shape.py
+            --deselect tests/architectural/test_pyproject_shape.py \
+            --deselect tests/architectural/test_archive_root_byte_identical.py
 
   # ===========================================================================
   # Code shards (group -> job, authority #2). Representative per-group shards;
