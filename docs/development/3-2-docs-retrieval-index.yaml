@@ -3047,6 +3047,18 @@ pages:
     - {slug: "option-3-status-quo", text: "Option 3 — Status quo", level: 3}
     - {slug: "option-4-rewire-fully-now-out-of-scope", text: "Option 4 — Rewire fully now (out of scope)", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-09-14-1-census-floor-ratchet-adjudication.md"
+    title: "ADR: Census-Floor Ratchets — Per-Ratchet Adjudication (Tripwire, Retire, Retire, Keep-Property)"
+    divio_type: "none"
+    abstract: "Adjudicates the four census-floor re-pin ratchets named in #4315 against their measured catch record: the routed-load-meta floor becomes a stable vacuity tripwire, the golden-count guard and the arch/next shard-marker family are retired, and the partition-property gates stay hard."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "evidence", text: "Evidence", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "follow-through", text: "Follow-through", level: 2}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
