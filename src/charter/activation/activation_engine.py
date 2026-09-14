@@ -45,10 +45,12 @@ engine stays free of an I/O dependency on ``pack_manager`` internals.
 FR-021 (backward compatibility)
 -------------------------------
 A project with **no explicit activation restrictions** for a kind (the YAML key
-is absent — the ``None``-state) keeps behaving exactly as before PR #1535:
-:func:`plan_activation` materializes the supplied default-pack list into the
-plan first, then appends the requested ID, and records the same initialization
-warning. Deactivation against a ``None``-state kind is reported as a
+is absent — the ``None``-state) keeps every artifact that was effective in that
+state: :func:`plan_activation` materializes the supplied *available* corpus into
+the plan first, then appends the requested ID, and records an initialization
+warning naming how many artifacts it preserved. Before #4253 it materialized the
+narrower default pack instead, which turned a single activation into a silent
+deactivation of everything outside default.yaml. Deactivation against a ``None``-state kind is reported as a
 structured :class:`NoActivationRestrictionsError` (the CLI surfaces the
 "run upgrade first" guidance) rather than silently fabricating a list.
 """
@@ -111,9 +113,7 @@ class NoActivationRestrictionsError(RuntimeError):
     def __init__(self, kind: str) -> None:
         self.kind = kind
         super().__init__(
-            f"Kind {kind!r} has no explicit activation set. "
-            f"Run `spec-kitty upgrade` to initialize the default pack before "
-            f"modifying individual activations."
+            f"Kind {kind!r} has no explicit activation set. Run `spec-kitty upgrade` to initialize the default pack before modifying individual activations."
         )
 
 
@@ -179,9 +179,7 @@ def _current_list(config_data: Mapping[str, Any], yaml_key: str) -> list[str] | 
     if raw is None:
         return None
     if not isinstance(raw, list):
-        raise ValueError(
-            f"Activation key {yaml_key!r} must be a list, got {type(raw).__name__}."
-        )
+        raise ValueError(f"Activation key {yaml_key!r} must be a list, got {type(raw).__name__}.")
     return [str(item) for item in raw]
 
 
@@ -254,23 +252,38 @@ def plan_activation(
     warnings: list[str] = []
     current = _current_list(config_data, yaml_key)
 
-    if current is None:
-        # FR-021: no explicit activation set — materialize the default pack
-        # into the plan (not onto disk) before appending.
-        materialized = list(default_ids)
+    was_unrestricted = current is None
+    if was_unrestricted:
+        # #4253: an absent key is the UNRESTRICTED state — every AVAILABLE
+        # artifact is effective, which is strictly wider than the default
+        # pack. Materializing ``default_ids`` here therefore did not merely
+        # "initialize" the set: it silently DEACTIVATED every effective
+        # artifact outside default.yaml (observed: 15 directives and 11
+        # procedures, including adversarial-squad-deployment, lost on a
+        # single unrelated activation). Preserve what is effective instead —
+        # ``available_ids`` is exactly the corpus the activation-aware
+        # resolver exposes while the key is absent. ``default_ids`` remains
+        # the fallback for a caller that supplies no availability at all, so
+        # no caller loses its previous behaviour by omission.
+        materialized = list(dict.fromkeys(available_ids)) or list(default_ids)
         warnings.append(
             f"Kind {kind!r} had no explicit activation set. "
-            f"Initialized from default pack ({len(materialized)} entries)."
+            f"Initialized from the {len(materialized)} artifact(s) already effective, "
+            "so nothing in force was deactivated."
         )
         new_list = list(materialized)
     else:
         new_list = list(current)
 
     activated: list[str] = []
-    if artifact_id in new_list:
+    if artifact_id in new_list and not was_unrestricted:
         warnings.append(f"{artifact_id!r} is already activated for kind {kind!r}.")
     else:
-        new_list.append(artifact_id)
+        # From the unrestricted state the artifact was effective only
+        # implicitly; this call is what makes it explicit, so it is reported
+        # as activated even though the materialized set already lists it.
+        if artifact_id not in new_list:
+            new_list.append(artifact_id)
         activated.append(artifact_id)
 
     return ActivationPlan(
@@ -337,10 +350,7 @@ def plan_deactivation(
         new_list.remove(artifact_id)
         deactivated.append(artifact_id)
     else:
-        warnings.append(
-            f"{artifact_id!r} is not in the activation set for kind {kind!r}. "
-            f"Nothing to deactivate."
-        )
+        warnings.append(f"{artifact_id!r} is not in the activation set for kind {kind!r}. Nothing to deactivate.")
 
     return ActivationPlan(
         yaml_key=yaml_key,
@@ -428,20 +438,14 @@ def _plan_promotion(
 
     if current is None:
         new_list = list(dict.fromkeys(default_ids))
-        warnings.append(
-            f"Key {yaml_key!r} had no explicit activation set. "
-            f"Preserved {len(new_list)} built-in entries before promotion "
-            f"(absent-key parity)."
-        )
+        warnings.append(f"Key {yaml_key!r} had no explicit activation set. Preserved {len(new_list)} built-in entries before promotion (absent-key parity).")
     else:
         new_list = list(current)
 
     activated: list[str] = []
     for artifact_id in dict.fromkeys(ids):
         if artifact_id in new_list:
-            warnings.append(
-                f"{artifact_id!r} is already activated for key {yaml_key!r}."
-            )
+            warnings.append(f"{artifact_id!r} is already activated for key {yaml_key!r}.")
         else:
             new_list.append(artifact_id)
             activated.append(artifact_id)
