@@ -255,6 +255,31 @@ def test_status_sanitizes_a_prose_shaped_identity_in_the_snapshot(state_root: Pa
     assert hostile not in json.dumps(result)
 
 
+def _reject_json_constants(token: str) -> object:
+    raise AssertionError(f"status emitted the non-JSON token {token!r} (RFC 8259 has no such value)")
+
+
+@pytest.mark.parametrize("bad", [float("inf"), float("-inf"), float("nan")])
+def test_status_survives_a_non_finite_observed_at_from_the_relay(state_root: Path, managed_stream_double, bad: float) -> None:
+    """Squad pass-2 MAJOR on #4333: `json.loads` accepts JSON's bare
+    Infinity/NaN tokens, so a relay entry could put one in `observed_at` —
+    which the CLI formats with `int()` (raises) and `--json` re-serializes
+    (emits a token no strict parser accepts). The entry must still be
+    reported, without its unusable observation time."""
+    _checkout(state_root, managed_stream_double.url)
+    entry = _snapshot_presence()
+    entry["observed_at"] = bad
+    managed_stream_double.snapshot_document = _snapshot_doc(presence=[entry])
+
+    result = subscription.status("github.com/acme/spec-kitty", timeout_s=2.0)
+
+    assert result["source"] == "relay_snapshot"
+    assert [p["session_ref"] for p in result["presence"]] == ["a" * 12]
+    assert result["presence"][0]["observed_at"] is None
+    # The serialized document is real JSON: no Infinity/NaN token anywhere.
+    json.loads(json.dumps(result), parse_constant=_reject_json_constants)
+
+
 def test_status_falls_back_to_listening_when_the_relay_serves_no_snapshot(state_root: Path, managed_stream_double) -> None:
     """A relay without the route (older build, or `self_hosted`) answers 404;
     the pre-#4215 behaviour is what a caller gets, and it says so."""
