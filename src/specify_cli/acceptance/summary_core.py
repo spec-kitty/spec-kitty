@@ -15,7 +15,7 @@ evaluation, and the final recommendation ordering to the functions below.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -148,6 +148,7 @@ def evaluate_path_conventions(
     planning_read_dir: Path,
     *,
     strict_metadata: bool,
+    candidate_source_roots: Sequence[Path] = (),
 ) -> tuple[list[str], str | None, frozenset[str]]:
     """Evaluate mission path conventions; returns violations, warning, and dedup tokens.
 
@@ -175,6 +176,10 @@ def evaluate_path_conventions(
         path_prefix=_path_prefix_for_mission(mission, feature_dir),
         feature_dir=planning_read_dir,
         path_overrides=load_project_path_conventions(repo_root),
+        # #4254: acceptance runs BEFORE the approved lane's source is
+        # integrated, so a build path introduced by that lane exists only in
+        # its worktree. The caller supplies approved lanes only.
+        candidate_source_roots=candidate_source_roots,
     )
     if not path_result.missing_paths:
         return [], None, frozenset()
