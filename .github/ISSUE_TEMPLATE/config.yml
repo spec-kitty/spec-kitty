@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: 📖 Contributing guide & how to give feedback
-    url: https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/development/contributing.md
+    url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/development/contributing.md
     about: How to contribute — including issues tagged "feedback-welcome" that want your input (no code required).

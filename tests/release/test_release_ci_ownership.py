@@ -398,7 +398,7 @@ def test_docs_pages_deploys_only_from_promotion_repo_and_fails_transient_setup_e
     assert "continue-on-error" not in setup_step
     assert build_job["needs"] == ["pages"]
     assert build_job["if"] == "needs.pages.outputs.configured == 'true' && needs.pages.result == 'success'"
-    assert deploy_job["if"] == "github.repository == 'Priivacy-ai/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'"
+    assert deploy_job["if"] == "github.repository == 'spec-kitty/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'"
 
     publication_policy = DOCS_REFERENCE_INDEX.read_text(encoding="utf-8")
     assert "intentionally deployed from the promotion-only" in publication_policy

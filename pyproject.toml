@@ -231,7 +231,7 @@ exclude = [
 # config file and prefers `pytest.ini` over `[tool.pytest.ini_options]` when
 # both are present, so a markers list here would be dead config that silently
 # drifts from the live registry (this block had already drifted ~10 markers out
-# of sync — see Priivacy-ai/spec-kitty#2034). Do not reintroduce
+# of sync — see spec-kitty/spec-kitty#2034). Do not reintroduce
 # `[tool.pytest.ini_options]` here; add markers to `pytest.ini` instead. This
 # invariant is guarded by
 # tests/architectural/test_marker_registry_single_source.py.
