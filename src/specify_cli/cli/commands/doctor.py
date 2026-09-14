@@ -953,17 +953,39 @@ def _run_ops_sweep(repo_root: Path, *, threshold_hours: float, json_output: bool
         table.add_column(_STARTED_AT_COLUMN, min_width=20)
         table.add_column("Age (h)", justify="right", min_width=8)
         table.add_column("Action", min_width=16)
+        table.add_column("Closure commit", min_width=16)
         for entry in report.open_ops:
             age_text = f"{entry.age_hours:.1f}" if entry.age_hours is not None else "?"
             action_text = entry.action_taken if entry.error is None else f"error: {entry.error}"
+            commit_text = entry.commit or "-"
             table.add_row(
                 entry.invocation_id,
                 entry.profile_id,
                 entry.started_at,
                 age_text,
                 action_text,
+                commit_text,
             )
         console.print(table)
+    if report.swept:
+        # #4397: closures land on the append-only spine; per-record files are
+        # byte-frozen archive history and are never touched. Say plainly where
+        # the closure lives and what a refused commit means for durability.
+        uncommitted = [entry for entry in report.open_ops if entry.commit and entry.commit != "committed"]
+        spine = "kitty-ops/op-closures.jsonl"
+        if uncommitted:
+            console.print(
+                f"\n[yellow]Closures recorded on the append-only spine [cyan]{spine}[/cyan] "
+                "but NOT committed[/yellow] (guard refusal or no git worktree). "
+                "An uncommitted closure will not survive a checkout or reset — "
+                "commit the spine yourself to make it durable."
+            )
+        else:
+            console.print(
+                f"\nClosures recorded on the append-only spine [cyan]{spine}[/cyan] "
+                "and committed to the current branch. They are visible only on "
+                "branches that carry that commit."
+            )
     if report.skipped_fresh:
         console.print(
             "\nFresh open Ops remain — close them with "

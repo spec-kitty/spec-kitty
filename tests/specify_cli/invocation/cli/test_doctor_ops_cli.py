@@ -10,7 +10,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
-from specify_cli.invocation.writer import EVENTS_DIR
+from specify_cli.invocation.writer import EVENTS_DIR, OP_CLOSURES_RELATIVE_PATH, read_op_closures
 
 from tests._support.ansi import strip_ansi
 
@@ -72,19 +72,24 @@ def test_close_stale_sweeps_stale_op_json_and_exits_zero(
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert set(payload) == {"open_ops", "swept", "skipped_fresh", "threshold_hours"}
+    assert set(payload) == {"open_ops", "swept", "skipped_fresh", "threshold_hours", "closure_spine"}
     assert payload["swept"] == 1
     assert payload["skipped_fresh"] == 0
     assert payload["threshold_hours"] == 24.0
+    assert payload["closure_spine"] == OP_CLOSURES_RELATIVE_PATH.as_posix()
     (op,) = payload["open_ops"]
     assert op["invocation_id"] == "01KTBE0RQY9XKTV0PE49PJDC01"
     assert op["profile_id"] == "implementer-fixture"
     assert op["action_taken"] == "closed_abandoned"
     assert op["age_hours"] == pytest.approx(100.0, abs=0.5)
-    # closed_by / outcome written verbatim through the canonical close path.
-    completed = json.loads(path.read_text(encoding="utf-8").splitlines()[1])
-    assert completed["outcome"] == "abandoned"
-    assert completed["closed_by"] == "doctor_sweep"
+    # #4397: closed_by / outcome written verbatim through the canonical close
+    # path — onto the append-only closure spine, never the byte-frozen
+    # per-record archive file.
+    assert len(path.read_text(encoding="utf-8").splitlines()) == 1
+    (closure,) = read_op_closures(tmp_path)
+    assert closure.invocation_id == "01KTBE0RQY9XKTV0PE49PJDC01"
+    assert closure.outcome == "abandoned"
+    assert closure.closed_by == "doctor_sweep"
 
 
 def test_close_stale_fresh_only_sweeps_nothing_and_exits_one(

@@ -131,6 +131,52 @@ Tier 1 always written
   +-- If action in TIER_3_ACTIONS --> Tier 3 artifacts produced by workflow
 ```
 
+## Doctor-Sweep Closures and the Archive Freeze (#4397)
+
+`kitty-ops/` is one of the four immutable archive roots under the
+historical-preservation gate (`tests/architectural/test_archive_root_byte_identical.py`):
+a **pre-existing** `kitty-ops/<invocation_id>.jsonl` file may never be modified
+— not on disk, not in the index, committed or not. An agent close appends its
+`completed` event to the per-record file and that is legal only because the
+record was minted in the same session (new archive history, `A` status). The
+`spec-kitty doctor ops --close-stale` sweep closes Ops that are, by definition,
+already committed — so recording the closure by mutating the per-record file
+(and auto-committing it) reds the preservation gate.
+
+The resolved design (#4397, option "record closure on the append-only spine"):
+
+- **Per-record `kitty-ops/<id>.jsonl` files are byte-frozen once committed.**
+  The sweep never touches them.
+- **Sweep closures are recorded on a dedicated append-only spine,
+  `kitty-ops/op-closures.jsonl`** — one v2 `OpCompletedEvent` JSON line per
+  closure (same frozen model as the per-record `completed` event, carrying
+  `outcome="abandoned"`, `closed_by="doctor_sweep"`). The preservation gate
+  admits this one path the same way it admits `kitty-ops/lifecycle.jsonl`:
+  a modification is legal only as a byte-prefix-preserving append whose new
+  rows parse as valid v2 completed events.
+- **The close still goes through the canonical executor path**
+  (`ProfileInvocationExecutor.complete_invocation`, research R4): the spine
+  append *is* that path's write for a `closed_by="doctor_sweep"` close, the
+  event is still submitted to the SaaS propagator, and the idempotent
+  already-closed guard now checks both the per-record file (concurrent manual
+  close) and the spine (concurrent sweep).
+- **Open-Op detection reads both surfaces**: an Op is closed when its
+  per-record file carries a `completed` event OR the spine carries a closure
+  for its invocation id (`list_orphan_ops`).
+- **The sweep auto-commits only the spine** (`op(<profile>): <action>
+  [<id8>] (doctor sweep)`). A refused commit (e.g. the protected-branch guard
+  on `main`) is reported per-entry in the sweep output and plainly stated in
+  the command's output — an uncommitted closure will not survive a checkout
+  or reset; a committed one is visible only on branches that carry the commit.
+  The same visibility applies to the agent close path: a refused per-record
+  auto-commit is printed as an actionable warning (`executor.last_op_commit`)
+  instead of dying in a `logger.warning`.
+
+Rejected alternatives: letting the sweep mutate per-record files without
+committing (still reds the gate, which compares the working tree against the
+merge-base — and leaves closures non-durable), and narrowing the archive roots
+themselves (weakens the preservation guarantee far beyond this surface).
+
 ## SaaS Read-Model Policy
 
 Projection is conditional on `CheckoutSyncRouting.effective_sync_enabled`. When sync is disabled for a checkout, no events are emitted — even if the user is authenticated. When sync is enabled and the user is authenticated, Spec Kitty consults `src/specify_cli/invocation/projection_policy.py::POLICY_TABLE` to decide per `(mode_of_work, event)` what to project.
