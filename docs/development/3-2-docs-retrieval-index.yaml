@@ -3478,23 +3478,22 @@ pages:
     - {slug: "spec-kitty-auth-status", text: "spec-kitty auth status", level: 2}
     - {slug: "spec-kitty-auth-whoami", text: "spec-kitty auth whoami", level: 2}
     - {slug: "spec-kitty-charter", text: "spec-kitty charter", level: 2}
-    - {slug: "spec-kitty-charter-fetch", text: "spec-kitty charter fetch", level: 2}
-    - {slug: "spec-kitty-charter-new", text: "spec-kitty charter new", level: 2}
-    - {slug: "spec-kitty-charter-org", text: "spec-kitty charter org", level: 2}
-    - {slug: "spec-kitty-charter-org-init", text: "spec-kitty charter org init", level: 2}
-    - {slug: "spec-kitty-charter-org-validate", text: "spec-kitty charter org validate", level: 2}
-    - {slug: "spec-kitty-charter-validate", text: "spec-kitty charter validate", level: 2}
     - {slug: "spec-kitty-charter-activate", text: "spec-kitty charter activate", level: 2}
     - {slug: "spec-kitty-charter-bundle", text: "spec-kitty charter bundle", level: 2}
     - {slug: "spec-kitty-charter-bundle-validate", text: "spec-kitty charter bundle validate", level: 2}
     - {slug: "spec-kitty-charter-context", text: "spec-kitty charter context", level: 2}
     - {slug: "spec-kitty-charter-deactivate", text: "spec-kitty charter deactivate", level: 2}
+    - {slug: "spec-kitty-charter-fetch", text: "spec-kitty charter fetch", level: 2}
     - {slug: "spec-kitty-charter-generate", text: "spec-kitty charter generate", level: 2}
     - {slug: "spec-kitty-charter-interview", text: "spec-kitty charter interview", level: 2}
     - {slug: "spec-kitty-charter-lint", text: "spec-kitty charter lint", level: 2}
     - {slug: "spec-kitty-charter-list", text: "spec-kitty charter list", level: 2}
     - {slug: "spec-kitty-charter-mission-type", text: "spec-kitty charter mission-type", level: 2}
     - {slug: "spec-kitty-charter-mission-type-list", text: "spec-kitty charter mission-type list", level: 2}
+    - {slug: "spec-kitty-charter-new", text: "spec-kitty charter new", level: 2}
+    - {slug: "spec-kitty-charter-org", text: "spec-kitty charter org", level: 2}
+    - {slug: "spec-kitty-charter-org-init", text: "spec-kitty charter org init", level: 2}
+    - {slug: "spec-kitty-charter-org-validate", text: "spec-kitty charter org validate", level: 2}
     - {slug: "spec-kitty-charter-pack", text: "spec-kitty charter pack", level: 2}
     - {slug: "spec-kitty-charter-pack-apply", text: "spec-kitty charter pack apply", level: 2}
     - {slug: "spec-kitty-charter-pack-consistency-check", text: "spec-kitty charter pack consistency-check", level: 2}
@@ -3505,6 +3504,7 @@ pages:
     - {slug: "spec-kitty-charter-status", text: "spec-kitty charter status", level: 2}
     - {slug: "spec-kitty-charter-sync", text: "spec-kitty charter sync", level: 2}
     - {slug: "spec-kitty-charter-synthesize", text: "spec-kitty charter synthesize", level: 2}
+    - {slug: "spec-kitty-charter-validate", text: "spec-kitty charter validate", level: 2}
     - {slug: "spec-kitty-config", text: "spec-kitty config", level: 2}
     - {slug: "spec-kitty-context", text: "spec-kitty context", level: 2}
     - {slug: "spec-kitty-context-cleanup", text: "spec-kitty context cleanup", level: 2}
@@ -3571,6 +3571,12 @@ pages:
     - {slug: "spec-kitty-issue-matrix-migrate", text: "spec-kitty issue-matrix migrate", level: 2}
     - {slug: "spec-kitty-issue-search", text: "spec-kitty issue-search", level: 2}
     - {slug: "spec-kitty-lint", text: "spec-kitty lint", level: 2}
+    - {slug: "spec-kitty-live-work", text: "spec-kitty live-work", level: 2}
+    - {slug: "spec-kitty-live-work-hook", text: "spec-kitty live-work hook", level: 2}
+    - {slug: "spec-kitty-live-work-install", text: "spec-kitty live-work install", level: 2}
+    - {slug: "spec-kitty-live-work-matrix", text: "spec-kitty live-work matrix", level: 2}
+    - {slug: "spec-kitty-live-work-uninstall", text: "spec-kitty live-work uninstall", level: 2}
+    - {slug: "spec-kitty-live-work-watch", text: "spec-kitty live-work watch", level: 2}
     - {slug: "spec-kitty-materialize", text: "spec-kitty materialize", level: 2}
     - {slug: "spec-kitty-merge", text: "spec-kitty merge", level: 2}
     - {slug: "spec-kitty-migrate", text: "spec-kitty migrate", level: 2}
@@ -3696,22 +3702,6 @@ pages:
     - {slug: "spec-kitty-zeitgeist-outbox-show", text: "spec-kitty zeitgeist outbox show", level: 2}
     - {slug: "spec-kitty-zeitgeist-status", text: "spec-kitty zeitgeist status", level: 2}
     - {slug: "spec-kitty-zeitgeist-watch", text: "spec-kitty zeitgeist watch", level: 2}
-    - {slug: "internal-hidden-commands", text: "Internal / hidden commands", level: 2}
-    - {slug: "spec-kitty-force-multi-command-mode", text: "spec-kitty __force_multi_command_mode__", level: 2}
-    - {slug: "spec-kitty-agent-check-prerequisites", text: "spec-kitty agent check-prerequisites", level: 2}
-    - {slug: "spec-kitty-agent-decision-widen", text: "spec-kitty agent decision widen", level: 2}
-    - {slug: "spec-kitty-agent-profile", text: "spec-kitty agent profile", level: 2}
-    - {slug: "spec-kitty-agent-profile-get", text: "spec-kitty agent profile get", level: 2}
-    - {slug: "spec-kitty-commit-guard-hook", text: "spec-kitty commit-guard-hook", level: 2}
-    - {slug: "spec-kitty-doctrine", text: "spec-kitty doctrine", level: 2}
-    - {slug: "spec-kitty-merge-driver-acceptance-matrix", text: "spec-kitty merge-driver-acceptance-matrix", level: 2}
-    - {slug: "spec-kitty-merge-driver-event-log", text: "spec-kitty merge-driver-event-log", level: 2}
-    - {slug: "spec-kitty-merge-driver-issue-matrix", text: "spec-kitty merge-driver-issue-matrix", level: 2}
-    - {slug: "spec-kitty-merge-driver-meta", text: "spec-kitty merge-driver-meta", level: 2}
-    - {slug: "spec-kitty-merge-driver-review-cycle", text: "spec-kitty merge-driver-review-cycle", level: 2}
-    - {slug: "spec-kitty-merge-driver-traces", text: "spec-kitty merge-driver-traces", level: 2}
-    - {slug: "spec-kitty-profiles-get", text: "spec-kitty profiles get", level: 2}
-    - {slug: "spec-kitty-zeitgeist-mcp-serve", text: "spec-kitty zeitgeist mcp-serve", level: 2}
   - path: "docs/api/configuration.md"
     title: "Configuration Reference"
     divio_type: "none"
@@ -5282,6 +5272,7 @@ pages:
     - {slug: "tier-2-evidence-artifact-optional-caller-triggered", text: "Tier 2 — Evidence Artifact (optional, caller-triggered)", level: 3}
     - {slug: "tier-3-durable-project-state-optional-action-driven", text: "Tier 3 — Durable Project State (optional, action-driven)", level: 3}
     - {slug: "promotion-rules", text: "Promotion Rules", level: 3}
+    - {slug: "doctor-sweep-closures-and-the-archive-freeze-4397", text: "Doctor-Sweep Closures and the Archive Freeze (#4397)", level: 2}
     - {slug: "saas-read-model-policy", text: "SaaS Read-Model Policy", level: 2}
     - {slug: "tier-2-saas-projection-deferred", text: "Tier 2 SaaS Projection — Deferred", level: 2}
     - {slug: "retention-and-redaction", text: "Retention and Redaction", level: 2}
