@@ -798,7 +798,6 @@ exclude = [
     "src/specify_cli/retrospective/events.py",
     "src/specify_cli/retrospective/gate.py",
     "src/specify_cli/retrospective/generator.py",
-    "src/specify_cli/retrospective/lifecycle_events.py",
     "src/specify_cli/retrospective/mode.py",
     "src/specify_cli/retrospective/policy.py",
     "src/specify_cli/retrospective/reader.py",
