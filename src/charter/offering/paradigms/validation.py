@@ -2,7 +2,6 @@
 
 from typing import Any
 
-import jsonschema
 
 from charter.offering.shared.errors import reject_inline_refs
 from charter.offering.shared.schema_utils import SchemaUtilities
@@ -24,6 +23,15 @@ def validate_paradigm(data: dict[str, Any]) -> list[str]:
         List of validation error messages (empty if valid).
     """
     schema = SchemaUtilities.load_schema("paradigm")
+    # #4409: imported here, not at module scope. ``jsonschema`` eagerly
+    # loads its format checkers, and one of them
+    # (``rfc3987_syntax.syntax_helpers``, reached via ``jsonschema._format``)
+    # costs ~1.8s to import — over half of `spec-kitty --help`'s startup,
+    # paid by every CLI invocation even though nothing on that path
+    # validates a schema. The sibling validation modules defer it the same
+    # way; whichever loaded first used to pay for all of them.
+    import jsonschema  # noqa: PLC0415 — deferred: see the cost note above
+
     validator = jsonschema.Draft202012Validator(schema)
 
     errors: list[str] = []
