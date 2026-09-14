@@ -1341,7 +1341,6 @@ exclude = [
     "tests/charter/test_tension_unreconciled.py",
     "tests/charter/test_unsafe_bypass.py",
     "tests/charter/test_worktree_charter_via_canonical_root.py",
-    "tests/ci/test_sonar_project_version.py",
     "tests/ci/test_sonarcloud_branch_review.py",
     "tests/cli/commands/test_agent_config_coverage.py",
     "tests/cli/commands/test_auth_login.py",

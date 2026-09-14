@@ -18,6 +18,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 _4.0.0rc3 candidate cycle. Entries land here until the release chore finalizes
 this section at publish._
 
+### Changed
+
+- **Every pull request now measures its tests once instead of twice** (#4334). The per-PR SonarCloud reporter in `ci-quality.yml` re-ran the fast test tier under coverage to build its own report — a median of **22m32s** per pull request (n=12, 2026-09-10..14) duplicating work the `CI Modules` shard matrix had already done for the same commit. That job is retired; the per-change report is now a `sonar-pr` job in `ci-aggregate.yml` consuming the coverage the matrix already produced, on the existing `workflow_run` chain. `ci-quality.yml` drops from six jobs to five.
+
+- **Coverage measurement is no longer truncated at module boundaries** (#4334). Each shard measured only its own module's package, so a line a test executed in *another* module was silently **dropped** rather than recorded as uncovered — leaving 58 of 72 `specify_cli` subpackages measured only through one broad-target row whose tests do not exercise them. Shards now measure the full top-level package set derived from `src/`; one representative shard alone recovered **30,226** cross-module covered statements. Registry `cov_targets` keep their meaning as census-derived ownership records and are unchanged. Measured cost is **+7.8% to +11.6%** per shard with the reconciled artefact set growing roughly six-fold — traded deliberately for measurement accuracy.
+
+- **`tests/unit` and `tests/specify_cli/runtime` are declared in the CI module registry** (#4334). They previously ran per-change only through the retired job's fast tier, so retiring it would have removed their per-change execution.
+
+### Added
+
+- **A permanent fault-injection battery against duplicate suite execution** (#4334). `tests/architectural/test_no_duplicate_suite_execution.py` fails on every way the duplicate could return — canonical, inlined, behind a shell/script/make indirection, or in a net-new workflow file — and on removal of either declaration keeping the report advisory. The workflow-trigger classifier fails **closed**: list-form, bare-scalar, `pull_request_target`, `merge_group`, malformed and absent `on:` blocks all count as change-triggered, so a duplicate cannot hide behind an ordinary trigger spelling.
+
+- **A derived pinning-rule inventory** (#4334). `scripts/ci/derive_pinning_inventory.py` mechanically derives every rule pinning the CI job topology (102 sites, 43 real dependencies) into `tests/release/pinning_rule_inventory.json`, each with an explicit disposition, and a freshness gate re-derives and diffs it. Rules that go red are caught by CI; rules that go *greener by deletion* previously were not.
+
+- **A reproducible shard-timings capture script** (#4334). `scripts/ci/capture_shard_timings.py` replaces ad-hoc tooling that no longer existed in the tree, so `.github/ci-shard-timings.json` can be regenerated rather than reconstructed by archaeology.
+
+### Fixed
+
+- **`docs/development/reference/coverage-signals.md` described a pipeline that does not exist** (#4011). It claimed this repository runs no GitHub Actions, that diff-coverage and `sonar_project_version.py` were retired, and gave the wrong nightly schedule. Corrected against the live tree.
+
+- **The gate model could not see a suite invocation reached through a make target** (#4334). `tests/architectural/_gate_coverage.py` now resolves make targets by reading the Makefile, and a `uv run --frozen pytest` invocation is no longer parsed as "no pytest command here" — a defect that had been hiding every gate in `ci-router.yml` and `packs.yml`. Before this, an assertion that `ci-quality.yml` ran no test suite passed while a 22-minute duplicate tier ran inside it.
+
+### Known limitations
+
+- The per-change Sonar report is **wired but not yet publishing**. SonarCloud Automatic Analysis is enabled on the project and refuses every CI-side upload (#4350); the project currently holds no coverage metric at all. This change makes the suite run once and connects the report to the existing measurement — it does **not** restore a published report, and a green pipeline is not evidence of publication. See also #4367 (further gate-model indirection forms), #4368 (packages with no declared routing group), #4351 and #4365 (pre-existing test gaps surfaced during the work).
+
 ### Fixed
 
 - **Built-in doctrine guidance no longer points at the retired `src/doctrine/<kind>.graph.yaml` fragment home** (#2715). The `common-docs-find` tactic and the `brownfield-onboarding` paradigm now name `packs/built-in/<kind>.graph.yaml`, and the agent-profile repository's lineage-graph docstring no longer describes a monolith that is gone. The dead-path architectural gate now also flags `doctrine/<kind>.graph.yaml` and `doctrine/*.graph.yaml` paths, not only the `doctrine/graph.yaml` monolith, and its failure message no longer recommends the dead path.

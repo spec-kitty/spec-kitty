@@ -275,14 +275,21 @@ def test_release_checklist_marks_deferred_publish_workflows_as_p3_4b_prerequisit
 def test_reduced_ci_quality_has_exact_jobs() -> None:
     workflow = load_workflow("ci-quality.yml")
 
-    # `sonarcloud` is the reinstated non-blocking reporter (spec-kitty#3993):
-    # continue-on-error and deliberately outside quality-gate.needs.
+    # The per-PR `sonarcloud` reporter (spec-kitty#3993) was REMOVED from this
+    # set by mission sonar-per-pr-coverage-reuse (#4334): it re-ran the whole
+    # fast tier under `pytest --cov` to obtain a coverage report the
+    # ci-modules shards had already produced for the same commit. The per-PR
+    # Sonar report now lives in ci-aggregate.yml's `sonar-pr` job, which
+    # consumes those shard artefacts instead of measuring a second time
+    # (FR-001/FR-003/NFR-001). This file's producers execute no test suite at
+    # all -- `tests/architectural/test_suite_jobs_gate_blocking.py` asserts
+    # exactly that, and `test_no_duplicate_suite_execution.py` reds if any
+    # change-triggered job reaches pytest outside the authorised matrix.
     assert set(workflow["jobs"]) == {
         "lint",
         "build-wheel",
         "clean-install-verification",
         "uv-lock-check",
-        "sonarcloud",
         "quality-gate",
     }
     assert workflow["jobs"]["clean-install-verification"]["needs"] == ["build-wheel"]

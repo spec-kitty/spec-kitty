@@ -1,7 +1,10 @@
 """Unit tests for ``scripts/ci/sonar_project_version.py`` (WP01, FR-001/FR-002).
 
-The ``sonarcloud`` job derives ``sonar.projectVersion`` from ``pyproject.toml``
-via this extraction module. These tests pin the contract BEFORE (red-first) the
+The Sonar-analysing CI jobs derive ``sonar.projectVersion`` from ``pyproject.toml``
+via this extraction module. ``ci-aggregate.yml``'s ``sonar-pr`` job is its
+only caller (``sonar.yml`` stamps the same value from an inline heredoc rather
+than calling this script). The original caller, ``ci-quality.yml``'s
+``sonarcloud`` job, was retired by mission ``sonar-per-pr-coverage-reuse``, #4334. These tests pin the contract BEFORE (red-first) the
 workflow wiring exists:
 
 - ``read_project_version`` returns EXACTLY ``pyproject.toml``'s
@@ -113,18 +116,14 @@ def test_raises_on_malformed_toml(module: ModuleType, tmp_path: Path) -> None:
         module.read_project_version(pyproject)
 
 
-def test_main_prints_only_the_version(
-    module: ModuleType, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_main_prints_only_the_version(module: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
     exit_code = module.main(["--pyproject", str(_PYPROJECT)])
     assert exit_code == 0
     captured = capsys.readouterr()
     assert captured.out.strip() == _expected_version()
 
 
-def test_main_errors_and_prints_no_version_when_absent(
-    module: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_main_errors_and_prints_no_version_when_absent(module: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     pyproject = _write_pyproject(tmp_path, '[project]\nname = "x"\n')
     exit_code = module.main(["--pyproject", str(pyproject)])
     assert exit_code != 0
