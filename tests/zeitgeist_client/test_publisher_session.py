@@ -144,3 +144,30 @@ def test_uncached_read_does_not_leave_process_directories(tmp_path: Path, monkey
     assert credentials.load(repo="github.com/acme/widget") is None
     assert credentials.load_negative(repo="github.com/acme/widget") is None
     assert not (tmp_path / "zeitgeist-sessions").exists()
+
+
+@pytest.mark.parametrize("session_ref", [None, ""])
+@pytest.mark.parametrize("operation", ["moment", "liveness"])
+def test_unbound_lease_never_constructs_a_publisher(session_ref: str | None, operation: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A usable bearer alone cannot identify the session SaaS must revoke."""
+    from specify_cli.status import zeitgeist_bridge
+    from specify_cli.zeitgeist_client import transport
+    from specify_cli.zeitgeist_client.repo_identity import Deadline
+
+    credential = credentials.StoredCredential(
+        relay_url="http://relay",
+        token="test-bearer",
+        token_kind="presence",
+        token_issued_at="2026-09-14T00:00:00Z",
+        session_ref=session_ref,
+    )
+
+    def forbidden(*args: object, **kwargs: object) -> None:
+        pytest.fail("unbound lease attempted publisher construction")
+
+    monkeypatch.setattr(transport, "ZeitgeistClient", forbidden)
+    monkeypatch.setattr(transport.ClientConfig, "for_repository", forbidden)
+    if operation == "moment":
+        zeitgeist_bridge._offer_and_log(credential, "MissionCreated", {"kind": "MissionCreated"})
+    else:
+        zeitgeist_bridge._refresh_liveness_bounded(credential, cwd=tmp_path, focus_wp=("mission", "WP01"), deadline=Deadline())

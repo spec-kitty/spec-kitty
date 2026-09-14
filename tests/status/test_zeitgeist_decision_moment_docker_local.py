@@ -19,7 +19,8 @@ production code path.
 Same docker-gated discipline as
 ``tests/zeitgeist_client/test_managed_relay_docker_local.py`` (skip unless
 ``docker`` AND the ``dkr-m1-02-zeitgeist:contract`` image already exist
-locally, never pulled). This module's own ``zg-i324-*``-prefixed
+locally, never pulled; SPEC_KITTY_TEST_RELAY_IMAGE can select an isolated
+image built from the relay candidate under test). This module's own ``zg-i324-*``-prefixed
 container/network/volume are a disjoint namespace from that module's
 ``zg-fix15-*`` ones, so both suites may run concurrently on the same host.
 """
@@ -50,7 +51,7 @@ from specify_cli.zeitgeist_client.credentials import StoredCredential
 from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED
 from tests.zeitgeist_client.conftest import mint_capability_token
 
-IMAGE = "dkr-m1-02-zeitgeist:contract"
+IMAGE = os.environ.get("SPEC_KITTY_TEST_RELAY_IMAGE", "dkr-m1-02-zeitgeist:contract")
 NETWORK = "zg-i324-net"
 CONTAINER_NAME = "zg-i324-relay"
 VOLUME_NAME = "zg-i324-relay-data"

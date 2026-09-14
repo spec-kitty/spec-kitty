@@ -69,25 +69,37 @@ class Chain(TransactionTestCase):
 
     def revoke(self, raw_ref, emitted):
         lease = LiveCapabilityLease.objects.get(session_ref=raw_ref)
+        start = len(emitted)
+        already_revoked = set(LiveCapabilityLease.objects.filter(team=self.team, revoked_at__isnull=False).values_list("session_ref", flat=True))
         if lease.revoked_at is None:
             lease.expires_at = timezone.now()
             lease.save(update_fields=["expires_at"])
             report = reconciler.reconcile_team(self.team)
-            self.assertEqual(report.revoked, 1)
+            # Current reconciliation also re-delivers outstanding superseded
+            # grants. Count deliveries without mistaking those for new revokes.
+            deliveries = [body for body, _ in emitted[start:] if body["op"] == "session.revoke"]
+            self.assertEqual(report.revoked, len(deliveries))
             lease.refresh_from_db()
             self.assertEqual(lease.revoke_reason, LiveCapabilityLease.RevokeReason.EXPIRED)
         else:
             # Delivery of an old, already committed revoke after remint.
             relay.RelayClient().revoke_session(lease=lease, reason=lease.revoke_reason)
         self.assertIsNotNone(lease.revoked_at)
-        self.assertEqual(emitted[-1][0]["op"], "session.revoke")
-        self.assertEqual(emitted[-1][0]["args"]["session_id"], lease.session_ref)
-        self.assertEqual(emitted[-1][1], 202)
+        deliveries = [(body, code) for body, code in emitted[start:] if body["op"] == "session.revoke"]
+        targets = {body["args"]["session_id"] for body, _ in deliveries}
+        self.assertIn(lease.session_ref, targets)
+        self.assertLessEqual(targets, already_revoked | {lease.session_ref})
+        self.assertTrue(all(code == 202 for _, code in deliveries), deliveries)
+        now_revoked = set(LiveCapabilityLease.objects.filter(team=self.team, revoked_at__isnull=False).values_list("session_ref", flat=True))
+        self.assertEqual(now_revoked - already_revoked, {lease.session_ref} - already_revoked)
 
     def check_frame(self, frame, raw, published_refs, revoked_refs):
         if frame["type"] == "signal":
             self.assertEqual(frame["signal"]["kind"], "revoked")
-            self.assertEqual(frame["signal"]["session_ref"], published_refs[raw])
+            # Old revoked grants can be re-delivered after a relay restart,
+            # even when they have never published in the new relay epoch.
+            if raw in published_refs:
+                self.assertEqual(frame["signal"]["session_ref"], published_refs[raw])
             self.assertNotEqual(frame["signal"]["session_ref"], raw)
             revoked_refs.append(frame["signal"]["session_ref"])
         else:
@@ -250,6 +262,7 @@ class Chain(TransactionTestCase):
             importlib.reload(managed)
             importlib.reload(server)
             relay_client = TestClient(server.app)
+            published_refs.clear()
             self.assertNotEqual(managed.registry.session_ref(replacement.session_ref), old_opaque)
             status()
             select("agent-B")
