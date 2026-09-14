@@ -81,9 +81,7 @@ class TestMissionTypePathLayoutSingleAuthority:
     def teardown_method(self) -> None:
         resolve_layered_mission_types.cache_clear()
 
-    def test_project_layer_directory_agrees_across_all_three_sites(
-        self, tmp_path: Path
-    ) -> None:
+    def test_project_layer_directory_agrees_across_all_three_sites(self, tmp_path: Path) -> None:
         """A project-layer type written at the authority's path is resolved,
         labelled ``"project"``, and catalogued from that SAME directory by
         the layered factory, the layer-namer, and the availability catalog.
@@ -100,16 +98,12 @@ class TestMissionTypePathLayoutSingleAuthority:
         assert "probe-type" in roster
 
         # Site 2 -- the layer-namer labels the SAME file "project".
-        layer = resolve_action_sequence_layer(
-            "probe-type", mission_types_dirs=(), pack_context=ctx
-        )
+        layer = resolve_action_sequence_layer("probe-type", mission_types_dirs=(), pack_context=ctx)
         assert layer == "project"
 
         # Site 3 -- the availability catalog scans the SAME directory, both
         # through the candidate resolver and the full manager path.
-        candidate = _resolve_layer_candidate(
-            "project", repo / ".kittify", None, "missions/mission_types", layered=False
-        )
+        candidate = _resolve_layer_candidate("project", repo / ".kittify", None, "missions/mission_types", layered=False)
         assert candidate == authority_dir
         detailed = CharterPackManager().list_available_detailed(
             ProjectContext(repo_root=repo),
@@ -119,9 +113,7 @@ class TestMissionTypePathLayoutSingleAuthority:
         probe_entries = [entry for entry in detailed if entry.artifact_id == "probe-type"]
         assert [entry.layer for entry in probe_entries] == ["project"]
 
-    def test_org_layer_directory_agrees_across_all_three_sites(
-        self, tmp_path: Path
-    ) -> None:
+    def test_org_layer_directory_agrees_across_all_three_sites(self, tmp_path: Path) -> None:
         """An org-layer type written at the authority's path is resolved,
         labelled ``"org"``, and catalogued from that SAME directory by the
         layered factory, the layer-namer, and the availability catalog.
@@ -130,21 +122,15 @@ class TestMissionTypePathLayoutSingleAuthority:
         authority_dir = org_root / ORG_MISSION_TYPES_SUBDIR
         _write_mission_type(authority_dir, "probe-org")
 
-        ctx = _StubPackContext(
-            pack_roots=(org_root,), repo_root=tmp_path / "repo-without-project-layer"
-        )
+        ctx = _StubPackContext(pack_roots=(org_root,), repo_root=tmp_path / "repo-without-project-layer")
 
         roster = resolve_layered_mission_types((), ctx)
         assert "probe-org" in roster
 
-        layer = resolve_action_sequence_layer(
-            "probe-org", mission_types_dirs=(), pack_context=ctx
-        )
+        layer = resolve_action_sequence_layer("probe-org", mission_types_dirs=(), pack_context=ctx)
         assert layer == "org"
 
-        candidate = _resolve_layer_candidate(
-            "org", org_root, None, "missions/mission_types", layered=False
-        )
+        candidate = _resolve_layer_candidate("org", org_root, None, "missions/mission_types", layered=False)
         assert candidate == authority_dir
         detailed = CharterPackManager().list_available_detailed(
             ProjectContext(repo_root=org_root),
@@ -154,9 +140,7 @@ class TestMissionTypePathLayoutSingleAuthority:
         probe_entries = [entry for entry in detailed if entry.artifact_id == "probe-org"]
         assert [entry.layer for entry in probe_entries] == ["org"]
 
-    def test_pack_manager_project_base_is_authority_leading_segment(
-        self, tmp_path: Path
-    ) -> None:
+    def test_pack_manager_project_base_is_authority_leading_segment(self, tmp_path: Path) -> None:
         """The base ``layer_roots["project"]`` hands pack_manager is the repo
         root joined with the authority's LEADING ``.kittify`` segment -- the
         invariant that makes the derived under-``.kittify`` tail constant the
@@ -177,7 +161,4 @@ class TestMissionTypePathLayoutSingleAuthority:
 
         assert roots["project"] == repo.joinpath(PROJECT_MISSION_TYPES_RELATIVE[0])
         # The full join from that base reproduces the authority's own path.
-        assert (
-            roots["project"].joinpath(*PROJECT_MISSION_TYPES_RELATIVE_TO_KITTYFY_ROOT)
-            == repo.joinpath(*PROJECT_MISSION_TYPES_RELATIVE)
-        )
+        assert roots["project"].joinpath(*PROJECT_MISSION_TYPES_RELATIVE_TO_KITTYFY_ROOT) == repo.joinpath(*PROJECT_MISSION_TYPES_RELATIVE)
