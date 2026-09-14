@@ -385,11 +385,104 @@ def _doctrine_modes() -> tuple[str, ...]:
     )
 
 
-def _run_or_exit(fn):  # type: ignore[no-untyped-def]
+# ---------------------------------------------------------------------------
+# Shared CLI error boundary (#4233)
+# ---------------------------------------------------------------------------
+
+#: Server error codes that mean the project's tracker binding is gone or
+#: unusable. These are the PRI-12/SaaS vocabulary already consumed by
+#: ``tracker/saas_service.py``'s stale-binding translation — reused here, not
+#: a second taxonomy.
+_BINDING_ERROR_CODES: frozenset[str] = frozenset(
+    {"binding_not_found", "mapping_disabled", "project_mismatch", "missing_routing_key"}
+)
+
+#: The disabled-rollout / feature-unavailable family the live control plane
+#: emits when the tracker surface is not enabled for the team (the #4233
+#: reproduction: HTTP 403, ``error_code=FEATURE_DISABLED``).
+_FEATURE_DISABLED_CODES: frozenset[str] = frozenset({"feature_disabled"})
+
+
+def _saas_error_hint(error_code: str | None, status_code: int | None) -> str | None:
+    """Return one actionable hint for a structured SaaS failure, or ``None``.
+
+    Distinguishes the failure classes named in #4233 — disabled rollout,
+    missing binding, expired authorization, permission denial, rate limiting
+    and server failure — using only error codes the server already emits
+    (coordinated with #2944's canonical-code handling) plus the HTTP status.
+    ``None`` means the message already carries its own guidance.
+    """
+    code = (error_code or "").lower()
+    if code == "session_expired" or status_code == 401:
+        return "Run `spec-kitty auth login` to re-authenticate."
+    if code in _BINDING_ERROR_CODES:
+        return "Rebind the tracker: `spec-kitty tracker discover` then `spec-kitty tracker bind`."
+    if code == "rate_limited" or status_code == 429:
+        return "The Spec Kitty SaaS is rate limiting this team — wait a moment and retry."
+    if status_code is not None and status_code >= 500:
+        return "The Spec Kitty SaaS reported a server failure — retry shortly; if it persists, check the Spec Kitty dashboard."
+    if code in _FEATURE_DISABLED_CODES or status_code == 403:
+        return "The Spec Kitty SaaS refused this request — check the tracker provider connection and feature availability in the Spec Kitty dashboard."
+    return None
+
+
+def _render_cli_error(exc: BaseException, *, json_mode: bool) -> None:
+    """Render a caught service/client error as a clean CLI failure (#4233).
+
+    Human path: one red line on stderr — the server's message plus the
+    structured code/status and an actionable hint — never a traceback, never
+    internal module paths. JSON path: the same failure additionally emitted
+    as a machine-readable object on stdout (mirroring the SaaS error envelope
+    vocabulary: ``ok``/``error``/``error_code``), so ``--json`` consumers
+    always get parseable output. Only whitelisted fields are rendered — the
+    raw envelope ``details`` dict is never dumped, so no request internals or
+    credentials can leak into operator output. Failures are never converted
+    into successful empty results: the caller exits nonzero via ``Exit(1)``.
+    """
+    message = str(exc)
+    error_code = getattr(exc, "error_code", None)
+    status_code = getattr(exc, "status_code", None)
+    hint = _saas_error_hint(error_code, status_code)
+    # Messages raised closer to the source (stale-binding translation, the
+    # session-expired client error) already name the spec-kitty command to
+    # run; appending a second generic hint would only duplicate it.
+    if "spec-kitty" in message:
+        hint = None
+
+    context_parts = []
+    if error_code:
+        context_parts.append(f"error_code={error_code}")
+    if status_code is not None:
+        context_parts.append(f"http={status_code}")
+    context = f" [{', '.join(context_parts)}]" if context_parts else ""
+    human = f"{message}{context} — {hint}" if hint else f"{message}{context}"
+    typer.secho(human, fg=typer.colors.RED, err=True)
+
+    if json_mode:
+        payload: dict[str, Any] = {"ok": False, "error": message}
+        if error_code is not None:
+            payload["error_code"] = error_code
+        if status_code is not None:
+            payload["http_status"] = status_code
+        if hint is not None:
+            payload["action"] = hint
+        _print_json(payload)
+
+
+def _run_or_exit(fn, *, json_mode: bool = False):  # type: ignore[no-untyped-def]
+    """Run ``fn`` and render any RuntimeError/ValueError failure cleanly.
+
+    The single error boundary every tracker command routes through (#4233):
+    a ``TrackerServiceError`` and its SaaS sibling
+    ``SaaSTrackerClientError`` are both ``RuntimeError`` subclasses, so both
+    render as a one-line error + ``Exit(1)`` — no uncaught traceback, no
+    internal module paths. ``json_mode`` additionally emits a machine-readable
+    failure object on stdout for commands invoked with ``--json``.
+    """
     try:
         return fn()
     except (RuntimeError, ValueError) as exc:
-        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        _render_cli_error(exc, json_mode=json_mode)
         raise typer.Exit(1) from exc
 
 
@@ -427,7 +520,7 @@ def issue_search_command(
             return
         _print_ticket_rows(rows)
 
-    _run_or_exit(_run)
+    _run_or_exit(_run, json_mode=as_json)
 
 
 # ---------------------------------------------------------------------------
@@ -497,11 +590,18 @@ def discover_command(
     _check_readiness(require_mission_binding=False, probe_reachability=False)
     normalized = normalize_provider(provider)
 
-    try:
-        resources = _service().discover(provider=normalized)
-    except TrackerServiceError as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(1) from exc
+    # Route the service call through the shared ``_run_or_exit`` helper, which
+    # catches the ``RuntimeError`` family (both ``TrackerServiceError`` and its
+    # sibling ``SaaSTrackerClientError`` derive from ``RuntimeError``). Every
+    # other tracker command already renders errors this way; ``discover`` alone
+    # hand-rolled a narrow ``except TrackerServiceError`` that let a SaaS non-2xx
+    # (``SaaSTrackerClientError`` on 403/404/429/5xx) escape as an uncaught
+    # exception, leaking a raw Rich traceback with internal module paths
+    # (issue #4233). Reusing the helper closes the class rather than enumerating
+    # one sibling at a time. ``json_mode`` (#4233 September extension) makes the
+    # same boundary emit a machine-readable failure object on stdout under
+    # ``--json`` instead of leaving stdout empty with a human-only stderr line.
+    resources = _run_or_exit(lambda: _service().discover(provider=normalized), json_mode=json_output)
 
     if not resources:
         typer.echo(f"No bindable resources found for provider '{normalized}'.")
@@ -859,7 +959,7 @@ def status_command(
             typer.echo(f"- mapping_count: {payload.get('mapping_count')}")
             typer.echo(f"- credentials_present: {'yes' if payload.get('credentials_present') else 'no'}")
 
-    _run_or_exit(_run)
+    _run_or_exit(_run, json_mode=as_json)
 
 
 def _print_installation_wide_status(payload: dict) -> None:
@@ -1026,7 +1126,7 @@ def map_list_command(
         if pending_binding_upgrade:
             typer.echo(f"Tracker binding upgrade available: {pending_binding_upgrade}. Run `spec-kitty tracker bind` to apply.")
 
-    _run_or_exit(_run)
+    _run_or_exit(_run, json_mode=as_json)
 
 
 @app.command("list-tickets")
@@ -1045,7 +1145,7 @@ def list_tickets_command(
             return
         _print_ticket_rows(rows)
 
-    _run_or_exit(_run)
+    _run_or_exit(_run, json_mode=as_json)
 
 
 # ---------------------------------------------------------------------------
@@ -1089,7 +1189,7 @@ def sync_pull_command(
             typer.echo(f"- conflicts: {len(payload.get('conflicts', []))}")
             typer.echo(f"- errors: {len(payload.get('errors', []))}")
 
-    _run_or_exit(_run)
+    _run_or_exit(_run, json_mode=as_json)
 
 
 # ---------------------------------------------------------------------------
@@ -1174,7 +1274,7 @@ def sync_push_command(
             typer.echo(f"- conflicts: {len(payload.get('conflicts', []))}")
             typer.echo(f"- errors: {len(payload.get('errors', []))}")
 
-    _run_or_exit(_run)
+    _run_or_exit(_run, json_mode=as_json)
 
 
 # ---------------------------------------------------------------------------
@@ -1218,7 +1318,7 @@ def sync_run_command(
             typer.echo(f"- conflicts: {len(payload.get('conflicts', []))}")
             typer.echo(f"- errors: {len(payload.get('errors', []))}")
 
-    _run_or_exit(_run)
+    _run_or_exit(_run, json_mode=as_json)
 
 
 # ---------------------------------------------------------------------------
@@ -1252,7 +1352,7 @@ def sync_publish_command(
         typer.echo(f"- status_code: {payload.get('status_code')}")
         typer.echo(f"- ok: {'yes' if payload.get('ok') else 'no'}")
 
-    _run_or_exit(_run)
+    _run_or_exit(_run, json_mode=as_json)
 
 
 # ---------------------------------------------------------------------------

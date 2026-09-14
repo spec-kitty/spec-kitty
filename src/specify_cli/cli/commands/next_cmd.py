@@ -207,6 +207,16 @@ def next_step(
     except _MissionNotFoundError as _exc:
         _emit_mission_not_found_error(_exc.handle, json_output)
         raise typer.Exit(1) from _exc
+    except ValueError as _exc:
+        # #2878: a traversal-shaped --mission value trips the safe-path-segment
+        # guard (assert_safe_path_segment, reached through the placement seam
+        # inside _resolve_mission_slug) and raises a bare ValueError that the
+        # _StatusReadPathNotFound/_MissionNotFoundError handlers above do not
+        # cover. Convert it to merge's clean typed-error surface
+        # (_resolve_slug_or_exit, cli/commands/merge.py): canonical diagnostic +
+        # exit 2, never a raw traceback.
+        _emit_unsafe_mission_slug_error(_exc, json_output)
+        raise typer.Exit(2) from _exc
     _validate_result_and_answer(result, answer, json_output)
     answered_id = _maybe_handle_answer(
         agent,
@@ -547,6 +557,36 @@ def _emit_mission_not_found_error(
             file=sys.stderr,
         )
         print(f"  Next: {remediation}", file=sys.stderr)
+
+
+def _emit_unsafe_mission_slug_error(exc: ValueError, json_output: bool) -> None:
+    """Surface a traversal-unsafe ``--mission`` slug as a clean typed error.
+
+    #2878: the safe-path-segment guard inside the read resolver raises a bare
+    ``ValueError`` for traversal-shaped slugs (``../x``, ``a/b``, leading-dot,
+    …). Mirrors merge's ``_resolve_slug_or_exit`` handling (the in-repo
+    exemplar): the canonical safe-path-segment diagnostic, a single
+    ``Error:`` line on stderr in human mode, a structured JSON envelope in
+    ``--json`` mode — never an unhandled-traceback dump. The
+    ``merge._constants`` import stays function-local so the ``next`` fast path
+    (``next --help``, tests/specify_cli/next/test_next_import_footprint.py)
+    never pays the merge package's import graph.
+    """
+    from specify_cli.merge._constants import _SAFE_PATH_SEGMENT_DIAGNOSTIC
+
+    message = f"{_SAFE_PATH_SEGMENT_DIAGNOSTIC}: {exc}"
+    if json_output:
+        from specify_cli import __version__
+
+        payload: dict[str, object] = {
+            "result": "error",
+            "error_code": "UNSAFE_MISSION_SLUG",
+            "error": message,
+            "spec_kitty_version": __version__,
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        print(f"Error: {message}", file=sys.stderr)
 
 
 def _read_path_signal(exc: Exception) -> tuple[str, list[str], str | None]:

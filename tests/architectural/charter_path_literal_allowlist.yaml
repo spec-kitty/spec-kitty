@@ -37,7 +37,26 @@
 # _collect_charter_sync_status precedent below. Reviewed and accepted during
 # post-merge mission review; see that mission's kitty-specs/ report for the
 # full clause-(a)-vs-(b) analysis.
-charter_path_literal_baseline: 49
+# GREW 2026-08-13, recorded 2026-09-14 (#2831 F1/F2 fix, commit 53370feaf):
+# entries 48 -> 50. Two entries in charter_runtime/freshness/computer.py
+# (clause-a _READABLE_CHARTER_FILENAME declaration + clause-b message-selection
+# read). The growth landed reviewed on main with full rationales and a pinning
+# test, but was never recorded here and never bumped the baseline -- exactly
+# the drift #3514 files: the #3285 test-sanitization landing (2026-08-12) had
+# deleted test_allowlist_shrink_only and the floor/baseline governance tests,
+# so nothing flagged the un-recorded growth. The 2026-08-16 GREW note above
+# consequently under-counted: recording only its own +1 against the recorded
+# trail ("48 -> 49") while the true entry count had already reached 51.
+# DRAINED 2026-09-14 (#3514, restoring the twin-guard): entries 51 -> 50. The
+# src/charter/offering/spdd_reasons/activation.py <module> clause-a entry was
+# stale -- its _CHARTER_YAML = "charter.yaml" declaration was removed by the
+# #3838 WP01 rewrite (activated_* keys read via raw INV-2 replication; no
+# charter.yaml path construction remains in that module), but the entry
+# survived the drain because the staleness twin-guard had been deleted with
+# the other governance tests. Entry deleted per the DRAIN PROCEDURE. Baseline
+# re-seeded to the honest live census (50) and CHARTER_PATH_LITERAL_FLOOR is
+# restored in the gate at the same 50.
+charter_path_literal_baseline: 50
 
 charter_path_literals:
 - file: src/charter/activation/compiler.py
@@ -82,13 +101,6 @@ charter_path_literals:
   clause: "a"
   token: "_CHARTER_FILENAME ="
   rationale: "Sync composes the bundle directory from its own _KITTIFY_DIRNAME/_CHARTER_DIRNAME segments to materialize the C-003 prose file; the filename constant is one segment of that composition, not a whole-path duplicate."
-- file: src/charter/offering/spdd_reasons/activation.py
-  qualname: <module>
-  line: 49
-  literal: "charter.yaml"
-  clause: "a"
-  token: "_CHARTER_YAML ="
-  rationale: "PERMANENT (layering): src/charter/offering/ must not import charter.* under the enforced runtime->charter->doctrine boundary; importing CHARTER_YAML would invert the dependency and break the Shared Package Boundary ADR."
 - file: src/charter/offering/versioning.py
   qualname: get_bundle_schema_version
   line: 190

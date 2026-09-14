@@ -8,6 +8,9 @@ reviewer_agent: user
 wp_id: WP05
 ---
 
+> Hostname cleanup: `retired-host.example` redacts the former Team Kitty hostname in historical evidence; the current endpoint is `https://team.spec-kitty.ai`.
+
+
 # WP05 Review Cycle 1 — Approved (verdict restored after force-transition race)
 
 *Backfilled during WP11 evidence consolidation (2026-08-13) from the mission
@@ -31,7 +34,7 @@ status event log; no new review was performed and no verdict is changed.*
   retired.
 - Ratchet repin commits `8dcfe7945`/`f2cc9cf15`; lane planning cleanup
   `46348e776`.
-- No production `app.spec-kitty.ai` mutation performed.
+- No production `retired-host.example` mutation performed.
 
 ## Force-transition race and repair
 

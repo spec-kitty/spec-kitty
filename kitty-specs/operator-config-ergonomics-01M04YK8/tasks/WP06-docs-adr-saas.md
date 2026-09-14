@@ -66,7 +66,7 @@ Base + merge target: `fix/operator-config-ergonomics`. Lane worktree from `lanes
 - `docs/adr/3.x/2026-08-16-4-rc-release-channel.md`: default-off consumer channel, pinned-rc install, stable-users-never-nagged; scope boundary vs #3047 producer half. Status: Accepted.
 
 ### T028 — Team Kitty (SaaS) architecture section + interaction diagram
-- `docs/architecture/team-kitty-saas.md` (new; follow `ARCHITECTURE_DOCS_GUIDE.md`, link up from `docs/architecture/index.md`). Include a Mermaid interaction/sequence diagram of the full flow: opt-in/consent → project-store (legacy→project) migration → admission/delivery-target → auth refresh → `import-history` drain-to-ledger → `sync now` to `app.spec-kitty.ai`. This is the end-to-end flow that was undocumented when opt-in kept hitting gates.
+- `docs/architecture/team-kitty-saas.md` (new; follow `ARCHITECTURE_DOCS_GUIDE.md`, link up from `docs/architecture/index.md`). Include a Mermaid interaction/sequence diagram of the full flow: opt-in/consent → project-store (legacy→project) migration → admission/delivery-target → auth refresh → `import-history` drain-to-ledger → `sync now` to `team.spec-kitty.ai`. This is the end-to-end flow that was undocumented when opt-in kept hitting gates.
 
 ### T029 — Consumption docs + SOURCE skills
 - `docs/api/environment-variables.md`: add `SPEC_KITTY_PACKS_ROOT` (canonical), the `.kitty.env` mechanism, `SPEC_KITTY_PRERELEASE`; clarify `SPEC_KITTY_HOME` locator role.

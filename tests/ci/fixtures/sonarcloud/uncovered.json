@@ -1,6 +1,6 @@
 {
   "component": {
-    "key": "Priivacy-ai_spec-kitty:src/specify_cli/status/emit.py",
+    "key": "spec-kitty_spec-kitty:src/specify_cli/status/emit.py",
     "name": "emit.py",
     "qualifier": "FIL",
     "path": "src/specify_cli/status/emit.py",

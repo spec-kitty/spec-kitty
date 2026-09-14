@@ -1,10 +1,10 @@
 {
-  "release_train": "3.2.0",
+  "release_train": "4.0.0",
   "authority": "spec-kitty-cli release authority for shared package compatibility",
   "packages": [
     {
       "package": "spec-kitty-events",
-      "source_repo": "Priivacy-ai/spec-kitty-events",
+      "source_repo": "spec-kitty/spec-kitty-events",
       "cli_range": ">=9,<10",
       "locked_version": "9.1.6",
       "contract_surface": "volatile mission/WP families + zeitgeist attrs codecs; sync/legacy/cutover deleted",
@@ -12,7 +12,7 @@
     },
     {
       "package": "spec-kitty-tracker",
-      "source_repo": "Priivacy-ai/spec-kitty-tracker",
+      "source_repo": "spec-kitty/spec-kitty-tracker",
       "cli_range": ">=0.5.2,<0.6",
       "locked_version": "0.5.2",
       "contract_surface": "tracker discovery and sync SDK",

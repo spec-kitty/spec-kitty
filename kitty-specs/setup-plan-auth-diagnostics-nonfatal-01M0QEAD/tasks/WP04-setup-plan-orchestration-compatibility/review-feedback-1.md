@@ -1,3 +1,5 @@
+> Hostname cleanup: `retired-host.example` redacts the former Team Kitty hostname in historical evidence; the current endpoint is `https://team.spec-kitty.ai`.
+
 # WP04 review feedback — rejected
 
 ## Blocking findings
@@ -14,7 +16,7 @@ SPEC_KITTY_ENABLE_SAAS_SYNC=0 uv run pytest -q \
   tests/sync/test_sync_boundary_preflight.py::test_collect_foreground_identity_none_when_unauthenticated
 
 1 passed, 1 failed
-AssertionError: identity.server_url == 'https://app.spec-kitty.ai' (expected None)
+AssertionError: identity.server_url == 'https://retired-host.example' (expected None)
 ```
 
 The preflight test passes alone. The full required quickstart union produced `260 passed, 1 skipped, 1 failed` for the same reason. Add teardown/finalizer isolation that resets the canonical token manager after every real-storage test, then rerun the combined quickstart command in its documented order.

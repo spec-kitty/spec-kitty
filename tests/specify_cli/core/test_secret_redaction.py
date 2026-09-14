@@ -57,6 +57,20 @@ class TestRedactNonAllowlisted:
         result = redact(mapping)
         assert all(entry.value is None for entry in result)
 
+    def test_machine_client_secret_never_renders_value(self) -> None:
+        """#3277: the CI machine credential is redacted by default — it is
+        deliberately NOT on the printable allowlist."""
+        mapping = {
+            "SPEC_KITTY_MACHINE_CLIENT_SECRET": "machine-secret-fixture-0000000",
+            # The client id is a public identifier but is not on the
+            # allowlist either — fail-closed until explicitly triaged.
+            "SPEC_KITTY_MACHINE_CLIENT_ID": "cid_fixture",
+            "SPEC_KITTY_MACHINE_CLIENT_SECRET_FILE": "/run/secrets/fixture",
+        }
+        result = redact(mapping)
+        assert all(entry.value is None for entry in result)
+        assert all(entry.present is True for entry in result)
+
 
 class TestRedactMixed:
     def test_mixed_mapping_only_allowlisted_entries_carry_values(self) -> None:

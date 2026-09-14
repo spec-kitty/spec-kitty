@@ -62,7 +62,7 @@ jobs:
       - name: Install validation dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install packaging
+          python -m pip install --only-binary=:all: "packaging==26.2"
 
       - name: Download candidate package metadata
         uses: actions/download-artifact@v8

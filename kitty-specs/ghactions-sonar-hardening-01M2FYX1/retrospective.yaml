@@ -1,0 +1,134 @@
+schema_version: 1
+mission_id: 01M2FYX1207WDSPBX9KYR79XMC
+mission_slug: ghactions-sonar-hardening-01M2FYX1
+mission_number: 200
+friendly_name: GitHub Actions Sonar hardening (validatable workflows)
+mission_type: software-dev
+target_branch: fix/ghactions-sonar-hardening
+created_at: '2026-09-14T13:38:20.616377+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-14T13:38:20.616377+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-006
+  category: doc
+  summary: analysis-report.md present with no recorded findings
+  evidence_refs:
+  - e-011
+  details: An analysis-report.md artifact is present and its frontmatter records zero findings with a resolved verdict —
+    the analysis raised nothing.
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-010
+not_helpful: []
+gaps:
+- id: g-002
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity
+    relationships.
+- id: g-001
+  category: doc
+  summary: research.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md is present but research.md is missing. Research artifacts help future maintainers understand design
+    decisions.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/ghactions-sonar-hardening-01M2FYX1/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/ghactions-sonar-hardening-01M2FYX1/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/ghactions-sonar-hardening-01M2FYX1/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/ghactions-sonar-hardening-01M2FYX1/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/ghactions-sonar-hardening-01M2FYX1/tasks/WP01-input-injection-env-indirection.md
+- id: e-006
+  kind: file
+  path: kitty-specs/ghactions-sonar-hardening-01M2FYX1/tasks/WP02-action-sha-pinning.md
+- id: e-007
+  kind: file
+  path: kitty-specs/ghactions-sonar-hardening-01M2FYX1/tasks/WP03-permissions-and-aggregate-installs.md
+- id: e-008
+  kind: file
+  path: kitty-specs/ghactions-sonar-hardening-01M2FYX1/tasks/WP04-thirdparty-install-hardening.md
+- id: e-009
+  kind: file
+  path: kitty-specs/ghactions-sonar-hardening-01M2FYX1/tasks/WP05-adjudication-dossier.md
+- id: e-010
+  kind: file
+  path: kitty-specs/ghactions-sonar-hardening-01M2FYX1/status.events.jsonl
+- id: e-011
+  kind: file
+  path: kitty-specs/ghactions-sonar-hardening-01M2FYX1/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

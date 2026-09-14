@@ -156,6 +156,12 @@ GOVERNED_SECRET_VARS: tuple[str, ...] = (
     "SPEC_KITTY_SAAS_TOKEN",
     "SPEC_KITTY_ORG_TOKEN",
     "SPEC_KITTY_ORG_AUTH_HEADER",
+    # #3277: the machine/CI client secret. A CI runner supplies it as a real
+    # process env var or a secret file (SPEC_KITTY_MACHINE_CLIENT_SECRET_FILE)
+    # -- never via a committed .kitty.env. Listed here so the provisioning
+    # template and the env-file doctor both treat it as secret-shaped: a
+    # commented blank template line at most, and name/presence-only reporting.
+    "SPEC_KITTY_MACHINE_CLIENT_SECRET",
 )
 
 

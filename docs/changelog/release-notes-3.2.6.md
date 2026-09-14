@@ -173,7 +173,7 @@ These affect only callers scripting against Spec Kitty internals, parsing its JS
 ### Sync, tracker & auth
 
 - **Review rejections reach the hosted dashboard again** (`#3307`, `#3444`) — the backward review move now emits `force=True` and threads `review_ref`, satisfying the wire contract the hosted endpoint enforces.
-- **Machines that never ran the layout migration now capture sync events for real** instead of silently capturing zero while reporting success (`#3425`, `#3497`); **`auth login` resolves the real hosted URL** `https://app.spec-kitty.ai` when unset (`#3297`); and a batch-400 poison event no longer strands its whole batch (`#2736`, `#2755`).
+- **Machines that never ran the layout migration now capture sync events for real** instead of silently capturing zero while reporting success (`#3425`, `#3497`); **`auth login` resolves the then-current hosted URL** when unset (the current endpoint is `https://team.spec-kitty.ai`) (`#3297`); and a batch-400 poison event no longer strands its whole batch (`#2736`, `#2755`).
 - **Hosted event-sync delivers again for consented projects** (`#3564`, `#3620`) — `sync now` no longer self-blocks on an admission gate whose server endpoint isn't deployed, and `import-history --apply` honors the server's own preflight success.
 - **`sync share <team>` no longer crashes first-run while it self-heals**, and **`auth status` now shows each team's slug** that `sync share` requires (`#3699`, `#3731`).
 

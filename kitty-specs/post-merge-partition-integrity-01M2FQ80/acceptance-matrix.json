@@ -1,0 +1,99 @@
+{
+  "mission_slug": "post-merge-partition-integrity-01M2FQ80",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/merge/test_squash_target_newer_planning_3942.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T12:24:36.276280+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 divergence surfaced to stderr (non-silent)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T12:24:45.819273+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_squash_reconcilers_2709 + test_gate_artifact_merge_drivers_2804 green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T12:25:30.379674+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 retrospect reads authoritative primary post-merge",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T12:25:41.519090+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_retrospect_doctor_surface_4090.py green (retrospect==doctor)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T12:25:55.851538+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_merged_at_writer_and_reopen_4090.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T12:26:06.788512+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_event_count_union_4091.py green (#4091 verified-already-fixed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T12:26:27.865815+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01+WP03 red-first guards green post-fix",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T12:26:37.392936+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/architecture/post-merge-partition-authority.md synthesis",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T12:26:46.815245+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

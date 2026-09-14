@@ -42,6 +42,10 @@ root-level `glossary/` stub and the previously homeless context docs:
 - [Naming Decision: Tool vs Agent](naming-decision-tool-vs-agent.md) — the
   canonical split between *tool* (concrete execution product) and *agent*
   (logical collaborator identity/role).
+- [The SkyKitty Agent Fleet](../development/agent-fleet.md) — **SkyKitty**, the
+  company agent fleet that runs missions on this repo (distinct from **Spec Kitty**,
+  the toolkit, and **Team Kitty**, the hosted product), its roles, and the
+  `ready-for-squad` handshake.
 - [Historical Terms and Mappings](historical-terms.md) — legacy wording mapped
   to its current canonical term, with version scope and migration notes.
 

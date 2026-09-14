@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-09-10'
+updated: '2026-09-14'
 ---
 # Changelog
 
@@ -13,9 +13,62 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 3.2.8rc1
+## [Unreleased] - 4.0.0rc3
 
-_The 3.2.7rc1 candidate cycle is open. Entries land here as missions merge._
+_4.0.0rc3 candidate cycle. Entries land here until the release chore finalizes
+this section at publish._
+
+### Fixed
+
+- **Built-in doctrine guidance no longer points at the retired `src/doctrine/<kind>.graph.yaml` fragment home** (#2715). The `common-docs-find` tactic and the `brownfield-onboarding` paradigm now name `packs/built-in/<kind>.graph.yaml`, and the agent-profile repository's lineage-graph docstring no longer describes a monolith that is gone. The dead-path architectural gate now also flags `doctrine/<kind>.graph.yaml` and `doctrine/*.graph.yaml` paths, not only the `doctrine/graph.yaml` monolith, and its failure message no longer recommends the dead path.
+- **`spec-kitty specify` / `agent mission create` now refuse a silent duplicate of a live mission instead of creating a second mission under a different slug (`#4033`).** **Before:** running create twice for the same intent (same `mission_slug` **and** `mission_type`) produced two missions, both `{"result":"success"}`, both exit 0 — a trainee following the docs silently ended up with a duplicate. **After:** `create_mission_core` fails closed with `MissionCreationError` *before* any scaffold or branch is written when a live same-key mission exists, naming the existing mission (slug + `mid8`) and the `--allow-duplicate` override. An abandoned prior mission — explicitly canceled, or *genesis*-abandoned (zero lifecycle events **and** a spec that was never committed) — does not block a fresh create, so a bare never-used scaffold re-creates cleanly with no flag. The legitimate high-volume factory case is served by an explicit `--allow-duplicate` / `--allow-dup` flag on both `agent mission create` and `/spec-kitty.specify`, threaded to `create_mission_core(allow_duplicate=True)`; abandonment detection fails closed, so an indeterminate prior mission is treated as live and refused.
+
+- **`spec-kitty merge` no longer lets an older mission-branch planning copy silently clobber a target-newer one during the squash** (#3942). The mission→target `git merge --squash -X theirs` step forces the source (mission branch) to win every add/add conflict, which is correct for source code and the driver-covered `kitty-specs/**` bookkeeping classes but false for PRIMARY-partition planning artifacts (`spec.md`, `plan.md`, `tasks/WP*.md`, `research/`, `data-model.md`) — those are authored on the primary/target surface, so the target can carry a legitimately newer copy. A merge driver cannot fix this (it sees only three blobs, no history), so target-newer recency is now resolved after the squash by a pure three-way rule (`src/specify_cli/merge/planning_recency.py`): a path is target-authoritative when the target diverged from the merge-base while the lane copy is base-or-ancestor, with committer-date (never mtime) as the tiebreak and the target winning on a tie. Preserved paths are amended into the single squash commit and reported to the operator, never silent (FR-002). Driver-covered reconcilers (#2709/#2804) are unchanged. Advances epic #2907.
+- **The post-merge `merged_at` completion marker has a production writer again, and the merged-state guard is reopen-aware** (#4090). The primary-wins guard that re-anchors post-merge reads to the PRIMARY surface (`is_mission_merged` → `meta["merged_at"]`) had been dormant since its writer was deleted in #2258, so retrospect and doctor could still read a stale diverged coordination husk. The writer is restored as a sibling of `record_baseline_merge_commit` (`src/specify_cli/merge/baseline.py`), the meta-write authority — the executor is untouched — and `is_mission_merged` (`src/specify_cli/status/lifecycle.py`) is now event-sourced: a mission is merged iff `merged_at` is present and no later `MissionReopened` event postdates it, so a reopened mission correctly reads as not-merged and a re-merge re-stamps a fresh marker. Advances epic #2160 (keeps the single canonical post-merge authority on PRIMARY, overriding the husk rather than freshening it).
+- **Characterization guard confirming post-merge `event_count` union consistency** (#4091, verified-already-fixed). `event_count` is by definition the count of unique `WPStatusChanged` transition events (annotations, lifecycle, and decision events are not transitions), and `_project_status_bookkeeping_to_target` already unions and re-reduces under a coordination husk. A red-first repro on a coord fixture confirmed the count is already correct on HEAD, so #4091 is closed with a regression-locking characterization test rather than a code change.
+
+## [4.0.0rc2] - 2026-09-14
+
+Second public release candidate for the Team Kitty 4.x line, cut from `main` for
+the Team Kitty launch walkthroughs. This is a testing prerelease, not stable launch
+acceptance. Install explicitly with `uv tool install 'spec-kitty-cli==4.0.0rc2'`.
+
+The CLI keeps the public shared-package targets: events 9.1.6 and tracker 0.5.2.
+Live Work is not included in this candidate. Stable 4.0.0 launch acceptance remains
+tracked in planning#1999.
+
+### Added
+
+- **`spec-kitty auth login --machine` authenticates CI runners and other unattended environments for hosted operations with no browser, TTY or device-flow approval** (#3277; #4306). It exchanges a ServicePrincipal client ID and secret, read from `SPEC_KITTY_MACHINE_CLIENT_ID` plus `SPEC_KITTY_MACHINE_CLIENT_SECRET` or `SPEC_KITTY_MACHINE_CLIENT_SECRET_FILE`, through the OAuth `client_credentials` grant. Missing or rejected credentials fail closed with one remediation message, never a prompt, and the secret is never printed. `--machine` cannot be combined with `--headless`. `auth status` labels the session `Machine / CI (Client Credentials Grant)`, and `auth doctor` (text and `--json`) reports the additive `session.auth_method` field. Browser and device-flow login remain the default for people; the runner setup and credential rotation runbook is `docs/operations/ci-machine-auth.md`.
+
+### Fixed
+
+- **An explicitly-set `SPEC_KITTY_SAAS_URL` is a real opinion again, even when its value equals the packaged default `https://team.spec-kitty.ai`** (#4259). The 4.0.0rc1 resolver treated such a value as "no opinion", so a stale `config.toml [sync].server_url` naming the retired first-party app endpoint `https://app.spec-kitty.ai` won resolution and login targeted dead infrastructure. An explicit env value now wins in a whole-process context (login) and fails closed as a split-brain against a different configured target in setup-only contexts, exactly like any other env/config disagreement.
+- **A new 4.0.0 upgrade migration rewrites exactly the retired first-party address in `config.toml [sync].server_url` to the canonical hosted target** (#4259). Machine-scoped and idempotent; hostname-exact matching only (never substring), so custom and self-hosted endpoints, ports, paths, and every unrelated setting are untouched. A missing, unreadable, or unparseable `config.toml` is a no-op.
+- **`spec-kitty auth login` now shows the resolved target and its configuration source before any OAuth flow starts**, and warns — never rejects — when the target is the retired first-party endpoint or another noncanonical `spec-kitty.ai` host, naming the canonical endpoint and the upgrade remedy (#4259). A custom/self-hosted endpoint is labelled custom and left unchanged.
+- **`spec-kitty auth login` never relabels or forwards a stored session minted for a different endpoint** (#4259). Plain `login` on an issuer mismatch now refuses with the stale-session remedy instead of reporting "Already logged in"; only `--force` re-authenticates, minting fresh credentials against the resolved target (the non-interactive bridge already enforced this boundary since #234).
+- **`spec-kitty tracker discover` leaked a raw Python traceback instead of a clean CLI error whenever the SaaS control plane rejected the discovery request (observed on HTTP 403; `#4233`).** **Before:** `discover` guarded the service call with a hand-rolled `except TrackerServiceError` only, but a SaaS non-2xx surfaces as `SaaSTrackerClientError` — a *sibling* of `TrackerServiceError` (both derive from `RuntimeError`, neither from the other) — so any 403/404/429/5xx propagated uncaught and printed a full Rich traceback exposing internal module paths (`tracker/saas_client.py`, `tracker/service.py`, `cli/commands/tracker.py`). `discover` was the lone tracker command that did not route its service call through the shared `_run_or_exit` helper (which catches the `RuntimeError` family), which is exactly why every other tracker command was immune. **After:** `discover`'s service call goes through `_run_or_exit`, so any `RuntimeError`-family failure — the SaaS sibling included — renders as a single-line stderr message + `Exit(1)` with no traceback and no internal paths. The shared boundary now also preserves the structured server error data (the September #4233 extension): the error envelope parser reads the PRI-12 canonical `code` key (with the legacy `error_code` and a string `error` message field as fallbacks, coordinated with `#2944` rather than a second taxonomy), the raised error's machine code now outranks the envelope category, and `_run_or_exit` renders the code, HTTP status and one actionable hint distinguishing disabled rollout (`FEATURE_DISABLED`), missing/stale binding, expired authorization, permission denial, rate limiting and server failure. Under `--json`, the same failure is additionally emitted as a machine-readable object on stdout (`{"ok": false, "error": ..., "error_code": ..., "http_status": ..., "action": ...}`) — failures are never converted into successful empty results, only whitelisted fields are rendered (no envelope internals, no credentials), and the exit code stays nonzero. Regression tests drive the real command with mocked HTTP error responses (not just injected service errors), including the exact observed `FEATURE_DISABLED` 403 payload, and assert no traceback, no leaked bearer token, and valid JSON on stdout in `--json` mode.
+- **Starting a mission's specify, plan or tasks phase publishes its moment to Team Kitty again** (#4214). The Zeitgeist bridge validated the persisted Started payload unchanged, so the local-only `artifact_path` it carries failed the strict canonical model and the moment was dropped before any publish. The bridge now projects that field off at the wire boundary through the lifecycle module's canonical projection; the persisted event keeps it, any other undeclared field is still rejected, and Completed phases are unchanged.
+- **`finalize-tasks` rewrites legacy string-form `dependencies` frontmatter (`"[]"`, `"WP01, WP02"`, bare `WP01`) to the canonical list form** (#3941). Previously a string value that coerced to the resolved dependencies was left on disk verbatim; `--validate-only` previews the normalization and still writes nothing.
+- **`spec-kitty agent mission record-analysis` no longer refuses with `DIRTY_WORKTREE` after specify or plan opens Decision Moments** (#3928). The Decision Moment ledger (`decisions/index.json`, `decisions/DM-*.md`) is now classified as coordination-partition state, like the status event log.
+- **`mission create` records the `mid8` identity in `meta.json` alongside `mission_id`** (#3474), so readers take it from the canonical identity source instead of re-deriving it. The value is unchanged.
+- **`spec-kitty next` and `spec-kitty research` reject a traversal-shaped `--mission` slug with a clean typed error instead of a raw `ValueError` traceback** (#2878). Both commands now print the canonical safe-path-segment diagnostic as a single `Error:` line and exit 2; `next --json` emits a structured JSON error envelope.
+
+### Changed
+
+- **Hosted references and examples use `https://team.spec-kitty.ai`** (#4258). The retired hostname is removed from checked-in material; historical records use a reserved example hostname.
+
+## [4.0.0rc1] - 2026-09-13
+
+First public release candidate for the Team Kitty 4.x line. This is a testing
+prerelease, not stable launch acceptance. Install explicitly with
+`uv tool install 'spec-kitty-cli==4.0.0rc1'`.
+
+The CLI keeps the public shared-package targets: events 9.1.6 and tracker 0.5.2.
+Hosted end-to-end qualification, independent cold starts and final launch sign-off
+remain tracked in planning#1999 and spec-kitty/spec-kitty-saas#1381. RC publication
+makes this exact package available for that qualification; it does not claim those
+checks have passed.
 
 Runtime lookup now reports `RUN_IDENTITY_MIGRATION_REQUIRED` when identity backfill leaves an older run without a recorded mission ID. It preserves the existing cursor and journal instead of silently starting over. The error identifies the run and explains how to bind its index entry after verifying ownership.
 
@@ -28,6 +81,8 @@ Runtime lookup now reports `RUN_IDENTITY_MIGRATION_REQUIRED` when identity backf
 - **A third-party charter pack whose `mission.yaml` still authors an `orchestration:` block now fails to load loudly instead of the field being silently dropped** (mission `dead-port-disposition-01M1TZVN`, WP03 rider T014b). The dead `MissionOrchestration`/`MissionStateObject`/`MissionTransition` models and the required `Mission.orchestration` field are removed from the charter offering schema — `src/charter/offering/schemas/mission.schema.yaml` is regenerated without the `orchestration` definition, and the matching inert-slot baseline rows are retired — but the `Mission` model still declares `extra="forbid"`, so a pack that kept authoring the key is refused at load rather than tolerated (`tests/doctrine/fixtures/mission/invalid/retired-orchestration-key.yaml` pins the refusal). Nothing in this repo constructed these models. Unlike the 3.2.6 `context-sources` removal (below), **there is no upgrade migration** for this key — a pack author must delete the block by hand.
 
 ### Changed
+
+- **A stale or mistyped org-directive activation entry no longer resolves silently, and directive resolution does less repeated filesystem work (charter directive-resolution hardening; `#4239`, `#4240`; epic `#2519`).** **Before:** when an `activated_directives` entry named no real directive, the delivered directives service best-effort normalized it (e.g. `007-ghost` → `DIRECTIVE_007`) and could co-activate an unrelated directive with no signal — an operator got no indication their entry was unresolved. Separately, resolving a directive re-walked every doctrine layer once per candidate filename stem (O(directives×stems) filesystem scans per resolution). **After:** the service emits a per-token WARNING naming the unresolved token and the form it fell back to, so a stale/typo'd entry is visible; and a single resolution pass now walks each doctrine layer at most once. Neither change alters which directives resolve — resolution outcomes and the layer-precedence authority are unchanged.
 
 - **Forward-port the 3.2.6.1 first-run recovery fixes.** Mission creation rejects an unborn write checkout before creating artifacts, cleans up disposable scaffolds on actual commit refusals, and delays lifecycle publication until creation succeeds. Main retains its existing protected-branch bootstrap success and uncommitted-file disclosure. The tutorials continue one mission through specification and planning, active repository links use the current organization, and release tooling accepts four-component hotfix versions.
 
@@ -2855,7 +2910,7 @@ The complete, factual list of changes for this candidate follows in the entries 
   without that variable set told you to `Set it to your spec-kitty-saas instance
   URL (e.g. https://api.spec-kitty.example.com)` — a `.example.com` placeholder
   that does not resolve, so a first-time user who copied it got a dead URL. The
-  guidance now names the actual hosted URL, `https://app.spec-kitty.ai`, so the
+  guidance named the then-current hosted URL (now `https://team.spec-kitty.ai`), so the
   example is copy-paste-usable; self-hosted instances still override via the env
   var exactly as before.
 - **Timestamps that Spec Kitty writes into your project no longer record local

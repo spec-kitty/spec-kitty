@@ -104,7 +104,7 @@ URI/checksum. Resolve and verify them; refuse ambient `../spec-kitty-saas`, bran
 names without commits, dirty contract drift, or mismatched digests.
 
 Hosted mutation uses only local/test SaaS or an explicitly authorized dynamically
-discovered Upsun branch/develop environment. `app.spec-kitty.ai` is production and
+discovered Upsun branch/develop environment. `team.spec-kitty.ai` is production and
 read-only health at most. Never inspect, delete, move, reassign, or decide the
 historical 1,322 events. Core evidence cannot close SaaS #585.
 

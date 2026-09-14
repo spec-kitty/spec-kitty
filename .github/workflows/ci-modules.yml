@@ -60,7 +60,8 @@ jobs:
 
       - name: Install PyYAML (matrix-generation only, no editable install needed)
         shell: bash
-        run: pip install --quiet --disable-pip-version-check "pyyaml==6.0.2"
+        run: |
+          pip install --quiet --disable-pip-version-check --only-binary=:all: "pyyaml==6.0.2"
 
       - name: Build the matrix from the committed module registry
         id: build

@@ -538,6 +538,15 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         inventory_id="E18",
         note="OAuth device-code flow; carries no project data.",
     ),
+    "specify_cli/auth/flows/client_credentials.py": Allowance(
+        kind=AllowanceKind.NOT_PROJECT_DATA,
+        inventory_id="E18",
+        note=(
+            "OAuth client_credentials machine login (#3277); exchanges the "
+            "ServicePrincipal credential pair for a session. Same E18 class "
+            "as the other auth flows — credential traffic, no project data."
+        ),
+    ),
     "specify_cli/auth/flows/refresh.py": Allowance(
         kind=AllowanceKind.NOT_PROJECT_DATA,
         inventory_id="E18",

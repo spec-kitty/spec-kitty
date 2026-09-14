@@ -102,6 +102,7 @@ from specify_cli.cli.commands.agent.mission_parsing import (
     _parse_requirement_ids_from_spec_md,
     _parse_requirement_refs_from_tasks_md,
     _parse_requirement_refs_from_wp_files,
+    _raw_frontmatter_dependencies_is_string_form,
     _raw_frontmatter_has_field,
 )
 
@@ -1368,18 +1369,26 @@ def _apply_bootstrap_fields(
     has_requirement_refs_line: bool,
     target_branch: str,
     merge_target_branch: str | None = None,
+    dependencies_string_form: bool = False,
 ) -> tuple[bool, dict[str, object]]:
     """Apply the 4 always-evaluated bootstrap fields, returning (changed, fields).
 
     Covers dependencies, planning_base_branch, merge_target_branch,
     branch_strategy, requirement_refs. Ownership fields are applied separately.
+
+    ``dependencies_string_form`` (set by the bootstrap loop when the raw
+    frontmatter stores ``dependencies`` as a legacy string — ``"[]"``,
+    ``"WP01, WP02"``, bare ``WP01``, #3941) forces the dependencies rewrite
+    even when the coerced value already equals *deps*: the canonical list
+    form must reach the tree, and ``WPMetadata``'s read-time coercion hides
+    the string form from the value comparison above.
     """
     final_target = merge_target_branch or target_branch
     branch_strategy = _branch_strategy_text(target_branch, final_target)
     changed_fields: dict[str, object] = {}
     frontmatter_changed = False
 
-    if not has_dependencies_line or list(wp_meta.dependencies) != deps:
+    if dependencies_string_form or not has_dependencies_line or list(wp_meta.dependencies) != deps:
         changed_fields["dependencies"] = deps
         bld.set(dependencies=deps)
         frontmatter_changed = True
@@ -1480,6 +1489,11 @@ def _run_bootstrap_loop(
         raw_content = wp_file.read_text(encoding="utf-8")
         has_dependencies_line = _raw_frontmatter_has_field(raw_content, "dependencies")
         has_requirement_refs_line = _raw_frontmatter_has_field(raw_content, "requirement_refs")
+        # #3941: a legacy string-form dependencies value ("[]", "WP01, WP02",
+        # bare WP01) parses to the same list WPMetadata would write, so the
+        # value comparison alone never flags it — normalize it to the
+        # canonical list form on this run's write.
+        dependencies_string_form = has_dependencies_line and _raw_frontmatter_dependencies_is_string_form(wp_file)
         try:
             wp_meta, body = _read_wp_frontmatter(wp_file)
         except Exception as e:  # noqa: BLE001 — surface but skip unreadable WPs
@@ -1510,6 +1524,7 @@ def _run_bootstrap_loop(
             has_requirement_refs_line=has_requirement_refs_line,
             target_branch=target_branch,
             merge_target_branch=merge_target_branch,
+            dependencies_string_form=dependencies_string_form,
         )
         own_changed, infer_warnings, ownership_contradiction = _apply_ownership_inference(
             bld, wp_meta, wp_file.read_text(encoding="utf-8"), mission_slug, changed_fields

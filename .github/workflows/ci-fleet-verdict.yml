@@ -5,12 +5,11 @@ on:
     workflows: [CI Router, CI Modules, Packs, CI Quality, ci-windows, Release Readiness Check, Check Shared Package Drift, CI Aggregate]
     types: [requested, in_progress, completed]
 
-permissions:
-  contents: read
-  actions: read
-
 jobs:
   identify:
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:

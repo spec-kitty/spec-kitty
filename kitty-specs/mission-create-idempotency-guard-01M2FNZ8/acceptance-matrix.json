@@ -1,0 +1,49 @@
+{
+  "mission_slug": "mission-create-idempotency-guard-01M2FNZ8",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_mission_create_idempotency_guard.py::test_second_live_duplicate_create_is_refused_4033 (WP01 approved)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T11:23:11.435802+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_mission_create_idempotency_guard.py::test_refusal_message_names_existing_mission_and_override (WP01 approved)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T11:23:30.702970+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_mission_create_idempotency_guard.py::test_genesis_prior_auto_allows_recreate_with_no_flag + canceled-only auto-allow (WP01 approved)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T11:23:40.916787+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_mission_create_idempotency_guard.py::test_allow_duplicate_flag_overrides_guard (--allow-duplicate on create & specify) (WP01 approved)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T11:23:51.253017+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

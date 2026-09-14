@@ -325,7 +325,7 @@ constituents:
   kind: directive
   path: directives/use-mutation-testing-to-validate-test-quality.directive.yaml
   provenance_path:
-- content_hash: 98c2becf0671ad92ce09f96954e8fdedebd6ad43e4d66887e7c8c3dbc3476e3d
+- content_hash: 69dab1bdd78f88701d3a5be43133e84e7dba92d419087910d3afc507ead640d4
   id: spec-kitty-core
   kind: glossary_pack
   path: glossary_packs/spec-kitty-core.glossary-pack.yaml
@@ -340,7 +340,7 @@ constituents:
   kind: paradigm
   path: paradigms/behaviour-driven-development.paradigm.yaml
   provenance_path:
-- content_hash: 5532f2e5dedfff125793cfcee34af676326baf5bc58eca45e84c89662da21595
+- content_hash: adc5a511f94cafbd151b226b0bfbf018d448e7ce0f2ccbab54f534bb3b4e17be
   id: brownfield-onboarding
   kind: paradigm
   path: paradigms/brownfield-onboarding.paradigm.yaml
@@ -770,7 +770,7 @@ constituents:
   kind: tactic
   path: tactics/common-docs-curation.tactic.yaml
   provenance_path:
-- content_hash: 7576bef775512ad25a8deda998e57a3011785c457b7929ce1f7519d5ff66197e
+- content_hash: 715401c41d95f37d23fc215df5b279bc6d2acd12c81a3cfe41a542da3117cba7
   id: common-docs-find
   kind: tactic
   path: tactics/common-docs-find.tactic.yaml
@@ -1340,7 +1340,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: eed21181f32e88193d61953ee2946b401f7b47c51415ccfce03a680c100096c2
+manifest_hash: f7bb6f66cf4fbf7f2abad74a3fbfa36c75c65e965f0548e175c9d40c60edb1e4
 schema_version: '1'
 source_type: built-in
 source_url:
