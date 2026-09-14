@@ -505,6 +505,44 @@ def _directive_ids_by_stem(paths: list[Path], id_field: str, yaml: YAML) -> dict
     return ids_by_stem
 
 
+def _directive_stem_represents(
+    stem: str,
+    urn: str,
+    ids_by_stem: dict[str, set[str]],
+    *,
+    kind: ArtifactKind,
+    doctrine_root: Path,
+    org_roots: list[Path] | None,
+    layer_roots: dict[str, Path] | None,
+    scan_cache: _ScanCache,
+) -> bool:
+    """Return True when *stem* unambiguously represents *urn*'s identity.
+
+    A stem represents the identity only when both hold:
+
+    - it round-trips: ``resolve_artifact_urn(stem)`` resolves back to *urn*
+      under the same layer precedence (persisted stems retain first-match
+      precedence, and a winning override's filename can name a different
+      built-in policy), and
+    - it is not reused across layers with a disagreeing id -- a stem two
+      layers bind to different identities cannot safely stand for either,
+      even when it happens to round-trip via ordinary precedence (see
+      :func:`_directive_ids_by_stem`).
+    """
+    round_trips = (
+        resolve_artifact_urn(
+            kind,
+            stem,
+            doctrine_root=doctrine_root,
+            org_roots=org_roots,
+            layer_roots=layer_roots,
+            _scan_cache=scan_cache,
+        )
+        == urn
+    )
+    return round_trips and len(ids_by_stem[stem]) <= 1
+
+
 def resolve_config_id(
     urn: str,
     *,
@@ -569,30 +607,22 @@ def resolve_config_id(
     ids_by_stem = _directive_ids_by_stem(paths, id_field, yaml) if kind is ArtifactKind.DIRECTIVE else {}
     matched_identity = False
     for path in paths:
-        if _read_id(path, id_field, yaml) == artifact_id:
-            stem = _config_stem(path)
-            if kind is ArtifactKind.DIRECTIVE:
-                matched_identity = True
-                # Persisted stems retain first-match precedence. A winning
-                # override's filename can name a different built-in policy.
-                if (
-                    resolve_artifact_urn(
-                        kind,
-                        stem,
-                        doctrine_root=doctrine_root,
-                        org_roots=org_roots,
-                        layer_roots=layer_roots,
-                        _scan_cache=scan_cache,
-                    )
-                    != urn
-                ):
-                    continue
-                # A stem reused across layers with a disagreeing ID cannot
-                # safely represent this identity, even when it happens to
-                # round-trip via ordinary precedence (see
-                # `_directive_ids_by_stem`).
-                if len(ids_by_stem[stem]) > 1:
-                    continue
+        if _read_id(path, id_field, yaml) != artifact_id:
+            continue
+        stem = _config_stem(path)
+        if kind is not ArtifactKind.DIRECTIVE:
+            return stem
+        matched_identity = True
+        if _directive_stem_represents(
+            stem,
+            urn,
+            ids_by_stem,
+            kind=kind,
+            doctrine_root=doctrine_root,
+            org_roots=org_roots,
+            layer_roots=layer_roots,
+            scan_cache=scan_cache,
+        ):
             return stem
     if matched_identity:
         raise UnrepresentableDirectiveIdError(

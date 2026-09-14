@@ -112,3 +112,40 @@ def test_fresh_resolution_after_file_change_observes_new_content(tmp_path: Path)
     assert resolve_config_id("directive:NEW-POLICY", doctrine_root=doctrine_root, org_roots=org_roots) == "policy"
     with pytest.raises(UnknownArtifactIdError):
         resolve_config_id("directive:OLD-POLICY", doctrine_root=doctrine_root, org_roots=org_roots)
+
+
+# ---------------------------------------------------------------------------
+# resolve_config_id input-guard coverage (#4239 follow-up F2): the malformed-URN
+# and unknown-kind guards run before any filesystem scan, so they need no corpus.
+# ---------------------------------------------------------------------------
+
+
+def test_malformed_urn_without_separator_raises() -> None:
+    with pytest.raises(ValueError, match="Malformed URN"):
+        resolve_config_id("no-colon-here", doctrine_root=Path("/nonexistent"))
+
+
+def test_malformed_urn_with_empty_artifact_id_raises() -> None:
+    with pytest.raises(ValueError, match="Malformed URN"):
+        resolve_config_id("directive:", doctrine_root=Path("/nonexistent"))
+
+
+def test_urn_with_unknown_kind_raises() -> None:
+    with pytest.raises(ValueError, match="unknown kind"):
+        resolve_config_id("notakind:DIRECTIVE_001", doctrine_root=Path("/nonexistent"))
+
+
+def test_non_directive_kind_returns_first_matching_stem(tmp_path: Path) -> None:
+    """A non-directive kind resolves by first id match with no round-trip check.
+
+    Covers the early-return path in `resolve_config_id` for the non-directive
+    case (the directive round-trip/ambiguity logic applies to directives only).
+    """
+    org = tmp_path / "org"
+    tactics = org / "tactics"
+    tactics.mkdir(parents=True)
+    (tactics / "adversarial-squad.tactic.yaml").write_text('schema_version: "1.0"\nid: TACTIC_ADVERSARIAL\ntitle: Adversarial squad\nintent: Review.\n')
+
+    stem = resolve_config_id("tactic:TACTIC_ADVERSARIAL", doctrine_root=tmp_path / "builtin", org_roots=[org])
+
+    assert stem == "adversarial-squad"

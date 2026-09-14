@@ -64,11 +64,14 @@ their disposition.
   memo added little cyclomatic branching. Sonar S3776 is *cognitive*; the two
   diverge here (CLAUDE.md treats them as aligned, but nesting can separate
   them). This is not a ruff/mypy regression.
-- **Disposition:** correct and fully behaviour-tested; recommended cleanup is to
-  extract the memo handling (`_scan_cache` key/get/store) into a small helper so
-  `resolve_config_id` reads as one linear pass and cognitive complexity drops
-  back ≤15. Deferred from this PR as a mechanical follow-up (no behaviour
-  change); fold it in if a subsequent pass touches this function.
+- **Disposition: REMEDIATED in this PR.** Extracted the directive round-trip +
+  cross-layer ambiguity check into a flat helper `_directive_stem_represents`,
+  inverted the id-match guard, and early-returned the non-directive case. This
+  drops `resolve_config_id`'s nesting from 4 to 2 (the deep checks now live in a
+  flat helper), reducing cognitive complexity ≤15 by inspection; behaviour is
+  unchanged (the full directive suite stays green). Server-side S3776 confirmation
+  will arrive via the nightly/main Sonar analysis once merged (the per-PR Sonar
+  scan is blinded by #4248).
 
 ### F2 — `new_coverage` 65% < 80% (Sonar new-code threshold)
 
@@ -77,11 +80,12 @@ their disposition.
   guard, and the `_directive_ids_by_stem` tail); `resolver.py` is **100%**
   covered (0 uncovered). The scan-count + mtime tests exercise the hit path and
   the outcome path but not every new guard/branch line.
-- **Disposition:** the *enforced* `ci-aggregate.yml` diff-cover ≥90% gate
-  **passed**; Sonar's 80% `new_coverage` is the non-blocking advisory measure.
-  Adding a couple of narrow tests for the cache-miss-store and malformed-URN
-  branches would clear it; grouped with the F1 helper extraction as the same
-  optional follow-up.
+- **Disposition: REMEDIATED in this PR.** Added focused tests for the previously
+  new-uncovered branches (malformed-URN guard, unknown-kind guard, non-directive
+  early-return); combined charter coverage of `kind_vocabulary.py` is now 95%, and
+  every line this PR adds is covered (the 9 remaining uncovered lines are all
+  pre-existing code outside this PR's diff). The enforced diff-cover ≥90% gate
+  already passed; this closes the advisory Sonar `new_coverage` for the new code.
 
 ### F3 — No new bugs/vulnerabilities/hotspots
 
