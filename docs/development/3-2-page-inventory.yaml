@@ -3074,6 +3074,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/operations/ci-machine-auth.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/operations/coord-branch-base-strand.md
   tag: current
   divio_type: none

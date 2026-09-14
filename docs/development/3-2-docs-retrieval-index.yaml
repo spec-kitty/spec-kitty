@@ -3737,6 +3737,7 @@ pages:
     - {slug: "spec-kitty-sync-disable", text: "SPEC_KITTY_SYNC_DISABLE", level: 3}
     - {slug: "spec-kitty-no-moment-handlers", text: "SPEC_KITTY_NO_MOMENT_HANDLERS", level: 3}
     - {slug: "spec-kitty-skip-pre-review-gate", text: "SPEC_KITTY_SKIP_PRE_REVIEW_GATE", level: 3}
+    - {slug: "spec-kitty-machine-client-id-spec-kitty-machine-client-secret-spec-kitty-machine-client-secret-file", text: "SPEC_KITTY_MACHINE_CLIENT_ID / SPEC_KITTY_MACHINE_CLIENT_SECRET / SPEC_KITTY_MACHINE_CLIENT_SECRET_FILE", level: 3}
     - {slug: "release-channel", text: "Release Channel", level: 2}
     - {slug: "spec-kitty-prerelease", text: "SPEC_KITTY_PRERELEASE", level: 3}
     - {slug: "the-kitty-env-file", text: "The `.kitty.env` file", level: 2}
@@ -6960,6 +6961,7 @@ pages:
     - {slug: "troubleshooting-shared-package-import-issues", text: "Troubleshooting Shared Package Import Issues", level: 3}
     - {slug: "how-test-isolation-works", text: "How Test Isolation Works", level: 3}
     - {slug: "submitting-a-pull-request", text: "Submitting a pull request", level: 2}
+    - {slug: "label-driven-fleet-workflow", text: "Label-driven fleet workflow", level: 2}
     - {slug: "maintainer-guides", text: "Maintainer guides", level: 2}
     - {slug: "development-workflow", text: "Development workflow", level: 2}
     - {slug: "release-process", text: "Release Process", level: 2}
@@ -7075,7 +7077,7 @@ pages:
   - path: "docs/development/how-to/manage-issue-tracker.md"
     title: "Managing the Issue Tracker"
     divio_type: "how-to"
-    abstract: "Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, sub-issue parenting, blocked_by dependencies, triage (type, severity, blockers), and the label taxonomy."
+    abstract: "Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, sub-issue parenting, dependencies, triage, the label taxonomy, and the label-driven fleet workflow."
     anchors:
     - {slug: "functional-epics-versus-meta-trackers", text: "Functional epics versus meta-trackers", level: 2}
     - {slug: "parent-and-child-are-native-sub-issue-links", text: "Parent and child are native sub-issue links", level: 2}
@@ -7095,6 +7097,10 @@ pages:
     - {slug: "pr-workflow-labels-for-pull-requests-not-issues", text: "PR-workflow labels — for pull requests, not issues", level: 3}
     - {slug: "lifecycle-community-labels", text: "Lifecycle & community labels", level: 3}
     - {slug: "grouping-labels-documented-above", text: "Grouping labels (documented above)", level: 3}
+    - {slug: "label-driven-fleet-workflow", text: "Label-driven fleet workflow", level: 2}
+    - {slug: "the-status-lifecycle-issues", text: "The `status:*` lifecycle (issues)", level: 3}
+    - {slug: "admission-from-label-to-vm", text: "Admission: from label to VM", level: 3}
+    - {slug: "pr-lane-labels-review-and-landing", text: "PR-lane labels (review and landing)", level: 3}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/how-to/pr-landing.md"
     title: "Landing Contributor PRs: The Maintainer Runbook"
@@ -9164,6 +9170,17 @@ pages:
     - {slug: "idempotency", text: "Idempotency", level: 2}
     - {slug: "verifying", text: "Verifying", level: 2}
     - {slug: "rationale-references", text: "Rationale / References", level: 2}
+  - path: "docs/operations/ci-machine-auth.md"
+    title: "CI Machine Authentication"
+    divio_type: "reference"
+    abstract: "Non-interactive machine authentication for hosted operations: the OAuth client_credentials mode, and the provisioning, rotation, and revocation runbook."
+    anchors:
+    - {slug: "the-three-authentication-modes", text: "The three authentication modes", level: 2}
+    - {slug: "configuring-a-ci-runner", text: "Configuring a CI runner", level: 2}
+    - {slug: "what-a-runner-can-verify-without-a-tty", text: "What a runner can verify without a TTY", level: 2}
+    - {slug: "fail-closed-behavior", text: "Fail-closed behavior", level: 2}
+    - {slug: "provisioning-rotation-and-revocation-server-side", text: "Provisioning, rotation, and revocation (server side)", level: 2}
+    - {slug: "security-constraints", text: "Security constraints", level: 2}
   - path: "docs/operations/coord-branch-base-strand.md"
     title: "Recovery: Coordination Branch Stranded After a Base Rebase"
     divio_type: "none"
