@@ -19,7 +19,7 @@
 
 set -euo pipefail
 
-readonly DEFAULT_PROJECT_KEY="Priivacy-ai_spec-kitty"
+readonly DEFAULT_PROJECT_KEY="spec-kitty_spec-kitty"
 readonly DEFAULT_BASE_URL="https://sonarcloud.io"
 
 SONAR_BASE_URL="${SONARCLOUD_URL:-${DEFAULT_BASE_URL}}"
@@ -41,11 +41,11 @@ Subcommands:
   version | analyses              Analysed projectVersion + new-code baseline
 
 Global options:
-  -p, --project KEY   Project key (default: Priivacy-ai_spec-kitty)
+  -p, --project KEY   Project key (default: spec-kitty_spec-kitty)
   -h, --help          Show this help and exit
 
 Environment:
-  SONAR_PROJECT_KEY   Override the project key (default: Priivacy-ai_spec-kitty)
+  SONAR_PROJECT_KEY   Override the project key (default: spec-kitty_spec-kitty)
   SONARCLOUD_URL      Override the API base URL (default: https://sonarcloud.io)
   SONAR_TOKEN         Optional; public reads work without it
 EOF
