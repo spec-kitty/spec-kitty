@@ -811,9 +811,11 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("MigrationDiscoveryError", "541864310809d0a9f476f2963151b6468ced74b86082c66d0e0e3e420cbd133f", source_module="specify_cli.upgrade.migrations"),
         # specify_cli.validators.csv_schema::CSVSchemaValidation
         SymbolKey("CSVSchemaValidation", "9492562d2a8ff78e95fe51a2eb532a7046b2c26e8a04281d800551d07ccb8b9c", source_module="specify_cli.validators.csv_schema"),
-        SymbolKey(
-            "PathValidationResult", "0d1a15a99129e28b1216f120e7a9c73d470b36df5dd1a0907d289e410681356a", source_module="specify_cli.validators.paths"
-        ),  # specify_cli.validators.paths::PathValidationResult -- #811 port added missing_artifact_tokens field, refreshing this content-hash (#470)
+        # specify_cli.validators.paths::PathValidationResult -- #4254 added the
+        # satisfied_by field (the candidate source root that satisfied a build
+        # path), refreshing this content-hash exactly as #811's
+        # missing_artifact_tokens field did (#470)
+        SymbolKey("PathValidationResult", "cdc4bcabb30ad9c1b4db8ac3413d2b0b55b950eb7f08bd2b1b43f94c726b1ca3", source_module="specify_cli.validators.paths"),
         # specify_cli.validators.paths::suggest_directory_creation
         SymbolKey("suggest_directory_creation", "43ab52fd99963aff65a61cac707bfa4e7460fb71e515f636c9e79960290f90f7", source_module="specify_cli.validators.paths"),
         SymbolKey(
