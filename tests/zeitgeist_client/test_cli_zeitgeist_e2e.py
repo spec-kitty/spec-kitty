@@ -56,6 +56,53 @@ def test_status_end_to_end_over_a_real_loopback_double(state_root: Path, managed
     assert managed_stream_double.received_headers[0].get("X-Zeitgeist-Capability") == "team-a-cred"
 
 
+def test_status_end_to_end_answers_a_quiet_repo_from_the_relay_snapshot(state_root: Path, managed_stream_double) -> None:
+    """#4215 end to end: nothing is ever published on this relay, yet the CLI
+    reports the teammate the relay has on record, says where that came from,
+    and dates the observation."""
+    credentials.store(repo="github.com/acme/spec-kitty", relay_url=managed_stream_double.url, token="team-a-cred", token_kind="shared_team")
+    managed_stream_double.snapshot_document = {
+        "schema_version": "1.0.0",
+        "epoch": "epoch-1",
+        "seq": 4,
+        "cursor": "epoch-1:4",
+        "observed_at": now_epoch(),
+        "presence": [
+            {
+                "observed_at": now_epoch() - 40,
+                "ttl_s": 60,
+                "expires_in_s": 20.0,
+                "actor": {"session_ref": "d" * 12, "user": "alice"},
+                "path": "src/app.py",
+            }
+        ],
+        "focus": [],
+        "events": [],
+        "coverage": {"history_basis": "empty", "retained_frames": 0, "returned_frames": 0, "follow": False},
+    }
+
+    result = runner.invoke(app, ["status", "github.com/acme/spec-kitty", "--timeout", "2.0"])
+
+    assert result.exit_code == 0
+    assert "d" * 12 in result.stdout
+    assert "the relay's own record of who is live now" in result.stdout
+    assert "observed 40s ago" in result.stdout
+
+
+def test_status_end_to_end_says_a_quiet_listen_is_not_proof_nobody_is_working(state_root: Path, managed_stream_double) -> None:
+    """The honesty half of the same acceptance criterion: on a relay with no
+    snapshot route, an empty result is reported as "nothing was published",
+    never as an empty team."""
+    credentials.store(repo="github.com/acme/spec-kitty", relay_url=managed_stream_double.url, token="team-a-cred", token_kind="shared_team")
+    managed_stream_double.close_stream()
+
+    result = runner.invoke(app, ["status", "github.com/acme/spec-kitty", "--timeout", "1.0"])
+
+    assert result.exit_code == 0
+    assert "not the same as nobody working" in result.stdout
+    assert "snapshot_route_unavailable" in result.stdout
+
+
 def test_watch_end_to_end_over_a_real_loopback_double(state_root: Path, managed_stream_double) -> None:
     credentials.store(repo="github.com/acme/spec-kitty", relay_url=managed_stream_double.url, token="team-a-cred", token_kind="shared_team")
     managed_stream_double.push_frame(_frame(seq=1, frame=_presence(session_ref="b" * 12)))
