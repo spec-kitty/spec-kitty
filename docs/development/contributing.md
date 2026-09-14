@@ -478,6 +478,10 @@ unset GITHUB_TOKEN && gh run watch <run-id>
 # 5. Verify
 unset GITHUB_TOKEN && gh release view vX.Y.Z
 pipx install --force spec-kitty-cli==X.Y.Z
+
+# 6. Open the next development cycle on main (Release Checklist, step 8)
+#    PR: next version in pyproject.toml, the uv.lock project entry and
+#    .kittify/metadata.yaml, plus a new "## [Unreleased] - <next version>" heading
 ```
 
 ### Full Release (Minor/Major)
@@ -545,11 +549,15 @@ For larger releases with multiple changes:
    pipx install --force spec-kitty-cli==X.Y.Z
    ```
 
-9. **Clean up**
-   ```bash
-   git branch -d release/X.Y.Z
-   git push origin --delete release/X.Y.Z
-   ```
+9. **Open the next development cycle**
+   - Right after the tag, open a pull request that moves `main` to the next development or candidate version: `pyproject.toml`, the project entry in `uv.lock`, `.kittify/metadata.yaml`, and a new `## [Unreleased] - <next version>` heading in `CHANGELOG.md`.
+   - Until it merges, branch-mode release validation on `main` fails with "Version does not advance beyond latest tag". The canonical step is step 8 of the [Release Checklist](../../RELEASE_CHECKLIST.md).
+
+10. **Clean up**
+    ```bash
+    git branch -d release/X.Y.Z
+    git push origin --delete release/X.Y.Z
+    ```
 
 ### What the Release Workflow Does
 
@@ -576,6 +584,8 @@ Before tagging a release, ensure:
 - [ ] CHANGELOG.md is updated with emoji category headings
 - [ ] Tests pass locally: `pytest tests/`
 - [ ] Broad CI, release readiness, and shared-package drift checks are green
+
+After tagging, open the next development cycle on `main` (Full Release step 9).
 
 ### Important Notes
 
