@@ -284,6 +284,14 @@ _ARCH_SHARD_3_FILES: tuple[str, ...] = (
     # 35 files each when these landed; shard_3 was the lightest by
     # def-test_ count (258 vs 261/296), so both land here.
     "tests/architectural/test_suite_jobs_gate_blocking.py",
+    # Added post-data-model.md (new file, mission
+    # sonar-per-pr-coverage-reuse-01M2FR32 WP04, #4334 -- the permanent
+    # fault-injection battery against duplicate per-change suite execution,
+    # 24 tests). shard_3 was the lightest by def-test_ count (84 vs 182/160)
+    # when this file landed, and it is the direct sibling of
+    # test_suite_jobs_gate_blocking.py above (same workflow surface, same
+    # _gate_coverage substrate), so keeping the family on one leg is free.
+    "tests/architectural/test_no_duplicate_suite_execution.py",
     # Added post-data-model.md (new files, mission
     # test-suite-friction-remediation-01KXDKBX review-remediation / #2632 --
     # the allow_worktree_context blast-radius guard (squad finding, alphonso)

@@ -1,9 +1,15 @@
 """Architectural guards for the CI path-router two-authority model.
 
 The restored interim ``ci-quality.yml`` husk deliberately still runs on every
-pull request with **no** path filter: it is a small six-job producer (the four
-blocking producers plus ``quality-gate`` and the non-blocking ``sonarcloud``
-reporter reinstated by spec-kitty#3993) cheap enough to run unconditionally.
+pull request with **no** path filter: it is a small five-job producer (the four
+blocking producers plus ``quality-gate``) cheap enough to run unconditionally.
+It carried a sixth job until mission ``sonar-per-pr-coverage-reuse`` (#4334) —
+the non-blocking ``sonarcloud`` reporter reinstated by spec-kitty#3993, which
+re-ran the whole fast tier for a coverage report the ``ci-modules`` shards had
+already produced. Its retirement is what makes "cheap enough to run
+unconditionally" true of this file again; the per-PR Sonar report now lives in
+``ci-aggregate.yml``'s ``sonar-pr`` job, which executes no tests. The exact job
+set is pinned by ``tests/release/test_release_ci_ownership.py``, not here.
 The path→job *routing* lives in its own workflow, ``ci-router.yml`` (mission
 ``ci-pipeline-reinstatement``, WP07), which reinstates the two-authority model:
 
