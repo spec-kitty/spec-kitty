@@ -39,7 +39,12 @@ from specify_cli.core.mission_payload import (
     default_mission_display_name,
     default_mission_purpose_context,
 )
-from specify_cli.core.paths import is_worktree_context, locate_project_root
+from specify_cli.core.paths import (
+    MissionMetaReadError,
+    is_worktree_context,
+    load_meta_fail_closed,
+    locate_project_root,
+)
 from kernel.clock import now_utc_iso
 from specify_cli.git import preflight_commit, safe_commit
 from specify_cli.git.commit_helpers import (
@@ -294,6 +299,103 @@ def _list_mission_scaffolds(repo_root: Path) -> frozenset[str]:
         return frozenset()
 
 
+# Directory-name suffix for the canonical ``<human-slug>-<mid8>`` mission-dir
+# grammar (mirrors the matching convention already used by
+# ``_plan_orphan_scaffold_removal`` below). Captures the mid8 so the guard's
+# refusal message can name it without a second (possibly-failing) meta.json
+# read (FR-002).
+_MID8_DIR_SUFFIX_PATTERN = r"-([0-9A-Za-z]{8})"
+
+
+def _prior_mission_is_abandoned(repo_root: Path, feature_dir: Path) -> bool:
+    """Classify a same-key prior mission as abandoned (#4033 research.md D-2).
+
+    Abandoned = canceled (every recorded work package sits in the
+    ``CANCELED`` lane), OR genesis / no lifecycle progress -- the status
+    event log carries zero work-package transitions AND the spec was never
+    committed to git, i.e. the prior mission was never actually worked, so a
+    re-create should just succeed with no flag (FR-003).
+
+    The genesis facet requires BOTH signals together, not either alone: a
+    prior mission with a committed spec but no work packages yet (still in
+    the specify/plan phase) is real, live work -- exactly the #4033 repro
+    (a same-key create run twice back to back) -- and must still be refused,
+    while a bare, never-touched scaffold (spec.md left uncommitted, no WP
+    ever seeded) is the common "gave up and re-ran" case and must auto-allow.
+
+    Fail closed (C-002): any status-log read failure means abandonment
+    cannot be established, so this returns ``False`` (treated as LIVE) and
+    the guard refuses rather than silently allowing a duplicate.
+    """
+    from specify_cli.status import Lane, StoreError, materialize_snapshot
+
+    try:
+        snapshot = materialize_snapshot(feature_dir)
+    except StoreError:
+        return False
+
+    work_packages = snapshot.work_packages
+    if work_packages and all(wp_state.get("lane") == Lane.CANCELED.value for wp_state in work_packages.values()):
+        return True  # canceled: every recorded work package was called off
+
+    # genesis / no lifecycle progress: zero WP transitions AND spec never committed.
+    return snapshot.event_count == 0 and not _path_is_tracked_by_git(repo_root, feature_dir / "spec.md")
+
+
+def _find_live_duplicate_mission(
+    repo_root: Path,
+    *,
+    mission_slug: str,
+    mission_type: str,
+) -> tuple[str, str] | None:
+    """Find a live same-key prior mission, if any (#4033 idempotency guard).
+
+    Duplicate key = same base ``mission_slug`` (mid8 stripped, FR-001) AND
+    same ``mission_type`` read from the candidate's ``meta.json``. A
+    ``research`` and a ``software-dev`` mission sharing a name are not a
+    duplicate (edge case in spec.md).
+
+    Returns ``(dir_name, mid8)`` for the first live match, or ``None`` when
+    no same-key prior mission exists or every one is abandoned (see
+    :func:`_prior_mission_is_abandoned`).
+
+    Fail closed (C-002): a same-slug candidate whose ``meta.json`` is
+    missing or corrupt is treated as LIVE -- its type/abandonment cannot be
+    established, so refusing is the safe default. An explicit
+    ``--allow-duplicate`` always overrides this guard regardless.
+    """
+    base_slug = strip_numeric_prefix(mission_slug)
+    suffix_pattern = re.compile(re.escape(base_slug) + _MID8_DIR_SUFFIX_PATTERN + "$")
+
+    for name in sorted(_list_mission_scaffolds(repo_root)):
+        match = suffix_pattern.fullmatch(name)
+        if name != base_slug and match is None:
+            continue
+        candidate_mid8 = match.group(1) if match is not None else ""
+        candidate_dir = repo_root / KITTY_SPECS_DIR / name
+
+        try:
+            candidate_meta = load_meta_fail_closed(candidate_dir)
+        except MissionMetaReadError:
+            return (name, candidate_mid8)  # fail closed: unreadable meta.json
+        if candidate_meta is None:
+            return (name, candidate_mid8)  # fail closed: missing meta.json
+
+        candidate_type = str(candidate_meta.get(_META_KEY_MISSION_TYPE) or "software-dev")
+        if candidate_type != mission_type:
+            continue  # different mission_type: not a duplicate key
+
+        if not candidate_mid8:
+            candidate_mid8 = str(candidate_meta.get("mid8") or "")
+
+        if _prior_mission_is_abandoned(repo_root, candidate_dir):
+            continue  # abandoned prior: auto-allow (FR-003), no flag needed
+
+        return (name, candidate_mid8)
+
+    return None
+
+
 def _path_is_tracked_by_git(repo_root: Path, path: Path) -> bool:
     """True when git tracks any file under ``path``.
 
@@ -472,6 +574,7 @@ def create_mission_core(
     owned_checkout: Path | None = None,
     retain_branches: bool = False,
     retain_worktrees: bool = False,
+    allow_duplicate: bool = False,
 ) -> MissionCreationResult:
     """Create a new mission, restoring git state if creation fails (FR-011).
 
@@ -535,6 +638,7 @@ def create_mission_core(
             owned_checkout=owned_checkout,
             retain_branches=retain_branches,
             retain_worktrees=retain_worktrees,
+            allow_duplicate=allow_duplicate,
         )
     except BaseException as _create_exc:
         # Re-raised below; the rollback is pure cleanup and must not swallow or
@@ -581,6 +685,7 @@ def _create_mission_core_impl(
     owned_checkout: Path | None = None,
     retain_branches: bool = False,
     retain_worktrees: bool = False,
+    allow_duplicate: bool = False,
 ) -> MissionCreationResult:
     """Create a new feature with all scaffolding.
 
@@ -648,6 +753,16 @@ def _create_mission_core_impl(
     retain_worktrees:
         Create-time retention opt-in (#3131 FR-009) for worktrees, mirroring
         ``retain_branches``. Defaults to ``False`` (field left ABSENT).
+    allow_duplicate:
+        Escape hatch for the idempotency guard (#4033, FR-004). Defaults to
+        ``False``, preserving the guard: creation is refused with
+        :class:`MissionCreationError` when a LIVE prior mission shares the
+        same base ``mission_slug`` AND ``mission_type`` (FR-001). Abandoned
+        priors (canceled, genesis, or spec never committed) never trigger
+        the guard regardless of this flag (FR-003). Pass ``True`` to
+        deliberately create a second same-key mission -- programmatic/volume
+        callers (e.g. the ``tests/_factories`` mission factory) opt in via
+        this keyword when they intentionally need more than one.
 
     Returns
     -------
@@ -737,6 +852,40 @@ def _create_mission_core_impl(
     current_branch = get_current_branch(effective_root)
     if not current_branch or current_branch == "HEAD":
         raise MissionCreationError("Must be on a branch to create missions (detached HEAD detected).")
+
+    # ------------------------------------------------------------------
+    # 2.5 Idempotency guard (#4033, FR-001..004, C-001, C-002)
+    #
+    # Refuse a same-key (same base mission_slug AND same mission_type) LIVE
+    # prior mission HERE -- before any scaffold/branch write below (NFR-002:
+    # no orphan scaffold on refusal). "Live" excludes abandoned priors
+    # (canceled, genesis / no lifecycle progress, or spec never committed,
+    # see _prior_mission_is_abandoned), so the common gave-up-and-re-ran path
+    # just works with no flag (FR-003). ``allow_duplicate`` (FR-004) and the
+    # single-seam placement (C-001) cover every caller: CLI, specify, and the
+    # programmatic factory.
+    # ------------------------------------------------------------------
+    if not allow_duplicate:
+        effective_mission_type = mission or "software-dev"
+        duplicate = _find_live_duplicate_mission(
+            effective_root,
+            mission_slug=mission_slug,
+            mission_type=effective_mission_type,
+        )
+        if duplicate is not None:
+            duplicate_dir_name, duplicate_mid8 = duplicate
+            raise MissionCreationError(
+                f"A mission named '{strip_numeric_prefix(mission_slug)}' of type "
+                f"'{effective_mission_type}' already exists and is not "
+                f"abandoned: {duplicate_dir_name} (mid8 {duplicate_mid8}). "
+                "Refusing to silently create a duplicate (#4033).\n\n"
+                "If the prior mission is genuinely abandoned (canceled, or "
+                "never actually worked), re-run this create with no flag --"
+                " abandoned priors are auto-allowed.\n\n"
+                "To deliberately create a second mission with the same name, "
+                "pass --allow-duplicate (create_mission_core(allow_duplicate=True)"
+                " for programmatic callers)."
+            )
 
     # ------------------------------------------------------------------
     # 3. Resolve planning branch

@@ -114,6 +114,8 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             "--owned-checkout",  # added for the #3328 owned-checkout ownership fix (2026-08-13)
             "--retain-branches",  # added for the #3131 merge-retention opt-in (2026-09-02)
             "--retain-worktrees",  # added for the #3131 merge-retention opt-in (2026-09-02)
+            "--allow-duplicate",  # added for the #4033 idempotency-guard escape hatch (2026-09-14)
+            "--allow-dup",  # alias for --allow-duplicate (#4033)
         }
     ),
     "check-prerequisites": frozenset(

@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#4033": {
+      "evidence_ref": "WP01 approved: _prior_mission_is_abandoned genesis-AND/canceled-OR guard + --allow-duplicate escape hatch on specify & agent mission create; 6 red-first tests green, tests/core 381 passed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

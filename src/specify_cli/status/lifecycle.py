@@ -219,9 +219,13 @@ def _last_follow_up_at(events: tuple[dict[str, Any], ...]) -> datetime | None:
 def _last_merge_marker_at(feature_dir: Path) -> datetime | None:
     """Timestamp of the last merge/completion marker from ``meta.json``.
 
-    ``MissionReopened`` clears ``merged_*`` (IC-02), so after a re-open this is
-    typically ``None``. A subsequent re-merge re-stamps ``merged_at``; when that
-    postdates the latest re-open the mission is no longer ``reopened``.
+    ``spec-kitty mission reopen`` clears ``merged_*`` (IC-02), so after a re-open
+    this is typically ``None``. A subsequent re-merge re-stamps ``merged_at`` (by
+    :func:`specify_cli.merge.baseline.record_baseline_merge_commit`); when that
+    postdates the latest re-open the mission is no longer ``reopened``. The
+    ``merged_at`` marker itself is restored by #4090 — its writer had been
+    deleted in #2258. Returns the datetime (not a bool) so :func:`_is_reopened`
+    can compare it against the last re-open time.
     """
     from specify_cli.core.paths import load_meta_fail_closed
 
@@ -288,18 +292,29 @@ _COMPLETED_LIFECYCLE_STATES = frozenset({"recently_completed", "archived"})
 
 
 def is_mission_merged(feature_dir: Path) -> bool:
-    """Return ``True`` iff the mission carries a live merge marker (#801).
+    """Return ``True`` iff the mission carries a LIVE merge marker (#801, #4090).
 
     Narrower than :func:`is_mission_completed`: ONLY the explicit ``merged_at``
     marker counts — an unmerged mission whose WPs are all terminal
     (``recently_completed`` / ``archived``) is NOT merged. Gates that must fire
-    exclusively on merged missions (the runtime bootstrap short-circuit, the
-    resolver's primary re-anchor) use this predicate so a normally-completing
+    exclusively on merged missions (the runtime bootstrap short-circuit at
+    ``runtime_bridge.py`` :1600, the resolver's primary re-anchor at
+    ``surface_resolver.py`` :745) use this predicate so a normally-completing
     mission still finalizes its run and passes the retrospective gate.
-    ``MissionReopened`` clears ``merged_at`` (IC-02), so a re-opened mission is
-    correctly not merged until re-merged.
+
+    Reopen-aware (IC-02, #4090): a mission is merged iff ``merged_at`` is present
+    AND no ``MissionReopened`` event postdates it. ``spec-kitty mission reopen``
+    both clears ``merged_*`` from ``meta.json`` and appends the event; this
+    predicate is event-sourced (no meta-mutating clearer of its own), so a
+    re-opened mission reads as NOT merged even in the defense-in-depth case where
+    the marker survives on a diverged surface. A re-merge re-stamps a fresh
+    ``merged_at`` that postdates the re-open, restoring ``True``.
     """
-    return _last_merge_marker_at(feature_dir) is not None
+    last_merge_at = _last_merge_marker_at(feature_dir)
+    if last_merge_at is None:
+        return False
+    last_reopen_at = _last_reopen_at(_collect_post_mission_events(feature_dir))
+    return not _is_reopened(last_reopen_at=last_reopen_at, last_merge_at=last_merge_at)
 
 
 def is_mission_completed(

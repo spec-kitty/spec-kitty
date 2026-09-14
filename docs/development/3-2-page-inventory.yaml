@@ -1052,6 +1052,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-09-14-1-census-floor-ratchet-adjudication.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -1673,6 +1679,12 @@
 - path: docs/architecture/pip-vs-pipx-vs-uv.md
   tag: current
   divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/architecture/post-merge-partition-authority.md
+  tag: current
+  divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
@@ -3074,6 +3086,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/operations/ci-machine-auth.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/operations/coord-branch-base-strand.md
   tag: current
   divio_type: none
@@ -3257,6 +3275,12 @@
 - path: docs/plans/3-2-x-open-core-delivery-plan.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/4-0-0-milestone-roadmap.md
+  tag: current
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null

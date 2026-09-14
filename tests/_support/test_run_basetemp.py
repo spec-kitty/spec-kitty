@@ -52,7 +52,10 @@ def _fake_config(basetemp: str | None = None, *, worker: bool = False) -> Simple
 
 def test_run_basetemp_dir_is_unique_per_controller_process() -> None:
     assert run_basetemp_dir(pid=100) != run_basetemp_dir(pid=200)
-    assert run_basetemp_dir(pid=100) == run_basetemp_dir(pid=100)
+    # Deterministic per controller PID: two calls with the same pid agree.
+    same_pid_first = run_basetemp_dir(pid=100)
+    same_pid_second = run_basetemp_dir(pid=100)
+    assert same_pid_first == same_pid_second
     assert run_basetemp_dir(pid=100).parent == run_tmp_root()
 
 

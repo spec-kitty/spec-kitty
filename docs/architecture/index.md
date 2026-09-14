@@ -72,6 +72,7 @@ boundary rule and layout).
 - [Documentation Mission Guide](documentation-mission.md) — the Documentation Kitty mission.
 - [Understanding the retrospective learning loop](retrospective-learning-loop.md) — the four-category model.
 - [The Artifact Placement Seam](artifact-placement-seam.md) — the layer model deciding which physical tree a mission artifact resolves to, and where callers bypass it.
+- [Post-merge partition authority](post-merge-partition-authority.md) — one model for the write half (which bytes win per artifact on squash) and the read half (which surface a post-merge reader trusts).
 - [Branch-target routing](branch-target-routing.md) — which git branch receives each type of change.
 - [WP runtime-state eviction](wp-runtime-state-eviction.md) — evicting runtime-mutable state into the event log.
 - [Launch-readiness behavior (coming soon)](launch-readiness-future.md) — pre-launch Teamspace design intent.

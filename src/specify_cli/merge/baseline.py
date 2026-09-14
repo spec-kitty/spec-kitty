@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from kernel.clock import now_utc_iso
 from kernel.meta_decode import MetaDecodeError, decode_meta
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
@@ -23,6 +24,23 @@ from specify_cli.mission_metadata import write_meta
 logger = logging.getLogger(__name__)
 
 META_JSON = "meta.json"
+
+
+def _resolve_merge_commit(feature_dir: Path) -> str:
+    """Best-effort HEAD SHA of the checkout carrying *feature_dir*.
+
+    Provenance only for the ``merged_commit`` marker: at the record call site
+    the target branch has already advanced to the merge result, so ``HEAD`` is
+    that commit. Non-raising — a non-repo path or a failed ``git`` degrades to
+    an empty string and the caller falls back to the captured baseline SHA.
+    """
+    ret, out, _err = run_command(
+        ["git", "rev-parse", "HEAD"],
+        capture=True,
+        check_return=False,
+        cwd=feature_dir,
+    )
+    return out.strip() if ret == 0 else ""
 
 
 class BaselineMergeCommitError(RuntimeError):
@@ -44,11 +62,24 @@ def record_baseline_merge_commit(
     *,
     mission_id: str | None = None,
 ) -> Path | None:
-    """Persist the post-merge review baseline in mission meta.json.
+    """Persist the post-merge review baseline AND merge completion marker in meta.json.
 
-    ``baseline_merge_commit`` anchors post-merge review diffs. It should point
-    at the target-branch baseline before the mission lands, not at the final
-    housekeeping commit produced by merge.
+    Two sibling records land here on the same merge-finalize path
+    (``executor.py`` ``_phase_capture_and_baseline``), folded into the one
+    bookkeeping commit + durability path:
+
+    * ``baseline_merge_commit`` — anchors post-merge review diffs. It should
+      point at the target-branch baseline before the mission lands, not at the
+      final housekeeping commit produced by merge.
+    * ``merged_at`` (+ ``merged_commit``) — the post-merge completion marker
+      (#4090). Its production writer was deleted in #2258 and never re-added,
+      leaving the surface resolver's primary-wins guard
+      (``surface_resolver.py`` ``_primary_mission_is_completed`` ->
+      ``is_mission_merged`` -> ``meta.get("merged_at")``) and the runtime
+      terminal short-circuit dormant. ``merged_at`` is a UTC ISO datetime;
+      ``merged_commit`` is the merge-result SHA (provenance). Unlike
+      ``baseline_merge_commit`` (modern-mission-only), the marker is written for
+      EVERY merge, legacy included.
 
     For **modern lane missions** (``mission_id`` is set — the canonical ULID
     introduced by mission 083), an empty baseline, a missing ``meta.json``, or
@@ -58,26 +89,23 @@ def record_baseline_merge_commit(
     (``MISSION_REVIEW_MODE_MISMATCH``).
 
     For **legacy missions** (no ``mission_id``) the historical soft behavior is
-    preserved: the function logs a warning and returns ``None`` so the merge
-    proceeds without a baseline.
+    preserved for the baseline: the function logs a warning and returns ``None``
+    when meta cannot be read so the merge proceeds without a baseline.
+
+    Both records are idempotent — a ``spec-kitty merge --resume`` never
+    double-stamps an already-present field — and ``spec-kitty mission reopen``
+    clears ``merged_*`` so a re-merge re-stamps a fresh ``merged_at``.
     """
     is_modern = bool(mission_id and str(mission_id).strip())
+    baseline = (baseline_commit or "").strip()
 
-    if not baseline_commit or not baseline_commit.strip():
-        if is_modern:
-            raise BaselineMergeCommitError(
-                f"Cannot record baseline_merge_commit for modern mission "
-                f"{feature_dir.name}: no target baseline SHA was captured."
-            )
-        return None
+    if not baseline and is_modern:
+        raise BaselineMergeCommitError(f"Cannot record baseline_merge_commit for modern mission {feature_dir.name}: no target baseline SHA was captured.")
 
     meta_path = feature_dir / META_JSON
     if not meta_path.exists():
         if is_modern:
-            raise BaselineMergeCommitError(
-                f"Cannot record baseline_merge_commit for modern mission "
-                f"{feature_dir.name}: meta.json is missing."
-            )
+            raise BaselineMergeCommitError(f"Cannot record baseline_merge_commit for modern mission {feature_dir.name}: meta.json is missing.")
         logger.warning(
             "Cannot record baseline_merge_commit for %s: meta.json is missing",
             feature_dir.name,
@@ -88,10 +116,7 @@ def record_baseline_merge_commit(
         meta = load_meta_fail_closed(feature_dir)
     except MissionMetaReadError as exc:
         if is_modern:
-            raise BaselineMergeCommitError(
-                f"Cannot record baseline_merge_commit for modern mission "
-                f"{feature_dir.name}: meta.json is invalid ({exc})."
-            ) from exc
+            raise BaselineMergeCommitError(f"Cannot record baseline_merge_commit for modern mission {feature_dir.name}: meta.json is invalid ({exc}).") from exc
         logger.warning(
             "Cannot record baseline_merge_commit for %s: %s",
             feature_dir.name,
@@ -101,19 +126,29 @@ def record_baseline_merge_commit(
 
     if meta is None:
         if is_modern:
-            raise BaselineMergeCommitError(
-                f"Cannot record baseline_merge_commit for modern mission "
-                f"{feature_dir.name}: meta.json could not be loaded."
-            )
+            raise BaselineMergeCommitError(f"Cannot record baseline_merge_commit for modern mission {feature_dir.name}: meta.json could not be loaded.")
         return None
 
-    existing = meta.get("baseline_merge_commit")
-    if existing and str(existing).strip():
-        return None
+    changed = False
 
-    meta["baseline_merge_commit"] = baseline_commit.strip()
-    write_meta(feature_dir, meta, validate=False)
-    return meta_path
+    # baseline_merge_commit — only for missions with a captured baseline SHA,
+    # idempotent on --resume.
+    existing_baseline = meta.get("baseline_merge_commit")
+    if baseline and not (existing_baseline and str(existing_baseline).strip()):
+        meta["baseline_merge_commit"] = baseline
+        changed = True
+
+    # merged_at (+ merged_commit) — the #4090 completion marker, written for
+    # every merge, idempotent on --resume.
+    if not str(meta.get("merged_at") or "").strip():
+        meta["merged_at"] = now_utc_iso()
+        meta["merged_commit"] = _resolve_merge_commit(feature_dir) or baseline
+        changed = True
+
+    if changed:
+        write_meta(feature_dir, meta, validate=False)
+        return meta_path
+    return None
 
 
 def _recorded_baseline_from_working_meta(feature_dir: Path | None) -> str:
@@ -153,12 +188,10 @@ def _read_committed_meta_json(
         message = str(exc)
         if message.startswith("Expected JSON object, got "):
             raise BaselineMergeCommitError(
-                f"Post-merge baseline validation failed for {mission_slug}: "
-                f"committed {meta_rel} on {target_branch} is not a JSON object."
+                f"Post-merge baseline validation failed for {mission_slug}: committed {meta_rel} on {target_branch} is not a JSON object."
             ) from exc
         raise BaselineMergeCommitError(
-            f"Post-merge baseline validation failed for {mission_slug}: "
-            f"committed {meta_rel} on {target_branch} is not valid JSON ({exc})."
+            f"Post-merge baseline validation failed for {mission_slug}: committed {meta_rel} on {target_branch} is not valid JSON ({exc})."
         ) from exc
     return committed_meta if committed_meta is not None else {}
 
@@ -203,15 +236,10 @@ def assert_baseline_merge_commit_on_target(
     recorded = _recorded_baseline_from_working_meta(feature_dir)
     expected = recorded or (expected_baseline or "").strip()
     if not expected:
-        raise BaselineMergeCommitError(
-            f"Cannot verify baseline_merge_commit for modern mission "
-            f"{mission_slug}: no recorded baseline SHA was found."
-        )
+        raise BaselineMergeCommitError(f"Cannot verify baseline_merge_commit for modern mission {mission_slug}: no recorded baseline SHA was found.")
 
     meta_rel = f"kitty-specs/{mission_slug}/{META_JSON}"
-    committed_meta = _read_committed_meta_json(
-        main_repo, target_branch, meta_rel, mission_slug
-    )
+    committed_meta = _read_committed_meta_json(main_repo, target_branch, meta_rel, mission_slug)
     committed_baseline = str(committed_meta.get("baseline_merge_commit") or "").strip()
     if not committed_baseline:
         raise BaselineMergeCommitError(

@@ -194,3 +194,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-09-03 | [Explicit Owned-Checkout Extends to the Single-Branch Mission Lifecycle](2026-09-03-1-explicit-owned-checkout-single-branch-lifecycle.md) |
 | 2026-09-06 | [Convergence Retirement and Client-Repo Inversion](2026-09-06-1-convergence-retirement-and-client-repo-inversion.md) |
 | 2026-09-06 | [RuntimeEventEmitter Seam Disposition — Rewire-Ready Consolidation, Not Retirement](2026-09-06-2-runtime-event-emitter-disposition.md) |
+| 2026-09-14 | [Census-Floor Ratchets — Per-Ratchet Adjudication (Tripwire, Retire, Retire, Keep-Property)](2026-09-14-1-census-floor-ratchet-adjudication.md) |

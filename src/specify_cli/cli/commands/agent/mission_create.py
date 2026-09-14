@@ -458,6 +458,7 @@ def _run_create_core_phase(
     topology: MissionTopology = MissionTopology.COORD,
     retain_branches: bool = False,
     retain_worktrees: bool = False,
+    allow_duplicate: bool = False,
 ) -> MissionCreationResult:
     """Invoke ``create_mission_core`` with the deterministic error funnel.
 
@@ -489,6 +490,7 @@ def _run_create_core_phase(
             owned_checkout=owned_checkout.resolve() if owned_checkout is not None else None,
             retain_branches=retain_branches,
             retain_worktrees=retain_worktrees,
+            allow_duplicate=allow_duplicate,
         )
     except CoordinationBranchDiverged as exc:
         # Structured error path (NFR-007): emit a stable error_code payload
@@ -746,6 +748,19 @@ def create_mission(
             help="Opt this mission's worktrees out of post-merge cleanup deletion.",
         ),
     ] = False,
+    allow_duplicate: Annotated[
+        bool,
+        typer.Option(
+            "--allow-duplicate",
+            "--allow-dup",
+            help=(
+                "Escape hatch for the idempotency guard (#4033): create a "
+                "second mission even though a LIVE prior mission shares this "
+                "slug and mission type. Abandoned priors (canceled, genesis, "
+                "or spec never committed) never need this flag."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Create new mission directory structure in the project root checkout.
 
@@ -818,6 +833,7 @@ def create_mission(
             json_output=json_output,
             retain_branches=retain_branches,
             retain_worktrees=retain_worktrees,
+            allow_duplicate=allow_duplicate,
         )
     _emit_create_result_phase(
         result,

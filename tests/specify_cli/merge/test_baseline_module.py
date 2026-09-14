@@ -102,17 +102,12 @@ def test_record_then_assert_roundtrip(tmp_path: Path) -> None:
     _git(repo_root, "commit", "-m", "seed")
     baseline_sha = _git(repo_root, "rev-parse", "HEAD")
 
-    written = record_baseline_merge_commit(
-        feature_dir, baseline_sha, mission_id=_MISSION_ID
-    )
+    written = record_baseline_merge_commit(feature_dir, baseline_sha, mission_id=_MISSION_ID)
     assert written == meta_path
     assert json.loads(meta_path.read_text())["baseline_merge_commit"] == baseline_sha
 
     # Idempotent: a second record with the value already set is a no-op.
-    assert (
-        record_baseline_merge_commit(feature_dir, baseline_sha, mission_id=_MISSION_ID)
-        is None
-    )
+    assert record_baseline_merge_commit(feature_dir, baseline_sha, mission_id=_MISSION_ID) is None
 
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-m", "record baseline")
@@ -159,18 +154,14 @@ def test_record_modern_empty_baseline_raises() -> None:
     )
 
     with pytest.raises(BaselineMergeCommitError, match="no target baseline SHA"):
-        record_baseline_merge_commit(
-            Path("/nonexistent/mission"), "   ", mission_id=_MISSION_ID
-        )
+        record_baseline_merge_commit(Path("/nonexistent/mission"), "   ", mission_id=_MISSION_ID)
 
 
 def test_record_legacy_empty_baseline_returns_none() -> None:
     """Legacy mission (no mission_id) + empty baseline -> soft ``None`` (line 71)."""
     from specify_cli.merge.baseline import record_baseline_merge_commit
 
-    assert (
-        record_baseline_merge_commit(Path("/nonexistent/mission"), None) is None
-    )
+    assert record_baseline_merge_commit(Path("/nonexistent/mission"), None) is None
 
 
 def test_record_modern_missing_meta_raises(tmp_path: Path) -> None:
@@ -184,9 +175,7 @@ def test_record_modern_missing_meta_raises(tmp_path: Path) -> None:
     feature_dir.mkdir(parents=True)  # meta.json deliberately absent
 
     with pytest.raises(BaselineMergeCommitError, match="meta.json is missing"):
-        record_baseline_merge_commit(
-            feature_dir, "deadbeef", mission_id=_MISSION_ID
-        )
+        record_baseline_merge_commit(feature_dir, "deadbeef", mission_id=_MISSION_ID)
 
 
 def test_record_legacy_missing_meta_warns_and_returns_none(tmp_path: Path) -> None:
@@ -211,9 +200,7 @@ def test_record_modern_corrupt_meta_raises(tmp_path: Path) -> None:
     (feature_dir / "meta.json").write_text("{ not: valid json", encoding="utf-8")
 
     with pytest.raises(BaselineMergeCommitError, match="meta.json is invalid"):
-        record_baseline_merge_commit(
-            feature_dir, "deadbeef", mission_id=_MISSION_ID
-        )
+        record_baseline_merge_commit(feature_dir, "deadbeef", mission_id=_MISSION_ID)
 
 
 def test_record_legacy_corrupt_meta_warns_and_returns_none(tmp_path: Path) -> None:
@@ -227,9 +214,7 @@ def test_record_legacy_corrupt_meta_warns_and_returns_none(tmp_path: Path) -> No
     assert record_baseline_merge_commit(feature_dir, "deadbeef") is None
 
 
-def test_record_modern_meta_loads_none_raises(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_record_modern_meta_loads_none_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Modern mission + reader returning ``None`` -> hard failure (102-103).
 
     DEFENSIVE branch: with the real on-disk contract, an *existing* meta.json
@@ -252,14 +237,10 @@ def test_record_modern_meta_loads_none_raises(
     monkeypatch.setattr(baseline_mod, "load_meta_fail_closed", lambda _fd: None)
 
     with pytest.raises(BaselineMergeCommitError, match="could not be loaded"):
-        record_baseline_merge_commit(
-            feature_dir, "deadbeef", mission_id=_MISSION_ID
-        )
+        record_baseline_merge_commit(feature_dir, "deadbeef", mission_id=_MISSION_ID)
 
 
-def test_record_legacy_meta_loads_none_returns_none(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_record_legacy_meta_loads_none_returns_none(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Legacy mission + ``load_meta`` returning ``None`` -> ``None`` (line 107).
 
     DEFENSIVE branch (see above) — driven via a narrow ``load_meta`` patch.
@@ -274,8 +255,15 @@ def test_record_legacy_meta_loads_none_returns_none(
     assert record_baseline_merge_commit(feature_dir, "deadbeef") is None
 
 
-def test_record_existing_baseline_is_idempotent_noop(tmp_path: Path) -> None:
-    """An already-recorded baseline short-circuits to ``None`` (lines 110-111)."""
+def test_record_existing_baseline_is_not_overwritten(tmp_path: Path) -> None:
+    """An already-recorded ``baseline_merge_commit`` is never overwritten (#4090).
+
+    The baseline half stays idempotent, but the coupled ``merged_at`` marker is
+    absent here, so the call still writes it and returns the meta path (folded
+    into the bookkeeping commit). The pre-existing baseline is preserved verbatim.
+    """
+    import json
+
     from specify_cli.merge.baseline import record_baseline_merge_commit
 
     feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
@@ -284,10 +272,29 @@ def test_record_existing_baseline_is_idempotent_noop(tmp_path: Path) -> None:
         {"mission_id": _MISSION_ID, "baseline_merge_commit": "already-set"},
     )
 
-    assert (
-        record_baseline_merge_commit(feature_dir, "new-sha", mission_id=_MISSION_ID)
-        is None
+    result = record_baseline_merge_commit(feature_dir, "new-sha", mission_id=_MISSION_ID)
+    assert result == feature_dir / "meta.json"  # merged_at was freshly stamped
+
+    written = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert written["baseline_merge_commit"] == "already-set"  # NOT overwritten
+    assert str(written.get("merged_at") or "").strip()  # marker landed
+
+
+def test_record_fully_marked_meta_is_idempotent_noop(tmp_path: Path) -> None:
+    """Both markers already present -> a true no-op returning ``None`` (#4090)."""
+    from specify_cli.merge.baseline import record_baseline_merge_commit
+
+    feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
+    _write_meta(
+        feature_dir,
+        {
+            "mission_id": _MISSION_ID,
+            "baseline_merge_commit": "already-set",
+            "merged_at": "2026-08-30T00:00:00+00:00",
+        },
     )
+
+    assert record_baseline_merge_commit(feature_dir, "new-sha", mission_id=_MISSION_ID) is None
 
 
 # --- _recorded_baseline_from_working_meta ----------------------------------
@@ -311,9 +318,7 @@ def test_recorded_baseline_corrupt_meta_returns_empty(tmp_path: Path) -> None:
     assert _recorded_baseline_from_working_meta(feature_dir) == ""
 
 
-def test_recorded_baseline_non_dict_meta_returns_empty(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_recorded_baseline_non_dict_meta_returns_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``load_meta`` returning a non-dict -> empty string (line 126).
 
     DEFENSIVE branch: ``load_meta`` raises ``ValueError`` on a non-dict
@@ -354,9 +359,7 @@ def test_read_committed_meta_git_show_failure_raises(tmp_path: Path) -> None:
         _read_committed_meta_json,
     )
 
-    repo_root = _seed_repo_with_committed_meta(
-        tmp_path, json.dumps({"mission_id": _MISSION_ID})
-    )
+    repo_root = _seed_repo_with_committed_meta(tmp_path, json.dumps({"mission_id": _MISSION_ID}))
 
     with pytest.raises(BaselineMergeCommitError, match="could not read"):
         _read_committed_meta_json(
@@ -411,9 +414,7 @@ def test_assert_legacy_mission_is_skipped() -> None:
     from specify_cli.merge.baseline import assert_baseline_merge_commit_on_target
 
     # No exception even though repo/branch are bogus: legacy missions skip.
-    assert_baseline_merge_commit_on_target(
-        Path("/nonexistent"), _MISSION_SLUG, _TARGET_BRANCH, None
-    )
+    assert_baseline_merge_commit_on_target(Path("/nonexistent"), _MISSION_SLUG, _TARGET_BRANCH, None)
 
 
 def test_assert_modern_no_recorded_baseline_raises(tmp_path: Path) -> None:
@@ -444,9 +445,7 @@ def test_assert_modern_baseline_missing_on_target_raises(tmp_path: Path) -> None
         assert_baseline_merge_commit_on_target,
     )
 
-    repo_root = _seed_repo_with_committed_meta(
-        tmp_path, json.dumps({"mission_id": _MISSION_ID})
-    )
+    repo_root = _seed_repo_with_committed_meta(tmp_path, json.dumps({"mission_id": _MISSION_ID}))
     feature_dir = repo_root / "kitty-specs" / _MISSION_SLUG
 
     with pytest.raises(BaselineMergeCommitError, match="is missing from committed"):
@@ -469,18 +468,14 @@ def test_assert_modern_baseline_mismatch_raises(tmp_path: Path) -> None:
 
     repo_root = _seed_repo_with_committed_meta(
         tmp_path,
-        json.dumps(
-            {"mission_id": _MISSION_ID, "baseline_merge_commit": "committed-sha"}
-        ),
+        json.dumps({"mission_id": _MISSION_ID, "baseline_merge_commit": "committed-sha"}),
     )
     feature_dir = repo_root / "kitty-specs" / _MISSION_SLUG
     # Diverge the *working* meta from the committed copy: the recorded value
     # (read from the working tree) drives ``expected`` and must differ from the
     # committed baseline read via ``git show`` to trigger the mismatch branch.
     (feature_dir / "meta.json").write_text(
-        json.dumps(
-            {"mission_id": _MISSION_ID, "baseline_merge_commit": "recorded-sha"}
-        ),
+        json.dumps({"mission_id": _MISSION_ID, "baseline_merge_commit": "recorded-sha"}),
         encoding="utf-8",
     )
 
