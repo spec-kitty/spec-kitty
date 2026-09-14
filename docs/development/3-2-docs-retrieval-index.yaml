@@ -5565,6 +5565,7 @@ pages:
     - {slug: "fixed", text: "Fixed", level: 3}
     - {slug: "known-limitations", text: "Known limitations", level: 3}
     - {slug: "fixed-2", text: "Fixed", level: 3}
+    - {slug: "security", text: "Security", level: 3}
     - {slug: "4-0-0rc2-2026-09-14", text: "[4.0.0rc2] - 2026-09-14", level: 2}
     - {slug: "added-2", text: "Added", level: 3}
     - {slug: "fixed-3", text: "Fixed", level: 3}
@@ -6110,7 +6111,7 @@ pages:
     - {slug: "fixed-131", text: "Fixed", level: 3}
     - {slug: "llm-context-improvements", text: "LLM Context Improvements", level: 3}
     - {slug: "testing-4", text: "Testing", level: 3}
-    - {slug: "security", text: "Security", level: 3}
+    - {slug: "security-2", text: "Security", level: 3}
     - {slug: "backward-compatibility", text: "Backward Compatibility", level: 3}
     - {slug: "0-4-12-2025-11-11", text: "[0.4.12] - 2025-11-11", level: 2}
     - {slug: "added-79", text: "Added", level: 3}
@@ -6125,7 +6126,7 @@ pages:
     - {slug: "added-82", text: "Added", level: 3}
     - {slug: "changed-75", text: "Changed", level: 3}
     - {slug: "fixed-132", text: "Fixed", level: 3}
-    - {slug: "security-2", text: "Security", level: 3}
+    - {slug: "security-3", text: "Security", level: 3}
     - {slug: "removed-10", text: "Removed", level: 3}
     - {slug: "0-4-7-2025-11-07", text: "[0.4.7] - 2025-11-07", level: 2}
     - {slug: "added-83", text: "Added", level: 3}
@@ -6134,16 +6135,16 @@ pages:
     - {slug: "0-4-5-2025-11-06", text: "[0.4.5] - 2025-11-06", level: 2}
     - {slug: "added-84", text: "Added", level: 3}
     - {slug: "changed-77", text: "Changed", level: 3}
-    - {slug: "security-3", text: "Security", level: 3}
+    - {slug: "security-4", text: "Security", level: 3}
     - {slug: "0-4-6-2025-11-06", text: "[0.4.6] - 2025-11-06", level: 2}
     - {slug: "fixed-134", text: "Fixed", level: 3}
     - {slug: "0-4-4-2025-11-06", text: "[0.4.4] - 2025-11-06", level: 2}
-    - {slug: "security-4", text: "Security", level: 3}
+    - {slug: "security-5", text: "Security", level: 3}
     - {slug: "changed-78", text: "Changed", level: 3}
     - {slug: "0-3-2-2025-11-03", text: "[0.3.2] - 2025-11-03", level: 2}
     - {slug: "added-85", text: "Added", level: 3}
     - {slug: "changed-79", text: "Changed", level: 3}
-    - {slug: "security-5", text: "Security", level: 3}
+    - {slug: "security-6", text: "Security", level: 3}
     - {slug: "0-3-1-2025-11-03", text: "[0.3.1] - 2025-11-03", level: 2}
     - {slug: "changed-80", text: "Changed", level: 3}
     - {slug: "documentation-13", text: "Documentation", level: 3}
@@ -6154,7 +6155,7 @@ pages:
     - {slug: "0-2-20-2025-11-02", text: "[0.2.20] - 2025-11-02", level: 2}
     - {slug: "added-87", text: "Added", level: 3}
     - {slug: "changed-82", text: "Changed", level: 3}
-    - {slug: "security-6", text: "Security", level: 3}
+    - {slug: "security-7", text: "Security", level: 3}
     - {slug: "0-2-3-2025-10-29", text: "[0.2.3] - 2025-10-29", level: 2}
     - {slug: "added-88", text: "Added", level: 3}
     - {slug: "changed-83", text: "Changed", level: 3}
