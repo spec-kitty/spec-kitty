@@ -28,7 +28,7 @@ def test_seed_map_has_complete_nonpending_dispositions() -> None:
     module = _load_module()
     census_map = module.load_map(_MAP_PATH)
 
-    assert len(census_map.clusters) == 74  # golden-count: cardinality-is-contract
+    assert len(census_map.clusters) == 74
     assert sum(len(cluster.commits) for cluster in census_map.clusters) == 800
     assert all(cluster.disposition != "PENDING" for cluster in census_map.clusters)
 

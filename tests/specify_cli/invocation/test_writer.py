@@ -186,7 +186,7 @@ class TestWriteCompletedAppendsLine:
             writer.write_completed(_make_completed(_INVOCATION_ID))
 
         rows = target.read_text(encoding="utf-8").splitlines()
-        assert len(rows) == 1  # golden-count: cardinality-is-contract
+        assert len(rows) == 1
 
     def test_write_completed_rejects_embedded_started_id_mismatch(
         self,
@@ -203,7 +203,7 @@ class TestWriteCompletedAppendsLine:
         with pytest.raises(InvocationError, match="identity mismatch"):
             writer.write_completed(_make_completed(_INVOCATION_ID))
 
-        assert len(path.read_text(encoding="utf-8").splitlines()) == 1  # golden-count: cardinality-is-contract
+        assert len(path.read_text(encoding="utf-8").splitlines()) == 1
 
 
 class TestWriteStartedAppendOnly:
@@ -373,4 +373,4 @@ def test_append_correlation_rejects_embedded_started_id_mismatch(
     with pytest.raises(InvocationError, match="identity mismatch"):
         writer.append_correlation_link(_INVOCATION_ID, ref="spec.md")
 
-    assert len(path.read_text(encoding="utf-8").splitlines()) == 1  # golden-count: cardinality-is-contract
+    assert len(path.read_text(encoding="utf-8").splitlines()) == 1

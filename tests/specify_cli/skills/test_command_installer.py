@@ -313,7 +313,7 @@ def test_wp04_partial_failure_keeps_truthful_manifest(repo: Path, monkeypatch: p
     result = owner.apply_commands(assessment, assessment.consent)
     assert result.outcome == "partial" and result.failed and result.skipped
     manifest = manifest_store.load(repo)
-    assert len(manifest.entries) == 1  # golden-count: cardinality-is-contract
+    assert len(manifest.entries) == 1
     assert manifest.entries[0].agents == ("codex", "vibe")
     assert (repo / manifest.entries[0].path).read_bytes()
     assert not calls[1].exists()

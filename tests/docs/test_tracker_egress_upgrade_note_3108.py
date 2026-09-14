@@ -163,7 +163,7 @@ def test_note_exists_at_its_pinned_path() -> None:
 def test_index_links_note_in_frontmatter_related_and_in_body() -> None:
     index_text = _INDEX_PATH.read_text(encoding="utf-8")
     parts = index_text.split("---", 2)
-    assert len(parts) == 3, "docs/migrations/index.md must have a frontmatter block"  # golden-count: cardinality-is-contract
+    assert len(parts) == 3, "docs/migrations/index.md must have a frontmatter block"
     frontmatter, body = parts[1], parts[2]
 
     assert "docs/migrations/tracker-egress-refusal.md" in frontmatter, (

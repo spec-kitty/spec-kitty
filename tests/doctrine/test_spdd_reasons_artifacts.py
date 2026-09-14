@@ -96,7 +96,7 @@ def test_directive_038_lenient_adherence_with_four_allowances(
         f"DIRECTIVE_038 enforcement must be 'lenient-adherence', got {enforcement_value!r}"
     )
     allowances = directive.explicit_allowances or []
-    assert len(allowances) == 4, (  # golden-count: cardinality-is-contract
+    assert len(allowances) == 4, (
         f"DIRECTIVE_038 must declare exactly 4 explicit_allowances, got {len(allowances)}"
     )
 

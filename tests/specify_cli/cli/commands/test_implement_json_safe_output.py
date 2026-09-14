@@ -147,7 +147,7 @@ def test_typer_exit_nonzero_emits_last_20_nonblank_lines_summary(capsys: pytest.
     assert payload["status"] == "error"
     assert payload["wp_id"] == "WP03"
     lines = payload["error"].splitlines()
-    assert len(lines) == 20  # golden-count: cardinality-is-contract (20-line tail window)
+    assert len(lines) == 20  # (20-line tail window)
     assert lines[0] == "line 5"  # last 20 of the 25 non-blank "line N" entries
     assert lines[-1] == "line 24"
 

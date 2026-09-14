@@ -217,7 +217,7 @@ def test_wedged_status_lock_yields_bounded_busy_failure_not_a_hang(tmp_path: Pat
             "never an unbounded hang"
         )
 
-        assert len(outcome) == 1  # golden-count: cardinality-is-contract
+        assert len(outcome) == 1
         [captured] = outcome
         assert isinstance(captured, VerdictPersistenceFailure), f"expected a typed VerdictPersistenceFailure, got: {captured!r}"
         signal = captured.signal

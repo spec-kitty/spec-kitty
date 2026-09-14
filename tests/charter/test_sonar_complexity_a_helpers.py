@@ -428,7 +428,7 @@ class TestLocalSupportHelpers:
 
         assert warning is not None
         assert "overlaps built-in" in warning
-        assert len(diagnostics) == 1  # golden-count: cardinality-is-contract (records exactly one)
+        assert len(diagnostics) == 1  # (records exactly one)
 
     def test_detect_local_support_overlap_no_target_returns_none(self) -> None:
         from charter.activation.compiler import _detect_local_support_overlap

@@ -537,5 +537,5 @@ def test_probe_and_materializer_derive_identical_phase(
     resolve_placement_only(repo, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
     resolve_artifact_surface(repo, mission_slug, MissionArtifactKind.STATUS_STATE)
 
-    assert len(observed) == 2, "both entry points must call the single phase authority"  # golden-count: cardinality-is-contract
+    assert len(observed) == 2, "both entry points must call the single phase authority"
     assert observed[0] is observed[1] is LifecyclePhase.PUBLISHED

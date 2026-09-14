@@ -53,11 +53,10 @@ The three anchors, and which of them this Mission wrote
 Counting, and why there is none
 --------------------------------
 C-002 forbids a counted definition of done, and **the literal 40 appears in no assertion in this
-file**. Every comparison is against a key **SET**. That is also what keeps
-``test_golden_count_ban::test_convert_sites_do_not_exceed_frozen_baseline`` green:
-``tests/architectural`` sits at its frozen ceiling with **zero** headroom, so a single
-``len(x) == N`` here would red it, and the repair is always to convert the assertion, never to
-re-freeze the bound.
+file**. Every comparison is against a key **SET**, which is the stronger contract: adding,
+removing or renaming a key forces a *content* edit rather than silently passing at an unchanged
+count. (The golden-count ceiling gate that used to enforce this repo-wide was retired by #4315 —
+the set-equality discipline here is independent of it and stays.)
 
 The two published distributions — the partition split and the M4 intersection — are **measured
 content** that FR-003 publishes, reported in failure messages rather than used as thresholds; the
@@ -914,7 +913,7 @@ def test_t026_every_census_partition_is_recomputed_per_member() -> None:
 
     **This replaces a distribution assertion, and the reason is worth stating.** The first
     revision asserted ``Counter(partitions.values()) == {"A": 27, "B1": 11, "B2": 2}``. That
-    evaded ``test_golden_count_ban`` only because its matcher is an ``ast.Compare`` over a literal
+    evaded ``test_golden_count_ban`` (retired by #4315) only because its matcher was an ``ast.Compare`` over a literal
     ``len(...)`` — it matched the ban's *shape* and not its *purpose*, and it was defective three
     ways: it is **blind to an A↔B1 swap between two members** (the totals are unchanged, which is
     exactly the drift a per-member check exists to see); it has **zero unique detection power**,

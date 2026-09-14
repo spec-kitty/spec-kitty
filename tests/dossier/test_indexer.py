@@ -641,10 +641,10 @@ class TestLargeScaleIndexing:
         # Should have indexed 35 artifacts without errors -- this test is
         # specifically about scale (30+ generated files), not particular
         # filenames, so the count itself is the contract.
-        assert len(dossier.artifacts) == 35  # golden-count: cardinality-is-contract
+        assert len(dossier.artifacts) == 35
         # All should be present (no errors)
         present = [a for a in dossier.artifacts if a.is_present]
-        assert len(present) == 35  # golden-count: cardinality-is-contract
+        assert len(present) == 35
 
 
 class TestUnparseableWPHandling:

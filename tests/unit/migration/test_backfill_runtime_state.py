@@ -318,7 +318,7 @@ def test_persisted_bad_claim_seed_repairs_lane_and_later_claim_slots(
     ]
     # Exactly one repair row may be minted: the compatibility repair is
     # append-only and idempotent, so a second row would be a duplicate write.
-    assert len(repairs) == 1  # golden-count: cardinality-is-contract
+    assert len(repairs) == 1
     assert repairs[0].delta.shell_pid == 991
     before = events_path.read_bytes()
 

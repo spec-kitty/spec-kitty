@@ -229,7 +229,7 @@ def test_apply_creates_backup_when_charter_md_exists(tmp_path: Path) -> None:
     assert backup_dir.exists(), "Backup directory must be created"
 
     backup_files = glob.glob(str(backup_dir / "charter-*.md"))
-    assert len(backup_files) == 1, (  # golden-count: cardinality-is-contract (timestamp-suffixed name)
+    assert len(backup_files) == 1, (  # (timestamp-suffixed name)
         f"Expected exactly one backup file, found: {backup_files}"
     )
     assert Path(backup_files[0]).read_text(encoding="utf-8") == "# My Charter"

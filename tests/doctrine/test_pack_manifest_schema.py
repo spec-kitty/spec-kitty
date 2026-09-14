@@ -71,7 +71,7 @@ class TestOrderingAndHash:
         m = finalize_pack_manifest(
             PackManifest(constituents=[_c(ArtifactKind.TACTIC, "b"), _c(ArtifactKind.DIRECTIVE, "a")])
         )
-        assert m.manifest_hash is not None and len(m.manifest_hash) == 64  # golden-count: cardinality-is-contract
+        assert m.manifest_hash is not None and len(m.manifest_hash) == 64
         assert [c.id for c in m.constituents] == ["a", "b"]
 
     def test_hash_excludes_generated_provenance(self) -> None:

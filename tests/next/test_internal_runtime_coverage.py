@@ -449,7 +449,7 @@ def test_null_emitter_seed_and_emits_never_raise() -> None:
     emit_methods = [
         name for name in dir(events_mod.RuntimeEventEmitter) if name.startswith("emit_")
     ]
-    assert len(emit_methods) == 8  # golden-count: cardinality-is-contract (R-2: the Protocol is exactly the eight emit_* methods)
+    assert len(emit_methods) == 8  # (R-2: the Protocol is exactly the eight emit_* methods)
 
     emitter.seed_from_snapshot(object())
     for name in emit_methods:

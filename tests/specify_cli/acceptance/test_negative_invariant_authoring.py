@@ -161,7 +161,7 @@ class TestNegativeInvariantRegisterAndExecute:
 
         reloaded = read_acceptance_matrix(feature_dir)
         assert reloaded is not None
-        assert len(reloaded.negative_invariants) == 1  # golden-count: cardinality-is-contract
+        assert len(reloaded.negative_invariants) == 1
         ni = reloaded.negative_invariants[0]
         assert ni.invariant_id == "NI-001"
         assert ni.description == "Legacy shim must not reappear"
@@ -270,7 +270,7 @@ class TestNegativeInvariantRegisterAndExecute:
         reloaded = read_acceptance_matrix(feature_dir)
         assert reloaded is not None
         matching = [ni for ni in reloaded.negative_invariants if ni.invariant_id == "NI-004"]
-        assert len(matching) == 1, "re-registering the same id must REPLACE the row, not duplicate it"  # golden-count: cardinality-is-contract
+        assert len(matching) == 1, "re-registering the same id must REPLACE the row, not duplicate it"
         assert matching[0].description == "corrected description"
 
 
@@ -647,7 +647,7 @@ class TestWriteAndCommitUsesStagingThunk:
         stage = captured["stage"]
         assert callable(stage)
         files = stage()
-        assert isinstance(files, tuple) and len(files) == 1  # golden-count: cardinality-is-contract
+        assert isinstance(files, tuple) and len(files) == 1
         staged_path = files[0]
         assert staged_path == matrix_dir / "acceptance-matrix.json"
         assert staged_path.exists(), "invoking the thunk must materialize the file on disk"

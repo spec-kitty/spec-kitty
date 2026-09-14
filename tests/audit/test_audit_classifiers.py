@@ -447,7 +447,7 @@ def test_status_events_collects_all_corrupt_lines(tmp_path: Path) -> None:
     (tmp_path / "status.events.jsonl").write_text(content, encoding="utf-8")
     findings, flag = classify_status_events_jsonl(tmp_path)
     corrupt = [f for f in findings if f.code == "CORRUPT_JSONL"]
-    assert len(corrupt) == 2  # golden-count: cardinality-is-contract
+    assert len(corrupt) == 2
     assert flag is True
 
 
@@ -554,7 +554,7 @@ def test_status_json_reducer_oserror_detail_is_deterministic(
     findings = classify_status_json(tmp_path)
 
     drift = [f for f in findings if f.code == "SNAPSHOT_DRIFT"]
-    assert len(drift) == 1  # golden-count: cardinality-is-contract
+    assert len(drift) == 1
     assert drift[0].detail == (
         "reducer raised during drift check: FileNotFoundError: "
         "[Errno 2] No such file or directory"
@@ -581,7 +581,7 @@ def test_status_json_reducer_oserror_strerror_path_is_redacted(
     findings = classify_status_json(tmp_path)
 
     drift = [f for f in findings if f.code == "SNAPSHOT_DRIFT"]
-    assert len(drift) == 1  # golden-count: cardinality-is-contract
+    assert len(drift) == 1
     assert drift[0].detail == (
         "reducer raised during drift check: OSError: failed reading <path>"
     )

@@ -274,7 +274,7 @@ class TestPackRegistryPersistence:
         save_pack_registry(repo_root, registry)
         loaded = load_pack_registry(repo_root)
 
-        assert len(loaded.packs) == 1  # golden-count: cardinality-is-contract
+        assert len(loaded.packs) == 1
         assert loaded.packs[0].pack_id == pack_id
         assert loaded.packs[0].name == "test-pack"
 
@@ -293,7 +293,7 @@ class TestPackRegistryPersistence:
         save_pack_registry(repo_root, registry)
         loaded = load_pack_registry(repo_root)
 
-        assert len(loaded.packs) == 1  # golden-count: cardinality-is-contract
+        assert len(loaded.packs) == 1
         assert loaded.packs[0].pack_id is None
         assert loaded.packs[0].name == "legacy-pack"
 
@@ -347,7 +347,7 @@ class TestPackRegistryPersistence:
         save_pack_registry(repo_root, registry)
         loaded = load_pack_registry(repo_root)
 
-        assert len(loaded.packs) == 2  # golden-count: cardinality-is-contract
+        assert len(loaded.packs) == 2
         ids = {pack.pack_id for pack in loaded.packs}
         assert ids == {id1, id2}
 

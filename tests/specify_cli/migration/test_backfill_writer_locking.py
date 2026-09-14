@@ -94,7 +94,7 @@ def test_verdict_backfill_reads_and_appends_under_one_lock(verdict_feature_dir: 
     expected = _expected_lock(verdict_feature_dir)
     assert observer.at_read["event_sourced_review_result"], "slot_present read never ran"
     assert all(expected in held for held in observer.at_read["event_sourced_review_result"])
-    assert len(observer.at_write) == 1 and expected in observer.at_write[0]  # golden-count: cardinality-is-contract
+    assert len(observer.at_write) == 1 and expected in observer.at_write[0]
     assert expected not in _get_thread_locks()
 
 
@@ -141,7 +141,7 @@ def test_runtime_backfill_reads_and_appends_under_one_lock(tmp_path: Path, monke
     for name, snapshots in observer.at_read.items():
         assert snapshots, f"{name} never ran"
         assert all(expected in held for held in snapshots), name
-    assert len(observer.at_write) == 1, "the seed pair must land in ONE atomic write"  # golden-count: cardinality-is-contract
+    assert len(observer.at_write) == 1, "the seed pair must land in ONE atomic write"
     assert expected in observer.at_write[0]
     assert expected not in _get_thread_locks()
 

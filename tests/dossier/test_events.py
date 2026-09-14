@@ -172,7 +172,7 @@ class TestEmitArtifactIndexed:
             namespace=namespace,
         )
         assert result is not None
-        assert len(captured_emissions) == 1  # golden-count: cardinality-is-contract (call-count; content pinned below)
+        assert len(captured_emissions) == 1  # (call-count; content pinned below)
         evt = captured_emissions[0]
         assert evt["event_type"] == "MissionDossierArtifactIndexed"
 

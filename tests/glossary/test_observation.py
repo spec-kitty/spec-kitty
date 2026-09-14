@@ -167,7 +167,7 @@ def test_same_term_deduplicated_last_seen_wins(tmp_path: Path) -> None:
     surface = ObservationSurface()
     notices = surface.collect_notices(tmp_path)
     # cardinality-is-contract: same-term events must DEDUPLICATE to one notice; projecting conflict_type hides a failed dedup that leaves two notices
-    assert len(notices) == 1  # golden-count: cardinality-is-contract
+    assert len(notices) == 1
     assert {n.conflict_type for n in notices} == {"polysemy"}
     # Last-seen wins: should be the second event's data
     assert notices[0].conflict_type == "polysemy"

@@ -331,7 +331,7 @@ class TestRendererIntegration:
         miss = [
             w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
         ]
-        assert len(miss) == 1  # golden-count: cardinality-is-contract
+        assert len(miss) == 1
         assert "typo_suspected" in str(miss[0].message)
 
     def test_missing_artifact_case_renders_dual_hint_and_warns(self) -> None:
@@ -360,7 +360,7 @@ class TestRendererIntegration:
         miss = [
             w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
         ]
-        assert len(miss) == 1  # golden-count: cardinality-is-contract
+        assert len(miss) == 1
         assert "missing_artifact" in str(miss[0].message)
 
     def test_schema_failure_case_surfaces_validate_hint(self) -> None:
@@ -387,7 +387,7 @@ class TestRendererIntegration:
         miss = [
             w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
         ]
-        assert len(miss) == 1  # golden-count: cardinality-is-contract
+        assert len(miss) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -442,7 +442,7 @@ class TestProfileRendererIntegration:
         miss = [
             w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
         ]
-        assert len(miss) == 1  # golden-count: cardinality-is-contract
+        assert len(miss) == 1
         assert "profile:ghost-cite" in str(miss[0].message)
 
 
@@ -518,7 +518,7 @@ class TestScopeFilteredRendererIntegration:
         miss = [
             w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
         ]
-        assert len(miss) == 1  # golden-count: cardinality-is-contract
+        assert len(miss) == 1
         assert "scope_filtered" in str(miss[0].message)
 
     def test_genuinely_absent_artifact_still_emits_missing_artifact(

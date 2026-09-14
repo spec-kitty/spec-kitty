@@ -123,8 +123,8 @@ class TestHashReproducibility:
         hashes = [hash_file(test_file) for _ in range(10)]
 
         # Verify all identical
-        assert len(set(hashes)) == 1, f"Hash mismatch across 10 runs: {set(hashes)}"  # golden-count: cardinality-is-contract
-        assert len(hashes[0]) == 64, "SHA256 should be 64 hex characters"  # golden-count: cardinality-is-contract
+        assert len(set(hashes)) == 1, f"Hash mismatch across 10 runs: {set(hashes)}"
+        assert len(hashes[0]) == 64, "SHA256 should be 64 hex characters"
         # Verify valid hex
         int(hashes[0], 16)
 
@@ -138,7 +138,7 @@ class TestHashReproducibility:
             test_file.write_text(content, encoding="utf-8")
 
             hashes = [hash_file(test_file) for _ in range(5)]
-            assert len(set(hashes)) == 1, f"Hash mismatch for {size}-byte file: {set(hashes)}"  # golden-count: cardinality-is-contract
+            assert len(set(hashes)) == 1, f"Hash mismatch for {size}-byte file: {set(hashes)}"
 
     def test_snapshot_reproducibility_same_content(self, tmp_path):
         """Compute snapshot twice on same content, verify identical parity hash."""
@@ -173,7 +173,7 @@ class TestHashReproducibility:
 
         # Verify all identical
         unique_hashes = set(hashes)
-        assert len(unique_hashes) == 1, (  # golden-count: cardinality-is-contract
+        assert len(unique_hashes) == 1, (
             f"Hash mismatch across {run_count} runs: {unique_hashes}"
         )
 
@@ -380,7 +380,7 @@ class TestUTF8Handling:
         hash_val, error = hash_file_with_validation(file_emoji)
         assert error is None, f"Emoji should hash, error: {error}"
         assert hash_val is not None, "Hash should not be None for emoji"
-        assert len(hash_val) == 64, "Should be valid SHA256"  # golden-count: cardinality-is-contract
+        assert len(hash_val) == 64, "Should be valid SHA256"
 
     def test_utf8_mixed_scripts(self, tmp_path):
         """Mixed script handling (Latin + CJK + Arabic + Emoji)."""
@@ -391,7 +391,7 @@ class TestUTF8Handling:
         hash_val, error = hash_file_with_validation(file_mixed)
         assert error is None, f"Mixed scripts should hash: {error}"
         assert hash_val is not None
-        assert len(hash_val) == 64  # golden-count: cardinality-is-contract
+        assert len(hash_val) == 64
 
     def test_utf8_special_characters(self, tmp_path):
         """Special UTF-8 characters (accents, diacritics, etc.)."""
@@ -402,7 +402,7 @@ class TestUTF8Handling:
         hash_val, error = hash_file_with_validation(file_special)
         assert error is None, f"Special characters should hash: {error}"
         assert hash_val is not None
-        assert len(hash_val) == 64  # golden-count: cardinality-is-contract
+        assert len(hash_val) == 64
 
     def test_utf8_reproducibility_across_encodings(self, tmp_path):
         """Same content encoded/decoded multiple times produces same hash."""
@@ -464,7 +464,7 @@ class TestLineEndingHandling:
         file_lf.write_bytes(content.encode("utf-8"))
 
         hashes = [hash_file(file_lf) for _ in range(5)]
-        assert len(set(hashes)) == 1, "LF-only file should have consistent hash"  # golden-count: cardinality-is-contract
+        assert len(set(hashes)) == 1, "LF-only file should have consistent hash"
 
     def test_crlf_only_reproducibility(self, tmp_path):
         """CRLF-only files reproducible across multiple reads."""
@@ -473,7 +473,7 @@ class TestLineEndingHandling:
         file_crlf.write_bytes(content.encode("utf-8"))
 
         hashes = [hash_file(file_crlf) for _ in range(5)]
-        assert len(set(hashes)) == 1, "CRLF-only file should have consistent hash"  # golden-count: cardinality-is-contract
+        assert len(set(hashes)) == 1, "CRLF-only file should have consistent hash"
 
     def test_mixed_line_endings(self, tmp_path):
         """Mixed line endings in single file handled."""
@@ -606,7 +606,7 @@ class TestParityHashStability:
             parity_hashes.append(parity)
 
         # All should be identical (order-independent)
-        assert len(set(parity_hashes)) == 1, (  # golden-count: cardinality-is-contract
+        assert len(set(parity_hashes)) == 1, (
             f"Parity hashes should all be identical: {set(parity_hashes)}"
         )
 
@@ -623,7 +623,7 @@ class TestParityHashStability:
             hashes.append(snapshot.parity_hash_sha256)
 
         # All should be identical
-        assert len(set(hashes)) == 1, (  # golden-count: cardinality-is-contract
+        assert len(set(hashes)) == 1, (
             f"Parity hash should be stable with 100 artifacts: {set(hashes)}"
         )
 
@@ -754,6 +754,6 @@ class TestDeterminismIntegration:
 
         # All should be identical
         unique = set(hashes)
-        assert len(unique) == 1, (  # golden-count: cardinality-is-contract
+        assert len(unique) == 1, (
             f"Parity hash should be deterministic at scale ({num_artifacts} artifacts, {num_runs} runs)"
         )
