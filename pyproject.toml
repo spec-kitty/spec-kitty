@@ -2824,7 +2824,6 @@ exclude = [
     "tests/utils.py",
     "tests/zeitgeist_client/conftest.py",
     "tests/zeitgeist_client/test_credentials.py",
-    "tests/zeitgeist_client/test_live_frame.py",
     "tests/zeitgeist_client/test_managed_relay_docker_local.py",
     "tests/zeitgeist_client/test_mcp_stdio.py",
     "tests/zeitgeist_client/test_outbox_approval.py",
