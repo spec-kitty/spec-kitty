@@ -8,8 +8,8 @@ single source for that scope; neither gate file re-derives it independently.
 
 Not a test module (no ``def test_*`` here, mirroring the existing
 underscore-prefixed non-test helpers already in this directory --
-``_sole_door_scan.py``, ``_gate_coverage.py``, ``_arch_shard_map.py``): pytest
-never collects it, so it carries no ``pytestmark``.
+``_sole_door_scan.py``, ``_gate_coverage.py``): pytest never collects it, so
+it carries no ``pytestmark``.
 """
 
 from __future__ import annotations
