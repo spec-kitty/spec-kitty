@@ -222,7 +222,7 @@ class TestOrgPackConfigPackId:
 
         assert result1.pack_id == result2.pack_id
         assert result1.pack_id is not None
-        assert len(result1.pack_id) == 26  # golden-count: ULID is 26 chars
+        assert len(result1.pack_id) == 26
         ULID.from_str(result1.pack_id)  # Parses as valid ULID
 
     def test_ensure_pack_identity_noop_for_non_builtin(self) -> None:
