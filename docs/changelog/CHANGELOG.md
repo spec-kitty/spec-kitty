@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-09-13'
+updated: '2026-09-14'
 ---
 # Changelog
 
@@ -13,10 +13,10 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] - 4.0.0rc2
 
-_Post-4.0.0rc1 cycle. Entries land here until the next release chore opens a
-versioned candidate section._
+_4.0.0rc2 candidate cycle. Entries land here until the release chore finalizes
+this section at publish._
 
 ### Fixed
 
