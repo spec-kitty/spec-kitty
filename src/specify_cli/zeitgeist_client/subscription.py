@@ -109,7 +109,12 @@ class NotCheckedOut(Exception):
     never auto-provisions one — see the module docstring."""
 
     def __init__(self, repo: str) -> None:
-        super().__init__(f"no stored Zeitgeist credential for repo {repo!r}; run the checkout flow first")
+        super().__init__(
+            f"no stored Zeitgeist credential for repo {repo!r}; run the checkout flow first "
+            "(a publishing command in this logical session stores it — readers only read the cache; "
+            "set SPEC_KITTY_ZEITGEIST_SESSION_ID to the same value in both processes when running "
+            "a distinct concurrent agent)"
+        )
         self.repo = repo
 
 

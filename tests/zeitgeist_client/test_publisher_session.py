@@ -51,7 +51,7 @@ def test_invalid_logical_identity_is_refused(override: str, monkeypatch: pytest.
         logical_session_id()
 
 
-def test_harness_threads_and_process_fallback_are_distinct(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_harness_threads_are_distinct_and_default_is_stable(monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.zeitgeist_client import session_identity
 
     monkeypatch.delenv("SPEC_KITTY_ZEITGEIST_SESSION_ID", raising=False)
@@ -61,10 +61,61 @@ def test_harness_threads_and_process_fallback_are_distinct(monkeypatch: pytest.M
     monkeypatch.setenv("CODEX_THREAD_ID", "thread-b")
     assert session_identity.logical_session_id() != first
     monkeypatch.delenv("CODEX_THREAD_ID")
-    process = session_identity.logical_session_id()
-    assert process == session_identity.logical_session_id()
+    # The unidentified fallback is a stable default, NOT per-process (#4217
+    # squad MAJOR): a per-process value partitioned the credential store so a
+    # credential stored by one command could never be loaded by the next.
+    fallback = session_identity.logical_session_id()
+    assert fallback == session_identity.logical_session_id()
     monkeypatch.setattr(session_identity.os, "getpid", lambda: -1)
-    assert session_identity.logical_session_id() != process
+    assert session_identity.logical_session_id() == fallback
+
+
+_WRITE_CREDENTIAL = (
+    "from specify_cli.zeitgeist_client import credentials\n"
+    "credentials.store(repo='github.com/test/identity-probe', relay_url='http://localhost', "
+    "token='fixture-only', token_kind='presence')\n"
+)
+_READ_CREDENTIAL = (
+    "import json\n"
+    "from specify_cli.zeitgeist_client import credentials\n"
+    "print(json.dumps({'found': credentials.load(repo='github.com/test/identity-probe') is not None}))\n"
+)
+
+
+@pytest.mark.parametrize(
+    "writer_env,reader_env,expected_cache_hit",
+    [
+        ({}, {}, True),  # default: separate command/reader processes share one logical session
+        ({"SPEC_KITTY_ZEITGEIST_SESSION_ID": "agent-a"}, {"SPEC_KITTY_ZEITGEIST_SESSION_ID": "agent-a"}, True),
+        ({"SPEC_KITTY_ZEITGEIST_SESSION_ID": "agent-a"}, {"SPEC_KITTY_ZEITGEIST_SESSION_ID": "agent-b"}, False),
+        ({"CODEX_THREAD_ID": "thread-a"}, {"CODEX_THREAD_ID": "thread-a"}, True),
+        ({"CODEX_THREAD_ID": "thread-a"}, {"CODEX_THREAD_ID": "thread-b"}, False),
+    ],
+    ids=[
+        "default-separate-command-and-reader",
+        "explicit-same-agent",
+        "explicit-distinct-agents",
+        "same-codex-thread",
+        "distinct-codex-threads",
+    ],
+)
+def test_cross_process_identity_partitions_the_credential_store(
+    writer_env: dict[str, str], reader_env: dict[str, str], expected_cache_hit: bool, tmp_path: Path
+) -> None:
+    """The #4217 acceptance probe, verbatim semantics: what one process stores
+    is exactly what a second process (same machine, same SPEC_KITTY_HOME)
+    can load — unless the two are deliberately distinct logical agents."""
+    import json
+    import os
+    import subprocess
+    import sys
+
+    env = dict(os.environ, SPEC_KITTY_HOME=str(tmp_path), SPEC_KITTY_ENABLE_SAAS_SYNC="0")
+    for key in ("CODEX_THREAD_ID", "SPEC_KITTY_ZEITGEIST_SESSION_ID"):
+        env.pop(key, None)
+    subprocess.run([sys.executable, "-c", _WRITE_CREDENTIAL], env=env | writer_env, check=True)
+    observed = json.loads(subprocess.check_output([sys.executable, "-c", _READ_CREDENTIAL], env=env | reader_env))["found"]
+    assert observed is expected_cache_hit
 
 
 @pytest.mark.parametrize(

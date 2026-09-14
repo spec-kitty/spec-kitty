@@ -2,7 +2,7 @@
 title: Zeitgeist publisher and lease identity
 type: explanation
 doc_status: active
-updated: '2026-09-11'
+updated: '2026-09-14'
 audience: agentic-framework-core-team
 description: How logical agents, SaaS leases, and relay session references relate.
 ---
@@ -16,10 +16,17 @@ Two agents using one account and repository need different selectors.
 
 The CLI uses `SPEC_KITTY_ZEITGEIST_SESSION_ID` when supplied. Its value must match
 `[A-Za-z0-9][A-Za-z0-9._-]{0,127}`. Otherwise, `CODEX_THREAD_ID` supplies a
-namespaced, SHA-256-derived selector. Without either, a process gets a random
-selector; a fork gets a new one. A harness must propagate an explicit selector
-to related command, watch, and MCP processes if it does not expose a Codex thread
-identifier. A separate unidentified reader cannot infer which agent owns it.
+namespaced, SHA-256-derived selector. Without either, every process on the
+account shares one stable default selector: the credential cache and the
+reader surface (`spec-kitty zeitgeist watch`/`status`, the MCP stdio tools)
+are keyed by this selector, so a per-process value would leave a stored
+credential unreachable by the next command or reader. A harness running
+genuinely concurrent agents under one account must propagate an explicit,
+distinct `SPEC_KITTY_ZEITGEIST_SESSION_ID` to each agent's related command,
+watch, and MCP processes if it does not expose a Codex thread identifier;
+unidentified agents all share the default partition, so own-agent filtering
+cannot separate them — `NotCheckedOut` and the CLI hint name the variable
+that pins one.
 
 ## Issuer and relay boundaries
 
