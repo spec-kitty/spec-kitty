@@ -193,6 +193,48 @@ modules:
   - tests/doctrine_synthesizer
   - tests/specify_cli/tool_surface
   - tests/zeitgeist_client
+- module: unit
+  roots:
+  - src/specify_cli/status/**
+  - src/runtime/next/**
+  - src/charter/offering/missions/**
+  - src/kernel/**
+  cov_targets:
+  - specify_cli.status
+  - runtime.next
+  - charter.offering.missions
+  - kernel
+  tier: standard
+  shard_count: 1
+  # TEST-INVENTORY module (mission sonar-per-pr-coverage-reuse-01M2FR32,
+  # WP02/FR-006): tests/unit had NO declared home in this registry, so
+  # retiring the duplicate broad-measurement step would have removed its
+  # PER-CHANGE execution (the scheduled interpreter sweep still selects it
+  # by marker -- it was never unrun). It owns no src/** surface of its own:
+  # every root above is a verbatim copy of a glob another row already owns,
+  # chosen from the surfaces tests/unit actually imports, so the router's
+  # path->group mapping and the FR-004 fail-closed union are unchanged.
+  # test_dirs is declared explicitly even though it equals the tests/{module}
+  # default -- the default is a guess, this is the declaration.
+  test_dirs:
+  - tests/unit
+- module: specify_cli_runtime
+  roots:
+  - src/specify_cli/runtime/**
+  - src/charter/offering/missions/**
+  - src/specify_cli/core/**
+  cov_targets:
+  - specify_cli.runtime
+  - charter.offering.missions
+  - specify_cli.core
+  tier: standard
+  shard_count: 1
+  # TEST-INVENTORY module (same WP02 rationale as `unit` above). No
+  # tests/specify_cli_runtime mirror exists -- the directory is
+  # tests/specify_cli/runtime, so test_dirs is load-bearing here (without it
+  # module-tests.yml would look for tests/specify_cli_runtime and exit 64).
+  test_dirs:
+  - tests/specify_cli/runtime
 special_tiers:
   integration_tests_next:
     job: integration-tests-next

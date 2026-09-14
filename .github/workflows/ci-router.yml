@@ -65,6 +65,12 @@ jobs:
       glossary: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.glossary }}
       execution_context: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.execution_context }}
       core_misc: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.core_misc }}
+      # Test-inventory groups (mission sonar-per-pr-coverage-reuse-01M2FR32,
+      # WP02): src-backed like every row above -- their roots are a verbatim
+      # SUBSET of globs other groups already own, so they add no new path->group
+      # match and belong in the unmatched union and the heavy battery's `if:`.
+      unit: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.unit }}
+      specify_cli_runtime: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.specify_cli_runtime }}
       # Non-src groups (data, not code): docs/corpus/e2e mirror the src rows'
       # fold shape but are DELIBERATELY excluded from the unmatched loop below.
       docs: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.docs }}
@@ -129,6 +135,19 @@ jobs:
               - 'src/specify_cli/status/**'
               - 'src/specify_cli/tool_surface/**'
               - 'src/specify_cli/zeitgeist_client/**'
+            # Test-inventory groups: tests/unit and tests/specify_cli/runtime had
+            # no declared home in the module registry. Every glob below is a
+            # verbatim copy of one another group already carries (scrub groups
+            # `unit` / `specify_cli_runtime`), so no path's match set changes.
+            unit:
+              - 'src/specify_cli/status/**'
+              - 'src/runtime/next/**'
+              - 'src/charter/offering/missions/**'
+              - 'src/kernel/**'
+            specify_cli_runtime:
+              - 'src/specify_cli/runtime/**'
+              - 'src/charter/offering/missions/**'
+              - 'src/specify_cli/core/**'
             docs:
               - 'docs/**'
               - 'tests/docs/**'
@@ -176,7 +195,9 @@ jobs:
             "${{ steps.filter.outputs.kernel }}" \
             "${{ steps.filter.outputs.glossary }}" \
             "${{ steps.filter.outputs.execution_context }}" \
-            "${{ steps.filter.outputs.core_misc }}"; do
+            "${{ steps.filter.outputs.core_misc }}" \
+            "${{ steps.filter.outputs.unit }}" \
+            "${{ steps.filter.outputs.specify_cli_runtime }}"; do
             if [ "$group_hit" = "true" ]; then
               matched=true
             fi
@@ -328,7 +349,9 @@ jobs:
       needs.changes.outputs.kernel == 'true' ||
       needs.changes.outputs.glossary == 'true' ||
       needs.changes.outputs.execution_context == 'true' ||
-      needs.changes.outputs.core_misc == 'true'
+      needs.changes.outputs.core_misc == 'true' ||
+      needs.changes.outputs.unit == 'true' ||
+      needs.changes.outputs.specify_cli_runtime == 'true'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
