@@ -1,0 +1,240 @@
+{
+  "mission_slug": "sonar-per-pr-coverage-reuse-01M2FR32",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 4af9689c1d retired the duplicate-measurement job; `grep -c 'test-fast|sonarcloud' .github/workflows/ci-quality.yml` = 0. Five jobs remain. WP04's clean-tree assertion holds with KNOWN_LIVE_DUPLICATES={} and non-vacuity carried by real_suite_step_host().",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (claude) via independent per-WP review",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 0bfd7556c8: ci-aggregate.yml's sonar-pr job consumes the already-published ci-aggregate-reconciled-coverage + ci-aggregate-source artefacts via `needs: collect`. No pytest step in the reporting surface.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (claude) via independent per-WP review",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06: the 'Run fast tier under coverage' step and its job are gone. Reviewer mutation-tested re-injection \u2014 reds four independent gates.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (claude) via independent per-WP review",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Structural: `needs: collect` on a workflow_run:[CI Modules] chain. Conjunct 3 (collect.result=='success') independently asserted; drop reds its own test.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (claude) via independent per-WP review",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 T024: identity read from ci-aggregate-source's validated pr_number, never workflow_run.pull_requests[]. Unit-tested incl. the refusal path in tests/ci/test_sonar_pr_analysis.py.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (claude) via independent per-WP review",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 8be43a4ce9: tests/unit + tests/specify_cli/runtime declared across the four-file cascade (registry, scrub, timings, router). Reviewer swept 19,244 files: zero routing drift.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (claude) via independent per-WP review",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Conjunct 4 (collect.outputs.complete=='true') asserted individually; drop reds. No always() on the job \u2014 verified by WP04's condition_uses_always guard.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (claude) via independent per-WP review",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Credential-absent path skips with an advisory notice, never fails. Stronger than both sibling surfaces: a boolean is passed so the credential never enters the evaluator's environment.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (claude) via independent per-WP review",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "#4350 and #4351 filed 2026-09-14 and linked. In-tree comment on the reporting job names #4350. PR body states the publication blocker.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (claude) via independent per-WP review",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 T028: scripts/ci/derive_pinning_inventory.py derives 102 rules (43 dependencies / 59 non), every actioned rule carrying a disposition + reason. Byte-identical re-derivation verified on py3.11/3.12/3.14. Freshness gate mutation-tested three ways, all red.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (claude) via independent per-WP review",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Same-origin enforced in three independent places (job if:, evaluator, authenticated-payload refusal); each reds independently on removal. Weakening to (same-origin || push) also reds.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (claude) via independent per-WP review",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "projectBaseDir stays at the trusted root; only src/ and tests/ are replaced. Assertion pins the whole git-checkout line-list \u2014 extending it or adding a second line reds. Contract C3 corrected 8be74f5 to record the refuted subdirectory design.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (claude) via independent per-WP review",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01: coverage targets derived from the source tree at run time, constant across slices. Measured +30,226 cross-module statements recovered on one slice. Registry/scrub deliberately untouched (a census gate pins them verbatim).",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (claude) via independent per-WP review",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Conjunct 1 expressed as workflow_run.event=='pull_request'. Planting the retired literal `github.event_name == 'pull_request'` reds. WP04's fail-closed classifier makes unrecognised on: shapes change-triggered.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (claude) via independent per-WP review",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "NOT YET VERIFIABLE, and deliberately not claimed. FR-015 requires a recorded non-zero published coverage measurement; #4350 (SonarCloud Automatic Analysis) refuses every CI-side upload, and it was verified live that this project holds NO coverage metric at all. A workflow_run handler also runs only the default-branch copy of its file, so the reporting job cannot execute on the PR that introduces it. Deferred to post-merge observation (negative invariant NI-06). This is 'pending', not 'fail': nothing in the mission is wrong, the evidence cannot yet exist. A-000/A-001 scope mission acceptance to three other observables precisely so this cannot be quietly claimed.",
+      "pass_fail": "pending",
+      "verified_by": "orchestrator (claude) \u2014 deferred, not judged",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 T005: marker-mismatch set derived by committed script \u2014 5 performance-marked tests in tests/status, confirming the planning count. WP02 independently quantified the third input's coverage contribution at exactly 0 (empty set difference over 1,258 files).",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator (claude) via independent per-WP review",
+      "verified_at": "2026-09-14T18:00:00Z",
+      "notes": "Reviewed by an agent distinct from the implementer (C-007)."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-01",
+      "description": "The retiring duplicate-measurement job no longer executes the suite in ci-quality.yml.",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -nE 'sonarcloud|make test-fast|Run fast tier under coverage' .github/workflows/ci-quality.yml",
+      "result": "confirmed_absent",
+      "evidence": "0 hits. Five jobs remain (lint, build-wheel, clean-install-verification, uv-lock-check, quality-gate). WP04's clean-tree assertion holds with KNOWN_LIVE_DUPLICATES={}; re-injecting a make-indirect suite job reds four independent gates.",
+      "scope": ".github/workflows/ci-quality.yml",
+      "verified_ref": "cb92d937bd",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-02",
+      "description": "No always() modifier weakens the reporting job's execution condition.",
+      "verification_method": "custom_command",
+      "verification_command": "pytest tests/architectural/test_no_duplicate_suite_execution.py -k always -q",
+      "result": "confirmed_absent",
+      "evidence": "WP04's condition_uses_always guard; adding always() to the reporting job reds. The reconciled artefact uploads even on a failed collect, so artefact presence is not completeness \u2014 the condition requires collect.result=='success' AND complete=='true', each asserted individually.",
+      "verified_ref": "cb92d937bd",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-03",
+      "description": "The same-origin conjunct cannot be removed or weakened silently.",
+      "verification_method": "custom_command",
+      "verification_command": "pytest tests/release/test_sonar_workflow.py tests/architectural/test_no_duplicate_suite_execution.py -q",
+      "result": "confirmed_absent",
+      "evidence": "Enforced in three independent places (job if:, heredoc evaluator, authenticated-payload refusal); each reds on removal. Weakening to (same-origin || push) also reds, since top_level_conjuncts rejects an ||-reached term. This is the mission's principal security change: a platform-enforced guarantee became condition-enforced under workflow_run (A-004).",
+      "verified_ref": "cb92d937bd",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-04",
+      "description": "The change under review cannot supply the analysis configuration.",
+      "verification_method": "custom_command",
+      "verification_command": "pytest tests/release/test_sonar_workflow.py -k 'replaces_only_the_two_analysed_trees or binds_the_fetched_revision' -q",
+      "result": "confirmed_absent",
+      "evidence": "projectBaseDir stays at the trusted root; only src/ and tests/ are replaced. The assertion pins the whole git-checkout line-list, so extending it or adding a second line reds. An independent adversarial review could not make the analysis lie (argument injection, coverage-filename injection, GITHUB_OUTPUT breakout, mis-attribution all closed). Ordering is load-bearing and asserted: trusted config is read BEFORE the trees are replaced.",
+      "verified_ref": "cb92d937bd",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-05",
+      "description": "A returning duplicate cannot hide behind an unrecognised workflow trigger spelling.",
+      "verification_method": "custom_command",
+      "verification_command": "pytest tests/architectural/test_no_duplicate_suite_execution.py -q",
+      "result": "confirmed_absent",
+      "evidence": "WP04 cycle 2 inverted the classifier to fail closed: list form, bare scalar, pull_request_target, merge_group, malformed on:, and a missing on: block are all change-triggered; only four enumerated non-change events plus a tags-only push are excluded, pinned by a closed-world exclusion ledger. Orchestrator-verified independently against the probe that exposed the original fail-open hole.",
+      "verified_ref": "cb92d937bd",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-06",
+      "description": "No published SonarCloud report is claimed by this mission.",
+      "verification_method": "custom_command",
+      "verification_command": "grep -n 'NOT claimed' kitty-specs/sonar-per-pr-coverage-reuse-01M2FR32/traces/design-decisions.md",
+      "result": "deferred_to_consolidation",
+      "evidence": "Recorded verbatim in the mission tracer: claimed is that the suite runs once and the report is wired; NOT claimed is that any report reached SonarCloud. A green pipeline is not evidence of publication.",
+      "verified_ref": "cb92d937bd",
+      "verified_surface_kind": "primary",
+      "deferred_reason": "A workflow_run handler executes only the default-branch copy of its file, so the reporting job structurally cannot run on the PR that introduces it. The first eligible run is the first CI Modules completion after this lands. #4350 (Automatic Analysis) is expected to refuse publication on that run \u2014 the declared state of this mission, not a failure of it.",
+      "deferred_to_phase": "post_merge",
+      "provenance_origin": "recorded"
+    }
+  ],
+  "verdict_notes": "15 of 16 functional criteria pass; FR-015 is PENDING on #4350, an external vendor setting this mission cannot change and that A-000/C-004 scope out. Five negative invariants confirmed absent; NI-06 deferred to consolidation. The honest claim on completion: the suite runs once per change and the report is wired to the measurement that already exists. NOT claimed: that any report reached SonarCloud. A green pipeline is not evidence of publication."
+}

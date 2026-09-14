@@ -1,0 +1,137 @@
+{
+  "rows": {
+    "#2969": {
+      "evidence_ref": "Follow-up: #2969 remains open under the #1928 Sonar debt epic. Referenced in spec.md only as the live content of #825's backlog. This mission changes CI topology and coverage measurement; it does not touch Sonar findings.",
+      "fr": "FR-009",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "out-of-scope",
+      "source_file": "spec.md",
+      "title": "SonarCloud reliability: production S5779 swallowed asserts",
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    },
+    "#2970": {
+      "evidence_ref": "Follow-up: #2970 remains open under the #1928 Sonar debt epic. As #2969 - referenced only as backlog content, not in this mission's blast radius.",
+      "fr": "FR-009",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "out-of-scope",
+      "source_file": "spec.md",
+      "title": "SonarCloud security: BLOCKER S2083 path-injection findings",
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    },
+    "#3995": {
+      "evidence_ref": "MERGED. It created the CI Modules matrix and the scheduled sonar.yml this mission consumes. Verified live: a PR run resolves 34 shard coverage artefacts. This mission builds on it and does not modify it.",
+      "fr": "FR-002",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "out-of-scope",
+      "source_file": "spec.md",
+      "title": "Reinstate lean modular GitHub CI (ci-router / ci-modules / ci-aggregate / packs / nightly / sonar)",
+      "verdict": "verified-already-fixed",
+      "wp": "WP05"
+    },
+    "#4011": {
+      "evidence_ref": "FIXED by WP06/T031. docs/development/reference/coverage-signals.md corrected against the live tree: the internal gate is the diff-cover job in ci-aggregate.yml (not a deleted ci-quality.yml job), the claim 'this repo runs no GitHub Actions' is removed, the nightly cron is 0 3 * * * in sonar.yml, the per-directory fast-job coverage story is replaced by the module-tests.yml shard set, a per-change Sonar surface (sonar-pr) is documented, and the false claim that sonar_project_version.py was retired is corrected to name #4350 as the real blocker. Both prior errors are recorded in-page so a reader who remembers them sees they were adjudicated.",
+      "fr": "FR-010",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "in-scope",
+      "source_file": "spec.md",
+      "title": "docs: coverage-signals reference page is factually wrong",
+      "verdict": "fixed",
+      "wp": "WP06"
+    },
+    "#4248": {
+      "evidence_ref": "Follow-up: #4248 remains open, partly overtaken by #4325. It is one of three observed exit-3 causes, on the OLD project key whose ALM binding is broken; #4325 retargeted to spec-kitty_spec-kitty, which reports BOUND. Residue is a vendor-side association question, out of scope per C-004.",
+      "fr": "FR-005",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "out-of-scope",
+      "source_file": "spec.md",
+      "title": "SonarCloud PR scans cannot resolve current GitHub pull requests",
+      "verdict": "deferred-with-followup",
+      "wp": "WP05"
+    },
+    "#4325": {
+      "evidence_ref": "MERGED 2026-09-14, before this mission branched. It retargeted sonar-project.properties to spec-kitty_spec-kitty / spec-kitty. This mission consumes that identity unchanged and re-verified it live (the new key reports BOUND). Nothing to do.",
+      "fr": "FR-012",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "out-of-scope",
+      "source_file": "spec.md",
+      "title": "ci(sonar): align SonarCloud project identity to the spec-kitty org",
+      "verdict": "verified-already-fixed",
+      "wp": "WP05"
+    },
+    "#4334": {
+      "evidence_ref": "FIXED. The duplicate is gone: ci-quality.yml's sonarcloud job (the fast tier under pytest --cov) is removed, the file's job set is five and it executes no test suite, pinned by test_reduced_ci_quality_has_exact_jobs and by test_no_duplicate_suite_execution.py whose KNOWN_LIVE_DUPLICATES is now empty (40 passed, 1 skipped after the flip). The per-change report is ci-aggregate.yml's sonar-pr job, reading the measurement collect already reconciled. Every rule pinning the old arrangement is dispositioned in tests/release/pinning_rule_inventory.json, derived by scripts/ci/derive_pinning_inventory.py and gated by test_pinning_inventory_fresh.py. NOT claimed: a published report -- see the post-integration observation, blocked on #4350.",
+      "fr": "FR-001,FR-003",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "in-scope",
+      "source_file": "spec.md",
+      "title": "CI efficiency (P0): per-PR SonarCloud job re-runs the fast tier instead of reusing CI Modules shard coverage",
+      "verdict": "fixed",
+      "wp": "WP06"
+    },
+    "#4350": {
+      "evidence_ref": "Follow-up: #4350 (this row IS the follow-up handle, filed by this mission 2026-09-14). A SonarCloud UI action only the operator can take; spec C-004 scopes vendor settings out and A-000/FR-015 declare it a precondition. Verified live: the project holds no coverage metric at all and every analysis reports projectVersion 'not provided'. This mission declares and links it; it does not resolve it.",
+      "fr": "FR-015",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "out-of-scope",
+      "source_file": "spec.md",
+      "title": "ci(sonar): Automatic Analysis is enabled on spec-kitty_spec-kitty, so every CI-side scan fails exit 3",
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    },
+    "#4351": {
+      "evidence_ref": "Follow-up: #4351 (this row IS the follow-up handle, filed by this mission 2026-09-14). Pre-existing marker-driven exclusion: the file carries the integration and git_repo markers and neither fast nor unit, so every positive marker selection deselects it. Not caused by this mission; reported per the charter rather than absorbed.",
+      "fr": "FR-006",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "out-of-scope",
+      "source_file": "spec.md",
+      "title": "test(ci): tests/unit/status/test_mission_status_aggregate.py (52 tests) runs in no CI job",
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#825": {
+      "evidence_ref": "Follow-up: #825 remains open; its live content is the quality-gate backlog tracked by #2969 and #2970. Reconciled, not conflicting: filed 2026-04-27 before the scheduled sonar.yml existed (#3995), so its ask was then the only route to a primary-branch analysis - a goal the nightly now serves. Spec C-001 stands and does not obstruct it.",
+      "fr": "FR-014",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "out-of-scope",
+      "source_file": "spec.md",
+      "title": "Restore push-time SonarCloud after project quality gate cleanup",
+      "verdict": "deferred-with-followup",
+      "wp": "WP05"
+    },
+    "#830": {
+      "evidence_ref": "Follow-up: #830 remains open. Referenced in spec.md only as the provenance marker for ci-quality.yml being interim Phase-1 infrastructure. This mission moves work FROM that shorter-lived surface TO the permanent ci-aggregate.yml, which is the direction #830 implies; it does not advance the release phase itself.",
+      "fr": "FR-010",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "out-of-scope",
+      "source_file": "spec.md",
+      "title": "EXPERIMENTAL release phase gating (Phase-1 CI infrastructure)",
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    }
+  },
+  "schema_version": 1
+}
