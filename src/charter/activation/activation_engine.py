@@ -46,9 +46,10 @@ FR-021 (backward compatibility)
 -------------------------------
 A project with **no explicit activation restrictions** for a kind (the YAML key
 is absent — the ``None``-state) keeps every artifact that was effective in that
-state: :func:`plan_activation` materializes the supplied *available* corpus into
-the plan first, then appends the requested ID, and records an initialization
-warning naming how many artifacts it preserved. Before #4253 it materialized the
+state: :func:`plan_activation` materializes the caller-supplied *effective*
+corpus (the resolver's own view, falling back to the available one) into the
+plan first, then appends the requested ID, and records an initialization warning
+naming how many artifacts it preserved. Before #4253 it materialized the
 narrower default pack instead, which turned a single activation into a silent
 deactivation of everything outside default.yaml. Deactivation against a ``None``-state kind is reported as a
 structured :class:`NoActivationRestrictionsError` (the CLI surfaces the
@@ -195,7 +196,7 @@ def plan_activation(
     yaml_key: str,
     available_ids: Iterable[str],
     config_data: Mapping[str, Any],
-    default_ids: Iterable[str] = (),
+    effective_ids: Iterable[str] = (),
     cascade_scope: Any = None,  # noqa: ANN401
 ) -> ActivationPlan:
     """Compute the post-state for activating *artifact_id* — purely (FR-011/012).
@@ -221,9 +222,20 @@ def plan_activation(
         The universe of valid artifact IDs for *kind* (caller-discovered).
     config_data:
         The already-loaded ``config.yaml`` mapping (read-only here).
-    default_ids:
-        Default-pack IDs for *kind*, materialized when the kind is in the
-        no-restrictions state (FR-021).
+    effective_ids:
+        What the activation-aware resolver currently has in force for *kind*,
+        supplied as data by the caller (C-008). This is the materialization
+        source for the no-restrictions state: it spans the full declared org
+        chain and is already in the keyspace the resolver filters on. Empty
+        falls back to ``available_ids``.
+
+        ``default_ids`` used to be this function's materialization source and
+        is gone (#4399 squad MINOR): once the preserved set became the
+        effective corpus, no reachable path could consume it — validation
+        above guarantees ``artifact_id in available_ids``, so the
+        empty-availability branch it guarded cannot occur. ``promote_activations``
+        keeps its own ``default_ids`` parameter; that is a different planner
+        (:func:`_plan_promotion`) with its own absent-key contract.
     cascade_scope:
         Reserved for the WP11 cascade engine; threaded but not consumed here
         (never collapsed to a bool — Contract C3.3).
@@ -254,18 +266,26 @@ def plan_activation(
 
     was_unrestricted = current is None
     if was_unrestricted:
-        # #4253: an absent key is the UNRESTRICTED state — every AVAILABLE
-        # artifact is effective, which is strictly wider than the default
+        # #4253: an absent key is the UNRESTRICTED state — every EFFECTIVE
+        # artifact is in force, which is strictly wider than the default
         # pack. Materializing ``default_ids`` here therefore did not merely
         # "initialize" the set: it silently DEACTIVATED every effective
         # artifact outside default.yaml (observed: 15 directives and 11
         # procedures, including adversarial-squad-deployment, lost on a
-        # single unrelated activation). Preserve what is effective instead —
-        # ``available_ids`` is exactly the corpus the activation-aware
-        # resolver exposes while the key is absent. ``default_ids`` remains
-        # the fallback for a caller that supplies no availability at all, so
-        # no caller loses its previous behaviour by omission.
-        materialized = list(dict.fromkeys(available_ids)) or list(default_ids)
+        # single unrelated activation).
+        #
+        # ``effective_ids`` is the resolver's OWN view of what is in force —
+        # read from the activation-aware doctrine service by the caller. It
+        # is the right source for two reasons the #4399 squad round found by
+        # execution: it spans the full declared org chain (``list_available``
+        # is handed a root map that deliberately truncates to org pack #1),
+        # and it is already in the keyspace the resolver filters on (Pattern
+        # B/C kinds such as procedures match a declared ``id:``, so a set
+        # written as filename stems is filtered straight back out). Falling
+        # back to ``available_ids`` keeps a caller that cannot build a
+        # service — or a kind the service does not expose — behaving as it
+        # did before.
+        materialized = list(dict.fromkeys(effective_ids)) or list(dict.fromkeys(available_ids))
         warnings.append(
             f"Kind {kind!r} had no explicit activation set. "
             f"Initialized from the {len(materialized)} artifact(s) already effective, "

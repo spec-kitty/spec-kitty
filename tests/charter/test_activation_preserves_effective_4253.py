@@ -17,6 +17,7 @@ still effective after, measured through the consumer surface
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -166,3 +167,98 @@ def test_an_unknown_id_fails_without_mutating_the_config(
     assert result.exit_code != 0
     assert config.read_bytes() == before, "a failed activation must not write"
     assert PackContext.from_config(project_root).activated_directives is None
+
+
+# ---------------------------------------------------------------------------
+# #4399 squad round: the two configurations the issue's acceptance names but
+# the first pass did not cover — a declared org CHAIN, and an artifact whose
+# `id:` diverges from its filename stem.
+# ---------------------------------------------------------------------------
+
+
+def _write_org_procedure(pack_root: Path, *, stem: str, declared_id: str) -> None:
+    """One org-pack procedure whose declared id may differ from its file stem."""
+    procedures = pack_root / "procedures"
+    procedures.mkdir(parents=True, exist_ok=True)
+    # Same shape as a built-in procedure (packs/built-in/procedures/*.yaml):
+    # the loader rejects unknown keys, so the fixture has to be a real one.
+    (procedures / f"{stem}.procedure.yaml").write_text(
+        'schema_version: "1.0"\n'
+        f"id: {declared_id}\n"
+        f"name: {declared_id} fixture procedure\n"
+        "purpose: >\n"
+        "  Prove that org-layer artifacts survive an unrelated activation.\n"
+        "entry_condition: >\n"
+        "  An activation runs while this kind has no explicit activation set.\n"
+        "exit_condition: >\n"
+        "  The artifact is still effective afterwards.\n"
+        "steps:\n"
+        "  - title: Observe\n"
+        "    description: >\n"
+        "      Read the effective set before and after the activation.\n"
+        "    actor: agent\n",
+        encoding="utf-8",
+    )
+
+
+def _declare_org_packs(repo: Path, *pack_roots: Path) -> None:
+    lines = ["mission_type_activations:", "  - software-dev", "doctrine:", "  org:", "    packs:"]
+    for index, root in enumerate(pack_roots):
+        lines.append(f"      - name: preservation-fixture-{index}")
+        lines.append(f"        local_path: {root}")
+    (repo / ".kittify" / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _effective_procedures(repo: Path) -> set[str]:
+    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+
+    return set(build_activation_aware_doctrine_service(repo).procedures)
+
+
+def test_artifacts_in_the_second_org_pack_survive_activation(tmp_path: Path) -> None:
+    """#4399 MAJOR 1: the declared org chain is preserved, not just pack #1.
+
+    The CLI's ``layer_roots`` map truncates to the first org pack by a
+    documented back-compat contract, so sourcing the preserved set from it
+    left every artifact in packs 2+ to be silently deactivated.
+    """
+    repo = tmp_path / "repo"
+    (repo / ".kittify").mkdir(parents=True)
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    pack_one = tmp_path / "org-one"
+    pack_two = tmp_path / "org-two"
+    _write_org_procedure(pack_one, stem="org1-proc", declared_id="org1-proc")
+    _write_org_procedure(pack_two, stem="org2-proc", declared_id="org2-proc")
+    _declare_org_packs(repo, pack_one, pack_two)
+
+    before = _effective_procedures(repo)
+    assert {"org1-proc", "org2-proc"} <= before, f"fixture invalid: both packs must be effective first, got {sorted(before)}"
+
+    result = _activate(repo, "procedure", "spike-timebox-policy")
+    assert result.exit_code == 0, result.output
+
+    after = _effective_procedures(repo)
+    assert "org2-proc" in after, "#4399 MAJOR 1: activating an unrelated procedure deactivated the second org pack's artifact"
+    assert "org1-proc" in after
+
+
+def test_an_id_that_diverges_from_its_stem_survives_activation(tmp_path: Path) -> None:
+    """#4399 MAJOR 2: the preserved set is written in the keyspace the filter uses.
+
+    The resolver matches Pattern-B/C kinds on the declared ``id:`` by plain
+    membership, so a set written as filename stems is filtered straight back
+    out whenever the two diverge.
+    """
+    repo = tmp_path / "repo"
+    (repo / ".kittify").mkdir(parents=True)
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    pack = tmp_path / "org-divergent"
+    _write_org_procedure(pack, stem="acme-release", declared_id="acme-release-proc")
+    _declare_org_packs(repo, pack)
+
+    assert "acme-release-proc" in _effective_procedures(repo), "fixture invalid: the divergent-id procedure must be effective first"
+
+    result = _activate(repo, "procedure", "spike-timebox-policy")
+    assert result.exit_code == 0, result.output
+
+    assert "acme-release-proc" in _effective_procedures(repo), "#4399 MAJOR 2: the divergent-id org procedure was written by stem and filtered back out"
