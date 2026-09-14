@@ -733,3 +733,84 @@ def test_same_wp_focus_keeps_other_agent_when_one_session_ends(terminal: str) ->
     assert frame is not None
     state.apply(frame)
     assert [focus.session_ref for focus in state.snapshot(now=1000.0).focus] == ["b" * 12]
+
+
+# --- #4215 (squad pass-2 MAJOR): a non-finite timestamp is not a timestamp ---
+#
+# `observed_at` stopped being an internal ttl input when subscription.py began
+# serializing it and the CLI began formatting it (`int(now - observed_at)`).
+# The ttl guards above never covered it, so JSON's `Infinity`/`NaN` tokens —
+# which `json.loads` accepts by default on every read path here — reached
+# `int()` (OverflowError/ValueError) and, via `--json`, put a token that is not
+# JSON at all into a document a consumer must parse. Guarded at the same
+# boundary as ttl: at parse/seed time, in this module.
+
+
+@pytest.mark.parametrize("bad", [float("inf"), float("-inf"), float("nan")])
+def test_frame_with_a_non_finite_emitted_at_is_refused(bad: float) -> None:
+    """The frame's own clock feeds every derived timestamp, so a non-finite
+    one makes the whole frame unusable — refused like any other malformed
+    envelope, never half-applied."""
+    assert live_frame.parse_live_frame(_raw(emitted_at=bad, frame=_presence_frame())) is None
+
+
+@pytest.mark.parametrize("bad", [float("inf"), float("-inf"), float("nan")])
+def test_presence_non_finite_observed_at_falls_back_to_the_frame_clock(bad: float) -> None:
+    state = live_frame.StreamState()
+    lf = live_frame.parse_live_frame(_raw(emitted_at=1000.0, frame=_presence_frame(ttl_s=30, observed_at=bad)))
+    assert lf is not None
+    state.apply(lf)  # must not raise
+    view = state.snapshot(now=1000.0).presence[0]
+    assert view.observed_at == 1000.0
+    assert view.expires_at == 1030.0
+
+
+@pytest.mark.parametrize("bad", [float("inf"), float("-inf"), float("nan")])
+def test_focus_non_finite_observed_at_falls_back_to_the_frame_clock(bad: float) -> None:
+    state = live_frame.StreamState()
+    lf = live_frame.parse_live_frame(_raw(emitted_at=1000.0, frame=_focus_frame(ttl_s=60, observed_at=bad)))
+    assert lf is not None
+    state.apply(lf)  # must not raise
+    assert state.snapshot(now=1000.0).focus[0].observed_at == 1000.0
+
+
+@pytest.mark.parametrize("bad", [float("inf"), float("-inf"), float("nan")])
+def test_seeded_snapshot_entry_drops_a_non_finite_observed_at(bad: float) -> None:
+    """A snapshot entry keeps its lifetime (the relay's `expires_in_s` is
+    separately guarded) but reports no observation time rather than one no
+    consumer can render or serialize."""
+    state = live_frame.StreamState()
+    doc = {
+        "schema_version": "1.0.0",
+        "epoch": "epoch-1",
+        "presence": [{"observed_at": bad, "ttl_s": 30, "expires_in_s": 20.0, "actor": {"session_ref": "a" * 12}}],
+        "focus": [
+            {
+                "observed_at": bad,
+                "focus_ref": "mission-x",
+                "state": "active",
+                "ttl_s": 60,
+                "expires_in_s": 30.0,
+                "actor": {"session_ref": "b" * 12},
+            }
+        ],
+    }
+    assert state.seed_snapshot(doc, now=1000.0) is True
+    snap = state.snapshot(now=1000.0)
+    assert snap.presence[0].observed_at is None
+    assert snap.presence[0].expires_at == 1020.0
+    assert snap.focus[0].observed_at is None
+    assert snap.focus[0].expires_at == 1030.0
+
+
+@pytest.mark.parametrize("bad", [float("inf"), float("-inf"), float("nan")])
+def test_seeded_snapshot_entry_with_a_non_finite_lifetime_is_dropped(bad: float) -> None:
+    state = live_frame.StreamState()
+    doc = {
+        "schema_version": "1.0.0",
+        "epoch": "epoch-1",
+        "presence": [{"observed_at": 995.0, "ttl_s": 30, "expires_in_s": bad, "actor": {"session_ref": "a" * 12}}],
+        "focus": [],
+    }
+    assert state.seed_snapshot(doc, now=1000.0) is True
+    assert state.snapshot(now=1000.0).presence == ()

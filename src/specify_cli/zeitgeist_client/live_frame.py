@@ -206,6 +206,26 @@ def _is_number(value: object) -> TypeGuard[int | float]:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
+def _finite(value: object) -> float | None:
+    """A timestamp this module is willing to do arithmetic on, else ``None``.
+
+    ``json.loads`` accepts JSON's bare ``Infinity``/``-Infinity``/``NaN``
+    tokens by default, and every read path here goes through it, so a hostile
+    or buggy relay can put a non-finite float in any numeric field. That is
+    the same hazard :func:`_clamp_ttl` already defends for ``ttl_s``, and it
+    has to be defended once per numeric field rather than at each print site:
+    ``int()`` on a non-finite float raises (``OverflowError`` for the
+    infinities, ``ValueError`` for NaN), and a non-finite value serialized
+    back out is not JSON at all (RFC 8259 has no such token), so one bad field
+    would otherwise turn a whole document a consumer must parse into a
+    traceback.
+    """
+    if not _is_number(value):
+        return None
+    number = float(value)
+    return number if math.isfinite(number) else None
+
+
 def parse_live_frame(raw: object) -> LiveFrame | None:
     """Return a :class:`LiveFrame` for a shape-valid envelope, else ``None``.
 
@@ -229,8 +249,9 @@ def parse_live_frame(raw: object) -> LiveFrame | None:
         return None
     if isinstance(seq, bool) or not isinstance(seq, int) or seq < 1:
         return None
-    if not _is_number(emitted_at):
-        return None
+    emitted_at = _finite(emitted_at)
+    if emitted_at is None:
+        return None  # a non-finite clock is not a timestamp: refuse the frame
     if not isinstance(frame, dict):
         return None
 
@@ -245,7 +266,7 @@ def parse_live_frame(raw: object) -> LiveFrame | None:
         schema_version=schema_version,
         epoch=epoch,
         seq=seq,
-        emitted_at=float(emitted_at),
+        emitted_at=emitted_at,
         frame_type=frame_type,
         payload=payload,
     )
@@ -385,8 +406,8 @@ class StreamState:
         if not isinstance(ref, str) or not ref:
             return
         ref = grammar.ident(ref)  # ident-shaped: 12-hex session token, never a ref path
-        observed_at = payload.get("observed_at")
-        base_ts = float(observed_at) if _is_number(observed_at) else live_frame_obj.emitted_at
+        observed_at = _finite(payload.get("observed_at"))
+        base_ts = observed_at if observed_at is not None else live_frame_obj.emitted_at
         self._presence[ref] = {
             "session_ref": ref,
             "user": _grammar_ident(actor.get("user")),
@@ -429,7 +450,7 @@ class StreamState:
         if state == "ended":
             self._focus.pop(key, None)  # only this session's focus ends
             return
-        observed_at = payload.get("observed_at")
+        observed_at = _finite(payload.get("observed_at"))
         self._focus[key] = {
             "focus_ref": focus_ref,
             "session_ref": session_ref,
@@ -438,7 +459,7 @@ class StreamState:
             "repo": _grammar_ident(payload.get("repo"), grammar.REF_RE),
             "branch": _optional_str(payload.get("branch")),  # prose-shaped, not identity: see module docstring
             "expires_at": live_frame_obj.emitted_at + _clamp_ttl(payload.get("ttl_s")),
-            "observed_at": float(observed_at) if _is_number(observed_at) else live_frame_obj.emitted_at,
+            "observed_at": observed_at if observed_at is not None else live_frame_obj.emitted_at,
         }
 
     def seed_snapshot(self, doc: object, *, now: float | None = None) -> bool:
@@ -483,10 +504,10 @@ class StreamState:
         """The entry's remaining lifetime, clamped to the same ceiling every
         ttl obeys, or ``None`` when the relay reports it already gone (or
         reports something this module cannot read as a number)."""
-        remaining = entry.get("expires_in_s")
-        if not _is_number(remaining) or (isinstance(remaining, float) and not math.isfinite(remaining)):
+        remaining = _finite(entry.get("expires_in_s"))
+        if remaining is None:
             return None
-        remaining = min(float(remaining), float(MAX_TTL_S))
+        remaining = min(remaining, float(MAX_TTL_S))
         return remaining if remaining > 0 else None
 
     def _seed_presence_entry(self, entry: object, ts: float) -> None:
@@ -502,7 +523,7 @@ class StreamState:
         if remaining is None:
             return
         ref = grammar.ident(ref)
-        observed_at = entry.get("observed_at")
+        observed_at = _finite(entry.get("observed_at"))
         self._presence[ref] = {
             "session_ref": ref,
             "user": _grammar_ident(actor.get("user")),
@@ -514,7 +535,7 @@ class StreamState:
             # past the ceiling this way, and eviction in snapshot() compares
             # against the same clock it always has.
             "expires_at": ts + remaining,
-            "observed_at": float(observed_at) if _is_number(observed_at) else None,
+            "observed_at": observed_at,
         }
 
     def _seed_focus_entry(self, entry: object, ts: float) -> None:
@@ -533,7 +554,7 @@ class StreamState:
         actor = entry.get("actor")
         session_ref = actor.get("session_ref") if isinstance(actor, Mapping) else None
         session_ref = grammar.ident(session_ref) if isinstance(session_ref, str) and session_ref else None
-        observed_at = entry.get("observed_at")
+        observed_at = _finite(entry.get("observed_at"))
         self._focus[(session_ref, focus_ref)] = {
             "focus_ref": focus_ref,
             "session_ref": session_ref,
@@ -542,7 +563,7 @@ class StreamState:
             "repo": _grammar_ident(entry.get("repo"), grammar.REF_RE),
             "branch": _optional_str(entry.get("branch")),
             "expires_at": ts + remaining,
-            "observed_at": float(observed_at) if _is_number(observed_at) else None,
+            "observed_at": observed_at,
         }
 
     def snapshot(self, *, now: float | None = None) -> TeamSnapshot:
