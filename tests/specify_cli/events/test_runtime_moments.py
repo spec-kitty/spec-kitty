@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -90,14 +91,15 @@ def _journal(run_dir: Path) -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-def published(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
-    """Capture the lifecycle fan-out boundary under production handler wiring."""
-    from specify_cli.status import adapters
+def published(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict[str, Any]]]:
+    """Capture the lifecycle fan-out boundary with no producer pre-registered: the bridge registers it."""
+    from runtime.next._internal_runtime import events as events_mod
 
     captured: list[dict[str, Any]] = []
-    monkeypatch.setattr(adapters, "fire_lifecycle_saas_fanout", lambda **kwargs: captured.append(kwargs))
-    adapters.ensure_zeitgeist_moment_handlers()
-    return captured
+    monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", lambda **kwargs: captured.append(kwargs))
+    events_mod.reset_runtime_emitter_factory()
+    yield captured
+    events_mod.reset_runtime_emitter_factory()
 
 
 def test_real_bridge_walk_publishes_all_six_runtime_moments_with_journal_identity(

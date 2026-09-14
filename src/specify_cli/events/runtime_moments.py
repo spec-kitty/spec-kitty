@@ -6,7 +6,7 @@ obtained from ``runtime_emitter_for_mission``. This producer is what that seam
 returns in a normal CLI process: it publishes the six ``mission_next`` runtime
 moments (run started/completed, step issued/auto-completed, decision input
 requested/answered) through the existing bounded lifecycle fan-out
-(``status.adapters.fire_lifecycle_saas_fanout`` -> the Zeitgeist moment
+(``specify_cli.status.fire_lifecycle_saas_fanout`` -> the Zeitgeist moment
 handler), exactly the path decision and mission-lifecycle moments already take.
 
 Identity and time come from the journal, never from this process:
@@ -216,7 +216,7 @@ class RuntimeMomentProducer:
             logger.warning("Runtime moment %s not published: not journalled in %s", event_type, journal)
             return
 
-        from specify_cli.status import adapters  # noqa: PLC0415 -- the status seam registers this producer
+        from specify_cli.status import fire_lifecycle_saas_fanout  # noqa: PLC0415 -- the status facade's hosted fan-out seam
 
         envelope = {
             "event_id": moment_event_id(run_id, record, event_type),
@@ -225,7 +225,7 @@ class RuntimeMomentProducer:
             "timestamp": record.timestamp,
             "payload": self._with_mission_identity(payload_dict),
         }
-        adapters.fire_lifecycle_saas_fanout(envelope=envelope, log_path=journal)
+        fire_lifecycle_saas_fanout(envelope=envelope, log_path=journal)
 
     def _with_mission_identity(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Stamp the mission's slug and ULID into the published payload where the engine left them empty."""

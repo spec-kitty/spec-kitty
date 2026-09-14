@@ -214,11 +214,18 @@ def ensure_zeitgeist_moment_handlers() -> None:
     register_saas_fanout_handler(saas_moment_handler)
     register_lifecycle_saas_fanout_handler(lifecycle_moment_handler)
     register_resolved_binding_fanout_handler(resolved_binding_moment_handler)
-    # E3 (#3929): the runtime-moment producer publishes through the lifecycle
-    # slot above, so it rides the same gate and the same restore hook. The
-    # registry is idempotent by qualified name. Imported here, not at module
-    # top, so the status package never imports the runtime seam while it is
-    # still initialising.
+
+
+def ensure_runtime_moment_producer() -> None:
+    """Register the E3 runtime-moment producer at the runtime emitter seam (#3929).
+
+    Called by the runtime bridge immediately before it obtains the seam, never
+    from this module's import tail: importing the runtime seam while the status
+    package is still importing re-enters ``runtime.next`` mid-import. The
+    registry is idempotent by qualified name, and the seam itself applies the
+    moment-handler gate at call time (S2). The producer publishes through the
+    lifecycle slot above.
+    """
     from runtime.next._internal_runtime.events import register_runtime_emitter_factory  # noqa: PLC0415
     from specify_cli.events.runtime_moments import RuntimeMomentProducer  # noqa: PLC0415
 

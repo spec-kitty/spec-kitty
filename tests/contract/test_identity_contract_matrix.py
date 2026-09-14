@@ -144,7 +144,6 @@ def _build_runtime_moment_envelope() -> dict[str, Any]:
     from spec_kitty_events.mission_next import MissionRunStartedPayload, RuntimeActorIdentity
 
     from specify_cli.events.runtime_moments import RuntimeMomentProducer
-    from specify_cli.status import adapters
 
     run_id = "0123456789abcdef0123456789abcdef"
     payload = MissionRunStartedPayload(
@@ -155,7 +154,7 @@ def _build_runtime_moment_envelope() -> dict[str, Any]:
     published: list[dict[str, Any]] = []
     with (
         tempfile.TemporaryDirectory() as tmp,
-        patch.object(adapters, "fire_lifecycle_saas_fanout", side_effect=lambda **kwargs: published.append(kwargs)),
+        patch("specify_cli.status.fire_lifecycle_saas_fanout", side_effect=lambda **kwargs: published.append(kwargs)),
     ):
         root = Path(tmp)
         feature_dir = root / "kitty-specs" / MISSION_SLUG

@@ -193,13 +193,13 @@ class NullEmitter:
 # :class:`NullEmitter`, so the bridge's instrumentation points survive intact.
 #
 # The live producer (#3929) is
-# ``specify_cli.events.runtime_moments.RuntimeMomentProducer``. It is
-# registered by ``specify_cli.status.adapters.ensure_zeitgeist_moment_handlers``
-# under the moment-handler gate (#3980: ``SPEC_KITTY_NO_MOMENT_HANDLERS``, the
-# kill switch, or the deprecated ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` alias) and
-# publishes each moment through that module's lifecycle fan-out slot. The
-# status package loads before the bridge first calls
-# :func:`runtime_emitter_for_mission`, so a normal CLI process always has it.
+# ``specify_cli.events.runtime_moments.RuntimeMomentProducer``. The runtime
+# bridge registers it through ``specify_cli.status.ensure_runtime_moment_producer``
+# immediately before each call to :func:`runtime_emitter_for_mission`, so every
+# ``next`` decide/answer path has it. Registration never happens while
+# ``specify_cli.status`` is importing, which would re-enter ``runtime.next``
+# mid-import. The moment-handler gate (#3980) still disarms the seam at call
+# time (S2); the producer publishes through the status lifecycle fan-out slot.
 #
 # Governing ADR: ``docs/adr/3.x/2026-09-06-2-runtime-event-emitter-disposition.md``.
 

@@ -51,7 +51,7 @@ _BRIDGE_BYPASS_NEEDLES = ("flush(ctx.sync_emitter)", "sync_emitter=ctx.sync_emit
 # which is merged and closed; it is not a standing ban on ever wiring a
 # producer. Wiring one is exactly what E3 (spec-kitty#3929) is for. E3 took
 # that exit: the one planned production registration site is the status
-# seam's ``ensure_zeitgeist_moment_handlers``, which registers
+# seam's ``ensure_runtime_moment_producer`` (called by the runtime bridge), which registers
 # ``specify_cli.events.runtime_moments.RuntimeMomentProducer``. The gate stays
 # and still catches an *unplanned* third site.
 _PLANNED_PRODUCER_REGISTRATION_SITE = "src/specify_cli/status/adapters.py"

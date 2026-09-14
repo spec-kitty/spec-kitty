@@ -104,7 +104,7 @@ def _stamped(payload: BaseModel, **identity: str) -> dict[str, Any]:
 @pytest.fixture
 def published(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
     captured: list[dict[str, Any]] = []
-    monkeypatch.setattr(adapters, "fire_lifecycle_saas_fanout", lambda **kwargs: captured.append(kwargs))
+    monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", lambda **kwargs: captured.append(kwargs))
     return captured
 
 
@@ -321,7 +321,7 @@ def test_a_fanout_failure_never_raises_into_the_runtime(tmp_path: Path, monkeypa
     def explode(**_kwargs: Any) -> None:
         raise RuntimeError("relay unreachable")
 
-    monkeypatch.setattr(adapters, "fire_lifecycle_saas_fanout", explode)
+    monkeypatch.setattr("specify_cli.status.fire_lifecycle_saas_fanout", explode)
 
     with caplog.at_level(logging.WARNING, logger=PRODUCER_LOGGER):
         _emit(_producer(feature_dir), "DecisionInputAnswered", payload)
@@ -365,16 +365,15 @@ def test_every_envelope_projects_through_the_released_codec_without_decision_pro
 def production_wiring() -> Iterator[None]:
     events_mod.reset_runtime_emitter_factory()
     try:
-        adapters.ensure_zeitgeist_moment_handlers()
+        adapters.ensure_runtime_moment_producer()
         yield
     finally:
         events_mod.reset_runtime_emitter_factory()
-        adapters.ensure_zeitgeist_moment_handlers()
 
 
 @pytest.mark.usefixtures("production_wiring")
 def test_the_status_seam_registers_the_producer(tmp_path: Path) -> None:
-    adapters.ensure_zeitgeist_moment_handlers()  # idempotent re-registration must not raise
+    adapters.ensure_runtime_moment_producer()  # idempotent re-registration must not raise
 
     product = events_mod.runtime_emitter_for_mission(feature_dir=tmp_path, mission_slug=SLUG, mission_type="software-dev")
 
@@ -396,3 +395,16 @@ def test_idempotent_reregistration_is_logged_at_debug(caplog: pytest.LogCaptureF
         events_mod.register_runtime_emitter_factory(RuntimeMomentProducer.for_mission)
 
     assert "rebinding" in caplog.text
+
+
+def test_moment_handler_wiring_never_registers_the_runtime_producer(tmp_path: Path) -> None:
+    """The status import-tail wiring must not touch the runtime seam: that re-enters ``runtime.next`` mid-import."""
+    events_mod.reset_runtime_emitter_factory()
+    try:
+        adapters.ensure_zeitgeist_moment_handlers()
+
+        product = events_mod.runtime_emitter_for_mission(feature_dir=tmp_path, mission_slug=SLUG, mission_type="software-dev")
+
+        assert isinstance(product, NullEmitter)
+    finally:
+        events_mod.reset_runtime_emitter_factory()
