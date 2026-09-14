@@ -40,7 +40,12 @@ constituents:
   kind: agent_profile
   path: agent_profiles/doctrine-daphne.agent.yaml
   provenance_path:
-- content_hash: 3d437f143eac5062673f67cd5b2f0e1ff61114cab12af342f5a26127b9b36c70
+- content_hash: 8c0b881d0eb162cf5c56ceefc5fdfe27a3da5472cfef1212564bb63be800d6b4
+  id: drupalling-dries
+  kind: agent_profile
+  path: agent_profiles/drupalling-dries.agent.yaml
+  provenance_path:
+- content_hash: ce8b6db203f61796c8ffaf4384274de996fe2a5d14a387ac106f31de50e7120b
   id: frontend-freddy
   kind: agent_profile
   path: agent_profiles/frontend-freddy.agent.yaml
@@ -70,10 +75,10 @@ constituents:
   kind: agent_profile
   path: agent_profiles/lexical-larry.agent.yaml
   provenance_path:
-- content_hash: 7247e61f9768e6d0f9ea8936aeaeff152600e6e5d0902545894de156598298ca
-  id: minutes-mahad
+- content_hash: b7a1b0305d1fdfa826a3d1fb2d8d0c37022ddb3fba0c62c89bd0dde78ead98f9
+  id: minutes-maker-mahad
   kind: agent_profile
-  path: agent_profiles/minutes-mahad.agent.yaml
+  path: agent_profiles/minutes-maker-mahad.agent.yaml
   provenance_path:
 - content_hash: 8bc673d323d963598b30e46d941d4cbe3151de4d509445d945b63e2a9c9cf674
   id: node-norris
@@ -115,7 +120,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/reviewer-renata.agent.yaml
   provenance_path:
-- content_hash: 6600c3d6ff7c1cfa57abc5bd03a94bd93154408dbd59d8a52f124361728bba5c
+- content_hash: 351cc3f66935bc681e347e89ead3d7bce80912a176311d6bd2ba0ca85da22d63
   id: scribe-sally
   kind: agent_profile
   path: agent_profiles/scribe-sally.agent.yaml
@@ -154,11 +159,6 @@ constituents:
   id: writing-audience-software-engineer
   kind: asset
   path: assets/audiences/software_engineer.md.asset.yaml
-  provenance_path:
-- content_hash: 84c4ab29c0f4698f82a498019ae85db8467de1794e1090aae98493056ef97f46
-  id: ACTION_ITEM_ATTRIBUTION
-  kind: directive
-  path: directives/action-item-attribution.directive.yaml
   provenance_path:
 - content_hash: 2c2ec1ba0cd88ed33d23f64d8cd1ccf334b398d3611cde4687b333fc8cdeb37d
   id: DIRECTIVE_001
@@ -200,7 +200,7 @@ constituents:
   kind: directive
   path: directives/029-agent-commit-signing-policy.directive.yaml
   provenance_path:
-- content_hash: 67723c0e9e5a23668beb7fe752bd0c0d10cc4f9eff1b57105dba3c398111cba2
+- content_hash: 3d1bc2ca6b40ec438fe921d094872bcd1fdfc6090f809ca7b51b99a804f2756a
   id: DIRECTIVE_030
   kind: directive
   path: directives/030-test-and-typecheck-quality-gate.directive.yaml
@@ -315,11 +315,6 @@ constituents:
   kind: directive
   path: directives/disciplined-refactoring.directive.yaml
   provenance_path:
-- content_hash: 1cb1aea113574fc23e46ffaccd3889992bc132bdaa6d2ea42f5b0b7ac01cfcee
-  id: MINUTES_STAND_ALONE
-  kind: directive
-  path: directives/minutes-stand-alone.directive.yaml
-  provenance_path:
 - content_hash: 2e57008e1fb6f1e46a3833193c5d0ea0a7951df640727444933b3d93a04c08e1
   id: RECONCILE_CHANGE_SCOPE_TENSIONS
   kind: directive
@@ -335,7 +330,7 @@ constituents:
   kind: directive
   path: directives/use-mutation-testing-to-validate-test-quality.directive.yaml
   provenance_path:
-- content_hash: 44da909ebe77d5078b64b0baf833b6ce035c9a1f47477c225cf2176497d3e6e0
+- content_hash: 98c2becf0671ad92ce09f96954e8fdedebd6ad43e4d66887e7c8c3dbc3476e3d
   id: spec-kitty-core
   kind: glossary_pack
   path: glossary_packs/spec-kitty-core.glossary-pack.yaml
@@ -350,7 +345,7 @@ constituents:
   kind: paradigm
   path: paradigms/behaviour-driven-development.paradigm.yaml
   provenance_path:
-- content_hash: adc5a511f94cafbd151b226b0bfbf018d448e7ce0f2ccbab54f534bb3b4e17be
+- content_hash: 5532f2e5dedfff125793cfcee34af676326baf5bc58eca45e84c89662da21595
   id: brownfield-onboarding
   kind: paradigm
   path: paradigms/brownfield-onboarding.paradigm.yaml
@@ -374,11 +369,6 @@ constituents:
   id: execution-lanes
   kind: paradigm
   path: paradigms/execution-lanes.paradigm.yaml
-  provenance_path:
-- content_hash: 3dee3c84917ce5d39364266e58ec91382906dcb3bc104631733e878f71df947b
-  id: extract-then-publish-separation
-  kind: paradigm
-  path: paradigms/extract-then-publish-separation.paradigm.yaml
   provenance_path:
 - content_hash: 7937c5112717b74d604e49900bcde93d6c1a0c8b75e0458f895aafcef04eadde
   id: git-flow
@@ -470,7 +460,7 @@ constituents:
   kind: procedure
   path: procedures/legacy-codebase-triage.procedure.yaml
   provenance_path:
-- content_hash: 9041996ad7a0ddcfaaa96b0ee5550b596b59c3fe026f426cd224e396e933a911
+- content_hash: b066e6d551159550ac3cb406c53e15cdccfbe1bcd97f93586097aa63c6ea5d01
   id: meeting-minutes-pipeline
   kind: procedure
   path: procedures/meeting-minutes-pipeline.procedure.yaml
@@ -565,6 +555,16 @@ constituents:
   kind: styleguide
   path: styleguides/docs-freshness-sla.styleguide.yaml
   provenance_path:
+- content_hash: 016e10ca3516acf9f650bb454ace7b8e42a7e2ce3eff700f8098a5ca96c54c8a
+  id: drupal-conventions
+  kind: styleguide
+  path: styleguides/drupal-conventions.styleguide.yaml
+  provenance_path:
+- content_hash: 1db68202d17ad4c361d91dbe77eba9a18a94b24c42f9b649224c63a8ef6113dd
+  id: drupal-security-performance
+  kind: styleguide
+  path: styleguides/drupal-security-performance.styleguide.yaml
+  provenance_path:
 - content_hash: 2c4d33afe0277ea862540f391d2fa4f009317a7cfde921ebef1aab1eac22441b
   id: given-when-then-authoring
   kind: styleguide
@@ -580,7 +580,7 @@ constituents:
   kind: styleguide
   path: styleguides/writing/kitty-glossary-writing.styleguide.yaml
   provenance_path:
-- content_hash: 6d00ee418b824b7badce0be89cb7cffd9785b7117561060416bc6fb2db77ffd2
+- content_hash: 748d75e1cd38de2cf412e2d63f8bf8424fd03fcb6c366c47b7baf783473ef3aa
   id: meeting-minutes-format
   kind: styleguide
   path: styleguides/meeting-minutes-format.styleguide.yaml
@@ -785,7 +785,7 @@ constituents:
   kind: tactic
   path: tactics/common-docs-curation.tactic.yaml
   provenance_path:
-- content_hash: 715401c41d95f37d23fc215df5b279bc6d2acd12c81a3cfe41a542da3117cba7
+- content_hash: 7576bef775512ad25a8deda998e57a3011785c457b7929ce1f7519d5ff66197e
   id: common-docs-find
   kind: tactic
   path: tactics/common-docs-find.tactic.yaml
@@ -996,7 +996,7 @@ constituents:
   kind: tactic
   path: tactics/architecture/problem-decomposition.tactic.yaml
   provenance_path:
-- content_hash: 64a7697b41f2bf9cd8f8d3cd5ef81215b2ceb67caa0de9a4ac2f9f618705f963
+- content_hash: 7b89c4f6b573d57128f8dbdff2e68f934457191a547b1bb4cb4df67e81c9781e
   id: quality-gate-verification
   kind: tactic
   path: tactics/testing/quality-gate-verification.tactic.yaml
@@ -1282,6 +1282,11 @@ constituents:
   kind: toolguide
   path: toolguides/contextive.toolguide.yaml
   provenance_path:
+- content_hash: 4860dbbeef3ad3d98458a9168dcd5de184d11a5f52dafb41923fff52b699f33c
+  id: drupal-review-checks
+  kind: toolguide
+  path: toolguides/drupal-review-checks.toolguide.yaml
+  provenance_path:
 - content_hash: 88ed6456f2b9d6ce2b92a36df9440d0a4292c3537d870872c6d09cc6a828453c
   id: efficient-local-tooling
   kind: toolguide
@@ -1355,7 +1360,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 986fa12a8eb6b06dcfaab6e03aee9e0bc80bee2370cddbba2c62780aea60b539
+manifest_hash: da6e09ca054abe2d7b462be30ffd71fd58f15a713845dc75e2af73de778fd21a
 schema_version: '1'
 source_type: built-in
 source_url:
