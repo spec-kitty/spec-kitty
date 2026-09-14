@@ -17,10 +17,14 @@ statically:
 1. Parses every ``pytest`` invocation across the suite-running workflows
    (:data:`WORKFLOW_FILES`), expanding shard matrices when present. An
    invocation counts whether it is directly anchored (``pytest ...``) or
-   reached through an indirection — a ``make`` target or a shell script —
-   which is resolved by reading the Makefile / script itself (mission
-   ``sonar-per-pr-coverage-reuse`` WP03, NFR-007; see the
-   "Indirect suite invocations" section below for why).
+   reached through an indirection — a ``make`` target (the literal spelling or
+   ``$(MAKE)``), a shell script, a ``sh -c '<command>'`` wrapper, a
+   path/runner-prefixed command word (``coverage run -m pytest``,
+   ``.venv/bin/pytest``, ...), or a local composite action spliced in by
+   ``uses: ./.github/actions/<name>`` — each resolved by reading the thing
+   itself (mission ``sonar-per-pr-coverage-reuse`` WP03, NFR-007; the four
+   further forms by #4367; see the "Indirect suite invocations" section below
+   for why).
 2. Models each invocation as a :class:`Gate` = ``(paths, ignores, marker_expr)``.
 3. Evaluates every collected test against every gate, using pytest's own
    marker-expression evaluator, to count how many gates select it.
@@ -216,17 +220,30 @@ def gate_is_always_on_modulo_full_ci_block(
     labels_ok = seen_labels in (frozenset(), label_conjuncts)
     return labels_ok and (has_always or not require_always)
 
+# ``--flag [value]`` tokens a runner may carry between itself and the command
+# word. The optional value is a quoted or bare token that is not the ``pytest``
+# command word itself, so ``uv run --frozen pytest`` and
+# ``coverage run --source src -m pytest`` both keep ``pytest`` as the command.
+_FLAG_TOKENS = (
+    r"(?:\s+--\S+(?:\s+'[^']*'|\s+\"[^\"]*\"|\s+(?!pytest\b)\S+)?)*"
+)
+
 # Runner prefixes that may precede the literal ``pytest`` command token. After
 # stripping leading env-assignments and these, a real pytest *command* segment
 # begins with ``pytest`` — so ``pipx inject ... pytest`` and ``git grep ...
 # pytest`` (where pytest is an argument, not the command) are correctly skipped.
+#
+# ``coverage run`` / ``poetry run`` / ``xvfb-run`` / ``timeout N`` were added by
+# #4367: each is a runner spelling the pre-#4367 table did not strip, so the
+# invocation behind it parsed as "no pytest command here" — and ``coverage run
+# -m pytest`` is the obvious spelling for a job whose whole purpose is coverage.
 _PREFIX_RE = re.compile(
     r"^(?:"
     # ``uv run [--with '...'] [--frozen]`` — the optional flag ARGUMENT must
     # not be allowed to swallow the ``pytest`` command word itself, or
     # ``uv run --frozen pytest tests/...`` (the Makefile's own form) parses as
     # "no pytest command here" and the whole invocation goes unseen.
-    r"uv\s+run(?:\s+--\S+(?:\s+'[^']*'|\s+\"[^\"]*\"|\s+(?!pytest\b)\S+)?)*"
+    r"uv\s+run" + _FLAG_TOKENS +
     # ``env [-i] [-u NAME]... [NAME=value]...`` — the form the Makefile's own
     # recipes use (``env -u FORCE_COLOR NO_COLOR=1 ... uv run pytest``). Only
     # these three token shapes are consumed, so ``env`` can never swallow the
@@ -234,10 +251,29 @@ _PREFIX_RE = re.compile(
     r"|env(?:\s+-i\b|\s+-u\s+[A-Za-z_]\w*|\s+[A-Za-z_]\w*=(?:'[^']*'|\"[^\"]*\"|\S+))*"
     r"|python\d?(?:\s+-m)?"
     r"|\"?\$?\{?[A-Za-z_]\w*\}?\"?\s+-m"  # "$VENV_PYTHON" -m / $VAR -m
+    # A venv/absolute-path interpreter — ``.venv/bin/python -m pytest``,
+    # ``"/usr/bin/python3" -m pytest`` — the path spelling of the ``python -m``
+    # alternative above, same #4367 class as ``.venv/bin/pytest``.
+    r"|\"?(?:[\w@.~+-]*/)+python\d?\"?(?:\s+-m)?"
     r"|pipx\s+run"
     r"|-m"
+    # #4367 runner spellings: a coverage runner, the poetry-family runners, and
+    # the X-virtual-frame-buffer / coreutils wrappers that legitimately precede
+    # the command word. ``timeout`` consumes its mandatory DURATION argument.
+    r"|coverage\s+run" + _FLAG_TOKENS +
+    r"|(?:poetry|pdm|hatch|pipenv)\s+run" + _FLAG_TOKENS +
+    r"|xvfb-run(?:\s+-\S+)*"
+    r"|timeout\s+\d+(?:\.\d+)?[a-zA-Z]?(?:\s+-\S+)*"
     r")\s+",
 )
+
+# ``<path>/pytest`` — the command word spelled as a path (``.venv/bin/pytest``,
+# ``./pytest``, ``/usr/bin/pytest``), #4367's fifth runner spelling. There is no
+# whitespace between prefix and command word, so it cannot ride the ``_PREFIX_RE
+# + \s+`` shape; it is stripped separately, inside the same loop. The lookahead
+# ends the word right after ``pytest``, so ``src/pytest.ini`` and
+# ``scripts/pytest-runner`` never parse as commands.
+_PATH_PYTEST_RE = re.compile(r"^(?:[\w@.~+-]*/)+(?=pytest(?![\w.\-]))")
 
 
 @dataclass
@@ -316,7 +352,13 @@ def join_continuations(script: str) -> list[str]:
 
 
 def strip_to_command(segment: str) -> str:
-    """Strip env-assignments and runner prefixes; stop at the ``pytest`` token."""
+    """Strip env-assignments and runner prefixes; stop at the ``pytest`` token.
+
+    A ``<path>/pytest`` spelling (``.venv/bin/pytest``) is stripped by
+    :data:`_PATH_PYTEST_RE` in the same loop — there is no whitespace between
+    the path and the command word, so it cannot ride the whitespace-terminated
+    runner prefixes.
+    """
     s = segment.strip()
     while True:
         m = _ENV_ASSIGN_RE.match(s)
@@ -325,9 +367,13 @@ def strip_to_command(segment: str) -> str:
         s = s[m.end() :]
     while not _PYTEST_HEAD_RE.match(s):
         m = _PREFIX_RE.match(s)
-        if not m:
+        p = _PATH_PYTEST_RE.match(s)
+        if m:
+            s = s[m.end() :]
+        elif p:
+            s = s[p.end() :]
+        else:
             break
-        s = s[m.end() :]
     return s
 
 
@@ -426,6 +472,31 @@ _SCRIPT_CALL_RE = re.compile(
 )
 _VIA_MAKE = "make {target}"
 _VIA_SCRIPT = "script {path}"
+_VIA_ACTION = "action {name}"
+
+# ``bash -c '<command>'`` / ``sh -ec "<command>"`` (#4367 form 3): the whole
+# command handed to a shell as ONE quoted payload. Any ``-[letters]c`` option
+# token (bare ``-c``, combined ``-ec``, or a run of plain flags before a final
+# ``-c``) is accepted; the payload is the single quoted string, and trailing
+# arguments after it (``sh -c 'cmd' name arg``) are ignored — they are $0/$1,
+# not commands. Trailing content containing a shell operator (``bash -c 'x' &&
+# make test-fast``) does NOT match: the wrapper is then one segment of a larger
+# line, and claiming the whole line would swallow the sibling command.
+_SHELL_C_RE = re.compile(
+    r"^(?:ba|da|k|z)?sh\s+(?:-[A-Za-z]+\s+)*(?:-[A-Za-z]*c\b\s+)"
+    r"(?P<q>['\"])(?P<payload>.*)(?P=q)(?:\s+[^;&|]*)?$",
+)
+
+
+def _shell_c_payload(command: str) -> str | None:
+    """The quoted payload of a whole ``sh -c '<command>'`` wrapper, if any.
+
+    ``None`` for anything else — a partial match (no closing quote) returns
+    ``None`` rather than a truncated payload, so a wrapper torn apart by the
+    shell-segment splitter is simply not unwrapped.
+    """
+    match = _SHELL_C_RE.match(command)
+    return match.group("payload") if match else None
 
 
 @dataclass(frozen=True)
@@ -504,7 +575,14 @@ def parse_makefile(path: Path) -> MakefileModel:
     it of the real file, so a target rename or a variable indirection cannot
     hide the invocation.
     """
-    variables: dict[str, str] = {}
+    # GNU make built-ins: ``$(MAKE)``/``${MAKE}`` is the canonical sub-make
+    # spelling, and an unset table expands it to EMPTY — silently dropping the
+    # delegation hop (the docstring's "one more hop of indirection is not an
+    # escape hatch" claim, which #4367 found the code did not honour). Seeded
+    # with the literal ``make`` so ``$(MAKE) <target>`` resolves exactly like a
+    # literal ``make <target>``; a rare explicit ``MAKE =`` assignment still
+    # overrides it, as in real make.
+    variables: dict[str, str] = {"MAKE": _MAKE_COMMAND}
     recipes: dict[str, list[str]] = {}
     prerequisites: dict[str, tuple[str, ...]] = {}
     current: list[str] = []
@@ -576,9 +654,12 @@ def makefile_target_invocations(
 ) -> list[SuiteInvocation]:
     """Every pytest invocation reachable from *target* (prerequisites included).
 
-    Prerequisites and recipe-level ``make <other>`` delegation are followed so
-    that inserting one more hop of indirection is not an escape hatch; *seen*
-    keeps a cyclic Makefile from recursing forever.
+    Prerequisites and recipe-level ``make <other>`` delegation — the literal
+    spelling and the idiomatic ``$(MAKE) <other>`` alike (``MAKE`` is seeded in
+    the variable table, #4367 form 2) — are followed so that inserting one more
+    hop of indirection is not an escape hatch; *seen* keeps a cyclic Makefile
+    from recursing forever. A whole-recipe ``sh -c '<command>'`` wrapper is
+    unwrapped once before the command is read.
     """
     if target in seen:
         return []
@@ -588,6 +669,9 @@ def makefile_target_invocations(
         found.extend(makefile_target_invocations(prerequisite, model, reached))
     for raw in model.recipes.get(target, ()):
         line = _RECIPE_PREFIX_RE.sub("", expand_make_value(raw, model.variables).strip())
+        payload = _shell_c_payload(line)
+        if payload is not None:
+            line = payload
         direct = parse_pytest_invocation(line)
         if direct is not None:
             found.append(_as_invocation(direct, via=_VIA_MAKE.format(target=target)))
@@ -676,16 +760,37 @@ def suite_invocations(
 
     A directly-anchored ``pytest`` command wins outright; otherwise each shell
     segment is checked for a make target or an in-repo script that reaches the
-    suite. Returns ``[]`` for a line that runs no tests — ``make lint`` is not
-    a suite invocation, and the companion negative control pins that.
+    suite. A whole-line ``sh -c '<command>'`` wrapper (#4367 form 3) is
+    unwrapped BEFORE the segment split — a payload containing ``&&``/``;``
+    must be resolved as one command, not torn apart mid-quote — and a wrapper
+    occupying a single segment (``x && bash -c '...'``) is unwrapped inside
+    the loop. Returns ``[]`` for a line that runs no tests — ``make lint`` is
+    not a suite invocation, and the companion negative control pins that.
     """
     direct = parse_pytest_invocation(logical_line)
     if direct is not None:
         return [_as_invocation(direct, via=None)]
     root = repo_root if repo_root is not None else REPO_ROOT
+    payload = _shell_c_payload(strip_to_command(logical_line))
+    if payload is not None:
+        # The whole line IS the wrapper: nothing else on it can run anything.
+        return suite_invocations(
+            payload, makefile=makefile, repo_root=root, _scripts_seen=_scripts_seen,
+        )
     found: list[SuiteInvocation] = []
     for segment in _SEGMENT_SPLIT_RE.split(logical_line):
         command = strip_to_command(segment).strip()
+        segment_payload = _shell_c_payload(command)
+        if segment_payload is not None:
+            found.extend(
+                suite_invocations(
+                    segment_payload,
+                    makefile=makefile,
+                    repo_root=root,
+                    _scripts_seen=_scripts_seen,
+                ),
+            )
+            continue
         found.extend(_make_indirection(command, makefile))
         found.extend(
             _script_indirection(
@@ -708,6 +813,11 @@ def parse_workflow(path: Path, *, makefile: Path | None = None) -> list[Gate]:
     for job_name, job, step in _iter_run_steps(data):
         includes = _matrix_includes(job)
         variants: Sequence[dict[str, Any] | None] = includes or (None,)
+        # A step spliced in from a local composite action carries the action's
+        # name (#4367 form 1); a gate it yields is attributed to the action
+        # unless a deeper indirection (a make target, a script) already names
+        # itself.
+        action_name = step.get(_SPLICED_ACTION_KEY)
         for mvars in variants:
             script = substitute_matrix(step["run"], mvars or {})
             for logical in join_continuations(script):
@@ -720,7 +830,12 @@ def parse_workflow(path: Path, *, makefile: Path | None = None) -> list[Gate]:
                             paths=list(invocation.paths),
                             ignores=list(invocation.ignores),
                             marker_expr=invocation.marker_expr,
-                            via=invocation.via,
+                            via=invocation.via
+                            or (
+                                _VIA_ACTION.format(name=action_name)
+                                if action_name
+                                else None
+                            ),
                         ),
                     )
     return gates
@@ -984,6 +1099,13 @@ def _job_if_scalar(job: dict[str, Any]) -> str | bool | None:
 
 
 _LOCAL_REUSABLE_PREFIX = "./.github/workflows/"
+_LOCAL_ACTION_PREFIX = "./.github/actions/"
+# A local composite action's definition file, by either accepted spelling.
+_ACTION_FILE_NAMES: tuple[str, ...] = ("action.yml", "action.yaml")
+# Marker a spliced-in composite-action step carries so :func:`parse_workflow`
+# can attribute its gates to the action (``via="action <name>"``). Private to
+# this module: no consumer of the spliced workflow data reads it.
+_SPLICED_ACTION_KEY = "_sk_from_action"
 
 
 def _job_uses_local(job: dict[str, Any]) -> str | None:
@@ -1000,8 +1122,68 @@ def _job_uses_local(job: dict[str, Any]) -> str | None:
     return None
 
 
+def _composite_action_path(uses: str, actions_dir: Path) -> Path | None:
+    """The local composite-action definition file a step ``uses:`` ref names.
+
+    Only ``./.github/actions/<name>`` refs resolve (#4367 form 1); an external
+    ``org/repo/...@ref`` ref returns ``None`` because its steps are not in this
+    repository. ``<name>`` may be nested (``./.github/actions/a/b``) and is
+    stripped of any ``@ref`` suffix, which local action refs never carry but
+    which would otherwise become a directory name.
+    """
+    name = uses[len(_LOCAL_ACTION_PREFIX) :].split("@", 1)[0].strip("/")
+    if not name:
+        return None
+    for file_name in _ACTION_FILE_NAMES:
+        candidate = actions_dir / name / file_name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _splice_step_level_actions(
+    steps: Sequence[Any],
+    actions_dir: Path,
+    seen: frozenset[Path],
+) -> list[Any]:
+    """Replace local composite-action ``uses:`` steps with the action's steps.
+
+    GitHub splices ``uses: ./.github/actions/<name>`` into the calling job at
+    that point, so the model does the same (#4367 form 1): the ``uses`` step is
+    replaced by the action's own ``runs.steps``, each tagged with
+    :data:`_SPLICED_ACTION_KEY` for provenance. Nested local actions resolve
+    recursively; *seen* keeps a cyclic action graph from recursing forever.
+    Non-local ``uses:`` refs (``actions/checkout``, ``docker://``) are kept
+    as-is — they carry no ``run:`` script this model could read.
+    """
+    spliced: list[Any] = []
+    for step in steps:
+        uses = step.get("uses") if isinstance(step, dict) else None
+        action_path = (
+            _composite_action_path(uses, actions_dir)
+            if isinstance(uses, str) and uses.startswith(_LOCAL_ACTION_PREFIX)
+            else None
+        )
+        if action_path is not None and action_path not in seen:
+            action_data = yaml.safe_load(action_path.read_text(encoding="utf-8")) or {}
+            inner = (action_data.get("runs") or {}).get("steps")
+            if isinstance(inner, list):
+                for inner_step in _splice_step_level_actions(
+                    inner, actions_dir, seen | {action_path},
+                ):
+                    tagged = dict(inner_step) if isinstance(inner_step, dict) else inner_step
+                    if isinstance(tagged, dict):
+                        # Keep an inner (nested) action's own tag: it names the
+                        # action whose step this actually is.
+                        tagged.setdefault(_SPLICED_ACTION_KEY, action_path.parent.name)
+                    spliced.append(tagged)
+                continue
+        spliced.append(step)
+    return spliced
+
+
 def _splice_local_uses(data: dict[str, Any], workflows_dir: Path) -> dict[str, Any]:
-    """Inline a local ``uses:`` caller job's delegate steps (mission #3447).
+    """Inline local ``uses:`` delegation — workflows AND composite actions.
 
     A reusable-workflow caller job (``uses: ./.github/workflows/<file>``) carries
     no ``steps:`` of its own — its ``--cov`` emitters, test paths and markers
@@ -1013,31 +1195,46 @@ def _splice_local_uses(data: dict[str, Any], workflows_dir: Path) -> dict[str, A
     :func:`discover_pytest_workflows` and absent from :data:`WORKFLOW_FILES` —
     which avoids double-counting its gate. One level is resolved (module
     workflows are single-purpose, non-nested — enforced below).
+
+    Step-level ``uses: ./.github/actions/<name>`` composite actions are spliced
+    by :func:`_splice_step_level_actions` in the same pass (#4367 form 1):
+    before it, a ``run:`` step added to ``.github/actions/<name>/action.yml``
+    was invisible to every invariant built on this model — and this repository
+    already wires one (``warmup``) into its test job. Both the caller job's own
+    steps and the merged reusable-workflow delegate steps are action-spliced,
+    so an action referenced from a reusable workflow is seen too.
     """
     jobs = data.get("jobs")
     if not isinstance(jobs, dict):
         return data
+    actions_dir = workflows_dir.parent / "actions"
     spliced: dict[str, Any] = {}
     for name, job in jobs.items():
-        called = _job_uses_local(job) if isinstance(job, dict) else None
-        target_path = workflows_dir / called if called else None
-        if target_path is None or not target_path.exists():
+        if not isinstance(job, dict):
             spliced[name] = job
             continue
-        target = yaml.safe_load(target_path.read_text(encoding="utf-8")) or {}
-        target_jobs = target.get("jobs") or {}
-        # Single-purpose assumption made load-bearing: flattening multiple
-        # delegate jobs into one caller key would conflate their markers/coverage.
-        assert len(target_jobs) == 1, (
-            f"reusable workflow {called} must define exactly one job to splice "
-            f"into caller {name!r}; found {sorted(target_jobs)}"
+        called = _job_uses_local(job)
+        target_path = workflows_dir / called if called else None
+        if target_path is None or not target_path.exists():
+            merged = dict(job)
+        else:
+            target = yaml.safe_load(target_path.read_text(encoding="utf-8")) or {}
+            target_jobs = target.get("jobs") or {}
+            # Single-purpose assumption made load-bearing: flattening multiple
+            # delegate jobs into one caller key would conflate their markers/coverage.
+            assert len(target_jobs) == 1, (
+                f"reusable workflow {called} must define exactly one job to splice "
+                f"into caller {name!r}; found {sorted(target_jobs)}"
+            )
+            delegate_steps: list[Any] = []
+            for delegate_job in target_jobs.values():
+                if isinstance(delegate_job, dict):
+                    delegate_steps.extend(delegate_job.get("steps") or [])
+            merged = dict(job)
+            merged["steps"] = list(job.get("steps") or []) + delegate_steps
+        merged["steps"] = _splice_step_level_actions(
+            list(merged.get("steps") or []), actions_dir, frozenset(),
         )
-        delegate_steps: list[Any] = []
-        for delegate_job in target_jobs.values():
-            if isinstance(delegate_job, dict):
-                delegate_steps.extend(delegate_job.get("steps") or [])
-        merged = dict(job)
-        merged["steps"] = list(job.get("steps") or []) + delegate_steps
         spliced[name] = merged
     resolved = dict(data)
     resolved["jobs"] = spliced
@@ -1045,12 +1242,14 @@ def _splice_local_uses(data: dict[str, Any], workflows_dir: Path) -> dict[str, A
 
 
 def load_spliced_workflow(path: Path) -> dict[str, Any]:
-    """Parse a workflow file with local ``uses:`` delegation resolved (#3447).
+    """Parse a workflow file with local ``uses:`` delegation resolved (#3447, #4367).
 
     EVERY reader of a workflow that may contain reusable-workflow caller jobs
-    must load through this — not a raw ``yaml.safe_load`` — so a ``uses:`` caller
-    job is seen with its delegate's steps inlined. Raw readers that bypass this
-    see the caller with no ``steps:`` and mis-model it (missing timeouts,
+    or composite-action steps must load through this — not a raw
+    ``yaml.safe_load`` — so a ``uses:`` caller job is seen with its delegate's
+    steps inlined, and a step-level ``uses: ./.github/actions/<name>`` is seen
+    with the action's steps inlined. Raw readers that bypass this see the
+    caller with no ``steps:`` and mis-model it (missing timeouts,
     ``KeyError: 'steps'``, dropped gates).
     """
     return _splice_local_uses(

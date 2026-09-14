@@ -118,11 +118,11 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        97,
-        380,
-        382,
-        388,
-        761
+        101,
+        426,
+        428,
+        434,
+        874
       ],
       "dependency": true,
       "disposition": "rewrite",
@@ -137,7 +137,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        124
+        128
       ],
       "dependency": true,
       "disposition": "rewrite",
@@ -152,7 +152,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        1849
+        2046
       ],
       "dependency": true,
       "disposition": "none",
@@ -337,33 +337,19 @@
         "retiring-job",
         "retiring-step"
       ],
-      "form": "docstring-or-comment",
+      "form": "set-equality",
       "lines": [
-        251,
-        252,
-        265,
-        272,
-        273,
-        1431
+        267,
+        268,
+        281,
+        288,
+        289,
+        1348,
+        1668
       ],
       "dependency": true,
       "disposition": "rewrite",
       "reason": "The WP06 FLIP SEAM banner and the KNOWN_LIVE_DUPLICATES commentary described the dict as 'deliberately NOT empty yet'. Rewritten to record the executed flip: what the single row was, why it went, and where the rule's non-vacuity evidence now lives (the six mutations, four of them against a real workflow file derived from the live tree)."
-    },
-    {
-      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::BLIND_WRAPPER_WORKFLOW",
-      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
-      "scope": "BLIND_WRAPPER_WORKFLOW",
-      "subjects": [
-        "retiring-step"
-      ],
-      "form": "synthetic-fixture",
-      "lines": [
-        571
-      ],
-      "dependency": false,
-      "disposition": "none",
-      "reason": "Synthetic fixture body: the subject literal is INPUT to a parser, not a claim about the live tree. WP04 built these deliberately so the battery's mutations keep a substrate after the retirement; they are unaffected by it."
     },
     {
       "rule": "tests/architectural/test_no_duplicate_suite_execution.py::CI_QUALITY_NAME",
@@ -374,7 +360,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        131
+        147
       ],
       "dependency": true,
       "disposition": "none",
@@ -389,8 +375,8 @@
       ],
       "form": "synthetic-fixture",
       "lines": [
-        1544,
-        1553
+        1781,
+        1790
       ],
       "dependency": false,
       "disposition": "none",
@@ -405,7 +391,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        501
+        503
       ],
       "dependency": true,
       "disposition": "none",
@@ -420,8 +406,8 @@
       ],
       "form": "synthetic-fixture",
       "lines": [
-        1514,
-        1524
+        1751,
+        1761
       ],
       "dependency": false,
       "disposition": "none",
@@ -436,7 +422,7 @@
       ],
       "form": "synthetic-fixture",
       "lines": [
-        485
+        487
       ],
       "dependency": false,
       "disposition": "none",
@@ -451,7 +437,7 @@
       ],
       "form": "set-equality",
       "lines": [
-        132
+        148
       ],
       "dependency": true,
       "disposition": "none",
@@ -466,11 +452,26 @@
       ],
       "form": "derived-relation",
       "lines": [
-        134
+        150
       ],
       "dependency": true,
       "disposition": "none",
       "reason": "The invocation form mutation 1 asserted (`make test-fast`). Retires with mutation 1, as above; the make TARGET itself survives as the fast tier's entry point."
+    },
+    {
+      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::SHELL_WRAPPER_WORKFLOW",
+      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
+      "scope": "SHELL_WRAPPER_WORKFLOW",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "synthetic-fixture",
+      "lines": [
+        581
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "Synthetic fixture body: the subject literal is INPUT to a parser, not a claim about the live tree. WP04 built these deliberately so the battery's mutations keep a substrate after the retirement; they are unaffected by it."
     },
     {
       "rule": "tests/architectural/test_no_duplicate_suite_execution.py::real_suite_step_host",
@@ -481,11 +482,26 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        708
+        749
       ],
       "dependency": true,
       "disposition": "none",
       "reason": "Derived relation: the mutation host is resolved FROM the live tree, which is why mutations 1-3 keep a real-file substrate after the retirement (re-binding to ci-windows.yml) instead of degrading to fixtures. No literal dependency."
+    },
+    {
+      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::test_faultinjection_shell_dash_c_wrapper_is_resolved",
+      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
+      "scope": "test_faultinjection_shell_dash_c_wrapper_is_resolved",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "exact-string",
+      "lines": [
+        1338
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "Exact-string row over `make test-fast` in the #4367 shell-wrapper fault-injection: the literal is the resolved via-label of the wrapper's fixture payload (the shared fast-tier make target), INPUT to the resolution the test proves -- not a claim about the retired sonarcloud job, which the wrapper never names."
     },
     {
       "rule": "tests/architectural/test_no_duplicate_suite_execution.py::test_mutation2_inlined_suite_command_is_detected",
@@ -496,7 +512,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        992
+        1033
       ],
       "dependency": true,
       "disposition": "none",
@@ -511,7 +527,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        914
+        955
       ],
       "dependency": true,
       "disposition": "none",

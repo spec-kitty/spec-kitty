@@ -504,6 +504,13 @@ DISPOSITIONS: dict[str, tuple[str, str]] = {
         "mutations 1-3 keep a real-file substrate after the retirement (re-binding to "
         "ci-windows.yml) instead of degrading to fixtures. No literal dependency.",
     ),
+    "tests/architectural/test_no_duplicate_suite_execution.py::test_faultinjection_shell_dash_c_wrapper_is_resolved": (
+        "none",
+        "Exact-string row over `make test-fast` in the #4367 shell-wrapper fault-injection: "
+        "the literal is the resolved via-label of the wrapper's fixture payload (the shared "
+        "fast-tier make target), INPUT to the resolution the test proves -- not a claim about "
+        "the retired sonarcloud job, which the wrapper never names.",
+    ),
 }
 
 #: Pre-change rules whose identity does not resolve post-change.

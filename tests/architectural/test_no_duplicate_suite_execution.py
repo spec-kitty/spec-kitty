@@ -50,24 +50,40 @@ here, so this module is self-contained and green; the predicates
 a workflow path and a job name precisely so WP05 can bind them to the real job
 without reshaping anything.
 
-**Known residual gaps (reported, closed by construction, not fixed here).** The
-gate model cannot see three CI-reachable surfaces: ``$(MAKE) <target>`` recipe
-delegation (``MAKE`` is absent from its parsed variable table, so the reference
-expands to empty, while literal ``make <target>`` delegation *is* followed), a
-``bash -c '<command>'`` wrapper, and a local composite action -- GitHub splices
-``uses: ./.github/actions/<name>`` into the calling job, the model splices only
-reusable *workflow* calls, and this repository already wires a composite action
-into its test job. ``_gate_coverage.py``, ``.github/workflows/`` and
-``.github/actions/`` are all outside this work package's ownership, so rather
-than widen the model :func:`blind_surface_offenders` forbids those surfaces from
-carrying a suite execution at all.
+**Former residual gaps -- RESOLVED by widening ``_gate_coverage`` (#4367).**
+WP04 refused four CI-reachable surfaces outright because the model could not
+see them and widening it was outside that work package's ownership.
+spec-kitty#4367 widened the model, and this module now carries a planted
+violation behind each formerly-blind form (the "Former escape hatches"
+section below):
 
-A fourth class is the same shape: the model's runner-prefix table strips
-``uv run``/``env``/``python -m`` but NOT ``coverage run -m pytest``,
-``poetry run pytest``, ``xvfb-run pytest``, ``timeout N pytest`` or
-``.venv/bin/pytest`` -- each parses as "no pytest command here", and the first
-is the obvious spelling for a job whose whole purpose is coverage.
-:func:`blind_runner_offenders` refuses those forms too.
+1. Local composite actions -- ``uses: ./.github/actions/<name>`` steps are
+   spliced into the calling job by ``load_spliced_workflow``, exactly like the
+   reusable-workflow calls it already resolved, with the action's own nested
+   local actions followed too. A suite execution inside one is attributed to
+   the calling job (``via="action <name>"``), so the authorised-count and
+   duplicate assertions see it.
+2. ``$(MAKE) <target>`` recipe delegation -- ``MAKE`` is seeded in the parsed
+   variable table, so the idiomatic sub-make spelling resolves exactly like a
+   literal ``make <target>``.
+3. ``bash -c '<command>'`` wrapping -- the quoted payload is unwrapped at
+   whole-line granularity (before shell-segment splitting, so a payload
+   containing ``&&``/``;`` stays one command) and per segment.
+4. Runner prefixes -- ``coverage run``, the poetry/pdm/hatch/pipenv family,
+   ``xvfb-run``, ``timeout N``, ``.venv/bin/pytest`` and the
+   ``<path>/python -m`` interpreters are stripped, so the invocation behind
+   each parses as the pytest command it is.
+
+The guards that refused those forms are retired with the blindness: what
+replaces them is the same discipline this battery applies everywhere else --
+a fault-injection that a suite execution planted behind the form is
+DETECTED, and a clean negative control that a benign use of the form is not.
+
+A runner class deliberately remains refused, not resolved: ``tox``/``nox``
+(and spellings like ``hatch run test``) delegate to configuration files this
+model does not read -- their pytest invocation lives in ``tox.ini`` /
+``noxfile.py``, not in the workflow line -- so :data:`BLIND_RUNNER_RES` keeps
+refusing a standalone ``pytest`` word behind them.
 
 A fifth surface, command-position indirection (``run: ${{ matrix.cmd }}``, or an
 ``env:`` variable holding the command), is refused rather than enumerated:
@@ -77,18 +93,18 @@ position and any shell variable the workflow itself declares there. It is
 so the indirection only has to stop being the first word to walk through (see
 item 3 below).
 
-Widening ``_gate_coverage`` is the real fix for the first four and is reported
-upstream as spec-kitty#4367; those guards only keep the escape hatches from
-being taken silently in the meantime.
-
 **What remains open, stated plainly.** Three things.
 
 1. :data:`BLIND_RUNNER_RES` is a deny-list, so an unknown runner spelling still
    walks through -- the pre-existing status quo, not a regression. Closing the
    class needs a closed-world rule ("any unresolved standalone ``pytest`` word
    in a change-triggered workflow is refused") plus a shrink-only exception
-   ledger for the prose lines in workflows this work package does not own; that
-   is the right follow-up and is out of scope here.
+   ledger for the prose lines in workflows this module does not own; that
+   is the right follow-up and remains out of scope here. The #4367 widening
+   shrank the blind set -- the canonical ``coverage run`` / ``poetry run`` /
+   ``xvfb-run`` / ``timeout N`` / ``<path>/pytest`` spellings now resolve, so
+   they can no longer trip even this deny-list -- but it did not close the
+   class.
 2. :data:`NON_CHANGE_TRIGGER_EVENTS` is now the only allow-list left in the
    module. Each of its four rows widens the blind spot by one event, which is
    why the exclusion ledger pins which live workflows they actually exclude.
@@ -102,9 +118,9 @@ being taken silently in the meantime.
    longer the first word, and the gate model does not resolve either, so
    :func:`indirect_command_form` returns ``None`` for both. Closing this needs
    the predicate to split a logical line on shell operators (``;``, ``&&``,
-   ``||``, ``|``) and test EACH resulting command word, which is the same
-   widening ``_gate_coverage`` needs for the first four surfaces and is
-   reported with them as spec-kitty#4367. Anchoring is deliberate in the
+   ``||``, ``|``) and test EACH resulting command word -- the #4367 widening
+   resolved the four delegation forms but deliberately did not touch this
+   predicate. Anchoring is deliberate in the
    meantime: an unanchored scan would refuse every workflow line that merely
    *mentions* an expression or a variable, including legitimate arguments.
 """
@@ -286,20 +302,6 @@ AUTHORIZED_PER_CHANGE_SUITE_JOBS: dict[JobKey, str] = {
 KNOWN_LIVE_DUPLICATES: dict[JobKey, str] = {}
 
 ACTIONS_DIR = gc.REPO_ROOT / ".github" / "actions"
-
-# Delegation forms `_gate_coverage` cannot follow today (see the module
-# docstring). Forbidden outright so the blind spot is not reachable:
-# `$(MAKE)`/`${MAKE}` expand to empty in its variable table, and a `-c` shell
-# wrapper is never unwrapped.
-BLIND_MAKE_REFS: tuple[str, ...] = ("$(MAKE)", "${MAKE}")
-BLIND_SHELL_WRAPPER_RE = re.compile(r"\b(?:ba|z|k|da)?sh\s+-[A-Za-z]*c\b")
-
-
-def _blind_forms_in(text: str) -> list[str]:
-    """The blind delegation forms *text* uses, in a stable order."""
-    found = [form for form in BLIND_MAKE_REFS if form in text]
-    found.extend(sorted({match.group(0) for match in BLIND_SHELL_WRAPPER_RE.finditer(text)}))
-    return found
 
 
 # ---------------------------------------------------------------------------
@@ -545,9 +547,11 @@ inner-tier:
 \tuv run --frozen pytest $(TIER_DIRS) -m "$(TIER_MARKERS)" -n auto -q
 """
 
-# Blind-surface payloads: one per surface `_gate_coverage` cannot see. Each
-# reaches the suite in a way every assertion above would miss.
-BLIND_MAKEFILE = """\
+# #4367 form 2's payload: recipe-level delegation through the ``$(MAKE)``
+# variable (the idiomatic GNU sub-make spelling), reached from a renamed
+# outer target. The delegation hop is only recoverable if ``MAKE`` is seeded
+# in the model's variable table.
+MAKE_VAR_MAKEFILE = """\
 .PHONY: report inner-tier
 
 report:
@@ -557,9 +561,15 @@ inner-tier:
 \tuv run --frozen pytest tests/unit -m fast
 """
 
-CLEAN_MAKEFILE = BLIND_MAKEFILE.replace("$(MAKE)", "make")
+# The same delegation spelled the other two ways: brace form and the literal
+# command word. All three must resolve IDENTICALLY — the model follows the
+# hop, not the spelling.
+MAKE_BRACE_MAKEFILE = MAKE_VAR_MAKEFILE.replace("$(MAKE)", "${MAKE}")
+LITERAL_MAKE_MAKEFILE = MAKE_VAR_MAKEFILE.replace("$(MAKE)", "make")
 
-BLIND_WRAPPER_WORKFLOW = """\
+# #4367 form 3's payload: the suite execution wrapped in a single-quoted
+# ``sh -c`` payload, reached through a make target inside the wrapper.
+SHELL_WRAPPER_WORKFLOW = """\
 name: wrapped reporter
 on:
   pull_request:
@@ -571,9 +581,12 @@ jobs:
       - run: bash -c 'make test-fast'
 """
 
-BLIND_COMPOSITE_ACTION = """\
+# #4367 form 1's payload: the suite execution planted inside a local
+# composite action, where GitHub (and, since #4367, the model) splices it
+# into the calling job.
+HIDDEN_TIER_ACTION = """\
 name: hidden tier
-description: a composite action that runs the suite where the model cannot look
+description: a composite action that runs the suite where only a splicing model can look
 runs:
   using: composite
   steps:
@@ -581,9 +594,51 @@ runs:
       run: uv run --frozen pytest tests/unit -m fast
 """
 
-# Runner forms that reach pytest but parse as "no pytest command here".
-BLIND_RUNNER_WORKFLOW = """\
-name: blind runners
+# The same suite execution behind TWO hops of local composite action — the
+# outer action's own ``uses:`` must be followed for the inner one to be seen.
+NESTED_ACTION_INNER = HIDDEN_TIER_ACTION
+NESTED_ACTION_OUTER = """\
+name: outer
+description: a composite action that delegates to another local action
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/inner-tier
+"""
+
+# Negative control for form 1: an action that builds the environment and runs
+# no tests. Splicing must not turn its ``uv sync`` into a gate.
+SETUP_ACTION = """\
+name: setup
+description: a composite action that builds the environment and runs no tests
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: uv sync --frozen --all-extras
+"""
+
+# Runner forms that #4367 taught the prefix table to strip: each reaches
+# pytest through a runner that previously parsed as "no pytest command here".
+RUNNER_PREFIX_LINES: tuple[str, ...] = (
+    "coverage run -m pytest tests/unit -m fast",
+    "poetry run pytest tests/unit",
+    "xvfb-run pytest tests/unit",
+    "timeout 600 pytest tests/unit",
+    ".venv/bin/pytest tests/unit",
+)
+RUNNER_PREFIX_WORKFLOW = (
+    "name: runner prefixes\n"
+    "on:\n  pull_request:\n    types: [opened, synchronize]\n"
+    "jobs:\n  report:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n" + "".join(f"          {line}\n" for line in RUNNER_PREFIX_LINES)
+)
+
+# The runner class that DELIBERATELY stays refused: tox/nox delegate to
+# configuration files (tox.ini / noxfile.py) the model does not read, so the
+# pytest invocation is not on the workflow line and cannot be resolved — only
+# refused.
+UNRESOLVED_RUNNER_WORKFLOW = """\
+name: delegated runner
 on:
   pull_request:
     types: [opened, synchronize]
@@ -591,12 +646,7 @@ jobs:
   report:
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          coverage run -m pytest tests/unit -m fast
-          poetry run pytest tests/unit
-          xvfb-run pytest tests/unit
-          timeout 600 pytest tests/unit
-          .venv/bin/pytest tests/unit
+      - run: tox -e py -- pytest tests/unit
 """
 
 # The control's prose lines are copied from the live tree (ci-modules.yml's
@@ -614,16 +664,6 @@ jobs:
           pipx inject spec-kitty-cli pytest pytest-cov pytest-asyncio pytest-timeout respx pytestarch
           echo "::error::module-tests: pytest collected zero tests"
           uv run --frozen pytest tests/unit -m fast
-"""
-
-CLEAN_COMPOSITE_ACTION = """\
-name: setup
-description: a composite action that builds the environment and runs no tests
-runs:
-  using: composite
-  steps:
-    - shell: bash
-      run: uv sync --frozen --all-extras
 """
 
 # §C1/§C4 shape of the per-change reporting job WP05 builds, reduced to the two
@@ -1193,7 +1233,19 @@ def test_known_live_duplicate_rows_still_name_a_real_suite_job() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Residual escape hatches: CI-reachable surfaces the gate model cannot see
+# Former escape hatches — resolved by widening `_gate_coverage` (#4367)
+#
+# WP04 refused the forms below outright because the model could not see them
+# and widening it was outside that work package's ownership. #4367 widened
+# the model: composite actions are spliced into the calling job (with nested
+# local actions followed), `$(MAKE)` is seeded in the variable table, a
+# whole `sh -c '<command>'` wrapper is unwrapped, and the runner-prefix
+# table strips `coverage run` / the poetry family / `xvfb-run` / `timeout N`
+# / `<path>/pytest` / `<path>/python -m`. The refusing guards are retired
+# with the blindness; what replaces them is this battery's own discipline:
+# a planted suite execution behind each form is DETECTED (attributed to the
+# job that runs it, so the authorised-count and duplicate assertions see
+# it), and a clean negative control is not.
 # ---------------------------------------------------------------------------
 
 
@@ -1215,122 +1267,265 @@ def _composite_run_lines(action: Path) -> list[str]:
     return lines
 
 
-def blind_surface_offenders(*, makefile: Path, workflows_dir: Path, actions_dir: Path) -> list[str]:
-    """CI-reachable places a suite execution would be invisible to this battery.
+@pytest.mark.parametrize(
+    ("spelling", "makefile_text"),
+    [
+        ("$(MAKE) variable", MAKE_VAR_MAKEFILE),
+        ("${MAKE} brace form", MAKE_BRACE_MAKEFILE),
+        ("literal make", LITERAL_MAKE_MAKEFILE),
+    ],
+)
+def test_faultinjection_make_delegation_hop_is_resolved(tmp_path: Path, spelling: str, makefile_text: str) -> None:
+    """#4367 form 2: ``$(MAKE) <target>`` resolves exactly like ``make <target>``.
 
-    Three surfaces, all outside ``_gate_coverage``'s reach and all outside this
-    work package's ownership to widen:
-
-    1. ``$(MAKE) <target>`` recipe delegation. Literal ``make <target>``
-       delegation IS followed; ``MAKE`` is simply absent from the parsed
-       variable table, so the reference expands to empty and the hop is lost.
-    2. A ``bash -c '<command>'`` wrapper in a change-triggered workflow. The
-       command is never unwrapped, so whatever it runs is unseen.
-    3. A local composite action that reaches the suite. GitHub splices a
-       ``uses: ./.github/actions/<name>`` step into the calling job; the model
-       splices only reusable *workflow* calls, so the action's own steps are
-       invisible. This repository already wires one composite action into its
-       test job, which makes it the cheapest hiding place in the tree.
-
-    Surface 3 is detected with the canonical detector (:func:`suite_invocations`)
-    rather than a string match, so it recognises the same forms everywhere else
-    does. Surfaces 1 and 2 cannot be detected that way — being undetectable is
-    what they are — so those two forms are refused outright.
-    """
-    offenders: list[str] = []
-    if makefile.is_file():
-        for is_recipe, line in gc.iter_makefile_lines(makefile.read_text(encoding="utf-8")):
-            if is_recipe and _blind_forms_in(line):
-                offenders.append(f"{makefile.name} recipe: {line.strip()}")
-    for path in enumerate_workflows(workflows_dir):
-        if not change_triggered(path):
-            continue
-        for form in _blind_forms_in(path.read_text(encoding="utf-8")):
-            offenders.append(f"{path.name}: {form}")
-    resolved_makefile = makefile if makefile.is_file() else None
-    for action in composite_action_files(actions_dir):
-        for logical in _composite_run_lines(action):
-            if gc.suite_invocations(logical, makefile=resolved_makefile):
-                offenders.append(f"{action.parent.name}/{action.name}: {logical.strip()}")
-    return offenders
-
-
-def test_no_blind_surface_is_reachable_from_ci() -> None:
-    """Close the model's blind spots by construction, since widening it is not ours.
-
-    None of these forms is present today. Refusing them keeps the escape hatch
-    untakeable while ``_gate_coverage`` is taught to follow the first two and to
-    splice composite actions — which remains the real fix, reported upstream by
-    this work package rather than patched here.
-    """
-    offenders = blind_surface_offenders(
-        makefile=MAKEFILE,
-        workflows_dir=gc.WORKFLOWS_DIR,
-        actions_dir=ACTIONS_DIR,
-    )
-    assert not offenders, (
-        "a CI-reachable surface the gate model cannot see — a suite execution behind one of "
-        "these is invisible to every assertion in this module. Use a literal `make <target>` "
-        f"or a directly-anchored command instead, or teach `_gate_coverage` to follow it: {offenders}"
-    )
-
-
-def test_faultinjection_every_blind_surface_is_reported(tmp_path: Path) -> None:
-    """Fault injection for the guard above — one planted violation per surface.
-
-    Without this the guard is a scan that has never fired, and narrowing it
-    (a form dropped from the tuple, a directory that stops resolving) would go
-    unnoticed.
+    ``makefile_target_invocations`` claims to follow recipe-level delegation
+    "so that inserting one more hop of indirection is not an escape hatch" —
+    and ``$(MAKE)`` is the idiomatic GNU spelling of exactly that hop. All
+    three spellings must resolve identically, or the docstring's claim is
+    false again.
     """
     makefile = tmp_path / "Makefile"
-    makefile.write_text(BLIND_MAKEFILE, encoding="utf-8")
-    workflows = tmp_path / "workflows"
-    workflows.mkdir()
-    (workflows / "ci-blind.yml").write_text(BLIND_WRAPPER_WORKFLOW, encoding="utf-8")
-    actions = tmp_path / "actions"
-    (actions / "hidden-tier").mkdir(parents=True)
-    (actions / "hidden-tier" / "action.yml").write_text(BLIND_COMPOSITE_ACTION, encoding="utf-8")
+    makefile.write_text(makefile_text, encoding="utf-8")
+    workflow = tmp_path / "ci-var.yml"
+    workflow.write_text(
+        "on:\n  pull_request:\n    types: [opened, synchronize]\njobs:\n  report:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make report\n",
+        encoding="utf-8",
+    )
 
-    offenders = blind_surface_offenders(makefile=makefile, workflows_dir=workflows, actions_dir=actions)
-
-    assert [offender.split(":")[0] for offender in offenders] == [
-        "Makefile recipe",
-        "ci-blind.yml",
-        "hidden-tier/action.yml",
-    ], offenders
+    assert jobs_of(workflow, makefile=makefile) == {"report": 1}, spelling
+    gate = next(gate for gate in gc.parse_workflow(workflow, makefile=makefile))
+    assert gate.via == "make inner-tier", spelling
+    assert gate.paths == ["tests/unit"], spelling
+    assert gate.marker_expr == "fast", spelling
 
 
-def test_faultinjection_clean_surfaces_report_nothing(tmp_path: Path) -> None:
-    """Negative control: the guard must not flag every recipe, workflow and action."""
+def test_faultinjection_make_delegation_without_pytest_stays_quiet(tmp_path: Path) -> None:
+    """Negative control: delegation that does not reach the suite is not a gate."""
     makefile = tmp_path / "Makefile"
-    makefile.write_text(CLEAN_MAKEFILE, encoding="utf-8")
+    makefile.write_text(
+        ".PHONY: report lint-tier\n\nreport:\n\t$(MAKE) lint-tier\n\nlint-tier:\n\truff check .\n",
+        encoding="utf-8",
+    )
+    workflow = tmp_path / "ci-lint.yml"
+    workflow.write_text(
+        "on:\n  pull_request:\n    types: [opened, synchronize]\njobs:\n  report:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make report\n",
+        encoding="utf-8",
+    )
+
+    assert jobs_of(workflow, makefile=makefile) == {}
+
+
+def test_faultinjection_shell_dash_c_wrapper_is_resolved(tmp_path: Path) -> None:
+    """#4367 form 3: a suite execution wrapped in ``sh -c '...'`` is detected.
+
+    The wrapper's payload is reached as one command, whatever indirection it
+    uses — a make target here. Without unwrapping, the workflow mentions
+    neither pytest nor make and every assertion in this module is blind to it.
+    """
     workflows = tmp_path / "workflows"
     workflows.mkdir()
-    (workflows / "ci-clean.yml").write_text(NET_NEW_DUPLICATE_WORKFLOW, encoding="utf-8")
-    actions = tmp_path / "actions"
-    (actions / "setup").mkdir(parents=True)
-    (actions / "setup" / "action.yml").write_text(CLEAN_COMPOSITE_ACTION, encoding="utf-8")
+    (workflows / "ci-wrapped.yml").write_text(SHELL_WRAPPER_WORKFLOW, encoding="utf-8")
 
-    assert blind_surface_offenders(makefile=makefile, workflows_dir=workflows, actions_dir=actions) == []
+    assert unauthorized_suite_jobs(workflows) == {("ci-wrapped.yml", "report"): 1}
+    gate = next(gate for gate in gc.parse_workflow(workflows / "ci-wrapped.yml") if gate.job == "report")
+    assert gate.via == "make test-fast"
+
+
+@pytest.mark.parametrize(
+    ("spelling", "command"),
+    [
+        ("double quotes", 'bash -c "coverage run -m pytest tests/unit -m fast"'),
+        ("sh with combined flags", 'sh -ec "pytest tests/unit"'),
+        ("options before -c", 'bash -e -c "pytest tests/unit"'),
+        ("mid-line segment", 'echo hi && bash -c "pytest tests/unit"'),
+        ("operators inside the payload", 'bash -c "make lint && make test-fast"'),
+        ("sibling command after the wrapper", 'bash -c "make lint" && make test-fast'),
+        ("runner-prefixed wrapper", 'xvfb-run bash -c "pytest tests/unit"'),
+    ],
+)
+def test_faultinjection_shell_dash_c_spellings_resolve(tmp_path: Path, spelling: str, command: str) -> None:
+    """Every wrapper spelling unwraps to the invocation inside it.
+
+    Whole-line wrappers (including a payload carrying ``&&``, which the shell
+    splitter would tear apart mid-quote), segment-level wrappers, and a
+    wrapper behind a runner prefix all resolve to exactly the suite
+    execution they run — never zero, and never a path-less over-claim.
+    """
+    invocations = gc.suite_invocations(command)
+    assert invocations, f"{spelling}: {command!r} resolved to no suite invocation"
+    assert all(invocation.paths for invocation in invocations), spelling
+
+
+def test_faultinjection_shell_dash_c_without_pytest_stays_quiet(tmp_path: Path) -> None:
+    """Negative control: a wrapper around a non-suite command is not a gate."""
+    assert gc.suite_invocations("bash -c 'make lint'") == []
+    assert gc.suite_invocations("bash -c 'ruff check .'") == []
+
+
+def _write_action(actions_dir: Path, name: str, text: str) -> Path:
+    """Write a local composite action definition under *actions_dir*."""
+    directory = actions_dir / name
+    directory.mkdir(parents=True)
+    action = directory / "action.yml"
+    action.write_text(text, encoding="utf-8")
+    return action
+
+
+HIDDEN_TIER_CALLER_WORKFLOW = """\
+name: action caller
+on:
+  pull_request:
+    types: [opened, synchronize]
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/hidden-tier
+"""
+
+
+def test_faultinjection_composite_action_suite_execution_is_attributed_to_the_calling_job(
+    tmp_path: Path,
+) -> None:
+    """#4367 form 1: a suite execution inside a local composite action is seen.
+
+    GitHub splices ``uses: ./.github/actions/<name>`` into the calling job;
+    the model now does the same, so the planted execution counts as the
+    CALLER's — an unauthorised duplicate, attributed with
+    ``via="action <name>"`` so the provenance is reportable.
+    """
+    workflows = tmp_path / "workflows"
+    workflows.mkdir()
+    (workflows / "ci-action.yml").write_text(HIDDEN_TIER_CALLER_WORKFLOW, encoding="utf-8")
+    actions = tmp_path / "actions"
+    _write_action(actions, "hidden-tier", HIDDEN_TIER_ACTION)
+
+    assert unauthorized_suite_jobs(workflows) == {("ci-action.yml", "report"): 1}
+    gate = next(gate for gate in gc.parse_workflow(workflows / "ci-action.yml") if gate.job == "report")
+    assert gate.via == "action hidden-tier"
+    assert gate.paths == ["tests/unit"]
+    assert gate.marker_expr == "fast"
+
+
+def test_faultinjection_nested_composite_action_is_resolved(tmp_path: Path) -> None:
+    """Two hops of local composite action, both followed.
+
+    The outer action's own ``uses:`` is spliced before the caller is parsed,
+    so the inner action's suite execution is attributed to the calling job.
+    """
+    workflows = tmp_path / "workflows"
+    workflows.mkdir()
+    (workflows / "ci-nested.yml").write_text(
+        HIDDEN_TIER_CALLER_WORKFLOW.replace("hidden-tier", "outer-tier"),
+        encoding="utf-8",
+    )
+    actions = tmp_path / "actions"
+    _write_action(actions, "outer-tier", NESTED_ACTION_OUTER)
+    _write_action(actions, "inner-tier", NESTED_ACTION_INNER)
+
+    assert unauthorized_suite_jobs(workflows) == {("ci-nested.yml", "report"): 1}
+    gate = next(gate for gate in gc.parse_workflow(workflows / "ci-nested.yml") if gate.job == "report")
+    # The INNER action's name: it is the action whose step actually runs.
+    assert gate.via == "action inner-tier"
+
+
+def test_faultinjection_composite_action_make_indirection_is_resolved(tmp_path: Path) -> None:
+    """An action step that reaches the suite through a make target, not inline.
+
+    The two resolutions compose: the action is spliced into the caller, and
+    its ``make`` step is resolved through the Makefile like any other. The
+    gate's ``via`` names the deeper indirection (the make target).
+    """
+    makefile = tmp_path / "Makefile"
+    makefile.write_text(
+        ".PHONY: inner-tier\n\ninner-tier:\n\tuv run --frozen pytest tests/unit -m fast\n",
+        encoding="utf-8",
+    )
+    workflows = tmp_path / "workflows"
+    workflows.mkdir()
+    (workflows / "ci-action-make.yml").write_text(HIDDEN_TIER_CALLER_WORKFLOW, encoding="utf-8")
+    actions = tmp_path / "actions"
+    _write_action(
+        actions,
+        "hidden-tier",
+        HIDDEN_TIER_ACTION.replace(
+            "uv run --frozen pytest tests/unit -m fast",
+            "make inner-tier",
+        ),
+    )
+
+    assert unauthorized_suite_jobs(workflows, makefile=makefile) == {
+        ("ci-action-make.yml", "report"): 1,
+    }
+    gate = next(gate for gate in gc.parse_workflow(workflows / "ci-action-make.yml", makefile=makefile) if gate.job == "report")
+    assert gate.via == "make inner-tier"
+
+
+def test_faultinjection_clean_composite_action_is_not_a_gate(tmp_path: Path) -> None:
+    """Negative control: splicing an action that runs no tests adds no gate."""
+    workflows = tmp_path / "workflows"
+    workflows.mkdir()
+    (workflows / "ci-setup.yml").write_text(
+        HIDDEN_TIER_CALLER_WORKFLOW.replace("hidden-tier", "setup"),
+        encoding="utf-8",
+    )
+    actions = tmp_path / "actions"
+    _write_action(actions, "setup", SETUP_ACTION)
+
+    assert unauthorized_suite_jobs(workflows) == {}
+
+
+def test_live_composite_action_wiring_is_spliced_and_still_one_invocation() -> None:
+    """The LIVE wiring of #4367 form 1 — proven against the real tree.
+
+    ``ci-modules.yml``'s ``test`` job delegates to ``module-tests.yml`` (a
+    reusable workflow) whose own steps use ``./.github/actions/warmup`` —
+    two hops the model must both resolve to see the action's steps at all.
+    Warmup builds an environment and runs no suite, so the splice must leave
+    the authorised single invocation of ``ci-modules.yml::test`` untouched:
+    this is both the non-vacuity anchor for form 1 (the splice really runs
+    against live files) and the regression guard that a suite execution
+    added to ``warmup`` (or any action it gains) becomes VISIBLE here.
+    """
+    data = gc.load_spliced_workflow(gc.WORKFLOWS_DIR / "ci-modules.yml")
+    job_steps = (data.get("jobs") or {}).get("test", {}).get("steps") or []
+    spliced_action_runs = [step.get("run", "") for step in job_steps if isinstance(step, dict) and "warmup-venv-" in str(step.get("run", ""))]
+    assert spliced_action_runs, (
+        "module-tests.yml's `./.github/actions/warmup` step was not spliced into "
+        "ci-modules.yml's caller job — the model is blind to the live composite "
+        "action wiring again"
+    )
+
+    gates = list(gc.parse_workflow(gc.WORKFLOWS_DIR / "ci-modules.yml"))
+    assert [(gate.job, gate.via) for gate in gates] == [("test", None)], (
+        "ci-modules.yml::test must stay exactly one directly-anchored invocation — "
+        "warmup runs no suite, so a second gate here means the splice mis-attributed "
+        "a step"
+    )
 
 
 # A standalone ``pytest`` command word: not ``PYTEST_ADDOPTS`` (case), not
 # ``pytest.ini`` / ``pytest-cov`` / ``pytestarch`` (the trailing lookahead).
-# A leading ``/`` is deliberately allowed through — ``.venv/bin/pytest`` is one
-# of the runner forms this guard exists to catch.
 PYTEST_WORD_RE = re.compile(r"(?<![\w-])pytest(?![-\w.])")
 
-# Runner forms that reach pytest but that ``_gate_coverage``'s prefix table does
-# not strip, so the invocation behind them parses as "no pytest command here".
-# Each was confirmed against :func:`_gate_coverage.parse_pytest_invocation`.
-# ``coverage run -m pytest`` is the dangerous one for THIS mission: it is the
-# obvious spelling for a job whose stated purpose is producing coverage.
+# Runner forms a line may reach pytest through WITHOUT the gate model
+# resolving it — i.e. a standalone ``pytest`` word the model still cannot
+# claim (the guard's condition is conjunctive: model-resolved lines never
+# trip, whatever runner they use).
+#
+# Since #4367 widened ``_gate_coverage``'s prefix table, the CANONICAL
+# spellings of ``coverage run`` / ``poetry run`` / ``xvfb-run`` /
+# ``timeout N`` / ``<path>/pytest`` resolve, so those rows now catch only
+# variant spellings the table still misses (multi-word flag values, an option
+# before the duration, ``coverage3``). What genuinely remains unresolved —
+# and is the reason ``tox``/``nox`` stay here — are runners that DELEGATE to
+# configuration files the model does not read: their pytest invocation lives
+# in ``tox.ini`` / ``noxfile.py``, not on the workflow line.
 #
 # Deny-list, deliberately: its failure mode is missing an unknown runner — the
 # status quo — whereas flagging every unresolved ``pytest`` word would red main
-# on an error message or a ``pipx inject`` line in workflows this work package
-# does not own. The general fix is to widen the prefix table; see the module
-# docstring.
+# on an error message or a ``pipx inject`` line in workflows this module does
+# not own. Closing the class is the recorded follow-up in the module docstring.
 BLIND_RUNNER_RES: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bcoverage\s+run\b"),
     re.compile(r"\b(?:poetry|pdm|hatch|pipenv)\s+run\b"),
@@ -1386,23 +1581,46 @@ def test_no_blind_runner_form_reaches_pytest_in_ci() -> None:
     )
 
 
-def test_faultinjection_blind_runner_forms_are_reported(tmp_path: Path) -> None:
-    """Each known-blind runner is really caught, and a resolvable form is not."""
+def test_faultinjection_runner_prefixed_forms_are_resolved(tmp_path: Path) -> None:
+    """#4367 form 4: each formerly-blind runner spelling is now a real gate.
+
+    Every one of these lines parsed as "no pytest command here" before #4367
+    widened the prefix table; each must now count as a suite execution of the
+    job that runs it — and must NOT trip the deny-list guard, because the
+    model resolved it (the guard's condition is conjunctive on resolution).
+    """
     workflows = tmp_path / "workflows"
     workflows.mkdir()
-    (workflows / "ci-runner.yml").write_text(BLIND_RUNNER_WORKFLOW, encoding="utf-8")
+    (workflows / "ci-runner.yml").write_text(RUNNER_PREFIX_WORKFLOW, encoding="utf-8")
     actions = tmp_path / "actions"
     actions.mkdir()
 
-    offenders = blind_runner_offenders(workflows_dir=workflows, actions_dir=actions)
+    assert jobs_of(workflows / "ci-runner.yml") == {"report": len(RUNNER_PREFIX_LINES)}
+    coverage_gate = next(gate for gate in gc.parse_workflow(workflows / "ci-runner.yml") if gate.marker_expr == "fast")
+    assert coverage_gate.paths == ["tests/unit"]
+    assert coverage_gate.via is None
+    assert blind_runner_offenders(workflows_dir=workflows, actions_dir=actions) == []
 
-    assert [offender.split(": ", 1)[1] for offender in offenders] == [
-        "coverage run -m pytest tests/unit -m fast",
-        "poetry run pytest tests/unit",
-        "xvfb-run pytest tests/unit",
-        "timeout 600 pytest tests/unit",
-        ".venv/bin/pytest tests/unit",
-    ], offenders
+
+def test_faultinjection_unresolved_runner_delegation_is_still_reported(tmp_path: Path) -> None:
+    """Fault injection for the guard above: a runner the model cannot resolve.
+
+    ``tox`` delegates to ``tox.ini`` — the pytest invocation is not on this
+    line, so the model resolves nothing and the deny-list is all that sees
+    the standalone ``pytest`` word behind it. Without this twin the guard
+    would be a scan that has never fired since #4367 emptied its canonical
+    payload set.
+    """
+    workflows = tmp_path / "workflows"
+    workflows.mkdir()
+    (workflows / "ci-delegate.yml").write_text(UNRESOLVED_RUNNER_WORKFLOW, encoding="utf-8")
+    actions = tmp_path / "actions"
+    actions.mkdir()
+
+    assert jobs_of(workflows / "ci-delegate.yml") == {}
+    assert blind_runner_offenders(workflows_dir=workflows, actions_dir=actions) == [
+        "ci-delegate.yml::report: tox -e py -- pytest tests/unit",
+    ]
 
 
 def test_faultinjection_resolvable_and_prose_lines_are_not_reported(tmp_path: Path) -> None:
