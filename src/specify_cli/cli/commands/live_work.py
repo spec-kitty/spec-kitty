@@ -6,7 +6,13 @@ stdin, the adapter maps it to observations, and the publisher offers each
 as a live relay frame through the existing path. It **always exits 0**
 (the harness invocation must never fail because capture did) and is
 hard-bounded by the client budget machinery (``budget.bound_stdout``: the
-process exits within the 4 s hook budget whatever it is doing).
+process exits within the 4 s hook budget whatever it is doing). Because
+the harness runs this synchronously around every tool call, the invocation
+takes the ``next`` command's startup fast path (#4353 fix round): only the
+live-work group is registered, and neither the global runtime bootstrap
+nor the startup project gates (whose schema gate may ``SystemExit``)
+run — so the budget is armed against the capture work itself, not a
+~12 s command-registry import that preceded it.
 
 ``spec-kitty live-work matrix`` prints the executable capability matrix;
 ``install``/``uninstall`` manage the harness hook registrations;

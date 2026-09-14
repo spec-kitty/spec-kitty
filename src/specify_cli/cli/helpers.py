@@ -8,7 +8,7 @@ import sys
 from dataclasses import replace
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import click
 import typer
@@ -16,7 +16,14 @@ from rich.align import Align
 from rich.text import Text
 from typer.core import TyperGroup
 
-from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
+# Deferred (TYPE_CHECKING + function-local in git_resolution_failure_message):
+# charter.resolution's module-level import chain (jsonschema/rfc3987) is the
+# heaviest single import every CLI startup paid, including the per-tool-call
+# live-work hook path (#4353 fix round) — and these two names are only needed
+# on the rare git-resolution failure path, where the raiser has already
+# imported charter.resolution to raise the exception in the first place.
+if TYPE_CHECKING:
+    from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
 
 from specify_cli.cli.console import CliConsole, console
 from specify_cli.core.config import BANNER
@@ -332,6 +339,8 @@ def git_resolution_failure_message(
     told exactly that -- never handed a raw traceback or a "re-run init"
     misdirection.
     """
+    from charter.resolution import NotInsideRepositoryError
+
     if isinstance(exc, NotInsideRepositoryError):
         return f"This project is not inside a git repository. Run `git init` (and an initial commit) in {project_root} -- see the spec-kitty init output."
     # GitCommonDirUnavailableError's own message already names the recovery

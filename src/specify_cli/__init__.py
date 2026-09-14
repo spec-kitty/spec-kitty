@@ -132,7 +132,8 @@ def main_callback(
         return
 
     next_fast_path = _is_next_invocation(sys.argv)
-    if not next_fast_path:
+    live_work_hook_path = _is_live_work_hook_invocation(sys.argv)
+    if not next_fast_path and not live_work_hook_path:
         root_callback(ctx)
 
         # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
@@ -146,7 +147,13 @@ def main_callback(
         if not _is_doctor_skills_invocation(sys.argv):
             ensure_global_agent_commands()
 
-    _run_startup_project_gates(ctx)
+    if not live_work_hook_path:
+        # The hook is passive capture on the harness's per-tool-call path, not
+        # a project command: the schema gate may SystemExit on a stale project
+        # (breaking the hook's own always-exit-0 contract) and its import
+        # chain alone outweighs the 4 s hook budget, so neither startup gate
+        # runs there (#4353 fix round).
+        _run_startup_project_gates(ctx)
 
 
 def _run_startup_project_gates(ctx: typer.Context) -> None:
@@ -168,7 +175,6 @@ def _run_startup_project_gates(ctx: typer.Context) -> None:
 
 def _build_app() -> typer.Typer:
     from specify_cli.cli.commands import register_commands
-    from specify_cli.cli.commands.init import register_init_command
     from specify_cli.cli.helpers import BannerGroup
 
     app = typer.Typer(
@@ -180,13 +186,19 @@ def _build_app() -> typer.Typer:
         cls=BannerGroup,
     )
     app.callback()(main_callback)
-    register_init_command(
-        app,
-        console=_get_console(),
-        show_banner=_get_show_banner(),
-        activate_mission=activate_mission,
-        ensure_executable_scripts=ensure_executable_scripts,
-    )
+    if not _is_live_work_hook_invocation(sys.argv):
+        # The init command's import graph (charter/jsonschema/provisioning)
+        # is the heaviest single registration; the per-tool-call hook path
+        # (#4353 fix round) never invokes it, so it stays unimported there.
+        from specify_cli.cli.commands.init import register_init_command
+
+        register_init_command(
+            app,
+            console=_get_console(),
+            show_banner=_get_show_banner(),
+            activate_mission=activate_mission,
+            ensure_executable_scripts=ensure_executable_scripts,
+        )
     register_commands(app)
     return app
 
@@ -217,6 +229,20 @@ def _is_next_invocation(argv: list[str]) -> bool:
         if not arg.startswith("-"):
             return False
     return False
+
+
+def _is_live_work_hook_invocation(argv: list[str]) -> bool:
+    """Return True for direct ``spec-kitty live-work hook <harness>`` invocations.
+
+    The hook runs synchronously on the harness's per-tool-call path
+    (PreToolUse/PostToolUse, spec-kitty#4353 fix round), so it must not pay
+    the global runtime bootstrap (~/.kittify asset repair) any more than the
+    full command-registry import — the same startup-fast-path posture as
+    ``next``. Its publisher resolves relay credentials per-repo, never from
+    the global runtime.
+    """
+    args = [arg for arg in argv[1:] if not arg.startswith("-")]
+    return len(args) >= 2 and args[0] == "live-work" and args[1] == "hook"
 
 
 def _get_app() -> typer.Typer:

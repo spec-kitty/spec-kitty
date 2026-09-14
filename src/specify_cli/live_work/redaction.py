@@ -12,8 +12,11 @@ of that policy for the capture layer:
   enter a published frame or a log line, not even as a redacted placeholder.
 * :func:`redact_command_summary` — a bounded, sanitized command summary:
   the program name and safe flags survive; token-bearing arguments,
-  secret-named environment assignments, and high-entropy credential-shaped
-  values are replaced with ``[redacted]``; raw output never enters at all.
+  secret-named environment assignments, ``Bearer`` tokens (bare or inside
+  ``-H``/``--header`` header values), basic-auth ``user:pass`` values after
+  ``-u``/``--user``, JWT-shaped dotted tokens, and URL userinfo
+  (``https://user:token@host``) are replaced with ``[redacted]``; raw output
+  never enters at all.
 
 Every adapter routes paths and command text through here before building an
 :class:`~live_work.models.Observation`; the publisher additionally asserts
@@ -23,6 +26,7 @@ the redaction invariants on the projected wire attrs (defense in depth).
 from __future__ import annotations
 
 import re
+import shlex
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Final
@@ -112,6 +116,36 @@ _CREDENTIAL_PREFIXES: Final[tuple[str, ...]] = (
     "AIza",
 )
 _HIGH_ENTROPY_RE: Final[re.Pattern[str]] = re.compile(r"^[A-Za-z0-9+/_=-]{24,}$")
+# JWT shape: dotted base64url segments (header.payload.signature). Dots stay
+# out of _HIGH_ENTROPY_RE's alphabet on purpose — ordinary dotted paths
+# (src/pkg/module.py) share it — while a JWT never carries a path separator.
+_JWT_SHAPE_RE: Final[re.Pattern[str]] = re.compile(r"^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+){2,}$")
+# `Bearer <token>` in any position (squad fix round, #4353: the leading quote
+# and the JWT's dots defeated every earlier branch).
+_BEARER_TOKEN_RE: Final[re.Pattern[str]] = re.compile(r"(?i)\bbearer\s+\S+")
+# Basic-auth `user:pass` — only ever redacted as the value of -u/--user,
+# never as a bare token (host:port and key:value args share the shape).
+_BASIC_AUTH_RE: Final[re.Pattern[str]] = re.compile(r"^[^/\s:]+:[^/\s]+$")
+# URL userinfo (https://user:token@host/) — the credential travels before
+# the `@`, so only that slice is replaced.
+_URL_USERINFO_RE: Final[re.Pattern[str]] = re.compile(r"[A-Za-z0-9._~%-]+:[^/@\s]+@")
+# Secret-bearing header names: the whole value after the colon is a
+# credential, so none of it survives.
+_SECRET_HEADER_NAMES: Final[frozenset[str]] = frozenset(
+    {
+        "authorization",
+        "proxy-authorization",
+        "cookie",
+        "set-cookie",
+        "x-api-key",
+        "x-auth-token",
+        "x-session-token",
+    }
+)
+# curl-style flags whose next/inline value is credentials (-u/--user) or a
+# header (-H/--header) — classified by shape, not unconditionally.
+_CREDENTIAL_VALUE_FLAGS: Final[frozenset[str]] = frozenset({"u", "user"})
+_HEADER_VALUE_FLAGS: Final[frozenset[str]] = frozenset({"h", "header"})
 
 _FILE_PATH_MAX: Final[int] = 240
 
@@ -184,61 +218,178 @@ def _is_secret_arg_name(token: str) -> bool:
     }
 
 
+def _strip_quotes(token: str) -> str:
+    """Drop one pair of matching surrounding quotes (shell-quoted argument)."""
+    if len(token) >= 2 and token[0] == token[-1] and token[0] in "\"'":
+        return token[1:-1]
+    return token
+
+
+def _is_high_entropy(value: str) -> bool:
+    if len(set(value)) < 8:
+        return False
+    if _HIGH_ENTROPY_RE.match(value):
+        return True
+    return bool(_JWT_SHAPE_RE.match(value)) and len(value) >= 24
+
+
 def _is_credential_shaped(value: str) -> bool:
     for prefix in _CREDENTIAL_PREFIXES:
         if value.startswith(prefix):
             return True
-    return bool(_HIGH_ENTROPY_RE.match(value)) and len(set(value)) >= 8
+    return _is_high_entropy(value)
+
+
+def _is_basic_auth_shaped(value: str) -> bool:
+    return bool(_BASIC_AUTH_RE.match(value))
+
+
+def _sanitize_header_value(value: str) -> str:
+    """Redact the credential inside one header value; benign headers survive.
+
+    A secret-named header (``Authorization: …``) keeps its name but loses the
+    whole value after the colon; a Bearer token anywhere else in the value
+    redacts the value outright.
+    """
+    name, sep, _rest = value.partition(":")
+    if sep and name.strip().lower() in _SECRET_HEADER_NAMES:
+        return f"{name.strip()}: {REDACTED}"
+    if _BEARER_TOKEN_RE.search(value):
+        return REDACTED
+    return value
+
+
+def _redact_url_userinfo(token: str) -> str:
+    """Replace ``user:pass@`` inside a URL with ``[redacted]@``; the rest survives."""
+    return _URL_USERINFO_RE.sub(f"{REDACTED}@", token)
+
+
+def _tokenize(command: str | Sequence[str]) -> list[str]:
+    """Shell-faithful tokenization: a quoted argument arrives as one token."""
+    if not isinstance(command, str):
+        return [str(part) for part in command]
+    try:
+        return shlex.split(command)
+    except ValueError:
+        # Unbalanced quotes: redaction itself must never fail. Whitespace
+        # splitting still classifies every fragment on its quote-stripped form.
+        return command.split()
+
+
+def _sanitize_assignment(bare: str, assignment: re.Match[str]) -> str:
+    """``KEY=value``: a secret-named key or credential-shaped value redacts."""
+    key, value = assignment.group(1), assignment.group(2)
+    if _is_secret_arg_name(key) or _is_credential_shaped(_strip_quotes(value)):
+        return f"{key}={REDACTED}"
+    return bare
+
+
+def _sanitize_inline_flag(bare: str, token: str) -> str:
+    """``--flag=value``: secret/credential values redact, header values sanitize."""
+    name, value = bare.split("=", 1)
+    flag = name.lstrip("-").lower()
+    if flag in _HEADER_VALUE_FLAGS:
+        return f"{name}={_sanitize_header_value(value)}"
+    if flag in _CREDENTIAL_VALUE_FLAGS and _is_basic_auth_shaped(_strip_quotes(value)):
+        return f"{name}={REDACTED}"
+    if _is_secret_arg_name(name) or _is_credential_shaped(_strip_quotes(value)):
+        return f"{name}={REDACTED}"
+    return _redact_url_userinfo(token)
+
+
+def _flag_expectation(bare: str) -> str | None:
+    """The value-state a bare flag arms: ``secret`` / ``credential`` / ``header``."""
+    flag = bare.lstrip("-").lower()
+    if _is_secret_arg_name(bare):
+        return "secret"
+    if flag in _CREDENTIAL_VALUE_FLAGS:
+        return "credential"
+    if flag in _HEADER_VALUE_FLAGS:
+        return "header"
+    return None
+
+
+def _sanitize_expected_credential(token: str, bare: str) -> str:
+    """The value after ``-u``/``--user``: redact only when it looks like ``user:pass``."""
+    if _is_basic_auth_shaped(bare) or _is_credential_shaped(bare):
+        return REDACTED
+    return token
+
+
+def _sanitize_bare_token(token: str, bare: str) -> str:
+    """One non-flag token: Bearer, secret header, entropy, or URL userinfo."""
+    if _BEARER_TOKEN_RE.match(bare):
+        return REDACTED
+    header = _sanitize_header_value(bare)
+    if header != bare:
+        return header
+    if _is_credential_shaped(bare):
+        return REDACTED
+    return _redact_url_userinfo(token)
 
 
 def redact_command_summary(command: str | Sequence[str]) -> RedactionResult:
     """Build a bounded, sanitized command summary from a command string/list.
 
     The program name and safe arguments survive; values of secret-named
-    options, secret-named environment assignments, and credential-shaped
-    bare values become ``[redacted]``. The summary is bounded to
+    options, secret-named environment assignments, ``Bearer`` tokens (bare,
+    quoted, or inside ``-H``/``--header`` values), basic-auth ``user:pass``
+    values after ``-u``/``--user``, JWT-shaped dotted tokens, and URL
+    userinfo become ``[redacted]``. The summary is bounded to
     :data:`MAX_SUMMARY_CHARS` (truncation marks its own tail with ``…`` so a
     fragment is never mistaken for the whole).
     """
-    tokens = command.split() if isinstance(command, str) else [str(part) for part in command]
+    tokens = _tokenize(command)
     if not tokens:
         return RedactionResult(None, excluded=True, reason="empty command")
 
     sanitized: list[str] = []
-    expect_value_redaction = False
+    expect_secret_value = False
+    expect_credential_value = False
+    expect_header_value = False
     for token in tokens:
-        # A value consumed by a previous secret-named flag.
-        if expect_value_redaction:
+        bare = _strip_quotes(token)
+        # A value consumed by a previous secret-named flag (or bare Bearer).
+        if expect_secret_value:
             sanitized.append(REDACTED)
-            expect_value_redaction = False
+            expect_secret_value = False
+            continue
+        # A value consumed by -u/--user — redacted only when credential-shaped.
+        if expect_credential_value:
+            sanitized.append(_sanitize_expected_credential(token, bare))
+            expect_credential_value = False
+            continue
+        # A header value consumed by -H/--header.
+        if expect_header_value:
+            sanitized.append(_sanitize_header_value(bare))
+            expect_header_value = False
+            continue
+        # A bare `Bearer` marks the token that follows as a credential.
+        if bare.lower() == "bearer":
+            sanitized.append(token)
+            expect_secret_value = True
             continue
         # Environment-assignment prefix (FOO=bar cmd): keep a secret-named
         # assignment's key, redact its value; keep a benign one whole.
-        assignment = _ENV_ASSIGNMENT_RE.match(token)
+        assignment = _ENV_ASSIGNMENT_RE.match(bare)
         if assignment is not None:
-            key, value = assignment.group(1), assignment.group(2)
-            if _is_secret_arg_name(key) or "=" not in token or _is_credential_shaped(value):
-                sanitized.append(f"{key}={REDACTED}")
-            else:
-                sanitized.append(token)
+            sanitized.append(_sanitize_assignment(bare, assignment))
             continue
-        # --flag=value form.
-        if token.startswith("-") and "=" in token:
-            name, value = token.split("=", 1)
-            if _is_secret_arg_name(name) or _is_credential_shaped(value):
-                sanitized.append(f"{name}={REDACTED}")
-            else:
-                sanitized.append(token)
+        # --flag=value form (incl. --header=… / --user=…).
+        if bare.startswith("-") and "=" in bare:
+            sanitized.append(_sanitize_inline_flag(bare, token))
             continue
-        # Secret-named flag: redact the value whether inline or next token.
-        if token.startswith("-") and _is_secret_arg_name(token):
+        # Secret-named / credential / header flag: arm the matching value state.
+        if bare.startswith("-") and (expectation := _flag_expectation(bare)) is not None:
             sanitized.append(token)
-            expect_value_redaction = True
+            if expectation == "secret":
+                expect_secret_value = True
+            elif expectation == "credential":
+                expect_credential_value = True
+            else:
+                expect_header_value = True
             continue
-        if _is_credential_shaped(token):
-            sanitized.append(REDACTED)
-            continue
-        sanitized.append(token)
+        sanitized.append(_sanitize_bare_token(token, bare))
 
     summary = " ".join(sanitized)
     if len(summary) > MAX_SUMMARY_CHARS:

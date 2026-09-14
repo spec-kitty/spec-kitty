@@ -68,6 +68,85 @@ def test_bearer_prefixed_value_is_redacted() -> None:
     assert REDACTED in result.value
 
 
+# ── squad fix round (#4353): the two leaked credential shapes ────────────────
+
+_JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJVadQssw5c"
+
+
+def test_quoted_authorization_bearer_header_is_redacted() -> None:
+    result = redact_command_summary(f'curl -H "Authorization: Bearer {_JWT}" https://api.example.com')
+    assert result.value is not None
+    assert _JWT not in result.value
+    assert "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJVadQssw5c" not in result.value
+    assert "Authorization: [redacted]" in result.value
+    assert "https://api.example.com" in result.value
+
+
+def test_authorization_bearer_header_is_redacted_in_every_form() -> None:
+    argv_form = ["curl", "-H", f"Authorization: Bearer {_JWT}", "https://api.example.com"]
+    for command in (
+        argv_form,
+        f'curl -H "Authorization: Bearer {_JWT}" https://api.example.com',
+        f"curl -H 'Authorization: Bearer {_JWT}' https://api.example.com",
+        f'curl --header "Authorization: Bearer {_JWT}" https://api.example.com',
+        f'curl --header="Authorization: Bearer {_JWT}" https://api.example.com',
+        f'curl -H "authorization: bearer {_JWT}" https://api.example.com',
+    ):
+        result = redact_command_summary(command)
+        assert result.value is not None, command
+        assert _JWT not in result.value, command
+        assert REDACTED in result.value, command
+
+
+def test_benign_header_value_survives() -> None:
+    result = redact_command_summary('curl -H "Content-Type: application/json" https://api.example.com')
+    assert result.value is not None
+    assert "Content-Type: application/json" in result.value
+
+
+def test_basic_auth_after_user_flag_is_redacted() -> None:
+    for command in (
+        "curl -u user:password123 https://example.com",
+        "curl --user user:password123 https://example.com",
+        "curl --user=user:password123 https://example.com",
+        ["curl", "-u", "user:password123", "https://example.com"],
+    ):
+        result = redact_command_summary(command)
+        assert result.value is not None, command
+        assert "password123" not in result.value, command
+        assert REDACTED in result.value, command
+
+
+def test_user_flag_with_non_credential_value_survives() -> None:
+    # `-u`/`--user` is not always curl: git's upstream flag and sort's
+    # uniqueness flag must keep their benign values.
+    result = redact_command_summary("git push -u origin main")
+    assert result.value == "git push -u origin main"
+    result = redact_command_summary("sort -u output.txt")
+    assert result.value == "sort -u output.txt"
+
+
+def test_jwt_shaped_bare_value_is_redacted() -> None:
+    result = redact_command_summary(["connect", _JWT])
+    assert result.value is not None
+    assert _JWT not in result.value
+    assert REDACTED in result.value
+
+
+def test_dotted_paths_are_not_treated_as_jwt_tokens() -> None:
+    # Dots stay out of the plain high-entropy alphabet: an ordinary dotted
+    # path keeps arriving (safe useful paths still arrive).
+    result = redact_command_summary("python src/specify_cli/live_work/redaction.py")
+    assert result.value == "python src/specify_cli/live_work/redaction.py"
+
+
+def test_url_userinfo_is_redacted() -> None:
+    result = redact_command_summary("git push https://user:token@github.com/acme/repo.git main")
+    assert result.value is not None
+    assert "user:token" not in result.value
+    assert "[redacted]@github.com/acme/repo.git" in result.value
+
+
 def test_summary_is_bounded_with_an_honest_truncation_marker() -> None:
     long = " ".join(f"arg{i}" for i in range(200))
     result = redact_command_summary(long)
