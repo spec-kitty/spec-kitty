@@ -224,9 +224,7 @@ def test_ci_modules_calls_module_tests_workflow_exactly_once() -> None:
     uses_module_tests = [
         job.get("uses", "") for job in jobs.values() if str(job.get("uses", "")).endswith("module-tests.yml") or "module-tests.yml" in str(job.get("uses", ""))
     ]
-    assert len(uses_module_tests) == 1, (  # golden-count: cardinality-is-contract
-        f"expected exactly one job calling module-tests.yml (bounded matrix realization), got {uses_module_tests!r}"
-    )
+    assert len(uses_module_tests) == 1, f"expected exactly one job calling module-tests.yml (bounded matrix realization), got {uses_module_tests!r}"
 
 
 def test_ci_modules_declares_workflow_dispatch_and_mode() -> None:

@@ -194,7 +194,7 @@ class TestUrnCollisionLaterDeclaredWins:
             merged = load_validated_graph(tmp_path, org_roots=[org_root_a, org_root_b])
 
         survivors = [n for n in merged.nodes if n.urn == collided_urn]
-        assert len(survivors) == 1, "URN collision must not duplicate the node"  # golden-count: cardinality-is-contract
+        assert len(survivors) == 1, "URN collision must not duplicate the node"
         assert survivors[0].label == "Pack B label"
 
 

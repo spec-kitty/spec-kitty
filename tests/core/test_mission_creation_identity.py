@@ -87,7 +87,7 @@ def test_mission_id_minted_at_creation(tmp_path: Path) -> None:
 
     assert "mission_id" in meta
     assert isinstance(meta["mission_id"], str)
-    assert len(meta["mission_id"]) == 26, (  # golden-count: cardinality-is-contract
+    assert len(meta["mission_id"]) == 26, (
         f"Expected 26-char ULID, got {meta['mission_id']!r}"
     )
     # Parses without exception — proves it is a valid ULID

@@ -1159,7 +1159,7 @@ def test_cached_scan_repairs_corruption_and_invalidates_on_source_change(tmp_pat
     first = find_wall_clock_assertion_violations_cached([test_file], cache_root)
     cache_files = list(cache_root.glob("*.json"))
     assert [(row.line, row.call) for row in first] == [(4, "datetime.now()")]
-    assert len(cache_files) == 1  # golden-count: cardinality-is-contract
+    assert len(cache_files) == 1
     cache_files[0].write_text("corrupt", encoding="utf-8")
 
     repaired = find_wall_clock_assertion_violations_cached([test_file], cache_root)
@@ -1188,7 +1188,7 @@ def test_cached_scan_repairs_corruption_and_invalidates_on_source_change(tmp_pat
 
     test_file.write_text("def test_good():\n    assert 1 == 1\n", encoding="utf-8")
     assert find_wall_clock_assertion_violations_cached([test_file], cache_root) == []
-    assert len(list(cache_root.glob("*.json"))) == 2  # golden-count: cardinality-is-contract
+    assert len(list(cache_root.glob("*.json"))) == 2
 
 
 @pytest.mark.stress
@@ -1223,5 +1223,5 @@ def test_cached_scan_is_published_and_read_by_distinct_processes(tmp_path: Path)
     assert first_pid != second_pid
     assert first_rows == second_rows
     assert len(first_rows) == 1
-    assert len(list(cache_root.glob("*.json"))) == 1  # golden-count: cardinality-is-contract
+    assert len(list(cache_root.glob("*.json"))) == 1
     assert (cache_root / "authority.key").stat().st_size == 32

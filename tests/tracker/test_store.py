@@ -78,7 +78,7 @@ def test_mapping_and_checkpoint_round_trip(tmp_path) -> None:
     # Verifies the upsert dedupes to one row rather than accumulating; row content
     # (asserted below) carries dynamic created_at/updated_at timestamps so cannot be
     # pinned by a single equality.
-    assert len(mappings) == 1  # golden-count: cardinality-is-contract
+    assert len(mappings) == 1
     assert mappings[0]["wp_id"] == "WP01"
     assert mappings[0]["external_id"] == "abc123"
 

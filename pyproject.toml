@@ -1082,7 +1082,6 @@ exclude = [
     "tests/architectural/test_git_matrix_paths_resolve.py",
     "tests/architectural/test_git_topology_one_copy.py",
     "tests/architectural/test_glossary_pack_parity.py",
-    "tests/architectural/test_golden_count_ban.py",
     "tests/architectural/test_guard_capability_call_sites.py",
     "tests/architectural/test_home_owner_behaviour.py",
     "tests/architectural/test_home_owner_never_wins.py",

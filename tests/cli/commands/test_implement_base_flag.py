@@ -156,7 +156,7 @@ class TestValidateBaseRef:
         _make_git_repo(repo)
 
         sha = _validate_base_ref(repo, "main")
-        assert len(sha) == 40, f"Expected full SHA, got: {sha!r}"  # golden-count: cardinality-is-contract
+        assert len(sha) == 40, f"Expected full SHA, got: {sha!r}"
         assert all(c in "0123456789abcdef" for c in sha)
 
     def test_invalid_ref_raises_exit(self, tmp_path: Path) -> None:

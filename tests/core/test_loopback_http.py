@@ -70,7 +70,7 @@ def test_create_loopback_server_binds_loopback_only() -> None:
 def test_serve_loopback_server_binds_loopback_and_serves_forever() -> None:
     serve_loopback_server(8124, _Handler, server_factory=_RecordingServer)
 
-    assert len(_RecordingServer.instances) == 1  # golden-count: cardinality-is-contract
+    assert len(_RecordingServer.instances) == 1
     server = _RecordingServer.instances[0]
     assert server.bound_address == ("127.0.0.1", 8124)
     assert server.handler_class is _Handler
@@ -110,7 +110,7 @@ def test_serve_loopback_server_does_not_bind_non_loopback_host() -> None:
     """(b) side: serve_loopback_server must NOT widen the bind address."""
     serve_loopback_server(8126, _Handler, server_factory=_RecordingServer)
 
-    assert len(_RecordingServer.instances) == 1  # golden-count: cardinality-is-contract
+    assert len(_RecordingServer.instances) == 1
     bound_host = _RecordingServer.instances[0].bound_address[0]
     assert bound_host != "0.0.0.0", (
         "serve_loopback_server must not bind to 0.0.0.0"

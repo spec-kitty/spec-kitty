@@ -661,7 +661,7 @@ class TestVCSAbstraction:
                 worktree_path, feature_dir = create_feature_worktree(tmp_path, "fallback-test", mission_id=TEST_MISSION_ID)
 
                 # Verify deprecation warning was raised
-                assert len(w) == 1  # golden-count: cardinality-is-contract
+                assert len(w) == 1
                 assert issubclass(w[0].category, DeprecationWarning)
                 assert "VCS abstraction failed" in str(w[0].message)
                 assert "falling back to direct git commands" in str(w[0].message)

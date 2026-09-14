@@ -188,7 +188,7 @@ def test_transactional_claim_and_binding_use_one_atomic_stream_append(
 
     emit_status_transition_transactional(request)
 
-    assert len(appended_units) == 1  # golden-count: cardinality-is-contract
+    assert len(appended_units) == 1
     assert [payload.get("kind", "transition") for payload in appended_units[0]] == [
         "transition",
         "annotation",
@@ -233,7 +233,7 @@ def test_production_implement_lifecycle_persists_two_hops_and_binding_atomically
         ),
     )
 
-    assert len(appended_units) == 1  # golden-count: cardinality-is-contract
+    assert len(appended_units) == 1
     assert [payload.get("kind", "transition") for payload in appended_units[0]] == [
         "transition",
         "transition",
@@ -265,7 +265,7 @@ def test_transactional_read_targets_coordination_branch(repo: Path) -> None:
         repo_root=repo,
     )
     assert [item.event_id for item in stream.transitions] == [seed.event_id, event.event_id]
-    assert len(stream.annotations) == 1  # golden-count: cardinality-is-contract
+    assert len(stream.annotations) == 1
     assert stream.annotations[0].delta.agent == "claude"
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
 

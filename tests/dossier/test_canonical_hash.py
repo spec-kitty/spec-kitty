@@ -101,7 +101,7 @@ class TestCanonicalSnapshotHashStructure:
         result = compute_dossier_snapshot_hash(GOLDEN_ENTRIES)
         assert result.startswith("sha256:")
         digest = result.removeprefix("sha256:")
-        assert len(digest) == 64  # golden-count: cardinality-is-contract
+        assert len(digest) == 64
         int(digest, 16)  # valid hex or raises
 
     def test_matches_server_shape_byte_for_byte(self):
@@ -212,7 +212,7 @@ class TestWPStaticProjection:
 
     def test_projection_hash_is_64_hex(self):
         digest = hash_wp_static_projection(_make_wp())
-        assert len(digest) == 64  # golden-count: cardinality-is-contract
+        assert len(digest) == 64
         int(digest, 16)
 
     @pytest.mark.parametrize(
@@ -329,5 +329,5 @@ class TestWPProjectionGoldenVector:
         # matching ArtifactRef.content_hash_sha256 — distinct from the outer
         # snapshot hash's "sha256:"-prefixed form.
         assert not GOLDEN_WP_PROJECTION_HASH.startswith("sha256:")
-        assert len(GOLDEN_WP_PROJECTION_HASH) == 64  # golden-count: cardinality-is-contract
+        assert len(GOLDEN_WP_PROJECTION_HASH) == 64
         int(GOLDEN_WP_PROJECTION_HASH, 16)

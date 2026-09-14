@@ -1669,13 +1669,13 @@ def test_evidence_git_runs_without_allocation_lock_and_inside_checkout_queue(
     ) -> subprocess.CompletedProcess[bytes]:
         invocation: str | None = None
         if (
-            len(command) == 5  # golden-count: cardinality-is-contract
+            len(command) == 5
             and command[:4] == ["git", "add", "--force", "--"]
             and command[4].endswith("review-cycle-2.md")
         ):
             invocation = "stage"
         elif (
-            len(command) == 3  # golden-count: cardinality-is-contract
+            len(command) == 3
             and command[:2] == ["git", "show"]
             and command[2].endswith("review-cycle-2.md")
         ):

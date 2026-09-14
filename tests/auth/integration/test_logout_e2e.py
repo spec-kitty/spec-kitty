@@ -97,7 +97,7 @@ class TestLogoutE2E:
         assert "Server revocation confirmed" in result.stdout
 
         # FR-001/FR-002: the server-side revoke endpoint was called.
-        assert len(captured_posts) == 1  # golden-count: cardinality-is-contract
+        assert len(captured_posts) == 1
         url, kwargs = captured_posts[0]
         assert url.endswith("/oauth/revoke"), f"Expected /oauth/revoke, got {url}"
 

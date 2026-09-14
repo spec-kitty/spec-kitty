@@ -134,7 +134,7 @@ class TestOrgBridgeEdgeSourceUrnPreserved:
         )
 
         org_edges = list(merged.edges)
-        assert len(org_edges) == 1, "org edge must be bridged into the merged graph"  # golden-count: cardinality-is-contract
+        assert len(org_edges) == 1, "org edge must be bridged into the merged graph"
         edge = org_edges[0]
 
         # Before the fix, edge.source was "org:acme" (the pack provenance).

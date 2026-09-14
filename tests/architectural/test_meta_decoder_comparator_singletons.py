@@ -232,7 +232,7 @@ def test_single_vcs_lock_comparator() -> None:
     """NFR-002 / SC-003: exactly one VCS-lock comparator symbol tree-wide."""
     defs = scan_comparator_defs(SRC_ROOT)
     names = sorted(f"{d.rel_path}:{d.lineno} {d.name}" for d in defs)
-    assert len(defs) == 1, (  # golden-count: cardinality-is-contract
+    assert len(defs) == 1, (
         "NFR-002: expected exactly one VCS-lock comparator definition; found "
         f"{len(defs)}:\n  " + "\n  ".join(names) + "\nA re-introduced fork (e.g. "
         "ref_advance._is_vcs_lock_only_meta_change) must route onto "
@@ -249,7 +249,7 @@ def test_single_named_field_set() -> None:
     """NFR-002 / SC-003: exactly one named ``VCS_LOCK_META_FIELDS`` declaration."""
     decls = scan_field_set_declarations(SRC_ROOT)
     where = sorted(f"{d.rel_path}:{d.lineno} {d.name}" for d in decls)
-    assert len(decls) == 1, (  # golden-count: cardinality-is-contract
+    assert len(decls) == 1, (
         "NFR-002: expected exactly one named VCS-lock field-set declaration; "
         f"found {len(decls)}:\n  " + "\n  ".join(where) + "\nThe retired "
         "_VCS_LOCK_META_FIELDS forks must not return."
@@ -383,5 +383,5 @@ def test_canary_flags_inline_literal_but_not_canonical(tmp_path: Path) -> None:
         "    return fields\n",
     )
     literals = scan_inline_field_literals(scratch)
-    assert len(literals) == 1, f"expected exactly the inline duplicate, got {literals}"  # golden-count: cardinality-is-contract
+    assert len(literals) == 1, f"expected exactly the inline duplicate, got {literals}"
     assert literals[0].lineno == 3, "the canonical declaration RHS must be excluded, the inline literal flagged"

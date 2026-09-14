@@ -116,7 +116,7 @@ def test_retry_after_failure_yields_exactly_one_mission(tmp_path: Path, monkeypa
         **_mission_summary("retry-check"),
     )
 
-    assert len(_scaffolds(tmp_path)) == 1, f"expected exactly one mission after retry, got {_scaffolds(tmp_path)}"  # golden-count: cardinality-is-contract
+    assert len(_scaffolds(tmp_path)) == 1, f"expected exactly one mission after retry, got {_scaffolds(tmp_path)}"
 
 
 def test_rollback_preserves_a_pre_existing_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -134,7 +134,7 @@ def test_rollback_preserves_a_pre_existing_mission(tmp_path: Path, monkeypatch: 
         **_mission_summary("keep-me"),
     )
     survivors = _scaffolds(tmp_path)
-    assert len(survivors) == 1  # golden-count: cardinality-is-contract
+    assert len(survivors) == 1
 
     _fail_at_meta_write(monkeypatch, tmp_path)
     with pytest.raises(Exception, match="refusing to commit to protected branch"):

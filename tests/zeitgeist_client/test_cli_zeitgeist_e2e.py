@@ -64,7 +64,7 @@ def test_watch_end_to_end_over_a_real_loopback_double(state_root: Path, managed_
     result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--timeout", "2.0", "--json"])
     assert result.exit_code == 0
     lines = [line for line in result.stdout.splitlines() if line.strip()]
-    assert len(lines) == 2  # golden-count: cardinality-is-contract
+    assert len(lines) == 2
     frame = json.loads(lines[0])
     assert frame["frame_type"] == "presence"
     assert frame["payload"]["actor"]["session_ref"] == "b" * 12

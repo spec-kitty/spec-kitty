@@ -129,7 +129,7 @@ class TestMachineLoginE2E:
         assert "super-secret" not in result.stdout
 
         # The session was written through the token-manager seam, tagged machine.
-        assert len(fake_storage.writes) == 1  # golden-count: cardinality-is-contract
+        assert len(fake_storage.writes) == 1
         stored = fake_storage.writes[0]
         assert stored.auth_method == "client_credentials"
         assert stored.email == "ci-runner@machine.local"

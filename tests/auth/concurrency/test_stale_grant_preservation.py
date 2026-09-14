@@ -341,7 +341,7 @@ async def test_current_rejection_clears_with_message(
         if record.name == "specify_cli.auth.token_manager"
         and record.message.startswith("refresh_transaction outcome=")
     ]
-    assert len(outcomes) == 1  # golden-count: cardinality-is-contract
+    assert len(outcomes) == 1
     assert "current_rejection_cleared" in outcomes[0]
 
 

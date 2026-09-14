@@ -1575,7 +1575,7 @@ def test_2534_no_binding_arm_never_touches_internal_gate_coverage(tmp_path: Path
     with patch.object(tmt, "_mt_resolve_active_gate_bindings", return_value=not_activated):
         verdicts = tmt._mt_collect_transition_gate_verdicts(_for_review_state(tmp_path), inputs, tasks_stub)
 
-    assert len(verdicts) == 1  # golden-count: cardinality-is-contract
+    assert len(verdicts) == 1
     assert verdicts[0].outcome is pre_review_gate.GateOutcome.NO_COVERAGE
     assert "not activated" in (verdicts[0].reason or "")
 
@@ -1831,6 +1831,6 @@ def test_deprecation_warn_under_filterwarnings_error_folds_into_envelope(tmp_pat
         inputs, dirty_before, verdicts = tasks_move_task._mt_resolve_transition_gate_verdicts(st, tasks_stub)
     assert inputs is None
     assert dirty_before == ()
-    assert len(verdicts) == 1  # golden-count: cardinality-is-contract
+    assert len(verdicts) == 1
     assert verdicts[0].outcome is pre_review_gate.GateOutcome.NO_COVERAGE
     assert "unverified" in (verdicts[0].reason or "").lower()
