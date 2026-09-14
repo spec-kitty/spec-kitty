@@ -353,6 +353,10 @@ def test_full_partition_resolves_per_membership(coord_mission: _CoordMission) ->
         # 2026-08-03-1): review-cycle artifacts are per-WP lifecycle
         # bookkeeping -- COORD-partition.
         MissionArtifactKind.REVIEW_CYCLE,
+        # #3928: the Decision Moment ledger (``decisions/index.json`` +
+        # ``decisions/DM-<ulid>.md``) -- coord-authority-owned state, matching
+        # the write side's own ``read_dir(STATUS_STATE)`` placement.
+        MissionArtifactKind.DECISION_LEDGER,
     }
     # Sanity: the two sets partition the whole enum exactly once.
     assert primary_kinds | coord_kinds == set(MissionArtifactKind)

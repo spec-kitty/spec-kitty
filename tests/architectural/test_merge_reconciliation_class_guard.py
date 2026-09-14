@@ -311,7 +311,25 @@ def _canonical_artifact_file_globs() -> dict[str, MissionArtifactKind]:
 # in this WP: registering it touches ``.gitattributes`` /
 # ``specify_cli.lanes.merge._MERGE_DRIVERS`` / the ``init`` seed / an upgrade
 # migration, all OUTSIDE this WP's ``owned_files``.
-_NON_DIVERGENT_COORD_RESIDUE_DIRS: frozenset[str] = frozenset({"tasks", "checklists"})
+_NON_DIVERGENT_COORD_RESIDUE_DIRS: frozenset[str] = frozenset(
+    {
+        "tasks",
+        "checklists",
+        # #3928: the Decision Moment ledger directory (``decisions/index.json``
+        # + ``decisions/DM-<ulid>.md``, ``decisions/store.py``) -- SINGLE-WRITER
+        # coordination bookkeeping, not both-sides-divergent: Decision Moments
+        # are opened/resolved only by the decisions service during the
+        # charter/specify/plan interview flows (``OriginFlow`` has no implement
+        # lane), the manual ``spec-kitty decision`` command, and Slack-extraction
+        # resolve in ``widen/review.py`` -- one writer path, never independent
+        # target-side appends like ``traces/``. Each ``DM-<ulid>.md`` is a
+        # one-shot write under a ULID-unique name (no filename collision to
+        # union), and ``index.json`` is an atomic single-writer rewrite -- the
+        # ``issue-matrix.md`` single-writer coordination class, not the #2709
+        # ``traces`` append class.
+        "decisions",
+    }
+)
 
 
 def test_both_sides_divergent_canonical_artifacts_carry_merge_driver() -> None:
