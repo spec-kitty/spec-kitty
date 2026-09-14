@@ -1402,20 +1402,26 @@ class TestDiscoverBuiltInNodesInDir:
 class TestAgentProfileImplementerIvanConstant:
     """S1192 hoist (WP03 T009): the ``agent_profile:implementer-ivan``
     lineage target was duplicated 4x in ``_CURATED_ARTIFACT_EDGES``; it is
-    now one named module constant referenced at every site."""
+    now one named module constant referenced at every site.
+
+    Mission ``drupalling-dries-profile-01M28X69`` (WP07) added a fifth
+    ``specializes_from`` edge (``agent_profile:drupalling-dries``), raising
+    the golden count from 4 to 5.
+    """
 
     def test_constant_has_the_expected_urn(self) -> None:
         assert _AGENT_PROFILE_IMPLEMENTER_IVAN == "agent_profile:implementer-ivan"
 
-    def test_all_four_implementer_lineage_edges_reference_the_constant(self) -> None:
+    def test_all_five_implementer_lineage_edges_reference_the_constant(self) -> None:
         lineage_targets = [
             target
             for source, target, relation in _CURATED_ARTIFACT_EDGES
             if relation == Relation.SPECIALIZES_FROM
             and target == _AGENT_PROFILE_IMPLEMENTER_IVAN
         ]
-        # Behavior-preserving: still exactly 4 lineage edges into implementer-ivan.
-        assert len(lineage_targets) == 4
+        # Behavior-preserving: still exactly 5 lineage edges into implementer-ivan
+        # (drupal-dries joins the four incumbent stack specialists).
+        assert len(lineage_targets) == 5
         assert all(t is _AGENT_PROFILE_IMPLEMENTER_IVAN for t in lineage_targets)
 
 
