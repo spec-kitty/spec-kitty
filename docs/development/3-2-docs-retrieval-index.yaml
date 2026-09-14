@@ -8894,7 +8894,9 @@ pages:
     abstract: "Walk through a complete Spec Kitty 3.2 mission from specification through plan, tasks, implementation, review, and merge."
     anchors:
     - {slug: "overview", text: "Overview", level: 2}
-    - {slug: "step-1-create-the-specification", text: "Step 1: Create the Specification", level: 2}
+    - {slug: "step-1-have-a-mission-to-work-in", text: "Step 1: Have a Mission to Work In", level: 2}
+    - {slug: "if-you-came-from-getting-started-you-already-have-the-mission", text: "If you came from Getting Started — you already have the mission", level: 3}
+    - {slug: "if-you-are-starting-fresh-create-the-mission-now", text: "If you are starting fresh — create the mission now", level: 3}
     - {slug: "step-2-create-the-technical-plan", text: "Step 2: Create the Technical Plan", level: 2}
     - {slug: "step-3-generate-work-packages", text: "Step 3: Generate Work Packages", level: 2}
     - {slug: "step-4-check-consistency-before-implementing", text: "Step 4: Check Consistency Before Implementing", level: 2}

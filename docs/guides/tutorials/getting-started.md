@@ -2,7 +2,7 @@
 title: Getting Started with Spec Kitty
 description: Install Spec Kitty 3.2, initialize a project, and create your first mission with a guided beginner workflow.
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-14'
 audience: docs/context/audience/external/project-owner.md
 type: tutorial
 related:
@@ -167,7 +167,11 @@ ls .worktrees
 
 ## What's Next?
 
-Continue with [Your First Mission](your-first-mission.md) for the complete workflow from specification to merge.
+Continue with [Your First Mission](your-first-mission.md) for the complete
+workflow from specification to merge. It picks up the mission you just created:
+its Step 1 is only about confirming you have that mission, so **start at
+[Step 2](your-first-mission.md#step-2-create-the-technical-plan) and do not run
+`/spec-kitty.specify` again**.
 
 ### Related How-To Guides
 
