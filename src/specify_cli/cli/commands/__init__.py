@@ -191,6 +191,7 @@ def register_commands(app: typer.Typer) -> None:
     from specify_cli.tasks import issue_matrix_migration as issue_matrix_module
     from . import lifecycle as lifecycle_module
     from . import lint as lint_module
+    from . import live_work as live_work_module
     from . import materialize as materialize_module
     from . import merge as merge_module
     from . import merge_driver as merge_driver_module
@@ -306,6 +307,11 @@ def register_commands(app: typer.Typer) -> None:
     app.command(name="spec-commit")(spec_commit_module.spec_commit_command)
     app.command(name="session-start", help="Emit spec-kitty orientation for the Claude Code SessionStart hook.")(session_start_module.session_start)
     app.command(name="session-stop", help="Emit the open-Ops reminder for the Claude Code Stop hook.")(session_stop_module.session_stop)
+    app.add_typer(
+        live_work_module.app,
+        name="live-work",
+        help="Live Work harness capture: tools, files, tests and delegation as live relay frames (#4268).",
+    )
     app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
     app.command(name="issue-search", help="Search tracker issues via the hosted read path")(tracker_module.issue_search_command)
     app.command()(upgrade_module.upgrade)

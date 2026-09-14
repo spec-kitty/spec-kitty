@@ -200,6 +200,12 @@ _Authentication commands_
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --headless            Use device authorization flow (for SSH or no-browser   │
 │                       environments).                                         │
+│ --machine             Non-interactive machine/CI login: exchange the         │
+│                       ServicePrincipal credential from                       │
+│                       SPEC_KITTY_MACHINE_CLIENT_ID +                         │
+│                       SPEC_KITTY_MACHINE_CLIENT_SECRET(_FILE) via the OAuth  │
+│                       client_credentials grant. No browser, device flow, or  │
+│                       prompt.                                                │
 │ --force     -f        Re-authenticate even if already logged in.             │
 │ --help      -h        Show this message and exit.                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -260,6 +266,11 @@ _Charter management commands_
 │               optional cascade.                                              │
 │ deactivate    Deactivate a doctrine artifact by kind and ID (FR-005), with   │
 │               optional cascade.                                              │
+│ new           Scaffold a stub doctrine artifact YAML (FR-016).               │
+│ validate      Validate project-layer doctrine artifacts against their        │
+│               schemas (FR-017).                                              │
+│ fetch         Fetch org doctrine pack(s) from their configured remote        │
+│               sources.                                                       │
 │ interview     Capture charter interview answers for later generation.        │
 │ generate      Generate charter bundle from interview answers + doctrine      │
 │               references.                                                    │
@@ -276,142 +287,7 @@ _Charter management commands_
 │ mission-type  Mission type commands (activated types only).                  │
 │ list          List activated doctrine artifacts by kind.                     │
 │ pack          Charter pack management commands.                              │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter fetch
-
-```
- Usage: spec-kitty charter fetch [OPTIONS]
-
- Fetch org doctrine pack(s) from their configured remote sources.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --pack             TEXT  Fetch only the named pack (default: fetch all       │
-│                          configured packs).                                  │
-│ --dry-run                Show what would be fetched without contacting any   │
-│                          remote.                                             │
-│ --help     -h            Show this message and exit.                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter new
-
-```
- Usage: spec-kitty charter new [OPTIONS] KIND ID
-
- Scaffold a stub doctrine artifact YAML (FR-016).
-
- The scaffolder pre-fills the canonical schema's required fields with
- ``TODO …`` placeholders so the file passes ``doctrine validate`` on
- first emit.  Refuses to overwrite an existing file.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    kind             TEXT  Artifact kind (singular): one of agent_profile,  │
-│                             asset, directive, mission_step_contract,         │
-│                             paradigm, procedure, styleguide, tactic,         │
-│                             toolguide.                                       │
-│                             [required]                                       │
-│ *    artifact_id      ID    Artifact identifier (kebab-case for most kinds;  │
-│                             SCREAMING_SNAKE for directives).                 │
-│                             [required]                                       │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --pack          PATH  Scaffold inside a doctrine pack directory instead of   │
-│                       the project layer. When omitted, the stub lands under  │
-│                       .kittify/doctrine/.                                    │
-│ --help  -h            Show this message and exit.                            │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter org
-
-_Manage org-layer doctrine pack authoring (init, validate)._
-
-```
- Usage: spec-kitty charter org [OPTIONS] COMMAND [ARGS]...
-
- Manage org-layer doctrine pack authoring (init, validate).
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ init      Scaffold a minimal org doctrine pack skeleton (FR-006).            │
-│ validate  Validate an org doctrine pack using schema and DRG checks          │
-│           (FR-006).                                                          │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter org init
-
-```
- Usage: spec-kitty charter org init [OPTIONS] PACK_PATH
-
- Scaffold a minimal org doctrine pack skeleton (FR-006).
-
- Creates three files under *pack-path*::
-
-     org-charter.yaml   — governance policy stub
-     drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
-     README.md          — authoring quickstart
-
- Refuses to overwrite an existing directory unless ``--force`` is passed.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the directory to initialise as an org      │
-│                           doctrine pack.                                     │
-│                           [required]                                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force            Overwrite an existing pack directory.                     │
-│ --help   -h        Show this message and exit.                               │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter org validate
-
-```
- Usage: spec-kitty charter org validate [OPTIONS] PACK_PATH
-
- Validate an org doctrine pack using schema and DRG checks (FR-006).
-
- Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
- loader.  Prints per-file findings with file paths.  Exits non-zero when
- at least one error is found.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the org doctrine pack directory to         │
-│                           validate.                                          │
-│                           [required]                                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter validate
-
-```
- Usage: spec-kitty charter validate [OPTIONS] PATH
-
- Validate project-layer doctrine artifacts against their schemas (FR-017).
-
- When *path* is a single file, validates that file.  When *path* is a
- directory, walks the tree for ``*.yaml`` files whose filename suffix
- matches a canonical artifact kind and validates each one.
-
- Exit code: ``0`` if every artifact validates; ``1`` if any artifact
- fails.  A per-file error report is printed for failures.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    path      PATH  Artifact YAML file or a directory containing            │
-│                      project-layer doctrine artifacts (recurses into         │
-│                      per-kind subdirectories).                               │
-│                      [required]                                              │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
+│ org           Manage org-layer doctrine pack authoring (init, validate).     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -572,6 +448,22 @@ _Charter bundle validation commands._
 │                                                (NFR-001).                    │
 │                                                [default: no-resynthesize]    │
 │ --help          -h                             Show this message and exit.   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter fetch
+
+```
+ Usage: spec-kitty charter fetch [OPTIONS]
+
+ Fetch org doctrine pack(s) from their configured remote sources.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --pack             TEXT  Fetch only the named pack (default: fetch all       │
+│                          configured packs).                                  │
+│ --dry-run                Show what would be fetched without contacting any   │
+│                          remote.                                             │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -736,6 +628,104 @@ _Mission type commands (activated types only)._
 │                               mission-type list` (CR-02, mission             │
 │                               charter-code-topology-01M152G1 S4).            │
 │ --help              -h        Show this message and exit.                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter new
+
+```
+ Usage: spec-kitty charter new [OPTIONS] KIND ID
+
+ Scaffold a stub doctrine artifact YAML (FR-016).
+
+ The scaffolder pre-fills the canonical schema's required fields with
+ ``TODO …`` placeholders so the file passes ``doctrine validate`` on
+ first emit.  Refuses to overwrite an existing file.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    kind             TEXT  Artifact kind (singular): one of agent_profile,  │
+│                             asset, directive, mission_step_contract,         │
+│                             paradigm, procedure, styleguide, tactic,         │
+│                             toolguide.                                       │
+│                             [required]                                       │
+│ *    artifact_id      ID    Artifact identifier (kebab-case for most kinds;  │
+│                             SCREAMING_SNAKE for directives).                 │
+│                             [required]                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --pack          PATH  Scaffold inside a doctrine pack directory instead of   │
+│                       the project layer. When omitted, the stub lands under  │
+│                       .kittify/doctrine/.                                    │
+│ --help  -h            Show this message and exit.                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter org
+
+_Manage org-layer doctrine pack authoring (init, validate)._
+
+```
+ Usage: spec-kitty charter org [OPTIONS] COMMAND [ARGS]...
+
+ Manage org-layer doctrine pack authoring (init, validate).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ init      Scaffold a minimal org doctrine pack skeleton (FR-006).            │
+│ validate  Validate an org doctrine pack using schema and DRG checks          │
+│           (FR-006).                                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter org init
+
+```
+ Usage: spec-kitty charter org init [OPTIONS] PACK_PATH
+
+ Scaffold a minimal org doctrine pack skeleton (FR-006).
+
+ Creates three files under *pack-path*::
+
+     org-charter.yaml   — governance policy stub
+     drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
+     README.md          — authoring quickstart
+
+ Refuses to overwrite an existing directory unless ``--force`` is passed.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    pack_path      PATH  Path to the directory to initialise as an org      │
+│                           doctrine pack.                                     │
+│                           [required]                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --force            Overwrite an existing pack directory.                     │
+│ --help   -h        Show this message and exit.                               │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter org validate
+
+```
+ Usage: spec-kitty charter org validate [OPTIONS] PACK_PATH
+
+ Validate an org doctrine pack using schema and DRG checks (FR-006).
+
+ Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
+ loader.  Prints per-file findings with file paths.  Exits non-zero when
+ at least one error is found.
+
+ Org fragments use id and plural kind (for example, directives) for nodes.
+ Validation uses the runtime loader, which supplies pack provenance fields.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    pack_path      PATH  Path to the org doctrine pack directory to         │
+│                           validate.                                          │
+│                           [required]                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1035,6 +1025,31 @@ _Charter pack management commands._
 │ --dry-run-evidence                  Print evidence summary and exit without  │
 │                                     running synthesis.                       │
 │ --help                -h            Show this message and exit.              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter validate
+
+```
+ Usage: spec-kitty charter validate [OPTIONS] PATH
+
+ Validate project-layer doctrine artifacts against their schemas (FR-017).
+
+ When *path* is a single file, validates that file.  When *path* is a
+ directory, walks the tree for ``*.yaml`` files whose filename suffix
+ matches a canonical artifact kind and validates each one.
+
+ Exit code: ``0`` if every artifact validates; ``1`` if any artifact
+ fails.  A per-file error report is printed for failures.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    path      PATH  Artifact YAML file or a directory containing            │
+│                      project-layer doctrine artifacts (recurses into         │
+│                      per-kind subdirectories).                               │
+│                      [required]                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2109,6 +2124,9 @@ _Manage org-layer doctrine pack authoring (init, validate)._
  loader.  Prints per-file findings with file paths.  Exits non-zero when
  at least one error is found.
 
+ Org fragments use id and plural kind (for example, directives) for nodes.
+ Validation uses the runtime loader, which supplies pack provenance fields.
+
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    pack_path      PATH  Path to the org doctrine pack directory to         │
 │                           validate.                                          │
@@ -2687,6 +2705,118 @@ _Search tracker issues via the hosted read path_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty live-work
+
+_Live Work harness capture: tools, files, tests and delegation as live relay frames (#4268)._
+
+```
+ Usage: spec-kitty live-work [OPTIONS] COMMAND [ARGS]...
+
+ Live Work harness capture: tools, files, tests and delegation as live relay
+ frames (#4268).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ hook       Handle one harness hook event (JSON on stdin) and publish live    │
+│            frames.                                                           │
+│ matrix     Print the executable capability matrix (rows + health + codec     │
+│            state).                                                           │
+│ install    Register the Live Work capture hooks in the harness's native      │
+│            config.                                                           │
+│ uninstall  Remove the Live Work capture hooks (sibling hooks are untouched). │
+│ watch      One-shot labeled changed-file observation (sampled fallback).     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty live-work hook
+
+```
+ Usage: spec-kitty live-work hook [OPTIONS] HARNESS
+
+ Handle one harness hook event (JSON on stdin) and publish live frames.
+
+ Exit 0 always — capture must never fail the harness invocation.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    harness      TEXT  The harness whose hook fired (claude / codex).       │
+│                         [required]                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --verbose            Print the publish report to stderr.                     │
+│ --help     -h        Show this message and exit.                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty live-work install
+
+```
+ Usage: spec-kitty live-work install [OPTIONS] HARNESS
+
+ Register the Live Work capture hooks in the harness's native config.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    harness      TEXT  The harness to install capture hooks for (claude /   │
+│                         codex).                                              │
+│                         [required]                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty live-work matrix
+
+```
+ Usage: spec-kitty live-work matrix [OPTIONS]
+
+ Print the executable capability matrix (rows + health + codec state).
+
+ Exits non-zero when a harness configured in this project has no Live
+ Work hooks installed — the no-silent-green enforcement.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --allow-degraded            Exit 0 even when a configured harness has no     │
+│                             capture hooks.                                   │
+│ --help            -h        Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty live-work uninstall
+
+```
+ Usage: spec-kitty live-work uninstall [OPTIONS] HARNESS
+
+ Remove the Live Work capture hooks (sibling hooks are untouched).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    harness      TEXT  The harness to remove capture hooks for (claude /    │
+│                         codex).                                              │
+│                         [required]                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty live-work watch
+
+```
+ Usage: spec-kitty live-work watch [OPTIONS]
+
+ One-shot labeled changed-file observation (sampled fallback).
+
+ Emits sampled file-change frames for the working tree's uncommitted
+ changes — changed files only, explicitly labeled: no attribution to an
+ agent, and file reads are never claimed.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --verbose            Print the publish report to stderr.                     │
+│ --help     -h        Show this message and exit.                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty materialize
 
 ```
@@ -3046,7 +3176,11 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
  Per-mission best-effort (research D-03): a mission whose verify fails is left
  un-flipped (``status_phase`` untouched) and named in the summary; other
  missions
- still flip. Use ``--dry-run`` to preview would-seed counts without writing.
+ still flip. Use ``--dry-run`` to preview would-seed and would-flip counts
+ without writing. The summary's ``Flipped`` counter names the missions this
+ run actually flipped — a mission with event-log evidence but no legacy
+ frontmatter state to seed still flips and is counted there, never as
+ "Skipped (already migrated)" (#3212).
 
  Exit codes:
 
@@ -5448,6 +5582,7 @@ _Tracker synchronization commands_
 │ --target                TEXT  Target version (defaults to current CLI        │
 │                               version)                                       │
 │ --json                        Output results as JSON                         │
+│ --plan-json                   Output the complete preview plan as JSON       │
 │ --verbose       -v            Show detailed migration information            │
 │ --no-worktrees                Skip upgrading worktrees                       │
 │ --cli                         Restrict to CLI guidance only; works outside   │
@@ -5457,7 +5592,7 @@ _Tracker synchronization commands_
 │ --yes           -y            Non-interactive confirmation; alias for        │
 │                               --force (FR-017)                               │
 │ --no-nag                      Suppress upgrade-nag output explicitly         │
-│ --help          -h            Show this message and exit.                    │
+│ --help                        Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5924,326 +6059,6 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 │ --json                                        Emit plain JSON instead of a   │
 │                                               human-readable summary.        │
 │ --help        -h                              Show this message and exit.    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## Internal / hidden commands
-
-> The following commands are hidden from the default `--help` output but documented here for internal reference.
-
-
-## spec-kitty __force_multi_command_mode__
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty __force_multi_command_mode__ [OPTIONS]
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty agent check-prerequisites
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty agent check-prerequisites [OPTIONS]
-
- Deprecated compatibility alias forwarding to agent mission
- check-prerequisites.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                TEXT  Mission slug                                  │
-│ --json                         Output JSON format                            │
-│ --paths-only                   Only output path variables                    │
-│ --include-tasks                Include tasks.md in validation                │
-│ --help           -h            Show this message and exit.                   │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty agent decision widen
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty agent decision widen [OPTIONS] DECISION_ID
-
-  Call the widen endpoint for a decision. Not for end users.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    decision_id      TEXT  ULID of the DecisionPoint to widen [required]    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --invited               TEXT  Comma-separated Teamspace user IDs to       │
-│                                  invite                                      │
-│                                  [required]                                  │
-│    --mission-slug          TEXT  Mission slug                                │
-│    --dry-run                     Print what would be called without calling  │
-│                                  it                                          │
-│    --help          -h            Show this message and exit.                 │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty agent profile
-
-> **Internal**: hidden from the default `--help` output.
-
-_Compatibility alias for listing agent profiles_
-
-```
- Usage: spec-kitty agent profile [OPTIONS] COMMAND [ARGS]...
-
- Compatibility alias for listing agent profiles
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list  List agent profiles (activated-only by default; --all for the full     │
-│       catalog).                                                              │
-│ show  Show the full resolved definition of an agent profile                  │
-│       (FR-013/014/015).                                                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty agent profile get
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty agent profile get [OPTIONS] PROFILE_ID
-
- Show the full resolved definition of an agent profile (FR-013/014/015).
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    profile_id      TEXT  Profile ID to show. [required]                    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Output JSON object.                                        │
-│ --all             Bypass the activation gate for inspection (show            │
-│                   non-activated profiles).                                   │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty commit-guard-hook
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty commit-guard-hook [OPTIONS] [_ARGS]...
-
- Run the commit guard and exit with its result code.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine
-
-> **Internal**: hidden from the default `--help` output.
-
-> **Deprecated**: [DEPRECATED — use `spec-kitty charter`] Manage org-layer doctrine packs
-
-```
- Usage: spec-kitty doctrine [OPTIONS] COMMAND [ARGS]...
-
- (deprecated)
- [DEPRECATED — use `spec-kitty charter`] Manage org-layer doctrine packs
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ fetch             Fetch org doctrine pack(s) from their configured remote    │
-│                   sources.                                                   │
-│ regenerate-graph  Regenerate the shipped DRG graph source deterministically  │
-│                   (FR-009).                                                  │
-│ new               Scaffold a stub doctrine artifact YAML (FR-016).           │
-│ validate          Validate project-layer doctrine artifacts against their    │
-│                   schemas (FR-017).                                          │
-│ pack              Validate or assemble doctrine packs.                       │
-│ org               Manage org-layer doctrine pack authoring (init, validate). │
-│ mission-type      Mission type commands.                                     │
-│ asset             Resolve shipped and overlay doctrine assets (no install —  │
-│                   C-002).                                                    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty merge-driver-acceptance-matrix
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty merge-driver-acceptance-matrix [OPTIONS] BASE OURS THEIRS
-
- Row-aware, 3-way merge of ``acceptance-matrix.json``; write result to ``ours``
- (FR-008).
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    base_path        BASE    [required]                                     │
-│ *    ours_path        OURS    [required]                                     │
-│ *    theirs_path      THEIRS  [required]                                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty merge-driver-event-log
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty merge-driver-event-log [OPTIONS] BASE OURS THEIRS
-
- Merge ``status.events.jsonl`` conflict inputs using event-log semantics.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    base_path        BASE    [required]                                     │
-│ *    ours_path        OURS    [required]                                     │
-│ *    theirs_path      THEIRS  [required]                                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty merge-driver-issue-matrix
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty merge-driver-issue-matrix [OPTIONS] BASE OURS THEIRS
-
- Row-aware, 3-way merge of ``issue-matrix.json``; write result to ``ours``
- (FR-008).
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    base_path        BASE    [required]                                     │
-│ *    ours_path        OURS    [required]                                     │
-│ *    theirs_path      THEIRS  [required]                                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty merge-driver-meta
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty merge-driver-meta [OPTIONS] BASE OURS THEIRS
-
- Field-merge conflicting ``meta.json`` blobs; write result to ``ours``.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    base_path        BASE    [required]                                     │
-│ *    ours_path        OURS    [required]                                     │
-│ *    theirs_path      THEIRS  [required]                                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty merge-driver-review-cycle
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty merge-driver-review-cycle [OPTIONS] BASE OURS THEIRS
-
- Reconcile a ``review-cycle-N.md`` collision, best-effort, non-aborting.
-
- Two distinct verdict documents colliding under the same filename are
- NEVER unioned/field-merged/interleaved into one document -- see the
- module-level design-decision comment immediately above this function for
- the full reasoning (embed both verbatim, never fabricate a blended
- verdict). Unlike WP18's original T077 driver, a divergent collision no
- longer aborts the squash (FR-014/D-PLAN-6): the ``.md`` render is
- non-authoritative, unread prose now that ``status.events.jsonl``'s
- ``review_result`` event slot is the sole verdict authority, so refusing
- the merge over it is no longer justified.
-
- Identical content on both sides (byte-for-byte) is the trivial fast path:
- resolves cleanly, exit 0, never reported as a conflict. Otherwise, both
- raw documents are embedded verbatim inside standard git-style conflict
- markers (never blended field-by-field -- a review verdict has no safely
- mergeable sub-fields the way a JSON matrix row does) and the driver
- exits 0, so ``git merge --squash -X theirs`` treats the path as resolved
- and the squash proceeds.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    base_path        BASE    [required]                                     │
-│ *    ours_path        OURS    [required]                                     │
-│ *    theirs_path      THEIRS  [required]                                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty merge-driver-traces
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty merge-driver-traces [OPTIONS] BASE OURS THEIRS
-
- Union conflicting ``traces/*.md`` documents; write result to ``ours``.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    base_path        BASE    [required]                                     │
-│ *    ours_path        OURS    [required]                                     │
-│ *    theirs_path      THEIRS  [required]                                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty profiles get
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty profiles get [OPTIONS] PROFILE_ID
-
- Show the full resolved definition of an agent profile (FR-013/014/015).
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    profile_id      TEXT  Profile ID to show. [required]                    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Output JSON object.                                        │
-│ --all             Bypass the activation gate for inspection (show            │
-│                   non-activated profiles).                                   │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty zeitgeist mcp-serve
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty zeitgeist mcp-serve [OPTIONS]
-
- Serve the Z7-C stdio MCP adapter (``mcp_stdio.run_stdio``) until the client
- disconnects. Process entry point for an MCP client's launcher — not meant for
- direct interactive use, hence hidden.
-
- #190: switched off (`spec-kitty moments off`), this prints one line to
- stderr and exits 0 — stdout stays clean for the MCP framing protocol —
- rather than starting a server that would only ever look broken.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 <!-- END GENERATED -->

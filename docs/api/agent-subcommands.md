@@ -112,10 +112,13 @@ _Mission action commands that display prompts and instructions for agents_
 │                                            against the correlated Op record  │
 │                                            (requires --invocation-id; never  │
 │                                            the frontmatter recommendation)   │
-│ --profile                            TEXT  Dispatch-resolved agent profile   │
-│                                            (registry.resolve / Op record —   │
-│                                            never the frontmatter             │
-│                                            agent_profile string)             │
+│ --profile                            TEXT  Agent profile id — a dispatch     │
+│                                            registry / Op record profile or a │
+│                                            local charter profile (the same   │
+│                                            ids `agent profile show`          │
+│                                            resolves). When omitted, the work │
+│                                            package's frontmatter             │
+│                                            agent_profile is used.            │
 │ --invocation-id                      TEXT  Correlated Op record ULID whose   │
 │                                            mission, WP, action, profile, and │
 │                                            model are authoritative           │
@@ -163,9 +166,11 @@ _Mission action commands that display prompts and instructions for agents_
 │                                correlated Op record (requires                │
 │                                --invocation-id; never the frontmatter        │
 │                                recommendation)                               │
-│ --profile                TEXT  Dispatch-resolved agent profile               │
-│                                (registry.resolve / Op record — never the     │
-│                                frontmatter agent_profile string)             │
+│ --profile                TEXT  Agent profile id — a dispatch registry / Op   │
+│                                record profile or a local charter profile     │
+│                                (the same ids `agent profile show` resolves). │
+│                                When omitted, the work package's frontmatter  │
+│                                agent_profile is used.                        │
 │ --invocation-id          TEXT  Correlated Op record ULID whose mission, WP,  │
 │                                action, profile, and model are authoritative  │
 │ --help           -h            Show this message and exit.                   │
@@ -912,6 +917,7 @@ _Mission lifecycle commands for AI agents_
 │ --help                     -h            Show this message and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
+
 ## spec-kitty agent mission merge
 
 ```
@@ -1775,20 +1781,18 @@ _Task workflow commands for AI agents_
 │                                                        regression gate on a  │
 │                                                        --to for_review move  │
 │                                                        (also honored via the │
-│                                                        SPEC_KITTY_SYNC_DISA… │
-│                                                        /                     │
-│                                                        SPEC_KITTY_SYNC_MINI… │
-│                                                        env vars). The gate   │
+│                                                        SPEC_KITTY_SKIP_PRE_… │
+│                                                        env var). The gate    │
 │                                                        still runs and        │
 │                                                        enforces by default.  │
 │    --owned-checkout                              PATH  Use an owned          │
 │                                                        single_branch         │
 │                                                        checkout for the      │
 │                                                        local review          │
-│                                                        lifecycle (active     │
-│                                                        sync, force/skip,     │
-│                                                        done, and arbiter     │
-│                                                        modes unsupported).   │
+│                                                        lifecycle             │
+│                                                        (force/skip, done,    │
+│                                                        and arbiter modes     │
+│                                                        unsupported).         │
 │    --help                -h                            Show this message and │
 │                                                        exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
