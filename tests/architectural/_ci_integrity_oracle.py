@@ -64,9 +64,12 @@ RUNTIME_EVIDENCE_BOUNDARY = (
     "job result (SC-004) and is never inferred from this static wiring proof."
 )
 
-#: Enumerated always-on must-run gates (SC-004): the cheapest static gates that
-#: must run on every change regardless of path. Names are ``ci-router.yml`` job
-#: keys. These carry NO filter group — they are always-on by construction.
+#: Enumerated always-on must-run gates (SC-004): the cheapest gates that
+#: must run on every change regardless of path. Names are ``ci-router.yml``
+#: job keys. These carry NO filter group — they are always-on by construction.
+#: ``archive-freeze`` (#4365) is here so a docs-only PR that rewrites archived
+#: dossiers can never again merge without meeting the archive freeze — the
+#: gap #4260 slipped through (the heavy battery is code-scoped).
 MUST_RUN_ALWAYS_ON_GATES = frozenset(
     {
         "ruff",
@@ -74,6 +77,7 @@ MUST_RUN_ALWAYS_ON_GATES = frozenset(
         "regen-check",
         "terminology",
         "layer-rules",
+        "archive-freeze",
     },
 )
 

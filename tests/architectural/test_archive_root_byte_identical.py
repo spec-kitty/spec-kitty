@@ -15,7 +15,9 @@ WP11's independently reviewed recovery has exact Git provenance, output pins
 AND current read-only canonical replay. It is not a general snapshot exception.
 The separate dead-port recovery below binds one additional output to public-main
 inputs and independently reviewed blob/receipt pins; it does not repin WP11.
-Both index and working tree are checked against merge-base(HEAD, origin/main).
+Both index and working tree are checked against merge-base(HEAD, main), where
+``main`` is resolved against THIS repository's own remote (by URL), never
+blindly against whatever ref the local clone happens to call ``origin/main``.
 """
 
 from __future__ import annotations
@@ -44,7 +46,37 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 # The convergence-port base ref. The upstream mission base is not an ancestor of
 # this repository's main, so comparing it directly would blame pre-existing fork
 # deletions on M1. The merge-base with main is the exact pre-port EXP tree.
-_PORT_BASE_REF = "origin/main"
+#
+# WHICH clone's "main" is load-bearing (#4365): the base must be the merge-base
+# against THIS repository's own main, resolved by remote URL — never blindly
+# ``origin/main``. In a fork-based contributor clone ``origin`` is the fork
+# (e.g. Priivacy-ai/spec-kitty) and this repository is ``upstream``; a detached
+# worktree at upstream/main then diffs against a merge-base that predates
+# already-merged archive history, and merged-but-post-base rewrites of archived
+# dossiers render as fresh ``ordinary archive history changed`` violations —
+# the false positive that filed #4365 (the gate was green in this repository's
+# own CI at every sha that issue named). Candidate order: the remote(s) whose
+# configured URL names this repository, ``origin`` first among them; the legacy
+# ``origin/main`` stays last so a fork-only clone with no canonical remote
+# keeps its previous behaviour.
+_CANONICAL_REPO_SLUG = "spec-kitty/spec-kitty"
+_LEGACY_PORT_BASE_REF = "origin/main"
+# Recorded in-place rewrites of already-archived dossiers in main history —
+# #4365's "what mutates archived artifacts". The one genuine event is
+# 583f3bb888 ("docs: use canonical Team Kitty host and redact retired
+# references", #4260, merged 2026-09-13): a deliberate, merged redaction sweep
+# that rewrote archived mission dossiers across (at least)
+# per-project-sync-consent-ledgers-01KZKMQZ,
+# setup-plan-auth-diagnostics-nonfatal-01M0QEAD,
+# home-pin-census-owner-adoption-01M05C50 and
+# operator-config-ergonomics-01M04YK8. It merged without this gate ever
+# running — the heavy architectural battery is code-scoped, so a docs-only PR
+# pays for neither it nor a code shard — which is why the always-on
+# ``archive-freeze`` CI job (`.github/workflows/ci-router.yml`) now runs this
+# file on every PR shape. The event is recorded here, not re-litigated and not
+# re-baselined: an edit that has merged is inside the baseline by
+# construction, and this gate protects the review frontier (unmerged branch
+# edits), which is the only thing a diff-against-main gate can protect.
 
 # The four fixed exclusion / immutable-archive roots.
 _ARCHIVE_ROOTS: tuple[str, ...] = (
@@ -508,11 +540,74 @@ def _files_under_roots_at(rev: str) -> set[str]:
     return {path for path in _tree(rev) if any(path.startswith(root) for root in _ARCHIVE_ROOTS)}
 
 
+def _remote_repo_slug(url: str) -> str:
+    """The ``owner/repo`` slug a remote URL names, across checkout shapes.
+
+    Accepts the https, ssh and scp-style spellings a checkout of this
+    repository can carry — ``https://github.com/spec-kitty/spec-kitty.git``,
+    the exe fleet's ``github.int.exe.xyz`` proxy form,
+    ``git@github.com:spec-kitty/spec-kitty.git`` — and reduces any of them to
+    the trailing ``owner/repo`` path segments, so host, port, credentials and
+    a ``.git`` suffix never change the answer. Returns ``""`` for a URL too
+    short to name an owner/repo pair.
+    """
+    text = url.strip().rstrip("/")
+    if text.endswith(".git"):
+        text = text[: -len(".git")]
+    if "://" in text:
+        text = text.split("://", 1)[1]
+    elif ":" in text:
+        # scp-style git@host:owner/repo — no scheme to strip, one separator.
+        text = text.replace(":", "/", 1)
+    segments = [segment for segment in text.split("/") if segment]
+    if len(segments) < 2:
+        return ""
+    return "/".join(segments[-2:])
+
+
+def _live_remote_urls() -> dict[str, str]:
+    """Configured remote URLs, by remote name.
+
+    Read through ``git config --get`` rather than ``git remote get-url``: the
+    configured URL is the clone's own declaration of where it came from, and a
+    machine-local ``url.<base>.insteadOf`` transport rewrite must never re-home
+    which repository a clone names (the same rule
+    ``specify_cli.zeitgeist_client.repo_identity`` applies to origin identity).
+    """
+    urls: dict[str, str] = {}
+    for name in _run_git(["remote"]).stdout.split():
+        url = _run_git(["config", "--get", f"remote.{name}.url"]).stdout.strip()
+        if url:
+            urls[name] = url
+    return urls
+
+
+def _select_port_base_refs(remotes: dict[str, str]) -> list[str]:
+    """Port-base candidates: canonical remote(s) first, legacy ref last.
+
+    ``origin`` leads the canonical remotes when it is one, so the fleet's
+    proxy-URL clone and a GitHub Actions checkout keep using ``origin/main``
+    exactly as before. Only a clone whose ``origin`` is a fork re-homes to the
+    remote that actually names this repository.
+    """
+    canonical = [name for name, url in remotes.items() if _remote_repo_slug(url) == _CANONICAL_REPO_SLUG]
+    ordered = sorted(canonical, key=lambda name: (name != "origin", name))
+    candidates = [f"{name}/main" for name in ordered]
+    if _LEGACY_PORT_BASE_REF not in candidates:
+        candidates.append(_LEGACY_PORT_BASE_REF)
+    return candidates
+
+
+def _port_base_candidate_refs() -> list[str]:
+    return _select_port_base_refs(_live_remote_urls())
+
+
 def _port_base_rev() -> str | None:
-    result = _run_git(["merge-base", "HEAD", _PORT_BASE_REF])
-    if result.returncode != 0:
-        return None
-    return result.stdout.strip() or None
+    for ref in _port_base_candidate_refs():
+        result = _run_git(["merge-base", "HEAD", ref])
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    return None
 
 
 def _require_port_base_rev() -> str:
@@ -520,7 +615,7 @@ def _require_port_base_rev() -> str:
     port_base_rev = _port_base_rev()
     if port_base_rev is not None:
         return port_base_rev
-    message = f"EXP port base (merge-base HEAD {_PORT_BASE_REF!r}) is not reachable; archive freeze cannot run"
+    message = f"EXP port base (merge-base HEAD {' or '.join(_port_base_candidate_refs())!r}) is not reachable; archive freeze cannot run"
     if os.environ.get("CI") == "true":
         pytest.fail(message)
     pytest.skip(message)
@@ -558,6 +653,66 @@ def test_archive_baseline_is_non_empty() -> None:
     assert _files_under_roots_at(_require_port_base_rev()), (
         "no tracked files found under the archive roots at the EXP port base — the byte-identity gate would pass vacuously"
     )
+
+
+def test_remote_repo_slug_matches_every_checkout_shape() -> None:
+    """The slug matcher is checkout-shape independent (#4365).
+
+    Host (github.com or the exe fleet proxy), scheme, port, credentials and a
+    ``.git`` suffix must never change which repository a URL names — and a
+    fork of this repository must never match the canonical slug.
+    """
+    for url in (
+        "https://github.com/spec-kitty/spec-kitty.git",
+        "https://github.com/spec-kitty/spec-kitty",
+        "https://github.int.exe.xyz/spec-kitty/spec-kitty.git",
+        "https://user:token@github.com/spec-kitty/spec-kitty.git",
+        "ssh://git@github.com:22/spec-kitty/spec-kitty.git",
+        "git@github.com:spec-kitty/spec-kitty.git",
+    ):
+        assert _remote_repo_slug(url) == _CANONICAL_REPO_SLUG, url
+    assert _remote_repo_slug("git@github.com:Priivacy-ai/spec-kitty.git") == "Priivacy-ai/spec-kitty"
+    assert _remote_repo_slug("https://github.com/spec-kitty/spec-kitty-saas.git") == "spec-kitty/spec-kitty-saas"
+    assert _remote_repo_slug("") == ""
+    assert _remote_repo_slug("https://github.com") == ""
+
+
+def test_port_base_candidates_prefer_this_repository_over_a_fork_origin() -> None:
+    """#4365's filing shape: ``origin`` is a fork, ``upstream`` is this repo.
+
+    A detached worktree at this repository's main must diff against THIS
+    repository's main, so the canonical remote's ref leads the candidate list
+    and the fork's ``origin/main`` is demoted to the legacy fallback behind it.
+    """
+    remotes = {
+        "origin": "git@github.com:Priivacy-ai/spec-kitty.git",
+        "upstream": "https://github.com/spec-kitty/spec-kitty.git",
+    }
+    assert _select_port_base_refs(remotes) == ["upstream/main", "origin/main"]
+
+
+def test_port_base_candidates_put_origin_first_when_origin_is_canonical() -> None:
+    """A checkout whose ``origin`` already names this repository is unchanged."""
+    remotes = {
+        "fork": "git@github.com:Priivacy-ai/spec-kitty.git",
+        "origin": "https://github.int.exe.xyz/spec-kitty/spec-kitty.git",
+        "upstream": "https://github.com/spec-kitty/spec-kitty.git",
+    }
+    assert _select_port_base_refs(remotes) == ["origin/main", "upstream/main"]
+
+
+def test_port_base_candidates_keep_the_legacy_ref_in_a_fork_only_clone() -> None:
+    """No configured remote names this repository: the fork's main stands."""
+    assert _select_port_base_refs({"origin": "git@github.com:someone/spec-kitty.git"}) == ["origin/main"]
+    assert _select_port_base_refs({}) == ["origin/main"]
+
+
+def test_live_port_base_resolves_when_a_canonical_remote_is_configured() -> None:
+    """In a checkout that names this repository, the port base is reachable."""
+    canonical = [name for name, url in _live_remote_urls().items() if _remote_repo_slug(url) == _CANONICAL_REPO_SLUG]
+    if not canonical:
+        pytest.skip("no configured remote points at this repository (fork-only clone)")
+    assert _port_base_rev() is not None
 
 
 def test_archive_freeze_gate_uses_the_exp_port_base_without_import_time_skip() -> None:
