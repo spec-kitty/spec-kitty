@@ -106,7 +106,7 @@ def test_bundle_tension_fields_are_hashable_tuples(tmp_path: Path) -> None:
         assert isinstance(arbitrated, tuple)
     for pair in bundle.unarbitrated_tensions:
         assert isinstance(pair, tuple)
-        assert len(pair) == 2  # golden-count: cardinality-is-contract
+        assert len(pair) == 2
 
 
 def test_typeless_mission_bundle_has_empty_tension_fields(tmp_path: Path) -> None:

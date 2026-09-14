@@ -625,9 +625,9 @@ jobs:
 
       - name: SonarCloud Scan
         if: steps.gate.outputs.run == 'true'
-        # SHA-pinned (DIR-051) to the SAME commit ci-quality.yml and sonar.yml
-        # vet for this action -- both surfaces analyze the same SonarCloud
-        # project, so the pins must not drift apart (enforced by
+        # SHA-pinned (DIR-051) to the SAME commit sonar.yml vets for this
+        # action -- both surfaces analyze the same SonarCloud project, so the
+        # pins must not drift apart (enforced by
         # tests/release/test_sonar_workflow.py).
         uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
         with:
@@ -663,7 +663,8 @@ jobs:
   # terminal job can rescue a run conclusion. What this job buys is a seam a
   # test can assert `sonar-pr` is EXCLUDED from -- which is what makes the
   # workflow-run-conclusion half of the non-blocking guarantee assertable at
-  # all, the way ci-quality.yml's NON_BLOCKING_ALLOWLIST declares it there.
+  # all, the way tests/architectural/test_suite_jobs_gate_blocking.py's
+  # NON_BLOCKING_ALLOWLIST declares ci-quality.yml's non-blocking jobs.
   #
   # Modelled on ci-router.yml's `router-gate` (skipped-tolerant), NOT
   # ci-quality.yml's `quality-gate` (strict success): both siblings here are

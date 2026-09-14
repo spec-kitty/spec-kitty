@@ -174,15 +174,13 @@ def test_504_handler_is_pinned_to_unregistered_only() -> None:
     tree = ast.parse(source)
 
     try_nodes = [node for node in ast.walk(tree) if isinstance(node, ast.Try)]
-    assert len(try_nodes) == 1, (  # golden-count: cardinality-is-contract
+    assert len(try_nodes) == 1, (
         "expected exactly one try/except in _check_composed_action_guard; "
         f"found {len(try_nodes)} -- guard-seam-invariant.md's shape assumption "
         "no longer holds, re-verify the seam by hand"
     )
     (guard_try,) = try_nodes
-    assert len(guard_try.handlers) == 1, (  # golden-count: cardinality-is-contract
-        f"the guard's try must have exactly one except handler (never catch-all); found {len(guard_try.handlers)}"
-    )
+    assert len(guard_try.handlers) == 1, f"the guard's try must have exactly one except handler (never catch-all); found {len(guard_try.handlers)}"
     (handler,) = guard_try.handlers
 
     assert handler.type is not None, "the handler must name a type, never a bare `except:`"

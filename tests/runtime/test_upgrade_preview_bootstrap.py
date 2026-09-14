@@ -417,7 +417,7 @@ def test_actual_slash_dispatch_retains_empty_selection_and_caller_root(owner_hom
     service = SurfaceRepairService((SlashCommandsProvider(),))
     plans = (SurfacePlan("claude", (), "T1", (definition,)),)
     assessments = service.assess(inputs, (), plans=plans)
-    assert len(assessments) == 1 and assessments[0].root == inputs.root  # golden-count: cardinality-is-contract
+    assert len(assessments) == 1 and assessments[0].root == inputs.root
     assert assessments[0].complete and assessments[0].effects
     assert all("claude" in effect.logical_owners for effect in assessments[0].effects)
     results = service.apply_assessments(assessments * 2, ApplyConsent(automatic=True))
@@ -619,7 +619,7 @@ def test_caller_local_registry_selection_reaches_real_global_dispatch(owner_home
     project = tmp_path / "project"
     project.mkdir()
     manifest = install_all_skills(project, ["claude"], registry)
-    assert len(manifest.entries) == 1  # golden-count: cardinality-is-contract
+    assert len(manifest.entries) == 1
     assert (owner_home / ".claude/skills/caller-local/SKILL.md").read_bytes() == source.read_bytes()
 
     cold = tmp_path / "cold-home"
@@ -972,7 +972,7 @@ def test_coordinated_global_retains_shared_ownership_and_duplicate_dispatch(owne
     assert assessment.complete
     prepared = assessment.prepared
     assert isinstance(prepared, PreparedAssets)
-    assert len(prepared.lock_paths) == 3  # golden-count: cardinality-is-contract
+    assert len(prepared.lock_paths) == 3
     assert len({e.destination for e in assessment.effects}) == len(assessment.effects)
     assert {e.owner for e in assessment.effects} == {"global_assets"}
     common = next(e for e in assessment.effects if e.destination == owner_home / ".kittify/cache")

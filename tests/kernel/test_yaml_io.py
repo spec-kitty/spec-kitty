@@ -155,7 +155,7 @@ def test_write_mapping_atomic_uses_temp_then_rename(
 
     write_mapping_atomic({"x": 1}, target)
 
-    assert len(captured_replace) == 1  # golden-count: cardinality-is-contract
+    assert len(captured_replace) == 1
     src_path, dst_path = captured_replace[0]
     assert Path(src_path).parent == target.parent
     assert ".tmp" in Path(src_path).name

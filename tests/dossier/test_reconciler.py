@@ -146,7 +146,7 @@ class TestDivergence:
         assert result.status is ReconciliationStatus.DIVERGENCE
         assert result.is_divergence is True
         # NFR-004: the specific artifact is NAMED (never a bare mismatch).
-        assert len(result.differing_artifacts) == 1  # golden-count: cardinality-is-contract
+        assert len(result.differing_artifacts) == 1
         div = result.differing_artifacts[0]
         assert isinstance(div, ArtifactDivergence)
         assert div.artifact_path == "spec.md"

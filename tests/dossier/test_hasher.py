@@ -29,9 +29,9 @@ class TestHashFile:
         hashes = [hash_file(test_file) for _ in range(10)]
 
         # All hashes should be identical
-        assert len(set(hashes)) == 1, "All 10 hashes should be identical"  # golden-count: cardinality-is-contract
+        assert len(set(hashes)) == 1, "All 10 hashes should be identical"
         # Verify it's a 64-char hex string (SHA256)
-        assert len(hashes[0]) == 64  # golden-count: cardinality-is-contract
+        assert len(hashes[0]) == 64
         assert all(c in "0123456789abcdef" for c in hashes[0])
 
     def test_hash_different_files(self, tmp_path):
@@ -60,7 +60,7 @@ class TestHashFile:
 
         # Should complete without memory explosion
         hash_result = hash_file(large_file)
-        assert len(hash_result) == 64  # golden-count: cardinality-is-contract
+        assert len(hash_result) == 64
         assert all(c in "0123456789abcdef" for c in hash_result)
 
     def test_hash_binary_file(self, tmp_path):
@@ -69,7 +69,7 @@ class TestHashFile:
         binary_file.write_bytes(b"\x00\x01\x02\x03\xff\xfe\xfd")
 
         hash_result = hash_file(binary_file)
-        assert len(hash_result) == 64  # golden-count: cardinality-is-contract
+        assert len(hash_result) == 64
         assert all(c in "0123456789abcdef" for c in hash_result)
 
     def test_hash_empty_file(self, tmp_path):
@@ -121,7 +121,7 @@ class TestHashFile:
         special_file.write_text("content", encoding="utf-8")
 
         hash_result = hash_file(special_file)
-        assert len(hash_result) == 64  # golden-count: cardinality-is-contract
+        assert len(hash_result) == 64
         # File name doesn't affect content hash (only content matters)
 
     def test_hash_consistency_across_multiple_calls(self, tmp_path):
@@ -146,7 +146,7 @@ class TestHashFileWithValidation:
 
         hash_result, error = hash_file_with_validation(test_file)
         assert hash_result is not None
-        assert len(hash_result) == 64  # golden-count: cardinality-is-contract
+        assert len(hash_result) == 64
         assert error is None
 
     def test_utf8_with_bom(self, tmp_path):
@@ -158,7 +158,7 @@ class TestHashFileWithValidation:
 
         hash_result, error = hash_file_with_validation(test_file)
         assert hash_result is not None
-        assert len(hash_result) == 64  # golden-count: cardinality-is-contract
+        assert len(hash_result) == 64
         assert error is None
 
     def test_utf8_with_cjk_characters(self, tmp_path):
@@ -169,7 +169,7 @@ class TestHashFileWithValidation:
 
         hash_result, error = hash_file_with_validation(test_file)
         assert hash_result is not None
-        assert len(hash_result) == 64  # golden-count: cardinality-is-contract
+        assert len(hash_result) == 64
         assert error is None
 
     def test_utf8_with_emoji(self, tmp_path):
@@ -179,7 +179,7 @@ class TestHashFileWithValidation:
 
         hash_result, error = hash_file_with_validation(test_file)
         assert hash_result is not None
-        assert len(hash_result) == 64  # golden-count: cardinality-is-contract
+        assert len(hash_result) == 64
         assert error is None
 
     def test_invalid_utf8_sequence(self, tmp_path):

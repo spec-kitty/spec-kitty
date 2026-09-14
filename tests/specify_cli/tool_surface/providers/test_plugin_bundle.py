@@ -311,7 +311,7 @@ def test_shared_codex_vibe_inventory_has_one_effect_with_both_owners(tmp_path: P
     assessment = prepare_staging(AssessmentInputs(root, consent=consent), files, (), tuple(observations))
     assert assessment.complete and assessment.effects
     member = [e for e in assessment.effects if e.path == "dist/skills/spec-kitty.plan/SKILL.md"]
-    assert len(member) == 1 and set(member[0].logical_owners) == {"codex", "vibe"}  # golden-count: cardinality-is-contract
+    assert len(member) == 1 and set(member[0].logical_owners) == {"codex", "vibe"}
 
 
 @pytest.mark.parametrize("known", [False, True])

@@ -576,6 +576,6 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     # costs a three-part edit — register in the per-seam tuple, add an identity
     # re-export in tasks.py, AND bump this hardcoded cardinality — for arguably
     # low incremental regression-catch value over the identity-re-export guard
-    # alone. Revisit whether the golden-count ratchet should be relaxed or
-    # dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    assert len(SYMBOL_TO_MODULE) == 179  # golden-count: cardinality-is-contract
+    # alone. Revisit whether this file's own hardcoded-count guard should be
+    # relaxed or dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
+    assert len(SYMBOL_TO_MODULE) == 179

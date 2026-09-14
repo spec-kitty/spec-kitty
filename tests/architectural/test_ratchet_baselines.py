@@ -47,11 +47,8 @@ import yaml
 from pydantic import BaseModel
 
 # FR-006: `fast` marks this sub-second gate for the fast tier. `architectural`
-# is retained, so the always-on `arch-adversarial` pole still selects it (its
-# `-m` expression is inclusion-based: `... and (git_repo or integration or
-# architectural) and not timing` — it never excludes `fast`), and the
-# `arch_shard_N` marker this file carries in `tests/_arch_shard_map.py` keeps it
-# in the arch shard. Dual-marking here adds a routing home; it removes none.
+# is retained as the gate's home marker. Dual-marking here adds a routing
+# home; it removes none.
 pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
 # Type of the built-in ``record_property`` fixture: records a (name, value)
@@ -834,7 +831,7 @@ def test_doctrine_pair_allowlist_growth_fails_and_shrink_is_reported(
     allowed = getattr(module, symbol)
     baseline = _load_baselines()[module_name][key]
     # Pair arity is the contract, not the number of allowed dependency pairs.
-    assert all(isinstance(pair, tuple) and len(pair) == 2 for pair in allowed)  # golden-count: cardinality-is-contract
+    assert all(isinstance(pair, tuple) and len(pair) == 2 for pair in allowed)
     extra = {
         (f"src/runtime/baseline_probe_{i}.py", "charter.offering.new_dependency")
         for i in range(max(1, baseline - len(allowed) + 1))

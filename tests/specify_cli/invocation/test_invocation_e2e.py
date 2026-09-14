@@ -881,7 +881,7 @@ def test_without_a_transport_no_propagation_errors(tmp_path: Path) -> None:
     assert jsonl_file.exists()
     lines = [ln for ln in jsonl_file.read_text().splitlines() if ln.strip()]
     # started + completed + artifact_link + commit_link = 4 lines
-    assert len(lines) == 4, f"Expected 4 lines, got {len(lines)}: {[json.loads(ln)['event'] for ln in lines]}"  # golden-count: cardinality-is-contract
+    assert len(lines) == 4, f"Expected 4 lines, got {len(lines)}: {[json.loads(ln)['event'] for ln in lines]}"
 
     events = [json.loads(ln)["event"] for ln in lines]
     assert events == ["started", "completed", "artifact_link", "commit_link"]

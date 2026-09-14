@@ -255,8 +255,11 @@ def test_allowlist_is_exactly_the_expected_two_modules() -> None:
     # NOTE: no separate `len(ALLOWLIST_MODULES) == 2` assertion -- the frozenset
     # equality above already pins exact membership (and therefore exact size);
     # a bare-count assertion here would only duplicate that stronger contract
-    # and is exactly the golden-count pattern `test_golden_count_ban.py` flags
-    # (`ALLOWLIST_MODULES`'s identifier words carry no cardinality-only signal).
+    # A bare-count assertion is strictly weaker than the set equality above:
+    # adding, removing or renaming a member should force a *content* edit, not
+    # silently pass at an unchanged count. (The `test_golden_count_ban.py` gate
+    # that used to police this was retired by #4315; the reasoning stands on its
+    # own and does not depend on it.)
     assert (
         frozenset(
             {

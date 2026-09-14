@@ -165,7 +165,7 @@ def test_c2_unset_retain_emits_warning_naming_source(tmp_path: Path) -> None:
     decision = resolve_merge_retention(meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None)
 
     assert decision.delete_branch is False
-    assert len(decision.warnings) == 1  # golden-count: cardinality-is-contract
+    assert len(decision.warnings) == 1
     assert "meta.json" in decision.warnings[0]
     assert decision.override_notices == ()
 
@@ -179,7 +179,7 @@ def test_c6_explicit_delete_over_retain_emits_override_notice(tmp_path: Path) ->
     assert decision.delete_branch is True
     assert decision.branch_source == "cli"
     assert decision.warnings == ()
-    assert len(decision.override_notices) == 1  # golden-count: cardinality-is-contract
+    assert len(decision.override_notices) == 1
     assert "overrode" in decision.override_notices[0].lower()
 
 
@@ -209,7 +209,7 @@ def test_malformed_retain_branches_value_retains_with_warning(tmp_path: Path, ma
 
     assert decision.delete_branch is False, f"malformed value {malformed!r} must retain, never coerce"
     assert decision.branch_source == "meta"
-    assert len(decision.warnings) == 1  # golden-count: cardinality-is-contract
+    assert len(decision.warnings) == 1
     assert "malformed" in decision.warnings[0].lower()
 
 
@@ -222,7 +222,7 @@ def test_malformed_retain_worktrees_value_retains_with_warning(tmp_path: Path, m
 
     assert decision.remove_worktree is False, f"malformed value {malformed!r} must retain, never coerce"
     assert decision.worktree_source == "meta"
-    assert len(decision.warnings) == 1  # golden-count: cardinality-is-contract
+    assert len(decision.warnings) == 1
     assert "malformed" in decision.warnings[0].lower()
 
 
@@ -261,7 +261,7 @@ def test_malformed_value_explicit_delete_still_overrides(tmp_path: Path) -> None
 
     assert decision.delete_branch is True
     assert decision.branch_source == "cli"
-    assert len(decision.override_notices) == 1  # golden-count: cardinality-is-contract
+    assert len(decision.override_notices) == 1
 
 
 def test_isinstance_true_is_int_trap_true_is_not_treated_as_malformed(
@@ -352,4 +352,4 @@ def test_branches_and_worktrees_resolve_independently(tmp_path: Path) -> None:
     assert decision.branch_source == "meta"
     assert decision.remove_worktree is True
     assert decision.worktree_source == "default"
-    assert len(decision.warnings) == 1  # golden-count: cardinality-is-contract
+    assert len(decision.warnings) == 1

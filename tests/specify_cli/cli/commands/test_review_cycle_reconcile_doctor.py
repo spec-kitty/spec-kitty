@@ -345,7 +345,7 @@ def test_doctor_review_cycle_reconcile_json_reports_finding(
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
-    assert len(payload) == 1  # golden-count: cardinality-is-contract -- one mission in this fixture
+    assert len(payload) == 1  # one mission in this fixture
     assert payload[0]["mission_slug"] == _SLUG_WITH_MID8
     assert payload[0]["clean"] is False
     assert payload[0]["findings"]
@@ -370,7 +370,7 @@ def test_doctor_review_cycle_reconcile_reports_clean_for_mission_with_nothing_st
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
-    assert len(payload) == 1  # golden-count: cardinality-is-contract -- one mission in this fixture
+    assert len(payload) == 1  # one mission in this fixture
     assert payload[0]["clean"] is True
     assert payload[0]["findings"] == []
 

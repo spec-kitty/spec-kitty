@@ -140,9 +140,7 @@ def test_merge_writes_count_seconds_and_durations_together(capture_shard_timings
     merged = capture_shard_timings.merge_capture({}, _capture(capture_shard_timings, "unit", (0.5, 0.25, 0.25)))
 
     assert merged["module_test_durations"]["unit"] == [0.5, 0.25, 0.25]
-    assert merged["module_test_count"]["unit"] == len(  # golden-count: cardinality-is-contract
-        merged["module_test_durations"]["unit"]
-    )
+    assert merged["module_test_count"]["unit"] == len(merged["module_test_durations"]["unit"])
     assert merged["module_duration_seconds"]["unit"] == 1.0
 
 

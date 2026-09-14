@@ -35,7 +35,7 @@ def _pins() -> plantuml_invoke.Pins:
 def test_pins_load_from_repo() -> None:
     pins = _pins()
     assert pins.plantuml_version
-    assert len(pins.plantuml_jar_sha256) == 64  # golden-count: cardinality-is-contract (sha256 hex is exactly 64 chars)
+    assert len(pins.plantuml_jar_sha256) == 64  # (sha256 hex is exactly 64 chars)
     assert pins.jre_image_digest.startswith("eclipse-temurin@sha256:")
 
 
