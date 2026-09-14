@@ -197,8 +197,14 @@ def test_already_activated_is_noop_with_warning(config_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_no_restrictions_materializes_default_pack_then_appends(tmp_path: Path) -> None:
-    """FR-021: kind absent from config behaves as pre-PR-#1535 (default + append)."""
+def test_no_restrictions_materializes_what_is_in_force_then_appends(tmp_path: Path) -> None:
+    """#4253: a kind absent from config materializes what is EFFECTIVE, then appends.
+
+    ``default_ids`` is gone from this planner (#4399 squad MINOR): once the
+    preserved set became the effective corpus, no reachable path consumed it —
+    validation guarantees the requested id is in ``available_ids``, so the
+    empty-availability branch it guarded could not occur.
+    """
     path = tmp_path / ".kittify" / "config.yaml"
     path.parent.mkdir(parents=True)
     path.write_text("# no activation keys\n", encoding="utf-8")
@@ -211,7 +217,7 @@ def test_no_restrictions_materializes_default_pack_then_appends(tmp_path: Path) 
         yaml_key="activated_directives",
         available_ids=_AVAILABLE,
         config_data=data,
-        default_ids=["001-foo", "002-bar"],
+        effective_ids=["001-foo", "002-bar"],
     )
 
     assert plan.new_list == ["001-foo", "002-bar", "003-baz"]
@@ -234,7 +240,7 @@ def test_no_restrictions_failing_id_still_non_mutating(tmp_path: Path) -> None:
             yaml_key="activated_directives",
             available_ids=_AVAILABLE,
             config_data=data,
-            default_ids=["001-foo"],
+            effective_ids=["001-foo"],
         )
 
     assert path.read_bytes() == before
