@@ -15,9 +15,14 @@
 #     registry used to size shard_count
 #     (tests/architectural/test_module_shard_registry.py::_lpt_bin_pack) —
 #     never round-robin or alphabetical;
-#   * runs pytest with a dotted `--cov=<target>` (never the path form) and
-#     emits coverage/xunit under contracts/artefact-naming.md (forward-ref
-#     WP10, which dedups per-shard artefacts by basename).
+#   * runs pytest with dotted `--cov=<target>` flags (never the path form)
+#     covering the FULL top-level package set derived from `src/` — not just
+#     the row's own `cov_target` (mission
+#     sonar-per-pr-coverage-reuse-01M2FR32, WP01/FR-013: a narrow `--cov`
+#     DROPS, rather than zero-records, every line a slice executes outside its
+#     own package) — and emits coverage/xunit under
+#     contracts/artefact-naming.md (forward-ref WP10, which dedups per-shard
+#     artefacts by basename).
 #
 # `mode` (pr|full) is honored in THIS workflow's own run step: pr mode fails
 # fast on the first red test; full mode continues past failures so every
@@ -37,7 +42,7 @@ on:
         required: true
         type: string
       cov_target:
-        description: 'JSON array of dotted coverage targets (registry modules[].cov_targets) — fed to one `--cov=<target>` flag per entry, never the path form.'
+        description: "JSON array of dotted coverage targets (registry modules[].cov_targets). OWNERSHIP DECLARATION ONLY — since mission sonar-per-pr-coverage-reuse-01M2FR32 (WP01, FR-013) every shard measures the full top-level package set derived from src/, so this input is logged for traceability and read by the registry gates, but no longer decides what this workflow measures."
         required: true
         type: string
       tier:
@@ -69,7 +74,7 @@ on:
         required: true
         type: string
       cov_target:
-        description: 'JSON array of dotted coverage targets.'
+        description: 'JSON array of dotted coverage targets (ownership declaration only; the measured set is derived from src/ — see the workflow_call input above).'
         required: true
         type: string
       tier:
@@ -121,6 +126,7 @@ jobs:
           SHARD: ${{ inputs.shard }}
           MODULE: ${{ inputs.module }}
           ROOTS: ${{ inputs.roots }}
+          COV_TARGET: ${{ inputs.cov_target }}
         run: |
           set -euo pipefail
           shard="$SHARD"
@@ -131,6 +137,11 @@ jobs:
           echo "total=$total" >> "$GITHUB_OUTPUT"
           echo "slug=$slug" >> "$GITHUB_OUTPUT"
           echo "module-tests: roots for $MODULE = $ROOTS"
+          # Ownership declaration, logged for traceability only — the pytest
+          # step measures the full top-level package set regardless (WP01,
+          # mission sonar-per-pr-coverage-reuse-01M2FR32). Read from env: like
+          # every other value here, per the #4355 interpolation hardening.
+          echo "module-tests: declared cov_target (ownership record, not the measured set) for $MODULE = $COV_TARGET"
 
       - name: Select this shard's tests (greedy-LPT bin-packing over the registry shard structure)
         id: select
@@ -248,10 +259,59 @@ jobs:
 
           mkdir -p out/reports/coverage out/reports/xunit-reports
 
+          # ---------------------------------------------------------------
+          # Coverage breadth — mission sonar-per-pr-coverage-reuse-01M2FR32,
+          # WP01 (FR-013/NFR-009). READ BEFORE "FIXING" THIS BACK.
+          #
+          # Every shard measures the FULL top-level package set, NOT this
+          # row's `inputs.cov_target`. A narrow per-module `--cov` does not
+          # record another package's executed lines as zero — coverage.py
+          # DROPS the measurement, so the line is `absent` from the report.
+          # Slices routinely execute code outside the package their module is
+          # named for, and every one of those hits used to be discarded before
+          # it reached the reconciled union: the matrix recorded 71,070 of the
+          # 128,878-statement union (55.15%) against 42,933 (33.31%) for the
+          # single broad step this mission retires, with 4,391 statements
+          # covered by that step and by no slice at all.
+          #
+          # `inputs.cov_target` is deliberately still an input: it is the
+          # registry row's OWNERSHIP declaration
+          # (.github/ci-module-registry.yml, consumed verbatim by
+          # tests/architectural/test_module_shard_registry.py) and is echoed
+          # for traceability in "Compute shard identifiers". It declares who
+          # owns what; it must not decide what a slice MEASURES.
+          #
+          # The set is derived from the source tree at run time — top-level
+          # packages plus public top-level single-file modules under src/ —
+          # never transcribed, so a new top-level package is measured without
+          # editing this workflow. Pinned by
+          # tests/architectural/test_coverage_breadth.py.
+          # ---------------------------------------------------------------
+          cov_targets="$("$venv_python" - <<'COV_PY'
+          import pathlib
+
+          src = pathlib.Path("src")
+          targets = {
+              entry.name if entry.is_dir() else entry.stem
+              for entry in src.iterdir()
+              if (entry.is_dir() and (entry / "__init__.py").is_file())
+              or (entry.is_file() and entry.suffix == ".py" and not entry.name.startswith("_"))
+          }
+          if not targets:
+              raise SystemExit("module-tests: no top-level coverage targets found under src/")
+          print("\n".join(sorted(targets)))
+          COV_PY
+          )"
+
           cov_args=()
           while IFS= read -r target; do
             [ -n "$target" ] && cov_args+=("--cov=$target")
-          done < <("$venv_python" -c 'import json,sys; [print(t) for t in json.loads(sys.argv[1])]' "$COV_TARGET")
+          done <<< "$cov_targets"
+          if [ "${#cov_args[@]}" -eq 0 ]; then
+            echo "::error::module-tests: derived an empty coverage-target set from src/"
+            exit 64
+          fi
+          echo "module-tests: measuring ${cov_args[*]}"
 
           coverage_xml="out/reports/coverage/coverage-${tier}-${mod}-shard${slug}.xml"
           xunit_xml="out/reports/xunit-reports/xunit-result-${mod}-shard${slug}-${run_id}.xml"
