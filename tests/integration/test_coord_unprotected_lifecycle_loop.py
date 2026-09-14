@@ -250,7 +250,7 @@ class TestGuard4NoSplitBrain:
         assert gate_read_dir == matrix_surface.path, (
             "FR-004 regression: the approve-gate read dir diverged from the issue-matrix authoritative surface (a split-brain would be back)"
         )
-        assert str(matrix_surface.surface_kind).endswith("primary") or (matrix_surface.surface_kind.name.lower() == "primary")
+        assert matrix_surface.surface_kind.name.lower() == "primary"
 
     def test_gate_read_surface_equals_issue_matrix_authority_materialized(self, tmp_path: Path) -> None:
         """Coord worktree MATERIALIZED: the gate read dir and the issue-matrix

@@ -1,24 +1,21 @@
-"""Characterization of the four coord-topology lane-lifecycle guards (WP01 / T003).
+"""Regression guard for the four coord-topology lane-lifecycle guards (issue #3867).
 
-ATDD baseline for mission ``lane-lifecycle-surface-authority-01M28ZZH`` (issue
-#3867, FR-005 / NFR-001). These tests PIN the *current, observable* behaviour of
-each of the four lane-lifecycle guards on HEAD so that WP02–WP04's surface-authority
-edits produce a visible, reviewable delta and no regression slips through silently.
+The coord lane-lifecycle surface-authority fix has **already landed** on ``main``
+(via #2533, FIX-M2-04, #3910, #3915, and the #2070 residue-predicate delegation).
+These tests LOCK that fixed behaviour: each one pins an *observable* fact of a
+lane-lifecycle guard on current HEAD, so a future change that reintroduces one of
+the fixed defects — a kind-blind divergent read, a lost coord-residue exclusion —
+reds a pin instead of slipping through silently. They are GREEN on HEAD because
+HEAD is the fixed state.
 
-They are **GREEN on HEAD by design** — they describe today's behaviour, not the
-target behaviour. WP02/WP03/WP04 will edit exactly the pinned expectation they
-change (e.g. WP02 narrows Guard 1's blanket remedy pathspec; WP04 swaps Guard 2's
-ad-hoc path predicates for ``kind_for_mission_file``). That churn is expected and
-intended — see the mission plan's "Post-Plan Brownfield Squad — Locked Decisions".
-
-Scope discipline (plan risk R "over-pinning"): each assertion pins an
-*observable* fact (a predicate's boolean, a produced remedy string, the gate's
-read surface), never an internal call graph, so a legitimate WP02/WP03/WP04 edit
+Scope discipline (avoid over-pinning): each assertion pins an *observable* fact
+(a predicate's boolean, a produced remedy string, the gate's read surface), never
+an internal call graph, so a legitimate future refactor that preserves behaviour
 does not spuriously churn an unrelated pin.
 
-The single-authority thesis these guards will converge on (WP06) is that a
-coordination artifact's surface is whatever ``resolve_artifact_surface`` returns
-and the lane is never that surface; here we merely photograph the pre-fix state.
+The single authority these guards route through is ``resolve_artifact_surface``: a
+coordination artifact's surface is whatever it returns, and the lane is never that
+surface. These pins anchor that invariant to observed HEAD behaviour.
 """
 
 from __future__ import annotations
@@ -56,8 +53,8 @@ def _rel(name: str) -> str:
 # Guard 1's *detection* was already fixed on HEAD (FIX-M2-04, commit 8a95e2d36e,
 # #2274/#2980): the contamination producer excludes COORD-partition files via
 # ``is_coord_residue_churn`` so Guard 1 CANNOT fire on a pure coord-owned status
-# file today. The remaining pre-fix surface is the *remedy guidance text*, which
-# is still the blanket ``-- kitty-specs/`` restore (narrowed by WP02).
+# file today. The behaviour worth pinning here is the *remedy guidance text*, which
+# is the blanket ``-- kitty-specs/`` restore.
 
 
 class TestGuard1PollutionCheck:
@@ -83,15 +80,17 @@ class TestGuard1PollutionCheck:
     def test_primary_planning_artifacts_are_still_contamination(self, basename: str) -> None:
         """Genuine PRIMARY-partition planning pollution (spec/plan/tasks/lanes
         authored on a lane) is NOT coord residue, so Guard 1 still flags it —
-        the fail-toward-flag invariant WP02 must preserve."""
+        the fail-toward-flag invariant this guard preserves."""
         assert is_coord_residue_churn(_rel(basename), mission_slug=_SLUG) is False
 
     def test_remedy_pathspec_is_currently_the_blanket_kitty_specs_restore(self, tmp_path: Path) -> None:
-        """Pin the pre-WP02 remedy: the guidance restores the *whole*
+        """Pin the remedy shape: the guidance restores the *whole*
         ``kitty-specs/`` tree, not just the flagged PRIMARY-partition paths.
 
-        WP02 narrows this to the specific flagged ``is_primary_artifact_kind``
-        paths; when it does, this pin is the one it updates.
+        The blanket restore is the current, safe behaviour (it can only over-
+        restore, never leave pollution on the lane); this pin makes any future
+        narrowing to the specific flagged ``is_primary_artifact_kind`` paths a
+        visible, deliberate delta rather than a silent change.
         """
         from specify_cli.core.constants import KITTY_SPECS_DIR
         from specify_cli.cli.commands.agent.tasks_parsing_validation import (
@@ -120,9 +119,9 @@ class TestGuard1PollutionCheck:
 
         assert guidance is not None, "guard must emit remedy guidance when it flags a file"
         remedy = "\n".join(guidance)
-        # Blanket restore of the entire kitty-specs tree (pre-WP02 behaviour):
+        # Blanket restore of the entire kitty-specs tree (current behaviour):
         assert f"-- {KITTY_SPECS_DIR}/" in remedy
-        # And crucially NOT yet narrowed to the specific flagged path:
+        # And crucially NOT narrowed to the specific flagged path:
         assert f"-- {flagged}" not in remedy
 
 
@@ -130,9 +129,10 @@ class TestGuard1PollutionCheck:
 # Guard 2 — review-claim auto-rebase membership predicates
 # ---------------------------------------------------------------------------
 #
-# Guard 2 currently recognises "coordination-owned" via three ad-hoc path
-# predicates. WP04 replaces them with ``kind_for_mission_file`` + partition
-# membership. Pin the CURRENT classification so the swap is byte-observable.
+# Guard 2's auto-rebase "take theirs" arm classifies coordination-owned
+# artifacts; on HEAD it delegates through the residue predicate + partition
+# membership (#2070). Pin the observable classification so a regression that
+# drops a coord-owned artifact from the take-theirs arm is caught.
 
 
 class TestGuard2AutoRebaseMembership:
@@ -167,11 +167,12 @@ class TestGuard2AutoRebaseMembership:
 
 
 # ---------------------------------------------------------------------------
-# The ONE authority the guards will converge on (WP06)
+# The ONE authority the guards route through
 # ---------------------------------------------------------------------------
 #
-# Pin the classifier + partition predicate the fix routes every guard through,
-# so the surface-authority thesis is anchored to observed HEAD behaviour.
+# Pin the classifier + partition predicate the landed fix routes every guard
+# through, so the surface-authority invariant is anchored to observed HEAD
+# behaviour.
 
 
 class TestSingleAuthorityClassifier:
@@ -206,13 +207,15 @@ class TestSingleAuthorityClassifier:
 # The real approve gate (``_issue_matrix_approval_blocker``) reads the matrix
 # from its ``feature_dir`` argument — the caller's topology-resolved read surface
 # — and consults ``primary_feature_dir`` ONLY to DISCOVER referenced issues.
-# On a coord + unprotected-primary mission the caller resolves that read surface
-# through the kind-blind ``feature_write_dir`` handoff → the coord husk, while
-# ``issue-verdict`` writes the matrix to PRIMARY (surface-authority Rule 2). So a
-# verdict present on PRIMARY does not satisfy a gate reading the COORD husk. Pin
-# that split here: the gate blocks on the feature_dir it is handed, regardless of
-# a matrix existing on the primary discovery surface. WP03 re-points the read at
-# ``resolve_artifact_surface(ISSUE_MATRIX)``.
+# Pin that contract: the gate reads exactly the ``feature_dir`` it is handed, and
+# uses ``primary_feature_dir`` only for issue discovery. On HEAD the handed read
+# surface and the issue-matrix write surface AGREE — both resolve through the same
+# authority (see ``TestGuard4NoSplitBrain`` in the integration suite: read ==
+# ``resolve_artifact_surface(ISSUE_MATRIX)``, and the verdict writes through
+# ``write_target(ISSUE_MATRIX)`` to that same surface) — so the FR-004 split-brain
+# cannot arise. This guard locks the read-its-handed-dir contract so a regression
+# that reintroduces a kind-blind read diverging from the matrix authority is
+# caught.
 
 
 class TestGuard4ApproveGateReadSurface:
@@ -222,12 +225,15 @@ class TestGuard4ApproveGateReadSurface:
         (feature_dir / "spec.md").write_text(f"# Spec\n\nCloses #{issue}. Substantive content.\n", encoding="utf-8")
 
     def test_gate_reads_matrix_from_feature_dir_arg_not_primary(self, tmp_path: Path) -> None:
-        """Verdict/matrix present on PRIMARY, absent on the COORD husk read
-        surface → the gate BLOCKS with the "required before approval" signal.
+        """A matrix present on one dir but absent on the ``feature_dir`` the gate
+        is handed → the gate BLOCKS with the "required before approval" signal.
 
-        This is the FR-004 split-brain in miniature: the gate trusts the
-        ``feature_dir`` it is handed (the coord husk), so the primary-surface
-        matrix is invisible to it.
+        This pins the read-its-handed-dir contract: the gate trusts the
+        ``feature_dir`` argument, so a matrix on a *different* dir is invisible to
+        it. On HEAD the handed dir IS the matrix authority surface (see the
+        integration suite's ``TestGuard4NoSplitBrain``), so this constructed
+        divergence cannot arise naturally — the pin exists to catch a regression
+        that reintroduces a kind-blind read diverging from the authority.
         """
         from specify_cli.cli.commands.agent.tasks_parsing_validation import (
             _issue_matrix_approval_blocker,
@@ -257,7 +263,10 @@ class TestGuard4ApproveGateReadSurface:
         )
 
         assert blocker is not None, "gate must block: it reads the coord husk (no matrix), not the PRIMARY surface where the verdict lives"
-        # Assert on the emitted SIGNAL TEXT (not merely truthiness):
+        # Assert on the emitted SIGNAL TEXT (not merely truthiness). NB the
+        # ``issue-matrix.md`` wording is #3867's failure-mode-5 diagnostics bug
+        # (the file is ``issue-matrix.json``); its fix is tracked by #4330, so
+        # this pin will update when that lands.
         assert "ERROR: issue-matrix.md" in blocker
         assert "is required before approval" in blocker
         # The referenced issue was discovered from the PRIMARY spec.md, proving
