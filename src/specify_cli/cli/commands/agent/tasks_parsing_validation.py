@@ -64,12 +64,36 @@ _VALID_VERDICTS: frozenset[str] = frozenset(
     {"approved", "approved_after_orchestrator_fix", "arbiter_override", "rejected"}
 )
 
-# S1192 (WP05/#2555.5): the "ERROR: issue-matrix.md ..." prefix and the
+# S1192 (WP05/#2555.5): the "ERROR: <artifact>" prefix and the
 # "before approving" hint each recur across the approval-blocker error
 # strings below — hoisted so a 4th message does not reintroduce the
 # duplication.
-_ISSUE_MATRIX_ERROR_PREFIX = "ERROR: issue-matrix.md"
 _FILL_VERDICTS_HINT = "before approving"
+
+
+def _issue_matrix_error_prefix(feature_dir: Path) -> str:
+    """``"ERROR: <actual-artifact>"`` for the approve-gate messages (#4330).
+
+    Names the artifact the gate actually reads, mirroring the canonical
+    dir-based reader's JSON-first resolution (:func:`load_issue_matrix`):
+    ``issue-matrix.json`` when one exists, else the legacy
+    ``issue-matrix.md``. When NEITHER exists the canonical, scaffolded
+    artifact is named (``issue-matrix.json`` — C-008: no new ``.md`` is ever
+    emitted), which is also what the regenerate hint in the missing-artifact
+    message tells the operator to produce. The old hardcoded
+    ``issue-matrix.md`` prefix reported the wrong filename for every
+    JSON-format mission.
+    """
+    from specify_cli.tasks.issue_matrix import (
+        ISSUE_MATRIX_JSON_FILENAME,
+        ISSUE_MATRIX_MD_FILENAME,
+    )
+
+    if (feature_dir / ISSUE_MATRIX_MD_FILENAME).exists() and not (
+        feature_dir / ISSUE_MATRIX_JSON_FILENAME
+    ).exists():
+        return f"ERROR: {ISSUE_MATRIX_MD_FILENAME}"
+    return f"ERROR: {ISSUE_MATRIX_JSON_FILENAME}"
 
 
 # ---------------------------------------------------------------------------
@@ -126,31 +150,33 @@ def _issue_matrix_in_mission_rows(
     )
 
 
-def _issue_matrix_diagnostic_lines(result: IssueMatrixValidationResult) -> tuple[list[str], list[str]]:
-    """Split diagnostics into unknown-verdict issue ids and free-form messages.
+def _issue_matrix_diagnostic_lines(result: IssueMatrixValidationResult) -> list[str]:
+    """Render every diagnostic as a surfaced message line (#4330).
 
-    FR-007 (#2555.5): a ``ISSUE_MATRIX_SCHEMA_DRIFT`` diagnostic (e.g. a
-    mandatory column spelled non-canonically) carries a ``detail`` payload
-    naming the found/normalized columns. Surfacing it here lets the
-    approval blocker name the offending column instead of leaving the
-    caller to infer schema drift from an all-issues "Missing rows" list.
+    Each validator diagnostic already names the failing row and the concrete
+    rule it broke (e.g. ``Row for issue '#1582': verdict is
+    'deferred-with-followup' but evidence_ref contains no follow-up handle
+    (expected '#NNN' or 'Follow-up:' substring)``), so each is passed through
+    verbatim — the old VERDICT_UNKNOWN reduction to a bare ``Unknown: #NNN``
+    id list is exactly the per-row-cause masking #4330 files. FR-007
+    (#2555.5): a ``ISSUE_MATRIX_SCHEMA_DRIFT`` diagnostic (e.g. a mandatory
+    column spelled non-canonically) carries a ``detail`` payload naming the
+    found/normalized columns; appending it lets the approval blocker name the
+    offending column instead of leaving the caller to infer schema drift from
+    an all-issues "Missing rows" list.
     """
     from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
 
-    unknown_issues: list[str] = []
-    other_messages: list[str] = []
+    messages: list[str] = []
     for diagnostic in result.diagnostics:
         message = diagnostic.get("message", "")
         code = diagnostic.get("diagnostic_code")
-        if code == str(MissionReviewDiagnostic.ISSUE_MATRIX_VERDICT_UNKNOWN):
-            match = re.search(r"issue '([^']+)'", message)
-            unknown_issues.append(match.group(1) if match else message)
-        elif code == str(MissionReviewDiagnostic.ISSUE_MATRIX_SCHEMA_DRIFT):
+        if code == str(MissionReviewDiagnostic.ISSUE_MATRIX_SCHEMA_DRIFT):
             detail = diagnostic.get("detail")
-            other_messages.append(f"{message} ({detail})" if detail else message)
+            messages.append(f"{message} ({detail})" if detail else message)
         else:
-            other_messages.append(message)
-    return unknown_issues, other_messages
+            messages.append(message)
+    return messages
 
 
 def _issue_matrix_approval_blocker(
@@ -193,7 +219,7 @@ def _issue_matrix_approval_blocker(
     except Exception as exc:  # noqa: BLE001 -- approval guard must fail closed
         logger.debug("Could not evaluate issue-matrix approval blocker: %s", exc)
         return (
-            f"{_ISSUE_MATRIX_ERROR_PREFIX} could not be evaluated before approval.\n"
+            f"{_issue_matrix_error_prefix(feature_dir)} could not be evaluated before approval.\n"
             f"Reason: {exc}\n"
             f"Fix the issue-matrix check {_FILL_VERDICTS_HINT}."
         )
@@ -213,7 +239,7 @@ def _issue_matrix_approval_blocker(
     if not issue_matrix_artifact_present(feature_dir):
         issue_list = ", ".join(f"#{ref.number}" for ref in refs)
         return (
-            f"{_ISSUE_MATRIX_ERROR_PREFIX} is required before approval.\n"
+            f"{_issue_matrix_error_prefix(feature_dir)} is required before approval.\n"
             f"Referenced issues: {issue_list}\n"
             f"Fill verdicts {_FILL_VERDICTS_HINT}.\n"
             f"This file is normally scaffolded automatically. If it is missing, "
@@ -231,27 +257,30 @@ def _issue_matrix_approval_blocker(
     if result.passed and not missing_issues and not unresolved_in_mission:
         return None
 
-    unknown_issues, other_messages = _issue_matrix_diagnostic_lines(result)
+    # #4330: every diagnostic line already carries the failing row + the
+    # concrete rule it broke, so they are surfaced FIRST, directly under the
+    # header that names the actual artifact — no bare-id reduction between
+    # the operator and the per-row cause.
+    diagnostic_lines = _issue_matrix_diagnostic_lines(result)
 
     lines = [
-        f"{_ISSUE_MATRIX_ERROR_PREFIX} has unresolved entries. Fill in verdicts {_FILL_VERDICTS_HINT}."
+        f"{_issue_matrix_error_prefix(feature_dir)} has unresolved entries. "
+        f"Fill in verdicts {_FILL_VERDICTS_HINT}."
     ]
+    for message in diagnostic_lines:
+        lines.append(f"- {message}")
     # FR-007 (#2555.5): only claim rows are "missing" when rows were actually
     # parsed. A malformed mandatory column (schema drift) makes the parser
     # bail out with zero rows, at which point every referenced issue looks
     # "missing" even though the real problem is the header — that signal is
-    # already surfaced via ``other_messages`` (schema-drift detail) above.
+    # already surfaced via ``diagnostic_lines`` (schema-drift detail) above.
     if missing_issues and result.rows:
         lines.append(f"Missing rows: {', '.join(missing_issues)}")
-    if unknown_issues:
-        lines.append(f"Unknown: {', '.join(sorted(set(unknown_issues)))}")
     if unresolved_in_mission:
         lines.append(
             "Still 'in-mission' (resolve to fixed / verified-already-fixed / "
             f"deferred-with-followup before done): {', '.join(unresolved_in_mission)}"
         )
-    for message in other_messages:
-        lines.append(f"- {message}")
     return "\n".join(lines)
 
 

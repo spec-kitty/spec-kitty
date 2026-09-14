@@ -117,11 +117,15 @@ def test_issue_matrix_read_is_coord_authoritative_no_primary_fallback(
     )
     # The filled primary copy MUST NOT rescue the stale coord matrix.
     assert blocker is not None
-    assert "Unknown: #1582" in blocker
+    # #4330: the unknown-verdict row is surfaced with its concrete rule, not
+    # reduced to a bare "Unknown: #1582" id list.
+    assert "Row for issue '#1582'" in blocker
+    assert "verdict 'unknown' is not in the allowed set" in blocker
 
     stale_blocker = _issue_matrix_approval_blocker(coord_dir)
     assert stale_blocker is not None
-    assert "Unknown: #1582" in stale_blocker
+    assert "Row for issue '#1582'" in stale_blocker
+    assert "verdict 'unknown' is not in the allowed set" in stale_blocker
 
 
 def test_issue_matrix_in_mission_passes_approved_blocks_done(tmp_path: Path) -> None:
