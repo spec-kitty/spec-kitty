@@ -6,6 +6,7 @@ updated: '2026-09-07'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
+- docs/development/agent-fleet.md
 - docs/development/contributing.md
 - docs/guides/how-to/missions/keep-main-clean.md
 - docs/development/how-to/pr-landing.md
@@ -260,6 +261,16 @@ working state, not a permanent property.
 
 ### PR-workflow labels — for pull requests, not issues
 
+These live on pull requests, not issues. The first is the fleet-coordination
+handshake; the rest are workflow state.
+
+- `ready-for-squad` — **fleet handshake**: the implementer has run the required tests
+  and self-review and hands the PR to the review squad and CI. The
+  [SkyKitty agent fleet](../agent-fleet.md) owns CI and squad review from this point;
+  the operator still performs the mainline merge. Do **not** apply it to a still-draft
+  scope or to work whose tests have not run — the label is the fleet's contract that the
+  PR is finished and independently testable. See
+  [The `ready-for-squad` handshake](../agent-fleet.md#the-ready-for-squad-handshake).
 - `pr:needs-refresh` — PR branch drifted from `main`; rebase/refresh before review
   or merge.
 - `pr:needs-revision` — PR has unresolved review findings that must be addressed
@@ -299,6 +310,8 @@ they are not free-floating classification labels and carry structural obligation
 
 ## See also
 
+- [The SkyKitty agent fleet](../agent-fleet.md) — the fleet that acts on this repo, its
+  roles, and the `ready-for-squad` handshake these labels feed.
 - [Contributing to Spec Kitty](../contributing.md) — pull-request and maintainer workflow.
 - [Keep main clean](../../guides/how-to/missions/keep-main-clean.md) — branch and merge discipline.
 - [PR landing](pr-landing.md) — the fork-PR landing runbook, incl. red classification.

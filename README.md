@@ -18,10 +18,10 @@ Use it to build a governed software factory around Claude Code, Codex, Cursor, G
 
 ## Team Kitty 4.x prerelease
 
-`main` carries the 4.x release-candidate line. To test RC1, install its exact version:
+`main` carries the 4.x release-candidate line. To test RC2, install its exact version:
 
 ```bash
-uv tool install 'spec-kitty-cli==4.0.0rc1'
+uv tool install 'spec-kitty-cli==4.0.0rc2'
 ```
 
 This prerelease is for qualification; stable launch acceptance remains pending.

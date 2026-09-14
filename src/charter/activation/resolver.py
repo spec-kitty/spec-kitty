@@ -35,6 +35,7 @@ one; it is now a thin delegate onto these methods.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -89,6 +90,8 @@ if TYPE_CHECKING:
     from charter.activation.interview import CharterInterview
     from charter.activation.pack_context import PackContext
 
+_LOGGER = logging.getLogger(__name__)
+
 DEFAULT_TEMPLATE_SET = "software-dev-default"
 DEFAULT_TOOL_REGISTRY: frozenset[str] = frozenset({"spec-kitty", "git"})
 
@@ -139,6 +142,29 @@ def _mission_template_repository(missions_root: str) -> MissionTemplateRepositor
     ``Path`` equality is already string equality here.
     """
     return MissionTemplateRepository(Path(missions_root))
+
+
+def _resolve_unmatched_directive_token(token: str, all_directives: dict[str, Directive]) -> str:
+    """Resolve an ``activated_directives`` token that failed URN resolution.
+
+    A token already present in *all_directives* names a known catalog id
+    verbatim (a legacy exact-id alias) and is returned as-is -- no signal
+    needed, this is a resolvable identity. Anything else is the
+    **fully-unresolvable** path: the token is neither URN-resolvable nor a
+    known catalog id, so it is best-effort normalized (#4240) and a WARNING
+    names both the raw token and the normalized form, since this can
+    silently co-activate an unrelated directive (or activate nothing) with
+    no other signal to the operator.
+    """
+    if token in all_directives:
+        return token
+    normalized: str = normalize_directive_id(token)
+    _LOGGER.warning(
+        "unresolved directive activation token %r; best-effort normalized to %r",
+        token,
+        normalized,
+    )
+    return normalized
 
 
 # ---------------------------------------------------------------------------
@@ -258,7 +284,7 @@ class DoctrineService:
                     )
                     activated.add(urn.split(":", 1)[1])
                 except UnknownArtifactIdError:
-                    activated.add(token if token in all_directives else normalize_directive_id(token))
+                    activated.add(_resolve_unmatched_directive_token(token, all_directives))
             self._resolved_directive_activation_ids = frozenset(activated)
         activated_ids = self._resolved_directive_activation_ids
         return {key: item for key, item in all_directives.items() if key in activated_ids}

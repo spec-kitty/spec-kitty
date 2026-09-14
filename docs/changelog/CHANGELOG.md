@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-09-13'
+updated: '2026-09-14'
 ---
 # Changelog
 
@@ -13,10 +13,28 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] - 4.0.0rc3
 
-_Post-4.0.0rc1 cycle. Entries land here until the next release chore opens a
-versioned candidate section._
+_4.0.0rc3 candidate cycle. Entries land here until the release chore finalizes
+this section at publish._
+
+### Fixed
+
+- **Built-in doctrine guidance no longer points at the retired `src/doctrine/<kind>.graph.yaml` fragment home** (#2715). The `common-docs-find` tactic and the `brownfield-onboarding` paradigm now name `packs/built-in/<kind>.graph.yaml`, and the agent-profile repository's lineage-graph docstring no longer describes a monolith that is gone. The dead-path architectural gate now also flags `doctrine/<kind>.graph.yaml` and `doctrine/*.graph.yaml` paths, not only the `doctrine/graph.yaml` monolith, and its failure message no longer recommends the dead path.
+
+## [4.0.0rc2] - 2026-09-14
+
+Second public release candidate for the Team Kitty 4.x line, cut from `main` for
+the Team Kitty launch walkthroughs. This is a testing prerelease, not stable launch
+acceptance. Install explicitly with `uv tool install 'spec-kitty-cli==4.0.0rc2'`.
+
+The CLI keeps the public shared-package targets: events 9.1.6 and tracker 0.5.2.
+Live Work is not included in this candidate. Stable 4.0.0 launch acceptance remains
+tracked in planning#1999.
+
+### Added
+
+- **`spec-kitty auth login --machine` authenticates CI runners and other unattended environments for hosted operations with no browser, TTY or device-flow approval** (#3277; #4306). It exchanges a ServicePrincipal client ID and secret, read from `SPEC_KITTY_MACHINE_CLIENT_ID` plus `SPEC_KITTY_MACHINE_CLIENT_SECRET` or `SPEC_KITTY_MACHINE_CLIENT_SECRET_FILE`, through the OAuth `client_credentials` grant. Missing or rejected credentials fail closed with one remediation message, never a prompt, and the secret is never printed. `--machine` cannot be combined with `--headless`. `auth status` labels the session `Machine / CI (Client Credentials Grant)`, and `auth doctor` (text and `--json`) reports the additive `session.auth_method` field. Browser and device-flow login remain the default for people; the runner setup and credential rotation runbook is `docs/operations/ci-machine-auth.md`.
 
 ### Fixed
 
@@ -26,7 +44,14 @@ versioned candidate section._
 - **`spec-kitty auth login` never relabels or forwards a stored session minted for a different endpoint** (#4259). Plain `login` on an issuer mismatch now refuses with the stale-session remedy instead of reporting "Already logged in"; only `--force` re-authenticates, minting fresh credentials against the resolved target (the non-interactive bridge already enforced this boundary since #234).
 - **`spec-kitty tracker discover` leaked a raw Python traceback instead of a clean CLI error whenever the SaaS control plane rejected the discovery request (observed on HTTP 403; `#4233`).** **Before:** `discover` guarded the service call with a hand-rolled `except TrackerServiceError` only, but a SaaS non-2xx surfaces as `SaaSTrackerClientError` — a *sibling* of `TrackerServiceError` (both derive from `RuntimeError`, neither from the other) — so any 403/404/429/5xx propagated uncaught and printed a full Rich traceback exposing internal module paths (`tracker/saas_client.py`, `tracker/service.py`, `cli/commands/tracker.py`). `discover` was the lone tracker command that did not route its service call through the shared `_run_or_exit` helper (which catches the `RuntimeError` family), which is exactly why every other tracker command was immune. **After:** `discover`'s service call goes through `_run_or_exit`, so any `RuntimeError`-family failure — the SaaS sibling included — renders as a single-line stderr message + `Exit(1)` with no traceback and no internal paths. The shared boundary now also preserves the structured server error data (the September #4233 extension): the error envelope parser reads the PRI-12 canonical `code` key (with the legacy `error_code` and a string `error` message field as fallbacks, coordinated with `#2944` rather than a second taxonomy), the raised error's machine code now outranks the envelope category, and `_run_or_exit` renders the code, HTTP status and one actionable hint distinguishing disabled rollout (`FEATURE_DISABLED`), missing/stale binding, expired authorization, permission denial, rate limiting and server failure. Under `--json`, the same failure is additionally emitted as a machine-readable object on stdout (`{"ok": false, "error": ..., "error_code": ..., "http_status": ..., "action": ...}`) — failures are never converted into successful empty results, only whitelisted fields are rendered (no envelope internals, no credentials), and the exit code stays nonzero. Regression tests drive the real command with mocked HTTP error responses (not just injected service errors), including the exact observed `FEATURE_DISABLED` 403 payload, and assert no traceback, no leaked bearer token, and valid JSON on stdout in `--json` mode.
 - **Starting a mission's specify, plan or tasks phase publishes its moment to Team Kitty again** (#4214). The Zeitgeist bridge validated the persisted Started payload unchanged, so the local-only `artifact_path` it carries failed the strict canonical model and the moment was dropped before any publish. The bridge now projects that field off at the wire boundary through the lifecycle module's canonical projection; the persisted event keeps it, any other undeclared field is still rejected, and Completed phases are unchanged.
-- **Built-in doctrine guidance no longer points at the retired `src/doctrine/<kind>.graph.yaml` fragment home** (#2715). The `common-docs-find` tactic and the `brownfield-onboarding` paradigm now name `packs/built-in/<kind>.graph.yaml`, and the agent-profile repository's lineage-graph docstring no longer describes a monolith that is gone. The dead-path architectural gate now also flags `doctrine/<kind>.graph.yaml` and `doctrine/*.graph.yaml` paths, not only the `doctrine/graph.yaml` monolith, and its failure message no longer recommends the dead path.
+- **`finalize-tasks` rewrites legacy string-form `dependencies` frontmatter (`"[]"`, `"WP01, WP02"`, bare `WP01`) to the canonical list form** (#3941). Previously a string value that coerced to the resolved dependencies was left on disk verbatim; `--validate-only` previews the normalization and still writes nothing.
+- **`spec-kitty agent mission record-analysis` no longer refuses with `DIRTY_WORKTREE` after specify or plan opens Decision Moments** (#3928). The Decision Moment ledger (`decisions/index.json`, `decisions/DM-*.md`) is now classified as coordination-partition state, like the status event log.
+- **`mission create` records the `mid8` identity in `meta.json` alongside `mission_id`** (#3474), so readers take it from the canonical identity source instead of re-deriving it. The value is unchanged.
+- **`spec-kitty next` and `spec-kitty research` reject a traversal-shaped `--mission` slug with a clean typed error instead of a raw `ValueError` traceback** (#2878). Both commands now print the canonical safe-path-segment diagnostic as a single `Error:` line and exit 2; `next --json` emits a structured JSON error envelope.
+
+### Changed
+
+- **Hosted references and examples use `https://team.spec-kitty.ai`** (#4258). The retired hostname is removed from checked-in material; historical records use a reserved example hostname.
 
 ## [4.0.0rc1] - 2026-09-13
 
@@ -51,6 +76,8 @@ Runtime lookup now reports `RUN_IDENTITY_MIGRATION_REQUIRED` when identity backf
 - **A third-party charter pack whose `mission.yaml` still authors an `orchestration:` block now fails to load loudly instead of the field being silently dropped** (mission `dead-port-disposition-01M1TZVN`, WP03 rider T014b). The dead `MissionOrchestration`/`MissionStateObject`/`MissionTransition` models and the required `Mission.orchestration` field are removed from the charter offering schema — `src/charter/offering/schemas/mission.schema.yaml` is regenerated without the `orchestration` definition, and the matching inert-slot baseline rows are retired — but the `Mission` model still declares `extra="forbid"`, so a pack that kept authoring the key is refused at load rather than tolerated (`tests/doctrine/fixtures/mission/invalid/retired-orchestration-key.yaml` pins the refusal). Nothing in this repo constructed these models. Unlike the 3.2.6 `context-sources` removal (below), **there is no upgrade migration** for this key — a pack author must delete the block by hand.
 
 ### Changed
+
+- **A stale or mistyped org-directive activation entry no longer resolves silently, and directive resolution does less repeated filesystem work (charter directive-resolution hardening; `#4239`, `#4240`; epic `#2519`).** **Before:** when an `activated_directives` entry named no real directive, the delivered directives service best-effort normalized it (e.g. `007-ghost` → `DIRECTIVE_007`) and could co-activate an unrelated directive with no signal — an operator got no indication their entry was unresolved. Separately, resolving a directive re-walked every doctrine layer once per candidate filename stem (O(directives×stems) filesystem scans per resolution). **After:** the service emits a per-token WARNING naming the unresolved token and the form it fell back to, so a stale/typo'd entry is visible; and a single resolution pass now walks each doctrine layer at most once. Neither change alters which directives resolve — resolution outcomes and the layer-precedence authority are unchanged.
 
 - **Forward-port the 3.2.6.1 first-run recovery fixes.** Mission creation rejects an unborn write checkout before creating artifacts, cleans up disposable scaffolds on actual commit refusals, and delays lifecycle publication until creation succeeds. Main retains its existing protected-branch bootstrap success and uncommitted-file disclosure. The tutorials continue one mission through specification and planning, active repository links use the current organization, and release tooling accepts four-component hotfix versions.
 

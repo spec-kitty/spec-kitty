@@ -6,6 +6,8 @@
   href: coord-branch-base-strand.md
 - name: Coordination Branch Declared but Worktree Missing
   href: coord-worktree-missing.md
+- name: CI Machine Authentication
+  href: ci-machine-auth.md
 - name: Cutover Flip Fails From a Linked Worktree
   href: cutover-flip-linked-worktree.md
 - name: How to Maintain the Issue Tracker

@@ -20,6 +20,28 @@ from specify_cli.task_utils import TaskCliError, find_repo_root
 from mission_runtime import MissionArtifactKind, placement_seam
 
 
+def _read_mission_dir_or_exit(
+    repo_root: Path, mission_slug: str, kind: MissionArtifactKind
+) -> Path:
+    """Resolve a mission artifact read dir, exiting cleanly on an unsafe slug.
+
+    #2878: a traversal-shaped ``--mission`` value trips the safe-path-segment
+    guard (``assert_safe_path_segment``) inside the placement seam and raises a
+    bare ``ValueError`` that no caller in this command catches — the raw
+    traceback the issue reports. Mirrors merge's ``_resolve_slug_or_exit``
+    exemplar (cli/commands/merge.py): canonical diagnostic + ``exit 2``, never
+    a traceback. The ``merge._constants`` import stays function-local so the
+    happy path never pays the merge package's import graph.
+    """
+    try:
+        return placement_seam(repo_root, mission_slug).read_dir(kind)
+    except ValueError as exc:
+        from specify_cli.merge._constants import _SAFE_PATH_SEGMENT_DIAGNOSTIC
+
+        console.print(f"[red]Error:[/red] {_SAFE_PATH_SEGMENT_DIAGNOSTIC}: {exc}")
+        raise typer.Exit(2) from exc
+
+
 def research(
     mission: str | None = typer.Option(
         None,
@@ -62,8 +84,8 @@ def research(
     # seam. The comment below already documents ``feature_dir`` as "its
     # current STATUS-namespace surface" — the dossier sync consumer needs the
     # coord-aware STATUS home, which ``STATUS_STATE`` preserves (NFR-001).
-    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.STATUS_STATE
+    feature_dir = _read_mission_dir_or_exit(
+        repo_root, mission_slug, MissionArtifactKind.STATUS_STATE
     )
     # F-001: re-key to the canonical directory name. `--mission` accepts
     # handles (bare mid8, numeric prefix); the resolver canonicalizes the
@@ -89,8 +111,8 @@ def research(
     # the seam returns the same `target_branch` dir (NFR-001 — behavior-neutral).
     # The dossier sync below keeps `feature_dir` (its current STATUS-namespace
     # surface) untouched.
-    planning_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.RESEARCH
+    planning_dir = _read_mission_dir_or_exit(
+        repo_root, mission_slug, MissionArtifactKind.RESEARCH
     )
     planning_dir.mkdir(parents=True, exist_ok=True)
 
@@ -104,8 +126,8 @@ def research(
     # PRIMARY-partition kind (FINALIZED_EXECUTION_PLAN) — read it via the seam so
     # a coord-topology mission validates the authored primary plan, not an absent
     # `coord/plan.md`.
-    plan_read_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.FINALIZED_EXECUTION_PLAN
+    plan_read_dir = _read_mission_dir_or_exit(
+        repo_root, mission_slug, MissionArtifactKind.FINALIZED_EXECUTION_PLAN
     )
     plan_path = plan_read_dir / "plan.md"
     try:

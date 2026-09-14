@@ -375,7 +375,11 @@ test_egress_consent_boundary:
   # project's identity (project_path + token) instead of a bare connect_ex —
   # same E18 loopback-control class as dashboard/lifecycle.py, on the spawn
   # side of the same boundary. Sends no payload beyond the GET itself.
-  egress_allowlist_files: 16
+  # 16 -> 17 (#3277): auth/flows/client_credentials.py joins the E18
+  # auth/OAuth class — the machine/CI client_credentials exchange POSTs the
+  # ServicePrincipal credential pair to /oauth/token. Credential traffic,
+  # same class as device_code.py/refresh.py/revoke.py; no project data.
+  egress_allowlist_files: 17
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the

@@ -15,6 +15,9 @@ from .step_projection import project_action_sequence
 
 __all__ = [
     "MissionTypeRepository",
+    "ORG_MISSION_TYPES_SUBDIR",
+    "PROJECT_MISSION_TYPES_RELATIVE",
+    "PROJECT_MISSION_TYPES_RELATIVE_TO_KITTYFY_ROOT",
     "builtin_mission_type_id_set",
     "builtin_mission_type_ids",
     "resolve_layered_mission_types",
@@ -29,7 +32,10 @@ __all__ = [
 # (`from charter.offering.missions.mission_type_repository import
 # resolve_layered_mission_types`), so
 # `tests/architectural/test_no_dead_symbols.py`'s symbol-level dead-code gate
-# has a live caller to find and the entry is restored here.
+# has a live caller to find and the entry is restored here. The three
+# path-layout constants above are public for the same reason (#3427): both
+# charter.activation consumers below import them, so the dead-symbol gate
+# finds a live caller for each.
 
 
 class MissionTypeRepository:
@@ -314,14 +320,32 @@ _LAYERED_YAML = YAML(typ="safe")
 #: Org-pack layout (CL-005, ADR 2026-08-13-1): flat, non-recursive
 #: ``<pack_root>/mission_types/*.yaml`` -- mirrors the sibling
 #: ``mission-steps/`` convention at the org/project pack tier.
-_ORG_MISSION_TYPES_SUBDIR = "mission_types"
+#:
+#: Single path-layout authority for the CL-005 mission-type roster (#3427):
+#: ``charter.activation.mission_type_profiles.resolve_action_sequence_layer``
+#: and ``charter.activation.pack_manager._resolve_layer_candidate`` import
+#: these constants instead of re-spelling the layout inline, so moving a
+#: layer directory is a one-place edit. Publicized from their former
+#: leading-underscore spellings for exactly that purpose.
+ORG_MISSION_TYPES_SUBDIR = "mission_types"
 
 #: Project-layer layout (CL-005): flat, non-recursive
-#: ``.kittify/missions/mission_types/*.yaml``. Deliberately distinct from
-#: MissionStepRepository's own project-override location
+#: ``.kittify/missions/mission_types/*.yaml``, repo-root-relative. Deliberately
+#: distinct from MissionStepRepository's own project-override location
 #: (``.kittify/overrides/mission-steps/``) -- CL-005 is its own decision
 #: record, not an import-by-analogy of the sibling's path.
-_PROJECT_MISSION_TYPES_RELATIVE: tuple[str, ...] = (".kittify", "missions", "mission_types")
+PROJECT_MISSION_TYPES_RELATIVE: tuple[str, ...] = (".kittify", "missions", "mission_types")
+
+#: Project-layer layout relative to the ``.kittify`` project root -- the tail
+#: of :data:`PROJECT_MISSION_TYPES_RELATIVE` past its leading ``.kittify``
+#: segment. Derived, never edited independently: consumers whose supplied base
+#: is already the ``.kittify`` root (``charter.activation.pack_manager``, whose
+#: ``layer_roots["project"]`` value is ``repo_root / ".kittify"`` per
+#: ``specify_cli.cli.commands.charter._layer_roots.resolve_layer_roots``) join
+#: this instead of slicing the repo-root-relative tuple at their own call
+#: site (#3427) -- the base-point reconciliation lives here, beside the
+#: authority it derives from.
+PROJECT_MISSION_TYPES_RELATIVE_TO_KITTYFY_ROOT: tuple[str, ...] = PROJECT_MISSION_TYPES_RELATIVE[1:]
 
 
 def _load_layered_mission_type_file(
@@ -565,12 +589,12 @@ def resolve_layered_mission_types(
         for pack_root in pack_context.pack_roots:
             if pack_root in protected_pack_roots:
                 continue  # already handled by the built-in-equivalent layer above
-            org_dir = pack_root / _ORG_MISSION_TYPES_SUBDIR
+            org_dir = pack_root / ORG_MISSION_TYPES_SUBDIR
             for mission_type in scan_mission_types_dir(org_dir, pack_context=pack_context):
                 org_index.setdefault(mission_type.id, mission_type)  # earliest pack_root wins
         index.update(org_index)
 
-        project_dir = pack_context.repo_root.joinpath(*_PROJECT_MISSION_TYPES_RELATIVE)
+        project_dir = pack_context.repo_root.joinpath(*PROJECT_MISSION_TYPES_RELATIVE)
         for mission_type in scan_mission_types_dir(project_dir, pack_context=pack_context):
             index[mission_type.id] = mission_type  # project always wins
 

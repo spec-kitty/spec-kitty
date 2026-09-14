@@ -34,6 +34,16 @@ def login(
         "--headless",
         help="Use device authorization flow (for SSH or no-browser environments).",
     ),
+    machine: bool = typer.Option(
+        False,
+        "--machine",
+        help=(
+            "Non-interactive machine/CI login: exchange the ServicePrincipal "
+            "credential from SPEC_KITTY_MACHINE_CLIENT_ID + "
+            "SPEC_KITTY_MACHINE_CLIENT_SECRET(_FILE) via the OAuth "
+            "client_credentials grant. No browser, device flow, or prompt."
+        ),
+    ),
     force: bool = typer.Option(
         False,
         "--force",
@@ -44,8 +54,16 @@ def login(
     """Log in to spec-kitty SaaS via browser OAuth (or device flow with --headless)."""
     from specify_cli.cli.commands._auth_login import login_impl
 
+    if machine and headless:
+        console.print(
+            "[red]X --machine and --headless are mutually exclusive:[/red] "
+            "--machine is already non-interactive (client credentials exchange, "
+            "no device flow)."
+        )
+        raise typer.Exit(2)
+
     try:
-        asyncio.run(login_impl(headless=headless, force=force))
+        asyncio.run(login_impl(headless=headless, machine=machine, force=force))
     except KeyboardInterrupt:
         console.print("\n[yellow]Login cancelled by user.[/yellow]")
         raise typer.Exit(130) from None
