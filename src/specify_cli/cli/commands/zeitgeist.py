@@ -65,6 +65,8 @@ is a thin pass-through to ``operability.py``'s functions.
 
 from __future__ import annotations
 
+from kernel.clock import now_epoch
+
 import asyncio
 import dataclasses
 import getpass
@@ -145,7 +147,9 @@ def _print_snapshot_summary(result: dict[str, Any]) -> None:
     presence: list[dict[str, Any]] = result.get("presence") or []
     focus: list[dict[str, Any]] = result.get("focus") or []
     from_snapshot = result.get("source") == "relay_snapshot"
-    now = time.time()
+    # kernel.clock is the single door for wall-clock reads (FR-012(b));
+    # `time.monotonic()` below is a duration, not a clock read, and stays.
+    now = now_epoch()
     console.print(f"[bold]{result.get('repo')}[/bold]  epoch={result.get('epoch')}")
     if from_snapshot:
         console.print("  source: the relay's own record of who is live now")
