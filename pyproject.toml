@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.2.8rc1"
+version = "4.0.0rc3"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -340,7 +340,6 @@ exclude = [
     "src/charter/hasher.py",
     "src/charter/activation/interview.py",
     "src/charter/activation/invocation_context.py",
-    "src/charter/activation/kind_vocabulary.py",
     "src/charter/activation/language_scope.py",
     "src/charter/activation/mission_type_profiles.py",
     "src/charter/activation/neutrality/lint.py",
@@ -352,7 +351,6 @@ exclude = [
     "src/charter/activation/progressive_disclosure.py",
     "src/charter/activation/reference_resolver.py",
     "src/charter/resolution.py",
-    "src/charter/activation/resolver.py",
     "src/charter/activation/schemas.py",
     "src/charter/activation/scope.py",
     "src/charter/activation/synthesizer/adapter.py",
@@ -575,7 +573,6 @@ exclude = [
     "src/specify_cli/cli/commands/charter/context.py",
     "src/specify_cli/cli/commands/charter/deactivate.py",
     "src/specify_cli/cli/commands/charter/generate.py",
-    "src/specify_cli/cli/commands/charter/interview.py",
     "src/specify_cli/cli/commands/charter/lint.py",
     "src/specify_cli/cli/commands/charter/list_cmd.py",
     "src/specify_cli/cli/commands/charter/mission_type.py",
@@ -690,7 +687,6 @@ exclude = [
     "src/specify_cli/doc_analysis/gap_analysis.py",
     "src/specify_cli/docs/index_model.py",
     "src/specify_cli/doctrine/builtin_manifest.py",
-    "src/specify_cli/doctrine/org_charter.py",
     "src/specify_cli/doctrine/org_charter_loader.py",
     "src/specify_cli/doctrine/pack_assembler.py",
     "src/specify_cli/doctrine/pack_lineage.py",
@@ -949,7 +945,6 @@ exclude = [
     "src/specify_cli/upgrade/migrations/m_3_2_x_normalize_activation_absence.py",
     "src/specify_cli/upgrade/migrations/m_3_3_0_session_presence_all_harnesses.py",
     "src/specify_cli/upgrade/migrations/m_3_3_0_session_presence_claude_code.py",
-    "src/specify_cli/upgrade/migrations/m_unify_charter_activation.py",
     "src/specify_cli/upgrade/migrations/m_unify_charter_activation_finalize.py",
     "src/specify_cli/upgrade/migrations/m_zz_runtime_state_backfill.py",
     "src/specify_cli/upgrade/migrations/m_zz_verdict_provenance_backfill.py",
@@ -1241,7 +1236,6 @@ exclude = [
     "tests/charter/test_activations.py",
     "tests/charter/test_active_languages_idempotency.py",
     "tests/charter/test_alias_deleted_regression.py",
-    "tests/charter/test_answers_inert_and_org_union.py",
     "tests/charter/test_builtin_reader_relocation.py",
     "tests/charter/test_bundle_contract.py",
     "tests/charter/test_bundle_manifest_model.py",
@@ -1284,7 +1278,6 @@ exclude = [
     "tests/charter/test_doctrine_service_builder_unification.py",
     "tests/charter/test_doctrine_service_lineage_accessor.py",
     "tests/charter/test_doctrine_service_unfiltered_mode.py",
-    "tests/charter/test_drg_activation_gate.py",
     "tests/charter/test_drg_filtering.py",
     "tests/charter/test_empty_charter_governance_agreement.py",
     "tests/charter/test_encoding_chokepoint.py",
@@ -1502,7 +1495,6 @@ exclude = [
     "tests/doctrine/agent_profiles/test_supply_chain_profile_bindings.py",
     "tests/doctrine/assets/test_repository.py",
     "tests/doctrine/directives/test_models.py",
-    "tests/doctrine/directives/test_repository.py",
     "tests/doctrine/directives/test_schema_compatibility.py",
     "tests/doctrine/directives/test_validation.py",
     "tests/doctrine/drg/migration/test_extractor.py",

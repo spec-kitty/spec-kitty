@@ -35,12 +35,14 @@ one; it is now a thin delegate onto these methods.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog
+from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
+from charter.activation.kind_vocabulary import ArtifactKind, UnknownArtifactIdError, resolve_artifact_urn
 from charter.activation.reference_resolver import resolve_references_transitively
 from charter.activation.schemas import DirectivesConfig, DoctrineSelectionConfig
 from charter.activation.sync import (
@@ -87,6 +89,8 @@ if TYPE_CHECKING:
     import charter.offering.service as _doctrine_service_module
     from charter.activation.interview import CharterInterview
     from charter.activation.pack_context import PackContext
+
+_LOGGER = logging.getLogger(__name__)
 
 DEFAULT_TEMPLATE_SET = "software-dev-default"
 DEFAULT_TOOL_REGISTRY: frozenset[str] = frozenset({"spec-kitty", "git"})
@@ -140,6 +144,29 @@ def _mission_template_repository(missions_root: str) -> MissionTemplateRepositor
     return MissionTemplateRepository(Path(missions_root))
 
 
+def _resolve_unmatched_directive_token(token: str, all_directives: dict[str, Directive]) -> str:
+    """Resolve an ``activated_directives`` token that failed URN resolution.
+
+    A token already present in *all_directives* names a known catalog id
+    verbatim (a legacy exact-id alias) and is returned as-is -- no signal
+    needed, this is a resolvable identity. Anything else is the
+    **fully-unresolvable** path: the token is neither URN-resolvable nor a
+    known catalog id, so it is best-effort normalized (#4240) and a WARNING
+    names both the raw token and the normalized form, since this can
+    silently co-activate an unrelated directive (or activate nothing) with
+    no other signal to the operator.
+    """
+    if token in all_directives:
+        return token
+    normalized: str = normalize_directive_id(token)
+    _LOGGER.warning(
+        "unresolved directive activation token %r; best-effort normalized to %r",
+        token,
+        normalized,
+    )
+    return normalized
+
+
 # ---------------------------------------------------------------------------
 # Activation-aware DoctrineService wrapper (Pattern B + C wiring)
 # ---------------------------------------------------------------------------
@@ -180,6 +207,7 @@ class DoctrineService:
         # Use object.__setattr__ to bypass any potential descriptor magic.
         object.__setattr__(self, "_inner", _inner)
         object.__setattr__(self, "_pack_context", pack_context)
+        self._resolved_directive_activation_ids: frozenset[str] | None = None
 
     # ------------------------------------------------------------------
     # Pattern B: flat catalog activation filter (paradigms, procedures)
@@ -188,9 +216,7 @@ class DoctrineService:
     @property
     def paradigms(self) -> dict[str, Paradigm]:
         """Return paradigms dict, filtered by ``activated_paradigms`` when set."""
-        all_paradigms: dict[str, Paradigm] = {
-            item.id: item for item in self._inner.paradigms.list_all()
-        }
+        all_paradigms: dict[str, Paradigm] = {item.id: item for item in self._inner.paradigms.list_all()}
         pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
         if pack_ctx is not None and pack_ctx.activated_paradigms is not None:
             return {k: v for k, v in all_paradigms.items() if k in pack_ctx.activated_paradigms}
@@ -199,9 +225,7 @@ class DoctrineService:
     @property
     def procedures(self) -> dict[str, Procedure]:
         """Return procedures dict, filtered by ``activated_procedures`` when set."""
-        all_procedures: dict[str, Procedure] = {
-            item.id: item for item in self._inner.procedures.list_all()
-        }
+        all_procedures: dict[str, Procedure] = {item.id: item for item in self._inner.procedures.list_all()}
         pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
         if pack_ctx is not None and pack_ctx.activated_procedures is not None:
             return {k: v for k, v in all_procedures.items() if k in pack_ctx.activated_procedures}
@@ -214,9 +238,7 @@ class DoctrineService:
     @property
     def agent_profiles(self) -> dict[str, AgentProfile]:
         """Return agent profiles dict, filtered by ``activated_agent_profiles`` when set."""
-        all_profiles: dict[str, AgentProfile] = {
-            p.profile_id: p for p in self._inner.agent_profiles.list_all()
-        }
+        all_profiles: dict[str, AgentProfile] = {p.profile_id: p for p in self._inner.agent_profiles.list_all()}
         pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
         if pack_ctx is not None and pack_ctx.activated_agent_profiles is not None:
             return {k: v for k, v in all_profiles.items() if k in pack_ctx.activated_agent_profiles}
@@ -232,40 +254,45 @@ class DoctrineService:
 
     @property
     def directives(self) -> dict[str, Directive]:
-        """Return directives dict, filtered by ``activated_directives`` when set.
+        """Return directives selected by exact IDs or canonical filename stems.
 
-        Directives are the sole gated kind whose two identity spaces diverge:
-        items are keyed by their canonical ``id`` (``DIRECTIVE_025``) while
-        ``activated_directives`` stores the file-stem **slug**
-        (``025-boy-scout-rule``), exactly as ``config.yaml`` and the ``--json``
-        surface speak it. Membership must therefore compare on one normalized
-        form — via the single canonical authority
-        (:func:`~charter.offering.drg.migration.id_normalizer.normalize_directive_id`) —
-        or every directive is silently dropped whenever activation is configured
-        (#3816 sibling; every other gated kind has ``id == slug`` so its
-        comparison already coincides).
+        Org directive IDs need not resemble their filenames. Resolve activation
+        stems through the shared vocabulary before falling back to legacy ID
+        aliases, and compare exact identities so distinct declarations do not
+        become co-activated merely because their normalized spellings collide.
         """
-        all_directives: dict[str, Directive] = {
-            item.id: item for item in self._inner.directives.list_all()
-        }
+        all_directives: dict[str, Directive] = {item.id: item for item in self._inner.directives.list_all()}
         pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
-        if pack_ctx is not None and pack_ctx.activated_directives is not None:
-            # Compare both sides in canonical space: the activated set speaks
-            # slugs and the item keys speak ``DIRECTIVE_NNN``. ``normalize_directive_id``
-            # is idempotent on an already-canonical id, so this only adds the
-            # slug→canonical bridge and never disturbs a matching pair.
-            activated = {normalize_directive_id(slug) for slug in pack_ctx.activated_directives}
-            return {
-                k: v for k, v in all_directives.items() if normalize_directive_id(k) in activated
-            }
-        return all_directives
+        if pack_ctx is None or pack_ctx.activated_directives is None:
+            return all_directives
+        if not pack_ctx.activated_directives:
+            return {}
+
+        # PackContext and the inner repositories are snapshots. Resolve once
+        # for this service; a newly built service observes changed files/config.
+        if self._resolved_directive_activation_ids is None:
+            doctrine_root = resolve_doctrine_root()
+            activated: set[str] = set()
+            for token in pack_ctx.activated_directives:
+                try:
+                    urn = resolve_artifact_urn(
+                        ArtifactKind.DIRECTIVE,
+                        token,
+                        doctrine_root=doctrine_root,
+                        org_roots=list(pack_ctx.org_roots),
+                        layer_roots={"project": pack_ctx.repo_root / ".kittify"},
+                    )
+                    activated.add(urn.split(":", 1)[1])
+                except UnknownArtifactIdError:
+                    activated.add(_resolve_unmatched_directive_token(token, all_directives))
+            self._resolved_directive_activation_ids = frozenset(activated)
+        activated_ids = self._resolved_directive_activation_ids
+        return {key: item for key, item in all_directives.items() if key in activated_ids}
 
     @property
     def tactics(self) -> dict[str, Tactic]:
         """Return tactics dict, filtered by ``activated_tactics`` when set."""
-        all_tactics: dict[str, Tactic] = {
-            item.id: item for item in self._inner.tactics.list_all()
-        }
+        all_tactics: dict[str, Tactic] = {item.id: item for item in self._inner.tactics.list_all()}
         pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
         if pack_ctx is not None and pack_ctx.activated_tactics is not None:
             return {k: v for k, v in all_tactics.items() if k in pack_ctx.activated_tactics}
@@ -274,9 +301,7 @@ class DoctrineService:
     @property
     def styleguides(self) -> dict[str, Styleguide]:
         """Return styleguides dict, filtered by ``activated_styleguides`` when set."""
-        all_styleguides: dict[str, Styleguide] = {
-            item.id: item for item in self._inner.styleguides.list_all()
-        }
+        all_styleguides: dict[str, Styleguide] = {item.id: item for item in self._inner.styleguides.list_all()}
         pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
         if pack_ctx is not None and pack_ctx.activated_styleguides is not None:
             return {k: v for k, v in all_styleguides.items() if k in pack_ctx.activated_styleguides}
@@ -285,9 +310,7 @@ class DoctrineService:
     @property
     def toolguides(self) -> dict[str, Toolguide]:
         """Return toolguides dict, filtered by ``activated_toolguides`` when set."""
-        all_toolguides: dict[str, Toolguide] = {
-            item.id: item for item in self._inner.toolguides.list_all()
-        }
+        all_toolguides: dict[str, Toolguide] = {item.id: item for item in self._inner.toolguides.list_all()}
         pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
         if pack_ctx is not None and pack_ctx.activated_toolguides is not None:
             return {k: v for k, v in all_toolguides.items() if k in pack_ctx.activated_toolguides}
@@ -296,27 +319,19 @@ class DoctrineService:
     @property
     def mission_step_contracts(self) -> dict[str, MissionStepContract]:
         """Return mission step contracts dict, filtered by ``activated_mission_step_contracts`` when set."""
-        all_contracts: dict[str, MissionStepContract] = {
-            item.id: item for item in self._inner.mission_step_contracts.list_all()
-        }
+        all_contracts: dict[str, MissionStepContract] = {item.id: item for item in self._inner.mission_step_contracts.list_all()}
         pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
         if pack_ctx is not None and pack_ctx.activated_mission_step_contracts is not None:
-            return {
-                k: v for k, v in all_contracts.items() if k in pack_ctx.activated_mission_step_contracts
-            }
+            return {k: v for k, v in all_contracts.items() if k in pack_ctx.activated_mission_step_contracts}
         return all_contracts
 
     @property
     def glossary_packs(self) -> dict[str, GlossaryPack]:
         """Return glossary packs dict, filtered by ``activated_glossary_packs`` when set."""
-        all_glossary_packs: dict[str, GlossaryPack] = {
-            item.id: item for item in self._inner.glossary_packs.list_all()
-        }
+        all_glossary_packs: dict[str, GlossaryPack] = {item.id: item for item in self._inner.glossary_packs.list_all()}
         pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
         if pack_ctx is not None and pack_ctx.activated_glossary_packs is not None:
-            return {
-                k: v for k, v in all_glossary_packs.items() if k in pack_ctx.activated_glossary_packs
-            }
+            return {k: v for k, v in all_glossary_packs.items() if k in pack_ctx.activated_glossary_packs}
         return all_glossary_packs
 
     # ------------------------------------------------------------------
@@ -644,8 +659,7 @@ def _validate_paradigm_selection(
         raise GovernanceResolutionError(
             [
                 "Charter selected unavailable paradigm(s): " + ", ".join(missing),
-                "Available built-in paradigms: "
-                + (", ".join(sorted(doctrine_catalog.paradigms)) or "(none)"),
+                "Available built-in paradigms: " + (", ".join(sorted(doctrine_catalog.paradigms)) or "(none)"),
                 "Update charter selected_paradigms to values present in packs/built-in/paradigms/.",
             ]
         )
@@ -687,9 +701,7 @@ def _resolve_paradigm_base(
     activated_paradigms = PackContext.from_config(repo_root).activated_paradigms
     if activated_paradigms is None:
         base = sorted(doctrine_catalog.paradigms)
-        diagnostics.append(
-            f"No activated paradigm set configured; using built-in catalog default ({len(base)} paradigms)."
-        )
+        diagnostics.append(f"No activated paradigm set configured; using built-in catalog default ({len(base)} paradigms).")
         return base, "catalog_fallback"
     return sorted(activated_paradigms), "activation"
 
@@ -724,11 +736,7 @@ def _resolve_tools_selection(
         unioned = sorted(set(selected_tools) | available_tools)
         added_from_charter = sorted(set(selected_tools) - available_tools)
         if added_from_charter:
-            diagnostics.append(
-                "Charter declared additional tool(s) beyond the runtime registry: "
-                + ", ".join(added_from_charter)
-                + "."
-            )
+            diagnostics.append("Charter declared additional tool(s) beyond the runtime registry: " + ", ".join(added_from_charter) + ".")
         return unioned, "charter+registry"
 
     diagnostics.append("No available_tools selection provided; using runtime tool registry fallback.")
@@ -794,9 +802,7 @@ def _resolve_directive_base(
     activated_directives = PackContext.from_config(repo_root).activated_directives
     if activated_directives is None:
         base = sorted({_normalize_directive_id(d) for d in doctrine_catalog.directives})
-        diagnostics.append(
-            f"No activated directive set configured; using built-in catalog default ({len(base)} directives)."
-        )
+        diagnostics.append(f"No activated directive set configured; using built-in catalog default ({len(base)} directives).")
         base_source = "catalog_fallback"
     else:
         base = sorted({_normalize_directive_id(d) for d in activated_directives})
@@ -810,19 +816,14 @@ def _resolve_directive_base(
         raise GovernanceResolutionError(
             [
                 "Charter selected unavailable directive(s): " + ", ".join(missing),
-                "Declare these IDs in the charter.yaml 'directives:' section "
-                "or add them to packs/built-in/directives/.",
+                "Declare these IDs in the charter.yaml 'directives:' section or add them to packs/built-in/directives/.",
             ]
         )
 
     base_set = set(base)
     added = [d for d in doctrine.selected_directives if d not in base_set]
     if added:
-        diagnostics.append(
-            f"Charter selected {len(added)} directive(s) beyond the {base_source} base: "
-            + ", ".join(added)
-            + "."
-        )
+        diagnostics.append(f"Charter selected {len(added)} directive(s) beyond the {base_source} base: " + ", ".join(added) + ".")
     else:
         diagnostics.append(
             f"All {len(doctrine.selected_directives)} charter-selected directive(s) already present in "
@@ -856,9 +857,7 @@ def _resolve_directives_selection(
       directives merged and onto which base. Base order is preserved and no base
       id is ever dropped (INV-1/INV-2/INV-3/INV-5).
     """
-    base, base_source = _resolve_directive_base(
-        doctrine, directives_cfg, doctrine_catalog, repo_root, diagnostics
-    )
+    base, base_source = _resolve_directive_base(doctrine, directives_cfg, doctrine_catalog, repo_root, diagnostics)
 
     local_ids = [d.id for d in directives_cfg.directives]
     if not local_ids:
@@ -868,16 +867,9 @@ def _resolve_directives_selection(
     base_set = set(base)
     added = [d for d in local_ids if d not in base_set]
     if added:
-        diagnostics.append(
-            f"Merged {len(added)} project-local directive(s) onto the {base_source} set: "
-            + ", ".join(added)
-            + "."
-        )
+        diagnostics.append(f"Merged {len(added)} project-local directive(s) onto the {base_source} set: " + ", ".join(added) + ".")
     else:
-        diagnostics.append(
-            f"All {len(local_ids)} project-local directive(s) already present in the "
-            f"{base_source} set; none added: " + ", ".join(local_ids) + "."
-        )
+        diagnostics.append(f"All {len(local_ids)} project-local directive(s) already present in the {base_source} set; none added: " + ", ".join(local_ids) + ".")
     return resolved, f"{base_source}+project_local"
 
 
@@ -889,15 +881,11 @@ def _resolve_template_set_selection(
 ) -> tuple[str, str]:
     """Resolve template set from charter selection or fallback."""
     if doctrine.template_set:
-        if (
-            "template_sets" in doctrine_catalog.domains_present
-            and doctrine.template_set not in doctrine_catalog.template_sets
-        ):
+        if "template_sets" in doctrine_catalog.domains_present and doctrine.template_set not in doctrine_catalog.template_sets:
             raise GovernanceResolutionError(
                 [
                     f"Charter selected unavailable template_set: '{doctrine.template_set}'",
-                    "Available template sets: "
-                    + (", ".join(sorted(doctrine_catalog.template_sets)) or "(none)"),
+                    "Available template sets: " + (", ".join(sorted(doctrine_catalog.template_sets)) or "(none)"),
                     "Update charter template_set to a value available in doctrine missions.",
                 ]
             )
@@ -951,11 +939,7 @@ def resolve_project_governance(
         paradigm_base_set = set(paradigm_base)
         added_paradigms = [p for p in selected_paradigms_raw if p not in paradigm_base_set]
         if added_paradigms:
-            diagnostics.append(
-                f"Charter selected {len(added_paradigms)} paradigm(s) beyond the {paradigm_base_source} base: "
-                + ", ".join(added_paradigms)
-                + "."
-            )
+            diagnostics.append(f"Charter selected {len(added_paradigms)} paradigm(s) beyond the {paradigm_base_source} base: " + ", ".join(added_paradigms) + ".")
         else:
             diagnostics.append(
                 f"All {len(selected_paradigms_raw)} charter-selected paradigm(s) already present in the "
@@ -967,12 +951,8 @@ def resolve_project_governance(
 
     available_tools = tool_registry or set(DEFAULT_TOOL_REGISTRY)
     resolved_tools, tools_source = _resolve_tools_selection(doctrine, available_tools, diagnostics)
-    resolved_directives, directives_source = _resolve_directives_selection(
-        doctrine, directives_cfg, doctrine_catalog, repo_root, diagnostics
-    )
-    template_set, template_set_source = _resolve_template_set_selection(
-        doctrine, doctrine_catalog, fallback_template_set, diagnostics
-    )
+    resolved_directives, directives_source = _resolve_directives_selection(doctrine, directives_cfg, doctrine_catalog, repo_root, diagnostics)
+    template_set, template_set_source = _resolve_template_set_selection(doctrine, doctrine_catalog, fallback_template_set, diagnostics)
 
     return GovernanceResolution(
         paradigms=selected_paradigms,
@@ -1027,9 +1007,7 @@ def resolve_governance_for_profile(
         graph=graph,
         repo_root=repo_root,
     )
-    diagnostics = [
-        f"Unresolved reference: {artifact_type}/{artifact_id}" for artifact_type, artifact_id in resolution_graph.unresolved
-    ]
+    diagnostics = [f"Unresolved reference: {artifact_type}/{artifact_id}" for artifact_type, artifact_id in resolution_graph.unresolved]
 
     return GovernanceResolution(
         paradigms=list(interview.selected_paradigms),

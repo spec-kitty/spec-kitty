@@ -3,6 +3,7 @@
 Widen Mode helpers live in :mod:`specify_cli.cli.commands.charter._widen` so
 this module stays under the 500-line WP06 budget.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -66,6 +67,7 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
     """
     from charter.activation.activation_engine import promote_activations
     from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.kind_vocabulary import UnrepresentableDirectiveIdError
     from charter.activation.pack_manager import resolve_activation_write_target
     from charter.drg import ArtifactKind
 
@@ -80,17 +82,32 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
         ArtifactKind.PARADIGM: list(interview_data.selected_paradigms),
     }
 
+    from specify_cli.cli.commands.charter._layer_roots import (
+        resolve_layer_roots,
+        resolve_org_root_chain,
+    )
+
     doctrine_root = resolve_doctrine_root()
+    org_roots = resolve_org_root_chain(repo_root)
+    layer_roots = resolve_layer_roots(repo_root)
     promotions: dict[str, list[str]] = {}
     warnings: list[str] = []
     for kind, raw_ids in kind_to_selection.items():
         stems: list[str] = []
         for raw_id in raw_ids:
-            stem = resolve_selected_id_to_stem(kind, raw_id, doctrine_root=doctrine_root)
-            if stem is None:
-                warnings.append(
-                    f"Could not resolve selected {kind.operator_token} id {raw_id!r}; skipped."
+            try:
+                stem = resolve_selected_id_to_stem(
+                    kind,
+                    raw_id,
+                    doctrine_root=doctrine_root,
+                    org_roots=org_roots,
+                    layer_roots=layer_roots,
                 )
+            except UnrepresentableDirectiveIdError as exc:
+                warnings.append(f"Could not promote selected directive id {raw_id!r}; skipped. {exc}")
+                continue
+            if stem is None:
+                warnings.append(f"Could not resolve selected {kind.operator_token} id {raw_id!r}; skipped.")
             elif stem not in stems:
                 stems.append(stem)
         if stems:
@@ -218,6 +235,7 @@ def interview(  # noqa: C901
                 _team_slug: str = ""
                 with contextlib.suppress(Exception):
                     from specify_cli.saas_client.auth import load_auth_context
+
                     _auth_ctx = load_auth_context(repo_root)
                     _team_slug = _auth_ctx.team_slug or ""
 
@@ -257,17 +275,8 @@ def interview(  # noqa: C901
                         current_decision_id = dm_response.decision_id
 
                 # T045 — Already-widened question prompt (§1.3 contract)
-                _already_widened = (
-                    widen_store is not None
-                    and current_decision_id is not None
-                    and _is_already_widened(widen_store, current_decision_id)
-                )
-                if (
-                    _already_widened
-                    and _saas_client is not None
-                    and mission_slug is not None
-                    and current_decision_id is not None
-                ):
+                _already_widened = widen_store is not None and current_decision_id is not None and _is_already_widened(widen_store, current_decision_id)
+                if _already_widened and _saas_client is not None and mission_slug is not None and current_decision_id is not None:
                     from specify_cli.widen.interview_helpers import render_already_widened_prompt
 
                     render_already_widened_prompt(
@@ -286,18 +295,9 @@ def interview(  # noqa: C901
 
                 # T027 — Build hint line; append [w]iden when prereqs met
                 widen_suffix = ""
-                if (
-                    prereq_state is not None
-                    and prereq_state.all_satisfied
-                    and widen_store is not None
-                    and current_decision_id is not None
-                    and not _already_widened
-                ):
+                if prereq_state is not None and prereq_state.all_satisfied and widen_store is not None and current_decision_id is not None and not _already_widened:
                     widen_suffix = " | [w]iden"
-                hint_line = (
-                    f"[enter]=accept default | [text]=type answer{widen_suffix}"
-                    " | [d]efer | [!cancel]"
-                )
+                hint_line = f"[enter]=accept default | [text]=type answer{widen_suffix} | [d]efer | [!cancel]"
 
                 # Prompt the question (handles widen dispatch internally)
                 actual_answer = _prompt_one_question(
@@ -413,7 +413,7 @@ def interview(  # noqa: C901
         try:
             promotion_warnings = _promote_interview_selections(repo_root, interview_data)
         except Exception as exc:  # noqa: BLE001 — promotion is best-effort, never blocks the interview
-            promotion_warnings = []
+            promotion_warnings = [f"Selection promotion skipped: {exc}"]
             if not json_output:
                 console.print(f"[yellow]Selection promotion skipped:[/yellow] {exc}")
 

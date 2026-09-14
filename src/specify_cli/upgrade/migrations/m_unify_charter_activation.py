@@ -58,9 +58,8 @@ from charter.activation.activation_engine import promote_activations
 from charter.activation.catalog import resolve_doctrine_root
 from charter.activation.default_pack import load_default_pack_activation_ids
 from charter.activation.kind_vocabulary import (
-    UnknownArtifactIdError,
-    resolve_artifact_urn,
-    resolve_config_id,
+    UnrepresentableDirectiveIdError,
+    resolve_selected_id_to_stem as resolve_selected_id_to_stem,
 )
 from charter.activation.kind_vocabulary import ArtifactKind
 
@@ -116,30 +115,6 @@ def load_default_pack_ids() -> dict[str, list[str]]:
     return load_default_pack_activation_ids()
 
 
-def resolve_selected_id_to_stem(
-    kind: ArtifactKind, raw_id: str, *, doctrine_root: Path
-) -> str | None:
-    """Best-effort normalize *raw_id* (already-stem OR canonical id) to config-stem form.
-
-    Tries *raw_id* as a config stem first (the common case for most kinds,
-    where stem and canonical id coincide); falls back to treating it as the
-    artefact's canonical ``id:`` field (the directive case, e.g.
-    ``"DIRECTIVE_001"``). Returns ``None`` when neither direction resolves —
-    the caller reports this as an unresolved, skipped id (never a silent
-    drop, C-006) rather than raising, since a migration must not abort the
-    whole run over one stale/malformed legacy answers entry.
-    """
-    try:
-        resolve_artifact_urn(kind, raw_id, doctrine_root=doctrine_root)
-        return raw_id
-    except UnknownArtifactIdError:
-        pass
-    try:
-        return resolve_config_id(f"{kind.value}:{raw_id}", doctrine_root=doctrine_root)
-    except (ValueError, UnknownArtifactIdError):
-        return None
-
-
 def _answers_only_ids_for_kind(
     kind: ArtifactKind,
     *,
@@ -154,7 +129,12 @@ def _answers_only_ids_for_kind(
     promote_stems: list[str] = []
     unresolved: list[str] = []
     for raw_id in raw_answer_ids:
-        stem = resolve_selected_id_to_stem(kind, str(raw_id), doctrine_root=doctrine_root)
+        try:
+            stem = resolve_selected_id_to_stem(kind, str(raw_id), doctrine_root=doctrine_root)
+        except UnrepresentableDirectiveIdError:
+            # Preserve the migration's per-ID unresolved warning contract.
+            unresolved.append(str(raw_id))
+            continue
         if stem is None:
             unresolved.append(str(raw_id))
         elif stem not in existing_stems and stem not in promote_stems:
@@ -268,9 +248,7 @@ class UnifyCharterActivationMigration(BaseMigration):
         except Exception as exc:  # noqa: BLE001 — surfaced as a structured migration error
             return MigrationResult(success=False, errors=[f"Invalid .kittify/config.yaml: {exc}"])
         if not isinstance(config_data, dict):
-            return MigrationResult(
-                success=False, errors=[".kittify/config.yaml root must be a mapping"]
-            )
+            return MigrationResult(success=False, errors=[".kittify/config.yaml root must be a mapping"])
 
         answers_data = _load_yaml(answers_path)
         if not answers_data:
@@ -287,18 +265,14 @@ class UnifyCharterActivationMigration(BaseMigration):
         promotions, unresolved = _compute_promotions(answers_data, config_data, doctrine_root)
 
         if not promotions:
-            result = MigrationResult(
-                success=True, changes_made=["No answers-only selections to promote"]
-            )
+            result = MigrationResult(success=True, changes_made=["No answers-only selections to promote"])
             if unresolved:
                 result.warnings = [_unresolved_warning(unresolved)]
             return result
 
         if dry_run:
             summary = [f"{key}: +{ids}" for key, ids in promotions.items()]
-            result = MigrationResult(
-                success=True, changes_made=[f"dry-run: would promote {summary}"]
-            )
+            result = MigrationResult(success=True, changes_made=[f"dry-run: would promote {summary}"])
             if unresolved:
                 result.warnings = [_unresolved_warning(unresolved)]
             return result
@@ -318,9 +292,7 @@ class UnifyCharterActivationMigration(BaseMigration):
             default_ids=default_ids,
         )
 
-        changes_made = [
-            f"Promoted {plan.activated} into {plan.yaml_key}" for plan in plans if plan.activated
-        ]
+        changes_made = [f"Promoted {plan.activated} into {plan.yaml_key}" for plan in plans if plan.activated]
         warnings = [warning for plan in plans for warning in plan.warnings]
         if unresolved:
             warnings.append(_unresolved_warning(unresolved))

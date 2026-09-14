@@ -75,13 +75,14 @@ class DirectiveRepository(BaseDoctrineRepository[Directive]):
         return normalize_directive_id(directive_id)
 
     def get(self, directive_id: str) -> Directive | None:
-        """Get directive by ID.
+        """Get directive by exact declared ID, with normalized aliases as fallback.
 
         Accepts numeric shorthand ("004"), full ID ("DIRECTIVE_004"), and the
         file-stem slug the ``--json`` surface advertises ("025-boy-scout-rule").
         """
-        normalized = self._normalize_id(directive_id)
-        return self._items.get(normalized)
+        if directive_id in self._items:
+            return self._items[directive_id]
+        return self._items.get(self._normalize_id(directive_id))
 
     def save(self, directive: Directive) -> Path:
         """Save directive to project directory.

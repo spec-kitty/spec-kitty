@@ -79,9 +79,7 @@ class _Interview:
 
 def _write_org_charter(pack_dir: Path, body: str) -> None:
     pack_dir.mkdir(parents=True, exist_ok=True)
-    (pack_dir / "org-charter.yaml").write_text(
-        textwrap.dedent(body).strip() + "\n", encoding="utf-8"
-    )
+    (pack_dir / "org-charter.yaml").write_text(textwrap.dedent(body).strip() + "\n", encoding="utf-8")
 
 
 def _write_consumer_config(
@@ -159,9 +157,7 @@ class TestOrgRequiredPromotedIntoConfig:
     for all 8 :data:`REQUIRED_KIND_FIELDS` kinds -- not just roots."""
 
     @pytest.mark.parametrize("kind", list(REQUIRED_KIND_FIELDS))
-    def test_required_kind_promoted_into_config_activated(
-        self, kind: str, tmp_path: Path
-    ) -> None:
+    def test_required_kind_promoted_into_config_activated(self, kind: str, tmp_path: Path) -> None:
         pack = tmp_path / "pack"
         _write_org_charter(
             pack,
@@ -175,22 +171,14 @@ class TestOrgRequiredPromotedIntoConfig:
         consumer = tmp_path / "consumer"
         consumer.mkdir()
         yaml_key = f"activated_{kind}"
-        _write_consumer_config(
-            consumer, [("pack", pack)], preseed={yaml_key: ["project-pinned"]}
-        )
+        _write_consumer_config(consumer, [("pack", pack)], preseed={yaml_key: ["project-pinned"]})
 
         interview = _Interview()
         messages = apply_org_charter_to_interview(interview, consumer)
 
         written = _read_config_yaml(consumer).get(yaml_key)
-        assert written == ["project-pinned", "org-required-1"], (
-            f"required_{kind} must union into config.{yaml_key} "
-            "(append-only, config-authority write path)"
-        )
-        assert any(yaml_key in m for m in messages), (
-            "apply_org_charter_to_interview must disclose the config-authority "
-            f"promotion for {yaml_key}"
-        )
+        assert written == ["project-pinned", "org-required-1"], f"required_{kind} must union into config.{yaml_key} (append-only, config-authority write path)"
+        assert any(yaml_key in m for m in messages), f"apply_org_charter_to_interview must disclose the config-authority promotion for {yaml_key}"
 
     def test_promotion_is_idempotent_on_repeated_calls(self, tmp_path: Path) -> None:
         pack = tmp_path / "pack"
@@ -214,13 +202,9 @@ class TestOrgRequiredPromotedIntoConfig:
         apply_org_charter_to_interview(_Interview(), consumer)
 
         written = _read_config_yaml(consumer)["activated_directives"]
-        assert written == ["project-pinned", "org-required-directive"], (
-            "re-running the org union twice must not duplicate the promoted id"
-        )
+        assert written == ["project-pinned", "org-required-directive"], "re-running the org union twice must not duplicate the promoted id"
 
-    def test_promotion_into_absent_config_key_preserves_builtins(
-        self, tmp_path: Path
-    ) -> None:
+    def test_promotion_into_absent_config_key_preserves_builtins(self, tmp_path: Path) -> None:
         """LAND-BLOCKER guard (WP06): promoting ``required_directives`` into a
         previously-absent ``activated_directives`` key must NOT write a bare
         ``[org-required-directive]`` list -- it must materialize every
@@ -254,18 +238,14 @@ class TestOrgRequiredPromotedIntoConfig:
         apply_org_charter_to_interview(_Interview(), consumer)
 
         written = _read_config_yaml(consumer).get("activated_directives")
-        assert written is not None, (
-            "promotion into an absent key must materialize a list, not leave it absent"
-        )
+        assert written is not None, "promotion into an absent key must materialize a list, not leave it absent"
 
         # Real built-in directive ids, loaded independently of the production
         # code under test, straight from the shipped pack -- this assertion
         # does not just restate the implementation.
         default_pack_raw = _safe_yaml().load(DEFAULT_PACK_PATH.read_text(encoding="utf-8"))
         builtin_directives = list(default_pack_raw["activated_directives"])
-        assert len(builtin_directives) >= 15, (
-            "fixture assumption: the shipped default pack ships a real directive set"
-        )
+        assert len(builtin_directives) >= 15, "fixture assumption: the shipped default pack ships a real directive set"
 
         assert set(builtin_directives).issubset(set(written)), (
             "promoting an org-required directive into an absent config key must "
@@ -273,10 +253,7 @@ class TestOrgRequiredPromotedIntoConfig:
             "disable the project's baseline governance"
         )
         assert "org-required-directive" in written
-        assert len(written) == len(builtin_directives) + 1, (
-            "the committed list must be exactly the built-ins plus the promoted id "
-            "-- never a bare restrictive list"
-        )
+        assert len(written) == len(builtin_directives) + 1, "the committed list must be exactly the built-ins plus the promoted id -- never a bare restrictive list"
 
         ctx = PackContext.from_config(consumer)
         assert ctx.activated_directives is not None
@@ -306,9 +283,7 @@ class TestOrgRequiredIdFormNormalizedBeforePromotion:
     _DIRECTIVE_001_STEM = "001-architectural-integrity-standard"
     _DIRECTIVE_001_CANONICAL = "DIRECTIVE_001"
 
-    def test_canonical_form_required_directive_promoted_as_stem(
-        self, tmp_path: Path
-    ) -> None:
+    def test_canonical_form_required_directive_promoted_as_stem(self, tmp_path: Path) -> None:
         pack = tmp_path / "pack"
         _write_org_charter(
             pack,
@@ -369,43 +344,25 @@ class TestOrgRequiredIdFormNormalizedBeforePromotion:
         )
         consumer = tmp_path / "consumer"
         consumer.mkdir()
-        _write_consumer_config(
-            consumer, [("pack", pack)], preseed={"activated_directives": ["project-pinned"]}
-        )
+        _write_consumer_config(consumer, [("pack", pack)], preseed={"activated_directives": ["project-pinned"]})
 
         apply_org_charter_to_interview(_Interview(), consumer)
 
         written = _read_config_yaml(consumer).get("activated_directives")
         assert written == ["project-pinned", self._DIRECTIVE_001_STEM]
 
-    def test_prefix_verbatim_canonical_id_would_not_resolve_as_a_stem(self) -> None:
-        """Regression proof: the pre-fix behaviour (writing the canonical id
-        verbatim into ``config.activated_directives``) is provably broken --
-        :func:`~charter.activation.kind_vocabulary.resolve_artifact_urn`, the same
-        resolver :mod:`charter.activation.compiler` uses to turn a config stem into a
-        DRG URN, does NOT recognize the canonical form as a stem. This is
-        why the fix is needed, not merely a stylistic preference.
-        """
+    def test_legacy_declared_directive_id_remains_readable(self) -> None:
+        """#4185: old raw-ID activations remain readable; new producers write stems."""
         from charter.activation.catalog import resolve_doctrine_root
-        from charter.activation.kind_vocabulary import UnknownArtifactIdError, resolve_artifact_urn
+        from charter.activation.kind_vocabulary import resolve_artifact_urn
         from charter.offering.artifact_kinds import ArtifactKind
 
         doctrine_root = resolve_doctrine_root()
-        with pytest.raises(UnknownArtifactIdError):
-            resolve_artifact_urn(
-                ArtifactKind.DIRECTIVE,
-                self._DIRECTIVE_001_CANONICAL,
-                doctrine_root=doctrine_root,
-            )
-        # The stem form, by contrast, resolves cleanly -- confirming the fix
-        # writes the form the derivation actually needs.
-        resolve_artifact_urn(
-            ArtifactKind.DIRECTIVE, self._DIRECTIVE_001_STEM, doctrine_root=doctrine_root
-        )
+        expected = f"directive:{self._DIRECTIVE_001_CANONICAL}"
+        assert resolve_artifact_urn(ArtifactKind.DIRECTIVE, self._DIRECTIVE_001_CANONICAL, doctrine_root=doctrine_root) == expected
+        assert resolve_artifact_urn(ArtifactKind.DIRECTIVE, self._DIRECTIVE_001_STEM, doctrine_root=doctrine_root) == expected
 
-    def test_unresolvable_required_id_passes_through_verbatim(
-        self, tmp_path: Path
-    ) -> None:
+    def test_unresolvable_required_id_passes_through_verbatim(self, tmp_path: Path) -> None:
         """An id that resolves in neither direction (not a known stem NOR a
         known canonical id) is promoted unchanged rather than dropped -- a
         malformed/unknown org-required id must fail loudly downstream at
@@ -421,9 +378,7 @@ class TestOrgRequiredIdFormNormalizedBeforePromotion:
         )
         consumer = tmp_path / "consumer"
         consumer.mkdir()
-        _write_consumer_config(
-            consumer, [("pack", pack)], preseed={"activated_directives": ["project-pinned"]}
-        )
+        _write_consumer_config(consumer, [("pack", pack)], preseed={"activated_directives": ["project-pinned"]})
 
         apply_org_charter_to_interview(_Interview(), consumer)
 
@@ -437,9 +392,7 @@ class TestOrgRequiredIdFormNormalizedBeforePromotion:
 
 
 class TestAnswersInertForActivation:
-    def test_editing_selected_fields_has_no_effect_on_compiled_reference_set(
-        self, tmp_path: Path
-    ) -> None:
+    def test_editing_selected_fields_has_no_effect_on_compiled_reference_set(self, tmp_path: Path) -> None:
         _write_all_kinds_empty_config(tmp_path)
         base_interview = default_interview(mission="software-dev")
 
@@ -460,10 +413,7 @@ class TestAnswersInertForActivation:
 
         ids_before = {reference.id for reference in compiled_before.references}
         ids_after = {reference.id for reference in compiled_after.references}
-        assert ids_before == ids_after, (
-            "editing answers.selected_* without a config.activated_* change must "
-            "have NO effect on the compiled reference set (SC-004)"
-        )
+        assert ids_before == ids_after, "editing answers.selected_* without a config.activated_* change must have NO effect on the compiled reference set (SC-004)"
 
         # The edited ids specifically must not have leaked into the
         # config-sourced selection the compiler actually renders.
@@ -479,9 +429,7 @@ class TestAnswersInertForActivation:
         assert compiled_before.selected_paradigms == compiled_after.selected_paradigms
         assert compiled_before.selected_tactics == compiled_after.selected_tactics
 
-    def test_config_activated_change_does_affect_the_compiled_reference_set(
-        self, tmp_path: Path
-    ) -> None:
+    def test_config_activated_change_does_affect_the_compiled_reference_set(self, tmp_path: Path) -> None:
         """Control case: the SAME interview, but a real ``config.yaml``
         change, DOES change the compiled set -- proves the previous test
         isn't vacuously true because compilation is insensitive to everything.
@@ -498,9 +446,7 @@ class TestAnswersInertForActivation:
             yaml.dump(data, fh)
 
         ids_after = {r.id for r in _compile(tmp_path, interview).references}
-        assert ids_after != ids_before, (
-            "a real config.activated_* change must change the compiled reference set"
-        )
+        assert ids_after != ids_before, "a real config.activated_* change must change the compiled reference set"
 
 
 # ---------------------------------------------------------------------------
@@ -518,9 +464,7 @@ class TestThirdLedgerUntouched:
     side effect of the interview pre-fill.
     """
 
-    def test_apply_org_charter_does_not_touch_governance_yaml(
-        self, tmp_path: Path
-    ) -> None:
+    def test_apply_org_charter_does_not_touch_governance_yaml(self, tmp_path: Path) -> None:
         pack = tmp_path / "pack"
         _write_org_charter(
             pack,
@@ -541,11 +485,5 @@ class TestThirdLedgerUntouched:
 
         apply_org_charter_to_interview(_Interview(), consumer)
 
-        assert not governance_path.exists(), (
-            "apply_org_charter_to_interview must never write governance.yaml "
-            "(the third ledger) -- only .kittify/config.yaml"
-        )
-        assert not answers_path.exists(), (
-            "apply_org_charter_to_interview mutates an in-memory interview object "
-            "only -- it must not write answers.yaml to disk"
-        )
+        assert not governance_path.exists(), "apply_org_charter_to_interview must never write governance.yaml (the third ledger) -- only .kittify/config.yaml"
+        assert not answers_path.exists(), "apply_org_charter_to_interview mutates an in-memory interview object only -- it must not write answers.yaml to disk"

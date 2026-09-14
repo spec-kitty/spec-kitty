@@ -8,7 +8,7 @@ mission: documentation
 steps:
   - id: bootstrap
     description: Load charter context for this action
-    command: "spec-kitty charter context --action discover --role discover --json"
+    command: "spec-kitty charter context --action discover --json"
     inputs:
       - flag: --profile
         source: wp.agent_profile

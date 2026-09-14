@@ -1,0 +1,32 @@
+{
+  "accept_commit": "cc27ebebfe0b1e4185c187364944e9c80efed773",
+  "acceptance_history": [
+    {
+      "accept_commit": "cc27ebebfe0b1e4185c187364944e9c80efed773",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-11T20:32:51.967015+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "7ffa62427237275aae2823fd2d8ee5cfaa348cf4"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-11T20:32:51.967015+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "7ffa62427237275aae2823fd2d8ee5cfaa348cf4",
+  "baseline_merge_commit": "1dfb3f2ca8ab9b99680a7066c069f1a7143cb170",
+  "created_at": "2026-09-11T19:45:37.127069+00:00",
+  "flattened": true,
+  "friendly_name": "Charter directive-resolution hardening",
+  "mission_id": "01M29022TS1AJPTD88Q5T2TDA0",
+  "mission_number": null,
+  "mission_slug": "charter-directive-resolution-hardening-01M29022",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Two robustness improvements to charter directive resolution deferred from the #4194/#4185 landing (epic #2519), neither changing resolution outcomes: cut repeated per-stem filesystem globbing, and surface a per-token diagnostic so a stale or mistyped directive activation entry no longer resolves silently.",
+  "purpose_tldr": "Harden the charter directive-resolution path: memoize repeated filesystem scans and warn when an unresolvable activation token is silently normalized.",
+  "slug": "charter-directive-resolution-hardening-01M29022",
+  "status_phase": "1",
+  "target_branch": "fix/charter-directive-resolution-hardening",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-11T19:58:31.851322+00:00"
+}

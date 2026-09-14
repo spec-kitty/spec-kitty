@@ -20,7 +20,7 @@ Consider any refinement in `$ARGUMENTS`, but treat it as secondary to `kitty-spe
 ## Bootstrap
 
 ```bash
-spec-kitty charter context --action methodology --role methodology --json
+spec-kitty charter context --action methodology --json
 ```
 
 ## What This Step Produces

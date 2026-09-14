@@ -1760,6 +1760,24 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/archive/program-evidence/R2-T1-local-legacy-removal/README.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/archive/program-evidence/R2-T1-local-legacy-removal/commit-history-notes.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/archive/program-evidence/R2-T1-local-legacy-removal/deletion-manifest.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/assets/index.md
   tag: current
   divio_type: none
@@ -2171,6 +2189,12 @@
 - path: docs/convergence/landing.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/agent-fleet.md
+  tag: current
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null

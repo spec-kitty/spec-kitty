@@ -20,7 +20,7 @@ Use `$ARGUMENTS` to focus which findings to prioritize, but every claim must sti
 ## Bootstrap
 
 ```bash
-spec-kitty charter context --action synthesis --role synthesis --json
+spec-kitty charter context --action synthesis --json
 ```
 
 ## What This Step Produces

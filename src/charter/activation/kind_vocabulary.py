@@ -78,8 +78,10 @@ __all__ = [
     "PROJECT_KIND_DIRS",
     "MissionTypeNotAnArtifactKind",
     "UnknownArtifactIdError",
+    "UnrepresentableDirectiveIdError",
     "resolve_artifact_urn",
     "resolve_config_id",
+    "resolve_selected_id_to_stem",
 ]
 
 
@@ -215,9 +217,7 @@ def _built_in_scan_dir(kind: ArtifactKind) -> tuple[Path, bool] | None:
     return None
 
 
-def _org_scan_dirs(
-    kind: ArtifactKind, org_roots: list[Path] | None
-) -> list[tuple[Path, bool]]:
+def _org_scan_dirs(kind: ArtifactKind, org_roots: list[Path] | None) -> list[tuple[Path, bool]]:
     """Return the flat and legacy ``built-in`` org-pack dirs that exist.
 
     For every configured org root, contributes (in this order) the flat
@@ -285,9 +285,7 @@ def _layer_candidate_dir(kind: ArtifactKind, layer: str, root: Path) -> Path:
     return layer_dir
 
 
-def _layer_scan_dirs(
-    kind: ArtifactKind, layer_roots: dict[str, Path] | None
-) -> list[tuple[Path, bool]]:
+def _layer_scan_dirs(kind: ArtifactKind, layer_roots: dict[str, Path] | None) -> list[tuple[Path, bool]]:
     """Return layer doctrine dirs that exist for *kind*, across *layer_roots*."""
     dirs: list[tuple[Path, bool]] = []
     recursive = overlay_scan_is_recursive(kind)
@@ -298,24 +296,59 @@ def _layer_scan_dirs(
     return dirs
 
 
+#: A resolution-pass-scoped memo of `_iter_artifact_paths` results, keyed on
+#: its resolved inputs. Callers that perform several scans within a single
+#: logical resolution (e.g. `resolve_config_id`'s per-stem directive
+#: round-trip) create one of these and thread it through every nested scan
+#: call so each distinct layer set is walked at most once per pass (FR-001).
+#: The memo is never module-level or persisted across calls -- a caller
+#: that omits it (the default) gets the old unmemoized behaviour, and a
+#: fresh pass (a new dict) always re-scans, so a later resolution after an
+#: on-disk change is unaffected (FR-002; no invalidation logic is needed
+#: because nothing outlives its own pass).
+_ScanCache = dict[tuple[object, ...], list[Path]]
+
+
+def _scan_cache_key(
+    kind: ArtifactKind,
+    doctrine_root: Path,
+    org_roots: list[Path] | None,
+    layer_roots: dict[str, Path] | None,
+) -> tuple[object, ...]:
+    """Return a hashable key identifying one `_iter_artifact_paths` input set."""
+    org_key = tuple(org_roots) if org_roots else ()
+    layer_key = tuple(sorted((layer_roots or {}).items()))
+    return (kind, doctrine_root, org_key, layer_key)
+
+
 def _iter_artifact_paths(
     kind: ArtifactKind,
     *,
     doctrine_root: Path,
     org_roots: list[Path] | None,
     layer_roots: dict[str, Path] | None,
+    _scan_cache: _ScanCache | None = None,
 ) -> list[Path]:
+    cache_key = None
+    if _scan_cache is not None:
+        cache_key = _scan_cache_key(kind, doctrine_root, org_roots, layer_roots)
+        cached = _scan_cache.get(cache_key)
+        if cached is not None:
+            return cached
     pattern = kind.glob_pattern
     if not pattern:
-        return []
-    paths: list[Path] = []
-    for scan_dir, recursive in _scan_roots(
-        kind,
-        _doctrine_root=doctrine_root,
-        org_roots=org_roots,
-        layer_roots=layer_roots,
-    ):
-        paths.extend(sorted(_scan_dir_matches(scan_dir, pattern, recursive=recursive)))
+        paths: list[Path] = []
+    else:
+        paths = []
+        for scan_dir, recursive in _scan_roots(
+            kind,
+            _doctrine_root=doctrine_root,
+            org_roots=org_roots,
+            layer_roots=layer_roots,
+        ):
+            paths.extend(sorted(_scan_dir_matches(scan_dir, pattern, recursive=recursive)))
+    if _scan_cache is not None and cache_key is not None:
+        _scan_cache[cache_key] = paths
     return paths
 
 
@@ -328,11 +361,7 @@ def _scan_dir_matches(scan_dir: Path, pattern: str, *, recursive: bool) -> list[
     """
     if not recursive:
         return list(scan_dir.glob(pattern))
-    return [
-        match
-        for match in scan_dir.rglob(pattern)
-        if not _under_reserved_builtin_subdir(match, scan_dir)
-    ]
+    return [match for match in scan_dir.rglob(pattern) if not _under_reserved_builtin_subdir(match, scan_dir)]
 
 
 def _under_reserved_builtin_subdir(match: Path, scan_dir: Path) -> bool:
@@ -368,11 +397,14 @@ def resolve_artifact_urn(
     doctrine_root: Path,
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
+    _scan_cache: _ScanCache | None = None,
 ) -> str:
     """Resolve a config/file-stem ID to its DRG URN node ID.
 
     Locates the artifact whose config stem (filename without suffixes) equals
     *config_id*, reads its ``id:`` field, and returns ``f"{kind.value}:{id}"``.
+    Directives also accept an exact declared ID when no filename stem matches,
+    recovering entries written by older org-required promotion.
 
     Args:
         kind: The artifact kind (route raw kind strings through
@@ -397,11 +429,27 @@ def resolve_artifact_urn(
         doctrine_root=doctrine_root,
         org_roots=org_roots,
         layer_roots=layer_roots,
+        _scan_cache=_scan_cache,
     ):
         if _config_stem(path) == config_id:
             artifact_id = _read_id(path, id_field, yaml)
             if artifact_id:
                 return f"{kind.value}:{artifact_id}"
+    # Older org-required promotion wrote declared directive IDs into activation
+    # lists. Accept those existing entries only after the normal stem lookup;
+    # unknown identities still fail closed, and other kinds remain stem-only.
+    if kind is ArtifactKind.DIRECTIVE:
+        try:
+            resolve_config_id(
+                f"{kind.value}:{config_id}",
+                doctrine_root=doctrine_root,
+                org_roots=org_roots,
+                layer_roots=layer_roots,
+                _scan_cache=_scan_cache,
+            )
+            return f"{kind.value}:{config_id}"
+        except ValueError:
+            pass
     raise UnknownArtifactIdError(
         f"No {kind.value} artifact with config ID {config_id!r} found under "
         f"doctrine root {doctrine_root}{_org_roots_clause(org_roots)}. "
@@ -433,17 +481,82 @@ def _org_roots_clause(org_roots: list[Path] | None) -> str:
     return f" or org/project pack roots {[str(root) for root in org_roots]}"
 
 
+class UnrepresentableDirectiveIdError(UnknownArtifactIdError):
+    """A declared directive exists, but every filename selects another ID."""
+
+
+def _directive_ids_by_stem(paths: list[Path], id_field: str, yaml: YAML) -> dict[str, set[str]]:
+    """Map each config stem in *paths* to the distinct IDs declared under it.
+
+    A stem used by two or more directive files across layers that disagree on
+    ``id:`` (e.g. an org pack's ``shared.directive.yaml`` and a sibling org
+    pack's own ``shared.directive.yaml`` naming different policies) is a
+    genuine cross-layer collision: the stem cannot safely stand for either
+    identity, regardless of which layer wins ordinary precedence. A stem
+    reused with the *same* ID everywhere (a redundant, consistent
+    declaration) is not a collision and stays representable.
+    """
+    ids_by_stem: dict[str, set[str]] = {}
+    for path in paths:
+        artifact_id = _read_id(path, id_field, yaml)
+        if artifact_id is None:
+            continue
+        ids_by_stem.setdefault(_config_stem(path), set()).add(artifact_id)
+    return ids_by_stem
+
+
+def _directive_stem_represents(
+    stem: str,
+    urn: str,
+    ids_by_stem: dict[str, set[str]],
+    *,
+    kind: ArtifactKind,
+    doctrine_root: Path,
+    org_roots: list[Path] | None,
+    layer_roots: dict[str, Path] | None,
+    scan_cache: _ScanCache,
+) -> bool:
+    """Return True when *stem* unambiguously represents *urn*'s identity.
+
+    A stem represents the identity only when both hold:
+
+    - it round-trips: ``resolve_artifact_urn(stem)`` resolves back to *urn*
+      under the same layer precedence (persisted stems retain first-match
+      precedence, and a winning override's filename can name a different
+      built-in policy), and
+    - it is not reused across layers with a disagreeing id -- a stem two
+      layers bind to different identities cannot safely stand for either,
+      even when it happens to round-trip via ordinary precedence (see
+      :func:`_directive_ids_by_stem`).
+    """
+    round_trips = (
+        resolve_artifact_urn(
+            kind,
+            stem,
+            doctrine_root=doctrine_root,
+            org_roots=org_roots,
+            layer_roots=layer_roots,
+            _scan_cache=scan_cache,
+        )
+        == urn
+    )
+    return round_trips and len(ids_by_stem[stem]) <= 1
+
+
 def resolve_config_id(
     urn: str,
     *,
     doctrine_root: Path,
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
+    _scan_cache: _ScanCache | None = None,
 ) -> str:
     """Resolve a DRG URN node ID back to its config/file-stem ID.
 
     Inverse of :func:`resolve_artifact_urn`. Parses the ``kind:id`` URN, finds
     the artifact whose ``id:`` field matches, and returns its config stem.
+    Directive IDs use the highest matching layer whose stem resolves back to
+    that identity. A lower-layer stem may select higher-layer repository content.
 
     Args:
         urn: A DRG URN node ID, e.g. ``"directive:DIRECTIVE_001"``.
@@ -458,29 +571,64 @@ def resolve_config_id(
         ValueError: if *urn* is malformed (missing ``kind:`` prefix or an
             unknown kind value).
         UnknownArtifactIdError: if no artifact with that ID exists for the kind.
+        UnrepresentableDirectiveIdError: if a directive exists but every candidate
+            filename stem resolves to another identity.
     """
     kind_value, sep, artifact_id = urn.partition(":")
     if not sep or not kind_value or not artifact_id:
-        raise ValueError(
-            f"Malformed URN {urn!r}; expected '<kind>:<artifact_id>'."
-        )
+        raise ValueError(f"Malformed URN {urn!r}; expected '<kind>:<artifact_id>'.")
     try:
         kind = ArtifactKind(kind_value)
     except ValueError as exc:
-        raise ValueError(
-            f"Malformed URN {urn!r}; unknown kind {kind_value!r}."
-        ) from exc
+        raise ValueError(f"Malformed URN {urn!r}; unknown kind {kind_value!r}.") from exc
 
     yaml = YAML(typ="safe")
     id_field = _id_field_for(kind)
-    for path in _iter_artifact_paths(
+    # A fresh, pass-scoped memo (unless the caller is itself part of a larger
+    # pass and threaded one in): every `_iter_artifact_paths` call this
+    # resolution makes -- the initial scan below and each per-stem
+    # round-trip check further down -- shares it, so each distinct layer set
+    # is walked at most once for the whole call (FR-001). The memo is
+    # discarded when this call returns, so it can never make a *later*,
+    # independent resolution observe stale content (FR-002).
+    scan_cache: _ScanCache = _scan_cache if _scan_cache is not None else {}
+    paths = _iter_artifact_paths(
         kind,
         doctrine_root=doctrine_root,
         org_roots=org_roots,
         layer_roots=layer_roots,
-    ):
-        if _read_id(path, id_field, yaml) == artifact_id:
-            return _config_stem(path)
+        _scan_cache=scan_cache,
+    )
+    # `_iter_artifact_paths` already returns the authoritative highest-to-lowest
+    # layer precedence order (project, then org packs last-declared-first, then
+    # built-in) -- the same order `resolve_artifact_urn`'s first-match scan
+    # consumes. Directive resolution walks that order directly; no local
+    # reordering is layered on top of it.
+    ids_by_stem = _directive_ids_by_stem(paths, id_field, yaml) if kind is ArtifactKind.DIRECTIVE else {}
+    matched_identity = False
+    for path in paths:
+        if _read_id(path, id_field, yaml) != artifact_id:
+            continue
+        stem = _config_stem(path)
+        if kind is not ArtifactKind.DIRECTIVE:
+            return stem
+        matched_identity = True
+        if _directive_stem_represents(
+            stem,
+            urn,
+            ids_by_stem,
+            kind=kind,
+            doctrine_root=doctrine_root,
+            org_roots=org_roots,
+            layer_roots=layer_roots,
+            scan_cache=scan_cache,
+        ):
+            return stem
+    if matched_identity:
+        raise UnrepresentableDirectiveIdError(
+            f"Directive filename stems cannot represent {artifact_id!r}: each resolves to another identity. "
+            "Rename an artifact to an unambiguous filename before selecting it."
+        )
     raise UnknownArtifactIdError(
         f"No {kind.value} artifact with id {artifact_id!r} found under "
         f"doctrine root {doctrine_root}{_org_roots_clause(org_roots)}. "
@@ -490,3 +638,55 @@ def resolve_config_id(
         f"misspelled entry, or run `spec-kitty doctor doctrine` to verify the "
         f"doctrine corpus (including any org packs) is intact."
     )
+
+
+def resolve_selected_id_to_stem(
+    kind: ArtifactKind,
+    raw_id: str,
+    *,
+    doctrine_root: Path,
+    org_roots: list[Path] | None = None,
+    layer_roots: dict[str, Path] | None = None,
+) -> str | None:
+    """Map a selection's declared ID or filename stem to an activation stem.
+
+    Directive identities take precedence over a coincidentally equal filename;
+    other kinds retain their existing stem-first selection contract. Discovery
+    is unfiltered so inactive org artifacts can be selected. Unresolvable
+    selections return ``None`` for the caller's warning policy. Known directive
+    identities without a safe stem raise rather than promoting another policy.
+    """
+    if kind is ArtifactKind.DIRECTIVE:
+        try:
+            return resolve_config_id(
+                f"{kind.value}:{raw_id}",
+                doctrine_root=doctrine_root,
+                org_roots=org_roots,
+                layer_roots=layer_roots,
+            )
+        except UnrepresentableDirectiveIdError:
+            # Unknown selections may fall back; known ambiguous identities must
+            # never be promoted verbatim or reinterpreted as another filename.
+            raise
+        except ValueError:
+            pass
+    try:
+        resolve_artifact_urn(
+            kind,
+            raw_id,
+            doctrine_root=doctrine_root,
+            org_roots=org_roots,
+            layer_roots=layer_roots,
+        )
+        return raw_id
+    except UnknownArtifactIdError:
+        pass
+    try:
+        return resolve_config_id(
+            f"{kind.value}:{raw_id}",
+            doctrine_root=doctrine_root,
+            org_roots=org_roots,
+            layer_roots=layer_roots,
+        )
+    except ValueError:
+        return None

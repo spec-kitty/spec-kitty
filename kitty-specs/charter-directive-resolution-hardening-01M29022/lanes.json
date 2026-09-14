@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "mission_slug": "charter-directive-resolution-hardening-01M29022",
+  "mission_id": "01M29022TS1AJPTD88Q5T2TDA0",
+  "mission_branch": "kitty/mission-charter-directive-resolution-hardening-01M29022",
+  "target_branch": "fix/charter-directive-resolution-hardening",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/kind_vocabulary.py",
+        "tests/charter/test_directive_resolution_memoization.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/resolver.py",
+        "tests/charter/test_directive_unresolved_token_warning.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-11T19:56:08.451038+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "36bb560cec3b3c3ab5ed3a808044775f1cdb0134"
+}

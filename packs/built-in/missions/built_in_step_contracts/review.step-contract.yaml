@@ -12,7 +12,7 @@ gates:
 steps:
   - id: bootstrap
     description: Load charter context for this action
-    command: "spec-kitty charter context --action review --role review --json"
+    command: "spec-kitty charter context --action review --json"
     inputs:
       - flag: --profile
         source: wp.agent_profile

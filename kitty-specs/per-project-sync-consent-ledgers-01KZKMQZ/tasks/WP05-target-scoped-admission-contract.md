@@ -92,7 +92,7 @@ capability when merging the approved WP04 boundary.
 
 SaaS WP04 must expose the candidate checkout/ref and generated contract digest before this WP starts. Fail if the checkout HEAD or digest differs; do not fall back to `../spec-kitty-saas`, an ambient workspace name, branch name, or package version. Repository-sharing `admissions/` or `RepositoryShareMembership` is a different domain and must not be reused, inherited, or backfilled as ProjectSyncAdmission.
 
-Use local/test SaaS only. A dynamically discovered Upsun branch environment may be used later with authorization; `app.spec-kitty.ai` is production and must receive no mutating request. Reviewed SaaS WP02 recorded-UUID anti-rematerialization authority must be real—not mocked—before coordinated acceptance. PR #609's full residue-safe purge remains separate and is not a substitute or prerequisite for this core prevention package.
+Use local/test SaaS only. A dynamically discovered Upsun branch environment may be used later with authorization; `team.spec-kitty.ai` is production and must receive no mutating request. Reviewed SaaS WP02 recorded-UUID anti-rematerialization authority must be real—not mocked—before coordinated acceptance. PR #609's full residue-safe purge remains separate and is not a substitute or prerequisite for this core prevention package.
 
 ## Subtask T021 — Select and attest the candidate contract
 
@@ -175,7 +175,7 @@ Use the explicit candidate contract and a local fake transport; no production ca
 
 ## Risks and reviewer guidance
 
-Reviewers must independently verify the candidate checkout/ref/digest, race delayed admit against revoke, and inspect database evidence. Verify target storage and audience identity cannot be selected by request parameters. Reject ambient sibling lookup, a target registry that still connects/commits, inference from event-channel success/repository sharing/login/tracker permission, and mutating tests aimed at `app.spec-kitty.ai`.
+Reviewers must independently verify the candidate checkout/ref/digest, race delayed admit against revoke, and inspect database evidence. Verify target storage and audience identity cannot be selected by request parameters. Reject ambient sibling lookup, a target registry that still connects/commits, inference from event-channel success/repository sharing/login/tracker permission, and mutating tests aimed at `team.spec-kitty.ai`.
 
 ## Activity Log
 

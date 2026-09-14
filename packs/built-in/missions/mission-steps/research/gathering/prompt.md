@@ -20,7 +20,7 @@ Treat `$ARGUMENTS` as candidate leads (a source, a database, a search hint), not
 ## Bootstrap
 
 ```bash
-spec-kitty charter context --action gathering --role gathering --json
+spec-kitty charter context --action gathering --json
 ```
 
 ## What This Step Produces

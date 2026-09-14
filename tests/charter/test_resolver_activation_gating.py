@@ -14,6 +14,7 @@ agent_profiles in ``tests/charter/test_resolver.py``).
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -97,15 +98,12 @@ def test_explicit_activation_still_filters(tmp_path: Path, prop: str, activated_
     Without this, the equality tests above could pass even if the new
     property silently ignored the activation field entirely.
     """
-    _ = tmp_path
     inner = MagicMock()
     alpha, beta = _mock_item("alpha"), _mock_item("beta")
     getattr(inner, prop).list_all.return_value = [alpha, beta]
 
-    pack_ctx = MagicMock(spec=PackContext)
-    setattr(pack_ctx, activated_field, frozenset({"alpha"}))
-    # Every OTHER activated_* field defaults to None on the mock unless set,
-    # so this exercises only the field under test.
+    _provision_mission_type_activation(tmp_path)
+    pack_ctx = replace(PackContext.from_config(tmp_path), **{activated_field: frozenset({"alpha"})})
 
     wrapped = DoctrineService(inner, pack_context=pack_ctx)
     result = getattr(wrapped, prop)

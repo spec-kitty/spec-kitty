@@ -73,6 +73,7 @@ _STORAGE_LABELS: dict[str, str] = {
 _AUTH_METHOD_LABELS: dict[str, str] = {
     "authorization_code": "Browser (Authorization Code + PKCE)",
     "device_code": "Headless (Device Authorization Grant)",
+    "client_credentials": "Machine / CI (Client Credentials Grant)",
 }
 
 

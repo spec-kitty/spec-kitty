@@ -145,6 +145,7 @@ _CORPUS_MARKED_MODULES = frozenset(
         "tests/doctrine/drg/test_tiered_standards_non_orphan.py",
         "tests/doctrine/drg/test_unknown_kind_fails_loudly.py",
         "tests/doctrine/glossary_packs/test_builtin_pack_resolution.py",
+        "tests/doctrine/mission_step_contracts/test_declared_commands_parse.py",
         "tests/doctrine/mission_step_contracts/test_repository.py",
         "tests/doctrine/mission_step_contracts/test_shipped_contracts.py",
         "tests/doctrine/missions/test_builtin_mission_type_ids.py",

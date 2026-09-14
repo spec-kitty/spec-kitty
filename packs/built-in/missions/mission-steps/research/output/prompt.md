@@ -20,7 +20,7 @@ Use `$ARGUMENTS` to focus formatting or audience concerns; it does not license i
 ## Bootstrap
 
 ```bash
-spec-kitty charter context --action output --role output --json
+spec-kitty charter context --action output --json
 ```
 
 ## What This Step Produces

@@ -1,0 +1,79 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M292TJ4J2JKS61S74RGQ93AE",
+  "materialized_at": "2026-09-11T20:33:56.370693+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-directive-resolution-hardening-01M29022",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M292TGXXXBS4TDJ5HGMB15Z6",
+      "last_transition_at": "2026-09-11T20:33:55.133029+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: pass-scoped memo of _iter_artifact_paths (≤1 scan/layer/pass), scan-count+mtime tests green, #4194 identity/precedence intact (52 passed), ruff/mypy clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE (red-first proven; #4194 precedence intact 52 passed; ruff/mypy clean)",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3429284,
+      "shell_pid_created_at": "1789157830.52",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M292TJ4J2JKS61S74RGQ93AE",
+      "last_transition_at": "2026-09-11T20:33:56.370693+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: per-token WARNING on unresolved fallback only, caplog test green, outcome unchanged",
+        "Review passed: behavior-preserving extraction of the UnknownArtifactIdError fallback into _resolve_unmatched_directive_token. WARNING fires ONLY on the fully-unresolvable else-branch; silent on known-id and URN-success paths (FR-003/FR-004). Verified red-first (warn test fails 0==1 on base, passes after). activated-set identical to old ternary (C-001/C-003); guardrail suite 40 passed; new caplog test 3 passed (NFR-002). ruff/format clean, complexity <=15; 3 mypy no-any-return errors confirmed PRE-EXISTING (identical in base). Non-source commits touched only kitty-specs/. Anti-pattern checklist all PASS. Seeded issue-matrix verdicts to satisfy the mission gate."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: behavior-preserving extraction of the UnknownArtifactIdError fallback into _resolve_unmatched_directive_token. WARNING fires ONLY on the fully-unresolvable else-branch; silent on known-id and URN-success paths (FR-003/FR-004). Verified red-first (warn test fails 0==1 on base, passes after). activated-set identical to old ternary (C-001/C-003); guardrail suite 40 passed; new caplog test 3 passed (NFR-002). ruff/format clean, complexity <=15; 3 mypy no-any-return errors confirmed PRE-EXISTING (identical in base). Non-source commits touched only kitty-specs/. Anti-pattern checklist all PASS. Seeded issue-matrix verdicts to satisfy the mission gate.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3429284,
+      "shell_pid_created_at": "1789157830.52",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    }
+  }
+}

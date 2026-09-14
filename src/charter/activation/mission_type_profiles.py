@@ -865,7 +865,18 @@ def resolve_action_sequence_layer(
     practice (see that class's docstring) -- it is named as the honest
     default rather than raising a second error inside an error path.
     """
-    project_dir = pack_context.repo_root / ".kittify" / "missions" / "mission_types"
+    # CL-005 path layout comes from the single authority in
+    # charter.offering.missions.mission_type_repository (#3427) -- the same
+    # constants resolve_layered_mission_types itself scans -- never re-spelled
+    # inline here: the pre-#3427 inline literals silently pointed at the old
+    # path if the authority's constants ever moved. Lazy import mirrors
+    # _resolve_action_slot's own import of the same module below.
+    from charter.offering.missions.mission_type_repository import (  # noqa: PLC0415 — lazy; mirrors _resolve_action_slot below
+        ORG_MISSION_TYPES_SUBDIR,
+        PROJECT_MISSION_TYPES_RELATIVE,
+    )
+
+    project_dir = pack_context.repo_root.joinpath(*PROJECT_MISSION_TYPES_RELATIVE)
     if (project_dir / f"{mission_type_id}.yaml").is_file():
         return "project"
 
@@ -873,7 +884,7 @@ def resolve_action_sequence_layer(
     for pack_root in pack_context.pack_roots:
         if pack_root in protected_pack_roots:
             continue  # already handled by the built-in-equivalent layer
-        if (pack_root / "mission_types" / f"{mission_type_id}.yaml").is_file():
+        if (pack_root / ORG_MISSION_TYPES_SUBDIR / f"{mission_type_id}.yaml").is_file():
             return "org"
 
     return "built-in"

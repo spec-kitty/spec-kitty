@@ -70,6 +70,7 @@ from specify_cli.cli.commands._auth_saas_target import (
     saas_source_name,
 )
 from specify_cli.cli.commands._auth_status import (
+    format_auth_method,
     format_duration,
     format_storage_backend,
 )
@@ -126,7 +127,13 @@ class Finding:
 
 @dataclass(frozen=True)
 class SessionSummary:
-    """Local-state snapshot of the persisted auth session."""
+    """Local-state snapshot of the persisted auth session.
+
+    ``auth_method`` (#3277) makes the auth mode — human browser, headless
+    device flow, or machine ``client_credentials`` — visible in diagnostics
+    without exposing any credential material: it is the stored session's
+    ``AuthMethod`` literal, never a token or secret value.
+    """
 
     present: bool
     session_id: str | None
@@ -135,6 +142,7 @@ class SessionSummary:
     refresh_token_remaining_s: float | None
     storage_backend: str | None
     in_memory_drift: bool
+    auth_method: str | None = None
 
 
 @dataclass(frozen=True)
@@ -209,6 +217,7 @@ def _read_session_summary() -> tuple[SessionSummary | None, Any]:
         refresh_token_remaining_s=refresh_remaining,
         storage_backend=session.storage_backend,
         in_memory_drift=in_memory_drift,
+        auth_method=session.auth_method,
     )
     return summary, session
 
@@ -562,6 +571,8 @@ def _render_identity_section(report: DoctorReport, console: Console) -> None:
         session_id = report.session.session_id or UNKNOWN_DISPLAY
         console.print(f"  User:           {escape(sanitize_terminal_text(user_email))}")
         console.print(f"  Session ID:     {escape(sanitize_terminal_text(session_id))}")
+        if report.session.auth_method is not None:
+            console.print(f"  Auth method:    {escape(sanitize_terminal_text(format_auth_method(report.session.auth_method)))}")
     console.print()
 
 

@@ -40,7 +40,7 @@ As a project owner, I want one clear project-scoped opt-in action, so that neith
 
 **Acceptance Scenarios**:
 
-1. **Given** a project with no new-format decision, **When** the user logs in, configures `https://app.spec-kitty.ai`, enables the global environment setting, or shares a remote with a consented project, **Then** the project remains denied.
+1. **Given** a project with no new-format decision, **When** the user logs in, configures `https://team.spec-kitty.ai`, enables the global environment setting, or shares a remote with a consented project, **Then** the project remains denied.
 2. **Given** the global kill switch is off or the network is unavailable, **When** the user explicitly opts in, **Then** the local project grant is recorded and remote admission is reported as pending rather than discarding the decision.
 3. **Given** an explicitly consented project, **When** the global kill switch is disabled, **Then** no egress occurs but the project decision remains recorded.
 4. **Given** a fresh clone or re-initialized project with the same remote and a new UUID, **When** it starts, **Then** it is denied and receives a separate store.

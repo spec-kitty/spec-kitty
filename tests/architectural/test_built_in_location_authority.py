@@ -174,7 +174,10 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # the (unchanged) `flat / "built-in"` join back up from line 283 to
         # line 269; the org-tier legacy join itself is unchanged.
         # 2026-09-09: project/org precedence wiring moved the unchanged
-        # caller-owned legacy org-pack join by four lines; same exact site.
+        # caller-owned legacy org-pack join; FRESHENED 2026-09-11 (#4185
+        # landing rebase): merging the org-directive-identity change onto
+        # current main pulled the (unchanged) `flat / "built-in"` join to
+        # line 272; the join itself is unchanged, same exact site.
         (Path("src/charter/activation/kind_vocabulary.py"), 273),
         # src/kernel/paths.py::_MISSION_ASSETS_SIBLING_PATTERN -- a relative
         # SHAPE constant (input to kernel.sibling_paths.resolve_installed_sibling),

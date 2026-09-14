@@ -5,7 +5,7 @@ mission: research
 steps:
   - id: bootstrap
     description: Load charter context for this action
-    command: "spec-kitty charter context --action gathering --role gathering --json"
+    command: "spec-kitty charter context --action gathering --json"
     inputs:
       - flag: --profile
         source: wp.agent_profile

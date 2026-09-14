@@ -324,6 +324,13 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # `specify_cli.status.migrate_lifecycle_envelope` was removed from
         # Category 7 above -- it now has a real src/ caller: this module.)
         "specify_cli.upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope",
+        # #4259: machine-scoped, idempotent rewrite of a stale
+        # config.toml [sync].server_url naming the retired first-party
+        # app endpoint to the canonical hosted target. Auto-discovered
+        # via pkgutil.iter_modules + @MigrationRegistry.register; never
+        # statically imported by runtime code -- same sibling shape as
+        # the m_zz_* backfill migrations above.
+        "specify_cli.upgrade.migrations.m_4_0_0_retired_hosted_target",
     }
 )
 

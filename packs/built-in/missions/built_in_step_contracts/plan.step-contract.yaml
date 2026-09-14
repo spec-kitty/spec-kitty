@@ -5,7 +5,7 @@ mission: software-dev
 steps:
   - id: bootstrap
     description: Load charter context for this action
-    command: "spec-kitty charter context --action plan --role plan --json"
+    command: "spec-kitty charter context --action plan --json"
     inputs:
       - flag: --profile
         source: wp.agent_profile

@@ -528,7 +528,7 @@
     "E-E2E": {
       "harness_commit": "71d8202",
       "product_commit": "a825b142853d6ef4805bfc2e28282edfd297f272",
-      "command": "SPEC_KITTY_ENABLE_SAAS_SYNC=1 SK_E2E_SAAS_URL=https://app.spec-kitty.ai SPEC_KITTY_REPO=<authoritative-spec-kitty> PATH=<authoritative-spec-kitty>/.venv/bin:$PATH uv run pytest scenarios/ -q",
+      "command": "SPEC_KITTY_ENABLE_SAAS_SYNC=1 SK_E2E_SAAS_URL=https://retired-host.example SPEC_KITTY_REPO=<authoritative-spec-kitty> PATH=<authoritative-spec-kitty>/.venv/bin:$PATH uv run pytest scenarios/ -q",
       "result": "6 passed in 406.82s"
     }
   }

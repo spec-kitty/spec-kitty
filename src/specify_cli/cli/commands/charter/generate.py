@@ -346,6 +346,10 @@ def generate(
             profile=profile,
         )
 
+        from specify_cli.doctrine.org_charter import validate_org_required_directive_stems
+
+        validate_org_required_directive_stems(repo_root)
+
         # WP04 (charter-activation-authority): the provisioned charter is the
         # SOLE mission-type activation authority. Construction returns an empty
         # set on an absent key; a project with no activated types offers none

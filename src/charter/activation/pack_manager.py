@@ -90,7 +90,11 @@ from charter.activation.charter_yaml_io import (
     update_charter_yaml_section,
 )
 from charter.activation.pack_context import CharterPackConfigError, resolve_charter_yaml_pointer
-from charter.offering.missions.mission_type_repository import scan_mission_types_dir
+from charter.offering.missions.mission_type_repository import (
+    ORG_MISSION_TYPES_SUBDIR,
+    PROJECT_MISSION_TYPES_RELATIVE_TO_KITTYFY_ROOT,
+    scan_mission_types_dir,
+)
 from charter.offering.missions.repository import MissionTemplateRepository
 from charter.offering.pack_paths import built_in_dir
 from charter.offering.artifact_kinds import (
@@ -332,20 +336,27 @@ def _resolve_layer_candidate(
         # specify_cli.cli.commands.charter._layer_roots.resolve_layer_roots
         # -> charter.drg.resolve_org_roots), the same root
         # _resolve_org_layer_dir's flat-layout branch joins onto for the
-        # ArtifactKind case above.
-        return root / "mission_types"
+        # ArtifactKind case above. The ``mission_types`` segment is the
+        # authority's own constant (#3427) -- the same one
+        # resolve_layered_mission_types scans -- never a locally re-spelled
+        # literal.
+        return root / ORG_MISSION_TYPES_SUBDIR
     if kind is None and layer == "project":
         # FR-005: the project-layer mission-type roster is flat and
         # non-recursive -- .kittify/missions/mission_types/*.yaml (CL-005).
         # `root` here is already `repo_root / ".kittify"` (see
-        # resolve_layer_roots), so this joins to a FLAT sibling of, not
+        # resolve_layer_roots), so the join consumes the authority's own
+        # under-`.kittify` tail constant (derived in
+        # charter.offering.missions.mission_type_repository beside the
+        # repo-root-relative tuple it comes from, #3427) rather than
+        # re-spelling the layout locally. This joins to a FLAT sibling of, not
         # nested inside, the pre-existing per-mission-instance
         # `.kittify/missions/<mission_name>/` convention --
         # `_mission_dir_if_valid` (src/specify_cli/mission.py) only
         # recognizes a subdirectory holding a file literally named
         # `mission.yaml`, which this roster's `*.yaml` files (named after
         # mission-type ids) never are.
-        return root / "missions" / "mission_types"
+        return root.joinpath(*PROJECT_MISSION_TYPES_RELATIVE_TO_KITTYFY_ROOT)
     return None
 
 

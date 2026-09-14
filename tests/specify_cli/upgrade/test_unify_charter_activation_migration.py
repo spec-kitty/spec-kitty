@@ -394,3 +394,26 @@ def test_load_default_pack_activation_ids_filters_non_list_values(tmp_path: Path
     ids = load_default_pack_activation_ids(charter_pkg_root=tmp_path)
 
     assert ids == {"activated_directives": ["001-architectural-integrity-standard"]}
+
+
+def test_ambiguous_answer_is_reported_without_dropping_resolvable_sibling(monkeypatch: pytest.MonkeyPatch) -> None:
+    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.kind_vocabulary import ArtifactKind, UnrepresentableDirectiveIdError
+    from specify_cli.upgrade.migrations import m_unify_charter_activation as migration
+
+    original = migration.resolve_selected_id_to_stem
+
+    def resolve_with_ambiguity(kind: ArtifactKind, raw_id: str, *, doctrine_root: Path) -> str | None:
+        if raw_id == "AMBIGUOUS-POLICY":
+            raise UnrepresentableDirectiveIdError("Ambiguous policy filename")
+        return original(kind, raw_id, doctrine_root=doctrine_root)
+
+    monkeypatch.setattr(migration, "resolve_selected_id_to_stem", resolve_with_ambiguity)
+    stems, unresolved = migration._answers_only_ids_for_kind(
+        ArtifactKind.DIRECTIVE,
+        answers_data={"selected_directives": ["AMBIGUOUS-POLICY", _DIRECTIVE_010_CANONICAL]},
+        config_data={"activated_directives": []},
+        doctrine_root=resolve_doctrine_root(),
+    )
+    assert stems == [_DIRECTIVE_010_STEM]
+    assert unresolved == ["AMBIGUOUS-POLICY"]

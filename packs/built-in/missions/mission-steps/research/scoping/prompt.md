@@ -22,7 +22,7 @@ You **MUST** consider the user input before proceeding (if not empty). It is the
 Before drafting anything, load the action-scoped charter context so the directives and tactics below are pulled with their current text, not this file's paraphrase:
 
 ```bash
-spec-kitty charter context --action scoping --role scoping --json
+spec-kitty charter context --action scoping --json
 ```
 
 ## What This Step Produces
