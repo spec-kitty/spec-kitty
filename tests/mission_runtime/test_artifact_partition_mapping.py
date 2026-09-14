@@ -39,6 +39,7 @@ from mission_runtime import (
     kind_for_mission_file,
 )
 from mission_runtime.artifacts import MissionArtifactHome, artifact_home_for
+from specify_cli.coordination.coherence import is_coord_residue_churn, is_status_state_path
 from specify_cli.mission_metadata import write_meta
 
 _MISSION_SLUG = "coord-write-placement-closure-01KYCF83"
@@ -129,6 +130,82 @@ def test_decisions_and_traces_kinds_are_distinct_from_each_other() -> None:
     assert decisions_kind is not None
     assert traces_kind is not None
     assert decisions_kind is not traces_kind
+
+
+# ---------------------------------------------------------------------------
+# #3928 -- the decisions/ LEDGER (index.json + DM-<ulid>.md) classifies to a
+# COORD-partition kind, so the churn classifier agrees with the write side.
+# ---------------------------------------------------------------------------
+
+# The two (and only two) ledger shapes ``decisions/store.py`` writes
+# (``index_path`` / ``artifact_path``); the DM id is a ULID.
+_LEDGER_PATHS = (
+    f"kitty-specs/{_MISSION_SLUG}/decisions/index.json",
+    f"kitty-specs/{_MISSION_SLUG}/decisions/DM-01M1VRA2ABCDEFGHJKMNPQRS.md",
+)
+
+
+@pytest.mark.parametrize("path", _LEDGER_PATHS)
+def test_decisions_ledger_classifies_to_coord(path: str) -> None:
+    """#3928: decisions/<ledger file> -> a COORD-homed kind via the ONE classifier.
+
+    Pre-fix both shapes classify to ``None`` (fall through the
+    unrecognized-path leg), so ``is_coord_residue_churn`` returns False and
+    ``agent mission record-analysis`` refuses with ``DIRTY_WORKTREE`` the
+    moment a Decision Moment is opened -- even though
+    ``decisions/service.py`` documents the ledger as coord-authority-owned
+    STATUS-partition state. Behavioral like T007/T008: any COORD-partition
+    kind keeps this green.
+    """
+    kind = kind_for_mission_file(path)
+
+    assert kind is not None, (
+        f"{path} must classify to a MissionArtifactKind (#3928), not fall "
+        "through the unrecognized-path None"
+    )
+    assert not is_primary_artifact_kind(kind), (
+        f"{path} classified to {kind!r}, a PRIMARY-partition kind -- the "
+        "ledger is coord-authority-owned state, so #3928 requires COORD"
+    )
+
+
+@pytest.mark.parametrize("path", _LEDGER_PATHS)
+def test_decisions_ledger_is_coord_residue_churn(path: str) -> None:
+    """#3928 symptom level: the churn predicate the recorder consults.
+
+    ``is_coord_residue_churn`` is the exact predicate
+    ``cli/commands/agent/mission_record_analysis.py`` filters dirty paths
+    through; pre-fix it returned False for both ledger shapes. Also pins the
+    mission-slug scoping (another mission's ledger is not this mission's
+    residue) and that the ledger did NOT borrow STATUS_STATE -- the WP13
+    ``is_status_state_path`` predicate must keep matching exactly
+    ``status.events.jsonl`` / ``status.json`` (its coord-commit consumers
+    stage on that narrow set).
+    """
+    assert is_coord_residue_churn(path, mission_slug=_MISSION_SLUG) is True, (
+        f"{path} must classify as coordination residue churn (#3928)"
+    )
+    assert is_coord_residue_churn(path, mission_slug="another-mission-01") is False, (
+        "a ledger under another mission's directory is not this mission's residue"
+    )
+    assert is_status_state_path(path) is False, (
+        f"{path} must not classify as STATUS_STATE -- is_status_state_path is "
+        "deliberately narrow (WP13) and must not widen to the ledger"
+    )
+
+
+def test_decisions_ledger_kind_is_distinct_from_neighbor_kinds() -> None:
+    """Disjointness edge case (the T008-risk pattern): the ledger's kind must
+    be independently addressable from DECISION_LOG (the mission-root
+    ``decisions.events.jsonl`` event stream) and STATUS_STATE, so neither
+    narrow consumer set silently widens when the ledger gains a kind."""
+    ledger_kind = kind_for_mission_file(_LEDGER_PATHS[0])
+    log_kind = kind_for_mission_file(f"kitty-specs/{_MISSION_SLUG}/decisions.events.jsonl")
+    status_kind = kind_for_mission_file(f"kitty-specs/{_MISSION_SLUG}/status.events.jsonl")
+
+    assert ledger_kind is not None
+    assert ledger_kind is not log_kind
+    assert ledger_kind is not status_kind
 
 
 # ---------------------------------------------------------------------------
