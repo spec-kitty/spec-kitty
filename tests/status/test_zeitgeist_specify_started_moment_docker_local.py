@@ -113,7 +113,7 @@ pytestmark = [
 ]
 
 
-def _run(args: list[str], *, tolerate: tuple[str, ...] = ()) -> subprocess.CompletedProcess:
+def _run(args: list[str], *, tolerate: tuple[str, ...] = ()) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(["docker", *args], capture_output=True, text=True, timeout=CMD_TIMEOUT_S, env=_docker_env())
     if result.returncode != 0 and not any(marker in (result.stderr or "").lower() for marker in tolerate):
         raise AssertionError(f"`docker {' '.join(args)}` exited {result.returncode}: {result.stderr}")
