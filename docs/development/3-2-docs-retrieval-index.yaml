@@ -3050,12 +3050,22 @@ pages:
   - path: "docs/adr/3.x/2026-09-14-1-census-floor-ratchet-adjudication.md"
     title: "ADR: Census-Floor Ratchets — Per-Ratchet Adjudication (Tripwire, Retire, Retire, Keep-Property)"
     divio_type: "none"
-    abstract: "Adjudicates the four census-floor re-pin ratchets named in #4315 against their measured catch record: the routed-load-meta floor becomes a stable vacuity tripwire, the golden-count guard and the arch/next shard-marker family are retired, and the partition-property gates stay hard."
+    abstract: "Per-ratchet verdicts on the #4315 census-floor ratchets: the routed-meta floor becomes a stable vacuity tripwire, golden-count and shard markers retire, property gates stay."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "two-scope-corrections", text: "Two scope corrections", level: 3}
+    - {slug: "the-governing-constraint-what-doctrine-actually-requires", text: "The governing constraint: what doctrine actually requires", level: 3}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
     - {slug: "evidence", text: "Evidence", level: 2}
+    - {slug: "gate-1-routed-load-meta-floor", text: "Gate 1 — `ROUTED_LOAD_META_FLOOR`", level: 3}
+    - {slug: "gate-2-test-golden-count-ban", text: "Gate 2 — `test_golden_count_ban`", level: 3}
+    - {slug: "gate-3-marker-baseline", text: "Gate 3 — marker baseline", level: 3}
+    - {slug: "gate-4-shard-map-completeness", text: "Gate 4 — shard-map completeness", level: 3}
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "1-routed-load-meta-floor-replace-the-count-floor-with-a-stable-vacuity-tripwire", text: "1. `ROUTED_LOAD_META_FLOOR` → **replace the count-floor with a stable vacuity tripwire**", level: 3}
+    - {slug: "2-test-golden-count-ban-retire-and-sweep-the-annotations", text: "2. `test_golden_count_ban` → **retire, and sweep the annotations**", level: 3}
+    - {slug: "3-marker-baseline-already-retired-no-action", text: "3. Marker baseline → **already retired; no action**", level: 3}
+    - {slug: "4-shard-maps-keep-the-partition-properties-retire-the-arch-next-marker-family", text: "4. Shard maps → **keep the partition properties; retire the `arch`/`next` marker family**", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "follow-through", text: "Follow-through", level: 2}
     - {slug: "references", text: "References", level: 2}
@@ -5095,6 +5105,16 @@ pages:
     - {slug: "uv-tool-2", text: "uv tool", level: 3}
     - {slug: "recommendation", text: "Recommendation", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/architecture/post-merge-partition-authority.md"
+    title: "Post-Merge Partition Authority"
+    divio_type: "none"
+    abstract: "One model for post-merge partition authority — the write half (which bytes win per artifact) and the read half (which surface a reader trusts)."
+    anchors:
+    - {slug: "the-one-question", text: "The one question", level: 2}
+    - {slug: "track-a-the-write-seam-which-bytes-win", text: "Track A — the write seam (which bytes win)", level: 2}
+    - {slug: "track-b-the-read-seam-which-surface-a-reader-trusts", text: "Track B — the read seam (which surface a reader trusts)", level: 2}
+    - {slug: "shared-vs-disjoint-verdict", text: "Shared-vs-disjoint verdict", level: 2}
+    - {slug: "traceability", text: "Traceability", level: 2}
   - path: "docs/architecture/profile-load-reliability.md"
     title: "Profile-Load Reliability (Squads & WP Prompts)"
     divio_type: "none"
@@ -9707,7 +9727,7 @@ pages:
   - path: "docs/plans/4-0-0-milestone-roadmap.md"
     title: "4.0.0 Milestone — Roadmap"
     divio_type: "explanation"
-    abstract: "Operator-facing roadmap for the active 4.0.0 cycle: the four goal themes (stability, maturity, extensibility, Team Kitty enablers), the epic dependency spine, per-theme progress and exit criteria, and watch items — at rc2/rc3 with the structural/debt half riding as a post-rc tail."
+    abstract: "Roadmap for the active 4.0.0 cycle: four goal themes, the epic dependency spine, per-theme progress and exit criteria, and watch items through the post-rc structural tail."
     anchors:
     - {slug: "intent-of-4-0-0", text: "Intent of 4.0.0", level: 2}
     - {slug: "release-posture-2026-09-14", text: "Release posture (2026-09-14)", level: 2}

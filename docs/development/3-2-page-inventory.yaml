@@ -1682,6 +1682,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/architecture/post-merge-partition-authority.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/architecture/profile-load-reliability.md
   tag: current
   divio_type: none
