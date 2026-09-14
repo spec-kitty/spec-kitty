@@ -43,17 +43,45 @@ Two independent work packages (disjoint files → parallel lanes, no inter-WP de
 ## MVP scope
 WP01 alone delivers the core recoverability fix (F-50); WP02 completes the honest-refusal half (F-51).
 
-## Post-review descope — WP02 not shipped (KISS audit, 2026-09-14)
+## Post-review descope — WP02 not shipped (2026-09-14)
 
-WP02 (F-51) was implemented and reviewed, then **cut before merge** on a KISS
-audit of PR #4245. Its whole effect was a *message* improvement: `blocked →
-planned` was refused either way, only the wording differed (a misleading
-"requires review feedback" instead of an honest "illegal transition, legal
-targets are `{in_progress, canceled}`"). Buying that wording cost ~120 source
-lines — a new public `legal_targets_from()` status API re-exported twice, three
-private helpers — plus ~330 test lines. WP01 alone removes the dead end, because
-an allocation failure no longer stamps `blocked` in the first place.
+WP02 (F-51) was implemented and reviewed, then **cut before merge**. A KISS audit
+asked for the cut on size grounds; a landing review then found a stronger reason,
+and the stronger reason is the one that governs: **WP02 silently removed a
+force-proof authorization gate.**
 
-The refusal-message honesty concern is not lost: it is the deferred #1711 class
-(a cause-tagged `blocked → in_progress` recovery driver), which is where the
-message work belongs once there is a real recovery command to name.
+`_guard_planned_rollback` is the only thing standing between `move-task --to
+planned` and the FSM, and its own refusal text promises "This requirement cannot
+be bypassed with `--force`". WP02 turned that guard into a source-scoped
+early-return keyed on `WPState.is_run_affecting` — which is `False` for
+`genesis`, `blocked`, `done` and `canceled`. For those four sources the move then
+fell through to the FSM, which **does** let `force` override an edge that does
+not exist at all (`wp_state.py`: "Edge does not exist: only force … can
+override"). And the force is often not the operator's: `done` is in
+`_FORWARD_ORDER`, so FR-015 auto-force-promotion manufactures it.
+
+Measured on the tree, WP02 restored vs. cut:
+
+| `move-task --to planned` | flags | cut (shipped) | WP02 restored |
+|---|---|---|---|
+| from `done` | **none** | exit 1, stays `done` | exit 0, **back to `planned`** |
+| from `blocked` | `--force` | exit 1, stays `blocked` | exit 0, back to `planned` |
+| from `canceled` | `--force` | exit 1, stays `canceled` | exit 0, back to `planned` |
+| from `genesis` | none | exit 1, stays `genesis` | exit 0, back to `planned` |
+| from `blocked` | none | exit 1 *(message differs only)* | exit 1 |
+| from `in_review` | either | exit 1, feedback demand | exit 1, unchanged |
+
+Only the fifth row — no-force `blocked` — matches the "refused either way, only
+the wording differs" reading, and that is the single row WP02's 292-line test
+file covered: it passed `--force` nowhere and never used `done`, `canceled` or
+`genesis` as a source. So a terminal, merged work package could be resurrected to
+`planned` by a fat-fingered `move-task` with no flags, logged with a `force=true`
+and a reason the operator never wrote.
+
+**The F-51 concern is still legitimate, and its safe half is separable.**
+`legal_targets_from()` and `_invalid_transition_diagnostic()` only enrich the
+refusal *diagnostic* — they gate nothing, and they are safe to bring back. The
+regression lived entirely in `_source_rolls_back_to_planned` and the
+`_guard_planned_rollback` early-return. **Design constraint for whoever picks
+F-51 up: keep `_guard_planned_rollback` unconditional; improve the message
+without weakening the gate.** Tracked on the still-open #3937.
