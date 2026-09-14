@@ -369,13 +369,21 @@ def test_e2_status_state_still_probes_coordination_and_is_unaffected(repo: Path)
     """SC-005 guard at the write-routing layer: ``STATUS_STATE`` is NOT in
     the E2 in-scope set, so a fully-retired-coord E2 mission still raises
     ``CoordinationBranchDeleted`` (wrapped) for it — proving the E2
-    short-circuit is genuinely kind-scoped, not blanket."""
+    short-circuit is genuinely kind-scoped, not blanket.
+
+    #4401 regression floor: the merged/PUBLISHED phase makes the read-path
+    coord probe degrade to primary (``resolve_status_surface`` merged-gate), so
+    the write projection must fail closed on its own explicit probe. The
+    assertion pins the coord-deleted CODE, not merely *an* ``ActionContextError``
+    — a regression that returned the dangling coord ref, or raised a different
+    code, reds here."""
     mission_slug, _feature_dir, _target, _coord = _build_e2_mission_coord_fully_retired(
         repo, mid8="01KYT1DD", mission_number=304
     )
 
-    with pytest.raises(ActionContextError):
+    with pytest.raises(ActionContextError) as exc_info:
         resolve_placement_only(repo, mission_slug, kind=MissionArtifactKind.STATUS_STATE)
+    assert exc_info.value.code == "COORDINATION_BRANCH_DELETED"
 
 
 # ---------------------------------------------------------------------------

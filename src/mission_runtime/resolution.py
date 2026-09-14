@@ -1611,8 +1611,9 @@ def resolve_placement_only(
     # never re-inferred from ``coordination_branch`` (FR-004).
     from specify_cli.core.paths import get_main_repo_root
 
+    primary_root = get_main_repo_root(repo_root)
     target_branch = get_feature_target_branch(repo_root, mission_slug)
-    topology = _resolve_topology(get_main_repo_root(repo_root), mission_slug, resolver=resolver)
+    topology = _resolve_topology(primary_root, mission_slug, resolver=resolver)
     _identity, branch_ref, _status_surface, _workspace = _assemble_core_fragments(
         repo_root,
         mission_slug=mission_slug,
@@ -1633,7 +1634,76 @@ def resolve_placement_only(
     # ``safe_commit(target=...)``.
     if kind in _PRIMARY_ARTIFACT_KINDS:
         return CommitTarget(ref=target_branch)
+    # #4401 fail-closed guard: this fall-through only ever sees a NON-eligible
+    # kind (eligible E2 kinds short-circuit above), and ``destination_ref`` is
+    # projected purely from the STORED topology + ``coordination_branch`` NAME
+    # without ever probing git. A PUBLISHED (merged) mission whose coordination
+    # branch has ALSO been retired would therefore silently return a dangling
+    # deleted-branch ref: the read-path probe (``resolve_status_surface``)
+    # degrades to the primary surface for a merged mission BEFORE its
+    # ``CoordState.DELETED`` raise, so ``_assemble_core_fragments`` above never
+    # fails closed on it (#4090). Re-run the SAME ``probe_coord_state``
+    # classifier the read path uses and translate its canonical
+    # ``CoordinationBranchDeleted`` to the boundary's single error type — never
+    # a silent write to a deleted ref (SC-005 non-regression).
+    _raise_if_coordination_branch_deleted(primary_root, mission_slug, topology, resolver=resolver)
     return branch_ref.destination_ref
+
+
+def _raise_if_coordination_branch_deleted(
+    primary_root: Path,
+    mission_slug: str,
+    topology: MissionTopology,
+    *,
+    resolver: MissionResolver | None = None,
+) -> None:
+    """Fail closed when a coordination-routed mission's coord branch is DELETED.
+
+    The write-projection guard for :func:`resolve_placement_only`'s fall-through
+    (#4401). No-op unless the STORED ``topology`` routes through coordination
+    and a ``coordination_branch`` is declared; then it consumes the EXISTING
+    :func:`~specify_cli.missions._read_path_resolver.probe_coord_state` /
+    :class:`CoordState` classifier — never a hand-rolled git call or a
+    ``coordination_branch is None`` re-inference (FR-004: classify from the
+    stored shape) — and on ``DELETED`` raises the canonical
+    :class:`CoordinationBranchDeleted` translated to :class:`ActionContextError`
+    (the boundary's single error type, as this module's entry-point arms
+    translate it). The non-published fall-through raises the *raw*
+    :class:`CoordinationBranchDeleted` from ``_assemble_core_fragments`` instead;
+    callers catch both identically because it subclasses
+    :class:`StatusReadPathNotFound` and both carry ``COORDINATION_BRANCH_DELETED``.
+    ``MATERIALIZED`` / ``EMPTY`` / ``UNMATERIALIZED`` / ``NONE`` return cleanly,
+    so a healthy coord mission still resolves its coordination ref and a
+    non-coord / flat / single-branch mission is untouched.
+    """
+    if not routes_through_coordination(topology):
+        return
+    coordination_branch = _resolve_coordination_branch(primary_root, mission_slug, resolver=resolver)
+    if coordination_branch is None:
+        return
+
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+    from specify_cli.missions._read_path_resolver import (
+        CoordState,
+        candidate_feature_dir_for_mission,
+        coord_feature_dir,
+        probe_coord_state,
+    )
+
+    mission_id = _resolve_mission_id(primary_root, mission_slug, resolver=resolver)
+    mid8 = resolve_mid8(mission_slug, mission_id=mission_id)
+    coord_state = probe_coord_state(primary_root, mission_slug, mid8, coordination_branch=coordination_branch)
+    if coord_state is not CoordState.DELETED:
+        return
+    exc = CoordinationBranchDeleted(
+        repo_root=primary_root,
+        mission_slug=mission_slug,
+        mid8=mid8,
+        coordination_branch=coordination_branch,
+        coord_candidate=coord_feature_dir(primary_root, mission_slug, mid8),
+        primary_candidate=candidate_feature_dir_for_mission(primary_root, mission_slug, resolver=resolver),
+    )
+    raise ActionContextError(exc.error_code, str(exc)) from exc
 
 
 @dataclass(frozen=True)
