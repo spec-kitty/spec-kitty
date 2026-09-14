@@ -82,9 +82,10 @@ the same split upstream draws between its HTTP API and its MCP tools); every
 
 from __future__ import annotations
 
+import math
 import secrets
 import time
-import math
+import urllib.error
 
 from collections.abc import Callable, Generator, Iterator, Mapping
 from typing import TYPE_CHECKING, Any, cast
@@ -195,6 +196,7 @@ def _serialize_snapshot(snapshot: TeamSnapshot) -> dict[str, Any]:
                 "path": p.path,
                 "kind": p.kind,
                 "expires_at": p.expires_at,
+                "observed_at": p.observed_at,
             }
             for p in snapshot.presence
         ],
@@ -207,6 +209,7 @@ def _serialize_snapshot(snapshot: TeamSnapshot) -> dict[str, Any]:
                 "repo": f.repo,
                 "branch": f.branch,
                 "expires_at": f.expires_at,
+                "observed_at": f.observed_at,
             }
             for f in snapshot.focus
         ],
@@ -360,26 +363,57 @@ def render_event(frame: Mapping[str, Any]) -> str:
 
 
 def status(repo: str, *, timeout_s: float = DEFAULT_STATUS_TIMEOUT_S, filter_own: bool = False) -> dict[str, Any]:
-    """One explicit team context, one bounded read: open exactly one
-    subscription, apply whatever arrives inside ``timeout_s`` (clamped to
-    :data:`MAX_TIMEOUT_S`), then report the local snapshot and let the
-    subscription go. Never writes anything to disk; never retries.
+    """One explicit team context, one bounded read of who is live NOW.
 
-    Raises :class:`NotCheckedOut` if ``repo`` has no stored credential, and
+    spec-kitty#4215: the relay's own ``GET /managed/snapshot``
+    (zeitgeist#296) answers immediately from the presence/focus registries,
+    so a quiet team reads as "three people here, observed 40s ago" instead of
+    the empty view a future-only listen returns whenever nobody happens to
+    publish during the window. ``source`` says which path answered.
+
+    A relay without that route (an older build, or ``self_hosted``, which
+    does not enable the capability) answers 404, and so does a body this
+    client cannot parse: both degrade to the original behaviour — open one
+    subscription, apply whatever arrives inside ``timeout_s`` (clamped to
+    :data:`MAX_TIMEOUT_S`), report what was heard — with ``fallback_reason``
+    naming why. A quiet window there still means "nothing was published while
+    I listened", never "nobody is working"; only the snapshot path can speak
+    to the latter, and it does so with each entry's own ``observed_at``.
+
+    Never writes anything to disk; never retries. Raises
+    :class:`NotCheckedOut` if ``repo`` has no stored credential, and
     propagates ``urllib.error.URLError``/``HTTPError`` unchanged on a
-    connection/relay fault — this is a thin adapter over
-    ``FilteredStream.watch()``, not a second fault-handling layer over it.
+    connection/relay fault (an expired credential's 401/403 included — a
+    denied read is reported as a fault, never as an empty team).
     """
     timeout_s = _clamp_timeout(timeout_s)
     stream = resolve_stream(repo, filter_own=filter_own)
-    gen = stream.watch(idle_timeout_s=timeout_s)
+
+    fallback_reason: str | None = None
     try:
-        for _ in gen:
-            pass  # apply every frame that arrives inside the bounded window
-    finally:
-        _close(gen)
+        seeded = stream.seed_from_snapshot(timeout_s=timeout_s)
+    except urllib.error.HTTPError as exc:
+        if exc.code != 404:
+            raise  # auth denial, a saturated relay, a relay fault: the caller's to report
+        seeded = False
+        fallback_reason = "snapshot_route_unavailable"
+    if not seeded and fallback_reason is None:
+        fallback_reason = "snapshot_document_unreadable"
+
+    if not seeded:
+        gen = stream.watch(idle_timeout_s=timeout_s)
+        try:
+            for _ in gen:
+                pass  # apply every frame that arrives inside the bounded window
+        finally:
+            _close(gen)
+
     result = _serialize_snapshot(stream.check())
     result["repo"] = repo
+    result["source"] = "relay_snapshot" if seeded else "live_listen"
+    if fallback_reason is not None:
+        result["fallback_reason"] = fallback_reason
+        result["listened_s"] = timeout_s
     return result
 
 

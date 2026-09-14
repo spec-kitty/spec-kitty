@@ -118,6 +118,32 @@ async def test_status_tool_reports_the_bounded_snapshot(state_root: Path, manage
     assert result.structuredContent["presence"][0]["session_ref"] == "a" * 12
 
 
+async def test_status_tool_answers_a_quiet_repo_from_the_relay_snapshot(state_root: Path, managed_stream_double) -> None:
+    """CLI/MCP parity for #4215: an MCP client asking a quiet repo gets the
+    relay's own record of who is live, over the same shared surface, without
+    waiting for anyone to publish."""
+    _checkout(managed_stream_double.url)
+    managed_stream_double.snapshot_document = {
+        "schema_version": "1.0.0",
+        "epoch": "epoch-1",
+        "seq": 2,
+        "cursor": "epoch-1:2",
+        "observed_at": now_epoch(),
+        "presence": [{"observed_at": now_epoch() - 5, "ttl_s": 30, "expires_in_s": 25.0, "actor": {"session_ref": "e" * 12}}],
+        "focus": [],
+        "events": [],
+        "coverage": {"history_basis": "empty", "retained_frames": 0, "returned_frames": 0, "follow": False},
+    }
+
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool("zeitgeist_status", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0})
+    assert not result.isError
+    assert result.structuredContent is not None
+    assert result.structuredContent["source"] == "relay_snapshot"
+    assert result.structuredContent["presence"][0]["session_ref"] == "e" * 12
+
+
 async def test_watch_tool_reports_bounded_frames(state_root: Path, managed_stream_double) -> None:
     _checkout(managed_stream_double.url)
     managed_stream_double.push_frame(_frame(seq=1, frame=_presence()))

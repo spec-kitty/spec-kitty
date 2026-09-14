@@ -133,6 +133,19 @@ Reported-live honesty, not reconstruction:
   un-sanitized ``path`` does today, it is never used as a lookup key (only
   ``session_ref``/``focus_ref`` are), and this way the module claims no
   defense for ``branch`` it does not actually provide.
+* ``StreamState.seed_snapshot`` (spec-kitty#4215) applies the relay's own
+  ``SnapshotDocument`` (``managed_snapshot.schema.json``, zeitgeist#296/#305)
+  — the retained, already-unexpired presence/focus registry entries — through
+  the SAME grammar and ttl clamps a live frame goes through, because a
+  snapshot is exactly as untrusted as a frame. It is not missed-event
+  reconstruction and does not weaken the criterion above: the relay states
+  who is live NOW (its own registry read), the client never diffs, patches,
+  or infers anything about the window it did not see, and the document's
+  ``events`` history is deliberately ignored here — history is not liveness,
+  and this state holds only what is true now. Remaining lifetime comes from
+  the document's server-derived ``expires_in_s`` measured against the LOCAL
+  clock, so clock skew between relay and client can never inflate a ttl past
+  the <=90s ceiling.
 * ``path``/``kind``/``branch``/``state`` are NOT identity fields in this
   sense (a file path or a branch name legitimately looks like prose;
   ``state`` is already closed-enum gated against ``_FOCUS_STATES``) and are
@@ -278,6 +291,11 @@ class PresenceView:
     path: str | None
     kind: str | None
     expires_at: float
+    # When the relay observed this entry, on the clock that reported it: the
+    # frame's/snapshot's own `observed_at`. A reader showing "live now" must
+    # be able to say how old the observation is (#4215) rather than imply it
+    # was made at read time. Optional because a frame may omit it.
+    observed_at: float | None = None
 
 
 @dataclass(frozen=True)
@@ -289,6 +307,7 @@ class FocusView:
     repo: str | None
     branch: str | None
     expires_at: float
+    observed_at: float | None = None
 
 
 @dataclass(frozen=True)
@@ -376,6 +395,7 @@ class StreamState:
             "path": _optional_str(payload.get("path")),
             "kind": _optional_str(payload.get("kind")),
             "expires_at": base_ts + _clamp_ttl(payload.get("ttl_s")),
+            "observed_at": base_ts,
         }
 
     def _apply_event(self, live_frame_obj: LiveFrame) -> None:
@@ -409,6 +429,7 @@ class StreamState:
         if state == "ended":
             self._focus.pop(key, None)  # only this session's focus ends
             return
+        observed_at = payload.get("observed_at")
         self._focus[key] = {
             "focus_ref": focus_ref,
             "session_ref": session_ref,
@@ -417,6 +438,111 @@ class StreamState:
             "repo": _grammar_ident(payload.get("repo"), grammar.REF_RE),
             "branch": _optional_str(payload.get("branch")),  # prose-shaped, not identity: see module docstring
             "expires_at": live_frame_obj.emitted_at + _clamp_ttl(payload.get("ttl_s")),
+            "observed_at": float(observed_at) if _is_number(observed_at) else live_frame_obj.emitted_at,
+        }
+
+    def seed_snapshot(self, doc: object, *, now: float | None = None) -> bool:
+        """Replace this state with the relay's own ``SnapshotDocument`` —
+        who is live NOW, read from the registries the relay already keeps
+        (zeitgeist#296). Returns ``False`` for any document this module was
+        not written to understand, leaving state untouched so the caller can
+        fall back to listening rather than report a half-parsed view.
+
+        A snapshot is untrusted input exactly like a frame: every identity
+        goes through the same grammar, every ttl through the same <=90s
+        clamp, and an entry the document says has already expired is dropped
+        rather than shown as live. The document's ``events`` history is
+        deliberately not applied — ``_apply_event``'s reasoning holds here
+        too: history is activity ABOUT sessions, never liveness OF one.
+        """
+        if not isinstance(doc, Mapping):
+            return False
+        schema_version = doc.get("schema_version")
+        epoch = doc.get("epoch")
+        presence = doc.get("presence")
+        focus = doc.get("focus")
+        if not isinstance(schema_version, str) or not schema_version.startswith("1."):
+            return False  # version-skew rejection, same rule as parse_live_frame
+        if not isinstance(epoch, str) or not epoch:
+            return False
+        if not isinstance(presence, list) or not isinstance(focus, list):
+            return False
+
+        ts = now if now is not None else now_epoch()
+        self._presence.clear()
+        self._focus.clear()
+        self._epoch = epoch
+        for entry in presence:
+            self._seed_presence_entry(entry, ts)
+        for entry in focus:
+            self._seed_focus_entry(entry, ts)
+        return True
+
+    @staticmethod
+    def _seed_remaining(entry: Mapping[str, Any]) -> float | None:
+        """The entry's remaining lifetime, clamped to the same ceiling every
+        ttl obeys, or ``None`` when the relay reports it already gone (or
+        reports something this module cannot read as a number)."""
+        remaining = entry.get("expires_in_s")
+        if not _is_number(remaining) or (isinstance(remaining, float) and not math.isfinite(remaining)):
+            return None
+        remaining = min(float(remaining), float(MAX_TTL_S))
+        return remaining if remaining > 0 else None
+
+    def _seed_presence_entry(self, entry: object, ts: float) -> None:
+        if not isinstance(entry, Mapping):
+            return
+        actor = entry.get("actor")
+        if not isinstance(actor, Mapping):
+            return
+        ref = actor.get("session_ref")
+        if not isinstance(ref, str) or not ref:
+            return
+        remaining = self._seed_remaining(entry)
+        if remaining is None:
+            return
+        ref = grammar.ident(ref)
+        observed_at = entry.get("observed_at")
+        self._presence[ref] = {
+            "session_ref": ref,
+            "user": _grammar_ident(actor.get("user")),
+            "repo": _grammar_ident(entry.get("repo"), grammar.REF_RE),
+            "branch": _optional_str(entry.get("branch")),
+            "path": _optional_str(entry.get("path")),
+            "kind": _optional_str(entry.get("kind")),
+            # Local clock, not the relay's: skew cannot stretch a lifetime
+            # past the ceiling this way, and eviction in snapshot() compares
+            # against the same clock it always has.
+            "expires_at": ts + remaining,
+            "observed_at": float(observed_at) if _is_number(observed_at) else None,
+        }
+
+    def _seed_focus_entry(self, entry: object, ts: float) -> None:
+        if not isinstance(entry, Mapping):
+            return
+        focus_ref = entry.get("focus_ref")
+        state = entry.get("state")
+        if not isinstance(focus_ref, str) or not focus_ref:
+            return
+        if state not in _FOCUS_STATES or state == "ended":
+            return  # a closed signal is consumed and gone, never seeded
+        remaining = self._seed_remaining(entry)
+        if remaining is None:
+            return
+        focus_ref = grammar.ident(focus_ref, grammar.REF_RE)
+        actor = entry.get("actor")
+        session_ref = actor.get("session_ref") if isinstance(actor, Mapping) else None
+        session_ref = grammar.ident(session_ref) if isinstance(session_ref, str) and session_ref else None
+        observed_at = entry.get("observed_at")
+        self._focus[(session_ref, focus_ref)] = {
+            "focus_ref": focus_ref,
+            "session_ref": session_ref,
+            "state": state,
+            "user": _grammar_ident(actor.get("user")) if isinstance(actor, Mapping) else None,
+            "repo": _grammar_ident(entry.get("repo"), grammar.REF_RE),
+            "branch": _optional_str(entry.get("branch")),
+            "expires_at": ts + remaining,
+            "observed_at": float(observed_at) if _is_number(observed_at) else None,
         }
 
     def snapshot(self, *, now: float | None = None) -> TeamSnapshot:
@@ -439,6 +565,7 @@ class StreamState:
                 path=v["path"],
                 kind=v["kind"],
                 expires_at=v["expires_at"],
+                observed_at=v.get("observed_at"),
             )
             for v in self._presence.values()
         )
@@ -451,6 +578,7 @@ class StreamState:
                 repo=v["repo"],
                 branch=v["branch"],
                 expires_at=v["expires_at"],
+                observed_at=v.get("observed_at"),
             )
             for v in self._focus.values()
         )

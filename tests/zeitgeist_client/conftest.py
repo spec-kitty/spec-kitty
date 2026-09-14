@@ -272,6 +272,12 @@ class ManagedStreamDouble:
     ``Transfer-Encoding: chunked`` framing so ``urllib``'s ``http.client``
     de-chunks it exactly as it would a real server's ``StreamingResponse``.
 
+    It also serves the sibling ``GET /managed/snapshot`` route
+    (spec-kitty#4215): ``snapshot_document`` is returned as JSON when set,
+    ``snapshot_body`` overrides it with raw bytes for malformed-response
+    cases, and otherwise the route answers ``snapshot_status`` (404 by
+    default — a relay that does not serve snapshots at all).
+
     Never a real Docker Zeitgeist container — same discipline as
     ``TeamKittyDouble``'s own docstring; this double never leaves
     ``127.0.0.1`` and models only the wire shape ``filtered_stream`` reads.
@@ -280,6 +286,16 @@ class ManagedStreamDouble:
     outgoing: queue.Queue[bytes | None] = field(default_factory=queue.Queue)
     received_headers: list[dict[str, str]] = field(default_factory=list)
     response_status: int = 200
+
+    # spec-kitty#4215: `GET /managed/snapshot` (zeitgeist#296) is a SEPARATE
+    # route on the same relay, so this double answers it separately too.
+    # The default is the honest shape of a relay that does not serve it (an
+    # older build, or the `self_hosted` profile): 404, which is exactly what
+    # makes every pre-#4215 test here keep exercising the listen path.
+    snapshot_document: dict[str, Any] | None = None
+    snapshot_status: int = 404
+    snapshot_body: bytes | None = None
+    requested_paths: list[str] = field(default_factory=list)
 
     _server: http.server.ThreadingHTTPServer | None = None
     _thread: threading.Thread | None = None
@@ -326,9 +342,28 @@ class ManagedStreamDouble:
                 self.wfile.write(f"{len(data):x}\r\n".encode() + data + b"\r\n")
                 self.wfile.flush()
 
+            def _serve_snapshot(self) -> None:
+                body = double.snapshot_body
+                if body is None and double.snapshot_document is not None:
+                    body = json.dumps(double.snapshot_document).encode()
+                if body is None:
+                    self.send_response(double.snapshot_status)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
             def do_GET(self) -> None:  # noqa: N802
                 with double._lock:
                     double.received_headers.append(dict(self.headers))
+                    double.requested_paths.append(self.path)
+                if self.path.split("?")[0] == "/managed/snapshot":
+                    self._serve_snapshot()
+                    return
                 self.send_response(double.response_status)
                 if double.response_status != 200:
                     self.send_header("Content-Length", "0")

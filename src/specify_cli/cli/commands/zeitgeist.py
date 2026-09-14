@@ -141,17 +141,38 @@ def _report_connection_fault(exc: BaseException) -> None:
     raise typer.Exit(1)
 
 
+def _observation_age(entry: dict[str, Any], *, now: float) -> str:
+    """An ``observed 40s ago`` suffix for an entry the relay timestamped, and
+    an empty string otherwise — a "live now" line must never imply the
+    observation was made at read time (spec-kitty#4215)."""
+    observed_at = entry.get("observed_at")
+    if not isinstance(observed_at, (int, float)) or isinstance(observed_at, bool):
+        return ""
+    return f"  observed {max(0, int(now - float(observed_at)))}s ago"
+
+
 def _print_snapshot_summary(result: dict[str, Any]) -> None:
     presence: list[dict[str, Any]] = result.get("presence") or []
     focus: list[dict[str, Any]] = result.get("focus") or []
+    from_snapshot = result.get("source") == "relay_snapshot"
+    now = time.time()
     console.print(f"[bold]{result.get('repo')}[/bold]  epoch={result.get('epoch')}")
+    if from_snapshot:
+        console.print("  source: the relay's own record of who is live now")
+    else:
+        listened = result.get("listened_s")
+        reason = result.get("fallback_reason")
+        console.print(f"  source: listened for {listened}s — this relay served no snapshot ({reason})")
     if not presence and not focus:
-        console.print("  (nothing observed within the bounded window)")
+        if from_snapshot:
+            console.print("  nobody is live on this relay right now. That is not proof nobody is working.")
+        else:
+            console.print("  (nothing was published while this command listened — not the same as nobody working)")
         return
     for p in presence:
-        console.print(f"  presence  {p.get('session_ref')}  user={p.get('user')}  path={p.get('path')}")
+        console.print(f"  presence  {p.get('session_ref')}  user={p.get('user')}  path={p.get('path')}{_observation_age(p, now=now)}")
     for f in focus:
-        console.print(f"  focus     {f.get('session_ref')}  {f.get('focus_ref')}  state={f.get('state')}")
+        console.print(f"  focus     {f.get('session_ref')}  {f.get('focus_ref')}  state={f.get('state')}{_observation_age(f, now=now)}")
 
 
 @app.command()
@@ -161,12 +182,17 @@ def status(
         subscription.DEFAULT_STATUS_TIMEOUT_S,
         "--timeout",
         min=0.001,
-        help=f"Seconds to listen before reporting (clamped to <= {subscription.MAX_TIMEOUT_S}s, the honest reported-live ceiling).",
+        help=(
+            "Seconds to wait for the relay, and to listen for when it serves no snapshot "
+            f"(clamped to <= {subscription.MAX_TIMEOUT_S}s, the honest reported-live ceiling)."
+        ),
     ),
     as_json: bool = _JSON_OPTION,
     raw: bool = typer.Option(False, "--raw", help="Include own session in the diagnostic snapshot."),
 ) -> None:
-    """One bounded snapshot of ``repo``'s live presence/focus state."""
+    """Who is live on ``repo``'s relay right now, answered immediately from
+    the relay's own presence/focus record; a relay without that route falls
+    back to a bounded listen."""
     key = _resolve_store_key(repo)
     try:
         result = subscription.status(key, timeout_s=timeout, filter_own=not raw)

@@ -192,9 +192,14 @@ def build_server(settings: moments.MomentSettings | None = None) -> FastMCP:
     @server.tool(
         name="zeitgeist_status",
         description=(
-            "One bounded snapshot of repo's live presence/focus state (<=90s wait). "
-            "repo is host/owner/repo (e.g. github.com/acme/widget); omit it to read the "
-            "checkout this server process runs in."
+            "Who is live on repo's relay right now, answered immediately from the relay's "
+            "own presence/focus record (<=90s wait). repo is host/owner/repo (e.g. "
+            "github.com/acme/widget); omit it to read the checkout this server process runs "
+            "in. `source` is `relay_snapshot` when the relay answered directly, or "
+            "`live_listen` when it served no snapshot and this tool fell back to listening — "
+            "an empty `live_listen` result means nothing was published while it listened, "
+            "never that nobody is working. Each entry's `observed_at` says when the relay saw "
+            "it; this is current state only, not a history."
         ),
         structured_output=True,
     )
