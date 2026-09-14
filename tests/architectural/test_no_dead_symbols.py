@@ -400,8 +400,11 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.cli.commands._auth_doctor::ServerSessionStatus
         SymbolKey("ServerSessionStatus", "5814547ac903022d97fd3b3a685e3218971f8e6d2407cf99d1f505f2f964b25b", source_module="specify_cli.cli.commands._auth_doctor"),
         SymbolKey(
-            "SessionSummary", "465b7c32684be07566e692b5ef249e2585ccb568f9b2ffe36fd88ba4ed872e74", source_module="specify_cli.cli.commands._auth_doctor"
+            "SessionSummary", "bfaff2b2d217104de9698335efc37ba8923d8a0e25676084f543e3ae1ea425e5", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::SessionSummary
+        # (hash refreshed #3277: SessionSummary gained ``auth_method`` so the
+        # auth mode — human browser / headless device / machine
+        # client_credentials — is visible in doctor diagnostics)
         # specify_cli.cli.commands._auth_doctor::assemble_report (hash refreshed
         # #1060: report now carries the token manager's safe persisted-session
         # decryption-failure assessment into the auth verdict)

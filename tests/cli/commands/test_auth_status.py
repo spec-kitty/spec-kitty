@@ -211,7 +211,7 @@ class TestFormatStorageBackend:
 
 
 class TestFormatAuthMethod:
-    """Both known methods plus unknown fallthrough."""
+    """All known methods plus unknown fallthrough."""
 
     def test_authorization_code_label(self):
         label = format_auth_method("authorization_code")
@@ -222,6 +222,12 @@ class TestFormatAuthMethod:
         label = format_auth_method("device_code")
         assert "Headless" in label
         assert "Device" in label
+
+    def test_client_credentials_label(self):
+        """#3277: the machine/CI mode has a first-class label."""
+        label = format_auth_method("client_credentials")
+        assert "Machine" in label
+        assert "Client Credentials" in label
 
     def test_unknown_fallthrough(self):
         assert "Unknown" in format_auth_method("xyz")

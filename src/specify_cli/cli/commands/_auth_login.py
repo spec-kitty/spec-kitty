@@ -9,6 +9,14 @@ The ``--headless`` branch lazy-imports a future ``auth.flows.device_code``
 module that WP05 will supply. Until WP05 lands, attempting to use
 ``--headless`` surfaces a clear "not yet implemented" error.
 
+The ``--machine`` branch (#3277) lazy-imports
+``auth.flows.client_credentials`` — the non-interactive CI/machine mode.
+Its credential pair is loaded from the environment (fail closed, never
+prompted, never printed), exchanged via the OAuth ``client_credentials``
+grant, and persisted as an ordinary session tagged
+``auth_method="client_credentials"`` so every TokenManager consumer works
+unchanged.
+
 This module never hardcodes a SaaS URL. It resolves the login target through the
 canonical resolver :func:`specify_cli.auth.server_target.resolve_server_target`,
 which folds ``SPEC_KITTY_SAAS_URL`` (env) over ``[sync].server_url`` in
@@ -51,6 +59,7 @@ from specify_cli.auth import (
     CallbackTimeoutError,
     CallbackValidationError,
     get_token_manager,
+    NetworkError,
 )
 from specify_cli.auth.config import (
     DEFAULT_HOSTED_SAAS_URL,
@@ -72,7 +81,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-async def login_impl(*, headless: bool, force: bool) -> None:
+async def login_impl(*, headless: bool, force: bool, machine: bool = False) -> None:
     """Run the login flow. Called by ``cli.commands.auth.login``.
 
     Args:
@@ -80,6 +89,11 @@ async def login_impl(*, headless: bool, force: bool) -> None:
             (WP05). Defaults to False (browser PKCE flow).
         force: When True, re-authenticates even if a session is already
             present. Defaults to False.
+        machine: When True, dispatches to the non-interactive
+            ``client_credentials`` machine flow (#3277) — credentials come
+            from the environment, fail closed, and no browser, device flow,
+            or prompt is ever offered. Mutually exclusive with ``headless``
+            (enforced by the Typer shell).
 
     Note:
         Identity acquisition is intentionally decoupled from TeamSpace
@@ -142,7 +156,9 @@ async def login_impl(*, headless: bool, force: bool) -> None:
         console.print("[dim]Forcing re-authentication...[/dim]")
         tm.clear_session()
 
-    if headless:
+    if machine:
+        await _run_machine_flow(tm, saas_url)
+    elif headless:
         await _run_device_flow(tm, saas_url)
     else:
         await _run_browser_flow(tm, saas_url)
@@ -273,6 +289,67 @@ async def _run_device_flow(tm: TokenManager, saas_url: str) -> None:
 
     tm.set_session(session)
     _print_success(session)
+
+
+async def _run_machine_flow(tm: TokenManager, saas_url: str) -> None:
+    """Run the non-interactive ``client_credentials`` machine flow (#3277).
+
+    Every failure here fails closed with a precise remediation naming the
+    configuration variables or the server-side provisioning commands — a
+    machine misconfiguration must never degrade into a device-flow or
+    browser prompt, and the secret value must never appear in output.
+    """
+    from specify_cli.auth.flows.client_credentials import (
+        ClientCredentialsFlow,
+        load_machine_credentials,
+    )
+
+    console.print("Authenticating with machine credentials (client_credentials)...")
+    console.print(f"[dim]SaaS: {saas_url}[/dim]")
+
+    try:
+        credentials = load_machine_credentials()
+    except ConfigurationError as exc:
+        # escape(): the remedy names ``SPEC_KITTY_*`` variables — bracket-free
+        # today, but escape() keeps that invariant from depending on future
+        # variable spelling (#182).
+        console.print(f"[red]X {escape(str(exc))}[/red]")
+        raise typer.Exit(1) from None
+
+    flow = ClientCredentialsFlow(
+        saas_base_url=saas_url,
+        storage_backend=cast("StorageBackend", tm._storage.backend_name),
+    )
+
+    try:
+        session = await flow.login(credentials)
+    except AuthenticationError as exc:
+        # The flow's messages are self-contained (they name the remediation
+        # path); printed verbatim so CLI output and the raised error cannot
+        # drift apart.
+        console.print(f"[red]X {escape(str(exc))}[/red]")
+        raise typer.Exit(1) from exc
+    except NetworkError as exc:
+        console.print(f"[red]X Could not reach the SaaS: {exc}[/red]")
+        console.print("Check SPEC_KITTY_SAAS_URL and network access from this runner.")
+        raise typer.Exit(1) from exc
+
+    tm.set_session(session)
+    _print_machine_success(session)
+
+
+def _print_machine_success(session: StoredSession) -> None:
+    """Print the post-login success message for the machine flow.
+
+    Deliberately quieter than the human message: no team default (a machine
+    credential's authority is its server-side scope, not a client-picked
+    team), and the scope — which is not secret — is echoed so a CI log
+    records exactly what the credential can reach.
+    """
+    console.print()
+    console.print(f"[green]+ Authenticated as {session.email} (machine)[/green]")
+    console.print(f"  Scope: {session.scope or '(none reported)'}")
+    console.print("  Rotating the credential? Re-provision, then re-run auth login --machine --force.")
 
 
 def _print_success(session: StoredSession) -> None:
