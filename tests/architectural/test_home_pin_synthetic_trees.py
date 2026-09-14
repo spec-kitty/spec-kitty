@@ -82,9 +82,9 @@ def members_under_a_fixture_root(root: Path) -> set[tuple[str, str]]:
 def test_each_tree_contains_exactly_what_its_builder_claims(tmp_path: Path, name: str) -> None:
     """T015(3): ``discover(root)``'s member sites EQUAL the hand-enumerated set, per tree.
 
-    Set equality, never a count (C-002, and the golden-count ratchet has zero headroom). Equality
-    rather than containment is the point: it catches a tree that grew a member as well as one that
-    lost a file.
+    Set equality, never a count (C-002; the golden-count ratchet, retired by #4315, held this same
+    line at zero headroom). Equality rather than containment is the point: it catches a tree that
+    grew a member as well as one that lost a file.
     """
     tree = CLEAN_TREE_BUILDERS[name](tmp_path / name)
     assert member_sites(tree.root) == set(tree.sites), (
