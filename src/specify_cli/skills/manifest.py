@@ -34,7 +34,16 @@ class ManagedFileEntry:
     delivery_mode: str = "copy"  # "copy" or "symlink"
 
     def __post_init__(self) -> None:
-        """Normalize paths produced on Windows or loaded from older manifests."""
+        """Normalize paths produced on Windows or loaded from older manifests.
+
+        Invariant: skill file and directory names must never contain
+        backslashes. On POSIX a backslash is a legal filename character, and
+        this normalizer rewrites it to ``/`` unconditionally -- an entry for a
+        file literally named ``a\\b.md`` would end up pointing at ``a/b.md``,
+        a path that does not exist (verifier/drift false positive). Such names
+        are unsupported by contract; ``test_manifest_backslash_in_skill_file_name_is_rewritten``
+        pins this behavior so any change to it is a conscious decision.
+        """
         self.source_file = self.source_file.replace("\\", "/")
         self.installed_path = self.installed_path.replace("\\", "/")
 
@@ -55,7 +64,11 @@ class ManagedSkillManifest:
         Shared-root agents intentionally share ``installed_path`` so deduplication
         must include ``agent_key`` to avoid collapsing entries for different agents.
         """
-        self.entries = [e for e in self.entries if not (e.installed_path == entry.installed_path and e.agent_key == entry.agent_key)]
+        self.entries = [
+            e
+            for e in self.entries
+            if not (e.installed_path == entry.installed_path and e.agent_key == entry.agent_key)
+        ]
         self.entries.append(entry)
 
     def remove_entries_for_agent(self, agent_key: str) -> list[ManagedFileEntry]:

@@ -59,6 +59,22 @@ def test_managed_file_entry_normalizes_paths_to_posix() -> None:
     assert entry.installed_path == ".claude/skills/test-skill/SKILL.md"
 
 
+def test_manifest_backslash_in_skill_file_name_is_rewritten() -> None:
+    """Guard the no-backslashes invariant documented on ``ManagedFileEntry``.
+
+    On POSIX a backslash is a legal filename character, but manifest paths
+    are portable POSIX-separator paths: a file literally named ``a\\b.md``
+    is rewritten to ``a/b.md`` and the entry then points at a nonexistent
+    path (verifier/drift false positive). Skill file names must therefore
+    never contain backslashes; this test pins the rewrite so any change to
+    it is a conscious decision.
+    """
+    entry = _make_entry(source_file=r"a\b.md", installed_path=r".claude\skills\test-skill\a\b.md")
+
+    assert entry.source_file == "a/b.md"
+    assert entry.installed_path == ".claude/skills/test-skill/a/b.md"
+
+
 def test_add_entry() -> None:
     m = ManagedSkillManifest()
     entry = _make_entry()
