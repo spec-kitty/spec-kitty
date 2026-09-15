@@ -684,24 +684,38 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 ```
  Usage: spec-kitty charter org init [OPTIONS] PACK_PATH
 
- Scaffold a minimal org doctrine pack skeleton (FR-006).
+ Scaffold a minimal org pack or render from a template.
 
- Creates three files under *pack-path*::
+ Without ``--template``, creates three files under *pack-path*::
 
      org-charter.yaml   — governance policy stub
      drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
      README.md          — authoring quickstart
 
+ With ``--template``, copies the full template tree (minus
+ ``.templateignore``),
+ substitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under
+ *pack-path*.
+
  Refuses to overwrite an existing directory unless ``--force`` is passed.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the directory to initialise as an org      │
-│                           doctrine pack.                                     │
+│ *    pack_path      PATH  Destination directory for the scaffold or rendered │
+│                           doctrine tree.                                     │
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force            Overwrite an existing pack directory.                     │
-│ --help   -h        Show this message and exit.                               │
+│ --force                     Overwrite an existing pack directory.            │
+│ --template            TEXT  Local template directory or git URL (HTTPS/SSH;  │
+│                             optional #branch). When omitted, scaffolds the   │
+│                             minimal three-file pack.                         │
+│ --org-name            TEXT  Validated org/pack identity for {{ORG_NAME}}     │
+│                             (required with --template).                      │
+│ --local-path          TEXT  Value for {{LOCAL_PATH}} (default: pack).        │
+│                             Distinct from PACK_PATH.                         │
+│ --branch              TEXT  Git ref when --template is a git URL (may also   │
+│                             be encoded in TEMPLATE).                         │
+│ --help        -h            Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2092,24 +2106,38 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 ```
  Usage: spec-kitty doctrine org init [OPTIONS] PACK_PATH
 
- Scaffold a minimal org doctrine pack skeleton (FR-006).
+ Scaffold a minimal org pack or render from a template.
 
- Creates three files under *pack-path*::
+ Without ``--template``, creates three files under *pack-path*::
 
      org-charter.yaml   — governance policy stub
      drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
      README.md          — authoring quickstart
 
+ With ``--template``, copies the full template tree (minus
+ ``.templateignore``),
+ substitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under
+ *pack-path*.
+
  Refuses to overwrite an existing directory unless ``--force`` is passed.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the directory to initialise as an org      │
-│                           doctrine pack.                                     │
+│ *    pack_path      PATH  Destination directory for the scaffold or rendered │
+│                           doctrine tree.                                     │
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force            Overwrite an existing pack directory.                     │
-│ --help   -h        Show this message and exit.                               │
+│ --force                     Overwrite an existing pack directory.            │
+│ --template            TEXT  Local template directory or git URL (HTTPS/SSH;  │
+│                             optional #branch). When omitted, scaffolds the   │
+│                             minimal three-file pack.                         │
+│ --org-name            TEXT  Validated org/pack identity for {{ORG_NAME}}     │
+│                             (required with --template).                      │
+│ --local-path          TEXT  Value for {{LOCAL_PATH}} (default: pack).        │
+│                             Distinct from PACK_PATH.                         │
+│ --branch              TEXT  Git ref when --template is a git URL (may also   │
+│                             be encoded in TEMPLATE).                         │
+│ --help        -h            Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
