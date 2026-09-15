@@ -52,6 +52,27 @@ def test_pipeline_happy_path(tmp_path: Path) -> None:
     assert not (dest / ".git").exists()
 
 
+def test_pipeline_returns_structured_error_for_non_utf8_templateignore(tmp_path: Path) -> None:
+    """A non-UTF-8 `.templateignore` surfaces a rule-id'd PipelineError, not a raw traceback."""
+    tpl = tmp_path / "tpl"
+    tpl.mkdir()
+    _make_template(tpl)
+    (tpl / ".templateignore").write_bytes(b"\xff\xfe invalid utf-8 bytes\n")
+    dest = tmp_path / "out"
+
+    err = render_org_pack(
+        RenderRequest(
+            pack_path=dest,
+            template=str(tpl),
+            org_name="acme-corp",
+            force=False,
+        )
+    )
+    assert err is not None
+    assert err.rule_id == "ignore_rules.templateignore_decode"
+    assert not dest.exists()
+
+
 def test_pipeline_rejects_invalid_org_before_write(tmp_path: Path) -> None:
     tpl = tmp_path / "tpl"
     tpl.mkdir()

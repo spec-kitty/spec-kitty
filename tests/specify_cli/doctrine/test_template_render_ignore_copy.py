@@ -8,6 +8,7 @@ import pytest
 
 from specify_cli.doctrine.template_render.ignore_copy import (
     BUILT_IN_EXCLUDES,
+    TemplateIgnoreDecodeError,
     copy_template_tree,
     load_ignore_rules,
 )
@@ -86,6 +87,16 @@ def test_built_in_excludes_drop_templateignore_even_if_present(tmp_path: Path) -
     assert (dest / "ok.txt").is_file()
     assert not (dest / ".git").exists()
     assert not (dest / ".templateignore").exists()
+
+
+def test_load_ignore_rules_raises_structured_error_for_non_utf8_templateignore(tmp_path: Path) -> None:
+    """A non-UTF-8 `.templateignore` fails closed with a rule-id'd error, not a raw UnicodeDecodeError."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / ".templateignore").write_bytes(b"\xff\xfe invalid utf-8 bytes\n")
+
+    with pytest.raises(TemplateIgnoreDecodeError):
+        load_ignore_rules(src)
 
 
 def test_copy_skips_symlink_to_host_secret(tmp_path: Path) -> None:

@@ -13,6 +13,15 @@ BUILT_IN_EXCLUDES: tuple[str, ...] = (".git", ".git/", ".templateignore")
 TEMPLATEIGNORE_NAME = ".templateignore"
 
 
+class TemplateIgnoreDecodeError(OSError):
+    """``.templateignore`` exists but is not valid UTF-8.
+
+    Subclasses ``OSError`` so callers that only guard the generic I/O path
+    still fail closed; the pipeline additionally catches this type by name
+    to attach a dedicated, rule-id'd error instead of a generic one.
+    """
+
+
 @dataclass(frozen=True, slots=True)
 class IgnoreRules:
     """Compiled ignore patterns for template copy."""
@@ -30,7 +39,11 @@ def load_ignore_rules(template_root: Path) -> IgnoreRules:
     patterns: list[str] = list(BUILT_IN_EXCLUDES)
     ignore_file = template_root / TEMPLATEIGNORE_NAME
     if ignore_file.is_file():
-        for raw in ignore_file.read_text(encoding="utf-8").splitlines():
+        try:
+            raw_text = ignore_file.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            raise TemplateIgnoreDecodeError(f"'.templateignore' is not valid UTF-8: {exc}") from exc
+        for raw in raw_text.splitlines():
             line = raw.strip()
             if not line or line.startswith("#"):
                 continue

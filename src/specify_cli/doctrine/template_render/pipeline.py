@@ -18,6 +18,7 @@ from specify_cli.doctrine.template_render import (
     validate_org_name,
 )
 from specify_cli.doctrine.template_render.ignore_copy import (
+    TemplateIgnoreDecodeError,
     copy_template_tree,
     load_ignore_rules,
 )
@@ -31,6 +32,7 @@ RULE_DEST_EXISTS = "pack_path.exists"
 RULE_TEMPLATE_REQUIRED = "template.required"
 RULE_SOURCE_MISSING = "pipeline.source_missing"
 RULE_INSTALL_EXISTS = "pipeline.dest_exists"
+RULE_TEMPLATEIGNORE_DECODE = "ignore_rules.templateignore_decode"
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,6 +101,11 @@ def render_org_pack(request: RenderRequest) -> PipelineError | None:
         install_err = _install_staging(staging, pack_path, force=request.force)
         if install_err is not None:
             return install_err
+    except TemplateIgnoreDecodeError as exc:
+        return PipelineError(
+            rule_id=RULE_TEMPLATEIGNORE_DECODE,
+            message=f"Template render failed ({RULE_TEMPLATEIGNORE_DECODE}): {exc}",
+        )
     except OSError as exc:
         return PipelineError(
             rule_id="pipeline.copy",
