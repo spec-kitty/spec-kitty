@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-15T10:49:25.463081Z",
+      "decision_id": "01M2JAZ56Q8TJPT9RCM9P6J1SR",
+      "final_answer": "Confirm as scoped: four fixes #4360-B/#4454/#4208/#4212; cluster + #4374/#4420/#4429 out of scope; invariant no fix widens the green path.",
+      "input_key": "intent_summary_confirmed",
+      "mission_id": "01M2JAXXYTKDYQB74FCF8YZR8P",
+      "mission_slug": "ci-honesty-actionable-fixes-01M2JAXX",
+      "opened_by": "cli",
+      "options": [
+        "Confirm as scoped",
+        "Adjust scope"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm the Intent Summary for the CI Pipeline Honesty mission: bundle four settled, independently-safe fixes (#4360-B diff-scoped shard reconciler, #4454 tests-only routing, #4208 timeout-vs-cancel classification, #4212 nightly failure-swallow); cluster #4347/#4371/#4360-A/#4430 and #4374/#4420 are out of scope; invariant = no fix may widen the green path (ADR 2026-07-17-1).",
+      "rationale": null,
+      "resolved_at": "2026-09-15T11:34:39.878939Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.intent-summary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M2JAXXYTKDYQB74FCF8YZR8P",
+  "version": 1
+}

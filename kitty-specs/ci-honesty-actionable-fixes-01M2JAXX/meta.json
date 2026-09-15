@@ -1,0 +1,42 @@
+{
+  "accept_commit": "23b4ba21f32acceb0e514b9c48a430e8a88bbc5b",
+  "acceptance_history": [
+    {
+      "accept_commit": "57beb3753e8b9553ed532142e88c921a3a100637",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-15T13:29:03.798909+00:00",
+      "accepted_by": "orchestrator",
+      "accepted_from_commit": "dc65551df1e899ecfd849f2f597e8df25e6d0c59"
+    },
+    {
+      "accept_commit": "23b4ba21f32acceb0e514b9c48a430e8a88bbc5b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-15T13:29:22.194259+00:00",
+      "accepted_by": "orchestrator",
+      "accepted_from_commit": "70556ae02a48be3dc2cdbb53a2b6df4146763397"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-15T13:29:22.194259+00:00",
+  "accepted_by": "orchestrator",
+  "accepted_from_commit": "70556ae02a48be3dc2cdbb53a2b6df4146763397",
+  "baseline_merge_commit": "1d47922ecabb83fd0c7c9b57c3ca0ec08ac5decc",
+  "created_at": "2026-09-15T10:48:45.291133+00:00",
+  "flattened": true,
+  "friendly_name": "CI Pipeline Honesty — Actionable Fixes",
+  "merged_at": "2026-09-15T13:31:46.193134+00:00",
+  "merged_commit": "5616346e60810a82bc088de78c733f5ae6a01895",
+  "mid8": "01M2JAXX",
+  "mission_id": "01M2JAXXYTKDYQB74FCF8YZR8P",
+  "mission_number": null,
+  "mission_slug": "ci-honesty-actionable-fixes-01M2JAXX",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty's agent fleet relies on CI as the release authority — green must mean actually-proven and red must mean a real regression (ADR 2026-07-17-1). This mission fixes four independent, settled cases from epic #4437 where that contract breaks today: (1) a diff-scoped PR whose selected shards all pass is falsely failed by the aggregate expecting all registry shards (#4360-B); (2) a tests-only change runs none of its own tests yet reports green (#4454); (3) timeout-killed jobs are indistinguishable from external cancellations at the router gate (#4208); (4) the nightly suite swallows real failures and reports green (#4212). No fix may widen the green path. The coupled main-tip fan-out cluster (#4347/#4371/#4360-A/#4430) is out of scope, handled via a separate design ADR.",
+  "purpose_tldr": "Make CI verdicts honest: close four settled cases where the pipeline reports green work as red, or leaves real failures unrun or unreported.",
+  "slug": "ci-honesty-actionable-fixes-01M2JAXX",
+  "status_phase": "1",
+  "target_branch": "fix/ci-honesty-actionable-fixes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-15T12:05:01.114727+00:00"
+}
