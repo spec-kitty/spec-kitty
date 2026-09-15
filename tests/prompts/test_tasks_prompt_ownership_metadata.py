@@ -26,6 +26,25 @@ _TASKS_PROMPT_SURFACES = (
     / "command-templates"
     / "tasks.md",
 )
+_STAGED_TASKS_PROMPT_SURFACES = (
+    _REPO_ROOT
+    / "packs"
+    / "built-in"
+    / "missions"
+    / "mission-steps"
+    / "software-dev"
+    / "tasks-outline"
+    / "prompt.md",
+    _REPO_ROOT
+    / "packs"
+    / "built-in"
+    / "missions"
+    / "mission-steps"
+    / "software-dev"
+    / "tasks-packages"
+    / "prompt.md",
+)
+_OWNERSHIP_RULE_PROMPT_SURFACES = _TASKS_PROMPT_SURFACES + _STAGED_TASKS_PROMPT_SURFACES
 _TASK_PROMPT_TEMPLATE = (
     _REPO_ROOT
     / "packs"
@@ -92,7 +111,7 @@ def test_tasks_prompt_prevents_duplicate_create_intent_stubs(prompt_path: Path) 
 # finalize-tasks round-trip (#3934).
 
 
-@pytest.mark.parametrize("prompt_path", _TASKS_PROMPT_SURFACES, ids=lambda path: path.as_posix())
+@pytest.mark.parametrize("prompt_path", _OWNERSHIP_RULE_PROMPT_SURFACES, ids=_repo_relative_id)
 def test_tasks_prompt_states_kitty_specs_ban_for_code_change_wps(prompt_path: Path) -> None:
     text = prompt_path.read_text(encoding="utf-8")
 
@@ -104,7 +123,7 @@ def test_tasks_prompt_states_kitty_specs_ban_for_code_change_wps(prompt_path: Pa
     assert "must NOT list any `kitty-specs/` path" in text
 
 
-@pytest.mark.parametrize("prompt_path", _TASKS_PROMPT_SURFACES, ids=lambda path: path.as_posix())
+@pytest.mark.parametrize("prompt_path", _OWNERSHIP_RULE_PROMPT_SURFACES, ids=_repo_relative_id)
 def test_tasks_prompt_states_planning_artifact_confinement(prompt_path: Path) -> None:
     text = prompt_path.read_text(encoding="utf-8")
 
@@ -117,7 +136,7 @@ def test_tasks_prompt_states_planning_artifact_confinement(prompt_path: Path) ->
     assert "not exempt" in text
 
 
-@pytest.mark.parametrize("prompt_path", _TASKS_PROMPT_SURFACES, ids=lambda path: path.as_posix())
+@pytest.mark.parametrize("prompt_path", _OWNERSHIP_RULE_PROMPT_SURFACES, ids=_repo_relative_id)
 def test_tasks_prompt_states_where_per_wp_design_notes_go(prompt_path: Path) -> None:
     text = prompt_path.read_text(encoding="utf-8")
 

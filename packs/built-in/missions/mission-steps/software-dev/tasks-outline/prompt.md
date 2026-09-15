@@ -174,7 +174,7 @@ work_packages:
 - `id`: Work package identifier (`WP01`, `WP02`, …)
 - `title`: Short human-readable name
 - `dependencies`: List of WP IDs this WP depends on. `[]` = explicitly no deps (authoritative); if the key is **absent**, `tasks-packages` may fill it based on analysis.
-- `owned_files`: Glob patterns for files this WP touches — no two WPs may overlap.
+- `owned_files`: Glob patterns for files this WP touches — no two WPs may overlap. A `code_change` WP must NOT list any `kitty-specs/` path here (see the staged ownership rule below).
 - `requirement_refs`: Requirement IDs from `spec.md` (FR/NFR/C) addressed by this WP.
 - `plan_concern_refs`: Implementation concern IDs from `plan.md` (IC-##) addressed by this WP. Use `cross_cutting: true` instead if the WP is shared infrastructure with no specific concern.
 - `cross_cutting`: Set to `true` for infrastructure WPs that span all concerns and have no specific IC-## ref.
@@ -182,6 +182,11 @@ work_packages:
 - `prompt_file`: Relative path (from `feature_dir`) to the WP prompt file — set by `tasks-packages` in the next step.
 
 **IMPORTANT**: Leave `prompt_file` as `null` or omit it — `tasks-packages` fills this field.
+
+**Staged ownership rule**:
+- A `code_change` WP must NOT list any `kitty-specs/` path in `owned_files` — `finalize-tasks --validate-only` rejects it with `INVALID_WP_OWNED_FILES_KITTY_SPECS`.
+- The only exemption is a `planning_artifact` WP whose **every** `owned_files` entry is confined to `kitty-specs/` or `docs/`. A planning WP that also owns a `src/`, `tests/`, or any other non-planning path is not exempt and is rejected the same way.
+- Per-WP design notes, plan-marker edits, and other `kitty-specs/` deliverables belong in their own separate confined `planning_artifact` WP. Split a mixed WP into a planning WP plus a code WP rather than mixing the two ownership kinds.
 
 ### 6. Analyze Dependencies
 
