@@ -417,16 +417,10 @@ class TestIncludeMalformed:
 
         bad_dir = missions_root / "malformed-01KQ0000AAAAAAAAAAAAAAAA0"
         bad_dir.mkdir()
-        (bad_dir / "retrospective.yaml").write_text(
-            "{ not valid yaml: [unclosed\n", encoding="utf-8"
-        )
+        (bad_dir / "retrospective.yaml").write_text("{ not valid yaml: [unclosed\n", encoding="utf-8")
 
-        result_without = RUNNER.invoke(
-            app, ["--project", str(tmp_path)]
-        )
-        result_with = RUNNER.invoke(
-            app, ["--project", str(tmp_path), "--include-malformed"]
-        )
+        result_without = RUNNER.invoke(app, ["--project", str(tmp_path)])
+        result_with = RUNNER.invoke(app, ["--project", str(tmp_path), "--include-malformed"])
         assert result_without.exit_code == 0
         assert result_with.exit_code == 0
 
@@ -440,18 +434,14 @@ class TestIncludeMalformed:
 
         bad_dir = missions_root / "malformed-01KQ0000AAAAAAAAAAAAAAAA1"
         bad_dir.mkdir()
-        (bad_dir / "retrospective.yaml").write_text(
-            "{ not valid yaml: [unclosed\n", encoding="utf-8"
-        )
+        (bad_dir / "retrospective.yaml").write_text("{ not valid yaml: [unclosed\n", encoding="utf-8")
 
-        json_result = RUNNER.invoke(
-            app, ["--project", str(tmp_path), "--json"]
-        )
+        json_result = RUNNER.invoke(app, ["--project", str(tmp_path), "--json"])
         assert json_result.exit_code == 0
         snap = json.loads(json_result.output)["result"]
         assert len(snap["malformed"]) == 1
         assert snap["malformed"][0]["reason"]  # non-empty reason
-        assert snap["malformed"][0]["path"]    # non-empty path
+        assert snap["malformed"][0]["path"]  # non-empty path
 
 
 # ---------------------------------------------------------------------------
@@ -489,9 +479,7 @@ class TestForceColorJson:
         src_root = Path(specify_cli.__file__).resolve().parents[1]
         env = {
             **os.environ,
-            "PYTHONPATH": os.pathsep.join(
-                [str(src_root), os.environ.get("PYTHONPATH", "")]
-            ).rstrip(os.pathsep),
+            "PYTHONPATH": os.pathsep.join([str(src_root), os.environ.get("PYTHONPATH", "")]).rstrip(os.pathsep),
             "FORCE_COLOR": "3",
             "TERM": "xterm-256color",
         }
@@ -503,9 +491,7 @@ class TestForceColorJson:
             timeout=120,
         )
         assert proc.returncode == 0, proc.stderr
-        assert "\x1b" not in proc.stdout, (
-            f"ANSI escapes spliced into --json output: {proc.stdout[:120]!r}"
-        )
+        assert "\x1b" not in proc.stdout, f"ANSI escapes spliced into --json output: {proc.stdout[:120]!r}"
         data = json.loads(proc.stdout)
         assert data["schema_version"] == "1"
         assert data["command"] == "retrospect.summary"

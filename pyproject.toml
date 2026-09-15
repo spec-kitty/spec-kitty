@@ -1973,7 +1973,6 @@ exclude = [
     "tests/retrospective/test_retrospective_content.py",
     "tests/retrospective/test_retrospective_durable_home_coord.py",
     "tests/retrospective/test_schema_roundtrip.py",
-    "tests/retrospective/test_summary_cli.py",
     "tests/retrospective/test_summary_tolerance.py",
     "tests/retrospective/test_writer.py",
     "tests/retrospective/test_writer_atomicity.py",
