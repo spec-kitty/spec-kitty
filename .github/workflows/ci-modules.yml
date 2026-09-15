@@ -160,8 +160,7 @@ jobs:
           files_json="[]"
           outcome="failure"
           if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ]; then
-            diff_output="$(git diff --name-only "$base" "$HEAD_SHA" 2>/dev/null)"
-            if [ "$?" -eq 0 ]; then
+            if diff_output="$(git diff --name-only "$base" "$HEAD_SHA" 2>/dev/null)"; then
               files_json="$(printf '%s\n' "$diff_output" | python3 -c "import json, sys; print(json.dumps([line for line in sys.stdin.read().splitlines() if line]))")"
               outcome="success"
             fi

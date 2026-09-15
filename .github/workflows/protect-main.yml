@@ -186,6 +186,6 @@ jobs:
             echo "## Reference"
             echo ""
             echo "📖 [Release Checklist](https://github.com/${{ github.repository }}/blob/main/RELEASE_CHECKLIST.md)"
-          } >> $GITHUB_STEP_SUMMARY
+          } >> "$GITHUB_STEP_SUMMARY"
 
           exit 1

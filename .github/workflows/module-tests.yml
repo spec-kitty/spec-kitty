@@ -142,9 +142,11 @@ jobs:
           idx="${shard%%/*}"
           total="${shard##*/}"
           slug="${idx}-of-${total}"
-          echo "idx=$idx" >> "$GITHUB_OUTPUT"
-          echo "total=$total" >> "$GITHUB_OUTPUT"
-          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+          {
+            echo "idx=$idx"
+            echo "total=$total"
+            echo "slug=$slug"
+          } >> "$GITHUB_OUTPUT"
           echo "module-tests: roots for $MODULE = $ROOTS"
           # Ownership declaration, logged for traceability only — the pytest
           # step measures the full top-level package set regardless (WP01,
