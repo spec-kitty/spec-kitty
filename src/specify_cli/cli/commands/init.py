@@ -50,7 +50,7 @@ from specify_cli.provisioning.default_charter import (
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 from specify_cli.skills.installer import install_skills_for_agent
 from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
-from specify_cli.skills.registry import SkillRegistry
+from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 
 # Module-level variables to hold injected dependencies
 _console: Console | None = None
@@ -67,9 +67,7 @@ _EVENT_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-
 # coord-write-placement-closure-01KYCF83 WP06: decisions.events.jsonl reuses
 # the SAME event-log union driver (structurally identical append-only JSONL
 # envelope) -- see specify_cli/lanes/merge.py's _MERGE_DRIVERS comment.
-_DECISION_LOG_GITATTRIBUTES_ENTRY = (
-    "kitty-specs/**/decisions.events.jsonl merge=spec-kitty-event-log"
-)
+_DECISION_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/decisions.events.jsonl merge=spec-kitty-event-log"
 # C-006 (#2709): the meta.json field-merge and traces union drivers register on
 # the same surfaces as the event-log driver.
 _META_GITATTRIBUTES_ENTRY = "kitty-specs/**/meta.json merge=spec-kitty-meta"
@@ -77,9 +75,7 @@ _TRACES_GITATTRIBUTES_ENTRY = "kitty-specs/**/traces/*.md merge=spec-kitty-trace
 # C-006 (#2804): the coord gate artifacts are filled on the target at accept time
 # and scaffolded on the mission branch, so the squash integration needs a driver
 # to keep the filled side instead of letting `-X theirs` win.
-_ACCEPTANCE_MATRIX_GITATTRIBUTES_ENTRY = (
-    "kitty-specs/**/acceptance-matrix.json merge=spec-kitty-acceptance-matrix"
-)
+_ACCEPTANCE_MATRIX_GITATTRIBUTES_ENTRY = "kitty-specs/**/acceptance-matrix.json merge=spec-kitty-acceptance-matrix"
 # WP11 (FR-008): repointed from issue-matrix.md -- WP05 migrated the canonical
 # artifact to structured JSON (C-008); the .md pattern is inert on new repos.
 _ISSUE_MATRIX_GITATTRIBUTES_ENTRY = "kitty-specs/**/issue-matrix.json merge=spec-kitty-issue-matrix"
@@ -89,9 +85,7 @@ _ISSUE_MATRIX_GITATTRIBUTES_ENTRY = "kitty-specs/**/issue-matrix.json merge=spec
 # keeps a genuine two-verdict collision from being clobbered by `-X theirs`.
 # Filename-anchored (never `tasks/*.md`), so `tasks/<wp>/baseline-tests.json`
 # and `tasks/WP*.md` are unaffected.
-_REVIEW_CYCLE_GITATTRIBUTES_ENTRY = (
-    "kitty-specs/**/tasks/*/review-cycle-*.md merge=spec-kitty-review-cycle"
-)
+_REVIEW_CYCLE_GITATTRIBUTES_ENTRY = "kitty-specs/**/tasks/*/review-cycle-*.md merge=spec-kitty-review-cycle"
 _COMMAND_SKILL_AGENTS = {"codex", "vibe", "pi", "letta"}
 _PENDING_COMMAND_SKILLS = ".kittify/init-command-skills.pending.json"
 
@@ -162,44 +156,27 @@ def _install_command_skill_agents(project: Path, agents: list[str]) -> bool:
 
 def _repair_requested_command_skills(project: Path, agents: list[str]) -> bool:
     """Restore clone-local command skills for explicitly requested agents."""
-    data = YAML(typ="safe").load(
-        (project / ".kittify/config.yaml").read_text(encoding="utf-8")
-    )
-    configured_agents = (
-        data.get("agents", {}).get("available") if isinstance(data, dict) else None
-    )
+    data = YAML(typ="safe").load((project / ".kittify/config.yaml").read_text(encoding="utf-8"))
+    configured_agents = data.get("agents", {}).get("available") if isinstance(data, dict) else None
     if not isinstance(configured_agents, list):
         return False
-    command_agents = [
-        agent
-        for agent in agents
-        if agent in _COMMAND_SKILL_AGENTS and agent in configured_agents
-    ]
+    command_agents = [agent for agent in agents if agent in _COMMAND_SKILL_AGENTS and agent in configured_agents]
     if not command_agents:
         return False
 
     from specify_cli.skills.command_installer import CANONICAL_COMMANDS
 
     skills_root = project / ".agents" / "skills"
-    missing = any(
-        not (skills_root / f"spec-kitty.{command}" / "SKILL.md").is_file()
-        for command in CANONICAL_COMMANDS
-    )
+    missing = any(not (skills_root / f"spec-kitty.{command}" / "SKILL.md").is_file() for command in CANONICAL_COMMANDS)
     if not missing:
         return False
 
     protected = GitignoreManager(project).protect_all_agents()
     if not protected.success:
-        raise ValueError(
-            "Cannot repair command delivery: " + "; ".join(protected.errors)
-        )
-    _console.print(
-        "[yellow]Restoring missing command skills for this initialized clone.[/yellow]"
-    )
+        raise ValueError("Cannot repair command delivery: " + "; ".join(protected.errors))
+    _console.print("[yellow]Restoring missing command skills for this initialized clone.[/yellow]")
     if not _install_command_skill_agents(project, command_agents):
-        raise ValueError(
-            "Command-skill repair remains incomplete; resolve the reported collision or error"
-        )
+        raise ValueError("Command-skill repair remains incomplete; resolve the reported collision or error")
     return True
 
 
@@ -223,6 +200,126 @@ def _resume_command_delivery(project: Path) -> bool:
         raise ValueError("Command delivery remains incomplete; resolve the reported collision or error before retrying init")
     _finish_command_delivery(project, pending)
     return True
+
+
+def _validated_agent_selection(requested: str | None, configured: list[str]) -> list[str]:
+    """Resolve the --ai selection against authored configuration, fail closed."""
+    selected = list(dict.fromkeys(part.strip().lower() for part in requested.replace(";", ",").split(",") if part.strip())) if requested is not None else configured
+    if requested is not None and (not selected or any(agent not in AI_CHOICES for agent in selected)):
+        raise ValueError("Invalid --ai selection; choose from: " + ", ".join(AI_CHOICES))
+    unconfigured = [agent for agent in selected if agent not in configured]
+    if unconfigured:
+        raise ValueError("Requested agents are not configured. Run: spec-kitty agent config add " + " ".join(unconfigured))
+    return selected
+
+
+def _check_initialized_command_skills(project: Path, requested: str | None) -> list[str]:
+    """Diagnose clone-local delivery gaps without rewriting initialized projects."""
+    from specify_cli.skills.command_installer import CANONICAL_COMMANDS
+    from specify_cli.skills.paths import skill_path_observations
+
+    selected = _validated_agent_selection(requested, load_agent_config(project).available)
+    if not _COMMAND_SKILL_AGENTS.intersection(selected):
+        return selected
+    missing = []
+    for command in CANONICAL_COMMANDS:
+        path = project / f".agents/skills/spec-kitty.{command}/SKILL.md"
+        observations = skill_path_observations(project, path)
+        if observations[-1].state.kind != "file" or path.stat().st_size == 0:
+            missing.append(command)
+    if missing:
+        raise ValueError(
+            "Configured agent command skills are missing or empty: " + ", ".join(missing) + ". Run: spec-kitty agent config sync --create-missing --keep-orphaned"
+        )
+    return selected
+
+
+def _native_skill_gap(project: Path, root: str, skills: list[CanonicalSkill]) -> tuple[list[str], list[str]]:
+    """Classify the expected native surface into absent and unusable names.
+
+    A usable ``SKILL.md`` is a non-empty regular file. Anything else that is
+    present (empty file, directory, symlink) is user content: it is reported,
+    never overwritten (#4425 acceptance 3).
+    """
+    from specify_cli.skills.paths import skill_path_observations
+
+    absent: list[str] = []
+    unusable: list[str] = []
+    for skill in skills:
+        path = project / root / skill.name / "SKILL.md"
+        observations = skill_path_observations(project, path)
+        kind = observations[-1].state.kind
+        if kind == "absent":
+            absent.append(skill.name)
+        elif kind != "file" or path.stat().st_size == 0:
+            unusable.append(f"{root}/{skill.name}/SKILL.md")
+    return absent, unusable
+
+
+def _restore_native_project_skills(project: Path, agents: list[str]) -> None:
+    """Finish clone-local delivery for NATIVE-root agents through the canonical installer.
+
+    A clone carries tracked ``.kittify/`` but not the gitignored per-agent skill
+    roots (``.claude/skills/`` etc.) that fresh init installs through
+    ``install_skills_for_agent``; no ``agent config`` path re-delivers them
+    (#4425 acceptance 2). The restore is additive only: absent skills are
+    reinstalled from the packaged registry, while existing files — user-edited,
+    third-party, or drifted — are preserved untouched (acceptance 3). The
+    complete expected surface is verified both when nothing needs installation
+    and after restoration, so an unusable existing file (empty, a directory, or
+    a symlink) fails explicitly with its path instead of reporting verified.
+    """
+    from specify_cli import __version__ as _sk_version
+    from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_NATIVE
+    from specify_cli.skills.manifest import load_manifest
+    from specify_cli.skills.paths import get_primary_project_skill_root
+
+    native = [agent for agent in agents if (AGENT_SKILL_CONFIG.get(agent) or {}).get("class") == SKILL_CLASS_NATIVE]
+    if not native:
+        return
+    skills = SkillRegistry.from_package().discover_skills()
+    if not skills:
+        raise ValueError("No packaged skills found to restore for: " + ", ".join(native))
+    pending: dict[str, tuple[str, list[str]]] = {}
+    unusable: list[str] = []
+    for agent in native:
+        root = get_primary_project_skill_root(agent)
+        assert root is not None
+        absent, broken = _native_skill_gap(project, root, skills)
+        unusable.extend(broken)
+        if absent:
+            pending[agent] = (root, absent)
+    if unusable:
+        raise ValueError(
+            "Existing agent skill files are unusable and were left untouched: "
+            + ", ".join(unusable)
+            + ". Rename or remove the affected files, then re-run: spec-kitty init --ai "
+            + ",".join(native)
+        )
+    if not pending:
+        return
+    assert _console is not None
+    protected = GitignoreManager(project).protect_all_agents()
+    if not protected.success:
+        raise ValueError("Cannot restore missing agent skills: " + "; ".join(protected.errors))
+    for agent, (root, absent) in pending.items():
+        entries = install_skills_for_agent(project, agent, skills)
+        manifest = load_manifest(project)
+        if manifest is None:
+            _now_iso = now_utc_iso()
+            manifest = ManagedSkillManifest(created_at=_now_iso, updated_at=_now_iso, spec_kitty_version=_sk_version)
+        for entry in entries:
+            manifest.add_entry(entry)
+        save_manifest(manifest, project)
+        # Post-install verification covers the complete expected surface, not
+        # only the previously-absent names, so a write that landed unusable
+        # (or one that never landed) is caught here.
+        undelivered, still_broken = _native_skill_gap(project, root, skills)
+        if still_broken:
+            raise ValueError(f"Skill restoration for {agent} delivered unusable files: " + ", ".join(still_broken))
+        if undelivered:
+            raise ValueError(f"Skill restoration for {agent} did not deliver: " + ", ".join(undelivered))
+        _console.print(f"[green]{AI_CHOICES[agent]}:[/green] restored {len(absent)} missing skills into {root} (existing files preserved)")
 
 
 _GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
@@ -504,9 +601,7 @@ def _resolve_mission_command_templates_dir(
     for candidate_dir in candidate_dirs:
         if not candidate_dir.is_dir():
             continue
-        template_names.update(
-            path.name for path in candidate_dir.glob("*.md") if path.is_file()
-        )
+        template_names.update(path.name for path in candidate_dir.glob("*.md") if path.is_file())
 
     scratch_base = scratch_parent or (project_path / ".kittify")
     resolved_dir = scratch_base / f".resolved-command-templates-{mission}"
@@ -522,12 +617,6 @@ def _resolve_mission_command_templates_dir(
         shutil.copy2(resolved.path, resolved_dir / template_name)
 
     return resolved_dir
-
-
-
-
-
-
 
 
 # =============================================================================
@@ -585,11 +674,7 @@ def _workflow_lines_for_agent(agent_key: str) -> tuple[str, list[str]]:
             ("tasks", "create work packages"),
         ]
 
-    return heading, [
-        f"[cyan]{_agent_command_token(agent_key, command)}[/] ({description})"
-        for command, description in commands
-    ]
-
+    return heading, [f"[cyan]{_agent_command_token(agent_key, command)}[/] ({description})" for command, description in commands]
 
 
 def _detect_default_vcs() -> VCSBackend:
@@ -721,15 +806,9 @@ def init(  # noqa: C901
 
     selected_agents_from_option: list[str] | None = None
     if ai_assistant:
-        raw_agents = [
-            part.strip().lower()
-            for part in ai_assistant.replace(";", ",").split(",")
-            if part.strip()
-        ]
+        raw_agents = [part.strip().lower() for part in ai_assistant.replace(";", ",").split(",") if part.strip()]
         if not raw_agents:
-            _console.print(
-                "[red]Error:[/red] --ai flag did not contain any valid agent identifiers"
-            )
+            _console.print("[red]Error:[/red] --ai flag did not contain any valid agent identifiers")
             raise typer.Exit(1)
         selected_agents_from_option = []
         seen_agents: set[str] = set()
@@ -742,34 +821,37 @@ def init(  # noqa: C901
                 selected_agents_from_option.append(key)
                 seen_agents.add(key)
         if invalid_agents:
-            _console.print(
-                f"[red]Error:[/red] Invalid AI assistant(s): {', '.join(invalid_agents)}. "
-                f"Choose from: {', '.join(AI_CHOICES.keys())}"
-            )
+            _console.print(f"[red]Error:[/red] Invalid AI assistant(s): {', '.join(invalid_agents)}. Choose from: {', '.join(AI_CHOICES.keys())}")
             raise typer.Exit(1)
 
     # T004 — Idempotency check: exit 0 cleanly if already initialized.
     # This prevents silent re-init and makes CI-driven init safe to re-run.
+    # #4425: a re-run also verifies the requested agents' managed surfaces —
+    # command-skill gaps are diagnosed (exit 1 with the recovery command),
+    # NATIVE-root gaps are restored additively through the canonical installer.
     _config_yaml = project_path / ".kittify" / "config.yaml"
     if _config_yaml.exists():
         try:
             resumed = _resume_command_delivery(project_path)
+            if not resumed:
+                if selected_agents_from_option:
+                    _repair_requested_command_skills(project_path, selected_agents_from_option)
+                selected = _check_initialized_command_skills(project_path, ai_assistant)
+                _restore_native_project_skills(project_path, selected)
         except (OSError, ValueError, AgentConfigError) as exc:
             _console.print(f"[red]Initialization incomplete:[/red] {exc}")
             raise typer.Exit(1) from exc
         if resumed:
             raise typer.Exit(0)
-        try:
-            if selected_agents_from_option and _repair_requested_command_skills(
-                project_path, selected_agents_from_option
-            ):
-                raise typer.Exit(0)
-        except (OSError, ValueError, AgentConfigError) as exc:
-            _console.print(f"[red]Initialization incomplete:[/red] {exc}")
-            raise typer.Exit(1) from exc
         _console.print(
             Panel(
                 "[yellow]Already initialized.[/yellow]\n"
+                "Agent skill surfaces were verified on this re-run: missing per-agent\n"
+                "skill roots were restored. A missing or unusable managed surface exits 1\n"
+                "naming the affected paths — shared command skills with the recovery command\n"
+                "[cyan]spec-kitty agent config sync --create-missing --keep-orphaned[/cyan];\n"
+                "an unusable per-agent skill file is preserved untouched, so rename or\n"
+                "remove it and re-run init.\n"
                 "Run [cyan]spec-kitty upgrade[/cyan] to migrate to the latest version.",
                 title="[yellow]Already Initialized[/yellow]",
                 border_style="yellow",
@@ -948,9 +1030,7 @@ def init(  # noqa: C901
                                 # `except Exception` translate it via
                                 # tracker.error(...) + re-raise, same as before.
                                 if local_repo is None:
-                                    raise RuntimeError(
-                                        "local_repo must be set when template_mode is 'local'"
-                                    )
+                                    raise RuntimeError("local_repo must be set when template_mode is 'local'")
                                 copy_specify_base_from_local(local_repo, project_path)
                             else:
                                 copy_specify_base_from_package(project_path)
@@ -1040,9 +1120,7 @@ def init(  # noqa: C901
                 if result.entries_skipped:
                     _console.print(f"  ({len(result.entries_skipped)} already protected)")
             elif result.entries_skipped:
-                _console.print(
-                    f"[dim]All {len(result.entries_skipped)} agent directories already in .gitignore[/dim]"
-                )
+                _console.print(f"[dim]All {len(result.entries_skipped)} agent directories already in .gitignore[/dim]")
             for warning in result.warnings:
                 _console.print(f"[yellow]⚠️  {warning}[/yellow]")
             for error in result.errors:
@@ -1149,9 +1227,7 @@ def init(  # noqa: C901
     # FR-005 (#636): when target is not inside a git work tree, make git init
     # a numbered required action. Recompute against the now-existing project_path.
     inside_git = _is_inside_git_work_tree(project_path)
-    steps_lines.append(
-        "Git: [green]ready[/green]" if inside_git else "Git: [yellow]not initialized[/yellow]"
-    )
+    steps_lines.append("Git: [green]ready[/green]" if inside_git else "Git: [yellow]not initialized[/yellow]")
     steps_lines.append("")
     step_num = 1
     if not here:
@@ -1161,9 +1237,7 @@ def init(  # noqa: C901
         steps_lines.append(f"{step_num}. Stay in this project directory.")
         step_num += 1
     if not inside_git:
-        steps_lines.append(
-            f"{step_num}. [yellow]Required:[/yellow] run [cyan]git init[/cyan] here before agent, dashboard, dispatch, next, and implement commands"
-        )
+        steps_lines.append(f"{step_num}. [yellow]Required:[/yellow] run [cyan]git init[/cyan] here before agent, dashboard, dispatch, next, and implement commands")
         step_num += 1
 
     primary_agent = _primary_next_step_agent(selected_agents)
@@ -1171,9 +1245,7 @@ def init(  # noqa: C901
     steps_lines.append(f"{step_num}. {workflow_heading} {' -> '.join(workflow_lines)}")
     step_num += 1
 
-    steps_lines.append(
-        f"{step_num}. Run the mission loop: [cyan]spec-kitty next --agent <agent> --mission <slug>[/cyan]"
-    )
+    steps_lines.append(f"{step_num}. Run the mission loop: [cyan]spec-kitty next --agent <agent> --mission <slug>[/cyan]")
     steps_lines.append("")
     steps_lines.append("[dim]Optional[/dim]")
     steps_lines.append(f"- [cyan]{_agent_command_token(primary_agent, 'charter')}[/cyan] - add project governance when needed")
@@ -1412,7 +1484,6 @@ def init(  # noqa: C901
                     shutil.rmtree(scratch)
                 except Exception:  # noqa: S110
                     pass  # best-effort cleanup
-
 
 
 def register_init_command(

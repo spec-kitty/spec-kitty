@@ -304,8 +304,10 @@ def test_init_preserves_authored_disabled_config(tmp_path: Path, pointed: bool) 
     assert not is_spdd_reasons_active(tmp_path)
     before = snapshot({"project": tmp_path})
     result = run_spec_kitty("init", "--ai", "codex,vibe", "--non-interactive", cwd=tmp_path)
-    assert result.returncode == 0, result.stderr
-    assert "Already initialized" in result.stdout
+    # #4425: report the unconfigured selection, without re-initializing or
+    # changing the user's explicit doctrine/charter choices.
+    assert result.returncode == 1, result.stderr
+    assert "spec-kitty agent config add codex vibe" in " ".join(result.stdout.split())
     assert snapshot({"project": tmp_path}) == before
     assert not is_spdd_reasons_active(tmp_path)
 
@@ -388,7 +390,11 @@ main()
         assert writes[target] == 0
     finished = snapshot({"project": project})
     again = run_process([sys.executable, "-m", "specify_cli", "init", "--ai", agents, "--non-interactive"], project, env)
-    assert again.returncode == 0 and "Already initialized" in again.stdout
+    if authored_after_fault and "vibe" in agents.split(","):
+        assert again.returncode == 1
+        assert "spec-kitty agent config add vibe" in " ".join(again.stdout.split())
+    else:
+        assert again.returncode == 0 and "Already initialized" in again.stdout
     assert_unchanged(finished, snapshot({"project": project}))
 
 
