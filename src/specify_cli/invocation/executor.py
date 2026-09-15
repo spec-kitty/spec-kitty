@@ -495,8 +495,12 @@ class ProfileInvocationExecutor:
         ctx_available = resolution.ctx_available
         bundle = resolution.bundle
 
-        catalog_candidate = recommendation.catalog_candidate if recommendation is not None else None
-        durable_model_id = catalog_candidate.model_id if catalog_candidate is not None else None
+        catalog_candidate = (
+            recommendation.catalog_candidate if recommendation is not None else None
+        )
+        durable_model_id = (
+            catalog_candidate.model_id if catalog_candidate is not None else None
+        )
 
         # 3. Write started record (raises InvocationWriteError on fs failure)
         started_at = now_utc_iso()
@@ -857,9 +861,15 @@ class ProfileInvocationExecutor:
         invocation_id = completed.invocation_id
         path = self._writer.invocation_path(invocation_id)
         try:
-            rows = [_json_mod.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+            rows = [
+                _json_mod.loads(line)
+                for line in path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
         except (OSError, _json_mod.JSONDecodeError) as exc:
-            raise InvocationError(f"Invocation record is unreadable: {invocation_id}") from exc
+            raise InvocationError(
+                f"Invocation record is unreadable: {invocation_id}"
+            ) from exc
         if any(isinstance(row, dict) and row.get("event") == "completed" for row in rows):
             raise AlreadyClosedError(invocation_id)
         if self._doctor_sweep_closed_ids is None:
@@ -977,7 +987,9 @@ class ProfileInvocationExecutor:
                 return branch
         return None
 
-    def _commit_op_record(self, invocation_id: str, *, closed_by: Literal["agent", "doctor_sweep"]) -> OpCommitOutcome:
+    def _commit_op_record(
+        self, invocation_id: str, *, closed_by: Literal["agent", "doctor_sweep"]
+    ) -> OpCommitOutcome:
         """Best-effort git commit for one completed Op record.
 
         Agent closes commit the per-record file; a doctor-sweep close commits
