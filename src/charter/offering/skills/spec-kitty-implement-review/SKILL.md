@@ -60,6 +60,7 @@ the agent's CLI capabilities:
 | Claude Code | `claude` | `claude -p "prompt" --output-format json` | Yes | 1 |
 | GitHub Codex | `codex` | `codex exec --sandbox danger-full-access -C <dir> -` (stdin) | Yes | 1 |
 | Google Gemini | `gemini` | `gemini -p "prompt" --yolo --output-format json` | Yes | 1 |
+| LLxprt Code | `llxprt` | `llxprt -p "prompt" --approval-mode=yolo` | Yes | 1 |
 | GitHub Copilot | `copilot` | `copilot -p "prompt" --yolo --silent` | Yes | 1 |
 | OpenCode | `opencode` | `opencode run "prompt" --format json` | Yes | 1 |
 | Qwen Code | `qwen` | `qwen -p "prompt" --yolo --output-format json` | Yes | 1 |
@@ -288,6 +289,15 @@ The prompt contains all context, acceptance criteria, and review feedback
      (e.g. `"<lint-command> diff-scoped check: 0 issues, exit 0"`).
 - On cycle-N re-implementation, use the WP's planning base instead of `HEAD`:
      `git diff --name-only $(git merge-base HEAD main)`.
+8b. **Compiler typecheck (MANDATORY when the WP touches typed sources)**:
+    A test runner does not replace compiler diagnostics. If the diff includes
+    typed sources (including tests), select the project's configured compiler
+    or typecheck command before execution, matching the repository's CI.
+    If no command is configured, select an available compiler appropriate to
+    the project's language. A failed compiler command fails the gate; never
+    try another command to turn that failure into success.
+    The command MUST exit 0. Paste command + exit code into the handoff note.
+    Reviewers reject the WP if typecheck was skipped or is red.
 9. Commit: git add -A && git commit -m "feat(WP##): <description>"
 10. Mark subtasks done: spec-kitty agent tasks mark-status T001 T002 ... --status done
 11. Move to for_review: spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"
@@ -315,6 +325,9 @@ printf '%s' "$PROMPT_CONTENT" | codex exec --sandbox danger-full-access -C "$WOR
 
 # Google Gemini:
 gemini -p "$PROMPT_CONTENT" --yolo --output-format json -C "$WORKSPACE"
+
+# LLxprt Code (no -C flag; cd into the workspace first):
+(cd "$WORKSPACE" && llxprt -p "$PROMPT_CONTENT" --approval-mode=yolo)
 
 # OpenCode:
 opencode run "$PROMPT_CONTENT" --format json -C "$WORKSPACE"
@@ -442,6 +455,9 @@ claude -p "$(cat /tmp/review-prompt-<mission>-WP##.md)" --output-format json -C 
 
 # Example for gemini:
 gemini -p "$(cat /tmp/review-prompt-<mission>-WP##.md)" --yolo --output-format json -C "$WORKTREE"
+
+# Example for llxprt (no -C flag; cd into the worktree first):
+(cd "$WORKTREE" && llxprt -p "$(cat /tmp/review-prompt-<mission>-WP##.md)" --approval-mode=yolo)
 ```
 
 Capture the reviewer command exit status. If the configured/chosen reviewer

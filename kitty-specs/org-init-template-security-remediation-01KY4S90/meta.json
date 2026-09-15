@@ -1,0 +1,32 @@
+{
+  "accept_commit": "8006f1f1b28e36f007ee34e3b36de996a51a6d6a",
+  "acceptance_history": [
+    {
+      "accept_commit": "8006f1f1b28e36f007ee34e3b36de996a51a6d6a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-22T12:13:37.261611+00:00",
+      "accepted_by": "igorpodsekin",
+      "accepted_from_commit": "b9acc568af321d72ba48a3d6020a2ca2de44e098"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-22T12:13:37.261611+00:00",
+  "accepted_by": "igorpodsekin",
+  "accepted_from_commit": "b9acc568af321d72ba48a3d6020a2ca2de44e098",
+  "baseline_merge_commit": "d4c9eaafe1822e29ae043ff0d7655e9b951bbc0f",
+  "created_at": "2026-07-22T11:27:18.964474+00:00",
+  "flattened": false,
+  "friendly_name": "Org Init Template Security Remediation",
+  "mission_id": "01KY4S90DHE3Q7XHXC08K228SW",
+  "mission_number": 186,
+  "mission_slug": "org-init-template-security-remediation-01KY4S90",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Maintainer review on PR #2719 labeled pr:needs-revision. Blocking fixes for GIT_TOKEN injection on arbitrary template HTTPS URLs, symlink-following copy, and undetected {{tokens}} in file/dir names; plus HTTPS-only URLs and related hardening. Lands on feat/doctrine-org-init-from-template. Does not clear pr:deferred or merge to main.",
+  "purpose_tldr": "Harden doctrine org init --template against token leak, symlink exfil, and path-token gaps per PR #2719 review.",
+  "slug": "org-init-template-security-remediation-01KY4S90",
+  "target_branch": "feat/doctrine-org-init-from-template",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-22T11:53:43.596879+00:00"
+}

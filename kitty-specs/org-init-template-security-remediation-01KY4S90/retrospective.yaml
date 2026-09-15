@@ -1,0 +1,104 @@
+schema_version: 1
+mission_id: 01KY4S90DHE3Q7XHXC08K228SW
+mission_slug: org-init-template-security-remediation-01KY4S90
+mission_number: 186
+friendly_name: Org Init Template Security Remediation
+mission_type: software-dev
+target_branch: feat/doctrine-org-init-from-template
+created_at: '2026-07-22T12:15:10.467562+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-07-22T12:15:10.467562+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-008
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-008
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-008
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-009
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/org-init-template-security-remediation-01KY4S90/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/org-init-template-security-remediation-01KY4S90/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/org-init-template-security-remediation-01KY4S90/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/org-init-template-security-remediation-01KY4S90/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/org-init-template-security-remediation-01KY4S90/tasks/WP01-template-credential-and-scheme.md
+- id: e-006
+  kind: file
+  path: kitty-specs/org-init-template-security-remediation-01KY4S90/tasks/WP02-symlink-and-path-tokens.md
+- id: e-007
+  kind: file
+  path: kitty-specs/org-init-template-security-remediation-01KY4S90/tasks/WP03-atomic-install-and-docs.md
+- id: e-008
+  kind: file
+  path: kitty-specs/org-init-template-security-remediation-01KY4S90/status.events.jsonl
+- id: e-009
+  kind: file
+  path: kitty-specs/org-init-template-security-remediation-01KY4S90/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

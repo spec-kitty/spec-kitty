@@ -157,7 +157,7 @@ class TestStructuralTargetsParsing:
         omap = load_occurrence_map(tmp_path)
         assert omap is not None
 
-        assert len(omap.structural_targets) == 2  # golden-count: cardinality-is-contract
+        assert len(omap.structural_targets) == 2
         first = omap.structural_targets[0]
         assert isinstance(first, StructuralTarget)
         assert first.path == "src/specify_cli/bulk_edit/gate.py"
@@ -175,7 +175,7 @@ class TestStructuralTargetsParsing:
         _write(tmp_path, data)
         omap = load_occurrence_map(tmp_path)
         assert omap is not None
-        assert len(omap.structural_targets) == 1  # golden-count: cardinality-is-contract
+        assert len(omap.structural_targets) == 1
         assert omap.structural_targets[0].path == "src/valid.py"
 
 

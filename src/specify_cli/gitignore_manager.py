@@ -322,6 +322,7 @@ AGENT_DIRECTORIES = [
     AgentDirectory("opencode", ".opencode/", False, "opencode CLI"),
     AgentDirectory("windsurf", ".windsurf/", False, "Windsurf"),
     AgentDirectory("gemini", ".gemini/", False, "Google Gemini"),
+    AgentDirectory("llxprt", ".llxprt/", False, "LLxprt Code"),
     # Narrow, not blanket .cursor/ (#2498): many teams version-control their
     # own rules under .cursor/rules/, so only Spec Kitty-owned paths under
     # .cursor/ are ignored — mirrors the copilot precedent below. The rules

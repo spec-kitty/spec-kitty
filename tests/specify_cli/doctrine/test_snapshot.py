@@ -207,7 +207,7 @@ class TestWriteSnapshot:
         assert "promote failed" in " ".join(result.errors)
         assert "restore failed" in " ".join(result.errors)
         backups = list(tmp_path.glob(".old-*"))
-        assert len(backups) == 1  # golden-count: cardinality-is-contract
+        assert len(backups) == 1
         assert (backups[0] / "marker").read_text() == "last-good\n"
         assert str(backups[0]) in " ".join(result.errors)
 
@@ -689,7 +689,7 @@ class TestEtagConditionalFetch:
         manifest = yaml.safe_load((local_path / "pack-manifest.yaml").read_text())
         assert manifest["etag"] == '"abc"'
         assert manifest["pack_version"] == "v1"
-        assert len(manifest["snapshot_sha256"]) == 64  # golden-count: cardinality-is-contract
+        assert len(manifest["snapshot_sha256"]) == 64
 
 
 class TestPackManifest:
@@ -720,9 +720,9 @@ class TestPackManifest:
         assert loaded.source_type == "https"
         assert loaded.source_uses_query is False
         assert loaded.snapshot_sha256 is not None
-        assert len(loaded.snapshot_sha256) == 64  # golden-count: cardinality-is-contract
+        assert len(loaded.snapshot_sha256) == 64
         assert loaded.source_fingerprint is not None
-        assert len(loaded.source_fingerprint) == 64  # golden-count: cardinality-is-contract
+        assert len(loaded.source_fingerprint) == 64
         assert loaded.artifact_counts == {
             "agent_profiles": 1,
             "directives": 1,
@@ -782,7 +782,7 @@ class TestPackManifest:
         manifest = yaml.safe_load((local_path / "pack-manifest.yaml").read_text())
         assert manifest["source_url"] == "https://example.com/pack.tar.gz"
         assert "secret" not in str(manifest)
-        assert len(manifest["source_fingerprint"]) == 64  # golden-count: cardinality-is-contract
+        assert len(manifest["source_fingerprint"]) == 64
         assert manifest["source_uses_query"] is True
 
     def test_manifest_counts_top_level_graph_fragments(self, tmp_path: Path) -> None:

@@ -24,7 +24,7 @@ from rich.table import Table
 
 from specify_cli.core.paths import locate_project_root
 
-from ._doctor_shared import console
+from ._doctor_shared import _emit_not_in_project, console
 
 if TYPE_CHECKING:
     from specify_cli.audit import Severity
@@ -152,6 +152,8 @@ def _resolve_audit_root(
     fixture_dir: Path | None,
     include_fixtures: bool,
     repo_root: Path | None | _RootUnset = _ROOT_UNSET,
+    *,
+    json_output: bool = False,
 ) -> tuple[Path, Path | None]:
     """Resolve the effective (repo_root, fixture_dir) pair.
 
@@ -164,6 +166,12 @@ def _resolve_audit_root(
     sentinel-typed via ``_ROOT_UNSET`` so callers that pass an explicit
     ``None`` (no project found, fixtures-only) are honored, while direct
     callers that omit it fall back to discovering the root here.
+
+    ``json_output`` defaults to ``False`` so direct callers (this module's own
+    unit tests) that omit it keep the existing human-prose behavior; the
+    ``doctor mission-state`` dispatch entrypoint (``run_mission_state``)
+    threads its own ``json_output`` through so both terminal not-in-project
+    branches honor ``--json`` (#4242 class-closing fold).
 
     Raises typer.Exit(1) if no repo root can be found.
     Raises typer.Exit(2) if --include-fixtures and --fixture-dir conflict,
@@ -183,14 +191,14 @@ def _resolve_audit_root(
         try:
             resolved_repo_root = locate_project_root()
         except Exception as exc:
-            console.print("[red]Error:[/red] Not in a spec-kitty project")
+            _emit_not_in_project(json_output)
             raise typer.Exit(1) from exc
     else:
         resolved_repo_root = repo_root
 
     if resolved_repo_root is None:
         if resolved_fixture_dir is None:
-            console.print("[red]Error:[/red] Not in a spec-kitty project")
+            _emit_not_in_project(json_output)
             raise typer.Exit(1)
         resolved_repo_root = resolved_fixture_dir.parent
 
@@ -505,7 +513,7 @@ def run_mission_state(
     mode = _validate_modes(audit, fix, teamspace_dry_run)
     fail_on_severity, fail_on_teamspace_blocker = _resolve_fail_on(fail_on)
     resolved_root, resolved_fixture_dir = _resolve_audit_root(
-        fixture_dir, include_fixtures, repo_root
+        fixture_dir, include_fixtures, repo_root, json_output=json_output
     )
 
     # Unify audit + fix on ONE canonical-root authority (#2320 follow-up). The

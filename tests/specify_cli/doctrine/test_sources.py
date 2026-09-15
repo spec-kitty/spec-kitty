@@ -83,6 +83,7 @@ class _GitRunRecorder:
     ) -> None:
         self.script = list(script)
         self.calls: list[list[str]] = []
+        self.envs: list[dict[str, str] | None] = []
         self.side_effects = side_effects or {}
 
     def __call__(
@@ -91,8 +92,10 @@ class _GitRunRecorder:
         capture_output: bool = True,
         text: bool = True,
         check: bool = False,
+        env: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[str]:
         self.calls.append(argv)
+        self.envs.append(env)
         for keyword, effect in self.side_effects.items():
             if any(keyword == part for part in argv):
                 effect(argv)
@@ -142,6 +145,26 @@ class TestGitSource:
         # No reset/fetch on first install — just clone + describe.
         assert any(call[1] == "clone" for call in runner.calls)
         assert not any(call[1:3] == ["-C", str(target)] and "fetch" in call for call in runner.calls)
+
+    def test_fetch_is_non_interactive(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Every git invocation disables interactive credential prompts."""
+        target = tmp_path / "doctrine"
+        runner = _GitRunRecorder(
+            script=[
+                (0, "", ""),  # clone
+                (0, "v1.2.0\n", ""),  # describe
+            ],
+            side_effects={"clone": _make_fake_clone(directives_count=1)},
+        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
+
+        result = GitSource(url="git@example.com:org/d.git").fetch(target)
+
+        assert result.ok is True
+        assert runner.envs, "expected at least one subprocess.run invocation"
+        for env in runner.envs:
+            assert env is not None
+            assert env.get("GIT_TERMINAL_PROMPT") == "0"
 
     def test_update_path_used_when_dot_git_exists(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "doctrine"
@@ -593,7 +616,7 @@ class TestHttpsBundleSource:
         assert result.ok is True
         assert result.pack_version == "3.2.7"
         assert result.etag == '"etag-7"'
-        assert len(aql_calls) == 1  # golden-count: cardinality-is-contract
+        assert len(aql_calls) == 1
         assert aql_calls[0][0] == ("https://artifactory.example.com/artifactory/api/search/aql")
         query = aql_calls[0][1]["data"]
         assert '"repo":"raf-generic-local"' in query
@@ -748,7 +771,7 @@ class TestHttpsBundleSource:
         ).fetch(tmp_path / "snapshot")
 
         assert result.ok is True
-        assert len(aql_headers) == 2  # golden-count: cardinality-is-contract
+        assert len(aql_headers) == 2
         assert all(headers.get("Authorization") == "Bearer retry-token" for headers in aql_headers)
         assert all("If-None-Match" not in headers for headers in aql_headers)
         assert download_response.closed is True

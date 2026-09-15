@@ -1,0 +1,45 @@
+{
+  "event_count": 21,
+  "last_event_id": "01KY4W068Y5QM172P5B3W63ERX",
+  "materialized_at": "2026-07-22T12:14:55.774395+00:00",
+  "mission_number": "186",
+  "mission_slug": "org-init-template-security-remediation-01KY4S90",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY4W04638PQKSJB912C8MM2B",
+      "last_transition_at": "2026-07-22T12:14:53.635873+00:00",
+      "review_result": null
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY4W059VYMQHZJB4J4ZHYDZ7",
+      "last_transition_at": "2026-07-22T12:14:54.779720+00:00",
+      "review_result": null
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KY4W068Y5QM172P5B3W63ERX",
+      "last_transition_at": "2026-07-22T12:14:55.774395+00:00",
+      "review_result": null
+    }
+  }
+}

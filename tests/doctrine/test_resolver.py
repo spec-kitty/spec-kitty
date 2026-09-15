@@ -792,7 +792,7 @@ def test_declared_but_broken_org_pack_still_warns_in_doctrine_resolver(
         warnings.simplefilter("always")
         result = resolve_template("spec-template.md", project, mission="software-dev")
 
-    assert len(caught) == 1  # golden-count: cardinality-is-contract
+    assert len(caught) == 1
     assert "Invalid org-pack config" in str(caught[0].message)
     # Fails soft to zero org roots -- resolution still proceeds.
     assert result.tier.name == ResolutionTier.PACKAGE_DEFAULT.name

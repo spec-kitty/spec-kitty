@@ -677,6 +677,36 @@ def record_acceptance(
     return meta
 
 
+def record_discard(feature_dir: Path) -> dict[str, Any]:
+    """Stamp ``discarded_at`` so an abandoned mission has a surface state (#704).
+
+    ``mission close --discard`` deletes the branches and worktrees but leaves
+    ``kitty-specs/<slug>/`` in place on purpose: the discard leg persists a
+    ``runtime_abandoned`` retrospective there first (persist-before-destroy,
+    FR-005) and the mission's records are discovered from that directory
+    (FR-013). The artifacts therefore have to stay, which is why the dashboard
+    kept listing the mission as if it were live.
+
+    Marking the mission instead of deleting it keeps the audit trail and gives
+    the dashboard something to filter on. Idempotent: re-discarding an already
+    discarded mission just refreshes the timestamp.
+
+    Writes with ``validate=False``, like the sibling cleanup primitives
+    (:func:`clear_merge_metadata`, :func:`clear_coordination_metadata`,
+    :func:`flatten_coordination_metadata`). A mission being abandoned is exactly
+    the one whose ``meta.json`` may be incomplete, and validating here would
+    refuse the marker on those, leaving them on the dashboard forever -- the bug
+    this marker exists to fix.
+
+    Raises:
+        FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
+    """
+    meta = _require_meta(feature_dir)
+    meta["discarded_at"] = _now_iso()
+    write_meta(feature_dir, meta, validate=False)
+    return meta
+
+
 def set_vcs_lock(
     feature_dir: Path,
     *,

@@ -19,9 +19,10 @@ Surface area:
   schema's required fields (FR-016).
 * ``spec-kitty doctrine validate <path>`` — validate a single project-layer
   artifact file or a doctrine tree against the artifact schemas (FR-017).
-* ``spec-kitty doctrine org init <path> [--force]`` — scaffold a minimal
-  org doctrine pack skeleton (org-charter.yaml, drg/fragment.yaml, README.md)
-  ready for distribution (FR-006 / WP08).
+* ``spec-kitty doctrine org init <path> [--force] [--template …]
+  [--org-name …] [--local-path …] [--branch …]`` — scaffold a minimal org
+  doctrine pack, or render a full tree from a local/git template for operators
+  creating their own doctrine (FR-006 / WP08 + template render).
 * ``spec-kitty doctrine org validate <path>`` — validate an org doctrine pack
   using the WP06 loader and schema checks; exits non-zero on errors (FR-006 /
   WP08).
@@ -942,24 +943,65 @@ spec-kitty doctrine org validate .
 def org_init(
     pack_path: Path = typer.Argument(
         ...,
-        help="Path to the directory to initialise as an org doctrine pack.",
+        help="Destination directory for the scaffold or rendered doctrine tree.",
     ),
     force: bool = typer.Option(
         False,
         "--force",
         help="Overwrite an existing pack directory.",
     ),
+    template: str | None = typer.Option(
+        None,
+        "--template",
+        help=(
+            "Local template directory or git URL (HTTPS/SSH; optional #branch). "
+            "When omitted, scaffolds the minimal three-file pack."
+        ),
+    ),
+    org_name: str | None = typer.Option(
+        None,
+        "--org-name",
+        help="Validated org/pack identity for {{ORG_NAME}} (required with --template).",
+    ),
+    local_path: str | None = typer.Option(
+        None,
+        "--local-path",
+        help="Value for {{LOCAL_PATH}} (default: pack). Distinct from PACK_PATH.",
+    ),
+    branch: str | None = typer.Option(
+        None,
+        "--branch",
+        help="Git ref when --template is a git URL (may also be encoded in TEMPLATE).",
+    ),
 ) -> None:
-    """Scaffold a minimal org doctrine pack skeleton (FR-006).
+    """Scaffold a minimal org pack or render from a template.
 
-    Creates three files under *pack-path*::
+    Without ``--template``, creates three files under *pack-path*::
 
         org-charter.yaml   — governance policy stub
         drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
         README.md          — authoring quickstart
 
+    With ``--template``, copies the full template tree (minus ``.templateignore``),
+    substitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under *pack-path*.
+
     Refuses to overwrite an existing directory unless ``--force`` is passed.
     """
+    if template is not None:
+        _run_template_render(
+            pack_path=pack_path,
+            template=template,
+            org_name=org_name,
+            local_path=local_path,
+            branch=branch,
+            force=force,
+        )
+        return
+    _run_minimal_scaffold(pack_path, force=force)
+
+
+def _run_minimal_scaffold(pack_path: Path, *, force: bool) -> None:
+    """Write the legacy three-file org pack skeleton."""
     if pack_path.exists() and not force:
         console.print(
             f"[red]Target directory already exists:[/red] {pack_path}\n"
@@ -980,6 +1022,51 @@ def org_init(
     console.print("  README.md")
     console.print(
         f"\nRun [bold]spec-kitty doctrine org validate {pack_path}[/bold] to confirm."
+    )
+
+
+def _run_template_render(
+    *,
+    pack_path: Path,
+    template: str,
+    org_name: str | None,
+    local_path: str | None,
+    branch: str | None,
+    force: bool,
+) -> None:
+    """Dispatch template render via ``template_render.pipeline``."""
+    from specify_cli.doctrine.template_render import RenderRequest
+    from specify_cli.doctrine.template_render.pipeline import render_org_pack
+
+    if not org_name:
+        console.print(
+            "[red]ORG_NAME is required when --template is set[/red] "
+            "(org_name.required)."
+        )
+        raise typer.Exit(1)
+
+    err = render_org_pack(
+        RenderRequest(
+            pack_path=pack_path,
+            template=template,
+            org_name=org_name,
+            local_path=local_path,
+            branch=branch,
+            force=force,
+        )
+    )
+    if err is not None:
+        console.print(f"[red]{err.message}[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Org doctrine rendered at:[/green] {pack_path}")
+    console.print(
+        "  Full template tree written (minus .templateignore); "
+        "ORG_NAME / LOCAL_PATH tokens substituted."
+    )
+    console.print(
+        f"\nRun [bold]spec-kitty doctrine org validate {pack_path}/pack[/bold] "
+        "or your template's quality-check if applicable."
     )
 
 

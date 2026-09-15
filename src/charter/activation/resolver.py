@@ -794,10 +794,20 @@ def _resolve_directive_base(
     from charter.activation.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular import
     from charter.activation.profile_resolution import _normalize_directive_id  # noqa: PLC0415 — lazy; avoids circular import
 
-    local_ids = {d.id for d in directives_cfg.directives}
+    # #3908: compare in ONE id form. ``charter.yaml`` authors selections as
+    # file stems (``001-architectural-integrity-standard``) — the form
+    # ``tests/charter/test_config_stem_parity.py`` pins as the activation
+    # vocabulary — while the built-in catalog carries canonical config ids
+    # (``DIRECTIVE_001``). Comparing the two raw made every stem-authored
+    # selection read as unavailable, so ``resolve_project_governance`` raised,
+    # compact context degraded to "(none)" for every kind, and the command
+    # still exited ``success: true``. ``_normalize_directive_id`` is the same
+    # normalizer this function already applies to the base below.
+    local_ids = {_normalize_directive_id(d.id) for d in directives_cfg.directives}
     valid_ids = set(local_ids)
     if doctrine_catalog.directives:
-        valid_ids.update(doctrine_catalog.directives)
+        valid_ids.update(_normalize_directive_id(d) for d in doctrine_catalog.directives)
+    selected_directives = list(dict.fromkeys(_normalize_directive_id(d) for d in doctrine.selected_directives))
 
     activated_directives = PackContext.from_config(repo_root).activated_directives
     if activated_directives is None:
@@ -811,7 +821,8 @@ def _resolve_directive_base(
     if not doctrine.selected_directives:
         return base, base_source
 
-    missing = sorted(d for d in doctrine.selected_directives if d not in valid_ids)
+    # Report the authored spelling in the error, match on the normalized one.
+    missing = sorted(raw for raw in doctrine.selected_directives if _normalize_directive_id(raw) not in valid_ids)
     if missing:
         raise GovernanceResolutionError(
             [
@@ -821,15 +832,17 @@ def _resolve_directive_base(
         )
 
     base_set = set(base)
-    added = [d for d in doctrine.selected_directives if d not in base_set]
+    added = [d for d in selected_directives if d not in base_set]
     if added:
         diagnostics.append(f"Charter selected {len(added)} directive(s) beyond the {base_source} base: " + ", ".join(added) + ".")
     else:
         diagnostics.append(
-            f"All {len(doctrine.selected_directives)} charter-selected directive(s) already present in "
-            f"the {base_source} base; none added: " + ", ".join(doctrine.selected_directives) + "."
+            f"All {len(selected_directives)} charter-selected directive(s) already present in "
+            f"the {base_source} base; none added: " + ", ".join(selected_directives) + "."
         )
-    unioned = list(dict.fromkeys([*base, *doctrine.selected_directives]))
+    # Normalized on both sides, so a stem-authored selection that is already in
+    # the base no longer appears twice under two spellings.
+    unioned = list(dict.fromkeys([*base, *selected_directives]))
     return unioned, f"{base_source}+charter"
 
 

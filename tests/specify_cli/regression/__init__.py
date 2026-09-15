@@ -4,9 +4,9 @@ This package contains byte-identity regression tests that lock in the
 post-mission-083 command-file output for the twelve agents whose command
 delivery mechanism was NOT changed by mission 083-agent-skills-codex-vibe.
 
-The twelve non-migrated agents are the keys of ``AGENT_COMMAND_CONFIG``:
+The non-migrated agents are the keys of ``AGENT_COMMAND_CONFIG``:
 claude, gemini, copilot, cursor, qwen, opencode, windsurf, kilocode,
-auggie, roo, q, antigravity.
+auggie, q, kiro, antigravity, llxprt.
 
 Command-skill agents such as Codex, Vibe, Pi, and Letta are excluded
 because they use the Agent Skills pipeline (``.agents/skills/``) instead

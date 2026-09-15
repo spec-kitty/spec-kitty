@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "mission_slug": "org-init-template-security-remediation-01KY4S90",
+  "mission_id": "01KY4S90DHE3Q7XHXC08K228SW",
+  "mission_branch": "kitty/mission-org-init-template-security-remediation-01KY4S90",
+  "target_branch": "feat/doctrine-org-init-from-template",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/doctrine/sources/git_source.py",
+        "src/specify_cli/doctrine/template_render/resolve.py",
+        "tests/specify_cli/doctrine/test_sources.py",
+        "tests/specify_cli/doctrine/test_template_render_resolve.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/doctrine/template_render/ignore_copy.py",
+        "src/specify_cli/doctrine/template_render/substitute.py",
+        "tests/specify_cli/doctrine/test_template_render_ignore_copy.py",
+        "tests/specify_cli/doctrine/test_template_render_substitute.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "src/specify_cli/doctrine/template_render/pipeline.py",
+        "tests/specify_cli/doctrine/test_template_render_pipeline.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-22T11:47:31.922087+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

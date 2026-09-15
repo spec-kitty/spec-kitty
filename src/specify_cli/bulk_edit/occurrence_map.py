@@ -20,7 +20,6 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
-import jsonschema
 from ruamel.yaml import YAML
 
 from kernel.schema_utils import SchemaUtilities
@@ -647,6 +646,12 @@ def validate_against_schema(raw: dict[str, Any]) -> ValidationResult:
     for the runtime gate's output panels).
     """
     errors: list[str] = []
+    # #4409: imported here, not at module scope — ``jsonschema`` eagerly
+    # loads format checkers (``rfc3987_syntax.syntax_helpers``, ~1.8s) that
+    # every CLI invocation would otherwise pay for without validating
+    # anything. Same deferral as the charter validation modules.
+    import jsonschema  # noqa: PLC0415 — deferred: see the cost note above
+
     validator = jsonschema.Draft202012Validator(load_schema())
     for err in sorted(validator.iter_errors(raw), key=lambda e: list(e.absolute_path)):
         path = ".".join(str(p) for p in err.absolute_path) or "<root>"

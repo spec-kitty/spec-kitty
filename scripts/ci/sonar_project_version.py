@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Derive ``sonar.projectVersion`` from ``pyproject.toml`` (WP01, FR-001/FR-002).
 
-The ``sonarcloud`` job in ``.github/workflows/ci-quality.yml`` calls this module
+The ``sonar-pr`` job in ``.github/workflows/ci-aggregate.yml`` calls this module
 to stamp each SonarCloud analysis with a real project version read from the
 canonical source (``pyproject.toml``'s ``[project].version``), so the new-code
 quality-gate baseline resets per dev cycle instead of freezing at the "not
-provided" anchor (#2421). The version is single-sourced here — never hardcoded
+provided" anchor (#2421). (Until mission ``sonar-per-pr-coverage-reuse``, #4334,
+the caller was ``ci-quality.yml``'s ``sonarcloud`` job; that job was retired for
+re-measuring coverage the ``ci-modules`` shards had already produced, and the
+per-change report moved to ``ci-aggregate.yml``.) The version is single-sourced here — never hardcoded
 or duplicated into ``sonar-project.properties`` — so a version bump needs zero
 further edits (FR-002).
 
@@ -53,8 +56,8 @@ def read_project_version(pyproject_path: Path | str) -> str:
     SSOT note: this intentionally duplicates the pyproject-version read in
     ``specify_cli.release.payload._read_current_version`` (and the regex variant
     in ``specify_cli.version_utils.read_version_from_pyproject``). It is NOT
-    consolidated because this script runs in the ``sonarcloud`` CI job, which
-    never installs the ``spec-kitty-cli`` package — so it must stay stdlib-only
+    consolidated because this script runs in a CI job that never installs the
+    ``spec-kitty-cli`` package — so it must stay stdlib-only
     and cannot ``import specify_cli.*``. See ``release/payload.py`` for the
     in-process equivalent.
     """

@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "mission_slug": "ci-honesty-actionable-fixes-01M2JAXX",
+  "mission_id": "01M2JAXXYTKDYQB74FCF8YZR8P",
+  "mission_branch": "kitty/mission-ci-honesty-actionable-fixes-01M2JAXX",
+  "target_branch": "fix/ci-honesty-actionable-fixes",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-aggregate.yml",
+        "scripts/ci/reconcile_shards.py",
+        "tests/ci/test_reconcile_shards.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-router.yml",
+        "scripts/ci/router_gate.py",
+        "tests/architectural/test_dual_mode_contract.py",
+        "tests/architectural/test_gate_selection_authority.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-nightly.yml",
+        "tests/architectural/test_performance_marker_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-15T11:50:39.618078+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6e49f0e12fe3e01a72c6e51f5786938e3a995f36"
+}

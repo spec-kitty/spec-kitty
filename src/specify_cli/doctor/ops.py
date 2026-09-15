@@ -8,12 +8,13 @@ from kernel.clock import datetime, UTC, parse_iso
 from pathlib import Path
 
 from specify_cli.invocation.errors import AlreadyClosedError
-from specify_cli.invocation.writer import EVENTS_DIR
+from specify_cli.invocation.writer import EVENTS_DIR, OP_CLOSURES_FILENAME, OP_CLOSURES_RELATIVE_PATH, closed_invocation_ids
 
 _NON_OP_JSONL = {
     "ops-index.jsonl",
     "lifecycle.jsonl",
     "propagation-errors.jsonl",
+    OP_CLOSURES_FILENAME,
 }
 
 
@@ -36,10 +37,20 @@ def _has_completed_event(path: Path) -> bool:
 
 
 def list_orphan_ops(repo_root: Path) -> list[Path]:
+    """List open Op records: no ``completed`` event and no spine closure.
+
+    An Op counts as closed when its per-record file carries a ``completed``
+    event OR the append-only closure spine (#4397) carries a closure for its
+    invocation id — the doctor sweep closes pre-existing records on the spine,
+    never by mutating the byte-frozen per-record file.
+    """
     ops_dir = repo_root / EVENTS_DIR
     if not ops_dir.exists():
         return []
-    return [path for path in sorted(ops_dir.glob("*.jsonl")) if path.name not in _NON_OP_JSONL and not _has_completed_event(path)]
+    closed_on_spine = closed_invocation_ids(repo_root)
+    return [
+        path for path in sorted(ops_dir.glob("*.jsonl")) if path.name not in _NON_OP_JSONL and path.stem not in closed_on_spine and not _has_completed_event(path)
+    ]
 
 
 @dataclass
@@ -53,6 +64,7 @@ class SweepOpEntry:
     action_taken: str  # "none" | "closed_abandoned" | "already_closed"
     parse_warning: str | None = None
     error: str | None = None
+    commit: str | None = None  # "committed" | "not_committed:<refusal>" (sweep closes only)
 
     def to_dict(self) -> dict[str, object]:
         result: dict[str, object] = {
@@ -66,6 +78,8 @@ class SweepOpEntry:
             result["parse_warning"] = self.parse_warning
         if self.error is not None:
             result["error"] = self.error
+        if self.commit is not None:
+            result["commit"] = self.commit
         return result
 
 
@@ -88,6 +102,7 @@ class SweepReport:
             "swept": self.swept,
             "skipped_fresh": self.skipped_fresh,
             "threshold_hours": self.threshold_hours,
+            "closure_spine": OP_CLOSURES_RELATIVE_PATH.as_posix(),
         }
 
 
@@ -127,7 +142,11 @@ def close_stale_ops(
 
     Every close goes through ``ProfileInvocationExecutor.complete_invocation`` with
     ``outcome="abandoned"`` and ``closed_by="doctor_sweep"`` — the only sanctioned
-    close path (research R4); the sweep never appends JSONL directly. A race with a
+    close path (research R4); the sweep never appends JSONL directly. Because the
+    sweep's targets are pre-existing ``kitty-ops/`` records — byte-frozen archive
+    history under the historical-preservation gate — the executor records each
+    closure on the append-only spine ``kitty-ops/op-closures.jsonl`` and auto-commits
+    only that spine; per-record files are never touched (#4397). A race with a
     concurrent manual close (``AlreadyClosedError``) is recorded as
     ``already_closed`` and is not a failure. Any other per-op exception is recorded
     as an error entry and the sweep continues.
@@ -174,6 +193,11 @@ def close_stale_ops(
             )
             entry.action_taken = "closed_abandoned"
             report.swept += 1
+            outcome_note = executor.last_op_commit
+            if outcome_note is not None and outcome_note.committed:
+                entry.commit = "committed"
+            elif outcome_note is not None:
+                entry.commit = f"not_committed:{outcome_note.refusal or 'unknown refusal'}"
         except AlreadyClosedError:
             entry.action_taken = "already_closed"
         except Exception as exc:  # noqa: BLE001 - one bad file must not block the sweep

@@ -263,11 +263,13 @@ class TestGuard4ApproveGateReadSurface:
         )
 
         assert blocker is not None, "gate must block: it reads the coord husk (no matrix), not the PRIMARY surface where the verdict lives"
-        # Assert on the emitted SIGNAL TEXT (not merely truthiness). NB the
-        # ``issue-matrix.md`` wording is #3867's failure-mode-5 diagnostics bug
-        # (the file is ``issue-matrix.json``); its fix is tracked by #4330, so
-        # this pin will update when that lands.
-        assert "ERROR: issue-matrix.md" in blocker
+        # Assert on the emitted SIGNAL TEXT (not merely truthiness). #4330 has
+        # landed: the gate now names the artifact it actually reads. This coord
+        # husk carries NO matrix (neither ``.json`` nor ``.md``), so the prefix
+        # resolves to the canonical scaffolded artifact ``issue-matrix.json``
+        # (C-008: no new ``.md`` is emitted) — no longer the old hardcoded,
+        # wrong-for-JSON-missions ``issue-matrix.md``.
+        assert "ERROR: issue-matrix.json" in blocker
         assert "is required before approval" in blocker
         # The referenced issue was discovered from the PRIMARY spec.md, proving
         # primary_feature_dir is used for discovery while the matrix read is NOT.

@@ -255,6 +255,79 @@ def test_nightly_workflow_is_full_mode_run_all() -> None:
     assert "if: always()" in text
 
 
+def _job_steps(job: dict[str, object]) -> list[dict[str, object]]:
+    steps = job.get("steps")
+    return [step for step in steps if isinstance(step, dict)] if isinstance(steps, list) else []
+
+
+def test_nightly_suite_steps_are_fail_loud() -> None:
+    """#4212 / FR-006: a red nightly suite must make its job red.
+
+    Each suite step runs ``pytest`` under ``set +e`` (run-all-regardless), so
+    it must NOT terminate on a bare ``echo "...exit=$?"`` that discards
+    pytest's exit into an annotation string -- the swallow that kept the job
+    green on a red suite. The captured code must instead be consumed by a
+    downstream step that can ``exit 1``. This coexists with the run-all guards
+    (``if: always()`` / ``fail-fast: false``) asserted in
+    :func:`test_nightly_workflow_is_full_mode_run_all`: capture-and-aggregate
+    keeps every suite running, then fails loud at the end.
+    """
+    data = yaml.safe_load(NIGHTLY_WORKFLOW.read_text(encoding="utf-8")) or {}
+    jobs = data.get("jobs") or {}
+    for job_name in ("performance-and-e2e", "interpreter-matrix"):
+        job = jobs.get(job_name)
+        assert isinstance(job, dict), f"{job_name} job missing"
+        steps = _job_steps(job)
+        suite_steps = [step for step in steps if "pytest" in str(step.get("run") or "")]
+        assert suite_steps, f"{job_name}: expected at least one pytest suite step"
+        for step in suite_steps:
+            run = str(step["run"])
+            assert "exit=$?" not in run, (
+                f"{job_name}: a suite step discards pytest's exit via a bare "
+                'echo "...exit=$?" (the #4212 swallow) -- capture $? into '
+                "$GITHUB_ENV and let a terminal step fail on it instead"
+            )
+        assert any("exit 1" in str(step.get("run") or "") for step in steps), (
+            f"{job_name}: no terminal fail-loud step that can `exit 1` on a captured suite exit (#4212)"
+        )
+
+
+def test_nightly_fail_loud_step_treats_marker_empty_exit_5_as_non_failing() -> None:
+    """#4212 / spec.md Edge Case #4: exit 5 (marker-empty) is a skip, not a failure.
+
+    A ``pytest -m performance`` / ``-m e2e`` / ``-m "fast or unit"`` run returns
+    exit **5** ("no tests were collected") when the marker set is empty. The
+    spec's Edge Cases distinguish a *skipped* (marker-empty) nightly suite from a
+    *failed* one -- skipped is not a failure. The terminal fail-loud step must
+    therefore fail only on a GENUINE failure exit (1/2/3/4/...), letting both 0
+    (all passed) and 5 (nothing to run) pass. This is a workflow-lint assertion:
+    every failure-triggering ``-ne 0`` comparison in the terminal step is paired
+    with a ``-ne 5`` exclusion on the same condition, so exit 5 can never fail
+    the job while a non-zero-non-5 exit still does.
+    """
+    data = yaml.safe_load(NIGHTLY_WORKFLOW.read_text(encoding="utf-8")) or {}
+    jobs = data.get("jobs") or {}
+    for job_name in ("performance-and-e2e", "interpreter-matrix"):
+        job = jobs.get(job_name)
+        assert isinstance(job, dict), f"{job_name} job missing"
+        terminal_steps = [step for step in _job_steps(job) if "exit 1" in str(step.get("run") or "")]
+        assert terminal_steps, f"{job_name}: no terminal fail-loud step that can `exit 1` (#4212)"
+        for step in terminal_steps:
+            run = str(step["run"])
+            # The per-suite comparisons read the captured pytest exit codes
+            # (``PERF_EXIT`` / ``E2E_EXIT`` / ``INTERPRETER_EXIT``). The aggregate
+            # ``$status`` flag is driven BY those, so scope the guard to the exit-
+            # code conditions themselves.
+            exit_conditions = [line for line in run.splitlines() if "-ne 0" in line and "EXIT" in line]
+            assert exit_conditions, f"{job_name}: terminal fail-loud step has no pytest-exit `-ne 0` failure trigger to guard"
+            for line in exit_conditions:
+                assert "-ne 5" in line, (
+                    f"{job_name}: fail-loud condition {line.strip()!r} fails on ANY non-zero "
+                    "exit -- it must exclude pytest exit 5 (marker-empty = skipped, not a "
+                    "failure; spec.md Edge Case #4, #4212)"
+                )
+
+
 def test_nightly_workflow_declares_dispatch_and_honors_mode_input() -> None:
     """DoD: declares `workflow_dispatch` and honors the `mode` input (FR-018/019)."""
     data = yaml.safe_load(NIGHTLY_WORKFLOW.read_text(encoding="utf-8")) or {}

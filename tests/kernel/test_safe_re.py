@@ -652,7 +652,7 @@ class TestSubnMutationKills:
         """
         out = re.subn(r"\d+", "N", "1 2")  # type: ignore[attr-defined]
         assert isinstance(out, tuple)
-        assert len(out) == 2  # golden-count: cardinality-is-contract (2-tuple structure)
+        assert len(out) == 2  # (2-tuple structure)
         new_str, n = out
         assert isinstance(new_str, str)
         assert isinstance(n, int)

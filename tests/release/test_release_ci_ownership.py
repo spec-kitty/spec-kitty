@@ -272,17 +272,53 @@ def test_release_checklist_marks_deferred_publish_workflows_as_p3_4b_prerequisit
     assert "release-readiness.yml" in checklist
 
 
+POST_TAG_CYCLE_HEADING = "Open the Next Development Cycle"
+
+
+def test_release_checklist_opens_the_next_cycle_right_after_the_tag() -> None:
+    """#4314: branch-mode ``validate_release.py`` requires main's version to
+    advance past the latest tag, so the tag itself turns the scheduled
+    release-readiness check red until main opens the next cycle (#4290 hit
+    this after v4.0.0rc1 and again after v4.0.0rc2). The canonical runbook
+    must say so, as a numbered Release Process step placed after the tag."""
+    checklist = RELEASE_CHECKLIST.read_text(encoding="utf-8")
+    tag_step = checklist.index("Tag the Release from `main`")
+    cycle_step = checklist.find(POST_TAG_CYCLE_HEADING)
+    assert cycle_step > tag_step, "RELEASE_CHECKLIST.md needs a post-tag step that opens the next development cycle"
+    step_heading = checklist[checklist.rfind("\n", 0, cycle_step) + 1 : checklist.find("\n", cycle_step)]
+    assert re.match(r"^### \d+\. ", step_heading), f"post-tag step must be a numbered Release Process step: {step_heading!r}"
+    step_body = checklist[cycle_step : checklist.find("\n## ", cycle_step)]
+    assert "does not advance beyond latest tag" in step_body.lower() or "advance beyond the latest tag" in step_body.lower()
+    assert "pyproject.toml" in step_body
+
+
+def test_contributing_release_process_mirrors_the_post_tag_cycle_step() -> None:
+    """#4314: the Release Process summary in contributing.md is subordinate to
+    RELEASE_CHECKLIST.md and must not omit the post-tag cycle step."""
+    contributing = (ROOT / "docs" / "development" / "contributing.md").read_text(encoding="utf-8")
+    release_process = contributing[contributing.index("## Release Process") :]
+    release_process = release_process[: release_process.find("\n## ", len("## Release Process"))]
+    assert POST_TAG_CYCLE_HEADING.lower() in release_process.lower()
+
+
 def test_reduced_ci_quality_has_exact_jobs() -> None:
     workflow = load_workflow("ci-quality.yml")
 
-    # `sonarcloud` is the reinstated non-blocking reporter (spec-kitty#3993):
-    # continue-on-error and deliberately outside quality-gate.needs.
+    # The per-PR `sonarcloud` reporter (spec-kitty#3993) was REMOVED from this
+    # set by mission sonar-per-pr-coverage-reuse (#4334): it re-ran the whole
+    # fast tier under `pytest --cov` to obtain a coverage report the
+    # ci-modules shards had already produced for the same commit. The per-PR
+    # Sonar report now lives in ci-aggregate.yml's `sonar-pr` job, which
+    # consumes those shard artefacts instead of measuring a second time
+    # (FR-001/FR-003/NFR-001). This file's producers execute no test suite at
+    # all -- `tests/architectural/test_suite_jobs_gate_blocking.py` asserts
+    # exactly that, and `test_no_duplicate_suite_execution.py` reds if any
+    # change-triggered job reaches pytest outside the authorised matrix.
     assert set(workflow["jobs"]) == {
         "lint",
         "build-wheel",
         "clean-install-verification",
         "uv-lock-check",
-        "sonarcloud",
         "quality-gate",
     }
     assert workflow["jobs"]["clean-install-verification"]["needs"] == ["build-wheel"]
@@ -391,7 +427,7 @@ def test_docs_pages_deploys_only_from_promotion_repo_and_fails_transient_setup_e
     assert "continue-on-error" not in setup_step
     assert build_job["needs"] == ["pages"]
     assert build_job["if"] == "needs.pages.outputs.configured == 'true' && needs.pages.result == 'success'"
-    assert deploy_job["if"] == "github.repository == 'Priivacy-ai/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'"
+    assert deploy_job["if"] == "github.repository == 'spec-kitty/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'"
 
     publication_policy = DOCS_REFERENCE_INDEX.read_text(encoding="utf-8")
     assert "intentionally deployed from the promotion-only" in publication_policy

@@ -36,7 +36,7 @@ from specify_cli.invocation.errors import InvalidModeForEvidenceError
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.record import OpStartedEvent
-from specify_cli.invocation.writer import EVENTS_DIR
+from specify_cli.invocation.writer import EVENTS_DIR, read_op_closures
 
 
 # ---------------------------------------------------------------------------
@@ -881,7 +881,7 @@ def test_without_a_transport_no_propagation_errors(tmp_path: Path) -> None:
     assert jsonl_file.exists()
     lines = [ln for ln in jsonl_file.read_text().splitlines() if ln.strip()]
     # started + completed + artifact_link + commit_link = 4 lines
-    assert len(lines) == 4, f"Expected 4 lines, got {len(lines)}: {[json.loads(ln)['event'] for ln in lines]}"  # golden-count: cardinality-is-contract
+    assert len(lines) == 4, f"Expected 4 lines, got {len(lines)}: {[json.loads(ln)['event'] for ln in lines]}"
 
     events = [json.loads(ln)["event"] for ln in lines]
     assert events == ["started", "completed", "artifact_link", "commit_link"]
@@ -944,7 +944,12 @@ def test_each_outcome_written_verbatim(tmp_path: Path, outcome: Literal["done", 
 
 
 def test_closed_by_doctor_sweep_written_verbatim(tmp_path: Path) -> None:
-    """The executor records whichever closing actor the caller threads (FR-003)."""
+    """The executor records whichever closing actor the caller threads (FR-003).
+
+    #4397: a doctor_sweep close records on the append-only closure spine —
+    the per-record file is never mutated by a sweep close — and the closing
+    actor is still written verbatim.
+    """
     project = _setup_minimal_project(tmp_path)
     inv_id = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
 
@@ -959,8 +964,13 @@ def test_closed_by_doctor_sweep_written_verbatim(tmp_path: Path) -> None:
             closed_by="doctor_sweep",
         )
 
+    closures = read_op_closures(project)
+    assert [event.invocation_id for event in closures] == [inv_id]
+    assert closures[0].closed_by == "doctor_sweep"
+    assert closures[0].outcome == "abandoned"
+    # The per-record trail keeps only its started event — byte-frozen.
     lines = (project / EVENTS_DIR / f"{inv_id}.jsonl").read_text().splitlines()
-    assert json.loads(lines[1])["closed_by"] == "doctor_sweep"
+    assert [json.loads(line)["event"] for line in lines] == ["started"]
 
 
 def test_double_close_raises_already_closed_and_appends_nothing(tmp_path: Path) -> None:

@@ -1,7 +1,7 @@
 ---
 title: 'ADR: Census-Floor Ratchets — Per-Ratchet Adjudication (Tripwire, Retire, Retire, Keep-Property)'
-description: 'Per-ratchet verdicts on the #4315 census-floor ratchets: the routed-meta floor becomes a stable vacuity tripwire, golden-count and shard markers retire, property gates stay.'
-status: Proposed
+description: 'Per-ratchet verdicts on the #4315 census-floor ratchets: the routed-meta floor is deleted outright, golden-count and shard markers retire, property gates stay.'
+status: Accepted
 date: '2026-09-14'
 ---
 
@@ -61,13 +61,19 @@ precisely, and its own worked examples set the scale:
 >
 > — examples: `assert canonical_call_count >= 1` · `assert len(...) >= MIN_ROUTED_FILES`
 
-**Nothing in doctrine requires the floor to track the live census.** The mandate
-is a *concrete, non-self-referential integer that prevents vacuous passage*. A
-stable floor of 100 against a live census of 157 satisfies every clause of
-DIRECTIVE_043 and of the tactic. The `MARGIN` mechanic that turns the floor into
-a treadmill is a **local over-implementation**, not a doctrinal requirement — a
-point this ADR records explicitly so no future reviewer reads the change below as
-weakening DIRECTIVE_043.
+**Nothing in doctrine requires a *separate routed-count floor* on this gate at
+all.** DIRECTIVE_043's mandate is that the gate not pass vacuously; for the
+inline-read gate that guarantee is already carried by mechanic 2 — the ceiling's
+`MARGIN` clause (`INLINE_META_READ_FLOOR - live <= MARGIN`, so the live count must
+stay near the ceiling and a broken or empty scan reds) — and by the FR-010
+single-decoder gate. The routed-count floor measured routing *through* the
+canonical reader — a reward signal, not the gate's non-vacuity guard — and a
+tighter, floor-independent de-routing detector already exists (`_ACCOUNTED_SITES`
+in `test_meta_fail_closed_full_census_contract.py`, exact-equality, keyed on
+`load_meta_fail_closed`). The routed floor therefore added no non-vacuity
+protection the gate did not already have; deleting it leaves DIRECTIVE_043 and the
+tactic fully satisfied. This ADR records the point explicitly so no future
+reviewer reads the deletion below as weakening DIRECTIVE_043.
 
 Two further facts bound how much authority the current shape carries:
 
@@ -246,28 +252,38 @@ dict), so it is structurally blind to the corruption.
 **Per-ratchet, not blanket.** Each verdict below carries maintainer concurrence
 obtained 2026-09-14 per the #2913 ruling.
 
-### 1. `ROUTED_LOAD_META_FLOOR` → **replace the count-floor with a stable vacuity tripwire**
+### 1. `ROUTED_LOAD_META_FLOOR` → **delete the count-floor outright**
 
-Keep a concrete floor — DIRECTIVE_043 requires one — but stop it tracking live:
+Delete the routed-count floor entirely — do not re-pin it. Re-pinning, even to a
+low and stable value, keeps the concept, the vocabulary and this ADR alive as
+load-bearing, so the next person to move the count reads *"DIRECTIVE_043 collapse
+tripwire"* and treats it as protective. It was re-pinned 23 times in 63 days,
+caught zero regressions, and once failed a build for reading `meta.json` through
+the canonical reader the gate exists to reward (KISS audit, R. Douglass,
+2026-09-14).
 
-- delete `ROUTED_LOAD_META_FLOOR_MARGIN` and the margin assertion;
-- delete the strict `assert len(routed) > ROUTED_LOAD_META_FLOOR` anti-vacuity
-  clause, whose only function is to forbid `floor == live` and thereby *guarantee*
-  a re-pin whenever the census shrinks to the pin;
-- pin the floor low and stable (**100** against a live 157), with a documented
-  maintenance rule: **re-pin only if the live census approaches it** — i.e. on a
-  collapse, not on ordinary drift. Retain the dated ledger as history, capped.
+Remove, in one commit: the `ROUTED_LOAD_META_FLOOR` constant,
+`ROUTED_LOAD_META_FLOOR_MARGIN` and its margin assertion, the strict
+`assert len(routed) > ROUTED_LOAD_META_FLOOR` anti-vacuity clause,
+`EXCLUDED_REL_PATHS`, the `scan_routed_load_meta_calls` scanner and the
+`ROUTED_CALLEES` set that fed only it, and all four routed-floor tests (the
+predicate, its non-vacuity canary, the real-tree floor, and the mass-allow-list
+self-test).
 
 The **real invariant stays a hard gate, unchanged**: the inline-read ceiling
-(`INLINE_META_READ_FLOOR = 7`), the allowlist's composite-key
-`{key, rationale, issue}` requirement, and its stale-entry detection
-(`allowlist_keys - live_keys` non-empty fails). That trio *is* #4315's option 3 —
-"no inline `json.load` of `meta.json` outside the reader family" — and it already
-exists, already passes, and has cost nothing to maintain.
+(`INLINE_META_READ_FLOOR = 7`), its margin (mechanic 2 — the actual non-vacuity
+guard: the live count must stay within `MARGIN` of the ceiling, so a broken or
+empty scan reds), the allowlist's composite-key `{key, rationale, issue}`
+requirement, and its stale-entry detection (`allowlist_keys - live_keys` non-empty
+fails). That trio *is* #4315's option 3 — "no inline `json.load` of `meta.json`
+outside the reader family" — and it already exists, already passes, and has cost
+nothing to maintain. The FR-010 single-decoder gate and the independent
+`_ACCOUNTED_SITES` census (`test_meta_fail_closed_full_census_contract.py`) retain
+the de-routing cover the routed floor claimed.
 
-Doctrinal note: the resulting gate remains non-vacuous under DIRECTIVE_043 — the
-floor is a real integer derived from the codebase, not self-referential, and a
-collapse to zero still reds. Only the *tightness* of the pin changes.
+Doctrinal note: the gate remains non-vacuous under DIRECTIVE_043 after deletion —
+its non-vacuity was always carried by the ceiling's margin (mechanic 2), never by
+the routed floor. Nothing that prevents vacuous passage is removed.
 
 ### 2. `test_golden_count_ban` → **retire, and sweep the annotations**
 
@@ -384,23 +400,22 @@ with the tables.
   *defect* — inline reads regrowing outside the reader family — is caught by the
   retained ceiling + allowlist, which is the gate with the real catch record. A
   falling routed count with a flat inline ceiling is a refactor, not a regression.
-- **The tripwire opens one genuine hole this ADR must not paper over
-  (adversarial squad, 2026-09-14).** `EXCLUDED_REL_PATHS` removes
-  `src/specify_cli/mission_metadata.py` and `src/specify_cli/task_utils/support.py`
-  from the *inline* scan entirely — correctly, since the first is the canonical
-  reader's own implementation. But those two files hold **17 of the 157 routed
-  sites** (measured), so inside them the routed floor is the *only* cover.
-  Replacing their internal delegations with hand-rolled parsing drops the census
-  157 → 140: red today (`140 < 153`), **green at a floor of 100**, with the new
-  inline reads unscanned. Not accepted silently — the implementing mission closes
-  it with a small pinned count of decode sites *inside* the two excluded files
-  (the shape `_count_kernel_l1_meta_decoders` already uses). That is a debt
-  ceiling over a two-file set, which is stable, not a goodness floor over the
-  tree, which is not.
-  Counterweight, recorded for honesty: defeating the tripwire outright requires
-  removing 58 routed sites across ≥10 files, so it still bites on collapse; and
-  both historical drops this gate ever detected were answered by lowering the
-  pin, never by investigating a regression.
+- **Deleting the routed floor removes the routing-evidence signal entirely —
+  recorded, not papered over (adversarial squad, 2026-09-14).** The pre-deletion
+  gate had `EXCLUDED_REL_PATHS` remove `src/specify_cli/mission_metadata.py` and
+  `src/specify_cli/task_utils/support.py` from the *inline* scan; those two files
+  held 17 of the ~157 routed sites, and inside them the routed floor had been the
+  only cover. With the floor deleted — and `EXCLUDED_REL_PATHS` gone with it,
+  having measured to hide zero *inline* sites — there is no routed-count
+  enforcement anywhere. Accepted: the de-routing defect (replacing canonical-reader
+  delegations with hand-rolled parsing) is covered by the independent
+  `_ACCOUNTED_SITES` exact-equality census in
+  `test_meta_fail_closed_full_census_contract.py` (keyed on `load_meta_fail_closed`,
+  floor-independent) plus review; and the routed floor's own record is 23 re-pins,
+  zero regression catches, both historical drops answered by lowering the pin
+  rather than investigating. An earlier draft planned to keep a small pinned
+  decode-count *inside* the two files; outright deletion abandons that mitigation
+  as more of the vocabulary the audit calls to remove.
 - Retiring the golden-count ceiling means a future `len(X) == N` regrowth is caught
   by review rather than CI. Accepted: it has always been caught by review, since
   the gate caught nothing in its lifetime and has been advisory since 2026-09-07.
@@ -432,22 +447,23 @@ with the tables.
   live scan, keyed on `load_meta_fail_closed`. It does not depend on
   `ROUTED_LOAD_META_FLOOR` and is unaffected by this ADR — so the de-routing class
   retains cover this ADR did not credit.
-- **Sequencing dependency.** This ADR is not an ancestor of the implementing
-  mission's branch. The mission must rebase onto the landed ADR before it can flip
-  this document `Proposed` → `Accepted`; that flip cannot happen inside the
-  mission's three workstream commits.
+- **Sequencing dependency (discharged).** This ADR landed first (#4323) and the
+  implementing mission (#4359) rebased onto it, so the mission branch carries this
+  file and flips it `Proposed` → `Accepted` in a dedicated commit, separate from
+  its three workstream commits. Accepted on the operator's direction to land the
+  flip with the implementation rather than as a follow-up.
 
 **Neutral**
 
 - The ~2,500-line reduction is not itself the justification — the catch record is.
 - This ADR changes no doctrine. DIRECTIVE_043 and both tactics remain in force and
-  unedited; verdict 1 is a compliant implementation of them, and verdicts 2 and 4
+  unedited; verdict 1 deletes a redundant floor whose non-vacuity role the ceiling's margin already carries, and verdicts 2 and 4
   retire gates whose defect classes no longer exist.
 
 ## Follow-through
 
 Implementation runs as a governed mission, sequenced so `main` stays green at
-every intermediate commit: the tripwire change and each retirement are independent
+every intermediate commit: the routed-floor deletion and each retirement are independent
 and land separately. If any verdict's implementation surfaces a consumer this ADR
 did not name, that is a finding against this ADR, not a licence to improvise
 around it.

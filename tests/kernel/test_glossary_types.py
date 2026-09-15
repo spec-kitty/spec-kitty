@@ -70,7 +70,7 @@ class TestSemanticConflictAmbiguousGuard:
             candidate_senses=[self._make_sense()],
         )
         assert conflict.conflict_type == ConflictType.AMBIGUOUS
-        assert len(conflict.candidate_senses) == 1  # golden-count: cardinality-is-contract
+        assert len(conflict.candidate_senses) == 1
 
     def test_ambiguous_without_candidates_raises(self) -> None:
         with pytest.raises(ValueError, match="AMBIGUOUS conflict must have candidate_senses"):

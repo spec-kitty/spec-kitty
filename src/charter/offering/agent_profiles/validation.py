@@ -4,7 +4,6 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-import jsonschema
 from importlib.resources import files
 from ruamel.yaml import YAML
 
@@ -55,6 +54,13 @@ def validate_agent_profile_yaml(data: dict[str, Any]) -> list[str]:
     Returns:
         List of validation error messages (empty if valid)
     """
+    # #4409: imported here, not at module scope. ``jsonschema`` eagerly loads
+    # its format checkers, and one of them (``rfc3987_syntax.syntax_helpers``,
+    # reached via ``jsonschema._format``) costs ~1.75s to import — over half of
+    # `spec-kitty --help`'s total startup, paid by every CLI invocation even
+    # though nothing on that path validates a schema.
+    import jsonschema  # noqa: PLC0415 — deferred: see the cost note above
+
     schema = _load_agent_profile_schema()
     validator = jsonschema.Draft7Validator(schema)
 

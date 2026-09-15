@@ -80,7 +80,7 @@ jobs:
       SPEC_KITTY_RUN_PERFORMANCE: "1"
       PWHEADLESS: "1"
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
@@ -94,16 +94,20 @@ jobs:
         shell: bash
         run: |
           set +e
-          uv run pytest -m performance -q --junitxml=out/reports/xunit-nightly-performance.xml
-          echo "::notice::performance suite exit=$? (if: always() -- full mode never short-circuits)"
+          uv run --frozen pytest -m performance -q --junitxml=out/reports/xunit-nightly-performance.xml
+          code=$?
+          echo "PERF_EXIT=$code" >> "$GITHUB_ENV"
+          echo "::notice::performance suite exit=$code (if: always() -- full mode never short-circuits; a red suite is surfaced by the terminal fail-loud step, #4212)"
 
       - name: Run heavy/e2e-marked suite (full-mode, run-all-regardless)
         if: always()
         shell: bash
         run: |
           set +e
-          uv run pytest -m e2e -q --junitxml=out/reports/xunit-nightly-e2e.xml
-          echo "::notice::e2e suite exit=$? (if: always() -- full mode never short-circuits)"
+          uv run --frozen pytest -m e2e -q --junitxml=out/reports/xunit-nightly-e2e.xml
+          code=$?
+          echo "E2E_EXIT=$code" >> "$GITHUB_ENV"
+          echo "::notice::e2e suite exit=$code (if: always() -- full mode never short-circuits; a red suite is surfaced by the terminal fail-loud step, #4212)"
 
       - name: Upload nightly performance/e2e reports
         if: always()
@@ -111,6 +115,39 @@ jobs:
         with:
           name: ci-nightly-performance-e2e-reports
           path: out/reports/
+
+      # Terminal fail-loud gate (#4212): every suite above ran under `set +e` +
+      # `if: always()` (run-all-regardless), capturing its pytest exit into
+      # $GITHUB_ENV instead of discarding it. This step, also `if: always()`,
+      # runs AFTER the artefact upload so xunit reports are preserved either
+      # way, then FAILS the job if any suite exited on a GENUINE failure -- so a
+      # red suite can no longer leave the job green. Run-all is preserved: the
+      # complete failure set is surfaced (annotations + reports) before this
+      # fails.
+      #
+      # pytest exit 5 = "no tests were collected" (a marker-empty suite). Per
+      # spec.md Edge Case #4 a nightly suite that is *skipped* (marker-empty) is
+      # NOT a failure -- distinct from a *failed* one. So 0 (all passed) and 5
+      # (nothing to run) both pass; only a genuine failure exit (1/2/3/4/...)
+      # fails the job.
+      - name: Fail the job if any nightly suite was red (run-all-then-fail-loud)
+        if: always()
+        shell: bash
+        run: |
+          status=0
+          if [ "${PERF_EXIT:-0}" -ne 0 ] && [ "${PERF_EXIT:-0}" -ne 5 ]; then
+            echo "::error::performance suite exited ${PERF_EXIT}"
+            status=1
+          fi
+          if [ "${E2E_EXIT:-0}" -ne 0 ] && [ "${E2E_EXIT:-0}" -ne 5 ]; then
+            echo "::error::e2e suite exited ${E2E_EXIT}"
+            status=1
+          fi
+          if [ "$status" -ne 0 ]; then
+            echo "One or more nightly suites failed; see the ::error:: annotations above and the uploaded xunit reports."
+            exit 1
+          fi
+          echo "All nightly performance/e2e suites passed (exit 0 or a marker-empty exit 5)."
 
   # ---------------------------------------------------------------------------
   # interpreter-matrix: FR-021 -- above-3.12 interpreter lane, nightly-only.
@@ -132,7 +169,7 @@ jobs:
         python-version:
           - '3.13'
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
@@ -151,8 +188,10 @@ jobs:
         shell: bash
         run: |
           set +e
-          uv run pytest -m "fast or unit" -q --junitxml="out/reports/xunit-nightly-interpreter-${{ matrix.python-version }}.xml"
-          echo "::notice::interpreter ${{ matrix.python-version }} suite exit=$? (if: always() -- full mode never short-circuits)"
+          uv run --frozen pytest -m "fast or unit" -q --junitxml="out/reports/xunit-nightly-interpreter-${{ matrix.python-version }}.xml"
+          code=$?
+          echo "INTERPRETER_EXIT=$code" >> "$GITHUB_ENV"
+          echo "::notice::interpreter ${{ matrix.python-version }} suite exit=$code (if: always() -- full mode never short-circuits; a red suite is surfaced by the terminal fail-loud step, #4212)"
 
       - name: Upload interpreter-matrix reports
         if: always()
@@ -161,6 +200,112 @@ jobs:
           name: "ci-nightly-interpreter-${{ matrix.python-version }}-reports"
           path: out/reports/
 
+      # Terminal fail-loud gate (#4212): mirror of the performance-and-e2e
+      # gate on the FR-021 interpreter lane. The suite above captured its
+      # pytest exit into $GITHUB_ENV under `set +e` + `if: always()`; this
+      # `if: always()` step (after the artefact upload) fails the matrix leg
+      # if that interpreter's suite was red, so a divergence on 3.13 is no
+      # longer invisible. `fail-fast: false` keeps every other leg running.
+      # pytest exit 5 ("no tests collected", a marker-empty suite) is a skip,
+      # not a failure (spec.md Edge Case #4), so 0 and 5 both pass here.
+      - name: Fail the leg if this interpreter's suite was red (run-all-then-fail-loud)
+        if: always()
+        shell: bash
+        run: |
+          if [ "${INTERPRETER_EXIT:-0}" -ne 0 ] && [ "${INTERPRETER_EXIT:-0}" -ne 5 ]; then
+            echo "::error::interpreter ${{ matrix.python-version }} suite exited ${INTERPRETER_EXIT}"
+            exit 1
+          fi
+          echo "Interpreter ${{ matrix.python-version }} suite passed (exit 0 or a marker-empty exit 5)."
+
+  # ---------------------------------------------------------------------------
+  # generate-full-matrix / full-module-matrix: mission ci-modules-diff-scoping
+  # -- the cross-module post-merge safety net that REPLACES the old
+  # push-always-runs-every-shard behavior now that ci-modules.yml diff-scopes
+  # its matrix on both pull_request and push (operator decision). This
+  # nightly lane realizes the SAME committed module registry
+  # (.github/ci-module-registry.yml) ci-modules.yml reads, unconditionally
+  # selecting every module/shard leaf (no diff scoping -- nightly IS the
+  # full-mode run), and calls the SAME `module-tests.yml` reusable shard
+  # directly with `mode: full`.
+  #
+  # This does NOT `uses: ./.github/workflows/ci-modules.yml` (a nested
+  # multi-job reusable-workflow call): the architectural gate-coverage model's
+  # local-`uses:` splicer (tests/architectural/_gate_coverage.py
+  # `_splice_local_uses`) requires a spliced reusable workflow to define
+  # EXACTLY ONE job (module-tests.yml qualifies; ci-modules.yml, a 3-job
+  # matrix orchestrator, does not) -- so this lane calls `module-tests.yml`
+  # directly, exactly as ci-modules.yml's own `test` job does, at the cost of
+  # a small, intentional duplication of the matrix-generation shape (never
+  # the module list itself, which both read from the one committed registry).
+  # ---------------------------------------------------------------------------
+  generate-full-matrix:
+    name: Generate full module-shard matrix (nightly-only)
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install PyYAML (matrix-generation only, no editable install needed)
+        shell: bash
+        run: |
+          pip install --quiet --disable-pip-version-check --only-binary=:all: "pyyaml==6.0.2"
+
+      - name: Build the full matrix from the committed module registry (every module, every shard)
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+
+          import yaml
+
+          with open(".github/ci-module-registry.yml", encoding="utf-8") as fh:
+              registry = yaml.safe_load(fh)
+
+          leaves = []
+          for row in registry["modules"]:
+              module = row["module"]
+              shard_count = row["shard_count"]
+              for idx in range(1, shard_count + 1):
+                  leaves.append(
+                      {
+                          "module": module,
+                          "roots": json.dumps(row["roots"]),
+                          "cov_target": json.dumps(row["cov_targets"]),
+                          "tier": row["tier"],
+                          "shard": f"{idx}/{shard_count}",
+                          "mode": "full",
+                          "test_dirs": json.dumps(row.get("test_dirs", [])),
+                      }
+                  )
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"matrix={json.dumps(leaves)}\n")
+
+          print(f"ci-nightly: generated {len(leaves)} shard leaves across {len(registry['modules'])} registry modules (full mode, every module selected)")
+          PY
+
+  full-module-matrix:
+    name: "module-tests (${{ matrix.module }} shard ${{ matrix.shard }}) [nightly full]"
+    needs: generate-full-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.generate-full-matrix.outputs.matrix) }}
+    uses: ./.github/workflows/module-tests.yml
+    with:
+      module: ${{ matrix.module }}
+      roots: ${{ matrix.roots }}
+      cov_target: ${{ matrix.cov_target }}
+      tier: ${{ matrix.tier }}
+      shard: ${{ matrix.shard }}
+      mode: ${{ matrix.mode }}
+      test_dirs: ${{ matrix.test_dirs }}
+
   # ---------------------------------------------------------------------------
   # nightly-summary: terminal `if: always()` aggregator so a scheduled/dispatch
   # run's complete failure set is visible in one place, never short-circuited.
@@ -168,7 +313,7 @@ jobs:
   nightly-summary:
     name: Nightly full-mode summary
     runs-on: ubuntu-latest
-    needs: [performance-and-e2e, interpreter-matrix]
+    needs: [performance-and-e2e, interpreter-matrix, full-module-matrix]
     if: always()
     steps:
       - name: Report full-mode results (run-all-regardless, never fail-fast)
@@ -176,3 +321,4 @@ jobs:
         run: |
           echo "performance-and-e2e: ${{ needs.performance-and-e2e.result }}"
           echo "interpreter-matrix: ${{ needs.interpreter-matrix.result }}"
+          echo "full-module-matrix: ${{ needs.full-module-matrix.result }}"

@@ -417,7 +417,7 @@ class TestDoctrineLayerCollisionWarning:
         messages = [str(w.message) for w in record]
         # Exactly one collision warning, with the expected payload.
         collision_msgs = [m for m in messages if "DIRECTIVE_001" in m]
-        assert len(collision_msgs) == 1, collision_msgs  # golden-count: cardinality-is-contract
+        assert len(collision_msgs) == 1, collision_msgs
         msg = collision_msgs[0]
         assert "org" in msg
         assert "builtin" in msg

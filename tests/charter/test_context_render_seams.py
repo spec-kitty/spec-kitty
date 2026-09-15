@@ -317,7 +317,7 @@ class TestBootstrapTextSeam:
     def test_append_policy_summary_lines_with_summary_caps_at_eight(self) -> None:
         lines: list[str] = []
         bootstrap_text._append_policy_summary_lines(lines, [f"item-{i}" for i in range(12)])
-        assert len(lines) == 8  # golden-count: cardinality-is-contract (caps at eight)
+        assert len(lines) == 8  # (caps at eight)
         assert lines[0] == "  - item-0"
         assert lines[-1] == "  - item-7"
 

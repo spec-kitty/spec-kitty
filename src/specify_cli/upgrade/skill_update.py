@@ -46,6 +46,7 @@ SKILL_ROOTS: list[str] = [
     ".kilocode/skills",  # Kilo Code (native-root-required)
     ".github/skills",  # GitHub Copilot (agent-specific)
     ".gemini/skills",  # Gemini CLI (agent-specific)
+    ".llxprt/skills",  # LLxprt Code (agent-specific)
     ".cursor/skills",  # Cursor (agent-specific)
     ".opencode/skills",  # opencode (agent-specific)
     ".windsurf/skills",  # Windsurf (agent-specific)

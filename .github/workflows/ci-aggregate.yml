@@ -8,14 +8,35 @@
 # has no cross-workflow `needs:`), so it consumes the shards' already-uploaded
 # `*-reports` artefacts through a cross-run `actions/download-artifact`
 # (`run-id:` pointed at the triggering run) and never re-runs pytest (FR-007).
-# Coverage basenames are deduped and collisions fail loudly. PR coverage uses
-# only executions retained by the exact CI Modules attempt, including shards
-# carried forward by rerun-failed-jobs, with no cross-run fallback. Its registry and
+# Coverage basenames are deduped and collisions fail loudly. Its registry and
 # diff come from the verified synthetic merge tree (parents must match the
 # source run's immutable tested workflow reference); the trusted default-branch checkout remains
-# in place. Missing source provenance or a current shard fails closed.
-# Automatic non-PR diagnostic runs retain the successful-run stale fallback;
-# manual replay always requires complete evidence retained by its exact source attempt.
+# in place. Missing source provenance fails closed.
+#
+# SELECTION-AWARE STALE-ARTEFACT FALLBACK (mission ci-modules-diff-scoping,
+# Approach C). ci-modules.yml diff-scopes its module matrix: an UNSELECTED
+# (unchanged) module's leaf is SKIPPED, not run, so `current` legitimately
+# lacks its coverage file even on a fully green run. The `collect` job keeps
+# the aggregate WHOLE-TREE (never shrinks its expected 19-module set) by
+# reconciling per module:
+#   * a SELECTED (changed) module missing from `current` -> fails closed,
+#     exactly as before -- it is NEVER served from the fallback run, even
+#     when the fallback has it, so a genuine shard failure on changed code
+#     can never be masked by old green;
+#   * an UNSELECTED (unchanged, provably byte-identical to the fallback
+#     source) module missing from `current` -> backfilled from the most
+#     recent successful "CI Modules" run on the branch (falling back to the
+#     default branch when the PR's own branch has no prior success) --
+#     `diff-cover` only scores the actual diff, which lives entirely in
+#     selected/fresh modules, so backfilling unchanged coverage cannot mask a
+#     regression while keeping whole-tree/Sonar coverage coherent.
+# The discriminator (which modules were SELECTED) is read from the
+# `selected-modules` artifact ci-modules.yml's `generate-matrix` job
+# publishes. Manual `workflow_dispatch` replay downloads neither the fallback
+# run nor that artifact, so it always requires complete evidence retained by
+# its exact source attempt (no backfill at all) -- deliberately, so a
+# hand-triggered re-aggregation never silently substitutes data the operator
+# did not ask for.
 #
 # `mode` (pr|full) is honored in THIS workflow's own fail-fast/`needs`
 # behavior: pr short-circuits the diff-cover gate the moment `collect` cannot
@@ -80,7 +101,7 @@ jobs:
       complete: ${{ steps.reconcile.outputs.complete }}
       missing: ${{ steps.reconcile.outputs.missing }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Prepare exact source registry and diff (data only; trusted checkout stays in place)
         env:
@@ -148,17 +169,35 @@ jobs:
 
       - name: Find the most-recent successful "CI Modules" run (stale-artefact fallback source)
         id: last-success
-        # PR coverage must never borrow a different head's report.
-        if: github.event.workflow_run.event != 'pull_request' && github.event_name != 'workflow_dispatch'
+        # Mission ci-modules-diff-scoping (Approach C): generalized to PR runs
+        # too, now that `current` can legitimately lack a shard because
+        # diff-scoping did not SELECT it (not because it failed). The reconcile
+        # step below is what keeps this safe for PR coverage: it never lets a
+        # SELECTED (changed) module's missing shard resolve from `previous` --
+        # only an UNSELECTED (provably byte-identical to the fallback source)
+        # module may be backfilled. workflow_dispatch manual replay still
+        # requires complete evidence from its exact source attempt (no
+        # fallback at all): mixing a hand-picked prior run into a deliberate
+        # re-aggregation would silently substitute data the operator did not
+        # ask for.
+        if: github.event_name != 'workflow_dispatch'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SOURCE_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch || 'main' }}
         run: |
           set -euo pipefail
           branch="$SOURCE_BRANCH"
           run_id=$(gh run list --repo "${{ github.repository }}" --workflow ci-modules.yml \
             --branch "$branch" --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
+          if [ -z "$run_id" ] && [ "$branch" != "$DEFAULT_BRANCH" ]; then
+            # No prior successful run on the PR's own branch (e.g. its first
+            # push) -- fall back to the default branch's most recent success
+            # so an UNSELECTED (unchanged) module can still be backfilled.
+            run_id=$(gh run list --repo "${{ github.repository }}" --workflow ci-modules.yml \
+              --branch "$DEFAULT_BRANCH" --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
+          fi
           echo "run-id=${run_id}" >> "$GITHUB_OUTPUT"
 
       - name: Download the fallback run's shard artefacts (stale shards only)
@@ -173,129 +212,32 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ steps.last-success.outputs.run-id }}
 
+      - name: Download the triggering run's selected-module set (mission ci-modules-diff-scoping)
+        id: download-selected-modules
+        if: github.event_name != 'workflow_dispatch'
+        continue-on-error: true
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: selected-modules
+          path: out/aggregate/selected
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id || inputs.source_run_id }}
+
       - name: Install PyYAML (registry parsing only, no editable install needed)
         shell: bash
         run: |
           pip install --quiet --disable-pip-version-check --only-binary :all: "pyyaml==6.0.2"
 
-      - name: Reconcile shard artefacts by basename (dedup + stale-artefact fallback; guard collisions + completeness)
+      - name: Reconcile shard artefacts by basename (dedup + selection-aware stale-artefact fallback; guard collisions + completeness)
         id: reconcile
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import json
-          import os
-          import re
-          import sys
-          from collections import defaultdict
-          from pathlib import Path
-
-          import yaml
-
-          root = Path("out/aggregate")
-          current_dir = root / "current"
-          previous_dir = root / "previous"
-          resolved_dir = root / "coverage"
-          resolved_dir.mkdir(parents=True, exist_ok=True)
-
-          def index_by_basename(base: Path) -> dict[str, list[Path]]:
-              """Map coverage basename -> every source path producing it (raw,
-              pre-dedup — the shape `download-artifact` per-artifact-subfolder
-              layout produces before any dedup runs)."""
-              found: dict[str, list[Path]] = defaultdict(list)
-              if not base.exists():
-                  return found
-              for path in base.rglob("coverage-*.xml"):
-                  found[path.name].append(path)
-              return found
-
-          def expected_basenames(registry_path: Path) -> set[str]:
-              """The EXACT per-shard coverage basenames the module registry
-              expects -- the SAME (tier, module, shard) derivation
-              ci-modules.yml's generate-matrix uses to expand module x
-              shard_count into matrix leaves. This is what makes a shard
-              missing from BOTH the current and fallback runs detectable,
-              instead of silently accepting whatever happened to download.
-
-              The registry read here comes from the TESTED PR merge tree
-              (`out/aggregate/source/`, filled by aggregate_source.py from
-              the immutable merge SHA), NOT from this trusted default-branch
-              checkout -- so every row is validated BEFORE any derived value
-              reaches a step output: an untrusted `module` carrying a
-              newline must never be able to inject `key=value` lines into
-              $GITHUB_OUTPUT and override the completeness re-check."""
-              with open(registry_path, encoding="utf-8") as fh:
-                  registry = yaml.safe_load(fh)
-              row_field = re.compile(r"[A-Za-z0-9._-]+")
-              names: set[str] = set()
-              for row in registry["modules"]:
-                  tier = row["tier"]
-                  module = row["module"]
-                  shard_count = row["shard_count"]
-                  for field_name, value in (("tier", tier), ("module", module)):
-                      if not (isinstance(value, str) and row_field.fullmatch(value)):
-                          print(f"::error::ci-aggregate: registry row has a {field_name} outside [A-Za-z0-9._-]: {value!r} -- untrusted PR-authored registry value refused")
-                          sys.exit(1)
-                  if not isinstance(shard_count, int) or isinstance(shard_count, bool) or shard_count < 1:
-                      print(f"::error::ci-aggregate: registry row has a non-positive/non-integer shard_count: {shard_count!r} -- untrusted PR-authored registry value refused")
-                      sys.exit(1)
-                  for idx in range(1, shard_count + 1):
-                      names.add(f"coverage-{tier}-{module}-shard{idx}-of-{shard_count}.xml")
-              return names
-
-          current = index_by_basename(current_dir)
-          previous = index_by_basename(previous_dir)
-
-          # Guard Invariant 1: a basename produced by >1 source WITHIN THE SAME
-          # run is a naming-contract violation upstream — detect and fail loudly,
-          # never silently drop one shard's data by picking a winner.
-          collisions = {name: paths for name, paths in current.items() if len(paths) > 1}
-          if collisions:
-              for name, paths in sorted(collisions.items()):
-                  print(f"::error::ci-aggregate: basename collision for {name}: {[str(p) for p in paths]}")
-              print(f"::error::ci-aggregate: {len(collisions)} basename collision(s) detected — a collision silently drops a shard's coverage data; refusing to proceed")
-              sys.exit(1)
-
-          expected = expected_basenames(Path("out/aggregate/source/ci-module-registry.yml"))
-
-          stale: list[str] = []
-          missing: list[str] = []
-          for name in sorted(expected):
-              if name in current:
-                  (resolved_dir / name).write_bytes(current[name][0].read_bytes())
-              elif name in previous:
-                  if len(previous[name]) > 1:
-                      print(f"::warning::ci-aggregate: fallback source itself has a collision for {name}, using the first: {[str(p) for p in previous[name]]}")
-                  (resolved_dir / name).write_bytes(previous[name][0].read_bytes())
-                  stale.append(name)
-              else:
-                  missing.append(name)
-
-          complete = not missing
-          resolved_count = len(expected) - len(missing)
-          print(f"ci-aggregate: resolved {resolved_count}/{len(expected)} coverage file(s); {len(stale)} served from the stale-artefact fallback: {stale}")
-
-          summary_path = os.environ.get("GITHUB_OUTPUT")
-          if summary_path:
-              # Delimiter (heredoc) form, never bare `key=value`: the runner's
-              # FileCommandManager assigns outputs line-by-line, so a value
-              # containing a newline would inject additional step outputs.
-              # The registry validation above keeps `missing` newline-free;
-              # the delimiter form also contains ordinary embedded newlines.
-              # Validation remains necessary to exclude delimiter collisions.
-              with open(summary_path, "a", encoding="utf-8") as fh:
-                  fh.write(f"complete<<RECONCILE_EOF\n{'true' if complete else 'false'}\nRECONCILE_EOF\n")
-                  fh.write(f"missing<<RECONCILE_EOF\n{','.join(sorted(missing))}\nRECONCILE_EOF\n")
-
-          if missing:
-              # C-005: a shard absent from BOTH the current and fallback runs
-              # is the cross-run generalization of the same-run collision
-              # above — never silently drop it, fail the job loudly.
-              print(f"::error::ci-aggregate: {len(missing)} registry-expected shard(s) missing from BOTH the current and fallback runs: {sorted(missing)}")
-              print("::error::ci-aggregate: refusing to silently treat this run as complete — see contracts/artefact-naming.md 'Stale-artefact fallback'")
-              sys.exit(1)
-          PY
+          # Selection-aware shard reconciler extracted to a unit-tested
+          # module (#4360-B): require every SELECTED shard fresh in this
+          # run; UNSELECTED shards backfill-if-available, never fatal. The
+          # fail-closed guard still exits non-zero on any missing shard.
+          python3 scripts/ci/reconcile_shards.py
 
       - name: Upload reconciled coverage set
         if: always()
@@ -329,6 +271,19 @@ jobs:
       (needs.collect.outputs.mode == 'full' ||
         (needs.collect.result == 'success' && needs.collect.outputs.complete == 'true'))
     runs-on: ubuntu-latest
+    # Budget re-checked against the BROADENED reconciled set (mission
+    # sonar-per-pr-coverage-reuse WP05/T027): once coverage breadth is applied
+    # to every shard the set grows ~6x, 29.8 MB -> 166.6 MiB over 34 shard
+    # files (4.8M `<line>` elements). Measured locally against a synthetic set
+    # of exactly that size, built from this repository's real source tree:
+    #   raw ElementTree parse of all 34 files ....  5.8 s
+    #   scripts/ci/validate_diff_coverage.py .....  7.2 s  (peak RSS 2.26 GB)
+    #   diff-cover over the same set ............. 6.7 s  (peak RSS 2.64 GB)
+    # so the two parses this job performs cost ~14 s of a 900 s budget. The
+    # budget is NOT raised: time is not the constraint here, and the real
+    # headroom to watch is MEMORY -- ~2.6 GB peak against a 16 GB stock
+    # ubuntu-latest runner. If the set grows several-fold again, re-measure
+    # resident size before wall clock.
     timeout-minutes: 15
     steps:
       - name: Fail loudly if the reconciled shard set is incomplete (full mode's always() re-check)
@@ -340,7 +295,7 @@ jobs:
           echo "::error::ci-aggregate: reconciled coverage set is INCOMPLETE (missing: $MISSING_SHARDS) -- refusing to score diff-cover over data missing from both the current and fallback runs (C-005)"
           exit 1
 
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
 
@@ -414,3 +369,276 @@ jobs:
             --diff-file=out/aggregate/source/statement.diff.patch \
             --fail-under=90 \
             ${{ steps.census.outputs.exclude-flags }}
+
+  # ---------------------------------------------------------------------------
+  # sonar-pr: the per-change SonarCloud report (spec-kitty#4334, FR-002/FR-004).
+  #
+  # It REUSES the measurement `collect` already reconciled instead of running a
+  # second test tier for one report (the duplicate execution retired from
+  # ci-quality.yml's `sonarcloud` job). It therefore runs NO tests, and
+  # deliberately carries no `uv sync` step: this job holds the publication
+  # credential, and syncing would execute change-authored build configuration
+  # inside it (NFR-004).
+  #
+  # PUBLICATION BLOCKER -- spec-kitty#4350. A green pipeline here does NOT prove
+  # the report reached SonarCloud: an Automatic-Analysis conflict on the
+  # `spec-kitty_spec-kitty` project can reject the upload while this job stays
+  # green (it is continue-on-error by design). Read #4350 before concluding from
+  # this job's status that per-change reporting is live.
+  #
+  # EXECUTION CONDITION (contract §C1) -- five conjuncts, ALL required. Four are
+  # expressible in the job `if:` below; the fifth (credential presence) is not,
+  # because the `secrets` context is unavailable in a job-level condition. All
+  # five are therefore decided, independently and without short-circuiting, by
+  # the extractable evaluator in this job's first step -- which is also what
+  # makes the condition testable at all, since a `workflow_run` handler executes
+  # only the default-branch copy of its file and so cannot run on the change
+  # that introduces it (C-006).
+  #
+  # NO `always()`. The sibling `diff-cover` gate pairs `always()` with an
+  # internal completeness re-check; copying that shape without the re-check
+  # publishes a partial figure that reads as a coverage regression.
+  # ---------------------------------------------------------------------------
+  sonar-pr:
+    name: "SonarCloud per-change report (informational; never merge-blocking)"
+    needs: collect
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      needs.collect.result == 'success' &&
+      needs.collect.outputs.complete == 'true'
+    # §C4, surface 1 of 3. Surface 2 is this job's absence from
+    # `aggregate-gate.needs`; surface 3 (branch protection) is outside the
+    # repository and is declared, never claimed.
+    continue-on-error: true
+    # Job-scoped ONLY: the pull-request metadata read is this job's need, and
+    # granting it workflow-wide would widen `collect`/`diff-cover`'s blast
+    # radius. A job-level block REPLACES the workflow-level grant, so the two
+    # inherited scopes are restated here.
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Evaluate the five-conjunct execution condition (§C1)
+        id: gate
+        shell: bash
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          # The TRIGGERING run's payload -- not this run's. `github.event_name`
+          # is `workflow_run` here, so the retiring job's
+          # `github.event_name == 'pull_request'` would be always false.
+          SOURCE_JSON: ${{ toJSON(github.event.workflow_run) }}
+          THIS_REPOSITORY: ${{ github.repository }}
+          # A BOOLEAN presence signal, never the credential's value (DIR-050).
+          SONAR_TOKEN_PRESENT: ${{ secrets.SONAR_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+
+          # Contract §C1. Each conjunct is decided ON ITS OWN and reported by a
+          # stable slug: no short-circuiting, so the log names every unmet
+          # clause rather than the first, and a clause dropped in a later edit
+          # reds exactly one named test instead of perturbing a shared string.
+          CONJUNCT_REASONS = {
+              "pull-request-event": "the triggering run's event is not a pull request (FR-014/C-001)",
+              "same-origin": "the triggering run's head repository is not this repository (FR-011/NFR-004)",
+              "assembly-succeeded": "the reconciliation job did not succeed (FR-004)",
+              "assembly-complete": "the reconciled coverage set is incomplete (FR-007/NFR-006)",
+              "credential-present": "SONAR_TOKEN is not configured (FR-008)",
+          }
+
+          needs = json.loads(os.environ["NEEDS_JSON"] or "{}") or {}
+          # `toJSON(github.event.workflow_run)` is the literal `null` on a
+          # workflow_dispatch replay: fail CLOSED, a run with no triggering
+          # change is not a per-change run.
+          source = json.loads(os.environ["SOURCE_JSON"] or "null") or {}
+          this_repository = os.environ["THIS_REPOSITORY"]
+          credential_present = os.environ["SONAR_TOKEN_PRESENT"] == "true"
+
+          collect = needs.get("collect") or {}
+          head_repository = (source.get("head_repository") or {}).get("full_name")
+
+          conjuncts = {
+              "pull-request-event": source.get("event") == "pull_request",
+              # An ABSENT origin signal is not a same-origin signal.
+              "same-origin": isinstance(head_repository, str) and head_repository == this_repository,
+              "assembly-succeeded": collect.get("result") == "success",
+              # The reconciled artefact uploads even when the assembly fails and
+              # `complete=false` is written BEFORE it exits, so artefact
+              # presence is not evidence of completeness.
+              "assembly-complete": (collect.get("outputs") or {}).get("complete") == "true",
+              "credential-present": credential_present,
+          }
+          unmet = [name for name, held in conjuncts.items() if not held]
+
+          for name in unmet:
+              # A withheld report is a SKIP with an advisory notice, never a
+              # failure -- on every conjunct, not only the credential one.
+              print(f"::notice::sonar-pr: skipping the per-change report -- {CONJUNCT_REASONS[name]}")
+
+          run = "false" if unmet else "true"
+          destination = os.environ.get("GITHUB_OUTPUT")
+          if destination:
+              # Bare `key=value` is safe here and only here: both values are
+              # drawn from the fixed slug vocabulary above, never from run data.
+              with open(destination, "a", encoding="utf-8") as handle:
+                  handle.write(f"run={run}\n")
+                  handle.write(f"unmet={','.join(unmet)}\n")
+          print(f"sonar-pr: run={run} unmet={unmet}")
+          PY
+
+      - name: Check out the trusted tree (the analysis configuration lives here)
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          # Blame attribution and new-code detection need full history.
+          fetch-depth: 0
+
+      - name: Download the reconciled per-change coverage set
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: ci-aggregate-reconciled-coverage
+          path: out/aggregate/coverage
+
+      - name: Download the validated source record
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: ci-aggregate-source
+          path: out/aggregate/source
+
+      - name: Resolve the change identity and the analysis arguments (§C2/§C3)
+        id: analysis
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          THIS_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # The identity comes from the VALIDATED source record, whose
+          # `pr_number` aggregate_source.py derives from the immutable
+          # refs/pull/N/merge reference -- never from the mutable
+          # workflow_run.pull_requests[] projection that script refuses.
+          pr_number="$(python3 scripts/ci/sonar_pr_analysis.py pr-number --source out/aggregate/source/source.json)"
+          # ONE authenticated read, keyed on that validated number, for the
+          # branch names and the origin repository (which source.json lacks).
+          gh api "repos/$THIS_REPOSITORY/pulls/$pr_number" > "$RUNNER_TEMP/pull-request.json"
+          version="$(python3 scripts/ci/sonar_project_version.py)"
+          if [ -z "$version" ]; then
+            echo "::error::sonar-pr: sonar.projectVersion could not be derived from pyproject.toml" >&2
+            exit 1
+          fi
+          python3 scripts/ci/sonar_pr_analysis.py scanner-args \
+            --source out/aggregate/source/source.json \
+            --pull-request "$RUNNER_TEMP/pull-request.json" \
+            --properties sonar-project.properties \
+            --coverage-dir out/aggregate/coverage \
+            --project-version "$version"
+
+      - name: Replace the analysed trees from the validated tested revision (§C3, NFR-008)
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          PR_NUMBER: ${{ steps.analysis.outputs.pr-number }}
+          TESTED_SHA: ${{ steps.analysis.outputs.tested-sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --quiet origin "refs/pull/${PR_NUMBER}/merge"
+          # NFR-008: bind the fetched revision to the MEASURED one, loudly. An
+          # unbound analysis projects line numbers onto a different tree and
+          # produces a plausible, silently wrong report.
+          python3 scripts/ci/sonar_pr_analysis.py verify-revision \
+            --source out/aggregate/source/source.json \
+            --fetched "$(git rev-parse FETCH_HEAD)"
+          # Trust is an ALLOWLIST OF TWO REPLACED PATHS, not an enumeration of
+          # every file the scanner might read. The working directory stays the
+          # trusted checkout, so the configuration the scanner loads is
+          # project-controlled. Delete first, so a deletion in the change under
+          # review is honoured instead of leaving a stale trusted file behind.
+          rm -rf src tests
+          git checkout "$TESTED_SHA" -- src tests
+
+      - name: SonarCloud Scan
+        if: steps.gate.outputs.run == 'true'
+        # SHA-pinned (DIR-051) to the SAME commit sonar.yml vets for this
+        # action -- both surfaces analyze the same SonarCloud project, so the
+        # pins must not drift apart (enforced by
+        # tests/release/test_sonar_workflow.py).
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
+        with:
+          # The TRUSTED checkout root. Pointing this at a subdirectory holding
+          # the change's sources was refused during planning: the scanner
+          # locates sonar-project.properties RELATIVE to this directory, so it
+          # would load the change's OWN configuration -- the exact
+          # FR-012/NFR-005 breach the subdirectory was meant to prevent.
+          projectBaseDir: .
+          # Every publication-governing setting, resolved from trusted content
+          # by scripts/ci/sonar_pr_analysis.py and passed explicitly.
+          args: ${{ steps.analysis.outputs.args }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: SonarCloud Quality Gate (reported, not required)
+        if: steps.gate.outputs.run == 'true'
+        # SHA-pinned (DIR-051) -- see the scan step above.
+        uses: SonarSource/sonarqube-quality-gate-action@7a5fffe8e523c40e0c740b6bc2712ab503e52efa # v1.2.1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+
+  # ---------------------------------------------------------------------------
+  # aggregate-gate: the terminal verdict (contract §C4, surface 2 of 3).
+  #
+  # Its value is DECLARABILITY, not enforcement: job-level continue-on-error
+  # already holds the run conclusion green (10 sampled runs of the retiring
+  # reporter show 7 failed jobs and 10 green run conclusions), and
+  # scripts/ci/fleet_verdict.py's red set does not include `cancelled`, so no
+  # terminal job can rescue a run conclusion. What this job buys is a seam a
+  # test can assert `sonar-pr` is EXCLUDED from -- which is what makes the
+  # workflow-run-conclusion half of the non-blocking guarantee assertable at
+  # all, the way tests/architectural/test_suite_jobs_gate_blocking.py's
+  # NON_BLOCKING_ALLOWLIST declares ci-quality.yml's non-blocking jobs.
+  #
+  # Modelled on ci-router.yml's `router-gate` (skipped-tolerant), NOT
+  # ci-quality.yml's `quality-gate` (strict success): both siblings here are
+  # legitimately skippable -- `collect` carries its own `if:`, and `diff-cover`
+  # was observed skipped in run 34842534281 -- so a verbatim port of the strict
+  # form would fail the verdict on every such run.
+  # ---------------------------------------------------------------------------
+  aggregate-gate:
+    name: CI Aggregate gate
+    needs: [collect, diff-cover]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Evaluate the terminal verdict (skipped-tolerant)
+        shell: bash
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          # Set equality, not containment: a job added to `needs:` without a
+          # reasoned update here is a silent widening of the merge path, and a
+          # job REMOVED from it is a silent narrowing that no red would find.
+          expected = {"collect", "diff-cover"}
+          if set(needs) != expected:
+              raise SystemExit(f"ci-aggregate gate needs changed: {sorted(needs)} (expected {sorted(expected)})")
+          blocking = {job: result.get("result") for job, result in needs.items() if result.get("result") not in {"success", "skipped"}}
+          if blocking:
+              raise SystemExit(f"blocking job(s) did not succeed: {blocking}")
+          print(f"ci-aggregate: terminal verdict green over {sorted(needs)} (skipped is not red)")
+          PY

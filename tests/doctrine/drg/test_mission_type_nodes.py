@@ -74,7 +74,7 @@ class TestMissionTypeNodeGeneration:
         # mission types (documentation, plan, research, software-dev). The
         # count of 4 is a deliberate cardinality contract (the built-in
         # mission-type set), not incidental golden-count debt.
-        assert len(self._shipped_mission_type_ids_and_labels()) == 4  # golden-count: cardinality-is-contract
+        assert len(self._shipped_mission_type_ids_and_labels()) == 4
 
     def test_generates_exactly_one_node_per_shipped_mission_type(
         self, tmp_path: Path

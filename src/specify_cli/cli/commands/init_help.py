@@ -7,7 +7,14 @@ Creates project files only. Does not initialize a git repository.
 Does not create any commits.
 
 If PROJECT_NAME is omitted, init runs in the current directory.
-Re-running init in an already-initialized directory exits cleanly (idempotent).
+Re-running init in an already-initialized directory is idempotent for project
+state: it verifies the configured agents' skill surfaces, additively restoring
+missing per-agent skill roots (e.g. .claude/skills/) through the canonical
+installer, and exits 1 with the recovery command
+`spec-kitty agent config sync --create-missing --keep-orphaned` when shared
+command skills (codex/vibe/pi/letta) are missing or empty. An existing
+per-agent skill file that is empty, a directory, or a symlink exits 1 naming
+its path and is preserved untouched — rename or remove it and re-run init.
 
 Note: The --no-git flag from previous versions has been removed.
       init never touches git state regardless of flags.
@@ -28,7 +35,7 @@ What Gets Created:
 Specifying AI Assistants (--ai flag):
 Use comma-separated agent keys (no spaces). Valid keys include:
 codex, claude, gemini, cursor, qwen, opencode, windsurf, kilocode,
-auggie, copilot, q, kiro, antigravity, vibe, pi, letta.
+auggie, copilot, q, kiro, antigravity, vibe, pi, letta, llxprt.
 
 Template Discovery (Development Mode):
 Set SPEC_KITTY_TEMPLATE_ROOT to override bundled templates for local development.

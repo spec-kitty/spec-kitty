@@ -11,14 +11,15 @@
 
 **Code**: `MISSION_REVIEW_MODE_MISMATCH`
 
-**When it fires**: `--mode post-merge` was requested but `meta.json.baseline_merge_commit` is absent, meaning the mission has not been merged via `spec-kitty merge`.
+**When it fires**: `--mode post-merge` was requested but `meta.json.baseline_merge_commit` is absent, meaning no merge has been recorded for this mission — neither via `spec-kitty merge` nor from a GitHub PR acceptance.
 
 **JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
 
 **Remediation**:
 1. Run `spec-kitty merge` to merge the mission and record the baseline commit, then retry `spec-kitty review --mode post-merge`.
-2. Re-run with `--mode lightweight` to perform a consistency check without the full post-merge gate requirements.
-3. For pre-083 missions already merged but lacking `baseline_merge_commit`, run `spec-kitty migrate backfill-identity` to backfill missing identity fields, which will also record the baseline merge commit if available.
+2. If this mission landed through a GitHub PR (`acceptance_mode: pr`), record the PR's real merge commit instead: `spec-kitty accept --mode pr --merge-commit <sha>` before the PR merges, or `spec-kitty migrate backfill-merge-commit --mission <slug> --merge-commit <sha>` afterwards (#4231).
+3. Re-run with `--mode lightweight` to perform a consistency check without the full post-merge gate requirements.
+4. For pre-083 missions already merged but lacking `baseline_merge_commit`, run `spec-kitty migrate backfill-identity` to backfill missing identity fields, which will also record the baseline merge commit if available.
 
 **Body example**:
 
@@ -227,9 +228,12 @@ MISSION_REVIEW_TEST_EXTRA_MISSING: pytest is not importable from the active Pyth
 
 **JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
 
+**Reason field** (#4231): the finding carries a `reason` distinguishing the two states that previously produced this identical verdict — `never_merged_via_spec_kitty_merge` (the mission has not been merged), and `pr_accepted_merge_unrecorded` (the mission was accepted via a GitHub PR, `acceptance_mode: pr`, so the merge likely happened and was never recorded). The verdict is a hard fail either way; only the remediation differs.
+
 **Remediation**:
 1. Run `spec-kitty merge` to bake `baseline_merge_commit` into `meta.json`, then re-run `spec-kitty review --mode lightweight`.
 2. Or, if the mission is already merged, run `spec-kitty review --mode post-merge` instead.
+3. For a `pr_accepted_merge_unrecorded` mission, record the PR's real merge commit: `spec-kitty migrate backfill-merge-commit --mission <slug> --merge-commit <sha>` (or `spec-kitty accept --mode pr --merge-commit <sha>` before the PR merges).
 
 **Body example**:
 
@@ -280,6 +284,26 @@ opaque identifier.
 
 ```text
 MISSION_REVIEW_DEAD_CODE_UNDETERMINABLE: dead-code analysis could not establish a complete supported source set.
+```
+
+---
+
+## DEAD_CODE_EVIDENCE_INCOMPLETE
+
+**Code**: `MISSION_REVIEW_DEAD_CODE_EVIDENCE_INCOMPLETE`
+
+**When it fires**: the mission's `meta.json` carries a `baseline_merge_commit` whose recorded `pr_merge_evidence` value is not one the dead-code gate recognizes as a complete anchor (`merge-commit-parent-attested` — a two-parent merge landing — or `corpus-parent-attested` — a single-parent landing, each recorded under the operator's explicit `--attest-first-landing-commit` attestation; neither is a git proof, because post-landing git history cannot show which side of a landing the target branch stood on). A `baseline_merge_commit` recorded by `spec-kitty merge` (no `pr_merge_evidence` field) is the local-recording lane and never fires this code. The PR-recording seam never writes an unrecognized value, so this code means the field was hand-edited or written by a future/unknown tool — and the anchor may not cover the whole mission (the impl-before-corpus rebase landing records an earlier same-PR commit as the anchor, and the internal-merge landing — the corpus branch merged into the implementation branch, the target then fast-forwarded — records an implementation commit, each silently truncating the scan). The gate surfaces this state instead of reporting a green scan over a possibly truncated diff (#4231).
+
+**JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
+
+**Remediation**:
+1. Re-record the baseline from the PR's landing commit with the operator attestation that its first parent is the pre-landing target tip: `spec-kitty migrate backfill-merge-commit --mission <slug> --merge-commit <sha> --attest-first-landing-commit` — for a two-parent merge commit the attestation is that the merge was performed on the target branch; for a single-parent landing (squash or corpus-first stack) it is that the supplied commit was the first commit of the landing.
+3. Do not interpret this diagnostic as a finding about the mission's code; it is a finding about the anchor's evidence. Do not clear it by editing `pr_merge_evidence` by hand.
+
+**Body example**:
+
+```text
+MISSION_REVIEW_DEAD_CODE_EVIDENCE_INCOMPLETE: baseline anchor evidence is not recognized as complete (pr_merge_evidence: merge-commit-parent).
 ```
 
 ---

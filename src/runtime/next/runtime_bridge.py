@@ -1609,6 +1609,11 @@ def _dn_bootstrap(
                 reason="Mission is already completed",
             )
         )
+    # E3 (#3929): register the runtime-moment producer at this entry, never while
+    # ``specify_cli.status`` imports (that re-enters ``runtime.next`` mid-import).
+    from specify_cli.status import ensure_runtime_moment_producer  # noqa: PLC0415
+
+    ensure_runtime_moment_producer()
     sync_emitter = runtime_emitter_for_mission(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
@@ -2819,6 +2824,10 @@ def answer_decision_via_runtime(
         raise MissionRuntimeError(f"Mission {mission_slug!r} not found; cannot answer decision {decision_id!r}")
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
+    # E3 (#3929): same bridge-entry registration as the decide path.
+    from specify_cli.status import ensure_runtime_moment_producer  # noqa: PLC0415
+
+    ensure_runtime_moment_producer()
     sync_emitter = runtime_emitter_for_mission(
         feature_dir=feature_dir,
         mission_slug=mission_slug,

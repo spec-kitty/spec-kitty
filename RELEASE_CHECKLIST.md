@@ -222,6 +222,27 @@ package first, verify it is installable from PyPI, and only then tag the CLI.
   gh release download vX.Y.Z --dir /tmp/spec-kitty-release-check
   ```
 
+### 8. Open the Next Development Cycle
+
+Do this as soon as the tag is pushed, ahead of routine merges. Branch-mode release
+validation (`scripts/release/validate_release.py --mode branch`) requires `main`'s
+version to advance beyond the latest tag. It runs in the scheduled Release Readiness
+Check on `main` and on every pull request that changes `pyproject.toml`. Right after
+tagging, `main` still carries the tagged version, so that check fails with "Version
+does not advance beyond latest tag" until this step lands (#4290).
+
+- [ ] Open a pull request to `main` that moves the working version to the next
+  development or candidate version (for example `4.0.0rc2` → `4.0.0rc3` on a
+  release-candidate line), with no product changes:
+  - `version` in `pyproject.toml`
+  - the project's own entry in `uv.lock`
+  - `.kittify/metadata.yaml`
+  - a new `## [Unreleased] - <next version>` heading at the top of `CHANGELOG.md`,
+    then refresh the docs retrieval index with `python -m scripts.docs.docs_index --write`
+- [ ] Give that pull request priority so it merges ahead of routine work. Changes
+  that merge after the tag belong to the next version, not the published one.
+- [ ] After it merges, confirm the Release Readiness Check on `main` is green.
+
 ## Post-Release Verification
 
 ### Package Availability
@@ -277,7 +298,8 @@ If a critical issue is discovered after release:
 ## Common Gotchas
 
 - **Validation fails with "Version does not advance beyond latest tag"**:
-  bump `pyproject.toml` to a higher semantic version.
+  bump `pyproject.toml` to a higher semantic version. On `main` right after a tag
+  this is expected until the next cycle is open; see step 8 of the Release Process.
 - **Validation fails with "CHANGELOG.md lacks a populated section"**:
   add `## [X.Y.Z]` with real release notes before tagging.
 - **PyPI publish fails**:
@@ -290,4 +312,4 @@ If a critical issue is discovered after release:
 
 ---
 
-**Last Updated**: 2026-08-31
+**Last Updated**: 2026-09-14

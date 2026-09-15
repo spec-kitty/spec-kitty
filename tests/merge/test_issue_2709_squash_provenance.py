@@ -245,7 +245,7 @@ def test_squash_merge_preserves_target_newer_meta_provenance(
         "#2709 regression: target-newer `accept_commit` was clobbered. "
         f"got={merged_meta.get('accept_commit')!r}"
     )
-    assert len(merged_meta.get("acceptance_history", [])) == 2, (  # golden-count: cardinality-is-contract
+    assert len(merged_meta.get("acceptance_history", [])) == 2, (
         "#2709 regression: `acceptance_history` must union both sides (coord v1 "
         "+ target v2). `-X theirs` kept only the coord copy. "
         f"history={merged_meta.get('acceptance_history')!r}"

@@ -91,6 +91,66 @@ For non-obvious runtime behaviour an operator may encounter:
 │                                                        checkout for a        │
 │                                                        single-branch         │
 │                                                        mission.              │
+│ --merge-commit                                   SHA   With --mode pr:       │
+│                                                        record this PR merge  │
+│                                                        commit as the         │
+│                                                        mission's post-merge  │
+│                                                        review baseline. The  │
+│                                                        commit is verified    │
+│                                                        against git before    │
+│                                                        anything is written — │
+│                                                        it must carry         │
+│                                                        kitty-specs/<slug>/m… │
+│                                                        its first parent must │
+│                                                        not, and it must have │
+│                                                        landed on the target  │
+│                                                        branch. Every landing │
+│                                                        shape additionally    │
+│                                                        needs                 │
+│                                                        --attest-first-landi… │
+│ --target-branch                                  TEXT  With --merge-commit:  │
+│                                                        the branch the PR     │
+│                                                        merged into (the PR's │
+│                                                        base branch).         │
+│                                                        Defaults to the       │
+│                                                        mission's declared    │
+│                                                        target_branch, else   │
+│                                                        the repository's      │
+│                                                        primary branch.       │
+│ --attest-first-land…                                   With --merge-commit:  │
+│                                                        attest that the       │
+│                                                        supplied commit's     │
+│                                                        first parent is the   │
+│                                                        pre-landing target    │
+│                                                        tip — for a           │
+│                                                        two-parent merge      │
+│                                                        commit, that the      │
+│                                                        merge was performed   │
+│                                                        ON the target branch  │
+│                                                        (an internal merge    │
+│                                                        fast-forwarded onto   │
+│                                                        the target is         │
+│                                                        graph-identical, and  │
+│                                                        its first parent is   │
+│                                                        an implementation     │
+│                                                        commit); for a        │
+│                                                        single-parent landing │
+│                                                        (squash or            │
+│                                                        corpus-first stack),  │
+│                                                        that it was the first │
+│                                                        commit of the         │
+│                                                        landing. Required for │
+│                                                        every landing shape:  │
+│                                                        git cannot prove      │
+│                                                        either, and a wrong   │
+│                                                        anchor silently       │
+│                                                        under-scans the       │
+│                                                        dead-code gate. The   │
+│                                                        attestation is        │
+│                                                        recorded in           │
+│                                                        pr_merge_evidence,    │
+│                                                        never presented as a  │
+│                                                        git proof.            │
 │ --help                -h                               Show this message and │
 │                                                        exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -200,6 +260,12 @@ _Authentication commands_
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --headless            Use device authorization flow (for SSH or no-browser   │
 │                       environments).                                         │
+│ --machine             Non-interactive machine/CI login: exchange the         │
+│                       ServicePrincipal credential from                       │
+│                       SPEC_KITTY_MACHINE_CLIENT_ID +                         │
+│                       SPEC_KITTY_MACHINE_CLIENT_SECRET(_FILE) via the OAuth  │
+│                       client_credentials grant. No browser, device flow, or  │
+│                       prompt.                                                │
 │ --force     -f        Re-authenticate even if already logged in.             │
 │ --help      -h        Show this message and exit.                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -260,6 +326,11 @@ _Charter management commands_
 │               optional cascade.                                              │
 │ deactivate    Deactivate a doctrine artifact by kind and ID (FR-005), with   │
 │               optional cascade.                                              │
+│ new           Scaffold a stub doctrine artifact YAML (FR-016).               │
+│ validate      Validate project-layer doctrine artifacts against their        │
+│               schemas (FR-017).                                              │
+│ fetch         Fetch org doctrine pack(s) from their configured remote        │
+│               sources.                                                       │
 │ interview     Capture charter interview answers for later generation.        │
 │ generate      Generate charter bundle from interview answers + doctrine      │
 │               references.                                                    │
@@ -276,142 +347,7 @@ _Charter management commands_
 │ mission-type  Mission type commands (activated types only).                  │
 │ list          List activated doctrine artifacts by kind.                     │
 │ pack          Charter pack management commands.                              │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter fetch
-
-```
- Usage: spec-kitty charter fetch [OPTIONS]
-
- Fetch org doctrine pack(s) from their configured remote sources.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --pack             TEXT  Fetch only the named pack (default: fetch all       │
-│                          configured packs).                                  │
-│ --dry-run                Show what would be fetched without contacting any   │
-│                          remote.                                             │
-│ --help     -h            Show this message and exit.                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter new
-
-```
- Usage: spec-kitty charter new [OPTIONS] KIND ID
-
- Scaffold a stub doctrine artifact YAML (FR-016).
-
- The scaffolder pre-fills the canonical schema's required fields with
- ``TODO …`` placeholders so the file passes ``doctrine validate`` on
- first emit.  Refuses to overwrite an existing file.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    kind             TEXT  Artifact kind (singular): one of agent_profile,  │
-│                             asset, directive, mission_step_contract,         │
-│                             paradigm, procedure, styleguide, tactic,         │
-│                             toolguide.                                       │
-│                             [required]                                       │
-│ *    artifact_id      ID    Artifact identifier (kebab-case for most kinds;  │
-│                             SCREAMING_SNAKE for directives).                 │
-│                             [required]                                       │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --pack          PATH  Scaffold inside a doctrine pack directory instead of   │
-│                       the project layer. When omitted, the stub lands under  │
-│                       .kittify/doctrine/.                                    │
-│ --help  -h            Show this message and exit.                            │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter org
-
-_Manage org-layer doctrine pack authoring (init, validate)._
-
-```
- Usage: spec-kitty charter org [OPTIONS] COMMAND [ARGS]...
-
- Manage org-layer doctrine pack authoring (init, validate).
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ init      Scaffold a minimal org doctrine pack skeleton (FR-006).            │
-│ validate  Validate an org doctrine pack using schema and DRG checks          │
-│           (FR-006).                                                          │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter org init
-
-```
- Usage: spec-kitty charter org init [OPTIONS] PACK_PATH
-
- Scaffold a minimal org doctrine pack skeleton (FR-006).
-
- Creates three files under *pack-path*::
-
-     org-charter.yaml   — governance policy stub
-     drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
-     README.md          — authoring quickstart
-
- Refuses to overwrite an existing directory unless ``--force`` is passed.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the directory to initialise as an org      │
-│                           doctrine pack.                                     │
-│                           [required]                                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force            Overwrite an existing pack directory.                     │
-│ --help   -h        Show this message and exit.                               │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter org validate
-
-```
- Usage: spec-kitty charter org validate [OPTIONS] PACK_PATH
-
- Validate an org doctrine pack using schema and DRG checks (FR-006).
-
- Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
- loader.  Prints per-file findings with file paths.  Exits non-zero when
- at least one error is found.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the org doctrine pack directory to         │
-│                           validate.                                          │
-│                           [required]                                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter validate
-
-```
- Usage: spec-kitty charter validate [OPTIONS] PATH
-
- Validate project-layer doctrine artifacts against their schemas (FR-017).
-
- When *path* is a single file, validates that file.  When *path* is a
- directory, walks the tree for ``*.yaml`` files whose filename suffix
- matches a canonical artifact kind and validates each one.
-
- Exit code: ``0`` if every artifact validates; ``1`` if any artifact
- fails.  A per-file error report is printed for failures.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    path      PATH  Artifact YAML file or a directory containing            │
-│                      project-layer doctrine artifacts (recurses into         │
-│                      per-kind subdirectories).                               │
-│                      [required]                                              │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
+│ org           Manage org-layer doctrine pack authoring (init, validate).     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -572,6 +508,22 @@ _Charter bundle validation commands._
 │                                                (NFR-001).                    │
 │                                                [default: no-resynthesize]    │
 │ --help          -h                             Show this message and exit.   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter fetch
+
+```
+ Usage: spec-kitty charter fetch [OPTIONS]
+
+ Fetch org doctrine pack(s) from their configured remote sources.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --pack             TEXT  Fetch only the named pack (default: fetch all       │
+│                          configured packs).                                  │
+│ --dry-run                Show what would be fetched without contacting any   │
+│                          remote.                                             │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -736,6 +688,118 @@ _Mission type commands (activated types only)._
 │                               mission-type list` (CR-02, mission             │
 │                               charter-code-topology-01M152G1 S4).            │
 │ --help              -h        Show this message and exit.                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter new
+
+```
+ Usage: spec-kitty charter new [OPTIONS] KIND ID
+
+ Scaffold a stub doctrine artifact YAML (FR-016).
+
+ The scaffolder pre-fills the canonical schema's required fields with
+ ``TODO …`` placeholders so the file passes ``doctrine validate`` on
+ first emit.  Refuses to overwrite an existing file.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    kind             TEXT  Artifact kind (singular): one of agent_profile,  │
+│                             asset, directive, mission_step_contract,         │
+│                             paradigm, procedure, styleguide, tactic,         │
+│                             toolguide.                                       │
+│                             [required]                                       │
+│ *    artifact_id      ID    Artifact identifier (kebab-case for most kinds;  │
+│                             SCREAMING_SNAKE for directives).                 │
+│                             [required]                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --pack          PATH  Scaffold inside a doctrine pack directory instead of   │
+│                       the project layer. When omitted, the stub lands under  │
+│                       .kittify/doctrine/.                                    │
+│ --help  -h            Show this message and exit.                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter org
+
+_Manage org-layer doctrine pack authoring (init, validate)._
+
+```
+ Usage: spec-kitty charter org [OPTIONS] COMMAND [ARGS]...
+
+ Manage org-layer doctrine pack authoring (init, validate).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ init      Scaffold a minimal org pack or render from a template.             │
+│ validate  Validate an org doctrine pack using schema and DRG checks          │
+│           (FR-006).                                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter org init
+
+```
+ Usage: spec-kitty charter org init [OPTIONS] PACK_PATH
+
+ Scaffold a minimal org pack or render from a template.
+
+ Without ``--template``, creates three files under *pack-path*::
+
+     org-charter.yaml   — governance policy stub
+     drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
+     README.md          — authoring quickstart
+
+ With ``--template``, copies the full template tree (minus
+ ``.templateignore``),
+ substitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under
+ *pack-path*.
+
+ Refuses to overwrite an existing directory unless ``--force`` is passed.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    pack_path      PATH  Destination directory for the scaffold or rendered │
+│                           doctrine tree.                                     │
+│                           [required]                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --force                     Overwrite an existing pack directory.            │
+│ --template            TEXT  Local template directory or git URL (HTTPS/SSH;  │
+│                             optional #branch). When omitted, scaffolds the   │
+│                             minimal three-file pack.                         │
+│ --org-name            TEXT  Validated org/pack identity for {{ORG_NAME}}     │
+│                             (required with --template).                      │
+│ --local-path          TEXT  Value for {{LOCAL_PATH}} (default: pack).        │
+│                             Distinct from PACK_PATH.                         │
+│ --branch              TEXT  Git ref when --template is a git URL (may also   │
+│                             be encoded in TEMPLATE).                         │
+│ --help        -h            Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter org validate
+
+```
+ Usage: spec-kitty charter org validate [OPTIONS] PACK_PATH
+
+ Validate an org doctrine pack using schema and DRG checks (FR-006).
+
+ Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
+ loader.  Prints per-file findings with file paths.  Exits non-zero when
+ at least one error is found.
+
+ Org fragments use id and plural kind (for example, directives) for nodes.
+ Validation uses the runtime loader, which supplies pack provenance fields.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    pack_path      PATH  Path to the org doctrine pack directory to         │
+│                           validate.                                          │
+│                           [required]                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1035,6 +1099,31 @@ _Charter pack management commands._
 │ --dry-run-evidence                  Print evidence summary and exit without  │
 │                                     running synthesis.                       │
 │ --help                -h            Show this message and exit.              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter validate
+
+```
+ Usage: spec-kitty charter validate [OPTIONS] PATH
+
+ Validate project-layer doctrine artifacts against their schemas (FR-017).
+
+ When *path* is a single file, validates that file.  When *path* is a
+ directory, walks the tree for ``*.yaml`` files whose filename suffix
+ matches a canonical artifact kind and validates each one.
+
+ Exit code: ``0`` if every artifact validates; ``1`` if any artifact
+ fails.  A per-file error report is printed for failures.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    path      PATH  Artifact YAML file or a directory containing            │
+│                      project-layer doctrine artifacts (recurses into         │
+│                      per-kind subdirectories).                               │
+│                      [required]                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2066,7 +2155,7 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ init      Scaffold a minimal org doctrine pack skeleton (FR-006).            │
+│ init      Scaffold a minimal org pack or render from a template.             │
 │ validate  Validate an org doctrine pack using schema and DRG checks          │
 │           (FR-006).                                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -2077,24 +2166,38 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 ```
  Usage: spec-kitty doctrine org init [OPTIONS] PACK_PATH
 
- Scaffold a minimal org doctrine pack skeleton (FR-006).
+ Scaffold a minimal org pack or render from a template.
 
- Creates three files under *pack-path*::
+ Without ``--template``, creates three files under *pack-path*::
 
      org-charter.yaml   — governance policy stub
      drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
      README.md          — authoring quickstart
 
+ With ``--template``, copies the full template tree (minus
+ ``.templateignore``),
+ substitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under
+ *pack-path*.
+
  Refuses to overwrite an existing directory unless ``--force`` is passed.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the directory to initialise as an org      │
-│                           doctrine pack.                                     │
+│ *    pack_path      PATH  Destination directory for the scaffold or rendered │
+│                           doctrine tree.                                     │
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force            Overwrite an existing pack directory.                     │
-│ --help   -h        Show this message and exit.                               │
+│ --force                     Overwrite an existing pack directory.            │
+│ --template            TEXT  Local template directory or git URL (HTTPS/SSH;  │
+│                             optional #branch). When omitted, scaffolds the   │
+│                             minimal three-file pack.                         │
+│ --org-name            TEXT  Validated org/pack identity for {{ORG_NAME}}     │
+│                             (required with --template).                      │
+│ --local-path          TEXT  Value for {{LOCAL_PATH}} (default: pack).        │
+│                             Distinct from PACK_PATH.                         │
+│ --branch              TEXT  Git ref when --template is a git URL (may also   │
+│                             be encoded in TEMPLATE).                         │
+│ --help        -h            Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2108,6 +2211,9 @@ _Manage org-layer doctrine pack authoring (init, validate)._
  Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
  loader.  Prints per-file findings with file paths.  Exits non-zero when
  at least one error is found.
+
+ Org fragments use id and plural kind (for example, directives) for nodes.
+ Validation uses the runtime loader, which supplies pack provenance fields.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    pack_path      PATH  Path to the org doctrine pack directory to         │
@@ -2484,8 +2590,14 @@ _Glossary management commands_
  Does not create any commits.
 
  If PROJECT_NAME is omitted, init runs in the current directory.
- Re-running init in an already-initialized directory exits cleanly
- (idempotent).
+ Re-running init in an already-initialized directory is idempotent for project
+ state: it verifies the configured agents' skill surfaces, additively restoring
+ missing per-agent skill roots (e.g. .claude/skills/) through the canonical
+ installer, and exits 1 with the recovery command
+ `spec-kitty agent config sync --create-missing --keep-orphaned` when shared
+ command skills (codex/vibe/pi/letta) are missing or empty. An existing
+ per-agent skill file that is empty, a directory, or a symlink exits 1 naming
+ its path and is preserved untouched — rename or remove it and re-run init.
 
  Note: The --no-git flag from previous versions has been removed.
        init never touches git state regardless of flags.
@@ -2507,7 +2619,7 @@ _Glossary management commands_
  Specifying AI Assistants (--ai flag):
  Use comma-separated agent keys (no spaces). Valid keys include:
  codex, claude, gemini, cursor, qwen, opencode, windsurf, kilocode,
- auggie, copilot, q, kiro, antigravity, vibe, pi, letta.
+ auggie, copilot, q, kiro, antigravity, vibe, pi, letta, llxprt.
 
  Template Discovery (Development Mode):
  Set SPEC_KITTY_TEMPLATE_ROOT to override bundled templates for local
@@ -2687,6 +2799,118 @@ _Search tracker issues via the hosted read path_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty live-work
+
+_Live Work harness capture: tools, files, tests and delegation as live relay frames (#4268)._
+
+```
+ Usage: spec-kitty live-work [OPTIONS] COMMAND [ARGS]...
+
+ Live Work harness capture: tools, files, tests and delegation as live relay
+ frames (#4268).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ hook       Handle one harness hook event (JSON on stdin) and publish live    │
+│            frames.                                                           │
+│ matrix     Print the executable capability matrix (rows + health + codec     │
+│            state).                                                           │
+│ install    Register the Live Work capture hooks in the harness's native      │
+│            config.                                                           │
+│ uninstall  Remove the Live Work capture hooks (sibling hooks are untouched). │
+│ watch      One-shot labeled changed-file observation (sampled fallback).     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty live-work hook
+
+```
+ Usage: spec-kitty live-work hook [OPTIONS] HARNESS
+
+ Handle one harness hook event (JSON on stdin) and publish live frames.
+
+ Exit 0 always — capture must never fail the harness invocation.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    harness      TEXT  The harness whose hook fired (claude / codex).       │
+│                         [required]                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --verbose            Print the publish report to stderr.                     │
+│ --help     -h        Show this message and exit.                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty live-work install
+
+```
+ Usage: spec-kitty live-work install [OPTIONS] HARNESS
+
+ Register the Live Work capture hooks in the harness's native config.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    harness      TEXT  The harness to install capture hooks for (claude /   │
+│                         codex).                                              │
+│                         [required]                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty live-work matrix
+
+```
+ Usage: spec-kitty live-work matrix [OPTIONS]
+
+ Print the executable capability matrix (rows + health + codec state).
+
+ Exits non-zero when a harness configured in this project has no Live
+ Work hooks installed — the no-silent-green enforcement.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --allow-degraded            Exit 0 even when a configured harness has no     │
+│                             capture hooks.                                   │
+│ --help            -h        Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty live-work uninstall
+
+```
+ Usage: spec-kitty live-work uninstall [OPTIONS] HARNESS
+
+ Remove the Live Work capture hooks (sibling hooks are untouched).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    harness      TEXT  The harness to remove capture hooks for (claude /    │
+│                         codex).                                              │
+│                         [required]                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty live-work watch
+
+```
+ Usage: spec-kitty live-work watch [OPTIONS]
+
+ One-shot labeled changed-file observation (sampled fallback).
+
+ Emits sampled file-change frames for the working tree's uncommitted
+ changes — changed files only, explicitly labeled: no attribution to an
+ agent, and file reads are never claimed.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --verbose            Print the publish report to stderr.                     │
+│ --help     -h        Show this message and exit.                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty materialize
 
 ```
@@ -2854,6 +3078,8 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ backfill-identity          Write a ULID mission_id into any meta.json that   │
 │                            lacks one.                                        │
+│ backfill-merge-commit      Record a GitHub PR's real merge commit as a       │
+│                            mission's review baseline (#4231).                │
 │ backfill-topology          Persist each legacy mission's MissionTopology     │
 │                            into its meta.json.                               │
 │ backfill-mission-type      Mint a profile-resolving ``mission_type`` into    │
@@ -2917,6 +3143,131 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │ --mission          SLUG  Scope to a single mission slug (e.g. 083-foo-bar).  │
 │                          Omit to process all.                                │
 │ --help     -h            Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty migrate backfill-merge-commit
+
+```
+ Usage: spec-kitty migrate backfill-merge-commit [OPTIONS]
+
+ Record a GitHub PR's real merge commit as a mission's review baseline (#4231).
+
+ A mission accepted through ``acceptance_mode: pr`` never passes through
+ ``spec-kitty merge``, so its ``meta.json`` never carried
+ ``baseline_merge_commit`` — leaving ``spec-kitty review --mode post-merge``
+ unreachable (``MISSION_REVIEW_MODE_MISMATCH``) and the lightweight
+ dead-code gate failing a cleanly merged mission. This command repairs
+ that state from REAL evidence: the merge commit you supply is verified
+ against git (it must resolve in this repository, carry the mission's
+ ``kitty-specs/<slug>/meta.json``, its first parent must not — proving it
+ is the commit that introduced the mission corpus — and it must have
+ landed on the target branch, so an unmerged mission-branch commit is
+ refused) before ``baseline_merge_commit`` (the first parent) and the
+ provenance pair ``pr_merge_commit`` (the landing commit itself) /
+ ``pr_merge_evidence`` (what the anchor's completeness rests on) are
+ written through the same canonical seam ``spec-kitty merge`` and
+ ``accept --mode pr --merge-commit`` use.
+
+ **What the anchor proves depends on the landing shape — and on your
+ attestation, never on git.** Checks 1–6 prove the commit landed on the
+ target branch and introduced the mission corpus; they cannot prove its
+ first parent is the PRE-LANDING TARGET TIP for any shape. A two-parent
+ merge commit's first parent is the tip only if the merge was performed
+ on the target branch — an internal merge (the corpus branch merged into
+ the implementation branch, the target then fast-forwarded to the
+ result) is graph-identical and its first parent is an implementation
+ commit. A single-parent landing commit (squash, or a corpus-first stack)
+ has the tip as its parent only if it was the first commit of the
+ landing. Both shapes therefore require ``--attest-first-landing-commit``
+ — your explicit attestation — and record it as the anchor's evidence
+ class (``pr_merge_evidence: merge-commit-parent-attested`` /
+ ``corpus-parent-attested``), so the anchor's completeness rests on a
+ recorded operator attestation, never on a claim git did not make.
+ Anchoring at the wrong tip would silently under-scan the dead-code
+ gate. Full forge commit-list evidence, which would prove the tip
+ outright, is tracked in #4277.
+
+ **Idempotent**: a mission whose ``meta.json`` already carries a
+ ``baseline_merge_commit`` is skipped and never overwritten.
+
+ Exit codes:
+
+ - ``0`` — recorded, skipped (already recorded), or ``--dry-run``
+ - ``1`` — the merge evidence could not be verified, or the mission handle
+   is unknown
+
+ Examples:
+
+     spec-kitty migrate backfill-merge-commit --mission 321-mission
+ --merge-commit <sha> --dry-run
+
+     spec-kitty migrate backfill-merge-commit --mission 321-mission
+ --merge-commit <sha>
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission                            HANDLE  Mission to repair            │
+│                                                 (mission_id / mid8 / slug).  │
+│                                                 [required]                   │
+│ *  --merge-commit                       SHA     The PR merge commit that     │
+│                                                 landed the mission on its    │
+│                                                 target branch. Read it off   │
+│                                                 the merged PR, then supply   │
+│                                                 it here; the migration       │
+│                                                 verifies it against git      │
+│                                                 before writing anything — it │
+│                                                 must carry the mission's     │
+│                                                 kitty-specs/<slug>/meta.jso… │
+│                                                 its first parent must not,   │
+│                                                 and it must have landed on   │
+│                                                 the target branch. Every     │
+│                                                 landing shape additionally   │
+│                                                 needs                        │
+│                                                 --attest-first-landing-comm… │
+│                                                 [required]                   │
+│    --target-branch                      TEXT    The branch the PR merged     │
+│                                                 into (the PR's base branch), │
+│                                                 for the landing check.       │
+│                                                 Defaults to the mission's    │
+│                                                 declared target_branch, else │
+│                                                 the repository's primary     │
+│                                                 branch.                      │
+│    --attest-first-landing-com…                  Attest that the supplied     │
+│                                                 --merge-commit's first       │
+│                                                 parent is the pre-landing    │
+│                                                 target tip. Required for     │
+│                                                 every landing shape: for a   │
+│                                                 two-parent merge commit,     │
+│                                                 attest the merge was         │
+│                                                 performed ON the target      │
+│                                                 branch (a merge performed on │
+│                                                 a mission or sibling branch  │
+│                                                 and then fast-forwarded onto │
+│                                                 the target is                │
+│                                                 graph-identical, and its     │
+│                                                 first parent is an           │
+│                                                 implementation commit, not   │
+│                                                 the tip); for a              │
+│                                                 single-parent landing        │
+│                                                 (squash or corpus-first      │
+│                                                 stack), attest the supplied  │
+│                                                 commit was the FIRST commit  │
+│                                                 of the landing. Git cannot   │
+│                                                 prove either — and a wrong   │
+│                                                 anchor silently under-scans  │
+│                                                 the dead-code gate. The      │
+│                                                 attestation is recorded in   │
+│                                                 pr_merge_evidence, never     │
+│                                                 presented as a git proof.    │
+│    --dry-run                                    Verify the merge evidence    │
+│                                                 and report what would be     │
+│                                                 written without writing any  │
+│                                                 files. The JSON shape is     │
+│                                                 identical to a live run.     │
+│    --json                                       Emit the per-mission         │
+│                                                 backfill result row as       │
+│                                                 structured JSON.             │
+│    --help                       -h              Show this message and exit.  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3046,7 +3397,11 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
  Per-mission best-effort (research D-03): a mission whose verify fails is left
  un-flipped (``status_phase`` untouched) and named in the summary; other
  missions
- still flip. Use ``--dry-run`` to preview would-seed counts without writing.
+ still flip. Use ``--dry-run`` to preview would-seed and would-flip counts
+ without writing. The summary's ``Flipped`` counter names the missions this
+ run actually flipped — a mission with event-log evidence but no legacy
+ frontmatter state to seed still flips and is counted there, never as
+ "Skipped (already migrated)" (#3212).
 
  Exit codes:
 
@@ -3856,7 +4211,7 @@ _Control which Zeitgeist status moments reach agent context (off / mine / team),
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ off     Switch moments to agents OFF: nothing surfaces, and                  │
-│         `spec-kitty zeitgeist mcp-serve` exits 0 with one line.              │
+│         the internal agent-context bridge exits cleanly with one line.       │
 │ on      Switch moments back ON at the documented default (`mine`: only       │
 │         missions this checkout is on).                                       │
 │ status  Show the effective mode, which file decided it, and the active       │
@@ -3869,8 +4224,8 @@ _Control which Zeitgeist status moments reach agent context (off / mine / team),
 ```
  Usage: spec-kitty moments off [OPTIONS]
 
- Switch moments to agents OFF: nothing surfaces, and `spec-kitty zeitgeist
- mcp-serve` exits 0 with one line.
+ Switch moments to agents OFF: nothing surfaces, and the internal agent-context
+ bridge exits cleanly with one line.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --repo            Write the per-repo override (<repo>/.kittify/config.toml)  │
@@ -5448,6 +5803,7 @@ _Tracker synchronization commands_
 │ --target                TEXT  Target version (defaults to current CLI        │
 │                               version)                                       │
 │ --json                        Output results as JSON                         │
+│ --plan-json                   Output the complete preview plan as JSON       │
 │ --verbose       -v            Show detailed migration information            │
 │ --no-worktrees                Skip upgrading worktrees                       │
 │ --cli                         Restrict to CLI guidance only; works outside   │
@@ -5457,7 +5813,7 @@ _Tracker synchronization commands_
 │ --yes           -y            Non-interactive confirmation; alias for        │
 │                               --force (FR-017)                               │
 │ --no-nag                      Suppress upgrade-nag output explicitly         │
-│ --help          -h            Show this message and exit.                    │
+│ --help                        Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

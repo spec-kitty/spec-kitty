@@ -12,16 +12,19 @@ procedures:
   - Run unit tests for changed core logic and integration tests for changed workflow boundaries.
   - Meet the repository coverage expectation for new code, or document the delta when pre-existing scope makes that impractical.
   - Run the repository's applicable static analysis, typing, lint, or equivalent validation gates for the affected scope.
+  - Treat typecheck as a separate gate from the test runner. Vitest, Jest, Mocha, pytest, and similar runners do not apply TypeScript `noUnusedLocals` / `noUnusedParameters` or other compiler diagnostics. When the WP touches TypeScript (including `*.test.ts` / `*.test.tsx`), run the project's typecheck script (`npm run typecheck`, `tsc -b`, `tsc --noEmit`, or the same compile CI uses) and record the command plus exit code. A green test run is not typecheck.
   - Run configured or enabled CVE, dependency, or license-compliance checks when the repository treats them as part of the validation gate.
   - Record any remaining pre-existing failures separately from newly introduced failures before handoff.
 integrity_rules:
   - New behavior is not ready for review while relevant tests or applicable static validation gates are red.
+  - A passing test-runner command does not satisfy the typecheck gate when the repository compiles or typechecks as a distinct CI step.
   - Configured supply-chain or compliance gates must not be skipped silently when they are part of the repository's expected validation flow.
   - Pre-existing validation debt must not be hidden inside new work.
 validation_criteria:
   - Relevant test suites pass for the changed scope before review handoff.
   - New code meets the repository coverage target or any accepted shortfall is called out explicitly.
   - Applicable static validation gates pass for the affected scope, or any pre-existing unrelated failures are identified explicitly.
+  - When TypeScript files changed, the project's compiler typecheck has been run and is green, or an explicit exception records why it does not apply.
   - Applicable CVE, dependency, and license checks pass when those gates are configured for the affected scope, or any pre-existing unrelated failures are identified explicitly.
 references:
   - type: styleguide

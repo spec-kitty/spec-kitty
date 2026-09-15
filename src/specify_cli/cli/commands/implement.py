@@ -47,9 +47,12 @@ from specify_cli.coordination.coherence import (
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import require_lanes_json
-from specify_cli.coordination.status_transition import emit_status_transition_transactional
+from specify_cli.lanes.worktree_allocator import (
+    DependencyLaneMergeConflictError,
+    PlanningCommitMergeConflictError,
+)
 from specify_cli.status import TransitionError
-from specify_cli.status import Lane, TransitionRequest
+from specify_cli.status import Lane
 from specify_cli.status import (
     WorkPackageClaimConflict,
     WorkPackageStartRejected,
@@ -119,28 +122,6 @@ def _protected_branch_status_commit_error(branch: str, repo_root: Path) -> str |
 def _status_commit_destination_branch(repo_root: Path, fallback_branch: str) -> str:
     """Return the branch that the pre-lane status commit would target."""
     return get_current_branch(repo_root) or fallback_branch
-
-
-def _get_wp_lane_from_event_log(feature_dir: Path, wp_id: str) -> str:
-    """Get the canonical WP lane, defaulting to genesis for unseeded WPs.
-
-    An unseeded WP (no events, or no snapshot entry) defaults to
-    ``Lane.GENESIS`` — matching the write-side ``_derive_from_lane``
-    behaviour (Contract 3, FR-008).
-    """
-    try:
-        from specify_cli.status import reduce
-        from specify_cli.status import read_events
-
-        events = read_events(feature_dir)
-        if events:
-            snapshot = reduce(events)
-            state = snapshot.work_packages.get(wp_id)
-            if state:
-                return Lane(state.get("lane", Lane.GENESIS))
-    except Exception:  # noqa: S110 — best-effort lane lookup, fallback is safe
-        pass
-    return Lane.GENESIS
 
 
 def _json_wrapper_resolve_wp_id(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
@@ -1442,39 +1423,6 @@ def _resolve_active_lanes_manifest(repo_root: Path, base: str | None, resolved_w
     return base, lanes_manifest
 
 
-def _emit_blocked_on_alloc_failure(
-    feature_dir: Path,
-    mission_slug: str,
-    wp_id: str,
-    effective_actor: str,
-    status_execution_mode: str,
-    repo_root: Path,
-    exc: Exception,
-) -> None:
-    """Best-effort BLOCKED transition after a workspace-allocation failure;
-    a no-op when the WP's current lane cannot validly transition to
-    BLOCKED."""
-    current_lane = _get_wp_lane_from_event_log(feature_dir, wp_id)
-    if current_lane not in {Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS}:
-        return
-    try:
-        emit_status_transition_transactional(
-            TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug=mission_slug,
-                wp_id=wp_id,
-                to_lane=Lane.BLOCKED,
-                actor=effective_actor,
-                execution_mode=status_execution_mode,
-                reason="worktree_alloc_failed",
-                policy_metadata={"evidence": str(exc)},
-                repo_root=repo_root,
-            )
-        )
-    except Exception as _blocked_exc:  # noqa: BLE001 -- best-effort, never mask the real alloc failure
-        console.print(f"[yellow]Warning:[/yellow] Could not emit blocked transition after alloc failure: {_blocked_exc}")
-
-
 def _primary_surface_status_paths(artifacts: Iterable[Path], *, routes_through_coord: bool) -> list[Path]:
     """Filter collected status artifacts for a PRIMARY-root claim-commit bundle.
 
@@ -1994,7 +1942,19 @@ def implement(
         tracker.error("create", f"workspace allocation failed: {exc}")
         console.print(tracker.render())
         console.print(f"\n[red]Error:[/red] Workspace allocation failed: {exc}")
-        _emit_blocked_on_alloc_failure(feature_dir, mission_slug, wp_id, effective_actor, status_execution_mode, repo_root, exc)
+        # F-50 (#3937): a tooling/allocation failure emits NO lifecycle
+        # transition. ``create_lane_workspace`` runs BEFORE the claim, so the WP
+        # is still ``planned``, and the allocator self-cleans (abort +
+        # ``reset --hard``, no ``lanes.json`` write). The former
+        # ``_emit_blocked_on_alloc_failure`` manufactured ``planned -> blocked``,
+        # an unrecoverable state (``blocked -> planned`` is illegal). Leaving the
+        # WP ``planned`` is recoverable and reentrant — at parity with the
+        # orchestrator-api path, which never emits ``blocked``. Surface the
+        # exception's actionable ``next_step`` for the conflict types that carry
+        # one, so the operator gets the concrete resolution rather than a
+        # generic "re-run".
+        if isinstance(exc, (DependencyLaneMergeConflictError, PlanningCommitMergeConflictError)):
+            console.print(f"[yellow]Next step:[/yellow] {exc.next_step}")
         raise typer.Exit(1) from exc
 
     try:

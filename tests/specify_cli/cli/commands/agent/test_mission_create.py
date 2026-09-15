@@ -960,7 +960,7 @@ def test_mission_created_persistence_failure_is_nonzero_and_probe_recoverable(
         assert _git(tmp_path, "rev-parse", start_branch).stdout.strip() == original_start_tip
     assert _git(tmp_path, "diff", "--cached", "--name-only").stdout.splitlines() == staged_before
     partial_dirs = list((tmp_path / "kitty-specs").iterdir())
-    assert len(partial_dirs) == 1  # golden-count: cardinality-is-contract
+    assert len(partial_dirs) == 1
 
     assert probe.exit_code == 1
     probe_payload = _json_payload_from_output(probe.output)

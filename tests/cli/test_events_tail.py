@@ -122,7 +122,7 @@ def test_events_tail_once_emits_all_pre_existing_events_in_order(tmp_path: Path)
     assert result.exit_code == 0, result.output
     lines = [line for line in result.stdout.splitlines() if line.strip()]
     parsed = [json.loads(line) for line in lines]
-    # Exact ordered identity (golden-count: cardinality-only `len(lines) == 3`
+    # Exact ordered identity (a cardinality-only `len(lines) == 3`
     # would pass on any 3 lines, wrong content included -- this asserts the
     # real contract: these three event_ids, in this order, none more) also
     # proves the count.
@@ -270,7 +270,7 @@ def test_resume_success_path_emits_only_events_at_or_after_offset(tmp_path: Path
         first = _invoke("tail", "--mission", MISSION_SLUG, "--json", "--once")
     assert first.exit_code == 0, first.output
     first_lines = [line for line in first.stdout.splitlines() if line.strip()]
-    # Exact ordered identity (golden-count: cardinality-only `len(first_lines)
+    # Exact ordered identity (a cardinality-only `len(first_lines)
     # == 2` would pass on any 2 lines, wrong content included -- this asserts
     # the real contract: exactly these two event_ids, in this order) also
     # proves the count.

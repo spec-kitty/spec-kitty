@@ -25,6 +25,7 @@ from specify_cli.cli.commands.init import register_init_command
 
 pytestmark = [pytest.mark.integration]
 
+
 @pytest.fixture()
 def init_app() -> Typer:
     """Return a minimal Typer app with the init command registered."""
@@ -45,6 +46,7 @@ def init_app() -> Typer:
 # T1.7a: --help does not show --no-git
 # ---------------------------------------------------------------------------
 
+
 def test_init_help_does_not_show_no_git_flag(init_app: Typer) -> None:
     """T1.7a: --help Options panel must not list '--no-git' as an available option.
 
@@ -58,11 +60,7 @@ def test_init_help_does_not_show_no_git_flag(init_app: Typer) -> None:
 
     # Parse the Options section from the help output.  We look for lines that
     # start with whitespace + "--" (actual option declarations in the table).
-    option_lines = [
-        line
-        for line in result.output.splitlines()
-        if line.strip().startswith("--")
-    ]
+    option_lines = [line for line in result.output.splitlines() if line.strip().startswith("--")]
     option_flags = "\n".join(option_lines)
 
     assert "--no-git" not in option_flags, (
@@ -76,6 +74,7 @@ def test_init_help_does_not_show_no_git_flag(init_app: Typer) -> None:
 # T1.7b: --help mentions spec-kitty next
 # ---------------------------------------------------------------------------
 
+
 def test_init_help_mentions_spec_kitty_next(init_app: Typer) -> None:
     """T1.7b: --help output must reference the canonical post-#555 workflow."""
     runner = CliRunner()
@@ -83,15 +82,14 @@ def test_init_help_mentions_spec_kitty_next(init_app: Typer) -> None:
 
     assert result.exit_code == 0, f"--help failed: {result.output}"
     assert "spec-kitty next" in result.output, (
-        "init --help should describe 'spec-kitty next' as the canonical next step, "
-        "but it was absent from help output.\n"
-        f"Actual help output:\n{result.output}"
+        f"init --help should describe 'spec-kitty next' as the canonical next step, but it was absent from help output.\nActual help output:\n{result.output}"
     )
 
 
 # ---------------------------------------------------------------------------
 # T1.7c: Passing --no-git gives "no such option" error
 # ---------------------------------------------------------------------------
+
 
 def test_passing_no_git_flag_gives_error(
     init_app: Typer,
@@ -110,7 +108,28 @@ def test_passing_no_git_flag_gives_error(
     )
 
     assert result.exit_code != 0, (
-        "Expected non-zero exit code when passing --no-git (option was removed), "
-        f"but got exit_code={result.exit_code}.\n"
-        f"Output:\n{result.output}"
+        f"Expected non-zero exit code when passing --no-git (option was removed), but got exit_code={result.exit_code}.\nOutput:\n{result.output}"
     )
+
+
+# ---------------------------------------------------------------------------
+# T1.7d: --help states the re-run diagnostic/restore contract (#4425)
+# ---------------------------------------------------------------------------
+
+
+def test_init_help_states_rerun_skill_contract(init_app: Typer) -> None:
+    """T1.7d: --help must not claim a re-run always exits cleanly (#4425 acceptance 6).
+
+    A re-run verifies agent skill surfaces: missing per-agent skill roots are
+    restored, and missing shared command skills exit 1 with the recovery
+    command. The old "exits cleanly (idempotent)" line described a contract
+    the command no longer offers.
+    """
+    runner = CliRunner()
+    result = runner.invoke(init_app, ["init", "--help"])
+
+    assert result.exit_code == 0, f"--help failed: {result.output}"
+    flattened = " ".join(result.output.split())
+    assert "exits cleanly (idempotent)" not in flattened
+    assert "spec-kitty agent config sync --create-missing --keep-orphaned" in flattened
+    assert ".claude/skills/" in flattened

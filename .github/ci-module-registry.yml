@@ -84,7 +84,21 @@ modules:
   cov_targets:
   - specify_cli.dashboard
   tier: standard
+  # DUAL test tree (spec-kitty#4369): the module's tests live in BOTH
+  # tests/dashboard/ AND tests/test_dashboard/ -- the second tree (API
+  # handler, scanner, mission-id, server suites) was previously invisible to
+  # every shard: the mirrored-dir fallback only ever looked at
+  # tests/dashboard, so tests written there could neither fail a PR nor
+  # contribute coverage evidence. The explicit test_dirs list claims both
+  # trees. Measured basis (supplemental run recorded in
+  # ci-shard-timings.json, 2026-09-14): 247 collected, 246 passed + 1
+  # skipped, 14.7s serial wall, slowest single test 2.0s -- shard_count
+  # stays 1, far inside the 30m shard budget, so no nightly marker split
+  # is needed.
   shard_count: 1
+  test_dirs:
+  - tests/dashboard
+  - tests/test_dashboard
 - module: upgrade
   roots:
   - src/specify_cli/upgrade/**
@@ -114,6 +128,15 @@ modules:
   - specify_cli.charter_runtime
   tier: standard
   shard_count: 5
+  # DUAL test tree (CLAUDE.md Modularity SSOT): the doctrine test tree did
+  # not move when src/doctrine/ was absorbed into src/charter/offering/, so
+  # both dirs cover `charter`. This pair was previously hardcoded inside
+  # module-tests.yml's selection step as an extra_dirs special case;
+  # promoted into the registry (spec-kitty#4369) so the registry alone
+  # determines every module's test directories.
+  test_dirs:
+  - tests/charter
+  - tests/doctrine
 - module: agent
   roots:
   - src/specify_cli/agent_utils/**
@@ -193,6 +216,274 @@ modules:
   - tests/doctrine_synthesizer
   - tests/specify_cli/tool_surface
   - tests/zeitgeist_client
+- module: unit
+  roots:
+  - src/specify_cli/status/**
+  - src/runtime/next/**
+  - src/charter/offering/missions/**
+  - src/kernel/**
+  cov_targets:
+  - specify_cli.status
+  - runtime.next
+  - charter.offering.missions
+  - kernel
+  tier: standard
+  shard_count: 1
+  # TEST-INVENTORY module (mission sonar-per-pr-coverage-reuse-01M2FR32,
+  # WP02/FR-006): tests/unit had NO declared home in this registry, so
+  # retiring the duplicate broad-measurement step would have removed its
+  # PER-CHANGE execution (the scheduled interpreter sweep still selects it
+  # by marker -- it was never unrun). It owns no src/** surface of its own:
+  # every root above is a verbatim copy of a glob another row already owns,
+  # chosen from the surfaces tests/unit actually imports, so the router's
+  # path->group mapping and the FR-004 fail-closed union are unchanged.
+  # test_dirs is declared explicitly even though it equals the tests/{module}
+  # default -- the default is a guess, this is the declaration.
+  test_dirs:
+  - tests/unit
+- module: specify_cli_runtime
+  roots:
+  - src/specify_cli/runtime/**
+  - src/charter/offering/missions/**
+  - src/specify_cli/core/**
+  cov_targets:
+  - specify_cli.runtime
+  - charter.offering.missions
+  - specify_cli.core
+  tier: standard
+  shard_count: 1
+  # TEST-INVENTORY module (same WP02 rationale as `unit` above). No
+  # tests/specify_cli_runtime mirror exists -- the directory is
+  # tests/specify_cli/runtime, so test_dirs is load-bearing here (without it
+  # module-tests.yml would look for tests/specify_cli_runtime and exit 64).
+  test_dirs:
+  - tests/specify_cli/runtime
+- module: ci
+  roots:
+  - scripts/ci/**
+  - .github/workflows/**
+  cov_targets:
+  - kernel
+  - specify_cli.core
+  tier: standard
+  # CI-INFRASTRUCTURE row (spec-kitty#4386): tests/ci (the guard suites for
+  # scripts/ci/ and the CI workflows it feeds -- including the SONAR_TOKEN
+  # sonar-pr path) was claimed by no row, so no per-PR job ever selected it:
+  # the only lane reaching it was the nightly interpreter sweep (scheduled,
+  # never PR-triggered, fail-soft). The roots are NON-src on purpose: they are
+  # the CI-infrastructure paths whose regressions these tests guard, not
+  # product code -- the first non-src module row, mirrored 1:1 as the `ci`
+  # filter group in ci-router.yml. cov_targets follow the `unit`-row
+  # precedent: the src surfaces scripts/ci actually imports
+  # (kernel.clock, specify_cli.core.vcs.git) -- an ownership declaration only;
+  # the shard measures the full top-level package set (WP01/FR-013).
+  # Deliberate routing decision (issue "Wanted" #2): CI-infra changes do NOT
+  # join the FR-004 fail-closed catch-all. That sensor is contractually
+  # "unmapped src/** code" (contracts/router-two-authority.md Invariants 1-2);
+  # scripts/ci/** and .github/workflows/** are not src, and they are now
+  # NAMED, so there is no unmatched path left to catch. The per-PR executor
+  # is this module matrix (ci-modules.yml runs on every PR), never a router
+  # `tests (ci)` job -- that would double-run the suite per PR, the exact
+  # duplicate class tests/architectural/test_no_duplicate_suite_execution.py
+  # exists to remove. Measured basis (scripts/ci/capture_shard_timings.py run
+  # recorded in ci-shard-timings.json, run-id wp02-durations-20260915T035159Z,
+  # 2026-09-15): 252 collected, 252 passed, 26.5s summed per-test durations
+  # (~67s serial wall, the rest collection/import time) -- shard_count stays 1,
+  # far inside the 30m shard budget, so no split is needed (skew is trivially
+  # 0%).
+  shard_count: 1
+  test_dirs:
+  - tests/ci
+# OUT-OF-MATRIX INVENTORY (spec-kitty#4369). Every test-bearing directory under
+# tests/ that no modules[] row claims, each with the reason it is deliberately
+# outside the per-PR module matrix. Enforced by
+# tests/architectural/test_module_shard_registry.py: a directory that is claimed
+# by no row and recorded here would be silently unrun -- exactly the
+# tests/test_dashboard/ defect this section was minted for (its tests could
+# neither fail a PR nor contribute coverage evidence). Adding a directory here
+# is a reasoned decision; the right fix for a directory that SHOULD gate per-PR
+# is a registry row with measured durations, never a silent default.
+out_of_matrix_test_dirs:
+
+- reason: >-
+    Root-level test modules held directly under tests/ (isolation/bootstrap/
+    shard-registry helpers). No per-PR lane selects them by directory;
+    tests/test_test_venv_bootstrap.py is additionally covered by
+    ci-windows.yml's path filter. Full suite via make test-full.
+  dirs:
+  - tests
+
+- reason: >-
+    Per-PR home is ci-router.yml's 'tests (docs)' path-routed job, which runs this
+    directory directly; claiming it in a module row too would only double-run it per PR.
+  dirs:
+  - tests/docs
+
+- reason: >-
+    Per-PR home is ci-router.yml's 'tests (e2e)' path-routed job, which runs this
+    directory directly; claiming it in a module row too would only double-run it per PR.
+  dirs:
+  - tests/e2e
+
+- reason: >-
+    Per-PR home is ci-router.yml's 'architectural battery' job, which runs the full
+    tests/architectural tree (this registry's own special_tiers.architectural pole); a
+    module row would only double-run it.
+  dirs:
+  - tests/architectural
+  - tests/architectural/tool_artifact_enrolment
+
+
+- reason: >-
+    Browser-backed Playwright UI guards: ci-nightly.yml's -m e2e lane (PWHEADLESS=1) is
+    their home; no per-PR lane installs browsers, so they are deliberately nightly-only.
+  dirs:
+  - tests/ui
+
+- reason: >-
+    Secondary tests/specify_cli/** tree: the module matrix claims each module's primary
+    mirror (tests/<module> or an explicit row test_dirs entry); this secondary tree is
+    selected by no per-PR lane. Recorded deliberately (spec-kitty#4369 inventory) --
+    promoting one of these into a row is a measured-durations decision, never a silent
+    default.
+  dirs:
+  - tests/specify_cli/acceptance
+  - tests/specify_cli/agent_utils
+  - tests/specify_cli/audit
+  - tests/specify_cli/bootstrap
+  - tests/specify_cli/bulk_edit
+  - tests/specify_cli/charter
+  - tests/specify_cli/charter_freshness
+  - tests/specify_cli/charter_lint
+  - tests/specify_cli/charter_lint/checks
+  - tests/specify_cli/charter_preflight
+  - tests/specify_cli/charter_runtime
+  - tests/specify_cli/cli
+  - tests/specify_cli/cli/commands
+  - tests/specify_cli/cli/commands/charter
+  - tests/specify_cli/cli/commands/review
+  - tests/specify_cli/compat
+  - tests/specify_cli/config
+  - tests/specify_cli/context
+  - tests/specify_cli/contracts
+  - tests/specify_cli/dashboard
+  - tests/specify_cli/decisions
+  - tests/specify_cli/distribution
+  - tests/specify_cli/docs
+  - tests/specify_cli/doctrine
+  - tests/specify_cli/dossier
+  - tests/specify_cli/drg_writers
+  - tests/specify_cli/events
+  - tests/specify_cli/git
+  - tests/specify_cli/identity
+  - tests/specify_cli/integration
+  - tests/specify_cli/invocation
+  - tests/specify_cli/invocation/cli
+  - tests/specify_cli/lanes
+  - tests/specify_cli/live_work
+  - tests/specify_cli/merge
+  - tests/specify_cli/migration
+  - tests/specify_cli/mission_step_contracts
+  - tests/specify_cli/mission_v1
+  - tests/specify_cli/missions
+  - tests/specify_cli/next
+  - tests/specify_cli/orchestrator_api
+  - tests/specify_cli/ownership
+  - tests/specify_cli/post_merge
+  - tests/specify_cli/readiness
+  - tests/specify_cli/regression
+  - tests/specify_cli/retrospect
+  - tests/specify_cli/retrospective
+  - tests/specify_cli/review
+  - tests/specify_cli/saas_client
+  - tests/specify_cli/session_presence
+  - tests/specify_cli/shims
+  - tests/specify_cli/skills
+  - tests/specify_cli/status
+  - tests/specify_cli/tasks
+  - tests/specify_cli/tasks_authoring
+  - tests/specify_cli/test_cli
+  - tests/specify_cli/tracker
+  - tests/specify_cli/upgrade
+  - tests/specify_cli/upgrade/migrations
+  - tests/specify_cli/widen
+  - tests/specify_cli/write_side
+
+- reason: >-
+    No per-PR lane selects this directory by path; its tests reach CI only through
+    marker-selected lanes (corpus, windows_ci, nightly e2e/performance/interpreter) when
+    individually marked, and run in full via make test-full. Recorded deliberately
+    (spec-kitty#4369) so an unrun directory is a visible decision, never an accident.
+  dirs:
+  - tests/_factories
+  - tests/_support
+  - tests/_support/coverage_safety
+  - tests/_support/git_template
+  - tests/acceptance
+  - tests/adversarial
+  - tests/ast_analysis
+  - tests/audit
+  - tests/auth
+  - tests/auth/concurrency
+  - tests/auth/integration
+  - tests/auth/secure_storage
+  - tests/auth/stress
+  - tests/calibration
+  - tests/characterization
+  - tests/cli_gate
+  - tests/compat
+  - tests/concurrency
+  - tests/context
+  - tests/contract
+  - tests/contract/spec_kitty_events_consumer
+  - tests/contract/spec_kitty_tracker_consumer
+  - tests/cross_branch
+  - tests/cross_cutting
+  - tests/cross_cutting/dashboard
+  - tests/cross_cutting/encoding
+  - tests/cross_cutting/misc
+  - tests/cross_cutting/packaging
+  - tests/cross_cutting/versioning
+  - tests/doctor
+  - tests/dossier
+  - tests/evidence
+  - tests/git
+  - tests/git_ops
+  - tests/init
+  - tests/integration
+  - tests/integration/core
+  - tests/integration/git
+  - tests/integration/migration
+  - tests/integration/retrospective
+  - tests/integration/review
+  - tests/integration/sparse_checkout
+  - tests/invocation
+  - tests/lint
+  - tests/migrate
+  - tests/migration
+  - tests/mission
+  - tests/mission_metadata
+  - tests/packaging
+  - tests/paths
+  - tests/perf
+  - tests/performance
+  - tests/policy
+  - tests/prompts
+  - tests/proof
+  - tests/readiness
+  - tests/regressions
+  - tests/research
+  - tests/retrospective
+  - tests/reviews
+  - tests/scripts
+  - tests/specify_cli
+  - tests/state
+  - tests/stress
+  - tests/task_utils
+  - tests/tasks
+  - tests/test_template
+  - tests/tracker
+
 special_tiers:
   integration_tests_next:
     job: integration-tests-next

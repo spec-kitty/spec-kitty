@@ -27,6 +27,7 @@ AGENT_DIRS: list[tuple[str, str]] = [
     (".amazonq", "prompts"),
     (".kiro", "prompts"),
     (".agent", "workflows"),
+    (".llxprt", "commands"),
 ]
 
 # Mapping from agent directory to agent key (for config.yaml)
@@ -45,6 +46,7 @@ AGENT_DIR_TO_KEY = {
     ".amazonq": "q",  # q, not amazonq (legacy — Kiro rebrand migrates to .kiro)
     ".kiro": "kiro",
     ".agent": "antigravity",
+    ".llxprt": "llxprt",
 }
 
 
@@ -70,7 +72,7 @@ def get_agent_dirs_for_project(project_path: Path) -> list[tuple[str, str]]:
         >>> # Legacy project without config.yaml
         >>> dirs = get_agent_dirs_for_project(Path("/path/to/legacy"))
         >>> len(dirs)
-        11  # All command-layer agents (codex and vibe use AGENT_SKILL_CONFIG; roo removed)
+        13  # All command-layer agents (codex and vibe use AGENT_SKILL_CONFIG; roo removed)
     """
     try:
         from specify_cli.core.agent_config import (

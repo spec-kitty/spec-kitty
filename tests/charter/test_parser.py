@@ -259,7 +259,7 @@ invalid: [unclosed
         assert len(result) == 1
         section = result[0]
         assert "tables" in section.structured_data
-        assert len(section.structured_data["tables"]) == 1  # golden-count: cardinality-is-contract
+        assert len(section.structured_data["tables"]) == 1
         assert section.requires_ai is False
 
     def test_section_integration_with_keywords(self, parser):

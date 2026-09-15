@@ -63,6 +63,18 @@ def _write_issue_matrix(
     )
 
 
+def _write_issue_matrix_json(
+    feature_dir: Path,
+    verdict: str,
+    evidence_ref: str = "tests/test_demo.py",
+    issue: str = "#1582",
+) -> None:
+    (feature_dir / "issue-matrix.json").write_text(
+        json.dumps({"rows": {issue: {"verdict": verdict, "evidence_ref": evidence_ref}}}),
+        encoding="utf-8",
+    )
+
+
 def _write_malformed_issue_matrix(feature_dir: Path) -> None:
     """An issue-matrix.md whose mandatory ``issue`` column is misspelled.
 
@@ -153,13 +165,16 @@ def test_issue_matrix_approval_blocker_requires_resolved_verdicts(tmp_path: Path
 
     blocker = _issue_matrix_approval_blocker(feature_dir)
     assert blocker is not None
-    assert "issue-matrix.md is required" in blocker
+    assert "issue-matrix.json is required" in blocker
     assert "#1582" in blocker
 
     _write_issue_matrix(feature_dir, "unknown")
     blocker = _issue_matrix_approval_blocker(feature_dir)
     assert blocker is not None
-    assert "Unknown: #1582" in blocker
+    # #4330: the unknown-verdict row is surfaced with its concrete rule, not
+    # reduced to a bare "Unknown: #1582" id list.
+    assert "Row for issue '#1582'" in blocker
+    assert "verdict 'unknown' is not in the allowed set" in blocker
 
     _write_issue_matrix(feature_dir, "fixed", issue="#1111")
     blocker = _issue_matrix_approval_blocker(feature_dir)
@@ -168,6 +183,61 @@ def test_issue_matrix_approval_blocker_requires_resolved_verdicts(tmp_path: Path
 
     _write_issue_matrix(feature_dir, "fixed")
     assert _issue_matrix_approval_blocker(feature_dir) is None
+
+
+def test_issue_matrix_blocker_names_actual_artifact_json_not_hardcoded_md(
+    tmp_path: Path,
+) -> None:
+    """#4330: a JSON-format mission's blocker must name ``issue-matrix.json``.
+
+    The old message hardcoded ``issue-matrix.md`` even though the gate reads
+    the structured artifact JSON-first, so an operator was sent hunting for a
+    file their mission does not use.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Fix Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8")
+
+    _write_issue_matrix_json(feature_dir, "unknown")
+    blocker = _issue_matrix_approval_blocker(feature_dir)
+    assert blocker is not None
+    assert "ERROR: issue-matrix.json has unresolved entries" in blocker
+    assert "issue-matrix.md" not in blocker
+
+
+def test_issue_matrix_blocker_names_legacy_md_artifact_when_md_is_the_matrix(
+    tmp_path: Path,
+) -> None:
+    """Back-compat half of #4330: a legacy ``.md``-only mission still names ``.md``."""
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Fix Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8")
+
+    _write_issue_matrix(feature_dir, "unknown")
+    blocker = _issue_matrix_approval_blocker(feature_dir)
+    assert blocker is not None
+    assert "ERROR: issue-matrix.md has unresolved entries" in blocker
+
+
+def test_issue_matrix_blocker_surfaces_deferred_without_handle_rule(
+    tmp_path: Path,
+) -> None:
+    """#4330: the deferred-with-followup handle rule must be stated in the
+    blocker, not left for the operator to find by reading the validator."""
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Fix Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8")
+
+    # Prose-only evidence_ref with no '#NNN' or 'Follow-up:' substring.
+    _write_issue_matrix_json(
+        feature_dir, "deferred-with-followup", evidence_ref="deferred pending triage"
+    )
+    blocker = _issue_matrix_approval_blocker(feature_dir)
+    assert blocker is not None
+    assert "Row for issue '#1582'" in blocker
+    assert "'deferred-with-followup'" in blocker
+    assert "no follow-up handle" in blocker
+    assert "'#NNN' or 'Follow-up:'" in blocker
 
 
 def test_issue_matrix_missing_file_blocker_names_regenerate_command(tmp_path: Path) -> None:
@@ -318,12 +388,15 @@ def test_issue_matrix_read_is_coord_authoritative_no_primary_fallback(tmp_path: 
     # The filled primary copy MUST NOT rescue the stale coord matrix.
     rescued = _issue_matrix_approval_blocker(coord_dir, primary_feature_dir=primary_dir)
     assert rescued is not None
-    assert "Unknown: #1582" in rescued
+    # #4330: the unknown-verdict row surfaces its concrete rule, not a bare id.
+    assert "Row for issue '#1582'" in rescued
+    assert "verdict 'unknown' is not in the allowed set" in rescued
 
     # Without any primary hint the result is identical (coord-authoritative).
     stale_blocker = _issue_matrix_approval_blocker(coord_dir)
     assert stale_blocker is not None
-    assert "Unknown: #1582" in stale_blocker
+    assert "Row for issue '#1582'" in stale_blocker
+    assert "verdict 'unknown' is not in the allowed set" in stale_blocker
 
 
 # ---------------------------------------------------------------------------

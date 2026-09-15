@@ -63,6 +63,12 @@ Follow the review prompt. It is the source of truth for what to check and how
 to check it. The review criteria come from charter.offering and the WP definition, not
 from this skill.
 
+If the WP diff includes typed sources, confirm the implementer ran the project's
+configured compiler/typecheck command, matching CI, and that it is green.
+A passing test runner does not satisfy DIRECTIVE_030's compiler diagnostics
+gate. Reject if typecheck was skipped or is red; do not accept a fallback
+command that masks a compiler failure.
+
 ---
 
 ## Step 3.5: Contract Round-Trip Check

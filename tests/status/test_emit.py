@@ -2067,7 +2067,7 @@ class TestFlatShellFanOutSeam:
         # Persistence is untouched by the seam: transition + annotation landed.
         stream = read_event_stream(feature_dir)
         assert stream.transitions[-1].event_id == event.event_id
-        assert len(stream.annotations) == 1  # golden-count: cardinality-is-contract
+        assert len(stream.annotations) == 1
 
     def test_single_fan_out_default_fires_after_release(self, feature_dir: Path) -> None:
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
@@ -2260,7 +2260,7 @@ class TestBatchShellLock:
                 ]
             )
         stream = read_event_stream(feature_dir)
-        assert len(stream.annotations) == 1  # golden-count: cardinality-is-contract
+        assert len(stream.annotations) == 1
         assert stream.annotations[0].at == events[0].at
         snapshot = json.loads((feature_dir / "status.json").read_text(encoding="utf-8"))
         assert snapshot["work_packages"]["WP01"]["lane"] == "in_progress"

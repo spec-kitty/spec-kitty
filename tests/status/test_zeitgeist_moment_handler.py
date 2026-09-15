@@ -667,8 +667,9 @@ def test_no_credentials_means_no_network_call(monkeypatch: pytest.MonkeyPatch) -
     assert recorder.offers == []
 
 
-def test_non_volatile_lifecycle_types_broadcast_nothing(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
+def test_non_volatile_lifecycle_types_broadcast_nothing(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path], caplog: pytest.LogCaptureFixture) -> None:
     recorder = OfferRecorder().install(monkeypatch)
+    caplog.set_level(logging.DEBUG, logger=bridge.__name__)
 
     adapters.fire_lifecycle_saas_fanout(
         envelope={"event_type": "WPCreated", "payload": {"mission_slug": "demo-mission", "wp_id": "WP01"}},
@@ -677,6 +678,11 @@ def test_non_volatile_lifecycle_types_broadcast_nothing(monkeypatch: pytest.Monk
 
     assert recorder.offers == []
     assert resolved_credential == []  # not even a credential lookup
+    # Pin the early return itself, not a side effect it shares with validation
+    # failures and swallowed exceptions: the guard's own debug line is the only
+    # observable that distinguishes it (mutation-check: deleting the
+    # `event_type not in VOLATILE_EVENT_TYPES` return turns this red via KeyError).
+    assert "not a volatile-family moment" in caplog.text
 
 
 def test_resolved_binding_slot_is_wired_but_broadcasts_nothing_yet(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:

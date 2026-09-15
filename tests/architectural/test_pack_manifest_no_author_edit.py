@@ -82,7 +82,7 @@ def test_authored_pack_yaml_exists_and_is_shaped_as_a_pack_descriptor() -> None:
     )
 
     pack_id = data["pack_id"]
-    assert isinstance(pack_id, str) and len(pack_id) == 26, "pack_id must be a 26-char ULID"  # golden-count: cardinality-is-contract
+    assert isinstance(pack_id, str) and len(pack_id) == 26, "pack_id must be a 26-char ULID"
 
     pack_version = data["pack_version"]
     assert isinstance(pack_version, str) and pack_version, "pack_version must be authored (non-empty)"

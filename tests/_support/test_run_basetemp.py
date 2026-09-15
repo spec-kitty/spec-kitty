@@ -258,7 +258,7 @@ def test_install_registers_an_atexit_reaper_for_this_run_only(
     monkeypatch.setattr(atexit, "register", _capture)
     config = _fake_config()
     install_run_basetemp(config, now=10**9)
-    assert len(handlers) == 1  # golden-count: cardinality-is-contract — exactly one reaper, never two
+    assert len(handlers) == 1  # exactly one reaper, never two
 
     # Simulate a successful session — pytest_sessionfinish marks this BEFORE
     # atexit callbacks run (#76: reap only follows a recorded success).

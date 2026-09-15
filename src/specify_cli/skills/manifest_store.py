@@ -40,7 +40,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import jsonschema
 
 from specify_cli.core.no_follow import chmod_fd
 
@@ -204,6 +203,12 @@ def _validate_against_schema(data: dict[str, Any]) -> None:
     Raises ``ManifestError("schema_validation_failed", errors=[...])`` on failure.
     """
     schema = _get_schema()
+    # #4409: imported here, not at module scope — ``jsonschema`` eagerly
+    # loads format checkers (``rfc3987_syntax.syntax_helpers``, ~1.8s) that
+    # every CLI invocation would otherwise pay for without validating
+    # anything. Same deferral as the charter validation modules.
+    import jsonschema  # noqa: PLC0415 — deferred: see the cost note above
+
     validator = jsonschema.Draft202012Validator(schema)
     errors = sorted(validator.iter_errors(data), key=lambda e: list(e.path))
     if errors:
