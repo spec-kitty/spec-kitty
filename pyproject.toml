@@ -2337,7 +2337,6 @@ exclude = [
     "tests/specify_cli/compat/test_planner.py",
     "tests/specify_cli/compat/test_registry.py",
     "tests/specify_cli/compat/test_remediation.py",
-    "tests/specify_cli/compat/test_review_migration.py",
     "tests/specify_cli/compat/test_runtime.py",
     "tests/specify_cli/compat/test_safety.py",
     "tests/specify_cli/compat/test_upgrade_hint.py",

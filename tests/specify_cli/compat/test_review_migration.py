@@ -63,12 +63,8 @@ def _make_runtime(
     from specify_cli.compat._detect.runtime import InstalledCliRuntime, PackageSource
 
     method = InstallMethod[install_method_name]
-    resolved_platform: Literal["posix", "windows"] = (
-        "windows" if platform == "windows" else "posix"
-    )
-    path_cls: type[PurePosixPath] | type[PureWindowsPath] = (
-        PurePosixPath if resolved_platform == "posix" else PureWindowsPath
-    )
+    resolved_platform: Literal["posix", "windows"] = "windows" if platform == "windows" else "posix"
+    path_cls: type[PurePosixPath] | type[PureWindowsPath] = PurePosixPath if resolved_platform == "posix" else PureWindowsPath
 
     return InstalledCliRuntime(
         install_method=method,
@@ -83,11 +79,7 @@ def _make_runtime(
         is_default_bin_dir=None,
         python=python,
         requirements=requirements,  # type: ignore[arg-type]
-        package_source=(
-            PackageSource.PYPI_SPECIFIER
-            if method == InstallMethod.UV_TOOL
-            else PackageSource.UNKNOWN
-        ),
+        package_source=(PackageSource.PYPI_SPECIFIER if method == InstallMethod.UV_TOOL else PackageSource.UNKNOWN),
         platform=resolved_platform,
         safe_for_auto_upgrade=(method in _SAFE_AUTO_UPGRADE_METHODS),
     )
@@ -133,10 +125,7 @@ def test_uv_tool_custom_tool_dir_and_python_snapshot(
     )
 
     result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
-    expected = (
-        "UV_TOOL_DIR=/opt/uv uv tool install --force --python 3.13 "
-        "--with pytest spec-kitty-cli==3.2.0rc25"
-    )
+    expected = "UV_TOOL_DIR=/opt/uv uv tool install --force --python 3.13 --with pytest spec-kitty-cli==3.2.0rc25"
     assert result == expected, f"Snapshot mismatch: {result!r}"
 
 
