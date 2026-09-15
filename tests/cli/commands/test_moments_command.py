@@ -55,10 +55,10 @@ def _checkout_with_kittify(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> P
 # --- status ------------------------------------------------------------------
 
 
-def test_status_defaults_to_mine_from_no_file_at_all(kittify_home: Path) -> None:
+def test_status_defaults_to_team_from_no_file_at_all(kittify_home: Path) -> None:
     result = runner.invoke(moments_app, ["status"])
     assert result.exit_code == 0
-    assert "mine" in result.stdout
+    assert "team" in result.stdout
     assert "source=default" in result.stdout
 
 
@@ -66,7 +66,7 @@ def test_status_json_is_plain_machine_json(kittify_home: Path) -> None:
     result = runner.invoke(moments_app, ["status", "--json"])
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
-    assert payload["agents"] == "mine"
+    assert payload["agents"] == "team"
     assert payload["agents_source"] == "default"
     assert payload["rate_per_minute"] > 0
 
@@ -217,8 +217,8 @@ def test_on_restores_the_documented_default_after_an_off(kittify_home: Path) -> 
     assert result.exit_code == 0
     with (kittify_home / "config.toml").open("rb") as fh:
         stored = tomllib.load(fh)
-    assert stored["moments"]["agents"] == "mine"
-    assert "effective: mine" in result.stdout.replace("**", "")
+    assert stored["moments"]["agents"] == "team"
+    assert "effective: team" in result.stdout.replace("**", "")
 
 
 def test_on_reports_honestly_when_a_repo_override_still_decides(kittify_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -269,3 +269,14 @@ def test_off_preserves_unrelated_keys_in_an_existing_config(kittify_home: Path) 
         document = tomllib.load(fh)
     assert document["moments"] == {"kinds": ["MissionCreated"], "agents": "off"}
     assert document["other"] == {"keep": "yes"}
+
+
+def test_status_reports_disjoint_allowlists(kittify_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (kittify_home / "config.toml").write_text('[moments]\nteammates = ["alice"]\n')
+    root = _checkout_with_kittify(tmp_path, monkeypatch)
+    (root / ".kittify" / "config.toml").write_text('[moments]\nteammates = ["bob"]\n')
+    result = runner.invoke(moments_app, ["status"])
+    assert result.exit_code == 0
+    assert "allowlists do not overlap" in result.stdout
+    result = runner.invoke(moments_app, ["status", "--json"])
+    assert json.loads(result.stdout)["blocked_filters"] == ["teammates"]

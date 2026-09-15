@@ -75,7 +75,7 @@ import urllib.request
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 
-from . import budget
+from . import budget, own_filter
 from .live_frame import FocusView, LiveFrame, StreamState, TeamSnapshot, parse_live_frame
 
 _STREAM_PATH = "/managed/stream"
@@ -95,6 +95,9 @@ class TeamStreamConfig:
     relay_url: str
     capability_credential: str
     relay_token: str | None = None
+    # Raw cached issuer references, never relay-derived opaque references.
+    # None explicitly selects the complete diagnostic feed.
+    own_sessions: str | None = None
 
 
 class FilteredStream:
@@ -115,9 +118,9 @@ class FilteredStream:
 
     ``frame_filter`` (#190) is this class's one client-side membership rule:
     a callable over an already-parsed :class:`LiveFrame`, applied before a
-    frame is either applied to state or yielded. The relay stays a per-team
-    firehose — filtering is the reader's business, so it happens exactly
-    here and nowhere upstream. A rejected frame leaves no trace at all (it
+    frame is either applied to state or yielded. Own-session suppression is
+    performed separately by the relay before its subscriber queue; this
+    predicate applies the remaining reader preferences. A rejected frame leaves no trace at all (it
     never reaches ``StreamState``, which is lossless for that anyway: only
     presence/focus mutate it), so a caller holding a filtered stream sees an
     honest "this subscription does not carry that" rather than a frame it
@@ -161,10 +164,17 @@ class FilteredStream:
             "Authorization": f"Bearer {self._config.relay_token or self._config.capability_credential}",
             "X-Zeitgeist-Capability": self._config.capability_credential,
         }
+        if self._config.own_sessions is not None:
+            url += "?filterOwn=true"
+            headers["X-Zeitgeist-Own-Sessions"] = self._config.own_sessions
+        else:
+            url += "?filterOwn=false"
         req = urllib.request.Request(url, headers=headers, method="GET")
         opener = budget.NoRedirects.build()
         deadline = None if idle_timeout_s is None else time.monotonic() + idle_timeout_s
         with opener.open(req, timeout=idle_timeout_s) as resp:
+            if self._config.own_sessions is not None:
+                own_filter.require_ack(resp.headers)
             if deadline is None:
                 yield from self._read_frames(resp)
                 return

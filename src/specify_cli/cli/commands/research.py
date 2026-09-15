@@ -13,6 +13,7 @@ from specify_cli.cli import StepTracker
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import get_project_root_or_exit, show_banner
 from specify_cli.core import MISSION_CHOICES
+from specify_cli.core.paths import UnsafePathSegmentError
 from specify_cli.core.project_resolver import resolve_template_path
 from specify_cli.mission import get_mission_type
 from specify_cli.plan_validation import PlanValidationError, validate_plan_filled
@@ -26,8 +27,8 @@ def _read_mission_dir_or_exit(
     """Resolve a mission artifact read dir, exiting cleanly on an unsafe slug.
 
     #2878: a traversal-shaped ``--mission`` value trips the safe-path-segment
-    guard (``assert_safe_path_segment``) inside the placement seam and raises a
-    bare ``ValueError`` that no caller in this command catches — the raw
+    guard (``assert_safe_path_segment``) inside the placement seam and raises
+    ``UnsafePathSegmentError`` that no caller in this command catches — the raw
     traceback the issue reports. Mirrors merge's ``_resolve_slug_or_exit``
     exemplar (cli/commands/merge.py): canonical diagnostic + ``exit 2``, never
     a traceback. The ``merge._constants`` import stays function-local so the
@@ -35,7 +36,7 @@ def _read_mission_dir_or_exit(
     """
     try:
         return placement_seam(repo_root, mission_slug).read_dir(kind)
-    except ValueError as exc:
+    except UnsafePathSegmentError as exc:
         from specify_cli.merge._constants import _SAFE_PATH_SEGMENT_DIAGNOSTIC
 
         console.print(f"[red]Error:[/red] {_SAFE_PATH_SEGMENT_DIAGNOSTIC}: {exc}")

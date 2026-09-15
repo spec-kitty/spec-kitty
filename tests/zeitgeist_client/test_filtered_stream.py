@@ -142,7 +142,7 @@ def test_team_stream_config_has_no_team_deployment_or_repo_field() -> None:
     credential IS the selector. Every one of these names is a member of
     ``sanitizer.FORBIDDEN_CONTROL_KEYS``."""
     field_names = set(filtered_stream.TeamStreamConfig.__dataclass_fields__)
-    assert field_names == {"relay_url", "capability_credential", "relay_token"}
+    assert field_names == {"relay_url", "capability_credential", "relay_token", "own_sessions"}
     assert field_names.isdisjoint(sanitizer.FORBIDDEN_CONTROL_KEYS)
 
 

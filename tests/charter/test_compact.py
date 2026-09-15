@@ -95,3 +95,33 @@ def test_render_compact_view_reports_governance_resolution_errors(
 
     assert "governance unresolved" in compact.text
     assert "missing directive" in compact.text
+
+
+def test_render_compact_view_labels_doctrine_directory_as_layer_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    doctrine_root = tmp_path / ".kittify" / "doctrine"
+    monkeypatch.setattr(
+        "charter.activation.compact.resolve_project_root",
+        lambda _repo_root: doctrine_root,
+    )
+
+    compact = render_compact_view(tmp_path, section_anchors=())
+
+    assert f"Doctrine layer root: {doctrine_root}" in compact.text
+    assert "Project root:" not in compact.text
+
+
+def test_render_compact_view_omits_missing_doctrine_layer_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "charter.activation.compact.resolve_project_root",
+        lambda _repo_root: None,
+    )
+
+    compact = render_compact_view(tmp_path, section_anchors=())
+
+    assert "Doctrine layer root:" not in compact.text

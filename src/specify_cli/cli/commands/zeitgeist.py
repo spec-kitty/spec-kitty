@@ -69,6 +69,7 @@ import asyncio
 import dataclasses
 import getpass
 import time
+import sys
 import urllib.error
 from pathlib import Path
 from typing import Any
@@ -76,7 +77,7 @@ from typing import Any
 import typer
 
 from specify_cli.cli.console import console
-from specify_cli.zeitgeist_client import credentials, operability, outbox_approval, subscription, transport
+from specify_cli.zeitgeist_client import credentials, moments, operability, outbox_approval, subscription, transport
 
 app = typer.Typer(
     name="zeitgeist",
@@ -159,15 +160,16 @@ def status(
         help=f"Seconds to listen before reporting (clamped to <= {subscription.MAX_TIMEOUT_S}s, the honest reported-live ceiling).",
     ),
     as_json: bool = _JSON_OPTION,
+    raw: bool = typer.Option(False, "--raw", help="Include own session in the diagnostic snapshot."),
 ) -> None:
     """One bounded snapshot of ``repo``'s live presence/focus state."""
     key = _resolve_store_key(repo)
     try:
-        result = subscription.status(key, timeout_s=timeout)
+        result = subscription.status(key, timeout_s=timeout, filter_own=not raw)
     except subscription.NotCheckedOut as exc:
         _report_not_checked_out(exc)
         return
-    except (urllib.error.URLError, TimeoutError) as exc:
+    except (urllib.error.URLError, TimeoutError, ValueError) as exc:
         _report_connection_fault(exc)
         return
 
@@ -190,17 +192,30 @@ def watch(
         subscription.MAX_WATCH_FRAMES,
         "--max-frames",
         min=1,
-        help="Stop after this many frames even if the window has not elapsed.",
+        help="Maximum delivered frames; agent mode scans within the timeout to count withheld frames.",
     ),
     as_json: bool = _JSON_OPTION,
+    raw: bool = typer.Option(False, "--raw", help="Diagnostic stream: include own session and bypass agent filters, receipts and rate limits."),
+    consumer: str | None = typer.Option(
+        None, "--consumer", help="Delivery receipt context override; publisher identity still uses SPEC_KITTY_ZEITGEIST_SESSION_ID."
+    ),
 ) -> None:
     """Print live frames plus a final summary, bounded by whole-call
     ``--timeout`` and ``--max-frames`` count."""
     key = _resolve_store_key(repo)
     started = time.monotonic()
     count = 0
+    result: dict[str, Any] = {}
+    policy = None
     try:
-        frame_iter = subscription.watch(key, timeout_s=timeout, max_frames=max_frames)
+        if raw:
+            frame_iter = subscription.watch(key, timeout_s=timeout, max_frames=max_frames)
+        else:
+            from specify_cli.zeitgeist_client.agent_delivery import AgentDelivery
+
+            policy = AgentDelivery(key, consumer=consumer)
+            result = subscription.agent_watch(key, timeout_s=timeout, max_frames=max_frames, delivery=policy)
+            frame_iter = iter(result["frames"])
         for frame in frame_iter:
             count += 1
             if as_json:
@@ -220,6 +235,12 @@ def watch(
                 console.print(subscription.render_event(frame), markup=False, highlight=False)
             else:
                 console.print(f"[bold]{frame['frame_type']}[/bold]  seq={frame['seq']}  {frame['payload']}")
+    except moments.MomentsDisabled as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(0) from None
+    except ValueError as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(1) from None
     except subscription.NotCheckedOut as exc:
         _report_not_checked_out(exc)
     except (urllib.error.URLError, TimeoutError) as exc:
@@ -241,11 +262,56 @@ def watch(
             "frames": count,
             "reason": reason,
             "elapsed_s": round(elapsed_s, 3),
+            **{k: v for k, v in result.items() if k not in {"frames", "repo", "receipt"}},
         }
         if as_json:
             console.emit_json(summary, indent=None)
         else:
             console.print(f"watch summary  frames={count}  reason={reason}  elapsed_s={elapsed_s:.3f}")
+            console.print({k: v for k, v in summary.items() if k not in {"type", "repo", "frames", "reason", "elapsed_s"}})
+        sys.stdout.flush()
+        if policy is not None:
+            policy.acknowledge(result.get("receipt"))
+
+
+@app.command()
+def activity(
+    repo: str | None = _REPO_ARGUMENT,
+    window: int = typer.Option(900, "--window", min=0, help="Lookback seconds within the relay's configured retention."),
+    timeout: float = typer.Option(subscription.DEFAULT_STATUS_TIMEOUT_S, "--timeout", min=0.001),
+    max_frames: int = typer.Option(subscription.MAX_WATCH_FRAMES, "--max-frames", min=1),
+    replay: bool = typer.Option(False, "--replay", help="Intentionally include previously acknowledged activity."),
+    consumer: str | None = typer.Option(None, "--consumer", help="Stable logical agent ID shared with watch/MCP."),
+    as_json: bool = _JSON_OPTION,
+) -> None:
+    """Catch up on retained activity using the same policy as agent watch."""
+    from specify_cli.zeitgeist_client.agent_delivery import AgentDelivery
+
+    key = _resolve_store_key(repo)
+    try:
+        policy = AgentDelivery(key, consumer=consumer)
+        result = subscription.agent_activity(key, window_s=window, timeout_s=timeout, max_frames=max_frames, replay=replay, delivery=policy)
+        if as_json:
+            console.emit_json(result)
+        else:
+            for frame in result["frames"]:
+                if frame["frame_type"] == "event":
+                    console.print(subscription.render_event(frame), markup=False, highlight=False)
+                else:
+                    console.print(frame)
+            console.print({k: v for k, v in result.items() if k not in {"frames", "receipt"}})
+        sys.stdout.flush()
+        policy.acknowledge(result.get("receipt"))
+    except moments.MomentsDisabled as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(0) from None
+    except subscription.NotCheckedOut as exc:
+        _report_not_checked_out(exc)
+    except (urllib.error.URLError, TimeoutError) as exc:
+        _report_connection_fault(exc)
+    except ValueError as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(1) from None
 
 
 @app.command(name="mcp-serve", hidden=True)

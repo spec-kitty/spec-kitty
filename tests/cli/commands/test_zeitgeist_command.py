@@ -72,7 +72,7 @@ def test_mcp_serve_dispatches_to_mcp_stdio_run_stdio(monkeypatch: pytest.MonkeyP
 
 def test_status_json_emits_the_subscription_result(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_result = {"repo": "spec-kitty", "epoch": "e1", "presence": [], "focus": [], "reset_count": 0, "last_reset_reason": None}
-    monkeypatch.setattr(subscription, "status", lambda repo, *, timeout_s=2.0: fake_result)
+    monkeypatch.setattr(subscription, "status", lambda repo, *, timeout_s=2.0, filter_own=True: fake_result)
 
     result = runner.invoke(app, ["status", "github.com/acme/spec-kitty", "--json"])
     assert result.exit_code == 0
@@ -80,7 +80,7 @@ def test_status_json_emits_the_subscription_result(monkeypatch: pytest.MonkeyPat
 
 
 def test_status_not_checked_out_exits_nonzero_with_a_clear_message(monkeypatch: pytest.MonkeyPatch) -> None:
-    def _raise(repo: str, *, timeout_s: float = 2.0) -> dict[str, object]:
+    def _raise(repo: str, *, timeout_s: float = 2.0, filter_own: bool = True) -> dict[str, object]:
         raise subscription.NotCheckedOut(repo)
 
     monkeypatch.setattr(subscription, "status", _raise)
@@ -96,7 +96,7 @@ def test_status_bare_repo_name_is_rejected_with_the_accepted_form(monkeypatch: p
     names the accepted form instead of failing with a confusing
     not-checked-out."""
 
-    def _boom(repo: str, *, timeout_s: float = 2.0) -> dict[str, object]:  # pragma: no cover - must never run
+    def _boom(repo: str, *, timeout_s: float = 2.0, filter_own: bool = True) -> dict[str, object]:  # pragma: no cover - must never run
         raise AssertionError("subscription.status must never be reached with an unusable key")
 
     monkeypatch.setattr(subscription, "status", _boom)
@@ -107,7 +107,7 @@ def test_status_bare_repo_name_is_rejected_with_the_accepted_form(monkeypatch: p
 
 
 def test_status_connection_fault_exits_nonzero(monkeypatch: pytest.MonkeyPatch) -> None:
-    def _raise(repo: str, *, timeout_s: float = 2.0) -> dict[str, object]:
+    def _raise(repo: str, *, timeout_s: float = 2.0, filter_own: bool = True) -> dict[str, object]:
         raise urllib.error.URLError("connection refused")
 
     monkeypatch.setattr(subscription, "status", _raise)
@@ -125,7 +125,7 @@ def test_status_with_no_repo_argument_uses_the_checkout_derived_key(monkeypatch:
     not-checked-out for a credential the bridge minted a minute ago."""
     seen: list[str] = []
 
-    def _fake_status(repo: str, *, timeout_s: float = 2.0) -> dict[str, object]:
+    def _fake_status(repo: str, *, timeout_s: float = 2.0, filter_own: bool = True) -> dict[str, object]:
         seen.append(repo)
         return {"repo": repo, "epoch": "e1", "presence": [], "focus": [], "reset_count": 0, "last_reset_reason": None}
 
@@ -157,7 +157,7 @@ def test_watch_json_emits_one_json_line_per_frame(monkeypatch: pytest.MonkeyPatc
         yield from frames
 
     monkeypatch.setattr(subscription, "watch", _fake_watch)
-    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--json"])
+    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--raw", "--json"])
     assert result.exit_code == 0
     lines = [line for line in result.stdout.splitlines() if line.strip()]
     payloads = [json.loads(line) for line in lines]
@@ -172,7 +172,7 @@ def test_watch_not_checked_out_exits_nonzero(monkeypatch: pytest.MonkeyPatch) ->
         yield  # pragma: no cover - never reached, makes this a generator function
 
     monkeypatch.setattr(subscription, "watch", _raise)
-    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty"])
+    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--raw"])
     assert result.exit_code == 1
     assert "github.com/acme/spec-kitty" in result.stdout
 
@@ -211,7 +211,7 @@ def test_watch_human_branch_frames_event_output(monkeypatch: pytest.MonkeyPatch)
         }
 
     monkeypatch.setattr(subscription, "watch", _fake_watch)
-    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty"])
+    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--raw"])
     assert result.exit_code == 0
     assert "[zeitgeist moment " in result.stdout
     assert re.search(r"\[end of zeitgeist moment [0-9a-f]{8}\]", result.stdout)
@@ -229,9 +229,20 @@ def test_watch_json_keeps_the_raw_payload_for_event_frames(monkeypatch: pytest.M
         yield {"schema_version": "1.0.0", "epoch": "e", "seq": 4, "emitted_at": 1.0, "frame_type": "event", "payload": payload}
 
     monkeypatch.setattr(subscription, "watch", _fake_watch)
-    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--json"])
+    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--raw", "--json"])
     assert result.exit_code == 0
     lines = [json_module.loads(line) for line in result.stdout.splitlines() if line.strip()]
     assert lines[0]["frame_type"] == "event"
     assert lines[0]["payload"]["attrs"] == {"to_lane": "for_review"}
     assert lines[1]["type"] == "watch_summary"
+
+
+@pytest.mark.parametrize("flags,expected", [([], True), (["--raw"], False)])
+def test_status_requests_own_filter_by_default_and_raw_opt_out(monkeypatch, flags, expected):
+    def status(repo, *, timeout_s, filter_own):
+        assert filter_own is expected
+        return {"repo": repo}
+
+    monkeypatch.setattr(subscription, "status", status)
+    result = runner.invoke(app, ["status", "github.com/acme/widget", "--json", *flags])
+    assert result.exit_code == 0, result.stdout

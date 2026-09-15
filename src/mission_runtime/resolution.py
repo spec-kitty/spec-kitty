@@ -1274,12 +1274,15 @@ def _resolve_status_surface_dir(
             coordination_branch=coordination_branch,
         )
         if coord_state is CoordState.DELETED:
-            raise CoordinationBranchDeleted(
+            # #4403: the DELETED → build-and-raise policy routes through the ONE
+            # ``CoordinationBranchDeleted.for_mission`` factory (single payload
+            # authority — it composes the coord candidate itself); only this
+            # site's seam-resolved ``primary_dir`` is threaded.
+            raise CoordinationBranchDeleted.for_mission(
                 repo_root=effective_root,
                 mission_slug=mission_slug,
                 mid8=mid8,
                 coordination_branch=coordination_branch,
-                coord_candidate=coord_dir,
                 primary_candidate=primary_dir,
             )
         if coord_state in {CoordState.EMPTY, CoordState.NONE}:
@@ -1913,13 +1916,15 @@ def _classify_artifact_surface(
     if coord_state is CoordState.DELETED:
         # C3 "fail loud" (#1848 data-loss): a declared coord branch deleted from
         # git carries unmerged status — raise the SAME canonical exception the read
-        # path raises, never a silent primary fallback.
-        raise CoordinationBranchDeleted(
+        # path raises, never a silent primary fallback. #4403: the payload is
+        # built by the ONE ``CoordinationBranchDeleted.for_mission`` factory
+        # (the ``or ""`` None-guard it owns replaces this site's hand-rolled
+        # one); only this site's backfill-aware ``primary_dir`` is threaded.
+        raise CoordinationBranchDeleted.for_mission(
             repo_root=primary_root,
             mission_slug=canonical_slug,
             mid8=mid8,
-            coordination_branch=coordination_branch or "",
-            coord_candidate=coord_feature_dir(primary_root, canonical_slug, mid8),
+            coordination_branch=coordination_branch,
             primary_candidate=primary_dir,
         )
     if coord_state is CoordState.MATERIALIZED:

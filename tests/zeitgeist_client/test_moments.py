@@ -2,7 +2,7 @@
 predicate that applies them, and the agent rate cap.
 
 Covers the whole decision matrix the setting promises: mode resolution across
-the two config files (repo beats global beats default), fail-closed reading of
+the two config files (both may narrow the default), fail-closed reading of
 a broken value, the four allowlist filters, ``mine``'s cheap local-mission
 basis, repo admission, and every branch of :class:`moments.MomentRateGate`.
 The wire-level consequences (what an MCP tool actually delivers) are covered
@@ -86,7 +86,7 @@ def _other_frame(frame_type: str) -> SimpleNamespace:
 class TestLoadSettings:
     def test_no_files_anywhere_is_the_documented_default(self, moments_config: Path) -> None:
         settings = moments.load_settings(project_root=None, home=moments_config.parent)
-        assert settings.agents is moments.MomentsMode.MINE
+        assert settings.agents is moments.MomentsMode.TEAM
         assert settings.agents_source == "default"
         assert not settings.repos and not settings.missions and not settings.teammates and not settings.kinds
         assert settings.rate_per_minute == moments.DEFAULT_RATE_PER_MINUTE
@@ -124,19 +124,53 @@ class TestLoadSettings:
         assert settings.agents is moments.MomentsMode.OFF
         assert settings.agents_source == str(global_path)
 
-    def test_lists_merge_per_key_repo_wins_whole_list(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A repo override replaces a list wholesale — it never unions with
-        the global one ("which moments do I want here" is one decision)."""
+    @pytest.mark.parametrize("key", ["repos", "missions", "teammates", "kinds"])
+    @pytest.mark.parametrize("repo_values, expected", [('["a", "b"]', ("a",)), ('["b"]', ())])
+    def test_repo_filters_cannot_widen_global(self, tmp_path: Path, moments_config: Path, key: str, repo_values: str, expected: tuple[str, ...]) -> None:
         root = tmp_path / "checkout"
         (root / ".kittify").mkdir(parents=True)
-        (root / ".kittify" / "config.toml").write_text('[moments]\nrepos = ["github.com/acme/widget"]\nkinds = ["MissionCreated"]\n')
-        global_path = tmp_path / "global-config.toml"
-        global_path.write_text('[moments]\nrepos = ["github.com/acme/other"]\nkinds = ["WPStatusChanged", "MissionClosed"]\n')
-        monkeypatch.setattr(moments, "global_config_path", lambda *, home=None: global_path)
-
+        moments_config.write_text(f'[moments]\n{key} = ["a"]\n')
+        (root / ".kittify" / "config.toml").write_text(f"[moments]\n{key} = {repo_values}\n")
         settings = moments.load_settings(project_root=root)
-        assert settings.repos == ("github.com/acme/widget",)
-        assert settings.kinds == ("MissionCreated",)
+        assert getattr(settings, key) == expected
+        assert settings.blocked_filters == (frozenset() if expected else frozenset({key}))
+        if not expected:
+            if key == "repos":
+                assert not moments.allows_repo(settings, "b")
+            else:
+                assert not moments.frame_predicate(settings)(_event_frame())
+
+    @pytest.mark.parametrize("key", ["repos", "missions", "teammates", "kinds"])
+    def test_repo_cannot_repair_away_malformed_global_restriction(self, tmp_path: Path, moments_config: Path, key: str) -> None:
+        root = tmp_path / "checkout"
+        (root / ".kittify").mkdir(parents=True)
+        moments_config.write_text(f'[moments]\n{key} = "typo"\n')
+        (root / ".kittify" / "config.toml").write_text(f'[moments]\n{key} = ["a"]\n')
+        settings = moments.load_settings(project_root=root)
+        assert settings.invalid_filters == frozenset({key})
+        assert not settings.blocked_filters
+
+    def test_repo_team_preserves_explicit_global_mine(self, tmp_path: Path, moments_config: Path) -> None:
+        root = tmp_path / "checkout"
+        (root / ".kittify").mkdir(parents=True)
+        moments_config.write_text('[moments]\nagents = "mine"\n')
+        (root / ".kittify" / "config.toml").write_text('[moments]\nagents = "team"\n')
+        settings = moments.load_settings(project_root=root)
+        assert settings.agents is moments.MomentsMode.MINE
+        assert not moments.frame_predicate(settings)(_event_frame(mission="unknown"))
+
+    @pytest.mark.parametrize("repo_rate", [0, 2, 50])
+    def test_repo_rate_cannot_raise_global_ceiling(self, tmp_path: Path, moments_config: Path, repo_rate: int) -> None:
+        root = tmp_path / "checkout"
+        (root / ".kittify").mkdir(parents=True)
+        moments_config.write_text("[moments]\nrate_per_minute = 3\n")
+        (root / ".kittify" / "config.toml").write_text(f"[moments]\nrate_per_minute = {repo_rate}\n")
+        assert moments.load_settings(project_root=root).rate_per_minute == min(3, repo_rate)
+
+    @pytest.mark.parametrize("mission", [None, "unfamiliar-mission"])
+    def test_default_admits_peer_moments_without_local_missions(self, moments_config: Path, mission: str | None) -> None:
+        settings = moments.load_settings()
+        assert moments.frame_predicate(settings)(_event_frame(mission=mission, user="peer"))
 
     @pytest.mark.parametrize("raw", ['"TEAM"', '" team "'])
     def test_mode_value_normalisation(self, moments_config: Path, raw: str) -> None:
@@ -154,7 +188,7 @@ class TestLoadSettings:
     def test_corrupt_global_file_fails_closed_to_off(self, moments_config: Path) -> None:
         """#211: a TOML syntax error anywhere in the file — even one that
         would have discarded an explicit `agents = "off"` and every filter —
-        must never read as "this file said nothing" and widen to the `mine`
+        must never read as "this file said nothing" and widen to the `team`
         default. It fails the mode closed instead, and says which file and
         why."""
         moments_config.write_text("[moments\nnot toml ===")
@@ -418,8 +452,7 @@ class TestFramePredicate:
         assert predicate(_event_frame(mission="999-someone-elses")) is False
 
     def test_mine_drops_a_moment_that_names_no_mission(self) -> None:
-        """Quiet by default: a moment without a mission cannot be shown to be
-        mine, so it does not surface."""
+        """Explicit mine excludes moments without a locally known mission."""
         predicate = moments.frame_predicate(_settings(agents=moments.MomentsMode.MINE))
         assert predicate(_event_frame()) is False
 
