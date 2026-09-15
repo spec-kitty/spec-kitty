@@ -205,7 +205,9 @@ def test_sweep_without_a_transport_closes_locally_without_propagation(tmp_path: 
     _write_op(stale, completed=False, started_at=_iso(_NOW - timedelta(hours=48)))
 
     # Run propagation synchronously so the no-transport path is exercised in-test.
-    def _sync_submit(self: propagator_mod.InvocationSaaSPropagator, record: object) -> None:
+    def _sync_submit(
+        self: propagator_mod.InvocationSaaSPropagator, record: object
+    ) -> None:
         propagator_mod._propagate_one(record, tmp_path)  # type: ignore[arg-type]
 
     client_spy = MagicMock(return_value=None)
@@ -222,10 +224,14 @@ def test_sweep_without_a_transport_closes_locally_without_propagation(tmp_path: 
     closures = read_op_closures(tmp_path)
     assert [event.invocation_id for event in closures] == [stale.stem]
     assert [event["event"] for event in _read_events(stale)] == ["started"]
-    assert not (tmp_path / propagator_mod.PROPAGATION_ERRORS_PATH).exists(), "a transport-less close is not an error and must not be logged as one"
+    assert not (tmp_path / propagator_mod.PROPAGATION_ERRORS_PATH).exists(), (
+        "a transport-less close is not an error and must not be logged as one"
+    )
 
 
-def test_sweep_fires_auto_commit_per_close(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sweep_fires_auto_commit_per_close(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     ops_dir = _ops_dir(tmp_path)
     for suffix in ("004", "005"):
         _write_op(
@@ -234,7 +240,9 @@ def test_sweep_fires_auto_commit_per_close(tmp_path: Path, monkeypatch: pytest.M
             started_at=_iso(_NOW - timedelta(hours=48)),
         )
     commits: list[dict[str, object]] = []
-    monkeypatch.setattr(ProfileInvocationExecutor, "_current_branch", lambda self: "main")
+    monkeypatch.setattr(
+        ProfileInvocationExecutor, "_current_branch", lambda self: "main"
+    )
     monkeypatch.setattr(
         "specify_cli.invocation.executor.safe_commit",
         lambda **kwargs: commits.append(kwargs),
@@ -307,7 +315,9 @@ def test_sweep_handles_naive_started_at_without_crash(tmp_path: Path) -> None:
     assert report.swept == 1
 
 
-def test_sweep_race_concurrent_close_reports_already_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sweep_race_concurrent_close_reports_already_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     ops_dir = _ops_dir(tmp_path)
     stale = ops_dir / "01KTBE0RQY9XKTV0PE49PJD011.jsonl"
     _write_op(stale, completed=False, started_at=_iso(_NOW - timedelta(hours=48)))
@@ -315,7 +325,9 @@ def test_sweep_race_concurrent_close_reports_already_closed(tmp_path: Path, monk
     # Simulate the race: enumeration sees the op, then a manual close lands
     # between enumeration and the sweep's close attempt.
     enumerated = list_orphan_ops(tmp_path)
-    ProfileInvocationExecutor(tmp_path).complete_invocation(stale.stem, outcome="done", closed_by="agent")
+    ProfileInvocationExecutor(tmp_path).complete_invocation(
+        stale.stem, outcome="done", closed_by="agent"
+    )
     monkeypatch.setattr(ops_module, "list_orphan_ops", lambda repo_root: enumerated)
 
     report = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
@@ -329,7 +341,9 @@ def test_sweep_race_concurrent_close_reports_already_closed(tmp_path: Path, monk
     assert events[1]["closed_by"] == "agent"
 
 
-def test_sweep_per_op_error_recorded_and_sweep_continues(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sweep_per_op_error_recorded_and_sweep_continues(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     ops_dir = _ops_dir(tmp_path)
     bad = ops_dir / "01KTBE0RQY9XKTV0PE49PJD012.jsonl"
     good = ops_dir / "01KTBE0RQY9XKTV0PE49PJD013.jsonl"
@@ -391,7 +405,9 @@ def test_sweep_double_run_does_not_reopen_spine_closed_op(tmp_path: Path) -> Non
     assert list_orphan_ops(tmp_path) == []
 
 
-def test_sweep_race_with_prior_spine_closure_reports_already_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sweep_race_with_prior_spine_closure_reports_already_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Concurrent-sweep race: enumeration saw the op, another sweep closed it on
     the spine first — reported as ``already_closed``, never double-appended."""
     ops_dir = _ops_dir(tmp_path)
@@ -411,7 +427,9 @@ def test_sweep_race_with_prior_spine_closure_reports_already_closed(tmp_path: Pa
 
 
 def _git(root: Path, *args: str) -> str:
-    result = subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True, text=True)
+    result = subprocess.run(
+        ["git", "-C", str(root), *args], check=True, capture_output=True, text=True
+    )
     return result.stdout
 
 
@@ -488,7 +506,9 @@ def _generate_synthetic_ops(ops_dir: Path, count: int, started_at: str) -> None:
         (ops_dir / f"{invocation_id}.jsonl").write_text(line + "\n", encoding="utf-8")
 
 
-def test_sweep_enumeration_sweeps_1k_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sweep_enumeration_sweeps_1k_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The 1k-file sweep sweeps every synthetic stale Op."""
     ops_dir = _ops_dir(tmp_path)
     _generate_synthetic_ops(ops_dir, 1000, _iso(_NOW - timedelta(hours=48)))
@@ -503,8 +523,10 @@ def test_sweep_enumeration_sweeps_1k_files(tmp_path: Path, monkeypatch: pytest.M
     assert report.swept == 1000
 
 
-def test_sweep_reads_closure_spine_once_while_performing_real_closes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """One sweep snapshots the spine once; each close updates that snapshot."""
+def test_sweep_reads_closure_spine_once_while_performing_real_closes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One executor reads the spine once; each real close updates its snapshot."""
     ops_dir = _ops_dir(tmp_path)
     _generate_synthetic_ops(ops_dir, 3, _iso(_NOW - timedelta(hours=48)))
     real_closed_invocation_ids = executor_module.closed_invocation_ids
@@ -526,7 +548,9 @@ def test_sweep_reads_closure_spine_once_while_performing_real_closes(tmp_path: P
 
 
 @pytest.mark.performance
-def test_sweep_real_closes_against_large_spine_under_2s(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sweep_real_closes_against_large_spine_under_2s(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Real spine closes stay linear when substantial closure history exists."""
     ops_dir = _ops_dir(tmp_path)
     _generate_synthetic_ops(ops_dir, 100, _iso(_NOW - timedelta(hours=48)))
@@ -553,7 +577,9 @@ def test_sweep_real_closes_against_large_spine_under_2s(tmp_path: Path, monkeypa
 
 
 @pytest.mark.performance
-def test_sweep_enumeration_perf_1k_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sweep_enumeration_perf_1k_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Default-suite smoke that the 1k-file sweep has no order-of-magnitude regression.
 
     Tier-1 budget gate (docs/development/testing/testing-flakiness.md): tune, never retry.
@@ -579,7 +605,9 @@ def test_sweep_enumeration_perf_1k_files(tmp_path: Path, monkeypatch: pytest.Mon
     assert_timing_budget(elapsed, 5.0, name="1k-file sweep")
 
 
-def test_sweep_10k_files_sweeps_all(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sweep_10k_files_sweeps_all(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """10,000 Op files are all swept (close mocked)."""
     ops_dir = _ops_dir(tmp_path)
     _generate_synthetic_ops(ops_dir, 10_000, _iso(_NOW - timedelta(hours=48)))
@@ -596,7 +624,9 @@ def test_sweep_10k_files_sweeps_all(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 
 @pytest.mark.slow
 @pytest.mark.performance
-def test_sweep_nfr_002_10k_files_under_5s(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sweep_nfr_002_10k_files_under_5s(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Authoritative NFR-002 check: 10,000 Op files swept in < 5 s (close mocked)."""
     ops_dir = _ops_dir(tmp_path)
     _generate_synthetic_ops(ops_dir, 10_000, _iso(_NOW - timedelta(hours=48)))
