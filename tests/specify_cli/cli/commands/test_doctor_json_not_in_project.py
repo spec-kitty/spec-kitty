@@ -69,6 +69,12 @@ _NONE_PATH_COMMANDS: list[tuple[str, object, int, tuple[str, ...]]] = [
     ("provenance", prov_mod, 1, ()),
     ("env-file", env_mod, 1, ()),
     ("coordination", coord_mod, 1, ()),
+    # Dedup fold (#4242 follow-up): tool-surfaces' raise-branch used to emit
+    # ``str(exc)`` instead of the canonical message — now routed through
+    # ``_emit_not_in_project`` like every other sibling. (``skills`` already
+    # has its own dedicated frozen envelope test and does not need to be
+    # added here.)
+    ("tool-surfaces", cmdsurf_mod, 2, ()),
     # #4242 class-closing fold: a returned ``None`` with no fixtures in play
     # is mission-state's own terminal not-in-project error (not the valid
     # fixtures-only state) — reached only with a mode flag selected.

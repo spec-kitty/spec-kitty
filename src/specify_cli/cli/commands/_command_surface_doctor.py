@@ -36,7 +36,6 @@ from specify_cli.core.checkout_identity import (
 from specify_cli.core.paths import locate_project_root
 
 from ._doctor_shared import (
-    _NOT_IN_PROJECT_MESSAGE,
     _emit_not_in_project,
     _json_error,
     _json_output_guard,
@@ -602,12 +601,7 @@ def run_command_files(json_output: bool) -> None:
 
 def _skills_not_in_project(json_output: bool, exc: BaseException | None) -> NoReturn:
     """Emit the not-in-project response for ``doctor skills`` and exit(2)."""
-    if json_output:
-        console.print_json(
-            json.dumps(_json_error("not_in_project", _NOT_IN_PROJECT_MESSAGE), indent=2)
-        )
-    else:
-        console.print(f"[red]Error:[/red] {_NOT_IN_PROJECT_MESSAGE}")
+    _emit_not_in_project(json_output)
     if exc is not None:
         raise typer.Exit(2) from exc
     raise typer.Exit(2)
@@ -832,18 +826,10 @@ def _resolve_tool_surfaces_project(json_output: bool) -> Path:
     try:
         project_path: Path | None = locate_project_root()
     except Exception as exc:
-        if not json_output:
-            console.print(f"[red]Error:[/red] {_NOT_IN_PROJECT_MESSAGE}")
-        else:
-            console.print_json(json.dumps(_json_error("not_in_project", str(exc)), indent=2))
+        _emit_not_in_project(json_output)
         raise typer.Exit(2) from exc
     if project_path is None:
-        if json_output:
-            console.print_json(
-                json.dumps(_json_error("not_in_project", _NOT_IN_PROJECT_MESSAGE), indent=2)
-            )
-        else:
-            console.print(f"[red]Error:[/red] {_NOT_IN_PROJECT_MESSAGE}")
+        _emit_not_in_project(json_output)
         raise typer.Exit(2)
     return project_path
 
