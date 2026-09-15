@@ -17,6 +17,7 @@ from kernel.clock import datetime  # noqa: E402
 
 ARTIFACT = re.compile(r"module-tests-([A-Za-z0-9._-]+)-shard-([1-9][0-9]*)-of-([1-9][0-9]*)-attempt-([1-9][0-9]*)-reports")
 JOB = re.compile(r"(module-tests \(([A-Za-z0-9._-]+) shard ([1-9][0-9]*)/([1-9][0-9]*)\)) / \1")
+SKIPPED_MATRIX_PLACEHOLDER = "module-tests (${{ matrix.module }} shard ${{ matrix.shard }})"
 
 
 def timestamp(value: Any) -> datetime:
@@ -47,7 +48,7 @@ def select_artifacts(source: dict[str, Any], jobs: list[dict[str, Any]], artifac
             # placeholder job for that skipped matrix job, carrying the
             # un-interpolated matrix template as its name rather than an
             # expanded shard name. Such a placeholder ran no shard.
-            if "${{" in name:
+            if name == SKIPPED_MATRIX_PLACEHOLDER and job.get("status") == "completed" and job.get("conclusion") == "skipped":
                 continue
             if name.startswith("module-tests"):
                 raise ValueError("unrecognized module shard job name")
