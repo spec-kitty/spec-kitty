@@ -323,15 +323,15 @@ async def _run_machine_flow(tm: TokenManager, saas_url: str) -> None:
 
     try:
         session = await flow.login(credentials)
+    except NetworkError as exc:
+        console.print(f"[red]X Could not reach the SaaS: {escape(str(exc))}[/red]")
+        console.print("Check SPEC_KITTY_SAAS_URL and network access from this runner.")
+        raise typer.Exit(1) from exc
     except AuthenticationError as exc:
         # The flow's messages are self-contained (they name the remediation
         # path); printed verbatim so CLI output and the raised error cannot
         # drift apart.
         console.print(f"[red]X {escape(str(exc))}[/red]")
-        raise typer.Exit(1) from exc
-    except NetworkError as exc:
-        console.print(f"[red]X Could not reach the SaaS: {exc}[/red]")
-        console.print("Check SPEC_KITTY_SAAS_URL and network access from this runner.")
         raise typer.Exit(1) from exc
 
     tm.set_session(session)
