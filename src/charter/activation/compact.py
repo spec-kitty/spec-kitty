@@ -283,7 +283,7 @@ def _render_text(
     try:
         project_root = resolve_project_root(repo_root)
         if project_root != repo_root:
-            lines.append(f"  - Project root: {project_root}")
+            lines.append(f"  - Doctrine layer root: {project_root}")
     except Exception:  # pragma: no cover - defensive
         pass
 

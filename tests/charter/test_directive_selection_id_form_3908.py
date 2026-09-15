@@ -30,6 +30,7 @@ import yaml
 
 from charter.activation.compact import _resolve_governance_summary
 from charter.activation.resolver import GovernanceResolutionError, resolve_project_governance
+from charter.resolution import resolve_canonical_repo_root
 
 pytestmark = [pytest.mark.unit]
 
@@ -115,6 +116,9 @@ def test_this_repository_compact_context_keeps_its_activated_governance() -> Non
     second ``charter context`` run. Asserting on content (a real template set
     and real directive ids), not on an exit code, per the issue's acceptance.
     """
+    if resolve_canonical_repo_root(REPO_ROOT) != REPO_ROOT:
+        pytest.skip("repository-level charter assertion must read the canonical checkout under test")
+
     template_set, paradigms, _tools, diagnostics, directives = _resolve_governance_summary(REPO_ROOT)
 
     assert not any("governance unresolved" in d for d in diagnostics), f"#3908: compact context lost this repository's activated governance: {diagnostics}"
