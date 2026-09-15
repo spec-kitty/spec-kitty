@@ -2513,7 +2513,6 @@ exclude = [
     "tests/specify_cli/review/test_cycle_segment_validation.py",
     "tests/specify_cli/review/test_prompt_retention.py",
     "tests/specify_cli/review/test_scope_result_from_override.py",
-    "tests/specify_cli/saas_client/test_repo_admission_check.py",
     "tests/specify_cli/session_presence/test_agents_md_writer.py",
     "tests/specify_cli/session_presence/test_claude_code_hook.py",
     "tests/specify_cli/session_presence/test_content.py",

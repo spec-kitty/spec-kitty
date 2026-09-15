@@ -39,7 +39,7 @@ def resolve_project_team_slug(
     team = answer.get("team")
     if answer.get("admitted") is not True or not isinstance(team, dict):
         raise SaasConsentError("project_not_admitted: no accessible team admission for this checkout")
-    if team.get("id") != team_id or answer.get("repo_slug") != repo_slug:
+    if team.get("slug") != team_id or answer.get("repo_slug") != repo_slug:
         raise SaasConsentError("target_authority_mismatch: project admission does not match the authenticated team")
     slug = team.get("slug")
     if not isinstance(slug, str) or re.fullmatch(r"[-a-zA-Z0-9_]+", slug) is None:

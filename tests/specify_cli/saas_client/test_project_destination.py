@@ -17,7 +17,10 @@ DECISION_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
 def destination_client(tmp_path, monkeypatch):
     # Restore the real project gate rather than the legacy transport-test stub.
     monkeypatch.setattr(client_module, "resolve_project_team_slug", resolve_project_team_slug)
-    monkeypatch.setattr(client_module, "_authenticated_authority_for_token", lambda _: ("account", "private", "42"))
+    # /api/v1/me exposes the team slug as teams[].id, while repo-admission
+    # exposes both the numeric database id and that slug. Keep them distinct so
+    # this fixture pins the real cross-endpoint contract.
+    monkeypatch.setattr(client_module, "_authenticated_authority_for_token", lambda _: ("account", "private", "team-b"))
     monkeypatch.setattr(repo_identity, "origin_url", lambda cwd, deadline: "https://github.com/project/owned-a.git")
     requests = []
     answer = {"admitted": True, "team": {"id": "42", "slug": "team-b"}, "repo_slug": "project/owned-a"}
@@ -79,9 +82,11 @@ def test_ambient_selector_cannot_replace_admitted_team(destination_client):
     assert not any(request.method == "POST" for request in requests)
 
 
-@pytest.mark.parametrize("origin", ["file:///tmp/local.git", "/tmp/local.git"])
-def test_local_origin_cannot_invent_a_hosted_destination(destination_client, monkeypatch, origin):
+@pytest.mark.parametrize("origin_kind", ["file_uri", "path"])
+def test_local_origin_cannot_invent_a_hosted_destination(destination_client, monkeypatch, tmp_path, origin_kind):
     instance, requests, _ = destination_client
+    local_origin = tmp_path / "local.git"
+    origin = local_origin.as_uri() if origin_kind == "file_uri" else str(local_origin)
     monkeypatch.setattr(repo_identity, "origin_url", lambda cwd, deadline: origin)
     with pytest.raises(SaasConsentError, match="no hosted repository"):
         instance.post_widen(DECISION_ID, [1])
