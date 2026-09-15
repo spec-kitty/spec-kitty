@@ -317,6 +317,65 @@ def test_discover_saas_403_feature_disabled_renders_clean(monkeypatch, tmp_path)
     assert "No bindable resources found" not in result.output
 
 
+def test_discover_saas_403_user_action_required_single_dashboard_hint(monkeypatch, tmp_path) -> None:
+    """A ``user_action_required`` failure renders exactly one dashboard instruction.
+
+    The client already suffixes such messages with "(action required — check
+    the Spec Kitty dashboard)"; the CLI error boundary must not append a
+    second dashboard-pointing hint on top of it. The old suppression
+    (``"spec-kitty" in message``) missed the "Spec Kitty" spelling (#4270).
+    """
+    app = _make_app(monkeypatch)
+    _mock_saas_http(
+        monkeypatch,
+        tmp_path,
+        [
+            _http_response(
+                403,
+                {
+                    "ok": False,
+                    "error": "Feature not available.",
+                    "error_code": "FEATURE_DISABLED",
+                    "user_action_required": True,
+                },
+            )
+        ],
+    )
+
+    result = runner.invoke(app, ["discover", "--provider", "github"])
+
+    assert result.exit_code == 1
+    assert not isinstance(result.exception, SaaSTrackerClientError)
+    assert "action required — check the Spec Kitty dashboard" in result.output
+    # One dashboard instruction (the message's own), not two.
+    assert result.output.count("dashboard") == 1
+
+
+def test_render_cli_error_keeps_hint_when_message_carries_no_guidance(capsys) -> None:
+    """``user_action_required`` without dashboard text in the message keeps its hint.
+
+    The suppression is message-content-based, not attribute-based: the
+    deadline-exceeded rate-limit failures carry ``user_action_required=True``
+    but no dashboard guidance in the message, so their rate-limit hint is not
+    a duplicate and must survive (#4270).
+    """
+    from specify_cli.cli.commands.tracker import _render_cli_error
+
+    exc = SaaSTrackerClientError(
+        "Rate-limit retry would exceed the transport operation deadline.",
+        error_code="deadline_exceeded",
+        status_code=429,
+        user_action_required=True,
+    )
+
+    _render_cli_error(exc, json_mode=False)
+
+    err = capsys.readouterr().err
+    assert "Rate-limit retry" in err
+    assert "rate limiting" in err
+    assert "dashboard" not in err
+
+
 def test_discover_saas_403_feature_disabled_json_machine_readable(monkeypatch, tmp_path) -> None:
     """Under ``--json`` the failure is a parseable machine-readable object."""
     app = _make_app(monkeypatch)
@@ -780,6 +839,5 @@ def test_discover_does_not_require_binding(monkeypatch, tmp_path) -> None:
 
     # And the flag that would enforce binding presence must be False.
     assert captured_kwargs.get("require_mission_binding") is False, (
-        f"discover must pass require_mission_binding=False to the "
-        f"readiness evaluator; got {captured_kwargs.get('require_mission_binding')!r}"
+        f"discover must pass require_mission_binding=False to the readiness evaluator; got {captured_kwargs.get('require_mission_binding')!r}"
     )
