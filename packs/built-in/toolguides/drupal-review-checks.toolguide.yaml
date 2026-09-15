@@ -1,0 +1,24 @@
+schema_version: "1.0"
+id: drupal-review-checks
+tool: drupal-quality-stack
+title: Drupal Review Checks
+guide_path: packs/built-in/toolguides/DRUPAL_REVIEW_CHECKS.md
+applies_to_languages:
+  - php
+  - twig
+summary: >
+  Catalog of automated checks a reviewer should run or verify have been run before
+  approving Drupal code. Organized by category: coding standards, static analysis,
+  deprecation scanning, test tiers, JavaScript, and supply-chain advisories.
+commands:
+  - vendor/bin/phpcs --standard=Drupal,DrupalPractice .
+  - vendor/bin/phpstan analyse
+  - vendor/bin/drupal-check .
+  - composer audit
+  - vendor/bin/phpunit
+  - drush cr
+  - drush updatedb
+  - npm run test
+  - npm run test:a11y
+references:
+  - "amazee.io drupal-agents-md, Vanilla variant: https://github.com/amazeeio/drupal-agents-md/blob/main/Vanilla/AGENTS.md"

@@ -5,6 +5,9 @@ nodes:
 - urn: toolguide:contextive
   kind: toolguide
   label: Contextive
+- urn: toolguide:drupal-review-checks
+  kind: toolguide
+  label: Drupal Review Checks
 - urn: toolguide:efficient-local-tooling
   kind: toolguide
   label: Efficient Local Tooling

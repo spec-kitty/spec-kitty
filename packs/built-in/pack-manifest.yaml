@@ -40,7 +40,12 @@ constituents:
   kind: agent_profile
   path: agent_profiles/doctrine-daphne.agent.yaml
   provenance_path:
-- content_hash: 3d437f143eac5062673f67cd5b2f0e1ff61114cab12af342f5a26127b9b36c70
+- content_hash: 8c0b881d0eb162cf5c56ceefc5fdfe27a3da5472cfef1212564bb63be800d6b4
+  id: drupalling-dries
+  kind: agent_profile
+  path: agent_profiles/drupalling-dries.agent.yaml
+  provenance_path:
+- content_hash: ce8b6db203f61796c8ffaf4384274de996fe2a5d14a387ac106f31de50e7120b
   id: frontend-freddy
   kind: agent_profile
   path: agent_profiles/frontend-freddy.agent.yaml
@@ -549,6 +554,16 @@ constituents:
   id: docs-freshness-sla
   kind: styleguide
   path: styleguides/docs-freshness-sla.styleguide.yaml
+  provenance_path:
+- content_hash: 016e10ca3516acf9f650bb454ace7b8e42a7e2ce3eff700f8098a5ca96c54c8a
+  id: drupal-conventions
+  kind: styleguide
+  path: styleguides/drupal-conventions.styleguide.yaml
+  provenance_path:
+- content_hash: 1db68202d17ad4c361d91dbe77eba9a18a94b24c42f9b649224c63a8ef6113dd
+  id: drupal-security-performance
+  kind: styleguide
+  path: styleguides/drupal-security-performance.styleguide.yaml
   provenance_path:
 - content_hash: 2c4d33afe0277ea862540f391d2fa4f009317a7cfde921ebef1aab1eac22441b
   id: given-when-then-authoring
@@ -1267,6 +1282,11 @@ constituents:
   kind: toolguide
   path: toolguides/contextive.toolguide.yaml
   provenance_path:
+- content_hash: 4860dbbeef3ad3d98458a9168dcd5de184d11a5f52dafb41923fff52b699f33c
+  id: drupal-review-checks
+  kind: toolguide
+  path: toolguides/drupal-review-checks.toolguide.yaml
+  provenance_path:
 - content_hash: 88ed6456f2b9d6ce2b92a36df9440d0a4292c3537d870872c6d09cc6a828453c
   id: efficient-local-tooling
   kind: toolguide
@@ -1340,7 +1360,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: a27e33946f62d2d6907b752bee2a664446985cac30f4f91412279ab9fddc6bd4
+manifest_hash: 7536fd5323e97fce6b7735101b48f9e1449aa7ddf1e025ca8cde5f8736e24cae
 schema_version: '1'
 source_type: built-in
 source_url:

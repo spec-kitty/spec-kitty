@@ -290,6 +290,11 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         Relation.SPECIALIZES_FROM,
     ),
     (
+        "agent_profile:drupalling-dries",
+        _AGENT_PROFILE_IMPLEMENTER_IVAN,
+        Relation.SPECIALIZES_FROM,
+    ),
+    (
         SPECIFICATION_BY_EXAMPLE,
         "tactic:acceptance-test-first",
         Relation.REQUIRES,

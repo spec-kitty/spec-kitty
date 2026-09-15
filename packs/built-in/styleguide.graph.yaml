@@ -23,6 +23,12 @@ nodes:
 - urn: styleguide:docs-freshness-sla
   kind: styleguide
   label: Documentation Freshness SLA Styleguide
+- urn: styleguide:drupal-conventions
+  kind: styleguide
+  label: Drupal Conventions Styleguide
+- urn: styleguide:drupal-security-performance
+  kind: styleguide
+  label: Drupal Security and Performance Styleguide
 - urn: styleguide:given-when-then-authoring
   kind: styleguide
   label: Given-When-Then Scenario Authoring
@@ -129,6 +135,15 @@ edges:
   relation: suggests
 - source: styleguide:docs-freshness-sla
   target: styleguide:publication-authority
+  relation: suggests
+- source: styleguide:drupal-conventions
+  target: agent_profile:drupalling-dries
+  relation: suggests
+- source: styleguide:drupal-conventions
+  target: toolguide:drupal-review-checks
+  relation: suggests
+- source: styleguide:drupal-security-performance
+  target: agent_profile:drupalling-dries
   relation: suggests
 - source: styleguide:java-conventions
   target: agent_profile:java-jenny
