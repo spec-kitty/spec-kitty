@@ -10,30 +10,25 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from itertools import islice
-import uuid
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
 from spec_kitty_events.models import normalize_event_id
 
-from . import credentials, moments
+from . import credentials, moments, session_identity
 from .live_frame import LiveFrame
 from .receipts import ReceiptStore
-
-_PROCESS_CONSUMER = str(uuid.uuid4())
 
 
 def consumer_identity(consumer: str | None = None) -> tuple[str, bool]:
     """Resolve a logical consumer across processes; never use a human identity."""
-    value = consumer or os.environ.get("SPEC_KITTY_AGENT_SESSION_ID") or os.environ.get("CODEX_THREAD_ID") or os.environ.get("CLAUDE_SESSION_ID")
-    if value is not None:
-        if not value.strip() or len(value) > 256:
+    if consumer is not None:
+        if not consumer.strip() or len(consumer) > 256:
             raise ValueError("consumer must contain 1..256 characters")
-        return value, True
-    return _PROCESS_CONSUMER, False
+        return consumer, True
+    return session_identity.logical_session_id(), True
 
 
 def _digest(value: Any) -> str:

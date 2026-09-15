@@ -108,7 +108,7 @@ _INSTRUCTIONS = (
     "Pass a stable consumer ID across reconnects. After successfully receiving a "
     "watch/activity response, pass its receipt as acknowledge on the next call "
     "with the same consumer, repo and settings. Unacknowledged frames may repeat. "
-    "Own-publisher suppression defaults true and requires relay acknowledgment."
+    "Own-publisher suppression defaults true and requires relay acknowledgment. consumer overrides delivery receipts only; publisher identity uses the canonical Zeitgeist session selector."
 )
 
 

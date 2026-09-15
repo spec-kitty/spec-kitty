@@ -196,7 +196,9 @@ def watch(
     ),
     as_json: bool = _JSON_OPTION,
     raw: bool = typer.Option(False, "--raw", help="Diagnostic stream: include own session and bypass agent filters, receipts and rate limits."),
-    consumer: str | None = typer.Option(None, "--consumer", help="Stable logical agent ID shared across CLI/MCP processes."),
+    consumer: str | None = typer.Option(
+        None, "--consumer", help="Delivery receipt context override; publisher identity still uses SPEC_KITTY_ZEITGEIST_SESSION_ID."
+    ),
 ) -> None:
     """Print live frames plus a final summary, bounded by whole-call
     ``--timeout`` and ``--max-frames`` count."""

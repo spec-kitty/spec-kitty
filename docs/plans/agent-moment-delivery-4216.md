@@ -34,9 +34,10 @@ successful output and flush. Unacknowledged batches may be offered again.
 Receipts store identities and timestamps, never event prose. Outstanding batches
 reserve rolling-minute quota without being marked read; an atomic reservation
 check prevents concurrent polls from multiplying that quota. A stable consumer
-identifier must be shared across reconnects and CLI/MCP processes; it must not
-be the authenticated human account. Without one, only process-local continuity
-is possible and the result says so explicitly.
+identifier is shared across reconnects and CLI/MCP processes through the
+canonical publisher/credential session selector (#4217). Explicit `--consumer`
+can select a separate receipt context; the default never derives from the
+authenticated human account or mints a second process identity.
 
 Receipt contexts include the consumer, requested repo, relay admission metadata and
 effective filters. Legacy credentials without team/host/repo metadata start a

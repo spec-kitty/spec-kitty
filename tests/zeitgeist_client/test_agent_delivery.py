@@ -360,7 +360,7 @@ def test_default_receipts_follow_canonical_session_across_processes(tmp_path):
     import subprocess
     import sys
 
-    script = '''
+    script = """
 import json, sys
 from pathlib import Path
 from specify_cli.zeitgeist_client.agent_delivery import AgentDelivery
@@ -371,13 +371,17 @@ frame = {"schema_version": "1.0", "epoch": "e1", "seq": 1, "emitted_at": 10.0,
 result = policy.select([frame], max_frames=10)
 print(json.dumps({"consumer": policy.consumer, "count": len(result["frames"])}), flush=True)
 policy.acknowledge(result["receipt"])
-'''
+"""
     env = dict(os.environ, SPEC_KITTY_HOME=str(tmp_path / "state"), SPEC_KITTY_ENABLE_SAAS_SYNC="0")
     env.pop("CODEX_THREAD_ID", None)
     env.pop("SPEC_KITTY_AGENT_SESSION_ID", None)
     env.pop("CLAUDE_SESSION_ID", None)
+
     def read(agent):
-        return json.loads(subprocess.check_output([sys.executable, "-c", script], cwd=tmp_path, env=env | {"SPEC_KITTY_ZEITGEIST_SESSION_ID": agent}, text=True, timeout=30))
+        return json.loads(
+            subprocess.check_output([sys.executable, "-c", script], cwd=tmp_path, env=env | {"SPEC_KITTY_ZEITGEIST_SESSION_ID": agent}, text=True, timeout=30)
+        )
+
     assert read("agent-a") == {"consumer": "agent-a", "count": 1}
     assert read("agent-a") == {"consumer": "agent-a", "count": 0}
     assert read("agent-b") == {"consumer": "agent-b", "count": 1}

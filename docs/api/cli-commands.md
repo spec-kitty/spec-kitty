@@ -6286,17 +6286,18 @@ Usage: spec-kitty zeitgeist watch [OPTIONS] [REPO]
 │ --raw                                       Diagnostic stream: explicitly    │
 │                                             bypass agent filters, receipts   │
 │                                             and rate limits.                 │
-│ --consumer          TEXT                    Stable logical agent ID shared   │
-│                                             across CLI/MCP processes.        │
+│ --consumer          TEXT                    Delivery receipt context override; │
+│                                             publisher identity is unchanged. │
 │ --help                                      Show this message and exit.      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 Agent mode defaults to `team` within the one requested, authorized repository.
 It does not subscribe to other account repositories. Set a stable logical
-consumer with `--consumer` or `SPEC_KITTY_AGENT_SESSION_ID` across CLI/MCP
-processes; Codex thread and Claude session environment identifiers are also
-recognized. Without one, the result reports `consumer_continuity=process_only`.
+consumer with `--consumer` only when a separate receipt context is desired.
+By default, receipts use the publisher/credential selector from #4217:
+`SPEC_KITTY_ZEITGEIST_SESSION_ID`, the Codex thread, or the stable default.
+Separate CLI/MCP processes therefore share receipt continuity automatically.
 `--raw` includes own activity and bypasses agent preferences, novelty and rate limits for diagnostics.
 
 Settings apply on the next CLI command; restart MCP to reload its settings.
