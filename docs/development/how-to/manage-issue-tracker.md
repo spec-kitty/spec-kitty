@@ -326,7 +326,7 @@ sub-states above (which flag *why* an issue sits in triage, not *where* it is in
 |---|---|---|
 | `status:triage` | New/untriaged work. The groom agent's queue. | Filing agents (`from:review`, `from:squad`, `from:ci`, …) always file into triage |
 | `status:ready` | Valid, de-duplicated, resolvable without a reserved decision. **The fleet's admission queue.** | The groom agent promotes triage → ready. Review-agent findings are promoted by the controller, never by the review agent itself |
-| `status:claimed` | An implementer is actively working this issue. **Lease — valid only with a live claim comment naming the harness/model or dispatcher VM.** | The dispatcher sets and reaps fleet claims. A human-driven contributor may set it when beginning work and must comment `claimed by <harness>/<model> on <machine>`. Never add a bare claim when nobody is working the issue: the dispatcher treats the label as occupied capacity |
+| `status:claimed` | An implementer is actively working this issue. **Lease — valid only with a live claim comment naming the harness/model or dispatcher VM.** | The dispatcher sets and reaps fleet claims. A human-driven contributor must add both `status:claimed` and `taken-by-human` when beginning work, then comment `claimed by <harness>/<model> on <machine>`. Never add a bare claim when nobody is working the issue: the dispatcher treats the label as occupied capacity |
 | `status:blocked` | Genuinely blocked, with a **Depends on:** #`<n>` line naming the concrete gating issue. `bin/unblock.py` flips it back to `status:ready` automatically once all dependencies close. | Groom/controller |
 
 Issues with no `status:*` label **and** an open linked PR (a real `closes #` relationship)
