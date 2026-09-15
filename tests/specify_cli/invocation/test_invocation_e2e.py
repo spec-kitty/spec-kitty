@@ -32,7 +32,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.invocation.errors import InvalidModeForEvidenceError
+from specify_cli.invocation.errors import AlreadyClosedError, InvalidModeForEvidenceError
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.record import OpStartedEvent
@@ -296,9 +296,7 @@ def test_without_a_transport_only_local_events_are_written(tmp_path: Path) -> No
 
     from specify_cli.invocation.propagator import PROPAGATION_ERRORS_PATH
 
-    assert not (project / PROPAGATION_ERRORS_PATH).exists(), (
-        "transport-less propagation is not an error and must not be logged as one"
-    )
+    assert not (project / PROPAGATION_ERRORS_PATH).exists(), "transport-less propagation is not an error and must not be logged as one"
 
 
 # ===========================================================================
@@ -992,6 +990,37 @@ def test_double_close_raises_already_closed_and_appends_nothing(tmp_path: Path) 
 
     after = (project / EVENTS_DIR / f"{inv_id}.jsonl").read_text()
     assert after == before, "Double close must not append any event"
+
+
+@pytest.mark.regression
+def test_agent_close_rejects_invocation_already_closed_on_spine(tmp_path: Path) -> None:
+    """Regression #4423: the agent path must honor a prior spine closure."""
+    project = _setup_minimal_project(tmp_path)
+    inv_id = _invoke_with_mode(project, ModeOfWork.TASK_EXECUTION)
+
+    with patch(
+        "specify_cli.invocation.executor.build_charter_context",
+        return_value=_COMPACT_CTX,
+    ):
+        executor = ProfileInvocationExecutor(project)
+        executor.complete_invocation(
+            invocation_id=inv_id,
+            outcome="abandoned",
+            closed_by="doctor_sweep",
+        )
+        record = project / EVENTS_DIR / f"{inv_id}.jsonl"
+        record_before = record.read_bytes()
+        closures_before = read_op_closures(project)
+
+        with pytest.raises(AlreadyClosedError):
+            executor.complete_invocation(
+                invocation_id=inv_id,
+                outcome="done",
+                closed_by="agent",
+            )
+
+    assert record.read_bytes() == record_before
+    assert read_op_closures(project) == closures_before
 
 
 def test_open_op_untracked_then_committed_with_message_format(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
