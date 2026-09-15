@@ -35,6 +35,7 @@ from kernel.clock import now_utc_iso
 from specify_cli.git import safe_commit
 from specify_cli.invocation.empty_charter import resolve_generic_fallback
 from specify_cli.invocation.errors import (
+    AlreadyClosedError,
     InvalidModeForEvidenceError,
     InvocationError,
     RouterAmbiguityError,
@@ -46,9 +47,29 @@ from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent, prom
 from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter, RouterDecision  # WP02: router implemented
 from specify_cli.invocation.task_class_map import task_type_for_verb
-from specify_cli.invocation.writer import InvocationWriter, normalise_ref
+from specify_cli.invocation.writer import (
+    OP_CLOSURES_RELATIVE_PATH,
+    InvocationWriter,
+    append_op_closure,
+    closed_invocation_ids,
+    normalise_ref,
+)
 
 logger = logging.getLogger(__name__)
+
+
+@dataclasses.dataclass(frozen=True)
+class OpCommitOutcome:
+    """Result of one best-effort Op-record auto-commit (#4397).
+
+    ``committed=False`` with a ``refusal`` carries the actionable reason (for
+    example a protected-branch guard refusal) so callers can surface it — the
+    doctor sweep reports it per entry and the CLI complete path prints it —
+    instead of the outcome dying in a ``logger.warning``.
+    """
+
+    committed: bool
+    refusal: str | None = None
 
 
 def _compute_recommendation(profile: AgentProfile, action: str) -> RoutingRecommendation | None:
@@ -398,6 +419,10 @@ class ProfileInvocationExecutor:
         self._router = router
         self._propagator = propagator
         self._chokepoint: GlossaryChokepoint | None = None  # lazy-loaded on first invoke
+        #: Outcome of the most recent Op-record auto-commit performed by this
+        #: executor (``None`` before the first close). Read by the doctor sweep
+        #: and the CLI complete path to surface a refused commit (#4397).
+        self.last_op_commit: OpCommitOutcome | None = None
 
     def list_available_profiles(self) -> list[AgentProfile]:
         """Return the invocation catalog: profiles ``invoke`` can resolve.
@@ -465,12 +490,8 @@ class ProfileInvocationExecutor:
         ctx_available = resolution.ctx_available
         bundle = resolution.bundle
 
-        catalog_candidate = (
-            recommendation.catalog_candidate if recommendation is not None else None
-        )
-        durable_model_id = (
-            catalog_candidate.model_id if catalog_candidate is not None else None
-        )
+        catalog_candidate = recommendation.catalog_candidate if recommendation is not None else None
+        durable_model_id = catalog_candidate.model_id if catalog_candidate is not None else None
 
         # 3. Write started record (raises InvocationWriteError on fs failure)
         started_at = now_utc_iso()
@@ -747,6 +768,16 @@ class ProfileInvocationExecutor:
             ``UndeterminedModeForEvidenceError`` subclass when the record's
             ``mode_of_work`` cannot be read at all (#3030). This is a pre-write
             check — no JSONL lines are written if this error is raised.
+
+        Recording surface (#4397): an agent close appends the ``completed``
+        event to the per-record file, which is legal because the record was
+        minted this session (new archive history). A doctor-sweep close targets
+        records that are pre-existing archive history — byte-frozen under the
+        historical-preservation gate — so its closure is recorded on the
+        append-only closure spine ``kitty-ops/op-closures.jsonl`` instead, and
+        the per-record file is never touched. The sweep still closes through
+        this executor (research R4): the spine append IS the canonical close
+        path's write for the sweep caller.
         """
         # Step 1: Read started event for mode enforcement (FR-009).
         started_mode = self._read_started_mode(invocation_id)
@@ -761,7 +792,16 @@ class ProfileInvocationExecutor:
             # (None) is permissive, so started_mode is a ModeOfWork by exhaustion.
             raise InvalidModeForEvidenceError(invocation_id, ModeOfWork(started_mode))
 
-        # Step 3: Append completed event (existing behaviour).
+        # Both recording paths share the closure spine as an idempotency
+        # authority. Without this guard, an agent close can append to a
+        # byte-frozen record after the doctor sweep already closed it there.
+        if invocation_id in closed_invocation_ids(self._repo_root):
+            raise AlreadyClosedError(invocation_id)
+
+        # Step 3: Append the completed event to its recording surface.
+        # Agent closes append to the per-record file (minted this session);
+        # the doctor sweep records on the append-only closure spine because
+        # its targets are pre-existing, byte-frozen archive records (#4397).
         completed = OpCompletedEvent(
             invocation_id=invocation_id,
             completed_at=now_utc_iso(),
@@ -769,7 +809,10 @@ class ProfileInvocationExecutor:
             closed_by=closed_by,
             evidence_ref=evidence_ref,
         )
-        self._writer.write_completed(completed)
+        if closed_by == "doctor_sweep":
+            self._close_on_spine(completed)
+        else:
+            self._writer.write_completed(completed)
 
         # Step 4: Promote to Tier 2 evidence artifact if --evidence was supplied (existing behaviour).
         self._promote_evidence_if_requested(completed, evidence_ref)
@@ -792,8 +835,31 @@ class ProfileInvocationExecutor:
         if self._propagator is not None:
             self._propagator.submit(completed)
 
-        self._commit_op_record(invocation_id)
+        self._commit_op_record(invocation_id, closed_by=closed_by)
         return completed
+
+    def _close_on_spine(self, completed: OpCompletedEvent) -> None:
+        """Record a doctor-sweep closure on the append-only closure spine.
+
+        The sweep's targets are pre-existing ``kitty-ops/`` records — byte-frozen
+        archive history under the preservation gate — so the closure is appended
+        to ``kitty-ops/op-closures.jsonl`` and the per-record file is never
+        touched (#4397). Idempotent like ``write_completed``: raises
+        ``AlreadyClosedError`` when the per-record file already carries a
+        ``completed`` event (concurrent manual close) or the spine already
+        carries a closure for this invocation.
+        """
+        invocation_id = completed.invocation_id
+        path = self._writer.invocation_path(invocation_id)
+        try:
+            rows = [_json_mod.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        except (OSError, _json_mod.JSONDecodeError) as exc:
+            raise InvocationError(f"Invocation record is unreadable: {invocation_id}") from exc
+        if any(isinstance(row, dict) and row.get("event") == "completed" for row in rows):
+            raise AlreadyClosedError(invocation_id)
+        if invocation_id in closed_invocation_ids(self._repo_root):
+            raise AlreadyClosedError(invocation_id)
+        append_op_closure(self._repo_root, completed)
 
     def _promote_evidence_if_requested(
         self,
@@ -903,37 +969,60 @@ class ProfileInvocationExecutor:
                 return branch
         return None
 
-    def _commit_op_record(self, invocation_id: str) -> None:
-        """Best-effort git commit for one completed Op record."""
+    def _commit_op_record(self, invocation_id: str, *, closed_by: Literal["agent", "doctor_sweep"]) -> OpCommitOutcome:
+        """Best-effort git commit for one completed Op record.
+
+        Agent closes commit the per-record file; a doctor-sweep close commits
+        only the append-only closure spine — committing a modified pre-existing
+        per-record file is exactly what the historical-preservation gate
+        forbids (#4397).
+
+        Returns the outcome instead of only logging (#4397): a refused or
+        failed auto-commit stays best-effort (the event is already durably on
+        disk) but is now visible and actionable through ``self.last_op_commit``
+        — the doctor sweep reports it per entry and the CLI complete path
+        prints it — rather than dying in a ``logger.warning``.
+        """
         try:
-            op_path = self._writer.invocation_path(invocation_id)
             started = self._read_started_event(invocation_id)
             profile_id = str(started.get("profile_id") or "unknown")
             action = str(started.get("action") or "unknown")
-            message = f"op({profile_id}): {action} [{invocation_id[:8]}]"
-            op_relative_path = op_path.relative_to(self._repo_root)
+            if closed_by == "doctor_sweep":
+                relative_path = OP_CLOSURES_RELATIVE_PATH
+                message = f"op({profile_id}): {action} [{invocation_id[:8]}] (doctor sweep)"
+            else:
+                op_path = self._writer.invocation_path(invocation_id)
+                relative_path = op_path.relative_to(self._repo_root)
+                message = f"op({profile_id}): {action} [{invocation_id[:8]}]"
 
             current_branch = self._current_branch()
             if current_branch is None:
-                return
+                return self._record_op_commit(OpCommitOutcome(committed=False, refusal="not a git worktree"))
 
             safe_commit(
                 repo_root=self._repo_root,
                 worktree_root=self._repo_root,
                 target=CommitTarget(ref=current_branch),
                 message=message,
-                paths=(op_relative_path,),
+                paths=(relative_path,),
                 # Op-record auto-commit targets the operator's CURRENT branch,
                 # which can be protected main; STANDARD asserts no
                 # protected-branch flow, so the guard refuses there and the
-                # handler below downgrades the refusal to a warning (the Op
-                # record stays on disk). The documented operator hatch
+                # outcome below carries the refusal (the Op record stays on
+                # disk). The documented operator hatch
                 # (SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS) lands it for
                 # solo-fork operators who own main (FR-008).
                 capability=GuardCapability.STANDARD,
             )
+            return self._record_op_commit(OpCommitOutcome(committed=True))
         except Exception as exc:  # noqa: BLE001
             logger.warning("Op record auto-commit failed for %s: %r", invocation_id, exc)
+            return self._record_op_commit(OpCommitOutcome(committed=False, refusal=repr(exc)))
+
+    def _record_op_commit(self, outcome: OpCommitOutcome) -> OpCommitOutcome:
+        """Store the latest auto-commit outcome for caller visibility (#4397)."""
+        self.last_op_commit = outcome
+        return outcome
 
     def _derive_action_from_request(self, request_text: str, role: object) -> str:  # noqa: ARG002
         """Derive canonical action token from role when profile_hint is explicit."""

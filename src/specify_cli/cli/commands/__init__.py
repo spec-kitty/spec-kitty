@@ -159,12 +159,38 @@ def _is_next_fast_path(argv: list[str]) -> bool:
     return False
 
 
+def _is_live_work_hook_fast_path(argv: list[str]) -> bool:
+    """Return True when argv directly invokes the per-tool-call live-work hook.
+
+    ``spec-kitty live-work hook <harness>`` is registered on the harness's
+    PreToolUse/PostToolUse events, which run synchronously around every tool
+    call — so this path must not pay the full command-registry import
+    (spec-kitty#4353 fix round: the hook was measured at ~12 s wall against
+    its own 4 s budget, all of it registry imports). Only the live-work
+    group is registered, the same posture as the ``next`` fast path.
+    """
+    args = [arg for arg in argv[1:] if not arg.startswith("-")]
+    return len(args) >= 2 and args[0] == "live-work" and args[1] == "hook"
+
+
+_LIVE_WORK_GROUP_HELP = (
+    "Live Work harness capture: tools, files, tests and delegation as live relay frames (#4268)."
+)
+
+
 def register_commands(app: typer.Typer) -> None:
     """Attach all extracted commands to the root Typer application."""
     if _is_next_fast_path(sys.argv):
         from . import next_cmd as next_cmd_module
 
         app.command(name="next")(next_cmd_module.next_step)
+        _apply_short_help_options(app)
+        return
+
+    if _is_live_work_hook_fast_path(sys.argv):
+        from . import live_work as live_work_module
+
+        app.add_typer(live_work_module.app, name="live-work", help=_LIVE_WORK_GROUP_HELP)
         _apply_short_help_options(app)
         return
 
@@ -191,6 +217,7 @@ def register_commands(app: typer.Typer) -> None:
     from specify_cli.tasks import issue_matrix_migration as issue_matrix_module
     from . import lifecycle as lifecycle_module
     from . import lint as lint_module
+    from . import live_work as live_work_module
     from . import materialize as materialize_module
     from . import merge as merge_module
     from . import merge_driver as merge_driver_module
@@ -306,6 +333,11 @@ def register_commands(app: typer.Typer) -> None:
     app.command(name="spec-commit")(spec_commit_module.spec_commit_command)
     app.command(name="session-start", help="Emit spec-kitty orientation for the Claude Code SessionStart hook.")(session_start_module.session_start)
     app.command(name="session-stop", help="Emit the open-Ops reminder for the Claude Code Stop hook.")(session_stop_module.session_stop)
+    app.add_typer(
+        live_work_module.app,
+        name="live-work",
+        help=_LIVE_WORK_GROUP_HELP,
+    )
     app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
     app.command(name="issue-search", help="Search tracker issues via the hosted read path")(tracker_module.issue_search_command)
     app.command()(upgrade_module.upgrade)

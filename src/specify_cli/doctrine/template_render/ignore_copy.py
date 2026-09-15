@@ -1,0 +1,115 @@
+"""Copy a template tree into PACK_PATH honouring ``.templateignore``."""
+
+from __future__ import annotations
+
+import fnmatch
+import shutil
+from dataclasses import dataclass
+from pathlib import Path
+
+# Always excluded from PACK_PATH, even when `.templateignore` is absent or
+# omits them. Keep both `.git` and `.git/` so directory and bare-name forms match.
+BUILT_IN_EXCLUDES: tuple[str, ...] = (".git", ".git/", ".templateignore")
+TEMPLATEIGNORE_NAME = ".templateignore"
+
+
+class TemplateIgnoreDecodeError(OSError):
+    """``.templateignore`` exists but is not valid UTF-8.
+
+    Subclasses ``OSError`` so callers that only guard the generic I/O path
+    still fail closed; the pipeline additionally catches this type by name
+    to attach a dedicated, rule-id'd error instead of a generic one.
+    """
+
+
+class TemplateIgnoreSymlinkError(OSError):
+    """``.templateignore`` is a symlink rather than a regular file.
+
+    Reading through the link would follow the template into arbitrary host
+    paths (FR-003 / FR-004), so the control file is refused before it is read.
+    Subclasses ``OSError`` so a caller that only guards the generic I/O path
+    still fails closed; the pipeline catches this type by name for a
+    dedicated, rule-id'd error.
+    """
+
+
+@dataclass(frozen=True, slots=True)
+class IgnoreRules:
+    """Compiled ignore patterns for template copy."""
+
+    patterns: tuple[str, ...]
+
+    def matches(self, rel_posix: str) -> bool:
+        """Return True when *rel_posix* (relative, ``/``-separated) is excluded."""
+        rel = rel_posix.removeprefix("./")
+        return any(_pattern_matches(pattern, rel) for pattern in self.patterns)
+
+
+def load_ignore_rules(template_root: Path) -> IgnoreRules:
+    """Load ``.templateignore`` from *template_root* and union built-ins."""
+    patterns: list[str] = list(BUILT_IN_EXCLUDES)
+    ignore_file = template_root / TEMPLATEIGNORE_NAME
+    if ignore_file.is_symlink():
+        # Never follow a symlinked control file into host content (FR-003 / FR-004).
+        raise TemplateIgnoreSymlinkError("'.templateignore' must be a regular file, not a symlink")
+    if ignore_file.is_file():
+        try:
+            raw_text = ignore_file.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            raise TemplateIgnoreDecodeError(f"'.templateignore' is not valid UTF-8: {exc}") from exc
+        for raw in raw_text.splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            patterns.append(line)
+    return IgnoreRules(patterns=tuple(patterns))
+
+
+def copy_template_tree(source_root: Path, destination: Path, rules: IgnoreRules) -> None:
+    """Copy *source_root* into *destination*, excluding ignored paths."""
+    destination.mkdir(parents=True, exist_ok=True)
+    for path in source_root.rglob("*"):
+        rel_path = path.relative_to(source_root)
+        rel = rel_path.as_posix()
+        # Hard exclude: never copy VCS metadata even if ignore file is incomplete
+        if ".git" in rel_path.parts:
+            continue
+        if rules.matches(rel) or _any_parent_ignored(rel, rules):
+            continue
+        # Never follow symlinks into host content (FR-003 / FR-004).
+        if path.is_symlink():
+            continue
+        target = destination / rel_path
+        if path.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+        elif path.is_file():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, target)
+
+
+def _any_parent_ignored(rel: str, rules: IgnoreRules) -> bool:
+    parts = rel.split("/")
+    for i in range(1, len(parts)):
+        parent = "/".join(parts[:i])
+        if rules.matches(parent) or rules.matches(parent + "/"):
+            return True
+    return False
+
+
+def _pattern_matches(pattern: str, rel: str) -> bool:
+    """gitignore-like subset via ``fnmatch`` on relative POSIX paths."""
+    pat = pattern.strip()
+    if not pat:
+        return False
+    # Directory pattern: match the dir itself and everything under it
+    if pat.endswith("/"):
+        base = pat.rstrip("/")
+        if rel == base or rel.startswith(base + "/"):
+            return True
+        return fnmatch.fnmatch(rel, pat.rstrip("/")) or fnmatch.fnmatch(rel, pat + "*")
+    if fnmatch.fnmatch(rel, pat):
+        return True
+    # Match basename-only patterns (e.g. ``*.pyc``)
+    if "/" not in pat.rstrip("/"):
+        return fnmatch.fnmatch(Path(rel).name, pat)
+    return False

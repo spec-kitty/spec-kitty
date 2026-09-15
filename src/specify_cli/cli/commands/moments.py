@@ -72,7 +72,7 @@ def _print_effective(settings: moments.MomentSettings) -> None:
 @moments_app.command()
 def off(repo: bool = _REPO_SCOPE_OPTION) -> None:
     """Switch moments to agents OFF: nothing surfaces, and
-    `spec-kitty zeitgeist mcp-serve` exits 0 with one line."""
+    the internal agent-context bridge exits cleanly with one line."""
     scope, project_root = _resolve_scope(repo)
     written = moments.write_agents_mode(moments.MomentsMode.OFF, scope=scope, project_root=project_root)
     console.print(f"off — written to {written}", markup=False)
@@ -115,4 +115,4 @@ def status(as_json: bool = _JSON_OPTION) -> None:
                 )
     console.print(f"  rate_per_minute: {settings.rate_per_minute}", markup=False)
     if settings.agents is moments.MomentsMode.OFF:
-        console.print("  `spec-kitty zeitgeist mcp-serve` refuses to start while agents = off.")
+        console.print("  agent-context bridge refuses to start while agents = off.")

@@ -222,7 +222,7 @@ class TestOrgPackConfigPackId:
 
         assert result1.pack_id == result2.pack_id
         assert result1.pack_id is not None
-        assert len(result1.pack_id) == 26  # golden-count: ULID is 26 chars
+        assert len(result1.pack_id) == 26
         ULID.from_str(result1.pack_id)  # Parses as valid ULID
 
     def test_ensure_pack_identity_noop_for_non_builtin(self) -> None:
@@ -274,7 +274,7 @@ class TestPackRegistryPersistence:
         save_pack_registry(repo_root, registry)
         loaded = load_pack_registry(repo_root)
 
-        assert len(loaded.packs) == 1  # golden-count: cardinality-is-contract
+        assert len(loaded.packs) == 1
         assert loaded.packs[0].pack_id == pack_id
         assert loaded.packs[0].name == "test-pack"
 
@@ -293,7 +293,7 @@ class TestPackRegistryPersistence:
         save_pack_registry(repo_root, registry)
         loaded = load_pack_registry(repo_root)
 
-        assert len(loaded.packs) == 1  # golden-count: cardinality-is-contract
+        assert len(loaded.packs) == 1
         assert loaded.packs[0].pack_id is None
         assert loaded.packs[0].name == "legacy-pack"
 
@@ -347,7 +347,7 @@ class TestPackRegistryPersistence:
         save_pack_registry(repo_root, registry)
         loaded = load_pack_registry(repo_root)
 
-        assert len(loaded.packs) == 2  # golden-count: cardinality-is-contract
+        assert len(loaded.packs) == 2
         ids = {pack.pack_id for pack in loaded.packs}
         assert ids == {id1, id2}
 

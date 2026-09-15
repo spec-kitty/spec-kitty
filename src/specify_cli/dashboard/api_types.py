@@ -209,7 +209,7 @@ class FeatureItem(TypedDict):
     artifacts: dict[str, ArtifactInfo]
     workflow: WorkflowStatus
     kanban_stats: KanbanStats
-    mission_status: str  # "active" | "planned" | "done" | "draft"
+    mission_status: str  # "active" | "planned" | "done" | "draft" | "discarded"
     next_action: NotRequired[str | None]
     meta: dict[str, Any]
     worktree: WorktreeInfo

@@ -124,6 +124,15 @@ from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_ch
 _GLOBAL_MERGE_LOCK_ID = "__global_merge__"
 
 
+class CoordinationTeardownError(RuntimeError):
+    """A leg of the coord triple (worktree, branch, marker) did not come down.
+
+    #3131 INV-2 makes the triple all-or-nothing, so a partial teardown has to
+    stop the run and say so rather than print a success line over a git error
+    and leave a stranded coord worktree/branch behind (#3926).
+    """
+
+
 def _merge_snapshot_roots(main_repo: Path) -> list[Path]:
     """Trusted roots for the merge executor's non-coord (primary-checkout) surface.
 
@@ -1447,26 +1456,38 @@ def _is_coord_topology_mission(run: _MergeRunState) -> bool:
     return "coordination_branch" in meta
 
 
-def _delete_mission_branch(run: _MergeRunState) -> None:
-    """Delete the mission/coordination branch from git, if it exists."""
-    lanes_manifest = run.lanes_manifest
+def _mission_branch_exists(run: _MergeRunState) -> bool:
     ret, _, _ = run_command(
-        ["git", "rev-parse", "--verify", f"refs/heads/{lanes_manifest.mission_branch}"],
+        ["git", "rev-parse", "--verify", f"refs/heads/{run.lanes_manifest.mission_branch}"],
         capture=True,
         check_return=False,
         cwd=run.main_repo,
     )
-    if ret == 0:
+    return ret == 0
+
+
+def _delete_mission_branch(run: _MergeRunState) -> bool:
+    """Delete the mission/coordination branch from git, if it exists.
+
+    Returns whether the branch is gone afterwards — deleted now, or already
+    absent. ``git branch -D`` refuses while the branch is checked out in a
+    worktree and ``check_return=False`` swallows that (#3926), so the caller
+    that couples this to the rest of the coord triple needs the answer rather
+    than an assumed success.
+    """
+    lanes_manifest = run.lanes_manifest
+    if _mission_branch_exists(run):
         run_command(
             ["git", "branch", "-D", lanes_manifest.mission_branch],
             cwd=run.main_repo,
             check_return=False,
         )
-    else:
-        logger.debug(
-            "Mission branch %s does not exist, skipping deletion",
-            lanes_manifest.mission_branch,
-        )
+        return not _mission_branch_exists(run)
+    logger.debug(
+        "Mission branch %s does not exist, skipping deletion",
+        lanes_manifest.mission_branch,
+    )
+    return True
 
 
 def _teardown_coord_worktree(run: _MergeRunState) -> None:
@@ -1511,10 +1532,27 @@ def _teardown_coordination_triple(run: _MergeRunState) -> None:
     (or vice versa), which reintroduces #3086 or strands a coord husk. Called
     only when ``run.teardown_coordination`` (``delete_branch AND
     remove_worktree``) is True.
+
+    **Order matters (#3926).** The worktree goes first: ``git branch -D``
+    refuses while the branch is checked out in the coord worktree
+    (``cannot delete branch '...' used by worktree at '...'``), and with the
+    branch-delete leg running first that refusal was swallowed
+    (``check_return=False``) while the flatten ran anyway — leaving exactly
+    the inverted #3086 shape the invariant forbids: marker flattened, branch
+    and worktree both surviving, and a "Cleaned up" line printed over the
+    git error. Removing the worktree first releases the checkout, so the
+    delete can succeed; the flatten then runs only once the branch is
+    actually gone, and a leg that fails raises instead of reporting success.
     """
-    _delete_mission_branch(run)
-    _flatten_coordination_metadata_after_branch_delete(run)
     _teardown_coord_worktree(run)
+    if not _delete_mission_branch(run):
+        raise CoordinationTeardownError(
+            f"coordination branch {run.lanes_manifest.mission_branch!r} still exists after teardown; "
+            "the mission's coordination marker was left intact so the branch, its worktree and the "
+            "marker stay consistent. Remove whatever still references the branch "
+            "(`git worktree list`), then re-run `spec-kitty merge --resume`."
+        )
+    _flatten_coordination_metadata_after_branch_delete(run)
 
 
 def _cleanup_mission_branch_and_coordination(run: _MergeRunState) -> None:

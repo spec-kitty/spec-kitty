@@ -157,6 +157,20 @@ def complete_invocation(
         typer.echo(json.dumps({"error": "complete_failed", "message": str(e)}), err=True)
         raise typer.Exit(1) from e
 
+    # #4397: a refused best-effort auto-commit (e.g. a protected-branch guard
+    # refusal) is visible and actionable here, not just a logger.warning —
+    # the completed event is already on disk; this says how to land it.
+    # Human output only: the --json payload's shape is contract-frozen.
+    commit_outcome = executor.last_op_commit
+    if not json_output and commit_outcome is not None and not commit_outcome.committed:
+        console.print(
+            f"[yellow]Warning:[/yellow] Op record auto-commit was refused "
+            f"({commit_outcome.refusal or 'unknown refusal'}). The completed "
+            "event is on disk but not committed — it will not survive a "
+            "checkout or reset. Commit the Op record yourself, or set "
+            "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS if you own this branch."
+        )
+
     _render_complete_response(
         invocation_id=invocation_id,
         outcome=outcome,

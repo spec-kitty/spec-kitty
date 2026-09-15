@@ -1014,7 +1014,10 @@ def test_create_rejected_review_cycle_commits_the_written_artifact(tmp_path: Pat
         capture_output=True,
         text=True,
     )
-    rel = str(created.artifact_path.relative_to(repo))
+    # ``as_posix`` because ``str(Path)`` yields backslash separators on Windows,
+    # which never match git's forward-slash porcelain output — the assert would
+    # be vacuously true there instead of proving the artifact was committed (#3834).
+    rel = created.artifact_path.relative_to(repo).as_posix()
     assert rel not in status.stdout, (
         f"the written artifact is NOT committed -- git status still shows it:\n"
         f"{status.stdout}"
@@ -2080,7 +2083,10 @@ def test_real_commit_preserves_unrelated_partially_staged_state(tmp_path: Path) 
     subprocess.run(["git", "add", "unrelated.txt"], cwd=repo, check=True)
     unrelated.write_text("worktree\n", encoding="utf-8")
     untracked = repo / "notes.tmp"
-    untracked.write_text("leave me alone\n", encoding="utf-8")
+    # ``write_bytes`` so the fixture's newline bytes are LF on Windows too —
+    # ``write_text`` would leave CRLF there and the byte-exact untouched
+    # assert below could never hold (#3834).
+    untracked.write_bytes(b"leave me alone\n")
     before_cached = subprocess.run(
         ["git", "diff", "--cached", "--", "unrelated.txt"],
         cwd=repo,
@@ -2202,6 +2208,11 @@ def test_retained_artifact_retry_preserves_unrelated_state(
         )
     if artifact_state == "partially_staged":
         artifact_text = retained.artifact_path.read_text(encoding="utf-8")
+        # ``newline="\n"`` keeps the rewrite in the artifact's canonical LF form
+        # (``ReviewCycleArtifact.write`` writes bytes): a default text-mode write
+        # would re-encode the file CRLF on Windows, and Git's clean filter would
+        # then store LF — making the exact-bytes durability readback mismatch by
+        # construction (#3834).
         retained.artifact_path.write_text(
             "".join(
                 "reviewed_at: '2099-01-01T00:00:00+00:00'\n"
@@ -2210,12 +2221,14 @@ def test_retained_artifact_retry_preserves_unrelated_state(
                 for line in artifact_text.splitlines(keepends=True)
             ),
             encoding="utf-8",
+            newline="\n",
         )
         validate_review_artifact_file(retained.artifact_path)
 
     unrelated.write_text("worktree-only\n", encoding="utf-8")
     untracked = repo / "notes.tmp"
-    untracked.write_text("leave untouched\n", encoding="utf-8")
+    # ``write_bytes``: deterministic LF fixture bytes on Windows too (#3834).
+    untracked.write_bytes(b"leave untouched\n")
     before_unrelated_diff = subprocess.run(
         ["git", "diff", "--", "unrelated.txt"],
         cwd=repo,
@@ -2301,6 +2314,8 @@ def test_retained_artifact_retry_preserves_unrelated_staged_index_on_refusal(
     subprocess.run(["git", "add", artifact_rel], cwd=repo, check=True)
     if artifact_state == "partially_staged":
         artifact_text = retained.artifact_path.read_text(encoding="utf-8")
+        # ``newline="\n"``: same canonical-LF rationale as the sibling test
+        # above — a default text-mode write re-encodes CRLF on Windows (#3834).
         retained.artifact_path.write_text(
             "".join(
                 "reviewed_at: '2099-01-01T00:00:00+00:00'\n"
@@ -2309,6 +2324,7 @@ def test_retained_artifact_retry_preserves_unrelated_staged_index_on_refusal(
                 for line in artifact_text.splitlines(keepends=True)
             ),
             encoding="utf-8",
+            newline="\n",
         )
     unrelated.write_text("staged unrelated\n", encoding="utf-8")
     subprocess.run(["git", "add", "unrelated.txt"], cwd=repo, check=True)

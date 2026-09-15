@@ -188,7 +188,7 @@ def test_transactional_claim_and_binding_use_one_atomic_stream_append(
 
     emit_status_transition_transactional(request)
 
-    assert len(appended_units) == 1  # golden-count: cardinality-is-contract
+    assert len(appended_units) == 1
     assert [payload.get("kind", "transition") for payload in appended_units[0]] == [
         "transition",
         "annotation",
@@ -233,7 +233,7 @@ def test_production_implement_lifecycle_persists_two_hops_and_binding_atomically
         ),
     )
 
-    assert len(appended_units) == 1  # golden-count: cardinality-is-contract
+    assert len(appended_units) == 1
     assert [payload.get("kind", "transition") for payload in appended_units[0]] == [
         "transition",
         "transition",
@@ -265,7 +265,7 @@ def test_transactional_read_targets_coordination_branch(repo: Path) -> None:
         repo_root=repo,
     )
     assert [item.event_id for item in stream.transitions] == [seed.event_id, event.event_id]
-    assert len(stream.annotations) == 1  # golden-count: cardinality-is-contract
+    assert len(stream.annotations) == 1
     assert stream.annotations[0].delta.agent == "claude"
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
 
@@ -563,6 +563,67 @@ def test_transactional_batch_fails_closed_when_coordination_branch_missing(
 
     assert mock_saas_sink.call_count == 0
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
+
+
+def test_transactional_emit_worktree_missing_message_has_no_doubled_identity(
+    tmp_path: Path,
+    mock_saas_sink: Any,
+) -> None:
+    """#4507 finding 2 regression: the ``BookkeepingWorktreeMissing`` message
+    must compose the mission identity through the idempotent
+    ``coord_mission_dir_name`` seam, not a raw ``f"{slug}-{mid8}"``.
+
+    The bare-slug fixture above (``MISSION_SLUG = "status-transaction"``)
+    does not exercise the doubling defect because the slug does not already
+    embed the mid8. Here ``mission_slug`` is itself ``"<slug>-<mid8>"`` (as a
+    mission created with the mid8 already baked into its slug would carry in
+    meta.json), so a naive ``f"{slug}-{mid8}"`` composition would double the
+    mid8 suffix (``...-01KT1356-01KT1356``); the seam is a no-op instead.
+    """
+    embedded_mid8 = "01KT1356"
+    embedded_slug = f"status-transaction-{embedded_mid8}"
+    coord_branch = f"kitty/mission-{embedded_slug}"
+
+    r = tmp_path / "repo"
+    r.mkdir()
+    _git(r, "init", "-q", "-b", "main")
+    _git(r, "config", "user.email", "t@example.invalid")
+    _git(r, "config", "user.name", "Test")
+    _git(r, "config", "commit.gpgsign", "false")
+    feature_dir = r / "kitty-specs" / embedded_slug
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": embedded_slug,
+                "mission_id": MISSION_ID,
+                "mid8": embedded_mid8,
+                "coordination_branch": coord_branch,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    _git(r, "add", "kitty-specs")
+    _git(r, "commit", "-q", "-m", "seed mission")
+    # Deliberately do NOT create the coordination branch: worktree
+    # resolution must fail and raise BookkeepingWorktreeMissing.
+
+    request = TransitionRequest(
+        feature_dir=feature_dir,
+        mission_slug=embedded_slug,
+        wp_id="WP01",
+        to_lane="claimed",
+        actor="issue-4507-test",
+        repo_root=r,
+    )
+
+    with pytest.raises(BookkeepingWorktreeMissing) as excinfo:
+        emit_status_transition_transactional(request)
+
+    message = str(excinfo.value)
+    assert embedded_slug in message
+    assert f"{embedded_slug}-{embedded_mid8}" not in message
 
 
 def test_inner_state_annotation_degrades_when_coordination_branch_missing(

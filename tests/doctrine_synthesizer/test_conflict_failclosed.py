@@ -197,7 +197,7 @@ class TestDetectConflictsDirect:
         ]
         groups = detect_conflicts(proposals)
         # cardinality-is-contract: collapse to exactly ONE group; set-of-frozensets hides a spurious duplicate group
-        assert len(groups) == 1  # golden-count: cardinality-is-contract
+        assert len(groups) == 1
         assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
         assert "add_edge" in groups[0].reason
@@ -228,7 +228,7 @@ class TestDetectConflictsDirect:
         ]
         groups = detect_conflicts(proposals)
         # cardinality-is-contract: collapse to exactly ONE group; set-of-frozensets hides a spurious duplicate group
-        assert len(groups) == 1  # golden-count: cardinality-is-contract
+        assert len(groups) == 1
         assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
 
@@ -249,7 +249,7 @@ class TestDetectConflictsDirect:
         ]
         groups = detect_conflicts(proposals)
         # cardinality-is-contract: collapse to exactly ONE group; set-of-frozensets hides a spurious duplicate group
-        assert len(groups) == 1  # golden-count: cardinality-is-contract
+        assert len(groups) == 1
         assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
 
@@ -269,7 +269,7 @@ class TestDetectConflictsDirect:
         ]
         groups = detect_conflicts(proposals)
         # cardinality-is-contract: collapse to exactly ONE group; set-of-frozensets hides a spurious duplicate group
-        assert len(groups) == 1  # golden-count: cardinality-is-contract
+        assert len(groups) == 1
         assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
 
@@ -298,7 +298,7 @@ class TestDetectConflictsDirect:
         ]
         groups = detect_conflicts(proposals)
         # cardinality-is-contract: collapse to exactly ONE group; set-of-frozensets hides a spurious duplicate group
-        assert len(groups) == 1  # golden-count: cardinality-is-contract
+        assert len(groups) == 1
         assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
 
@@ -318,7 +318,7 @@ class TestDetectConflictsDirect:
         ]
         groups = detect_conflicts(proposals)
         # cardinality-is-contract: collapse to exactly ONE group; set-of-frozensets hides a spurious duplicate group
-        assert len(groups) == 1  # golden-count: cardinality-is-contract
+        assert len(groups) == 1
         assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
 
@@ -346,7 +346,7 @@ class TestDetectConflictsDirect:
         ]
         groups = detect_conflicts(proposals)
         # cardinality-is-contract: collapse to exactly ONE group; set-of-frozensets hides a spurious duplicate group
-        assert len(groups) == 1  # golden-count: cardinality-is-contract
+        assert len(groups) == 1
         assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
 
@@ -358,7 +358,7 @@ class TestDetectConflictsDirect:
         ]
         groups = detect_conflicts(proposals)
         # cardinality-is-contract: collapse to exactly ONE group; set-of-frozensets hides a spurious duplicate group
-        assert len(groups) == 1  # golden-count: cardinality-is-contract
+        assert len(groups) == 1
         assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
 
@@ -394,7 +394,7 @@ class TestDetectConflictsDirect:
         ]
         groups = detect_conflicts(proposals)
         # cardinality-is-contract: two independent conflicts must form exactly TWO groups; the set-of-frozensets hides a spurious duplicate group
-        assert len(groups) == 2  # golden-count: cardinality-is-contract
+        assert len(groups) == 2
         assert {frozenset(g.proposal_ids) for g in groups} == {
             frozenset({PID[0], PID[1]}),
             frozenset({PID[2], PID[3]}),

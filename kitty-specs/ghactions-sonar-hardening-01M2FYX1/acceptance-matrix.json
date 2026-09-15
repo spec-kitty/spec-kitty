@@ -1,0 +1,59 @@
+{
+  "mission_slug": "ghactions-sonar-hardening-01M2FYX1",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP01 9 S7630 sites env-indirected, reviewer-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T13:24:55.024795+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP02 SHA-pins verified via git ls-remote, no bump",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T13:25:11.793462+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP02/WP03 permissions relocated per-job, no de-privilege",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T13:25:21.679605+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP03/WP04 installs pinned, uv-sync untouched",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T13:25:31.243843+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "code_review",
+      "evidence": "WP05 adjudication dossier, zero code edits",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-14T13:25:41.102661+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

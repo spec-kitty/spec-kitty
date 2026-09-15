@@ -232,6 +232,36 @@ def test_create_mission_core_mission_number_field_is_none_in_result(temp_repo: P
 
 
 @pytest.mark.git_repo
+def test_create_mission_core_backfills_mid8_from_mission_id(temp_repo: Path) -> None:
+    """Creating a new mission writes ``mid8`` = ``mission_id[:8]`` (#3474).
+
+    The directory name already embeds the mid8; meta.json must carry the same
+    canonical value so it is the single identity source rather than the
+    directory name.
+    """
+    from specify_cli.core.mission_creation import create_mission_core
+
+    provision_test_charter(temp_repo)
+
+    result = create_mission_core(
+        temp_repo,
+        "mid8-backfill",
+        allow_worktree_context=True,
+        friendly_name="Mid8 Backfill",
+        purpose_tldr="Deliver the mid8 backfill cleanly for the team.",
+        purpose_context="This mission backfills the mid8 meta field so product and engineering have one canonical identity source.",
+    )
+
+    meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
+    mission_id = meta["mission_id"]
+    assert isinstance(mission_id, str) and len(mission_id) >= 8
+    # Canonical backfill: first 8 chars of the ULID (#3474).
+    assert meta["mid8"] == mission_id[:8]
+    # The directory name embeds the same mid8 — one derivation, no drift.
+    assert result.feature_dir.name.endswith(f"-{meta['mid8']}")
+
+
+@pytest.mark.git_repo
 def test_new_mission_feature_dir_uses_human_slug_mid8(temp_repo: Path) -> None:
     """The feature directory name uses <human-slug>-<mid8> format."""
     from specify_cli.core.mission_creation import create_mission_core
@@ -253,11 +283,7 @@ def test_new_mission_feature_dir_uses_human_slug_mid8(temp_repo: Path) -> None:
     assert not (len(dir_name) > 3 and dir_name[:3].isdigit() and dir_name[3] == "-"), f"Directory name '{dir_name}' still uses the old NNN-slug format"
     # Must end with a mid8 (8 alphanumeric chars) separated by a hyphen
     parts = dir_name.rsplit("-", 1)
-    assert len(parts) == 2, (  # golden-count: cardinality-is-contract
-        f"Expected <slug>-<mid8> format, got '{dir_name}'"
-    )
+    assert len(parts) == 2, f"Expected <slug>-<mid8> format, got '{dir_name}'"
     mid8_part = parts[1]
-    assert len(mid8_part) == 8, (  # golden-count: cardinality-is-contract
-        f"Expected 8-char mid8, got '{mid8_part}'"
-    )
+    assert len(mid8_part) == 8, f"Expected 8-char mid8, got '{mid8_part}'"
     assert mid8_part.isalnum(), f"mid8 must be alphanumeric, got '{mid8_part}'"

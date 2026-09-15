@@ -15,7 +15,7 @@ Learn how to add, remove, and manage AI agents in your spec-kitty project after 
 
 ## Overview
 
-Spec-kitty supports slash-command agents such as Claude Code, Gemini CLI, Cursor, Qwen Code, OpenCode, Windsurf, GitHub Copilot, Kilo Code, Auggie CLI, Kiro CLI, legacy Amazon Q, and Google Antigravity. It also supports command-skill agents such as Codex CLI, Mistral Vibe, Pi, and Letta Code. (Roo Code shut down on 2026-05-15 and is no longer supported.)
+Spec-kitty supports slash-command agents such as Claude Code, Gemini CLI, LLxprt Code, Cursor, Qwen Code, OpenCode, Windsurf, GitHub Copilot, Kilo Code, Auggie CLI, Kiro CLI, legacy Amazon Q, and Google Antigravity. It also supports command-skill agents such as Codex CLI, Mistral Vibe, Pi, and Letta Code. (Roo Code shut down on 2026-05-15 and is no longer supported.)
 
 This guide applies after you've run `spec-kitty init` and want to change which agents are active in your project. For initial setup, see the [Getting Started](../../tutorials/getting-started.md) guide.
 
@@ -181,7 +181,7 @@ Error: Invalid agent keys: cluade
 Valid agent keys:
   claude, codex, gemini, cursor, qwen, opencode,
   windsurf, kilocode, copilot, auggie, q, kiro,
-  antigravity, vibe, pi, letta
+  antigravity, vibe, pi, letta, llxprt
 ```
 
 **Already configured**: If an agent is already configured, it's skipped with a message:
@@ -550,7 +550,7 @@ environment you intentionally manage.
 # Valid agent keys:
 #   claude, codex, gemini, cursor, qwen, opencode,
 #   windsurf, kilocode, copilot, auggie, q, kiro,
-#   antigravity, vibe, pi, letta
+#   antigravity, vibe, pi, letta, llxprt
 
 # Fix typo and retry
 spec-kitty agent config add claude  # Not "cluade"

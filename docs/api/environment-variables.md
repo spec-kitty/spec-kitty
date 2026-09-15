@@ -209,6 +209,13 @@ Override the packaged default Spec Kitty SaaS base URL
 (`https://team.spec-kitty.ai`, #3980 — the env var is a dev/self-host
 override, not a requirement).
 
+An explicitly exported value is always a real opinion (#4259): it wins over
+`config.toml [sync].server_url` even when it equals the packaged default, so
+exporting the canonical URL is a positive way to pin the target on a machine
+whose saved target is stale. (`spec-kitty upgrade` migrates a saved retired
+first-party address to the canonical one; self-hosted values are never
+rewritten.)
+
 **Scope**: machine-global when **exported**; repo-scoped when set in a per-repo
 `.kitty.env` (see the warning at the top of this section). Exporting this in a
 shell points every project that shell touches at the named instance.
@@ -259,6 +266,39 @@ it no longer reads the sync-disable vocabulary. The per-invocation form is
 ```bash
 export SPEC_KITTY_SKIP_PRE_REVIEW_GATE=1
 ```
+
+### SPEC_KITTY_MACHINE_CLIENT_ID / SPEC_KITTY_MACHINE_CLIENT_SECRET / SPEC_KITTY_MACHINE_CLIENT_SECRET_FILE
+
+The CI/machine credential for `spec-kitty auth login --machine` (#3277): a
+ServicePrincipal's `client_id` plus its `client_secret`, exchanged via the
+OAuth `client_credentials` grant with no browser, device flow, or prompt.
+
+**Scope**: process environment of the runner only. These are **never**
+candidates for `.kitty.env` — the secret is never committed — and
+`SPEC_KITTY_MACHINE_CLIENT_SECRET` is treated as secret-shaped everywhere
+(provisioning emits at most a commented blank template; diagnostics report
+name/presence only, never the value).
+
+**Purpose**: lets an unattended CI runner authenticate and run hosted
+commands with a machine identity the SaaS attributes and can revoke as a
+unit. The target server is selected by `SPEC_KITTY_SAAS_URL` exactly as for
+every other hosted flow.
+
+**Example**:
+```bash
+export SPEC_KITTY_SAAS_URL=https://team.spec-kitty.ai
+export SPEC_KITTY_MACHINE_CLIENT_ID=01J...
+export SPEC_KITTY_MACHINE_CLIENT_SECRET=...   # or SPEC_KITTY_MACHINE_CLIENT_SECRET_FILE=/run/secrets/...
+spec-kitty auth login --machine
+```
+
+A missing or rejected credential fails closed with a precise remediation —
+never a device-flow or browser prompt — and the secret value never appears
+in output, logs, or errors.
+
+**See also**: [CI Machine Authentication](../operations/ci-machine-auth.md)
+for the full runbook — the three authentication modes, provisioning,
+rotation, and revocation.
 
 ---
 

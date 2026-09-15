@@ -653,7 +653,7 @@ def test_audit_200_missions_functional() -> None:
         ambiguous = find_ambiguous_selectors(states)
 
         # Sanity checks: the data is correct
-        assert len(states) == 200  # golden-count: cardinality-is-contract
+        assert len(states) == 200
         assert all(s.state == "assigned" for s in states)
         assert dupes == {}  # all distinct prefixes
         assert ambiguous == {}  # all distinct human slugs

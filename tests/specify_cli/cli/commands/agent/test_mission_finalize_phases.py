@@ -644,6 +644,80 @@ def test_apply_bootstrap_fields_noop_when_already_set() -> None:
     assert fields == {}
 
 
+# ---------------------------------------------------------------------------
+# #3941: legacy string-form dependencies normalization
+# ---------------------------------------------------------------------------
+
+
+def test_raw_frontmatter_dependencies_is_string_form_detects_legacy_forms(tmp_path: Path) -> None:
+    """The three legacy string forms (F-55) are all detected as string form."""
+    from specify_cli.cli.commands.agent.mission_parsing import (
+        _raw_frontmatter_dependencies_is_string_form,
+    )
+
+    for raw_value in ('"[]"', '"WP01, WP02"', "WP01"):
+        wp_file = tmp_path / "WP02-test.md"
+        wp_file.write_text(
+            f"---\nwork_package_id: WP02\ntitle: t\ndependencies: {raw_value}\n---\n\nbody\n",
+            encoding="utf-8",
+        )
+        assert _raw_frontmatter_dependencies_is_string_form(wp_file) is True, raw_value
+
+
+def test_raw_frontmatter_dependencies_is_string_form_false_for_canonical(tmp_path: Path) -> None:
+    """Canonical list forms — and an absent field — are not string form."""
+    from specify_cli.cli.commands.agent.mission_parsing import (
+        _raw_frontmatter_dependencies_is_string_form,
+    )
+
+    cases = {
+        "dependencies: []\n": False,
+        "dependencies:\n  - WP01\n": False,
+        "": False,  # field absent entirely
+    }
+    for dep_line, expected in cases.items():
+        wp_file = tmp_path / "WP02-test.md"
+        wp_file.write_text(
+            f"---\nwork_package_id: WP02\ntitle: t\n{dep_line}---\n\nbody\n",
+            encoding="utf-8",
+        )
+        assert _raw_frontmatter_dependencies_is_string_form(wp_file) is expected, dep_line
+
+
+def test_apply_bootstrap_fields_normalizes_string_form_even_when_values_equal() -> None:
+    """A string-form dependencies line forces the rewrite (#3941).
+
+    WPMetadata coerces ``"WP01"`` to ``["WP01"]`` at read time, so the value
+    comparison alone sees "no change" and the string form would survive into
+    the tree. The string-form flag must force the canonical rewrite.
+    """
+    branch = "prog/x"
+    meta = WPMetadata(
+        work_package_id="WP01",
+        title="t",
+        dependencies=["WP00"],  # the coerced form of the on-disk string "WP00"
+        requirement_refs=["FR-001"],
+        planning_base_branch=branch,
+        merge_target_branch=branch,
+        branch_strategy=seam._branch_strategy_text(branch),
+    )
+    bld = meta.builder()
+    changed, fields = seam._apply_bootstrap_fields(
+        bld,
+        meta,
+        deps=["WP00"],
+        has_dependencies_line=True,
+        requirement_refs=["FR-001"],
+        has_requirement_refs_line=True,
+        target_branch=branch,
+        dependencies_string_form=True,
+    )
+    assert changed is True
+    assert fields == {"dependencies": ["WP00"]}
+    built = bld.build()
+    assert list(built.dependencies) == ["WP00"]
+
+
 def test_apply_ownership_inference_skips_when_present() -> None:
     meta = WPMetadata(
         work_package_id="WP01",

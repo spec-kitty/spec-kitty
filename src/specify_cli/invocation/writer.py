@@ -11,10 +11,11 @@ from typing import TYPE_CHECKING, TextIO
 
 from kernel.clock import now_utc_iso
 from specify_cli.core.utils import ensure_within_any
-from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, InvocationWriteError
+from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, InvocationWriteError, LegacyRecordError
 from specify_cli.invocation.record import (
     OpCompletedEvent,
     OpStartedEvent,
+    parse_op_event,
     validate_invocation_id,
 )
 
@@ -23,6 +24,58 @@ if TYPE_CHECKING:
 
 EVENTS_DIR = "kitty-ops"
 INDEX_PATH = "kitty-ops/ops-index.jsonl"
+OP_CLOSURES_FILENAME = "op-closures.jsonl"
+OP_CLOSURES_RELATIVE_PATH = Path(EVENTS_DIR) / OP_CLOSURES_FILENAME
+
+
+def op_closures_path(repo_root: Path) -> Path:
+    """Absolute path of the append-only Op-closure spine under ``repo_root``."""
+    return repo_root / OP_CLOSURES_RELATIVE_PATH
+
+
+def append_op_closure(repo_root: Path, record: OpCompletedEvent) -> Path:
+    """Append one closure record to the Op-closure spine; return the path written.
+
+    The spine (``kitty-ops/op-closures.jsonl``) is the sanctioned durable
+    surface for doctor-sweep closures (#4397): the sweep's targets are
+    pre-existing ``kitty-ops/`` archive records, which are byte-frozen by the
+    historical-preservation gate — so a sweep closure is recorded here, as a
+    new append-only line, instead of appending a ``completed`` event to the
+    per-record file. Append-only like every other spine: never rewrites or
+    removes an existing line.
+    """
+    path = op_closures_path(repo_root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    InvocationWriter._append_line_no_follow(path, record.to_jsonl_line() + "\n")
+    return path
+
+
+def read_op_closures(repo_root: Path) -> list[OpCompletedEvent]:
+    """Return all closure records in insertion order; ``[]`` when absent.
+
+    Skips malformed lines rather than raising — a corrupt line surfaces as a
+    doctor signal, same tolerance as ``lifecycle.read_lifecycle_records``.
+    """
+    path = op_closures_path(repo_root)
+    if not path.exists():
+        return []
+    out: list[OpCompletedEvent] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            data = json.loads(line)
+            event = parse_op_event(data)
+        except (json.JSONDecodeError, ValueError, LegacyRecordError):
+            continue
+        if isinstance(event, OpCompletedEvent):
+            out.append(event)
+    return out
+
+
+def closed_invocation_ids(repo_root: Path) -> set[str]:
+    """Invocation ids already closed on the Op-closure spine."""
+    return {event.invocation_id for event in read_op_closures(repo_root)}
 
 
 def normalise_ref(ref: str, repo_root: Path) -> str:

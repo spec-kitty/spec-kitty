@@ -4,7 +4,7 @@ Use this checklist for releases from `main`.
 
 > `main` is the primary release line and publishes both GitHub releases and PyPI packages.
 > `1.x-maintenance` is deprecated overall, reserved for critical maintenance only, and should not receive new PyPI releases.
-> Historical 2.x release notes remain in Git tags and changelog history; new stable and prerelease 3.x releases ship from `main`.
+> Historical 2.x release notes remain in Git tags and changelog history; the 4.x release-candidate line ships from `main`; 3.x remains the previously published stable line.
 
 ## Pre-Release Preparation
 
@@ -61,7 +61,7 @@ Use this checklist for releases from `main`.
     --runtime-pyproject /path/to/spec-kitty-runtime/pyproject.toml
   ```
 - [ ] Confirm `.kittify/release/shared-package-compatibility.json` is the
-  authoritative 3.2.0 shared-package set and matches `pyproject.toml` plus
+  authoritative 4.0.0 shared-package set and matches `pyproject.toml` plus
   `uv.lock`.
 - [ ] Verify the built wheel installs cleanly with plain `pip`:
   ```bash
@@ -101,7 +101,7 @@ canary or cross-repo end-to-end suites.
 - [ ] For prereleases, use the exact prerelease heading (`## [X.Y.ZaN] - YYYY-MM-DD`, etc.).
 - [ ] Remove any `tool.uv.override-dependencies` entries for `spec-kitty-*` packages before tagging.
 - [ ] Review `README.md` release-track messaging:
-  - `main` should be described as the stable `3.x` line.
+  - `main` should be described as the `4.x` release-candidate line until stable acceptance.
   - `1.x-maintenance` should be described as deprecated maintenance-only.
 - [ ] Review installation docs if distribution channels changed.
 - [ ] If new ADRs were added, verify they are filed under the correct versioned architecture path.
@@ -222,6 +222,27 @@ package first, verify it is installable from PyPI, and only then tag the CLI.
   gh release download vX.Y.Z --dir /tmp/spec-kitty-release-check
   ```
 
+### 8. Open the Next Development Cycle
+
+Do this as soon as the tag is pushed, ahead of routine merges. Branch-mode release
+validation (`scripts/release/validate_release.py --mode branch`) requires `main`'s
+version to advance beyond the latest tag. It runs in the scheduled Release Readiness
+Check on `main` and on every pull request that changes `pyproject.toml`. Right after
+tagging, `main` still carries the tagged version, so that check fails with "Version
+does not advance beyond latest tag" until this step lands (#4290).
+
+- [ ] Open a pull request to `main` that moves the working version to the next
+  development or candidate version (for example `4.0.0rc2` → `4.0.0rc3` on a
+  release-candidate line), with no product changes:
+  - `version` in `pyproject.toml`
+  - the project's own entry in `uv.lock`
+  - `.kittify/metadata.yaml`
+  - a new `## [Unreleased] - <next version>` heading at the top of `CHANGELOG.md`,
+    then refresh the docs retrieval index with `python -m scripts.docs.docs_index --write`
+- [ ] Give that pull request priority so it merges ahead of routine work. Changes
+  that merge after the tag belong to the next version, not the published one.
+- [ ] After it merges, confirm the Release Readiness Check on `main` is green.
+
 ## Post-Release Verification
 
 ### Package Availability
@@ -256,7 +277,7 @@ package first, verify it is installable from PyPI, and only then tag the CLI.
 
 - [ ] If this is a minor or major release, publish release notes and migration guidance.
 - [ ] If release-track policy changed, call it out explicitly:
-  - `main` is the stable `3.x` line
+  - `main` is the `4.x` release-candidate line until stable acceptance
   - `1.x-maintenance` is deprecated maintenance-only
   - no new `1.x` PyPI releases are planned
 
@@ -277,7 +298,8 @@ If a critical issue is discovered after release:
 ## Common Gotchas
 
 - **Validation fails with "Version does not advance beyond latest tag"**:
-  bump `pyproject.toml` to a higher semantic version.
+  bump `pyproject.toml` to a higher semantic version. On `main` right after a tag
+  this is expected until the next cycle is open; see step 8 of the Release Process.
 - **Validation fails with "CHANGELOG.md lacks a populated section"**:
   add `## [X.Y.Z]` with real release notes before tagging.
 - **PyPI publish fails**:
@@ -290,4 +312,4 @@ If a critical issue is discovered after release:
 
 ---
 
-**Last Updated**: 2026-08-31
+**Last Updated**: 2026-09-14

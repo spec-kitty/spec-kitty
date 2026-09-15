@@ -16,6 +16,17 @@ Use it to build a governed software factory around Claude Code, Codex, Cursor, G
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue?style=flat-square)](https://www.python.org/downloads/)
 
+## Team Kitty 4.x prerelease
+
+`main` carries the 4.x release-candidate line. To test RC2, install its exact version:
+
+```bash
+uv tool install 'spec-kitty-cli==4.0.0rc2'
+```
+
+This prerelease is for qualification; stable launch acceptance remains pending.
+Normal stable installs continue to select the published stable release.
+
 ## Bright Software Factory, Not a Black Box
 
 Spec Kitty is for teams building software factories: repeatable inputs, clear work-package boundaries, isolated execution, visible progress, and review gates. It can support dark software factories and autonomous coding experiments, but it is deliberately not a lights-out black box by default. Humans define intent, architecture, and acceptance criteria; agents implement inside traceable worktrees; reviewers accept, reject, or merge with an audit trail.
@@ -97,7 +108,7 @@ cd my-project
 spec-kitty verify-setup
 ```
 
-Replace `claude` with your agent key when needed. Common choices include `codex`, `cursor`, `gemini`, `copilot`, `opencode`, `qwen`, `windsurf`, `kiro`, `vibe`, `pi`, and `letta`. See [Supported Agents](docs/api/supported-agents.md) for the current list.
+Replace `claude` with your agent key when needed. Common choices include `codex`, `cursor`, `gemini`, `copilot`, `opencode`, `qwen`, `windsurf`, `kiro`, `vibe`, `pi`, `letta`, and `llxprt`. See [Supported Agents](docs/api/supported-agents.md) for the current list.
 
 Open your AI coding agent in the project and run the core workflow:
 

@@ -320,10 +320,17 @@ class TestDoctorSkillsJson:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """doctor skills must own slash-command repairs so JSON can report them."""
-        from types import SimpleNamespace
+        """doctor skills must own slash-command repairs so JSON can report them.
+
+        Invoked through ``CliRunner`` on the real root app so ``main_callback``
+        receives the ``typer.Context`` Typer itself constructs — a hand-rolled
+        ``SimpleNamespace`` fake has no contract keeping it current and drifts
+        every time ``main_callback`` grows another ``ctx.*`` read (#4131).
+        """
+        from typer.testing import CliRunner
 
         import specify_cli
+        from specify_cli.cli.commands import doctor
 
         calls: list[str] = []
 
@@ -332,8 +339,16 @@ class TestDoctorSkillsJson:
             "root_callback",
             lambda _ctx: None,
         )
+        # locate_project_root has two patch seams: the root callback's startup
+        # gates resolve it through the specify_cli module global, while the
+        # doctor skills shell imports it into its own namespace.
         monkeypatch.setattr(
             specify_cli,
+            "locate_project_root",
+            lambda: None,
+        )
+        monkeypatch.setattr(
+            doctor,
             "locate_project_root",
             lambda: None,
         )
@@ -349,13 +364,22 @@ class TestDoctorSkillsJson:
             "specify_cli.runtime.agent_commands.ensure_global_agent_commands",
             lambda: calls.append("agent_commands"),
         )
+        # main_callback reads sys.argv directly (not the parsed args) to detect
+        # the doctor-skills invocation, so the patched argv must match the
+        # CliRunner invocation below.
         monkeypatch.setattr(
             "sys.argv",
             ["spec-kitty", "doctor", "skills", "--fix", "--json"],
         )
 
-        specify_cli.main_callback(SimpleNamespace(invoked_subcommand="doctor"))
+        result = CliRunner().invoke(
+            specify_cli.app, ["doctor", "skills", "--fix", "--json"]
+        )
 
+        # The command body itself runs to its not-in-project exit (no project
+        # root): the point under test is that root startup got there first
+        # without repairing.
+        assert result.exit_code == 2
         assert calls == []
 
     def test_json_reports_slash_command_gaps(

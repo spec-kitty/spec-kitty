@@ -313,7 +313,7 @@ def test_wp04_partial_failure_keeps_truthful_manifest(repo: Path, monkeypatch: p
     result = owner.apply_commands(assessment, assessment.consent)
     assert result.outcome == "partial" and result.failed and result.skipped
     manifest = manifest_store.load(repo)
-    assert len(manifest.entries) == 1  # golden-count: cardinality-is-contract
+    assert len(manifest.entries) == 1
     assert manifest.entries[0].agents == ("codex", "vibe")
     assert (repo / manifest.entries[0].path).read_bytes()
     assert not calls[1].exists()
@@ -1083,6 +1083,19 @@ class TestVerifyOrphans:
 class TestConstants:
     def test_supported_agents_contains_command_skill_agents(self) -> None:
         assert set(SUPPORTED_AGENTS) == {"codex", "vibe", "pi", "letta"}
+
+    def test_command_layer_agents_are_not_command_skill_agents(self) -> None:
+        """Agents in AGENT_COMMAND_CONFIG get command files, never skill packages.
+
+        ``llxprt`` is the newest such agent; it renders TOML slash commands into
+        the envPaths('llxprt-code') user-global root
+        (``~/Library/Preferences/llxprt-code/commands/`` on macOS) and must not
+        claim ``.agents/skills/`` entries.
+        """
+        from specify_cli.core.config import AGENT_COMMAND_CONFIG
+
+        assert set(SUPPORTED_AGENTS).isdisjoint(AGENT_COMMAND_CONFIG)
+        assert "llxprt" not in SUPPORTED_AGENTS
 
     def test_canonical_commands_count(self) -> None:
         assert len(CANONICAL_COMMANDS) == 15

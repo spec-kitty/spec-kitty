@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#1928": {
+      "evidence_ref": "Follow-up: release-critical workflow hardening (release.yml/release-readiness.yml/ci-nightly.yml) tracked under epic #1928 for a manual dry-run pass; this mission delivers only the PR-CI-validatable slice",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4286": {
+      "evidence_ref": "Follow-up: docs-pages.yml hardening owned by separate PR #4286 (spec scope exclusion); untouched here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4342": {
+      "evidence_ref": "Validatable subset fixed (WP01-04, 5/5 approved) + adjudication (WP05); release-critical deferred to #4352",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

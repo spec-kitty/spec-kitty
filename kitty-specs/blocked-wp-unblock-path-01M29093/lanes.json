@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "mission_slug": "blocked-wp-unblock-path-01M29093",
+  "mission_id": "01M2909339H60KC8B1AY8G2WEB",
+  "mission_branch": "kitty/mission-blocked-wp-unblock-path-01M29093",
+  "target_branch": "fix/3937-blocked-wp-unblock",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/implement.py",
+        "tests/integration/test_status_emit_on_alloc_failure.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_transition_core.py",
+        "src/specify_cli/status/work_package_lifecycle.py",
+        "tests/specify_cli/cli/commands/agent/test_blocked_recovery_refusal.py",
+        "tests/status/test_transitions.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-11T20:01:36.444821+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "62cbf79ed2766c8d9caf6ce8b4f4e47b76b24699"
+}

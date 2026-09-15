@@ -550,7 +550,7 @@ terms:
   status: active
   surface: skill package
 - confidence: 0.95
-  definition: "The SonarCloud project-level pass/fail evaluation for `Priivacy-ai_spec-kitty`
+  definition: "The SonarCloud project-level pass/fail evaluation for `spec-kitty_spec-kitty`
     on the\nnew-code window. Aggregates six conditions (reliability rating, security
     rating,\nmaintainability rating, new coverage, new duplicated lines density, new
     security hotspots\nreviewed). Reports `OK` or `ERROR` per condition plus a top-level

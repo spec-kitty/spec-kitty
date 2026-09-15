@@ -195,7 +195,7 @@ constituents:
   kind: directive
   path: directives/029-agent-commit-signing-policy.directive.yaml
   provenance_path:
-- content_hash: 3d1bc2ca6b40ec438fe921d094872bcd1fdfc6090f809ca7b51b99a804f2756a
+- content_hash: 67723c0e9e5a23668beb7fe752bd0c0d10cc4f9eff1b57105dba3c398111cba2
   id: DIRECTIVE_030
   kind: directive
   path: directives/030-test-and-typecheck-quality-gate.directive.yaml
@@ -325,7 +325,7 @@ constituents:
   kind: directive
   path: directives/use-mutation-testing-to-validate-test-quality.directive.yaml
   provenance_path:
-- content_hash: 98c2becf0671ad92ce09f96954e8fdedebd6ad43e4d66887e7c8c3dbc3476e3d
+- content_hash: 69dab1bdd78f88701d3a5be43133e84e7dba92d419087910d3afc507ead640d4
   id: spec-kitty-core
   kind: glossary_pack
   path: glossary_packs/spec-kitty-core.glossary-pack.yaml
@@ -340,7 +340,7 @@ constituents:
   kind: paradigm
   path: paradigms/behaviour-driven-development.paradigm.yaml
   provenance_path:
-- content_hash: 5532f2e5dedfff125793cfcee34af676326baf5bc58eca45e84c89662da21595
+- content_hash: adc5a511f94cafbd151b226b0bfbf018d448e7ce0f2ccbab54f534bb3b4e17be
   id: brownfield-onboarding
   kind: paradigm
   path: paradigms/brownfield-onboarding.paradigm.yaml
@@ -770,7 +770,7 @@ constituents:
   kind: tactic
   path: tactics/common-docs-curation.tactic.yaml
   provenance_path:
-- content_hash: 7576bef775512ad25a8deda998e57a3011785c457b7929ce1f7519d5ff66197e
+- content_hash: 715401c41d95f37d23fc215df5b279bc6d2acd12c81a3cfe41a542da3117cba7
   id: common-docs-find
   kind: tactic
   path: tactics/common-docs-find.tactic.yaml
@@ -981,7 +981,7 @@ constituents:
   kind: tactic
   path: tactics/architecture/problem-decomposition.tactic.yaml
   provenance_path:
-- content_hash: 7b89c4f6b573d57128f8dbdff2e68f934457191a547b1bb4cb4df67e81c9781e
+- content_hash: 64a7697b41f2bf9cd8f8d3cd5ef81215b2ceb67caa0de9a4ac2f9f618705f963
   id: quality-gate-verification
   kind: tactic
   path: tactics/testing/quality-gate-verification.tactic.yaml
@@ -1340,7 +1340,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: eed21181f32e88193d61953ee2946b401f7b47c51415ccfce03a680c100096c2
+manifest_hash: a27e33946f62d2d6907b752bee2a664446985cac30f4f91412279ab9fddc6bd4
 schema_version: '1'
 source_type: built-in
 source_url:

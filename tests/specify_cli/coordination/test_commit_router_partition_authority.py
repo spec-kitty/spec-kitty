@@ -83,7 +83,7 @@ class TestKindNoneRoutesPrimaryUnderCoordCaller:
             Path("/tmp"), (Path(kind_none_path),), "m", kind=_COORD_CALLER_KIND
         )
 
-        assert len(groups) == 1  # golden-count: cardinality-is-contract (single-partition; kind asserted below)
+        assert len(groups) == 1  # (single-partition; kind asserted below)
         group_kind, group_files = groups[0]
         assert is_primary_artifact_kind(group_kind), (
             f"{kind_none_path!r} (kind=None) must route PRIMARY under a "
@@ -166,7 +166,7 @@ class TestKindClassifierNoLongerDrivesTheSplit:
         groups = commit_router._group_files_by_partition(
             Path("/tmp"), (Path(_META_PATH),), "m", kind=_COORD_CALLER_KIND
         )
-        assert len(groups) == 1  # golden-count: cardinality-is-contract (single-partition; kind asserted below)
+        assert len(groups) == 1  # (single-partition; kind asserted below)
         group_kind, group_files = groups[0]
         assert is_primary_artifact_kind(group_kind), (
             "meta.json landed in a COORD-labelled group even though "
@@ -205,7 +205,7 @@ class TestCallerIsPrimaryBucketsStayAbsolute:
             Path("/tmp"), (primary_file, coord_file), "m", kind=_PRIMARY_CALLER_KIND
         )
 
-        assert len(groups) == 2  # golden-count: cardinality-is-contract (primary+coord split; kinds asserted below)
+        assert len(groups) == 2  # (primary+coord split; kinds asserted below)
         files_by_kind = dict(groups)
         primary_group_kind = next(k for k, files in groups if primary_file in files)
         coord_group_kind = next(k for k, files in groups if coord_file in files)

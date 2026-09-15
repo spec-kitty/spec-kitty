@@ -21,6 +21,7 @@ extracted sibling import ``console`` from this module, so a single
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import warnings
@@ -41,6 +42,7 @@ __all__ = [
     "_is_interactive_environment",
     "_json_output_guard",
     "_json_error",
+    "_emit_not_in_project",
 ]
 
 # CI env-vars that should force non-interactive behaviour even when stdin
@@ -104,3 +106,19 @@ def _json_error(code: str, message: str) -> dict[str, object]:
             "message": message,
         },
     }
+
+
+def _emit_not_in_project(json_output: bool) -> None:
+    """Emit the not-in-project error on the channel the caller contracted for.
+
+    Under ``--json`` the machine contract requires a JSON error object on stdout
+    (never bare human prose), matching the ``skills`` exemplar frozen by
+    ``test_doctor_skills_not_in_project_envelope_frozen``. Human callers get the
+    Rich error line on the console instead. This is the single canonical
+    renderer every ``doctor`` command routes its not-in-project guard through so
+    the whole family honors ``--json`` identically (#4242).
+    """
+    if json_output:
+        console.print_json(json.dumps(_json_error("not_in_project", _NOT_IN_PROJECT_MESSAGE), indent=2))
+    else:
+        console.print(f"[red]Error:[/red] {_NOT_IN_PROJECT_MESSAGE}")

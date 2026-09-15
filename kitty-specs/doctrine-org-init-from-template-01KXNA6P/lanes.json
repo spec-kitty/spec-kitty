@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "mission_slug": "doctrine-org-init-from-template-01KXNA6P",
+  "mission_id": "01KXNA6PRW6JQ9Y9M7HA882PZ3",
+  "mission_branch": "kitty/mission-doctrine-org-init-from-template-01KXNA6P",
+  "target_branch": "feat/doctrine-org-init-from-template",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/doctrine/template_render/__init__.py",
+        "src/specify_cli/doctrine/template_render/resolve.py",
+        "src/specify_cli/doctrine/template_render/validation.py",
+        "tests/specify_cli/doctrine/test_template_render_resolve.py",
+        "tests/specify_cli/doctrine/test_template_render_validation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/doctrine/template_render/ignore_copy.py",
+        "src/specify_cli/doctrine/template_render/pipeline.py",
+        "src/specify_cli/doctrine/template_render/substitute.py",
+        "tests/specify_cli/doctrine/test_template_render_ignore_copy.py",
+        "tests/specify_cli/doctrine/test_template_render_pipeline.py",
+        "tests/specify_cli/doctrine/test_template_render_substitute.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/doctrine.py",
+        "tests/cli/test_doctrine_org_commands.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-07-16T12:26:28.486380+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

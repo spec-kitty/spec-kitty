@@ -54,6 +54,7 @@ TOOL_LABELS = [
     ("git", "Git version control"),
     ("claude", "Claude Code CLI"),
     ("gemini", "Gemini CLI"),
+    ("llxprt", "LLxprt Code"),
     ("qwen", "Qwen Code CLI"),
     ("code", "Visual Studio Code"),
     ("code-insiders", "Visual Studio Code Insiders"),

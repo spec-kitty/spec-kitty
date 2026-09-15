@@ -9,9 +9,13 @@ packaged default is the target; the env var is a dev/self-host override) —
 and one fail-closed guard, decided *before* any network call: an ambiguous
 split-brain (env and config disagreeing without a clean whole-process
 override). #179's "no target at all" fail-closed died with the opt-in era: a
-machine naming no target now resolves to the packaged launch host, and the
-packaged default is *no opinion* — it never disagrees with a configured
-target, so an existing ``config.toml`` entry never trips the guard.
+machine naming no target now resolves to the packaged launch host. An
+*unset* env var is *no opinion* — it never disagrees with a configured
+target, so an existing ``config.toml`` entry never trips the guard — but an
+*explicitly set* one is a real opinion even when its value equals the
+packaged default (#4259): it wins in a whole-process context (``auth
+login``) instead of letting a stale configured target through, and it can
+trip the setup-only guard against a different configured target.
 
 The queue-scope half of the old resolver died with the sync transport; what
 remains is purely descriptive — no network, no config mutation.
@@ -139,18 +143,23 @@ def _classify_override(
 ) -> tuple[OverrideMode, str]:
     """Decide ``(override_mode, resolved_server_url)`` — pure, no I/O.
 
-    Precedence: env first, then config, then the packaged default. The
-    packaged default is *no opinion* (#3980, D-5 revised): an env variable
-    that is unset — or explicitly set to
-    :data:`specify_cli.auth.config.DEFAULT_HOSTED_SAAS_URL` — never disagrees
-    with a configured target, so ``config.toml [sync].server_url`` wins
-    without tripping the split-brain guard. With neither source set the
-    packaged default is the target. A missing config key is likewise *no
-    opinion*: an env-only machine resolves cleanly (to the env URL) even in a
-    setup-only context, because with no configured value there is nothing for
-    the env var to disagree with.
+    Precedence: env first, then config, then the packaged default. An
+    *unset* (or blank) env variable is *no opinion* (#3980, D-5 revised):
+    ``config.toml [sync].server_url`` then wins without a split-brain, and
+    with neither source set the packaged default is the target. An env
+    variable that *is* explicitly set is a real opinion even when its value
+    equals :data:`specify_cli.auth.config.DEFAULT_HOSTED_SAAS_URL` (#4259:
+    the 4.0.0rc1 regression treated such a value as no opinion and let a
+    stale configured target — the retired first-party app endpoint — win
+    over an explicit canonical override): it resolves as the target, wins
+    over a *different* configured value in a whole-process context, and
+    trips the fail-closed guard against one in a setup-only context. A
+    missing config key is likewise *no opinion*: an env-only machine
+    resolves cleanly (to the env URL) even in a setup-only context, because
+    with no configured value there is nothing for the env var to disagree
+    with.
     """
-    if env_server_url is None or _normalize_url(env_server_url) == DEFAULT_HOSTED_SAAS_URL:
+    if env_server_url is None:
         if configured_server_url is None:
             return OverrideMode.PACKAGED_DEFAULT, DEFAULT_HOSTED_SAAS_URL
         return OverrideMode.NONE, _normalize_url(str(configured_server_url))

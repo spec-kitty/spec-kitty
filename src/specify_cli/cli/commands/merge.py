@@ -143,6 +143,7 @@ from specify_cli.merge.done_bookkeeping import (
 # the test/integration-imported _run_lane_based_merge[_locked] keep importing
 # from the shim (FR-006). One-way import: ``executor`` never imports this shim.
 from specify_cli.merge.executor import (
+    CoordinationTeardownError,
     _run_lane_based_merge,
     _run_lane_based_merge_locked,
 )
@@ -495,6 +496,12 @@ def _run_real_merge(
         raise typer.Exit(1) from exc
     except (MissingLanesError, CorruptLanesError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    except CoordinationTeardownError as exc:
+        # #3926: the merge itself landed; only the coord triple did not come
+        # down. Report it as the partial state it is — a success line here
+        # would send the operator away from a stranded coord worktree/branch.
+        console.print(f"[red]Error:[/red] coordination teardown incomplete: {exc}")
         raise typer.Exit(1) from exc
 
     # -- Post-merge: WP07/FR-007 retrospective postcondition (fail-open) --

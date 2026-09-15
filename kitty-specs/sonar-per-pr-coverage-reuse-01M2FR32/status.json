@@ -1,0 +1,213 @@
+{
+  "event_count": 52,
+  "last_event_id": "01M2GHBZ95CZJ7TCZ5DS8AFH7K",
+  "materialized_at": "2026-09-14T18:02:47.973827+00:00",
+  "mission_number": "200",
+  "mission_slug": "sonar-per-pr-coverage-reuse-01M2FR32",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2GHBP7RYGC5XNN0WTSB9X7Y",
+      "last_transition_at": "2026-09-14T18:02:38.712364+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Broadened module-tests.yml so every slice measures the full top-level package set derived from src/ (7 dotted targets, constant across rows); registry + scrub untouched. RED-first evidence (T001 failing on the unchanged tree) and the full cost analysis are in tests/release/coverage_breadth_evidence.md §1. Aggregate cost: +16.21s/slice measured x 34 = +9.19 min local, +19.08 min projected at CI speed (x2.08, derived from my own retiring-step run), against a 22.53 min median saving -> net positive but thin; surfaced as a FINDING in §3, not absorbed. Zero per-file regressions (measured + by construction); +30,226 statements recovered in one slice vs a >=2,808 target. Matrix-union baseline recorded as pending-ci. Finding for WP02: tests/unit, tests/specify_cli/runtime AND tests/architectural/test_no_retired_subsystems.py are in no slice's test dirs - three inputs, not two.",
+        "APPROVED (debugger-debbie, independent per C-007). Falsification lens: measurements. RED-FIRST REPRODUCED: reverted module-tests.yml to 509b13552c^, ran the gate -> '2 failed, 3 deselected in 0.44s' matching the reported output; restored, current tree '5 passed in 7.10s'. INTEGRATION CHECK REPRODUCED: extracted the COV_PY heredoc, ran it under bash -> exactly 7 flags (charter doctrine glossary kernel mission_runtime runtime specify_cli), byte-identical to the retiring sonarcloud job's 7 --cov flags in ci-quality.yml:190-196, so the 'doctrine' target is REQUIRED not gratuitous (src/doctrine.py is a real non-underscore single-file module; a packages-only derivation would have regressed it). OWNERSHIP: exactly the 4 owned files; .github/ci-module-registry.yml and tests/release/ci_retirement_scrub.json UNTOUCHED (census gate trap avoided). LANE HYGIENE: kitty-specs delta empty, no untracked, no runtime/status files. GATES: ruff check + ruff format --check clean; module-tests.yml parses; targeted blast radius via grep -rl module-tests -> 216 passed in 19.86s (test_coverage_breadth, test_coverage_artefact_contract, test_dual_mode_contract, test_module_shard_registry, test_module_tests_matrix, tests/ci/test_aggregate_attempts, test_aggregate_source, tests/release/test_release_ci_ownership). BASELINE NOT FABRICATED: recomputed from files{} -> 42942/128878 = 33.32%, 1258 files, 998 covered, matching recorded totals exactly. COST ARITHMETIC INDEPENDENTLY CHECKED AND THE ERROR IS CONSERVATIVE, NOT OPTIMISTIC: all stated arithmetic verifies (16.21x34=551s=9.19min; 1352/651.47=2.08; 22.53-19.08=3.45; 12.83-19.08=-6.25). I measured two slices the implementer did NOT: tests/specify_cli/core (narrow --cov=specify_cli) 22.89s->25.56s = +2.65s (+11.6%), and tests/merge (narrow --cov=specify_cli.merge, the maximal fixed-cost case, 18->1236 files) 138.15s->148.97s = +10.82s (+7.8%). Overhead is PROPORTIONAL to slice runtime (7.8-11.6%), not a fixed ~16s/shard, and merge proves the fixed per-shard component is small. Shards are NOT uniform (per-shard test time spans 0.059s-96.8s; 10 of 34 shards under 5s), so 34 x one slice's ABSOLUTE delta is methodologically loose -- but lanes' 11.5% sits at the TOP of the measured range and the x2.08 ratio scales a CPU-bound tracer overhead by a whole-job wall-clock ratio that includes fixed job overhead, while the 22.53min saving removes a whole job and is counted correctly. Both errors inflate the cost side only, so +19.08min is an UPPER BOUND and the -6.25min corner compounds an upper-bound overhead with the single lowest observed saving -- a legitimate sensitivity bound, NOT a likely outcome. The trade is more comfortably net-positive than claimed. NO-REGRESSION: the by-construction argument is sound for WP01's own effect (identical selection; broadening --cov changes recording scope only, so a file's covered set can only grow) and all three of my slices gained files and lost none. ESCALATED TO ORCHESTRATOR, NOT WP01 REWORK: per_file_covered.matrix_union_after is status=pending-ci with files={}, so T004 step 2 / T006 step 1 (diff of TWO baselines) are literally not done; the committed gate never asserts matrix_union_after, so it stays green forever with the stub. WP01 cannot close this (needs CI on a pushed branch; CLAUDE.md assigns whole-suite runs to the CI agent) and the implementer surfaced it precisely in evidence 6. But NFR-009/SC-004 compare retiring-step vs matrix UNION (a different selection), which the construction argument does not cover and which cannot close until the selection gap shuts -- and per task review, no later WP owns (a) filling matrix_union_after, (b) verifying NFR-002 against a real CI run, (c) a registry row for tests/architectural (WP02 adds only two rows; the implementer correctly flags it is three inputs, not two). Three unowned obligations for the orchestrator to place. Pre-existing reds #4365 not attributed here; implementer's one unidentified F from a killed run left unattributed and not counted against this diff."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED (debugger-debbie, independent per C-007). Falsification lens: measurements. RED-FIRST REPRODUCED: reverted module-tests.yml to 509b13552c^, ran the gate -> '2 failed, 3 deselected in 0.44s' matching the reported output; restored, current tree '5 passed in 7.10s'. INTEGRATION CHECK REPRODUCED: extracted the COV_PY heredoc, ran it under bash -> exactly 7 flags (charter doctrine glossary kernel mission_runtime runtime specify_cli), byte-identical to the retiring sonarcloud job's 7 --cov flags in ci-quality.yml:190-196, so the 'doctrine' target is REQUIRED not gratuitous (src/doctrine.py is a real non-underscore single-file module; a packages-only derivation would have regressed it). OWNERSHIP: exactly the 4 owned files; .github/ci-module-registry.yml and tests/release/ci_retirement_scrub.json UNTOUCHED (census gate trap avoided). LANE HYGIENE: kitty-specs delta empty, no untracked, no runtime/status files. GATES: ruff check + ruff format --check clean; module-tests.yml parses; targeted blast radius via grep -rl module-tests -> 216 passed in 19.86s (test_coverage_breadth, test_coverage_artefact_contract, test_dual_mode_contract, test_module_shard_registry, test_module_tests_matrix, tests/ci/test_aggregate_attempts, test_aggregate_source, tests/release/test_release_ci_ownership). BASELINE NOT FABRICATED: recomputed from files{} -> 42942/128878 = 33.32%, 1258 files, 998 covered, matching recorded totals exactly. COST ARITHMETIC INDEPENDENTLY CHECKED AND THE ERROR IS CONSERVATIVE, NOT OPTIMISTIC: all stated arithmetic verifies (16.21x34=551s=9.19min; 1352/651.47=2.08; 22.53-19.08=3.45; 12.83-19.08=-6.25). I measured two slices the implementer did NOT: tests/specify_cli/core (narrow --cov=specify_cli) 22.89s->25.56s = +2.65s (+11.6%), and tests/merge (narrow --cov=specify_cli.merge, the maximal fixed-cost case, 18->1236 files) 138.15s->148.97s = +10.82s (+7.8%). Overhead is PROPORTIONAL to slice runtime (7.8-11.6%), not a fixed ~16s/shard, and merge proves the fixed per-shard component is small. Shards are NOT uniform (per-shard test time spans 0.059s-96.8s; 10 of 34 shards under 5s), so 34 x one slice's ABSOLUTE delta is methodologically loose -- but lanes' 11.5% sits at the TOP of the measured range and the x2.08 ratio scales a CPU-bound tracer overhead by a whole-job wall-clock ratio that includes fixed job overhead, while the 22.53min saving removes a whole job and is counted correctly. Both errors inflate the cost side only, so +19.08min is an UPPER BOUND and the -6.25min corner compounds an upper-bound overhead with the single lowest observed saving -- a legitimate sensitivity bound, NOT a likely outcome. The trade is more comfortably net-positive than claimed. NO-REGRESSION: the by-construction argument is sound for WP01's own effect (identical selection; broadening --cov changes recording scope only, so a file's covered set can only grow) and all three of my slices gained files and lost none. ESCALATED TO ORCHESTRATOR, NOT WP01 REWORK: per_file_covered.matrix_union_after is status=pending-ci with files={}, so T004 step 2 / T006 step 1 (diff of TWO baselines) are literally not done; the committed gate never asserts matrix_union_after, so it stays green forever with the stub. WP01 cannot close this (needs CI on a pushed branch; CLAUDE.md assigns whole-suite runs to the CI agent) and the implementer surfaced it precisely in evidence 6. But NFR-009/SC-004 compare retiring-step vs matrix UNION (a different selection), which the construction argument does not cover and which cannot close until the selection gap shuts -- and per task review, no later WP owns (a) filling matrix_union_after, (b) verifying NFR-002 against a real CI run, (c) a registry row for tests/architectural (WP02 adds only two rows; the implementer correctly flags it is three inputs, not two). Three unowned obligations for the orchestrator to place. Pre-existing reds #4365 not attributed here; implementer's one unidentified F from a killed run left unattributed and not counted against this diff.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2816982,
+      "shell_pid_created_at": "1789399176.76",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M2GHBR1AX2F9ZY4BHPS23TF0",
+      "last_transition_at": "2026-09-14T18:02:40.554114+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 done: tests/unit + tests/specify_cli/runtime declared across the full four-file cascade (scrub groups, registry rows with explicit test_dirs, measured timings, router output/filter/unmatched-union/architectural-heavy condition). ROOTS DECISION (T009.3): each root is a VERBATIM copy of a glob another kept group already owns, restricted to the surfaces the directory's tests actually import - so no path's group-match set changes and the FR-004 fail-closed 'unmatched' union keeps its exact previous semantics (verified through gate_selection.select_gates before/after on four representative paths). Rejected alternative: claiming the six src/specify_cli/{intake,git,mission_loader,migration,contracts,workspace} packages tests/unit exercises that NO group owns - that would close a real routing gap but silently demote those paths from the run-all catch-all to one shard; routing policy, not inventory bookkeeping. Rationale in traces/design-decisions.md. THIRD INPUT (tests/architectural/test_no_retired_subsystems.py): quantified, not added - measured marginal contribution 0 statements (0 of 1,258 files carry a line it covers that the four test dirs do not); its 26,845 lines are import-time coverage already executed by tests/unit+status+cli+specify_cli/runtime, which alone reproduce WP01's recorded 42,942/128,878 retiring-step total. Negligible confirmed at exactly zero; the do-not-add ruling stands unchanged. TIMINGS PROVENANCE: run_id wp02-durations-20260914T153812Z (local; branch unpushed), produced by the now-committed scripts/ci/capture_shard_timings.py under module-tests.yml's own selection ('-m not performance', serial) - unit 454 tests/4.742s (6.26s wall), specify_cli_runtime 77/14.219s (14.47s wall); counts equal the consumer's --collect-only counts (454/454, 77/77), which is what prevents the silent uniform-weight fallback. shard_count=1 for both, so the skew guard is trivially satisfied - the length match is the real protection, stated as such in the evidence file. T011: floor NOT re-frozen - it is derived (ceiling//2=10) and is a LOWER bound; 17->19 moves away from it. Per-slice cost (+2 slices, ~20.8s local / ~43s projected CI) appended to tests/release/coverage_breadth_evidence.md. Tests: 150 passed (three primary gates + all other registry/router consumers + the new unit tests), 23 passed (marker/golden-count gates), 208 passed 6 skipped (tests/release), 454+77 passed (the two declared dirs); ruff check + ruff format --check on the diff's python files exit 0. Targeted tests pass, full arch suite deferred to CI. DEVIATION 1: T007 step 3's required unit test lives at tests/ci/test_capture_shard_timings.py, outside the WP's declared owned_files (safe-commit guard warned); tests/ci is the established home for scripts/ci unit tests (cf. test_sonar_project_version.py) and there was no in-scope alternative. DEVIATION 2 (--force rationale): the clean-worktree gate blocked on an untracked file that is provably NOT mine - kitty-specs/sonar-per-pr-coverage-reuse-01M2FR32/tasks/WP04-regression-battery/review-cycle-1.md, WP04's reviewer artifact written at 17:43 in the planning root while I worked. The gate attributed it to WP02. Committing another WP's in-flight artifact would violate the WP-isolation rule; waiting 2min did not clear it. My own lane worktree is clean and every WP02-owned file is committed in 8be43a4ce9.",
+        "Cascade verbatim-consistent across all 3 files. Non-perturbation re-verified over all 19244 tracked files: zero routing change. B\\A=0 reproduced at line-set granularity. Timings additive-only; 454/77 and capture script reproducible."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Cascade verbatim-consistent across all 3 files. Non-perturbation re-verified over all 19244 tracked files: zero routing change. B\\A=0 reproduced at line-set granularity. Timings additive-only; 454/77 and capture script reproducible.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3066976,
+      "shell_pid_created_at": "1789401522.07",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2GHBSTZH32FY7W1XHD41QFH",
+      "last_transition_at": "2026-09-14T18:02:42.399964+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review. RED-first: test_make_target_indirection_resolves_to_a_suite_invocation_live failed with 'assert []' on the current tree (documented blindness, not a typo) before T014; green after. Detection now resolves a run: step's make target by READING the Makefile (variable table + prerequisites + recipe, then the existing pytest parser on expanded lines) -- never by matching the literal 'make test-fast'; a fault-injection twin proves a renamed target ('coverage-tier') behind make variables still resolves, and a negative control proves 'make lint' is still not a suite run. LIVE DUPLICATE IS NOW SEEN, not 'will be once the job moves': load_gates() yields ci-quality.yml::sonarcloud via 'make test-fast' with the real fast-tier paths+marker, selecting 1801 tests, ALL 1801 of which are also selected by >=1 other gate (e.g. ci-modules::test, module-tests::test, ci-router::architectural-heavy). Cascade landed deliberately: WORKFLOW_FILES +3 (ci-quality.yml, ci-router.yml, packs.yml). The latter two were ALREADY running the suite directly but were hidden by a latent parser defect -- 'uv run --frozen pytest' let the --frozen flag's optional argument swallow the 'pytest' command word; also fixed '--deselect <nodeid>' being recorded as a SELECTED path. T016: sonarcloud allowlist entry kept (subject still exists), rationale rewritten -- it no longer claims the derivation cannot see the job, because it now can. T017: no new test file was added (tests live in the two owned modules), so no shard-map edit was needed; note WP04 owns tests/_arch_shard_map.py for registering test_no_duplicate_suite_execution.py. FINDING FOR THE OWNER (I do not own .github/workflows/): packs.yml declares two filter globs that can never fire -- '.claude/**' and '.agents/skills/**' are gitignored in this repo. Recorded in a shrink-only VESTIGIAL_FILTER_GLOBS ledger whose guard reds once packs.yml drops them; deleting them from packs.yml is the real fix. Tests run (targeted, per orchestrator ruling -- full arch suite deferred to CI): test_suite_jobs_gate_blocking.py + test_workflow_coherence.py = 20 passed; 10 _gate_coverage consumers (incl. test_ci_collection_completeness, test_marker_job_completeness, test_same_tier_uniqueness, test_makefile_tier_topology) = 103 passed; 10 shard-map/remaining consumers = 236 passed, 2 skipped. ruff check on changed files exit 0; repo-wide 'ruff format --check .' exit 0 (all three files sit in the shrink-only format-exclude ratchet at HEAD -- reformatting them would break test_ruff_format_exclude_ratchet, so they were deliberately left as-is).",
+        "Review passed (reviewer-renata, independent per C-007). T013 red-first VERIFIED by reverting only _gate_coverage.py to c94506472e~1: 4 tests red, the load-bearing one for the documented reason. Make resolution is a real GNU-make model, not a literal match: 15-case evasion battery, 11 caught, including the rename-behind-variables shape WP04 will fire. Scope expansion judged UNAVOIDABLE: the Makefile recipe uses uv run --frozen pytest so T014 cannot resolve without the regex fix, and discover_pytest_workflows is unchanged so the pre-existing set-equality invariant reds otherwise; by-catch was 12 previously-invisible gates. VESTIGIAL_FILTER_GLOBS guard mutation-tested and really reds. T016 rationale truthful and not deleted; the vacuous assert pytest_jobs_of(ci-quality.yml)==frozenset() is now =={sonarcloud} - the de-vacuuming this WP existed for. Ownership and lane hygiene clean. Commands: test_workflow_coherence.py 15 passed; 12 _gate_coverage consumers 123 passed; test_coverage_topology_ownership.py 2 passed; ruff clean. Full arch suite deferred to CI. Five non-blocking model gaps handed to WP04."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, independent per C-007). T013 red-first VERIFIED by reverting only _gate_coverage.py to c94506472e~1: 4 tests red, the load-bearing one for the documented reason. Make resolution is a real GNU-make model, not a literal match: 15-case evasion battery, 11 caught, including the rename-behind-variables shape WP04 will fire. Scope expansion judged UNAVOIDABLE: the Makefile recipe uses uv run --frozen pytest so T014 cannot resolve without the regex fix, and discover_pytest_workflows is unchanged so the pre-existing set-equality invariant reds otherwise; by-catch was 12 previously-invisible gates. VESTIGIAL_FILTER_GLOBS guard mutation-tested and really reds. T016 rationale truthful and not deleted; the vacuous assert pytest_jobs_of(ci-quality.yml)==frozenset() is now =={sonarcloud} - the de-vacuuming this WP existed for. Ownership and lane hygiene clean. Commands: test_workflow_coherence.py 15 passed; 12 _gate_coverage consumers 123 passed; test_coverage_topology_ownership.py 2 passed; ruff clean. Full arch suite deferred to CI. Five non-blocking model gaps handed to WP04.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2770970,
+      "shell_pid_created_at": "1789398793.03",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M2GHBVNKWT3X8455GYZEY6J0",
+      "last_transition_at": "2026-09-14T18:02:44.275692+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Permanent fault-injection battery: tests/architectural/test_no_duplicate_suite_execution.py (24 tests), registered in tests/_arch_shard_map.py shard_3. Property: exactly one authorised matrix executes the suite per change; detection delegated wholesale to WP03's _gate_coverage model (no second enumerator), workflow set read from the DIRECTORY not from the closed WORKFLOW_FILES allowlist. LIVE-TREE proofs: mutation 1 (canonical) proven against live source — ci-quality.yml::sonarcloud resolving via 'make test-fast'; T022 characterises the live tree and asserts the rule detects exactly that known duplicate. REAL-FILE proofs: mutations 2 (inlined) and 3 (in-repo script wrapper + two-hop make delegation) applied to a COPY OF THE REAL ci-quality.yml, with a negative control proving detection follows the command, not the job name, and a guard that reds if the mutated step literal stops matching. Mutation 4 (net-new workflow file) runs over a copy of the whole live workflows directory, with an unmutated control proving the red is the new file. FIXTURE proofs (job does not exist until WP05): mutations 5a/5b (job-level continue-on-error; terminal-verdict exclusion) and 6 (same-origin conjunct removed, and separately weakened to 'A && (origin_ok || ...)'), plus the §C1 always() prohibition — both predicates take (path, job) so WP05 binds them to the real job unchanged. WP06 FLIP SEAM: the module constant KNOWN_LIVE_DUPLICATES (marked with a '>>> WP06 FLIP SEAM <<<' banner comment); emptying that single dict at retirement turns test_live_tree_duplicate_set_is_exactly_the_known_set into the clean-tree form — no other edit needed. Five further evasions attempted and caught: workflow_run host, .yaml net-new file, reusable-workflow delegate, extra suite step inside an already-authorised job, and 'coverage run -m pytest'. REPORTED (not patched — _gate_coverage.py and .github/ are outside WP04 ownership): four model blind spots — $(MAKE) recipe delegation, bash -c wrappers, local composite actions (uses: ./.github/actions/*, already wired into the test job), and unstripped runner prefixes (coverage run -m / poetry run / xvfb-run / timeout N / .venv/bin/pytest). Each is closed by construction with a guard + fault-injection twin + negative control; widening the model is the real fix and needs a follow-up issue. Tests: battery 24 passed; blast radius 182 passed (arch shard/collection/golden-count/ratchet/router-transcription/shard-registry/suite-jobs/workflow-coherence). ruff check + ruff format --check clean. Full architectural suite deferred to CI per the operator's test-scope ruling.",
+        "Cycle 2: classifier fails closed (9/9 evasions caught, 0 drift); WP06 seam now one edit.",
+        "Cycle 2: F1/F2 verified by reproduction, not trust. WP06 sim 40p/1s/0f, host re-binds to ci-windows. Ledger reds on 3 mutations. 5 residual escapes all in _gate_coverage (#4367), not WP04-owned."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Cycle 2: F1/F2 verified by reproduction, not trust. WP06 sim 40p/1s/0f, host re-binds to ci-windows. Ledger reds on 3 mutations. 5 residual escapes all in _gate_coverage (#4367), not WP04-owned.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3079451,
+      "shell_pid_created_at": "1789401688.78",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M2GHBXF4F7V379PCNAW8V3D9",
+      "last_transition_at": "2026-09-14T18:02:46.116836+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Reporting job + verdict job; 5 conjuncts red-first",
+        "Cycle 2: revision-binding and skipped-tolerance assertions now non-vacuous; both mutation-proved",
+        "Cycle 2: both blockers mutation-proved. Binding: delete/echo/no-op/order-swap red, legit reformat green. Tolerance: strict+blanket red, text-only green (bound to predicate). Credited set byte-identical+live. mypy:298 pre-existing WP04."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Cycle 2: both blockers mutation-proved. Binding: delete/echo/no-op/order-swap red, legit reformat green. Tolerance: strict+blanket red, text-only green (bound to predicate). Credited set byte-identical+live. mypy:298 pre-existing WP04.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3250524,
+      "shell_pid_created_at": "1789404454.27",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2GHBZ95CZJ7TCZ5DS8AFH7K",
+      "last_transition_at": "2026-09-14T18:02:47.973827+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Duplicate job retired; 43 deps dispositioned via derived inventory + gate",
+        "Approved. Inventory re-derives byte-identical on 3.11/3.12/3.14 and vs committed (SC-009). All 4 retire-as-moot subjects verified gone; relocate + per-conjunct rewrite + freshness gate proven by 9 mutations, all red. T032 honest. Follow-up: stale docstring at test_no_duplicate_suite_execution.py:1143."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Approved. Inventory re-derives byte-identical on 3.11/3.12/3.14 and vs committed (SC-009). All 4 retire-as-moot subjects verified gone; relocate + per-conjunct rewrite + freshness gate proven by 9 mutations, all red. T032 honest. Follow-up: stale docstring at test_no_duplicate_suite_execution.py:1143.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3394067,
+      "shell_pid_created_at": "1789406683.87",
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done"
+      }
+    }
+  }
+}

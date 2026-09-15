@@ -219,6 +219,33 @@ def _raw_frontmatter_has_field(wp_raw_content: str, field_name: str) -> bool:
     )
 
 
+def _raw_frontmatter_dependencies_is_string_form(wp_file: Path) -> bool:
+    """Return True when WP frontmatter stores ``dependencies`` as a legacy string.
+
+    The legacy forms (#3941, F-55) are ``dependencies: "[]"``,
+    ``dependencies: "WP01, WP02"``, and the bare scalar
+    ``dependencies: WP01``. ``WPMetadata`` coerces all of them to the
+    canonical list at read time, so the string form is invisible to any
+    consumer that only sees the typed model — including finalize-tasks'
+    own change detector, which then concludes "nothing to write" and lets
+    the string form survive into the tree.
+
+    Detection goes through the canonical
+    :class:`~specify_cli.frontmatter.FrontmatterManager` parse — the same
+    parser ``WPMetadata`` validates from — so this stays *one* parser for
+    the field: no second text-level grammar is introduced. A file that
+    cannot be read or parsed is not a string-form declaration (the caller's
+    own typed read surfaces that failure separately).
+    """
+    from specify_cli.frontmatter import FrontmatterManager
+
+    try:
+        raw_frontmatter, _ = FrontmatterManager().read(wp_file)
+    except Exception:  # noqa: BLE001 — unreadable/invalid YAML is not a legacy declaration
+        return False
+    return isinstance(raw_frontmatter.get("dependencies"), str)
+
+
 def _is_confined_planning_wp(metadata: WPMetadata) -> bool:
     """Return True when a WP is a ``planning_artifact`` confined to planning surfaces.
 

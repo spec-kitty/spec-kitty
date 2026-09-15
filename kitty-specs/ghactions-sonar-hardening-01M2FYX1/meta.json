@@ -1,0 +1,33 @@
+{
+  "accept_commit": "c008ac45ce7eb6e4d82b74ae1a299e0f41bec3c5",
+  "acceptance_history": [
+    {
+      "accept_commit": "c008ac45ce7eb6e4d82b74ae1a299e0f41bec3c5",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-14T13:26:40.547476+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "7253aa325694b1fcd44810391cdb2c1b14bde50f"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-14T13:26:40.547476+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "7253aa325694b1fcd44810391cdb2c1b14bde50f",
+  "baseline_merge_commit": "2df873c431520f36ecb3382a7f8b45c76a38749e",
+  "created_at": "2026-09-14T12:40:03.916684+00:00",
+  "flattened": true,
+  "friendly_name": "GitHub Actions Sonar hardening (validatable workflows)",
+  "mid8": "01M2FYX1",
+  "mission_id": "01M2FYX1207WDSPBX9KYR79XMC",
+  "mission_number": 200,
+  "mission_slug": "ghactions-sonar-hardening-01M2FYX1",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Current-profile Sonar cluster #4342 (epic #1928, milestone 4.0.0). Release-critical workflows deferred (not PR-CI-validatable). Aligned with in-flight CI-fixup missions.",
+  "purpose_tldr": "Harden PR-CI-validated GitHub Actions workflows per SonarCloud findings (#4342): input-injection env-indirection, action SHA-pinning, least-privilege permissions, 3rd-party install pins; adjudicate the safe-as-written uv-sync hotspots. No CI behavior change.",
+  "slug": "ghactions-sonar-hardening-01M2FYX1",
+  "status_phase": "1",
+  "target_branch": "fix/ghactions-sonar-hardening",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-14T12:50:29.809427+00:00"
+}

@@ -1316,6 +1316,121 @@ class TestTypedFrontmatterMigration:
 
 
 # ---------------------------------------------------------------------------
+# #3941: legacy string-form dependencies frontmatter is normalized on write
+# ---------------------------------------------------------------------------
+
+
+def _setup_feature_with_string_form_deps(tmp_path: Path, mission_slug: str = "060-test-feature") -> Path:
+    """Create a feature whose WP files carry legacy string-form dependencies.
+
+    WP01 stores ``dependencies: "[]"`` and WP02 the bare scalar
+    ``dependencies: WP01`` — two of the three legacy forms observed in F-55
+    (#3941). ``WPMetadata`` coerces both to the canonical list at read time,
+    which is exactly the shape that used to slip past finalize-tasks'
+    change detector.
+    """
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+
+    (feature_dir / "spec.md").write_text(
+        "---\ntitle: Test Feature\n---\n\n## Requirements\n\n- FR-001: First requirement\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nDepends on WP01.\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_slug": mission_slug}), encoding="utf-8")
+
+    for wp_id, dep_line in [("WP01", 'dependencies: "[]"'), ("WP02", "dependencies: WP01")]:
+        (tasks_dir / f"{wp_id}-test.md").write_text(
+            f'---\nwork_package_id: "{wp_id}"\ntitle: "Test {wp_id}"\nrequirement_refs:\n  - FR-001\n{dep_line}\n---\n\n# {wp_id}\n',
+            encoding="utf-8",
+        )
+
+    return feature_dir
+
+
+class TestStringFormDependenciesNormalization:
+    """finalize-tasks normalizes string-form dependencies to the canonical list (#3941)."""
+
+    def test_string_form_dependencies_normalized_on_disk(self, tmp_path: Path) -> None:
+        """A real run rewrites the string forms to canonical list frontmatter."""
+        mission_slug = "060-test-feature"
+        feature_dir = _setup_feature_with_string_form_deps(tmp_path, mission_slug)
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+        try:
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=False)
+        except (typer.Exit, SystemExit):
+            pass
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        from specify_cli.frontmatter import FrontmatterManager
+
+        manager = FrontmatterManager()
+        tasks_dir = feature_dir / "tasks"
+        raw_wp01, _ = manager.read(tasks_dir / "WP01-test.md")
+        raw_wp02, _ = manager.read(tasks_dir / "WP02-test.md")
+        # Only the canonical list form reaches the tree — the raw YAML value
+        # must now be a list, not a string, with the coerced semantics intact.
+        assert raw_wp01["dependencies"] == []
+        assert isinstance(raw_wp01["dependencies"], list)
+        assert raw_wp02["dependencies"] == ["WP01"]
+        assert isinstance(raw_wp02["dependencies"], list)
+
+    def test_string_form_dependencies_validate_only_previews_without_writing(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """--validate-only reports the normalization as would_modify, disk untouched."""
+        mission_slug = "060-test-feature"
+        feature_dir = _setup_feature_with_string_form_deps(tmp_path, mission_slug)
+        tasks_dir = feature_dir / "tasks"
+        before = {f.name: f.read_bytes() for f in tasks_dir.glob("WP*.md")}
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+        try:
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=True)
+        except (typer.Exit, SystemExit):
+            pass
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        assert {f.name: f.read_bytes() for f in tasks_dir.glob("WP*.md")} == before
+
+        normalized = set()
+        for line in capsys.readouterr().out.strip().splitlines():
+            try:
+                data = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            for entry in data.get("would_modify", []):
+                if "dependencies" in entry.get("changes", {}):
+                    normalized.add(entry["wp_id"])
+        assert normalized == {"WP01", "WP02"}, "both string-form WPs must preview as dependencies changes"
+
+
+# ---------------------------------------------------------------------------
 # Acceptance: ownership overlap fails regardless of lane / dependency hierarchy
 #
 # Invariant under test (#1753 follow-up): the ONLY way two WPs may claim the

@@ -1045,7 +1045,7 @@ class _WallClockAssertionVisitor(ast.NodeVisitor):
             self.global_names_stack
             and self.propagate_global_stack
             and self.propagate_global_stack[-1]
-            and len(target_path) == 1  # golden-count: cardinality-is-contract
+            and len(target_path) == 1
             and target_path[0] in self.global_names_stack[-1]
         ):
             return self.scopes[0]
@@ -1350,7 +1350,7 @@ class _ModuleSetupAliasCollector(ast.NodeVisitor):
             self.active_helpers.remove(helper_name)
 
     def _scope_for_target(self, target_path: tuple[str, ...]) -> _AliasMap:
-        if len(target_path) == 1 and target_path[0] in self.global_names:  # golden-count: cardinality-is-contract
+        if len(target_path) == 1 and target_path[0] in self.global_names:
             return self.scopes[0]
         if len(target_path) > 1 and self._is_module_attribute_target(target_path):
             return self.scopes[0]
@@ -1364,10 +1364,10 @@ class _ModuleSetupAliasCollector(ast.NodeVisitor):
 
     def _record_helper_aliases(self, targets: list[ast.expr], value: ast.expr) -> None:
         source = _attribute_path(value)
-        helper_name = source[0] if len(source) == 1 and source[0] in self.local_helpers else None  # golden-count: cardinality-is-contract
+        helper_name = source[0] if len(source) == 1 and source[0] in self.local_helpers else None
         for target in targets:
             target_path = _attribute_path(target)
-            if len(target_path) == 1:  # golden-count: cardinality-is-contract
+            if len(target_path) == 1:
                 if helper_name is None:
                     self.local_helper_aliases.pop(target_path[0], None)
                 else:
@@ -1397,7 +1397,7 @@ def _add_assignment_aliases(
     targets: list[ast.expr],
     value: ast.expr,
 ) -> None:
-    if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):  # golden-count: cardinality-is-contract
+    if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):
         for target, element in zip(targets[0].elts, value.elts, strict=False):
             _add_assignment_aliases(scopes, scope_for_target, [target], element)
         return
@@ -1596,7 +1596,7 @@ def _alias_source(node: ast.expr, scopes: list[_AliasMap]) -> tuple[str, ...]:
     if (
         isinstance(node, ast.Call)
         and _attribute_path(node.func) in {("staticmethod",), ("classmethod",)}
-        and len(node.args) == 1  # golden-count: cardinality-is-contract
+        and len(node.args) == 1
     ):
         return _normalize_alias(_attribute_path(node.args[0]), scopes)
     if isinstance(node, ast.Lambda):
@@ -2098,7 +2098,7 @@ class _MethodInstanceAliasCollector(ast.NodeVisitor):
                 self.aliases.pop(instance_path, None)
 
     def _record_instance_aliases(self, targets: list[ast.expr], value: ast.expr) -> None:
-        if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):  # golden-count: cardinality-is-contract
+        if len(targets) == 1 and isinstance(targets[0], ast.Tuple | ast.List) and isinstance(value, ast.Tuple | ast.List):
             for target, element in zip(targets[0].elts, value.elts, strict=False):
                 self._record_instance_aliases([target], element)
             return
@@ -2116,10 +2116,10 @@ class _MethodInstanceAliasCollector(ast.NodeVisitor):
 
     def _record_helper_aliases(self, targets: list[ast.expr], value: ast.expr) -> None:
         source = _attribute_path(value)
-        helper_name = source[0] if len(source) == 1 and source[0] in self.local_helpers else None  # golden-count: cardinality-is-contract
+        helper_name = source[0] if len(source) == 1 and source[0] in self.local_helpers else None
         for target in targets:
             target_path = _attribute_path(target)
-            if len(target_path) == 1:  # golden-count: cardinality-is-contract
+            if len(target_path) == 1:
                 if helper_name is None:
                     self.local_helper_aliases.pop(target_path[0], None)
                 else:
@@ -2281,7 +2281,7 @@ def _called_name(node: ast.Call, scopes: list[_AliasMap]) -> str | None:
     path = _normalize_alias(_attribute_path(node.func), scopes)
     if path == _SHADOWED_PATH:
         return None
-    if len(path) == 1:  # golden-count: cardinality-is-contract
+    if len(path) == 1:
         return path[0]
     return None
 

@@ -210,7 +210,7 @@ def test_cycle_json_contract_and_manifest_absence(
 
     assert exit_code != 0
     assert output.err == ""
-    assert len(payloads) == 1  # golden-count: cardinality-is-contract
+    assert len(payloads) == 1
     expected_path = _EXPECTED_PATH
     expected_lanes = _EXPECTED_LANES
     assert payloads[0]["error_code"] == "LANE_DEPENDENCY_CYCLE"

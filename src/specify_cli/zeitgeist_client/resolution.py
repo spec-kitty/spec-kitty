@@ -79,6 +79,7 @@ from specify_cli.saas_client.errors import SaasAuthError
 
 from . import credentials, repo_identity
 from .credentials import NegativeEntry, StoredCredential
+from .session_identity import logical_session_id
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +132,7 @@ class MintedCredential:
     relay_token: str
     capability_credential: str | None
     expires_at: str
+    session_ref: str | None = None
 
 
 class GatewayError(Exception):
@@ -229,10 +231,11 @@ class SaasCapabilityGateway:
         teams A+B whose auth context selects A would deterministically 403 a
         mint for a repo only B admits — asking the team the pre-flight proved
         admits the repo is what makes the two calls agree."""
+        selector = logical_session_id()
         try:
             resp = self._http.post(
                 f"{self._base_url}/api/v1/live/capability/cli/",
-                json={"repo_slug": repo_slug, "kind": kind},
+                json={"repo_slug": repo_slug, "kind": kind, "logical_session_id": selector},
                 headers=self._headers(team_slug),
             )
         except httpx.HTTPError as exc:
@@ -255,6 +258,11 @@ class SaasCapabilityGateway:
         expires_at = data.get("expires_at")
         if not relay_url or not relay_token or not expires_at:
             raise GatewayError("capability mint response is missing relay_url/relay_token/expires_at")
+        session_ref = data.get("session_ref")
+        if not isinstance(session_ref, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", session_ref):
+            raise GatewayError("capability mint response has no valid session_ref")
+        if data.get("logical_session_id") != selector:
+            raise GatewayError("capability mint response does not bind the logical session")
         capability_credential = data.get("capability_credential")
         return MintedCredential(
             relay_url=str(relay_url),
@@ -263,6 +271,7 @@ class SaasCapabilityGateway:
             # same reading credentials.load applies on disk.
             capability_credential=str(capability_credential) if capability_credential else None,
             expires_at=str(expires_at),
+            session_ref=session_ref,
         )
 
 
@@ -536,6 +545,7 @@ def _resolve(
         # back so a member can see which team binds this checkout without
         # asking Team Kitty again.
         team=answer.team_slug,
+        session_ref=minted.session_ref,
     )
     return credentials.load(repo=key)
 
@@ -732,5 +742,29 @@ def resolve_focus_capability(
         repo=key,
         capability_credential=minted.capability_credential,
         expires_at=minted.expires_at,
+        session_ref=minted.session_ref,
     )
     return minted.capability_credential
+
+
+@dataclass(frozen=True)
+class FocusLease:
+    """An inseparable focus capability and its issuer-owned raw session ID."""
+
+    capability_credential: str
+    session_ref: str
+
+
+def resolve_focus_lease(cwd: str | Path, *, deadline: repo_identity.Deadline | None = None) -> FocusLease | None:
+    """Resolve focus authority and identity together, refusing a racing replacement."""
+    capability = resolve_focus_capability(cwd, deadline=deadline)
+    if capability is None:
+        return None
+    origin = repo_identity.origin_url(str(cwd), deadline or repo_identity.Deadline())
+    slug, host = repo_slug_and_host(origin)
+    if slug is None:
+        return None
+    stored = credentials.load(repo=store_key(host=host, repo_slug=slug))
+    if stored is None or stored.focus_capability_credential != capability or not stored.focus_session_ref:
+        return None
+    return FocusLease(capability, stored.focus_session_ref)

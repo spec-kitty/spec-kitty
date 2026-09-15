@@ -2,7 +2,7 @@
 
 Covers:
 - AgentsMdWriter functional behaviour (can_write, has_presence, write, remove)
-- Registry completeness: all 16 expected harness keys present (roo removed 2026-05-15)
+- Registry completeness: all 17 expected harness keys present (roo removed 2026-05-15; llxprt added)
 - Pattern B harness registry spot-checks
 - check_dir refinement to MarkdownRulesWriter.can_write()
 """
@@ -31,7 +31,7 @@ EXPECTED_REGISTRY_KEYS = frozenset({
     # Pattern A
     "claude",
     # Pattern B — "roo" removed (Roo Code shut down 2026-05-15, C-007)
-    "cursor", "windsurf", "copilot", "kiro", "gemini",
+    "cursor", "windsurf", "copilot", "kiro", "gemini", "llxprt",
     # Pattern C
     "codex", "opencode", "antigravity",
     # Pattern D

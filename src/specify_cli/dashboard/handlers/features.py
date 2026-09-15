@@ -109,6 +109,12 @@ class FeatureHandler(DashboardHandler):
             project_path = _require_project_path(self.project_dir)
             features = cast(list[FeatureItem], scan_all_features(project_path))
 
+            # #704: a discarded mission keeps its kitty-specs/<slug>/ directory
+            # (the runtime_abandoned retrospective lives there), so the scan
+            # still finds it. Filtering here rather than in the scanner keeps
+            # scan_all_features a pure scan for every other consumer.
+            features = [f for f in features if f.get("mission_status") != "discarded"]
+
             # Add legacy format indicator to each feature
             for feature in features:
                 feature_dir = project_path / feature["path"]

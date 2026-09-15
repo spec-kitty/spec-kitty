@@ -146,7 +146,7 @@ class TestHeadingRegexMatchEquivalence:
                 assert old_result == new_result, (line, old_result, new_result)
             checked += 1
 
-        assert checked == 500  # golden-count: cardinality-is-contract
+        assert checked == 500
         # The whitespace-only-tail markers/runs above make this shape
         # reachable but not certain per draw — assert the fuzz actually
         # exercised the documented divergence at least once so this
@@ -251,7 +251,7 @@ class TestCollectSectionBlockCandidates:
 
         candidates = _collect_section_block_candidates(section_block, action="advise")
 
-        assert len(candidates) == 1  # golden-count: cardinality-is-contract
+        assert len(candidates) == 1
         candidate = candidates[0]
         assert candidate.section_id == "action-critical-sections"
         assert candidate.header == "Action-Critical Charter Sections (advise):"

@@ -83,7 +83,7 @@ def test_original_legacy_downgrade_is_rejected_semantically(tmp_path: Path) -> N
     assert data["project"]["state"] == "compatible", data
     assert data["decision"] == "BLOCK_INCOMPATIBLE_FLAGS", data
     assert data["exit_code"] == 2, data
-    assert "3.2.8rc1" in data["rendered_human"] and "3.2.6" in data["rendered_human"]
+    assert case.identity.version in data["rendered_human"] and "3.2.6" in data["rendered_human"]
     assert_unchanged(before, after)
 
 

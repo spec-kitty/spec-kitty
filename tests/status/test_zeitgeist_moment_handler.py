@@ -78,6 +78,7 @@ def _credential() -> StoredCredential:
         token="relay-token",
         token_issued_at="2026-08-25T00:00:00+00:00",
         token_kind="presence",
+        session_ref="presence-lease",
         capability_credential="capability-jwt",
     )
 
@@ -190,7 +191,7 @@ def no_focus_capability(monkeypatch: pytest.MonkeyPatch) -> None:
     presence and guarantees no test ever touches the real resolution path
     (which would read the ambient credential store).
     """
-    monkeypatch.setattr(resolution_module, "resolve_focus_capability", lambda *a, **k: None)
+    monkeypatch.setattr(resolution_module, "resolve_focus_lease", lambda *a, **k: None)
 
 
 @pytest.fixture
@@ -199,11 +200,11 @@ def focus_capability(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     recording the cwd each request came from."""
     seen: list[str] = []
 
-    def fake_resolve(cwd: Path, **kwargs: Any) -> str | None:
+    def fake_resolve(cwd: Path, **kwargs: Any) -> resolution_module.FocusLease | None:
         seen.append(str(cwd))
-        return "focus-jwt"
+        return resolution_module.FocusLease("focus-jwt", "focus-lease")
 
-    monkeypatch.setattr(resolution_module, "resolve_focus_capability", fake_resolve)
+    monkeypatch.setattr(resolution_module, "resolve_focus_lease", fake_resolve)
     return seen
 
 
@@ -227,7 +228,7 @@ def test_ensure_registers_exactly_one_zeitgeist_handler_per_slot() -> None:
 def test_session_id_matches_the_relay_schema_pattern() -> None:
     # managed_control.schema.json EventArgs.session_id:
     # [A-Za-z0-9][A-Za-z0-9._:-]{0,127}
-    assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", bridge._SESSION_ID)
+    assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", _credential().session_ref)
 
 
 # ---------------------------------------------------------------------------
@@ -505,9 +506,9 @@ def test_one_broadcast_shares_one_git_deadline_across_credentials_presence_and_f
             capability_credential=kwargs.get("capability_credential"),
         )
 
-    def fake_resolve_focus_capability(cwd: Path, **kwargs: Any) -> str | None:
+    def fake_resolve_focus_capability(cwd: Path, **kwargs: Any) -> resolution_module.FocusLease | None:
         seen_deadlines.append(kwargs.get("deadline"))
-        return "focus-jwt"
+        return resolution_module.FocusLease("focus-jwt", "focus-lease")
 
     class _FakeZeitgeistClient:
         def __init__(self, config: Any) -> None:
@@ -523,7 +524,7 @@ def test_one_broadcast_shares_one_git_deadline_across_credentials_presence_and_f
             return self.offer("focus.start", {})
 
     monkeypatch.setattr(resolution_module, "resolve_credentials", fake_resolve_credentials)
-    monkeypatch.setattr(resolution_module, "resolve_focus_capability", fake_resolve_focus_capability)
+    monkeypatch.setattr(resolution_module, "resolve_focus_lease", fake_resolve_focus_capability)
     monkeypatch.setattr(transport_module.ClientConfig, "for_repository", classmethod(fake_for_repository))
     monkeypatch.setattr(transport_module, "ZeitgeistClient", _FakeZeitgeistClient)
 
@@ -666,16 +667,22 @@ def test_no_credentials_means_no_network_call(monkeypatch: pytest.MonkeyPatch) -
     assert recorder.offers == []
 
 
-def test_non_volatile_lifecycle_types_broadcast_nothing(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
+def test_non_volatile_lifecycle_types_broadcast_nothing(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path], caplog: pytest.LogCaptureFixture) -> None:
     recorder = OfferRecorder().install(monkeypatch)
+    caplog.set_level(logging.DEBUG, logger=bridge.__name__)
 
     adapters.fire_lifecycle_saas_fanout(
-        envelope={"event_type": "SpecifyStarted", "payload": {}},
+        envelope={"event_type": "WPCreated", "payload": {"mission_slug": "demo-mission", "wp_id": "WP01"}},
         log_path=None,
     )
 
     assert recorder.offers == []
     assert resolved_credential == []  # not even a credential lookup
+    # Pin the early return itself, not a side effect it shares with validation
+    # failures and swallowed exceptions: the guard's own debug line is the only
+    # observable that distinguishes it (mutation-check: deleting the
+    # `event_type not in VOLATILE_EVENT_TYPES` return turns this red via KeyError).
+    assert "not a volatile-family moment" in caplog.text
 
 
 def test_resolved_binding_slot_is_wired_but_broadcasts_nothing_yet(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
@@ -791,7 +798,7 @@ def test_overlong_focus_ref_is_filtered_before_any_attempt(
     def must_not_be_asked(cwd: Any, **kwargs: Any) -> str | None:
         raise AssertionError("focus resolver consulted for a ref that cannot go out")
 
-    monkeypatch.setattr(resolution_module, "resolve_focus_capability", must_not_be_asked)
+    monkeypatch.setattr(resolution_module, "resolve_focus_lease", must_not_be_asked)
     caplog.set_level(logging.DEBUG, logger=bridge.__name__)
 
     _fire_transition(mission_slug="m" * 70)
@@ -1077,6 +1084,124 @@ def test_mission_created_moment_carries_the_payload_actor(
     ]
     _op, args = recorder.moment_offers()[0]
     assert args["attrs"]["actor"] == "robert@example.com"
+
+
+@pytest.mark.git_repo
+def test_mission_creation_publishes_specify_started_after_local_persistence(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    resolved_credential: list[Path],
+) -> None:
+    """#4214: a real mission creation publishes ``SpecifyStarted`` once, after ``MissionCreated``.
+
+    The persisted event keeps its local ``artifact_path``; the wire projection
+    drops it, and the moment keeps the persisted event's id, actor and time.
+    """
+    from specify_cli.core.mission_creation import create_mission_core
+    from tests.core.test_mission_create_scaffold_rollback import _init_git_repo, _mission_summary
+
+    recorder = OfferRecorder(outcome="sent").install(monkeypatch)
+    _init_git_repo(tmp_path)
+
+    result = create_mission_core(tmp_path, "specify-started", allow_worktree_context=True, **_mission_summary("specify-started"))
+
+    assert [args["kind"] for _op, args in recorder.moment_offers()] == ["MissionCreated", "SpecifyStarted"]
+    persisted = [json.loads(line) for line in (result.feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    local_started = [event for event in persisted if event["event_type"] == "SpecifyStarted"]
+    assert len(local_started) == 1
+    local = local_started[0]
+    assert local["payload"]["artifact_path"], "the persisted event keeps its local artifact path"
+    _op, args = recorder.moment_offers()[1]
+    assert "artifact_path" not in args["attrs"]
+    assert args["attrs"]["event_id"] == local["event_id"]
+    assert args["attrs"]["actor"] == local["payload"]["actor"]
+    # The codec renders timestamps canonically (``+00:00`` for ``Z``); the instant is what must survive.
+    assert _dt.fromisoformat(args["attrs"]["at"]) == _dt.fromisoformat(local["payload"]["at"].replace("Z", "+00:00"))
+
+
+@pytest.mark.parametrize("artifact_path", ["kitty-specs/demo-mission/artifact.md", None])
+@pytest.mark.parametrize("event_type", ["SpecifyStarted", "PlanStarted", "TasksStarted"])
+def test_started_phase_moments_project_off_the_local_artifact_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    resolved_credential: list[Path],
+    event_type: str,
+    artifact_path: str | None,
+) -> None:
+    """#4214: every Started phase publishes, with or without local-only ``artifact_path``."""
+    from specify_cli.status.lifecycle_events import emit_artifact_phase
+
+    recorder = OfferRecorder(outcome="sent").install(monkeypatch)
+    feature_dir = tmp_path / "kitty-specs" / "demo-mission"
+
+    envelope = emit_artifact_phase(
+        feature_dir,
+        event_type=event_type,
+        mission_slug="demo-mission",
+        mission_number=1,
+        actor="robert@example.com",
+        artifact_path=artifact_path,
+    )
+
+    assert envelope is not None
+    assert envelope["payload"].get("artifact_path") == artifact_path, "the persisted payload is never projected"
+    assert [args["kind"] for _op, args in recorder.moment_offers()] == [event_type]
+    _op, args = recorder.moment_offers()[0]
+    assert "artifact_path" not in args["attrs"]
+    assert args["ref"] == "demo-mission"
+    assert args["attrs"]["event_id"] == envelope["event_id"]
+    assert args["attrs"]["actor"] == "robert@example.com"
+
+
+def test_completed_phase_moment_keeps_its_artifact_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    resolved_credential: list[Path],
+) -> None:
+    """Completed payloads declare ``artifact_path``; the Started projection must not touch them."""
+    from specify_cli.status.lifecycle_events import emit_artifact_phase
+
+    recorder = OfferRecorder(outcome="sent").install(monkeypatch)
+    feature_dir = tmp_path / "kitty-specs" / "demo-mission"
+
+    emit_artifact_phase(
+        feature_dir,
+        event_type="SpecifyCompleted",
+        mission_slug="demo-mission",
+        actor="cli",
+        artifact_path="kitty-specs/demo-mission/spec.md",
+    )
+
+    _op, args = recorder.moment_offers()[0]
+    assert args["kind"] == "SpecifyCompleted"
+    assert args["attrs"]["artifact_path"] == "kitty-specs/demo-mission/spec.md"
+
+
+def test_started_phase_with_an_unrelated_extra_field_is_still_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Only the local-only ``artifact_path`` is projected away; strict validation stays strict."""
+    recorder = OfferRecorder().install(monkeypatch)
+    payload = {
+        "mission_slug": "demo-mission",
+        "mission_number": 1,
+        "actor": "cli",
+        "at": "2026-09-13T22:00:00+00:00",
+        "artifact_path": "kitty-specs/demo-mission/spec.md",
+        "unexpected": "field",
+    }
+
+    with caplog.at_level(logging.WARNING):
+        adapters.fire_lifecycle_saas_fanout(
+            envelope={"event_type": "SpecifyStarted", "event_id": _EVENT_ID, "payload": payload},
+            log_path=None,
+        )
+
+    assert recorder.offers == []
+    assert resolved_credential == []
+    assert "SpecifyStarted not broadcast" in caplog.text
 
 
 def test_status_event_occurrence_time_is_preserved_in_the_attrs(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:

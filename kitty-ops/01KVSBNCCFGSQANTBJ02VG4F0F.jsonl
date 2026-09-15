@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KVSBNCCFGSQANTBJ02VG4F0F", "profile_id": "python-pedro", "action": "generate", "request_text": "test reproduction of the tactic-not-found warning", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "dfff3e9ff6f9012b", "governance_context_available": true, "started_at": "2026-06-23T04:26:23.045113+00:00"}
+{"event": "completed", "invocation_id": "01KVSBNCCFGSQANTBJ02VG4F0F", "completed_at": "2026-06-23T04:26:30.612935+00:00", "outcome": "abandoned", "closed_by": "agent"}

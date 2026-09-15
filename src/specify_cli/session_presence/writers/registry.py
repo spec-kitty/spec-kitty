@@ -9,8 +9,8 @@ Registry shape (see data-model.md):
 | Pattern   | Writer class          | Harness keys                              |
 +-----------+-----------------------+-------------------------------------------+
 | A         | ClaudeCodeWriter      | claude                                    |
-| B         | MarkdownRulesWriter   | cursor, windsurf, copilot, kiro, gemini   |
-|           | (parameterised)       | (roo removed 2026-05-15, C-007)           |
+| B         | MarkdownRulesWriter   | cursor, windsurf, copilot, kiro, gemini,  |
+|           | (parameterised)       | llxprt (roo removed 2026-05-15, C-007)    |
 | C         | AgentsMdWriter        | codex, opencode, antigravity              |
 | D         | SkillsPreambleWriter  | pi, vibe, letta                           |
 | E (stub)  | NullWriter            | qwen, kilocode, auggie, q                 |
@@ -40,6 +40,7 @@ WRITER_REGISTRY: dict[str, Writer] = {
     # "roo" removed — Roo Code shut down on 2026-05-15 (C-007)
     "kiro":     MarkdownRulesWriter("kiro",     ".kiro/steering/spec-kitty.md",    append_mode=False, check_dir=".kiro"),
     "gemini":   MarkdownRulesWriter("gemini",   "GEMINI.md",                       append_mode=True,  check_dir=".gemini"),
+    "llxprt":   MarkdownRulesWriter("llxprt",   "LLXPRT.md",                       append_mode=True,  check_dir=".llxprt"),
     # Pattern C — AgentsMdWriter (AGENTS.md at project root; always writable)
     "codex":       AgentsMdWriter("codex"),
     "opencode":    AgentsMdWriter("opencode"),

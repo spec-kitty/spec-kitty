@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import time
 from kernel.clock import datetime, timedelta, UTC
 from pathlib import Path
@@ -18,7 +19,14 @@ from specify_cli.doctor import ops as ops_module
 from specify_cli.doctor.ops import close_stale_ops, list_orphan_ops
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.record import OpCompletedEvent
-from specify_cli.invocation.writer import EVENTS_DIR
+from specify_cli.invocation.writer import (
+    EVENTS_DIR,
+    OP_CLOSURES_FILENAME,
+    OP_CLOSURES_RELATIVE_PATH,
+    append_op_closure,
+    op_closures_path,
+    read_op_closures,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -64,10 +72,22 @@ def test_list_orphan_ops_returns_started_only_files(tmp_path: Path) -> None:
     ops_dir.mkdir()
     orphan = ops_dir / "01KTBE0RQY9XKTV0PE49PJDMRM.jsonl"
     closed = ops_dir / "01KTBE0RQY9XKTV0PE49PJDMRN.jsonl"
+    swept = ops_dir / "01KTBE0RQY9XKTV0PE49PJDMP0.jsonl"
     _write_op(orphan, completed=False)
     _write_op(closed, completed=True)
-    for name in ("ops-index.jsonl", "lifecycle.jsonl", "propagation-errors.jsonl"):
+    _write_op(swept, completed=False)
+    for name in ("ops-index.jsonl", "lifecycle.jsonl", "propagation-errors.jsonl", OP_CLOSURES_FILENAME):
         (ops_dir / name).write_text("{}\n", encoding="utf-8")
+    # A prior sweep closed `swept` on the closure spine — it is not an orphan.
+    append_op_closure(
+        tmp_path,
+        OpCompletedEvent(
+            invocation_id=swept.stem,
+            completed_at="2026-06-05T00:01:00+00:00",
+            outcome="abandoned",
+            closed_by="doctor_sweep",
+        ),
+    )
 
     assert list_orphan_ops(tmp_path) == [orphan]
 
@@ -130,15 +150,20 @@ def test_sweep_writes_closed_by_and_outcome_verbatim(tmp_path: Path) -> None:
     ops_dir = _ops_dir(tmp_path)
     stale = ops_dir / "01KTBE0RQY9XKTV0PE49PJD003.jsonl"
     _write_op(stale, completed=False, started_at=_iso(_NOW - timedelta(hours=100)))
+    # Capture the pre-sweep bytes for the byte-freeze check below.
+    record_before = stale.read_bytes()
 
     close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
 
-    events = _read_events(stale)
-    assert len(events) == 2
-    completed = events[1]
-    assert completed["event"] == "completed"
-    assert completed["outcome"] == "abandoned"
-    assert completed["closed_by"] == "doctor_sweep"
+    # #4397: the closure is recorded on the append-only spine, never by
+    # mutating the pre-existing per-record archive file.
+    assert stale.read_bytes() == record_before
+    closures = read_op_closures(tmp_path)
+    assert len(closures) == 1
+    completed = closures[0]
+    assert completed.invocation_id == stale.stem
+    assert completed.outcome == "abandoned"
+    assert completed.closed_by == "doctor_sweep"
 
 
 def test_sweep_propagates_completed_event_when_sync_enabled(tmp_path: Path) -> None:
@@ -193,10 +218,11 @@ def test_sweep_without_a_transport_closes_locally_without_propagation(tmp_path: 
 
     assert report.swept == 1
     client_spy.assert_called_once()  # consulted, answered "no transport"
-    events = _read_events(stale)
-    assert [event["event"] for event in events] == ["started", "completed"], (
-        "local completed event must be written even when there is nothing to send through"
-    )
+    # #4397: the local closure is the spine append — the per-record file is
+    # never touched — and it is written even with nothing to send through.
+    closures = read_op_closures(tmp_path)
+    assert [event.invocation_id for event in closures] == [stale.stem]
+    assert [event["event"] for event in _read_events(stale)] == ["started"]
     assert not (tmp_path / propagator_mod.PROPAGATION_ERRORS_PATH).exists(), (
         "a transport-less close is not an error and must not be logged as one"
     )
@@ -212,19 +238,23 @@ def test_sweep_fires_auto_commit_per_close(
             completed=False,
             started_at=_iso(_NOW - timedelta(hours=48)),
         )
-    commits: list[str] = []
+    commits: list[dict[str, object]] = []
     monkeypatch.setattr(
         ProfileInvocationExecutor, "_current_branch", lambda self: "main"
     )
     monkeypatch.setattr(
         "specify_cli.invocation.executor.safe_commit",
-        lambda **kwargs: commits.append(str(kwargs["message"])),
+        lambda **kwargs: commits.append(kwargs),
     )
 
     report = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
 
     assert report.swept == 2
     assert len(commits) == 2  # one auto-commit per close
+    # #4397: the sweep commits ONLY the append-only closure spine — never a
+    # modified pre-existing per-record archive file.
+    assert all(commit["paths"] == (OP_CLOSURES_RELATIVE_PATH,) for commit in commits)
+    assert all(entry.commit == "committed" for entry in report.open_ops)
 
 
 def test_sweep_threshold_zero_sweeps_all(tmp_path: Path) -> None:
@@ -352,6 +382,112 @@ def test_sweep_per_op_error_recorded_and_sweep_continues(
     by_id = {entry.invocation_id: entry for entry in report.open_ops}
     assert by_id[bad.stem].error is not None
     assert by_id[good.stem].action_taken == "closed_abandoned"
+
+
+# ---------------------------------------------------------------------------
+# #4397: sweep closures vs the byte-frozen kitty-ops archive
+# ---------------------------------------------------------------------------
+
+
+def test_sweep_double_run_does_not_reopen_spine_closed_op(tmp_path: Path) -> None:
+    """A spine-closed Op is no longer open: a second sweep has nothing to do."""
+    ops_dir = _ops_dir(tmp_path)
+    stale = ops_dir / "01KTBE0RQY9XKTV0PE49PJD014.jsonl"
+    _write_op(stale, completed=False, started_at=_iso(_NOW - timedelta(hours=48)))
+
+    first = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
+    second = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
+
+    assert first.swept == 1
+    assert second.swept == 0
+    assert second.open_ops == []
+    assert list_orphan_ops(tmp_path) == []
+
+
+def test_sweep_race_with_prior_spine_closure_reports_already_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Concurrent-sweep race: enumeration saw the op, another sweep closed it on
+    the spine first — reported as ``already_closed``, never double-appended."""
+    ops_dir = _ops_dir(tmp_path)
+    stale = ops_dir / "01KTBE0RQY9XKTV0PE49PJD015.jsonl"
+    _write_op(stale, completed=False, started_at=_iso(_NOW - timedelta(hours=48)))
+
+    enumerated = list_orphan_ops(tmp_path)
+    close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
+    monkeypatch.setattr(ops_module, "list_orphan_ops", lambda repo_root: enumerated)
+
+    report = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
+
+    assert report.swept == 0
+    assert not report.has_errors
+    assert report.open_ops[0].action_taken == "already_closed"
+    assert len(read_op_closures(tmp_path)) == 1  # no duplicate closure line
+
+
+def _git(root: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(root), *args], check=True, capture_output=True, text=True
+    )
+    return result.stdout
+
+
+def test_sweep_on_committed_records_leaves_archive_history_intact(
+    tmp_path: Path,
+) -> None:
+    """Acceptance (#4397): sweeping already-committed Op records must leave the
+    archive gate green — per-record ``kitty-ops/`` files byte-frozen, the only
+    mutation an append-only prefix-preserving addition to the closure spine.
+
+    This is the sweep-on-committed-record case the fresh-record path could
+    never evidence: the stale record and an earlier spine closure are both in
+    the git baseline before the sweep runs, exactly like real stale Ops.
+    """
+    _git(tmp_path, "init", "-b", "issue-fixture-topic")
+    _git(tmp_path, "config", "user.email", "fixture@example.com")
+    _git(tmp_path, "config", "user.name", "Fixture")
+    ops_dir = _ops_dir(tmp_path)
+    stale = ops_dir / "01KTBE0RQY9XKTV0PE49PJD016.jsonl"
+    _write_op(stale, completed=False, started_at=_iso(_NOW - timedelta(hours=175)))
+    earlier = ops_dir / "01KTBE0RQY9XKTV0PE49PJD017.jsonl"
+    _write_op(earlier, completed=False, started_at=_iso(_NOW - timedelta(hours=190)))
+    append_op_closure(
+        tmp_path,
+        OpCompletedEvent(
+            invocation_id=earlier.stem,
+            completed_at="2026-06-05T00:01:00+00:00",
+            outcome="abandoned",
+            closed_by="doctor_sweep",
+        ),
+    )
+    _git(tmp_path, "add", "kitty-ops")
+    _git(tmp_path, "commit", "-m", "fixture base: committed op records and spine")
+    base = _git(tmp_path, "rev-parse", "HEAD").strip()
+    record_before = stale.read_bytes()
+    spine_before = op_closures_path(tmp_path).read_bytes()
+
+    report = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
+
+    assert report.swept == 1
+    by_id = {entry.invocation_id: entry for entry in report.open_ops}
+    assert by_id[stale.stem].action_taken == "closed_abandoned"
+    assert by_id[stale.stem].commit == "committed"
+    # The per-record archive file is byte-frozen: the sweep never touches it.
+    assert stale.read_bytes() == record_before
+    # The only mutation under kitty-ops/ is the append-only closure spine —
+    # the exact predicate the architectural archive gate enforces.
+    diff = _git(tmp_path, "diff", "--name-status", base, "--", EVENTS_DIR).splitlines()
+    assert diff == [f"M\t{OP_CLOSURES_RELATIVE_PATH.as_posix()}"], diff
+    # The spine mutation is a prefix-preserving append of valid v2 events.
+    spine_after = op_closures_path(tmp_path).read_bytes()
+    assert spine_after.startswith(spine_before)
+    assert spine_after.endswith(b"\n")
+    assert [event.invocation_id for event in read_op_closures(tmp_path)] == [
+        earlier.stem,
+        stale.stem,
+    ]
+    # And the closure is durable + observed: the op stays closed.
+    assert list_orphan_ops(tmp_path) == []
 
 
 def _generate_synthetic_ops(ops_dir: Path, count: int, started_at: str) -> None:

@@ -105,6 +105,17 @@ class MissionArtifactKind(enum.Enum):
     # directory-anchored, so ``tasks/<wp>/baseline-tests.json`` stays
     # WORK_PACKAGE_TASK.
     REVIEW_CYCLE = "review_cycle"
+    # #3928: the Decision Moment LEDGER directory (``decisions/index.json`` +
+    # ``decisions/DM-<ulid>.md``, ``decisions/store.py``) is a COORD-partition
+    # kind -- ``decisions/service.py``'s ``_mission_dir`` already documents the
+    # ledger as "coord-authority-owned STATUS-partition state" routed through
+    # ``placement_seam(...).read_dir(STATUS_STATE)``. Its own kind (NOT
+    # STATUS_STATE itself -- ``is_status_state_path`` must keep matching
+    # exactly ``status.events.jsonl`` / ``status.json`` and nothing else) so
+    # the churn classifier (``kind_for_mission_file`` ->
+    # ``kind_is_coordination_residue``) finally agrees with the write side:
+    # an uncommitted ledger is coordination residue, not real worktree dirt.
+    DECISION_LEDGER = "decision_ledger"
 
 
 @dataclass(frozen=True)
@@ -195,6 +206,9 @@ _PLACEMENT_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
         # bookkeeping -- COORD-partition, not the WORK_PACKAGE_TASK they used
         # to borrow. See the enum member docstring above.
         MissionArtifactKind.REVIEW_CYCLE,
+        # #3928: the Decision Moment ledger (``decisions/``) joins the COORD
+        # partition -- see the DECISION_LEDGER enum member docstring above.
+        MissionArtifactKind.DECISION_LEDGER,
     }
 )
 
@@ -263,6 +277,14 @@ _COORD_RESIDUE_DIRS: dict[str, MissionArtifactKind] = {
     # coord-write-placement-closure-01KYCF83 WP02 (FR-006): traces/ (mission
     # tracer files) is a COORD-partition kind (see ``_PLACEMENT_ARTIFACT_KINDS``).
     "traces": MissionArtifactKind.TRACER_FILE,
+    # #3928: decisions/ (the Decision Moment ledger -- ``index.json`` +
+    # ``DM-<ulid>.md``, the only two shapes ``decisions/store.py`` writes) is
+    # a COORD-partition kind, matching the write side's own placement
+    # (``decisions/service.py`` routes the directory through
+    # ``read_dir(STATUS_STATE)``). Directory-anchored like traces/ -- unlike
+    # tasks/, nothing under decisions/ is deliberately PRIMARY, so there is no
+    # review-cycle-style filename leg to draw.
+    "decisions": MissionArtifactKind.DECISION_LEDGER,
 }
 
 # review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 (FR-023, ADR 2026-08-03-1):

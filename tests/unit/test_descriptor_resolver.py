@@ -13,9 +13,8 @@ production-shaped fixtures mirroring the two disambiguation axes documented in
 See ``kitty-specs/content-address-ratchet-allowlists-01KX8M4D/contracts/descriptor-resolver.md``
 for the authoritative interface contract this test file validates against.
 
-``tests/unit/`` sits outside the arch pole roots, so this file needs no
-``tests/_arch_shard_map.py`` entry and no WP05 dependency (keeping WP02 the
-dep-free keystone WP03/WP04 branch from).
+``tests/unit/`` was never in scope for the arch-suite gates, so this file needs no
+WP05 dependency (keeping WP02 the dep-free keystone WP03/WP04 branch from).
 """
 
 from __future__ import annotations

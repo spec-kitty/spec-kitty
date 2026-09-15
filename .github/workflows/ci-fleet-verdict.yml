@@ -5,12 +5,11 @@ on:
     workflows: [CI Router, CI Modules, Packs, CI Quality, ci-windows, Release Readiness Check, Check Shared Package Drift, CI Aggregate]
     types: [requested, in_progress, completed]
 
-permissions:
-  contents: read
-  actions: read
-
 jobs:
   identify:
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -18,7 +17,7 @@ jobs:
       main: ${{ steps.source.outputs.main }}
     steps:
       # All jobs use trusted default-branch code, never source PR code/artifacts.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
       - run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
@@ -50,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
       - run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
@@ -79,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
       - run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2

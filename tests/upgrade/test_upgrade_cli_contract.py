@@ -30,7 +30,7 @@ def _validate_full_plan(payload: dict[str, object]) -> None:
 @pytest.mark.parametrize(
     ("target", "message"),
     [
-        ("3.2.6", "Refusing to downgrade project metadata from 3.2.8rc1 to 3.2.6"),
+        ("3.2.6", "Refusing to downgrade project metadata from {current_version} to 3.2.6"),
         ("not-a-version", "Invalid upgrade target version: not-a-version"),
     ],
     ids=["downgrade", "malformed"],
@@ -52,7 +52,7 @@ def test_project_json_downgrade_refuses_without_dry_run(tmp_path: Path, target: 
     assert payload["case"] == "none", payload
     assert payload["exit_code"] == 2, payload
     assert payload["pending_migrations"] == [], payload
-    assert payload["rendered_human"] == message
+    assert payload["rendered_human"] == message.format(current_version=case.identity.version)
     assert result.returncode == 2, result
     assert_unchanged(before, after)
 

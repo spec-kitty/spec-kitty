@@ -28,7 +28,12 @@ from typing import Any, Literal
 from kernel.clock import UTC, datetime, now_utc, parse_iso, timedelta
 
 StorageBackend = Literal["file"]
-AuthMethod = Literal["authorization_code", "device_code"]
+#: ``client_credentials`` is the machine/CI mode (#3277): a ServicePrincipal's
+#: client_id + client_secret exchanged at ``POST /oauth/token`` with no
+#: browser, device flow, or human approval step. Every consumer downstream
+#: of ``TokenManager`` treats it exactly like a human session; the SaaS
+#: attributes each session it mints to the machine principal in its audit log.
+AuthMethod = Literal["authorization_code", "device_code", "client_credentials"]
 
 
 @dataclass(frozen=True)

@@ -2,7 +2,7 @@
 title: 'Your First Mission: Complete Workflow'
 description: Walk through a complete Spec Kitty 3.2 mission from specification through plan, tasks, implementation, review, and merge.
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-09-14'
 audience: docs/context/audience/external/project-owner.md
 type: tutorial
 related:
@@ -38,20 +38,30 @@ Workflow path:
 
 You will build a tiny "task list" feature as the concrete example.
 
-## Step 1: Create the Specification
+## Step 1: Have a Mission to Work In
 
->[!IMPORTANT]
->**If you came here from [Getting Started](getting-started.md), you already
->created this mission — skip to [Step 2](#step-2-create-the-technical-plan).**
->Running `specify` again does not edit or replace that mission; it creates a
->second one, and you would spend the rest of this tutorial with two task-list
->missions and no indication of which one you are working in.
->
->Confirm what you already have with `ls kitty-specs`. One directory means you
->have the mission to continue in Step 2; its specification must also be
->populated and committed before planning.
+This step has two paths, and **only one of them runs `specify`**. Pick yours
+before typing anything.
 
-Starting fresh, without having done Getting Started? Create the mission now.
+### If you came from Getting Started — you already have the mission
+
+You created it in that tutorial's Step 3. **Do not run `specify` again: go
+straight to [Step 2](#step-2-create-the-technical-plan).** Running it a second
+time does not edit or replace the mission you have; it creates a second one,
+and you would spend the rest of this tutorial with two task-list missions and
+no indication of which one you are working in.
+
+Confirm what you already have:
+
+```bash
+ls kitty-specs
+```
+
+One directory is what you want. Its specification must also be populated and
+committed before planning — Step 2 opens with how to check that.
+
+### If you are starting fresh — create the mission now
+
 From the project root, in your agent:
 
 ```text

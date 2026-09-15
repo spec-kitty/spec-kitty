@@ -500,7 +500,7 @@ terms:
 
   - surface: sonar quality gate
     definition: |
-      The SonarCloud project-level pass/fail evaluation for `Priivacy-ai_spec-kitty` on the
+      The SonarCloud project-level pass/fail evaluation for `spec-kitty_spec-kitty` on the
       new-code window. Aggregates six conditions (reliability rating, security rating,
       maintainability rating, new coverage, new duplicated lines density, new security hotspots
       reviewed). Reports `OK` or `ERROR` per condition plus a top-level status. Pulled via the

@@ -446,7 +446,7 @@ class TestBindConfirmContract:
         idem_key = kwargs["headers"]["Idempotency-Key"]
         assert idem_key.startswith("logical-operation:write:")
         # Length of a sha256 hexdigest suffix IS the contract (fixed hash format).
-        assert len(idem_key.removeprefix("logical-operation:write:")) == 64  # golden-count: cardinality-is-contract
+        assert len(idem_key.removeprefix("logical-operation:write:")) == 64
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_bind_confirm_400_invalid_token(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:

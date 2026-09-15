@@ -223,6 +223,35 @@ def load_allowlist(path: Path) -> list[CharterPathKey]:
     return keys
 
 
+def load_baseline(path: Path) -> int:
+    """Return the frozen shrink-only baseline scalar.
+
+    The baseline lives in the same YAML as the allow-list it bounds; the
+    co-location is survivable because exact accounting
+    (:func:`test_allowlist_accounts_for_every_live_site`) and the staleness
+    twin-guard (:func:`test_allowlist_entries_are_still_live`) both compare
+    against the LIVE census, not against this mutable scalar.
+    """
+    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    value = raw.get("charter_path_literal_baseline")
+    if not isinstance(value, int):
+        raise AllowlistEntryError(f"charter_path_literal_baseline scalar missing or non-integer in {path.name}")
+    return value
+
+
+def staleness_twin_guard(allowlist_keys: set[CharterPathKey], live_keys: set[CharterPathKey]) -> list[CharterPathKey]:
+    """Return allow-list keys with no matching live site.
+
+    A non-empty result is a failure: the allow-list sanctions a literal that no
+    longer exists (a drained site left masking) or one that never existed (a
+    speculative entry pre-added to green a future violation).
+    """
+    return sorted(
+        allowlist_keys - live_keys,
+        key=lambda k: (k.rel_path, k.enclosing_qualname, k.token),
+    )
+
+
 # --------------------------------------------------------------------------- #
 # AST helpers.
 # --------------------------------------------------------------------------- #
@@ -521,11 +550,29 @@ def live_sites() -> tuple[CharterPathSite, ...]:
     return tuple(scan_charter_path_literals(SRC_ROOT))
 
 
+def _live_keys() -> set[CharterPathKey]:
+    return {site.key for site in live_sites()}
+
+
 # --------------------------------------------------------------------------- #
 # Concrete integer bounds (NFR-002) — seeded from the live AST census run in
 # WP11 AFTER the WP01/WP02/WP03/WP06 repoints landed, so the frozen set is the
 # minimal residual and not a stale pre-drain snapshot.
 # --------------------------------------------------------------------------- #
+# 2026-08-11 (#3317 landing): lowered 49 -> 48 alongside the allow-list DRAIN of
+# the FR-005 graceful-degrade charter.md read (extracted into
+# context_result_builders.py, where charter_path is a parameter, not a keyed
+# `<root> / CHARTER_MD` literal — the census slot is genuinely gone).
+# RESTORED 2026-09-14 (#3514): the bounds block and the four governance tests
+# below were deleted by the #3285 test-sanitization landing (2026-08-12) while
+# the module docstring and the allow-list YAML header kept claiming them — the
+# drift mission charter-preflight-missing-charter-advisory-01M050PD filed as
+# #3514. Re-seeded at the honest current census: 50 live sites (49 at the
+# 2026-08-16 GREW note, +2 from the 2026-08-13 #2831 F1/F2 fix whose growth was
+# never recorded, -1 stale activation.py entry drained by the #3838 WP01
+# rewrite and removed in the same #3514 change).
+CHARTER_PATH_LITERAL_FLOOR = 50
+FLOOR_MARGIN = 2
 
 
 # =========================================================================== #
@@ -634,9 +681,62 @@ def test_allowlisted_yaml_site_cannot_be_swapped_to_md(tmp_path: Path) -> None:
     )
 
 
+def test_speculative_allowlist_entry_is_caught_as_stale() -> None:
+    """A pre-added entry covering a not-yet-existing violation fails staleness.
+
+    Closes the other half of the escape hatch: you cannot land the allow-list
+    entry in one PR and the violation in the next, because an entry with no
+    matching live site is stale on arrival.
+    """
+    speculative = CharterPathKey("src/specify_cli/future.py", "Future.load", "p = d /", "charter.md", "a")
+    live = _live_keys()
+    assert staleness_twin_guard({speculative}, live) == [speculative]
+
+
 # --- real-tree gate ----------------------------------------------------------
 def test_gate_green_against_seeded_allowlist() -> None:
     """With the seeded allow-list, the live tree reports zero violations."""
     allowlist = set(load_allowlist(ALLOWLIST_PATH))
     violations = check_charter_path_literal_gate(SRC_ROOT, allowlist)
     assert violations == [], "\n".join(violations)
+
+
+def test_census_stays_under_ceiling() -> None:
+    """Shrink-only CEILING + margin: fewer charter path literals is progress."""
+    count = len(live_sites())
+    assert count <= CHARTER_PATH_LITERAL_FLOOR, (
+        f"charter path-literal census grew to {count}; expected "
+        f"<= {CHARTER_PATH_LITERAL_FLOOR}. A new inline charter path literal "
+        "regressed the FR-016 drain — import charter.bundle.CHARTER_YAML / "
+        "CHARTER_MD instead, or allow-list it with a one-line rationale."
+    )
+    assert CHARTER_PATH_LITERAL_FLOOR - count <= FLOOR_MARGIN, (
+        f"CHARTER_PATH_LITERAL_FLOOR ({CHARTER_PATH_LITERAL_FLOOR}) sits more than "
+        f"FLOOR_MARGIN ({FLOOR_MARGIN}) above the live count ({count}); tighten it "
+        "to the honest census so it cannot mask a future regrowth."
+    )
+
+
+def test_allowlist_accounts_for_every_live_site() -> None:
+    """The allow-list size EQUALS the live census — every literal is justified."""
+    assert len(load_allowlist(ALLOWLIST_PATH)) == len(live_sites())
+
+
+def test_allowlist_shrink_only() -> None:
+    """The frozen baseline: entries may only be removed, never added.
+
+    A growth is possible only through an explicit, reviewed baseline bump
+    recorded in the YAML header's GREW audit trail — the scalar is in the
+    same file as the list, so the bump is a visible diff a reviewer signs.
+    """
+    keys = load_allowlist(ALLOWLIST_PATH)
+    baseline = load_baseline(ALLOWLIST_PATH)
+    assert len(keys) <= baseline, (
+        f"charter path-literal allow-list ({len(keys)}) exceeds baseline ({baseline}) — entries may only be removed (routed onto charter.bundle), never added"
+    )
+
+
+def test_allowlist_entries_are_still_live() -> None:
+    """Twin-guard: every seeded entry matches a live site (no masking leftovers)."""
+    stale = staleness_twin_guard(set(load_allowlist(ALLOWLIST_PATH)), _live_keys())
+    assert stale == [], f"stale charter path-literal allow-list entries: {stale}"

@@ -186,7 +186,7 @@ class TestWriteCompletedAppendsLine:
             writer.write_completed(_make_completed(_INVOCATION_ID))
 
         rows = target.read_text(encoding="utf-8").splitlines()
-        assert len(rows) == 1  # golden-count: cardinality-is-contract
+        assert len(rows) == 1
 
     def test_write_completed_rejects_embedded_started_id_mismatch(
         self,
@@ -203,7 +203,7 @@ class TestWriteCompletedAppendsLine:
         with pytest.raises(InvocationError, match="identity mismatch"):
             writer.write_completed(_make_completed(_INVOCATION_ID))
 
-        assert len(path.read_text(encoding="utf-8").splitlines()) == 1  # golden-count: cardinality-is-contract
+        assert len(path.read_text(encoding="utf-8").splitlines()) == 1
 
 
 class TestWriteStartedAppendOnly:
@@ -373,4 +373,65 @@ def test_append_correlation_rejects_embedded_started_id_mismatch(
     with pytest.raises(InvocationError, match="identity mismatch"):
         writer.append_correlation_link(_INVOCATION_ID, ref="spec.md")
 
-    assert len(path.read_text(encoding="utf-8").splitlines()) == 1  # golden-count: cardinality-is-contract
+    assert len(path.read_text(encoding="utf-8").splitlines()) == 1
+
+
+# ---------------------------------------------------------------------------
+# Op-closure spine (#4397) — append-only durable surface for doctor-sweep closes
+# ---------------------------------------------------------------------------
+
+
+def _make_sweep_closure(invocation_id: str = _INVOCATION_ID) -> OpCompletedEvent:
+    return _make_completed(
+        invocation_id=invocation_id,
+        completed_at="2026-06-10T21:00:00+00:00",
+        outcome="abandoned",
+        closed_by="doctor_sweep",
+    )
+
+
+def test_append_op_closure_appends_and_never_rewrites(tmp_path: Path) -> None:
+    from specify_cli.invocation.writer import append_op_closure, op_closures_path, read_op_closures
+
+    first = append_op_closure(tmp_path, _make_sweep_closure(_INVOCATION_ID))
+    second = append_op_closure(tmp_path, _make_sweep_closure(_INVOCATION_ID_2))
+
+    assert first == second == op_closures_path(tmp_path)
+    spine = op_closures_path(tmp_path).read_text(encoding="utf-8")
+    assert len(spine.splitlines()) == 2  # append-only: both lines kept
+    assert [event.invocation_id for event in read_op_closures(tmp_path)] == [
+        _INVOCATION_ID,
+        _INVOCATION_ID_2,
+    ]
+
+
+def test_read_op_closures_empty_and_malformed_tolerance(tmp_path: Path) -> None:
+    from specify_cli.invocation.writer import op_closures_path, read_op_closures
+
+    # Absent spine → no closures, no error.
+    assert read_op_closures(tmp_path) == []
+    spine = op_closures_path(tmp_path)
+    spine.parent.mkdir(parents=True, exist_ok=True)
+    spine.write_text(
+        "not json\n"
+        + _make_sweep_closure(_INVOCATION_ID).to_jsonl_line()
+        + "\n"
+        + json.dumps({"event": "started", "invocation_id": _INVOCATION_ID_2})
+        + "\n"
+        + "\n",
+        encoding="utf-8",
+    )
+
+    closures = read_op_closures(tmp_path)
+
+    # Corrupt and non-completed lines are skipped, not fatal — the same
+    # tolerance read_lifecycle_records carries.
+    assert [event.invocation_id for event in closures] == [_INVOCATION_ID]
+
+
+def test_closed_invocation_ids_reads_only_spine_closures(tmp_path: Path) -> None:
+    from specify_cli.invocation.writer import append_op_closure, closed_invocation_ids
+
+    append_op_closure(tmp_path, _make_sweep_closure(_INVOCATION_ID))
+
+    assert closed_invocation_ids(tmp_path) == {_INVOCATION_ID}

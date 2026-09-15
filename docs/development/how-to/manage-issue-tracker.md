@@ -1,11 +1,12 @@
 ---
 title: Managing the Issue Tracker
-description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, sub-issue parenting, blocked_by dependencies, triage (type, severity, blockers), and the label taxonomy.'
+description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, sub-issue parenting, dependencies, triage, the label taxonomy, and the label-driven fleet workflow.'
 doc_status: active
-updated: '2026-09-07'
+updated: '2026-09-14'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
+- docs/development/agent-fleet.md
 - docs/development/contributing.md
 - docs/guides/how-to/missions/keep-main-clean.md
 - docs/development/how-to/pr-landing.md
@@ -260,6 +261,16 @@ working state, not a permanent property.
 
 ### PR-workflow labels — for pull requests, not issues
 
+These live on pull requests, not issues. The first is the fleet-coordination
+handshake; the rest are workflow state.
+
+- `ready-for-squad` — **fleet handshake**: the implementer has run the required tests
+  and self-review and hands the PR to the review squad and CI. The
+  [SkyKitty agent fleet](../agent-fleet.md) owns CI and squad review from this point;
+  the operator still performs the mainline merge. Do **not** apply it to a still-draft
+  scope or to work whose tests have not run — the label is the fleet's contract that the
+  PR is finished and independently testable. See
+  [The `ready-for-squad` handshake](../agent-fleet.md#the-ready-for-squad-handshake).
 - `pr:needs-refresh` — PR branch drifted from `main`; rebase/refresh before review
   or merge.
 - `pr:needs-revision` — PR has unresolved review findings that must be addressed
@@ -297,8 +308,64 @@ working state, not a permanent property.
 they are not free-floating classification labels and carry structural obligations
 (native children vs. a body checklist).
 
+## Label-driven fleet workflow
+
+The [SkyKitty agent fleet](../agent-fleet.md) and its sibling programme repos run on a
+**label-driven queue**: GitHub labels are the *only* admission control. Agents and humans
+move work by changing labels, never by out-of-band assignment. This section documents the
+queue that consumes the labels catalogued above. Source of truth: the planning repo's
+`agents/dispatcher.md`, `agents/groom.md`, `agents/merge.md`, `agents/review.md`, and
+`PROGRAM.md`.
+
+### The `status:*` lifecycle (issues)
+
+This is the fleet's admission lifecycle, distinct from the transient `triage:*` hygiene
+sub-states above (which flag *why* an issue sits in triage, not *where* it is in the queue).
+
+| Label | Meaning | Who sets it |
+|---|---|---|
+| `status:triage` | New/untriaged work. The groom agent's queue. | Filing agents (`from:review`, `from:squad`, `from:ci`, …) always file into triage |
+| `status:ready` | Valid, de-duplicated, resolvable without a reserved decision. **The fleet's admission queue.** | The groom agent promotes triage → ready. Review-agent findings are promoted by the controller, never by the review agent itself |
+| `status:claimed` | An implementer VM is actively working this issue. **Lease — set and removed only by the dispatcher.** | Dispatcher only. **Humans never hand-set `status:claimed`** — a hand-set claim poisons the queue: the dispatcher counts it as occupied capacity, and if no VM actually holds it the issue can sit invisible indefinitely |
+| `status:blocked` | Genuinely blocked, with a **Depends on:** #`<n>` line naming the concrete gating issue. `bin/unblock.py` flips it back to `status:ready` automatically once all dependencies close. | Groom/controller |
+
+Issues with no `status:*` label **and** an open linked PR (a real `closes #` relationship)
+are **mid-negotiation**, not unowned — the groom skips them deliberately.
+
+### Admission: from label to VM
+
+1. The dispatcher (`bin/dispatch.sh`, deterministic, not an LLM) sweeps continuously. Each
+   sweep lists open issues with `status:ready` and **no** `status:claimed`, ordered by
+   priority `P0..P3`, then repo order (`PROGRAM.md` §2), then issue number.
+2. It skips issues labelled `status:blocked`, `epic`, or `type:decision` — a decision issue
+   is never autonomous implementation work, even at `status:ready`; it waits on a resolving
+   comment (`docs/DECISION-ISSUES.md`).
+3. For each issue up to free implementer capacity, the dispatcher claims it: adds
+   `status:claimed`, comments `claimed by dispatcher → sk-impl-<repo>-<n>`, and boots a
+   one-shot implementer VM.
+4. **Reaping:** when an implementer VM exits with no linked PR, the dispatcher posts the last
+   40 log lines as `[dispatcher] implementer exited without a PR`, removes `status:claimed`,
+   and destroys the VM — the issue returns to the `status:ready` queue and is re-claimed on a
+   later sweep. A VM older than 6 hours with no PR is treated the same.
+
+### PR-lane labels (review and landing)
+
+PRs move through their own label set, driven by the same dispatcher (see also the
+`ready-for-squad` handshake under [PR-workflow labels](#pr-workflow-labels--for-pull-requests-not-issues)):
+
+| Label | Meaning |
+|---|---|
+| `ready-for-squad` | PR is ready for adversarial review; dispatcher boots a squad VM (one iteration) |
+| `squad:running` | Squad VM active (lease; stale-claim recovery requires confirming the VM is actually dead, never elapsed time alone) |
+| `squad:passed` / `squad:majors` | Squad verdict. Two `squad:majors` rounds is the cap — the merge agent then decides merge-with-findings or sends it back; never a third squad |
+| `squad:exhausted` | Two verdicts already posted (or the merge agent ruled out a further pass); merge proceeds on `[ci]` + controller evidence |
+| `ci:green` / `ci:red` | Best-effort label mirror of the latest exact-head `[ci]` comment. The comment is authoritative; the label is never a gate on its own |
+| `needs:implementer` | Any fix/rebase request that expects a new push. **Mandatory on every such request** — the dispatcher dispatches fix-round VMs from this label alone; a comment without it is never seen |
+
 ## See also
 
+- [The SkyKitty agent fleet](../agent-fleet.md) — the fleet that acts on this repo, its
+  roles, and the `ready-for-squad` handshake these labels feed.
 - [Contributing to Spec Kitty](../contributing.md) — pull-request and maintainer workflow.
 - [Keep main clean](../../guides/how-to/missions/keep-main-clean.md) — branch and merge discipline.
 - [PR landing](pr-landing.md) — the fork-PR landing runbook, incl. red classification.

@@ -160,7 +160,9 @@ How agents and orchestrators should work so quality and context survive long mis
 
 ## Collaboration Strategy
 
-How missions are executed between the operator (human-in-command) and the agent fleet.
+How missions are executed between the operator (human-in-command) and the agent fleet
+(**SkyKitty** — see [The SkyKitty agent fleet](../../docs/development/agent-fleet.md) for the
+roles and the `ready-for-squad` handshake).
 
 - **Dispatch a governed profile to run the mission.** The operator delegates mission
   execution to a governed orchestrator; planning and tracker work runs under

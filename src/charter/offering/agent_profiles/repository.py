@@ -273,9 +273,9 @@ class AgentProfileRepository:
 
         Routes through the canonical :func:`load_built_in_graph` seam (WP03,
         mission #2680) so the built-in graph is read in exactly one place. The
-        seam yields the doctrine *directory* and prefers ``graph.yaml`` while the
-        monolith is present, so this stays behaviour-preserving today and follows
-        the monolith->fragment migration (WP05) with no further edits here.
+        seam resolves the ``packs/built-in/`` pack root and merges its per-kind
+        ``*.graph.yaml`` fragments, so this method needed no edit when the
+        monolith was sharded or when the fragments moved to the pack root.
 
         If the shipped graph cannot be loaded, lineage resolution degrades to an
         empty graph (no parents) rather than crashing the whole repository load.

@@ -8,7 +8,12 @@ steps:
   - title: Run focused behavioral tests first
     description: Execute the smallest test slice that proves the changed behavior works, then expand to broader regression checks where the risk justifies it.
   - title: Run static quality gates
-    description: Execute the applicable static validation commands for the changed scope after the behavioral tests are green.
+    description: >
+      Execute the applicable static validation commands for the changed scope
+      after the behavioral tests are green. A test runner is not a typecheck.
+      For typed sources, run the project's configured compiler/typecheck
+      command, matching CI, even when behavioral tests already passed.
+      Compiler diagnostics remain a required gate; propagate command failures.
   - title: Run configured compliance checks
     description: Execute configured CVE, dependency, license, or equivalent supply-chain checks when the repository includes them in its expected validation flow.
   - title: Verify coverage expectations for new code

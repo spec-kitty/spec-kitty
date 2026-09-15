@@ -53,7 +53,7 @@ Empty at init time. Populated by `/spec-kitty.specify`, `/spec-kitty.plan`, and 
 
 ### Agent command directories
 
-One directory per agent selected via `--ai`. Spec Kitty supports 16 agents total — 12 command-surface agents and 4 command-skill agents. (Roo Code shut down on 2026-05-15 and can no longer be selected; existing `.roo/` directories are preserved on upgrade.)
+One directory per agent selected via `--ai`. Spec Kitty supports 17 agents total — 13 command-surface agents and 4 command-skill agents. (Roo Code shut down on 2026-05-15 and can no longer be selected; existing `.roo/` directories are preserved on upgrade.)
 
 | Agent key | Directory created | Command surface |
 |---|---|---|
@@ -69,6 +69,7 @@ One directory per agent selected via `--ai`. Spec Kitty supports 16 agents total
 | `q` | `.amazonq/prompts/` | `/spec-kitty.*` |
 | `kiro` | `.kiro/prompts/` | `/spec-kitty.*` |
 | `antigravity` | `.agent/workflows/` | `/spec-kitty.*` |
+| `llxprt` | `.llxprt/commands/` | `/spec-kitty.*` |
 | `codex` | `.agents/skills/spec-kitty.*/` | `$spec-kitty.<command>` |
 | `vibe` | `.agents/skills/spec-kitty.*/` plus `.vibe/config.toml` | `/spec-kitty.<command>` |
 | `pi` | `.agents/skills/spec-kitty.*/` | `/skill:spec-kitty.<command>` |

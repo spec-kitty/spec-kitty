@@ -548,7 +548,7 @@
        "deprecated": false
       },
       "validate": {
-       "help": "Validate an org doctrine pack using schema and DRG checks (FR-006).\n\nCalls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`\nloader.  Prints per-file findings with file paths.  Exits non-zero when\nat least one error is found.",
+       "help": "Validate an org doctrine pack using schema and DRG checks (FR-006).\n\nCalls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`\nloader.  Prints per-file findings with file paths.  Exits non-zero when\nat least one error is found.\n\nOrg fragments use id and plural kind (for example, directives) for nodes.\nValidation uses the runtime loader, which supplies pack provenance fields.",
        "hidden": false,
        "deprecated": false
       }
@@ -790,7 +790,7 @@
        "deprecated": false
       },
       "validate": {
-       "help": "Validate an org doctrine pack using schema and DRG checks (FR-006).\n\nCalls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`\nloader.  Prints per-file findings with file paths.  Exits non-zero when\nat least one error is found.",
+       "help": "Validate an org doctrine pack using schema and DRG checks (FR-006).\n\nCalls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`\nloader.  Prints per-file findings with file paths.  Exits non-zero when\nat least one error is found.\n\nOrg fragments use id and plural kind (for example, directives) for nodes.\nValidation uses the runtime loader, which supplies pack provenance fields.",
        "hidden": false,
        "deprecated": false
       }
@@ -877,7 +877,7 @@
    "deprecated": false
   },
   "init": {
-   "help": "Initialize a new Spec Kitty project.\n\nCreates project files only. Does not initialize a git repository.\nDoes not create any commits.\n\nIf PROJECT_NAME is omitted, init runs in the current directory.\nRe-running init in an already-initialized directory exits cleanly (idempotent).\n\nNote: The --no-git flag from previous versions has been removed.\n      init never touches git state regardless of flags.\n\nInteractive Mode (default):\n- Prompts you to select AI assistants\n\nNon-Interactive Mode:\n- Enabled with --non-interactive/--yes, SPEC_KITTY_NON_INTERACTIVE=1, or non-TTY\n- Skips all prompts; --ai is required\n- Perfect for CI/CD and automation\n\nWhat Gets Created:\n- .kittify/ - Project scaffold (memory, config)\n- Agent command and skill surfaces (.claude/commands/, .agents/skills/, etc.)\n- .gitignore and .claudeignore\n\nSpecifying AI Assistants (--ai flag):\nUse comma-separated agent keys (no spaces). Valid keys include:\ncodex, claude, gemini, cursor, qwen, opencode, windsurf, kilocode,\nauggie, copilot, q, kiro, antigravity, vibe, pi, letta.\n\nTemplate Discovery (Development Mode):\nSet SPEC_KITTY_TEMPLATE_ROOT to override bundled templates for local development.\n\nExamples:\n  spec-kitty init --ai codex                    # Current directory (default)\n  spec-kitty init my-project                    # Interactive mode\n  spec-kitty init my-project --ai codex         # With Codex\n  spec-kitty init my-project --ai codex,claude  # Multiple agents\n  spec-kitty init --ai claude --non-interactive # Non-interactive\n\nCanonical Next Steps (after init):\n  spec-kitty next --agent <agent> --mission <slug>         # Enter mission loop\n  spec-kitty agent action implement <WP> --agent <name>   # Implement a work package\n  spec-kitty agent action review    <WP> --agent <name>   # Review a work package\n\nMissions:\n- Missions are selected per-feature during /spec-kitty.specify",
+   "help": "Initialize a new Spec Kitty project.\n\nCreates project files only. Does not initialize a git repository.\nDoes not create any commits.\n\nIf PROJECT_NAME is omitted, init runs in the current directory.\nRe-running init in an already-initialized directory exits cleanly (idempotent).\n\nNote: The --no-git flag from previous versions has been removed.\n      init never touches git state regardless of flags.\n\nInteractive Mode (default):\n- Prompts you to select AI assistants\n\nNon-Interactive Mode:\n- Enabled with --non-interactive/--yes, SPEC_KITTY_NON_INTERACTIVE=1, or non-TTY\n- Skips all prompts; --ai is required\n- Perfect for CI/CD and automation\n\nWhat Gets Created:\n- .kittify/ - Project scaffold (memory, config)\n- Agent command and skill surfaces (.claude/commands/, .agents/skills/, etc.)\n- .gitignore and .claudeignore\n\nSpecifying AI Assistants (--ai flag):\nUse comma-separated agent keys (no spaces). Valid keys include:\ncodex, claude, gemini, cursor, qwen, opencode, windsurf, kilocode,\nauggie, copilot, q, kiro, antigravity, vibe, pi, letta, llxprt.\n\nTemplate Discovery (Development Mode):\nSet SPEC_KITTY_TEMPLATE_ROOT to override bundled templates for local development.\n\nExamples:\n  spec-kitty init --ai codex                    # Current directory (default)\n  spec-kitty init my-project                    # Interactive mode\n  spec-kitty init my-project --ai codex         # With Codex\n  spec-kitty init my-project --ai codex,claude  # Multiple agents\n  spec-kitty init --ai claude --non-interactive # Non-interactive\n\nCanonical Next Steps (after init):\n  spec-kitty next --agent <agent> --mission <slug>         # Enter mission loop\n  spec-kitty agent action implement <WP> --agent <name>   # Implement a work package\n  spec-kitty agent action review    <WP> --agent <name>   # Review a work package\n\nMissions:\n- Missions are selected per-feature during /spec-kitty.specify",
    "hidden": false,
    "deprecated": false
   },
@@ -919,6 +919,38 @@
    "help": "Run ruff and mypy on a file and report errors.\n\nThis command is designed to be used as a post-edit hook for AI agents,\nproviding immediate feedback on linting and type-checking violations.\nWhen invoked without a path (the wired hook form), the target file is read\nfrom the harness JSON payload on stdin.",
    "hidden": false,
    "deprecated": false
+  },
+  "live-work": {
+   "help": "Live Work harness capture: tools, files, tests and delegation as live relay frames (#4268).",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "hook": {
+     "help": "Handle one harness hook event (JSON on stdin) and publish live frames.\n\nExit 0 always — capture must never fail the harness invocation.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "matrix": {
+     "help": "Print the executable capability matrix (rows + health + codec state).\n\nExits non-zero when a harness configured in this project has no Live\nWork hooks installed — the no-silent-green enforcement.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "install": {
+     "help": "Register the Live Work capture hooks in the harness's native config.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "uninstall": {
+     "help": "Remove the Live Work capture hooks (sibling hooks are untouched).",
+     "hidden": false,
+     "deprecated": false
+    },
+    "watch": {
+     "help": "One-shot labeled changed-file observation (sampled fallback).\n\nEmits sampled file-change frames for the working tree's uncommitted\nchanges — changed files only, explicitly labeled: no attribution to an\nagent, and file reads are never claimed.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
   },
   "materialize": {
    "help": "Regenerate all derived views from the canonical event log.\n\nFor each feature (or a single feature when --mission is given),\nwrites the following files to ``.kittify/derived/<slug>/``:\n\n- ``status.json`` — full StatusSnapshot\n- ``board-summary.json`` — lane counts and WP lists\n- ``progress.json`` — lane-weighted progress percentage\n- ``lifecycle.json`` — canonical active/recent/stale/abandoned mission state\n\nExamples::\n\n    spec-kitty materialize\n    spec-kitty materialize --mission 034-my-feature\n    spec-kitty materialize --json",
@@ -1137,7 +1169,7 @@
    "deprecated": false,
    "commands": {
     "off": {
-     "help": "Switch moments to agents OFF: nothing surfaces, and\n`spec-kitty zeitgeist mcp-serve` exits 0 with one line.",
+     "help": "Switch moments to agents OFF: nothing surfaces, and\nthe internal agent-context bridge exits cleanly with one line.",
      "hidden": false,
      "deprecated": false
     },

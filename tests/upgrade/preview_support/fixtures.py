@@ -109,7 +109,7 @@ def degrade_p6(case: PreviewCase) -> tuple[str, ...]:
         ".claude/agents",
         ".kittify/command-skills-manifest.json",
         ".kittify/skills-manifest.json",
-        ".kittify/agent-profiles-manifest.json",
+        ".kittify/agent_profiles_manifest.json",
     ):
         path = case.project / relative
         if path.exists():

@@ -261,7 +261,7 @@ def test_real_implement_and_review_claims_persist_structured_latest_binding(
 
     stream = read_event_stream(feature_dir)
     assert stream.transitions[-1].actor == implement_actor
-    assert len(stream.annotations) == 1  # golden-count: cardinality-is-contract -- one atomic binding annotation
+    assert len(stream.annotations) == 1  # one atomic binding annotation
     assert stream.annotations[0].delta.agent_profile == "python-pedro"
 
     # #3157: this event must sort strictly BETWEEN the real `now()` timestamp

@@ -1,0 +1,34 @@
+{
+  "accept_commit": "1dc4fc552dbba60776d6863d1195abca9e00cf6d",
+  "acceptance_history": [
+    {
+      "accept_commit": "1dc4fc552dbba60776d6863d1195abca9e00cf6d",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-14T12:27:06.190748+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "188644aa0ae178ed743398e1e5026c5aedb28534"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-14T12:27:06.190748+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "188644aa0ae178ed743398e1e5026c5aedb28534",
+  "baseline_merge_commit": "319961eb3951f3062629083c5973f8521d9c3b06",
+  "created_at": "2026-09-14T10:26:15.217680+00:00",
+  "flattened": false,
+  "friendly_name": "Post-merge partition integrity (#3942 + #4090)",
+  "mid8": "01M2FQ80",
+  "mission_id": "01M2FQ80H3YMVQ1040D406V8QP",
+  "mission_number": null,
+  "mission_slug": "post-merge-partition-integrity-01M2FQ80",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Two-track fix mission on the shared post-merge partition surface. Track A (#3942): squash '-X theirs' clobbers driver-uncovered kitty-specs planning files with older lane copies. Track B (#4090 + folded #4091): retrospect and doctor disagree post-merge because the primary-wins guard gates on meta['merged_at'], which has no writer. Shared root-cause: what content is authoritative post-merge, and on which surface.",
+  "purpose_tldr": "Squash merges must not clobber target-newer kitty-specs, and post-merge readers must agree on mission state.",
+  "slug": "post-merge-partition-integrity-01M2FQ80",
+  "status_phase": "1",
+  "target_branch": "issue-3942-merge-surface-authority",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-14T10:55:37.381330+00:00"
+}

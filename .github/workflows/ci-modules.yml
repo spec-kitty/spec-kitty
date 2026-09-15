@@ -1,6 +1,7 @@
-# CI Modules — full per-module matrix caller.
+# CI Modules — diff-scoped per-module matrix caller.
 #
 # Mission ci-pipeline-reinstatement-01M1X35E, WP09 (FR-001/006/008; NFR-005).
+# Diff-scoping added by mission ci-modules-diff-scoping.
 #
 # Reads the WP08-committed module registry
 # (.github/ci-module-registry.yml) — the SINGLE data source (T044) — and
@@ -12,10 +13,34 @@
 # registry row; this workflow never hardcodes a module list, so it can never
 # unship a row or fan a shard out over a non-registry module.
 #
-# `mode` (pr|full) is threaded from workflow_dispatch (or defaults to pr for
-# pull_request/push) into every shard, and gates this workflow's OWN
-# fail-fast behavior: pr mode fails the whole run fast on the first red
-# shard; full mode runs every shard to completion (FR-018/FR-019, T049).
+# DIFF SCOPING (mission ci-modules-diff-scoping): `generate-matrix` computes
+# the changed-path set (a plain `git diff --name-only` against the PR base /
+# pre-push SHA -- see the "Determine changed files" step below for why this
+# is NOT dorny/paths-filter, unlike ci-router.yml's own `changes` job) and
+# classifies it through `scripts/ci/gate_selection.py`'s `select_modules` —
+# the SAME single gate-selection authority ci-router.yml's path routing
+# consumes (#2476: one authority, never a second re-encoded map).
+# The generator iterates the registry IN FULL (generically, every run — the
+# single data source, never a hardcoded subset) but materializes a matrix
+# leaf ONLY for a SELECTED module: a job that calls a reusable workflow
+# (`uses:`) cannot read the `matrix` context in its job-level `if:` (only
+# github/inputs/needs/vars are available there), so an unselected module
+# cannot be neutralized per-leaf — it is not materialized. The stable
+# required check is the terminal `modules-gate` (NOT the per-diff-dynamic
+# leaves), so an absent unselected leaf never hangs a required check.
+# `mode == 'full'` (workflow_dispatch, or ci-nightly's full-matrix call) and
+# the FR-004 fail-closed unmatched-src case both select every module,
+# matching ci-router.yml's own run-all semantics exactly.
+#
+# `mode` (pr|full) is threaded from workflow_dispatch/workflow_call (or
+# defaults to pr for pull_request/push) into every shard, and gates this
+# workflow's OWN fail-fast behavior: pr mode fails the whole run fast on the
+# first red shard; full mode runs every shard to completion (FR-018/FR-019,
+# T049). `mode` and diff-SELECTION are orthogonal: a push with a degenerate
+# base (first push / force push, `github.event.before` all-zero) forces
+# full SELECTION (every module gets a leaf marked selected) while `mode`
+# itself still defaults to `pr` (per-shard fail-fast pytest semantics)
+# unless explicitly dispatched as `full`.
 
 name: CI Modules
 
@@ -24,6 +49,13 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
+  workflow_call:
+    inputs:
+      mode:
+        description: 'pr (fail-fast, pinned env) or full (run-all, if: always()).'
+        required: false
+        type: string
+        default: pr
   workflow_dispatch:
     inputs:
       mode:
@@ -47,7 +79,9 @@ jobs:
   # generate-matrix: expand ci-module-registry.yml's modules[] rows into one
   # matrix leaf per (module, shard) pair -- the single data source (WP08
   # T044); this script never hand-picks a module subset, it iterates every
-  # row's shard_count.
+  # row's shard_count. Every leaf also carries a `selected` flag (diff
+  # scoping, mission ci-modules-diff-scoping) computed via the single
+  # gate-selection authority.
   # ---------------------------------------------------------------------------
   generate-matrix:
     name: Generate module-shard matrix
@@ -55,23 +89,97 @@ jobs:
     outputs:
       matrix: ${{ steps.build.outputs.matrix }}
       mode: ${{ steps.build.outputs.mode }}
+      has-selection: ${{ steps.build.outputs.has-selection }}
+      selected-modules: ${{ steps.build.outputs.selected-modules }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          # Full history: the changed-files step below does a plain `git
+          # diff` against the PR base / pre-push SHA, which a shallow clone
+          # would not contain.
+          fetch-depth: 0
 
       - name: Install PyYAML (matrix-generation only, no editable install needed)
         shell: bash
-        run: pip install --quiet --disable-pip-version-check "pyyaml==6.0.2"
+        run: |
+          pip install --quiet --disable-pip-version-check --only-binary=:all: "pyyaml==6.0.2"
 
-      - name: Build the matrix from the committed module registry
-        id: build
+      - name: Resolve the run mode and detect a degenerate push base
+        id: resolve-mode
         shell: bash
+        env:
+          DISPATCH_MODE: ${{ inputs.mode }}
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          mode="${{ inputs.mode }}"
+          mode="$DISPATCH_MODE"
           if [ -z "$mode" ]; then
             mode="pr"
           fi
           echo "mode=$mode" >> "$GITHUB_OUTPUT"
+
+          # FR-004-twin fail-closed: a push whose pre-push SHA is the null SHA
+          # (first push to a new branch, or a force push that rewrites the ref
+          # dorny can't diff against) means dorny cannot compute a trustworthy
+          # changed-path set. Force full SELECTION for this run -- `mode`
+          # itself (pr vs full pytest run-all semantics) is untouched.
+          selection_forced_full=false
+          if [ "$EVENT_NAME" = "push" ] && [ "$PUSH_BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "::notice::ci-modules: degenerate push base (first push / force push) -- forcing full module selection"
+            selection_forced_full=true
+          fi
+          echo "selection-forced-full=$selection_forced_full" >> "$GITHUB_OUTPUT"
+
+      - name: Determine changed files (diff-based module scoping; skipped when selection is already full)
+        # A plain `git diff --name-only`, not dorny/paths-filter: this needs
+        # only a flat changed-path LIST (fed into select_modules, the single
+        # gate-selection authority) -- not a second named "matches this glob"
+        # routing decision, which is what dorny's `filters:` block models
+        # (and what tests/architectural/test_workflow_coherence.py's
+        # unconsumed-filter-group guard enforces every declared filter group
+        # against: introducing a filter group here with no `needs.<job>
+        # .outputs.<group>` consumer would trip that guard for the wrong
+        # reason -- this step never wants a routing decision, only a list).
+        id: changed-files
+        if: ${{ steps.resolve-mode.outputs.mode != 'full' && steps.resolve-mode.outputs.selection-forced-full != 'true' }}
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -uo pipefail
+          base=""
+          case "$EVENT_NAME" in
+            pull_request) base="$BASE_SHA" ;;
+            push) base="$PUSH_BEFORE" ;;
+          esac
+
+          files_json="[]"
+          outcome="failure"
+          if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ]; then
+            if diff_output="$(git diff --name-only "$base" "$HEAD_SHA" 2>/dev/null)"; then
+              files_json="$(printf '%s\n' "$diff_output" | python3 -c "import json, sys; print(json.dumps([line for line in sys.stdin.read().splitlines() if line]))")"
+              outcome="success"
+            fi
+          fi
+          echo "files=$files_json" >> "$GITHUB_OUTPUT"
+          echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
+
+      - name: Build the matrix from the committed module registry
+        id: build
+        shell: bash
+        env:
+          MODE: ${{ steps.resolve-mode.outputs.mode }}
+          SELECTION_FORCED_FULL: ${{ steps.resolve-mode.outputs.selection-forced-full }}
+          CHANGED_FILES: ${{ steps.changed-files.outputs.files }}
+          CHANGED_FILTER_OUTCOME: ${{ steps.changed-files.outputs.outcome || steps.changed-files.outcome }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          mode="$MODE"
 
           python3 - "$mode" <<'PY'
           import json
@@ -80,13 +188,48 @@ jobs:
 
           import yaml
 
+          sys.path.insert(0, os.environ.get("PYTHONPATH", "."))
+          from scripts.ci.gate_selection import select_modules
+
           mode = sys.argv[1]
+          selection_forced_full = os.environ.get("SELECTION_FORCED_FULL") == "true"
+          changed_outcome = os.environ.get("CHANGED_FILTER_OUTCOME", "")
+          changed_files_raw = os.environ.get("CHANGED_FILES", "")
+
+          try:
+              changed_files = json.loads(changed_files_raw) if changed_files_raw else []
+          except json.JSONDecodeError:
+              changed_files = []
+
+          # A changed-files step that ran but didn't succeed (or produced no
+          # parseable output) is a degenerate diff -- fail closed to run-all,
+          # never a silent empty selection (FR-004 fail-closed twin).
+          selection_mode = "full" if (mode == "full" or selection_forced_full) else "pr"
+          if selection_mode != "full" and changed_outcome not in {"success", "skipped", ""}:
+              print(f"::warning::ci-modules: changed-files step outcome={changed_outcome!r} -- forcing full module selection", file=sys.stderr)
+              selection_mode = "full"
+
           with open(".github/ci-module-registry.yml", encoding="utf-8") as fh:
               registry = yaml.safe_load(fh)
 
+          selected = select_modules(changed_files, mode=selection_mode)
+          all_modules = {row["module"] for row in registry["modules"]}
+          effective_selected = all_modules if selection_mode == "full" else (selected & all_modules)
+
+          # Emit a matrix leaf ONLY for a SELECTED module. A job that calls a
+          # reusable workflow (`uses:`) cannot read the `matrix` context in its
+          # job-level `if:` (only github/inputs/needs/vars are available there),
+          # so an unselected module CANNOT be skipped per-leaf -- it is simply
+          # not materialized. The `test` job is instead gated on `has-selection`
+          # (a `needs` output, which IS allowed), so a zero-selection diff skips
+          # the job cleanly without an empty-matrix error. The loop still
+          # iterates the FULL registry (the single data source), never a
+          # hardcoded subset.
           leaves = []
           for row in registry["modules"]:
               module = row["module"]
+              if module not in effective_selected:
+                  continue
               shard_count = row["shard_count"]
               for idx in range(1, shard_count + 1):
                   leaves.append(
@@ -101,21 +244,52 @@ jobs:
                       }
                   )
 
+          has_selection = "true" if effective_selected else "false"
+
+          os.makedirs("out/ci-modules", exist_ok=True)
+          with open("out/ci-modules/selected-modules.json", "w", encoding="utf-8") as fh:
+              json.dump(sorted(effective_selected), fh)
+
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
               fh.write(f"matrix={json.dumps(leaves)}\n")
+              fh.write(f"has-selection={has_selection}\n")
+              fh.write("selected-modules<<SELECTED_MODULES_EOF\n")
+              fh.write(json.dumps(sorted(effective_selected)))
+              fh.write("\nSELECTED_MODULES_EOF\n")
 
-          print(f"ci-modules: generated {len(leaves)} shard leaves across {len(registry['modules'])} registry modules")
+          print(
+              f"ci-modules: generated {len(leaves)} shard leaves for {len(effective_selected)} selected "
+              f"module(s) across {len(registry['modules'])} registry modules "
+              f"(run-mode={mode}, selection-mode={selection_mode})"
+          )
           PY
+
+      - name: Publish the selected-module set (consumed by ci-aggregate)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: selected-modules
+          path: out/ci-modules/selected-modules.json
+          if-no-files-found: error
 
   # ---------------------------------------------------------------------------
   # test: matrixed caller of module-tests.yml -- one job instantiation per
   # (module, shard) leaf, each an independent shard (no needs: between
   # shards; only needs: generate-matrix). Coverage/xunit artefacts from every
-  # shard aggregate into this one workflow run (WP10 consumes them).
+  # shard aggregate into this one workflow run (WP10 consumes them). Only
+  # SELECTED modules are materialized as leaves (generate-matrix filters the
+  # matrix); a zero-selection diff yields an empty matrix and this job is
+  # skipped via the `has-selection` gate below.
   # ---------------------------------------------------------------------------
   test:
     name: "module-tests (${{ matrix.module }} shard ${{ matrix.shard }})"
     needs: generate-matrix
+    # Gated on `has-selection` (a `needs` output), NOT `matrix.selected`: a
+    # reusable-workflow caller job cannot read the `matrix` context in its
+    # job-level `if:` (available contexts are github/inputs/needs/vars only).
+    # A zero-selection diff yields an empty matrix + has-selection=false, so
+    # this whole job skips cleanly (the `if:` short-circuits before matrix
+    # expansion) and modules-gate treats the skip as non-blocking.
+    if: ${{ needs.generate-matrix.outputs.has-selection == 'true' }}
     strategy:
       fail-fast: ${{ needs.generate-matrix.outputs.mode != 'full' }}
       matrix:
@@ -129,3 +303,41 @@ jobs:
       shard: ${{ matrix.shard }}
       mode: ${{ matrix.mode }}
       test_dirs: ${{ matrix.test_dirs }}
+
+  # ---------------------------------------------------------------------------
+  # modules-gate: skipped-tolerant terminal aggregator (mirrors ci-router.yml's
+  # `router-gate`) -- ONE stable check name a branch-protection rule can
+  # require, regardless of how many of the 19 registry modules this diff
+  # selected. A leaf skipped because diff-scoping did not select it is NOT
+  # blocking; a leaf that genuinely failed or was cancelled is.
+  # ---------------------------------------------------------------------------
+  modules-gate:
+    name: CI Modules gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [generate-matrix, test]
+    if: ${{ always() && !cancelled() }}
+    steps:
+      - name: Evaluate modules-gate decision
+        shell: bash
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          MODE: ${{ needs.generate-matrix.outputs.mode }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          # A leaf short-circuit-skipped by diff scoping (not selected for
+          # this diff) reports "skipped" -- not blocking. A genuinely failed
+          # or cancelled leaf is.
+          blocking = {
+              job: result.get("result")
+              for job, result in needs.items()
+              if result.get("result") in {"failure", "cancelled"}
+          }
+          if blocking:
+              raise SystemExit(f"blocking job(s) did not succeed: {blocking}")
+          print(f"modules-gate OK (mode={os.environ['MODE']})")
+          PY

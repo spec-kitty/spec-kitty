@@ -32,8 +32,10 @@ from typing import Any
 
 import pytest
 
+from specify_cli.invocation.errors import LegacyRecordError
 from specify_cli.invocation.lifecycle import LIFECYCLE_LOG_RELATIVE_PATH
-from specify_cli.invocation.record import ProfileInvocationRecord
+from specify_cli.invocation.record import OpCompletedEvent, ProfileInvocationRecord, parse_op_event
+from specify_cli.invocation.writer import OP_CLOSURES_RELATIVE_PATH
 from specify_cli.missions._archive import ARCHIVE_REGISTRY_RELPATH
 from specify_cli.status.reducer import materialize_snapshot, materialize_to_json
 
@@ -192,6 +194,44 @@ def _check_lifecycle(baseline: dict[str, Blob], index: dict[str, Blob]) -> None:
     before = old.read()
     _lifecycle_prefix(path, before, index[path].read())
     _lifecycle_prefix(path, before, _disk(path, old.mode))
+
+
+def _op_closure_suffix(path: str, before: bytes, after: bytes) -> None:
+    """Validate appended rows on the Op-closure spine as v2 completed events.
+
+    The spine (``kitty-ops/op-closures.jsonl``, #4397) is the one sanctioned
+    mutable surface for doctor-sweep Op closures: per-record ``kitty-ops/``
+    files stay byte-frozen, so the sweep records each closure as a new
+    append-only line here. The historical byte prefix must be preserved and
+    every suffix row must be a valid v2 ``OpCompletedEvent`` — a rewrite or a
+    legacy/malformed row fails exactly like a tampered lifecycle log.
+    """
+    if after == before:
+        return
+    assert after.startswith(before), f"{path}: historical byte prefix changed"
+    assert not before or before.endswith(b"\n"), f"{path}: unterminated historical boundary"
+    suffix = after[len(before) :]
+    assert suffix.endswith(b"\n"), f"{path}: incomplete suffix record"
+    for number, row in enumerate(suffix[:-1].split(b"\n"), 1):
+        try:
+            data = json.loads(row.decode("utf-8"))
+            assert isinstance(data, dict), "record must be an object"
+            event = parse_op_event(data)
+            assert isinstance(event, OpCompletedEvent), "closure row must be a completed event"
+        except (UnicodeError, ValueError, KeyError, TypeError, AssertionError, LegacyRecordError) as error:
+            raise AssertionError(f"{path}: invalid suffix row {number}: {error}") from error
+
+
+def _check_op_closures(baseline: dict[str, Blob], index: dict[str, Blob]) -> None:
+    path = OP_CLOSURES_RELATIVE_PATH.as_posix()
+    if path not in baseline:
+        return
+    old = baseline[path]
+    assert path in index, f"{path}: deleted or renamed in index"
+    assert index[path].mode == old.mode, f"{path}: index mode changed"
+    before = old.read()
+    _op_closure_suffix(path, before, index[path].read())
+    _op_closure_suffix(path, before, _disk(path, old.mode))
 
 
 def _json_object(raw: bytes) -> dict[str, Any]:
@@ -533,6 +573,7 @@ def test_no_preexisting_archived_file_was_modified() -> None:
     assert any(path.startswith(_ARCHIVE_ROOTS) for path in baseline), "empty archive baseline"
     index = _index()
     _check_lifecycle(baseline, index)
+    _check_op_closures(baseline, index)
     admitted = _check_recovery(index) if _recovery_present(baseline, index) else set()
     if _dead_port_recovery_present(baseline, index):
         admitted |= _check_dead_port_recovery(index)
@@ -543,6 +584,11 @@ def test_no_preexisting_archived_file_was_modified() -> None:
             if not path.startswith(_ARCHIVE_ROOTS) or path in _APPEND_ONLY_SPINE_EXCEPTIONS:
                 continue
             if path == LIFECYCLE_LOG_RELATIVE_PATH.as_posix() and status == "M":
+                continue
+            # #4397: the Op-closure spine is the append-only surface for
+            # doctor-sweep closures; a prefix-preserving append is validated
+            # structurally by ``_check_op_closures`` above.
+            if path == OP_CLOSURES_RELATIVE_PATH.as_posix() and status == "M":
                 continue
             if path in admitted:
                 continue

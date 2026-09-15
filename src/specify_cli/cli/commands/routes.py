@@ -5,9 +5,9 @@ The old ``spec-kitty sync routes`` answered a question the deleted sync
 transport owned: where does my data go, and which teams see it. With the
 transport gone the question that remains is the ephemeral-team-status one:
 **which team admits this repository, and which relay do its moments reach** —
-or, just as valid an answer, *no team admits it, so this checkout produces
-nothing anywhere*. This command prints exactly that, read from the same
-seam every status transition already uses.
+or *no accessible route was found for the credentials used*. A negative
+answer does not establish whether another account or team admits the repository.
+This command reads the same seam every status transition already uses.
 
 One code path, no second implementation: :func:`routes` reads the same
 store every status transition does — :func:`zeitgeist_client.resolution.cached_answer`
@@ -22,7 +22,7 @@ transition would. The command reports honestly which of the three states
 it is in:
 
 * a stored credential answers offline, instantly;
-* a remembered negative ("no team admits this repo") answers offline too,
+* a remembered negative (no accessible route) answers offline too,
   until its TTL runs out and the seam asks again;
 * nothing stored means the seam could not get an answer this run — Team
   Kitty unreachable or the mint refused — and the command says that rather
@@ -35,9 +35,9 @@ print it without asking again.
 
 Faults exit non-zero with the reason named: no canonical repo identity, no
 hosted remote (there is nothing to admit), nothing configured to authenticate
-with, Team Kitty unreachable. "Not admitted" is *not* a fault — it is the
-system working as designed (a repo nobody admitted must produce nothing), so
-it exits zero with the verdict printed.
+with, Team Kitty unreachable. A recorded negative is *not* a fault: no accessible
+relay was resolved, so it exits zero with scoped guidance. Cached answers do not prove the identity
+of the currently stored OAuth account.
 """
 
 from __future__ import annotations
@@ -112,9 +112,13 @@ def _print_routes(payload: dict[str, Any]) -> None:
     else:
         reason = payload.get("reason")
         suffix = f" [dim](reason: {reason})[/dim]" if reason else ""
-        console.print(f"[bold]not admitted to any team — no relay[/bold]{suffix}")
+        console.print(f"[bold]No accessible team route found — no relay[/bold]{suffix}")
         console.print(f"  repository  {payload['repository']['host']}/{payload['repository']['slug']}")
-        console.print("  A repo no team admits produces nothing anywhere: no moments, no presence.")
+        console.print("  This result does not establish whether another account or team admits the repository.")
+        console.print("  Check your account with [bold]spec-kitty auth status[/bold].")
+        console.print("  To use another account, run [bold]spec-kitty auth login --force[/bold] and select it in the browser.")
+        console.print("  Service credentials (SPEC_KITTY_SAAS_TOKEN or .kittify/saas-auth.json) take precedence over browser login.")
+        console.print("  Check repository admission in a team you can access. Cached negative results may persist until expiry.")
     console.print()
 
 

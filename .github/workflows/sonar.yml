@@ -10,11 +10,12 @@
 # kitty-specs/ci-pipeline-reinstatement-01M1X35E/sonar-identity-verification.md
 # (T064 fork-safe precedent: NFR-004's `skip_drift` on a missing token).
 #
-# Identity (T062, C-008): the `Priivacy-ai_spec-kitty` project / `priivacy-ai`
-# organization was VERIFIED LIVE against the SonarCloud + GitHub APIs in-session
-# (2026-09-07) -- see sonar-identity-verification.md for the full evidence trail,
-# including the open cross-org-rename question this WP explicitly does NOT gate
-# anything on. `sonar-project.properties` carries that verified identity unchanged.
+# Identity (2026-09-14): the `spec-kitty_spec-kitty` project / `spec-kitty`
+# organization, matching the `spec-kitty/spec-kitty` repository the `SONAR_TOKEN`
+# secret was reprovisioned for, and verified live as public + actively analyzed
+# against the SonarCloud API. This supersedes the prior `Priivacy-ai_spec-kitty` /
+# `priivacy-ai` identity (the cross-org-rename question T062/C-008 had left open).
+# `sonar-project.properties` carries this identity; this workflow reads it from there.
 #
 # Artefact aggregation (contracts/artefact-naming.md): this workflow is triggered
 # by `schedule`/`workflow_dispatch` only -- NOT `workflow_run` on "CI Modules" (unlike
@@ -101,7 +102,7 @@ jobs:
 
       - name: Check out repository
         if: steps.sonar_token.outputs.enabled == 'true'
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
 

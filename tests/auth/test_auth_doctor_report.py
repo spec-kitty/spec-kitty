@@ -64,6 +64,7 @@ pytestmark = pytest.mark.fast
 def _make_session(
     *,
     refresh_token_expires_at: datetime | None,
+    auth_method: str = "authorization_code",
 ) -> StoredSession:
     now = now_utc()
     return StoredSession(
@@ -81,7 +82,7 @@ def _make_session(
         scope="openid",
         storage_backend="file",
         last_used_at=now,
-        auth_method="authorization_code",
+        auth_method=auth_method,
     )
 
 
@@ -137,6 +138,25 @@ def _capture_render(report: DoctorReport) -> str:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
+
+def test_renders_machine_session_auth_method(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#3277: a ``client_credentials`` session renders its auth mode, no secrets."""
+    session = _make_session(
+        refresh_token_expires_at=now_utc() + timedelta(days=30),
+        auth_method="client_credentials",
+    )
+    _patch_state(monkeypatch, session=session)
+
+    report = assemble_report()
+    assert report.session is not None
+    assert report.session.auth_method == "client_credentials"
+
+    rendered = _capture_render(report)
+    assert "Machine / CI (Client Credentials Grant)" in rendered
+    # Diagnostics never carry credential material.
+    assert "access-xyz" not in rendered
+    assert "refresh-xyz" not in rendered
 
 
 def test_renders_authenticated_no_findings(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -464,8 +484,11 @@ def test_json_output_schema(monkeypatch: pytest.MonkeyPatch) -> None:
         "refresh_token_remaining_s",
         "storage_backend",
         "in_memory_drift",
+        # #3277: the auth mode is part of the diagnostics contract.
+        "auth_method",
     ):
         assert key in session_payload
+    assert session_payload["auth_method"] == "authorization_code"
 
     # Refresh-lock payload shape.
     lock_payload = payload["refresh_lock"]

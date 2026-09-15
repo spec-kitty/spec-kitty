@@ -8,6 +8,9 @@ reviewer_agent: reviewer-renata
 wp_id: WP11
 ---
 
+> Hostname cleanup: `retired-host.example` redacts the former Team Kitty hostname in historical evidence; the current endpoint is `https://team.spec-kitty.ai`.
+
+
 # WP11 Review Cycle 1 — Approved
 
 - **Reviewer:** reviewer-renata (independent; did not implement), governed Op
@@ -58,7 +61,7 @@ wp_id: WP11
   SQLite/commit/seed metadata asserted; process-cold explicitly disclaims OS
   cache eviction; **no wall-clock assertion in any test**; local-SSD gates
   documented as advisory on CI.
-- **Production selection:** no test or script names `app.spec-kitty.ai`; all
+- **Production selection:** no test or script names `retired-host.example`; all
   endpoints are localhost pseudo-URLs behind doubles that never open sockets.
 
 ## Key adversarial checks performed

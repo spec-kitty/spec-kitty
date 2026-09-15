@@ -43,37 +43,50 @@ jobs:
   # ---------------------------------------------------------------------------
   # changes: the two-authority router's authority #1 (path -> group). The dorny
   # filter block maps each group to its globs; the outputs fold in run-all
-  # (full mode / push) and the FR-004 fail-closed `unmatched` catch-all.
+  # (full mode) and the FR-004 fail-closed `unmatched` catch-all. Push-to-main
+  # is diff-based exactly like a PR (mission ci-modules-diff-scoping) -- the
+  # nightly full-module-matrix run (ci-nightly.yml) is the cross-module
+  # post-merge safety net that replaces the old push-always-full-scope.
   # ---------------------------------------------------------------------------
   changes:
     runs-on: ubuntu-latest
     outputs:
-      merge: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.merge }}
-      missions: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.missions }}
-      post_merge: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.post_merge }}
-      release: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.release }}
-      status: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.status }}
-      review: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.review }}
-      next: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.next }}
-      lanes: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.lanes }}
-      dashboard: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.dashboard }}
-      upgrade: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.upgrade }}
-      cli: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli }}
-      charter: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.charter }}
-      agent: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.agent }}
-      kernel: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.kernel }}
-      glossary: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.glossary }}
-      execution_context: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.execution_context }}
-      core_misc: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.core_misc }}
+      merge: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.merge }}
+      missions: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.missions }}
+      post_merge: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.post_merge }}
+      release: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.release }}
+      status: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.status }}
+      review: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.review }}
+      next: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.next }}
+      lanes: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.lanes }}
+      dashboard: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.dashboard }}
+      upgrade: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.upgrade }}
+      cli: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli }}
+      charter: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.charter }}
+      agent: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.agent }}
+      kernel: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.kernel }}
+      glossary: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.glossary }}
+      execution_context: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.execution_context }}
+      core_misc: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.core_misc }}
+      # Test-inventory groups (mission sonar-per-pr-coverage-reuse-01M2FR32,
+      # WP02): src-backed like every row above -- their roots are a verbatim
+      # SUBSET of globs other groups already own, so they add no new path->group
+      # match and belong in the unmatched union and the heavy battery's `if:`.
+      unit: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.unit }}
+      specify_cli_runtime: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.specify_cli_runtime }}
       # Non-src groups (data, not code): docs/corpus/e2e mirror the src rows'
       # fold shape but are DELIBERATELY excluded from the unmatched loop below.
-      docs: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.docs }}
-      corpus: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.corpus }}
-      e2e: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.e2e }}
+      docs: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.docs }}
+      corpus: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.corpus }}
+      e2e: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.e2e }}
+      # CI-infrastructure group (spec-kitty#4386): non-src, like docs/corpus/e2e
+      # above. Names the scripts/ci/** + .github/workflows/** path family so it
+      # routes (matches a named group) instead of silently matching nothing.
+      ci: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.ci }}
       # Raw fail-closed catch-all signal (FR-004): any src/** changed but no named src group did.
       unmatched: ${{ steps.unmatched.outputs.unmatched }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
@@ -129,6 +142,19 @@ jobs:
               - 'src/specify_cli/status/**'
               - 'src/specify_cli/tool_surface/**'
               - 'src/specify_cli/zeitgeist_client/**'
+            # Test-inventory groups: tests/unit and tests/specify_cli/runtime had
+            # no declared home in the module registry. Every glob below is a
+            # verbatim copy of one another group already carries (scrub groups
+            # `unit` / `specify_cli_runtime`), so no path's match set changes.
+            unit:
+              - 'src/specify_cli/status/**'
+              - 'src/runtime/next/**'
+              - 'src/charter/offering/missions/**'
+              - 'src/kernel/**'
+            specify_cli_runtime:
+              - 'src/specify_cli/runtime/**'
+              - 'src/charter/offering/missions/**'
+              - 'src/specify_cli/core/**'
             docs:
               - 'docs/**'
               - 'tests/docs/**'
@@ -146,6 +172,22 @@ jobs:
             e2e:
               - 'tests/e2e/**'
               - 'tests/cross_cutting/**'
+            # CI-infrastructure group (spec-kitty#4386), mirroring the `ci` module
+            # registry row and its scrub group 1:1. NON-src, like docs/corpus/e2e:
+            # deliberately NOT in the unmatched loop below -- the FR-004 catch-all
+            # is contractually the sensor for unmapped src/** CODE
+            # (contracts/router-two-authority.md Invariants 1-2), and these paths
+            # are not src and are now named, so there is nothing unmatched to
+            # catch. No job gates on this group BY DESIGN: the per-PR executor for
+            # these paths' guard suite (tests/ci) is the ci-modules.yml module
+            # matrix, which runs on every PR; a `tests (ci)` job here would
+            # double-run the suite per PR -- the exact duplicate class
+            # tests/architectural/test_no_duplicate_suite_execution.py exists to
+            # remove. The group makes the path family's routing visible and
+            # asserted (tests/ci/test_ci_module_wiring.py) instead of silent.
+            ci:
+              - 'scripts/ci/**'
+              - '.github/workflows/**'
             # FR-004 probe: matches ANY src change. The `unmatched` step computes
             # `any_src AND NOT (any named src group)` from the filter's own outputs.
             # Never gate a job on `any_src` directly (contract Invariant 1).
@@ -176,7 +218,9 @@ jobs:
             "${{ steps.filter.outputs.kernel }}" \
             "${{ steps.filter.outputs.glossary }}" \
             "${{ steps.filter.outputs.execution_context }}" \
-            "${{ steps.filter.outputs.core_misc }}"; do
+            "${{ steps.filter.outputs.core_misc }}" \
+            "${{ steps.filter.outputs.unit }}" \
+            "${{ steps.filter.outputs.specify_cli_runtime }}"; do
             if [ "$group_hit" = "true" ]; then
               matched=true
             fi
@@ -199,7 +243,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           python-version: '3.12'
@@ -216,7 +260,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
       - run: git log --format=%s origin/${{ github.base_ref || 'main' }}..HEAD || true
@@ -226,7 +270,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - run: npx --yes markdownlint-cli2 "**/*.md" || true
 
   uv-lock:
@@ -234,7 +278,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           python-version: '3.12'
@@ -245,7 +289,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           python-version: '3.12'
@@ -260,7 +304,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           python-version: '3.12'
@@ -279,7 +323,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           python-version: '3.12'
@@ -292,7 +336,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           python-version: '3.12'
@@ -328,9 +372,11 @@ jobs:
       needs.changes.outputs.kernel == 'true' ||
       needs.changes.outputs.glossary == 'true' ||
       needs.changes.outputs.execution_context == 'true' ||
-      needs.changes.outputs.core_misc == 'true'
+      needs.changes.outputs.core_misc == 'true' ||
+      needs.changes.outputs.unit == 'true' ||
+      needs.changes.outputs.specify_cli_runtime == 'true'
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           # Full history: several architectural recovery/receipt tests
           # `git archive` historical mission SHAs (e.g. the WP01 base commit),
@@ -364,7 +410,7 @@ jobs:
     needs: [changes]
     if: ${{ needs.changes.outputs.merge == 'true' }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           python-version: '3.12'
@@ -379,7 +425,7 @@ jobs:
     needs: [changes]
     if: ${{ needs.changes.outputs.status == 'true' }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           python-version: '3.12'
@@ -397,7 +443,7 @@ jobs:
     needs: [changes]
     if: ${{ needs.changes.outputs.cli == 'true' }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           python-version: '3.12'
@@ -417,7 +463,7 @@ jobs:
     needs: [changes]
     if: ${{ needs.changes.outputs.docs == 'true' }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           python-version: '3.12'
@@ -437,7 +483,7 @@ jobs:
       # port base commit; a shallow clone can't reach it and the test fails
       # closed "not reachable in this CI checkout". Full history makes the base
       # reachable so the ratchet runs.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
@@ -468,7 +514,7 @@ jobs:
     needs: [changes]
     if: ${{ needs.changes.outputs.e2e == 'true' }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
         with:
           python-version: '3.12'
@@ -485,6 +531,11 @@ jobs:
     name: router gate
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # actions:read is needed to read each dependency's real conclusion from the
+    # Actions jobs API (#4208): the `needs` context cannot carry `timed_out`.
+    permissions:
+      contents: read
+      actions: read
     needs:
       - changes
       - ruff
@@ -504,27 +555,27 @@ jobs:
       - tests-e2e
     if: ${{ always() && !cancelled() }}
     steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Evaluate router-gate decision
         shell: bash
         env:
-          NEEDS_JSON: ${{ toJSON(needs) }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
           MODE: ${{ inputs.mode || 'pr' }}
         run: |
-          python3 - <<'PY'
-          import json
-          import os
-
-          needs = json.loads(os.environ["NEEDS_JSON"])
-          # A dependency that was short-circuit-skipped by the router (path-scoped
-          # PR mode) reports "skipped"; a genuinely failed one reports "failure"
-          # or "cancelled". Skipped != pass, but a router-scoped skip is allowed
-          # (it means "this shard was not selected for this diff").
-          blocking = {
-              job: result.get("result")
-              for job, result in needs.items()
-              if result.get("result") in {"failure", "cancelled"}
-          }
-          if blocking:
-              raise SystemExit(f"blocking job(s) did not succeed: {blocking}")
-          print(f"router-gate OK (mode={os.environ['MODE']})")
-          PY
+          set -euo pipefail
+          # #4208: the `needs` context collapses a timeout-kill to `cancelled`
+          # (it cannot carry `timed_out`), so read each dependency's REAL
+          # conclusion from the Actions jobs API and let the extracted,
+          # unit-tested classifier (scripts/ci/router_gate.py) decide. The
+          # blocking policy is byte-identical to the historical needs-context
+          # gate ({failure, cancelled} block, {success, skipped} pass); a genuine
+          # timeout is now reported distinctly. Capturing the jobs-API read into
+          # a variable (not a pipe) fails the step closed under `set -e` if the
+          # read errors, so an API error body is never fed to the classifier.
+          API_ROWS="$(gh api --paginate \
+            "repos/$REPO/actions/runs/$RUN_ID/attempts/$RUN_ATTEMPT/jobs" \
+            -q '.jobs[] | [.name, (.conclusion // "")] | @tsv')"
+          printf '%s\n' "$API_ROWS" | python3 scripts/ci/router_gate.py

@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "mission_slug": "sonar-per-pr-coverage-reuse-01M2FR32",
+  "mission_id": "01M2FR32NPWKD0HT1YN360FV1N",
+  "mission_branch": "kitty/mission-sonar-per-pr-coverage-reuse-01M2FR32",
+  "target_branch": "issue-4334-sonar-reuse-shard-coverage",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/ci-module-registry.yml",
+        ".github/ci-shard-timings.json",
+        ".github/workflows/ci-router.yml",
+        ".github/workflows/module-tests.yml",
+        "scripts/ci/capture_shard_timings.py",
+        "tests/architectural/test_ci_router_transcription_guards.py",
+        "tests/architectural/test_coverage_breadth.py",
+        "tests/architectural/test_module_shard_registry.py",
+        "tests/architectural/test_retirement_scrub.py",
+        "tests/release/ci_retirement_scrub.json",
+        "tests/release/coverage_breadth_baseline.json",
+        "tests/release/coverage_breadth_evidence.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-aggregate.yml",
+        ".github/workflows/ci-quality.yml",
+        "docs/convergence/interim-ci-producer.md",
+        "docs/development/reference/coverage-signals.md",
+        "scripts/ci/derive_pinning_inventory.py",
+        "scripts/ci/sonar_pr_analysis.py",
+        "tests/_arch_shard_map.py",
+        "tests/architectural/_gate_coverage.py",
+        "tests/architectural/test_no_duplicate_suite_execution.py",
+        "tests/architectural/test_suite_jobs_gate_blocking.py",
+        "tests/architectural/test_workflow_coherence.py",
+        "tests/ci/test_sonar_pr_analysis.py",
+        "tests/release/pinning_rule_inventory.json",
+        "tests/release/test_pinning_inventory_fresh.py",
+        "tests/release/test_release_ci_ownership.py",
+        "tests/release/test_sonar_workflow.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-14T13:24:48.105533+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "08b074f21aa6c5ff348ac3331e7a823a73bd981e",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP02",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/release/coverage_breadth_evidence.md' vs 'tests/release/coverage_breadth_evidence.md'; WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/_arch_shard_map.py' vs 'tests/_arch_shard_map.py'; WP04 depends on WP03"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP06",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/architectural/test_no_duplicate_suite_execution.py' vs 'tests/architectural/test_no_duplicate_suite_execution.py'"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP06",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/release/test_sonar_workflow.py' vs 'tests/release/test_sonar_workflow.py'; WP06 depends on WP05"
+      }
+    ],
+    "total_merges": 4,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 4
+    }
+  }
+}

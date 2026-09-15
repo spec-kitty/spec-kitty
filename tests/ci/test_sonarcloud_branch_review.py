@@ -195,7 +195,7 @@ def test_uncovered_output_shape_routes_to_file_component(runner: Runner) -> None
     assert "lines_to_cover: 76" in result.stdout
     assert any("uncovered_lines" in call for call in result.curl_calls)
     assert any(
-        "component=Priivacy-ai_spec-kitty:src/specify_cli/status/emit.py" in call
+        "component=spec-kitty_spec-kitty:src/specify_cli/status/emit.py" in call
         for call in result.curl_calls
     )
 
@@ -218,7 +218,7 @@ def test_issues_file_filter_scopes_the_component(runner: Runner) -> None:
     result = runner("issues", "--file", "src/specify_cli/status/store.py")
     assert result.returncode == 0
     assert any(
-        "componentKeys=Priivacy-ai_spec-kitty:src/specify_cli/status/store.py" in call
+        "componentKeys=spec-kitty_spec-kitty:src/specify_cli/status/store.py" in call
         for call in result.curl_calls
     )
 

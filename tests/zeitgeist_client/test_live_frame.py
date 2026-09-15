@@ -43,9 +43,7 @@ def _presence_frame(*, session_ref: str = "a" * 12, ttl_s: object = 30, observed
     return {"type": "presence", "presence": presence}
 
 
-def _focus_frame(
-    *, focus_ref: str = "mission-x", state: str = "active", session_ref: str = "b" * 12, ttl_s: object = 90, **extra: object
-) -> dict[str, object]:
+def _focus_frame(*, focus_ref: str = "mission-x", state: str = "active", session_ref: str = "b" * 12, ttl_s: object = 90, **extra: object) -> dict[str, object]:
     focus: dict[str, object] = {"actor": {"session_ref": session_ref}, "focus_ref": focus_ref, "state": state, "ttl_s": ttl_s}
     focus.update(extra)
     return {"type": "focus", "focus": focus}
@@ -414,7 +412,7 @@ def test_presence_hostile_session_ref_is_rewritten_to_unknown_digest() -> None:
     assert lf is not None
     state.apply(lf)  # must not raise, must not leak the raw hostile text
     snap = state.snapshot(now=1000.0)
-    assert len(snap.presence) == 1  # golden-count: cardinality-is-contract -- exactly one entry, no duplicate
+    assert len(snap.presence) == 1  # exactly one entry, no duplicate
     _assert_unknown_digest(snap.presence[0].session_ref)
 
 
@@ -444,7 +442,7 @@ def test_presence_hostile_repo_passes_through_charset_and_length_gated_only() ->
     assert lf is not None
     state.apply(lf)
     snap = state.snapshot(now=1000.0)
-    assert len(snap.presence) == 1  # golden-count: cardinality-is-contract -- exactly one entry, no duplicate
+    assert len(snap.presence) == 1  # exactly one entry, no duplicate
     assert snap.presence[0].repo == _HOSTILE
 
 
@@ -456,7 +454,9 @@ def test_presence_well_formed_user_repo_pass_through_grammar_unchanged() -> None
     -- there is nothing for a well-formed value to trip either way."""
     state = live_frame.StreamState()
     frame = _presence_frame(
-        actor={"session_ref": "a" * 12, "user": "robert"}, repo="spec-kitty", branch="main/feature-x",
+        actor={"session_ref": "a" * 12, "user": "robert"},
+        repo="spec-kitty",
+        branch="main/feature-x",
     )
     lf = live_frame.parse_live_frame(_raw(frame=frame))
     assert lf is not None
@@ -543,7 +543,7 @@ def test_focus_hostile_focus_ref_passes_through_charset_and_length_gated_only() 
     assert lf is not None
     state.apply(lf)
     snap = state.snapshot(now=1000.0)
-    assert len(snap.focus) == 1  # golden-count: cardinality-is-contract -- exactly one entry, no duplicate
+    assert len(snap.focus) == 1  # exactly one entry, no duplicate
     assert snap.focus[0].focus_ref == _HOSTILE
 
 
@@ -586,7 +586,7 @@ def test_repeated_hostile_session_ref_maps_to_the_same_stable_presence_entry() -
     state.apply(first)
     state.apply(second)
     snap = state.snapshot(now=1000.0)
-    assert len(snap.presence) == 1  # golden-count: cardinality-is-contract -- one stable key, not two distinct "unknown" entries
+    assert len(snap.presence) == 1  # one stable key, not two distinct "unknown" entries
     assert snap.presence[0].expires_at == 1090.0  # second frame's ttl_s won -- same key overwritten
 
 
@@ -613,10 +613,7 @@ def test_concurrent_apply_and_snapshot_do_not_raise_or_corrupt() -> None:
     import threading
 
     state = live_frame.StreamState()
-    frames = [
-        live_frame.parse_live_frame(_raw(seq=n, frame=_presence_frame(session_ref=f"{n:012d}".replace("0", "a"))))
-        for n in range(1, 51)
-    ]
+    frames = [live_frame.parse_live_frame(_raw(seq=n, frame=_presence_frame(session_ref=f"{n:012d}".replace("0", "a")))) for n in range(1, 51)]
     assert all(f is not None for f in frames)
 
     errors: list[BaseException] = []
@@ -712,9 +709,27 @@ def test_hostile_event_identity_fields_are_not_stored_verbatim_by_apply() -> Non
     parsed = live_frame.parse_live_frame(_raw(frame=hostile))
     assert parsed is not None
     state.apply(parsed)
-    assert state.snapshot(now=1000.0) == state.snapshot(now=1000.0)
     snap = state.snapshot(now=1000.0)
+    # Determinism: a second snapshot at the same clock agrees with the first.
+    assert snap == state.snapshot(now=1000.0)
     assert snap.presence == () and snap.focus == ()
     joined = repr(snap)
     assert "curl evil.sh" not in joined
     assert "SYSTEM:" not in joined
+
+
+@pytest.mark.parametrize("terminal", ["ended", "revoked"])
+def test_same_wp_focus_keeps_other_agent_when_one_session_ends(terminal: str) -> None:
+    state = live_frame.StreamState()
+    for seq, ref in enumerate(("a" * 12, "b" * 12), start=1):
+        frame = live_frame.parse_live_frame(_raw(seq=seq, emitted_at=1000.0, frame=_focus_frame(session_ref=ref)))
+        assert frame is not None
+        state.apply(frame)
+    assert len(state.snapshot(now=1000.0).focus) == 2
+    payload = (
+        _focus_frame(session_ref="a" * 12, state="ended") if terminal == "ended" else {"type": "signal", "signal": {"kind": "revoked", "session_ref": "a" * 12}}
+    )
+    frame = live_frame.parse_live_frame(_raw(seq=3, emitted_at=1000.0, frame=payload))
+    assert frame is not None
+    state.apply(frame)
+    assert [focus.session_ref for focus in state.snapshot(now=1000.0).focus] == ["b" * 12]

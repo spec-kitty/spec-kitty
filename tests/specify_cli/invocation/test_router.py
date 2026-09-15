@@ -527,7 +527,7 @@ def test_alternatives_nonempty_on_two_candidate_tiebreak(tmp_path: Path) -> None
     decision = router.route("implement and gizmo the module")
     assert decision.profile_id == "implementer-fixture"
     assert decision.confidence == "canonical_verb"
-    assert len(decision.alternatives) == 1  # golden-count: cardinality-is-contract — the tiebreak must surface exactly one alternative
+    assert len(decision.alternatives) == 1  # the tiebreak must surface exactly one alternative
     alt = decision.alternatives[0]
     assert alt["profile_id"] == "reviewer-fixture"
     assert alt["confidence"] == "domain_keyword"
@@ -543,7 +543,7 @@ def test_alternatives_nonempty_on_two_candidate_tiebreak(tmp_path: Path) -> None
         dry_payload = executor.dry_run("implement and gizmo the module")
 
     assert dry_payload.profile_id == "implementer-fixture"
-    assert len(dry_payload.alternatives) == 1  # golden-count: cardinality-is-contract — the dry-run payload mirrors the one-alternative tiebreak
+    assert len(dry_payload.alternatives) == 1  # the dry-run payload mirrors the one-alternative tiebreak
     assert dry_payload.alternatives[0]["profile_id"] == "reviewer-fixture"
 
 
@@ -592,7 +592,7 @@ def test_router_ambiguous_candidates_carry_confidence_key() -> None:
     alternatives = dry_run_payload["alternatives"]
     assert isinstance(alternatives, list)
     # Same vacuity guard for the dry-run-payload mirror of err.candidates.
-    assert len(alternatives) == 2  # golden-count: cardinality-is-contract — both ambiguous candidates must be listed
+    assert len(alternatives) == 2  # both ambiguous candidates must be listed
     for alt in alternatives:
         assert "confidence" in alt
 
@@ -677,7 +677,7 @@ def test_canonical_verb_beats_domain_keyword_regardless_of_priority() -> None:
 
     assert decision.profile_id == "implementer-low-priority"
     assert decision.confidence == "canonical_verb"
-    assert len(decision.alternatives) == 1  # golden-count: cardinality-is-contract
+    assert len(decision.alternatives) == 1
     alt = decision.alternatives[0]
     assert alt["profile_id"] == "reviewer-weak-verb"
     assert alt["confidence"] == "domain_keyword"
@@ -777,7 +777,7 @@ def test_two_plus_domain_keyword_candidates_priority_tiebreak_selects_higher_pri
     assert decision.profile_id == "reviewer-high-priority-keyword"
     assert decision.confidence == "domain_keyword"
     assert "routing_priority" in decision.match_reason
-    assert len(decision.alternatives) == 1  # golden-count: cardinality-is-contract
+    assert len(decision.alternatives) == 1
     assert decision.alternatives[0]["profile_id"] == "curator-low-priority-keyword"
 
 

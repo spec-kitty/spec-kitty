@@ -2,7 +2,7 @@
 title: Contributing to Spec Kitty
 description: The full contributor guide for Spec Kitty — developer setup, running tests, submitting pull requests, AI-assistance disclosure, and the release process.
 doc_status: active
-updated: '2026-08-22'
+updated: '2026-09-14'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -80,13 +80,14 @@ Supported contribution types are listed in the [emoji key](https://allcontributo
 
 ## Supported AI Agents
 
-Spec Kitty supports **12 AI coding agents**. When contributing features that affect slash commands, migrations, or templates, ensure changes apply to ALL agents:
+Spec Kitty supports **13 AI coding agents**. When contributing features that affect slash commands, migrations, or templates, ensure changes apply to ALL agents:
 
 - **Claude Code** (`.claude/commands/`)
 - **GitHub Copilot** (`.github/prompts/`)
 - **GitHub Codex** (`.codex/prompts/`)
 - **OpenCode** (`.opencode/command/`)
 - **Google Gemini** (`.gemini/commands/`)
+- **LLxprt Code** (`.llxprt/commands/`)
 - **Cursor** (`.cursor/commands/`)
 - **Windsurf** (`.windsurf/workflows/`)
 - **Qwen Code** (`.qwen/commands/`)
@@ -397,6 +398,28 @@ Here are a few things you can do that will increase the likelihood of your pull 
 - Test your changes with the Spec-Driven Development workflow to ensure compatibility.
 - Don't request review while your PR title is prefixed `WIP` / `[WIP]` -- a non-draft WIP-titled PR fails the `quality-gate` by design. Drop the prefix or keep the PR in draft. See [Review Gates](how-to/review-gates.md#pr-draft-and-wip-title-conventions).
 
+## Label-driven fleet workflow
+
+This repo is one of the programme's repos worked by the **[SkyKitty agent fleet](agent-fleet.md)**,
+and the fleet runs on a **label-driven queue**: GitHub labels are the *only* admission
+control. Agents and humans move work by changing labels, never by out-of-band assignment.
+As a contributor, two things follow:
+
+- **Issues** flow through a `status:*` lifecycle — `status:triage` → `status:ready` (the
+  fleet's admission queue) → `status:claimed` (an implementer VM holds a lease) →
+  `status:blocked`. **Never hand-set `status:claimed`**: it is a dispatcher-only lease, and a
+  hand-set claim poisons the queue (the dispatcher counts it as occupied capacity, so the
+  issue can sit invisible indefinitely).
+- **Pull requests** flow through their own lane labels — `ready-for-squad` (request
+  adversarial review) → `squad:running` → `squad:passed` / `squad:majors` — plus
+  `needs:implementer`, which is **mandatory on any fix/rebase request that expects a new
+  push** (the dispatcher only sees fix requests carrying that label).
+
+The full label tables, the dispatcher admission/reaping loop, and the source control files
+are documented in
+[Managing the issue tracker → Label-driven fleet workflow](how-to/manage-issue-tracker.md#label-driven-fleet-workflow).
+For the roles behind the queue, see [The SkyKitty agent fleet](agent-fleet.md).
+
 ## Maintainer guides
 
 - [Landing contributor PRs](how-to/pr-landing.md) — the maintainer runbook for taking a contributor PR from "open with red CI" to "merge-ready, evidence posted, operator merges": claim, isolated worktree, rebase, red classification, folds, red-first verification, push discipline, and hand-off.
@@ -456,6 +479,10 @@ unset GITHUB_TOKEN && gh run watch <run-id>
 # 5. Verify
 unset GITHUB_TOKEN && gh release view vX.Y.Z
 pipx install --force spec-kitty-cli==X.Y.Z
+
+# 6. Open the next development cycle on main (Release Checklist, step 8)
+#    PR: next version in pyproject.toml, the uv.lock project entry and
+#    .kittify/metadata.yaml, plus a new "## [Unreleased] - <next version>" heading
 ```
 
 ### Full Release (Minor/Major)
@@ -523,11 +550,15 @@ For larger releases with multiple changes:
    pipx install --force spec-kitty-cli==X.Y.Z
    ```
 
-9. **Clean up**
-   ```bash
-   git branch -d release/X.Y.Z
-   git push origin --delete release/X.Y.Z
-   ```
+9. **Open the next development cycle**
+   - Right after the tag, open a pull request that moves `main` to the next development or candidate version: `pyproject.toml`, the project entry in `uv.lock`, `.kittify/metadata.yaml`, and a new `## [Unreleased] - <next version>` heading in `CHANGELOG.md`.
+   - Until it merges, branch-mode release validation on `main` fails with "Version does not advance beyond latest tag". The canonical step is step 8 of the [Release Checklist](../../RELEASE_CHECKLIST.md).
+
+10. **Clean up**
+    ```bash
+    git branch -d release/X.Y.Z
+    git push origin --delete release/X.Y.Z
+    ```
 
 ### What the Release Workflow Does
 
@@ -554,6 +585,8 @@ Before tagging a release, ensure:
 - [ ] CHANGELOG.md is updated with emoji category headings
 - [ ] Tests pass locally: `pytest tests/`
 - [ ] Broad CI, release readiness, and shared-package drift checks are green
+
+After tagging, open the next development cycle on `main` (Full Release step 9).
 
 ### Important Notes
 

@@ -23,6 +23,9 @@ issue_matrix_present: true
 mission_exception_present: false
 ---
 
+> Hostname cleanup: `retired-host.example` redacts the former Team Kitty hostname in historical evidence; the current endpoint is `https://team.spec-kitty.ai`.
+
+
 No findings.
 
 ## Final hard-gate evidence
@@ -41,7 +44,7 @@ and test remediation to `90ecbcb2c08cf8bba0e8ff0cbb6dd952d25e0a28`, and the fina
 | Mission-focused | `SPEC_KITTY_ENABLE_SAAS_SYNC=0 uv run pytest -q tests/auth/test_token_manager.py tests/readiness/test_auth_probe.py tests/status/test_lifecycle_events.py tests/specify_cli/cli/commands/agent/test_setup_plan_hosted.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py tests/specify_cli/cli/commands/agent/test_setup_plan_read_surface.py tests/specify_cli/cli/commands/agent/test_issue_3425_setup_plan_legacy_layout_silent_capture.py tests/architectural/test_setup_plan_hosted_effect_gate.py` | 334 passed in 12.87s |
 | Contract | `SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run pytest tests/contract/ -q` | 297 passed, 5 skipped in 44.62s |
 | Architectural | `SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run pytest tests/architectural/ -q` | 1,712 passed, 5 skipped, 2 expected xfails, 1 existing ratchet-shrink warning in 860.47s |
-| End-to-end | `SPEC_KITTY_ENABLE_SAAS_SYNC=1 SK_E2E_SAAS_URL=https://app.spec-kitty.ai SPEC_KITTY_REPO=<product-checkout> PATH=<product-checkout>/.venv/bin:$PATH uv run pytest scenarios/ -q` | 6 passed in 406.82s against supporting E2E ref `71d8202` |
+| End-to-end | `SPEC_KITTY_ENABLE_SAAS_SYNC=1 SK_E2E_SAAS_URL=https://retired-host.example SPEC_KITTY_REPO=<product-checkout> PATH=<product-checkout>/.venv/bin:$PATH uv run pytest scenarios/ -q` | 6 passed in 406.82s against supporting E2E ref `71d8202` |
 | Canonical mission review | `SPEC_KITTY_ENABLE_SAAS_SYNC=0 uv run spec-kitty review --mission setup-plan-auth-diagnostics-nonfatal-01M0QEAD --mode post-merge` | pass, 0 findings |
 | Status integrity | `SPEC_KITTY_ENABLE_SAAS_SYNC=0 uv run spec-kitty agent status validate --mission setup-plan-auth-diagnostics-nonfatal-01M0QEAD --json` | pass, 0 errors, 0 warnings |
 | Acceptance schema/evidence | `read_acceptance_matrix()` plus `validate_matrix_evidence()` | pass: 41 criteria and 5 negative invariants |

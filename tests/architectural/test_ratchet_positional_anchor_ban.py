@@ -95,9 +95,7 @@ from specify_cli.contracts.anchoring import (
 )
 
 # FR-006: `fast` marks this sub-second gate for the fast tier; `architectural`
-# is retained so the always-on `arch-adversarial` pole (inclusion-based `-m`
-# expression, never excluding `fast`) and this file's `arch_shard_N` marker in
-# `tests/_arch_shard_map.py` both still select it. Dual-marking adds a home.
+# is retained as the gate's home marker. Dual-marking adds a home.
 pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]

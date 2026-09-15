@@ -312,7 +312,7 @@ spec-kitty init proj --ai CODEX
 spec-kitty init proj --ai codex
 ```
 
-Valid keys are lowercase: `codex`, `claude`, `gemini`, `cursor`, `qwen`, `opencode`, `windsurf`, `kilocode`, `auggie`, `copilot`, `q`, `kiro`, `vibe`, `pi`, `letta`
+Valid keys are lowercase: `codex`, `claude`, `gemini`, `cursor`, `qwen`, `opencode`, `windsurf`, `kilocode`, `auggie`, `copilot`, `q`, `kiro`, `vibe`, `pi`, `letta`, `llxprt`
 
 ## Complete Reference
 

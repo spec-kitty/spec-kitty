@@ -52,7 +52,10 @@ def _fake_config(basetemp: str | None = None, *, worker: bool = False) -> Simple
 
 def test_run_basetemp_dir_is_unique_per_controller_process() -> None:
     assert run_basetemp_dir(pid=100) != run_basetemp_dir(pid=200)
-    assert run_basetemp_dir(pid=100) == run_basetemp_dir(pid=100)
+    # Deterministic per controller PID: two calls with the same pid agree.
+    same_pid_first = run_basetemp_dir(pid=100)
+    same_pid_second = run_basetemp_dir(pid=100)
+    assert same_pid_first == same_pid_second
     assert run_basetemp_dir(pid=100).parent == run_tmp_root()
 
 
@@ -255,7 +258,7 @@ def test_install_registers_an_atexit_reaper_for_this_run_only(
     monkeypatch.setattr(atexit, "register", _capture)
     config = _fake_config()
     install_run_basetemp(config, now=10**9)
-    assert len(handlers) == 1  # golden-count: cardinality-is-contract — exactly one reaper, never two
+    assert len(handlers) == 1  # exactly one reaper, never two
 
     # Simulate a successful session — pytest_sessionfinish marks this BEFORE
     # atexit callbacks run (#76: reap only follows a recorded success).

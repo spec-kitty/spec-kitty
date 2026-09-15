@@ -52,6 +52,7 @@ from specify_cli.git.commit_helpers import (
     SafeCommitRecoveryFailed,
     safe_commit,
 )
+from specify_cli.lanes.branch_naming import coord_mission_dir_name
 from specify_cli.status import reducer as _reducer
 from specify_cli.status.locking import (
     FeatureStatusLockTimeoutError,
@@ -464,9 +465,12 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                         repo_root, safe_mission_slug, safe_mid8,
                     )
                 except Exception as exc:  # noqa: BLE001 — domain error surface
+                    identity = coord_mission_dir_name(
+                        safe_mission_slug, mid8=safe_mid8
+                    )
                     raise BookkeepingWorktreeMissing(
                         f"Failed to resolve coordination worktree for "
-                        f"{safe_mission_slug}-{safe_mid8}: {exc}"
+                        f"{identity}: {exc}"
                     ) from exc
                 # Status events must be committed to the coordination branch,
                 # not the caller-supplied destination (which may be "main").

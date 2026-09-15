@@ -168,6 +168,25 @@ def test_scan_all_features_detects_feature(tmp_path):
     assert features[0]["artifacts"]["spec"]
 
 
+def test_scan_all_features_reports_discarded_from_meta(tmp_path):
+    """#704: a discarded mission still scans, but carries the discarded status."""
+    feature_dir = _create_feature(tmp_path)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "slug": feature_dir.name,
+                "mission_slug": feature_dir.name,
+                "discarded_at": "2026-09-13T00:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    features = scanner.scan_all_features(tmp_path)
+
+    assert [f["mission_status"] for f in features] == ["discarded"]
+
+
 def test_scan_all_features_tolerates_unreadable_event_log(tmp_path):
     feature_dir = tmp_path / "kitty-specs" / "001-demo-feature"
     tasks_dir = feature_dir / "tasks"
@@ -334,6 +353,30 @@ class TestDeriveMissionStatus:
     def test_done_when_accepted(self):
         meta = {"accepted_at": "2026-07-12T00:00:00+00:00", "mission_slug": "042-foo"}
         assert scanner._derive_mission_status(self._stats(total=3, done=3), meta) == "done"
+
+    def test_discarded_when_discarded_at_set(self):
+        meta = {"discarded_at": "2026-09-13T00:00:00+00:00", "mission_slug": "042-foo"}
+        assert scanner._derive_mission_status(self._stats(), meta) == "discarded"
+
+    def test_discarded_wins_over_in_flight_lane_counts(self):
+        # #704: `mission close --discard` abandons a mission mid-flight, so its
+        # WPs are still sitting in doing/for_review. Deriving "active" from those
+        # counts is exactly what kept discarded missions on the dashboard.
+        meta = {"discarded_at": "2026-09-13T00:00:00+00:00", "mission_slug": "042-foo"}
+        stats = self._stats(total=3, doing=2, planned=1)
+        assert scanner._derive_mission_status(stats, meta) == "discarded"
+
+    def test_discarded_wins_over_accepted(self):
+        meta = {
+            "accepted_at": "2026-07-12T00:00:00+00:00",
+            "discarded_at": "2026-09-13T00:00:00+00:00",
+            "mission_slug": "042-foo",
+        }
+        assert scanner._derive_mission_status(self._stats(total=3, done=3), meta) == "discarded"
+
+    def test_discarded_sorts_below_draft(self):
+        priority = scanner._MISSION_STATUS_PRIORITY
+        assert priority["discarded"] < priority["draft"] < priority["done"]
 
     def test_done_when_no_meta(self):
         # Legacy missions with no meta.json fall through to done

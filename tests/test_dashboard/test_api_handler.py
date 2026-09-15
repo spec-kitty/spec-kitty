@@ -104,6 +104,29 @@ class TestFeaturesEndpointErrorHandling:
         assert payload["error"] == "failed_to_scan_features"
         assert "project_dir" in payload["detail"]
 
+    def test_features_endpoint_hides_discarded_missions(self, tmp_path):
+        # #704: the discarded mission keeps its kitty-specs/<slug>/ directory, so
+        # the scan still finds it. The dashboard is what has to stop listing it.
+        from specify_cli.dashboard.handlers import features as features_module
+
+        handler = MagicMock()
+        handler.project_dir = str(tmp_path)
+        handler._send_json = MagicMock()
+
+        scanned = [
+            {"id": "001-live", "path": "kitty-specs/001-live", "mission_status": "active"},
+            {"id": "002-gone", "path": "kitty-specs/002-gone", "mission_status": "discarded"},
+        ]
+        with (
+            patch.object(features_module, "scan_all_features", return_value=scanned),
+            patch.object(features_module, "is_legacy_format", return_value=False),
+        ):
+            features_module.FeatureHandler.handle_features_list(handler)
+
+        handler._send_json.assert_called_once()
+        _status_code, payload = handler._send_json.call_args.args
+        assert [f["id"] for f in payload["features"]] == ["001-live"]
+
     def test_features_endpoint_returns_structured_error_on_scan_failure(self, tmp_path):
         from specify_cli.dashboard.handlers import features as features_module
 

@@ -40,7 +40,7 @@ test_no_dead_modules:
   # wp-lane-state-machine-fsm): upstream #1756 added m_3_3_0_session_presence_all_harnesses
   # and m_3_3_0_session_presence_claude_code; both auto-discovered via
   # pkgutil.iter_modules, never statically imported. Growth here is expected/routine.
-  category_1_auto_discovered_migrations: 105  # justification: 101->105: convergence #3689 adds m_3_2_6rc3_worktrees_gitignore_backfill; main #820 adds m_3_3_1_context_sources_consolidation; main #1006 adds m_3_2_6rc3_narrow_cursor_gitignore and m_3_2_6rc3_lint_report_gitignore_backfill. All are auto-discovered upgrade migrations with no static importer.
+  category_1_auto_discovered_migrations: 106  # justification: 101->105: convergence #3689 adds m_3_2_6rc3_worktrees_gitignore_backfill; main #820 adds m_3_3_1_context_sources_consolidation; main #1006 adds m_3_2_6rc3_narrow_cursor_gitignore and m_3_2_6rc3_lint_report_gitignore_backfill. 105->106 (#4259): adds m_4_0_0_retired_hosted_target. All are auto-discovered upgrade migrations with no static importer.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
@@ -375,7 +375,11 @@ test_egress_consent_boundary:
   # project's identity (project_path + token) instead of a bare connect_ex —
   # same E18 loopback-control class as dashboard/lifecycle.py, on the spawn
   # side of the same boundary. Sends no payload beyond the GET itself.
-  egress_allowlist_files: 16
+  # 16 -> 17 (#3277): auth/flows/client_credentials.py joins the E18
+  # auth/OAuth class — the machine/CI client_credentials exchange POSTs the
+  # ServicePrincipal credential pair to /oauth/token. Credential traffic,
+  # same class as device_code.py/refresh.py/revoke.py; no project data.
+  egress_allowlist_files: 17
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the

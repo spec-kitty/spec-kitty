@@ -275,7 +275,7 @@ class TestReviewClaimPolicyMetadata:
             for event in stream.annotations
             if event.wp_id == "WP01" and event.delta.agent == "test-reviewer"
         ]
-        assert len(claim_annotations) == 1  # golden-count: cardinality-is-contract
+        assert len(claim_annotations) == 1
 
         # The reducer's transition fold only special-cases planned->claimed
         # (WP01), so the review-claim's shell_pid reaches the snapshot via
@@ -368,7 +368,7 @@ class TestResumeShellPidRefresh:
         assert len(stream_after_resume.annotations) > len(annotations_after_claim), (
             "expected the resume to persist a NEW InnerStateChanged annotation"
         )
-        assert len(commit_calls) == 1, (  # golden-count: cardinality-is-contract
+        assert len(commit_calls) == 1, (
             "resume refresh must enter the status-artifact commit/rollback boundary"
         )
         assert "Refresh WP01 implementation liveness" in str(

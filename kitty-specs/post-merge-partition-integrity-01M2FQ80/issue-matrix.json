@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#2160": {
+      "evidence_ref": "Follow-up: #2160 (parent epic remains open). Advanced by WP04/D-B1 (primary-wins override over stale husk); WP06 synthesis records the husk-override authority decision for the epic owner.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "parent-epic",
+      "source_file": "spec.md",
+      "title": "coord-topology artifact authority unification",
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    },
+    "#2258": {
+      "evidence_ref": "6f46cf6bb6 (ancestor) removed the dead merged_at writer; the exposed dormant-guard regression is closed in-mission via #4090/WP04.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "context",
+      "source_file": "spec.md",
+      "title": "remove production-dead record_merge/finalize_merge (deleted merged_at writer)",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#2709": {
+      "evidence_ref": "test_squash_target_newer_provenance_regression_2709.py + test_squash_reconcilers_2709.py (ancestors of HEAD) establish target-newer-canonical-state reconciliation for meta fields; preserved and kept green by WP02 (FR-003 / SC-004).",
+      "fr": "FR-003",
+      "nfr": null,
+      "repo": null,
+      "sc": "SC-004",
+      "scope": "context",
+      "source_file": "spec.md",
+      "title": "squash must not replace target-newer meta.json provenance",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#2804": {
+      "evidence_ref": "_restore_regressed_gate_artifacts + gate-artifact merge drivers (ancestors of HEAD) restore target-newer acceptance/issue matrices; preserved and kept green by WP02 (FR-003 / SC-004).",
+      "fr": "FR-003",
+      "nfr": null,
+      "repo": null,
+      "sc": "SC-004",
+      "scope": "context",
+      "source_file": "spec.md",
+      "title": "keep filled gate artifacts through the squash merge",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#2907": {
+      "evidence_ref": "Follow-up: #2907 (epic open). Advanced by WP02/D-A1 classifier-driven conflict taxonomy; WP06 synthesis records the dead conflict_resolver.py disposition.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "parent-epic",
+      "source_file": "spec.md",
+      "title": "Unify merge/conflict_resolver file-kind taxonomy onto kind_for_mission_file",
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    },
+    "#3942": {
+      "evidence_ref": "WP01 red-first + WP02 kind-aware target-newer restore (23f6adf9); green.",
+      "fr": "FR-001,FR-002,FR-003",
+      "nfr": "NFR-001",
+      "repo": null,
+      "sc": "SC-001",
+      "scope": "in-mission",
+      "source_file": "spec.md",
+      "title": "Squash merge replaces target-newer kitty-specs with older lane copies",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#3981": {
+      "evidence_ref": "94fd1071a3 (ancestor) fixed the implement gate only, not retrospect/doctor; preserved and verified green (SC-004).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": "SC-004",
+      "scope": "context",
+      "source_file": "spec.md",
+      "title": "re-gate per-WP implement completion for coord-topology missions",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4090": {
+      "evidence_ref": "WP03 red-first + WP04 restore merged_at writer + reopen-aware is_mission_merged (9f962d7e); retrospect==doctor; green.",
+      "fr": "FR-004,FR-005,FR-006",
+      "nfr": "NFR-002",
+      "repo": null,
+      "sc": "SC-002,SC-003",
+      "scope": "in-mission",
+      "source_file": "spec.md",
+      "title": "retrospect create and doctor mission-state resolve mission state from different surfaces",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#4091": {
+      "evidence_ref": "GREEN on HEAD: _project_status_bookkeeping_to_target already unions source\u222aoriginal (merge_event_log_texts) and rematerializes status.json=reduce(union); event_count=len(unique WPStatusChanged) by definition. Guard: tests/merge/test_event_count_union_4091.py (2 passed).",
+      "fr": "FR-007",
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "in-mission",
+      "source_file": "spec.md",
+      "title": "status.json event_count undercounts status.events.jsonl after a merge unions two event streams",
+      "verdict": "verified-already-fixed",
+      "wp": "WP05"
+    }
+  },
+  "schema_version": 1
+}

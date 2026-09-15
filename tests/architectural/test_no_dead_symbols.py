@@ -400,8 +400,11 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.cli.commands._auth_doctor::ServerSessionStatus
         SymbolKey("ServerSessionStatus", "5814547ac903022d97fd3b3a685e3218971f8e6d2407cf99d1f505f2f964b25b", source_module="specify_cli.cli.commands._auth_doctor"),
         SymbolKey(
-            "SessionSummary", "465b7c32684be07566e692b5ef249e2585ccb568f9b2ffe36fd88ba4ed872e74", source_module="specify_cli.cli.commands._auth_doctor"
+            "SessionSummary", "bfaff2b2d217104de9698335efc37ba8923d8a0e25676084f543e3ae1ea425e5", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::SessionSummary
+        # (hash refreshed #3277: SessionSummary gained ``auth_method`` so the
+        # auth mode — human browser / headless device / machine
+        # client_credentials — is visible in doctor diagnostics)
         # specify_cli.cli.commands._auth_doctor::assemble_report (hash refreshed
         # #1060: report now carries the token manager's safe persisted-session
         # decryption-failure assessment into the auth verdict)
@@ -1149,13 +1152,13 @@ _CATEGORY_C_DOCTOR_AUTO_DISCOVERY_SEAM: frozenset[SymbolKey] = frozenset(
             "run_channel_report", "7b85d1bda9aae6c822e97bf6fdcf592fddc365a48710197d103e836fdfd71333", source_module="specify_cli.cli.commands._channel_doctor"
         ),
         # specify_cli.cli.commands._env_file_doctor::register
-        SymbolKey("register", "5e2e984810eb13ddc42d05b32070af2f41f4561ada6a87415b01d0d942c75aca", source_module="specify_cli.cli.commands._env_file_doctor"),
+        SymbolKey("register", "f4c52c62e8b8ddfd63c5b1ff0860c75cc9deaceb6b463a7e8fed0416894193af", source_module="specify_cli.cli.commands._env_file_doctor"),
         # specify_cli.cli.commands._env_file_doctor::run_env_file_health
         SymbolKey(
             "run_env_file_health", "a01d73dc1ffe6ecc2db7561a3707c98e425a77aee9b722a8687f0f9601f97fb9", source_module="specify_cli.cli.commands._env_file_doctor"
         ),
         # specify_cli.cli.commands._provenance_doctor::register
-        SymbolKey("register", "52eac1277179077d9735c9e67756fade67aab73d384883645f69da6800f997d7", source_module="specify_cli.cli.commands._provenance_doctor"),
+        SymbolKey("register", "dd9512fa1755c070c893c618c9cbd51d9709e7edf367a0f30653c45649cd6fe3", source_module="specify_cli.cli.commands._provenance_doctor"),
         # specify_cli.cli.commands._provenance_doctor::run_provenance_audit
         SymbolKey(
             "run_provenance_audit", "a657b0dbc7e8d2b82fc80e005592413230902a240d550c1b12be39cd4cd66b2e", source_module="specify_cli.cli.commands._provenance_doctor"
@@ -1962,6 +1965,81 @@ _CATEGORY_C_TEAM_KITTY_LAUNCH_DEFAULTS_3980: frozenset[SymbolKey] = frozenset(
     }
 )
 
+# ---------- C. Live Work capture layer public surface (#4268) ----------
+# The new ``specify_cli.live_work`` package (spec-kitty#4268, Live Work
+# harness capture): its runtime callers are the ``live-work`` CLI command
+# group and the retrospective-outcome fanout, which consume the adapter,
+# publisher, coalescer, watcher and bindings seams. The twelve symbols
+# below are the layer's *public constants and predicates* — the vocabulary
+# its tests pin and its follow-up wiring (factory dispatch install, e2e
+# capture-to-paint qualification, spec-kitty#4268's acceptance evidence)
+# consumes by name; none has a second src/ importer yet. TODO(triage):
+# wire the first by-name consumer or drop from __all__ (FR-303).
+_CATEGORY_C_LIVE_WORK_CAPTURE_PUBLIC_SURFACE: frozenset[SymbolKey] = frozenset(
+    {
+        SymbolKey(
+            "CODEX_NOTIFY_EVENTS",
+            "b01cf6f7fdadf436113820c11e56e366031cd53940c693ed2ea12c2ebaef8734",
+            source_module="specify_cli.live_work.adapters.codex",
+        ),
+        SymbolKey(
+            "LIVE_WORK_HOOK_COMMAND_MARKER",
+            "1f196bf7fa15d52919e5615b97d6429ba481953c5f8296dd06b09ae1d822d2e5",
+            source_module="specify_cli.live_work.capability",
+        ),
+        SymbolKey(
+            "is_structural",
+            "b2511ddd01b6cbd958f505d76800c2a894ecda01e751fa585b83c4c929c086f9",
+            source_module="specify_cli.live_work.coalesce",
+        ),
+        SymbolKey(
+            "CLAUDE_LIVE_WORK_COMMAND",
+            "4c21d58e4dbd9ba377b53cbc0f13fe3bc9a9c121b3a84dfa63f712b3d523c8ac",
+            source_module="specify_cli.live_work.install",
+        ),
+        SymbolKey(
+            "CODEX_LIVE_WORK_COMMAND",
+            "ab6ec4c4cd0a8a6af65dd4e74afb17d98adcf44e9c32c5a710bd15980d4f3c78",
+            source_module="specify_cli.live_work.install",
+        ),
+        SymbolKey(
+            "CODEX_NOTIFY_LINE",
+            "89b07b9ffe884f436479099f6f8ff4612091ffb8ed2cb966e3932d77afcedb80",
+            source_module="specify_cli.live_work.install",
+        ),
+        SymbolKey(
+            "FAMILY_BY_EMISSION_KIND",
+            "4ad9da79ebea08a774b554ef62f2908bf05d7f52c2490336544a52d7a56c2394",
+            source_module="specify_cli.live_work.kinds",
+        ),
+        SymbolKey(
+            "WORK_CONTRACT_VERSION",
+            "f60bd4a8eccc1adf9a46950f8084dfe4a9503f06d349e3cdec7f5a52ec2a9a74",
+            source_module="specify_cli.live_work.kinds",
+        ),
+        SymbolKey(
+            "MAX_ATTRS",
+            "847dfdbd099f9b71c5b1aa01d3396a1328ab56afffd91b9d4216397f9199db51",
+            source_module="specify_cli.live_work.publisher",
+        ),
+        SymbolKey(
+            "MAX_OBSERVATIONS_PER_INVOCATION",
+            "e9ffceccd5e1cc08dd3d6c2495692723c64e3727f363c28b61a2072969c830db",
+            source_module="specify_cli.live_work.publisher",
+        ),
+        SymbolKey(
+            "is_excluded_path",
+            "81a63825a77d255235552f583d954b356f9e0312e54af3b2fba13794fe009107",
+            source_module="specify_cli.live_work.redaction",
+        ),
+        SymbolKey(
+            "MAX_WATCHED_PATHS",
+            "4b5def206513a5f888383a0aa5deca4d8f5363913625772c159b3419de76c3ca",
+            source_module="specify_cli.live_work.watcher",
+        ),
+    }
+)
+
 
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
@@ -2005,6 +2083,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API
     | _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API
     | _CATEGORY_C_TEAM_KITTY_LAUNCH_DEFAULTS_3980
+    | _CATEGORY_C_LIVE_WORK_CAPTURE_PUBLIC_SURFACE
 )
 
 

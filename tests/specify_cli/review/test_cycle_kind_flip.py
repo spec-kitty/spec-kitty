@@ -124,7 +124,9 @@ def test_narrow_opt_in_review_cycle_persists_under_review_cycle_kind_without_mov
     )
 
     # (1) PHYSICAL write did NOT move — still the PRIMARY tasks home.
-    rel = str(created.artifact_path.relative_to(ctx.repo))
+    # ``as_posix`` because ``str(Path)`` yields backslash separators on Windows,
+    # which can never equal the forward-slash git tree path below (#3834).
+    rel = created.artifact_path.relative_to(ctx.repo).as_posix()
     assert rel == f"kitty-specs/{ctx.slug}/tasks/WP01/review-cycle-1.md", (
         f"{_ISSUE}: the physical write must stay in the PRIMARY tasks home; a write-side default flip would move it into the coord worktree. Got {rel!r}."
     )

@@ -25,6 +25,7 @@ _HARD_FAILURE_FINDING_TYPES = frozenset(
         "issue_matrix_violation",
         "dead_code_baseline_missing",
         "dead_code_undeterminable",
+        "dead_code_evidence_incomplete",
     }
 )
 
@@ -43,26 +44,23 @@ class GateRecord:
 def _format_finding_line(finding: dict[str, str]) -> str | None:
     finding_type = finding["type"]
     if finding_type == "wp_not_done":
-        return (
-            f"- **wp_not_done** `{finding['wp_id']}`: "
-            f"lane is `{finding.get('lane', 'unknown')}`"
-        )
+        return f"- **wp_not_done** `{finding['wp_id']}`: lane is `{finding.get('lane', 'unknown')}`"
     if finding_type == "dead_code":
-        return (
-            f"- **dead_code** `{finding['file']}` — `{finding['symbol']}`: "
-            "no non-test callers found"
-        )
+        return f"- **dead_code** `{finding['file']}` — `{finding['symbol']}`: no non-test callers found"
     if finding_type == "dead_code_baseline_missing":
-        return (
-            f"- **dead_code_baseline_missing** "
-            f"`{finding.get('diagnostic_code', 'unknown')}`: "
-            f"{finding.get('remediation', 'unknown')}"
-        )
+        return f"- **dead_code_baseline_missing** `{finding.get('diagnostic_code', 'unknown')}`: {finding.get('remediation', 'unknown')}"
     if finding_type == "dead_code_undeterminable":
         return (
             f"- **dead_code_undeterminable** "
             f"`{finding.get('diagnostic_code', 'unknown')}`: "
             f"{finding.get('reason', 'unknown')}; "
+            f"remediation=`{finding.get('remediation', 'unknown')}`"
+        )
+    if finding_type == "dead_code_evidence_incomplete":
+        return (
+            f"- **dead_code_evidence_incomplete** "
+            f"`{finding.get('diagnostic_code', 'unknown')}`: "
+            f"pr_merge_evidence=`{finding.get('pr_merge_evidence', 'unknown')}`; "
             f"remediation=`{finding.get('remediation', 'unknown')}`"
         )
     if finding_type == "ble001_suppression":
@@ -95,11 +93,7 @@ def _format_finding_line(finding: dict[str, str]) -> str | None:
             f"remediation=`{finding.get('remediation', 'unknown')}`"
         )
     if finding_type == "issue_matrix_violation":
-        return (
-            f"- **issue_matrix_violation** "
-            f"`{finding.get('diagnostic_code', 'unknown')}`: "
-            f"{finding.get('message', 'unknown')}"
-        )
+        return f"- **issue_matrix_violation** `{finding.get('diagnostic_code', 'unknown')}`: {finding.get('message', 'unknown')}"
     return None
 
 
@@ -127,9 +121,7 @@ def write_review_report(
     """
     import typer
 
-    hard_failure_count = sum(
-        1 for f in findings if f["type"] in _HARD_FAILURE_FINDING_TYPES
-    )
+    hard_failure_count = sum(1 for f in findings if f["type"] in _HARD_FAILURE_FINDING_TYPES)
     if hard_failure_count > 0:
         verdict = "fail"
     elif findings:
@@ -186,9 +178,7 @@ def write_review_report(
         verdict_color = "yellow"
     else:
         verdict_color = "red"
-    console.print(
-        f"\nVerdict: [{verdict_color}]{verdict}[/{verdict_color}]  ({len(findings)} finding(s))"
-    )
+    console.print(f"\nVerdict: [{verdict_color}]{verdict}[/{verdict_color}]  ({len(findings)} finding(s))")
     try:
         rel_report = report_path.relative_to(repo_root)
     except ValueError:

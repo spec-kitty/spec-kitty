@@ -61,9 +61,7 @@ _EVENTS_FILENAME = "status.events.jsonl"
 #: :func:`bounded_lock_timeout` so every appender reached from that scope --
 #: including the ones invoked through the runtime bridge, which this module
 #: cannot pass a keyword to -- is bounded.
-_LOCK_TIMEOUT_SCOPE: ContextVar[float] = ContextVar(
-    "retrospective_lifecycle_lock_timeout", default=-1.0
-)
+_LOCK_TIMEOUT_SCOPE: ContextVar[float] = ContextVar("retrospective_lifecycle_lock_timeout", default=-1.0)
 
 
 @contextmanager
@@ -108,9 +106,7 @@ def retro_status_lock(feature_dir: Path, *, lock_timeout: float | None = None) -
     from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
     lock_root = resolve_status_lock_root(feature_dir)
-    with feature_status_lock(
-        lock_root, feature_dir.name, timeout=_resolve_lock_timeout(lock_timeout)
-    ) as lock_path:
+    with feature_status_lock(lock_root, feature_dir.name, timeout=_resolve_lock_timeout(lock_timeout)) as lock_path:
         yield lock_path
 
 
@@ -147,9 +143,9 @@ class RetrospectiveCaptured:
 
     # Common envelope fields
     schema_version: int = 1
-    event_id: str = field(default_factory=str)          # ULID, set by emit helper
+    event_id: str = field(default_factory=str)  # ULID, set by emit helper
     lamport: int = 0
-    at: str = field(default_factory=str)                 # RFC 3339, set by emit helper
+    at: str = field(default_factory=str)  # RFC 3339, set by emit helper
     actor: Actor = field(default_factory=lambda: Actor(kind="runtime", id="unknown"))
     mission_id: str = ""
     mission_slug: str = ""
@@ -275,10 +271,8 @@ class RetrospectiveSkipped:
     execution_mode: Literal["worktree", "main"] = "main"
 
     # Event-specific fields
-    skip_reason: str = ""                                # MUST be non-empty
-    skip_reason_source: Literal[
-        "cli_flag", "config_flag", "ci_environment"
-    ] = "cli_flag"
+    skip_reason: str = ""  # MUST be non-empty
+    skip_reason_source: Literal["cli_flag", "config_flag", "ci_environment"] = "cli_flag"
     policy_source: dict[str, str] = field(default_factory=dict)
     bypassed_provenance_kind: Literal["runtime_strict_gate"] = "runtime_strict_gate"
     would_have_attempted: bool = True
@@ -346,9 +340,7 @@ def _append_retro_lifecycle_event(
     )
 
 
-_RetroEventT = TypeVar(
-    "_RetroEventT", "RetrospectiveCaptured", "RetrospectiveCaptureFailed", "RetrospectiveSkipped"
-)
+_RetroEventT = TypeVar("_RetroEventT", "RetrospectiveCaptured", "RetrospectiveCaptureFailed", "RetrospectiveSkipped")
 
 
 def _locked_append(
@@ -473,7 +465,14 @@ def emit_captured(
             evidence_ref_count=len(record.evidence_refs),
         )
 
-    return _locked_append(feature_dir, _build, lock_timeout=lock_timeout)
+    event = _locked_append(feature_dir, _build, lock_timeout=lock_timeout)
+    _fanout_live_work_retrospective(
+        "captured",
+        repo_root=repo_root,
+        mission_id=record.mission_id,
+        text=f"retrospective captured ({record.findings_status})",
+    )
+    return event
 
 
 def emit_capture_failed(
@@ -542,7 +541,14 @@ def emit_capture_failed(
             missing_artifacts=missing_artifacts,
         )
 
-    return _locked_append(feature_dir, _build, lock_timeout=lock_timeout)
+    event = _locked_append(feature_dir, _build, lock_timeout=lock_timeout)
+    _fanout_live_work_retrospective(
+        "failed",
+        repo_root=repo_root,
+        mission_id=mission_id,
+        text=f"retrospective capture failed ({failure_category}): {failure_message}",
+    )
+    return event
 
 
 def emit_skipped(
@@ -610,4 +616,67 @@ def emit_skipped(
             would_have_attempted=would_have_attempted,
         )
 
-    return _locked_append(feature_dir, _build, lock_timeout=lock_timeout)
+    event = _locked_append(feature_dir, _build, lock_timeout=lock_timeout)
+    _fanout_live_work_retrospective(
+        "skipped",
+        repo_root=repo_root,
+        mission_id=mission_id,
+        text=f"retrospective skipped ({skip_reason_source}): {skip_reason}",
+    )
+    return event
+
+
+def _fanout_live_work_retrospective(
+    outcome: Literal["captured", "failed", "skipped"],
+    *,
+    repo_root: Path,
+    mission_id: str,
+    text: str,
+) -> None:
+    """Publish one retrospective-outcome live frame (folded #4267, #4268).
+
+    Fire-and-forget beside the local append — the same posture the decision
+    seam uses: the canonical local record is already written, and a live
+    frame that cannot be delivered is a logged drop, never a raise into the
+    retrospective flow. Session identity is this one-shot CLI invocation;
+    the mission binding is the record's own canonical ``mission_id``.
+    """
+    try:
+        from specify_cli.core.env import moment_handlers_disabled_reason
+        from specify_cli.live_work.bindings import resolve_bindings
+        from specify_cli.live_work.kinds import WorkEmissionKind
+        from specify_cli.live_work.models import (
+            ActorBinding,
+            MissionBinding,
+            Observation,
+            Provenance,
+            SessionBinding,
+        )
+        from specify_cli.live_work.publisher import publish_observations
+
+        if moment_handlers_disabled_reason() is not None:
+            return
+        kind = {
+            "captured": WorkEmissionKind.RETROSPECTIVE_CAPTURED,
+            "failed": WorkEmissionKind.RETROSPECTIVE_FAILED,
+            "skipped": WorkEmissionKind.RETROSPECTIVE_SKIPPED,
+        }[outcome]
+        bindings = resolve_bindings(repo_root)
+        if bindings.repository is None:
+            return
+        observation = Observation(
+            kind=kind,
+            session=SessionBinding(session_id=f"spec-kitty-{_generate_ulid().lower()}"),
+            actor=ActorBinding(harness="spec-kitty-cli"),
+            repository=bindings.repository,
+            mission=MissionBinding(mission_id=mission_id),
+            text=text[:2000],
+            provenance=Provenance(
+                source="emitter",
+                capability="live-work.retrospective.outcome",
+            ),
+            occurred_at=now_utc_iso(),
+        )
+        publish_observations([observation], cwd=repo_root)
+    except Exception as exc:  # noqa: S110 - the local record already stands
+        logger.debug("retrospective live-work frame not published: %s", exc)

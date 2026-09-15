@@ -82,7 +82,7 @@ def _build_context(**overrides: object) -> TransitionGateContext:
 
 def test_registry_has_exactly_one_handler() -> None:
     """The half-A guard: a second production handler leaking in must fail loudly."""
-    assert len(GATE_REGISTRY) == 1  # golden-count: cardinality-is-contract
+    assert len(GATE_REGISTRY) == 1
 
 
 def test_registry_registers_spec_kitty_pre_review_on_the_for_review_edge() -> None:
