@@ -101,7 +101,7 @@ jobs:
       complete: ${{ steps.reconcile.outputs.complete }}
       missing: ${{ steps.reconcile.outputs.missing }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Prepare exact source registry and diff (data only; trusted checkout stays in place)
         env:
@@ -438,7 +438,7 @@ jobs:
           echo "::error::ci-aggregate: reconciled coverage set is INCOMPLETE (missing: $MISSING_SHARDS) -- refusing to score diff-cover over data missing from both the current and fallback runs (C-005)"
           exit 1
 
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
 
@@ -637,7 +637,7 @@ jobs:
 
       - name: Check out the trusted tree (the analysis configuration lives here)
         if: steps.gate.outputs.run == 'true'
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           # Blame attribution and new-code detection need full history.
           fetch-depth: 0
