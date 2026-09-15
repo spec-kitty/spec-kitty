@@ -19,6 +19,7 @@ from specify_cli.doctrine.template_render import (
 )
 from specify_cli.doctrine.template_render.ignore_copy import (
     TemplateIgnoreDecodeError,
+    TemplateIgnoreSymlinkError,
     copy_template_tree,
     load_ignore_rules,
 )
@@ -33,6 +34,7 @@ RULE_TEMPLATE_REQUIRED = "template.required"
 RULE_SOURCE_MISSING = "pipeline.source_missing"
 RULE_INSTALL_EXISTS = "pipeline.dest_exists"
 RULE_TEMPLATEIGNORE_DECODE = "ignore_rules.templateignore_decode"
+RULE_TEMPLATEIGNORE_SYMLINK = "ignore_rules.templateignore_symlink"
 RULE_SYMLINK = "pack_path.symlink"
 RULE_OVERLAP = "pack_path.overlap"
 RULE_COPY_FAILED = "pipeline.copy"
@@ -110,6 +112,11 @@ def render_org_pack(request: RenderRequest) -> PipelineError | None:
         install_err = _install_staging(staging, pack_path, force=request.force)
         if install_err is not None:
             return install_err
+    except TemplateIgnoreSymlinkError as exc:
+        return PipelineError(
+            rule_id=RULE_TEMPLATEIGNORE_SYMLINK,
+            message=f"Template render failed ({RULE_TEMPLATEIGNORE_SYMLINK}): {exc}",
+        )
     except TemplateIgnoreDecodeError as exc:
         return PipelineError(
             rule_id=RULE_TEMPLATEIGNORE_DECODE,

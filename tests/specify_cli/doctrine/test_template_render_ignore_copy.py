@@ -9,6 +9,7 @@ import pytest
 from specify_cli.doctrine.template_render.ignore_copy import (
     BUILT_IN_EXCLUDES,
     TemplateIgnoreDecodeError,
+    TemplateIgnoreSymlinkError,
     copy_template_tree,
     load_ignore_rules,
 )
@@ -96,6 +97,19 @@ def test_load_ignore_rules_raises_structured_error_for_non_utf8_templateignore(t
     (src / ".templateignore").write_bytes(b"\xff\xfe invalid utf-8 bytes\n")
 
     with pytest.raises(TemplateIgnoreDecodeError):
+        load_ignore_rules(src)
+
+
+def test_load_ignore_rules_refuses_symlinked_templateignore(tmp_path: Path) -> None:
+    """A symlinked `.templateignore` is refused before it is read, so the render
+    cannot follow the control file into arbitrary host paths (FR-003 / FR-004)."""
+    host_secret = tmp_path / "host-secret.txt"
+    host_secret.write_text("*.py\n")  # readable host content it must not follow
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / ".templateignore").symlink_to(host_secret)
+
+    with pytest.raises(TemplateIgnoreSymlinkError):
         load_ignore_rules(src)
 
 

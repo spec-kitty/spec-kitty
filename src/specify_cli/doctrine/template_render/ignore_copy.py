@@ -22,6 +22,17 @@ class TemplateIgnoreDecodeError(OSError):
     """
 
 
+class TemplateIgnoreSymlinkError(OSError):
+    """``.templateignore`` is a symlink rather than a regular file.
+
+    Reading through the link would follow the template into arbitrary host
+    paths (FR-003 / FR-004), so the control file is refused before it is read.
+    Subclasses ``OSError`` so a caller that only guards the generic I/O path
+    still fails closed; the pipeline catches this type by name for a
+    dedicated, rule-id'd error.
+    """
+
+
 @dataclass(frozen=True, slots=True)
 class IgnoreRules:
     """Compiled ignore patterns for template copy."""
@@ -38,6 +49,9 @@ def load_ignore_rules(template_root: Path) -> IgnoreRules:
     """Load ``.templateignore`` from *template_root* and union built-ins."""
     patterns: list[str] = list(BUILT_IN_EXCLUDES)
     ignore_file = template_root / TEMPLATEIGNORE_NAME
+    if ignore_file.is_symlink():
+        # Never follow a symlinked control file into host content (FR-003 / FR-004).
+        raise TemplateIgnoreSymlinkError("'.templateignore' must be a regular file, not a symlink")
     if ignore_file.is_file():
         try:
             raw_text = ignore_file.read_text(encoding="utf-8")
