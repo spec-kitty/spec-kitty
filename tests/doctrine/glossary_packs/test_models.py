@@ -60,7 +60,7 @@ class TestGlossaryPack:
         assert pack.id == "spec-kitty-core"
         assert pack.provenance == "built-in"
         assert pack.description == sample_pack_data["description"]
-        assert len(pack.terms) == 2  # golden-count: cardinality-is-contract
+        assert len(pack.terms) == 2
         assert all(isinstance(term, GlossaryTerm) for term in pack.terms)
 
     def test_description_optional(self, sample_pack_data: dict) -> None:

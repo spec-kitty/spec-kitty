@@ -537,7 +537,7 @@ class TestProjectProfileWalk:
 
         _write_profile(tmp_path, "reviewer-rhonda", "reviewer-rhonda")
         nodes = walk_project_agent_profile_nodes(tmp_path)
-        assert len(nodes) == 1  # golden-count: cardinality-is-contract
+        assert len(nodes) == 1
         node = nodes[0]
         assert node.urn == "agent_profile:reviewer-rhonda"
         assert node.kind is NodeKind.AGENT_PROFILE

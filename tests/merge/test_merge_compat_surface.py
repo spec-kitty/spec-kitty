@@ -242,7 +242,7 @@ def test_consolidated_map_is_superset_of_retired_batteries() -> None:
     # sets; this pins the union produced no accidental duplicate-symbol
     # collisions across the 8 retired per-seam batteries (a count invariant,
     # not a membership one -- membership is pinned by the literals themselves).
-    assert len(_RETIRED_BATTERY_UNION) == 51  # golden-count: cardinality-is-contract
+    assert len(_RETIRED_BATTERY_UNION) == 51
     missing = _RETIRED_BATTERY_UNION - set(SYMBOL_RESIDUAL_MAP)
     assert not missing, f"consolidated guard dropped symbols: {sorted(missing)}"
     assert set(SYMBOL_RESIDUAL_MAP) >= _RETIRED_BATTERY_UNION

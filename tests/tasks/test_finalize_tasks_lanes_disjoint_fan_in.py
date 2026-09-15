@@ -35,7 +35,7 @@ def test_disjoint_upstreams_remain_parallel_until_fan_in() -> None:
     assert len(result.lanes) == 7
     by_wp = {lane.wp_ids[0]: lane for lane in result.lanes}
     upstream_lane_ids = {by_wp[wp_id].lane_id for wp_id in upstreams}
-    assert len(upstream_lane_ids) == 6  # golden-count: cardinality-is-contract (disjoint-lane assignment, not nameable lane ids)
+    assert len(upstream_lane_ids) == 6  # (disjoint-lane assignment, not nameable lane ids)
     assert {by_wp[wp_id].parallel_group for wp_id in upstreams} == {0}
     assert by_wp["WP07"].parallel_group == 1
     assert set(by_wp["WP07"].depends_on_lanes) == upstream_lane_ids

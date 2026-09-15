@@ -164,7 +164,7 @@ class TestHeadlessLoginE2E:
         assert "alice@example.com" in result.stdout
 
         # FR-016: the session was written via TokenManager.
-        assert len(fake_storage.writes) == 1  # golden-count: cardinality-is-contract
+        assert len(fake_storage.writes) == 1
         stored = fake_storage.writes[0]
         assert stored.user_id == "u_alice"
         assert stored.email == "alice@example.com"
@@ -231,7 +231,7 @@ class TestHeadlessLoginE2E:
         assert result.exit_code == 0, result.stdout
         # One device request + two token polls = 3 POSTs minimum.
         assert token_call_count["value"] >= 2
-        assert len(fake_storage.writes) == 1  # golden-count: cardinality-is-contract
+        assert len(fake_storage.writes) == 1
         assert fake_storage.writes[0].auth_method == "device_code"
 
 

@@ -240,17 +240,17 @@ _MATRIX_CELLS: tuple[_MatrixCell, ...] = tuple(
 # Pinned per the T067 validation checklist: the count is the DOCUMENTED
 # product of the dimension sizes above, so an added scenario/topology/
 # auto-commit value changes this number visibly rather than silently.
-assert len(_MATRIX_CELLS) == 3 * 2 * 2 == 12  # golden-count: cardinality-is-contract
+assert len(_MATRIX_CELLS) == 3 * 2 * 2 == 12
 
 _DURABLE_CELLS: tuple[_MatrixCell, ...] = tuple(
     cell for cell in _MATRIX_CELLS if cell[1] == "single_branch" and cell[2] is True
 )
-assert len(_DURABLE_CELLS) == 3  # golden-count: cardinality-is-contract
+assert len(_DURABLE_CELLS) == 3
 
 _INSULATED_CELLS: tuple[_MatrixCell, ...] = tuple(
     cell for cell in _MATRIX_CELLS if cell not in _DURABLE_CELLS
 )
-assert len(_INSULATED_CELLS) == 9  # golden-count: cardinality-is-contract
+assert len(_INSULATED_CELLS) == 9
 
 
 def _cell_id(cell: _MatrixCell) -> str:

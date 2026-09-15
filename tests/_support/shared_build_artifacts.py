@@ -183,7 +183,7 @@ def _snapshot_commit_of(source_root: Path) -> str | None:
             value = (gitdir / name).read_text(encoding="utf-8").strip()
         except OSError:
             continue
-        if len(value) == 40 and all(  # golden-count: cardinality-is-contract — a SHA-1 hex digest is always 40 chars
+        if len(value) == 40 and all(  # a SHA-1 hex digest is always 40 chars
             c in "0123456789abcdef" for c in value
         ):
             return value

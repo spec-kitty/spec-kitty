@@ -1202,6 +1202,7 @@ def _resolve_status_surface_dir(
     *,
     resolver: MissionResolver | None = None,
     effective_root: Path | None = None,
+    for_write: bool = False,
 ) -> Path:
     """Resolve the canonical status-surface DIRECTORY via WP02's resolver.
 
@@ -1286,7 +1287,7 @@ def _resolve_status_surface_dir(
         return coord_dir
 
     try:
-        surface = resolve_status_surface(primary_root, mission_slug, topology)
+        surface = resolve_status_surface(primary_root, mission_slug, topology, for_write=for_write)
     except StatusReadPathNotFound as exc:
         # Fail closed (FR-005 / #1589 / #1821): the coord worktree root is
         # materialized but its mission dir is absent. Degrading to the primary
@@ -1353,6 +1354,7 @@ def _assemble_core_fragments(
     cwd: Path | None,
     resolver: MissionResolver | None = None,
     effective_root: Path | None = None,
+    for_write: bool = False,
 ) -> tuple[IdentityFragment, BranchRefFragment, StatusSurfaceFragment, WorkspaceFragment]:
     """Assemble the WP02/WP03/WP05-owned fragments of the op-composite (IC-02).
 
@@ -1433,6 +1435,7 @@ def _assemble_core_fragments(
         topology,
         resolver=resolver,
         effective_root=effective_root,
+        for_write=for_write,
     )
     status_surface = StatusSurfaceFragment(
         status_read_dir=surface_dir,
@@ -1620,6 +1623,7 @@ def resolve_placement_only(
         topology=topology,
         cwd=None,
         resolver=resolver,
+        for_write=True,
     )
     # FR-002 / FR-004 (write-surface-coherence WP01): the projection is
     # kind-aware. A ``_PRIMARY_ARTIFACT_KINDS`` member routes to the primary

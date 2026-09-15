@@ -865,7 +865,7 @@ class TestResolveCredentialsHonorsASharedDeadline:
         gateway = ScriptedGateway()
         resolution.resolve_credentials(clone, gateway=gateway)  # type: ignore[arg-type]
 
-        assert len(seen) == 1  # golden-count: cardinality-is-contract -- one origin_url call, not a named set
+        assert len(seen) == 1  # one origin_url call, not a named set
         assert isinstance(seen[0], resolution.repo_identity.Deadline)
 
     def test_resolve_focus_capability_passes_the_given_deadline_to_origin_url(self, state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:

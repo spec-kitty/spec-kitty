@@ -50,7 +50,7 @@ def _snapshot(feature_dir: Path) -> tuple[bytes, bytes]:
 def _real_mission_id() -> str:
     """A genuine, randomly-minted 26-char ULID — production-shaped, not a placeholder."""
     mission_id = str(ulid.ULID())
-    assert len(mission_id) == 26, f"unexpected ULID length: {mission_id!r}"  # golden-count: cardinality-is-contract
+    assert len(mission_id) == 26, f"unexpected ULID length: {mission_id!r}"
     return mission_id
 
 

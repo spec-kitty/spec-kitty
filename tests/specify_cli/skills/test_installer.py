@@ -759,7 +759,7 @@ class TestCopyDelivery:
         assert mode == "copy"
         assert dest.read_text(encoding="utf-8") == "canonical\n"
         assert backup_root is not None
-        assert len(archived) == 1  # golden-count: cardinality-is-contract
+        assert len(archived) == 1
         assert archived[0].read_text(encoding="utf-8") == "user edited\n"
 
     def test_copy_preserves_read_only_mode(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -952,9 +952,9 @@ def test_projection_backup_identity_covers_all_skill_replacements(tmp_path: Path
     expected = prepare_skill_backup(project, tuple(replacements))
     archives: list[Path] = []
     _project_skill_files(skill, target, skill.skill_dir, project, SKILL_CLASS_NATIVE, "claude", archives)
-    assert len(archives) == 2  # golden-count: cardinality-is-contract
+    assert len(archives) == 2
     assert all(archive.is_relative_to(expected.root) for archive in archives)
-    assert len(list(expected.root.parent.iterdir())) == 1  # golden-count: cardinality-is-contract
+    assert len(list(expected.root.parent.iterdir())) == 1
     assert all(archive.read_bytes() != (project / archive.relative_to(expected.root)).read_bytes() for archive in archives)
 
 
@@ -1062,10 +1062,10 @@ def test_project_owner_exact_effects_shared_and_idempotent(tmp_path: Path) -> No
     }
     assert {(effect.path, effect.action, effect.after.kind, effect.after.sha256, effect.after.target, effect.after.mode) for effect in actual} == expected_states
     manifest = load_manifest(project, strict=True)
-    assert manifest is not None and len(manifest.entries) == 9  # golden-count: cardinality-is-contract
+    assert manifest is not None and len(manifest.entries) == 9
     shared = next(effect for effect in assessment.effects if effect.path == ".agents/skills/alpha/SKILL.md")
     assert shared.logical_owners == ("codex", "copilot")
-    assert len(shared.surface_ids) == 2  # golden-count: cardinality-is-contract
+    assert len(shared.surface_ids) == 2
     current = snapshot({"sandbox": tmp_path})
     second = assess_project_skills(inputs, registry, ("claude", "copilot", "codex"))
     assert second.complete and not second.effects
@@ -1190,8 +1190,8 @@ def test_project_owner_one_backup_set_and_retained_clock(tmp_path: Path, monkeyp
     assessment = installer.assess_project_skills(inputs, registry, ("claude",))
     assert assessment.complete
     backup_files = [effect for effect in assessment.effects if effect.path.startswith(".kittify/.migration-backup/") and effect.after.kind == "file"]
-    assert len(backup_files) == 2  # golden-count: cardinality-is-contract
-    assert len({Path(effect.path).parts[3] for effect in backup_files}) == 1  # golden-count: cardinality-is-contract
+    assert len(backup_files) == 2
+    assert len({Path(effect.path).parts[3] for effect in backup_files}) == 1
     assert isinstance(assessment.prepared, installer.PreparedProjectSkills)
     manifest = next(write for write in assessment.prepared.writes if write.effect.path == ".kittify/skills-manifest.json")
 

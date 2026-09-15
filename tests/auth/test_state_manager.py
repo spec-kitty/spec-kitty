@@ -60,7 +60,7 @@ def test_state_manager_generate_returns_fresh_state() -> None:
     state = manager.generate()
 
     assert isinstance(state, PKCEState)
-    assert len(state.code_verifier) == 43  # golden-count: cardinality-is-contract
+    assert len(state.code_verifier) == 43
     assert state.code_challenge_method == "S256"
     assert state.is_expired() is False
 

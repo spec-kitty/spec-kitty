@@ -173,7 +173,7 @@ def test_deliverables_override_is_ignored_by_reader(
 ) -> None:
     """C-010: ``deliverables`` is artifact-routed and cannot be overridden. The reader
     (``load_project_path_conventions``) warns-and-drops it, so it never reaches the validator. Guards the
-    frozenset vocabulary directly (golden-count-guarded new-dir style: equality, not membership-by-count).
+    frozenset vocabulary directly (equality, not membership-by-count -- the new-dir style formerly golden-count-guarded).
     """
     assert frozenset({"deliverables"}) == ARTIFACT_ROUTED_KEYS
 

@@ -94,7 +94,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          uv run pytest -m performance -q --junitxml=out/reports/xunit-nightly-performance.xml
+          uv run --frozen pytest -m performance -q --junitxml=out/reports/xunit-nightly-performance.xml
           echo "::notice::performance suite exit=$? (if: always() -- full mode never short-circuits)"
 
       - name: Run heavy/e2e-marked suite (full-mode, run-all-regardless)
@@ -102,7 +102,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          uv run pytest -m e2e -q --junitxml=out/reports/xunit-nightly-e2e.xml
+          uv run --frozen pytest -m e2e -q --junitxml=out/reports/xunit-nightly-e2e.xml
           echo "::notice::e2e suite exit=$? (if: always() -- full mode never short-circuits)"
 
       - name: Upload nightly performance/e2e reports
@@ -151,7 +151,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          uv run pytest -m "fast or unit" -q --junitxml="out/reports/xunit-nightly-interpreter-${{ matrix.python-version }}.xml"
+          uv run --frozen pytest -m "fast or unit" -q --junitxml="out/reports/xunit-nightly-interpreter-${{ matrix.python-version }}.xml"
           echo "::notice::interpreter ${{ matrix.python-version }} suite exit=$? (if: always() -- full mode never short-circuits)"
 
       - name: Upload interpreter-matrix reports

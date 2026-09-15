@@ -308,7 +308,7 @@ def _parse_path(path_str: str) -> ast.Module | None:
     An earlier revision cached this with ``@cache`` to save one re-walk of ``src/``. Measured, that
     trade was badly wrong: retaining the ASTs of 3,862 modules cost **+1,116 MB** of peak RSS
     (guard suite peak 1,205,972 kB, against 92,924 kB for the same file with the tree-scanning
-    guards removed, and 94,124 kB for ``test_golden_count_ban.py``, which walks the same ``tests/``
+    guards removed, and 94,124 kB for the since-retired ``test_golden_count_ban.py`` (#4315), which walked the same ``tests/``
     tree without retaining). On a 4-vCPU ``-n auto`` runner that is not a saving, it is an OOM
     risk. **Findings are cached instead** (see :func:`_calls_in_tree` and
     :func:`_patch_sites_in_tree`): they are a few hundred bytes each, and they are what the guards
@@ -405,7 +405,7 @@ def test_matcher_resolves_both_name_and_attribute_func_nodes() -> None:
     assert sorted(call.func_form for call in found.calls) == ["Attribute", "Name"]
 
     blind = [node for node in ast.walk(ast.parse(_PROBE_BOTH_FORMS)) if isinstance(node, ast.Call) and _name_only_callee_trailing_name(node) == VERDICT_FN]
-    assert len(blind) == 1, (  # golden-count: cardinality-is-contract
+    assert len(blind) == 1, (
         "NEGATIVE CONTROL FAILED: the ast.Name-only matcher was expected to miss the "
         f"module-qualified call and see exactly 1, but saw {len(blind)}. The probe no longer "
         "discriminates, so this file's 'both forms resolved' claim is unproven."
@@ -653,7 +653,7 @@ def test_g2_build_connector_has_exactly_one_call_site() -> None:
     for label, mutant_source in (("bare-name second site", _G2_MUTANT_SECOND_SITE), ("module-qualified second site", _G2_MUTANT_SECOND_SITE_QUALIFIED)):
         mutant = analyze_calls_in_source(mutant_source, "build_connector", module="<g2-mutant>")
         added = mutant.enclosing - control.enclosing
-        assert len(added) == 1 and mutant.call_count == control.call_count + 1, (  # golden-count: cardinality-is-contract
+        assert len(added) == 1 and mutant.call_count == control.call_count + 1, (
             f"G2 MUTANT MISBUILT ({label}): expected exactly one added site, got added={sorted(added)} "
             f"and {mutant.call_count} calls against the control's {control.call_count}."
         )
@@ -909,7 +909,7 @@ def test_g3_build_engine_callers_are_the_three_gated_methods() -> None:
     killed = 0
     fourth = analyze_gate_placement(_G3_MUTANT_FOURTH_CALLER)
     added = fourth.callers - control.callers
-    assert len(added) == 1, (  # golden-count: cardinality-is-contract
+    assert len(added) == 1, (
         f"G3 MUTANT MISBUILT (fourth caller): expected exactly one caller added to the control, "
         f"got added={sorted(added)} (control {sorted(control.callers)}, mutant {sorted(fourth.callers)})."
     )
@@ -1210,7 +1210,7 @@ def test_g4_hosted_verdict_helper_is_wired_to_the_exact_physical_sink() -> None:
     # expected set as well, so such a 'kill' fires whether or not the mutant is present. That is
     # recorded mutation-lie #1 (the mutant is a no-op and all-green reads as "your pin is fine").
     control = analyze_calls_in_source(_UNSWAPPED_CONTROL, VERDICT_FN, module="<g4-control>")
-    assert control.call_count == 2 and len(control.enclosing) == 2, (  # golden-count: cardinality-is-contract
+    assert control.call_count == 2 and len(control.enclosing) == 2, (
         f"G4 MUTANT HARNESS MISBUILT: control is {len(control.enclosing)}/{control.call_count}, expected 2/2"
     )
 
@@ -1223,7 +1223,7 @@ def test_g4_hosted_verdict_helper_is_wired_to_the_exact_physical_sink() -> None:
         combined = analyze_calls_in_source(_UNSWAPPED_CONTROL + mutant_source, VERDICT_FN, module="<g4-mutant>")
         added = combined.enclosing - control.enclosing
         delta_calls = combined.call_count - control.call_count
-        assert len(added) == 1 and delta_calls == 1, (  # golden-count: cardinality-is-contract
+        assert len(added) == 1 and delta_calls == 1, (
             f"G4 MUTANT MISBUILT ({label}): expected exactly one added enclosing function and one "
             f"added call expression against the control, got added={sorted(added)} delta_calls={delta_calls}."
         )
@@ -1324,7 +1324,7 @@ def test_g5_every_destination_is_a_literal_member_with_the_per_site_mapping_inta
     # (i) node-shape clause: a destination bound from a config read is an ast.Name.
     mutant_i = analyze_calls_in_source(_UNSWAPPED_CONTROL + _MUTANT_ADDED_CONFIG_DERIVED, VERDICT_FN, module="<g5-mutant-i>")
     non_literal = _non_literal_sites(mutant_i)
-    assert len(non_literal) == 1, (  # golden-count: cardinality-is-contract
+    assert len(non_literal) == 1, (
         f"G5 MUTANT SURVIVED (config-derived name): control had 0 non-literal sites, mutant has {non_literal}"
     )
     assert "(name)" in non_literal[0], f"G5 mutant (i) killed by the wrong clause -- expected a Name node, got {non_literal[0]}"
@@ -1345,7 +1345,7 @@ def test_g5_every_destination_is_a_literal_member_with_the_per_site_mapping_inta
     mutant_iii = analyze_calls_in_source(_UNSWAPPED_CONTROL + _MUTANT_ADDED_MODULE_QUALIFIED, VERDICT_FN, module="<g5-mutant-iii>")
     qualified_map = _per_site_destinations(mutant_iii)
     added_sites = set(qualified_map) - set(control_map)
-    assert len(added_sites) == 1, f"G5 MUTANT MISBUILT (module-qualified): added {sorted(added_sites)}"  # golden-count: cardinality-is-contract
+    assert len(added_sites) == 1, f"G5 MUTANT MISBUILT (module-qualified): added {sorted(added_sites)}"
     assert any(call.func_form == "Attribute" for call in mutant_iii.calls), (
         "G5 MUTANT SURVIVED (module-qualified): the matcher never resolved the Attribute-form call"
     )
@@ -1374,7 +1374,7 @@ def test_g5_module_qualified_mutant_observed_red_then_green() -> None:
     seeing = analyze_calls_in_source(source, VERDICT_FN, module="<red-then-green>")
     _announce("G5-red-then-green", seeing.input_count, ast_Name_only_matcher_sees=len(blind), both_forms_matcher_sees=seeing.call_count)
 
-    assert len(blind) == 2, (  # golden-count: cardinality-is-contract
+    assert len(blind) == 2, (
         f"the ast.Name-only matcher was expected to miss the qualified site and see 2, saw {len(blind)}"
     )
     assert seeing.call_count == 3, f"the both-forms matcher was expected to see all 3, saw {seeing.call_count}"

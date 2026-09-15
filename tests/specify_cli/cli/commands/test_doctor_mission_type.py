@@ -592,7 +592,7 @@ def test_audit_mission_types_resolves_200_missions() -> None:
         states = audit_mission_types(repo_root)
 
         # Sanity checks: the data is correct.
-        assert len(states) == 200  # golden-count: cardinality-is-contract
+        assert len(states) == 200
         assert all(s.state == "resolved" for s in states)
 
 

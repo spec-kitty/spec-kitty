@@ -109,7 +109,7 @@ class TestAbsorption:
 
     def test_absorbed_manifest_is_finalized(self) -> None:
         pm = absorb_synthesis_manifest(_manifest())
-        assert pm.manifest_hash is not None and len(pm.manifest_hash) == 64  # golden-count: cardinality-is-contract
+        assert pm.manifest_hash is not None and len(pm.manifest_hash) == 64
 
 
 class TestReaderContractUnchanged:

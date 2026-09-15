@@ -187,4 +187,4 @@ def test_scaffold_snapshot_exception_does_not_hide_another_walker(tmp_path: Path
         stream.write(planted)
     violations = _scan_tree_for_violations(src)
     assert set(violations) == {target.relative_to(tmp_path).as_posix()}
-    assert len(violations[target.relative_to(tmp_path).as_posix()]) == 1  # golden-count: cardinality-is-contract
+    assert len(violations[target.relative_to(tmp_path).as_posix()]) == 1

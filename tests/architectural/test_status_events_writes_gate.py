@@ -363,7 +363,7 @@ class _Resolver:
     @staticmethod
     def _agree(values: Iterable[str | None]) -> str | None:
         distinct = set(values)
-        return distinct.pop() if len(distinct) == 1 else None  # golden-count: cardinality-is-contract
+        return distinct.pop() if len(distinct) == 1 else None
 
     _handlers = {
         ast.Constant: _constant,
@@ -694,7 +694,7 @@ def test_writes_gate_is_not_vacuous(case: str, source: str, kind: str, tree_scan
     """Every write shape and resolution rule reports exactly one event-log write in a rogue module."""
     sites = scan_write_sites_from_source("specify_cli.synthetic.rogue_writer", source)
     hits = [site for site in sites if site.targets_events_log]
-    assert len(hits) == 1, f"{case}: expected one event-log write, scanner reported {sites}"  # golden-count: cardinality-is-contract
+    assert len(hits) == 1, f"{case}: expected one event-log write, scanner reported {sites}"
     assert hits[0].kind == kind
     assert out_of_store_violations(hits) == hits
     assert tree_scan.events_writes, "real-tree scan matched zero writers"
@@ -750,10 +750,10 @@ def test_writes_gate_ignores_reads_and_other_files() -> None:
 def test_writes_gate_reports_unresolved_paths_instead_of_passing() -> None:
     """A parameter with no or disagreeing call sites is reported unresolved, never as clean."""
     orphan = scan_write_sites_from_source("specify_cli.synthetic.dynamic", 'def w(events_path):\n    with open(events_path, "a") as fh:\n        fh.write("")\n')
-    assert len(orphan) == 1 and orphan[0].path_text is None and orphan[0].is_event_named  # golden-count: cardinality-is-contract
+    assert len(orphan) == 1 and orphan[0].path_text is None and orphan[0].is_event_named
     disagreeing = 'def w(p):\n    p.write_text("")\ndef a(d):\n    w(d / "status.events.jsonl")\ndef b(d):\n    w(d / "status.json")\n'
     sites = scan_write_sites_from_source("specify_cli.synthetic.dynamic", disagreeing)
-    assert len(sites) == 1 and sites[0].path_text is None and not sites[0].targets_events_log  # golden-count: cardinality-is-contract
+    assert len(sites) == 1 and sites[0].path_text is None and not sites[0].targets_events_log
 
 
 def test_lock_census_scanner_sees_both_call_shapes() -> None:

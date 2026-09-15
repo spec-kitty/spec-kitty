@@ -268,8 +268,6 @@ def _run_implement_via_seam(
             "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
             lambda *_args, **_kwargs: None,
         ),
-        patch("specify_cli.cli.commands.implement._get_wp_lane_from_event_log",
-              return_value="in_progress"),
         # #3571 test isolation: the status-transition write side
         # (start_implementation_status -> emit_status_transition_transactional)
         # resolves its OWN coord/primary status surface independently of the
