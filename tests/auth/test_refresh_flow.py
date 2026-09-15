@@ -697,9 +697,11 @@ class TestRefreshCredentialDiagnostics:
     @pytest.mark.asyncio
     @pytest.mark.parametrize("refresh_token", ["", " ", "\t\n"])
     async def test_missing_refresh_credential_never_opens_http_client(self, refresh_token):
-        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as client:
-            with pytest.raises(TokenRefreshError, match="refresh credential.*auth login"):
-                await TokenRefreshFlow().refresh(_make_session(refresh_token=refresh_token))
+        with (
+            patch("specify_cli.auth.flows.refresh.PublicHttpClient") as client,
+            pytest.raises(TokenRefreshError, match="refresh credential.*auth login"),
+        ):
+            await TokenRefreshFlow().refresh(_make_session(refresh_token=refresh_token))
         client.assert_not_called()
 
     @pytest.mark.asyncio
@@ -741,3 +743,18 @@ class TestRefreshCredentialDiagnostics:
                 await TokenRefreshFlow().refresh(_make_session())
         assert f"HTTP {status_code}" in str(caught.value)
         assert secret not in str(caught.value)
+
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("payload", [None, [], "sensitive-refresh-credential"])
+    @pytest.mark.parametrize("status_code", [400, 401])
+    async def test_non_object_error_json_uses_safe_http_diagnostic(self, payload, status_code):
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as client:
+            http = AsyncMock()
+            client.return_value.__aenter__.return_value = http
+            response = _mock_httpx_response(status_code, text="sensitive-refresh-credential")
+            response.json.return_value = payload
+            http.post.return_value = response
+            with pytest.raises(TokenRefreshError, match=f"HTTP {status_code}") as caught:
+                await TokenRefreshFlow().refresh(_make_session())
+        assert "sensitive-refresh-credential" not in str(caught.value)
