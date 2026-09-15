@@ -255,6 +255,43 @@ def test_nightly_workflow_is_full_mode_run_all() -> None:
     assert "if: always()" in text
 
 
+def _job_steps(job: dict[str, object]) -> list[dict[str, object]]:
+    steps = job.get("steps")
+    return [step for step in steps if isinstance(step, dict)] if isinstance(steps, list) else []
+
+
+def test_nightly_suite_steps_are_fail_loud() -> None:
+    """#4212 / FR-006: a red nightly suite must make its job red.
+
+    Each suite step runs ``pytest`` under ``set +e`` (run-all-regardless), so
+    it must NOT terminate on a bare ``echo "...exit=$?"`` that discards
+    pytest's exit into an annotation string -- the swallow that kept the job
+    green on a red suite. The captured code must instead be consumed by a
+    downstream step that can ``exit 1``. This coexists with the run-all guards
+    (``if: always()`` / ``fail-fast: false``) asserted in
+    :func:`test_nightly_workflow_is_full_mode_run_all`: capture-and-aggregate
+    keeps every suite running, then fails loud at the end.
+    """
+    data = yaml.safe_load(NIGHTLY_WORKFLOW.read_text(encoding="utf-8")) or {}
+    jobs = data.get("jobs") or {}
+    for job_name in ("performance-and-e2e", "interpreter-matrix"):
+        job = jobs.get(job_name)
+        assert isinstance(job, dict), f"{job_name} job missing"
+        steps = _job_steps(job)
+        suite_steps = [step for step in steps if "pytest" in str(step.get("run") or "")]
+        assert suite_steps, f"{job_name}: expected at least one pytest suite step"
+        for step in suite_steps:
+            run = str(step["run"])
+            assert "exit=$?" not in run, (
+                f"{job_name}: a suite step discards pytest's exit via a bare "
+                'echo "...exit=$?" (the #4212 swallow) -- capture $? into '
+                "$GITHUB_ENV and let a terminal step fail on it instead"
+            )
+        assert any("exit 1" in str(step.get("run") or "") for step in steps), (
+            f"{job_name}: no terminal fail-loud step that can `exit 1` on a captured suite exit (#4212)"
+        )
+
+
 def test_nightly_workflow_declares_dispatch_and_honors_mode_input() -> None:
     """DoD: declares `workflow_dispatch` and honors the `mode` input (FR-018/019)."""
     data = yaml.safe_load(NIGHTLY_WORKFLOW.read_text(encoding="utf-8")) or {}
