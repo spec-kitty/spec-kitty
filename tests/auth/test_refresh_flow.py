@@ -695,7 +695,7 @@ class TestRefreshCredentialDiagnostics:
     """Issue #3233: recovery guidance must not expose credentials."""
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("refresh_token", ["", " ", "\t\n"])
+    @pytest.mark.parametrize("refresh_token", [None, "", " ", "\t\n"])
     async def test_missing_refresh_credential_never_opens_http_client(self, refresh_token):
         with (
             patch("specify_cli.auth.flows.refresh.PublicHttpClient") as client,
@@ -747,7 +747,7 @@ class TestRefreshCredentialDiagnostics:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("payload", [None, [], "sensitive-refresh-credential"])
-    @pytest.mark.parametrize("status_code", [400, 401])
+    @pytest.mark.parametrize("status_code", [400, 401, 409])
     async def test_non_object_error_json_uses_safe_http_diagnostic(self, payload, status_code):
         with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as client:
             http = AsyncMock()

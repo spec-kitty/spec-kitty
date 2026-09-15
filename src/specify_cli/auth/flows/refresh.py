@@ -76,7 +76,7 @@ class TokenRefreshFlow:
             TokenRefreshError: Any other HTTP failure during refresh.
             NetworkError: Transport-level failure (DNS, connect, timeout).
         """
-        if not session.refresh_token.strip():
+        if not isinstance(session.refresh_token, str) or not session.refresh_token.strip():
             raise TokenRefreshError(
                 "No usable refresh credential is stored. "
                 "Run `spec-kitty auth login` again."
@@ -110,7 +110,7 @@ class TokenRefreshFlow:
                 body = response.json()
             except ValueError:
                 body = {}
-            if body.get("error") == "refresh_replay_benign_retry":
+            if isinstance(body, dict) and body.get("error") == "refresh_replay_benign_retry":
                 raise RefreshReplayError(retry_after=int(body.get("retry_after", 0)))
             # Non-replay 409 (unexpected) — fall through to generic TokenRefreshError below
 
