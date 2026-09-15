@@ -708,6 +708,14 @@ def _build_event_mining_findings(
     for wp_id, count in sorted(_detect_arbiter_overrides(events).items()):
         range_str = _event_id_range_for(events, wp_id, _is_arbiter_event)
         ev_id = ev_reg.add_event_range(events_rel, range_str or "arbiter", f"arbiter_{wp_id}")
+        # The "recurring use" reading only holds for count > 1 — a first and
+        # only override must not read as a pattern (#4065, cf. #3793 §2).
+        recurring_note = (
+            " Recurring use suggests the normal review path is blocked and "
+            "the underlying policy/guard may need adjustment."
+            if count > 1
+            else ""
+        )
         gaps.append(
             GenFinding(
                 id=_next_finding_id("g", finding_id_counters),
@@ -715,8 +723,7 @@ def _build_event_mining_findings(
                 summary=f"Arbiter override needed for {wp_id} ({count}x)",
                 details=(
                     f"WP {wp_id} required {count} arbiter override(s). Arbiter overrides "
-                    "are an escape hatch; recurring use suggests the normal review path is "
-                    "blocked and the underlying policy/guard may need adjustment."
+                    f"are an escape hatch.{recurring_note}"
                 ),
                 evidence_refs=[ev_id],
             )
@@ -1014,7 +1021,11 @@ def _build_ingestor_findings(
         # A legacy report (no analysis-findings/v1 carrier) records
         # ``verdict: unknown`` with an empty findings list — its body may
         # still carry unstructured prose findings, so an empty list there
-        # does not establish "no findings".
+        # does not establish "no findings". A report with no ``verdict`` key
+        # at all is in the same boat: the count may parse cleanly, but
+        # without a resolved verdict this ingestor asserts nothing from it
+        # (#4065) — the fallback must say that, not claim the count itself
+        # was unreadable.
         if count is not None and verdict not in (None, _ANALYSIS_VERDICT_UNKNOWN):
             if count > 0:
                 not_helpful.append(
@@ -1045,6 +1056,25 @@ def _build_ingestor_findings(
                         evidence_refs=[ev_reg.add_file(analysis_report_rel)],
                     )
                 )
+        elif count is not None:
+            # Count parsed cleanly but the verdict is absent or the legacy
+            # ``unknown`` marker — the count is machine-readable, yet not
+            # assertable without a resolved verdict (#4065).
+            not_helpful.append(
+                GenFinding(
+                    id=_next_finding_id("n", finding_id_counters),
+                    category="doc",
+                    summary="analysis-report.md present; findings not machine-readable",
+                    details=(
+                        "An analysis-report.md artifact is present for this "
+                        "mission and its frontmatter carries a machine-readable "
+                        "findings count, but no resolved verdict (the verdict "
+                        "key is absent or records the legacy 'unknown' marker), "
+                        "so the count is not asserted; review it manually."
+                    ),
+                    evidence_refs=[ev_reg.add_file(analysis_report_rel)],
+                )
+            )
         else:
             not_helpful.append(
                 GenFinding(
