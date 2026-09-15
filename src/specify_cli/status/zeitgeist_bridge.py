@@ -551,7 +551,8 @@ def _resolve_focus_capability(cwd: Path, *, deadline: Deadline) -> str | None:
     """
     from specify_cli.zeitgeist_client.resolution import resolve_focus_capability  # noqa: PLC0415
 
-    return resolve_focus_capability(cwd, deadline=deadline)
+    capability: str | None = resolve_focus_capability(cwd, deadline=deadline)
+    return capability
 
 
 def _resolve_credentials(cwd: Path, *, deadline: Deadline) -> StoredCredential | None:
