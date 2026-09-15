@@ -423,6 +423,39 @@ def test_backfill_rejects_unmerged_specify_commit(tmp_path: Path, monkeypatch: p
     assert (feature_dir / "meta.json").read_text(encoding="utf-8") == before
 
 
+def test_backfill_write_leg_baseline_error_fails_clean(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A ``BaselineMergeCommitError`` from the delegated write leg lands on the structured error lane.
+
+    The command's only ``except`` clause used to catch ``PrMergeEvidenceError``
+    alone; ``record_pr_merge_baseline_for_mission`` -> the canonical writer
+    ``record_baseline_merge_commit`` can raise the sibling
+    ``BaselineMergeCommitError`` (a plain ``RuntimeError``, NOT a
+    ``PrMergeEvidenceError`` subclass), which previously escaped as an
+    uncaught traceback instead of the same ``action: error`` + ``Exit(1)``
+    shape every other verification failure produces.
+    """
+    import specify_cli.merge.baseline as baseline_module
+
+    repo_root, feature_dir, merge_commit, _pre_merge_parent = _pr_merged_repo(tmp_path)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
+    monkeypatch.chdir(repo_root)
+    before = (feature_dir / "meta.json").read_text(encoding="utf-8")
+
+    def _boom(*_args: object, **_kwargs: object) -> None:
+        raise baseline_module.BaselineMergeCommitError("simulated write-leg failure")
+
+    monkeypatch.setattr(baseline_module, "record_pr_merge_baseline_for_mission", _boom)
+
+    exit_obj, payload = _run(repo_root, merge_commit, attest_first_landing=True)
+
+    assert isinstance(exit_obj, typer.Exit)
+    assert exit_obj.exit_code == 1  # type: ignore[attr-defined]
+    row = payload["results"][0]
+    assert row["action"] == "error"
+    assert "simulated write-leg failure" in row["reason"]
+    assert (feature_dir / "meta.json").read_text(encoding="utf-8") == before
+
+
 def test_backfill_target_branch_override_for_non_primary_base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A PR that targeted a non-primary branch needs --target-branch.
 

@@ -463,6 +463,7 @@ def backfill_merge_commit_cmd(
     from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
     from specify_cli.merge.baseline import (
         ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED,
+        BaselineMergeCommitError,
         PrMergeEvidenceError,
         record_pr_merge_baseline_for_mission,
         resolve_primary_meta_dir,
@@ -537,7 +538,14 @@ def backfill_merge_commit_cmd(
                     "--attest-first-landing-commit attestation — git cannot "
                     "prove this for a single-parent landing"
                 )
-    except PrMergeEvidenceError as exc:
+    except (PrMergeEvidenceError, BaselineMergeCommitError, OSError) as exc:
+        # The verify leg raises PrMergeEvidenceError; the delegated write leg
+        # (record_pr_merge_baseline_for_mission -> record_baseline_merge_commit)
+        # can raise the sibling BaselineMergeCommitError (not a
+        # PrMergeEvidenceError subclass), and write_meta can raise OSError.
+        # Both must land on this same structured error lane + Exit(1) instead
+        # of an uncaught traceback — mirrors the broad catch the accept
+        # `--merge-commit` handler already applies to the same write call.
         result["reason"] = str(exc)
 
     if json_output:
