@@ -6,6 +6,7 @@ import inspect
 import io
 import json
 import urllib.request
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -298,6 +299,110 @@ class TestFeaturesEndpointErrorHandling:
             )
         with pytest.raises(RuntimeError, match="project_dir"):
             features_module.FeatureHandler.handle_artifact(handler, "/api/artifact/001-test/spec")
+
+
+class TestArtifactDirectoryEndpoint:
+    """Artifact-directory routes return only the directory they advertise."""
+
+    @staticmethod
+    def _handler(project_dir: Path) -> MagicMock:
+        handler = MagicMock()
+        handler.project_dir = str(project_dir)
+        handler.send_response = MagicMock()
+        handler.send_header = MagicMock()
+        handler.end_headers = MagicMock()
+        handler.wfile = io.BytesIO()
+        return handler
+
+    def test_contract_listing_returns_files_below_contracts_directory(self, tmp_path: Path):
+        from specify_cli.dashboard.handlers import features as features_module
+
+        mission_dir = tmp_path / "kitty-specs" / "001-test-mission"
+        contracts_dir = mission_dir / "contracts"
+        contracts_dir.mkdir(parents=True)
+        (contracts_dir / "api.md").write_text("# API contract\n")
+        (mission_dir / "spec.md").write_text("# Mission specification\n")
+        handler = self._handler(tmp_path)
+
+        with patch.object(
+            features_module,
+            "resolve_feature_planning_dir",
+            return_value=mission_dir,
+        ):
+            features_module.FeatureHandler._handle_artifact_directory(
+                handler,
+                "/api/contracts/001-test-mission",
+                "contracts",
+            )
+
+        handler.send_response.assert_called_once_with(200)
+        response = json.loads(handler.wfile.getvalue())
+        assert response == {
+            "files": [
+                {"name": "api.md", "path": "contracts/api.md", "icon": "📝"},
+            ]
+        }
+
+    def test_contract_endpoint_refuses_file_outside_contracts_directory(self, tmp_path: Path):
+        from specify_cli.dashboard.handlers import features as features_module
+
+        mission_dir = tmp_path / "kitty-specs" / "001-test-mission"
+        contracts_dir = mission_dir / "contracts"
+        contracts_dir.mkdir(parents=True)
+        (mission_dir / "spec.md").write_text("# Mission specification\n")
+        handler = self._handler(tmp_path)
+
+        with patch.object(
+            features_module,
+            "resolve_feature_planning_dir",
+            return_value=mission_dir,
+        ):
+            features_module.FeatureHandler._handle_artifact_directory(
+                handler,
+                "/api/contracts/001-test-mission/spec.md",
+                "contracts",
+            )
+
+        handler.send_response.assert_called_once_with(404)
+        handler.wfile.seek(0)
+        assert handler.wfile.read() == b""
+
+    @pytest.mark.parametrize("request_file", [False, True])
+    def test_external_artifact_root_symlink_is_not_exposed(self, tmp_path: Path, request_file: bool):
+        from specify_cli.dashboard.handlers import features as features_module
+
+        mission_dir = tmp_path / "kitty-specs" / "001-test-mission"
+        mission_dir.mkdir(parents=True)
+        external = tmp_path / "outside-mission"
+        external.mkdir()
+        (external / "private.md").write_text("outside content")
+        (mission_dir / "contracts").symlink_to(external, target_is_directory=True)
+        handler = self._handler(tmp_path)
+        route = "/api/contracts/001-test-mission"
+        if request_file:
+            route += "/contracts%2Fprivate.md"
+        with patch.object(features_module, "resolve_feature_planning_dir", return_value=mission_dir):
+            features_module.FeatureHandler._handle_artifact_directory(handler, route, "contracts")
+        if request_file:
+            handler.send_response.assert_called_once_with(404)
+            assert handler.wfile.getvalue() == b""
+        else:
+            handler.send_response.assert_called_once_with(200)
+            assert json.loads(handler.wfile.getvalue()) == {"files": []}
+
+    def test_listing_omits_symlink_files_outside_selected_artifact_directory(self, tmp_path: Path):
+        from specify_cli.dashboard.handlers import features as features_module
+
+        mission_dir = tmp_path / "kitty-specs" / "001-test-mission"
+        contracts = mission_dir / "contracts"
+        contracts.mkdir(parents=True)
+        (mission_dir / "spec.md").write_text("private specification")
+        (contracts / "alias.md").symlink_to(mission_dir / "spec.md")
+        (contracts / "public.md").write_text("public contract")
+        handler = self._handler(tmp_path)
+        with patch.object(features_module, "resolve_feature_planning_dir", return_value=mission_dir):
+            features_module.FeatureHandler._handle_artifact_directory(handler, "/api/contracts/001-test-mission", "contracts")
+        assert json.loads(handler.wfile.getvalue()) == {"files": [{"name": "public.md", "path": "contracts/public.md", "icon": "📝"}]}
 
 
 class TestDossierEndpointRouting:

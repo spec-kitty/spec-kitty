@@ -46,6 +46,15 @@ def _require_project_path(project_dir: str | None) -> Path:
     return Path(project_dir).resolve()
 
 
+def _artifact_path_is_contained(path: Path, mission_dir: Path, artifact_dir: Path) -> bool:
+    """Require both boundaries, including when the artifact root is a symlink."""
+    try:
+        resolved = path.resolve()
+        return resolved.is_relative_to(mission_dir.resolve()) and resolved.is_relative_to(artifact_dir.resolve())
+    except (OSError, RuntimeError):
+        return False
+
+
 def _string_field(mapping: dict[str, object], key: str, default: str = "") -> str:
     value = mapping.get(key, default)
     return value if isinstance(value, str) else str(value)
@@ -310,12 +319,18 @@ class FeatureHandler(DashboardHandler):
         self.end_headers()
 
     def _handle_artifact_directory(self, path: str, directory_name: str, md_icon: str = "📝") -> None:
-        """Generic handler for artifact directories (contracts, checklists, etc).
+        """Serve an artifact-directory listing or a contained file.
+
+        The endpoint accepts ``/api/{directory_name}/{mission}`` for a JSON
+        listing and appends one URL-encoded repository-relative path to serve a
+        file.  The Mission planning directory is resolved through the canonical
+        planning seam; file requests must remain below the named artifact
+        directory or receive ``404``.
 
         Args:
-            path: The request path
-            directory_name: Name of the subdirectory (e.g., 'contracts', 'checklists')
-            md_icon: Icon to use for .md files (default: '📝')
+            path: Request path, including the Mission selector and optional file.
+            directory_name: Artifact subdirectory, such as ``contracts``.
+            md_icon: Icon used for Markdown files in a listing.
         """
         parts = path.split("/")
         if len(parts) < 4:
@@ -339,9 +354,9 @@ class FeatureHandler(DashboardHandler):
 
             if feature_dir:
                 artifact_dir = feature_dir / directory_name
-                if artifact_dir.exists() and artifact_dir.is_dir():
+                if _artifact_path_is_contained(artifact_dir, feature_dir, artifact_dir) and artifact_dir.is_dir():
                     for file_path in sorted(artifact_dir.rglob("*")):
-                        if file_path.is_file():
+                        if file_path.is_file() and _artifact_path_is_contained(file_path, feature_dir, artifact_dir):
                             relative_path = str(file_path.relative_to(feature_dir))
                             icon = "📄"
                             if file_path.suffix == ".md":
@@ -369,10 +384,9 @@ class FeatureHandler(DashboardHandler):
             file_path_encoded = parts[4]
             file_path_str = urllib.parse.unquote(file_path_encoded)
             artifact_file = (feature_dir / file_path_str).resolve()
+            artifact_dir = (feature_dir / directory_name).resolve()
 
-            try:
-                artifact_file.relative_to(feature_dir.resolve())
-            except ValueError:
+            if not _artifact_path_is_contained(artifact_file, feature_dir, artifact_dir):
                 self.send_response(404)
                 send_csp_header(self)
                 self.end_headers()

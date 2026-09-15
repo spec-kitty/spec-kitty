@@ -5,7 +5,7 @@ This module generates and checks expected files based on the mission context.
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional
 import subprocess
 
@@ -65,6 +65,24 @@ class FileManifest:
         return manifest
 
     @staticmethod
+    def _canonical_script_path(script_path: str) -> str | None:
+        """Return a canonical scripts-relative path, or reject unsafe input."""
+        prefix = ".kittify/scripts/"
+        if not script_path.startswith(prefix):
+            return None
+
+        relative_path = script_path.removeprefix(prefix)
+        parsed_path = PurePosixPath(relative_path)
+        if (
+            not relative_path
+            or "\\" in relative_path
+            or parsed_path.is_absolute()
+            or any(part in {".", ".."} for part in parsed_path.parts)
+        ):
+            return None
+        return str(PurePosixPath("scripts") / parsed_path)
+
+    @staticmethod
     def _parse_frontmatter_scripts(content: str, script_key: str) -> set[str]:
         """Extract .kittify/scripts/ paths from a command file's YAML frontmatter."""
         scripts: set[str] = set()
@@ -81,8 +99,9 @@ class FileManifest:
             if len(parts) != 2:
                 continue
             script_path = parts[1].strip().strip('"').strip("'").split()[0] if parts[1].strip() else ""
-            if script_path.startswith(".kittify/scripts/"):
-                scripts.add(script_path.replace(".kittify/", "", 1))
+            canonical_path = FileManifest._canonical_script_path(script_path)
+            if canonical_path is not None:
+                scripts.add(canonical_path)
         return scripts
 
     def _get_referenced_scripts(self) -> list[str]:

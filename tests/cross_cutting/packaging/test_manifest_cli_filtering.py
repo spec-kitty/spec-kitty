@@ -11,10 +11,9 @@ attribute (feature 054 – state architecture cleanup phase 2, WP02).
 import platform
 from pathlib import Path
 
-from specify_cli.manifest import FileManifest
-
-
 import pytest
+
+from specify_cli.manifest import FileManifest
 
 pytestmark = [pytest.mark.integration]
 
@@ -96,6 +95,27 @@ sh: .kittify/scripts/helper.sh
         assert "scripts/helper.ps1" in scripts
     else:
         assert "scripts/helper.sh" in scripts
+
+
+def test_noncanonical_kittify_script_paths_are_excluded(tmp_path: Path):
+    """Only files below the canonical scripts directory may enter the manifest."""
+    kittify_dir = tmp_path / ".kittify"
+    missions_dir = kittify_dir / "missions" / "software-dev"
+    commands_dir = missions_dir / "command-templates"
+    commands_dir.mkdir(parents=True)
+    (missions_dir / "mission.yaml").write_text("name: software-dev\n")
+
+    command_content = """---
+description: Paths outside scripts must not be accepted
+sh: .kittify/scripts/../templates/injected.sh
+---
+# Invalid script reference
+"""
+    (commands_dir / "invalid-script-path.md").write_text(command_content)
+
+    manifest = FileManifest(kittify_dir, mission_type="software-dev")
+
+    assert manifest._get_referenced_scripts() == []
 
 
 def test_other_system_commands_filtered(tmp_path: Path):
