@@ -1174,7 +1174,8 @@ def _apply_never_created_fix(findings: list[DoctorFinding], repo_root: Path) -> 
         )
     if fixed_slugs:
         from specify_cli.migration.backfill_topology import backfill_topology_repo
-        backfill_topology_repo(repo_root)
+        for slug in fixed_slugs:
+            backfill_topology_repo(repo_root, mission_slug=slug)
         console.print(
             "[green]Topology backfilled.[/green] "
             "Run `spec-kitty doctor coordination` to verify."
