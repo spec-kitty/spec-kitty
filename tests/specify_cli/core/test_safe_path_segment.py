@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from specify_cli.core.paths import assert_safe_path_segment
+from specify_cli.core.paths import UnsafePathSegmentError, assert_safe_path_segment
 
 pytestmark = [pytest.mark.fast]
 
@@ -67,7 +67,7 @@ def test_accept_real_format_values(value: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Traversal guard — MUST raise ValueError for all of these
+# Traversal guard — MUST raise UnsafePathSegmentError for all of these
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "value",
@@ -123,8 +123,8 @@ def test_accept_real_format_values(value: str) -> None:
     ],
 )
 def test_reject_traversal_values(value: str) -> None:
-    """Traversal-unsafe values MUST raise ValueError with 'safe path segment' in message."""
-    with pytest.raises(ValueError, match="safe path segment"):
+    """Traversal-unsafe values raise the dedicated, ValueError-compatible subtype."""
+    with pytest.raises(UnsafePathSegmentError, match="safe path segment"):
         assert_safe_path_segment(value)
 
 
