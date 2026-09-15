@@ -32,9 +32,12 @@ on:
           - pr
           - full
 
+# Per-SHA concurrency on push→main (#4347): each landed tip gets its own singleton
+# group (nothing to cancel), so a merge burst no longer cancel-cascades main runs and
+# every tip receives a terminal evaluation. PR/dispatch keep the per-ref self-coalesce.
 concurrency:
-  group: ci-router-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-router-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
 permissions:
   contents: read

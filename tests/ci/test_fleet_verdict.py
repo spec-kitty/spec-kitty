@@ -122,7 +122,16 @@ def test_reporter_trigger_covers_every_registered_workflow_and_reruns() -> None:
     reporter = yaml.safe_load((workflows / "ci-fleet-verdict.yml").read_text())
     trigger = reporter[True]["workflow_run"]
     assert set(trigger["workflows"]) == {yaml.safe_load((workflows / name).read_text())["name"] for name in PR_WORKFLOWS | {AGGREGATE}}
-    assert set(trigger["types"]) == {"requested", "in_progress", "completed"}
+    # #4371: a verdict is a function of terminal upstream state only.
+    assert set(trigger["types"]) == {"completed"}
+    # #4371: top-level per-head_sha concurrency coalesces the fan-out to one surviving
+    # verdict per tip. Exact equality — a substring pin passes for a broken expression
+    # that drops the workflow_run path and collapses all tips into one cancel:true group.
+    assert reporter["concurrency"] == {
+        "group": "ci-fleet-verdict-${{ github.event.workflow_run.head_sha }}",
+        "cancel-in-progress": True,
+    }
+    # report(PR) job concurrency unchanged (report-main also unchanged — see test_fleet_main).
     assert "matrix.pr" in reporter["jobs"]["report"]["concurrency"]["group"]
     assert reporter["jobs"]["report"]["concurrency"]["cancel-in-progress"] is False
 
@@ -217,6 +226,16 @@ def test_duplicate_latest_evidence_is_suppressed_but_newer_verdict_is_not() -> N
     report(api, ROOT, 7, IDS, 123, 1)
     assert api.posts[0]["body"].startswith(f"[ci] green @{HEAD}")
     assert MARKER in api.posts[0]["body"]
+
+
+def test_running_ledger_does_not_suppress_a_terminal_verdict() -> None:
+    # NFR-002 / #4371 coalescing: the running-dedup must not swallow the last-writer
+    # terminal verdict. A stale "[ci] running @HEAD" must NOT suppress a newer terminal
+    # green/red for the same head — the running-guard only suppresses running-on-running.
+    api = API()
+    api.comments = [{"body": f"[ci] running @{HEAD}", "user": {"type": "Bot"}}]
+    report(api, ROOT, 7, IDS, 123, 1)
+    assert api.posts and api.posts[0]["body"].startswith(f"[ci] green @{HEAD}")
 
 
 def replay_fixture(tmp_path: Path) -> tuple[API, Path, dict[str, Any]]:

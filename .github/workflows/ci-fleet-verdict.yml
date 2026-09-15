@@ -3,7 +3,17 @@ name: CI Fleet Verdict
 on:
   workflow_run:
     workflows: [CI Router, CI Modules, Packs, CI Quality, ci-windows, Release Readiness Check, Check Shared Package Drift, CI Aggregate]
-    types: [requested, in_progress, completed]
+    # A verdict is a function of terminal upstream state only (#4371): requested /
+    # in_progress transitions are pure fan-out with no verdict value.
+    types: [completed]
+
+# Cap the per-tip fan-out (#4371): coalesce all redundant workflow_run triggers for one
+# tip to a single surviving run keyed on the triggering run's head SHA. The survivor is
+# the last completion and re-reads live evidence, so coalescing loses no verdict; distinct
+# tips have distinct SHAs → distinct groups → a landed tip is never cancelled by another.
+concurrency:
+  group: ci-fleet-verdict-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
 
 jobs:
   identify:
@@ -37,8 +47,10 @@ jobs:
     strategy:
       matrix:
         pr: ${{ fromJSON(needs.identify.outputs.prs) }}
-    # A superseding queued event is safe only within the same PR: its survivor
-    # re-reads every current gate. Global concurrency could lose another PR.
+    # Same-head coalescing is now owned by the top-level per-head_sha concurrency block
+    # (distinct PR heads never share it) plus the reporter's double-snapshot head-drift
+    # guard. This per-PR group with cancel-in-progress:false remains as defence-in-depth
+    # so a superseding queued event for the same PR still survivor-re-reads every gate.
     concurrency:
       group: ci-fleet-verdict-pr-${{ matrix.pr }}
       cancel-in-progress: false
