@@ -40,7 +40,7 @@ def test_hook_rendering_shape(tmp_path: Path) -> None:
     # the hook takes when the pinned interpreter has gone stale (e.g. a
     # pipx -> uv migration moved it). Exactly one of the two ever runs.
     exec_lines = [line for line in lines if line.strip().startswith("exec ")]
-    assert len(exec_lines) == 2, (  # golden-count: cardinality-is-contract
+    assert len(exec_lines) == 2, (
         f"Expected exactly two 'exec ' lines (primary + fallback), "
         f"found {len(exec_lines)}: {exec_lines}"
     )

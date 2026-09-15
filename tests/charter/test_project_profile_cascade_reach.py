@@ -53,7 +53,7 @@ def test_hand_authored_project_profile_is_cascade_reachable(tmp_path: Path) -> N
         project_root=tmp_path,
     )
     profile_nodes = [n for n in overlay.nodes if n.urn == _PROFILE_URN]
-    assert len(profile_nodes) == 1, "expected exactly one project agent_profile node"  # golden-count: cardinality-is-contract
+    assert len(profile_nodes) == 1, "expected exactly one project agent_profile node"
     assert profile_nodes[0].kind is NodeKind.AGENT_PROFILE
 
     # Persist into the live project doctrine tree so cascade can read it. The

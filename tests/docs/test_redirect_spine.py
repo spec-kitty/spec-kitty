@@ -284,8 +284,8 @@ def _stage_full_site(tmp_path: Path, baseline: list[str], derived: dict[str, str
 
 
 def test_frozen_snapshot_is_the_closed_mission_149_key_census() -> None:
-    assert len(FROZEN_PRIOR_REDIRECT_KEYS) == 149  # golden-count: cardinality-is-contract
-    assert len(set(FROZEN_PRIOR_REDIRECT_KEYS)) == 149  # golden-count: cardinality-is-contract (no duplicates)
+    assert len(FROZEN_PRIOR_REDIRECT_KEYS) == 149
+    assert len(set(FROZEN_PRIOR_REDIRECT_KEYS)) == 149  # (no duplicates)
     # The frozen snapshot must match the closed mission's committed keys AT LEAST
     # as a subset of what is committed today (WP13 only ever grows the map).
     committed = load_redirect_map(_COMMITTED_REDIRECT_MAP)

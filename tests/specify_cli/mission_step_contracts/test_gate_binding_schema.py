@@ -146,7 +146,7 @@ class TestMissionStepContractGates:
     def test_gates_field_accepts_bindings(self, minimal_step_contract_data: dict[str, object]) -> None:
         data = {**minimal_step_contract_data, "gates": [_VALID_BINDING]}
         contract = MissionStepContract.model_validate(data)
-        assert len(contract.gates) == 1  # golden-count: cardinality-is-contract
+        assert len(contract.gates) == 1
         assert contract.gates[0].handler == "spec-kitty-pre-review"
 
     def test_contract_still_rejects_unknown_top_level_keys(
@@ -173,7 +173,7 @@ class TestReviewContractGateBinding:
         contract = repo.get_by_action("software-dev", "review")
         assert contract is not None
 
-        assert len(contract.gates) == 1  # golden-count: cardinality-is-contract
+        assert len(contract.gates) == 1
         binding = contract.gates[0]
         assert binding.on_transition == "in_progress->for_review"
         assert binding.handler == "spec-kitty-pre-review"
@@ -258,7 +258,7 @@ class TestBackCompat:
 
         for contract in contracts:
             if contract.id == "review":
-                assert len(contract.gates) == 1  # golden-count: cardinality-is-contract
+                assert len(contract.gates) == 1
             else:
                 assert contract.gates == [], (
                     f"{contract.id} unexpectedly declares gates"

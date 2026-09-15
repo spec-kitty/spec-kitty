@@ -568,7 +568,7 @@ def test_wp04_provider_preserves_status_identity_and_shared_batch(tmp_path: Path
     assert all(instance is status.instance for instance, status in zip(retained, statuses, strict=True))
     command_effects = [e for e in assessment.effects if e.after.kind == "file" and e.path.endswith("SKILL.md")]
     assert len(command_effects) == len(command_installer.CANONICAL_COMMANDS)
-    assert all(e.logical_owners == ("codex", "vibe") and len(e.surface_ids) == 2 for e in command_effects)  # golden-count: cardinality-is-contract
+    assert all(e.logical_owners == ("codex", "vibe") and len(e.surface_ids) == 2 for e in command_effects)
     assert provider.apply(assessment, inputs.consent).outcome == "applied"
     _wp04_equal_effects(assessment, before, snapshot({"project": tmp_path}))
 

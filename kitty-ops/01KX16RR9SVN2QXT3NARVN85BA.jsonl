@@ -1,0 +1,2 @@
+{"event": "started", "invocation_id": "01KX16RR9SVN2QXT3NARVN85BA", "profile_id": "planner-priti", "action": "plan", "request_text": "process the last 10 hours of issues", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "6a3fd6190b2b306f", "governance_context_available": true, "started_at": "2026-07-08T15:50:27.884967+00:00"}
+{"event": "completed", "invocation_id": "01KX16RR9SVN2QXT3NARVN85BA", "completed_at": "2026-07-08T15:55:18.358786+00:00", "outcome": "done", "closed_by": "agent"}

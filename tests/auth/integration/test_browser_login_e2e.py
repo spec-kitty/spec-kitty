@@ -212,7 +212,7 @@ class TestBrowserLoginE2E:
         # Exactly one session was written through the TokenManager
         # pipeline. This confirms FR-016: the flow reached secure storage
         # via ``get_token_manager().set_session`` rather than bypassing it.
-        assert len(fake_storage.writes) == 1  # golden-count: cardinality-is-contract
+        assert len(fake_storage.writes) == 1
         stored = fake_storage.writes[0]
         assert stored.user_id == "u_alice"
         assert stored.email == "alice@example.com"
@@ -371,7 +371,7 @@ class TestBrowserLoginE2E:
         # Old session deleted, new session written — hence at least 1 delete
         # and exactly 1 write (new session).
         assert fake_storage.deletes >= 1
-        assert len(fake_storage.writes) == 1  # golden-count: cardinality-is-contract
+        assert len(fake_storage.writes) == 1
         assert fake_storage.writes[0].email == "alice@example.com"
         assert "at_bob_old" not in result.stdout
 

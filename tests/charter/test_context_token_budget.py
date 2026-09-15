@@ -125,7 +125,7 @@ class TestOverBudgetSubstitution:
         assert "tactic:B" in joined
         assert "section:C" in joined
         # All three swapped
-        assert len(notes) == 3  # golden-count: cardinality-is-contract
+        assert len(notes) == 3
 
     def test_substitution_is_deterministic_under_ties(self) -> None:
         # Three bodies of equal length — section_id ascending wins the tie.
@@ -191,7 +191,7 @@ class TestWarningLine:
         assert len(joined) <= budget
         assert long_body not in joined
         assert short_body not in joined
-        assert len(notes) == 2  # golden-count: cardinality-is-contract
+        assert len(notes) == 2
         assert joined.rstrip().endswith(warning_line(len(notes), budget))
 
     def test_production_context_budget_counts_warning_line(self) -> None:
@@ -390,7 +390,7 @@ class TestFetchStanzaContract:
     def test_fetch_stanza_helper_matches_contract(self) -> None:
         stanza = fetch_stanza("directive:DIRECTIVE_010", "rename or introduce a term in the diff")
         lines = stanza.splitlines()
-        assert len(lines) == 2  # golden-count: cardinality-is-contract
+        assert len(lines) == 2
         assert lines[0] == "Run: spec-kitty charter context --include directive:DIRECTIVE_010"
         assert lines[1].startswith("When you rename or introduce a term in the diff,")
 

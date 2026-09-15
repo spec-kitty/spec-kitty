@@ -113,7 +113,7 @@ def test_agent_issue_verdict_json_ambiguous_mission_uses_stdout_envelope(
     payload = json.loads(result.stdout)
     assert payload["success"] is False
     assert payload["error_code"] == "MISSION_AMBIGUOUS_SELECTOR"
-    assert len(payload["candidates"]) == 2  # golden-count: cardinality-is-contract
+    assert len(payload["candidates"]) == 2
 
 
 def test_agent_tasks_status_json_ambiguous_mission_uses_stdout_envelope(
@@ -201,7 +201,7 @@ def test_implement_json_ambiguous_mission_uses_stdout_envelope(
     payload = json.loads(result.stdout)
     assert payload["success"] is False
     assert payload["error_code"] == "MISSION_AMBIGUOUS_SELECTOR"
-    assert len(payload["candidates"]) == 2  # golden-count: cardinality-is-contract
+    assert len(payload["candidates"]) == 2
 
 
 def test_doctor_review_cycle_reconcile_json_bad_mission_uses_stdout_envelope(

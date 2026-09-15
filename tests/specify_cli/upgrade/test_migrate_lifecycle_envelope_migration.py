@@ -90,7 +90,7 @@ def test_apply_migrates_project_and_mission_logs(tmp_path: Path) -> None:
     assert result.warnings == []
 
     project_entries = read_lifecycle_events(project_event_log_path(tmp_path))
-    assert len(project_entries) == 1  # golden-count: cardinality-is-contract
+    assert len(project_entries) == 1
     assert project_entries[0]["schema_version"] == "3.0.0"
     assert "aggregate_type" not in project_entries[0]
     assert "node_id" in project_entries[0]
@@ -98,7 +98,7 @@ def test_apply_migrates_project_and_mission_logs(tmp_path: Path) -> None:
     mission_entries = read_lifecycle_events(
         mission_event_log_path(tmp_path / "kitty-specs" / _MISSION_SLUG)
     )
-    assert len(mission_entries) == 1  # golden-count: cardinality-is-contract
+    assert len(mission_entries) == 1
     assert mission_entries[0]["schema_version"] == "3.0.0"
     assert "aggregate_type" not in mission_entries[0]
     assert "build_id" in mission_entries[0]
@@ -173,7 +173,7 @@ def test_mig4_refusal_on_one_log_is_a_warning_not_a_corpus_abort(tmp_path: Path)
     result = migration.apply(tmp_path)
 
     assert result.success is True
-    assert len(result.warnings) == 1  # golden-count: cardinality-is-contract
+    assert len(result.warnings) == 1
     assert "refusing to migrate" in result.warnings[0]
     assert str(mission_log) in result.warnings[0]
 

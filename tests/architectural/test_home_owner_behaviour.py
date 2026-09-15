@@ -105,7 +105,6 @@ MERGE_BASE_DEFINITION_NAMES: tuple[str, ...] = (
     "pytest_addoption",
     "pytest_configure",
     "pytest_collection_modifyitems",
-    "_apply_shard_markers",
     "_fail_on_wall_clock_assertions",
     "_isolated_worker_home",
     "_enable_saas_sync_feature_flag",

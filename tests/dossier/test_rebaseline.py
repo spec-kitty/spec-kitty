@@ -322,7 +322,7 @@ class TestRebaselineBacklog:
 
         outcomes = rebaseline_recorded_snapshots(tmp_path, dry_run=True)
 
-        assert len(outcomes) == 1  # golden-count: cardinality-is-contract
+        assert len(outcomes) == 1
         assert outcomes[0].changed is True
         assert snapshot_path.read_text(encoding="utf-8") == before
 
@@ -453,7 +453,7 @@ class TestRebaselineErrorBranches:
 
         outcomes = rebaseline_recorded_snapshots(tmp_path)
 
-        assert len(outcomes) == 2  # golden-count: cardinality-is-contract
+        assert len(outcomes) == 2
         by_slug = {o.mission_slug: o for o in outcomes}
 
         bad_outcome = by_slug[bad_slug]

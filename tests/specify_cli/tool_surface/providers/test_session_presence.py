@@ -97,7 +97,7 @@ def test_wp07_cycle2_integrated_config_preserves_selection_policy(tmp_path: Path
     inputs = AssessmentInputs(OperationRoot("project", "project", tmp_path), consent=consent)
     before = snapshot({"project": tmp_path})
     assessed = run_tool_surfaces(tmp_path, ["vibe"], kinds=[ToolSurfaceKind.NATIVE_CONFIG, ToolSurfaceKind.CONTEXT_FILE], assessment_inputs=inputs)
-    assert len(assessed.assessments) == 2 and all(a.complete for a in assessed.assessments)  # golden-count: cardinality-is-contract
+    assert len(assessed.assessments) == 2 and all(a.complete for a in assessed.assessments)
     assert all(bool(a.effects) == repair for a in assessed.assessments)
     if not repair:
         assert all(a.dispositions and all(d.state == "not_applicable" for d in a.dispositions) for a in assessed.assessments)
@@ -345,7 +345,7 @@ def test_wp07_session_disabled_and_missing_harness_are_inapplicable(tmp_path: Pa
     (tmp_path / ".kittify/config.yaml").write_text("agents:\n  available: []\n")
     assessment = _session_assessment(tmp_path, ("codex", "claude", "qwen"))
     assert assessment.complete and not assessment.effects
-    assert len(assessment.dispositions) == 3  # golden-count: cardinality-is-contract
+    assert len(assessment.dispositions) == 3
     assert all(d.state == "not_applicable" for d in assessment.dispositions)
 
 
@@ -472,9 +472,9 @@ def test_wp07_session_exact_batch_and_repeat(tmp_path: Path, tools: tuple[str, .
             "matcher": "custom",
             "hooks": [{"type": "command", "command": "spec-kitty session-stop --custom"}],
         }
-        assert len([e for e in assessment.effects if e.path.endswith("settings.json")]) == 1  # golden-count: cardinality-is-contract
+        assert len([e for e in assessment.effects if e.path.endswith("settings.json")]) == 1
     if len(tools) > 1:
-        assert len(assessment.effects) == 1  # golden-count: cardinality-is-contract
+        assert len(assessment.effects) == 1
         assert set(assessment.effects[0].logical_owners) == set(tools)
     for _ in range(2):
         again = _session_assessment(tmp_path, tools)
@@ -512,7 +512,7 @@ def test_wp07_session_rechecks_all_siblings_before_first_write(tmp_path: Path, c
     settings = root / ".claude/settings.json"
     settings.write_text("{}\n")
     assessment = _session_assessment(root)
-    assert assessment.complete and len(assessment.effects) == 2  # golden-count: cardinality-is-contract
+    assert assessment.complete and len(assessment.effects) == 2
     if change == "last_target":
         settings.write_text('{"foreign":1}')
     elif change == "config":
@@ -571,7 +571,7 @@ def test_wp07_session_actual_service_and_dispatcher(tmp_path: Path) -> None:
         kinds=[ToolSurfaceKind.HOOK],
         assessment_inputs=AssessmentInputs(OperationRoot("project", "project", tmp_path), consent=consent),
     )
-    assert len(outcome.assessments) == 1  # golden-count: cardinality-is-contract
+    assert len(outcome.assessments) == 1
     assert outcome.assessments[0].complete and outcome.assessments[0].effects
     results = SurfaceRepairService(build_providers()).apply_assessments(outcome.assessments, consent)
     assert all(result.outcome == "applied" for result in results)

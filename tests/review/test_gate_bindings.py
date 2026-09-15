@@ -309,7 +309,7 @@ def test_three_no_coverage_reasons_are_pairwise_distinct(tmp_path: Path) -> None
         pack_resolver=lambda root: _pack(["research"], root),
     )
     reasons = {no_contract.reason, no_binding.reason, not_activated.reason}
-    assert len(reasons) == 3, f"reasons must be pairwise distinct, got {reasons}"  # golden-count: cardinality-is-contract
+    assert len(reasons) == 3, f"reasons must be pairwise distinct, got {reasons}"
 
 
 # ---------------------------------------------------------------------------

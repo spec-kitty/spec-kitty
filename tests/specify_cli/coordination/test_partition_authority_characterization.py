@@ -171,7 +171,7 @@ class TestDisagreementSetRoutesPrimaryOnResidueButCoordUnderCommitRouter:
         groups = commit_router._group_files_by_partition(
             Path("/tmp"), (Path(kind_none_path),), "m", kind=_COORD_CALLER_KIND
         )
-        assert len(groups) == 1  # golden-count: cardinality-is-contract (single-partition; kind asserted below)
+        assert len(groups) == 1  # (single-partition; kind asserted below)
         group_kind, group_files = groups[0]
         assert is_primary_artifact_kind(group_kind), (
             f"{kind_none_path!r} (kind=None) must route to a PRIMARY-partition "

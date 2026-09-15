@@ -122,7 +122,7 @@ def test_documented_getting_started_path_succeeds(project: Path) -> None:
 
     assert result.returncode == 0, f"the documented path failed:\n{result.stdout}\n{result.stderr}"
     missions = _missions(project)
-    assert len(missions) == 1, f"expected exactly one mission, got {missions}"  # golden-count: cardinality-is-contract
+    assert len(missions) == 1, f"expected exactly one mission, got {missions}"
 
     branch = _declared_coordination_branch(project, missions[0])
     assert branch is not None
@@ -176,7 +176,7 @@ def test_specify_on_main_discloses_uncommitted_scaffold(project: Path) -> None:
     assert result.returncode == 0, _unwrapped(result)
     payload = json.loads(result.stdout)
     missions = _missions(project)
-    assert len(missions) == 1  # golden-count: cardinality-is-contract
+    assert len(missions) == 1
     mission_dir = project / "kitty-specs" / missions[0]
     artifacts = {Path(item["path"]).name for item in payload["uncommitted_artifacts"]}
     assert {"spec.md", "meta.json"} <= artifacts
@@ -196,7 +196,7 @@ def test_protected_branch_continuation_keeps_exactly_one_mission(project: Path) 
     result = _cli(project, "specify", "task-list", "--mission-type", "software-dev", "--json")
     assert result.returncode == 0, _unwrapped(result)
     before = _missions(project)
-    assert len(before) == 1  # golden-count: cardinality-is-contract
+    assert len(before) == 1
     _git(project, "checkout", "-b", "my-first-mission")
     _git(project, "add", "-A")
     _git(project, "commit", "-m", "Commit existing mission scaffold")
@@ -264,7 +264,7 @@ def test_unborn_head_error_names_a_remedy_that_works(tmp_path: Path) -> None:
     retried = _cli(repo, "specify", "task-list")
 
     assert retried.returncode == 0, f"the prescribed remedy did not unblock the user:\n{retried.stdout}\n{retried.stderr}"
-    assert len(_missions(repo)) == 1  # golden-count: cardinality-is-contract
+    assert len(_missions(repo)) == 1
 
 
 # ---------------------------------------------------------------------------

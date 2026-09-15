@@ -170,7 +170,7 @@ def test_manifest_round_trip(tmp_path: Path, guard: PathGuard) -> None:
     assert loaded.adapter_id == "fixture"
     assert loaded.adapter_version == "1.0.0"
     assert loaded.synthesizer_version == "3.2.0a5"
-    assert len(loaded.manifest_hash) == 64  # golden-count: cardinality-is-contract
+    assert len(loaded.manifest_hash) == 64
     assert {a.slug for a in loaded.artifacts} == {"my-tactic"}
     assert loaded.artifacts[0].kind == "tactic"
     assert loaded.artifacts[0].slug == "my-tactic"

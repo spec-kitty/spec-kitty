@@ -593,7 +593,7 @@ class TestHttpsBundleSource:
         assert result.ok is True
         assert result.pack_version == "3.2.7"
         assert result.etag == '"etag-7"'
-        assert len(aql_calls) == 1  # golden-count: cardinality-is-contract
+        assert len(aql_calls) == 1
         assert aql_calls[0][0] == ("https://artifactory.example.com/artifactory/api/search/aql")
         query = aql_calls[0][1]["data"]
         assert '"repo":"raf-generic-local"' in query
@@ -748,7 +748,7 @@ class TestHttpsBundleSource:
         ).fetch(tmp_path / "snapshot")
 
         assert result.ok is True
-        assert len(aql_headers) == 2  # golden-count: cardinality-is-contract
+        assert len(aql_headers) == 2
         assert all(headers.get("Authorization") == "Bearer retry-token" for headers in aql_headers)
         assert all("If-None-Match" not in headers for headers in aql_headers)
         assert download_response.closed is True

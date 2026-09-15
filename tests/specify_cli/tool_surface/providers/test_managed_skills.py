@@ -397,7 +397,7 @@ def test_managed_provisioning_shared_update_preserves_unknown_and_unselected(
     assert len(updates) == len(backups) == 1
     for effect in (*updates, *backups):
         assert effect.logical_owners == ("codex", "copilot")
-        assert len(effect.surface_ids) == 2  # golden-count: cardinality-is-contract
+        assert len(effect.surface_ids) == 2
         assert tuple((proof.kind, proof.reference) for proof in effect.ownership) == (
             ("manifest", ".kittify/skills-manifest.json:codex:.agents/skills/a/SKILL.md"),
         )
@@ -1265,7 +1265,7 @@ def test_shared_parent_composition_cold_real_owners(
     for path in shared:
         claims = [e for e in effects if e.destination == path]
         combined = [e for e in composition.effects if e.destination == path]
-        assert len(claims) == 2 and len(combined) == 1  # golden-count: cardinality-is-contract
+        assert len(claims) == 2 and len(combined) == 1
         assert combined[0].owner == commands.owner_key
         assert set(combined[0].ownership) == {p for e in claims for p in e.ownership}
         assert set(combined[0].surface_ids) == {s for e in claims for s in e.surface_ids}

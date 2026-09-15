@@ -48,7 +48,7 @@ def _assess_real(root: Path, tools: tuple[str, ...] = ("claude",)) -> OwnerAsses
         kinds=[ToolSurfaceKind.AGENT_PROFILE],
         assessment_inputs=AssessmentInputs(OperationRoot("project", "project", root)),
     )
-    assert len(outcome.assessments) == 1  # golden-count: cardinality-is-contract
+    assert len(outcome.assessments) == 1
     return outcome.assessments[0]
 
 

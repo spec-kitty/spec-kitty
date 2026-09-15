@@ -154,7 +154,7 @@ def test_flattened_strict_xfail_landmine_disposition_still_pending() -> None:
     flattened_param = _TOPOLOGIES[-1]
     marks = getattr(flattened_param, "marks", ())
     xfail_marks = [m for m in marks if getattr(m, "name", None) == "xfail"]
-    assert len(xfail_marks) == 1, (  # golden-count: cardinality-is-contract
+    assert len(xfail_marks) == 1, (
         "expected exactly one active xfail(strict=True) marker on the "
         "flattened topology param -- WP06 still finds #2802 open; if it is "
         "closed, retire the marker rather than editing this assertion"
