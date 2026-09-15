@@ -33,6 +33,7 @@ from specify_cli.saas_client.errors import (
     SaasNotFoundError,
     SaasTimeoutError,
 )
+from specify_cli.saas_client.project_authority import resolve_project_team_slug
 
 logger = logging.getLogger(__name__)
 
@@ -83,14 +84,11 @@ class SaasClient:
         _http: Optional pre-constructed ``httpx.Client``.  Pass a mock client
             in tests to intercept HTTP calls without network access.
         project_root: The checkout that **owns the data this client will send**
-            (#3030 FR-030) — the repository holding the mission or decision
-            record, not the process's current working directory.  Every request
-            is refused unless that project has consented to hosted sync.
-            ``None`` **denies**: a transport that has not been told whose data it
-            carries cannot resolve consent, and inability to determine consent is
-            never consent.  The refusing default is deliberate so that a future
-            construction site which forgets to pass it fails loudly rather than
-            leaking silently.
+            — the repository holding the mission or decision record. Team-scoped
+            collaboration requests require this checkout's canonical hosted
+            admission to match the authenticated team (#3178). ``None`` refuses
+            collaboration because session membership alone cannot establish the
+            project's destination.
     """
 
     def __init__(
@@ -257,7 +255,7 @@ class SaasClient:
         authority = _authenticated_authority_for_token(self._token)
         if authority is None:
             raise SaasAuthError("Exactly one token-matched Collaborative Teamspace is required")
-        slug = authority[2]
+        slug = resolve_project_team_slug(self._project_root, authority[2], self.check_repo_admission)
         if team_slug is not None and team_slug.strip() != slug:
             raise SaasConsentError("target_authority_mismatch: collaborative team path substitution refused")
         if self._team_slug is not None and self._team_slug.strip() != slug:
@@ -472,7 +470,7 @@ class SaasClient:
         return cast(
             AdmissionAnswer,
             {
-                "admitted": bool(data.get("admitted", False)),
+                "admitted": data.get("admitted") is True,
                 "team": data.get("team"),
                 "provider": data.get("provider"),
                 "repo_slug": str(data.get("repo_slug", repo_slug)),

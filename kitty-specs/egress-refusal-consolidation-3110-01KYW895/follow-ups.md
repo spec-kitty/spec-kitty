@@ -371,6 +371,18 @@ and spec.md's fold of FR-007 into FR-002 is false there. FILED AS #3178.**
 
 **Tracker: https://github.com/Priivacy-ai/spec-kitty/issues/3178**
 
+**2026-09-15 remediation (#3178, Op `01M2KGXMBJF2GSYDD9V0QACTS4`):**
+FR-007 is independent of FR-002; the spec fold is corrected. Collaboration now
+uses canonical git-origin identity and the existing hosted repository-admission
+lookup before building a team-scoped path. The admission must match the current
+authenticated team, and its slug (not its team ID) supplies the path. A local
+credential file is not destination authority. This adds a non-team-scoped
+admission GET carrying repository identity; ownership itself remains local, but
+the historical one-request success budget does not cover this destination check.
+The original finding and suggested remedy below are retained as history; the
+current admission authority supersedes the suggested plaintext-file binding.
+
+
 Filed rather than left as prose, on FU-Q's own reasoning: a residual that lives
 only in this dossier stops being anybody's inbox the moment the PR merges. Not
 fixed here — the remedy is a destination-authorisation check, a different seam from

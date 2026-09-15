@@ -24,6 +24,9 @@ from specify_cli.saas_client import client as _client_mod
 @pytest.fixture(autouse=True)
 def _stub_saas_authority(monkeypatch: pytest.MonkeyPatch) -> None:
     """Answer authority resolution without a live auth session."""
+    # Legacy transport/ownership tests isolate their own seam. The destination
+    # acceptance tests restore the real project gate and exercise admission IO.
+    monkeypatch.setattr(_client_mod, "resolve_project_team_slug", lambda root, team_id, check: team_id)
     monkeypatch.setattr(
         _client_mod,
         "_authenticated_authority_for_token",
