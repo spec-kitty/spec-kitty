@@ -620,7 +620,7 @@ class TestLayeredProjectionThreadsPackContext:
         ``mission_step_repository.py``'s own source before writing this
         fixture (not assumed): the project-tier mission-*type* YAML lives at
         ``<repo_root>/.kittify/missions/mission_types/<id>.yaml``
-        (``_PROJECT_MISSION_TYPES_RELATIVE``, this module), while the
+        (``PROJECT_MISSION_TYPES_RELATIVE``, this module), while the
         project-tier *step-tree* lives at
         ``<repo_root>/.kittify/overrides/mission-steps/<id>/<step>/step.yaml``
         (``_project_mission_type_dir``/``_resolve_project_layer``,
