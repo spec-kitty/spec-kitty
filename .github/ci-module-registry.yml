@@ -258,6 +258,42 @@ modules:
   # module-tests.yml would look for tests/specify_cli_runtime and exit 64).
   test_dirs:
   - tests/specify_cli/runtime
+- module: ci
+  roots:
+  - scripts/ci/**
+  - .github/workflows/**
+  cov_targets:
+  - kernel
+  - specify_cli.core
+  tier: standard
+  # CI-INFRASTRUCTURE row (spec-kitty#4386): tests/ci (the guard suites for
+  # scripts/ci/ and the CI workflows it feeds -- including the SONAR_TOKEN
+  # sonar-pr path) was claimed by no row, so no per-PR job ever selected it:
+  # the only lane reaching it was the nightly interpreter sweep (scheduled,
+  # never PR-triggered, fail-soft). The roots are NON-src on purpose: they are
+  # the CI-infrastructure paths whose regressions these tests guard, not
+  # product code -- the first non-src module row, mirrored 1:1 as the `ci`
+  # filter group in ci-router.yml. cov_targets follow the `unit`-row
+  # precedent: the src surfaces scripts/ci actually imports
+  # (kernel.clock, specify_cli.core.vcs.git) -- an ownership declaration only;
+  # the shard measures the full top-level package set (WP01/FR-013).
+  # Deliberate routing decision (issue "Wanted" #2): CI-infra changes do NOT
+  # join the FR-004 fail-closed catch-all. That sensor is contractually
+  # "unmapped src/** code" (contracts/router-two-authority.md Invariants 1-2);
+  # scripts/ci/** and .github/workflows/** are not src, and they are now
+  # NAMED, so there is no unmatched path left to catch. The per-PR executor
+  # is this module matrix (ci-modules.yml runs on every PR), never a router
+  # `tests (ci)` job -- that would double-run the suite per PR, the exact
+  # duplicate class tests/architectural/test_no_duplicate_suite_execution.py
+  # exists to remove. Measured basis (scripts/ci/capture_shard_timings.py run
+  # recorded in ci-shard-timings.json, run-id wp02-durations-20260915T035159Z,
+  # 2026-09-15): 252 collected, 252 passed, 26.5s summed per-test durations
+  # (~67s serial wall, the rest collection/import time) -- shard_count stays 1,
+  # far inside the 30m shard budget, so no split is needed (skew is trivially
+  # 0%).
+  shard_count: 1
+  test_dirs:
+  - tests/ci
 # OUT-OF-MATRIX INVENTORY (spec-kitty#4369). Every test-bearing directory under
 # tests/ that no modules[] row claims, each with the reason it is deliberately
 # outside the per-PR module matrix. Enforced by
@@ -393,7 +429,6 @@ out_of_matrix_test_dirs:
   - tests/auth/stress
   - tests/calibration
   - tests/characterization
-  - tests/ci
   - tests/cli_gate
   - tests/compat
   - tests/concurrency

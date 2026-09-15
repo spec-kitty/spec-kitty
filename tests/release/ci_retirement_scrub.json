@@ -5,7 +5,8 @@
     "Coverage form (C-005): --cov targets are kept in dotted module form (never path form) and pyproject [tool.coverage.run].relative_files=true is preserved -- both are required for multi-<source> coverage resolution by the downstream aggregators.",
     "Re-derivation (moves, NOT census exclusions): the historical standalone 'doctrine' group (src/doctrine/**) and the --cov=doctrine.missions target were re-mapped to their live successor src/charter/offering/** (doctrine absorbed into charter/offering post-convergence); doctrine is a MOVE, not a retirement, so it is not in excluded_surfaces. The stale core_misc root src/specify_cli/render/** was dropped -- the render package no longer exists (oracle: importer-count:0), so it is not carried by any kept group.",
     "The enforcement allowlists (test_no_dead_symbols / test_no_dead_modules / test_no_retired_subsystems) that QUOTE dead surfaces as banned strings are out of scope of exclusion (C-006): they stay always-on blocking gates and never appear in excluded_surfaces.",
-    "Test-inventory groups (mission sonar-per-pr-coverage-reuse-01M2FR32, WP02): `unit` and `specify_cli_runtime` are rows for live test directories that had no declared home. Their roots are deliberately a SUBSET of globs other kept groups already own (never a new src/** claim), so adding them changes no path's group match and leaves the FR-004 fail-closed `unmatched` union semantics intact. Rationale and the rejected alternative are recorded in kitty-specs/sonar-per-pr-coverage-reuse-01M2FR32/traces/design-decisions.md."
+    "Test-inventory groups (mission sonar-per-pr-coverage-reuse-01M2FR32, WP02): `unit` and `specify_cli_runtime` are rows for live test directories that had no declared home. Their roots are deliberately a SUBSET of globs other kept groups already own (never a new src/** claim), so adding them changes no path's group match and leaves the FR-004 fail-closed `unmatched` union semantics intact. Rationale and the rejected alternative are recorded in kitty-specs/sonar-per-pr-coverage-reuse-01M2FR32/traces/design-decisions.md.",
+    "CI-infrastructure group (spec-kitty#4386): `ci` is the first NON-src row in `groups`. It stays in `groups` (not non_src_router_groups) because the module registry consumes `groups` rows verbatim and tests/ci needs a registry row to gain per-PR execution via the ci-modules.yml matrix, which runs on every PR. Its roots claim CI-infrastructure paths (scripts/ci/**, .github/workflows/**) that no group owned before, so no path's existing match changes; being non-src it is excluded from the FR-004 `unmatched` union exactly like docs/corpus/e2e, by the same contract rule (router-two-authority.md Invariant 2), and no ci-router.yml job gates on it -- the per-PR executor is the module matrix, and a router tests (ci) job would double-run the suite per PR."
   ],
   "groups": [
     {
@@ -237,6 +238,19 @@
       ],
       "census_evidence": "known-live",
       "note": "TEST-INVENTORY row (mission sonar-per-pr-coverage-reuse-01M2FR32, WP02/FR-006). This group exists to give a live test directory a declared home in the module registry so retiring the duplicate broad-measurement step does not remove its PER-CHANGE execution. It owns no src/** surface of its own: every root below is a VERBATIM copy of a glob another kept group already owns, so the router's path->group mapping and the FR-004 fail-closed `unmatched` union are unchanged (no path gains or loses a match). Roots/cov_targets are the subset of already-owned surfaces the directory's tests actually import -- never a surface no other group claims, which would silently narrow an unmapped src/** change away from the run-all catch-all. Covers tests/specify_cli/runtime (already the last directory of the CLAUDE.md fast tier)."
+    },
+    {
+      "group": "ci",
+      "roots": [
+        "scripts/ci/**",
+        ".github/workflows/**"
+      ],
+      "cov_targets": [
+        "kernel",
+        "specify_cli.core"
+      ],
+      "census_evidence": "known-live",
+      "note": "CI-INFRASTRUCTURE row (spec-kitty#4386). The first NON-src group in `groups`: its roots are the CI-infrastructure paths (the CI scripts and the workflows that run them) whose regressions tests/ci guards, not product code, so it is deliberately NOT moved to non_src_router_groups -- it must stay in `groups` because the module registry consumes `groups` rows verbatim and tests/ci needs a registry row to gain per-PR execution (the module matrix runs on every PR). Mirrored 1:1 as the `ci` filter group in ci-router.yml. cov_targets follow the TEST-INVENTORY precedent: the src surfaces scripts/ci actually imports (kernel.clock in capture_shard_timings.py/select_source_artifacts.py, specify_cli.core.vcs.git in local_gate_parity.py) -- already owned by the `kernel` and `core_misc` groups, so no path's match set changes. Deliberate routing decision: CI-infra paths stay OUTSIDE the FR-004 fail-closed catch-all (that sensor is contractually unmapped src/** code, router-two-authority.md Invariants 1-2; these paths are not src and are now named) and no ci-router.yml job gates on the group -- the per-PR executor is the ci-modules.yml matrix shard, and a router tests (ci) job would double-run the suite per PR."
     }
   ],
   "non_src_router_groups": [

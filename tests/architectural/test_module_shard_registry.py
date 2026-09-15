@@ -534,3 +534,36 @@ def test_registry_test_dirs_are_pairwise_non_nested() -> None:
         if ancestor != descendant and descendant.startswith(ancestor + "/")
     ]
     assert not nested, "registry test_dirs are nested across rows (double-run):\n" + "\n".join(nested)
+
+
+# ---------------------------------------------------------------------------
+# spec-kitty#4386: the `ci` module row. tests/ci (the guard suites for
+# scripts/ci/ and the CI workflows it feeds, including the credential-holding
+# sonar-pr path) was previously recorded in out_of_matrix_test_dirs -- claimed
+# by no row, its only reach was ci-nightly.yml's scheduled, fail-soft sweep.
+# The generic coverage guards above keep it claimed-or-recorded; this targeted
+# regression test pins the ROW itself, so the wiring cannot silently rot back
+# to an out-of-matrix "reasoned decision" (which the generic guard would
+# accept) without a loud red naming #4386.
+# ---------------------------------------------------------------------------
+def test_ci_module_row_claims_the_ci_guard_suites() -> None:
+    """The `ci` row exists with the CI-infrastructure roots and tests/ci dirs.
+
+    The row's per-PR executor is the ci-modules.yml matrix (it runs on every
+    PR), so a regression in tests/ci fails the PR that caused it. Its roots
+    are deliberately NON-src (CI infrastructure, not product code) -- the
+    first such row -- and are mirrored 1:1 as the `ci` filter group in
+    ci-router.yml (outside the FR-004 src catch-all, gating no router job; see
+    tests/ci/test_ci_module_wiring.py, which runs on CI-infra-only PRs too).
+    """
+    registry = _load_registry()
+    rows = [row for row in _modules(registry) if row.get("module") == "ci"]
+    assert len(rows) == 1, "expected exactly one `ci` module row (spec-kitty#4386)"
+    row = rows[0]
+    assert list(row["roots"]) == ["scripts/ci/**", ".github/workflows/**"], (
+        "the ci row's roots must be the CI-infrastructure paths whose regressions tests/ci guards"
+    )
+    assert list(row.get("test_dirs", [])) == ["tests/ci"], "the ci row must claim tests/ci explicitly"
+
+    recorded = _out_of_matrix_dirs(registry)
+    assert "tests/ci" not in recorded, "tests/ci is claimed by the `ci` row -- it must not also be recorded out-of-matrix"

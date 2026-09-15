@@ -76,6 +76,10 @@ jobs:
       docs: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.docs }}
       corpus: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.corpus }}
       e2e: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.e2e }}
+      # CI-infrastructure group (spec-kitty#4386): non-src, like docs/corpus/e2e
+      # above. Names the scripts/ci/** + .github/workflows/** path family so it
+      # routes (matches a named group) instead of silently matching nothing.
+      ci: ${{ (inputs.mode == 'full' || github.event_name == 'push' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.ci }}
       # Raw fail-closed catch-all signal (FR-004): any src/** changed but no named src group did.
       unmatched: ${{ steps.unmatched.outputs.unmatched }}
     steps:
@@ -165,6 +169,22 @@ jobs:
             e2e:
               - 'tests/e2e/**'
               - 'tests/cross_cutting/**'
+            # CI-infrastructure group (spec-kitty#4386), mirroring the `ci` module
+            # registry row and its scrub group 1:1. NON-src, like docs/corpus/e2e:
+            # deliberately NOT in the unmatched loop below -- the FR-004 catch-all
+            # is contractually the sensor for unmapped src/** CODE
+            # (contracts/router-two-authority.md Invariants 1-2), and these paths
+            # are not src and are now named, so there is nothing unmatched to
+            # catch. No job gates on this group BY DESIGN: the per-PR executor for
+            # these paths' guard suite (tests/ci) is the ci-modules.yml module
+            # matrix, which runs on every PR; a `tests (ci)` job here would
+            # double-run the suite per PR -- the exact duplicate class
+            # tests/architectural/test_no_duplicate_suite_execution.py exists to
+            # remove. The group makes the path family's routing visible and
+            # asserted (tests/ci/test_ci_module_wiring.py) instead of silent.
+            ci:
+              - 'scripts/ci/**'
+              - '.github/workflows/**'
             # FR-004 probe: matches ANY src change. The `unmatched` step computes
             # `any_src AND NOT (any named src group)` from the filter's own outputs.
             # Never gate a job on `any_src` directly (contract Invariant 1).
