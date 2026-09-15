@@ -297,14 +297,18 @@ def _normalise_evidence(evidence: Any) -> Any:
 def _first_non_printable_attr(attrs: Mapping[str, str]) -> tuple[str, list[str]] | None:
     """Find the first attr value the decode-seam control-character guard would reject.
 
-    ``to_zeitgeist_attrs`` (spec-kitty-events, pinned 8.2.0) applies no
-    printability check of its own — only ``from_zeitgeist_attrs`` does
-    (``_reject_control_characters``, Priivacy-ai/spec-kitty-events#64, fix in
-    flight as events#104). Free-text decision prose (``question``/``options``
-    on open, ``final_answer``/``rationale`` on resolve) can therefore reach
-    this seam carrying control characters — a pasted ANSI escape sequence is
-    routine — that every consumer's decode will reject. Using the same
-    ``str.isprintable()`` predicate here turns that otherwise-silent
+    ``to_zeitgeist_attrs`` (spec-kitty-events, pinned 9.1.6) rejects
+    non-printable characters on *encode* too (its own
+    ``_reject_control_characters`` pass over emitted attrs), so this
+    producer-side pre-check is now redundant belt-and-braces rather than the
+    only guard — kept as defense-in-depth so the drop is logged with this
+    bridge's message (naming the offending key and codepoints) instead of the
+    codec's, and so a future pin change cannot silently reopen the gap.
+    Free-text decision prose (``question``/``options`` on open,
+    ``final_answer``/``rationale`` on resolve) can reach this seam carrying
+    control characters — a pasted ANSI escape sequence is routine — that
+    every consumer's decode will reject. Using the same
+    ``str.isprintable()`` predicate turns that otherwise-silent
     decode-side drop into a producer-side warning.
     """
     for key, value in attrs.items():
