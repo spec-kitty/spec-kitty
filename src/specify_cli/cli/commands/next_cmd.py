@@ -218,6 +218,9 @@ def next_step(
         # exit 2, never a raw traceback.
         _emit_unsafe_mission_slug_error(_exc, json_output)
         raise typer.Exit(2) from _exc
+    except ValueError as _exc:
+        _emit_internal_resolution_error(_exc, json_output)
+        raise typer.Exit(2) from _exc
     _validate_result_and_answer(result, answer, json_output)
     answered_id = _maybe_handle_answer(
         agent,
@@ -582,6 +585,23 @@ def _emit_unsafe_mission_slug_error(exc: UnsafePathSegmentError, json_output: bo
         payload: dict[str, object] = {
             "result": "error",
             "error_code": "UNSAFE_MISSION_SLUG",
+            "error": message,
+            "spec_kitty_version": __version__,
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        print(f"Error: {message}", file=sys.stderr)
+
+
+def _emit_internal_resolution_error(exc: ValueError, json_output: bool) -> None:
+    """Preserve the CLI error envelope for an unexpected resolver failure."""
+    message = str(exc)
+    if json_output:
+        from specify_cli import __version__
+
+        payload: dict[str, object] = {
+            "result": "error",
+            "error_code": "INTERNAL_RESOLUTION_ERROR",
             "error": message,
             "spec_kitty_version": __version__,
         }

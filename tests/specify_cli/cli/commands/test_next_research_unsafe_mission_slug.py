@@ -73,10 +73,39 @@ def test_next_does_not_relabel_unrelated_value_error(tmp_path: pathlib.Path) -> 
     ):
         result = _invoke_next(tmp_path, ["--agent", "claude", "--mission", "valid-slug"])
 
-    assert result.exit_code == 1
-    assert isinstance(result.exception, ValueError)
-    assert "No resolved location for surface 'spec'" in str(result.exception)
+    assert result.exit_code == 2
+    assert "No resolved location for surface 'spec'" in result.output
     assert "single safe path segment" not in result.output
+    assert "Traceback" not in result.output
+
+
+def test_next_json_preserves_unrelated_resolution_error_contract(tmp_path: pathlib.Path) -> None:
+    from specify_cli.cli.commands import next_cmd
+
+    message = "No resolved location for surface 'spec'"
+    with patch.object(next_cmd, "_resolve_mission_slug", side_effect=ValueError(message)):
+        result = _invoke_next(
+            tmp_path,
+            ["--agent", "claude", "--mission", "valid-slug", "--json"],
+        )
+
+    assert result.exit_code == 2
+    payload = json.loads(result.stdout)
+    assert payload["result"] == "error"
+    assert payload["error_code"] == "INTERNAL_RESOLUTION_ERROR"
+    assert payload["error"] == message
+    assert "Traceback" not in result.stdout
+
+
+def test_merge_does_not_relabel_unrelated_value_error(tmp_path: pathlib.Path) -> None:
+    from specify_cli.cli.commands import merge
+
+    message = "No resolved location for surface 'spec'"
+    with (
+        patch.object(merge, "_resolve_mission_slug", side_effect=ValueError(message)),
+        pytest.raises(ValueError, match="No resolved location"),
+    ):
+        merge._resolve_slug_or_exit(tmp_path, "valid-slug")
 
 
 def test_research_does_not_relabel_unrelated_value_error(tmp_path: pathlib.Path) -> None:
