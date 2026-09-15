@@ -306,15 +306,17 @@ def _normalise_evidence(evidence: Any) -> Any:
 def _first_non_printable_attr(attrs: Mapping[str, str]) -> tuple[str, list[str]] | None:
     """Find the first attr value the decode-seam control-character guard would reject.
 
-    ``to_zeitgeist_attrs`` (spec-kitty-events, pinned 8.2.0) applies no
-    printability check of its own — only ``from_zeitgeist_attrs`` does
-    (``_reject_control_characters``, Priivacy-ai/spec-kitty-events#64, fix in
-    flight as events#104). Free-text decision prose (``question``/``options``
-    on open, ``final_answer``/``rationale`` on resolve) can therefore reach
-    this seam carrying control characters — a pasted ANSI escape sequence is
-    routine — that every consumer's decode will reject. Using the same
-    ``str.isprintable()`` predicate here turns that otherwise-silent
-    decode-side drop into a producer-side warning.
+    Since spec-kitty-events 9.x (``>=9,<10``; 9.1.6 in ``uv.lock``),
+    ``to_zeitgeist_attrs`` runs the same ``_reject_control_characters`` guard
+    on encode that ``from_zeitgeist_attrs`` runs on decode
+    (Priivacy-ai/spec-kitty-events#64), raising
+    ``ZeitgeistAttrsControlCharacterError`` — a ``ZeitgeistAttrsError`` — which
+    :func:`_broadcast_moment` already catches and logs. Free-text decision
+    prose (``question``/``options`` on open, ``final_answer``/``rationale`` on
+    resolve) carrying control characters, such as a pasted ANSI escape
+    sequence, is therefore dropped at the encode call. This pre-check applies
+    the same ``str.isprintable()`` predicate and is kept only as
+    defense-in-depth should the codec's encode-side guard ever regress.
     """
     for key, value in attrs.items():
         bad = sorted({f"U+{ord(ch):04X}" for ch in value if not ch.isprintable()})
