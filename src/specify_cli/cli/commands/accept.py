@@ -34,6 +34,11 @@ from specify_cli.core.owned_mission import (
 )
 from specify_cli.migration.runtime_state_cutover import MissingMissionIdError
 from specify_cli.migration.verdict_provenance_backfill import stranded_verdict_findings
+from specify_cli.merge.baseline import (
+    PrMergeEvidence,
+    PrMergeEvidenceError,
+    verify_pr_merge_evidence,
+)
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
@@ -141,18 +146,16 @@ def _coord_worktree_root(repo_root: Path, mission_slug: str, *, effective_root: 
 
     scope: dict[str, Any] = effective_root_kwargs(effective_root)
     resolved = resolve_artifact_surface(
-        repo_root, mission_slug, MissionArtifactKind.ACCEPTANCE_MATRIX,
+        repo_root,
+        mission_slug,
+        MissionArtifactKind.ACCEPTANCE_MATRIX,
         **scope,
     )
     if resolved.surface_kind is not TopologySurface.COORD:
         return None
 
     try:
-        worktree_root = Path(
-            run_git(
-                ["rev-parse", "--show-toplevel"], cwd=resolved.path, check=True
-            ).stdout.strip()
-        )
+        worktree_root = Path(run_git(["rev-parse", "--show-toplevel"], cwd=resolved.path, check=True).stdout.strip())
     except TaskCliError:
         return None
 
@@ -204,14 +207,14 @@ def _coord_status_feature_dir(repo_root: Path, mission_slug: str, *, effective_r
 
     scope: dict[str, Any] = effective_root_kwargs(effective_root)
     resolved = resolve_artifact_surface(
-        repo_root, mission_slug, MissionArtifactKind.STATUS_STATE,
+        repo_root,
+        mission_slug,
+        MissionArtifactKind.STATUS_STATE,
         **scope,
     )
     if resolved.surface_kind is not TopologySurface.COORD:
         return None
-    return placement_seam(repo_root, mission_slug, **effective_root_kwargs(effective_root)).read_dir(
-        MissionArtifactKind.STATUS_STATE
-    )
+    return placement_seam(repo_root, mission_slug, **effective_root_kwargs(effective_root)).read_dir(MissionArtifactKind.STATUS_STATE)
 
 
 def _coord_dirty_paths(repo_root: Path, mission_slug: str, *, effective_root: Path | None = None) -> list[str]:
@@ -227,7 +230,9 @@ def _coord_dirty_paths(repo_root: Path, mission_slug: str, *, effective_root: Pa
     against that surface instead.
     """
     worktree_root = _coord_worktree_root(
-        repo_root, mission_slug, **effective_root_kwargs(effective_root),
+        repo_root,
+        mission_slug,
+        **effective_root_kwargs(effective_root),
     )
     if worktree_root is None:
         return []
@@ -307,9 +312,7 @@ def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str, *, effec
     from mission_runtime import MissionArtifactKind, placement_seam
 
     scope = effective_root_kwargs(effective_root)
-    feature_dir = placement_seam(repo_root, mission_slug, **scope).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
+    feature_dir = placement_seam(repo_root, mission_slug, **scope).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     if not feature_dir.is_dir():
         return  # nothing to stamp
 
@@ -331,7 +334,8 @@ def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str, *, effec
 
     try:
         result = stamp_accept_cutover(
-            feature_dir, status_feature_dir=status_feature_dir,
+            feature_dir,
+            status_feature_dir=status_feature_dir,
             **({"owned": owned} if owned is not None else {}),
         )
     except MissingMissionIdError:
@@ -346,9 +350,50 @@ def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str, *, effec
         detail = result.error or ("; ".join(result.verify.mismatches) if result.verify else "no verified stamp")
         raise AcceptanceError(f"Owned birth-cutover failed: {detail}")
     if result.error:
-        logger.warning(
-            "birth-cutover for %s did not reconcile: %s", mission_slug, result.error
-        )
+        logger.warning("birth-cutover for %s did not reconcile: %s", mission_slug, result.error)
+
+
+def _record_pr_merge_for_accept(
+    repo_root: Path,
+    mission_slug: str,
+    merge_commit: str,
+    *,
+    effective_root: Path | None = None,
+    target_ref: str | None = None,
+    attest_first_landing: bool = False,
+) -> PrMergeEvidence:
+    """Record the PR's real merge commit as the post-merge review baseline (#4231).
+
+    A mission accepted through ``--mode pr`` never passes through
+    ``spec-kitty merge``, so without this recording its ``meta.json`` never
+    carries ``baseline_merge_commit`` and both ``spec-kitty review --mode
+    post-merge`` (``MISSION_REVIEW_MODE_MISMATCH``) and the lightweight
+    dead-code gate (``dead_code_baseline_missing``) misreport a cleanly
+    merged mission. This records the merge the mission ACTUALLY had, through
+    the shared single seam
+    (:func:`specify_cli.merge.baseline.record_pr_merge_baseline_for_mission`
+    — the same one ``migrate backfill-merge-commit`` uses), which verifies the
+    commit against git before writing anything — no fabricated evidence.
+
+    Mirrors :func:`_stamp_birth_cutover_for_accept`'s placement (PRIMARY
+    ``meta.json`` via the kind-aware seam) and ordering (called before
+    :func:`_commit_residual_acceptance_artifacts` so this write is swept into
+    that same partition-aware residual commit). Unlike the birth-cutover
+    stamp it is NOT best-effort: the operator explicitly asked for the merge
+    to be recorded, so a failure propagates and the command exits non-zero
+    rather than silently landing a mission whose baseline was never recorded
+    — the exact silent-gap defect #4231 reports.
+    """
+    from specify_cli.merge.baseline import record_pr_merge_baseline_for_mission
+
+    return record_pr_merge_baseline_for_mission(
+        repo_root,
+        mission_slug,
+        merge_commit,
+        effective_root=effective_root,
+        target_ref=target_ref,
+        attest_first_landing=attest_first_landing,
+    )
 
 
 def _commit_primary_residuals(repo_root: Path, mission_slug: str, dirty: list[str]) -> bool:
@@ -421,8 +466,7 @@ def _commit_coord_residuals(repo_root: Path, mission_slug: str, dirty: list[str]
 
     if result.status in ("error", "refused"):
         raise TaskCliError(
-            f"Residual coordination artifact commit failed for {mission_slug} "
-            f"({result.destination_surface}): {result.diagnostic or 'unknown error'}"
+            f"Residual coordination artifact commit failed for {mission_slug} ({result.destination_surface}): {result.diagnostic or 'unknown error'}"
         )
     return bool(result.status == "committed")
 
@@ -443,7 +487,9 @@ def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str, *,
     independently (never a single cross-worktree commit, which git cannot do).
     """
     coord_dirty = _coord_dirty_paths(
-        repo_root, mission_slug, **effective_root_kwargs(effective_root),
+        repo_root,
+        mission_slug,
+        **effective_root_kwargs(effective_root),
     )
     primary_dirty = _primary_dirty_paths(repo_root, mission_slug)
     if not coord_dirty and not primary_dirty:
@@ -498,10 +544,7 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
 
 def _print_acceptance_result(result: AcceptanceResult) -> None:
     console.print(
-        "\n[bold]Acceptance metadata[/bold]\n"
-        f"• Mission: {result.summary.feature}\n"
-        f"• Accepted at: {result.accepted_at}\n"
-        f"• Accepted by: {result.accepted_by}"
+        f"\n[bold]Acceptance metadata[/bold]\n• Mission: {result.summary.feature}\n• Accepted at: {result.accepted_at}\n• Accepted by: {result.accepted_by}"
     )
     if result.accept_commit:
         console.print(f"• Acceptance commit: {result.accept_commit}")
@@ -592,9 +635,7 @@ def _report_encoding_repair(repo_root: Path, repaired: list[Path]) -> None:
     artifact names rather than absolute temp paths.
     """
     if not repaired:
-        console.print(
-            "[yellow]--normalize-encoding enabled but no artifacts required updates.[/yellow]"
-        )
+        console.print("[yellow]--normalize-encoding enabled but no artifacts required updates.[/yellow]")
         return
     console.print("[yellow]Normalized acceptance-artifact encoding for:[/yellow]")
     for path in repaired:
@@ -656,7 +697,12 @@ def _collect_summary_with_optional_repair(
 
 
 def _owned_accept_context(
-    primary: Path, checkout: Path | None, mission: str | None, *, diagnose: bool, normalize_encoding: bool,
+    primary: Path,
+    checkout: Path | None,
+    mission: str | None,
+    *,
+    diagnose: bool,
+    normalize_encoding: bool,
 ) -> OwnedMission | None:
     """Validate opt-in ownership and mode before any acceptance reads or writes."""
     if checkout is None:
@@ -692,9 +738,52 @@ def accept(
         "--normalize-encoding/--no-normalize-encoding",
         help="Repair acceptance-artifact encoding (Windows-1252/Latin-1 -> UTF-8) before validating.",
     ),
-    owned_checkout: Annotated[
-        Path | None, typer.Option("--owned-checkout", help="Explicit owned checkout for a single-branch mission.")
+    owned_checkout: Annotated[Path | None, typer.Option("--owned-checkout", help="Explicit owned checkout for a single-branch mission.")] = None,
+    merge_commit: Annotated[
+        str | None,
+        typer.Option(
+            "--merge-commit",
+            metavar="SHA",
+            help=(
+                "With --mode pr: record this PR merge commit as the mission's "
+                "post-merge review baseline. The commit is verified against git "
+                "before anything is written — it must carry "
+                "kitty-specs/<slug>/meta.json, its first parent must not, and it "
+                "must have landed on the target branch. Every landing shape "
+                "additionally needs --attest-first-landing-commit."
+            ),
+        ),
     ] = None,
+    target_branch: Annotated[
+        str | None,
+        typer.Option(
+            "--target-branch",
+            help=(
+                "With --merge-commit: the branch the PR merged into (the PR's "
+                "base branch). Defaults to the mission's declared target_branch, "
+                "else the repository's primary branch."
+            ),
+        ),
+    ] = None,
+    attest_first_landing: Annotated[
+        bool,
+        typer.Option(
+            "--attest-first-landing-commit",
+            help=(
+                "With --merge-commit: attest that the supplied commit's first "
+                "parent is the pre-landing target tip — for a two-parent "
+                "merge commit, that the merge was performed ON the target "
+                "branch (an internal merge fast-forwarded onto the target "
+                "is graph-identical, and its first parent is an "
+                "implementation commit); for a single-parent landing (squash "
+                "or corpus-first stack), that it was the first commit of the "
+                "landing. Required for every landing shape: git cannot prove "
+                "either, and a wrong anchor silently under-scans the "
+                "dead-code gate. The attestation is recorded in "
+                "pr_merge_evidence, never presented as a git proof."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Validate mission readiness before merging to main."""
 
@@ -704,7 +793,11 @@ def accept(
     try:
         repo_root = find_repo_root()
         owned = _owned_accept_context(
-            repo_root, owned_checkout, mission, diagnose=diagnose, normalize_encoding=normalize_encoding,
+            repo_root,
+            owned_checkout,
+            mission,
+            diagnose=diagnose,
+            normalize_encoding=normalize_encoding,
         )
         if owned is not None:
             repo_root = owned.root
@@ -766,6 +859,38 @@ def accept(
         tracker.add("commit", "Record acceptance metadata")
     if not json_output:
         tracker.add("guide", "Share next steps" if not diagnose else "Report diagnostics")
+
+    # #4231: validate --merge-commit BEFORE any acceptance write, so a bad or
+    # unverifiable SHA fails with nothing mutated. Verification is read-only
+    # git, so --diagnose / --no-commit may carry it too.
+    pr_merge_evidence: PrMergeEvidence | None = None
+    if merge_commit is not None:
+        if actual_mode != "pr":
+            error_msg = (
+                f"--merge-commit is only valid with --mode pr (resolved mode: "
+                f"{actual_mode}). A {actual_mode} acceptance records its "
+                "baseline_merge_commit through `spec-kitty merge`, not here."
+            )
+            if json_output:
+                print(json.dumps({"error": error_msg}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(2)
+        try:
+            pr_merge_evidence = verify_pr_merge_evidence(
+                repo_root,
+                mission_slug,
+                merge_commit,
+                target_ref=target_branch,
+                attest_first_landing=attest_first_landing,
+            )
+        except PrMergeEvidenceError as exc:
+            error_msg = f"Cannot record PR merge for {mission_slug}: {exc}"
+            if json_output:
+                print(json.dumps({"error": error_msg}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
 
     if not json_output:
         tracker.start("verify")
@@ -875,6 +1000,8 @@ def accept(
     _accept_exc: AcceptanceError | None = None
     _residue_exc: Exception | None = None
     _stamp_exc: Exception | None = None
+    _pr_merge_exc: Exception | None = None
+    pr_merge_recorded = False
     try:
         if commit_required and not json_output:
             tracker.start("commit")
@@ -919,6 +1046,25 @@ def accept(
                 _stamp_birth_cutover_for_accept(repo_root, mission_slug, **scope)
             except (MissingMissionIdError, AcceptanceError, ActionContextError) as stamp_exc:
                 _stamp_exc = stamp_exc
+        if commit_required and _accept_exc is None and pr_merge_evidence is not None:
+            # #4231: record the verified PR merge as the review baseline on the
+            # same real-commit, acceptance-succeeded path as the birth-cutover
+            # stamp, BEFORE the residual-artifacts commit so this meta.json
+            # write is swept into that same partition-aware commit. Unlike the
+            # stamp this is explicit operator intent, so a failure propagates
+            # to the command's exit path instead of degrading to a warning.
+            try:
+                _record_pr_merge_for_accept(
+                    repo_root,
+                    mission_slug,
+                    merge_commit or "",
+                    target_ref=target_branch,
+                    attest_first_landing=attest_first_landing,
+                    **scope,
+                )
+                pr_merge_recorded = True
+            except Exception as pr_merge_error:  # noqa: BLE001 — reported on the command's own error lane below
+                _pr_merge_exc = pr_merge_error
         if commit_required:
             # The acceptance commit (inside perform_acceptance) only captures
             # meta.json. Derived artifacts materialized during readiness checks
@@ -939,6 +1085,13 @@ def accept(
         else:
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
+    if _pr_merge_exc is not None:
+        error_msg = f"PR merge recording failed: {_pr_merge_exc}"
+        if json_output:
+            print(json.dumps({"error": error_msg}))
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
+        raise typer.Exit(1)
     if _residue_exc is not None:
         error_msg = f"Residual artifact commit failed: {_residue_exc}"
         if json_output:
@@ -951,6 +1104,19 @@ def accept(
         raise typer.Exit(1)
 
     assert result is not None  # guaranteed: _accept_exc is None means perform_acceptance succeeded
+
+    if pr_merge_evidence is not None:
+        # #4231: surface the PR-merge recording outcome on both output lanes
+        # (human notes and the --json payload via result.to_dict()).
+        if pr_merge_recorded:
+            result.notes.append(
+                "PR merge recorded: baseline_merge_commit "
+                f"{pr_merge_evidence.baseline_merge_commit} "
+                f"(PR merge commit {pr_merge_evidence.pr_merge_commit}; "
+                f"anchor evidence {pr_merge_evidence.anchor_evidence})"
+            )
+        else:
+            result.notes.append("--merge-commit verified against this repository; re-run without --no-commit to record it as the review baseline")
 
     if json_output:
         print(json.dumps(_with_advisories(result.to_dict(), [provenance_note]), indent=2))

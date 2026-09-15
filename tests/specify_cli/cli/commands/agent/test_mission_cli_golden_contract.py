@@ -131,7 +131,13 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
     ),
     "record-analysis": frozenset({"--mission", "--input-file", "--agent", "--json"}),
     "setup-plan": frozenset({"--mission", "--json"}),
-    "accept": frozenset({"--mission", "--mode", "--json", "--lenient", "--no-commit", "--diagnose"}),
+    # `--merge-commit` added for the #4231 PR-merge baseline recording passthrough (2026-09-13);
+    # `--target-branch` added in the same issue's fix round for the PR-base-branch landing check (2026-09-14);
+    # `--attest-first-landing-commit` added in fix round 4 — every landing shape needs the
+    # operator attestation, so the agent lane must forward it too (2026-09-14).
+    "accept": frozenset(
+        {"--mission", "--mode", "--json", "--lenient", "--no-commit", "--diagnose", "--merge-commit", "--target-branch", "--attest-first-landing-commit"}
+    ),
     "merge": frozenset(
         {
             "--mission",

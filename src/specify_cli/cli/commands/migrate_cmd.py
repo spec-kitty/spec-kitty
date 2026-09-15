@@ -5,6 +5,9 @@ Subcommands:
 - ``spec-kitty migrate`` — Migrate project .kittify/ to centralized model.
 - ``spec-kitty migrate backfill-identity`` — Write ULID ``mission_id`` into
   any ``meta.json`` that lacks one.  Idempotent and non-destructive.
+- ``spec-kitty migrate backfill-merge-commit`` — Record a GitHub PR's real
+  merge commit as a mission's post-merge review baseline (#4231). Verifies
+  the commit against git before writing; idempotent.
 - ``spec-kitty migrate charter-encoding`` — Scan charter content for non-UTF-8
   encodings; normalize-or-fail-loud. Implements FR-026, FR-027, NFR-006.
 - ``spec-kitty migrate backfill-provenance`` — Stamp the ``legacy_unrecorded``
@@ -55,10 +58,7 @@ from specify_cli.runtime.migrate import execute_migration
 
 app = typer.Typer(
     name="migrate",
-    help=(
-        "Migration commands: update .kittify/ layout and backfill identity fields "
-        "in legacy missions."
-    ),
+    help=("Migration commands: update .kittify/ layout and backfill identity fields in legacy missions."),
     no_args_is_help=False,
     invoke_without_command=True,
 )
@@ -93,9 +93,7 @@ _CAPTURE_FAILURE_HEADER = "Unrecoverable capture failure(s) recorded during this
 #: across this module. Every ``locate_project_root() is None`` guard (existing
 #: and this WP's new ``backfill-mission-type`` command) now shares this one
 #: constant.
-_NO_PROJECT_ROOT = (
-    "Could not locate project root. No .kittify/ directory found in any parent directory."
-)
+_NO_PROJECT_ROOT = "Could not locate project root. No .kittify/ directory found in any parent directory."
 
 #: WP02 (campsite M2): ``backfill-mission-type`` reuses the hoisted
 #: ``_DRY_RUN_FLAG``/``_MISSION_FLAG``/``_MISSION_METAVAR``/``_JSON_FLAG``
@@ -104,10 +102,7 @@ _NO_PROJECT_ROOT = (
 #: describe writing a ``mission_type`` key, so this is the one new
 #: command-specific help constant the fold allows; ``_MISSION_HELP`` /
 #: ``_JSON_HELP`` are reused as-is.
-_MISSION_TYPE_DRY_RUN_HELP = (
-    "Report what would change without writing any files. "
-    "The JSON shape is identical to a live run."
-)
+_MISSION_TYPE_DRY_RUN_HELP = "Report what would change without writing any files. The JSON shape is identical to a live run."
 _MISSION_TYPE_SUMMARY_TITLE = "backfill-mission-type summary"
 #: ``backfill_mission_type_repo`` scopes ``--mission`` by directory-name slug only
 #: (``kitty-specs/<slug>``), so this command must NOT reuse ``_MISSION_HELP`` /
@@ -117,23 +112,16 @@ _MISSION_TYPE_MISSION_HELP = "Scope to a single mission slug (e.g. 083-foo). Omi
 _MISSION_TYPE_MISSION_METAVAR = "SLUG"
 _MISSION_TYPE_JSON_HELP = "Emit the per-mission backfill result list as structured JSON."
 _MISSION_TYPE_MANUAL_DIAGNOSTIC = (
-    "Fix: assign a mission type whose governance profile resolves at some layer "
-    "(built-in / org / project), or author/activate that type. Not necessarily a typo."
+    "Fix: assign a mission type whose governance profile resolves at some layer (built-in / org / project), or author/activate that type. Not necessarily a typo."
 )
 
 
 @app.callback(invoke_without_command=True)
 def migrate(  # noqa: C901
     ctx: typer.Context,
-    dry_run: bool = typer.Option(
-        False, "--dry-run", help="Show what would change without modifying the filesystem"
-    ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Show file-by-file detail"
-    ),
-    force: bool = typer.Option(
-        False, "--force", help="Skip confirmation prompt"
-    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would change without modifying the filesystem"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show file-by-file detail"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Migrate project .kittify/ to centralized model.
 
@@ -159,6 +147,7 @@ def migrate(  # noqa: C901
     # without performing any filesystem moves (FR-006, contracts/cli-migrate.md).
     if sys.platform == "win32":
         from specify_cli.paths.windows_migrate import migrate_windows_state  # noqa: PLC0415
+
         try:
             outcomes = migrate_windows_state(dry_run=dry_run)
         except TimeoutError as exc:
@@ -168,10 +157,7 @@ def migrate(  # noqa: C901
 
     project_dir = locate_project_root()
     if project_dir is None:
-        console.print(
-            "[red]Could not locate project root. "
-            "No .kittify/ directory found in any parent directory.[/red]"
-        )
+        console.print("[red]Could not locate project root. No .kittify/ directory found in any parent directory.[/red]")
         raise typer.Exit(1)
 
     if not (project_dir / ".kittify").exists():
@@ -190,9 +176,7 @@ def migrate(  # noqa: C901
     else:
         runtime_root = get_runtime_root()
         runtime_path_display = render_runtime_path(runtime_root.base)
-        console.print(
-            f"[bold]Step 1:[/bold] Ensuring global runtime ({runtime_path_display}/) is up to date..."
-        )
+        console.print(f"[bold]Step 1:[/bold] Ensuring global runtime ({runtime_path_display}/) is up to date...")
         ensure_runtime()
         console.print("  [green]Global runtime is current.[/green]")
 
@@ -208,22 +192,14 @@ def migrate(  # noqa: C901
     action_moved = "would move" if dry_run else "moved"
     action_superseded = "would remove" if dry_run else "removed"
 
-    console.print(
-        f"  {len(report.removed)} files identical to global -- {action_removed}"
-    )
+    console.print(f"  {len(report.removed)} files identical to global -- {action_removed}")
     if report.superseded:
-        console.print(
-            f"  {len(report.superseded)} files superseded (outdated defaults) -- {action_superseded}"
-        )
-    console.print(
-        f"  {len(report.moved)} files customized -- {action_moved} to overrides/"
-    )
+        console.print(f"  {len(report.superseded)} files superseded (outdated defaults) -- {action_superseded}")
+    console.print(f"  {len(report.moved)} files customized -- {action_moved} to overrides/")
     console.print(f"  {len(report.kept)} files project-specific -- kept")
 
     if report.unknown:
-        console.print(
-            f"  [yellow]{len(report.unknown)} files unknown -- kept with warning[/yellow]"
-        )
+        console.print(f"  [yellow]{len(report.unknown)} files unknown -- kept with warning[/yellow]")
 
     if verbose:
         for path in report.removed:
@@ -238,10 +214,7 @@ def migrate(  # noqa: C901
             console.print(f"    [yellow]unknown: {path}[/yellow]")
 
     if not dry_run:
-        console.print(
-            "\n[green]Migration complete.[/green] Zero legacy warnings expected. "
-            "Run `spec-kitty config --show-origin` to verify resolution tiers."
-        )
+        console.print("\n[green]Migration complete.[/green] Zero legacy warnings expected. Run `spec-kitty config --show-origin` to verify resolution tiers.")
 
     # Credential path decision: auth credentials stay in the runtime auth/ subdir.
     # This is a security boundary decision -- credentials have a different
@@ -259,10 +232,7 @@ def backfill_identity(
         bool,
         typer.Option(
             "--dry-run",
-            help=(
-                "Report what would change without writing any files. "
-                "The JSON shape is identical to a live run."
-            ),
+            help=("Report what would change without writing any files. The JSON shape is identical to a live run."),
         ),
     ] = False,
     mission: Annotated[
@@ -357,14 +327,235 @@ def backfill_identity(
         if dry_run:
             console.print("\n[dim]Dry run — no files were modified.[/dim]")
         elif wrote:
-            console.print(
-                f"\n[green]Done.[/green] {len(wrote)} mission(s) received a "
-                f"``mission_id``."
-            )
+            console.print(f"\n[green]Done.[/green] {len(wrote)} mission(s) received a ``mission_id``.")
         else:
             console.print("\n[green]Done.[/green] All missions already have a ``mission_id``.")
 
     if errored:
+        raise typer.Exit(1)
+
+
+_MERGE_COMMIT_METAVAR = "SHA"
+
+_MERGE_COMMIT_HELP = (
+    "The PR merge commit that landed the mission on its target branch. "
+    "Read it off the merged PR, then supply it here; the migration verifies "
+    "it against git before writing anything — it must carry the mission's "
+    "kitty-specs/<slug>/meta.json, its first parent must not, and it must "
+    "have landed on the target branch. Every landing shape additionally "
+    "needs --attest-first-landing-commit."
+)
+
+_MERGE_COMMIT_TARGET_HELP = (
+    "The branch the PR merged into (the PR's base branch), for the landing "
+    "check. Defaults to the mission's declared target_branch, else the "
+    "repository's primary branch."
+)
+
+_MERGE_COMMIT_ATTEST_HELP = (
+    "Attest that the supplied --merge-commit's first parent is the "
+    "pre-landing target tip. Required for every landing shape: for a "
+    "two-parent merge commit, attest the merge was performed ON the target "
+    "branch (a merge performed on a mission or sibling branch and then "
+    "fast-forwarded onto the target is graph-identical, and its first "
+    "parent is an implementation commit, not the tip); for a single-parent "
+    "landing (squash or corpus-first stack), attest the supplied commit was "
+    "the FIRST commit of the landing. Git cannot prove either — and a wrong "
+    "anchor silently under-scans the dead-code gate. The attestation is "
+    "recorded in pr_merge_evidence, never presented as a git proof."
+)
+
+_MERGE_COMMIT_DRY_RUN_HELP = "Verify the merge evidence and report what would be written without writing any files. The JSON shape is identical to a live run."
+
+#: Command-specific --json help (``_JSON_HELP`` is worded for the runtime-state
+#: cutover's "seed/flip" results and does not describe this single-mission row).
+_MERGE_COMMIT_JSON_HELP = "Emit the per-mission backfill result row as structured JSON."
+
+
+@app.command(name="backfill-merge-commit")
+def backfill_merge_commit_cmd(
+    mission: Annotated[
+        str,
+        typer.Option(
+            _MISSION_FLAG,
+            help="Mission to repair (mission_id / mid8 / slug).",
+            metavar=_MISSION_METAVAR,
+        ),
+    ],
+    merge_commit: Annotated[
+        str,
+        typer.Option(
+            "--merge-commit",
+            help=_MERGE_COMMIT_HELP,
+            metavar=_MERGE_COMMIT_METAVAR,
+        ),
+    ],
+    target_branch: Annotated[
+        str | None,
+        typer.Option(
+            "--target-branch",
+            help=_MERGE_COMMIT_TARGET_HELP,
+        ),
+    ] = None,
+    attest_first_landing: Annotated[
+        bool,
+        typer.Option(
+            "--attest-first-landing-commit",
+            help=_MERGE_COMMIT_ATTEST_HELP,
+        ),
+    ] = False,
+    dry_run: Annotated[bool, typer.Option(_DRY_RUN_FLAG, help=_MERGE_COMMIT_DRY_RUN_HELP)] = False,
+    json_output: Annotated[bool, typer.Option(_JSON_FLAG, help=_MERGE_COMMIT_JSON_HELP)] = False,
+) -> None:
+    """Record a GitHub PR's real merge commit as a mission's review baseline (#4231).
+
+    A mission accepted through ``acceptance_mode: pr`` never passes through
+    ``spec-kitty merge``, so its ``meta.json`` never carried
+    ``baseline_merge_commit`` — leaving ``spec-kitty review --mode post-merge``
+    unreachable (``MISSION_REVIEW_MODE_MISMATCH``) and the lightweight
+    dead-code gate failing a cleanly merged mission. This command repairs
+    that state from REAL evidence: the merge commit you supply is verified
+    against git (it must resolve in this repository, carry the mission's
+    ``kitty-specs/<slug>/meta.json``, its first parent must not — proving it
+    is the commit that introduced the mission corpus — and it must have
+    landed on the target branch, so an unmerged mission-branch commit is
+    refused) before ``baseline_merge_commit`` (the first parent) and the
+    provenance pair ``pr_merge_commit`` (the landing commit itself) /
+    ``pr_merge_evidence`` (what the anchor's completeness rests on) are
+    written through the same canonical seam ``spec-kitty merge`` and
+    ``accept --mode pr --merge-commit`` use.
+
+    **What the anchor proves depends on the landing shape — and on your
+    attestation, never on git.** Checks 1–6 prove the commit landed on the
+    target branch and introduced the mission corpus; they cannot prove its
+    first parent is the PRE-LANDING TARGET TIP for any shape. A two-parent
+    merge commit's first parent is the tip only if the merge was performed
+    on the target branch — an internal merge (the corpus branch merged into
+    the implementation branch, the target then fast-forwarded to the
+    result) is graph-identical and its first parent is an implementation
+    commit. A single-parent landing commit (squash, or a corpus-first stack)
+    has the tip as its parent only if it was the first commit of the
+    landing. Both shapes therefore require ``--attest-first-landing-commit``
+    — your explicit attestation — and record it as the anchor's evidence
+    class (``pr_merge_evidence: merge-commit-parent-attested`` /
+    ``corpus-parent-attested``), so the anchor's completeness rests on a
+    recorded operator attestation, never on a claim git did not make.
+    Anchoring at the wrong tip would silently under-scan the dead-code
+    gate. Full forge commit-list evidence, which would prove the tip
+    outright, is tracked in #4277.
+
+    **Idempotent**: a mission whose ``meta.json`` already carries a
+    ``baseline_merge_commit`` is skipped and never overwritten.
+
+    Exit codes:
+
+    - ``0`` — recorded, skipped (already recorded), or ``--dry-run``
+    - ``1`` — the merge evidence could not be verified, or the mission handle
+      is unknown
+
+    Examples:
+
+        spec-kitty migrate backfill-merge-commit --mission 321-mission --merge-commit <sha> --dry-run
+
+        spec-kitty migrate backfill-merge-commit --mission 321-mission --merge-commit <sha>
+    """
+    from specify_cli.cli.selector_resolution import resolve_mission_handle
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+    from specify_cli.merge.baseline import (
+        ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED,
+        PrMergeEvidenceError,
+        record_pr_merge_baseline_for_mission,
+        resolve_primary_meta_dir,
+        verify_pr_merge_evidence,
+    )
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        _error(_NO_PROJECT_ROOT)
+        raise typer.Exit(1)
+
+    # Route --mission through the canonical handle resolver so mission_id /
+    # mid8 / slug all resolve. resolve_mission_handle prints + exits on an
+    # unknown/ambiguous handle.
+    resolved = resolve_mission_handle(mission, repo_root, json_mode=json_output)
+
+    # The skip-check reads the SAME primary leg the write targets (not the
+    # kind-blind handle dir, which can be the coordination surface).
+    primary_meta_dir = resolve_primary_meta_dir(repo_root, resolved.mission_slug)
+
+    result = {
+        "slug": resolved.mission_slug,
+        "action": "error",
+        "reason": "",
+        "pr_merge_commit": None,
+        "baseline_merge_commit": None,
+        "pr_merge_evidence": None,
+    }
+    try:
+        try:
+            working_meta = load_meta_fail_closed(primary_meta_dir) or {}
+        except MissionMetaReadError as exc:
+            raise PrMergeEvidenceError(f"meta.json is unreadable ({exc})") from exc
+        if str(working_meta.get("baseline_merge_commit") or "").strip():
+            result["action"] = "skip"
+            result["reason"] = "baseline_merge_commit already recorded"
+        else:
+            evidence = verify_pr_merge_evidence(
+                repo_root,
+                resolved.mission_slug,
+                merge_commit,
+                target_ref=target_branch,
+                attest_first_landing=attest_first_landing,
+            )
+            result["pr_merge_commit"] = evidence.pr_merge_commit
+            result["baseline_merge_commit"] = evidence.baseline_merge_commit
+            result["pr_merge_evidence"] = evidence.anchor_evidence
+            if not dry_run:
+                record_pr_merge_baseline_for_mission(
+                    repo_root,
+                    resolved.mission_slug,
+                    merge_commit,
+                    target_ref=target_branch,
+                    attest_first_landing=attest_first_landing,
+                )
+            result["action"] = "would_write" if dry_run else "wrote"
+            if evidence.anchor_evidence == ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED:
+                result["reason"] = (
+                    "verified against git: the commit landed on the target "
+                    "branch and introduced the mission corpus; its first "
+                    "parent is the pre-landing target tip by your "
+                    "--attest-first-landing-commit attestation that the "
+                    "merge was performed on the target branch — git cannot "
+                    "prove this for a two-parent landing (an internal merge "
+                    "is graph-identical)"
+                )
+            else:
+                result["reason"] = (
+                    "verified against git: the commit landed on the target "
+                    "branch and introduced the mission corpus; its first "
+                    "parent is the pre-landing target tip by your "
+                    "--attest-first-landing-commit attestation — git cannot "
+                    "prove this for a single-parent landing"
+                )
+    except PrMergeEvidenceError as exc:
+        result["reason"] = str(exc)
+
+    if json_output:
+        print(json.dumps({"dry_run": dry_run, "results": [result]}, indent=2))
+    else:
+        prefix = "[dim](dry-run)[/dim] " if dry_run else ""
+        console.print(f"\n{prefix}[bold]backfill-merge-commit summary[/bold]")
+        console.print(f"  Mission               : {result['slug']}")
+        console.print(f"  Action                : {result['action']}")
+        if result["pr_merge_commit"]:
+            console.print(f"  PR merge commit       : {result['pr_merge_commit']}")
+            console.print(f"  baseline_merge_commit : {result['baseline_merge_commit']}")
+            console.print(f"  pr_merge_evidence     : {result['pr_merge_evidence']}")
+        console.print(f"  Reason                : {result['reason']}")
+        if dry_run:
+            console.print("\n[dim]Dry run — no files were modified.[/dim]")
+
+    if result["action"] == "error":
         raise typer.Exit(1)
 
 
@@ -378,10 +569,7 @@ def backfill_topology(
         bool,
         typer.Option(
             "--dry-run",
-            help=(
-                "Report what would change without writing any files. "
-                "The JSON shape is identical to a live run."
-            ),
+            help=("Report what would change without writing any files. The JSON shape is identical to a live run."),
         ),
     ] = False,
     mission: Annotated[
@@ -463,9 +651,7 @@ def backfill_topology(
         if dry_run:
             console.print("\n[dim]Dry run — no files were modified.[/dim]")
         elif wrote:
-            console.print(
-                f"\n[green]Done.[/green] {len(wrote)} mission(s) received a ``topology``."
-            )
+            console.print(f"\n[green]Done.[/green] {len(wrote)} mission(s) received a ``topology``.")
         else:
             console.print("\n[green]Done.[/green] All missions already have a ``topology``.")
 
@@ -476,9 +662,7 @@ def backfill_topology(
 @app.command(name="backfill-mission-type")
 def backfill_mission_type_cmd(
     json_output: Annotated[bool, typer.Option(_JSON_FLAG, help=_MISSION_TYPE_JSON_HELP)] = False,
-    dry_run: Annotated[
-        bool, typer.Option(_DRY_RUN_FLAG, help=_MISSION_TYPE_DRY_RUN_HELP)
-    ] = False,
+    dry_run: Annotated[bool, typer.Option(_DRY_RUN_FLAG, help=_MISSION_TYPE_DRY_RUN_HELP)] = False,
     mission: Annotated[
         str | None,
         typer.Option(
@@ -560,10 +744,7 @@ def charter_encoding(
         bool,
         typer.Option(
             "--dry-run",
-            help=(
-                "Show what would change without writing any files.  "
-                "Returns exit 0 unless ambiguous files are found."
-            ),
+            help=("Show what would change without writing any files.  Returns exit 0 unless ambiguous files are found."),
         ),
     ] = False,
     yes: Annotated[
@@ -644,10 +825,7 @@ def backfill_provenance(
         bool,
         typer.Option(
             "--dry-run",
-            help=(
-                "Report what would be stamped without writing any files. "
-                "The JSON shape is identical to a live run."
-            ),
+            help=("Report what would be stamped without writing any files. The JSON shape is identical to a live run."),
         ),
     ] = False,
     json_output: Annotated[
@@ -717,14 +895,8 @@ def backfill_provenance(
                 "errors": len(summary.errors),
                 "invariants_stamped": summary.stamped_total,
             },
-            "migrated": [
-                {"path": str(record.path), "invariants_stamped": record.invariants_stamped}
-                for record in summary.migrated
-            ],
-            "errors": [
-                {"path": str(error.path), "message": error.message}
-                for error in summary.errors
-            ],
+            "migrated": [{"path": str(record.path), "invariants_stamped": record.invariants_stamped} for record in summary.migrated],
+            "errors": [{"path": str(error.path), "message": error.message} for error in summary.errors],
         }
         print(json.dumps(payload, indent=2))
     else:
@@ -744,10 +916,7 @@ def backfill_provenance(
         if dry_run:
             console.print("\n[dim]Dry run — no files were modified.[/dim]")
         elif summary.migrated:
-            console.print(
-                f"\n[green]Done.[/green] {len(summary.migrated)} matrix file(s) "
-                "received the legacy_unrecorded sentinel."
-            )
+            console.print(f"\n[green]Done.[/green] {len(summary.migrated)} matrix file(s) received the legacy_unrecorded sentinel.")
         else:
             console.print("\n[green]Done.[/green] Corpus already carries provenance.")
 
@@ -814,8 +983,7 @@ def rewrite_opposed_by(
         Path,
         typer.Option(
             "--pack",
-            help="Root directory of the target pack to migrate (org pack or any "
-            "directory shaped like the built-in doctrine tree).",
+            help="Root directory of the target pack to migrate (org pack or any directory shaped like the built-in doctrine tree).",
             metavar="PATH",
         ),
     ] = Path("."),
@@ -823,10 +991,7 @@ def rewrite_opposed_by(
         bool,
         typer.Option(
             "--dry-run",
-            help=(
-                "Report planned rewrites without writing any files. "
-                "The JSON shape is identical to a live run."
-            ),
+            help=("Report planned rewrites without writing any files. The JSON shape is identical to a live run."),
         ),
     ] = False,
     json_output: Annotated[
@@ -915,10 +1080,7 @@ def rewrite_opposed_by(
         for r in result.rewritten:
             verb = "would rewrite" if dry_run else "rewrote"
             node_note = " (creates anti_pattern node)" if r.created_anti_pattern_node else ""
-            console.print(
-                f"  [green]{verb}[/green] {r.source_type}:{r.source_id} "
-                f"--{r.relation}--> {r.target_type}:{r.target_id}{node_note}"
-            )
+            console.print(f"  [green]{verb}[/green] {r.source_type}:{r.source_id} --{r.relation}--> {r.target_type}:{r.target_id}{node_note}")
 
         if result.unclassifiable:
             console.print("\n[red]Unclassifiable entries (manual review required):[/red]")
@@ -928,10 +1090,7 @@ def rewrite_opposed_by(
         if dry_run:
             console.print("\n[dim]Dry run — no files were modified.[/dim]")
         elif result.rewritten:
-            console.print(
-                f"\n[green]Done.[/green] {len(result.rewritten)} opposed_by "
-                "entry(ies) rewritten to DRG edges."
-            )
+            console.print(f"\n[green]Done.[/green] {len(result.rewritten)} opposed_by entry(ies) rewritten to DRG edges.")
         else:
             console.print("\n[green]Done.[/green] No opposed_by entries found.")
 
@@ -984,6 +1143,7 @@ def backfill_runtime_state_cmd(
         cutover_mission,
         cutover_repo,
     )
+
     repo_root = locate_project_root()
     if repo_root is None:
         _error(_NO_PROJECT_ROOT)
@@ -1075,9 +1235,7 @@ def rebaseline_dossier_hashes(
         print(json.dumps(payload, indent=2))
     else:
         prefix = "(dry-run) " if dry_run else ""
-        console.print(
-            f"{prefix}Re-baselined {len(changed)} / {len(outcomes)} recorded snapshot(s); {len(errored)} error(s)."
-        )
+        console.print(f"{prefix}Re-baselined {len(changed)} / {len(outcomes)} recorded snapshot(s); {len(errored)} error(s).")
         for o in errored:
             err_console.print(f"[yellow]skip[/yellow] {o.mission_slug}: {o.error}")
 
@@ -1139,9 +1297,7 @@ def repin_hooks(
         console.print("\n[bold]repin-hooks summary[/bold]")
         console.print(f"  Hook        : {result.hook_path}")
         console.print(f"  Interpreter : {result.interpreter}")
-        console.print(
-            "\n[green]Done.[/green] Pre-commit hook re-pinned to the current interpreter."
-        )
+        console.print("\n[green]Done.[/green] Pre-commit hook re-pinned to the current interpreter.")
 
 
 # ---------------------------------------------------------------------------
@@ -1203,9 +1359,7 @@ def _cutover_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
             "flipped": len([r for r in results if r.flipped and not r.already_migrated]),
             "already_migrated": len([r for r in results if r.already_migrated]),
             "would_seed": len([r for r in results if r.seeded_count > 0]),
-            "would_flip": len(
-                [r for r in results if r.would_flip and not r.already_migrated]
-            ),
+            "would_flip": len([r for r in results if r.would_flip and not r.already_migrated]),
             "seeded": sum(r.seeded_count for r in results),
             "failed": len([r for r in results if _cutover_failed(r, dry_run=dry_run)]),
         },
@@ -1219,11 +1373,7 @@ def _cutover_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
                 "seeded_count": r.seeded_count,
                 "verify_ok": None if r.verify is None else r.verify.ok,
                 "failed": _cutover_failed(r, dry_run=dry_run),
-                "mismatches": (
-                    list(r.verify.mismatches)
-                    if (r.verify is not None and _cutover_failed(r, dry_run=dry_run))
-                    else []
-                ),
+                "mismatches": (list(r.verify.mismatches) if (r.verify is not None and _cutover_failed(r, dry_run=dry_run)) else []),
                 "error": r.error,
             }
             for r in results
@@ -1258,11 +1408,7 @@ def _print_cutover_summary(results: list[Any], *, dry_run: bool) -> None:
     if dry_run:
         would_flip = [r for r in active if r.would_flip and not r.already_migrated]
         would_seed = [r for r in active if r.seeded_count > 0]
-        skipped = [
-            r
-            for r in active
-            if not (r.would_flip and not r.already_migrated) and r.seeded_count == 0
-        ]
+        skipped = [r for r in active if not (r.would_flip and not r.already_migrated) and r.seeded_count == 0]
         console.print(f"  {_LABEL_WOULD_FLIP:<27} : {len(would_flip)}")
         console.print(f"  {_LABEL_WOULD_SEED:<27} : {len(would_seed)}")
     else:
@@ -1279,9 +1425,7 @@ def _print_cutover_summary(results: list[Any], *, dry_run: bool) -> None:
             console.print(f"  [red]{r.slug}:[/red] {_cutover_detail(r)}")
 
     if dry_run:
-        console.print(
-            "\n[dim]Dry run — no seeds or flips written; verify runs post-seed on a live run.[/dim]"
-        )
+        console.print("\n[dim]Dry run — no seeds or flips written; verify runs post-seed on a live run.[/dim]")
 
 
 def _normalize_lifecycle_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
@@ -1377,9 +1521,7 @@ def _print_mission_type_summary(results: list[Any], *, dry_run: bool) -> None:
     if dry_run:
         console.print("\n[dim]Dry run — no files were modified.[/dim]")
     elif wrote:
-        console.print(
-            f"\n[green]Done.[/green] {len(wrote)} mission(s) received a ``mission_type``."
-        )
+        console.print(f"\n[green]Done.[/green] {len(wrote)} mission(s) received a ``mission_type``.")
     else:
         console.print("\n[green]Done.[/green] All missions already have a ``mission_type``.")
 
@@ -1470,11 +1612,7 @@ def _render_windows_migration_summary(
             canonical_dest = render_runtime_path(Path(o.dest_path))
             break
 
-    header = (
-        "\n[DRY-RUN] Would migrate Spec Kitty runtime state on Windows."
-        if dry_run
-        else "\nMigrated Spec Kitty runtime state on Windows."
-    )
+    header = "\n[DRY-RUN] Would migrate Spec Kitty runtime state on Windows." if dry_run else "\nMigrated Spec Kitty runtime state on Windows."
     con.print(header)
     if canonical_dest:
         con.print(f"  Canonical location: {canonical_dest}")
