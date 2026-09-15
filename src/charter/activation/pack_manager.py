@@ -63,7 +63,8 @@ on this flag.
 from __future__ import annotations
 
 import functools
-from collections.abc import Callable
+import logging
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -403,6 +404,102 @@ def _declared_id(path: Path, kind: ArtifactKind | None, yaml: YAML) -> str | Non
 # ---------------------------------------------------------------------------
 
 
+logger = logging.getLogger(__name__)
+
+
+def _chain_complete_available(
+    manager: CharterPackManager,
+    ctx: ProjectContext,
+    kind: str,
+    repo_root: Path,
+    layer_roots: dict[str, Path] | None,
+) -> frozenset[str]:
+    """``list_available`` across EVERY declared org pack, not just pack #1.
+
+    #4399 squad MAJOR: the CLI's ``layer_roots`` map deliberately truncates the
+    org chain to the first pack — a documented back-compat contract for
+    ``charter list --all-layers`` and every consumer typed
+    ``dict[str, Path]`` (see ``_layer_roots.resolve_org_root_chain``). Reusing
+    that map as the preservation source meant artifacts in org packs 2+ were
+    absent from the preserved set, so the first activation kept silently
+    deactivating them — #4253's exact failure mode in a supported
+    configuration. Scanning once per declared root and unioning keeps the
+    truncated contract intact for its own callers while giving activation the
+    whole picture.
+    """
+    from charter.offering.drg.org_pack_config import resolve_org_roots  # noqa: PLC0415 — lazy: avoids an import cycle
+
+    available: set[str] = set(manager.list_available(ctx, kind, layer_roots=layer_roots))
+    try:
+        org_roots = [root for root in resolve_org_roots(repo_root, quiet=True) if root.is_dir()]
+    except Exception as exc:  # noqa: BLE001 — a malformed pack registry must not fail the activation
+        logger.debug("org-chain scan unavailable: %s", exc)
+        return frozenset(available)
+
+    for org_root in org_roots:
+        roots = dict(layer_roots or {})
+        roots["org"] = org_root
+        try:
+            available.update(manager.list_available(ctx, kind, layer_roots=roots))
+        except Exception as exc:  # noqa: BLE001 — one unreadable pack must not drop the rest
+            logger.debug("org pack %s unreadable for kind %r: %s", org_root, kind, exc)
+    return frozenset(available)
+
+
+def _effective_ids_for_kind(repo_root: Path, kind: str) -> tuple[str, ...]:
+    """What the activation-aware resolver currently has in force for *kind*.
+
+    #4253's fix materializes this set when a kind's activation key is absent
+    (the unrestricted state), instead of the narrower default pack. #4399's
+    squad round showed why it must come from the RESOLVER rather than from
+    :meth:`CharterPackManager.list_available`:
+
+    * ``list_available`` is handed the CLI's ``layer_roots`` map, which
+      deliberately truncates the declared org chain to pack #1 (a documented
+      back-compat contract — see ``_layer_roots.resolve_org_root_chain``), so
+      artifacts in org packs 2+ were absent from the preserved set and stayed
+      deactivated;
+    * the resolver filters Pattern-B/C kinds (procedures, agent profiles, …)
+      on each artifact's declared ``id:`` by plain membership, so a set
+      written as filename stems is filtered straight back out whenever a
+      declared id diverges from its stem.
+
+    Reading the service's own mapping avoids both: it spans every declared
+    layer and its keys are, by construction, the keys the filter compares
+    against.
+
+    Returns an empty tuple — leaving the caller on its previous
+    ``available_ids`` behaviour — when the kind has no service-side mapping
+    (``mission-type`` is an activation ledger, not a doctrine corpus) or when
+    the service cannot be built at all. Diagnostics must never turn an
+    activation into a failure.
+    """
+    yaml_key = YAML_KEY_MAP.get(kind, "")
+    if not yaml_key.startswith("activated_"):
+        return ()  # mission-type: an activation ledger, not a resolvable corpus
+    if kind == "directive":
+        # Pattern A: the directive getter resolves config stems through the
+        # shared vocabulary (``_normalize_directive_id``), so the authored
+        # stem spelling already satisfies the filter. Emitting the resolver's
+        # canonical ``DIRECTIVE_NNN`` keys here would rewrite every project's
+        # ``activated_directives`` into a second spelling for no gain.
+        return ()
+    attribute = yaml_key.removeprefix("activated_")
+    try:
+        from charter.activation.doctrine_service_builder import (  # noqa: PLC0415 — lazy: avoids an import cycle
+            build_activation_aware_doctrine_service,
+        )
+
+        service = build_activation_aware_doctrine_service(repo_root)
+        mapping = getattr(service, attribute, None)
+        if not isinstance(mapping, Mapping):
+            return ()
+        return tuple(str(key) for key in mapping)
+    except Exception as exc:  # noqa: BLE001 — preservation is best-effort; never fail an activation over it
+        logger.debug("effective-set read for kind %r unavailable: %s", kind, exc)
+        return ()
+
+
 @dataclass(frozen=True)
 class AvailableArtifact:
     """A single available artifact, annotated by its source layer (FR-026).
@@ -627,9 +724,12 @@ class CharterPackManager:
 
         Thin wrapper over :func:`charter.activation.activation_engine.plan_activation` +
         :func:`~charter.activation.activation_engine.commit_plan` (WP10). The engine
-        validates the artifact ID *before* computing any post-state and
-        materializes the default pack into the plan when the kind has no
-        explicit activation set (FR-021); this method performs the single
+        validates the artifact ID *before* computing any post-state and, when
+        the kind has no explicit activation set, materializes what is
+        currently IN FORCE into the plan (#4253) — not the narrower default
+        pack, whose materialization silently deactivated everything outside
+        it. This method supplies that effective set (see
+        :func:`_effective_ids_for_kind`) and performs the single
         ``commit_plan`` write.
 
         Parameters
@@ -668,8 +768,12 @@ class CharterPackManager:
         target_path, data, save = resolve_activation_write_target(repo_root)
 
         available = self.list_available(ctx, kind, layer_roots=layer_roots)
-        default_pack = _load_default_pack()
-        default_ids = default_pack.get(yaml_key, [])
+        # Preservation source (#4253 + #4399): every declared org pack, plus —
+        # for the kinds the resolver filters by raw ``id:`` — the resolver's
+        # own keys, so a declared id that diverges from its filename stem is
+        # not written in a spelling the filter drops.
+        preserved = set(_chain_complete_available(self, ctx, kind, repo_root, layer_roots))
+        preserved.update(_effective_ids_for_kind(repo_root, kind))
 
         # plan_activation validates BEFORE computing any post-state (NFR-003);
         # on an unknown ID it raises UnknownActivationIdError and no write
@@ -680,7 +784,7 @@ class CharterPackManager:
             yaml_key=yaml_key,
             available_ids=available,
             config_data=data,
-            default_ids=default_ids,
+            effective_ids=sorted(preserved),
         )
 
         result = ActivationResult(activated=list(plan.activated), warnings=list(plan.warnings))

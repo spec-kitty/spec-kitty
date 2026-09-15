@@ -246,14 +246,22 @@ class TestListAvailableIdAware:
 
 
 class TestActivationDelegation:
-    def test_activate_materializes_default_and_persists(
+    def test_activate_materializes_the_effective_set_and_persists(
         self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
     ) -> None:
+        """#4253: materialization preserves what was effective, not default.yaml.
+
+        The persisted set must therefore be wider than the default pack — that
+        difference is precisely what used to be deactivated.
+        """
         result = manager.activate(ctx, kind="directive", artifact_id="025-boy-scout-rule")
-        # Default-pack materialization warning comes from the engine.
-        assert any("default pack" in w.lower() for w in result.warnings)
+        assert any("already effective" in w for w in result.warnings)
         data = yaml.safe_load((project_root / ".kittify" / "config.yaml").read_text())
         assert "025-boy-scout-rule" in data["activated_directives"]
+        available = manager.list_available(ctx, "directive")
+        assert not set(available) - set(data["activated_directives"]), (
+            "activation dropped a previously effective directive"
+        )
 
     def test_activate_accepts_org_layer_artifact(
         self,

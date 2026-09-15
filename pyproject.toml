@@ -314,7 +314,6 @@ exclude = [
     "src/charter/activation/_io.py",
     "src/charter/activation/action_doctrine_bundle.py",
     "src/charter/activation/action_grain.py",
-    "src/charter/activation/activation_engine.py",
     "src/charter/activation/activations.py",
     "src/charter/bundle.py",
     "src/charter/activation/cascade.py",

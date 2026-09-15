@@ -202,25 +202,40 @@ class TestYamlKeyMap:
 
 class TestActivateNoneState:
     def test_activates_new_artifact_from_empty_config(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
-        """Activating on a fresh config materializes the default pack then adds the ID."""
+        """Activating on a fresh config preserves what was effective, then adds the ID.
+
+        #4253: this used to materialize ``default.yaml`` — a strict subset of
+        the available corpus — which deactivated everything outside it. From
+        the unrestricted state the artifact was effective only implicitly, so
+        the call that makes it explicit reports it as activated rather than as
+        "already activated".
+        """
         result = manager.activate(
             ctx,
             kind="directive",
             artifact_id="001-architectural-integrity-standard",
         )
-        assert any("already activated" in w for w in result.warnings)
+        assert result.activated == ["001-architectural-integrity-standard"]
+        assert any("already effective" in w for w in result.warnings)
         # config.yaml must now contain the key
         config = project_root / ".kittify" / "config.yaml"
         data = yaml.safe_load(config.read_text())
         assert "001-architectural-integrity-standard" in data["activated_directives"]
 
-    def test_warns_about_initialization_from_default(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
+    def test_warns_about_initializing_from_the_effective_set(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
+        """#4253: the warning names what was preserved, not a default pack.
+
+        The old wording ("initialized from default pack") described the
+        narrowing this issue removed; an operator reading it had no signal
+        that artifacts had just been deactivated.
+        """
         result = manager.activate(
             ctx,
             kind="directive",
             artifact_id="001-architectural-integrity-standard",
         )
-        assert any("initialized from default pack" in w.lower() for w in result.warnings)
+        assert any("had no explicit activation set" in w for w in result.warnings)
+        assert any("nothing in force was deactivated" in w for w in result.warnings)
 
     def test_default_ids_are_present_after_materialize(self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path) -> None:
         manager.activate(ctx, kind="directive", artifact_id="001-architectural-integrity-standard")
