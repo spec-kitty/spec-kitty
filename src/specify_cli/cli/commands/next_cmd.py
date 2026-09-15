@@ -44,6 +44,7 @@ if TYPE_CHECKING:
 
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.paths import (
+    UnsafePathSegmentError,
     get_main_repo_root,
     locate_project_root,
 )
@@ -207,10 +208,10 @@ def next_step(
     except _MissionNotFoundError as _exc:
         _emit_mission_not_found_error(_exc.handle, json_output)
         raise typer.Exit(1) from _exc
-    except ValueError as _exc:
+    except UnsafePathSegmentError as _exc:
         # #2878: a traversal-shaped --mission value trips the safe-path-segment
         # guard (assert_safe_path_segment, reached through the placement seam
-        # inside _resolve_mission_slug) and raises a bare ValueError that the
+        # inside _resolve_mission_slug) and raises UnsafePathSegmentError, which the
         # _StatusReadPathNotFound/_MissionNotFoundError handlers above do not
         # cover. Convert it to merge's clean typed-error surface
         # (_resolve_slug_or_exit, cli/commands/merge.py): canonical diagnostic +
@@ -559,11 +560,11 @@ def _emit_mission_not_found_error(
         print(f"  Next: {remediation}", file=sys.stderr)
 
 
-def _emit_unsafe_mission_slug_error(exc: ValueError, json_output: bool) -> None:
+def _emit_unsafe_mission_slug_error(exc: UnsafePathSegmentError, json_output: bool) -> None:
     """Surface a traversal-unsafe ``--mission`` slug as a clean typed error.
 
-    #2878: the safe-path-segment guard inside the read resolver raises a bare
-    ``ValueError`` for traversal-shaped slugs (``../x``, ``a/b``, leading-dot,
+    #2878: the safe-path-segment guard inside the read resolver raises
+    ``UnsafePathSegmentError`` for traversal-shaped slugs (``../x``, ``a/b``, leading-dot,
     …). Mirrors merge's ``_resolve_slug_or_exit`` handling (the in-repo
     exemplar): the canonical safe-path-segment diagnostic, a single
     ``Error:`` line on stderr in human mode, a structured JSON envelope in
