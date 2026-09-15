@@ -38,8 +38,30 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 _HELP_BUDGET_SECONDS = 2.5
 
 
+def _is_type_checking_guard(node: ast.AST) -> bool:
+    """True if ``node`` is ``if TYPE_CHECKING:`` or ``if typing.TYPE_CHECKING:``.
+
+    The guard's body never executes at runtime, so imports inside it are
+    exempt from the module-scope scan below.
+    """
+    if not isinstance(node, ast.If):
+        return False
+    test = node.test
+    if isinstance(test, ast.Name):
+        return test.id == "TYPE_CHECKING"
+    return isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING"
+
+
 def _module_scope_jsonschema_imports(source: str) -> list[int]:
-    """Return line numbers importing jsonschema outside deferred call sites."""
+    """Return line numbers importing jsonschema outside deferred call sites.
+
+    An import guarded by ``if TYPE_CHECKING:`` is exempt: that branch is
+    ``False`` at runtime and never executes, so it never pulls in the
+    ``jsonschema._format -> rfc3987_syntax`` chain this scan exists to catch.
+    The guard's ``else:`` branch (and everything else — plain module-scope
+    imports, ``try:``-guarded imports, class-body imports) still executes at
+    import time and stays flagged.
+    """
     offending: list[int] = []
 
     def visit(node: ast.AST) -> None:
@@ -50,6 +72,10 @@ def _module_scope_jsonschema_imports(source: str) -> list[int]:
         ) or (isinstance(node, ast.ImportFrom) and node.module is not None and (node.module == "jsonschema" or node.module.startswith("jsonschema.")))
         if is_jsonschema_import:
             offending.append(node.lineno)
+        if _is_type_checking_guard(node):
+            for child in node.orelse:
+                visit(child)
+            return
         for child in ast.iter_child_nodes(node):
             visit(child)
 
@@ -80,7 +106,6 @@ def test_jsonschema_stays_out_of_module_scope() -> None:
     "source",
     (
         "try:\n    import jsonschema\nexcept ImportError:\n    pass\n",
-        "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from jsonschema import validate\n",
         "class Validator:\n    import jsonschema\n",
     ),
 )
@@ -92,6 +117,16 @@ def test_indented_module_scope_jsonschema_import_is_detected(source: str) -> Non
 def test_function_local_jsonschema_import_is_allowed() -> None:
     """Deferred call-site imports are the intended fast-startup pattern."""
     assert _module_scope_jsonschema_imports("def validate():\n    import jsonschema\n") == []
+
+
+def test_type_checking_guarded_jsonschema_import_is_allowed() -> None:
+    """A ``TYPE_CHECKING``-guarded import never executes, so it pays no startup cost."""
+    assert _module_scope_jsonschema_imports("from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from jsonschema import validate\n") == []
+
+
+def test_else_branch_of_type_checking_guard_is_still_detected() -> None:
+    """The ``else:`` branch of a ``TYPE_CHECKING`` guard executes at runtime, so it stays flagged."""
+    assert _module_scope_jsonschema_imports("from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    pass\nelse:\n    import jsonschema\n")
 
 
 @pytest.mark.performance
