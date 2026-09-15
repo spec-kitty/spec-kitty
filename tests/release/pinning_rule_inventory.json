@@ -1388,7 +1388,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        776
+        783
       ],
       "dependency": true,
       "disposition": "relocate",
@@ -1403,8 +1403,8 @@
       ],
       "form": "derived-relation",
       "lines": [
-        733,
-        749
+        740,
+        756
       ],
       "dependency": true,
       "disposition": "none",
