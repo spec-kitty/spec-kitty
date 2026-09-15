@@ -33,6 +33,12 @@ RULE_TEMPLATE_REQUIRED = "template.required"
 RULE_SOURCE_MISSING = "pipeline.source_missing"
 RULE_INSTALL_EXISTS = "pipeline.dest_exists"
 RULE_TEMPLATEIGNORE_DECODE = "ignore_rules.templateignore_decode"
+RULE_SYMLINK = "pack_path.symlink"
+RULE_OVERLAP = "pack_path.overlap"
+RULE_COPY_FAILED = "pipeline.copy"
+RULE_FORCE_BACKUP = "pipeline.force_backup"
+RULE_FORCE_SWAP = "pipeline.force_swap"
+RULE_FORCE_RESTORE = "pipeline.force_restore"
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +94,7 @@ def render_org_pack(request: RenderRequest) -> PipelineError | None:
 
     if pack_path.resolve().is_relative_to(source.root) or source.root.is_relative_to(pack_path.resolve()):
         _cleanup_source(source.root, source.cleanup)
-        return PipelineError("pack_path.overlap", "Template source and destination must not contain one another (pack_path.overlap).")
+        return PipelineError(RULE_OVERLAP, f"Template source and destination must not contain one another ({RULE_OVERLAP}).")
 
     staging: Path | None = None
     try:
@@ -111,8 +117,8 @@ def render_org_pack(request: RenderRequest) -> PipelineError | None:
         )
     except OSError as exc:
         return PipelineError(
-            rule_id="pipeline.copy",
-            message=f"Template render failed (pipeline.copy): {exc}",
+            rule_id=RULE_COPY_FAILED,
+            message=f"Template render failed ({RULE_COPY_FAILED}): {exc}",
         )
     finally:
         if staging is not None and staging.exists():
@@ -122,9 +128,13 @@ def render_org_pack(request: RenderRequest) -> PipelineError | None:
     return None
 
 
+def _symlink_error() -> PipelineError:
+    return PipelineError(RULE_SYMLINK, f"Template destination must not be a symlink ({RULE_SYMLINK}).")
+
+
 def _check_destination(pack_path: Path, *, force: bool) -> PipelineError | None:
     if pack_path.is_symlink():
-        return PipelineError("pack_path.symlink", "Template destination must not be a symlink (pack_path.symlink).")
+        return _symlink_error()
     if pack_path.exists() and not force:
         return PipelineError(
             rule_id=RULE_DEST_EXISTS,
@@ -136,7 +146,7 @@ def _check_destination(pack_path: Path, *, force: bool) -> PipelineError | None:
 def _install_staging(staging: Path, pack_path: Path, *, force: bool) -> PipelineError | None:
     """Publish the complete staging directory using a same-filesystem rename."""
     if pack_path.is_symlink():
-        return PipelineError("pack_path.symlink", "Template destination must not be a symlink (pack_path.symlink).")
+        return _symlink_error()
     if pack_path.exists():
         if not force:
             return PipelineError(
@@ -156,8 +166,8 @@ def _force_swap(staging: Path, pack_path: Path) -> PipelineError | None:
         pack_path.rename(backup)
     except OSError as exc:
         return PipelineError(
-            rule_id="pipeline.force_backup",
-            message=f"Failed to move aside existing pack (pipeline.force_backup): {exc}",
+            rule_id=RULE_FORCE_BACKUP,
+            message=f"Failed to move aside existing pack ({RULE_FORCE_BACKUP}): {exc}",
         )
     try:
         staging.rename(pack_path)
@@ -185,13 +195,13 @@ def _restore_backup(backup: Path, pack_path: Path, promotion_error: OSError) -> 
         backup.rename(pack_path)
     except OSError as restore_error:
         return PipelineError(
-            "pipeline.force_restore",
+            RULE_FORCE_RESTORE,
             f"Installation failed: {promotion_error}. Could not restore the prior pack: {restore_error}. "
             f"Original pack preserved at {backup}." + (f" Interrupted destination preserved at {interrupted}." if interrupted is not None else ""),
         )
     return PipelineError(
-        "pipeline.force_swap",
-        f"Failed to install staging over pack (pipeline.force_swap): {promotion_error}. Original pack restored."
+        RULE_FORCE_SWAP,
+        f"Failed to install staging over pack ({RULE_FORCE_SWAP}): {promotion_error}. Original pack restored."
         + (f" Interrupted destination preserved at {interrupted}." if interrupted is not None else ""),
     )
 

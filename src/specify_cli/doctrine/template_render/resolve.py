@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
-from typing import Protocol
+from typing import Literal, Protocol
 
 from specify_cli.doctrine.sources.git_source import GitSource
 from specify_cli.doctrine.sources.protocol import FetchResult
@@ -20,6 +20,11 @@ RULE_TEMPLATE_NOT_DIR = "template.not_directory"
 RULE_TEMPLATE_GIT_FETCH = "template.git_fetch"
 RULE_TEMPLATE_SCHEME_REJECTED = "template.scheme_rejected"
 RULE_TEMPLATE_USERINFO_REJECTED = "template.userinfo_rejected"
+
+# TEMPLATE resolves to exactly one of these two kinds.
+KIND_LOCAL: Literal["local"] = "local"
+KIND_GIT: Literal["git"] = "git"
+TemplateKind = Literal["local", "git"]
 
 
 class _GitSourceLike(Protocol):
@@ -40,14 +45,14 @@ class ParsedTemplate:
 
     location: str
     encoded_ref: str | None
-    kind: str  # "local" | "git"
+    kind: TemplateKind
 
 
 @dataclass(frozen=True, slots=True)
 class ResolvedTemplateSource:
     """Materialised template root ready to copy from."""
 
-    kind: str  # "local" | "git"
+    kind: TemplateKind
     root: Path
     ref: str | None
     cleanup: bool
@@ -89,7 +94,7 @@ def parse_template_ref(template: str) -> ParsedTemplate:
         return ParsedTemplate(
             location=https_match.group(1),
             encoded_ref=https_match.group(2),
-            kind="git",
+            kind=KIND_GIT,
         )
     if stripped.startswith("ssh://"):
         authority, separator, path = stripped.removeprefix("ssh://").partition("/")
@@ -99,10 +104,10 @@ def parse_template_ref(template: str) -> ParsedTemplate:
                 return ParsedTemplate(
                     location=f"ssh://{authority}/{repo_path}",
                     encoded_ref=ref,
-                    kind="git",
+                    kind=KIND_GIT,
                 )
         # An ``@`` in the authority is SSH userinfo, never a ref separator.
-        return ParsedTemplate(location=stripped, encoded_ref=None, kind="git")
+        return ParsedTemplate(location=stripped, encoded_ref=None, kind=KIND_GIT)
 
     return ParsedTemplate(
         location=stripped,
@@ -171,7 +176,7 @@ def resolve_template_source(
             ),
         )
 
-    if parsed.kind == "local":
+    if parsed.kind == KIND_LOCAL:
         return _resolve_local(parsed.location)
 
     factory: type[_GitSourceLike] = git_source_factory or GitSource
@@ -195,15 +200,15 @@ def _https_authority_has_userinfo(template: str) -> bool:
     return "@" in authority
 
 
-def _classify_location(location: str) -> str:
+def _classify_location(location: str) -> TemplateKind:
     if location.startswith(("https://", "http://", "ssh://", "git@")):
-        return "git"
+        return KIND_GIT
     # SCP-like git@ already covered; bare host:path with .git is treated as git
     # only when it looks like a URL scheme we already handle.
     parsed = urlparse(location)
     if parsed.scheme in {"https", "http", "ssh", "git"}:
-        return "git"
-    return "local"
+        return KIND_GIT
+    return KIND_LOCAL
 
 
 def _resolve_local(
@@ -221,7 +226,7 @@ def _resolve_local(
             message=(f"TEMPLATE path is not a directory ({RULE_TEMPLATE_NOT_DIR}): {root}"),
         )
     return (
-        ResolvedTemplateSource(kind="local", root=root, ref=None, cleanup=False),
+        ResolvedTemplateSource(kind=KIND_LOCAL, root=root, ref=None, cleanup=False),
         None,
     )
 
@@ -250,6 +255,6 @@ def _resolve_git(
             message=f"TEMPLATE git resolve failed ({RULE_TEMPLATE_GIT_FETCH}): {detail}",
         )
     return (
-        ResolvedTemplateSource(kind="git", root=target, ref=ref, cleanup=True),
+        ResolvedTemplateSource(kind=KIND_GIT, root=target, ref=ref, cleanup=True),
         None,
     )
