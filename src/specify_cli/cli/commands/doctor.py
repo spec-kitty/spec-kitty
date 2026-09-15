@@ -1100,9 +1100,14 @@ def mission_state(
     try:
         resolved_root = locate_project_root()
     except Exception as exc:
-        # A raised locate is a genuine not-in-project error (honor --json); a
-        # returned ``None`` is NOT — it is a valid fixtures-only state that is
-        # forwarded to the sibling for reconciliation against ``--fixture-dir``.
+        # A raised locate is a genuine not-in-project error here (honor
+        # --json). A *returned* ``None`` is forwarded as-is to the sibling
+        # (``_resolve_audit_root`` in ``_mission_state_doctor.py``), which
+        # treats it as the valid fixtures-only state when fixtures are in
+        # play (``--fixture-dir`` / ``--include-fixtures``) but as the
+        # terminal not-in-project error otherwise — and honors ``--json`` on
+        # that terminal branch too via the same ``json_output`` threaded
+        # through ``run_mission_state`` (#4242 class-closing fold).
         _emit_not_in_project(json_output)
         raise typer.Exit(1) from exc
     run_mission_state(
