@@ -393,9 +393,7 @@ def _doctrine_modes() -> tuple[str, ...]:
 #: unusable. These are the PRI-12/SaaS vocabulary already consumed by
 #: ``tracker/saas_service.py``'s stale-binding translation — reused here, not
 #: a second taxonomy.
-_BINDING_ERROR_CODES: frozenset[str] = frozenset(
-    {"binding_not_found", "mapping_disabled", "project_mismatch", "missing_routing_key"}
-)
+_BINDING_ERROR_CODES: frozenset[str] = frozenset({"binding_not_found", "mapping_disabled", "project_mismatch", "missing_routing_key"})
 
 #: The disabled-rollout / feature-unavailable family the live control plane
 #: emits when the tracker surface is not enabled for the team (the #4233
@@ -445,8 +443,13 @@ def _render_cli_error(exc: BaseException, *, json_mode: bool) -> None:
     hint = _saas_error_hint(error_code, status_code)
     # Messages raised closer to the source (stale-binding translation, the
     # session-expired client error) already name the spec-kitty command to
-    # run; appending a second generic hint would only duplicate it.
-    if "spec-kitty" in message:
+    # run; ``user_action_required`` failures (saas_client) already end with
+    # their own dashboard guidance. The dashboard check matches the raised
+    # suffix "… check the Spec Kitty dashboard" case-insensitively — the
+    # plain ``"spec-kitty" in message`` spelling does not catch it, which
+    # duplicated the dashboard instruction on every such failure (#4270).
+    lowered = message.lower()
+    if "spec-kitty" in lowered or "spec kitty dashboard" in lowered:
         hint = None
 
     context_parts = []
