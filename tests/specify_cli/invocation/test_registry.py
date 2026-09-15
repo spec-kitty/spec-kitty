@@ -81,14 +81,13 @@ class TestRegistryResolve:
 
 
 class TestRegistryResolveLocal:
-    """#4120: ``resolve_local`` admits the doctrine project layer.
+    """#4120/#4114: local and routing resolution admit project doctrine.
 
-    The dispatch *routing* catalog (``resolve``) deliberately excludes the
-    doctrine project layer (R3 parity — see ``_DOCTRINE_ROUTING_LAYERS``),
-    which made every project-local charter-activated profile unresolvable
-    when an operator passed it to ``agent action implement/review --profile``
-    ("Available: []"). ``resolve_local`` keeps the same activation gate but
-    admits every local layer.
+    ``resolve_local`` remains the explicit operator-facing seam for profiles
+    passed to ``agent action implement/review --profile``. Since #4114, the
+    dispatch routing catalog also admits the doctrine project layer, so both
+    paths share the same activation gate and currently resolve the same
+    project-local charter-activated profiles.
     """
 
     _PROJECT_PROFILE_ID = "seeker-implementer"
@@ -118,14 +117,18 @@ class TestRegistryResolveLocal:
         )
         return tmp_path
 
-    def test_routing_resolve_rejects_project_doctrine_profile(self, tmp_path: Path) -> None:
-        """The #4120 precondition: the routing catalog excludes the project layer."""
+    def test_routing_and_local_resolve_admit_project_doctrine_profile(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """The #4114 routing expansion agrees with the #4120 local seam."""
         repo = self._make_project_doctrine_repo(tmp_path)
         registry = ProfileRegistry(repo)
-        with pytest.raises(ProfileNotFoundError) as exc_info:
-            registry.resolve(self._PROJECT_PROFILE_ID)
-        # The exact operator-visible failure #4120 reported.
-        assert "Available: []" in str(exc_info.value)
+        routed = registry.resolve(self._PROJECT_PROFILE_ID)
+        local = registry.resolve_local(self._PROJECT_PROFILE_ID)
+
+        assert routed.profile_id == self._PROJECT_PROFILE_ID
+        assert local == routed
 
     def test_resolve_local_resolves_project_doctrine_profile(self, tmp_path: Path) -> None:
         repo = self._make_project_doctrine_repo(tmp_path)
