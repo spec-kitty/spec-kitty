@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import re
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -220,6 +221,47 @@ def test_init_writes_event_log_merge_attributes(
     assert ".kittify/workspaces/** -diff" in attributes
     assert ".kittify/migrations/** linguist-generated=true" in attributes
     assert ".kittify/migrations/** -diff" in attributes
+
+
+@pytest.mark.parametrize(
+    "git_failure",
+    [
+        FileNotFoundError("git"),
+        subprocess.CalledProcessError(1, ["git", "config", "--local"]),
+    ],
+)
+def test_init_tolerates_merge_driver_git_config_failure(
+    cli_app,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    git_failure: OSError | subprocess.CalledProcessError,
+) -> None:
+    """Regression #4159: optional git-config wiring must not abort init."""
+    from specify_cli.lanes import merge as merge_module
+
+    app, _, _ = cli_app
+    monkeypatch.chdir(tmp_path)
+
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: tmp_path / "templates")
+
+    def fake_copy(local_repo: Path, project_path: Path) -> Path:
+        commands_dir = project_path / ".templates"
+        commands_dir.mkdir(parents=True, exist_ok=True)
+        (project_path / ".git").mkdir()
+        return commands_dir
+
+    monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
+    ensure_config = MagicMock(side_effect=git_failure)
+    monkeypatch.setattr(merge_module, "_ensure_merge_driver_git_config", ensure_config)
+
+    result = CliRunner().invoke(
+        app,
+        ["init", "git-optional-project", "--ai", "claude", "--non-interactive"],
+    )
+
+    assert result.exit_code == 0, result.output
+    ensure_config.assert_called_once_with(tmp_path / "git-optional-project")
+    assert (tmp_path / "git-optional-project" / ".kittify").is_dir()
 
 
 def test_init_gitattributes_merge_driver_keys_have_git_config_registrations(

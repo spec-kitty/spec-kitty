@@ -1338,7 +1338,13 @@ def init(  # noqa: C901
     # repository yet -- that case keeps relying on the merge-path self-heal.
     from specify_cli.lanes.merge import _ensure_merge_driver_git_config
 
-    _ensure_merge_driver_git_config(project_path)
+    try:
+        _ensure_merge_driver_git_config(project_path)
+    except (OSError, subprocess.CalledProcessError):
+        # Git is optional during init. A stale .git entry, missing binary, or
+        # unusable repository must not turn best-effort driver wiring into a
+        # late scaffold failure; merge paths self-heal the config later.
+        _console.print("[yellow]Could not configure Spec Kitty merge drivers; continuing without local git configuration.[/yellow]")
 
     # Fresh-init provisioning (FR-009/010/011, NFR-004): seed
     # mission_type_activations from the shipped default charter pack so a
