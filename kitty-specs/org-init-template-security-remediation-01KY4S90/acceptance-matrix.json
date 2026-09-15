@@ -1,0 +1,118 @@
+{
+  "mission_slug": "org-init-template-security-remediation-01KY4S90",
+  "mission_number": null,
+  "mission_type": "software-dev",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Template HTTPS resolve does not inject GIT_TOKEN",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/doctrine/test_template_render_resolve.py::test_git_source_inject_token_false_skips_env + test_resolve_git_uses_factory inject_token=False",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-22T12:10:00Z",
+      "notes": "lane-a 8b6620f35"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Docs describe credential skip policy for --template",
+      "proof_type": "code_review",
+      "evidence": "docs/api/cli-commands.md doctrine org init Credential policy section",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-22T12:10:00Z",
+      "notes": "lane-c a40199132"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Symlink-to-host-file not copied as file bytes",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/doctrine/test_template_render_ignore_copy.py::test_copy_skips_symlink_to_host_secret",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-22T12:10:00Z",
+      "notes": "lane-b a24955683"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Symlink entries skipped during copy",
+      "proof_type": "automated_test",
+      "evidence": "ignore_copy.py is_symlink continue + FR-003 test",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-22T12:10:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Path-component tokens rejected with substitute.path_token",
+      "proof_type": "automated_test",
+      "evidence": "test_substitute_rejects_path_token_in_filename + test_substitute_rejects_path_token_in_dirname",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-22T12:10:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Content leftover tokens still fail render",
+      "proof_type": "automated_test",
+      "evidence": "test_substitute_fails_on_leftover_tokens",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-22T12:10:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "http:// and git:// template schemes rejected",
+      "proof_type": "automated_test",
+      "evidence": "test_resolve_rejects_http_scheme + test_resolve_rejects_git_scheme",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-22T12:10:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "--force install is move-aside-then-swap",
+      "proof_type": "automated_test",
+      "evidence": "test_pipeline_force_overwrites_existing + pipeline._force_swap",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-22T12:10:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "assert replaced with PipelineError guards",
+      "proof_type": "code_review",
+      "evidence": "pipeline.py RULE_SOURCE_MISSING / RULE_INSTALL_EXISTS; no assert source",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-22T12:10:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Single-pass content leftover detection",
+      "proof_type": "code_review",
+      "evidence": "substitute._substitute_file checks leftovers; no second-tree _assert_no_leftovers",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-22T12:10:00Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Docs state fnmatch * may cross /",
+      "proof_type": "code_review",
+      "evidence": "docs/api/cli-commands.md .templateignore fnmatch subset note",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-22T12:10:00Z",
+      "notes": null
+    }
+  ],
+  "negative_invariants": []
+}

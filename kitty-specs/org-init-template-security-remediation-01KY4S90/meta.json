@@ -13,6 +13,7 @@
   "accepted_at": "2026-07-22T12:13:37.261611+00:00",
   "accepted_by": "igorpodsekin",
   "accepted_from_commit": "b9acc568af321d72ba48a3d6020a2ca2de44e098",
+  "baseline_merge_commit": "d4c9eaafe1822e29ae043ff0d7655e9b951bbc0f",
   "created_at": "2026-07-22T11:27:18.964474+00:00",
   "flattened": false,
   "friendly_name": "Org Init Template Security Remediation",
