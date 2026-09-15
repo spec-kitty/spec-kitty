@@ -3,7 +3,9 @@
 **Mission Branch**: `fix/ci-main-concurrency-fanout-cap`
 **Created**: 2026-09-15
 **Status**: Draft
-**Input**: Stage 1 of the ratified main-tip verdict-topology cluster of epic #4437. Governing authority: ADR [`docs/adr/3.x/2026-09-15-1-ci-main-verdict-topology.md`](../../docs/adr/3.x/2026-09-15-1-ci-main-verdict-topology.md) (PR #4534). This mission implements ADR levers **1a** (#4347) and **2a** (#4371) — the two coupled levers that must land together.
+**Input**: Stage 1 of the ratified main-tip verdict-topology cluster of epic #4437. Governing authority: ADR `docs/adr/3.x/2026-09-15-1-ci-main-verdict-topology.md`, **ratified via PR #4534** (a separate, independent PR — this mission does not re-author the ADR). This mission implements ADR levers **1a** (#4347) and **2a** (#4371) — the two coupled levers that must land together.
+
+> **Cross-PR dependency.** The ADR file is not present on this branch (it lands via PR #4534, cut independently). The governing authority for this mission is therefore #4534; the operator should land #4534 first or concurrently so the ADR is on `main` when this stage merges. Planning agents read the ratified content from `work/ci-honesty-4437/DRAFT-ADR-ci-main-verdict-topology.md` (identical, gitignored).
 
 > **Cluster context.** This is the first of **three sequential stage-missions** implementing one coupled ADR. Stage 2 (`ci-aggregate-source-eligibility`, ADR 3a / #4360-A) and Stage 3 (`ci-terminal-cancel-verdict`, ADR 4a / #4430) are separate missions, each created and implemented only **after its predecessor has landed on upstream `main` and been verified on the merged main tip** ("a gate never run is not a gate"). Each stage is its own PR to upstream `main`, operator-merged.
 
