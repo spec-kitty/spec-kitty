@@ -4,8 +4,9 @@ These bound the delivery-topology relations this mission owns, over the SAME
 parsed model as the marker invariant (``_gate_coverage.WorkflowModel``):
 
   FR-003a  every ``needs.<job>.result`` read is declared in that job's ``needs:``
-  FR-003b  every dorny filter output (except the ``any_src`` probe) is consumed
-           by >=1 job ``if:``
+  FR-003b  every dorny filter output (except the deliberately non-gating
+           groups — the ``any_src`` probe, and the ``ci`` CI-infrastructure
+           group, spec-kitty#4386) is consumed by >=1 job ``if:``
   FR-003c  every filter glob matches >=1 tracked path
   FR-003d  the quality-gate verdict consumes ``toJSON(needs)`` and reads ZERO
            literal ``needs.<job>.result`` — membership in ``needs:`` IS the
@@ -153,7 +154,13 @@ def test_needs_result_reads_are_declared_live() -> None:
 
 
 def test_every_restored_filter_group_is_consumed_live() -> None:
-    """FR-003b: every named filter group gates at least one job."""
+    """FR-003b: every named filter group gates at least one job (or is a recorded non-gater).
+
+    The only exemptions are the deliberately non-gating groups in
+    ``_DELIBERATELY_UNGATED_FILTER_GROUPS`` (``any_src`` — contract Invariant 1;
+    ``ci`` — spec-kitty#4386, whose per-PR executor is the always-on
+    ci-modules.yml matrix, pinned by tests/ci/test_ci_module_wiring.py).
+    """
     for name in gc.WORKFLOW_FILES:
         model = gc.load_workflow_model(gc.WORKFLOWS_DIR / name)
         unconsumed = unconsumed_filter_groups(model)
@@ -310,12 +317,32 @@ def needs_declaration_violations(model: gc.WorkflowModel) -> list[str]:
     return out
 
 
+# Deliberately non-gating filter groups (FR-003b exemption set). Each entry is
+# a group the contract forbids from gating any router job, so FR-003b must not
+# flag it as unconsumed:
+#
+# * ``any_src`` — the FR-004 probe; contract Invariant 1 ("never gate a job on
+#   ``any_src`` directly"). Its live consumer is the ``unmatched`` computation
+#   in the ``changes`` job itself.
+# * ``ci`` (spec-kitty#4386) — the CI-infrastructure group
+#   (``scripts/ci/**`` + ``.github/workflows/**``). Its per-PR executor is the
+#   ci-modules.yml module matrix, which runs on EVERY PR, so no router job may
+#   gate on it — a router ``tests (ci)`` job would double-run the suite per PR,
+#   the exact duplicate class test_no_duplicate_suite_execution.py removes. The
+#   group is not dead: the ``changes`` job exports it as a live output, and
+#   tests/ci/test_ci_module_wiring.py pins both its routing and its two
+#   deliberate exclusions — the exemption here is safe only together with that
+#   pin. Adding a new deliberately-ungated group means naming it here AND
+#   pinning it the same way, never silently.
+_DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset({"any_src", "ci"})
+
+
 def unconsumed_filter_groups(model: gc.WorkflowModel) -> set[str]:
-    """FR-003b: filter groups (minus the ``any_src`` probe) with no job ``if:`` consumer."""
+    """FR-003b: filter groups (minus the deliberate non-gaters) with no job ``if:`` consumer."""
     consumed: set[str] = set()
     for groups in model.job_gating_groups.values():
         consumed |= set(groups)
-    return (set(model.filter_groups) - {"any_src"}) - consumed
+    return (set(model.filter_groups) - _DELIBERATELY_UNGATED_FILTER_GROUPS) - consumed
 
 
 def glob_is_live(glob: str, tracked: set[str]) -> bool:
@@ -401,6 +428,26 @@ def test_faultinjection_unconsumed_filter_group_reds(tmp_path: Path) -> None:
             {"used": ["src/a/**"], "orphan_group": ["src/b/**"]},
             unmatched_refs=None,
             gated_jobs={"job-a": ["used"]},
+        ),
+    )
+    assert unconsumed_filter_groups(gc.load_workflow_model(wf)) == {"orphan_group"}
+
+
+def test_faultinjection_deliberately_ungated_group_is_exempt_but_orphans_still_red(tmp_path: Path) -> None:
+    """FR-003b twin: the recorded non-gaters are exempt, everything else still reds.
+
+    Without this twin, widening the exemption set (spec-kitty#4386 added ``ci``
+    next to ``any_src``) could not be fault-injected: a resolver that exempted
+    EVERY group would pass ``test_every_restored_filter_group_is_consumed_live``
+    while the guard went vacuous. A deliberately-ungated group with no job
+    ``if:`` is exempt; a genuinely dead group in the same workflow still reds.
+    """
+    wf = write_workflow(
+        tmp_path,
+        filter_workflow(
+            {"ci": ["scripts/ci/**"], "orphan_group": ["src/b/**"]},
+            unmatched_refs=None,
+            gated_jobs={},
         ),
     )
     assert unconsumed_filter_groups(gc.load_workflow_model(wf)) == {"orphan_group"}

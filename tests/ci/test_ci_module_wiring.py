@@ -147,6 +147,13 @@ def test_ci_group_gates_no_router_job_and_stays_out_of_the_catch_all(router: Rou
     * no ci-router.yml job gates on it — the per-PR executor is the
       ci-modules.yml module matrix, which runs on every PR; a router
       ``tests (ci)`` job would double-run the suite per PR.
+
+    This pin is the other half of the FR-003b exemption: the workflow-coherence
+    guard (tests/architectural/test_workflow_coherence.py) exempts the ``ci``
+    group from its "every filter group gates a job" rule via
+    ``_DELIBERATELY_UNGATED_FILTER_GROUPS`` precisely because THIS test keeps
+    the group's routing live and asserted — the exemption is only safe while
+    this file pins what the group does instead of gating.
     """
     assert _MODULE not in router.src_backed_groups, "the ci group is CI infrastructure, not src code"
     gated = sorted(job for job, groups in router.job_gates.items() if _MODULE in groups)
