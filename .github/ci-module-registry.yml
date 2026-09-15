@@ -380,6 +380,7 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/invocation
   - tests/specify_cli/invocation/cli
   - tests/specify_cli/lanes
+  - tests/specify_cli/live_work
   - tests/specify_cli/merge
   - tests/specify_cli/migration
   - tests/specify_cli/mission_step_contracts
@@ -465,6 +466,7 @@ out_of_matrix_test_dirs:
   - tests/packaging
   - tests/paths
   - tests/perf
+  - tests/performance
   - tests/policy
   - tests/prompts
   - tests/proof
