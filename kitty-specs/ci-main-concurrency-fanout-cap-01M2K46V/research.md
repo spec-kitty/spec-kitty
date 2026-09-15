@@ -26,12 +26,13 @@ Mechanics verified against the live tree on `fix/ci-main-concurrency-fanout-cap`
   - *`cancel-in-progress: false` (queue) at top level* — reproduces the queue-outgrows-drain problem. Rejected.
   - *Concurrency on the `identify` job only* — leaves `report`/`report-main` uncapped. Rejected; top-level covers the whole run.
 
-## D4 — `report-main` coalesce-with-survivor, per tip (Lever 2a.3)
+## D4 — `report-main` left UNCHANGED (Lever 2a.3) — **reversed by post-plan squad**
 
-- **Decision**: `report-main` concurrency (`:71-73`) `group: ci-fleet-verdict-main` / `cancel-in-progress: false` → `group: ci-fleet-verdict-main-${{ github.event.workflow_run.head_sha }}` / `cancel-in-progress: true`.
-- **Rationale**: The current single group across **all** main tips with `cancel-in-progress: false` makes main-verdict runs *queue* — during a burst the queue grows faster than it drains (#4371: 96→183 in ~5 min). Coalesce-with-survivor drains it. Crucially the group must be **per-SHA**: a single-group coalesce would let the newest tip cancel *older tips' unposted* verdicts — the exact false-red NFR-002 forbids. Per-SHA coalesces only redundant runs of the *same* tip.
-- **Cross-tip incident-issue safety**: `fleet_main.report()` (`:99-138`) finds/dedups a single open `from:ci` incident issue, fingerprint-suppresses (`:113-120`), and re-reads before commenting (`:124`, raises on drift). So two different tips' `report-main` running concurrently is idempotent and fail-closed — the single-group serialization it replaces was belt-and-suspenders, not a correctness requirement.
-- **Alternatives**: *Remove the job-level block entirely (rely on top-level)* — top-level per-SHA already guarantees one run per tip, so the job-level block is technically redundant; kept explicit per-SHA for readability and to give the golden-YAML pin a stable target. Acceptable either way; chose explicit.
+- **Decision (final, operator-ratified 2026-09-15)**: **Do not change `report-main`'s concurrency.** Keep `group: ci-fleet-verdict-main` / `cancel-in-progress: false` (`:71-73`).
+- **Rationale**: The original plan proposed moving `report-main` to per-SHA coalesce (matching the ADR's literal Axis-2a text). The post-plan adversarial squad (architect-alphonso, MAJOR) showed this **opens a create-create race** on the single `from:ci` incident issue: two different red main tips (different `head_sha` → different group → genuinely concurrent) both run `report()`, both find no incident (TOCTOU between the scan at `fleet_main.py:106` and create at `:131` — the `:124` re-read only detects *that tip's own* evidence drift, not a *peer run's* concurrent create), and both create an issue → then `if len(incidents) > 1: raise` (`:110`) fails closed **after** the duplicate exists, persistently wedging the P0 incident intake until a human reconciles. `fleet_main`'s single-open-incident dedup is a resource *outside* the concurrency-group system, so per-SHA keying cannot serialize it.
+- **Why the fan-out cap still holds without touching `report-main`**: the #4371 queue-outgrows-drain pathology was *caused by* the ~60-runs/tip **inflow**. D2 (`types:[completed]`) + D3 (top-level per-SHA coalesce) cut that inflow to ≈1 run/tip, so the original single-group `cancel:false` queue now carries N fast sequential posts for N tips — it drains trivially and no longer outgrows. The ADR's *goal* (queue cannot outgrow drain) is met upstream; the literal *mechanism* (change report-main) is unnecessary and harmful.
+- **ADR deviation (flagged, not silent)**: this is a documented deviation from ADR Axis-2a's literal "report-main must move toward coalesce", recorded as a finding against that mechanic and ratified by the operator. Within the mission's delegated "exact YAML mechanics" latitude (ADR Confirmation: medium confidence there).
+- **Alternatives considered**: *per-SHA + add idempotent-create logic to `fleet_main`* — closes the race but adds new production logic the mission otherwise avoids (D5 honesty) and defends a bug we can simply not create. Rejected. *Keep single-group but coalesce (cancel:true on the shared group)* — would let the newest tip cancel *older tips'* unposted verdicts (false-red/wedge). Rejected.
 
 ## D5 — Dedup "reinforcement" is a pin, not a code change (Lever 2a.4)
 
@@ -41,8 +42,8 @@ Mechanics verified against the live tree on `fix/ci-main-concurrency-fanout-cap`
 
 ## D6 — YAML lint posture (no CI gate exists)
 
-- **Decision**: Run `actionlint` and `shellcheck` **manually** on both touched workflows during implement; record the 0-finding result in the PR body. Do not add a new CI lint gate in Stage 1.
-- **Rationale**: The repo has **no** actionlint/shellcheck Makefile target, CI job, or test (verified: they appear only as dev-tool installs in `scripts/tool_configs/*.sh`). Adding a lint gate is out of ADR scope for this cluster. The golden-YAML pytest pins assert the resolved shape; the merged-main-tip run is the ultimate proof. (An actionlint CI gate could be a future hardening ticket — recorded, not folded.)
+- **Decision**: Run `actionlint` and `shellcheck` **manually** on both touched workflows during implement; **paste the raw tool invocation + full output** into the PR body (not a bare self-reported "0 findings" — Renata MED). Do not add a new CI lint gate in Stage 1.
+- **Rationale**: The repo has **no** actionlint/shellcheck Makefile target, CI job, or test (verified: they appear only as dev-tool installs in `scripts/tool_configs/*.sh`). Adding a lint gate is out of ADR scope for this cluster. The now-**exact-equality** golden-YAML pins catch the highest-risk syntactic item (the router ternary + the top-level per-SHA key); actionlint covers the remainder rather than being the sole proof; the merged-main-tip run is the ultimate proof. An actionlint CI gate is a **proposed follow-up to be filed with the PR — not yet tracked** (Renata LOW; do not claim it is "recorded").
 - **Alternatives**: *Add an actionlint CI job in this PR* — scope creep beyond the ADR bundle; deferred as a follow-up.
 
 ## D7 — #4208 cross-coupling (input-distribution shift only)
@@ -50,6 +51,33 @@ Mechanics verified against the live tree on `fix/ci-main-concurrency-fanout-cap`
 - **Decision**: No `router_gate.py` change. Verify the byte-identical-policy tests stay green and observe on the merged main tip that legitimate `cancelled` runs still classify correctly.
 - **Rationale**: `router_gate.py` treats `cancelled` as a **blocking** conclusion (`NON_BLOCKING_CONCLUSIONS = {"success","skipped"}`, `:46`; `classify` `:76-92`). 1a removes *push-cancellation-cascade* cancels on main, so fewer external-cancel main runs reach the gate — a live input-distribution shift, not a logic change. Pinned tests pass synthetic dicts and remain valid. The research (Lens B) flags this coupling explicitly; the missing #4208 wiring-guard (research MINOR-1) is recorded as a **follow-up**, not folded into this cluster stage.
 - **Adversarial evidence disposition**: No dependency added/upgraded/removed → supply-chain section N/A. The one contested design point (report-main single-group vs per-SHA) was resolved in favor of per-SHA (D4) — disposition **changed** from the naive "coalesce the shared group" reading to per-SHA to preserve NFR-002. No contested finding dropped.
+
+## D8 — Survivor-no-successor residual wedge: detect now, self-heal in Stage 3
+
+- **Decision (operator-ratified 2026-09-15)**: Document the residual wedge as a named risk, add **SC-006** so the merged-tip acceptance ledger *detects* a stranded `running`, and **defer the self-heal** (a running-sweep) to Stage 3 — it is ADR lever **4b**.
+- **Rationale**: debugger-debbie (MED) showed the terminal survivor under `types:[completed]` + coalescing has no successor event; on genuine drift or GitHub API-lag it can post `running`/nothing with no reconciler → a *missing* terminal verdict (never false-green, never blocking-false-red). She concedes it is **pre-existing in kind** — coalescing removes redundancy margin rather than introducing the wedge. Building the sweep now would pull ADR 4b scope into the concurrency stage. The correct Stage-1 posture is to make it *visible*.
+- **Alternatives**: *retry-on-running in the report job* — a partial self-heal, still Stage-3-shaped; deferred whole.
+
+## Post-plan adversarial squad — findings & dispositions (adversarial-evidence contract)
+
+Squad at the post-plan point-cut; 3 profile-loaded read-only lenses; all returned **SHIP-WITH-FIXES**; convergent core: mechanism sound, no false-green, no blocking-false-red.
+
+| # | Finding (lens) | Severity | Disposition |
+|---|---|---|---|
+| 1 | `report-main` per-SHA opens incident create-create race (architect-alphonso) | MAJOR | **changed** — keep `report-main` unchanged; ADR-literal deviation ratified (D4) |
+| 2 | golden-YAML substring pins fakeable in the FR-breaking direction (reviewer-renata HIGH; debugger-debbie LOW) | HIGH | **changed** — C-YAML-1/3 now exact string/dict equality |
+| 3 | acceptance ledger blind to a stranded `running` (debugger-debbie MED) | MED | **changed** — added SC-006 (terminal-verdict presence); D8 |
+| 4 | terminal survivor has no successor → soft wedge (debugger-debbie MED) | MED | **changed→deferred** — documented residual + SC-006 detects; self-heal → Stage 3/4b (D8) |
+| 5 | CK-1 over-broad; could be "fixed" into a PR-ref FR-002 regression (architect-alphonso MINOR) | MINOR | **changed** — CK-1 rescoped to landed-main-tip; PR-ref coalescing carved out |
+| 6 | manual `actionlint`/`shellcheck` self-report is a fakeable green (reviewer-renata MED) | MED | **changed** — PR must paste raw tool invocation+output, not "0 findings" (D6) |
+| 7 | actionlint-CI follow-up "recorded" but untracked (reviewer-renata LOW) | LOW | **changed** — reworded to "proposed follow-up, to be filed with the PR; not yet tracked" |
+| 8 | VI-1 dedup test could be a tautology if `snapshot` is patched (reviewer-renata LOW) | LOW | **accepted** — non-tautology guard added to VI-1 for implement-review |
+| 9 | coalescing depends on `types:[completed]` staying present (reviewer-renata LOW) | LOW | **accepted** — VI-6 documents the dependency |
+| 10 | `report`(PR) job `cancel:false` comment now stale (alphonso/debbie INFO) | INFO | **accepted** — C-YAML-6 implement task to refresh the comment |
+| 11 | diff-scope of NFR-001 is prose-only (reviewer-renata LOW) | LOW | **accepted** — quickstart adds a `git diff --name-only` scope check |
+| 12 | #4208 needs no change; byte-identical tests valid (all three) | INFO | **accepted** — D7 confirmed; missing #4208 wiring-guard = separate follow-up |
+
+No contested finding dropped. The one genuine steelman conflict (report-main per-SHA vs single-group) was adjudicated from GitHub Actions semantics + `fleet_main.py` source, not averaged.
 
 ## Live grounding (baseline to beat)
 
