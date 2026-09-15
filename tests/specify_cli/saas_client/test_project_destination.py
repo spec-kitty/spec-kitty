@@ -41,6 +41,7 @@ def destination_client(tmp_path, monkeypatch):
         {"admitted": True, "team": None},
         {"admitted": True, "team": {"id": "42", "slug": "../other"}},
         {"admitted": True, "team": {"id": "42", "slug": "team-b"}, "repo_slug": "other/repo"},
+        {"admitted": True, "team": {"id": "42", "slug": "team-b"}},
     ],
 )
 def test_foreign_unadmitted_or_malformed_destination_never_sends_decision(destination_client, answer):

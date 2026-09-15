@@ -466,7 +466,14 @@ class SaasClient:
             params["host"] = host
         path = f"/api/v1/sync/repo-admission/?{urlencode(params)}"
         resp = self._get(path)
-        data: dict[str, Any] = resp.json()
+        try:
+            data = resp.json()
+        except ValueError as exc:
+            raise SaasConsentError("project_authority_unavailable: admission response is not JSON") from exc
+        if not isinstance(data, dict):
+            raise SaasConsentError("project_authority_unavailable: admission response is not an object")
+        if data.get("admitted") is True and not isinstance(data.get("repo_slug"), str):
+            raise SaasConsentError("project_authority_unavailable: admission response does not identify the repository")
         return cast(
             AdmissionAnswer,
             {

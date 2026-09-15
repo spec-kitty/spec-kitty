@@ -20,6 +20,7 @@ import pytest
 import respx
 
 from specify_cli.saas_client import SaasAuthError, SaasClient, SaasNotFoundError, SaasTimeoutError
+from specify_cli.saas_client.errors import SaasConsentError
 from specify_cli.saas_client.endpoints import AdmissionAnswer
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -80,10 +81,16 @@ def test_host_is_optional() -> None:
 
 
 def test_repo_slug_falls_back_to_request_value_when_response_omits_it() -> None:
-    """If the server ever omits repo_slug, the requested slug is used."""
+    """A negative answer may echo the request for display, never as authority."""
     client = _make_client({"admitted": False, "reason": "no_match"})
     result = client.check_repo_admission("acme/widget", host="github.com")
     assert result["repo_slug"] == "acme/widget"
+
+
+@pytest.mark.parametrize("data", [None, [], "not-an-object", {"admitted": True}, {"admitted": True, "repo_slug": 42}])
+def test_malformed_admission_cannot_supply_authority(data) -> None:
+    with pytest.raises(SaasConsentError):
+        _make_client(data).check_repo_admission("acme/widget", host="github.com")
 
 
 # ---------------------------------------------------------------------------
@@ -163,9 +170,7 @@ class TestRespxIntegration:
     def test_omits_host_query_param_when_not_given(self) -> None:
         """host=None means no host param is sent at all (not host=None/empty)."""
         with respx.mock:
-            route = respx.get(f"{self.BASE}/api/v1/sync/repo-admission/").respond(
-                200, json={"admitted": False, "reason": "no_match"}
-            )
+            route = respx.get(f"{self.BASE}/api/v1/sync/repo-admission/").respond(200, json={"admitted": False, "reason": "no_match"})
             client = self._client(httpx.Client())
             client.check_repo_admission("acme/widget")
 
@@ -176,9 +181,7 @@ class TestRespxIntegration:
     def test_not_admitted_respx(self) -> None:
         """respx: the admitted:false/no_match shape round-trips end to end."""
         with respx.mock:
-            respx.get(f"{self.BASE}/api/v1/sync/repo-admission/").respond(
-                200, json={"admitted": False, "reason": "no_match"}
-            )
+            respx.get(f"{self.BASE}/api/v1/sync/repo-admission/").respond(200, json={"admitted": False, "reason": "no_match"})
             client = self._client(httpx.Client())
             result = client.check_repo_admission("acme/widget", host="gitlab.com")
 
@@ -188,9 +191,7 @@ class TestRespxIntegration:
     def test_timeout_respx(self) -> None:
         """respx: a transport-level timeout raises SaasTimeoutError."""
         with respx.mock:
-            respx.get(f"{self.BASE}/api/v1/sync/repo-admission/").mock(
-                side_effect=httpx.TimeoutException("timed out")
-            )
+            respx.get(f"{self.BASE}/api/v1/sync/repo-admission/").mock(side_effect=httpx.TimeoutException("timed out"))
             client = self._client(httpx.Client())
             with pytest.raises(SaasTimeoutError):
                 client.check_repo_admission("acme/widget", host="github.com")
