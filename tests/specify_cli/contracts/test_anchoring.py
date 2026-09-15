@@ -2,9 +2,9 @@
 
 ``composite_key``'s **values** are content-derived, but its **lookup** is
 line-number-indexed — ``tokens.get(lineno, "")`` reads whatever line
-``lineno`` names in the tree it is given. These tests pin exactly what
-``anchoring.py``'s narrowed docstring promises, so the claim cannot silently
-re-widen:
+``lineno`` names in the tree it is given. These tests pin the **behavior**
+``anchoring.py``'s narrowed docstring describes, so a docstring edit that
+re-widens the claim contradicts this executable evidence:
 
 * an insertion **below** the guarded site leaves a pinned-``lineno`` key
   unchanged (neither lookup moves);

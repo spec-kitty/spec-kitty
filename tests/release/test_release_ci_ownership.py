@@ -536,8 +536,8 @@ def test_introduced_and_restore_rows_forbid_private_runner_and_token() -> None:
     *public jobs*: net-new `introduced` producers must be tokenless (forward-guarded
     here for when the downstream WPs land the files), while the reduced public CI
     producers are guarded by ``test_public_ci_uses_released_dependencies...``;
-    ``release.yml`` legitimately resolves pinned private git dependencies with the
-    token at release time and is not a public CI job.
+    ``release.yml`` is not a public CI job, and its package-build path is likewise
+    tokenless: pinned dependencies resolve from PyPI without ``SK_CI_TOKEN``.
     """
     map_text = CONVERGENCE_MAP.read_text(encoding="utf-8")
     assert "stock runners" in map_text

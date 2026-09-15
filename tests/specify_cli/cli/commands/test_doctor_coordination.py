@@ -623,6 +623,45 @@ def test_run_coordination_health_fix_end_to_end(
     )
 
 
+def test_mission_scoped_fix_does_not_backfill_another_mission(
+    fresh_mission_repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A mission-scoped coordination fix must not mutate another mission."""
+    from specify_cli.cli.commands import _coordination_doctor as cd
+
+    selected_dir = fresh_mission_repo / "kitty-specs" / MISSION_SLUG
+    selected_meta = {
+        **_meta(),
+        "coordination_branch": "kitty/mission-never-created-00000000",
+    }
+    (selected_dir / "meta.json").write_text(json.dumps(selected_meta))
+
+    other_dir = fresh_mission_repo / "kitty-specs" / "unrelated-mission-01J6ZZ00"
+    other_dir.mkdir(parents=True)
+    other_meta_path = other_dir / "meta.json"
+    other_meta_path.write_text(
+        json.dumps(
+            {
+                "mission_slug": other_dir.name,
+                "mission_id": "01J6ZZ00ABCDEFGHJKMNPQRSTV",
+            }
+        )
+    )
+    before = other_meta_path.read_bytes()
+
+    monkeypatch.setattr(cd, "locate_project_root", lambda: fresh_mission_repo)
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(
+            json_output=False,
+            fix=True,
+            mission=MISSION_SLUG,
+        )
+
+    assert exc.value.exit_code == 0
+    assert other_meta_path.read_bytes() == before
+
+
 def test_never_created_check_treats_remote_only_branch_as_present(
     fresh_mission_repo: Path,
 ) -> None:

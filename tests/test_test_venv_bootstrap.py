@@ -428,6 +428,8 @@ def test_two_spawned_windows_processes_publish_one_shared_venv(tmp_path: Path) -
         process.join(timeout=10)
 
     assert [process.exitcode for process in processes] == [0, 0]
-    assert all(results.get(timeout=1)[0] == "ok" for _ in processes)
+    outcomes = sorted(results.get(timeout=1) for _ in processes)
+    expected = str(tmp_path / root_conftest._VENV_CACHE_PATH)
+    assert outcomes == [("ok", expected), ("ok", expected)]
     count_path = tmp_path / ".pytest_cache" / "build-count.txt"
     assert len(count_path.read_text(encoding="utf-8").splitlines()) == 1

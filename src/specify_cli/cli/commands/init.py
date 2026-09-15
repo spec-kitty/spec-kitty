@@ -154,6 +154,32 @@ def _install_command_skill_agents(project: Path, agents: list[str]) -> bool:
     return complete
 
 
+def _repair_requested_command_skills(project: Path, agents: list[str]) -> bool:
+    """Restore clone-local command skills for explicitly requested agents."""
+    data = YAML(typ="safe").load((project / ".kittify/config.yaml").read_text(encoding="utf-8"))
+    configured_agents = data.get("agents", {}).get("available") if isinstance(data, dict) else None
+    if not isinstance(configured_agents, list):
+        return False
+    command_agents = [agent for agent in agents if agent in _COMMAND_SKILL_AGENTS and agent in configured_agents]
+    if not command_agents:
+        return False
+
+    from specify_cli.skills.command_installer import CANONICAL_COMMANDS
+
+    skills_root = project / ".agents" / "skills"
+    missing = any(not (skills_root / f"spec-kitty.{command}" / "SKILL.md").is_file() for command in CANONICAL_COMMANDS)
+    if not missing:
+        return False
+
+    protected = GitignoreManager(project).protect_all_agents()
+    if not protected.success:
+        raise ValueError("Cannot repair command delivery: " + "; ".join(protected.errors))
+    _console.print("[yellow]Restoring missing command skills for this initialized clone.[/yellow]")
+    if not _install_command_skill_agents(project, command_agents):
+        raise ValueError("Command-skill repair remains incomplete; resolve the reported collision or error")
+    return True
+
+
 def _resume_command_delivery(project: Path) -> bool:
     """Finish only interrupted command delivery; never rewrite saved config."""
     pending = _pending_command_skills(project)
@@ -778,6 +804,26 @@ def init(  # noqa: C901
             _console.print(error_panel)
             raise typer.Exit(1)
 
+    selected_agents_from_option: list[str] | None = None
+    if ai_assistant:
+        raw_agents = [part.strip().lower() for part in ai_assistant.replace(";", ",").split(",") if part.strip()]
+        if not raw_agents:
+            _console.print("[red]Error:[/red] --ai flag did not contain any valid agent identifiers")
+            raise typer.Exit(1)
+        selected_agents_from_option = []
+        seen_agents: set[str] = set()
+        invalid_agents: list[str] = []
+        for key in raw_agents:
+            if key not in AI_CHOICES:
+                invalid_agents.append(key)
+                continue
+            if key not in seen_agents:
+                selected_agents_from_option.append(key)
+                seen_agents.add(key)
+        if invalid_agents:
+            _console.print(f"[red]Error:[/red] Invalid AI assistant(s): {', '.join(invalid_agents)}. Choose from: {', '.join(AI_CHOICES.keys())}")
+            raise typer.Exit(1)
+
     # T004 — Idempotency check: exit 0 cleanly if already initialized.
     # This prevents silent re-init and makes CI-driven init safe to re-run.
     # #4425: a re-run also verifies the requested agents' managed surfaces —
@@ -788,6 +834,8 @@ def init(  # noqa: C901
         try:
             resumed = _resume_command_delivery(project_path)
             if not resumed:
+                if selected_agents_from_option:
+                    _repair_requested_command_skills(project_path, selected_agents_from_option)
                 selected = _check_initialized_command_skills(project_path, ai_assistant)
                 _restore_native_project_skills(project_path, selected)
         except (OSError, ValueError, AgentConfigError) as exc:
@@ -854,23 +902,8 @@ def init(  # noqa: C901
         _console.print("[yellow]ℹ git not detected[/yellow] - install git for version control")
 
     if ai_assistant:
-        raw_agents = [part.strip().lower() for part in ai_assistant.replace(";", ",").split(",") if part.strip()]
-        if not raw_agents:
-            _console.print("[red]Error:[/red] --ai flag did not contain any valid agent identifiers")
-            raise typer.Exit(1)
-        selected_agents: list[str] = []
-        seen_agents: set[str] = set()
-        invalid_agents: list[str] = []
-        for key in raw_agents:
-            if key not in AI_CHOICES:
-                invalid_agents.append(key)
-                continue
-            if key not in seen_agents:
-                selected_agents.append(key)
-                seen_agents.add(key)
-        if invalid_agents:
-            _console.print(f"[red]Error:[/red] Invalid AI assistant(s): {', '.join(invalid_agents)}. Choose from: {', '.join(AI_CHOICES.keys())}")
-            raise typer.Exit(1)
+        assert selected_agents_from_option is not None
+        selected_agents = selected_agents_from_option
     else:
         if non_interactive:
             _console.print("[red]Error:[/red] --ai is required in non-interactive mode")

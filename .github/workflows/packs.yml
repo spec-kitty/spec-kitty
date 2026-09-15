@@ -80,8 +80,6 @@ jobs:
               - 'packs/built-in/**'
               - 'tests/doctrine/**'
               - 'tests/architectural/test_pack_manifest_no_author_edit.py'
-              - '.claude/**'
-              - '.agents/skills/**'
               - '.kittify/command-skills-manifest.json'
               - 'tests/specify_cli/regression/_twelve_agent_baseline/**'
               - 'tests/specify_cli/skills/__snapshots__/**'
