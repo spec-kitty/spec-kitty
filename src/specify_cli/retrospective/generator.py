@@ -1208,16 +1208,7 @@ def _build_findings(
     # --- Not-helpful: WPs with ≥1 rejection cycle
     for wp_id in sorted(rejection_counts.keys()):
         count = rejection_counts[wp_id]
-        rejection_event_ids = [
-            str(ev.get("event_id", ""))
-            for ev in events
-            if ev.get("wp_id") == wp_id and _is_review_rejection_event(ev)
-        ]
-        range_str = (
-            f"{rejection_event_ids[0]}..{rejection_event_ids[-1]}"
-            if len(rejection_event_ids) > 1
-            else (rejection_event_ids[0] if rejection_event_ids else "")
-        )
+        range_str = _event_id_range_for(events, wp_id, _is_review_rejection_event)
         ev_id = ev_reg.add_event_range(events_rel, range_str or "rejection", f"rejection_{wp_id}")
         not_helpful.append(
             GenFinding(
