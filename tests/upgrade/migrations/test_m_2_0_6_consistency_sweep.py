@@ -131,7 +131,7 @@ def test_apply_repairs_feature_state_and_legacy_prompt_refs(
     assert not (feature_dir / EVENTS_FILENAME).exists()
 
     backup_files = sorted(feature_dir.glob("status.json.orphan.bak.*"))
-    assert len(backup_files) == 1  # golden-count: cardinality-is-contract (timestamp-suffixed name)
+    assert len(backup_files) == 1  # (timestamp-suffixed name)
 
 
 def test_apply_quarantines_unreadable_planned_only_event_log(

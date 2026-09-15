@@ -17,18 +17,15 @@ or off the blocking gate in either direction:
   of ``enforcement-allowlist`` nor add a fifth entry into that class (the
   "gutting P1" and "shape-guard silently promoted" footguns this mission's
   Risks section names).
-* A **shape guard** (the golden-count frozen-ceiling ratchet) is demoted OFF
-  the blocking gate: a breach is reported as advisory telemetry, never raised.
-  :func:`test_shape_guard_demotion_does_not_raise_under_a_manufactured_breach`
-  proves this behaviorally — it imports the real function, forces the exact
-  ceiling-breach shape that used to hard-fail, and asserts nothing raises. A
-  future edit that silently re-adds a hard ``assert violations == []`` reds
-  this test immediately, so the yaml label alone cannot re-litigate the gate
-  without the code actually changing back.
-* **Behavioral** entries (the golden-count module's own pure-helper unit
-  tests, and the already-narrowed twelve-agent-parity structural/content
-  tests, #3447 WP05) are ordinary tests: neither ratchet class, no special
-  treatment.
+* A **shape guard** is a test demoted OFF the blocking gate: a breach is
+  reported as advisory telemetry, never raised. The golden-count
+  frozen-ceiling ratchet was the only ``shape-guard``-classed entry; it was
+  retired outright (#4315), leaving the class **defined but empty** —
+  :data:`_VALID_CLASSES` keeps the vocabulary available for a future
+  demotion, not as dead code.
+* **Behavioral** entries (the already-narrowed twelve-agent-parity
+  structural/content tests, #3447 WP05) are ordinary tests: neither ratchet
+  class, no special treatment.
 
 Every membership key is tied to a real file (and, for a ``::``-qualified key,
 a real function defined in it) via AST/import introspection — never a
@@ -38,7 +35,6 @@ free-text label with nothing backing it.
 from __future__ import annotations
 
 import ast
-import importlib
 from pathlib import Path
 
 import pytest
@@ -74,12 +70,6 @@ def _load_membership() -> dict[str, str]:
 def _module_relpath(entry: str) -> str:
     """The bare module-path portion of a membership key (strips a `::func` suffix)."""
     return entry.split("::", 1)[0]
-
-
-def _module_name_for(relpath: str) -> str:
-    """Dotted import name for a `tests/...py` relpath (e.g. `tests.architectural.test_x`)."""
-    assert relpath.endswith(".py"), relpath
-    return relpath[: -len(".py")].replace("/", ".")
 
 
 # ---------------------------------------------------------------------------
@@ -153,39 +143,3 @@ def test_enforcement_allowlists_still_carry_real_blocking_assertions() -> None:
                 found_assert = True
                 break
         assert found_assert, f"{relpath!r} is classed enforcement-allowlist but no test_* function contains a real `assert` -- it may have been silently demoted"
-
-
-# ---------------------------------------------------------------------------
-# P2 demotion: a shape guard must behave as off-the-gate, not merely say so.
-# ---------------------------------------------------------------------------
-
-
-def test_shape_guard_demotion_does_not_raise_under_a_manufactured_breach() -> None:
-    """T082/T087 core proof: a ``shape-guard``-classed test must not hard-fail
-    even when the exact real-world breach it used to catch is manufactured --
-    proving it is genuinely off the blocking gate, not merely relabeled in the
-    yaml while still asserting underneath. Also guards against a future
-    regression silently re-adding the hard assertion: this test would red the
-    moment that happened, independent of what the yaml label claims.
-    """
-    membership = _load_membership()
-    shape_guard_entries = [entry for entry, cls in membership.items() if cls == "shape-guard" and "::" in entry]
-    assert shape_guard_entries, "expected at least one `::`-qualified shape-guard entry"
-
-    for entry in shape_guard_entries:
-        module_relpath, _, func_name = entry.partition("::")
-        module = importlib.import_module(_module_name_for(module_relpath))
-        target = getattr(module, func_name)
-        assert callable(target), f"{entry!r}: {func_name!r} is not callable in {module_relpath}"
-
-        monkeypatch = pytest.MonkeyPatch()
-        try:
-            # Force the exact ceiling-breach shape this guard used to
-            # hard-block on, regardless of the real repo tree's current state.
-            if hasattr(module, "convert_counts_by_dir"):
-                monkeypatch.setattr(module, "convert_counts_by_dir", lambda _sites: {"tests/manufactured_breach": 999})
-            if hasattr(module, "load_baseline"):
-                monkeypatch.setattr(module, "load_baseline", lambda: {"tests/manufactured_breach": 0})
-            target()  # must not raise -- that is the demotion
-        finally:
-            monkeypatch.undo()

@@ -4,7 +4,8 @@
   "notes": [
     "Coverage form (C-005): --cov targets are kept in dotted module form (never path form) and pyproject [tool.coverage.run].relative_files=true is preserved -- both are required for multi-<source> coverage resolution by the downstream aggregators.",
     "Re-derivation (moves, NOT census exclusions): the historical standalone 'doctrine' group (src/doctrine/**) and the --cov=doctrine.missions target were re-mapped to their live successor src/charter/offering/** (doctrine absorbed into charter/offering post-convergence); doctrine is a MOVE, not a retirement, so it is not in excluded_surfaces. The stale core_misc root src/specify_cli/render/** was dropped -- the render package no longer exists (oracle: importer-count:0), so it is not carried by any kept group.",
-    "The enforcement allowlists (test_no_dead_symbols / test_no_dead_modules / test_no_retired_subsystems) that QUOTE dead surfaces as banned strings are out of scope of exclusion (C-006): they stay always-on blocking gates and never appear in excluded_surfaces."
+    "The enforcement allowlists (test_no_dead_symbols / test_no_dead_modules / test_no_retired_subsystems) that QUOTE dead surfaces as banned strings are out of scope of exclusion (C-006): they stay always-on blocking gates and never appear in excluded_surfaces.",
+    "Test-inventory groups (mission sonar-per-pr-coverage-reuse-01M2FR32, WP02): `unit` and `specify_cli_runtime` are rows for live test directories that had no declared home. Their roots are deliberately a SUBSET of globs other kept groups already own (never a new src/** claim), so adding them changes no path's group match and leaves the FR-004 fail-closed `unmatched` union semantics intact. Rationale and the rejected alternative are recorded in kitty-specs/sonar-per-pr-coverage-reuse-01M2FR32/traces/design-decisions.md."
   ],
   "groups": [
     {
@@ -204,6 +205,38 @@
         "mission_runtime"
       ],
       "census_evidence": "known-live"
+    },
+    {
+      "group": "unit",
+      "roots": [
+        "src/specify_cli/status/**",
+        "src/runtime/next/**",
+        "src/charter/offering/missions/**",
+        "src/kernel/**"
+      ],
+      "cov_targets": [
+        "specify_cli.status",
+        "runtime.next",
+        "charter.offering.missions",
+        "kernel"
+      ],
+      "census_evidence": "known-live",
+      "note": "TEST-INVENTORY row (mission sonar-per-pr-coverage-reuse-01M2FR32, WP02/FR-006). This group exists to give a live test directory a declared home in the module registry so retiring the duplicate broad-measurement step does not remove its PER-CHANGE execution. It owns no src/** surface of its own: every root below is a VERBATIM copy of a glob another kept group already owns, so the router's path->group mapping and the FR-004 fail-closed `unmatched` union are unchanged (no path gains or loses a match). Roots/cov_targets are the subset of already-owned surfaces the directory's tests actually import -- never a surface no other group claims, which would silently narrow an unmapped src/** change away from the run-all catch-all. Covers tests/unit (already the first directory of the CLAUDE.md fast tier)."
+    },
+    {
+      "group": "specify_cli_runtime",
+      "roots": [
+        "src/specify_cli/runtime/**",
+        "src/charter/offering/missions/**",
+        "src/specify_cli/core/**"
+      ],
+      "cov_targets": [
+        "specify_cli.runtime",
+        "charter.offering.missions",
+        "specify_cli.core"
+      ],
+      "census_evidence": "known-live",
+      "note": "TEST-INVENTORY row (mission sonar-per-pr-coverage-reuse-01M2FR32, WP02/FR-006). This group exists to give a live test directory a declared home in the module registry so retiring the duplicate broad-measurement step does not remove its PER-CHANGE execution. It owns no src/** surface of its own: every root below is a VERBATIM copy of a glob another kept group already owns, so the router's path->group mapping and the FR-004 fail-closed `unmatched` union are unchanged (no path gains or loses a match). Roots/cov_targets are the subset of already-owned surfaces the directory's tests actually import -- never a surface no other group claims, which would silently narrow an unmapped src/** change away from the run-all catch-all. Covers tests/specify_cli/runtime (already the last directory of the CLAUDE.md fast tier)."
     }
   ],
   "non_src_router_groups": [

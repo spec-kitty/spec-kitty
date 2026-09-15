@@ -32,13 +32,30 @@ Anti-goals (contract): do NOT hard-code the current job list (derive
 ``pytest_jobs`` from the parsed workflow model so a FUTURE job is covered
 automatically); do NOT match ``pytest`` inside a comment or a string literal.
 
-The reduced interim ``ci-quality.yml`` contains no directly-anchored pytest
-jobs; the one suite it does run — the non-blocking ``sonarcloud`` reporter
-(spec-kitty#3993) — reaches pytest through ``make test-fast`` and carries its
-reasoned ``NON_BLOCKING_ALLOWLIST`` entry. The live checks below prove that
-direct-invocation absence and bind ``quality-gate.needs`` to the four producer
-jobs it blocks; the fault-injection substrate keeps the general containment
-relation ready when suite jobs return.
+The reduced interim ``ci-quality.yml`` runs **no** suite at all. Getting to
+that statement honestly took two missions, and the history is the reason the
+live check below is shaped the way it is:
+
+* it once asserted the file had *no* pytest jobs and was green for months while
+  a full duplicate tier ran inside it — the non-blocking ``sonarcloud`` reporter
+  (spec-kitty#3993) reached pytest through a make target, and the derivation
+  read only directly-anchored ``pytest`` commands;
+* mission ``sonar-per-pr-coverage-reuse`` WP03 taught the gate model to resolve
+  make/script indirection (``_gate_coverage``'s "Indirect suite invocations"
+  section) by reading the Makefile, so the job became genuinely derived and its
+  ``NON_BLOCKING_ALLOWLIST`` entry became a real subtraction;
+* WP06 then retired the job itself (#4334): it re-measured what the
+  ``ci-modules`` shards had already measured for the same commit, and the per-PR
+  Sonar report moved to ``ci-aggregate.yml``'s ``sonar-pr`` job, which executes
+  no tests. Its allowlist entry was retired as moot with its subject, recorded
+  in ``tests/release/pinning_rule_inventory.json``.
+
+So the empty set is the *same assertion text* that was once worthless, and it
+is therefore paired with a fault-injection probe that re-injects a
+make-indirect suite job into a copy of the live file and requires the
+derivation to find it. The live checks also bind ``quality-gate.needs`` to the
+four producer jobs it blocks; the fault-injection substrate keeps the general
+containment relation ready for when a suite job returns.
 """
 
 from __future__ import annotations
@@ -88,22 +105,16 @@ NON_BLOCKING_ALLOWLIST: dict[str, str] = {
         "incidental blind spot. Re-enabling it MUST be paired with either a "
         "`quality-gate.needs` edge or an updated rationale here."
     ),
-    "sonarcloud": (
-        "Non-blocking BY DESIGN (spec-kitty#3993, owner ruling 2026-09-06: "
-        "Sonar was 'not meant to be permanently removed. It should be "
-        "reinstated.'). The reinstated `sonarcloud` job in ci-quality.yml "
-        "runs the fast tier under `pytest --cov` purely to feed SonarCloud's "
-        "coverage / new-code analysis; it carries job-level "
-        "`continue-on-error: true`, so a Sonar verdict can never block a "
-        "merge, and `quality-gate.needs` deliberately excludes it. It "
-        "invokes the suite through `make test-fast` (single-sourcing the "
-        "fast-tier selection in the Makefile), so the anchored "
-        "literal-`pytest`-command derivation below never flags it — the "
-        "mutation-testing precedent: declared here explicitly rather than "
-        "left to that blind spot. Promoting it to gate-blocking MUST be "
-        "paired with a `quality-gate.needs` edge (and dropping its "
-        "`continue-on-error`) or an updated rationale here."
-    ),
+    # RETIRED AS MOOT by mission sonar-per-pr-coverage-reuse WP06 (#4334): the
+    # `sonarcloud` entry's subject left the scanned file. That job re-ran the
+    # whole fast tier under `pytest --cov` for a coverage report the ci-modules
+    # shards had already produced, and was removed from ci-quality.yml; the
+    # per-PR Sonar report now lives in ci-aggregate.yml's `sonar-pr` job, which
+    # executes no tests and so is not a pytest job at all. Keeping the entry
+    # would have made it a declaration about a job that is not there -- exactly
+    # what its own history warned against (before WP03 it was "a declaration
+    # standing in for a subtraction"; WP03 made it real; WP06 removed its
+    # subject). Reason recorded in tests/release/pinning_rule_inventory.json.
 }
 
 
@@ -117,7 +128,16 @@ def blocking_violations(
 
 
 def pytest_jobs_of(workflow_name: str) -> frozenset[str]:
-    """Jobs in ``workflow_name`` with at least one real pytest invocation."""
+    """Jobs in ``workflow_name`` with at least one real pytest invocation.
+
+    **Trap, for the next reader.** This filters ``load_gates()``, which only
+    ever parses ``_gate_coverage.WORKFLOW_FILES``. A workflow absent from that
+    tuple therefore returns the empty set *without the file being opened* — so
+    for a workflow that runs no suite (``ci-quality.yml`` since WP06) this
+    answers "empty" for two different reasons and cannot tell them apart. Any
+    assertion that a specific file is clean must parse it DIRECTLY; this helper
+    is for the general question across the modelled set.
+    """
     return frozenset(gate.job for gate in gc.load_gates() if gate.workflow == workflow_name)
 
 
@@ -126,15 +146,58 @@ def _ci_quality_needs() -> frozenset[str]:
     return frozenset(model.job_needs[_QUALITY_GATE_JOB])
 
 
-def test_reduced_ci_quality_has_no_pytest_jobs_live() -> None:
-    """No directly-anchored pytest job gates onto the interim producer.
+#: A ``sonarcloud``-shaped suite step, re-injected into a COPY of the live
+#: ci-quality.yml by the non-vacuity probe below. Deliberately the indirect
+#: (make-target) form: that is the spelling the derivation was blind to for
+#: months, and the one an "it found nothing" assertion must be able to see.
+_REINJECTED_SUITE_JOB = """
+  reinjected-reporter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run fast tier under coverage
+        run: |
+          make test-fast
+"""
 
-    The ``sonarcloud`` reporter (spec-kitty#3993) runs the fast tier through
-    ``make test-fast``, which the literal-``pytest``-command derivation cannot
-    see — its deliberate non-blocking state is carried by the
-    ``NON_BLOCKING_ALLOWLIST`` entry, not by this assertion's blind spot.
+
+def test_ci_quality_runs_no_suite_and_the_derivation_can_still_see_one_live(tmp_path: Path) -> None:
+    """FR-012/IC-11 over ``ci-quality.yml``: the file now executes NO suite.
+
+    **Read the probe before trusting the empty set.** This assertion's exact
+    shape -- "``ci-quality.yml`` has no suite-running jobs" -- was green for
+    months while a full duplicate tier ran inside the file, because the
+    derivation could only see directly-anchored ``pytest`` commands and the
+    reporter reached the suite through a make target. Mission
+    ``sonar-per-pr-coverage-reuse`` WP03 closed that blindness and WP06 removed
+    the duplicate, so the empty set is now true rather than merely unseen -- but
+    "true" and "unseen" are indistinguishable from the assertion alone, which is
+    the whole reason the earlier green was worthless.
+
+    So the empty set is paired with a fault-injection probe: the SAME
+    derivation, over a COPY of the live file with a ``sonarcloud``-shaped
+    (make-indirect) suite job re-injected, must find exactly that job. If the
+    derivation ever loses the ability to see the form the duplicate used, this
+    reds instead of going quietly green.
+
+    Note the file is parsed DIRECTLY rather than filtered out of
+    ``load_gates()``: ``ci-quality.yml`` left ``_gate_coverage.WORKFLOW_FILES``
+    with the job, so a filtered lookup would now return the empty set without
+    ever opening the file -- a second way to be vacuously green.
     """
-    assert pytest_jobs_of(_CI_QUALITY_NAME) == frozenset()
+    live_text = (gc.WORKFLOWS_DIR / _CI_QUALITY_NAME).read_text(encoding="utf-8")
+    suite_jobs = frozenset(gate.job for gate in gc.parse_workflow(gc.WORKFLOWS_DIR / _CI_QUALITY_NAME))
+
+    assert suite_jobs == frozenset(), (
+        f"{_CI_QUALITY_NAME} must execute no test suite (FR-001/NFR-001) — found: {sorted(suite_jobs)}"
+    )
+    assert not blocking_violations(suite_jobs, _ci_quality_needs(), NON_BLOCKING_ALLOWLIST)
+
+    probe = write_workflow(tmp_path, live_text + _REINJECTED_SUITE_JOB, name=_CI_QUALITY_NAME)
+    probed = frozenset(gate.job for gate in gc.parse_workflow(probe))
+    assert probed == frozenset({"reinjected-reporter"}), (
+        "the derivation no longer resolves a make-target suite invocation in this file's shape, so "
+        f"the empty live set above proves nothing — probe found: {sorted(probed)}"
+    )
 
 
 def test_reduced_quality_gate_needs_exact_blocking_set_live() -> None:

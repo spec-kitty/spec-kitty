@@ -372,7 +372,7 @@ def test_org_overlay_activated_artefact_resolves_for_parity(tmp_path: Path) -> N
 
     ctx = ProjectContext.from_repo(tmp_path)
     assert ctx.pack_context is not None
-    assert len(ctx.pack_context.pack_roots) == 2, (  # golden-count: cardinality-is-contract
+    assert len(ctx.pack_context.pack_roots) == 2, (
         "fixture sanity check: exactly one org pack root must be configured so this test actually exercises org resolution"
     )
 

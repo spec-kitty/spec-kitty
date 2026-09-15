@@ -169,7 +169,7 @@ def test_wp07_cycle2_directory_chmod_failure_is_not_success(tmp_path: Path, monk
     from tests.upgrade.preview_support.snapshot import net_delta, snapshot
 
     assessment = _native_assessment(tmp_path)
-    assert assessment.complete and len(assessment.effects) == 2  # golden-count: cardinality-is-contract
+    assert assessment.complete and len(assessment.effects) == 2
     original = os.fchmod
     failed_descriptors: list[int] = []
 
@@ -399,6 +399,6 @@ def test_wp07_native_actual_service_selection(tmp_path: Path) -> None:
         kinds=[ToolSurfaceKind.NATIVE_CONFIG],
         assessment_inputs=AssessmentInputs(OperationRoot("project", "project", tmp_path)),
     )
-    assert len(outcome.assessments) == 1  # golden-count: cardinality-is-contract
+    assert len(outcome.assessments) == 1
     assert outcome.assessments[0].complete
     assert {e.path for e in outcome.assessments[0].effects} == {".vibe", ".vibe/config.toml"}

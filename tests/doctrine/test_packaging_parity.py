@@ -105,8 +105,8 @@ def built_artifacts(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Pat
     )
     wheels = list(dist.glob("spec_kitty_cli-*.whl"))
     sdists = list(dist.glob("spec_kitty_cli-*.tar.gz"))
-    assert len(wheels) == 1, f"expected exactly one wheel, found {wheels}"  # golden-count: cardinality-is-contract
-    assert len(sdists) == 1, f"expected exactly one sdist, found {sdists}"  # golden-count: cardinality-is-contract
+    assert len(wheels) == 1, f"expected exactly one wheel, found {wheels}"
+    assert len(sdists) == 1, f"expected exactly one sdist, found {sdists}"
     return wheels[0], sdists[0]
 
 

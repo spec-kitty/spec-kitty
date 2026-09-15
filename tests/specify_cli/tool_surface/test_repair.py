@@ -287,7 +287,7 @@ def test_shared_destination_applies_once_retaining_both_logical_owners() -> None
     codex = _status(ToolSurfaceKind.COMMAND_SKILL, "a")
     vibe = replace(codex, instance=replace(codex.instance, owner="vibe"))
     service, assessments, _ = _assess(provider, (vibe, codex))
-    assert len(assessments[0].effects) == 1  # golden-count: cardinality-is-contract
+    assert len(assessments[0].effects) == 1
     assert assessments[0].effects[0].logical_owners == ("codex", "vibe")
     results = service.apply_assessments(assessments, ApplyConsent(automatic=True))
     assert len(results[0].succeeded) == 1
@@ -328,9 +328,9 @@ def test_registered_service_assesses_shared_root_through_real_builder(monkeypatc
     assessments = outcome.assessments
     assert outcome.report.surfaces[0].instance.owner == "vibe"
     assert "assessments" not in outcome.to_json(), "Pinned legacy report JSON stays unchanged"
-    assert len(assessments) == 1  # golden-count: cardinality-is-contract
+    assert len(assessments) == 1
     assert assessments[0].complete
-    assert len(assessments[0].effects) == 1  # golden-count: cardinality-is-contract
+    assert len(assessments[0].effects) == 1
     assert assessments[0].effects[0].logical_owners == ("codex", "vibe")
 
 
@@ -485,7 +485,7 @@ def test_empty_expansion_retains_canonical_selection_for_orphan_pruning(
 
     monkeypatch.setattr(SurfaceProviderRegistry, "_registrations", [SurfaceRegistration(EmptyOwner, definitions, {})])
     outcome = run_tool_surfaces(tmp_path, ("codex", "vibe"), tool_filter=tool, kinds=(kind,) if kind is not None else None, assessment_inputs=inputs)
-    assert len(outcome.assessments) == 1  # golden-count: cardinality-is-contract
+    assert len(outcome.assessments) == 1
     assessment = outcome.assessments[0]
     assert assessment.complete
     expected = {
@@ -504,7 +504,7 @@ def test_empty_expansion_retains_canonical_selection_for_orphan_pruning(
         for attribute, value in (("tool_key", "different"), ("definition", definitions[0])):
             with pytest.raises(FrozenInstanceError):
                 setattr(selection, attribute, value)
-    assert len(list(tmp_path.glob("*.orphan"))) == 4, "Assessment must not prune on disk"  # golden-count: cardinality-is-contract
+    assert len(list(tmp_path.glob("*.orphan"))) == 4, "Assessment must not prune on disk"
 
 
 @pytest.mark.parametrize("failure_at", ["factory", "enter"])

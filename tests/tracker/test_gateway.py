@@ -518,7 +518,7 @@ def test_authority_report_accumulates_denied_operations_up_to_the_history_limit(
 
     # Verifies truncation to history_limit=2 despite 3 denials; the exact denial
     # content is asserted separately below.
-    assert len(report.denied_operations) == 2  # golden-count: cardinality-is-contract
+    assert len(report.denied_operations) == 2
     assert "subcommand 'assign' is not on the tracker gateway allow-list" in report.denied_operations[0]
     assert "subcommand 'approve' is not on the tracker gateway allow-list" in report.denied_operations[1]
 

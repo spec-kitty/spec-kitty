@@ -40,7 +40,7 @@ def _when_line(clause: str) -> str:
     # fetch_stanza_lines' return shape IS a fixed 2-line stanza (selector line +
     # When-clause line); there is no named-item collection here for a
     # set/frozenset equality to express more strongly than the count.
-    assert len(lines) == 2, (  # golden-count: cardinality-is-contract
+    assert len(lines) == 2, (
         f"fetch_stanza_lines must always return exactly 2 lines, got {lines!r}"
     )
     return lines[1]

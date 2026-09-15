@@ -52,6 +52,81 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 _JOB_GROUPS_ROW_RE = re.compile(r'"([\w-]+)":\s*\[([^\]]*)\]')
 _QUOTED_RE = re.compile(r'"([\w-]+)"')
 
+# FR-003c exception ledger — shrink-only, one row per (workflow, group, glob).
+#
+# ``packs.yml`` entered ``WORKFLOW_FILES`` in mission
+# ``sonar-per-pr-coverage-reuse`` WP03 (its ``uv run --frozen pytest`` jobs had
+# been invisible to the parser), which brought its filter block under FR-003c
+# for the first time and immediately surfaced two globs that match nothing.
+#
+# The ONLY sanctioned reason for a row is the one below: the path is
+# ``.gitignore``d in THIS repository, so a pull request can never present it to
+# ``dorny/paths-filter`` and the group can never fire on it. That is a real
+# finding about ``packs.yml``, not a modelling gap — but ``.github/workflows/``
+# is outside WP03's ownership, so it is recorded here and reported for the
+# workflow's owner to delete rather than silently patched or silently dropped.
+#
+# ``test_vestigial_glob_rows_stay_earned`` keeps this honest: a row whose glob
+# has left the workflow, or which has become live, reds until it is deleted —
+# the ledger cannot outlive its subject.
+VESTIGIAL_FILTER_GLOBS: dict[tuple[str, str, str], str] = {
+    ("packs.yml", "built_in", ".claude/**"): (
+        "`.claude/` is gitignored in this repository (.gitignore), so no PR "
+        "diff can ever contain a path under it and this glob can never make "
+        "`built_in` true. The tracked surface that actually carries generated "
+        "Claude command assets — and that DOES gate the lane — is listed in "
+        "the same filter block: "
+        "`tests/specify_cli/regression/_twelve_agent_baseline/**`."
+    ),
+    ("packs.yml", "built_in", ".agents/skills/**"): (
+        "`.agents/` is gitignored in this repository (.gitignore), so this "
+        "glob can never make `built_in` true. The tracked stand-ins for the "
+        "command-skill surface are already in the same filter block: "
+        "`.kittify/command-skills-manifest.json` and "
+        "`tests/specify_cli/skills/__snapshots__/**`."
+    ),
+}
+
+# NFR-007 fault-injection pair: a make target whose NAME shares nothing with
+# the live ``test-fast`` one, so a resolver that matched the literal string
+# ``make test-fast`` would miss it. Resolution must come from READING the
+# Makefile: variables expanded, recipe parsed, pytest command recovered.
+_RENAMED_TIER_MAKEFILE = """\
+.PHONY: coverage-tier lint-only
+
+TIER_DIRS := tests/unit tests/status
+TIER_MARKERS = (fast or unit) and not slow
+
+coverage-tier:
+\tenv -u FORCE_COLOR PWHEADLESS=1 uv run --frozen pytest $(TIER_DIRS) \\
+\t  -m "$(TIER_MARKERS)" --ignore=tests/unit/skipme -n auto -q
+
+lint-only:
+\tuv run --frozen ruff check src/
+"""
+
+_MAKE_CALLER_WORKFLOW = """\
+name: fixture
+on: push
+jobs:
+  reporter:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          mkdir -p out/reports
+          make coverage-tier
+"""
+
+_MAKE_NON_SUITE_WORKFLOW = """\
+name: fixture
+on: push
+jobs:
+  linter:
+    runs-on: ubuntu-latest
+    steps:
+      - run: make lint-only
+"""
+
 
 # ---------------------------------------------------------------------------
 # Pure relation primitives (fault-injection substrate).
@@ -85,23 +160,135 @@ def test_every_restored_filter_group_is_consumed_live() -> None:
         assert not unconsumed, f"{name}: unconsumed filter groups {sorted(unconsumed)}"
 
 
+def dead_filter_globs(
+    name: str,
+    model: gc.WorkflowModel,
+    tracked: set[str],
+) -> list[tuple[str, str, str]]:
+    """FR-003c: ``(workflow, group, glob)`` rows matching no tracked path."""
+    return [
+        (name, group, glob)
+        for group, globs in model.filter_groups.items()
+        for glob in globs
+        if not glob_is_live(glob, tracked)
+    ]
+
+
 def test_every_restored_filter_glob_is_live() -> None:
     """FR-003c: no restored filter glob names a nonexistent tracked path."""
     tracked = _tracked_paths()
     for name in gc.WORKFLOW_FILES:
         model = gc.load_workflow_model(gc.WORKFLOWS_DIR / name)
         dead = [
-            (group, glob)
-            for group, globs in model.filter_groups.items()
-            for glob in globs
-            if not glob_is_live(glob, tracked)
+            row
+            for row in dead_filter_globs(name, model, tracked)
+            if row not in VESTIGIAL_FILTER_GLOBS
         ]
         assert not dead, f"{name}: dead filter globs {dead}"
+
+
+def test_vestigial_glob_rows_stay_earned() -> None:
+    """Each ledger row is still declared, still dead, and still explained.
+
+    Without this, the ledger would be a place to park findings: a glob deleted
+    from its workflow (the intended fix) would leave a row behind quietly
+    excusing nothing, and a reason-less row could widen the exception surface
+    in silence.
+    """
+    tracked = _tracked_paths()
+    dead = {
+        row
+        for name in gc.WORKFLOW_FILES
+        for row in dead_filter_globs(
+            name, gc.load_workflow_model(gc.WORKFLOWS_DIR / name), tracked,
+        )
+    }
+
+    stale = sorted(row for row in VESTIGIAL_FILTER_GLOBS if row not in dead)
+    assert not stale, (
+        "VESTIGIAL_FILTER_GLOBS rows no longer describe a dead declared glob "
+        f"(the workflow was fixed, or the path became tracked) — delete them: {stale}"
+    )
+    unreasoned = sorted(row for row, why in VESTIGIAL_FILTER_GLOBS.items() if not why.strip())
+    assert not unreasoned, f"VESTIGIAL_FILTER_GLOBS rows with an empty rationale: {unreasoned}"
 
 
 def test_pytest_workflow_set_equals_model_allowlist_live() -> None:
     """FR-008: every discovered pytest workflow is intentionally modeled."""
     assert gc.discover_pytest_workflows() == frozenset(gc.WORKFLOW_FILES)
+
+
+def test_no_live_workflow_reaches_the_suite_through_an_indirection() -> None:
+    """NFR-007: a ``run:`` step reaching the suite via a make target IS a gate,
+    and today no live workflow does.
+
+    REWRITTEN by mission ``sonar-per-pr-coverage-reuse`` WP06 (#4334). This
+    assertion was a *characterisation*: ``ci-quality.yml``'s ``sonarcloud``
+    reporter executed a full test tier through a make target rather than a
+    directly-anchored ``pytest`` command, and until WP03 the gate model could
+    not see that at all — ``_gate_coverage`` documented the job as "not (and
+    cannot be) collected as a gate here", so a whole duplicate suite execution
+    sat in the tree while every invariant built on this substrate reported "no
+    pytest jobs in ci-quality.yml": green, and wrong. WP06 retired the job, so
+    the characterisation has no subject left.
+
+    What remains is the *ledger*: the indirect-gate set over every modelled
+    workflow, which is empty today. This is not a claim that indirection is
+    impossible — it is the record that nothing currently uses it, so a future
+    step that does is a visible, reviewed change rather than a silent one. The
+    RESOLUTION CAPABILITY is unaffected by the retirement and stays proven by
+    :func:`test_faultinjection_renamed_make_target_still_resolves` (a target
+    renamed behind make variables is still resolved) and its negative control
+    :func:`test_faultinjection_make_target_without_pytest_is_not_a_gate`, both
+    fixture-driven.
+    """
+    indirect = {
+        (gate.workflow, gate.job, gate.via) for gate in gc.load_gates() if gate.via is not None
+    }
+    assert indirect == set(), (
+        "a live workflow now reaches the test suite through an indirection "
+        f"(make target or in-repo script): {sorted(indirect)}. That is not forbidden, but it is the "
+        "form that hid a duplicate suite execution for months — declare it deliberately here, and "
+        "check tests/architectural/test_no_duplicate_suite_execution.py agrees it is not a duplicate"
+    )
+    # Non-vacuity: the ledger above is only meaningful while the model is
+    # really parsing workflows. An empty gate set entirely would satisfy it.
+    assert gc.load_gates(), "the gate model resolved NO suite invocations at all — the empty indirect set above proves nothing"
+
+
+def test_faultinjection_renamed_make_target_still_resolves(tmp_path: Path) -> None:
+    """NFR-007: resolution reads the Makefile, so a target rename cannot evade it.
+
+    The fixture target is named ``coverage-tier`` — nothing a literal
+    ``make test-fast`` match could catch — and its paths/marker live behind
+    make variables, so only real expansion recovers them.
+    """
+    makefile = tmp_path / "Makefile"
+    makefile.write_text(_RENAMED_TIER_MAKEFILE, encoding="utf-8")
+    workflow = write_workflow(tmp_path, _MAKE_CALLER_WORKFLOW, name="reporter.yml")
+
+    gates = gc.parse_workflow(workflow, makefile=makefile)
+
+    assert [gate.job for gate in gates] == ["reporter"]
+    gate = gates[0]
+    assert gate.via == "make coverage-tier"
+    assert gate.paths == ["tests/unit", "tests/status"]
+    assert gate.marker_expr == "(fast or unit) and not slow"
+    assert gate.ignores == ["tests/unit/skipme"]
+
+
+def test_faultinjection_make_target_without_pytest_is_not_a_gate(tmp_path: Path) -> None:
+    """Negative control: widened detection must not call every ``make`` a suite run.
+
+    Without this twin, a resolver that flagged any ``make`` invocation would
+    pass the regression above while making ``discover_pytest_workflows``
+    meaningless.
+    """
+    makefile = tmp_path / "Makefile"
+    makefile.write_text(_RENAMED_TIER_MAKEFILE, encoding="utf-8")
+    workflow = write_workflow(tmp_path, _MAKE_NON_SUITE_WORKFLOW, name="linter.yml")
+
+    assert gc.parse_workflow(workflow, makefile=makefile) == []
 
 
 def test_reduced_quality_gate_has_no_literal_result_reads_live() -> None:

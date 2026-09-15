@@ -89,7 +89,7 @@ class TestProjectNodeOverridesShippedAndEmitsWarning:
 
         # Project node must be in the merged graph.
         matching = [n for n in merged.nodes if n.urn == urn]
-        assert len(matching) == 1, "override URN must appear exactly once"  # golden-count: cardinality-is-contract
+        assert len(matching) == 1, "override URN must appear exactly once"
         winning_node = matching[0]
         # Both nodes have kind=DIRECTIVE (URN prefix enforces this).
         # What matters is that provenance == "project" (project node won).
@@ -139,7 +139,7 @@ class TestProjectNodeOverridesOrgAndEmitsWarning:
             )
 
         matching = [n for n in merged.nodes if n.urn == urn]
-        assert len(matching) == 1  # golden-count: cardinality-is-contract
+        assert len(matching) == 1
         assert getattr(matching[0], "provenance", None) == "project"
 
     def test_project_overrides_org_emits_warning(

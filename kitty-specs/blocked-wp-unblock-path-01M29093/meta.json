@@ -1,0 +1,18 @@
+{
+  "baseline_merge_commit": "595fcfd7cb4e5852fb1ff1b65c8ed19af9ae1347",
+  "created_at": "2026-09-11T19:49:26.776182+00:00",
+  "flattened": true,
+  "friendly_name": "Blocked-WP unblock path (alloc-failure recovery)",
+  "mission_id": "01M2909339H60KC8B1AY8G2WEB",
+  "mission_number": null,
+  "mission_slug": "blocked-wp-unblock-path-01M29093",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When 'spec-kitty implement' hits a workspace-allocation failure (e.g. a dependency-lane merge conflict), the work package is currently demoted into a 'blocked' state it cannot legally leave, and the only documented escape requires fabricating a fake review rejection. This mission makes tooling-caused failures leave the work package recoverable and makes the CLI's transition refusals state the legal next step, so operators and agents are never forced to invent a false review finding to continue.",
+  "purpose_tldr": "A tooling-caused allocation failure no longer traps a work package in an unrecoverable 'blocked' state, and transition refusals name the legal recovery.",
+  "slug": "blocked-wp-unblock-path-01M29093",
+  "status_phase": "1",
+  "target_branch": "fix/3937-blocked-wp-unblock",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-11T20:08:12.371605+00:00"
+}

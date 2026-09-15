@@ -23,9 +23,6 @@ from filelock import FileLock, Timeout
 
 from kernel.clock import now_epoch
 from runtime.next._tmp_namespace import prompt_tmp_dir
-from tests import _arch_shard_map  # noqa: F401 — import-time `arch` group registration via register()
-from tests import _next_shard_map  # noqa: F401 — import-time `next` group registration via register()
-from tests._shard_registry import all_groups, shard_for
 from tests._support.fixture_pollution import scrub_repo_mission_overrides
 from tests._support.quarantine import (
     QUARANTINE_MARKER,
@@ -333,32 +330,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
             item.add_marker(skip_quarantine)
         if apply_performance_skip and item.get_closest_marker("performance"):
             item.add_marker(skip_performance)
-        _apply_shard_markers(item)
     _fail_on_wall_clock_assertions(items)
-
-
-def _apply_shard_markers(item: pytest.Item) -> None:
-    """WP01 (mission ci-test-topology-performance-01KXBJRT, FR-002).
-
-    Applies the ``<marker_prefix>_<N>`` mark to every collected test whose
-    file falls under one of a registered shard group's roots, iterating
-    ``tests._shard_registry.all_groups()`` (the single-source seam —
-    ``tests/_arch_shard_map.py``'s ``arch`` row plus
-    ``tests/_next_shard_map.py``'s ``next`` row, each registered explicitly at
-    import time via ``register()``, FR-011/#2621). One hook drives every
-    group: no group name is hardcoded here, so a future group needs only a
-    new ``register()`` call, not a second call site. ``shard_for()`` returns
-    ``None`` for anything outside a group's roots, so this never marks
-    unrelated tests — no fallback default shard is applied.
-    """
-    try:
-        relpath = Path(str(item.path)).resolve().relative_to(REPO_ROOT).as_posix()
-    except (ValueError, OSError):
-        return
-    for group in all_groups().values():
-        shard = shard_for(group.group, relpath)
-        if shard is not None:
-            item.add_marker(getattr(pytest.mark, f"{group.marker_prefix}_{shard}"))
 
 
 def _fail_on_wall_clock_assertions(items: list[pytest.Item]) -> None:

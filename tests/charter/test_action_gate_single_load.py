@@ -192,12 +192,7 @@ class TestBootstrapActionsSingleDefinitionSite:
                 value = node.value
                 # Unwrap `frozenset({...})` / `set({...})` calls to reach the
                 # underlying literal.
-                if (
-                    isinstance(value, ast.Call)
-                    and isinstance(value.func, ast.Name)
-                    and value.func.id in ("frozenset", "set")
-                    and len(value.args) == 1  # golden-count: cardinality-is-contract
-                ):
+                if isinstance(value, ast.Call) and isinstance(value.func, ast.Name) and value.func.id in ("frozenset", "set") and len(value.args) == 1:
                     value = value.args[0]
                 if not isinstance(value, ast.Set):
                     continue

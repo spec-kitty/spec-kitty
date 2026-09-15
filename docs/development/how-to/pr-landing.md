@@ -558,12 +558,9 @@ been fixed, the end-state is stated instead of the trap.
   rather than a default config.
 - **Moving or adding a test file trips completeness baselines.** New or
   relocated test files must join their registries in the *same commit* as the
-  move, each with a dated rationale: `tests/_arch_shard_map.py`
-  (`_ARCH_SHARD_N_FILES`), `tests/_next_shard_map.py`,
-  `tests/architectural/marker_baseline.txt`, and
-  `tests/architectural/_golden_count_baseline.json`. Search the repo for the
-  new filename before committing. Never key an allowlist by line number or
-  whole file (banned by #2077 / `DIRECTIVE_041`) — use content descriptors.
+  move, each with a dated rationale. Search the repo for the new filename
+  before committing. Never key an allowlist by line number or whole file
+  (banned by #2077 / `DIRECTIVE_041`) — use content descriptors.
 - **Verify architectural gates from a non-dot path.** Gates that walk the tree
   can silently skip dot-prefixed path segments, so a run from
   `.worktrees/…` or `.claude/worktrees/…` can report a false green. Confirm

@@ -1,0 +1,1636 @@
+{
+  "_comment": "DERIVED \u2014 do not hand-edit. Regenerate with `python3 scripts/ci/derive_pinning_inventory.py`. Mission sonar-per-pr-coverage-reuse-01M2FR32, FR-010/C-005/SC-009. `derived` is re-derived from the live tree on every run; `executed` is the frozen record of rules whose pre-change identity no longer resolves because the disposition removed or renamed them.",
+  "subjects": {
+    "retiring-host": [
+      "ci-quality\\.yml"
+    ],
+    "retiring-job": [
+      "(?<![A-Za-z0-9_])sonarcloud(?![A-Za-z0-9_.])"
+    ],
+    "retiring-step": [
+      "make test-fast",
+      "Run fast tier under coverage"
+    ]
+  },
+  "scan_roots": [
+    "tests",
+    "scripts"
+  ],
+  "derived": [
+    {
+      "rule": "scripts/ci/fleet_main.py::main_workflows",
+      "file": "scripts/ci/fleet_main.py",
+      "scope": "main_workflows",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "set-equality",
+      "lines": [
+        40
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "A set of WORKFLOW FILE names the fleet reads on main. ci-quality.yml survives the retirement -- four of its jobs and its quality gate are untouched -- so the membership is still correct."
+    },
+    {
+      "rule": "scripts/ci/fleet_verdict.py::PR_WORKFLOWS",
+      "file": "scripts/ci/fleet_verdict.py",
+      "scope": "PR_WORKFLOWS",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "set-equality",
+      "lines": [
+        30
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "Same shape: a registry of per-PR workflow FILE names. The file is still a per-PR workflow; only a job inside it left."
+    },
+    {
+      "rule": "scripts/ci/quality_gate_decision.py::<module-docstring>",
+      "file": "scripts/ci/quality_gate_decision.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        5
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "scripts/ci/sonar_project_version.py::<module-docstring>",
+      "file": "scripts/ci/sonar_project_version.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-job"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        9
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "Declares 'the sonarcloud job in .github/workflows/ci-quality.yml calls this module'. After the retirement the callers are ci-aggregate.yml's sonar-pr job and sonar.yml. A module docstring naming a deleted caller is a justification describing something no longer true (C-005)."
+    },
+    {
+      "rule": "tests/agent/test_context_validation_unit.py::test_no_context_env_vars_leak_out_of_this_class",
+      "file": "tests/agent/test_context_validation_unit.py",
+      "scope": "test_no_context_env_vars_leak_out_of_this_class",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        558
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
+      "rule": "tests/architectural/_fast_tier_gate.py::<module-docstring>",
+      "file": "tests/architectural/_fast_tier_gate.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        3
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
+      "rule": "tests/architectural/_gate_coverage.py::<module>",
+      "file": "tests/architectural/_gate_coverage.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-host",
+        "retiring-job",
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        97,
+        380,
+        382,
+        388,
+        761
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "The WORKFLOW_FILES membership commentary justified ci-quality.yml's presence in the tuple by the live sonarcloud duplicate. Re-expressed in the past tense as the reason the make-indirection resolver exists, and extended to record the file's removal from the tuple -- the resolver stays, because the next indirect invocation will not announce itself either."
+    },
+    {
+      "rule": "tests/architectural/_gate_coverage.py::WORKFLOW_FILES",
+      "file": "tests/architectural/_gate_coverage.py",
+      "scope": "WORKFLOW_FILES",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        124
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "Closed allowlist of suite-running workflows, held equal to the derived discovery set by test_pytest_workflow_set_equals_model_allowlist_live. ci-quality.yml joined it in WP03 because its sonarcloud job really was running a tier; with that job gone the file runs no suite, so leaving it in the tuple would make the allowlist assert a workflow that is not there. The tuple is the subject and it survives."
+    },
+    {
+      "rule": "tests/architectural/_gate_coverage.py::_COMPOSITE_ROUTING",
+      "file": "tests/architectural/_gate_coverage.py",
+      "scope": "_COMPOSITE_ROUTING",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        1849
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "A comment noting that job names are unique only WITHIN a workflow, using ci-quality's `changes` job as the example. Nothing to do with the retired job."
+    },
+    {
+      "rule": "tests/architectural/_workflow_fixtures/__init__.py::<module-docstring>",
+      "file": "tests/architectural/_workflow_fixtures/__init__.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        13,
+        19
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/architectural/test_ci_corpus_trigger_completeness.py::<module-docstring>",
+      "file": "tests/architectural/test_ci_corpus_trigger_completeness.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        28
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/architectural/test_ci_corpus_trigger_completeness.py::_CI_QUALITY",
+      "file": "tests/architectural/test_ci_corpus_trigger_completeness.py",
+      "scope": "_CI_QUALITY",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "path-anchored",
+      "lines": [
+        45
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/architectural/test_ci_quality_path_filters.py::<module-docstring>",
+      "file": "tests/architectural/test_ci_quality_path_filters.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host",
+        "retiring-job"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        3,
+        7
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "Prose only -- no assertion reads it -- but it declares ci-quality.yml a 'six-job producer ... plus the non-blocking sonarcloud reporter', which the retirement falsifies. C-005 forbids leaving a justification that describes something no longer true."
+    },
+    {
+      "rule": "tests/architectural/test_ci_quality_path_filters.py::_CI_QUALITY",
+      "file": "tests/architectural/test_ci_quality_path_filters.py",
+      "scope": "_CI_QUALITY",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "path-anchored",
+      "lines": [
+        42
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "A Path to the surviving workflow file. Its assertions are about triggers, path filters and runner labels, all derived over whatever jobs the file has."
+    },
+    {
+      "rule": "tests/architectural/test_coverage_breadth.py::derive_marker_mismatch_exception_set",
+      "file": "tests/architectural/test_coverage_breadth.py",
+      "scope": "derive_marker_mismatch_exception_set",
+      "subjects": [
+        "retiring-job"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        198
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "Docstring naming the retired job as the present-tense runner of the fast-tier marker expression. Surfaced only at lane consolidation: this file is WP01's (lane-a) and the derivation ran in lane-b, so neither lane's tree contained both. The FR-016 derivation itself is unaffected -- it reads the Makefile, not the workflow -- so only the prose needed correcting, to past tense naming the mission that retired the job. Recorded rather than left, because a justification describing something no longer true is exactly what C-005 forbids, and this one would otherwise have entered the tree undispositioned."
+    },
+    {
+      "rule": "tests/architectural/test_execution_context_parity.py::<module-docstring>",
+      "file": "tests/architectural/test_execution_context_parity.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        22
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/architectural/test_execution_context_parity.py::<module>",
+      "file": "tests/architectural/test_execution_context_parity.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        922,
+        1349
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/architectural/test_fast_tier_marker_completeness.py::<module-docstring>",
+      "file": "tests/architectural/test_fast_tier_marker_completeness.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        3,
+        10
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
+      "rule": "tests/architectural/test_fast_tier_marker_completeness.py::test_every_fast_tier_dir_test_carries_a_vocabulary_marker",
+      "file": "tests/architectural/test_fast_tier_marker_completeness.py",
+      "scope": "test_every_fast_tier_dir_test_carries_a_vocabulary_marker",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        41
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
+      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::<module-docstring>",
+      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        16
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "T029b, three accuracy fixes, none caused by the retirement: the header called command-position indirection 'closed by construction' when both predicates are ^-anchored to the logical line, so `true; ${{ matrix.cmd }}` and `echo x && $CMD` walk through (verified by running indirect_command_form on both). The residue is now disclosed in 'What remains open' with the closure it needs, cross-referenced to spec-kitty#4367."
+    },
+    {
+      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::<module>",
+      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-host",
+        "retiring-job",
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        251,
+        252,
+        265,
+        272,
+        273,
+        1431
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "The WP06 FLIP SEAM banner and the KNOWN_LIVE_DUPLICATES commentary described the dict as 'deliberately NOT empty yet'. Rewritten to record the executed flip: what the single row was, why it went, and where the rule's non-vacuity evidence now lives (the six mutations, four of them against a real workflow file derived from the live tree)."
+    },
+    {
+      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::BLIND_WRAPPER_WORKFLOW",
+      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
+      "scope": "BLIND_WRAPPER_WORKFLOW",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "synthetic-fixture",
+      "lines": [
+        571
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "Synthetic fixture body: the subject literal is INPUT to a parser, not a claim about the live tree. WP04 built these deliberately so the battery's mutations keep a substrate after the retirement; they are unaffected by it."
+    },
+    {
+      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::CI_QUALITY_NAME",
+      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
+      "scope": "CI_QUALITY_NAME",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        131
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "Retained as the identity of mutation 1's subject (below). The name resolves to a real file that still exists."
+    },
+    {
+      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::DIRECT_COMMAND_WORKFLOW",
+      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
+      "scope": "DIRECT_COMMAND_WORKFLOW",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "synthetic-fixture",
+      "lines": [
+        1544,
+        1553
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "Synthetic fixture body: the subject literal is INPUT to a parser, not a claim about the live tree. WP04 built these deliberately so the battery's mutations keep a substrate after the retirement; they are unaffected by it."
+    },
+    {
+      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::EVASION_JOB_BODY",
+      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
+      "scope": "EVASION_JOB_BODY",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        501
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "A fixture body planting a second suite step inside an already-authorised job. The literal it shares with the retiring step is incidental -- the fixture proves the ledger authorises ONE execution, not a budget, and is unaffected by the retirement."
+    },
+    {
+      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::INDIRECT_COMMAND_WORKFLOW",
+      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
+      "scope": "INDIRECT_COMMAND_WORKFLOW",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "synthetic-fixture",
+      "lines": [
+        1514,
+        1524
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "Synthetic fixture body: the subject literal is INPUT to a parser, not a claim about the live tree. WP04 built these deliberately so the battery's mutations keep a substrate after the retirement; they are unaffected by it."
+    },
+    {
+      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::NET_NEW_DUPLICATE_WORKFLOW",
+      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
+      "scope": "NET_NEW_DUPLICATE_WORKFLOW",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "synthetic-fixture",
+      "lines": [
+        485
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "Synthetic fixture body: the subject literal is INPUT to a parser, not a claim about the live tree. WP04 built these deliberately so the battery's mutations keep a substrate after the retirement; they are unaffected by it."
+    },
+    {
+      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::RETIRING_JOB",
+      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
+      "scope": "RETIRING_JOB",
+      "subjects": [
+        "retiring-job"
+      ],
+      "form": "set-equality",
+      "lines": [
+        132
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "WP04 built mutation 1 to retire WITH its subject: the test is skipif-ed on KNOWN_LIVE_DUPLICATES, which WP06 emptied, so it now skips. The constant is that skipped test's subject identity and is kept deliberately rather than deleted -- deleting it would delete a mutation test, and the skip is the designed, visible signal that the duplicate is gone. (Observation for a follow-up: a permanently-skipped mutation is mild dead weight; it is WP04's declared design and WP06 does not overturn it.)"
+    },
+    {
+      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::RETIRING_JOB_VIA",
+      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
+      "scope": "RETIRING_JOB_VIA",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        134
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "The invocation form mutation 1 asserted (`make test-fast`). Retires with mutation 1, as above; the make TARGET itself survives as the fast tier's entry point."
+    },
+    {
+      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::real_suite_step_host",
+      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
+      "scope": "real_suite_step_host",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        708
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "Derived relation: the mutation host is resolved FROM the live tree, which is why mutations 1-3 keep a real-file substrate after the retirement (re-binding to ci-windows.yml) instead of degrading to fixtures. No literal dependency."
+    },
+    {
+      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::test_mutation2_inlined_suite_command_is_detected",
+      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
+      "scope": "test_mutation2_inlined_suite_command_is_detected",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        992
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "Mutation 2 replaces a REAL workflow's suite line with an inlined command. Its host is derived from the live tree, so it re-bound to a surviving suite step at the retirement rather than breaking -- that re-binding is exactly what WP04 built and what the 40 passed / 1 skipped run after the flip confirms."
+    },
+    {
+      "rule": "tests/architectural/test_no_duplicate_suite_execution.py::test_repeated_suite_step_in_an_authorized_job_is_detected",
+      "file": "tests/architectural/test_no_duplicate_suite_execution.py",
+      "scope": "test_repeated_suite_step_in_an_authorized_job_is_detected",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        914
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "Consumes EVASION_JOB_BODY above, and proves the ledger authorises ONE suite execution per job rather than a budget: an extra suite step inside an already-authorised job is still a duplicate. Fixture-driven throughout, so the retirement does not touch it."
+    },
+    {
+      "rule": "tests/architectural/test_no_runtime_pypi_dep.py::<module-docstring>",
+      "file": "tests/architectural/test_no_runtime_pypi_dep.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        25
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/architectural/test_quarantine_marker.py::<module-docstring>",
+      "file": "tests/architectural/test_quarantine_marker.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        19
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/architectural/test_spec_kitty_home_pin_guard.py::test_e_is_fixed_arity_a_third_entry_is_a_type_error",
+      "file": "tests/architectural/test_spec_kitty_home_pin_guard.py",
+      "scope": "test_e_is_fixed_arity_a_third_entry_is_a_type_error",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        558
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/architectural/test_spec_kitty_home_pin_prefilter.py::<module-docstring>",
+      "file": "tests/architectural/test_spec_kitty_home_pin_prefilter.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        34
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/architectural/test_suite_jobs_gate_blocking.py::<module-docstring>",
+      "file": "tests/architectural/test_suite_jobs_gate_blocking.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host",
+        "retiring-job"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        6,
+        10,
+        20,
+        35,
+        40
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "Declares 'the reduced interim ci-quality.yml runs exactly one suite: the non-blocking sonarcloud reporter'. False after the retirement, and it is the module's stated contract, so it is corrected rather than deleted (C-005)."
+    },
+    {
+      "rule": "tests/architectural/test_suite_jobs_gate_blocking.py::<module>",
+      "file": "tests/architectural/test_suite_jobs_gate_blocking.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-host",
+        "retiring-job"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        149,
+        150
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "Carries the retire-as-moot record left where the allowlist's sonarcloud entry was, and the comment on the re-injected probe fixture. Prose, written by this disposition rather than falsified by it."
+    },
+    {
+      "rule": "tests/architectural/test_suite_jobs_gate_blocking.py::NON_BLOCKING_ALLOWLIST",
+      "file": "tests/architectural/test_suite_jobs_gate_blocking.py",
+      "scope": "NON_BLOCKING_ALLOWLIST",
+      "subjects": [
+        "retiring-host",
+        "retiring-job"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        109,
+        111
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "The allowlist itself survives with its two remaining entries, its shrink-only property and test_allowlist_entries_carry_rationale unchanged; only the sonarcloud member left (its own retire-as-moot record is in the executed ledger). Rewrite rather than retire because the dict is the rule and the dict still has a subject."
+    },
+    {
+      "rule": "tests/architectural/test_suite_jobs_gate_blocking.py::_CI_QUALITY_NAME",
+      "file": "tests/architectural/test_suite_jobs_gate_blocking.py",
+      "scope": "_CI_QUALITY_NAME",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        72
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "The surviving file's name, still the subject of every live check in the module."
+    },
+    {
+      "rule": "tests/architectural/test_suite_jobs_gate_blocking.py::_REINJECTED_SUITE_JOB",
+      "file": "tests/architectural/test_suite_jobs_gate_blocking.py",
+      "scope": "_REINJECTED_SUITE_JOB",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "synthetic-fixture",
+      "lines": [
+        157,
+        159
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "Synthetic fixture body: the subject literal is INPUT to a parser, not a claim about the live tree. WP04 built these deliberately so the battery's mutations keep a substrate after the retirement; they are unaffected by it."
+    },
+    {
+      "rule": "tests/architectural/test_suite_jobs_gate_blocking.py::pytest_jobs_of",
+      "file": "tests/architectural/test_suite_jobs_gate_blocking.py",
+      "scope": "pytest_jobs_of",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        136
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "Left with no caller when the live rule above stopped using it (that rule must parse the file directly, because this helper filters load_gates() and so answers 'empty' both for a clean file and for one absent from WORKFLOW_FILES -- which ci-quality.yml now is). Kept rather than deleted: it still answers the general cross-workflow question, and the two reasons it can return empty are exactly the trap worth writing down, so its docstring now states them. That docstring is what puts it in this inventory."
+    },
+    {
+      "rule": "tests/architectural/test_suite_jobs_gate_blocking.py::test_ci_quality_runs_no_suite_and_the_derivation_can_still_see_one_live",
+      "file": "tests/architectural/test_suite_jobs_gate_blocking.py",
+      "scope": "test_ci_quality_runs_no_suite_and_the_derivation_can_still_see_one_live",
+      "subjects": [
+        "retiring-host",
+        "retiring-job"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        164,
+        167,
+        177,
+        183
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "The live suite-job assertion over ci-quality.yml, renamed as it was rewritten. It pinned the resolved set to exactly {sonarcloud}; that set is now empty. An empty set here is the PRE-WP03 form that stayed green for months while a duplicate tier ran, so the rewrite pairs it with a fault-injection probe (re-inject a make-indirect suite job into a copy of the live file; the derivation must find exactly it) and parses the file DIRECTLY instead of filtering load_gates() -- the file left WORKFLOW_FILES, so a filtered lookup would return empty without ever opening it. Two ways of being vacuously green, both closed."
+    },
+    {
+      "rule": "tests/architectural/test_tid251_enforcement.py::<module-docstring>",
+      "file": "tests/architectural/test_tid251_enforcement.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        29
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/architectural/test_workflow_coherence.py::<module-docstring>",
+      "file": "tests/architectural/test_workflow_coherence.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        21
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "Names ci-quality.yml as the file whose former invariants the live checks re-open. Still true of the file; the sentence is left intact and only the sonarcloud-specific claim in the affected test's own docstring moves."
+    },
+    {
+      "rule": "tests/architectural/test_workflow_coherence.py::<module>",
+      "file": "tests/architectural/test_workflow_coherence.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        92
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "The fault-injection fixture comment explains that the renamed make target shares NOTHING with the live `test-fast` one, so a literal-string resolver would miss it. Still exactly true, and it is the reason the resolver survives the retirement of its only live host."
+    },
+    {
+      "rule": "tests/architectural/test_workflow_coherence.py::test_faultinjection_renamed_make_target_still_resolves",
+      "file": "tests/architectural/test_workflow_coherence.py",
+      "scope": "test_faultinjection_renamed_make_target_still_resolves",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        263
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "Fixture-driven: a renamed target behind make variables must still resolve. This is now the PRIMARY evidence for the resolution capability, since no live workflow exercises it -- which is why the live rule above was rewritten rather than deleted."
+    },
+    {
+      "rule": "tests/architectural/test_workflow_coherence.py::test_no_live_workflow_reaches_the_suite_through_an_indirection",
+      "file": "tests/architectural/test_workflow_coherence.py",
+      "scope": "test_no_live_workflow_reaches_the_suite_through_an_indirection",
+      "subjects": [
+        "retiring-host",
+        "retiring-job"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        226,
+        232
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "The live make-indirection assertion, renamed as it was rewritten. It characterised the resolver against the only live indirection host there was; that host is gone and no live workflow reaches the suite through an indirection today. Rewritten from a characterisation into a LEDGER over every modelled workflow -- empty now, so a future indirect suite step is a visible change rather than a silent one -- plus a non-vacuity check that the model is resolving gates at all. The resolution CAPABILITY is untouched and stays proven by the fault-injection twin and its negative control, both fixture-driven."
+    },
+    {
+      "rule": "tests/architectural/test_workflow_coherence.py::test_reduced_quality_gate_has_no_literal_result_reads_live",
+      "file": "tests/architectural/test_workflow_coherence.py",
+      "scope": "test_reduced_quality_gate_has_no_literal_result_reads_live",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "path-anchored",
+      "lines": [
+        296,
+        297
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "About ci-quality.yml's quality-gate consuming toJSON(needs). That job and that property are untouched by the retirement."
+    },
+    {
+      "rule": "tests/ci/test_fleet_main.py::request",
+      "file": "tests/ci/test_fleet_main.py",
+      "scope": "request",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        221
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_fleet_main.py::test_attempt_change_during_publication_refuses_stale_verdict",
+      "file": "tests/ci/test_fleet_main.py",
+      "scope": "test_attempt_change_during_publication_refuses_stale_verdict",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        225
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_fleet_main.py::test_dry_run_never_creates_incident",
+      "file": "tests/ci/test_fleet_main.py",
+      "scope": "test_dry_run_never_creates_incident",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        211
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_fleet_main.py::test_existing_incident_gets_new_main_head_without_duplicate_p0",
+      "file": "tests/ci/test_fleet_main.py",
+      "scope": "test_existing_incident_gets_new_main_head_without_duplicate_p0",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        197
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_fleet_main.py::test_latest_run_attempt_supersedes_old_failure",
+      "file": "tests/ci/test_fleet_main.py",
+      "scope": "test_latest_run_attempt_supersedes_old_failure",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        175,
+        177,
+        180
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_fleet_main.py::test_main_move_before_publication_refuses_obsolete_p0",
+      "file": "tests/ci/test_fleet_main.py",
+      "scope": "test_main_move_before_publication_refuses_obsolete_p0",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        145
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_fleet_main.py::test_mismatched_push_run_never_supplies_evidence",
+      "file": "tests/ci/test_fleet_main.py",
+      "scope": "test_mismatched_push_run_never_supplies_evidence",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        136,
+        138
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_fleet_main.py::test_recovery_is_appended_without_closure_or_new_incident",
+      "file": "tests/ci/test_fleet_main.py",
+      "scope": "test_recovery_is_appended_without_closure_or_new_incident",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        94
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_fleet_main.py::test_red_main_reaches_existing_fleet_p0_intake_and_deduplicates",
+      "file": "tests/ci/test_fleet_main.py",
+      "scope": "test_red_main_reaches_existing_fleet_p0_intake_and_deduplicates",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        80
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_fleet_verdict.py::test_all_existing_pr_workflows_are_registered",
+      "file": "tests/ci/test_fleet_verdict.py",
+      "scope": "test_all_existing_pr_workflows_are_registered",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "set-equality",
+      "lines": [
+        106
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "Asserts the registry above covers every per-PR workflow file. Unaffected -- the file set did not change, and the test would have red if it had."
+    },
+    {
+      "rule": "tests/ci/test_fleet_verdict.py::test_replay_preserves_other_required_gate_results",
+      "file": "tests/ci/test_fleet_verdict.py",
+      "scope": "test_replay_preserves_other_required_gate_results",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        292
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_fleet_verdict.py::test_replay_refuses_unreviewed_or_superseded_evidence",
+      "file": "tests/ci/test_fleet_verdict.py",
+      "scope": "test_replay_refuses_unreviewed_or_superseded_evidence",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "path-anchored",
+      "lines": [
+        277
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_no_blocking_latency_gate.py::<module-docstring>",
+      "file": "tests/ci/test_no_blocking_latency_gate.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        8
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_no_blocking_latency_gate.py::_WORKFLOW_PATH",
+      "file": "tests/ci/test_no_blocking_latency_gate.py",
+      "scope": "_WORKFLOW_PATH",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "path-anchored",
+      "lines": [
+        24
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_no_blocking_latency_gate.py::_clean_install_steps",
+      "file": "tests/ci/test_no_blocking_latency_gate.py",
+      "scope": "_clean_install_steps",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        40
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_no_blocking_latency_gate.py::test_no_wall_clock_latency_ceiling_on_the_blocking_path",
+      "file": "tests/ci/test_no_blocking_latency_gate.py",
+      "scope": "test_no_wall_clock_latency_ceiling_on_the_blocking_path",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        45,
+        46,
+        50
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_sonar_project_version.py::<module-docstring>",
+      "file": "tests/ci/test_sonar_project_version.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host",
+        "retiring-job"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        6,
+        7
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "Named the sonarcloud job as the caller of the module under test. Corrected to the live callers (ci-aggregate.yml's sonar-pr and sonar.yml) with the retirement recorded, so the docstring does not send a reader to a job that is not there (C-005)."
+    },
+    {
+      "rule": "tests/ci/test_sonarcloud_branch_review.py::FIXTURES",
+      "file": "tests/ci/test_sonarcloud_branch_review.py",
+      "scope": "FIXTURES",
+      "subjects": [
+        "retiring-job"
+      ],
+      "form": "path-anchored",
+      "lines": [
+        39
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "FALSE POSITIVE, recorded as the contract requires: the token is the directory name `tests/ci/fixtures/sonarcloud`, belonging to the read-only REST helper sonarcloud_branch_review.sh. Unrelated to the job. (The subject regex is boundary-matched and case-sensitive precisely to keep the helper's own module name out of the inventory; this path segment is the one spelling that still matches.)"
+    },
+    {
+      "rule": "tests/cli/test_events_tail.py::<module-docstring>",
+      "file": "tests/cli/test_events_tail.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        21
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/cli/test_events_tail_real_fixture.py::<module-docstring>",
+      "file": "tests/cli/test_events_tail_real_fixture.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        16
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/docs/test_check_cli_reference_freshness.py::test_visible_count_smoke_does_not_clobber_ambient_env_overrides",
+      "file": "tests/docs/test_check_cli_reference_freshness.py",
+      "scope": "test_visible_count_smoke_does_not_clobber_ambient_env_overrides",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        795
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
+      "rule": "tests/docs/test_publish_manifest_coherence.py::<module>",
+      "file": "tests/docs/test_publish_manifest_coherence.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        65
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/integration/test_clean_install_next.py::<module-docstring>",
+      "file": "tests/integration/test_clean_install_next.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        4
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/kernel/test_meta_decode.py::<module-docstring>",
+      "file": "tests/kernel/test_meta_decode.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        7
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/kernel/test_vcs_lock.py::<module-docstring>",
+      "file": "tests/kernel/test_vcs_lock.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        7
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/lanes/test_auto_rebase_managed_artifact_recognition.py::<module>",
+      "file": "tests/lanes/test_auto_rebase_managed_artifact_recognition.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        23
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/perf/test_loader_perf.py::<module-docstring>",
+      "file": "tests/perf/test_loader_perf.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        22
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/release/test_coverage_topology_ownership.py::<module-docstring>",
+      "file": "tests/release/test_coverage_topology_ownership.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host",
+        "retiring-job"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        6,
+        17,
+        39
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "FALSE POSITIVE. The docstring's `diff-coverage / sonarcloud` aggregator names come from the PRE-PROGRAMME ci-quality.yml deleted per PROGRAM.md \u00a72 -- the same paragraph says so, and says the live half of this guard was retired with that file. A different ci-quality.yml and a different sonarcloud job; nothing here describes the one this mission retires."
+    },
+    {
+      "rule": "tests/release/test_release_ci_ownership.py::<module>",
+      "file": "tests/release/test_release_ci_ownership.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "set-equality",
+      "lines": [
+        343
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "Module-level comments on the restored/introduced workflow disposition sets. About FILES, not jobs; the file set is unchanged."
+    },
+    {
+      "rule": "tests/release/test_release_ci_ownership.py::RESTORED_WORKFLOWS",
+      "file": "tests/release/test_release_ci_ownership.py",
+      "scope": "RESTORED_WORKFLOWS",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "set-equality",
+      "lines": [
+        29
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "The frozen restored-workflow FILE set. ci-quality.yml is still a restored workflow."
+    },
+    {
+      "rule": "tests/release/test_release_ci_ownership.py::UPSTREAM_WORKFLOW_PATHS",
+      "file": "tests/release/test_release_ci_ownership.py",
+      "scope": "UPSTREAM_WORKFLOW_PATHS",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "set-equality",
+      "lines": [
+        68
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "The upstream workflow-path inventory. Unchanged -- no file was added or removed."
+    },
+    {
+      "rule": "tests/release/test_release_ci_ownership.py::test_clean_install_check_name_is_branch_protection_ready",
+      "file": "tests/release/test_release_ci_ownership.py",
+      "scope": "test_clean_install_check_name_is_branch_protection_ready",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "path-anchored",
+      "lines": [
+        299,
+        303,
+        304
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "About the clean-install-verification job's name and its fixture references. A surviving job, untouched."
+    },
+    {
+      "rule": "tests/release/test_release_ci_ownership.py::test_deleting_any_disposition_row_reds_the_enforcer",
+      "file": "tests/release/test_release_ci_ownership.py",
+      "scope": "test_deleting_any_disposition_row_reds_the_enforcer",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "set-equality",
+      "lines": [
+        545
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "A fault-injection twin over the convergence map's disposition rows, using ci-quality.yml's row as its subject. The row is still there; the retirement removes a job, not the file."
+    },
+    {
+      "rule": "tests/release/test_release_ci_ownership.py::test_quality_gate_blocks_every_reduced_producer_job",
+      "file": "tests/release/test_release_ci_ownership.py",
+      "scope": "test_quality_gate_blocks_every_reduced_producer_job",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "path-anchored",
+      "lines": [
+        308,
+        317
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "Set-equality over quality-gate.needs. The retiring job was never a member -- it was non-blocking by design -- so this assertion is unchanged, and its passing after the retirement is the check that nothing was quietly promoted into the blocking set."
+    },
+    {
+      "rule": "tests/release/test_release_ci_ownership.py::test_reduced_ci_quality_has_exact_jobs",
+      "file": "tests/release/test_release_ci_ownership.py",
+      "scope": "test_reduced_ci_quality_has_exact_jobs",
+      "subjects": [
+        "retiring-host",
+        "retiring-job"
+      ],
+      "form": "path-anchored",
+      "lines": [
+        276,
+        278
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "Set-equality over ci-quality.yml's job ids. The host survives and the equality is still the guard that a job cannot be added or removed unnoticed, so the rule keeps its subject; only the retiring member leaves the expected set. Rewritten rather than relocated because the relation is about this workflow's inventory, not about the retired job."
+    },
+    {
+      "rule": "tests/release/test_sonar_workflow.py::<module-docstring>",
+      "file": "tests/release/test_sonar_workflow.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-job"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        29
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "Declared the per-PR sonarcloud job in ci-quality.yml a bound sibling surface, which the retirement falsifies. Re-expressed around the declared _SONAR_SURFACES set, and it now states where the three guards over the retired job were dispositioned, so a reader who notices they are gone finds the record instead of a silence."
+    },
+    {
+      "rule": "tests/release/test_sonar_workflow.py::<module>",
+      "file": "tests/release/test_sonar_workflow.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-host",
+        "retiring-job"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        286,
+        293
+      ],
+      "dependency": true,
+      "disposition": "rewrite",
+      "reason": "The sibling-surface comment block. Replaced with the disposition record for the three guards that resolved an operand from the retiring host -- one relocated, two retired as moot -- so the reasons sit next to the code a reviewer diffs, not only in the artefact."
+    },
+    {
+      "rule": "tests/release/test_sonar_workflow.py::test_live_sonar_surfaces_pin_the_same_sonar_action_shas",
+      "file": "tests/release/test_sonar_workflow.py",
+      "scope": "test_live_sonar_surfaces_pin_the_same_sonar_action_shas",
+      "subjects": [
+        "retiring-job"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        776
+      ],
+      "dependency": true,
+      "disposition": "relocate",
+      "reason": "The cross-surface action-pin parity guard: the anti-drift guarantee that no Sonar surface can have its SonarSource action pins bumped without the others. Its ci-quality.yml operand is resolved from the retiring host, so the operand is RE-POINTED (the surviving surfaces are sonar.yml and ci-aggregate.yml) and the relation is preserved verbatim. Dropping it would silently remove the only thing stopping the two surfaces drifting."
+    },
+    {
+      "rule": "tests/release/test_sonar_workflow.py::test_verdict_job_is_skipped_tolerant_and_excludes_the_report",
+      "file": "tests/release/test_sonar_workflow.py",
+      "scope": "test_verdict_job_is_skipped_tolerant_and_excludes_the_report",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        733,
+        749
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "Its docstring contrasts ci-aggregate's skipped-tolerant verdict with ci-quality.yml's strict-success quality-gate. Both jobs still exist and the contrast still holds."
+    },
+    {
+      "rule": "tests/review/test_pre_review_gate_engine.py::<module-docstring>",
+      "file": "tests/review/test_pre_review_gate_engine.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        8
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/review/test_pre_review_gate_engine.py::<module>",
+      "file": "tests/review/test_pre_review_gate_engine.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        53
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/scripts/test_quality_gate_decision.py::<module-docstring>",
+      "file": "tests/scripts/test_quality_gate_decision.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        6,
+        16
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/scripts/test_quality_gate_decision.py::<module>",
+      "file": "tests/scripts/test_quality_gate_decision.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        61
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/scripts/test_quality_gate_decision.py::_BASE_PAYLOAD",
+      "file": "tests/scripts/test_quality_gate_decision.py",
+      "scope": "_BASE_PAYLOAD",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        102
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/specify_cli/lanes/test_recovery_helpers.py::<module>",
+      "file": "tests/specify_cli/lanes/test_recovery_helpers.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        31
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/specify_cli/next/test_next_invocation_lifecycle_seam.py::<module>",
+      "file": "tests/specify_cli/next/test_next_invocation_lifecycle_seam.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        329
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/status/test_emit_durability.py::<module>",
+      "file": "tests/status/test_emit_durability.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        72,
+        80
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/status/test_events_tail_concurrency.py::<module-docstring>",
+      "file": "tests/status/test_events_tail_concurrency.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        55
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/status/test_tail_reader.py::<module-docstring>",
+      "file": "tests/status/test_tail_reader.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        9
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/status/test_tail_reader_truncation.py::<module-docstring>",
+      "file": "tests/status/test_tail_reader_truncation.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        21
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/zeitgeist_client/test_managed_relay_docker_local.py::pytestmark",
+      "file": "tests/zeitgeist_client/test_managed_relay_docker_local.py",
+      "scope": "pytestmark",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        118
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    }
+  ],
+  "executed": [
+    {
+      "rule": "tests/release/test_sonar_workflow.py::test_ci_quality_sonarcloud_job_is_pull_request_only",
+      "form": "exact-string",
+      "disposition": "rewrite",
+      "successor": "tests/release/test_sonar_workflow.py::test_report_job_condition_asserts_every_conjunct_individually",
+      "reason": "Pinned the normalized condition string EXACTLY equal to \"github.event_name == 'pull_request'\". That literal is UNSATISFIABLE on the surviving surface: the per-change report is a workflow_run handler, where the triggering event is read as github.event.workflow_run.event. A verbatim port would have passed over a job that never runs. Re-expressed in the new trigger's vocabulary and -- per the contract -- asserting EACH CONJUNCT INDIVIDUALLY (per-change event, same-repository origin, assembly success, COMPLETE measurement) rather than pinning the whole condition as one blob, so dropping any single conjunct is caught. Pinning the blob is what let the same-origin clause be a text-search artefact in the first place (NFR-004)."
+    },
+    {
+      "rule": "tests/release/test_sonar_workflow.py::test_all_three_sonar_surfaces_pin_the_same_sonar_action_shas",
+      "form": "path-anchored",
+      "disposition": "relocate",
+      "successor": "tests/release/test_sonar_workflow.py::test_live_sonar_surfaces_pin_the_same_sonar_action_shas",
+      "reason": "Renamed as it was re-pointed: with ci-quality.yml no longer invoking either SonarSource action there are two live Sonar surfaces, not three, and a name asserting 'all three' would be false. The relation -- every live Sonar surface pins the same commit for each action -- is carried over unchanged and now enumerates the surfaces from a single declared set, so a fourth surface joins by one edit."
+    },
+    {
+      "rule": "tests/release/test_sonar_workflow.py::test_ci_quality_sonarcloud_job_pins_both_sonar_actions",
+      "form": "path-anchored",
+      "disposition": "retire-as-moot",
+      "successor": null,
+      "reason": "Subject genuinely ceased to exist: ci-quality.yml no longer references SonarSource/sonarqube-scan-action or sonarqube-quality-gate-action at all, so there is nothing left in that file for DIR-051 to pin. The DIR-051 property is not lost -- it holds on sonar.yml (test_sonar_pins_both_sonar_actions) and on ci-aggregate.yml (test_report_job_actions_are_all_sha_pinned), and the relocated parity guard binds the two together."
+    },
+    {
+      "rule": "tests/release/test_sonar_workflow.py::test_ci_quality_and_sonar_pin_the_same_sonar_action_shas",
+      "form": "path-anchored",
+      "disposition": "retire-as-moot",
+      "successor": null,
+      "reason": "The two-surface ancestor of the relocated parity guard. Its second operand is the retiring host, and re-pointing it would make it a character-for-character duplicate of the relocated guard above -- two names for one relation, which is how a relation later gets half-maintained. Retired as moot because its specific pair (ci-quality.yml <-> sonar.yml) ceased to exist; the general relation it asserted is preserved, not dropped."
+    },
+    {
+      "rule": "tests/architectural/test_suite_jobs_gate_blocking.py::test_ci_quality_suite_jobs_are_all_resolved_and_declared_live",
+      "form": "set-equality",
+      "disposition": "rewrite",
+      "successor": "tests/architectural/test_suite_jobs_gate_blocking.py::test_ci_quality_runs_no_suite_and_the_derivation_can_still_see_one_live",
+      "reason": "Renamed as it was rewritten: the old name claimed the file's suite jobs are 'all resolved and declared', which is a statement about an allowlist that no longer subtracts anything. The successor asserts the file runs NO suite, and -- because that exact assertion was green for months while a duplicate ran -- pairs it with a fault-injection probe that the derivation can still see a re-injected make-indirect suite job. Full reason on the successor entry in `derived`."
+    },
+    {
+      "rule": "tests/architectural/test_workflow_coherence.py::test_make_target_indirection_resolves_to_a_suite_invocation_live",
+      "form": "set-equality",
+      "disposition": "rewrite",
+      "successor": "tests/architectural/test_workflow_coherence.py::test_no_live_workflow_reaches_the_suite_through_an_indirection",
+      "reason": "Renamed as it was rewritten: the old name asserts a resolution that no live workflow exercises any more, since the retiring job was the only host reaching the suite through a make target. The successor keeps the property as an empty ledger over every modelled workflow, so a future indirect suite step is visible; the resolution capability stays proven by the fixture-driven twin. Full reason on the successor entry."
+    },
+    {
+      "rule": "tests/architectural/test_suite_jobs_gate_blocking.py::NON_BLOCKING_ALLOWLIST['sonarcloud']",
+      "form": "set-equality",
+      "disposition": "retire-as-moot",
+      "successor": null,
+      "reason": "The allowlist subtracts a pytest-invoking job from the quality-gate containment check. Its subject leaves the scanned file, so the entry stops being a subtraction and becomes a declaration about a job that is not there -- which is what the entry's own history warns against (before WP03 it was 'a declaration standing in for a subtraction'). The allowlist itself, its shrink-only property and test_allowlist_entries_carry_rationale are all untouched and still guard the two remaining entries."
+    },
+    {
+      "rule": ".github/workflows/ci-quality.yml::sonarcloud",
+      "form": "derived-relation",
+      "disposition": "retire-as-moot",
+      "successor": ".github/workflows/ci-aggregate.yml::sonar-pr",
+      "reason": "The retiring job itself, recorded here so the inventory names its own subject. Its reporting role moves to ci-aggregate.yml's sonar-pr job, which consumes the measurement the module matrix already produced instead of re-running a tier (FR-001/FR-003/NFR-001)."
+    }
+  ]
+}

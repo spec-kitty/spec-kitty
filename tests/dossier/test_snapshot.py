@@ -362,7 +362,7 @@ class TestParityHashAlgorithm:
         assert hash1 == hash2
         # WP02/FR-003: canonical sha256:-prefixed digest (bare-hex form retired).
         assert hash1.startswith("sha256:")
-        assert len(hash1) == len("sha256:") + 64  # golden-count: cardinality-is-contract
+        assert len(hash1) == len("sha256:") + 64
 
     def test_parity_hash_order_independence(self) -> None:
         """Same artifacts in different order should produce same parity hash."""
@@ -938,8 +938,8 @@ class TestLargeSnapshot:
         assert snapshot.completeness_status == "complete"
         # WP02/FR-003: canonical sha256:-prefixed digest (bare-hex form retired).
         assert snapshot.parity_hash_sha256.startswith("sha256:")
-        assert len(snapshot.parity_hash_sha256) == len("sha256:") + 64  # golden-count: cardinality-is-contract
-        assert len(snapshot.artifact_summaries) == 35  # golden-count: cardinality-is-contract
+        assert len(snapshot.parity_hash_sha256) == len("sha256:") + 64
+        assert len(snapshot.artifact_summaries) == 35
 
 
 # ---------------------------------------------------------------------------

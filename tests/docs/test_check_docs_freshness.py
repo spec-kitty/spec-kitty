@@ -546,7 +546,7 @@ def test_select_link_check_paths_samples_when_oversize(
             random_seed=42,
         )
     # 20 sampled + reference appended (deterministic with the seed).
-    assert len(selected) == 21  # golden-count: cardinality-is-contract (sample-size, seed-driven membership)
+    assert len(selected) == 21  # (sample-size, seed-driven membership)
     assert Path("ref.md") in selected
 
 

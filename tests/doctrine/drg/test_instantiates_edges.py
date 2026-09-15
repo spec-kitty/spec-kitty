@@ -76,7 +76,7 @@ class TestExtractTemplateInstantiationEdges:
     def test_mints_exactly_the_expected_triples(self) -> None:
         nodes, edges = extract_template_instantiation_edges(DOCTRINE_ROOT)
 
-        assert len(_EXPECTED_TRIPLES) == 8  # golden-count: cardinality-is-contract
+        assert len(_EXPECTED_TRIPLES) == 8
         assert len(nodes) == len(_EXPECTED_TRIPLES)
         assert len(edges) == len(_EXPECTED_TRIPLES)
 
@@ -144,7 +144,7 @@ class TestBareTemplateExemplarsUntouched:
             for node in graph.nodes
             if node.kind is NodeKind.TEMPLATE and "/" not in node.urn.split(":", 1)[1]
         }
-        assert len(bare_template_urns) == 16  # golden-count: cardinality-is-contract
+        assert len(bare_template_urns) == 16
 
     def test_bare_exemplars_are_never_an_instantiates_target(
         self, tmp_path: Path
