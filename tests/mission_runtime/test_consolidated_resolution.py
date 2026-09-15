@@ -112,9 +112,7 @@ def _write_meta(
     if coordination_branch is not None:
         meta["coordination_branch"] = coordination_branch
     feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text(
-        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def _write_wp_file(feature_dir: Path, wp_id: str) -> Path:
@@ -219,9 +217,7 @@ def _build_e1_mission_flat(repo: Path, *, mid8: str, mission_number: int) -> tup
     return mission_slug, feature_dir, target_branch
 
 
-def _build_e2_mission_flat(
-    repo: Path, *, mid8: str, mission_number: int, squash: bool = False
-) -> tuple[str, Path, Path, str]:
+def _build_e2_mission_flat(repo: Path, *, mid8: str, mission_number: int, squash: bool = False) -> tuple[str, Path, Path, str]:
     """A genuine E2 (PUBLISHED) mission — FLAT topology, Target Ref deleted.
 
     ``squash=True`` publishes via ``git merge --squash`` (D1's load-bearing
@@ -230,9 +226,7 @@ def _build_e2_mission_flat(
 
     Returns ``(mission_slug, feature_dir, wp_path, target_branch)``.
     """
-    mission_slug, feature_dir, target_branch = _build_e1_mission_flat(
-        repo, mid8=mid8, mission_number=mission_number
-    )
+    mission_slug, feature_dir, target_branch = _build_e1_mission_flat(repo, mid8=mid8, mission_number=mission_number)
     wp_path = feature_dir / "tasks" / "WP01-evidence.md"
 
     _git(repo, "checkout", "-q", "main")
@@ -245,9 +239,7 @@ def _build_e2_mission_flat(
     return mission_slug, feature_dir, wp_path, target_branch
 
 
-def _build_e2_mission_coord_fully_retired(
-    repo: Path, *, mid8: str, mission_number: int
-) -> tuple[str, Path, str, str]:
+def _build_e2_mission_coord_fully_retired(repo: Path, *, mid8: str, mission_number: int) -> tuple[str, Path, str, str]:
     """A genuine E2 mission whose COORD coordination branch has ALSO been
     retired -- the #3033 T007 shape (the coord-probe-bypass pin).
 
@@ -308,9 +300,7 @@ def repo(tmp_path: Path) -> Path:
 def test_e1_primary_kind_resolves_target_ref_tree_unchanged(repo: Path) -> None:
     """E1: a PRIMARY-kind write still resolves the Target Ref — no behaviour
     change on this leg (ADR Decision 1 §2)."""
-    mission_slug, _feature_dir, target_branch = _build_e1_mission_flat(
-        repo, mid8="01KYT1AA", mission_number=301
-    )
+    mission_slug, _feature_dir, target_branch = _build_e1_mission_flat(repo, mid8="01KYT1AA", mission_number=301)
 
     resolved = resolve_placement_only(repo, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
 
@@ -326,17 +316,12 @@ def test_e1_primary_kind_resolves_target_ref_tree_unchanged(repo: Path) -> None:
 def test_e2_primary_kind_resolves_primary_branch_name(repo: Path) -> None:
     """E2 / SC-001: a PRIMARY-kind write resolves the resolved Primary Branch
     NAME — an existing branch, never a SHA or HEAD (paula MINOR-2)."""
-    mission_slug, _feature_dir, _wp_path, target_branch = _build_e2_mission_flat(
-        repo, mid8="01KYT1BB", mission_number=302
-    )
+    mission_slug, _feature_dir, _wp_path, target_branch = _build_e2_mission_flat(repo, mid8="01KYT1BB", mission_number=302)
 
     resolved = resolve_placement_only(repo, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
 
     assert resolved == CommitTarget(ref="main")
-    assert _branch_exists(repo, resolved.ref), (
-        f"resolved ref {resolved.ref!r} must be an EXISTING branch — never the "
-        f"deleted Target Ref {target_branch!r}"
-    )
+    assert _branch_exists(repo, resolved.ref), f"resolved ref {resolved.ref!r} must be an EXISTING branch — never the deleted Target Ref {target_branch!r}"
     assert not _branch_exists(repo, target_branch)
 
 
@@ -348,34 +333,36 @@ def test_e2_primary_kind_resolves_primary_branch_name(repo: Path) -> None:
         MissionArtifactKind.ACCEPTANCE_MATRIX,
     ],
 )
-def test_e2_coord_kind_bypasses_deleted_coordination_branch(
-    repo: Path, kind: MissionArtifactKind
-) -> None:
+def test_e2_coord_kind_bypasses_deleted_coordination_branch(repo: Path, kind: MissionArtifactKind) -> None:
     """E2 / SC-002 / #3033 T007 shape: a coord-partition in-scope kind on a
     mission whose coordination branch has ALSO been retired resolves the
     CONSOLIDATED target directly — the unconditional coordination-surface
     probe (which would raise ``CoordinationBranchDeleted``) must be BYPASSED
     for this phase+kind combination, not merely tolerated."""
-    mission_slug, _feature_dir, _target, _coord = _build_e2_mission_coord_fully_retired(
-        repo, mid8="01KYT1CC", mission_number=303
-    )
+    mission_slug, _feature_dir, _target, _coord = _build_e2_mission_coord_fully_retired(repo, mid8="01KYT1CC", mission_number=303)
 
     resolved = resolve_placement_only(repo, mission_slug, kind=kind)
 
     assert resolved == CommitTarget(ref="main")
 
 
-def test_e2_status_state_still_probes_coordination_and_is_unaffected(repo: Path) -> None:
-    """SC-005 guard at the write-routing layer: ``STATUS_STATE`` is NOT in
+@pytest.mark.parametrize("kind", [MissionArtifactKind.STATUS_STATE, MissionArtifactKind.DECISION_LOG])
+def test_e2_status_state_still_probes_coordination_and_is_unaffected(repo: Path, kind: MissionArtifactKind) -> None:
+    """SC-005 guard: ``STATUS_STATE`` and ``DECISION_LOG`` are NOT in
     the E2 in-scope set, so a fully-retired-coord E2 mission still raises
     ``CoordinationBranchDeleted`` (wrapped) for it — proving the E2
     short-circuit is genuinely kind-scoped, not blanket."""
-    mission_slug, _feature_dir, _target, _coord = _build_e2_mission_coord_fully_retired(
-        repo, mid8="01KYT1DD", mission_number=304
-    )
+    mission_slug, _feature_dir, _target, _coord = _build_e2_mission_coord_fully_retired(repo, mid8="01KYT1DD", mission_number=304)
 
+    from specify_cli.coordination.surface_resolver import resolve_status_surface
+
+    # Completed-mission reads stay anchored to the published primary tree, but
+    # that read shortcut must not authorize an excluded kind's write placement.
+    expected_read = _feature_dir / "status.events.jsonl"
+    assert resolve_status_surface(repo, mission_slug) == expected_read
     with pytest.raises(ActionContextError):
-        resolve_placement_only(repo, mission_slug, kind=MissionArtifactKind.STATUS_STATE)
+        resolve_placement_only(repo, mission_slug, kind=kind)
+    assert resolve_status_surface(repo, mission_slug) == expected_read
 
 
 # ---------------------------------------------------------------------------
@@ -397,9 +384,7 @@ def test_e2_content_absent_refuses(repo: Path) -> None:
     ``content_present_at_primary_tip`` actually probes) never received the
     mission's commits at all.
     """
-    mission_slug, feature_dir, target_branch = _build_e1_mission_flat(
-        repo, mid8="01KYT1EE", mission_number=305
-    )
+    mission_slug, feature_dir, target_branch = _build_e1_mission_flat(repo, mid8="01KYT1EE", mission_number=305)
     assert feature_dir.exists()
     # Detach HEAD at the mission's own commit (working tree — and therefore
     # meta.json on disk — is UNCHANGED) so the branch ref itself can be
@@ -429,9 +414,7 @@ def test_squash_publish_resolves_via_content_presence_not_ancestry(repo: Path) -
     An ancestry-based check would false-negative here — this test PINS that
     rejection (priti m3) while proving the actual (content-presence)
     predicate succeeds."""
-    mission_slug, feature_dir, wp_path, target_branch = _build_e2_mission_flat(
-        repo, mid8="01KYT1FF", mission_number=306, squash=True
-    )
+    mission_slug, feature_dir, wp_path, target_branch = _build_e2_mission_flat(repo, mid8="01KYT1FF", mission_number=306, squash=True)
     meta = load_meta(feature_dir)
     assert meta is not None
     baseline_commit = str(meta["baseline_merge_commit"])
@@ -462,9 +445,7 @@ def test_squash_publish_resolves_via_content_presence_not_ancestry(repo: Path) -
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "kind", [MissionArtifactKind.STATUS_STATE, MissionArtifactKind.DECISION_LOG]
-)
+@pytest.mark.parametrize("kind", [MissionArtifactKind.STATUS_STATE, MissionArtifactKind.DECISION_LOG])
 def test_sc005_unchanged_pre_consolidation(repo: Path, kind: MissionArtifactKind) -> None:
     """PRE_CONSOLIDATION: resolve_artifact_surface's classification for
     STATUS_STATE/DECISION_LOG is untouched by the new phase call (fast path,
@@ -488,16 +469,12 @@ def test_sc005_unchanged_pre_consolidation(repo: Path, kind: MissionArtifactKind
     assert resolved.path == feature_dir
 
 
-@pytest.mark.parametrize(
-    "kind", [MissionArtifactKind.STATUS_STATE, MissionArtifactKind.DECISION_LOG]
-)
+@pytest.mark.parametrize("kind", [MissionArtifactKind.STATUS_STATE, MissionArtifactKind.DECISION_LOG])
 def test_sc005_unchanged_in_e2(repo: Path, kind: MissionArtifactKind) -> None:
     """E2 (PUBLISHED): STATUS_STATE / DECISION_LOG are NOT re-routed to
     CONSOLIDATED — the resolved surface/path is identical to the
     PRE_CONSOLIDATION case above (C-005 non-regression, ADR Decision 1 §6)."""
-    mission_slug, feature_dir, _wp_path, _target = _build_e2_mission_flat(
-        repo, mid8="01KYT1HH", mission_number=307
-    )
+    mission_slug, feature_dir, _wp_path, _target = _build_e2_mission_flat(repo, mid8="01KYT1HH", mission_number=307)
 
     resolved = resolve_artifact_surface(repo, mission_slug, kind)
 
@@ -513,17 +490,13 @@ def test_sc005_unchanged_in_e2(repo: Path, kind: MissionArtifactKind) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_probe_and_materializer_derive_identical_phase(
-    repo: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_probe_and_materializer_derive_identical_phase(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Both ``resolve_placement_only`` (the probe) and
     ``resolve_artifact_surface`` (the materializer) call the SAME
     ``resolve_lifecycle_phase`` — this test intercepts both call sites and
     asserts they observe the identical phase for one mission state
     (NFR-001, no split-brain)."""
-    mission_slug, _feature_dir, _wp_path, _target = _build_e2_mission_flat(
-        repo, mid8="01KYT1II", mission_number=308
-    )
+    mission_slug, _feature_dir, _wp_path, _target = _build_e2_mission_flat(repo, mid8="01KYT1II", mission_number=308)
 
     observed: list[LifecyclePhase] = []
 

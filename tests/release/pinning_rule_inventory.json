@@ -78,52 +78,6 @@
       "reason": "Declares 'the sonarcloud job in .github/workflows/ci-quality.yml calls this module'. After the retirement the callers are ci-aggregate.yml's sonar-pr job and sonar.yml. A module docstring naming a deleted caller is a justification describing something no longer true (C-005)."
     },
     {
-      "rule": "tests/_arch_shard_map.py::_ARCH_SHARD_1_FILES",
-      "file": "tests/_arch_shard_map.py",
-      "scope": "_ARCH_SHARD_1_FILES",
-      "subjects": [
-        "retiring-host"
-      ],
-      "form": "docstring-or-comment",
-      "lines": [
-        103
-      ],
-      "dependency": false,
-      "disposition": "none",
-      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
-    },
-    {
-      "rule": "tests/_arch_shard_map.py::_ARCH_SHARD_2_FILES",
-      "file": "tests/_arch_shard_map.py",
-      "scope": "_ARCH_SHARD_2_FILES",
-      "subjects": [
-        "retiring-host"
-      ],
-      "form": "docstring-or-comment",
-      "lines": [
-        219
-      ],
-      "dependency": false,
-      "disposition": "none",
-      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
-    },
-    {
-      "rule": "tests/_next_shard_map.py::<module-docstring>",
-      "file": "tests/_next_shard_map.py",
-      "scope": "<module-docstring>",
-      "subjects": [
-        "retiring-host"
-      ],
-      "form": "docstring-or-comment",
-      "lines": [
-        13,
-        17
-      ],
-      "dependency": false,
-      "disposition": "none",
-      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
-    },
-    {
       "rule": "tests/agent/test_context_validation_unit.py::test_no_context_env_vars_leak_out_of_this_class",
       "file": "tests/agent/test_context_validation_unit.py",
       "scope": "test_no_context_env_vars_leak_out_of_this_class",
