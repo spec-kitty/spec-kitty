@@ -71,6 +71,7 @@ import queue
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -79,6 +80,15 @@ from . import budget
 from .live_frame import FocusView, LiveFrame, StreamState, TeamSnapshot, parse_live_frame
 
 _STREAM_PATH = "/managed/stream"
+_SNAPSHOT_PATH = "/managed/snapshot"
+
+# A SnapshotDocument is bounded by construction upstream (unexpired registry
+# entries for one scope, and — at `window_s=0` — no history), but this side
+# reads an untrusted socket: cap what one read can pull into memory rather
+# than trust the sender to stop. Generous enough for a large team's presence
+# and focus registries, small enough that a hostile body cannot be a denial
+# of memory.
+MAX_SNAPSHOT_BYTES = 1_000_000
 
 
 @dataclass(frozen=True)
@@ -104,7 +114,9 @@ class FilteredStream:
     frame to local state, and yields it. ``check()``/``current_focus()``
     read that local state back with **no network call of their own** — Z4-C's
     "no missed-event reconstruction" criterion means there is structurally
-    no request this class can make to ask the relay what a caller missed; a
+    no request this class can make to ask the relay what a caller missed
+    (``seed_from_snapshot()`` asks who is live NOW, which is a different
+    question — see its own docstring); a
     ``signal.kind in {"gap","epoch"}`` frame (or an ``epoch`` value change
     between frames) instead clears local state outright, so a caller who
     only ever calls ``check()`` sees an honestly empty view rather than a
@@ -136,6 +148,52 @@ class FilteredStream:
         self._lock = threading.Lock()
         self._frame_filter = frame_filter
 
+    def _headers(self) -> dict[str, str]:
+        """Two independent gates, each with its OWN credential — see the
+        module docstring's FIX-M2-15 note. ``relay_token`` falls back to
+        ``capability_credential`` when unset, so a single-credential config
+        still presents the same value to both gates. Every request this
+        module makes carries exactly these headers."""
+        return {
+            "Authorization": f"Bearer {self._config.relay_token or self._config.capability_credential}",
+            "X-Zeitgeist-Capability": self._config.capability_credential,
+        }
+
+    def seed_from_snapshot(self, *, timeout_s: float, window_s: float = 0.0) -> bool:
+        """Ask the relay who is live right now (``GET /managed/snapshot``,
+        zeitgeist#296) and apply the answer to local state. Returns whether
+        a shape-valid document was applied.
+
+        This is NOT the missed-event reconstruction the class docstring rules
+        out, and it does not become one: ``window_s`` defaults to 0, so the
+        document's ``events`` history is empty, and ``StreamState`` ignores
+        that section regardless. What it does is let a reader that just
+        connected answer "who is working" from the relay's own registries
+        instead of waiting for someone to publish — a quiet team is otherwise
+        indistinguishable from an empty one (spec-kitty#4215).
+
+        A relay without the route (an older build, or the ``self_hosted``
+        profile, where the capability is absent) answers 404; a caller that
+        wants to degrade to listening handles that ``HTTPError`` itself,
+        because whether a snapshot-less relay is a fault or a fallback is the
+        caller's decision, not this class's. Connection faults propagate
+        unchanged, exactly as they do from :meth:`watch`.
+        """
+        query = urllib.parse.urlencode({"window_s": window_s})
+        url = self._config.relay_url.rstrip("/") + _SNAPSHOT_PATH + "?" + query
+        req = urllib.request.Request(url, headers=self._headers(), method="GET")
+        opener = budget.NoRedirects.build()
+        with opener.open(req, timeout=timeout_s) as resp:
+            raw = resp.read(MAX_SNAPSHOT_BYTES + 1)
+        if len(raw) > MAX_SNAPSHOT_BYTES:
+            return False  # oversized body: refused whole, never half-applied
+        try:
+            doc = json.loads(raw.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return False
+        with self._lock:
+            return self._state.seed_snapshot(doc)
+
     def watch(self, *, idle_timeout_s: float | None = None) -> Iterator[LiveFrame]:
         """Yield each accepted ``LiveFrame`` as it arrives.
 
@@ -153,15 +211,7 @@ class FilteredStream:
         this generator's.
         """
         url = self._config.relay_url.rstrip("/") + _STREAM_PATH
-        headers = {
-            # Two independent gates, each with its OWN credential — see the
-            # module docstring's FIX-M2-15 note. `relay_token` falls back to
-            # `capability_credential` when unset, so a single-credential
-            # config still presents the same value to both gates.
-            "Authorization": f"Bearer {self._config.relay_token or self._config.capability_credential}",
-            "X-Zeitgeist-Capability": self._config.capability_credential,
-        }
-        req = urllib.request.Request(url, headers=headers, method="GET")
+        req = urllib.request.Request(url, headers=self._headers(), method="GET")
         opener = budget.NoRedirects.build()
         deadline = None if idle_timeout_s is None else time.monotonic() + idle_timeout_s
         with opener.open(req, timeout=idle_timeout_s) as resp:
