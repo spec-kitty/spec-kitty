@@ -26,6 +26,7 @@ import ulid as _ulid_mod
 
 from kernel.clock import now_utc
 from specify_cli.decisions import emit as _emit
+from specify_cli.decisions import ledger_commit as _ledger_commit
 from specify_cli.decisions import store as _store
 from specify_cli.decisions.models import (
     DecisionErrorCode,
@@ -98,10 +99,7 @@ def _is_allowed_terminal_reopen(
     target_status: DecisionStatus,
 ) -> bool:
     """Return True for terminal states that may be explicitly closed later."""
-    return (
-        current_status == DecisionStatus.DEFERRED
-        and target_status == DecisionStatus.RESOLVED
-    )
+    return current_status == DecisionStatus.DEFERRED and target_status == DecisionStatus.RESOLVED
 
 
 def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
@@ -168,9 +166,7 @@ def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
     topology-aware and agrees with where emit.py writes; splitting reads onto
     PRIMARY here would read/write split-brain the ledger under coord topology.
     """
-    mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.STATUS_STATE
-    )
+    mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
     return mission_dir
 
 
@@ -207,17 +203,10 @@ def _opened_event_exists(repo_root: Path, mission_slug: str, decision_id: str) -
                     "line": line_number,
                     "parse_error": str(exc),
                 },
-                message=(
-                    f"Cannot verify opened event for {decision_id!r}: "
-                    f"malformed event log line {line_number}"
-                ),
+                message=(f"Cannot verify opened event for {decision_id!r}: malformed event log line {line_number}"),
             ) from exc
         payload = event.get("payload")
-        if (
-            event.get("event_type") == DECISION_POINT_OPENED
-            and isinstance(payload, dict)
-            and payload.get("decision_point_id") == decision_id
-        ):
+        if event.get("event_type") == DECISION_POINT_OPENED and isinstance(payload, dict) and payload.get("decision_point_id") == decision_id:
             return True
     return False
 
@@ -235,10 +224,7 @@ def _repair_missing_opened_event(
         raise DecisionError(
             code=DecisionErrorCode.EVENT_REPAIR_FAILED,
             details={"decision_id": entry.decision_id, "mission_slug": mission_slug},
-            message=(
-                f"Cannot repair opened event for decision {entry.decision_id!r}: "
-                "opening actor was not persisted"
-            ),
+            message=(f"Cannot repair opened event for decision {entry.decision_id!r}: opening actor was not persisted"),
         )
     try:
         return _emit.emit_decision_opened(
@@ -338,11 +324,26 @@ def open_decision(
 
     if existing is not None:
         if not _is_terminal(existing.status):
-            # Idempotent return — already open
+            # Idempotent return — already open. The re-record itself is a
+            # no-op (issue #4311: never a duplicate row, never an event), but
+            # the commit is still ATTEMPTED: the seam's own idempotence makes
+            # an already-committed ledger a byte-identical "unchanged" no-op,
+            # so this costs nothing on the happy path — while a first record
+            # whose commit failed (refused/error, e.g. an operator who has
+            # since created the feature branch) converges to committed on
+            # the rerun instead of staying uncommitted forever. A repaired
+            # opened event names the repair in the commit message.
             repaired_lamport = _repair_missing_opened_event(
                 repo_root,
                 mission_slug,
                 entry=existing,
+            )
+            ledger_commit = _ledger_commit.commit_ledger_change(
+                repo_root,
+                mission_slug,
+                mission_dir,
+                existing.decision_id,
+                action="repaired" if repaired_lamport is not None else "open",
             )
             if on_minted is not None:
                 on_minted(existing.decision_id)
@@ -352,6 +353,7 @@ def open_decision(
                 mission_id=mission_id,
                 artifact_path=str(_store.artifact_path(mission_dir, existing.decision_id)),
                 event_lamport=repaired_lamport,
+                ledger_commit=ledger_commit,
             )
         else:
             # Already closed — reject
@@ -361,10 +363,7 @@ def open_decision(
                     "decision_id": existing.decision_id,
                     "status": existing.status.value,
                 },
-                message=(
-                    f"Decision {existing.decision_id!r} is already in terminal "
-                    f"state {existing.status.value!r}"
-                ),
+                message=(f"Decision {existing.decision_id!r} is already in terminal state {existing.status.value!r}"),
             )
 
     # Mint new decision (use caller-supplied id if provided, else mint fresh)
@@ -396,6 +395,20 @@ def open_decision(
     )
     if on_minted is not None:
         on_minted(decision_id)
+    # Commit-on-record (#4311): the ledger change (index + DM artifact + the
+    # event row just appended) lands as one local commit through the write
+    # seam in the same operation that recorded it. Never an empty commit —
+    # the seam returns "unchanged" for a byte-identical already-committed
+    # artifact — and never a push (GOAL.md defers auto-push permanently).
+    # After the minted-id callback, so a crash mid-commit still leaves the
+    # machine caller's recovery id recorded and the rerun idempotent.
+    ledger_commit = _ledger_commit.commit_ledger_change(
+        repo_root,
+        mission_slug,
+        mission_dir,
+        decision_id,
+        action="open",
+    )
 
     return DecisionOpenResponse(
         decision_id=decision_id,
@@ -403,6 +416,7 @@ def open_decision(
         mission_id=mission_id,
         artifact_path=str(artifact),
         event_lamport=lamport,
+        ledger_commit=ledger_commit,
     )
 
 
@@ -461,18 +475,28 @@ def _terminal_command(
         # Already terminal — check for idempotency or conflict
         if entry.status == target_status:
             # Same outcome — check payload identity
-            payload_matches = (
-                entry.final_answer == final_answer
-                and entry.other_answer == other_answer
-                and entry.rationale == rationale
-            )
+            payload_matches = entry.final_answer == final_answer and entry.other_answer == other_answer and entry.rationale == rationale
             if payload_matches:
+                # Idempotent re-record: the ledger itself changes nothing, but
+                # the commit is still ATTEMPTED (#4311) — the seam's own
+                # idempotence makes an already-committed ledger "unchanged"
+                # (never an empty commit), while a first record whose commit
+                # failed converges to committed on the rerun instead of
+                # staying uncommitted forever.
+                ledger_commit = _ledger_commit.commit_ledger_change(
+                    repo_root,
+                    mission_slug,
+                    mission_dir,
+                    decision_id,
+                    action=terminal_outcome,
+                )
                 return DecisionTerminalResponse(
                     decision_id=decision_id,
                     status=target_status,
                     terminal_outcome=terminal_outcome,
                     idempotent=True,
                     event_lamport=None,
+                    ledger_commit=ledger_commit,
                 )
         # Different outcome or different payload — conflict
         raise DecisionError(
@@ -482,10 +506,7 @@ def _terminal_command(
                 "existing_status": entry.status.value,
                 "requested_status": target_status.value,
             },
-            message=(
-                f"Decision {decision_id!r} is already in terminal state "
-                f"{entry.status.value!r}; cannot transition to {target_status.value!r}"
-            ),
+            message=(f"Decision {decision_id!r} is already in terminal state {entry.status.value!r}; cannot transition to {target_status.value!r}"),
         )
 
     # Apply the terminal transition
@@ -503,9 +524,7 @@ def _terminal_command(
     )
 
     # Get the updated entry for artifact + event
-    updated_entry = next(
-        e for e in updated_index.entries if e.decision_id == decision_id
-    )
+    updated_entry = next(e for e in updated_index.entries if e.decision_id == decision_id)
     _store.write_artifact(mission_dir, updated_entry)
     lamport = _emit.emit_decision_resolved(
         repo_root,
@@ -514,6 +533,18 @@ def _terminal_command(
         entry=updated_entry,
         actor=actor,
     )
+    # Commit-on-record (#4311): a resolved/deferred/canceled decision is never
+    # left uncommitted in the working tree — the terminal ledger change lands
+    # as one local commit through the write seam in the same operation. The
+    # early idempotent return above (same outcome, same payload) also
+    # re-attempts the commit, a "unchanged" no-op when it already landed.
+    ledger_commit = _ledger_commit.commit_ledger_change(
+        repo_root,
+        mission_slug,
+        mission_dir,
+        decision_id,
+        action=terminal_outcome,
+    )
 
     return DecisionTerminalResponse(
         decision_id=decision_id,
@@ -521,6 +552,7 @@ def _terminal_command(
         terminal_outcome=terminal_outcome,
         idempotent=False,
         event_lamport=lamport,
+        ledger_commit=ledger_commit,
     )
 
 

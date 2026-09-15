@@ -6,9 +6,19 @@ package's import-time registration as the default occupant of the
 (``ephemeral-team-status.html``, CLI column) pins the shape: build the volatile
 event via ``spec_kitty_events``, resolve credentials for ``(team, repo)``, then
 ``ZeitgeistClient.offer("event.publish", ...)`` inside the client's own 750 ms
-budget — no retry, no queue, no daemon. ``emit.py`` is untouched; the handlers
+budget — no queue, no daemon. ``emit.py`` is untouched; the handlers
 are registered into the existing slots by
 :func:`specify_cli.status.adapters.ensure_zeitgeist_moment_handlers`.
+
+#4311 amendment (planning#2269, 2026-09-14: "I need decisions in real time
+AND as a permanent record"): the LIFECYCLE slot below — decision points and
+the mission phases riding the same fan-out — now retries the relay-wake
+failure class (503 / timeout / unreachable) with jitter for a bounded
+in-process window (:func:`lifecycle_retry_window_s`) before giving up with
+a visible stderr diagnostic. Still no queue, no spool, no journal, no
+daemon — and still never a raise into the fan-out. The WP lane-transition
+slot and every presence/focus frame keep the original single-offer
+drop-no-retry contract.
 
 Three slots, one broadcast core:
 
@@ -59,7 +69,12 @@ untouched regardless of relay, credential, or codec state.
 from __future__ import annotations
 
 import logging
+import math
+import os
+import random
 import re
+import sys
+import time
 import uuid
 from dataclasses import replace
 from pathlib import Path
@@ -84,7 +99,7 @@ from .migrate_lifecycle_envelope import _generate_node_id  # noqa: PLC2701 -- sa
 if TYPE_CHECKING:
     from specify_cli.zeitgeist_client.credentials import StoredCredential
     from specify_cli.zeitgeist_client.repo_identity import Deadline
-    from specify_cli.zeitgeist_client.transport import OfferResult
+    from specify_cli.zeitgeist_client.transport import OfferResult, ZeitgeistClient
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +134,142 @@ _FOCUS_REF_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}")
 # live panel rather than three unrelated ones.
 _SESSION_ID = str(uuid.uuid4())
 
+# -- bounded retry for the lifecycle/decision moment stream (#4311) ---------
+#
+# Robert's 2026-09-14 ruling (planning#2269): "I need decisions in real time
+# AND as a permanent record." The permanent half is the decisions ledger's
+# commit-on-record; the real-time half is this retry. The single-offer
+# drop-no-retry contract above stays the contract for PRESENCE frames and WP
+# lane transitions (ephemeral by design); the lifecycle stream — decision
+# points and the mission phases riding the same slot — now retries the
+# transient relay-wake failure class (503, timeout, unreachable) with jitter
+# for a bounded window that covers a relay wake (~20 s, GOAL.md's
+# idle-stopped per-team containers), then gives up with a visible
+# diagnostic. No durable queue, spool, or journal is introduced: the window
+# is in-process wall-clock only, and the canonical local log was already
+# written before any of this runs.
+_RETRY_WINDOW_ENV = "SPEC_KITTY_ZEITGEIST_RETRY_WINDOW_S"
+_DEFAULT_RETRY_WINDOW_S = 25.0
+_RETRY_BACKOFF_BASE_S = 0.5
+_RETRY_BACKOFF_CAP_S = 4.0
+_RETRY_JITTER_LO = 0.5
+_RETRY_JITTER_HI = 1.5
+# The status both zeitgeist ("the 503 that means retry me", server.py) and
+# the SaaS wake endpoint (apps.live_capability.views, ``relay_waking`` +
+# ``Retry-After``) answer while an idle-stopped relay container is booting.
+_RETRY_AFTER_WAKE_STATUS = 503
+
+#: The one-line stderr notice emitted when the retry window is exhausted —
+#: the give-up must be visible, not a log line only (same discipline as
+#: transport.THROTTLE_NOTICE).
+RETRY_GIVEUP_NOTICE = (
+    "spec-kitty: live {event_type} moment not delivered: relay did not "
+    "recover within {window:.0f}s ({outcome}, {attempts} attempts); dropped "
+    "— no queue, no spool (the local record is unaffected)"
+)
+
+
+def lifecycle_retry_window_s() -> float:
+    """The bounded retry window for lifecycle/decision moments, in seconds.
+
+    ``SPEC_KITTY_ZEITGEIST_RETRY_WINDOW_S`` overrides the default; a value
+    that is missing, unparsable, negative, or non-finite falls back to the
+    default (a non-finite window must never reach ``time.sleep``/``join``).
+    ``0`` disables the retry (single offer, the pre-#4311 behaviour).
+    """
+    raw = os.environ.get(_RETRY_WINDOW_ENV)
+    if raw is None or not raw.strip():
+        return _DEFAULT_RETRY_WINDOW_S
+    try:
+        value = float(raw)
+    except ValueError:
+        return _DEFAULT_RETRY_WINDOW_S
+    if math.isnan(value) or math.isinf(value) or value < 0:
+        return _DEFAULT_RETRY_WINDOW_S
+    return value
+
+
+def _is_retryable_offer(result: OfferResult) -> bool:
+    """Whether one offer outcome is the relay-wake failure class.
+
+    ``REJECTED`` with HTTP 503 (the relay/SaaS answering "waking, retry"),
+    ``DROPPED_BUDGET`` (the 750 ms budget elapsing against a relay that is
+    accepting connections but not answering yet), and
+    ``DROPPED_UNREACHABLE`` (connect/DNS refusal while the container is
+    still booting). Every other outcome — a genuine 4xx rejection, a
+    throttle (the relay answered; ``Retry-After`` is its own contract), a
+    local refusal before any socket — is final, exactly as before.
+    """
+    from specify_cli.zeitgeist_client.transport import OfferOutcome  # noqa: PLC0415
+
+    if result.outcome is OfferOutcome.REJECTED:
+        # ``OfferResult`` resolves as ``Any`` under the narrow-file import
+        # skip, so the comparison is narrowed back to the declared ``bool``.
+        return bool(result.status_code == _RETRY_AFTER_WAKE_STATUS)
+    return (
+        result.outcome is OfferOutcome.DROPPED_BUDGET
+        or result.outcome is OfferOutcome.DROPPED_UNREACHABLE
+    )
+
+
+def _default_jitter(delay: float, lo: float, hi: float) -> float:
+    """Draw one backoff delay in ``[delay*lo, delay*hi]`` (the ±50% band)."""
+    # Retry backoff jitter, not a security-sensitive use of randomness.
+    return random.uniform(delay * lo, delay * hi)  # noqa: S311 - de-synchronization between concurrent retry loops, never a secret
+
+
+def _offer_with_bounded_retry(
+    client: ZeitgeistClient,
+    event_type: str,
+    offer_args: Mapping[str, Any],
+    *,
+    window_s: float,
+    sleep: Any = time.sleep,
+    clock: Any = time.monotonic,
+    jitter: Any = _default_jitter,
+) -> None:
+    """Offer the moment, retrying the relay-wake class within ``window_s``.
+
+    Backoff is exponential from :data:`_RETRY_BACKOFF_BASE_S` capped at
+    :data:`_RETRY_BACKOFF_CAP_S`, each delay jittered ±50% so concurrent
+    CLI processes waking one relay do not stampede in lockstep. The loop
+    exits on the first non-retryable outcome (success included) or when the
+    window closes; a window that closed on a retryable outcome prints the
+    visible :data:`RETRY_GIVEUP_NOTICE` on stderr and logs the detail.
+    ``sleep``/``clock``/``jitter`` are seams for tests only.
+    """
+    deadline = clock() + window_s
+    delay = _RETRY_BACKOFF_BASE_S
+    attempts = 1
+    result = client.offer(_EVENT_PUBLISH_OP, dict(offer_args))
+    while _is_retryable_offer(result):
+        remaining = deadline - clock()
+        if remaining <= 0:
+            break
+        _log_offer_outcome(f"moment {event_type}", result, note="retrying within the window")
+        sleep(min(jitter(delay, _RETRY_JITTER_LO, _RETRY_JITTER_HI), remaining))
+        delay = min(delay * 2.0, _RETRY_BACKOFF_CAP_S)
+        attempts += 1
+        result = client.offer(_EVENT_PUBLISH_OP, dict(offer_args))
+    _log_offer_outcome(f"moment {event_type}", result)
+    if _is_retryable_offer(result):
+        print(
+            RETRY_GIVEUP_NOTICE.format(
+                event_type=event_type,
+                window=window_s,
+                outcome=result.outcome.value,
+                attempts=attempts,
+            ),
+            file=sys.stderr,
+        )
+        logger.warning(
+            "Zeitgeist moment %s dropped (%s) after %d attempts in %.0fs; retry window exhausted, giving up",
+            event_type,
+            result.outcome.value,
+            attempts,
+            window_s,
+        )
+
 
 def saas_moment_handler(**kwargs: Any) -> None:
     """Broadcast one WP lane transition as a ``WPStatusChanged`` moment."""
@@ -132,7 +283,13 @@ def saas_moment_handler(**kwargs: Any) -> None:
 
 
 def lifecycle_moment_handler(**kwargs: Any) -> None:
-    """Broadcast one volatile mission-lifecycle moment from the local log envelope."""
+    """Broadcast one volatile mission-lifecycle moment from the local log envelope.
+
+    Since #4311 this stream (decision points and the mission phases riding
+    the same slot) retries the relay-wake failure class for the bounded
+    window (:func:`lifecycle_retry_window_s`) — the "decisions in real
+    time" half of planning#2269's ruling.
+    """
     try:
         _broadcast_lifecycle_envelope(kwargs)
     except Exception:
@@ -140,6 +297,30 @@ def lifecycle_moment_handler(**kwargs: Any) -> None:
             "Zeitgeist lifecycle moment handler failed; canonical lifecycle log unaffected",
             exc_info=True,
         )
+
+
+#: Overhead on top of the retry window for the handler-declared fan-out
+#: bound below: credential resolution (a 2 s mint budget) plus the
+#: presence/focus frames that follow the moment.
+_RETRY_BOUND_OVERHEAD_S = 15.0
+
+
+def _lifecycle_fanout_bound_s() -> float:
+    """The wall-time bound this handler's own contract needs from the
+    fan-out runner (``adapters._run_fanout_handler_bounded``): the retry
+    window plus overhead. Without a declared bound the runner's default
+    join (10 s) would cut a legitimate retry mid-window and the process
+    would exit before the moment landed — the retry would silently not
+    exist. A callable, not a constant, so an env-overridden window raises
+    the join with it.
+    """
+    return lifecycle_retry_window_s() + _RETRY_BOUND_OVERHEAD_S
+
+
+# Narrow, justified suppression: mypy rejects attribute assignment on a
+# function object, but the fan-out runner's handler-declared bound is
+# exactly such an attribute (see adapters._run_fanout_handler_bounded).
+lifecycle_moment_handler.saas_fanout_bound_s = _lifecycle_fanout_bound_s  # type: ignore[attr-defined]
 
 
 def resolved_binding_moment_handler(**kwargs: Any) -> None:
@@ -262,7 +443,15 @@ def _broadcast_lifecycle_envelope(kwargs: Mapping[str, Any]) -> None:
     # The append site passes the log path: the mission dir names the checkout
     # the moment was produced in, which beats the process working directory.
     log_path = kwargs.get("log_path")
-    _broadcast_moment(payload, envelope, cwd=log_path.parent if isinstance(log_path, Path) else Path.cwd())
+    # #4311: the lifecycle stream (decision points included) retries the
+    # relay-wake failure class for the bounded window; WP lane transitions
+    # through _broadcast_status_transition keep the single-offer contract.
+    _broadcast_moment(
+        payload,
+        envelope,
+        cwd=log_path.parent if isinstance(log_path, Path) else Path.cwd(),
+        retry_window_s=lifecycle_retry_window_s(),
+    )
 
 
 def _wire_lifecycle_payload(event_type: str, payload: Any) -> dict[str, Any]:
@@ -329,6 +518,7 @@ def _broadcast_moment(
     *,
     cwd: Path,
     focus_wp: tuple[str, str] | None = None,
+    retry_window_s: float = 0.0,
 ) -> None:
     """Project one volatile payload onto bounded attrs and offer it exactly once.
 
@@ -338,6 +528,11 @@ def _broadcast_moment(
     has somewhere to go. When the broadcast carries a WP identity, ``focus_wp``
     is its ``(mission_slug, wp_id)`` pair, naming the focus frame that rides
     along (:func:`_refresh_liveness`).
+
+    ``retry_window_s`` > 0 (#4311, the lifecycle/decision path) retries the
+    relay-wake failure class within that window — see
+    :func:`_offer_and_log`; the default ``0`` keeps this broadcast's
+    original single-offer contract.
     """
     event_type = envelope.event_type
     try:
@@ -389,7 +584,7 @@ def _broadcast_moment(
     offer_args: dict[str, Any] = {"session_id": _SESSION_ID, "kind": event_type, "attrs": attrs}
     if ref:
         offer_args["ref"] = ref
-    _offer_and_log(credential, event_type, offer_args)
+    _offer_and_log(credential, event_type, offer_args, retry_window_s=retry_window_s)
 
     # The moment is out; refresh this actor's live presence/focus state under
     # the same credential (no-op when nothing was resolvable above), sharing
@@ -397,7 +592,7 @@ def _broadcast_moment(
     _refresh_liveness(credential, cwd=cwd, focus_wp=focus_wp, deadline=deadline)
 
 
-def _log_offer_outcome(label: str, result: OfferResult) -> None:
+def _log_offer_outcome(label: str, result: OfferResult, *, note: str = "no retry by design") -> None:
     """One line per offer attempt, sent or dropped.
 
     THROTTLED (#180): the relay answered 429 on the single attempt. The
@@ -407,9 +602,12 @@ def _log_offer_outcome(label: str, result: OfferResult) -> None:
     debug-level structured record.
 
     rejected / dropped_budget / dropped_unreachable / refused_local: one
-    attempt was made (or refused before any socket) and there is no retry,
-    no queue — the frame is lost by design (design page, "How long anything
-    lives"), so say so once.
+    attempt was made (or refused before any socket) and the frame's retry
+    disposition follows the caller's contract — the default ``note`` is the
+    single-offer drop-no-retry design (design page, "How long anything
+    lives"); the #4311 lifecycle retry loop passes its own note
+    ("retrying within the window") so a mid-retry attempt is not logged as
+    a final drop.
     """
     from specify_cli.zeitgeist_client.transport import OfferOutcome  # noqa: PLC0415
 
@@ -418,15 +616,26 @@ def _log_offer_outcome(label: str, result: OfferResult) -> None:
     elif result.outcome is OfferOutcome.THROTTLED:
         logger.debug("Zeitgeist %s throttled (%s) in %.0f ms; dropped", label, result.request_id, result.elapsed_s * 1000)
     else:
-        logger.warning("Zeitgeist %s dropped (%s) after %.0f ms; no retry by design", label, result.outcome.value, result.elapsed_s * 1000)
+        logger.warning("Zeitgeist %s dropped (%s) after %.0f ms; %s", label, result.outcome.value, result.elapsed_s * 1000, note)
 
 
-def _offer_and_log(credential: StoredCredential, event_type: str, offer_args: Mapping[str, Any]) -> None:
+def _offer_and_log(
+    credential: StoredCredential,
+    event_type: str,
+    offer_args: Mapping[str, Any],
+    *,
+    retry_window_s: float = 0.0,
+) -> None:
     """One bounded offer through the typed client, with the outcome logged.
 
     Imported here, not at module level: the resolution/transport chains pull
     httpx and the urllib machinery, none of which the status package should
     pay for at import time (every CLI start imports this package).
+
+    ``retry_window_s`` > 0 (#4311, the lifecycle/decision stream) routes the
+    offer through :func:`_offer_with_bounded_retry` instead of the single
+    attempt; every other caller (WP lane transitions, presence, focus)
+    keeps the original one-offer contract.
     """
     from specify_cli.zeitgeist_client.transport import ClientConfig, ZeitgeistClient  # noqa: PLC0415
 
@@ -445,6 +654,9 @@ def _offer_and_log(credential: StoredCredential, event_type: str, offer_args: Ma
             capability_credential=credential.capability_credential,
         )
     )
+    if retry_window_s > 0:
+        _offer_with_bounded_retry(client, event_type, offer_args, window_s=retry_window_s)
+        return
     _log_offer_outcome(f"moment {event_type}", client.offer(_EVENT_PUBLISH_OP, dict(offer_args)))
 
 
@@ -524,9 +736,7 @@ def _refresh_liveness_bounded(
         # Zero-attempt discipline, same as the sanitizer gate: a ref outside
         # FocusArgs' grammar is a guaranteed 422; skipping beats sending a
         # frame built to be rejected. Presence above already went out.
-        logger.debug(
-            "Zeitgeist focus ref %r does not fit the relay's focus_ref grammar; focus frame skipped", composed
-        )
+        logger.debug("Zeitgeist focus ref %r does not fit the relay's focus_ref grammar; focus frame skipped", composed)
         return
 
     capability = _resolve_focus_capability(cwd, deadline=deadline)
@@ -633,3 +843,11 @@ __all__ = [
     "resolved_binding_moment_handler",
     "saas_moment_handler",
 ]
+
+# ``lifecycle_retry_window_s`` is deliberately NOT in ``__all__``: no src/
+# module outside this one reads the window (the env var is the operator
+# surface, the fan-out bound reads the handler attribute, and the two
+# intra-module call sites are the only consumers), so ``__all__`` membership
+# would be an unbacked cross-module export claim the #470 dead-symbol gate
+# correctly rejects. It stays a module-level helper rescued by that
+# intra-module use, importable by the bridge's own tests.

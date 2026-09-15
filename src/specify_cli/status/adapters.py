@@ -94,11 +94,25 @@ def _run_fanout_handler_bounded(handler: Callable[..., None], kwargs: dict[str, 
     exception so the existing per-handler ``except`` keeps catching it. A
     non-positive timeout runs the handler inline (no thread), preserving legacy
     behaviour.
+
+    #4311: a handler may declare its OWN minimum bound as a
+    ``saas_fanout_bound_s`` attribute (a float, or a zero-arg callable
+    returning one) when its contract needs more wall-time than the default
+    join — the Zeitgeist lifecycle handler's bounded relay-wake retry
+    window is the case: without this, the default 10 s join would cut a
+    legitimate retry mid-window and a one-shot CLI process would exit
+    before the moment landed. The declared minimum only ever RAISES the
+    join; the ``SPEC_KITTY_SAAS_FANOUT_TIMEOUT`` opt-down still bounds every
+    handler that declares no bound of its own, and a non-positive
+    configured value still selects the inline path unchanged.
     """
     timeout_s = _saas_fanout_timeout_s()
     if timeout_s <= 0:
         handler(**kwargs)
         return
+    declared = _handler_declared_bound_s(handler)
+    if declared > timeout_s:
+        timeout_s = declared
 
     key = _handler_key(handler)
     with _inflight_lock:
@@ -157,6 +171,33 @@ def _handler_key(cb: Callable[..., Any]) -> str:
     if isinstance(name, str):
         return name
     return repr(cb)
+
+
+def _handler_declared_bound_s(handler: Callable[..., Any]) -> float:
+    """A handler's self-declared minimum fan-out bound, or ``0.0`` (#4311).
+
+    Read from the handler's ``saas_fanout_bound_s`` attribute — a float, or
+    a zero-arg callable returning one (so a handler whose bound tracks an
+    environment override, like the Zeitgeist lifecycle handler's retry
+    window, raises the join with it). A missing, unparsable, negative, or
+    non-finite declaration resolves to ``0.0`` — the runner's own configured
+    timeout governs, exactly as before this attribute existed. Never raises:
+    a malformed declaration must not take the canonical persistence path
+    down with it.
+    """
+    declared = getattr(handler, "saas_fanout_bound_s", 0.0)
+    if callable(declared):
+        try:
+            declared = declared()
+        except Exception:  # noqa: BLE001 - a broken bound reader is the handler's bug; ignore it
+            return 0.0
+    try:
+        value = float(declared)
+    except (TypeError, ValueError):
+        return 0.0
+    if math.isnan(value) or math.isinf(value) or value < 0:
+        return 0.0
+    return value
 
 
 def register_saas_fanout_handler(cb: SaasFanOutHandler) -> None:

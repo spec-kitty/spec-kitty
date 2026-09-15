@@ -24,6 +24,7 @@ __all__ = [
     "DecisionIndex",
     "DecisionOpenResponse",
     "DecisionTerminalResponse",
+    "LedgerCommitReport",
     "logical_key",
 ]
 
@@ -125,6 +126,27 @@ class DecisionIndex(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class LedgerCommitReport(BaseModel):
+    """Outcome of the commit-on-record step (#4311).
+
+    ``status`` mirrors :class:`~specify_cli.coordination.write_seam.
+    WriteSeamResult.status` for the routable outcomes (``committed`` /
+    ``unchanged``), plus the aggregated refusal/error outcomes. ``surface``
+    is the resolved placement ref on committed/unchanged, ``None`` when the
+    seam refused (nothing was resolved). The commit is LOCAL by design:
+    pushing stays under the repo's normal policy (GOAL.md defers auto-push
+    permanently), so "permanent" means committed in the checkout, visible to
+    the team on the next normal push.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    status: Literal["committed", "unchanged", "refused", "error"]
+    surface: str | None = None
+    commit_hash: str | None = None
+    diagnostic: str | None = None
+
+
 class DecisionOpenResponse(BaseModel):
     """Response returned when a decision is opened (or idempotently found)."""
 
@@ -135,6 +157,7 @@ class DecisionOpenResponse(BaseModel):
     mission_id: str
     artifact_path: str
     event_lamport: int | None = None
+    ledger_commit: LedgerCommitReport | None = None
 
 
 class DecisionTerminalResponse(BaseModel):
@@ -147,6 +170,7 @@ class DecisionTerminalResponse(BaseModel):
     terminal_outcome: str
     idempotent: bool
     event_lamport: int | None = None
+    ledger_commit: LedgerCommitReport | None = None
 
 
 # ---------------------------------------------------------------------------
