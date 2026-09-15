@@ -152,7 +152,7 @@ def test_init_non_interactive_no_project_name_defaults_to_current_directory(
 
 
 def test_init_non_interactive_env_var(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    app, _, _ = cli_app
+    app, console, _ = cli_app
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("SPEC_KITTY_NON_INTERACTIVE", "1")
 
@@ -228,18 +228,19 @@ def test_init_writes_event_log_merge_attributes(
     [
         FileNotFoundError("git"),
         subprocess.CalledProcessError(1, ["git", "config", "--local"]),
+        UnicodeDecodeError("utf-8", b"\xe9", 0, 1, "invalid continuation byte"),
     ],
 )
 def test_init_tolerates_merge_driver_git_config_failure(
     cli_app,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    git_failure: OSError | subprocess.CalledProcessError,
+    git_failure: OSError | subprocess.CalledProcessError | UnicodeError,
 ) -> None:
     """Regression #4159: optional git-config wiring must not abort init."""
     from specify_cli.lanes import merge as merge_module
 
-    app, _, _ = cli_app
+    app, console, _ = cli_app
     monkeypatch.chdir(tmp_path)
 
     monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: tmp_path / "templates")
@@ -261,6 +262,9 @@ def test_init_tolerates_merge_driver_git_config_failure(
 
     assert result.exit_code == 0, result.output
     ensure_config.assert_called_once_with(tmp_path / "git-optional-project")
+    warning = console.file.getvalue()
+    assert "Could not configure Spec Kitty merge drivers" in warning
+    assert str(git_failure) in warning
     assert (tmp_path / "git-optional-project" / ".kittify").is_dir()
 
 
