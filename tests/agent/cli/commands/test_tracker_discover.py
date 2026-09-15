@@ -317,6 +317,112 @@ def test_discover_saas_403_feature_disabled_renders_clean(monkeypatch, tmp_path)
     assert "No bindable resources found" not in result.output
 
 
+def test_discover_saas_403_user_action_required_single_dashboard_hint(monkeypatch, tmp_path) -> None:
+    """A ``user_action_required`` failure renders exactly one dashboard instruction.
+
+    The client already suffixes such messages with "(action required — check
+    the Spec Kitty dashboard)"; the CLI error boundary must not append a
+    second dashboard-pointing hint on top of it. The old suppression
+    (``"spec-kitty" in message``) missed the "Spec Kitty" spelling (#4270).
+    """
+    app = _make_app(monkeypatch)
+    _mock_saas_http(
+        monkeypatch,
+        tmp_path,
+        [
+            _http_response(
+                403,
+                {
+                    "ok": False,
+                    "error": "Feature not available.",
+                    "error_code": "FEATURE_DISABLED",
+                    "user_action_required": True,
+                },
+            )
+        ],
+    )
+
+    result = runner.invoke(app, ["discover", "--provider", "github"])
+
+    assert result.exit_code == 1
+    assert not isinstance(result.exception, SaaSTrackerClientError)
+    assert "action required — check the Spec Kitty dashboard" in result.output
+    # One dashboard instruction (the message's own), not two.
+    assert result.output.count("dashboard") == 1
+
+
+def test_render_cli_error_keeps_hint_when_message_carries_no_guidance(capsys) -> None:
+    """``user_action_required`` without dashboard text in the message keeps its hint.
+
+    The suppression is message-content-based, not attribute-based: the
+    deadline-exceeded rate-limit failures carry ``user_action_required=True``
+    but no dashboard guidance in the message, so their rate-limit hint is not
+    a duplicate and must survive (#4270).
+    """
+    from specify_cli.cli.commands.tracker import _render_cli_error
+
+    exc = SaaSTrackerClientError(
+        "Rate-limit retry would exceed the transport operation deadline.",
+        error_code="deadline_exceeded",
+        status_code=429,
+        user_action_required=True,
+    )
+
+    _render_cli_error(exc, json_mode=False)
+
+    err = capsys.readouterr().err
+    assert "Rate-limit retry" in err
+    assert "rate limiting" in err
+    assert "dashboard" not in err
+
+
+@pytest.mark.parametrize(
+    ("error_code", "status_code", "expected_guidance"),
+    [
+        ("binding_not_found", None, "Rebind the tracker"),
+        ("session_expired", 401, "spec-kitty auth login"),
+        (None, 503, "retry shortly"),
+    ],
+)
+def test_render_cli_error_keeps_distinct_hint_when_message_mentions_dashboard(
+    capsys,
+    error_code,
+    status_code,
+    expected_guidance,
+) -> None:
+    """A dashboard suffix cannot suppress a different computed CLI remedy."""
+    from specify_cli.cli.commands.tracker import _render_cli_error
+
+    exc = SaaSTrackerClientError(
+        "Action required — check the Spec Kitty dashboard",
+        error_code=error_code,
+        status_code=status_code,
+        user_action_required=True,
+    )
+
+    _render_cli_error(exc, json_mode=False)
+
+    err = capsys.readouterr().err
+    assert expected_guidance in err
+    assert err.lower().count("dashboard") == 1
+
+
+def test_render_cli_error_suppresses_only_matching_command_guidance(capsys) -> None:
+    """A command mention suppresses its own hint, not an unrelated remedy."""
+    from specify_cli.cli.commands.tracker import _render_cli_error
+
+    exc = SaaSTrackerClientError(
+        "Run `spec-kitty auth login` to refresh the session.",
+        error_code="session_expired",
+        status_code=401,
+    )
+
+    _render_cli_error(exc, json_mode=False)
+
+    err = capsys.readouterr().err
+    assert err.count("spec-kitty auth login") == 1
+
+
 def test_discover_saas_403_feature_disabled_json_machine_readable(monkeypatch, tmp_path) -> None:
     """Under ``--json`` the failure is a parseable machine-readable object."""
     app = _make_app(monkeypatch)

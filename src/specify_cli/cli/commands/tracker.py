@@ -393,9 +393,7 @@ def _doctrine_modes() -> tuple[str, ...]:
 #: unusable. These are the PRI-12/SaaS vocabulary already consumed by
 #: ``tracker/saas_service.py``'s stale-binding translation — reused here, not
 #: a second taxonomy.
-_BINDING_ERROR_CODES: frozenset[str] = frozenset(
-    {"binding_not_found", "mapping_disabled", "project_mismatch", "missing_routing_key"}
-)
+_BINDING_ERROR_CODES: frozenset[str] = frozenset({"binding_not_found", "mapping_disabled", "project_mismatch", "missing_routing_key"})
 
 #: The disabled-rollout / feature-unavailable family the live control plane
 #: emits when the tracker surface is not enabled for the team (the #4233
@@ -426,6 +424,31 @@ def _saas_error_hint(error_code: str | None, status_code: int | None) -> str | N
     return None
 
 
+def _deduplicate_saas_error_hint(message: str, hint: str | None) -> str | None:
+    """Remove only guidance the server message already carries.
+
+    Error-envelope messages are server-controlled, so a generic mention of
+    ``spec-kitty`` or the dashboard cannot prove that an independently
+    computed CLI remedy is redundant. Backticked commands must match every
+    command in the hint. When both strings point at the dashboard, retain the
+    hint's distinct provider/retry action while dropping its repeated
+    dashboard clause.
+    """
+    if hint is None:
+        return None
+
+    lowered_message = message.lower()
+    commands = tuple(part.lower() for part in hint.split("`")[1::2] if part.lower().startswith("spec-kitty "))
+    if commands and all(command in lowered_message for command in commands):
+        return None
+
+    if "spec kitty dashboard" in lowered_message and "spec kitty dashboard" in hint.lower():
+        hint = hint.replace("; if it persists, check the Spec Kitty dashboard", "")
+        hint = hint.replace(" in the Spec Kitty dashboard", "")
+
+    return hint
+
+
 def _render_cli_error(exc: BaseException, *, json_mode: bool) -> None:
     """Render a caught service/client error as a clean CLI failure (#4233).
 
@@ -442,12 +465,7 @@ def _render_cli_error(exc: BaseException, *, json_mode: bool) -> None:
     message = str(exc)
     error_code = getattr(exc, "error_code", None)
     status_code = getattr(exc, "status_code", None)
-    hint = _saas_error_hint(error_code, status_code)
-    # Messages raised closer to the source (stale-binding translation, the
-    # session-expired client error) already name the spec-kitty command to
-    # run; appending a second generic hint would only duplicate it.
-    if "spec-kitty" in message:
-        hint = None
+    hint = _deduplicate_saas_error_hint(message, _saas_error_hint(error_code, status_code))
 
     context_parts = []
     if error_code:
