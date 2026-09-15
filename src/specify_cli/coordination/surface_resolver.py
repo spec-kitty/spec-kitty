@@ -242,7 +242,7 @@ class CoordinationBranchDeleted(StatusReadPathNotFound):  # type: ignore[misc, u
         instead of hand-rebuilding the same 6-kwarg payload — this resolver's
         ``resolve_status_surface_with_anchor``, ``mission_runtime.resolution``'s
         ``_resolve_status_surface_dir`` effective-root arm and
-        ``_classify_affirmative_surface``, and ``_read_path_resolver``'s
+        ``_classify_artifact_surface``, and ``_read_path_resolver``'s
         ``_resolve_not_found`` DELETED tail and ``resolve_handle_to_read_path``
         pre-probe tail. (The issue counted three sites; the two
         ``_read_path_resolver`` legs are the same policy and were consolidated
