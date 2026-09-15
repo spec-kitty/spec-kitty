@@ -69,6 +69,14 @@ def render_org_pack(request: RenderRequest) -> PipelineError | None:
     if not local_result.ok:
         return _from_validation(local_result)
 
+    # Refuse a symlinked or already-existing destination before any network
+    # fetch: a git TEMPLATE clones over the network, and that must never run
+    # just to be told the destination was unusable all along.
+    pack_path = Path(request.pack_path).absolute()
+    exists_err = _check_destination(pack_path, force=request.force)
+    if exists_err is not None:
+        return exists_err
+
     source, resolve_err = resolve_template_source(request.template, request.branch)
     if resolve_err is not None:
         return _from_resolve(resolve_err)
@@ -78,11 +86,6 @@ def render_org_pack(request: RenderRequest) -> PipelineError | None:
             message=(f"TEMPLATE resolve returned no source ({RULE_SOURCE_MISSING})"),
         )
 
-    pack_path = Path(request.pack_path).absolute()
-    exists_err = _check_destination(pack_path, force=request.force)
-    if exists_err is not None:
-        _cleanup_source(source.root, source.cleanup)
-        return exists_err
     if pack_path.resolve().is_relative_to(source.root) or source.root.is_relative_to(pack_path.resolve()):
         _cleanup_source(source.root, source.cleanup)
         return PipelineError("pack_path.overlap", "Template source and destination must not contain one another (pack_path.overlap).")

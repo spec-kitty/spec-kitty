@@ -269,3 +269,55 @@ def test_destination_symlink_is_refused_without_touching_target(tmp_path: Path, 
     assert error is not None and error.rule_id == "pack_path.symlink"
     assert destination.is_symlink()
     assert not target.exists() if broken else (target / "original.txt").read_text() == "preserved"
+
+
+class _NeverCalledGitSource:
+    """Stand-in for GitSource that fails the test if it is ever constructed."""
+
+    def __init__(self, url: str, ref: str | None = None, *, inject_token: bool = True) -> None:
+        raise AssertionError("GitSource must not be constructed: a fetch was attempted before the destination refusal.")
+
+    def fetch(self, target_dir: Path) -> object:
+        raise AssertionError("GitSource.fetch must not be called: a fetch was attempted before the destination refusal.")
+
+
+def test_symlinked_destination_refused_before_git_fetch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A symlinked destination must be refused before any network fetch (pack_path.symlink)."""
+    monkeypatch.setattr(
+        "specify_cli.doctrine.template_render.resolve.GitSource",
+        _NeverCalledGitSource,
+    )
+    target = tmp_path / "target"
+    target.mkdir()
+    destination = tmp_path / "output"
+    destination.symlink_to(target, target_is_directory=True)
+
+    error = render_org_pack(
+        RenderRequest(
+            destination,
+            "https://example.test/org/doctrine-template.git",
+            "acme-corp",
+            force=True,
+        )
+    )
+    assert error is not None and error.rule_id == "pack_path.symlink"
+
+
+def test_existing_destination_without_force_refused_before_git_fetch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An already-existing destination (no --force) must be refused before any network fetch."""
+    monkeypatch.setattr(
+        "specify_cli.doctrine.template_render.resolve.GitSource",
+        _NeverCalledGitSource,
+    )
+    destination = tmp_path / "output"
+    destination.mkdir()
+
+    error = render_org_pack(
+        RenderRequest(
+            destination,
+            "https://example.test/org/doctrine-template.git",
+            "acme-corp",
+            force=False,
+        )
+    )
+    assert error is not None and error.rule_id == "pack_path.exists"
