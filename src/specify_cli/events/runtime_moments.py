@@ -112,7 +112,21 @@ def find_run_journal(feature_dir: Path, run_id: str) -> Path | None:
 
 
 def latest_matching_record(journal: Path, event_type: str, payload: dict[str, Any]) -> JournalRecord | None:
-    """Return the most recent journal line carrying exactly this event type and payload."""
+    """Return the most recent journal line carrying exactly this event type and payload.
+
+    Ordering invariant (the live bridge): the engine appends a record and then
+    emits it synchronously, so at emit time the latest line with this
+    ``(event_type, payload)`` *is* the transition being emitted. This lookup
+    therefore cannot distinguish two distinct transitions that carry
+    byte-identical ``(event_type, payload)`` on different lines: re-emitting the
+    OLDER of such a pair after the NEWER one has landed resolves to the newer
+    line — and its timestamp and ``event_id``. That case has no producer on the
+    live path (the ``event_id`` is fixed synchronously before the bounded,
+    unretried fan-out; nothing re-emits an older transition), so it is explicitly
+    unsupported for this best-effort NOW relay. A future durable publisher must
+    carry the exact journal record identity rather than repeat this
+    latest-equal-payload lookup (#3929 review, robertDouglass P2).
+    """
     match: JournalRecord | None = None
     with journal.open(encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
