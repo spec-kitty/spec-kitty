@@ -423,6 +423,11 @@ class ProfileInvocationExecutor:
         #: executor (``None`` before the first close). Read by the doctor sweep
         #: and the CLI complete path to surface a refused commit (#4397).
         self.last_op_commit: OpCommitOutcome | None = None
+        # Lazily populated only for doctor-sweep closes. One executor serves an
+        # entire stale sweep, so keep the append-only spine's membership set in
+        # memory and extend it after each successful append instead of reparsing
+        # the ever-growing spine once per Op (#4424).
+        self._doctor_sweep_closed_ids: set[str] | None = None
 
     def list_available_profiles(self) -> list[AgentProfile]:
         """Return the invocation catalog: profiles ``invoke`` can resolve.
@@ -490,12 +495,8 @@ class ProfileInvocationExecutor:
         ctx_available = resolution.ctx_available
         bundle = resolution.bundle
 
-        catalog_candidate = (
-            recommendation.catalog_candidate if recommendation is not None else None
-        )
-        durable_model_id = (
-            catalog_candidate.model_id if catalog_candidate is not None else None
-        )
+        catalog_candidate = recommendation.catalog_candidate if recommendation is not None else None
+        durable_model_id = catalog_candidate.model_id if catalog_candidate is not None else None
 
         # 3. Write started record (raises InvocationWriteError on fs failure)
         started_at = now_utc_iso()
@@ -850,20 +851,17 @@ class ProfileInvocationExecutor:
         invocation_id = completed.invocation_id
         path = self._writer.invocation_path(invocation_id)
         try:
-            rows = [
-                _json_mod.loads(line)
-                for line in path.read_text(encoding="utf-8").splitlines()
-                if line.strip()
-            ]
+            rows = [_json_mod.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
         except (OSError, _json_mod.JSONDecodeError) as exc:
-            raise InvocationError(
-                f"Invocation record is unreadable: {invocation_id}"
-            ) from exc
+            raise InvocationError(f"Invocation record is unreadable: {invocation_id}") from exc
         if any(isinstance(row, dict) and row.get("event") == "completed" for row in rows):
             raise AlreadyClosedError(invocation_id)
-        if invocation_id in closed_invocation_ids(self._repo_root):
+        if self._doctor_sweep_closed_ids is None:
+            self._doctor_sweep_closed_ids = closed_invocation_ids(self._repo_root)
+        if invocation_id in self._doctor_sweep_closed_ids:
             raise AlreadyClosedError(invocation_id)
         append_op_closure(self._repo_root, completed)
+        self._doctor_sweep_closed_ids.add(invocation_id)
 
     def _promote_evidence_if_requested(
         self,
@@ -973,9 +971,7 @@ class ProfileInvocationExecutor:
                 return branch
         return None
 
-    def _commit_op_record(
-        self, invocation_id: str, *, closed_by: Literal["agent", "doctor_sweep"]
-    ) -> OpCommitOutcome:
+    def _commit_op_record(self, invocation_id: str, *, closed_by: Literal["agent", "doctor_sweep"]) -> OpCommitOutcome:
         """Best-effort git commit for one completed Op record.
 
         Agent closes commit the per-record file; a doctor-sweep close commits
