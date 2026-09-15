@@ -159,6 +159,13 @@ _VENV_STATE_PATH = Path(".pytest_cache/spec-kitty-test-venv.state.json")
 _STATE_LOCK_TIMEOUT_S = 10.0
 _HEARTBEAT_INTERVAL_S = 5.0
 _LEASE_SECONDS = 30.0
+# Extra heartbeat-staleness headroom granted to a lease whose owner process is
+# verifiably live (same pid, same process start token). A loaded Windows CI
+# runner can stall a healthy builder's heartbeat far past a compressed lease
+# window (spec-kitty#4486); reclaiming then deletes the live builder's temp
+# tree and fails it at publication. Dead or pid-reused owners are abandoned
+# immediately, fresh heartbeat or not.
+_LIVE_OWNER_GRACE_FLOOR_S = 5.0
 _WAIT_TIMEOUT_S = 900.0
 _WAIT_POLL_INTERVAL_S = 0.2
 _LEASE_STATES = {"BUILDING", "VALIDATED", "PUBLISHED"}
@@ -873,11 +880,18 @@ def _write_bootstrap_lease(state_path: Path, lease: _BootstrapLease) -> None:
 
 
 def _lease_is_live_and_fresh(lease: _BootstrapLease, now: float) -> bool:
+    """The lease is held by a verifiably live owner within its freshness window.
+
+    The freshness window carries ``_LIVE_OWNER_GRACE_FLOOR_S`` on top of the
+    lease's own ``lease_seconds`` so a transiently delayed heartbeat on a live
+    owner is not mistaken for abandonment (spec-kitty#4486). A dead or
+    pid-reused owner is never live regardless of heartbeat freshness.
+    """
     current_token = _process_start_token(lease.owner_pid)
     return (
         current_token is not None
         and current_token == lease.process_start_token
-        and now - lease.heartbeat_at <= lease.lease_seconds
+        and now - lease.heartbeat_at <= lease.lease_seconds + _LIVE_OWNER_GRACE_FLOOR_S
     )
 
 

@@ -271,6 +271,49 @@ def test_expired_heartbeat_is_reclaimed_even_when_pid_is_live(tmp_path: Path) ->
     assert not abandoned.exists()
 
 
+def test_live_owner_with_stale_heartbeat_is_not_stolen_within_grace(tmp_path: Path) -> None:
+    """A live owner survives a transient heartbeat gap (spec-kitty#4486).
+
+    Mirror of ``test_expired_heartbeat_is_reclaimed_even_when_pid_is_live``:
+    staleness beyond the lease window alone must not abandon a token-verified
+    live owner — a loaded Windows runner stalls a healthy heartbeat far past
+    a compressed lease — only staleness that also outlives the grace floor
+    does. Deterministic: fixed heartbeat offset, no timing race.
+    """
+    cache = tmp_path / ".pytest_cache"
+    building = cache / "spec-kitty-test-venv.build-live"
+    _fake_build(building, _SOURCE_VERSION)
+    state_path = tmp_path / root_conftest._VENV_STATE_PATH
+    state_path.write_text(
+        json.dumps(
+            {
+                "state": "BUILDING",
+                "owner_pid": os.getpid(),
+                "process_start_token": root_conftest._process_start_token(os.getpid()),
+                "heartbeat_at": now_epoch() - 1.0,
+                "lease_seconds": 0.1,
+                "temp_path": str(building),
+                "source_version": _SOURCE_VERSION,
+                "environment_hash": root_conftest._test_venv_environment_hash(
+                    tmp_path, _SOURCE_VERSION
+                ),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="Timed out waiting"):
+        root_conftest._ensure_test_venv(
+            tmp_path,
+            _SOURCE_VERSION,
+            _build=_fake_build,
+            _validate=_fake_valid,
+            _wait_timeout=0.5,
+        )
+
+    assert building.exists()
+
+
 @pytest.mark.parametrize("entry_kind", ["directory", "file", "symlink"])
 def test_invalid_published_venv_is_rebuilt_once(tmp_path: Path, entry_kind: str) -> None:
     final = tmp_path / root_conftest._VENV_CACHE_PATH
@@ -424,8 +467,11 @@ def test_two_spawned_windows_processes_publish_one_shared_venv(tmp_path: Path) -
     ]
 
     start.set()
+    # windows-latest spawn + conftest import alone measured ~8.6s of the old
+    # 10s budget on the spec-kitty#4486 run; the join headroom is not the
+    # assertion under test, so keep it generous.
     for process in processes:
-        process.join(timeout=10)
+        process.join(timeout=20)
 
     assert [process.exitcode for process in processes] == [0, 0]
     outcomes = sorted(results.get(timeout=1) for _ in processes)
