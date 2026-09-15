@@ -3069,6 +3069,29 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "follow-through", text: "Follow-through", level: 2}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/3.x/2026-09-15-1-ci-main-verdict-topology.md"
+    title: "ADR: Main-Tip Verdict Topology — Adjudicating the #4347/#4371/#4360-A/#4430 Coupled Cluster"
+    divio_type: "none"
+    abstract: "Ratified coupled levers (main-concurrency, fan-out cap, main-green source, terminal-cancel verdict) so a landed main tip proves itself green honestly, in bounded time."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "explicitly-out-of-scope-the-cluster-boundary", text: "Explicitly out of scope (the cluster boundary)", level: 3}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options-per-decision-axis", text: "Considered Options (per decision axis)", level: 2}
+    - {slug: "axis-1-main-concurrency-policy-resolves-4347", text: "Axis 1 — Main-concurrency policy (resolves #4347)", level: 3}
+    - {slug: "axis-2-fleet-verdict-fan-out-cap-dedup-resolves-4371", text: "Axis 2 — Fleet-verdict fan-out cap / dedup (resolves #4371)", level: 3}
+    - {slug: "axis-3-main-green-source-of-truth-resolves-4360-a", text: "Axis 3 — Main-green source of truth (resolves #4360-A)", level: 3}
+    - {slug: "axis-4-terminal-cancel-verdict-class-consumer-resolves-4430", text: "Axis 4 — Terminal-cancel verdict class + consumer (resolves #4430)", level: 3}
+    - {slug: "decision-outcome-ratified-2026-09-15", text: "Decision Outcome (ratified 2026-09-15)", level: 2}
+    - {slug: "the-two-bounding-failure-modes-and-how-the-bundle-avoids-each", text: "The two bounding failure modes, and how the bundle avoids each", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative-accepted-risk", text: "Negative / accepted risk", level: 3}
+    - {slug: "staged-rollout-a-gate-never-run-is-not-a-gate", text: "Staged rollout — \"a gate never run is not a gate\"", level: 3}
+    - {slug: "cross-coupling-out-of-scope-issues-this-cluster-moves", text: "Cross-coupling (out-of-scope issues this cluster moves)", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 2}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
