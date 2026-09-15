@@ -184,7 +184,34 @@ def test_recapturing_a_module_replaces_all_three_tables(capture_shard_timings: M
 # generate_run_id — the committed provenance convention
 # ---------------------------------------------------------------------------
 def test_generated_run_id_follows_the_committed_convention(capture_shard_timings: ModuleType) -> None:
-    from datetime import UTC, datetime
+    from kernel.clock import UTC, datetime
 
     run_id = capture_shard_timings.generate_run_id("wp02", now=datetime(2026, 9, 14, 15, 34, 54, tzinfo=UTC))
     assert run_id == "wp02-durations-20260914T153454Z"
+
+
+def test_capture_timestamps_use_the_canonical_clock(capture_shard_timings: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+    from kernel import clock
+
+    instant = clock.datetime(2026, 9, 14, 15, 34, 54, 123456, tzinfo=clock.UTC)
+    monkeypatch.setattr(clock, "DEFAULT_CLOCK", clock.FrozenClock(instant))
+    monkeypatch.setattr(pytest, "main", lambda *_args, **_kwargs: 0)
+    run_id = capture_shard_timings.generate_run_id("qualification")
+    result = capture_shard_timings.capture_module("unit", ("tests/unit",), run_id=run_id)
+    assert run_id == "qualification-durations-20260914T153454Z"
+    assert result.captured_at == "2026-09-14T15:34:54.123456+00:00"
+
+
+def test_script_help_works_without_installed_package(tmp_path: Path) -> None:
+    import subprocess
+
+    result = subprocess.run(
+        [sys.executable, "-I", "-S", str(_SCRIPT_PATH), "--help"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "--run-id" in result.stdout
