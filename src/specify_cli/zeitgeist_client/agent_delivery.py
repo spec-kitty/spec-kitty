@@ -161,7 +161,7 @@ class AgentDelivery:
             "scan_limit_reached": scanned == 10_000,
             "settings": self.settings.as_dict(),
             "consumer_continuity": "stable" if self.stable_consumer else "process_only",
-            "own_filter": "unavailable: relay #295 has no verified subscriber identity contract",
+            "own_filter": "not_requested",
             "replay": replay,
             "catch_up": {"operation": "activity", "within_retention_only": True},
         }

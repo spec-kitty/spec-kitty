@@ -6297,12 +6297,17 @@ It does not subscribe to other account repositories. Set a stable logical
 consumer with `--consumer` or `SPEC_KITTY_AGENT_SESSION_ID` across CLI/MCP
 processes; Codex thread and Claude session environment identifiers are also
 recognized. Without one, the result reports `consumer_continuity=process_only`.
-`--raw` explicitly bypasses agent preferences, novelty and rate limits for diagnostics.
+`--raw` includes own activity and bypasses agent preferences, novelty and rate limits for diagnostics.
 
 Settings apply on the next CLI command; restart MCP to reload its settings.
-The summary reports effective filters, withheld counts, and unavailable
-own-publisher suppression pending relay #295. This client delivery work remains
-provisional until that upstream integration is complete.
+The summary reports effective filters, withheld counts, and `own_filter=relay_verified`
+after the relay confirms own-session suppression. Watch, status, and activity
+request `filterOwn=true`; each read forwards the current cached presence/focus
+issuer references so separate processes in one logical session share identity.
+Another session under the same human account remains visible. Missing cached
+identity or missing relay acknowledgment fails explicitly. `watch --raw` and
+`status --raw` request `filterOwn=false`; MCP tools also accept `filter_own=false`.
+See [session identity](../architecture/zeitgeist-session-identity.md) for cache and reconnect semantics.
 
 ## spec-kitty zeitgeist activity
 

@@ -64,11 +64,10 @@ which logical agent should own the lease. They are left untouched and a fresh
 mint populates the new partition.
 
 The watch/MCP credential reader uses this same partition. Zeitgeist issue #295's
-own-event filtering must bind the logical agent to its current per-kind lease
-references, including replacements, and let the relay derive opaque references.
+own-event filtering binds the logical agent to its current per-kind lease
+references, including replacements, and lets the relay derive opaque references.
 Comparing human account IDs would hide other agents. Comparing an ingress ID to
-an egress reference would never match. This change establishes the identity
-boundary; it does not introduce the `filterOwn` subscription option.
+an egress reference would never match. The reader consumes this identity boundary through the relay-owned `filterOwn` option.
 
 Relay restart clears volatile state and changes its private salt. The CLI can
 republish with a cached lease's raw ID while its authority remains valid; revoke
@@ -86,5 +85,24 @@ claim to prevent further use of an otherwise-valid revoked token.
 | Issue | Delivery |
 | --- | --- |
 | [CLI #4217](https://github.com/spec-kitty/spec-kitty/issues/4217) | Agent cache partition, lease-reference preservation, producer integration, regression tests |
-| [Zeitgeist #295](https://github.com/spec-kitty/spec-kitty-zeitgeist/issues/295) | Shared publisher/reader identity boundary documented; subscription filtering remains its own work |
+| [Zeitgeist #295](https://github.com/spec-kitty/spec-kitty-zeitgeist/issues/295) | Reader forwards cached publisher identities and requires relay filtering acknowledgment |
 | [SaaS #1634](https://github.com/spec-kitty/spec-kitty-saas/issues/1634) | Authority invalidation remains separate from state cleanup |
+
+## Reader own-session suppression
+
+CLI `zeitgeist watch`, `zeitgeist status`, retained `zeitgeist activity`, and their
+MCP tools request `filterOwn=true`. Each read loads the current credential cache
+and forwards its presence and focus issuer session refs in
+`X-Zeitgeist-Own-Sessions`. Only the relay derives opaque scoped references;
+readers never reproduce its salt or compare human accounts. Separate commands
+with the same logical session selector share these refs; another agent under
+the same account retains a separate cache partition and remains visible.
+
+Readers require `X-Zeitgeist-Filter-Own: true` before consuming any response.
+Missing identity or an older relay without acknowledgment fails explicitly.
+CLI `watch --raw` and `status --raw` request `filterOwn=false`; MCP tools accept
+`filter_own=false` for an intentional complete feed. Agent history replay still
+filters own frames unless explicitly opted out through MCP. Reconnects resolve
+credentials again. Global sequence jumps are intentional; only explicit relay
+gap/epoch signals reset continuity. Own suppression precedes subscriber queue
+and agent receipt/rate budgets, while transport signals remain visible.

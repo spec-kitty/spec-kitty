@@ -1,8 +1,8 @@
 """Bounded retained activity through the relay's existing /managed/events API.
 
 History is a retained observation, never proof of current presence or complete
-past activity. This transport performs no delivery receipts or own filtering;
-agent delivery policy belongs to its caller.
+past activity. This transport requests relay own-session filtering when enabled and checks
+its acknowledgment before decoding; receipt policy belongs to its caller.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, cast
 
-from . import budget, credentials, subscription
+from . import budget, credentials, subscription, own_filter
 from .live_frame import parse_live_frame
 
 _READ_SLOTS = threading.BoundedSemaphore(4)
@@ -95,6 +95,7 @@ def read_history(
     window_s: int = 900,
     timeout_s: float = 2.0,
     since: str | None = None,
+    filter_own: bool = False,
 ) -> dict[str, Any]:
     """Read one credential-bound retained page, without acknowledging delivery.
 
@@ -104,6 +105,8 @@ def read_history(
     not guess that deployment setting. Unknown retention/completeness remains
     explicit even for empty responses. HTTP errors propagate without retries.
     """
+    if not isinstance(filter_own, bool):
+        raise ValueError("filter_own must be a boolean")
     if not _unsigned(window_s):
         raise ValueError("window_s must be a non-negative integer")
     if not math.isfinite(timeout_s) or timeout_s <= 0:
@@ -113,7 +116,7 @@ def read_history(
     stored = credentials.load(repo=repo)
     if stored is None:
         raise subscription.NotCheckedOut(repo)
-    query = {"window_s": str(window_s)}
+    query = {"window_s": str(window_s), "filterOwn": "true" if filter_own else "false"}
     if since is not None:
         query["since"] = since
     url = stored.relay_url.rstrip("/") + "/managed/events?" + urllib.parse.urlencode(query)
@@ -125,12 +128,16 @@ def read_history(
         },
         method="GET",
     )
+    if filter_own:
+        request.add_header("X-Zeitgeist-Own-Sessions", own_filter.identity_header(stored))
     if not _READ_SLOTS.acquire(blocking=False):
         raise HistoryProtocolError("History reader busy: previous timed-out reads have not finished")
 
     def read() -> dict[str, Any]:
         try:
             with budget.NoRedirects.build().open(request, timeout=min(timeout_s, 90.0)) as response:
+                if filter_own:
+                    own_filter.require_ack(response.headers)
                 body = response.read(MAX_HISTORY_BYTES + 1)
             if len(body) > MAX_HISTORY_BYTES:
                 raise HistoryProtocolError("History response exceeds byte limit")

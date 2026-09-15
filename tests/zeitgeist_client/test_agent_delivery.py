@@ -53,7 +53,7 @@ def test_unfamiliar_and_missionless_peers_share_human_account(policy) -> None:
     assert result["frames"] == frames
     assert result["settings"]["agents"] == "team"
     assert result["consumer_continuity"] == "stable"
-    assert result["own_filter"].startswith("unavailable")
+    assert result["own_filter"] == "not_requested"
 
 
 def test_acknowledged_overlap_and_reconnect_do_not_spend_budget(policy) -> None:
@@ -152,7 +152,7 @@ def test_watch_and_history_share_receipts(policy, monkeypatch: pytest.MonkeyPatc
         def watch(self, **kw):
             yield LiveFrame(**frame)
 
-    monkeypatch.setattr(subscription, "resolve_stream", lambda repo: Stream())
+    monkeypatch.setattr(subscription, "resolve_stream", lambda repo, **kwargs: Stream())
     monkeypatch.setattr(history, "read_history", lambda *a, **kw: {"frames": [frame], "coverage": {"continuation": None}})
     first = subscription.agent_watch(policy.repo, delivery=policy)
     result = subscription.agent_activity(policy.repo, delivery=policy, acknowledge=first["receipt"])
@@ -232,7 +232,7 @@ def test_cli_mcp_delivery_parity_and_cli_acknowledgement(policy, monkeypatch: py
         def watch(self, **kw):
             yield from (LiveFrame(**frame) for frame in frames)
 
-    monkeypatch.setattr(subscription, "resolve_stream", lambda repo: Stream())
+    monkeypatch.setattr(subscription, "resolve_stream", lambda repo, **kwargs: Stream())
     monkeypatch.setattr("specify_cli.zeitgeist_client.agent_delivery.AgentDelivery", lambda *a, **kw: policy)
     expected = subscription.agent_watch(policy.repo, delivery=policy)
     result = CliRunner().invoke(app, ["watch", policy.repo, "--consumer", "agent-a", "--json"])

@@ -89,7 +89,7 @@ import math
 from collections.abc import Callable, Generator, Iterator, Mapping
 from typing import TYPE_CHECKING, Any, cast
 
-from . import credentials, filtered_stream, grammar
+from . import credentials, filtered_stream, grammar, own_filter
 from .live_frame import LiveFrame, MAX_TTL_S, TeamSnapshot
 
 # The same honest reported-live ceiling live_frame/filtered_stream enforce
@@ -154,6 +154,7 @@ def resolve_stream(
     repo: str,
     *,
     frame_filter: Callable[[LiveFrame], bool] | None = None,
+    filter_own: bool = False,
 ) -> filtered_stream.FilteredStream:
     """Build exactly one ``FilteredStream`` for ``repo``'s already-stored
     credential. Raises :class:`NotCheckedOut` rather than constructing a
@@ -166,7 +167,10 @@ def resolve_stream(
     ``frame_filter`` (#190) threads an agent surface's moment preferences
     into the subscription itself — the predicate drops frames inside
     ``FilteredStream.watch()`` before they reach state or caller. It changes
-    what THIS stream carries, never what the relay sends."""
+    what THIS stream carries. ``filter_own`` independently requests relay
+    suppression before queueing using the current cached issuer identities."""
+    if not isinstance(filter_own, bool):
+        raise ValueError("filter_own must be a boolean")
     stored = credentials.load(repo=repo)
     if stored is None:
         raise NotCheckedOut(repo)
@@ -174,6 +178,7 @@ def resolve_stream(
         relay_url=stored.relay_url,
         relay_token=stored.token,
         capability_credential=stored.capability_credential or stored.token,
+        own_sessions=own_filter.identity_header(stored) if filter_own else None,
     )
     return filtered_stream.FilteredStream(config, frame_filter=frame_filter)
 
@@ -354,7 +359,7 @@ def render_event(frame: Mapping[str, Any]) -> str:
     return untrusted_block(_bounded("\n".join(lines), kept, dropped))
 
 
-def status(repo: str, *, timeout_s: float = DEFAULT_STATUS_TIMEOUT_S) -> dict[str, Any]:
+def status(repo: str, *, timeout_s: float = DEFAULT_STATUS_TIMEOUT_S, filter_own: bool = False) -> dict[str, Any]:
     """One explicit team context, one bounded read: open exactly one
     subscription, apply whatever arrives inside ``timeout_s`` (clamped to
     :data:`MAX_TIMEOUT_S`), then report the local snapshot and let the
@@ -366,7 +371,7 @@ def status(repo: str, *, timeout_s: float = DEFAULT_STATUS_TIMEOUT_S) -> dict[st
     ``FilteredStream.watch()``, not a second fault-handling layer over it.
     """
     timeout_s = _clamp_timeout(timeout_s)
-    stream = resolve_stream(repo)
+    stream = resolve_stream(repo, filter_own=filter_own)
     gen = stream.watch(idle_timeout_s=timeout_s)
     try:
         for _ in gen:
@@ -416,6 +421,7 @@ def agent_watch(
     max_frames: int = MAX_WATCH_FRAMES,
     delivery: AgentDelivery | None = None,
     acknowledge: str | None = None,
+    filter_own: bool = True,
 ) -> dict[str, Any]:
     """Agent watch with shared filters, novelty and explicit delivery receipts."""
     from .agent_delivery import AgentDelivery
@@ -427,10 +433,12 @@ def agent_watch(
     timeout_s = _clamp_timeout(timeout_s)
     max_frames = min(_require_positive_max_frames(max_frames), MAX_WATCH_FRAMES)
     policy.acknowledge(acknowledge)
-    stream = resolve_stream(repo)
+    stream = resolve_stream(repo, filter_own=filter_own)
     gen = stream.watch(idle_timeout_s=timeout_s)
     try:
-        return policy.select((_serialize_frame(frame) for frame in gen), max_frames=max_frames)
+        result = policy.select((_serialize_frame(frame) for frame in gen), max_frames=max_frames)
+        result["own_filter"] = "relay_verified" if filter_own else "disabled"
+        return result
     finally:
         _close(gen)
 
@@ -444,6 +452,7 @@ def agent_activity(
     replay: bool = False,
     delivery: AgentDelivery | None = None,
     acknowledge: str | None = None,
+    filter_own: bool = True,
 ) -> dict[str, Any]:
     """Bounded retained catch-up; replay intentionally retrieves seen frames."""
     from .agent_delivery import AgentDelivery
@@ -457,15 +466,18 @@ def agent_activity(
     policy.acknowledge(acknowledge)
     deadline = time.monotonic() + _clamp_timeout(timeout_s)
     coverage: dict[str, Any] = {}
+    own_verified = False
 
     def retained_frames() -> Iterator[dict[str, Any]]:
+        nonlocal own_verified
         since = None
         for _ in range(20):
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 coverage["scan_limit_reached"] = True
                 return
-            page = read_history(repo, window_s=window_s, timeout_s=remaining, since=since)
+            page = read_history(repo, window_s=window_s, timeout_s=remaining, since=since, filter_own=filter_own)
+            own_verified = filter_own
             previous_gap = coverage.get("gap")
             previous_reset = coverage.get("reset", False)
             coverage.update(page["coverage"])
@@ -481,5 +493,6 @@ def agent_activity(
         coverage["scan_limit_reached"] = True
 
     result = policy.select(retained_frames(), max_frames=max_frames, replay=replay)
+    result["own_filter"] = "relay_verified" if own_verified else "not_read" if filter_own else "disabled"
     result["coverage"] = coverage
     return result

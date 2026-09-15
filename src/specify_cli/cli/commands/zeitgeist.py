@@ -160,15 +160,16 @@ def status(
         help=f"Seconds to listen before reporting (clamped to <= {subscription.MAX_TIMEOUT_S}s, the honest reported-live ceiling).",
     ),
     as_json: bool = _JSON_OPTION,
+    raw: bool = typer.Option(False, "--raw", help="Include own session in the diagnostic snapshot."),
 ) -> None:
     """One bounded snapshot of ``repo``'s live presence/focus state."""
     key = _resolve_store_key(repo)
     try:
-        result = subscription.status(key, timeout_s=timeout)
+        result = subscription.status(key, timeout_s=timeout, filter_own=not raw)
     except subscription.NotCheckedOut as exc:
         _report_not_checked_out(exc)
         return
-    except (urllib.error.URLError, TimeoutError) as exc:
+    except (urllib.error.URLError, TimeoutError, ValueError) as exc:
         _report_connection_fault(exc)
         return
 
@@ -194,7 +195,7 @@ def watch(
         help="Maximum delivered frames; agent mode scans within the timeout to count withheld frames.",
     ),
     as_json: bool = _JSON_OPTION,
-    raw: bool = typer.Option(False, "--raw", help="Diagnostic stream: explicitly bypass agent filters, receipts and rate limits."),
+    raw: bool = typer.Option(False, "--raw", help="Diagnostic stream: include own session and bypass agent filters, receipts and rate limits."),
     consumer: str | None = typer.Option(None, "--consumer", help="Stable logical agent ID shared across CLI/MCP processes."),
 ) -> None:
     """Print live frames plus a final summary, bounded by whole-call

@@ -28,6 +28,8 @@ def relay(monkeypatch):
             body = state.body if isinstance(state.body, bytes) else json.dumps(state.body).encode()
             self.send_response(200)
             self.send_header("Content-Length", str(len(body)))
+            if getattr(state, "own_ack", None) is not None:
+                self.send_header("X-Zeitgeist-Filter-Own", state.own_ack)
             self.end_headers()
             if getattr(state, "drip", False):
                 for offset in range(0, len(body), 8):
@@ -59,7 +61,7 @@ def test_history_reads_scope_and_preserves_coverage(relay):
     result = history.read_history("github.com/acme/repo", since="old:0", window_s=60)
     path, headers = relay.requests[0]
     assert urlsplit(path).path == "/managed/events"
-    assert parse_qs(urlsplit(path).query) == {"since": ["old:0"], "window_s": ["60"]}
+    assert parse_qs(urlsplit(path).query) == {"since": ["old:0"], "window_s": ["60"], "filterOwn": ["false"]}
     assert headers["Authorization"] == "Bearer outer"
     assert headers["X-Zeitgeist-Capability"] == "inner"
     assert result["frames"][0]["frame_type"] == "event"
@@ -154,3 +156,27 @@ def test_exhausted_reader_slots_are_reported_without_connecting(relay, monkeypat
     with pytest.raises(history.HistoryProtocolError, match="busy"):
         history.read_history("github.com/acme/repo")
     assert relay.requests == []
+
+
+def test_agent_history_requests_issuer_identity_and_requires_ack(relay, monkeypatch):
+    from specify_cli.zeitgeist_client import credentials
+
+    old_load = credentials.load
+    stored = old_load(repo="github.com/acme/repo")
+    stored.session_ref = "issuer-a"
+    stored.focus_session_ref = "issuer-focus"
+    monkeypatch.setattr(credentials, "load", lambda **kwargs: stored)
+    with pytest.raises(ValueError, match="confirm"):
+        history.read_history("github.com/acme/repo", filter_own=True)
+    path, headers = relay.requests[-1]
+    assert parse_qs(urlsplit(path).query)["filterOwn"] == ["true"]
+    assert headers["X-Zeitgeist-Own-Sessions"] == "issuer-a,issuer-focus"
+    relay.own_ack = "true"
+    result = history.read_history("github.com/acme/repo", filter_own=True)
+    assert len(result["frames"]) == 1
+
+
+@pytest.mark.parametrize("value", ["true", 1, None])
+def test_history_rejects_non_boolean_own_filter(value):
+    with pytest.raises(ValueError, match="boolean"):
+        history.read_history("github.com/acme/repo", filter_own=value)

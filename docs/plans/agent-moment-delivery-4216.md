@@ -2,7 +2,7 @@
 title: Agent moment delivery policy
 description: 'Agent moment delivery for #4216: team-scoped default for unfamiliar peer activity, identity-scoped receipts as the novelty policy, bounded catch-up shared by CLI and MCP.'
 doc_status: draft
-updated: '2026-09-11'
+updated: '2026-09-15'
 type: explanation
 audience: automation-agent
 ---
@@ -11,8 +11,9 @@ audience: automation-agent
 
 Issue: #4216. Governed Op: `01M2808ND3ATY3DGYTG470R04A`.
 Draft delivery: [PR #4224](https://github.com/spec-kitty/spec-kitty/pull/4224).
-The Op closed with outcome `failed`: the client slice is verified, but the
-issue's full acceptance remains incomplete pending relay #295.
+The original Op closed with outcome `failed` while the relay contract was pending.
+The continuation integrates relay #295 using the merged #4217 issuer identity
+contract; the original Op log remains unchanged.
 
 An agent should discover unfamiliar missions and mission-less activity in the
 single repository it requested. `team` changes admission within that scope; it
@@ -22,8 +23,8 @@ does not enumerate credentials or subscribe to additional repositories.
 ## Approach and boundaries
 
 One delivery service applies the same settings, canonical event identity,
-receipt checks and event budget to CLI and MCP. The existing stream remains the
-raw transport. Retained history is an explicit catch-up/replay source, using the
+receipt checks and event budget to CLI and MCP. The relay suppresses own-session activity before subscriber queueing; the
+explicit raw mode requests the complete transport feed. Retained history is an explicit catch-up/replay source, using the
 relay's existing `/managed/events` endpoint and its coverage metadata.
 
 A receipt means the logical consumer acknowledged the returned batch. MCP
@@ -55,10 +56,13 @@ receipts intentionally, but still respects settings and context bounds.
   history and suppresses receipts before spending the context budget.
 - Existing history is bounded and volatile. `gap`/`reset` and truncation remain
   visible; an empty result does not establish that nothing ever happened.
-- Relay #295 is still open. Current publish ACK contains only `request_id` and
-  `received_at`; `session_ref` is derived with private relay salt. No safe local
-  own-publisher filter exists. Results report that capability unavailable, and
-  this work remains draft pending its contract and command/reader integration.
+- Relay #295 owns own-publisher suppression. Agent stream and history readers
+  request `filterOwn=true`, forward both cached issuer session refs, and require
+  the relay acknowledgment before consuming frames. They never derive opaque
+  references locally or filter by human account. Missing identity fails loudly.
+  CLI raw mode and MCP `filter_own=false` explicitly include own activity.
+  The relay acceptance suite exercises real command publication and a separate
+  CLI reader process against these candidates.
 - Relay #296 owns race-safe history/live handoff. Explicit history and live watch
   here remain separate reads, with overlap deduplicated after acknowledgement;
   this implementation does not claim a gap-free initial snapshot/live handoff.
@@ -67,7 +71,7 @@ receipts intentionally, but still respects settings and context bounds.
 
 | Issue | Claim | Delivery |
 |---|---|---|
-| spec-kitty/spec-kitty#4216 | Assigned and `status:claimed`; Op above | Client defaults/policy/receipts/catch-up; draft pending own-identity integration |
+| spec-kitty/spec-kitty#4216 | Assigned and `status:claimed`; Op above | Client defaults/policy/receipts/catch-up and relay-backed own-identity integration |
 | spec-kitty/spec-kitty-zeitgeist#295 | External dependency | Verified publisher/subscriber identity and relay own-event suppression |
 | spec-kitty/spec-kitty-zeitgeist#296 | External dependency | Initial snapshot and race-safe history/live handoff |
 

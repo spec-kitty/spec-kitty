@@ -70,6 +70,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from mcp.server.fastmcp import FastMCP
+from pydantic import StrictBool
 
 from . import moments, subscription
 
@@ -107,7 +108,7 @@ _INSTRUCTIONS = (
     "Pass a stable consumer ID across reconnects. After successfully receiving a "
     "watch/activity response, pass its receipt as acknowledge on the next call "
     "with the same consumer, repo and settings. Unacknowledged frames may repeat. "
-    "Own-publisher suppression awaits relay #295; inspect own_filter in results."
+    "Own-publisher suppression defaults true and requires relay acknowledgment."
 )
 
 
@@ -169,11 +170,11 @@ def build_server(settings: moments.MomentSettings | None = None) -> FastMCP:
         ),
         structured_output=True,
     )
-    def zeitgeist_status(repo: str | None = None, timeout_s: float = subscription.DEFAULT_STATUS_TIMEOUT_S) -> dict[str, Any]:
+    def zeitgeist_status(repo: str | None = None, timeout_s: float = subscription.DEFAULT_STATUS_TIMEOUT_S, filter_own: StrictBool = True) -> dict[str, Any]:
         key = _resolve_store_key(repo)
         if not moments.allows_repo(resolved, key):
             return {"repo": key, "presence": [], "focus": [], "withheld_by": "repos_filter"}
-        return subscription.status(key, timeout_s=timeout_s)
+        return subscription.status(key, timeout_s=timeout_s, filter_own=filter_own)
 
     @server.tool(
         name="zeitgeist_watch",
@@ -192,12 +193,13 @@ def build_server(settings: moments.MomentSettings | None = None) -> FastMCP:
         max_frames: int = subscription.MAX_WATCH_FRAMES,
         consumer: str | None = None,
         acknowledge: str | None = None,
+        filter_own: StrictBool = True,
     ) -> dict[str, Any]:
         from .agent_delivery import AgentDelivery
 
         key = _resolve_store_key(repo)
         policy = AgentDelivery(key, settings=resolved, consumer=consumer)
-        result = subscription.agent_watch(key, timeout_s=timeout_s, max_frames=max_frames, delivery=policy, acknowledge=acknowledge)
+        result = subscription.agent_watch(key, timeout_s=timeout_s, max_frames=max_frames, delivery=policy, acknowledge=acknowledge, filter_own=filter_own)
         result["frames"] = _agent_frames(result["frames"])
         return result
 
@@ -217,13 +219,14 @@ def build_server(settings: moments.MomentSettings | None = None) -> FastMCP:
         replay: bool = False,
         consumer: str | None = None,
         acknowledge: str | None = None,
+        filter_own: StrictBool = True,
     ) -> dict[str, Any]:
         from .agent_delivery import AgentDelivery
 
         key = _resolve_store_key(repo)
         policy = AgentDelivery(key, settings=resolved, consumer=consumer)
         result = subscription.agent_activity(
-            key, window_s=window_s, timeout_s=timeout_s, max_frames=max_frames, replay=replay, delivery=policy, acknowledge=acknowledge
+            key, window_s=window_s, timeout_s=timeout_s, max_frames=max_frames, replay=replay, delivery=policy, acknowledge=acknowledge, filter_own=filter_own
         )
         result["frames"] = _agent_frames(result["frames"])
         return result

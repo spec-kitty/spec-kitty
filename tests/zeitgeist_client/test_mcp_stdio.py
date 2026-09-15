@@ -25,7 +25,7 @@ from kernel.clock import now_epoch
 import pytest
 from mcp.shared.memory import create_connected_server_and_client_session
 
-from specify_cli.zeitgeist_client import credentials, mcp_stdio, moments
+from specify_cli.zeitgeist_client import credentials, mcp_stdio, moments, subscription
 
 
 def _checkout_with_origin(bare: Path, dest: Path, origin: str) -> Path:
@@ -59,7 +59,7 @@ def _presence(session_ref: str = "a" * 12) -> dict[str, object]:
 
 
 def _checkout(double_url: str, *, repo: str = "github.com/acme/spec-kitty", credential: str = "team-a-cred") -> None:
-    credentials.store(repo=repo, relay_url=double_url, token=credential, token_kind="shared_team")
+    credentials.store(repo=repo, relay_url=double_url, token=credential, session_ref="issuer-reader", token_kind="shared_team")
 
 
 async def test_server_exposes_exactly_the_status_and_watch_tools() -> None:
@@ -243,7 +243,9 @@ async def test_no_repo_argument_reads_the_real_checkout_own_credential_end_to_en
         tmp_path / "work" / "acme" / "widget",
         "https://github.com/acme/widget.git",
     )
-    credentials.store(repo="github.com/acme/widget", relay_url=managed_stream_double.url, token="team-a-cred", token_kind="shared_team")
+    credentials.store(
+        repo="github.com/acme/widget", relay_url=managed_stream_double.url, token="team-a-cred", session_ref="issuer-reader", token_kind="shared_team"
+    )
     managed_stream_double.push_frame(_frame(seq=1, frame=_presence(session_ref="g" * 12)))
     managed_stream_double.close_stream()
 
@@ -273,7 +275,9 @@ async def test_watch_tool_with_no_repo_argument_reads_the_real_checkout_own_cred
         tmp_path / "work" / "acme" / "widget",
         "https://github.com/acme/widget.git",
     )
-    credentials.store(repo="github.com/acme/widget", relay_url=managed_stream_double.url, token="team-a-cred", token_kind="shared_team")
+    credentials.store(
+        repo="github.com/acme/widget", relay_url=managed_stream_double.url, token="team-a-cred", session_ref="issuer-reader", token_kind="shared_team"
+    )
     managed_stream_double.push_frame(_frame(seq=1, frame=_presence(session_ref="h" * 12)))
     managed_stream_double.close_stream()
 
@@ -533,3 +537,30 @@ async def test_acknowledged_mcp_overlap_is_novelty_filtered_before_budget(state_
     assert not second.isError
     assert [frame["seq"] for frame in second.structuredContent["frames"]] == [2]
     assert second.structuredContent["withheld"]["duplicates"] == 1
+
+
+@pytest.mark.parametrize("tool", ["zeitgeist_status", "zeitgeist_watch", "zeitgeist_activity"])
+@pytest.mark.parametrize("value", ["false", "true", 1, 0, None])
+async def test_own_filter_rejects_coercible_non_booleans(tool, value, state_root):
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool(tool, {"repo": "github.com/acme/widget", "filter_own": value})
+    assert result.isError
+    assert "valid boolean" in str(result.content)
+
+
+@pytest.mark.parametrize("tool,method", [("zeitgeist_status", "status"), ("zeitgeist_watch", "agent_watch"), ("zeitgeist_activity", "agent_activity")])
+@pytest.mark.parametrize("arguments,expected", [({}, True), ({"filter_own": True}, True), ({"filter_own": False}, False)])
+async def test_own_filter_default_and_explicit_values_reach_shared_transport(tool, method, arguments, expected, state_root, monkeypatch):
+    seen = []
+
+    def read(repo, **kwargs):
+        seen.append(kwargs["filter_own"])
+        return {"repo": repo, "frames": []}
+
+    monkeypatch.setattr(subscription, method, read)
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool(tool, {"repo": "github.com/acme/widget", **arguments})
+    assert not result.isError, result.content
+    assert seen == [expected]
