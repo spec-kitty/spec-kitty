@@ -108,6 +108,7 @@ def record_baseline_merge_commit(
     baseline_commit: str | None,
     *,
     mission_id: str | None = None,
+    merged_commit: str | None = None,
 ) -> Path | None:
     """Persist the post-merge review baseline AND merge completion marker in meta.json.
 
@@ -142,6 +143,14 @@ def record_baseline_merge_commit(
     Both records are idempotent — a ``spec-kitty merge --resume`` never
     double-stamps an already-present field — and ``spec-kitty mission reopen``
     clears ``merged_*`` so a re-merge re-stamps a fresh ``merged_at``.
+
+    *merged_commit* lets a caller that already holds the verified landing SHA
+    (the PR-acceptance path's :data:`PrMergeEvidence.pr_merge_commit`) thread
+    it through as the recorded ``merged_commit`` instead of falling back to
+    :func:`_resolve_merge_commit`'s local checkout ``HEAD`` — which is wrong
+    for PR acceptance when the local checkout has advanced past the PR
+    landing. When omitted or blank, the existing ``_resolve_merge_commit(feature_dir)
+    or baseline`` fallback is used unchanged.
     """
     is_modern = bool(mission_id and str(mission_id).strip())
     baseline = (baseline_commit or "").strip()
@@ -189,7 +198,8 @@ def record_baseline_merge_commit(
     # every merge, idempotent on --resume.
     if not str(meta.get("merged_at") or "").strip():
         meta["merged_at"] = now_utc_iso()
-        meta["merged_commit"] = _resolve_merge_commit(feature_dir) or baseline
+        supplied_merged_commit = (merged_commit or "").strip()
+        meta["merged_commit"] = supplied_merged_commit or (_resolve_merge_commit(feature_dir) or baseline)
         changed = True
 
     if changed:
@@ -433,6 +443,8 @@ def _resolve_pr_target_ref(
     repo_root: Path,
     mission_slug: str,
     target_ref: str | None,
+    *,
+    effective_root: Path | None = None,
 ) -> str:
     """Resolve the branch the PR merged INTO, for the landing check.
 
@@ -443,6 +455,15 @@ def _resolve_pr_target_ref(
     repository's primary branch with the feature-branch bias OFF — a checkout
     standing on a mission branch must never be mistaken for the landing
     target.
+
+    *effective_root* is threaded straight through to
+    :func:`resolve_primary_meta_dir` so this declared-target READ resolves the
+    SAME ``meta.json`` the caller's WRITE leg targets. Without it, an
+    owned-mission checkout that is itself a git worktree resolves via
+    ``get_main_repo_root(repo_root)`` back to the PRIMARY repo root instead of
+    the owned checkout — a genuinely different ``meta.json`` than the one
+    :func:`record_pr_merge_baseline_for_mission` writes when it is called with
+    an explicit ``effective_root``.
     """
     if target_ref is not None:
         supplied = target_ref.strip()
@@ -452,7 +473,7 @@ def _resolve_pr_target_ref(
             raise PrMergeEvidenceError(f"{supplied!r} is not a branch name (it looks like a git option)")
         return supplied
     try:
-        declared = read_target_branch_from_meta(resolve_primary_meta_dir(repo_root, mission_slug))
+        declared = read_target_branch_from_meta(resolve_primary_meta_dir(repo_root, mission_slug, effective_root=effective_root))
     except MissionMetaReadError as exc:
         raise PrMergeEvidenceError(f"cannot read mission {mission_slug}'s declared target branch to verify the PR landing ({exc}).") from exc
     if declared:
@@ -473,6 +494,7 @@ def verify_pr_merge_evidence(
     *,
     target_ref: str | None = None,
     attest_first_landing: bool = False,
+    effective_root: Path | None = None,
 ) -> PrMergeEvidence:
     """Verify a supplied commit is the genuine PR landing commit for one mission.
 
@@ -509,7 +531,10 @@ def verify_pr_merge_evidence(
     *target_ref* names the branch the PR merged INTO for check 6: an explicit
     value wins (``main``, ``origin/main``, ``refs/heads/main`` — anything
     rev-parse resolves), else the mission's declared ``target_branch``, else
-    the repository's primary branch.
+    the repository's primary branch. *effective_root* is passed straight
+    through to that declared-``target_branch`` read (see
+    :func:`_resolve_pr_target_ref`) so it resolves the SAME ``meta.json`` an
+    owned-mission caller's write leg targets, not the primary repo's copy.
 
     **What the evidence proves, and what it does not.** Checks 1–6 prove the
     commit landed on the target branch and introduced the mission corpus.
@@ -589,7 +614,7 @@ def verify_pr_merge_evidence(
             "commit that introduced the mission corpus"
         )
 
-    resolved_target = _resolve_pr_target_ref(repo_root, mission_slug, target_ref)
+    resolved_target = _resolve_pr_target_ref(repo_root, mission_slug, target_ref, effective_root=effective_root)
     _rev_verify(repo_root, f"{resolved_target}^{{commit}}")  # a missing/unfetched target branch is its own clean refusal
     if not _commit_is_on_target(repo_root, pr_merge_commit, resolved_target):
         raise PrMergeEvidenceError(
@@ -696,6 +721,7 @@ def _record_pr_merge_baseline(
     *,
     target_ref: str | None = None,
     attest_first_landing: bool = False,
+    effective_root: Path | None = None,
 ) -> PrMergeEvidence:
     """Record a verified PR merge as the mission's post-merge review baseline.
 
@@ -716,6 +742,19 @@ def _record_pr_merge_baseline(
     Idempotent with respect to an existing baseline:
     :func:`record_baseline_merge_commit` never overwrites a recorded value,
     so a re-run against an already-recorded mission leaves it byte-stable.
+
+    Reusing the canonical writer also stamps the ``merged_at`` completion
+    marker; ``merged_commit`` is threaded through as ``evidence.pr_merge_commit``
+    — the verified PR landing commit, not the local checkout's ``HEAD`` (which
+    may have advanced past the PR) — while ``merged_at`` remains the recording
+    time, since git alone cannot recover the true merge timestamp (tracked in
+    #4277).
+
+    *effective_root* is threaded straight through to the verification's
+    declared-``target_branch`` read (:func:`verify_pr_merge_evidence`) so that
+    read resolves the SAME ``meta.json`` as *feature_dir* — the write target —
+    instead of, for an owned-mission worktree checkout, silently falling back
+    to the primary repo's copy of the mission.
     """
     evidence = verify_pr_merge_evidence(
         repo_root,
@@ -723,6 +762,7 @@ def _record_pr_merge_baseline(
         merge_commit,
         target_ref=target_ref,
         attest_first_landing=attest_first_landing,
+        effective_root=effective_root,
     )
 
     try:
@@ -739,6 +779,7 @@ def _record_pr_merge_baseline(
         feature_dir,
         evidence.baseline_merge_commit,
         mission_id=mission_id,
+        merged_commit=evidence.pr_merge_commit,
     )
     _stamp_pr_merge_provenance(feature_dir, evidence.pr_merge_commit, evidence.anchor_evidence)
     return evidence
@@ -784,6 +825,10 @@ def record_pr_merge_baseline_for_mission(
     parent is the pre-landing target tip (for a two-parent landing: the merge
     was performed on the target branch; for a single-parent one: it was the
     first commit of the landing) — see :func:`verify_pr_merge_evidence`.
+    *effective_root* resolves both the write leg's ``feature_dir`` AND (via
+    :func:`_record_pr_merge_baseline`) the declared-``target_branch`` read the
+    verification falls back to when *target_ref* is omitted, so the two never
+    resolve different ``meta.json`` files for an owned-mission checkout.
     """
     feature_dir = resolve_primary_meta_dir(repo_root, mission_slug, effective_root=effective_root)
     return _record_pr_merge_baseline(
@@ -793,6 +838,7 @@ def record_pr_merge_baseline_for_mission(
         merge_commit,
         target_ref=target_ref,
         attest_first_landing=attest_first_landing,
+        effective_root=effective_root,
     )
 
 

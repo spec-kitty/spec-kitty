@@ -883,6 +883,7 @@ def accept(
                 merge_commit,
                 target_ref=target_branch,
                 attest_first_landing=attest_first_landing,
+                **scope,
             )
         except PrMergeEvidenceError as exc:
             error_msg = f"Cannot record PR merge for {mission_slug}: {exc}"

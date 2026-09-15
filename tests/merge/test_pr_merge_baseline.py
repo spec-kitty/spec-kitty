@@ -690,6 +690,39 @@ def test_record_writes_baseline_and_provenance(tmp_path: Path) -> None:
     assert meta[_PR_MERGE_EVIDENCE_FIELD] == ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED
 
 
+def test_record_writes_verified_pr_commit_not_local_head(tmp_path: Path) -> None:
+    """``merged_commit`` is the verified PR landing commit, never local HEAD.
+
+    ``record_baseline_merge_commit`` (the canonical writer both the local-merge
+    and PR-acceptance paths share) falls back to the checkout's ``HEAD`` for
+    provenance-only ``merged_commit`` when no caller supplies a value — correct
+    for ``spec-kitty merge``, which runs right at the merge result. The
+    PR-acceptance path (``accept --mode pr --merge-commit`` / ``migrate
+    backfill-merge-commit``) already has the verified landing SHA in hand
+    (``evidence.pr_merge_commit``) and must thread it through instead: the
+    local checkout can advance past the PR (a follow-up commit lands on main
+    before the operator runs the backfill), and ``merged_commit`` must still
+    record the PR's actual landing commit, not whatever HEAD happens to be at
+    call time.
+    """
+    repo_root, feature_dir, merge_commit, _pre_merge_parent = _pr_merged_repo(tmp_path)
+
+    # Advance the local checkout past the PR landing commit — the recorded
+    # ``merged_commit`` must NOT become this newer HEAD.
+    (repo_root / "unrelated_followup.txt").write_text("later work\n", encoding="utf-8")
+    _git(repo_root, "add", "-A")
+    _git(repo_root, "commit", "-qm", "unrelated follow-up after the PR landed")
+    advanced_head = _git(repo_root, "rev-parse", "HEAD").stdout.strip()
+    assert advanced_head != merge_commit
+
+    _record_pr_merge_baseline(feature_dir, repo_root, _SLUG, merge_commit, attest_first_landing=True)
+
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert meta["merged_commit"] == merge_commit
+    assert meta["merged_commit"] != advanced_head
+    assert meta["merged_at"]
+
+
 def test_record_is_idempotent_and_set_once(tmp_path: Path) -> None:
     """A re-run never overwrites a recorded baseline or provenance stamp."""
     repo_root, feature_dir, merge_commit, pre_merge_parent = _pr_merged_repo(tmp_path)
@@ -804,6 +837,60 @@ def test_record_refuses_missing_working_meta_at_the_stamp(tmp_path: Path) -> Non
 
     with pytest.raises(PrMergeEvidenceError, match="meta.json is missing"):
         _record_pr_merge_baseline(feature_dir, repo_root, _SLUG, merge_commit, target_ref="main", attest_first_landing=True)
+
+
+def test_verify_effective_root_resolves_declared_target_from_owned_checkout(
+    tmp_path: Path,
+) -> None:
+    """An owned-mission worktree's OWN ``meta.json`` is read, not the primary's.
+
+    Without ``effective_root``, ``_resolve_pr_target_ref``'s declared-target
+    read resolves via ``resolve_primary_meta_dir(repo_root, mission_slug)`` ->
+    ``get_main_repo_root(repo_root)`` — and for a checkout that is itself a
+    git WORKTREE, that walks the ``.git`` file pointer back to the PRIMARY
+    repo root, reading the primary's copy of ``meta.json`` instead of the
+    worktree's own. This is a genuinely different file when the two disagree
+    (the primary's copy here declares a bogus, unreachable target branch; the
+    worktree's own copy declares the real one), so the bare call is refused
+    at the landing check and the ``effective_root``-threaded call succeeds.
+    """
+    repo_root, _feature_dir, merge_commit, pre_merge_parent = _pr_merged_repo(tmp_path)
+
+    # The primary repo's OWN meta.json (read via get_main_repo_root's
+    # worktree-pointer fallback) declares a target branch the merge commit
+    # never landed on — branched off the PRE-merge tip, so it must resolve
+    # but never carries merge_commit as an ancestor.
+    primary_meta_path = repo_root / "kitty-specs" / _SLUG / "meta.json"
+    primary_meta = json.loads(primary_meta_path.read_text(encoding="utf-8"))
+    primary_meta["target_branch"] = "bogus-unreachable-target"
+    primary_meta_path.write_text(json.dumps(primary_meta) + "\n", encoding="utf-8")
+    _git(repo_root, "branch", "bogus-unreachable-target", pre_merge_parent)
+
+    # A real git worktree of the same repo — a genuine owned-mission checkout
+    # shape — whose OWN working-tree meta.json declares the correct target.
+    worktree_root = tmp_path / "owned-worktree"
+    _git(repo_root, "worktree", "add", "-q", "-b", "owned-checkout", str(worktree_root), "main")
+    worktree_meta_path = worktree_root / "kitty-specs" / _SLUG / "meta.json"
+    worktree_meta = json.loads(worktree_meta_path.read_text(encoding="utf-8"))
+    worktree_meta["target_branch"] = "main"
+    worktree_meta_path.write_text(json.dumps(worktree_meta) + "\n", encoding="utf-8")
+
+    # Bare call (no effective_root): falls back to the PRIMARY repo's bogus
+    # declared target and refuses — the divergence this fold closes.
+    with pytest.raises(PrMergeEvidenceError, match="not on target branch 'bogus-unreachable-target'"):
+        verify_pr_merge_evidence(worktree_root, _SLUG, merge_commit, attest_first_landing=True)
+
+    # With effective_root threaded through, the declared-target read resolves
+    # the WORKTREE's own meta.json (the correct "main") and verification
+    # succeeds.
+    evidence = verify_pr_merge_evidence(
+        worktree_root,
+        _SLUG,
+        merge_commit,
+        attest_first_landing=True,
+        effective_root=worktree_root,
+    )
+    assert evidence.pr_merge_commit == merge_commit
 
 
 def test_stamp_refuses_invalid_working_meta(tmp_path: Path) -> None:
