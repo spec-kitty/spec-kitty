@@ -32,6 +32,11 @@ gh run list --repo spec-kitty/spec-kitty --workflow "CI Fleet Verdict" --branch 
   --json headSha,status,conclusion,createdAt | \
   jq 'group_by(.headSha) | map({sha: .[0].headSha, runs: length})'
 # EXPECT: each landed SHA shows a small, bounded count (≈1 coalesced), not dozens.
+#   (Fix round 1: CI-Aggregate-triggered runs are singleton-scoped on the aggregate
+#   run id — NOT coalesced into the tip group — because their head_sha is the current
+#   main tip, not the subject they verified; each active PR's aggregate completion adds
+#   one run to the tip it landed on. "Bounded, not dozens" is the criterion, and no
+#   run's cancellation may be attributable to another subject's trigger.)
 
 # SC-002 — no main tip landed without a terminal evaluation during a burst
 gh run list --repo spec-kitty/spec-kitty --workflow "CI Router" --branch main -L 30 \

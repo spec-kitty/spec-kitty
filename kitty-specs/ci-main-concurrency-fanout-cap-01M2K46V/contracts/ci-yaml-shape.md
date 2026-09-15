@@ -32,15 +32,17 @@ Assertions (UPDATE `tests/ci/test_fleet_verdict.py` around `:125`):
 
 ## C-YAML-3 — `ci-fleet-verdict.yml` top-level concurrency (Lever 2a.2)
 
+> **Fix round 1 (pre-merge squad MAJOR @0568119, 2026-09-15).** The original per-`head_sha` key conflated verdict subjects on the CI Aggregate trigger path: a `workflow_run` child always executes on the default branch, so an aggregate completion's `head_sha` is the *current main tip*, not the PR head it verified — every PR's aggregate completion landed in the current tip's group and cancel-cascaded other subjects' runs (both the PR-stranding and the lost-main-evaluation channels NFR-002 forbids; `cancel-in-progress: false` does not close the pending channel either, because a newly queued run replaces a pending run in a group by default). The key is therefore **subject-safe per path**: the direct producers keep `head_sha` (their head IS the subject); the aggregate path keys on the aggregate run's own `id`, which its `display_title` binds to exactly one source CI Modules run, hence one PR head — a per-subject singleton group. Recorded in `research.md` D9.
+
 ```yaml
 # round-trip: skip: illustrative fleet-verdict top-level concurrency shape, not a Pydantic contract example
 concurrency:
-  group: ci-fleet-verdict-${{ github.event.workflow_run.head_sha }}
+  group: ci-fleet-verdict-${{ github.event.workflow_run.path == '.github/workflows/ci-aggregate.yml' && format('aggregate-{0}', github.event.workflow_run.id) || github.event.workflow_run.head_sha }}
   cancel-in-progress: true
 ```
 
-Assertions (NEW pin, `tests/ci/test_fleet_verdict.py`) — **EXACT equality** (a substring `head_sha in group` passes for a broken expression that drops the `workflow_run.` path and collapses ALL tips into one shared `cancel:true` group = the cross-tip-cancel NFR-002 forbids; Renata/Debbie):
-- top-level `workflow["concurrency"] == {"group": "ci-fleet-verdict-${{ github.event.workflow_run.head_sha }}", "cancel-in-progress": True}`.
+Assertions (pin in `tests/ci/test_fleet_verdict.py`) — **EXACT equality** (a substring `head_sha in group` passes for a broken expression that drops the `workflow_run.` path and collapses ALL tips into one shared `cancel:true` group = the cross-tip-cancel NFR-002 forbids; Renata/Debbie):
+- top-level `workflow["concurrency"] == {"group": "ci-fleet-verdict-${{ github.event.workflow_run.path == '.github/workflows/ci-aggregate.yml' && format('aggregate-{0}', github.event.workflow_run.id) || github.event.workflow_run.head_sha }}", "cancel-in-progress": True}`.
 
 ## C-YAML-4 — `report-main` job concurrency — **UNCHANGED (negative pin)**
 
@@ -74,7 +76,7 @@ Assertion (existing `test_fleet_verdict.py:126-127` stays green): `matrix.pr` in
 
 ## C-YAML-6 — `report` (PR) job comment refresh (Alphonso/Debbie INFO)
 
-The `report` (PR) job's `cancel-in-progress: false` + its comment ("Global concurrency could lose another PR", `ci-fleet-verdict.yml:40-41`) become semantically stale once the top-level per-SHA `cancel:true` block owns same-head coalescing (different PR heads never share the top-level group; the double-snapshot head-drift guard covers re-pushes). Implement task: **update the comment** at `:40-44` so a future reader knows the top-level key now carries that guarantee. No behavior change; not a golden-YAML pin.
+The `report` (PR) job's `cancel-in-progress: false` + its comment ("Global concurrency could lose another PR", `ci-fleet-verdict.yml:40-41`) become semantically stale once the top-level `cancel:true` block owns same-subject coalescing (different PR heads never share the top-level group — per-`head_sha` on the direct path, per-aggregate-run-id on the aggregate path, per fix round 1; the double-snapshot head-drift guard covers re-pushes). Implement task: **update the comment** at `:40-44` so a future reader knows the top-level key now carries that guarantee. No behavior change; not a golden-YAML pin.
 
 ## C-WIRE-1 — script-invocation wiring pins (mirror `test_router_gate_step_wiring...`)
 

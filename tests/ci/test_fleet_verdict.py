@@ -124,11 +124,22 @@ def test_reporter_trigger_covers_every_registered_workflow_and_reruns() -> None:
     assert set(trigger["workflows"]) == {yaml.safe_load((workflows / name).read_text())["name"] for name in PR_WORKFLOWS | {AGGREGATE}}
     # #4371: a verdict is a function of terminal upstream state only.
     assert set(trigger["types"]) == {"completed"}
-    # #4371: top-level per-head_sha concurrency coalesces the fan-out to one surviving
-    # verdict per tip. Exact equality — a substring pin passes for a broken expression
-    # that drops the workflow_run path and collapses all tips into one cancel:true group.
+    # #4371: top-level concurrency coalesces the fan-out to one surviving verdict per
+    # subject, and the key is subject-safe on both trigger paths: the direct producers
+    # key on their own head_sha (their head IS the subject — a PR head, or the exact
+    # main tip of a push run); CI Aggregate — a workflow_run child whose head_sha is the
+    # current main tip, not the PR head it verified — keys on its own run id (its
+    # display_title binds it to exactly one source CI Modules run, hence one PR head),
+    # so a group never mixes subjects and a cancel/replace is always same-subject, where
+    # the survivor re-reads live evidence and loses no verdict (NFR-002).
+    # Exact equality — a substring pin passes for a broken expression that drops the
+    # workflow_run path and collapses all tips into one cancel:true group.
     assert reporter["concurrency"] == {
-        "group": "ci-fleet-verdict-${{ github.event.workflow_run.head_sha }}",
+        "group": (
+            "ci-fleet-verdict-${{ github.event.workflow_run.path == '.github/workflows/ci-aggregate.yml' "
+            "&& format('aggregate-{0}', github.event.workflow_run.id) "
+            "|| github.event.workflow_run.head_sha }}"
+        ),
         "cancel-in-progress": True,
     }
     # report(PR) job concurrency unchanged (report-main also unchanged — see test_fleet_main).

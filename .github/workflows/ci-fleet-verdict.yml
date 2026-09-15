@@ -7,12 +7,21 @@ on:
     # in_progress transitions are pure fan-out with no verdict value.
     types: [completed]
 
-# Cap the per-tip fan-out (#4371): coalesce all redundant workflow_run triggers for one
-# tip to a single surviving run keyed on the triggering run's head SHA. The survivor is
-# the last completion and re-reads live evidence, so coalescing loses no verdict; distinct
-# tips have distinct SHAs → distinct groups → a landed tip is never cancelled by another.
+# Cap the per-subject fan-out (#4371): coalesce all redundant workflow_run triggers for
+# one verdict subject to a single surviving run, with a key that never mixes subjects.
+# The seven direct producers run on the head they verified, so their head_sha IS the
+# subject — a PR head, or the exact main tip of a push run — and distinct subjects have
+# distinct SHAs → distinct groups. CI Aggregate is the exception: a workflow_run child
+# always executes on the default branch, so an aggregate completion's head_sha is the
+# *current main tip*, not the PR head it verified (its display_title binds it to exactly
+# one source CI Modules run). Keying that path on head_sha would land every PR's
+# aggregate completion in the current tip's group and cancel/replace other subjects'
+# runs — the dropped-verdict hole NFR-002 forbids — so the aggregate path keys on the
+# aggregate run's own id instead: a per-subject singleton group (only a re-run of the
+# same aggregate run shares it, which is same-subject newer evidence). The survivor is
+# the last completion and re-reads live evidence, so coalescing loses no verdict.
 concurrency:
-  group: ci-fleet-verdict-${{ github.event.workflow_run.head_sha }}
+  group: ci-fleet-verdict-${{ github.event.workflow_run.path == '.github/workflows/ci-aggregate.yml' && format('aggregate-{0}', github.event.workflow_run.id) || github.event.workflow_run.head_sha }}
   cancel-in-progress: true
 
 jobs:
@@ -47,10 +56,12 @@ jobs:
     strategy:
       matrix:
         pr: ${{ fromJSON(needs.identify.outputs.prs) }}
-    # Same-head coalescing is now owned by the top-level per-head_sha concurrency block
-    # (distinct PR heads never share it) plus the reporter's double-snapshot head-drift
-    # guard. This per-PR group with cancel-in-progress:false remains as defence-in-depth
-    # so a superseding queued event for the same PR still survivor-re-reads every gate.
+    # Same-subject coalescing is owned by the top-level concurrency block — direct
+    # producers key on their own head_sha and the CI Aggregate path on its run id, so
+    # distinct verdict subjects never share a group — plus the reporter's
+    # double-snapshot head-drift guard. This per-PR group with cancel-in-progress:false
+    # remains as defence-in-depth so a superseding queued event for the same PR still
+    # survivor-re-reads every gate.
     concurrency:
       group: ci-fleet-verdict-pr-${{ matrix.pr }}
       cancel-in-progress: false
