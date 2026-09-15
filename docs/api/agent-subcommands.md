@@ -598,14 +598,32 @@ _Mission lifecycle commands for AI agents_
      spec-kitty agent mission accept --mission 077-my-mission --lenient --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission            TEXT  Mission slug (required in multi-mission repos)    │
-│ --mode               TEXT  Acceptance mode: auto, pr, local, checklist       │
-│                            [default: auto]                                   │
-│ --json                     Output results as JSON for agent parsing          │
-│ --lenient                  Skip strict metadata validation                   │
-│ --no-commit                Skip auto-commit (report only)                    │
-│ --diagnose                 Diagnose acceptance blockers without mutation     │
-│ --help       -h            Show this message and exit.                       │
+│ --mission                              TEXT  Mission slug (required in       │
+│                                              multi-mission repos)            │
+│ --mode                                 TEXT  Acceptance mode: auto, pr,      │
+│                                              local, checklist                │
+│                                              [default: auto]                 │
+│ --json                                       Output results as JSON for      │
+│                                              agent parsing                   │
+│ --lenient                                    Skip strict metadata validation │
+│ --no-commit                                  Skip auto-commit (report only)  │
+│ --diagnose                                   Diagnose acceptance blockers    │
+│                                              without mutation                │
+│ --merge-commit                         SHA   With --mode pr: record this PR  │
+│                                              merge commit as the mission's   │
+│                                              post-merge review baseline      │
+│                                              (#4231).                        │
+│ --target-branch                        TEXT  With --merge-commit: the branch │
+│                                              the PR merged into. Defaults to │
+│                                              the mission's declared          │
+│                                              target_branch, else the         │
+│                                              repository's primary branch.    │
+│ --attest-first-landing-commit                With --merge-commit: attest the │
+│                                              supplied commit's first parent  │
+│                                              is the pre-landing target tip   │
+│                                              (#4231). Required for every     │
+│                                              landing shape.                  │
+│ --help                         -h            Show this message and exit.     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -826,6 +844,21 @@ _Mission lifecycle commands for AI agents_
 │                                                            worktrees out of  │
 │                                                            post-merge        │
 │                                                            cleanup deletion. │
+│ --allow-duplicat…                                          Escape hatch for  │
+│                                                            the idempotency   │
+│                                                            guard (#4033):    │
+│                                                            create a second   │
+│                                                            mission even      │
+│                                                            though a LIVE     │
+│                                                            prior mission     │
+│                                                            shares this slug  │
+│                                                            and mission type. │
+│                                                            Abandoned priors  │
+│                                                            (canceled,        │
+│                                                            genesis, or spec  │
+│                                                            never committed)  │
+│                                                            never need this   │
+│                                                            flag.             │
 │ --help             -h                                      Show this message │
 │                                                            and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯

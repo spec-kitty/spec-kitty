@@ -129,6 +129,9 @@ def test_accept_command_delegates_to_toplevel(mock_locate: MagicMock, mock_accep
         no_commit=False,
         diagnose=False,
         allow_fail=False,
+        merge_commit=None,  # #4231: PR-merge evidence passthrough
+        target_branch=None,  # #4231: PR base-branch passthrough
+        attest_first_landing=False,  # #4231: anchor attestation passthrough
     )
 
 
@@ -162,6 +165,9 @@ def test_accept_command_passes_flags(mock_locate: MagicMock, mock_accept: MagicM
         no_commit=True,
         diagnose=False,
         allow_fail=False,
+        merge_commit=None,  # #4231: PR-merge evidence passthrough
+        target_branch=None,  # #4231: PR base-branch passthrough
+        attest_first_landing=False,  # #4231: anchor attestation passthrough
     )
 
 
@@ -173,9 +179,7 @@ def test_accept_command_passes_flags(mock_locate: MagicMock, mock_accept: MagicM
 @patch("specify_cli.cli.commands.agent.mission.top_level_merge")
 @patch("specify_cli.cli.commands.agent.mission._get_current_branch")
 @patch("specify_cli.core.paths.locate_project_root")
-def test_merge_command_delegates_to_toplevel(
-    mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock, tmp_path: Path
-):
+def test_merge_command_delegates_to_toplevel(mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock, tmp_path: Path):
     """Test that merge command delegates to top-level merge() command."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -264,9 +268,7 @@ def test_merge_command_auto_retry_logic(
 @patch("specify_cli.cli.commands.agent.mission.top_level_merge")
 @patch("specify_cli.cli.commands.agent.mission._get_current_branch")
 @patch("specify_cli.core.paths.locate_project_root")
-def test_merge_command_passes_all_flags(
-    mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock, tmp_path: Path
-):
+def test_merge_command_passes_all_flags(mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock, tmp_path: Path):
     """Test that merge command passes all flags to top-level merge()."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -335,9 +337,7 @@ def test_accept_command_propagates_errors(mock_locate: MagicMock, mock_accept: M
 @patch("specify_cli.cli.commands.agent.mission.top_level_merge")
 @patch("specify_cli.cli.commands.agent.mission._get_current_branch")
 @patch("specify_cli.core.paths.locate_project_root")
-def test_merge_command_propagates_errors(
-    mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock, tmp_path: Path
-):
+def test_merge_command_propagates_errors(mock_locate: MagicMock, mock_get_branch: MagicMock, mock_merge: MagicMock, tmp_path: Path):
     """Test merge command propagates errors from top-level merge()."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -490,4 +490,7 @@ def test_accept_command_with_all_flags_console_output(mock_locate: MagicMock, mo
         no_commit=True,
         diagnose=False,
         allow_fail=False,
+        merge_commit=None,  # #4231: PR-merge evidence passthrough
+        target_branch=None,  # #4231: PR base-branch passthrough
+        attest_first_landing=False,  # #4231: anchor attestation passthrough
     )

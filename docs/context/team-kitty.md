@@ -2,7 +2,7 @@
 title: 'Context: Team Kitty and Zeitgeist'
 description: "Glossary context for the hosted product: how the CLI, its Zeitgeist client, the per-team relay, and the Team Kitty SaaS fit together, and why 'sync' is a dead word."
 doc_status: active
-updated: '2026-09-07'
+updated: '2026-09-13'
 audience: docs/context/audience/internal/ai-collaboration-agent.md
 type: explanation
 related:
@@ -118,7 +118,14 @@ relay.
 | Bearer for the SaaS calls | `src/specify_cli/saas_client/auth.py::load_auth_context` → env token, `.kittify/saas-auth.json`, or the `spec-kitty auth login` session via `auth/server_target.py` and the token manager |
 
 Lifecycle moments (mission created, specify/plan/tasks beats, decision points,
-op invocations) travel the same path through `fire_lifecycle_saas_fanout`.
+op invocations) travel the same path through `fire_lifecycle_saas_fanout`. So
+do the six runtime moments of `spec-kitty next` (run started/completed, step
+issued/auto-completed, decision input requested/answered): the runtime journals
+each transition to `run.events.jsonl`, and the producer the status seam
+registers at the runtime emitter seam
+(`src/specify_cli/events/runtime_moments.py`, #3929) publishes it with the
+journal record's timestamp and an `event_id` derived from that record, so one
+transition is one moment however often it is re-emitted.
 
 ## Where the code lives (SaaS and relay)
 

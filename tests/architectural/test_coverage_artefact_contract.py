@@ -210,6 +210,16 @@ def test_ci_aggregate_completeness_output_is_actually_consumed_downstream() -> N
     assert consumers, "needs.collect.outputs.complete must be read somewhere in the diff-cover job -- a computed-but-unconsumed signal is a dead output"
 
 
+def test_ci_aggregate_empty_selection_skips_coverage_consumers() -> None:
+    """A complete zero-module selection emits no coverage artifact, so the
+    workflow must gate consumers on an explicit materialized-coverage signal."""
+    workflow = _aggregate_yaml()
+    collect_outputs = workflow["jobs"]["collect"].get("outputs", {})
+    assert "coverage" in collect_outputs
+    job_if = str(workflow["jobs"]["diff-cover"].get("if", ""))
+    assert "needs.collect.outputs.coverage == 'true'" in job_if
+
+
 def test_ci_aggregate_diffcover_gate_fails_under_90_excluding_census_dead() -> None:
     """T053: the real PR-blocking diff-cover gate, ``--fail-under=90`` on changed
     critical-path lines, excluding census-``dead`` surfaces from the denominator
@@ -580,6 +590,20 @@ def test_shipped_reconcile_script_falls_back_for_every_module_when_selection_inf
     assert (resolved_dir / _MERGE_BASENAME).read_bytes() == b"PREVIOUS-MERGE"
 
 
+def test_shipped_reconcile_script_reports_empty_selection_has_no_coverage(tmp_path: Path) -> None:
+    completed, github_output = _run_reconcile_script(
+        tmp_path,
+        current={},
+        previous={},
+        registry_rows=[_MERGE_ROW],
+        selected=[],
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    parsed = _parse_github_output(github_output)
+    assert parsed.get("complete") == "true", github_output
+    assert parsed.get("coverage") == "false", github_output
+
+
 def test_shipped_reconcile_script_ignores_a_malformed_selected_modules_file(tmp_path: Path) -> None:
     """A corrupt/malformed selected-modules.json must never crash the job --
     it degrades to "no selection info known" (fallback-eligible for all),
@@ -700,7 +724,7 @@ def test_shipped_reconcile_script_output_cannot_inject_step_outputs(tmp_path: Pa
     # structural, not incidental.
     assert not re.search(r"^(complete|missing)=", github_output, re.M), github_output
     parsed = _parse_github_output(github_output)
-    assert set(parsed) == {"complete", "missing"}, f"injected or stray step outputs: {sorted(parsed)}"
+    assert set(parsed) == {"complete", "missing", "coverage"}, f"injected or stray step outputs: {sorted(parsed)}"
     assert parsed["complete"] == "false", github_output
     assert parsed["missing"] == _MERGE_BASENAME, github_output
 
