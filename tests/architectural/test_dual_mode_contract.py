@@ -31,11 +31,14 @@ Three invariants are pinned:
   run-all-regardless somewhere in its job graph (a matrix ``fail-fast``
   keyed off ``mode``, a per-shard mode branch, or an ``if: always()``
   terminal aggregator — the mechanism the file already uses).
-* **T059 — skipped != green.** The terminal aggregator's own evaluation logic
+* **T059 — skipped != green.** The terminal aggregator's evaluation logic
   distinguishes a merely-``skipped`` dependency (not blocking) from a
-  ``failure``/``cancelled`` one (blocking) — proven *behaviorally* by
-  extracting the embedded evaluation script from the YAML and executing it
-  with synthetic ``needs`` payloads, not just pattern-matching the source.
+  ``failure``/``cancelled``/``timed_out`` one (blocking) — proven *behaviorally*
+  against the extracted, unit-tested classifier ``scripts/ci/router_gate.classify``
+  (#4208), not by pattern-matching the source. The router-gate step now reads the
+  Actions jobs-API conclusions (the ``needs`` context cannot carry ``timed_out``)
+  and calls that classifier, so the evaluation logic lives in an importable module
+  rather than an embedded heredoc; these tests exercise it directly.
 
 What this module does **not** and cannot prove: the short-circuit / run-all /
 skipped-not-counted-green behaviors are GitHub *host* semantics (matrix
@@ -48,16 +51,13 @@ run — that evidence lives in
 
 from __future__ import annotations
 
-import json
-import os
-import re
-import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
 import yaml
+
+from scripts.ci.router_gate import classify
 
 pytestmark = pytest.mark.architectural
 
@@ -255,83 +255,64 @@ def test_ci_router_terminal_gate_declares_if_always_not_cancelled() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T059 — merge-eligibility: skipped != green, proven behaviorally.
-#
-# We do not just pattern-match the embedded evaluation script's source; we
-# extract it and execute it with synthetic `needs` context payloads so the
-# assertion is about behavior, not text.
+# T059 / #4208 — merge-eligibility: skipped != green, timed_out distinct from
+# cancelled, blocking policy byte-identical to baseline. The evaluation logic
+# now lives in the extracted, importable classifier
+# ``scripts/ci/router_gate.classify`` (contract C-gate-1..4,
+# contracts/helper-contracts.md), so these assertions exercise it directly with
+# synthetic jobs-API conclusions rather than extracting an embedded heredoc.
 # ---------------------------------------------------------------------------
 
-_HEREDOC_PATTERN = re.compile(r"<<'PY'\n(.*?)\nPY", re.DOTALL)
+
+def test_router_gate_reports_timed_out_distinctly_and_blocks() -> None:
+    """C-gate-1: a timed-out dependency is labelled ``timed_out`` (distinct from
+    ``cancelled``) AND blocks the gate.
+
+    This is the #4208 fix: a ``timeout-minutes`` kill collapses to ``cancelled``
+    in the ``needs`` context, so the jobs-API ``conclusion`` is the only place a
+    real timeout survives distinctly.
+    """
+    decision = classify({"tests-cli": "timed_out", "tests-e2e": "failure"})
+    assert decision.blocks
+    assert decision.blocking["tests-cli"] == "timed_out"
+    assert dict(decision.timed_out) == {"tests-cli": "timed_out"}
+    # A failure is not mislabelled as a timeout, and a cancel would not be either.
+    assert "tests-e2e" not in decision.timed_out
+    assert not classify({"a": "cancelled"}).timed_out
 
 
-def _extract_router_gate_script(workflow: dict[str, Any]) -> str:
-    run_text = workflow["jobs"]["router-gate"]["steps"][0]["run"]
-    match = _HEREDOC_PATTERN.search(run_text)
-    assert match is not None, "ci-router.yml: could not extract the router-gate evaluation script from its `<<'PY' ... PY` heredoc"
-    return match.group(1)
+def test_router_gate_blocking_verdict_is_byte_identical_to_baseline() -> None:
+    """C-gate-2: the historical needs-context policy is preserved exactly.
+
+    ``failure`` and ``cancelled`` both block, as before; ``timed_out`` (which the
+    old gate could only see as ``cancelled``) still blocks. The reported label
+    changes, never the pass/fail verdict.
+    """
+    assert classify({"tests-cli": "cancelled", "tests-e2e": "cancelled"}).blocks
+    assert classify({"a": "failure"}).blocks
+    assert classify({"a": "cancelled"}).blocks
+    assert classify({"a": "timed_out"}).blocks
 
 
-def _run_router_gate_script(script: str, needs: dict[str, dict[str, str]], mode: str, tmp_path: Path) -> subprocess.CompletedProcess[str]:
-    script_path = tmp_path / "router_gate_eval.py"
-    script_path.write_text(script, encoding="utf-8")
-    env = dict(os.environ)
-    env["NEEDS_JSON"] = json.dumps(needs)
-    env["MODE"] = mode
-    return subprocess.run(
-        [sys.executable, str(script_path)],
-        capture_output=True,
-        text=True,
-        env=env,
-        check=False,
-    )
+def test_router_gate_all_success_does_not_block() -> None:
+    """C-gate-3: an all-success set passes the gate."""
+    decision = classify({"changes": "success", "ruff": "success", "tests-cli": "success"})
+    assert not decision.blocks
+    assert not decision.blocking
 
 
-@pytest.fixture(scope="module")
-def router_gate_script() -> str | None:
-    path = _WORKFLOWS_DIR / "ci-router.yml"
-    if not path.is_file():
-        return None
-    workflow = _load_workflow(path)
-    return _extract_router_gate_script(workflow)
+def test_router_gate_merely_skipped_dependency_is_not_blocking() -> None:
+    """C-gate-4: a router-scoped skip (a shard not selected for this diff) does
+    not block, and it does not mask a real failure sitting alongside it."""
+    assert not classify({"changes": "success", "tests-e2e": "skipped"}).blocks
+    blocked = classify({"tests-e2e": "skipped", "tests-cli": "failure"})
+    assert blocked.blocks
+    assert set(blocked.blocking) == {"tests-cli"}
 
 
-def test_router_gate_treats_merely_skipped_dependency_as_not_blocking(router_gate_script: str | None, tmp_path: Path) -> None:
-    """A dependency skipped because it was not selected for this diff (e.g.
-    path-scoped routing) must NOT block the terminal gate."""
-    if router_gate_script is None:
-        pytest.skip("ci-router.yml not yet reinstated")
-    needs = {
-        "changes": {"result": "success"},
-        "ruff": {"result": "success"},
-        "tests-e2e": {"result": "skipped"},
-    }
-    result = _run_router_gate_script(router_gate_script, needs, mode="pr", tmp_path=tmp_path)
-    assert result.returncode == 0, f"router-gate: a merely-skipped dependency must not block; stdout={result.stdout!r} stderr={result.stderr!r}"
-    assert "router-gate OK" in result.stdout
-
-
-@pytest.mark.parametrize("blocking_result", ["failure", "cancelled"])
-def test_router_gate_treats_failure_and_cancelled_as_blocking(router_gate_script: str | None, tmp_path: Path, blocking_result: str) -> None:
-    """FR-019: a dependency that genuinely failed, or was cancelled by a
-    short-circuit (e.g. a fail-fast matrix elsewhere), must count as
-    blocking -- it must never be silently treated as green."""
-    if router_gate_script is None:
-        pytest.skip("ci-router.yml not yet reinstated")
-    needs = {
-        "changes": {"result": "success"},
-        "ruff": {"result": blocking_result},
-        "tests-e2e": {"result": "skipped"},
-    }
-    result = _run_router_gate_script(router_gate_script, needs, mode="pr", tmp_path=tmp_path)
-    assert result.returncode != 0, f"router-gate: a dependency reporting {blocking_result!r} must block the gate; stdout={result.stdout!r} stderr={result.stderr!r}"
-    assert "blocking job(s)" in result.stderr
-
-
-def test_router_gate_passes_clean_when_every_dependency_succeeded(router_gate_script: str | None, tmp_path: Path) -> None:
-    if router_gate_script is None:
-        pytest.skip("ci-router.yml not yet reinstated")
-    needs = {"changes": {"result": "success"}, "ruff": {"result": "success"}}
-    result = _run_router_gate_script(router_gate_script, needs, mode="full", tmp_path=tmp_path)
-    assert result.returncode == 0
-    assert "mode=full" in result.stdout
+def test_router_gate_fails_closed_on_unfamiliar_or_incomplete_conclusion() -> None:
+    """A conclusion outside the non-blocking set blocks -- the gate never turns
+    unrecognised or incomplete evidence green (fail-closed)."""
+    assert classify({"a": "startup_failure"}).blocks
+    assert classify({"a": "action_required"}).blocks
+    assert classify({"a": ""}).blocks

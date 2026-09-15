@@ -211,3 +211,45 @@ def test_select_modules_multi_group_diff_selects_each_matched_module(router: Rou
 def test_select_modules_returns_frozenset(router: Router) -> None:
     selected = select_modules(["docs/x.md"], router=router)
     assert isinstance(selected, frozenset)
+
+
+# ---------------------------------------------------------------------------
+# spec-kitty#4454 — a tests-only diff must select the SAME module set the
+# corresponding src change selects (mirror, never narrow). Before the fix,
+# select_modules matched only src/ globs, so a tests/<dir>-only diff selected
+# frozenset() and its tests ran in no per-PR shard (a false green). The mapping
+# is derived from the registry inventory (test_dirs + canonical root mirror),
+# not a hand-authored second map (the #2476 hazard stays closed).
+# ---------------------------------------------------------------------------
+def test_select_modules_tests_only_change_mirrors_the_src_selection(router: Router) -> None:
+    """T006: a diff confined to ``tests/status/**`` selects the status module's
+    full group set — identical to the ``src/specify_cli/status/**`` selection,
+    not narrowed to a single owning module."""
+    tests_only = select_modules(["tests/status/test_store.py"], router=router)
+    src_twin = select_modules(["src/specify_cli/status/store.py"], router=router)
+    assert tests_only == src_twin
+    assert tests_only == frozenset({"status", "core_misc", "execution_context", "unit"})
+
+
+def test_select_modules_tests_ci_change_selects_the_ci_module(router: Router) -> None:
+    """T006: a ``tests/ci/**``-only diff selects the ``ci`` module (previously
+    frozenset()), matching the ``scripts/ci/**`` src change — so the tests/ci
+    guard suite is actually selected per PR."""
+    tests_only = select_modules(["tests/ci/test_ci_module_wiring.py"], router=router)
+    assert tests_only == frozenset({"ci"})
+    assert tests_only == select_modules(["scripts/ci/gate_selection.py"], router=router)
+
+
+def test_select_modules_tests_only_diff_is_never_narrower_than_its_src_twin(router: Router) -> None:
+    """The mirror property across several representative test trees: a
+    tests-only change is never a strict subset of (narrower than) the module
+    set its corresponding src change selects."""
+    cases = {
+        "tests/merge/test_x.py": "src/specify_cli/merge/executor.py",
+        "tests/coordination/test_x.py": "src/specify_cli/coordination/x.py",
+        "tests/core/test_x.py": "src/specify_cli/core/x.py",
+    }
+    for test_path, src_path in cases.items():
+        src_twin = select_modules([src_path], router=router)
+        tests_only = select_modules([test_path], router=router)
+        assert src_twin <= tests_only, f"{test_path}: {sorted(tests_only)} narrows the src twin {sorted(src_twin)}"

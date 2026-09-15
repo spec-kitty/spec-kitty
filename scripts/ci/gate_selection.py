@@ -163,14 +163,108 @@ def select_gates(
     )
 
 
-def _registry_module_names(path: Path | None = None) -> frozenset[str]:
-    """The module inventory from ``.github/ci-module-registry.yml`` —
-    ``modules[].module``. The registry is the single data source for the
-    module set (WP08); reading the module *inventory* here is not a second
+def _registry_rows(path: Path | None = None) -> list[dict[str, Any]]:
+    """The ``modules[]`` rows from ``.github/ci-module-registry.yml`` (WP08).
+
+    The registry is the single data source for the module set; reading its
+    inventory (``module`` names, ``roots``, ``test_dirs``) here is not a second
     routing map (the #2476 hazard is re-encoding the path->group filter, which
-    this does not do — routing still comes from the parsed router)."""
+    this does not do — src routing still comes from the parsed router)."""
     registry = yaml.safe_load((path or DEFAULT_REGISTRY_PATH).read_text(encoding="utf-8"))
-    return frozenset(str(row["module"]) for row in registry["modules"])
+    return [dict(row) for row in registry["modules"]]
+
+
+def _registry_module_names(path: Path | None = None) -> frozenset[str]:
+    """The module inventory (``modules[].module``) from the registry."""
+    return frozenset(str(row["module"]) for row in _registry_rows(path))
+
+
+def _within(path: str, directory: str) -> bool:
+    """Whether ``path`` is ``directory`` itself or a descendant of it."""
+    directory = directory.rstrip("/")
+    return path == directory or path.startswith(f"{directory}/")
+
+
+def _canonical_test_mirror(root: str) -> str:
+    """The canonical ``tests/`` mirror directory of a registry ``roots`` glob.
+
+    Deterministic transform (the "canonical test mirror"): the mirror of a
+    directory glob ``<prefix>/<leaf>/**`` is ``tests/<leaf>``; the mirror of a
+    single-file root ``<prefix>/<name>.py`` is ``tests/<name>``. This is how a
+    module *without* an explicit ``test_dirs`` declares its test tree — the
+    authority stays the registry (its own ``roots``), never a hand-authored
+    test-dir->module table (the #2476 hazard).
+    """
+    root = root.rstrip("/")
+    if root.endswith("/**"):
+        leaf = root[:-3].rstrip("/").rsplit("/", 1)[-1]
+        return f"tests/{leaf}"
+    name = root.rsplit("/", 1)[-1]
+    stem = name.split("*", 1)[0].rsplit(".", 1)[0]
+    return f"tests/{stem}"
+
+
+def _probe_path(root: str) -> str:
+    """A representative concrete path under a registry ``roots`` glob.
+
+    The probe is fed back through the parsed router (:func:`select_gates`) so
+    the src-routing answer for a test tree is computed by the ONE routing
+    authority, not re-derived here. A directory glob yields a file under it; a
+    single-file root yields the file itself.
+    """
+    root = root.rstrip("/")
+    if root.endswith("/**"):
+        return f"{root[:-3].rstrip('/')}/__ci_probe__.py"
+    return root
+
+
+def _modules_for_test_paths(
+    paths: list[str],
+    *,
+    router: Router,
+    registry_path: Path | None,
+    modules: frozenset[str],
+) -> frozenset[str]:
+    """Modules a tests-only change selects, derived from the registry (#4454).
+
+    ``select_gates`` only matches ``src/`` (and other router) globs, so a diff
+    confined to ``tests/<dir>/**`` matches no routing group and selects nothing
+    — a false green (the test files run in no per-PR shard). This maps each
+    changed test path back to its owning module(s) using the registry, then
+    mirrors that back to the SAME module set the corresponding src change would
+    select, so a tests-only diff is never narrowed relative to its src twin:
+
+    * **explicit ``test_dirs``** — a module that declares its test directories
+      owns any changed path within them (preferred, per the registry);
+    * **canonical mirror** — every module ``root`` also declares its test tree
+      via :func:`_canonical_test_mirror`, so a module without explicit
+      ``test_dirs`` still owns ``tests/<leaf>`` for each ``src/<...>/<leaf>/**``
+      root. The matched roots are probed through the router (:func:`select_gates`)
+      so the resulting module set equals the src change's set exactly.
+
+    A test path with no derivable owning module contributes nothing (it falls
+    through to the caller's src/full behavior) — no module is fabricated.
+    """
+    test_paths = [path for path in paths if _within(path, "tests")]
+    if not test_paths:
+        return frozenset()
+
+    owners: set[str] = set()
+    probes: set[str] = set()
+    for row in _registry_rows(registry_path):
+        name = str(row["module"])
+        for test_dir in row.get("test_dirs") or ():
+            if any(_within(path, str(test_dir)) for path in test_paths):
+                owners.add(name)
+        for root in row.get("roots") or ():
+            mirror = _canonical_test_mirror(str(root))
+            if any(_within(path, mirror) for path in test_paths):
+                probes.add(_probe_path(str(root)))
+
+    if probes:
+        mirrored = select_gates(sorted(probes), router=router).matched_groups & modules
+        owners |= mirrored
+    return frozenset(owners & modules)
 
 
 def select_modules(
@@ -204,10 +298,20 @@ def select_modules(
     ``core_misc``/``unit``/``execution_context`` each also owning
     ``src/specify_cli/status/**``, is preserved exactly as the router already
     encodes it — never narrowed to a single "owning" module).
+
+    A diff confined to ``tests/<dir>/**`` matches no router glob and would
+    otherwise select nothing (spec-kitty#4454 — the test files run in no per-PR
+    shard, a false green). Such paths are mapped back to their owning modules
+    from the registry (:func:`_modules_for_test_paths`) and unioned in, so a
+    tests-only diff selects the SAME module set the corresponding src change
+    selects (mirror, never narrow).
     """
     router = router or load_router()
     modules = _registry_module_names(registry_path)
-    selection = select_gates(changed_paths, router=router, mode=mode)
+    paths = [str(path) for path in changed_paths]
+    selection = select_gates(paths, router=router, mode=mode)
     if mode == "full" or selection.unmatched_src:
         return modules
-    return selection.matched_groups & modules
+    src_selected = selection.matched_groups & modules
+    test_selected = _modules_for_test_paths(paths, router=router, registry_path=registry_path, modules=modules)
+    return src_selected | test_selected

@@ -531,6 +531,11 @@ jobs:
     name: router gate
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # actions:read is needed to read each dependency's real conclusion from the
+    # Actions jobs API (#4208): the `needs` context cannot carry `timed_out`.
+    permissions:
+      contents: read
+      actions: read
     needs:
       - changes
       - ruff
@@ -550,27 +555,27 @@ jobs:
       - tests-e2e
     if: ${{ always() && !cancelled() }}
     steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Evaluate router-gate decision
         shell: bash
         env:
-          NEEDS_JSON: ${{ toJSON(needs) }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
           MODE: ${{ inputs.mode || 'pr' }}
         run: |
-          python3 - <<'PY'
-          import json
-          import os
-
-          needs = json.loads(os.environ["NEEDS_JSON"])
-          # A dependency that was short-circuit-skipped by the router (path-scoped
-          # PR mode) reports "skipped"; a genuinely failed one reports "failure"
-          # or "cancelled". Skipped != pass, but a router-scoped skip is allowed
-          # (it means "this shard was not selected for this diff").
-          blocking = {
-              job: result.get("result")
-              for job, result in needs.items()
-              if result.get("result") in {"failure", "cancelled"}
-          }
-          if blocking:
-              raise SystemExit(f"blocking job(s) did not succeed: {blocking}")
-          print(f"router-gate OK (mode={os.environ['MODE']})")
-          PY
+          set -euo pipefail
+          # #4208: the `needs` context collapses a timeout-kill to `cancelled`
+          # (it cannot carry `timed_out`), so read each dependency's REAL
+          # conclusion from the Actions jobs API and let the extracted,
+          # unit-tested classifier (scripts/ci/router_gate.py) decide. The
+          # blocking policy is byte-identical to the historical needs-context
+          # gate ({failure, cancelled} block, {success, skipped} pass); a genuine
+          # timeout is now reported distinctly. Capturing the jobs-API read into
+          # a variable (not a pipe) fails the step closed under `set -e` if the
+          # read errors, so an API error body is never fed to the classifier.
+          API_ROWS="$(gh api --paginate \
+            "repos/$REPO/actions/runs/$RUN_ID/attempts/$RUN_ATTEMPT/jobs" \
+            -q '.jobs[] | [.name, (.conclusion // "")] | @tsv')"
+          printf '%s\n' "$API_ROWS" | python3 scripts/ci/router_gate.py
