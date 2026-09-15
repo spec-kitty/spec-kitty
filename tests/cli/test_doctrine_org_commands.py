@@ -372,3 +372,85 @@ def test_doctrine_org_init_from_bitbucket_ssh_at_ref(
     )
     assert not (dest / ".git").exists()
     assert not (dest / ".templateignore").exists()
+
+
+# ---------------------------------------------------------------------------
+# FR-004 / AC-7 (operator ruling #2, reviews/plan.ruling.md): org_validate's
+# internal validate_pack(...) call carries an explicit check_drg_root=True —
+# no carve-out. Two cases: (a) a parameter-value assertion mirroring T016's
+# assembler assertion (opposite value), and (b) a brand-new positive-fire
+# fixture proving `doctrine org validate` now catches the destructive shape
+# the dropped carve-out used to suppress.
+# ---------------------------------------------------------------------------
+
+
+def test_doctrine_org_validate_calls_validate_pack_with_check_drg_root_true(
+    tmp_path: Path,
+) -> None:
+    """AC-7(a): ``org_validate``'s internal ``validate_pack(...)`` call passes
+    ``check_drg_root=True`` explicitly, not relying on ``validate_pack``'s own
+    default. ``validate_pack`` is not bound at module scope in ``doctrine.py``
+    — ``org_validate`` does a lazy, function-local import re-run on every
+    invocation, so the correct patch target is the source location,
+    ``specify_cli.doctrine.pack_validator.validate_pack``.
+
+    Before this WP, ``validate_pack`` has no ``check_drg_root`` keyword
+    parameter at all, so asserting it was passed with that value fails.
+    """
+    from unittest.mock import patch
+
+    from specify_cli.doctrine.pack_validator import ValidationResult
+
+    pack_dir = tmp_path / "valid-pack"
+    init_result = runner.invoke(app, ["org", "init", str(pack_dir)])
+    assert init_result.exit_code == 0, f"init failed: {init_result.output}"
+
+    with patch(
+        "specify_cli.doctrine.pack_validator.validate_pack",
+        return_value=ValidationResult(ok=True),
+    ) as mock_validate:
+        result = runner.invoke(app, ["org", "validate", str(pack_dir)])
+
+    assert result.exit_code == 0, result.output
+    mock_validate.assert_called_once_with(pack_dir, check_drg_root=True)
+
+
+def test_doctrine_org_validate_catches_drg_only_fragment_after_init(
+    tmp_path: Path,
+) -> None:
+    """AC-7(b) — new positive-fire fixture, no precedent in the suite today:
+    a pack scaffolded by ``org init``, then given a real
+    ``drg/*.graph.yaml`` fragment and no pack-root ``*.graph.yaml``, produces
+    the ``drg_root_graph_missing`` diagnostic through ``doctrine org
+    validate``. This is the destructive shape the dropped ``org_validate``
+    carve-out used to suppress — the whole point of dropping it (operator
+    ruling #2).
+
+    Before this WP, no ``drg_root_graph_missing`` diagnostic exists at all,
+    so ``doctrine org validate`` exits 0 for this fixture — this is the
+    load-bearing proof that the shape was genuinely unguarded before this WP.
+    """
+    pack_dir = tmp_path / "stub-then-real-drg"
+    init_result = runner.invoke(app, ["org", "init", str(pack_dir)])
+    assert init_result.exit_code == 0, f"init failed: {init_result.output}"
+
+    # Add a REAL drg/*.graph.yaml fragment (the scaffold's own
+    # drg/fragment.yaml never matches this glob) with no pack-root graph.
+    (pack_dir / "drg" / "010-security.graph.yaml").write_text(
+        dedent(
+            """\
+            schema_version: "1.0"
+            generated_at: STATIC
+            generated_by: test
+            nodes: []
+            edges: []
+            """
+        ),
+        encoding="utf-8",
+    )
+    assert not sorted(pack_dir.glob("*.graph.yaml"))
+
+    result = runner.invoke(app, ["org", "validate", str(pack_dir)])
+
+    assert result.exit_code != 0, result.output
+    assert "drg_root_graph_missing" in result.output
