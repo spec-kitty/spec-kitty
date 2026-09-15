@@ -1,0 +1,17 @@
+{
+  "coordination_branch": "kitty/mission-ci-main-concurrency-fanout-cap-01M2K46V",
+  "created_at": "2026-09-15T18:10:32.336054+00:00",
+  "flattened": false,
+  "friendly_name": "CI Main Concurrency + Fleet Fan-out Cap (Stage 1)",
+  "mid8": "01M2K46V",
+  "mission_id": "01M2K46VR0PCTTFS5K0RTT4ZZR",
+  "mission_number": null,
+  "mission_slug": "ci-main-concurrency-fanout-cap-01M2K46V",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "On a merge burst, main-branch CI runs cancel each other (shared refs/heads/main concurrency group), so content lands with zero terminal evaluation; and the fleet-verdict workflow fans out into dozens of redundant runs per tip (measured: 60 for one main tip). These two levers are coupled — removing the cancel-cascade adds concurrent main runs, which the fan-out cap must bound, so they land together as one stage. This mission delivers per-SHA main concurrency plus a fleet-verdict top-level concurrency block, trimmed workflow_run event types, and reinforced dedup, verified on the merged main tip.",
+  "purpose_tldr": "Stage 1 of the main-tip verdict-topology cluster (#4437): give each landed main tip its own terminal CI evaluation via per-SHA concurrency (#4347) and cap the fleet-verdict fan-out those extra runs would otherwise multiply (#4371).",
+  "slug": "ci-main-concurrency-fanout-cap-01M2K46V",
+  "target_branch": "fix/ci-main-concurrency-fanout-cap",
+  "topology": "coord"
+}
