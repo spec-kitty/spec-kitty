@@ -376,6 +376,53 @@ def test_render_cli_error_keeps_hint_when_message_carries_no_guidance(capsys) ->
     assert "dashboard" not in err
 
 
+@pytest.mark.parametrize(
+    ("error_code", "status_code", "expected_guidance"),
+    [
+        ("binding_not_found", None, "Rebind the tracker"),
+        ("session_expired", 401, "spec-kitty auth login"),
+        (None, 503, "retry shortly"),
+    ],
+)
+def test_render_cli_error_keeps_distinct_hint_when_message_mentions_dashboard(
+    capsys,
+    error_code,
+    status_code,
+    expected_guidance,
+) -> None:
+    """A dashboard suffix cannot suppress a different computed CLI remedy."""
+    from specify_cli.cli.commands.tracker import _render_cli_error
+
+    exc = SaaSTrackerClientError(
+        "Action required — check the Spec Kitty dashboard",
+        error_code=error_code,
+        status_code=status_code,
+        user_action_required=True,
+    )
+
+    _render_cli_error(exc, json_mode=False)
+
+    err = capsys.readouterr().err
+    assert expected_guidance in err
+    assert err.lower().count("dashboard") == 1
+
+
+def test_render_cli_error_suppresses_only_matching_command_guidance(capsys) -> None:
+    """A command mention suppresses its own hint, not an unrelated remedy."""
+    from specify_cli.cli.commands.tracker import _render_cli_error
+
+    exc = SaaSTrackerClientError(
+        "Run `spec-kitty auth login` to refresh the session.",
+        error_code="session_expired",
+        status_code=401,
+    )
+
+    _render_cli_error(exc, json_mode=False)
+
+    err = capsys.readouterr().err
+    assert err.count("spec-kitty auth login") == 1
+
+
 def test_discover_saas_403_feature_disabled_json_machine_readable(monkeypatch, tmp_path) -> None:
     """Under ``--json`` the failure is a parseable machine-readable object."""
     app = _make_app(monkeypatch)
