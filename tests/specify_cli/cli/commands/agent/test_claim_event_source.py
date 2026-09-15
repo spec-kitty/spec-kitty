@@ -326,7 +326,7 @@ class TestSubtaskCompletionIdempotent:
         annotations_after_first = [
             a for a in stream_after_first.annotations if a.wp_id == "WP01" and a.delta.subtasks
         ]
-        assert len(annotations_after_first) == 1, (  # golden-count: cardinality-is-contract
+        assert len(annotations_after_first) == 1, (
             "exactly one subtask-completion annotation expected after the first "
             f"mark-status done, got {annotations_after_first!r}"
         )

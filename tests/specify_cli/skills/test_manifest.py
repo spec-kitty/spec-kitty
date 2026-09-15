@@ -247,7 +247,7 @@ def test_prepared_manifest_is_immutable_and_apply_never_resamples(tmp_path: Path
     assert prepared.target.read_bytes() == prepared.content
     assert prepared.target.stat().st_mode & 0o777 == prepared.mode
     loaded = owner.load_manifest(tmp_path, strict=True)
-    assert loaded is not None and len(loaded.entries) == 1  # golden-count: cardinality-is-contract
+    assert loaded is not None and len(loaded.entries) == 1
     assert loaded.created_at == loaded.updated_at == "2026-09-06T10:00:00+00:00"
 
 

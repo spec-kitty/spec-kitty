@@ -26,7 +26,7 @@ class TestGlossaryPackRepository:
         repo = GlossaryPackRepository(built_in_dir=tmp_glossary_pack_dir)
         pack = repo.get("spec-kitty-core")
         assert pack is not None
-        assert len(pack.terms) == 2  # golden-count: cardinality-is-contract
+        assert len(pack.terms) == 2
 
     def test_get_returns_none_for_unknown(self, tmp_glossary_pack_dir: Path) -> None:
         repo = GlossaryPackRepository(built_in_dir=tmp_glossary_pack_dir)
@@ -157,7 +157,7 @@ class TestDoctrineServiceGlossaryPacksAccessor:
         assert isinstance(repo, GlossaryPackRepository)
         pack = repo.get("spec-kitty-core")
         assert pack is not None
-        assert len(pack.terms) == 2  # golden-count: cardinality-is-contract
+        assert len(pack.terms) == 2
 
     def test_service_caches_glossary_packs_repository(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

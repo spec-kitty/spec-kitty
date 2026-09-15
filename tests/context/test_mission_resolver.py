@@ -181,7 +181,7 @@ class TestResolveByNumericPrefix:
         with pytest.raises(AmbiguousHandleError) as exc_info:
             resolve_mission("080", repo_root)
         for candidate in exc_info.value.candidates:
-            assert len(candidate.mid8) == 8  # golden-count: cardinality-is-contract
+            assert len(candidate.mid8) == 8
             assert candidate.mission_id.startswith(candidate.mid8)
 
 

@@ -113,7 +113,7 @@ def test_discovery_dedupes_multi_tier_to_highest_precedence(
     refs = discover_templates(tier_roots=roots)
 
     spec_sw = [r for r in refs if r.template_id == "software-dev/spec-template.md"]
-    assert len(spec_sw) == 1  # golden-count: cardinality-is-contract (dedup collapses duplicate refs to one)
+    assert len(spec_sw) == 1  # (dedup collapses duplicate refs to one)
     assert {r.tier.name for r in spec_sw} == {ResolutionTier.OVERRIDE.name}
     assert spec_sw[0].tier.name == ResolutionTier.OVERRIDE.name
     assert spec_sw[0].path.read_text(encoding="utf-8") == "override spec"

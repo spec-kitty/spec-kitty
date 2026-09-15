@@ -70,9 +70,9 @@ def test_bundle_plans_retain_healthy_configured_surface(tmp_path: Path, canonica
     roots = {"project": tmp_path, "user-home": Path.home()}
     before = snapshot(roots)
     plans = build_plans_for_bundles(tmp_path, tool_keys=("gemini",))
-    assert len(plans) == 1 and plans[0].tool_key == "gemini"  # golden-count: cardinality-is-contract
+    assert len(plans) == 1 and plans[0].tool_key == "gemini"
     instances = [instance for instance in plans[0].instances if instance.path == target]
-    assert len(instances) == 1  # golden-count: cardinality-is-contract
+    assert len(instances) == 1
     instance = instances[0]
     assert instance.exists and instance.definition.kind == ToolSurfaceKind.CONTEXT_FILE
     provider = next(provider for provider in build_providers() if provider.can_handle(instance.definition))
@@ -189,7 +189,7 @@ def test_required_missing_or_legacy_owner_is_explicitly_incomplete(tmp_path: Pat
     providers = [_FakeProvider(ToolSurfaceKind.COMMAND_SKILL)] if registered else []
     inputs = AssessmentInputs(OperationRoot("project", "project", tmp_path))
     assessments = SurfacePlanBuilder(registry, providers).assess(["codex"], inputs).assessments
-    assert len(assessments) == 1  # golden-count: cardinality-is-contract
+    assert len(assessments) == 1
     assert not assessments[0].complete
     expected = "assessment_unsupported" if registered else "missing_provider"
     assert assessments[0].diagnostics[0].code == expected
@@ -255,7 +255,7 @@ def test_removing_real_required_provider_keeps_definition_coverage(tmp_path: Pat
         )
         .assessments
     )
-    assert len(assessments) == 1  # golden-count: cardinality-is-contract
+    assert len(assessments) == 1
     assert not assessments[0].complete
     assert assessments[0].owner_key == "command_skills"
     assert assessments[0].diagnostics[0].code == "missing_provider"
@@ -292,7 +292,7 @@ def test_service_assessment_guards_inventory_errors_without_changing_legacy_beha
         run_tool_surfaces(tmp_path, ("codex",))
     calls.clear()
     outcome = run_tool_surfaces(tmp_path, ("codex",), assessment_inputs=AssessmentInputs(OperationRoot("project", "project", tmp_path)))
-    assert len(outcome.assessments) == 1  # golden-count: cardinality-is-contract
+    assert len(outcome.assessments) == 1
     assert not outcome.assessments[0].complete
     assert not outcome.assessments[0].effects
     assert outcome.assessments[0].diagnostics[0].code == "inventory_unreadable"
@@ -333,4 +333,4 @@ def test_assessment_kind_selection_does_not_expand_excluded_unreadable_inventory
     )
     assert expanded == [ToolSurfaceKind.COMMAND_SKILL]
     assert outcome.assessments[0].diagnostics[0].code == "assessment_unsupported"
-    assert len(outcome.report.surfaces) == 1  # golden-count: cardinality-is-contract
+    assert len(outcome.report.surfaces) == 1

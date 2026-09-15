@@ -360,7 +360,7 @@ def test_fr003_slug_differential_within_one_checkout_flips_the_outcome(
     # Half 1 — the OWNING slug transmits. Without this the flip is unprovable.
     owning = harness.widen(DECISION_ID_OWNED_BY_A, "--mission-slug", A_MISSION)
     assert owning.exit_code == 0, owning.output
-    assert len(harness.sink) == 1, (  # golden-count: cardinality-is-contract
+    assert len(harness.sink) == 1, (
         f"the owning slug must still transmit exactly one request; if it refuses, the differential below proves nothing: {harness.sink!r}"
     )
     assert DECISION_ID_OWNED_BY_A in transmitted_text(harness.sink)
@@ -420,7 +420,7 @@ def test_sc002_positive_control_owning_checkout_still_transmits_exactly_one_requ
     result = harness.widen(DECISION_ID_OWNED_BY_A)
 
     assert result.exit_code == 0, result.output
-    assert len(harness.sink) == 1, f"expected exactly one request, got {harness.sink!r}"  # golden-count: cardinality-is-contract
+    assert len(harness.sink) == 1, f"expected exactly one request, got {harness.sink!r}"
 
     (request,) = harness.sink
     assert request["method"] == "POST"
@@ -430,7 +430,7 @@ def test_sc002_positive_control_owning_checkout_still_transmits_exactly_one_requ
     # Item 9 (mandatory). This reds the moment either side of the fabricated-consent
     # falsifier changes — which neither the byte assertion nor the refusal does,
     # because both discriminate on SPECIFY_REPO_ROOT rather than on project_root.
-    assert len(harness.clients) == 1  # golden-count: cardinality-is-contract
+    assert len(harness.clients) == 1
     assert harness.clients[0]._project_root == harness.a_root, (
         "the client the command built must carry A's ON-DISK root; a different "
         "root here means consent was resolved for a project the operator is not "
@@ -503,9 +503,7 @@ def test_sc002_clause_c_unreadable_ledger_must_not_veto_a_hit_elsewhere(harness:
     )
 
     assert result.exit_code == 0, result.output
-    assert len(harness.sink) == 1, (  # golden-count: cardinality-is-contract
-        f"an unreadable ledger in a mission that is NOT the answer vetoed a positive hit elsewhere: {result.output}"
-    )
+    assert len(harness.sink) == 1, f"an unreadable ledger in a mission that is NOT the answer vetoed a positive hit elsewhere: {result.output}"
     assert harness.sink[0]["url"].endswith(f"/decision-points/{DECISION_ID_OWNED_BY_A}/widen")
     assert harness.sink[0]["json"] == {"invited_user_ids": [101]}
 
@@ -717,7 +715,7 @@ def test_the_producer_side_falsifier_rejects_the_branched_form() -> None:
 
     # Print the input count alongside the verdict: "all checks passed" over an
     # empty or truncated input set is the failure mode this line exists to expose.
-    assert len(sources) == 4, f"expected 4 controlled sources, got {len(sources)}"  # golden-count: cardinality-is-contract
+    assert len(sources) == 4, f"expected 4 controlled sources, got {len(sources)}"
 
 
 def test_symlinked_specs_root_does_not_launder_consent_end_to_end(harness: Harness, tmp_path: Path) -> None:

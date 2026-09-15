@@ -162,7 +162,7 @@ def three_term_drg():
 def test_generate_all_three_terms(repo_root, three_term_drg):
     renderer = _FixtureRenderer(repo_root, three_term_drg)
     written = renderer.generate_all()
-    assert len(written) == 3  # golden-count: cardinality-is-contract
+    assert len(written) == 3
     for p in written:
         assert p.exists(), f"Expected file to exist: {p}"
         assert p.suffix == ".md"
@@ -202,7 +202,7 @@ def test_generate_all_idempotent(repo_root, three_term_drg):
     assert len(first) == len(second) == 3
     output_dir = repo_root / ".kittify" / "charter" / "compiled" / "glossary"
     md_files = list(output_dir.glob("*.md"))
-    assert len(md_files) == 3  # golden-count: cardinality-is-contract
+    assert len(md_files) == 3
 
 
 # ---------------------------------------------------------------------------
@@ -270,7 +270,7 @@ def test_generate_all_writes_a_page_per_term_for_500_terms(repo_root):
 
     written = renderer.generate_all()
 
-    assert len(written) == 500  # golden-count: cardinality-is-contract
+    assert len(written) == 500
 
 
 @pytest.mark.performance
@@ -348,7 +348,7 @@ def test_conflict_history_missing_dir_no_raise(repo_root, three_term_drg):
     renderer = _FixtureRenderer(repo_root, three_term_drg)
     # No events dir — should complete normally
     written = renderer.generate_all()
-    assert len(written) == 3  # golden-count: cardinality-is-contract
+    assert len(written) == 3
 
 
 # ---------------------------------------------------------------------------

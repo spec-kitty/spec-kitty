@@ -651,8 +651,8 @@ def test_real_phrase_scanner_keeps_path_lookalikes(tmp_path: Path, monkeypatch: 
     )
     monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
     hits = _grep_for_phrase_ci("lane merge", roots=("src", "docs"))
-    assert len(hits) == 4, hits  # golden-count: cardinality-is-contract
-    assert len(_hits_outside_baseline(hits, frozenset({"docs/name"}))) == 4  # golden-count: cardinality-is-contract
+    assert len(hits) == 4, hits
+    assert len(_hits_outside_baseline(hits, frozenset({"docs/name"}))) == 4
     with pytest.raises(pytest.fail.Exception, match="New lane-consolidation"):
         test_lane_consolidation_phrasing_does_not_grow_beyond_baseline()
 
@@ -713,9 +713,9 @@ def test_real_scanner_receipt_boundary(
         if mutation in {"append", "replace", "alongside"}:
             assert any(prose in hit for hit in hits), hits
         if mutation == "alongside":
-            assert len(hits) == 1, hits  # golden-count: cardinality-is-contract
+            assert len(hits) == 1, hits
         elif mutation == "lookalike":
-            assert len(hits) == 2, hits  # golden-count: cardinality-is-contract
+            assert len(hits) == 2, hits
         with pytest.raises(pytest.fail.Exception, match="Forbidden legacy term"):
             test_forbidden_term_does_not_appear(term)
 
@@ -790,7 +790,7 @@ def test_real_phrase_scanner_rejects_prose_in_receipt(tmp_path: Path, monkeypatc
     receipt = (_repo_root() / _RECEIPT_PATH).read_bytes()
     _stage_scanner_fixture(tmp_path, {_RECEIPT_PATH: receipt + b"\nlane merge; see docs/adr/history.md\n"})
     monkeypatch.setattr(sys.modules[__name__], "_repo_root", lambda: tmp_path)
-    assert len(_grep_for_phrase_ci("lane merge", roots=("docs",))) == 1  # golden-count: cardinality-is-contract
+    assert len(_grep_for_phrase_ci("lane merge", roots=("docs",))) == 1
     with pytest.raises(pytest.fail.Exception, match="New lane-consolidation"):
         test_lane_consolidation_phrasing_does_not_grow_beyond_baseline()
 
@@ -831,7 +831,7 @@ def test_real_census_term_boundary(name: str, mutation: str, tmp_path: Path, mon
             if mutation in {"append", "replace", "neighbor"} and term == _FORBIDDEN_TERMS[0]:
                 assert any(prose in hit for hit in hits)
             if mutation == "neighbor":
-                assert len(hits) == 1  # golden-count: cardinality-is-contract
+                assert len(hits) == 1
             with pytest.raises(pytest.fail.Exception, match="Forbidden legacy term"):
                 test_forbidden_term_does_not_appear(term)
 

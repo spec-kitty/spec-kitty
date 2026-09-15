@@ -360,7 +360,7 @@ class TestLivePath:
                 cwd=tmp_path,
             )
         assert result.exit_code == 0, f"exit {result.exit_code}\n{result.output}"
-        assert len(captured) == 1  # golden-count: cardinality-is-contract
+        assert len(captured) == 1
         assert captured[0] is not None, (
             "from_env must receive a repo_root so .kittify/saas-auth.json is reachable (D-5 / #2248)"
         )

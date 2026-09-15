@@ -425,7 +425,7 @@ class TestNoExcludeFlag:
 
         monkeypatch.setattr("scripts.docs.relative_link_fixer.check_dead_body_links", spy)
         main(["--check", "--no-exclude", "--repo-root", str(repo)])
-        assert len(captured) == 1, (  # golden-count: cardinality-is-contract (call-count spy)
+        assert len(captured) == 1, (  # (call-count spy)
             f"Expected spy called once, got {len(captured)}"
         )
         assert captured[0] == (), f"--no-exclude must pass exclude_prefixes=() to check_dead_body_links, got {captured[0]!r}"

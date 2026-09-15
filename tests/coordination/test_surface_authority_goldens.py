@@ -256,4 +256,4 @@ def test_row6_wrong_surface_exit1(tmp_path: Path) -> None:
 
 
 def test_ledger_has_all_six_rows() -> None:
-    assert len(LEDGER_GOLDEN) == 6  # golden-count: cardinality-is-contract
+    assert len(LEDGER_GOLDEN) == 6

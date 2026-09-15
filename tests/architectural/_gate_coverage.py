@@ -14,8 +14,13 @@ This module is the *enforcement substrate* for that gap. It does not re-tier or
 re-shard CI (that is the maintainer's migration, against this guardrail). It
 statically:
 
-1. Parses every ``pytest`` invocation across the restored suite-running
-   workflow (``ci-windows``), expanding shard matrices when present.
+1. Parses every ``pytest`` invocation across the suite-running workflows
+   (:data:`WORKFLOW_FILES`), expanding shard matrices when present. An
+   invocation counts whether it is directly anchored (``pytest ...``) or
+   reached through an indirection — a ``make`` target or a shell script —
+   which is resolved by reading the Makefile / script itself (mission
+   ``sonar-per-pr-coverage-reuse`` WP03, NFR-007; see the
+   "Indirect suite invocations" section below for why).
 2. Models each invocation as a :class:`Gate` = ``(paths, ignores, marker_expr)``.
 3. Evaluates every collected test against every gate, using pytest's own
    marker-expression evaluator, to count how many gates select it.
@@ -79,25 +84,46 @@ JobKey = tuple[str, str]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 
-# The interim convergence topology restores ``ci-windows.yml`` and the tag-time
-# ``release.yml`` as direct pytest suite runners. ``ci-quality.yml`` is
-# reduced to lint/build/install/lock jobs plus the non-blocking ``sonarcloud``
-# reporter (spec-kitty#3993), which reaches pytest only through
-# ``make test-fast`` — no directly-anchored pytest command, so it is not (and
-# cannot be) collected as a gate here; its reasoned non-blocking declaration
-# lives in ``test_suite_jobs_gate_blocking.py``'s NON_BLOCKING_ALLOWLIST. The
-# factory ``ci.yml`` delegates suite execution to the planning CI scripts
-# rather than embedding a pytest command; and the other restored producers do
-# not run tests.
+# Every workflow that runs the suite, directly or through an indirection. The
+# set is kept in lockstep with what :func:`discover_pytest_workflows` finds on
+# disk — enforced by
+# ``test_workflow_coherence::test_pytest_workflow_set_equals_model_allowlist_live``,
+# which fails closed when a new suite-running workflow appears outside it.
+#
+# Mission ``sonar-per-pr-coverage-reuse`` WP03 grew this tuple by three, all of
+# them workflows that were ALREADY running the suite while the model reported
+# they were not (NFR-007):
+#
+#   * ``ci-quality.yml`` — its non-blocking ``sonarcloud`` reporter
+#     (spec-kitty#3993) ran a full test tier through a make target. The model
+#     read only directly-anchored ``pytest`` commands, so a whole duplicate
+#     suite execution sat in the file, unseen. **WP06 then retired that job**
+#     (#4334) and the file left this tuple again: it now runs no suite, and a
+#     membership claim for a workflow with no gates would be an allowlist entry
+#     asserting something that is not there. The make-indirection resolution
+#     below STAYS — it is what made the duplicate visible in the first place,
+#     and the next one will not announce itself either.
+#   * ``ci-router.yml`` / ``packs.yml`` — directly-anchored, but written as
+#     ``uv run --frozen pytest ...``, a form the runner-prefix pattern
+#     mis-parsed (it let the ``--frozen`` flag's optional ARGUMENT swallow the
+#     ``pytest`` command word), so every one of their gates was dropped.
+#
+# The factory ``ci.yml`` delegates suite execution to the planning CI scripts
+# rather than embedding a pytest command; the other restored producers do not
+# run tests.
 WORKFLOW_FILES: tuple[str, ...] = (
     "ci-windows.yml",
     "release.yml",
     # Net-new pytest-running workflows reinstated by the ci-pipeline-reinstatement
-    # mission (kept in lockstep with the on-disk set — enforced by
-    # test_workflow_coherence::test_pytest_workflow_set_equals_model_allowlist_live).
+    # mission.
     "ci-modules.yml",
     "ci-nightly.yml",
     "module-tests.yml",
+    # Added by mission sonar-per-pr-coverage-reuse WP03 (see above) — present
+    # and running tests all along, merely invisible to the parser. WP06 removed
+    # ``ci-quality.yml`` again when it retired the duplicate reporter.
+    "ci-router.yml",
+    "packs.yml",
 )
 
 _COLLECT_PLUGIN = "tests.architectural._gate_collect_plugin"
@@ -120,6 +146,11 @@ _DUPLICATE_GATE_THRESHOLD = 2
 _MARKER_Q_RE = re.compile(r"-m\s+(?P<q>['\"])(?P<expr>.*?)(?P=q)")
 _MARKER_U_RE = re.compile(r"-m\s+(?P<expr>[A-Za-z_]\w*)")
 _IGNORE_RE = re.compile(r"--ignore=(\S+)")
+# ``--deselect <nodeid>`` excludes exactly like ``--ignore=``, but takes its
+# value as a SEPARATE token — so it must be stripped before positional-path
+# extraction, or the deselected target is recorded as a selected path and the
+# gate claims coverage of the very tests it excludes.
+_DESELECT_RE = re.compile(r"--deselect[=\s]+(\S+)")
 _ENV_ASSIGN_RE = re.compile(r"^[A-Za-z_]\w*=(?:'[^']*'|\"[^\"]*\"|\S+)\s+")
 _PYTEST_HEAD_RE = re.compile(r"^pytest\b")
 _GHA_EXPR_RE = re.compile(r"\$\{\{(.*?)\}\}")
@@ -191,7 +222,16 @@ def gate_is_always_on_modulo_full_ci_block(
 # pytest`` (where pytest is an argument, not the command) are correctly skipped.
 _PREFIX_RE = re.compile(
     r"^(?:"
-    r"uv\s+run(?:\s+--\S+(?:\s+'[^']*'|\s+\"[^\"]*\"|\s+\S+)?)*"  # uv run [--with '...']
+    # ``uv run [--with '...'] [--frozen]`` — the optional flag ARGUMENT must
+    # not be allowed to swallow the ``pytest`` command word itself, or
+    # ``uv run --frozen pytest tests/...`` (the Makefile's own form) parses as
+    # "no pytest command here" and the whole invocation goes unseen.
+    r"uv\s+run(?:\s+--\S+(?:\s+'[^']*'|\s+\"[^\"]*\"|\s+(?!pytest\b)\S+)?)*"
+    # ``env [-i] [-u NAME]... [NAME=value]...`` — the form the Makefile's own
+    # recipes use (``env -u FORCE_COLOR NO_COLOR=1 ... uv run pytest``). Only
+    # these three token shapes are consumed, so ``env`` can never swallow the
+    # real command word that follows it.
+    r"|env(?:\s+-i\b|\s+-u\s+[A-Za-z_]\w*|\s+[A-Za-z_]\w*=(?:'[^']*'|\"[^\"]*\"|\S+))*"
     r"|python\d?(?:\s+-m)?"
     r"|\"?\$?\{?[A-Za-z_]\w*\}?\"?\s+-m"  # "$VENV_PYTHON" -m / $VAR -m
     r"|pipx\s+run"
@@ -202,7 +242,14 @@ _PREFIX_RE = re.compile(
 
 @dataclass
 class Gate:
-    """One CI test-selection: positional ``paths``, ``--ignore`` globs, ``-m`` expr."""
+    """One CI test-selection: positional ``paths``, ``--ignore`` globs, ``-m`` expr.
+
+    ``via`` records HOW the step reached pytest: ``None`` for a
+    directly-anchored ``pytest`` command, otherwise the indirection it was
+    resolved through (``"make <target>"`` / ``"script <path>"``). A gate is a
+    gate either way — the field exists so a consumer can *report* the
+    provenance, never so it can filter indirect invocations back out.
+    """
 
     workflow: str
     job: str
@@ -210,6 +257,7 @@ class Gate:
     paths: list[str] = field(default_factory=list)
     ignores: list[str] = field(default_factory=list)
     marker_expr: str | None = None
+    via: str | None = None
 
     def label(self) -> str:
         suffix = f" ({self.shard})" if self.shard else ""
@@ -312,12 +360,349 @@ def parse_pytest_invocation(
         if not command.startswith("pytest"):
             continue
         tail = command[len("pytest") :]
-        return _extract_paths(tail), _IGNORE_RE.findall(tail), _extract_marker(tail)
+        deselected = _DESELECT_RE.findall(tail)
+        positional = _DESELECT_RE.sub(" ", tail)
+        return (
+            _extract_paths(positional),
+            _IGNORE_RE.findall(tail) + deselected,
+            _extract_marker(tail),
+        )
     return None
 
 
-def parse_workflow(path: Path) -> list[Gate]:
-    """Parse one workflow file into the gates it defines."""
+# ---------------------------------------------------------------------------
+# Indirect suite invocations (mission sonar-per-pr-coverage-reuse WP03,
+# NFR-007/FR-010).
+#
+# A ``run:`` step reaches pytest in two shapes: a directly-anchored ``pytest``
+# command, and an *indirection* — ``make <target>``, or a shell script — whose
+# body carries the real command. Modelling only the first form left a whole
+# suite execution structurally invisible: ``ci-quality.yml``'s ``sonarcloud``
+# reporter ran a full test tier through a make target, and every invariant
+# built on this substrate reported "no pytest jobs in ci-quality.yml" while
+# that duplicate execution sat in the file.
+#
+# The make target is resolved by READING THE MAKEFILE — parsing its variable
+# table and the target's recipe, then re-using :func:`parse_pytest_invocation`
+# on the expanded recipe lines. It is deliberately NOT a match on the literal
+# string ``make test-fast``: renaming the target must not restore the
+# blindness, and the companion fault-injection test asserts exactly that.
+#
+# Relation to ``_fast_tier_gate`` (DIR-044, canonical sources): that module
+# also reads the Makefile, but answers a different question — it pulls the
+# VALUES of two specifically-named variables (``FAST_TIER_DIRS`` /
+# ``FAST_TIER_MARKERS``) by literal regex. It cannot answer "which pytest
+# command does target X run", which is the question the gate model must ask,
+# and its literal variable names are precisely the evasion shape this section
+# avoids. :func:`parse_makefile` below is the general model; folding
+# ``_fast_tier_gate`` onto it would be a sound follow-up, but that module is
+# outside this mission's ownership.
+# ---------------------------------------------------------------------------
+
+_MAKEFILE_NAME = "Makefile"
+# ``$(NAME)`` / ``${NAME}`` references inside a Makefile value or recipe.
+_MAKE_VAR_REF_RE = re.compile(r"\$[({]([A-Za-z_][\w.-]*)[)}]")
+# ``NAME = v`` / ``NAME := v`` / ``NAME ?= v`` / ``NAME += v``.
+_MAKE_ASSIGN_RE = re.compile(
+    r"^(?P<name>[A-Za-z_.][\w.]*)\s*(?P<op>[:?+]?=)\s*(?P<value>.*)$",
+)
+# ``target [target...]: [prerequisites]`` — the ``(?!=)`` keeps ``:=``
+# assignments (already consumed above) from reading as a rule.
+_MAKE_RULE_RE = re.compile(r"^(?P<targets>[^\s#:=][^:=]*?):(?!=)(?P<prereqs>[^=]*)$")
+# Recipe-line silencing / error-ignoring / sub-make prefixes.
+_RECIPE_PREFIX_RE = re.compile(r"^[@+-]+\s*")
+# ``$$`` is a literal ``$`` handed to the shell, NOT a make expansion — it is
+# protected through expansion so ``$$(tr ...)`` is never read as ``$(tr ...)``.
+_MAKE_ESCAPED_DOLLAR = "\x00MAKE_DOLLAR\x00"
+_MAKE_EXPANSION_PASSES = 16
+# ``make`` options that consume the following token as their argument.
+_MAKE_OPTS_WITH_ARG: frozenset[str] = frozenset(
+    {"-C", "-f", "-j", "-l", "-o", "-W", "--directory", "--file", "--makefile", "--jobs"},
+)
+_MAKE_COMMAND = "make"
+# ``bash x.sh`` / ``sh -e x.sh`` / ``./scripts/x.sh``.
+_SCRIPT_CALL_RE = re.compile(
+    r"^(?:(?:ba|da|k|z)?sh\s+(?:-\S+\s+)*)?(?P<path>\.{0,2}/?[\w./-]+\.(?:sh|bash))(?:\s|$)",
+)
+_VIA_MAKE = "make {target}"
+_VIA_SCRIPT = "script {path}"
+
+
+@dataclass(frozen=True)
+class SuiteInvocation:
+    """One pytest execution a ``run:`` step performs, direct or indirect.
+
+    ``via`` is ``None`` for a directly-anchored command and otherwise names the
+    indirection it was recovered through (see :class:`Gate`).
+    """
+
+    paths: tuple[str, ...]
+    ignores: tuple[str, ...]
+    marker_expr: str | None
+    via: str | None = None
+
+
+@dataclass(frozen=True)
+class MakefileModel:
+    """A Makefile's variable table and target → recipe / prerequisite maps."""
+
+    path: Path
+    variables: dict[str, str]
+    recipes: dict[str, tuple[str, ...]]
+    prerequisites: dict[str, tuple[str, ...]]
+
+
+def _strip_make_comment(line: str) -> str:
+    """Drop a trailing ``#`` comment from a non-recipe Makefile line."""
+    index = line.find("#")
+    return line if index < 0 else line[:index]
+
+
+def iter_makefile_lines(text: str) -> list[tuple[bool, str]]:
+    """``(is_recipe, text)`` per logical line, backslash continuations joined.
+
+    ``is_recipe`` is taken from the FIRST physical line of the logical line —
+    a continued recipe stays a recipe even though its continuation lines are
+    indented the same way.
+    """
+    out: list[tuple[bool, str]] = []
+    buffer = ""
+    is_recipe = False
+    for raw in text.splitlines():
+        if not buffer:
+            is_recipe = raw.startswith("\t")
+        stripped = raw.rstrip()
+        if stripped.endswith("\\"):
+            buffer += stripped[:-1] + " "
+            continue
+        out.append((is_recipe, buffer + stripped))
+        buffer = ""
+    if buffer:
+        out.append((is_recipe, buffer))
+    return out
+
+
+def _apply_make_assignment(variables: dict[str, str], match: re.Match[str]) -> None:
+    """Record one ``NAME <op>= value`` assignment in *variables*."""
+    name = match.group("name")
+    operator = match.group("op")
+    value = match.group("value").strip()
+    if operator == "+=" and name in variables:
+        variables[name] = f"{variables[name]} {value}"
+    elif operator == "?=" and name in variables:
+        return
+    else:
+        variables[name] = value
+
+
+def parse_makefile(path: Path) -> MakefileModel:
+    """Parse *path* into its variable table and target → recipe/prereq maps.
+
+    A deliberately small subset of GNU make: assignments, explicit rules, and
+    recipe bodies. It is enough to answer "which pytest command does this
+    target run", which is the only question the gate model asks — and it asks
+    it of the real file, so a target rename or a variable indirection cannot
+    hide the invocation.
+    """
+    variables: dict[str, str] = {}
+    recipes: dict[str, list[str]] = {}
+    prerequisites: dict[str, tuple[str, ...]] = {}
+    current: list[str] = []
+    text = path.read_text(encoding="utf-8") if path.is_file() else ""
+    for is_recipe, line in iter_makefile_lines(text):
+        if is_recipe:
+            for target in current:
+                recipes.setdefault(target, []).append(line.lstrip("\t").strip())
+            continue
+        stripped = _strip_make_comment(line).strip()
+        if not stripped:
+            continue
+        current = []
+        assignment = _MAKE_ASSIGN_RE.match(stripped)
+        if assignment:
+            _apply_make_assignment(variables, assignment)
+            continue
+        rule = _MAKE_RULE_RE.match(stripped)
+        if rule:
+            # ``.PHONY`` and friends declare nothing executable — skip them so
+            # their "prerequisites" are not mistaken for real targets.
+            current = [t for t in rule.group("targets").split() if not t.startswith(".")]
+            for target in current:
+                prerequisites[target] = tuple(rule.group("prereqs").split())
+    return MakefileModel(
+        path=path,
+        variables=variables,
+        recipes={target: tuple(lines) for target, lines in recipes.items()},
+        prerequisites=prerequisites,
+    )
+
+
+def expand_make_value(text: str, variables: dict[str, str]) -> str:
+    """Expand ``$(VAR)``/``${VAR}`` to a fixed point (unknown names → empty).
+
+    Empty-for-unknown is make's own rule, and it is the safe direction here: an
+    unresolvable ``$(SOMETHING)`` drops a token rather than inventing one.
+    """
+    protected = text.replace("$$", _MAKE_ESCAPED_DOLLAR)
+    for _ in range(_MAKE_EXPANSION_PASSES):
+        expanded = _MAKE_VAR_REF_RE.sub(lambda m: variables.get(m.group(1), ""), protected)
+        if expanded == protected:
+            break
+        protected = expanded
+    return protected.replace(_MAKE_ESCAPED_DOLLAR, "$")
+
+
+def make_targets_in_command(command: str) -> list[str]:
+    """Target names in a ``make ...`` command (options and ``VAR=value`` dropped)."""
+    tokens = command.split()
+    if not tokens or tokens[0] != _MAKE_COMMAND:
+        return []
+    targets: list[str] = []
+    skip_next = False
+    for token in tokens[1:]:
+        if skip_next:
+            skip_next = False
+        elif token in _MAKE_OPTS_WITH_ARG:
+            skip_next = True
+        elif not token.startswith("-") and "=" not in token:
+            targets.append(token)
+    return targets
+
+
+def makefile_target_invocations(
+    target: str,
+    model: MakefileModel,
+    seen: frozenset[str] = frozenset(),
+) -> list[SuiteInvocation]:
+    """Every pytest invocation reachable from *target* (prerequisites included).
+
+    Prerequisites and recipe-level ``make <other>`` delegation are followed so
+    that inserting one more hop of indirection is not an escape hatch; *seen*
+    keeps a cyclic Makefile from recursing forever.
+    """
+    if target in seen:
+        return []
+    reached = seen | {target}
+    found: list[SuiteInvocation] = []
+    for prerequisite in model.prerequisites.get(target, ()):
+        found.extend(makefile_target_invocations(prerequisite, model, reached))
+    for raw in model.recipes.get(target, ()):
+        line = _RECIPE_PREFIX_RE.sub("", expand_make_value(raw, model.variables).strip())
+        direct = parse_pytest_invocation(line)
+        if direct is not None:
+            found.append(_as_invocation(direct, via=_VIA_MAKE.format(target=target)))
+            continue
+        for nested in make_targets_in_command(strip_to_command(line).strip()):
+            found.extend(makefile_target_invocations(nested, model, reached))
+    return found
+
+
+def _as_invocation(
+    parsed: tuple[list[str], list[str], str | None],
+    *,
+    via: str | None,
+) -> SuiteInvocation:
+    paths, ignores, marker = parsed
+    return SuiteInvocation(tuple(paths), tuple(ignores), marker, via=via)
+
+
+def _load_makefile(makefile: Path | None) -> MakefileModel | None:
+    path = makefile if makefile is not None else REPO_ROOT / _MAKEFILE_NAME
+    return parse_makefile(path) if path.is_file() else None
+
+
+def _make_indirection(command: str, makefile: Path | None) -> list[SuiteInvocation]:
+    targets = make_targets_in_command(command)
+    if not targets:
+        return []
+    model = _load_makefile(makefile)
+    if model is None:
+        return []
+    found: list[SuiteInvocation] = []
+    for target in targets:
+        found.extend(makefile_target_invocations(target, model))
+    return found
+
+
+def _resolve_script_path(command: str, repo_root: Path) -> Path | None:
+    """The in-repo script file *command* invokes, if it invokes one."""
+    match = _SCRIPT_CALL_RE.match(command)
+    if not match:
+        return None
+    candidate = (repo_root / match.group("path")).resolve()
+    if not candidate.is_file() or not candidate.is_relative_to(repo_root.resolve()):
+        return None
+    return candidate
+
+
+def _script_indirection(
+    command: str,
+    *,
+    makefile: Path | None,
+    repo_root: Path,
+    seen: frozenset[Path],
+) -> list[SuiteInvocation]:
+    script = _resolve_script_path(command, repo_root)
+    if script is None or script in seen:
+        return []
+    label = _VIA_SCRIPT.format(path=script.relative_to(repo_root.resolve()).as_posix())
+    found: list[SuiteInvocation] = []
+    for logical in join_continuations(script.read_text(encoding="utf-8")):
+        for invocation in suite_invocations(
+            logical,
+            makefile=makefile,
+            repo_root=repo_root,
+            _scripts_seen=seen | {script},
+        ):
+            found.append(
+                SuiteInvocation(
+                    invocation.paths,
+                    invocation.ignores,
+                    invocation.marker_expr,
+                    via=invocation.via or label,
+                ),
+            )
+    return found
+
+
+def suite_invocations(
+    logical_line: str,
+    *,
+    makefile: Path | None = None,
+    repo_root: Path | None = None,
+    _scripts_seen: frozenset[Path] = frozenset(),
+) -> list[SuiteInvocation]:
+    """Every suite execution one logical shell line performs.
+
+    A directly-anchored ``pytest`` command wins outright; otherwise each shell
+    segment is checked for a make target or an in-repo script that reaches the
+    suite. Returns ``[]`` for a line that runs no tests — ``make lint`` is not
+    a suite invocation, and the companion negative control pins that.
+    """
+    direct = parse_pytest_invocation(logical_line)
+    if direct is not None:
+        return [_as_invocation(direct, via=None)]
+    root = repo_root if repo_root is not None else REPO_ROOT
+    found: list[SuiteInvocation] = []
+    for segment in _SEGMENT_SPLIT_RE.split(logical_line):
+        command = strip_to_command(segment).strip()
+        found.extend(_make_indirection(command, makefile))
+        found.extend(
+            _script_indirection(
+                command, makefile=makefile, repo_root=root, seen=_scripts_seen,
+            ),
+        )
+    return found
+
+
+def parse_workflow(path: Path, *, makefile: Path | None = None) -> list[Gate]:
+    """Parse one workflow file into the gates it defines.
+
+    *makefile* overrides the Makefile consulted for ``make``-target
+    indirection (default: the repository's own). It exists for fixture
+    workflows, which must be resolvable against a fixture Makefile rather than
+    the live one.
+    """
     data = load_spliced_workflow(path)
     gates: list[Gate] = []
     for job_name, job, step in _iter_run_steps(data):
@@ -326,20 +711,18 @@ def parse_workflow(path: Path) -> list[Gate]:
         for mvars in variants:
             script = substitute_matrix(step["run"], mvars or {})
             for logical in join_continuations(script):
-                parsed = parse_pytest_invocation(logical)
-                if parsed is None:
-                    continue
-                paths, ignores, marker = parsed
-                gates.append(
-                    Gate(
-                        workflow=path.name,
-                        job=job_name,
-                        shard=(mvars or {}).get("shard") if mvars else None,
-                        paths=paths,
-                        ignores=ignores,
-                        marker_expr=marker,
-                    ),
-                )
+                for invocation in suite_invocations(logical, makefile=makefile):
+                    gates.append(
+                        Gate(
+                            workflow=path.name,
+                            job=job_name,
+                            shard=(mvars or {}).get("shard") if mvars else None,
+                            paths=list(invocation.paths),
+                            ignores=list(invocation.ignores),
+                            marker_expr=invocation.marker_expr,
+                            via=invocation.via,
+                        ),
+                    )
     return gates
 
 
@@ -369,16 +752,20 @@ _FILTER_OUTPUT_RE = re.compile(r"needs\.[A-Za-z0-9_-]+\.outputs\.([A-Za-z0-9_]+)
 # ``--cov=<target>`` emitters inside run scripts (FR-005).
 _COV_TARGET_RE = re.compile(r"--cov=([^\s\\'\"]+)")
 # Jobs that *consume* coverage XML rather than emit real pytest --cov data.
-# ``sonarcloud`` in particular carries prose ``--cov=...`` examples inside its
-# own step comments and heredoc documentation (see the "Normalize coverage
-# XML..." step) -- ``_COV_TARGET_RE`` has no way to distinguish a documentation
-# mention from a real flag, so the job is excluded wholesale rather than
-# taught to parse comments. Any consumer of ``cov_targets`` that means "jobs
-# that actually run pytest --cov" (not "jobs whose script mentions --cov")
-# must exclude this set.
-NON_EMITTER_JOBS: frozenset[str] = frozenset(
-    {"sonarcloud", "diff-coverage", "mutation-testing"}
-)
+# ``_COV_TARGET_RE`` has no way to distinguish a documentation mention of
+# ``--cov=...`` from a real flag, so such a job is excluded wholesale rather
+# than the regex taught to parse comments. Any consumer of ``cov_targets`` that
+# means "jobs that actually run pytest --cov" (not "jobs whose script mentions
+# --cov") must exclude this set.
+#
+# ``sonarcloud`` was a member until mission sonar-per-pr-coverage-reuse WP06
+# (#4334): it carried prose ``--cov=...`` examples in its own step comments.
+# The job is retired and its successor -- ci-aggregate.yml's ``sonar-pr`` --
+# needs no entry here: it mentions ``--cov`` nowhere, and ci-aggregate.yml is
+# not a member of ``WORKFLOW_FILES`` (it runs no suite), so it is never parsed
+# for gates at all. Adding it would be an exclusion for a job this model never
+# sees.
+NON_EMITTER_JOBS: frozenset[str] = frozenset({"diff-coverage", "mutation-testing"})
 # Top-level packages declared in [build-system].packages (pyproject.toml) --
 # the only names a bare/dotted (no "/") --cov target can legitimately resolve
 # to under src/ (#2975's cov_target_repo_path normalizer).
@@ -641,7 +1028,7 @@ def _splice_local_uses(data: dict[str, Any], workflows_dir: Path) -> dict[str, A
         target_jobs = target.get("jobs") or {}
         # Single-purpose assumption made load-bearing: flattening multiple
         # delegate jobs into one caller key would conflate their markers/coverage.
-        assert len(target_jobs) == 1, (  # golden-count: cardinality-is-contract
+        assert len(target_jobs) == 1, (
             f"reusable workflow {called} must define exactly one job to splice "
             f"into caller {name!r}; found {sorted(target_jobs)}"
         )

@@ -30,5 +30,5 @@ def test_activation_registers_project_sources(tmp_path: Path, monkeypatch: pytes
     summary, _ = _collect_manifest_status(tmp_path)
     # The five artifact kinds are the contract (#4097): procedures and agent
     # profiles join directives, tactics and styleguides.
-    assert summary["artifact_count"] == 5  # golden-count: cardinality-is-contract
-    assert summary["live_artifact_count"] == 5  # golden-count: cardinality-is-contract
+    assert summary["artifact_count"] == 5
+    assert summary["live_artifact_count"] == 5

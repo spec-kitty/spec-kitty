@@ -1,0 +1,18 @@
+{
+  "baseline_merge_commit": "2f2e0568f49fc3a2ac98c88d7f4f0b91919f370e",
+  "created_at": "2026-09-14T10:41:02.148550+00:00",
+  "flattened": false,
+  "friendly_name": "Per-PR Sonar reuses CI Modules coverage",
+  "mid8": "01M2FR32",
+  "mission_id": "01M2FR32NPWKD0HT1YN360FV1N",
+  "mission_number": 200,
+  "mission_slug": "sonar-per-pr-coverage-reuse-01M2FR32",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "On every pull request the SonarCloud reporter re-runs the fast test tier under coverage, costing about thirteen minutes of build time per pull request, even though the per-module test matrix has already produced richer coverage for the same commit. The duplicated run also reports a narrower, understated coverage figure than the matrix does. This mission makes the per-PR report consume the coverage the matrix already produced, so each pull request tests once, reports one consistent coverage number, and returns its result sooner.",
+  "purpose_tldr": "Stop every pull request from running the fast test tier a second time just to feed the SonarCloud report.",
+  "slug": "sonar-per-pr-coverage-reuse-01M2FR32",
+  "status_phase": "1",
+  "target_branch": "issue-4334-sonar-reuse-shard-coverage",
+  "topology": "lanes"
+}

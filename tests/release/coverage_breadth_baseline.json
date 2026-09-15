@@ -1,0 +1,5183 @@
+{
+  "schema": "coverage-breadth-baseline/1",
+  "mission": "sonar-per-pr-coverage-reuse-01M2FR32",
+  "work_package": "WP01",
+  "requirements": [
+    "FR-013",
+    "FR-016",
+    "NFR-002",
+    "NFR-009"
+  ],
+  "produced_at_commit": "576801bc0249171bb037e4ccdc5ccbe66c186ba7",
+  "produced_on": "2026-09-14",
+  "note": "Committed test-adjacent data (same convention as tests/release/ci_retirement_scrub.json and ci_topology_timings_postshrink.json). Narrative, cost analysis and the T006 verdict live in tests/release/coverage_breadth_evidence.md.",
+  "marker_mismatch_exception_set": {
+    "purpose": "FR-016. Tests the retiring step selects and EVERY matrix slice deselects, because the retired step's marker expression did not exclude the `performance` family while every slice does. These are the declared exception to 'no per-file coverage regression'.",
+    "derivation": "tests/architectural/test_coverage_breadth.py::derive_marker_mismatch_exception_set",
+    "reproduce": ".venv/bin/python -m pytest tests/architectural/test_coverage_breadth.py::test_marker_mismatch_exception_set_is_reproducible -q",
+    "retiring_step_selection": {
+      "source": "Makefile FAST_TIER_DIRS / FAST_TIER_MARKERS, run by .github/workflows/ci-quality.yml's `sonarcloud` job via `make test-fast` until #4334 retired it",
+      "paths": [
+        "tests/unit",
+        "tests/status",
+        "tests/cli",
+        "tests/specify_cli/runtime",
+        "tests/architectural/test_no_retired_subsystems.py"
+      ],
+      "marker_expression": "(fast or unit) and not slow and not e2e and not integration and not regression and not distribution and not live_adapter and not stress and not windows_ci and not platform_darwin"
+    },
+    "slice_selection": {
+      "source": ".github/workflows/module-tests.yml, step id `pytest-run`",
+      "marker_expression": "not performance"
+    },
+    "node_ids": [
+      "tests/status/test_emit_durability.py::TestT015Responsiveness::test_verdict_recording_completes_under_two_seconds",
+      "tests/status/test_locking_key.py::test_contended_bounded_take_stays_under_five_seconds",
+      "tests/status/test_saas_fanout_timeout.py::test_hanging_lifecycle_handler_does_not_block",
+      "tests/status/test_saas_fanout_timeout.py::test_hanging_saas_handler_returns_within_three_seconds",
+      "tests/status/test_tail_reader.py::test_tail_events_zero_real_sleep_stays_under_budget"
+    ]
+  },
+  "per_file_covered": {
+    "_format": "path -> [covered_statements, total_statements]",
+    "retiring_step": {
+      "status": "measured-local",
+      "command": ".venv/bin/python -m pytest tests/unit tests/status tests/cli tests/specify_cli/runtime tests/architectural/test_no_retired_subsystems.py -m \"(fast or unit) and not slow and not e2e and not integration and not regression and not distribution and not live_adapter and not stress and not windows_ci and not platform_darwin\" -n auto --dist loadfile --cov=charter --cov=doctrine --cov=glossary --cov=kernel --cov=mission_runtime --cov=runtime --cov=specify_cli --cov-report=xml:retiring-step.xml -p no:cacheprovider -q",
+      "provenance": {
+        "kind": "local run (no CI run id \u2014 this branch has not been pushed; see coverage_breadth_evidence.md 'What could not be measured here')",
+        "wall_clock_seconds": 651.47,
+        "result": "1796 passed, 5 skipped",
+        "python": "3.11.15"
+      },
+      "totals": {
+        "files": 1258,
+        "files_with_coverage": 998,
+        "covered_statements": 42942,
+        "statements": 128878
+      },
+      "files": {
+        "src/charter/__init__.py": [
+          7,
+          14
+        ],
+        "src/charter/activation/__init__.py": [
+          2,
+          2
+        ],
+        "src/charter/activation/_activation_render.py": [
+          40,
+          67
+        ],
+        "src/charter/activation/_catalog_miss.py": [
+          26,
+          67
+        ],
+        "src/charter/activation/_diagnostics.py": [
+          5,
+          5
+        ],
+        "src/charter/activation/_doctrine_paths.py": [
+          9,
+          10
+        ],
+        "src/charter/activation/_drg_helpers.py": [
+          34,
+          67
+        ],
+        "src/charter/activation/_io.py": [
+          34,
+          124
+        ],
+        "src/charter/activation/action_doctrine_bundle.py": [
+          32,
+          89
+        ],
+        "src/charter/activation/action_grain.py": [
+          7,
+          33
+        ],
+        "src/charter/activation/activation_engine.py": [
+          40,
+          86
+        ],
+        "src/charter/activation/activations.py": [
+          45,
+          51
+        ],
+        "src/charter/activation/cascade.py": [
+          57,
+          156
+        ],
+        "src/charter/activation/catalog.py": [
+          40,
+          119
+        ],
+        "src/charter/activation/charter_md_parsing.py": [
+          4,
+          21
+        ],
+        "src/charter/activation/charter_yaml_io.py": [
+          164,
+          339
+        ],
+        "src/charter/activation/compact.py": [
+          0,
+          121
+        ],
+        "src/charter/activation/compiler.py": [
+          115,
+          547
+        ],
+        "src/charter/activation/consistency_check.py": [
+          125,
+          459
+        ],
+        "src/charter/activation/context.py": [
+          33,
+          97
+        ],
+        "src/charter/activation/context_contract.py": [
+          4,
+          4
+        ],
+        "src/charter/activation/context_json.py": [
+          25,
+          115
+        ],
+        "src/charter/activation/context_renderers/__init__.py": [
+          6,
+          6
+        ],
+        "src/charter/activation/context_renderers/activation_block.py": [
+          11,
+          51
+        ],
+        "src/charter/activation/context_renderers/artifact_bodies.py": [
+          20,
+          177
+        ],
+        "src/charter/activation/context_renderers/authority_paths.py": [
+          15,
+          49
+        ],
+        "src/charter/activation/context_renderers/bootstrap_text.py": [
+          36,
+          120
+        ],
+        "src/charter/activation/context_renderers/catalog_diagnosis.py": [
+          9,
+          39
+        ],
+        "src/charter/activation/context_renderers/compact_governance.py": [
+          10,
+          47
+        ],
+        "src/charter/activation/context_renderers/delivery_table.py": [
+          19,
+          67
+        ],
+        "src/charter/activation/context_renderers/fetch_stanza.py": [
+          28,
+          41
+        ],
+        "src/charter/activation/context_renderers/profile_sections.py": [
+          43,
+          180
+        ],
+        "src/charter/activation/context_renderers/reference_pointers.py": [
+          17,
+          110
+        ],
+        "src/charter/activation/context_renderers/section_bodies.py": [
+          31,
+          130
+        ],
+        "src/charter/activation/context_renderers/selection_block.py": [
+          33,
+          162
+        ],
+        "src/charter/activation/context_renderers/template_include.py": [
+          21,
+          117
+        ],
+        "src/charter/activation/context_renderers/token_budget.py": [
+          37,
+          159
+        ],
+        "src/charter/activation/context_result_builders.py": [
+          24,
+          42
+        ],
+        "src/charter/activation/context_state.py": [
+          19,
+          48
+        ],
+        "src/charter/activation/corpus/__init__.py": [
+          3,
+          3
+        ],
+        "src/charter/activation/default_pack.py": [
+          22,
+          31
+        ],
+        "src/charter/activation/doctrine_service_builder.py": [
+          24,
+          32
+        ],
+        "src/charter/activation/drg_activation.py": [
+          59,
+          87
+        ],
+        "src/charter/activation/evidence/__init__.py": [
+          2,
+          2
+        ],
+        "src/charter/activation/evidence/code_reader.py": [
+          37,
+          125
+        ],
+        "src/charter/activation/evidence/corpus_loader.py": [
+          14,
+          30
+        ],
+        "src/charter/activation/evidence/orchestrator.py": [
+          18,
+          60
+        ],
+        "src/charter/activation/exceptions.py": [
+          0,
+          3
+        ],
+        "src/charter/activation/governance_references.py": [
+          15,
+          57
+        ],
+        "src/charter/activation/interview.py": [
+          74,
+          297
+        ],
+        "src/charter/activation/invocation_context.py": [
+          51,
+          67
+        ],
+        "src/charter/activation/kind_vocabulary.py": [
+          33,
+          178
+        ],
+        "src/charter/activation/language_scope.py": [
+          25,
+          47
+        ],
+        "src/charter/activation/manifest_loader.py": [
+          55,
+          58
+        ],
+        "src/charter/activation/mission_type_key.py": [
+          11,
+          11
+        ],
+        "src/charter/activation/mission_type_profile_repository.py": [
+          27,
+          27
+        ],
+        "src/charter/activation/mission_type_profiles.py": [
+          207,
+          311
+        ],
+        "src/charter/activation/neutrality/__init__.py": [
+          0,
+          2
+        ],
+        "src/charter/activation/neutrality/lint.py": [
+          0,
+          217
+        ],
+        "src/charter/activation/org_expected_artifacts.py": [
+          25,
+          29
+        ],
+        "src/charter/activation/org_extends.py": [
+          19,
+          26
+        ],
+        "src/charter/activation/org_pack_discovery.py": [
+          15,
+          80
+        ],
+        "src/charter/activation/pack_context.py": [
+          148,
+          198
+        ],
+        "src/charter/activation/pack_manager.py": [
+          182,
+          256
+        ],
+        "src/charter/activation/packs/__init__.py": [
+          0,
+          1
+        ],
+        "src/charter/activation/profile_resolution.py": [
+          17,
+          62
+        ],
+        "src/charter/activation/progressive_disclosure.py": [
+          21,
+          98
+        ],
+        "src/charter/activation/project_registration.py": [
+          48,
+          136
+        ],
+        "src/charter/activation/reference_resolver.py": [
+          12,
+          32
+        ],
+        "src/charter/activation/resolver.py": [
+          99,
+          287
+        ],
+        "src/charter/activation/schemas.py": [
+          140,
+          165
+        ],
+        "src/charter/activation/scope.py": [
+          0,
+          76
+        ],
+        "src/charter/activation/scope_router.py": [
+          0,
+          10
+        ],
+        "src/charter/activation/sync.py": [
+          51,
+          106
+        ],
+        "src/charter/activation/synthesizer/__init__.py": [
+          7,
+          7
+        ],
+        "src/charter/activation/synthesizer/_constants.py": [
+          3,
+          3
+        ],
+        "src/charter/activation/synthesizer/adapter.py": [
+          28,
+          28
+        ],
+        "src/charter/activation/synthesizer/artifact_naming.py": [
+          0,
+          32
+        ],
+        "src/charter/activation/synthesizer/errors.py": [
+          84,
+          110
+        ],
+        "src/charter/activation/synthesizer/evidence.py": [
+          37,
+          50
+        ],
+        "src/charter/activation/synthesizer/fixture_adapter.py": [
+          20,
+          42
+        ],
+        "src/charter/activation/synthesizer/generated_artifact_adapter.py": [
+          0,
+          53
+        ],
+        "src/charter/activation/synthesizer/graph_residue.py": [
+          0,
+          6
+        ],
+        "src/charter/activation/synthesizer/interview_mapping.py": [
+          34,
+          109
+        ],
+        "src/charter/activation/synthesizer/manifest.py": [
+          58,
+          115
+        ],
+        "src/charter/activation/synthesizer/orchestrator.py": [
+          25,
+          96
+        ],
+        "src/charter/activation/synthesizer/path_guard.py": [
+          24,
+          49
+        ],
+        "src/charter/activation/synthesizer/project_drg.py": [
+          0,
+          138
+        ],
+        "src/charter/activation/synthesizer/provenance.py": [
+          9,
+          16
+        ],
+        "src/charter/activation/synthesizer/reconcile.py": [
+          72,
+          215
+        ],
+        "src/charter/activation/synthesizer/request.py": [
+          42,
+          99
+        ],
+        "src/charter/activation/synthesizer/resynthesize_pipeline.py": [
+          30,
+          134
+        ],
+        "src/charter/activation/synthesizer/staging.py": [
+          0,
+          53
+        ],
+        "src/charter/activation/synthesizer/synthesize_pipeline.py": [
+          58,
+          170
+        ],
+        "src/charter/activation/synthesizer/targets.py": [
+          19,
+          102
+        ],
+        "src/charter/activation/synthesizer/topic_resolver.py": [
+          23,
+          114
+        ],
+        "src/charter/activation/synthesizer/validation_gate.py": [
+          0,
+          44
+        ],
+        "src/charter/activation/synthesizer/write_pipeline.py": [
+          0,
+          205
+        ],
+        "src/charter/activation/template_resolver.py": [
+          0,
+          44
+        ],
+        "src/charter/assets.py": [
+          0,
+          2
+        ],
+        "src/charter/bundle.py": [
+          66,
+          181
+        ],
+        "src/charter/drg.py": [
+          13,
+          13
+        ],
+        "src/charter/glossary_packs.py": [
+          0,
+          2
+        ],
+        "src/charter/hasher.py": [
+          7,
+          23
+        ],
+        "src/charter/mission_steps.py": [
+          4,
+          4
+        ],
+        "src/charter/missions.py": [
+          6,
+          6
+        ],
+        "src/charter/model_routing.py": [
+          0,
+          2
+        ],
+        "src/charter/offering/__init__.py": [
+          4,
+          4
+        ],
+        "src/charter/offering/agent_profiles/__init__.py": [
+          5,
+          5
+        ],
+        "src/charter/offering/agent_profiles/capabilities.py": [
+          10,
+          19
+        ],
+        "src/charter/offering/agent_profiles/diagnostics.py": [
+          9,
+          9
+        ],
+        "src/charter/offering/agent_profiles/operating_procedures.py": [
+          0,
+          60
+        ],
+        "src/charter/offering/agent_profiles/profile.py": [
+          147,
+          167
+        ],
+        "src/charter/offering/agent_profiles/repository.py": [
+          120,
+          380
+        ],
+        "src/charter/offering/agent_profiles/schema_models.py": [
+          0,
+          102
+        ],
+        "src/charter/offering/agent_profiles/schema_version.py": [
+          1,
+          1
+        ],
+        "src/charter/offering/agent_profiles/validation.py": [
+          14,
+          33
+        ],
+        "src/charter/offering/api.py": [
+          7,
+          7
+        ],
+        "src/charter/offering/artifact_kinds.py": [
+          53,
+          56
+        ],
+        "src/charter/offering/assets/__init__.py": [
+          3,
+          3
+        ],
+        "src/charter/offering/assets/models.py": [
+          9,
+          9
+        ],
+        "src/charter/offering/assets/repository.py": [
+          26,
+          68
+        ],
+        "src/charter/offering/base.py": [
+          105,
+          141
+        ],
+        "src/charter/offering/directives/__init__.py": [
+          4,
+          4
+        ],
+        "src/charter/offering/directives/models.py": [
+          37,
+          51
+        ],
+        "src/charter/offering/directives/repository.py": [
+          28,
+          48
+        ],
+        "src/charter/offering/directives/validation.py": [
+          7,
+          14
+        ],
+        "src/charter/offering/discovery_recursion.py": [
+          8,
+          8
+        ],
+        "src/charter/offering/drg/__init__.py": [
+          6,
+          6
+        ],
+        "src/charter/offering/drg/loader.py": [
+          46,
+          62
+        ],
+        "src/charter/offering/drg/merge.py": [
+          74,
+          255
+        ],
+        "src/charter/offering/drg/migration/__init__.py": [
+          5,
+          5
+        ],
+        "src/charter/offering/drg/migration/calibrator.py": [
+          5,
+          34
+        ],
+        "src/charter/offering/drg/migration/extractor.py": [
+          77,
+          590
+        ],
+        "src/charter/offering/drg/migration/hand_authored_overlay.py": [
+          0,
+          67
+        ],
+        "src/charter/offering/drg/migration/id_normalizer.py": [
+          5,
+          16
+        ],
+        "src/charter/offering/drg/models.py": [
+          87,
+          114
+        ],
+        "src/charter/offering/drg/org_governance.py": [
+          19,
+          48
+        ],
+        "src/charter/offering/drg/org_pack_config.py": [
+          139,
+          247
+        ],
+        "src/charter/offering/drg/org_pack_loader.py": [
+          130,
+          215
+        ],
+        "src/charter/offering/drg/override_policy.py": [
+          0,
+          73
+        ],
+        "src/charter/offering/drg/project_scan.py": [
+          42,
+          106
+        ],
+        "src/charter/offering/drg/query.py": [
+          35,
+          111
+        ],
+        "src/charter/offering/drg/reachability.py": [
+          10,
+          21
+        ],
+        "src/charter/offering/drg/validator.py": [
+          117,
+          136
+        ],
+        "src/charter/offering/glossary_packs/__init__.py": [
+          3,
+          3
+        ],
+        "src/charter/offering/glossary_packs/models.py": [
+          23,
+          28
+        ],
+        "src/charter/offering/glossary_packs/repository.py": [
+          14,
+          18
+        ],
+        "src/charter/offering/import_candidates/__init__.py": [
+          0,
+          0
+        ],
+        "src/charter/offering/import_candidates/models.py": [
+          0,
+          65
+        ],
+        "src/charter/offering/missions/__init__.py": [
+          7,
+          7
+        ],
+        "src/charter/offering/missions/action_index.py": [
+          19,
+          35
+        ],
+        "src/charter/offering/missions/expected_artifact_manifest.py": [
+          27,
+          27
+        ],
+        "src/charter/offering/missions/glossary_hook.py": [
+          12,
+          44
+        ],
+        "src/charter/offering/missions/mission_step_repository.py": [
+          97,
+          106
+        ],
+        "src/charter/offering/missions/mission_type_repository.py": [
+          91,
+          102
+        ],
+        "src/charter/offering/missions/models.py": [
+          55,
+          59
+        ],
+        "src/charter/offering/missions/primitives.py": [
+          27,
+          66
+        ],
+        "src/charter/offering/missions/repository.py": [
+          84,
+          183
+        ],
+        "src/charter/offering/missions/step_contracts.py": [
+          65,
+          88
+        ],
+        "src/charter/offering/missions/step_offer_seam.py": [
+          10,
+          13
+        ],
+        "src/charter/offering/missions/step_projection.py": [
+          39,
+          39
+        ],
+        "src/charter/offering/model_task_routing/__init__.py": [
+          0,
+          0
+        ],
+        "src/charter/offering/model_task_routing/evaluator.py": [
+          39,
+          81
+        ],
+        "src/charter/offering/model_task_routing/loader.py": [
+          18,
+          49
+        ],
+        "src/charter/offering/model_task_routing/models.py": [
+          104,
+          104
+        ],
+        "src/charter/offering/pack_paths.py": [
+          32,
+          46
+        ],
+        "src/charter/offering/paradigms/__init__.py": [
+          3,
+          3
+        ],
+        "src/charter/offering/paradigms/models.py": [
+          20,
+          28
+        ],
+        "src/charter/offering/paradigms/repository.py": [
+          18,
+          35
+        ],
+        "src/charter/offering/paradigms/validation.py": [
+          6,
+          14
+        ],
+        "src/charter/offering/procedures/__init__.py": [
+          4,
+          4
+        ],
+        "src/charter/offering/procedures/models.py": [
+          43,
+          51
+        ],
+        "src/charter/offering/procedures/repository.py": [
+          18,
+          35
+        ],
+        "src/charter/offering/procedures/validation.py": [
+          4,
+          6
+        ],
+        "src/charter/offering/provenance.py": [
+          25,
+          42
+        ],
+        "src/charter/offering/resolver.py": [
+          31,
+          123
+        ],
+        "src/charter/offering/service.py": [
+          60,
+          82
+        ],
+        "src/charter/offering/shared/__init__.py": [
+          5,
+          5
+        ],
+        "src/charter/offering/shared/errors.py": [
+          12,
+          24
+        ],
+        "src/charter/offering/shared/exceptions.py": [
+          5,
+          13
+        ],
+        "src/charter/offering/shared/schema_utils.py": [
+          3,
+          3
+        ],
+        "src/charter/offering/shared/scoping.py": [
+          21,
+          27
+        ],
+        "src/charter/offering/spdd_reasons/__init__.py": [
+          5,
+          5
+        ],
+        "src/charter/offering/spdd_reasons/activation.py": [
+          24,
+          70
+        ],
+        "src/charter/offering/spdd_reasons/charter_context.py": [
+          3,
+          13
+        ],
+        "src/charter/offering/spdd_reasons/template_renderer.py": [
+          50,
+          68
+        ],
+        "src/charter/offering/styleguides/__init__.py": [
+          3,
+          3
+        ],
+        "src/charter/offering/styleguides/models.py": [
+          46,
+          49
+        ],
+        "src/charter/offering/styleguides/repository.py": [
+          25,
+          40
+        ],
+        "src/charter/offering/styleguides/validation.py": [
+          7,
+          14
+        ],
+        "src/charter/offering/tactics/__init__.py": [
+          4,
+          4
+        ],
+        "src/charter/offering/tactics/models.py": [
+          31,
+          39
+        ],
+        "src/charter/offering/tactics/repository.py": [
+          18,
+          35
+        ],
+        "src/charter/offering/tactics/validation.py": [
+          6,
+          14
+        ],
+        "src/charter/offering/template_catalog.py": [
+          28,
+          66
+        ],
+        "src/charter/offering/toolguides/__init__.py": [
+          3,
+          3
+        ],
+        "src/charter/offering/toolguides/models.py": [
+          14,
+          14
+        ],
+        "src/charter/offering/toolguides/repository.py": [
+          24,
+          37
+        ],
+        "src/charter/offering/toolguides/validation.py": [
+          7,
+          14
+        ],
+        "src/charter/offering/versioning.py": [
+          57,
+          221
+        ],
+        "src/charter/offering/yaml_utils.py": [
+          7,
+          20
+        ],
+        "src/charter/pack_paths.py": [
+          0,
+          2
+        ],
+        "src/charter/parser.py": [
+          0,
+          132
+        ],
+        "src/charter/primitives.py": [
+          0,
+          2
+        ],
+        "src/charter/profiles.py": [
+          5,
+          5
+        ],
+        "src/charter/provenance.py": [
+          2,
+          2
+        ],
+        "src/charter/repository_protocol.py": [
+          0,
+          5
+        ],
+        "src/charter/resolution.py": [
+          18,
+          24
+        ],
+        "src/charter/spdd_reasons.py": [
+          2,
+          2
+        ],
+        "src/charter/template_catalog.py": [
+          2,
+          2
+        ],
+        "src/charter/versioning.py": [
+          2,
+          2
+        ],
+        "src/glossary/__init__.py": [
+          20,
+          20
+        ],
+        "src/glossary/attachment.py": [
+          18,
+          57
+        ],
+        "src/glossary/checkpoint.py": [
+          38,
+          101
+        ],
+        "src/glossary/chokepoint.py": [
+          0,
+          112
+        ],
+        "src/glossary/clarification.py": [
+          14,
+          64
+        ],
+        "src/glossary/conflict.py": [
+          9,
+          73
+        ],
+        "src/glossary/drg_builder.py": [
+          0,
+          86
+        ],
+        "src/glossary/entity_pages.py": [
+          0,
+          183
+        ],
+        "src/glossary/events.py": [
+          47,
+          232
+        ],
+        "src/glossary/exceptions.py": [
+          22,
+          46
+        ],
+        "src/glossary/extraction.py": [
+          25,
+          131
+        ],
+        "src/glossary/middleware.py": [
+          40,
+          203
+        ],
+        "src/glossary/models.py": [
+          57,
+          65
+        ],
+        "src/glossary/observation.py": [
+          0,
+          45
+        ],
+        "src/glossary/pipeline.py": [
+          15,
+          82
+        ],
+        "src/glossary/resolution.py": [
+          5,
+          7
+        ],
+        "src/glossary/scope.py": [
+          45,
+          115
+        ],
+        "src/glossary/seed_schema.py": [
+          42,
+          48
+        ],
+        "src/glossary/seed_validation.py": [
+          14,
+          48
+        ],
+        "src/glossary/semantic_events.py": [
+          31,
+          110
+        ],
+        "src/glossary/store.py": [
+          21,
+          28
+        ],
+        "src/glossary/strictness.py": [
+          13,
+          46
+        ],
+        "src/kernel/__init__.py": [
+          2,
+          2
+        ],
+        "src/kernel/_safe_re.py": [
+          74,
+          91
+        ],
+        "src/kernel/atomic.py": [
+          12,
+          33
+        ],
+        "src/kernel/clock.py": [
+          43,
+          50
+        ],
+        "src/kernel/doctrine_root.py": [
+          12,
+          22
+        ],
+        "src/kernel/env_expand.py": [
+          34,
+          45
+        ],
+        "src/kernel/errors.py": [
+          4,
+          7
+        ],
+        "src/kernel/git_topology.py": [
+          39,
+          53
+        ],
+        "src/kernel/glossary_runner.py": [
+          9,
+          18
+        ],
+        "src/kernel/glossary_types.py": [
+          51,
+          55
+        ],
+        "src/kernel/meta_decode.py": [
+          16,
+          21
+        ],
+        "src/kernel/paths.py": [
+          67,
+          103
+        ],
+        "src/kernel/schema_utils.py": [
+          22,
+          25
+        ],
+        "src/kernel/sibling_paths.py": [
+          27,
+          37
+        ],
+        "src/kernel/vcs_lock.py": [
+          7,
+          21
+        ],
+        "src/kernel/yaml_io.py": [
+          40,
+          54
+        ],
+        "src/mission_runtime/__init__.py": [
+          16,
+          17
+        ],
+        "src/mission_runtime/artifacts.py": [
+          62,
+          96
+        ],
+        "src/mission_runtime/checkout_identity.py": [
+          22,
+          30
+        ],
+        "src/mission_runtime/context.py": [
+          96,
+          106
+        ],
+        "src/mission_runtime/identity.py": [
+          19,
+          19
+        ],
+        "src/mission_runtime/lifecycle_phase.py": [
+          43,
+          94
+        ],
+        "src/mission_runtime/mission_resolver_port.py": [
+          9,
+          9
+        ],
+        "src/mission_runtime/read_dir_degrade.py": [
+          21,
+          34
+        ],
+        "src/mission_runtime/resolution.py": [
+          252,
+          498
+        ],
+        "src/mission_runtime/write_target_degrade.py": [
+          25,
+          32
+        ],
+        "src/runtime/__init__.py": [
+          1,
+          1
+        ],
+        "src/runtime/next/__init__.py": [
+          8,
+          11
+        ],
+        "src/runtime/next/_internal_runtime/__init__.py": [
+          7,
+          7
+        ],
+        "src/runtime/next/_internal_runtime/contracts.py": [
+          18,
+          28
+        ],
+        "src/runtime/next/_internal_runtime/discovery.py": [
+          131,
+          161
+        ],
+        "src/runtime/next/_internal_runtime/emitter.py": [
+          0,
+          3
+        ],
+        "src/runtime/next/_internal_runtime/engine.py": [
+          54,
+          507
+        ],
+        "src/runtime/next/_internal_runtime/events.py": [
+          38,
+          104
+        ],
+        "src/runtime/next/_internal_runtime/lifecycle.py": [
+          0,
+          3
+        ],
+        "src/runtime/next/_internal_runtime/models.py": [
+          0,
+          5
+        ],
+        "src/runtime/next/_internal_runtime/planner.py": [
+          26,
+          138
+        ],
+        "src/runtime/next/_internal_runtime/raci.py": [
+          10,
+          60
+        ],
+        "src/runtime/next/_internal_runtime/retrospective_hook.py": [
+          0,
+          11
+        ],
+        "src/runtime/next/_internal_runtime/retrospective_terminus.py": [
+          0,
+          72
+        ],
+        "src/runtime/next/_internal_runtime/schema.py": [
+          220,
+          273
+        ],
+        "src/runtime/next/_internal_runtime/significance.py": [
+          102,
+          229
+        ],
+        "src/runtime/next/_internal_runtime/workflow_registry.py": [
+          23,
+          65
+        ],
+        "src/runtime/next/_internal_runtime/workflow_schema.py": [
+          27,
+          61
+        ],
+        "src/runtime/next/_runtime_pkg_notice.py": [
+          13,
+          38
+        ],
+        "src/runtime/next/_tmp_namespace.py": [
+          13,
+          13
+        ],
+        "src/runtime/next/committed_authority.py": [
+          0,
+          52
+        ],
+        "src/runtime/next/decision.py": [
+          61,
+          209
+        ],
+        "src/runtime/next/discovery.py": [
+          0,
+          76
+        ],
+        "src/runtime/next/next_invocation_lifecycle.py": [
+          0,
+          94
+        ],
+        "src/runtime/next/prompt_builder.py": [
+          0,
+          206
+        ],
+        "src/runtime/next/runtime_bridge.py": [
+          144,
+          724
+        ],
+        "src/runtime/next/runtime_bridge_composition.py": [
+          23,
+          163
+        ],
+        "src/runtime/next/runtime_bridge_cores.py": [
+          81,
+          336
+        ],
+        "src/runtime/next/runtime_bridge_engine.py": [
+          25,
+          98
+        ],
+        "src/runtime/next/runtime_bridge_identity.py": [
+          15,
+          25
+        ],
+        "src/runtime/next/runtime_bridge_io.py": [
+          118,
+          417
+        ],
+        "src/runtime/next/runtime_bridge_retrospective.py": [
+          32,
+          151
+        ],
+        "src/specify_cli/__init__.py": [
+          88,
+          216
+        ],
+        "src/specify_cli/__main__.py": [
+          0,
+          3
+        ],
+        "src/specify_cli/acceptance/__init__.py": [
+          142,
+          579
+        ],
+        "src/specify_cli/acceptance/__main__.py": [
+          0,
+          4
+        ],
+        "src/specify_cli/acceptance/execution_context.py": [
+          39,
+          62
+        ],
+        "src/specify_cli/acceptance/gates_core.py": [
+          33,
+          158
+        ],
+        "src/specify_cli/acceptance/matrix.py": [
+          91,
+          310
+        ],
+        "src/specify_cli/acceptance/post_consolidation.py": [
+          0,
+          68
+        ],
+        "src/specify_cli/acceptance/summary_core.py": [
+          33,
+          81
+        ],
+        "src/specify_cli/agent_tasks_ports.py": [
+          78,
+          111
+        ],
+        "src/specify_cli/agent_upgrade_prompt.py": [
+          8,
+          10
+        ],
+        "src/specify_cli/agent_utils/__init__.py": [
+          2,
+          2
+        ],
+        "src/specify_cli/agent_utils/directories.py": [
+          6,
+          21
+        ],
+        "src/specify_cli/agent_utils/status.py": [
+          0,
+          306
+        ],
+        "src/specify_cli/analysis_report.py": [
+          81,
+          246
+        ],
+        "src/specify_cli/ast_analysis/__init__.py": [
+          0,
+          0
+        ],
+        "src/specify_cli/ast_analysis/imports.py": [
+          23,
+          46
+        ],
+        "src/specify_cli/audit/__init__.py": [
+          4,
+          4
+        ],
+        "src/specify_cli/audit/classifiers/__init__.py": [
+          0,
+          0
+        ],
+        "src/specify_cli/audit/classifiers/_details.py": [
+          9,
+          28
+        ],
+        "src/specify_cli/audit/classifiers/decisions_events.py": [
+          5,
+          7
+        ],
+        "src/specify_cli/audit/classifiers/handoff_events.py": [
+          5,
+          7
+        ],
+        "src/specify_cli/audit/classifiers/meta.py": [
+          9,
+          34
+        ],
+        "src/specify_cli/audit/classifiers/mission_events.py": [
+          9,
+          33
+        ],
+        "src/specify_cli/audit/classifiers/status_events.py": [
+          10,
+          40
+        ],
+        "src/specify_cli/audit/classifiers/status_json.py": [
+          8,
+          39
+        ],
+        "src/specify_cli/audit/classifiers/wp_files.py": [
+          11,
+          50
+        ],
+        "src/specify_cli/audit/detectors.py": [
+          10,
+          36
+        ],
+        "src/specify_cli/audit/engine.py": [
+          27,
+          162
+        ],
+        "src/specify_cli/audit/identity_adapter.py": [
+          10,
+          48
+        ],
+        "src/specify_cli/audit/models.py": [
+          50,
+          67
+        ],
+        "src/specify_cli/audit/serializer.py": [
+          3,
+          4
+        ],
+        "src/specify_cli/audit/shape_registry.py": [
+          18,
+          48
+        ],
+        "src/specify_cli/auth/__init__.py": [
+          6,
+          6
+        ],
+        "src/specify_cli/auth/config.py": [
+          15,
+          32
+        ],
+        "src/specify_cli/auth/device_flow/__init__.py": [
+          4,
+          4
+        ],
+        "src/specify_cli/auth/device_flow/poller.py": [
+          21,
+          62
+        ],
+        "src/specify_cli/auth/device_flow/state.py": [
+          21,
+          28
+        ],
+        "src/specify_cli/auth/errors.py": [
+          21,
+          23
+        ],
+        "src/specify_cli/auth/flows/__init__.py": [
+          5,
+          5
+        ],
+        "src/specify_cli/auth/flows/_session_payload.py": [
+          7,
+          26
+        ],
+        "src/specify_cli/auth/flows/authorization_code.py": [
+          28,
+          112
+        ],
+        "src/specify_cli/auth/flows/client_credentials.py": [
+          0,
+          127
+        ],
+        "src/specify_cli/auth/flows/device_code.py": [
+          26,
+          127
+        ],
+        "src/specify_cli/auth/flows/refresh.py": [
+          20,
+          79
+        ],
+        "src/specify_cli/auth/flows/revoke.py": [
+          20,
+          45
+        ],
+        "src/specify_cli/auth/http/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/auth/http/me_fetch.py": [
+          0,
+          9
+        ],
+        "src/specify_cli/auth/http/transport.py": [
+          45,
+          186
+        ],
+        "src/specify_cli/auth/loopback/__init__.py": [
+          8,
+          8
+        ],
+        "src/specify_cli/auth/loopback/browser_launcher.py": [
+          9,
+          22
+        ],
+        "src/specify_cli/auth/loopback/callback_handler.py": [
+          6,
+          21
+        ],
+        "src/specify_cli/auth/loopback/callback_server.py": [
+          28,
+          89
+        ],
+        "src/specify_cli/auth/loopback/pkce.py": [
+          7,
+          13
+        ],
+        "src/specify_cli/auth/loopback/state.py": [
+          22,
+          25
+        ],
+        "src/specify_cli/auth/loopback/state_manager.py": [
+          8,
+          13
+        ],
+        "src/specify_cli/auth/manager.py": [
+          18,
+          18
+        ],
+        "src/specify_cli/auth/refresh_transaction.py": [
+          42,
+          96
+        ],
+        "src/specify_cli/auth/secure_storage/__init__.py": [
+          5,
+          5
+        ],
+        "src/specify_cli/auth/secure_storage/abstract.py": [
+          19,
+          21
+        ],
+        "src/specify_cli/auth/secure_storage/file_fallback.py": [
+          67,
+          196
+        ],
+        "src/specify_cli/auth/secure_storage/windows_storage.py": [
+          6,
+          9
+        ],
+        "src/specify_cli/auth/server_target.py": [
+          49,
+          74
+        ],
+        "src/specify_cli/auth/session.py": [
+          60,
+          80
+        ],
+        "src/specify_cli/auth/session_hot_path.py": [
+          32,
+          104
+        ],
+        "src/specify_cli/auth/token_manager.py": [
+          96,
+          238
+        ],
+        "src/specify_cli/auth/transport.py": [
+          0,
+          180
+        ],
+        "src/specify_cli/auth/verdict.py": [
+          25,
+          61
+        ],
+        "src/specify_cli/auth/websocket/__init__.py": [
+          0,
+          3
+        ],
+        "src/specify_cli/auth/websocket/token_provisioning.py": [
+          0,
+          72
+        ],
+        "src/specify_cli/bootstrap/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/bootstrap/env_file.py": [
+          62,
+          101
+        ],
+        "src/specify_cli/bulk_edit/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/bulk_edit/diff_check.py": [
+          40,
+          147
+        ],
+        "src/specify_cli/bulk_edit/gate.py": [
+          38,
+          98
+        ],
+        "src/specify_cli/bulk_edit/inference.py": [
+          62,
+          69
+        ],
+        "src/specify_cli/bulk_edit/occurrence_map.py": [
+          88,
+          307
+        ],
+        "src/specify_cli/bytecode_heal.py": [
+          0,
+          108
+        ],
+        "src/specify_cli/calibration/__init__.py": [
+          0,
+          4
+        ],
+        "src/specify_cli/calibration/inequality.py": [
+          0,
+          13
+        ],
+        "src/specify_cli/calibration/walker.py": [
+          0,
+          90
+        ],
+        "src/specify_cli/charter_activate.py": [
+          57,
+          62
+        ],
+        "src/specify_cli/charter_pack_registry.py": [
+          29,
+          40
+        ],
+        "src/specify_cli/charter_runtime/__init__.py": [
+          1,
+          1
+        ],
+        "src/specify_cli/charter_runtime/facade/__init__.py": [
+          0,
+          1
+        ],
+        "src/specify_cli/charter_runtime/freshness/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/charter_runtime/freshness/cache.py": [
+          42,
+          103
+        ],
+        "src/specify_cli/charter_runtime/freshness/computer.py": [
+          98,
+          171
+        ],
+        "src/specify_cli/charter_runtime/lint/__init__.py": [
+          8,
+          8
+        ],
+        "src/specify_cli/charter_runtime/lint/_drg.py": [
+          13,
+          72
+        ],
+        "src/specify_cli/charter_runtime/lint/checks/__init__.py": [
+          0,
+          0
+        ],
+        "src/specify_cli/charter_runtime/lint/checks/contradiction.py": [
+          15,
+          68
+        ],
+        "src/specify_cli/charter_runtime/lint/checks/org_layer.py": [
+          20,
+          146
+        ],
+        "src/specify_cli/charter_runtime/lint/checks/orphan.py": [
+          9,
+          35
+        ],
+        "src/specify_cli/charter_runtime/lint/checks/reference_integrity.py": [
+          14,
+          60
+        ],
+        "src/specify_cli/charter_runtime/lint/checks/staleness.py": [
+          12,
+          71
+        ],
+        "src/specify_cli/charter_runtime/lint/engine.py": [
+          19,
+          59
+        ],
+        "src/specify_cli/charter_runtime/lint/findings.py": [
+          43,
+          49
+        ],
+        "src/specify_cli/charter_runtime/preflight/__init__.py": [
+          4,
+          4
+        ],
+        "src/specify_cli/charter_runtime/preflight/cli.py": [
+          14,
+          49
+        ],
+        "src/specify_cli/charter_runtime/preflight/config.py": [
+          9,
+          26
+        ],
+        "src/specify_cli/charter_runtime/preflight/dashboard_warning.py": [
+          0,
+          26
+        ],
+        "src/specify_cli/charter_runtime/preflight/hook.py": [
+          14,
+          41
+        ],
+        "src/specify_cli/charter_runtime/preflight/references_refresh.py": [
+          0,
+          52
+        ],
+        "src/specify_cli/charter_runtime/preflight/result.py": [
+          22,
+          27
+        ],
+        "src/specify_cli/charter_runtime/preflight/runner.py": [
+          38,
+          205
+        ],
+        "src/specify_cli/cli/__init__.py": [
+          5,
+          5
+        ],
+        "src/specify_cli/cli/commands/__init__.py": [
+          193,
+          207
+        ],
+        "src/specify_cli/cli/commands/_auth_doctor.py": [
+          86,
+          309
+        ],
+        "src/specify_cli/cli/commands/_auth_login.py": [
+          0,
+          125
+        ],
+        "src/specify_cli/cli/commands/_auth_logout.py": [
+          32,
+          32
+        ],
+        "src/specify_cli/cli/commands/_auth_recovery.py": [
+          23,
+          27
+        ],
+        "src/specify_cli/cli/commands/_auth_saas_target.py": [
+          15,
+          53
+        ],
+        "src/specify_cli/cli/commands/_auth_status.py": [
+          22,
+          94
+        ],
+        "src/specify_cli/cli/commands/_auth_whoami.py": [
+          0,
+          12
+        ],
+        "src/specify_cli/cli/commands/_branch_strategy_gate.py": [
+          0,
+          30
+        ],
+        "src/specify_cli/cli/commands/_channel_doctor.py": [
+          14,
+          25
+        ],
+        "src/specify_cli/cli/commands/_command_surface_doctor.py": [
+          54,
+          407
+        ],
+        "src/specify_cli/cli/commands/_coordination_doctor.py": [
+          75,
+          479
+        ],
+        "src/specify_cli/cli/commands/_cutover_doctor.py": [
+          23,
+          56
+        ],
+        "src/specify_cli/cli/commands/_doctor_shared.py": [
+          16,
+          30
+        ],
+        "src/specify_cli/cli/commands/_doctrine_asset.py": [
+          17,
+          72
+        ],
+        "src/specify_cli/cli/commands/_doctrine_collect.py": [
+          96,
+          369
+        ],
+        "src/specify_cli/cli/commands/_doctrine_health.py": [
+          0,
+          66
+        ],
+        "src/specify_cli/cli/commands/_env_file_doctor.py": [
+          45,
+          155
+        ],
+        "src/specify_cli/cli/commands/_identity_audit.py": [
+          56,
+          146
+        ],
+        "src/specify_cli/cli/commands/_mission_state_doctor.py": [
+          80,
+          218
+        ],
+        "src/specify_cli/cli/commands/_mission_type_audit.py": [
+          40,
+          135
+        ],
+        "src/specify_cli/cli/commands/_profile_health_render.py": [
+          29,
+          151
+        ],
+        "src/specify_cli/cli/commands/_provenance_doctor.py": [
+          14,
+          36
+        ],
+        "src/specify_cli/cli/commands/_review_cycle_reconcile_doctor.py": [
+          50,
+          140
+        ],
+        "src/specify_cli/cli/commands/_sparse_checkout_doctor.py": [
+          18,
+          113
+        ],
+        "src/specify_cli/cli/commands/_teamspace_mission_state_gate.py": [
+          27,
+          108
+        ],
+        "src/specify_cli/cli/commands/_test_env_check.py": [
+          29,
+          66
+        ],
+        "src/specify_cli/cli/commands/_workspace_husk_doctor.py": [
+          16,
+          107
+        ],
+        "src/specify_cli/cli/commands/accept.py": [
+          44,
+          406
+        ],
+        "src/specify_cli/cli/commands/agent/__init__.py": [
+          25,
+          26
+        ],
+        "src/specify_cli/cli/commands/agent/acceptance_verdict.py": [
+          25,
+          111
+        ],
+        "src/specify_cli/cli/commands/agent/config.py": [
+          193,
+          444
+        ],
+        "src/specify_cli/cli/commands/agent/context.py": [
+          16,
+          64
+        ],
+        "src/specify_cli/cli/commands/agent/finalization_eligibility.py": [
+          25,
+          37
+        ],
+        "src/specify_cli/cli/commands/agent/issue_verdict.py": [
+          26,
+          84
+        ],
+        "src/specify_cli/cli/commands/agent/mission.py": [
+          80,
+          93
+        ],
+        "src/specify_cli/cli/commands/agent/mission_accept_merge.py": [
+          19,
+          113
+        ],
+        "src/specify_cli/cli/commands/agent/mission_branch_context.py": [
+          21,
+          176
+        ],
+        "src/specify_cli/cli/commands/agent/mission_check_prerequisites.py": [
+          32,
+          318
+        ],
+        "src/specify_cli/cli/commands/agent/mission_create.py": [
+          41,
+          227
+        ],
+        "src/specify_cli/cli/commands/agent/mission_feature_resolution.py": [
+          22,
+          110
+        ],
+        "src/specify_cli/cli/commands/agent/mission_finalize.py": [
+          154,
+          1154
+        ],
+        "src/specify_cli/cli/commands/agent/mission_parsing.py": [
+          33,
+          133
+        ],
+        "src/specify_cli/cli/commands/agent/mission_record_analysis.py": [
+          25,
+          109
+        ],
+        "src/specify_cli/cli/commands/agent/mission_repair.py": [
+          23,
+          107
+        ],
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py": [
+          63,
+          350
+        ],
+        "src/specify_cli/cli/commands/agent/release.py": [
+          15,
+          42
+        ],
+        "src/specify_cli/cli/commands/agent/status.py": [
+          156,
+          363
+        ],
+        "src/specify_cli/cli/commands/agent/surface_presence.py": [
+          52,
+          62
+        ],
+        "src/specify_cli/cli/commands/agent/tasks.py": [
+          72,
+          288
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_command_adapters.py": [
+          7,
+          16
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_dependency_graph.py": [
+          13,
+          74
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_finalize.py": [
+          37,
+          132
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_finalize_validation.py": [
+          44,
+          123
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_map_requirements.py": [
+          59,
+          312
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_mapping_core.py": [
+          26,
+          43
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_mark_status.py": [
+          54,
+          261
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_materialization.py": [
+          21,
+          111
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py": [
+          247,
+          1139
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_outline.py": [
+          34,
+          120
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py": [
+          38,
+          395
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_shared.py": [
+          38,
+          216
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_status_cmd.py": [
+          55,
+          414
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_status_view.py": [
+          30,
+          70
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_transition_core.py": [
+          97,
+          259
+        ],
+        "src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py": [
+          49,
+          212
+        ],
+        "src/specify_cli/cli/commands/agent/tests.py": [
+          14,
+          46
+        ],
+        "src/specify_cli/cli/commands/agent/tracer_append.py": [
+          17,
+          48
+        ],
+        "src/specify_cli/cli/commands/agent/workflow.py": [
+          84,
+          571
+        ],
+        "src/specify_cli/cli/commands/agent/workflow_cores.py": [
+          39,
+          163
+        ],
+        "src/specify_cli/cli/commands/agent/workflow_executor.py": [
+          74,
+          884
+        ],
+        "src/specify_cli/cli/commands/agent_retrospect.py": [
+          127,
+          234
+        ],
+        "src/specify_cli/cli/commands/archive.py": [
+          17,
+          52
+        ],
+        "src/specify_cli/cli/commands/auth.py": [
+          22,
+          52
+        ],
+        "src/specify_cli/cli/commands/charter/__init__.py": [
+          22,
+          22
+        ],
+        "src/specify_cli/cli/commands/charter/_app.py": [
+          26,
+          26
+        ],
+        "src/specify_cli/cli/commands/charter/_common.py": [
+          33,
+          54
+        ],
+        "src/specify_cli/cli/commands/charter/_fresh_doctrine.py": [
+          9,
+          66
+        ],
+        "src/specify_cli/cli/commands/charter/_layer_roots.py": [
+          16,
+          17
+        ],
+        "src/specify_cli/cli/commands/charter/_resynthesis_preflight.py": [
+          0,
+          46
+        ],
+        "src/specify_cli/cli/commands/charter/_status_collectors.py": [
+          31,
+          165
+        ],
+        "src/specify_cli/cli/commands/charter/_synthesis.py": [
+          35,
+          313
+        ],
+        "src/specify_cli/cli/commands/charter/_widen.py": [
+          25,
+          160
+        ],
+        "src/specify_cli/cli/commands/charter/activate.py": [
+          89,
+          195
+        ],
+        "src/specify_cli/cli/commands/charter/context.py": [
+          46,
+          50
+        ],
+        "src/specify_cli/cli/commands/charter/deactivate.py": [
+          22,
+          120
+        ],
+        "src/specify_cli/cli/commands/charter/generate.py": [
+          22,
+          138
+        ],
+        "src/specify_cli/cli/commands/charter/interview.py": [
+          64,
+          167
+        ],
+        "src/specify_cli/cli/commands/charter/lint.py": [
+          20,
+          93
+        ],
+        "src/specify_cli/cli/commands/charter/list_cmd.py": [
+          68,
+          109
+        ],
+        "src/specify_cli/cli/commands/charter/mission_type.py": [
+          52,
+          73
+        ],
+        "src/specify_cli/cli/commands/charter/pack.py": [
+          22,
+          119
+        ],
+        "src/specify_cli/cli/commands/charter/resynthesize.py": [
+          45,
+          97
+        ],
+        "src/specify_cli/cli/commands/charter/status.py": [
+          104,
+          155
+        ],
+        "src/specify_cli/cli/commands/charter/sync.py": [
+          37,
+          45
+        ],
+        "src/specify_cli/cli/commands/charter/synthesize.py": [
+          17,
+          155
+        ],
+        "src/specify_cli/cli/commands/charter_bundle.py": [
+          40,
+          210
+        ],
+        "src/specify_cli/cli/commands/commit_guard_hook_cmd.py": [
+          6,
+          6
+        ],
+        "src/specify_cli/cli/commands/config_cmd.py": [
+          7,
+          40
+        ],
+        "src/specify_cli/cli/commands/context.py": [
+          27,
+          186
+        ],
+        "src/specify_cli/cli/commands/cutover_guard.py": [
+          33,
+          131
+        ],
+        "src/specify_cli/cli/commands/dashboard.py": [
+          8,
+          94
+        ],
+        "src/specify_cli/cli/commands/decision.py": [
+          31,
+          166
+        ],
+        "src/specify_cli/cli/commands/dispatch.py": [
+          31,
+          149
+        ],
+        "src/specify_cli/cli/commands/docs.py": [
+          20,
+          71
+        ],
+        "src/specify_cli/cli/commands/doctor.py": [
+          91,
+          438
+        ],
+        "src/specify_cli/cli/commands/doctrine.py": [
+          102,
+          304
+        ],
+        "src/specify_cli/cli/commands/events.py": [
+          36,
+          38
+        ],
+        "src/specify_cli/cli/commands/glossary.py": [
+          34,
+          419
+        ],
+        "src/specify_cli/cli/commands/implement.py": [
+          260,
+          647
+        ],
+        "src/specify_cli/cli/commands/implement_cores.py": [
+          58,
+          190
+        ],
+        "src/specify_cli/cli/commands/init.py": [
+          76,
+          669
+        ],
+        "src/specify_cli/cli/commands/init_help.py": [
+          1,
+          1
+        ],
+        "src/specify_cli/cli/commands/intake.py": [
+          87,
+          157
+        ],
+        "src/specify_cli/cli/commands/invocations_cmd.py": [
+          29,
+          218
+        ],
+        "src/specify_cli/cli/commands/lifecycle.py": [
+          26,
+          108
+        ],
+        "src/specify_cli/cli/commands/lint.py": [
+          17,
+          102
+        ],
+        "src/specify_cli/cli/commands/materialize.py": [
+          9,
+          59
+        ],
+        "src/specify_cli/cli/commands/merge.py": [
+          41,
+          185
+        ],
+        "src/specify_cli/cli/commands/merge_driver.py": [
+          61,
+          224
+        ],
+        "src/specify_cli/cli/commands/migrate/__init__.py": [
+          0,
+          0
+        ],
+        "src/specify_cli/cli/commands/migrate/backfill_provenance.py": [
+          0,
+          131
+        ],
+        "src/specify_cli/cli/commands/migrate/charter_encoding.py": [
+          0,
+          131
+        ],
+        "src/specify_cli/cli/commands/migrate/repin_hooks.py": [
+          0,
+          11
+        ],
+        "src/specify_cli/cli/commands/migrate_cmd.py": [
+          69,
+          459
+        ],
+        "src/specify_cli/cli/commands/mission.py": [
+          2,
+          2
+        ],
+        "src/specify_cli/cli/commands/mission_type.py": [
+          145,
+          611
+        ],
+        "src/specify_cli/cli/commands/moments.py": [
+          51,
+          51
+        ],
+        "src/specify_cli/cli/commands/next_cmd.py": [
+          52,
+          384
+        ],
+        "src/specify_cli/cli/commands/ops.py": [
+          12,
+          52
+        ],
+        "src/specify_cli/cli/commands/plugin.py": [
+          9,
+          18
+        ],
+        "src/specify_cli/cli/commands/profile_invocation.py": [
+          17,
+          53
+        ],
+        "src/specify_cli/cli/commands/profiles_cmd.py": [
+          29,
+          188
+        ],
+        "src/specify_cli/cli/commands/reconcile.py": [
+          20,
+          64
+        ],
+        "src/specify_cli/cli/commands/regen.py": [
+          29,
+          83
+        ],
+        "src/specify_cli/cli/commands/research.py": [
+          18,
+          117
+        ],
+        "src/specify_cli/cli/commands/retrospect.py": [
+          393,
+          398
+        ],
+        "src/specify_cli/cli/commands/review/__init__.py": [
+          37,
+          158
+        ],
+        "src/specify_cli/cli/commands/review/_ble001_audit.py": [
+          24,
+          85
+        ],
+        "src/specify_cli/cli/commands/review/_dead_code.py": [
+          23,
+          110
+        ],
+        "src/specify_cli/cli/commands/review/_diagnostics.py": [
+          17,
+          17
+        ],
+        "src/specify_cli/cli/commands/review/_issue_matrix.py": [
+          123,
+          143
+        ],
+        "src/specify_cli/cli/commands/review/_lane_gate.py": [
+          7,
+          32
+        ],
+        "src/specify_cli/cli/commands/review/_mode.py": [
+          11,
+          22
+        ],
+        "src/specify_cli/cli/commands/review/_report.py": [
+          17,
+          77
+        ],
+        "src/specify_cli/cli/commands/routes.py": [
+          66,
+          68
+        ],
+        "src/specify_cli/cli/commands/safe_commit_cmd.py": [
+          28,
+          158
+        ],
+        "src/specify_cli/cli/commands/session_start.py": [
+          7,
+          33
+        ],
+        "src/specify_cli/cli/commands/session_stop.py": [
+          6,
+          16
+        ],
+        "src/specify_cli/cli/commands/spec_commit_cmd.py": [
+          20,
+          111
+        ],
+        "src/specify_cli/cli/commands/tracker.py": [
+          76,
+          536
+        ],
+        "src/specify_cli/cli/commands/upgrade.py": [
+          78,
+          710
+        ],
+        "src/specify_cli/cli/commands/validate_encoding.py": [
+          15,
+          117
+        ],
+        "src/specify_cli/cli/commands/validate_tasks.py": [
+          16,
+          106
+        ],
+        "src/specify_cli/cli/commands/verify.py": [
+          22,
+          172
+        ],
+        "src/specify_cli/cli/commands/workflow.py": [
+          14,
+          33
+        ],
+        "src/specify_cli/cli/commands/zeitgeist.py": [
+          166,
+          203
+        ],
+        "src/specify_cli/cli/console.py": [
+          47,
+          48
+        ],
+        "src/specify_cli/cli/helpers.py": [
+          75,
+          207
+        ],
+        "src/specify_cli/cli/logging_bootstrap.py": [
+          0,
+          43
+        ],
+        "src/specify_cli/cli/selector_resolution.py": [
+          39,
+          87
+        ],
+        "src/specify_cli/cli/step_tracker.py": [
+          53,
+          65
+        ],
+        "src/specify_cli/cli/ui.py": [
+          14,
+          108
+        ],
+        "src/specify_cli/compat/__init__.py": [
+          14,
+          14
+        ],
+        "src/specify_cli/compat/_adapters/__init__.py": [
+          0,
+          0
+        ],
+        "src/specify_cli/compat/_adapters/uv_receipt.py": [
+          39,
+          169
+        ],
+        "src/specify_cli/compat/_detect/__init__.py": [
+          0,
+          0
+        ],
+        "src/specify_cli/compat/_detect/install_method.py": [
+          120,
+          179
+        ],
+        "src/specify_cli/compat/_detect/runtime.py": [
+          48,
+          53
+        ],
+        "src/specify_cli/compat/cache.py": [
+          70,
+          271
+        ],
+        "src/specify_cli/compat/config.py": [
+          44,
+          89
+        ],
+        "src/specify_cli/compat/doctor.py": [
+          29,
+          53
+        ],
+        "src/specify_cli/compat/history.py": [
+          0,
+          112
+        ],
+        "src/specify_cli/compat/install_events.py": [
+          0,
+          14
+        ],
+        "src/specify_cli/compat/messages.py": [
+          49,
+          60
+        ],
+        "src/specify_cli/compat/planner.py": [
+          222,
+          358
+        ],
+        "src/specify_cli/compat/provider.py": [
+          33,
+          96
+        ],
+        "src/specify_cli/compat/registry.py": [
+          34,
+          116
+        ],
+        "src/specify_cli/compat/remediation.py": [
+          65,
+          200
+        ],
+        "src/specify_cli/compat/safety.py": [
+          25,
+          34
+        ],
+        "src/specify_cli/compat/safety_modes.py": [
+          22,
+          44
+        ],
+        "src/specify_cli/compat/upgrade_hint.py": [
+          39,
+          52
+        ],
+        "src/specify_cli/completion.py": [
+          0,
+          102
+        ],
+        "src/specify_cli/config/__init__.py": [
+          0,
+          0
+        ],
+        "src/specify_cli/config/path_conventions.py": [
+          9,
+          45
+        ],
+        "src/specify_cli/configured_command.py": [
+          19,
+          133
+        ],
+        "src/specify_cli/context/__init__.py": [
+          6,
+          6
+        ],
+        "src/specify_cli/context/errors.py": [
+          8,
+          8
+        ],
+        "src/specify_cli/context/middleware.py": [
+          14,
+          53
+        ],
+        "src/specify_cli/context/mission_resolver.py": [
+          97,
+          105
+        ],
+        "src/specify_cli/context/models.py": [
+          30,
+          33
+        ],
+        "src/specify_cli/context/resolver.py": [
+          25,
+          110
+        ],
+        "src/specify_cli/context/store.py": [
+          11,
+          41
+        ],
+        "src/specify_cli/contracts/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/contracts/anchoring.py": [
+          57,
+          82
+        ],
+        "src/specify_cli/contracts/registry.py": [
+          81,
+          274
+        ],
+        "src/specify_cli/coordination/__init__.py": [
+          7,
+          7
+        ],
+        "src/specify_cli/coordination/atomic_write.py": [
+          28,
+          172
+        ],
+        "src/specify_cli/coordination/coherence.py": [
+          24,
+          80
+        ],
+        "src/specify_cli/coordination/commit_router.py": [
+          56,
+          246
+        ],
+        "src/specify_cli/coordination/legacy_resolution.py": [
+          30,
+          78
+        ],
+        "src/specify_cli/coordination/outbound.py": [
+          12,
+          12
+        ],
+        "src/specify_cli/coordination/policy.py": [
+          36,
+          48
+        ],
+        "src/specify_cli/coordination/status_service.py": [
+          84,
+          150
+        ],
+        "src/specify_cli/coordination/status_transition.py": [
+          240,
+          457
+        ],
+        "src/specify_cli/coordination/surface_authority.py": [
+          33,
+          56
+        ],
+        "src/specify_cli/coordination/surface_resolver.py": [
+          161,
+          204
+        ],
+        "src/specify_cli/coordination/teardown.py": [
+          0,
+          22
+        ],
+        "src/specify_cli/coordination/transaction.py": [
+          181,
+          280
+        ],
+        "src/specify_cli/coordination/transaction_errors.py": [
+          18,
+          20
+        ],
+        "src/specify_cli/coordination/types.py": [
+          39,
+          40
+        ],
+        "src/specify_cli/coordination/workspace.py": [
+          73,
+          105
+        ],
+        "src/specify_cli/coordination/write_seam.py": [
+          38,
+          83
+        ],
+        "src/specify_cli/core/__init__.py": [
+          8,
+          8
+        ],
+        "src/specify_cli/core/adapters.py": [
+          25,
+          39
+        ],
+        "src/specify_cli/core/agent_config.py": [
+          18,
+          82
+        ],
+        "src/specify_cli/core/atomic.py": [
+          15,
+          21
+        ],
+        "src/specify_cli/core/channel.py": [
+          7,
+          7
+        ],
+        "src/specify_cli/core/checkout_file_lock.py": [
+          13,
+          13
+        ],
+        "src/specify_cli/core/checkout_identity.py": [
+          33,
+          52
+        ],
+        "src/specify_cli/core/checkout_ownership.py": [
+          40,
+          87
+        ],
+        "src/specify_cli/core/commit_guard.py": [
+          25,
+          28
+        ],
+        "src/specify_cli/core/config.py": [
+          15,
+          15
+        ],
+        "src/specify_cli/core/constants.py": [
+          12,
+          17
+        ],
+        "src/specify_cli/core/context_validation.py": [
+          39,
+          96
+        ],
+        "src/specify_cli/core/contract_gate.py": [
+          22,
+          82
+        ],
+        "src/specify_cli/core/dependency_graph.py": [
+          60,
+          130
+        ],
+        "src/specify_cli/core/dependency_parser.py": [
+          0,
+          104
+        ],
+        "src/specify_cli/core/env.py": [
+          28,
+          43
+        ],
+        "src/specify_cli/core/errors.py": [
+          8,
+          9
+        ],
+        "src/specify_cli/core/file_lock.py": [
+          52,
+          196
+        ],
+        "src/specify_cli/core/git_ops.py": [
+          74,
+          179
+        ],
+        "src/specify_cli/core/git_preflight.py": [
+          42,
+          96
+        ],
+        "src/specify_cli/core/loopback_http.py": [
+          7,
+          12
+        ],
+        "src/specify_cli/core/mission_creation.py": [
+          213,
+          316
+        ],
+        "src/specify_cli/core/mission_payload.py": [
+          14,
+          19
+        ],
+        "src/specify_cli/core/no_follow.py": [
+          12,
+          30
+        ],
+        "src/specify_cli/core/owned_mission.py": [
+          24,
+          66
+        ],
+        "src/specify_cli/core/paths.py": [
+          181,
+          283
+        ],
+        "src/specify_cli/core/payload_shaping.py": [
+          11,
+          11
+        ],
+        "src/specify_cli/core/process_liveness.py": [
+          7,
+          29
+        ],
+        "src/specify_cli/core/project_resolver.py": [
+          8,
+          22
+        ],
+        "src/specify_cli/core/saas_sync_config.py": [
+          12,
+          15
+        ],
+        "src/specify_cli/core/secret_redaction.py": [
+          11,
+          12
+        ],
+        "src/specify_cli/core/stale_detection.py": [
+          0,
+          136
+        ],
+        "src/specify_cli/core/subtask_rows.py": [
+          86,
+          157
+        ],
+        "src/specify_cli/core/tool_checker.py": [
+          13,
+          36
+        ],
+        "src/specify_cli/core/upgrade_notifier.py": [
+          0,
+          111
+        ],
+        "src/specify_cli/core/upgrade_probe.py": [
+          0,
+          84
+        ],
+        "src/specify_cli/core/utils.py": [
+          42,
+          94
+        ],
+        "src/specify_cli/core/vcs/__init__.py": [
+          8,
+          8
+        ],
+        "src/specify_cli/core/vcs/detection.py": [
+          21,
+          98
+        ],
+        "src/specify_cli/core/vcs/exceptions.py": [
+          13,
+          13
+        ],
+        "src/specify_cli/core/vcs/git.py": [
+          39,
+          357
+        ],
+        "src/specify_cli/core/vcs/protocol.py": [
+          23,
+          23
+        ],
+        "src/specify_cli/core/vcs/types.py": [
+          83,
+          83
+        ],
+        "src/specify_cli/core/version_checker.py": [
+          0,
+          85
+        ],
+        "src/specify_cli/core/version_compare.py": [
+          5,
+          18
+        ],
+        "src/specify_cli/core/worktree.py": [
+          31,
+          295
+        ],
+        "src/specify_cli/core/worktree_topology.py": [
+          0,
+          150
+        ],
+        "src/specify_cli/core/wps_manifest.py": [
+          36,
+          103
+        ],
+        "src/specify_cli/dashboard/__init__.py": [
+          5,
+          5
+        ],
+        "src/specify_cli/dashboard/_server_main.py": [
+          7,
+          19
+        ],
+        "src/specify_cli/dashboard/api_types.py": [
+          187,
+          187
+        ],
+        "src/specify_cli/dashboard/charter_path.py": [
+          9,
+          41
+        ],
+        "src/specify_cli/dashboard/csp.py": [
+          6,
+          7
+        ],
+        "src/specify_cli/dashboard/diagnostics.py": [
+          14,
+          114
+        ],
+        "src/specify_cli/dashboard/handlers/__init__.py": [
+          6,
+          6
+        ],
+        "src/specify_cli/dashboard/handlers/api.py": [
+          19,
+          137
+        ],
+        "src/specify_cli/dashboard/handlers/base.py": [
+          15,
+          47
+        ],
+        "src/specify_cli/dashboard/handlers/features.py": [
+          28,
+          273
+        ],
+        "src/specify_cli/dashboard/handlers/glossary.py": [
+          25,
+          161
+        ],
+        "src/specify_cli/dashboard/handlers/lint.py": [
+          12,
+          31
+        ],
+        "src/specify_cli/dashboard/handlers/router.py": [
+          11,
+          73
+        ],
+        "src/specify_cli/dashboard/handlers/static.py": [
+          10,
+          41
+        ],
+        "src/specify_cli/dashboard/lifecycle.py": [
+          39,
+          330
+        ],
+        "src/specify_cli/dashboard/scanner.py": [
+          156,
+          473
+        ],
+        "src/specify_cli/dashboard/server.py": [
+          44,
+          202
+        ],
+        "src/specify_cli/dashboard/templates/__init__.py": [
+          13,
+          22
+        ],
+        "src/specify_cli/decisions/__init__.py": [
+          4,
+          4
+        ],
+        "src/specify_cli/decisions/emit.py": [
+          61,
+          63
+        ],
+        "src/specify_cli/decisions/models.py": [
+          67,
+          70
+        ],
+        "src/specify_cli/decisions/ownership.py": [
+          0,
+          133
+        ],
+        "src/specify_cli/decisions/service.py": [
+          29,
+          126
+        ],
+        "src/specify_cli/decisions/store.py": [
+          19,
+          123
+        ],
+        "src/specify_cli/decisions/verify.py": [
+          24,
+          58
+        ],
+        "src/specify_cli/diagnostics/__init__.py": [
+          2,
+          2
+        ],
+        "src/specify_cli/diagnostics/dedup.py": [
+          11,
+          24
+        ],
+        "src/specify_cli/distribution/__init__.py": [
+          6,
+          6
+        ],
+        "src/specify_cli/distribution/installed_version.py": [
+          10,
+          17
+        ],
+        "src/specify_cli/distribution/package_name.py": [
+          35,
+          72
+        ],
+        "src/specify_cli/distribution/profile.py": [
+          51,
+          87
+        ],
+        "src/specify_cli/distribution/simple_index.py": [
+          0,
+          163
+        ],
+        "src/specify_cli/distribution/upgrade_provider.py": [
+          28,
+          50
+        ],
+        "src/specify_cli/doc_analysis/__init__.py": [
+          0,
+          0
+        ],
+        "src/specify_cli/doc_analysis/doc_generators.py": [
+          0,
+          157
+        ],
+        "src/specify_cli/doc_analysis/doc_state.py": [
+          28,
+          105
+        ],
+        "src/specify_cli/doc_analysis/gap_analysis.py": [
+          0,
+          346
+        ],
+        "src/specify_cli/docs/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/docs/index_model.py": [
+          55,
+          113
+        ],
+        "src/specify_cli/doctor/__init__.py": [
+          0,
+          0
+        ],
+        "src/specify_cli/doctor/ops.py": [
+          0,
+          102
+        ],
+        "src/specify_cli/doctrine/__init__.py": [
+          6,
+          6
+        ],
+        "src/specify_cli/doctrine/builtin_manifest.py": [
+          0,
+          51
+        ],
+        "src/specify_cli/doctrine/config.py": [
+          5,
+          11
+        ],
+        "src/specify_cli/doctrine/org_charter.py": [
+          138,
+          277
+        ],
+        "src/specify_cli/doctrine/org_charter_loader.py": [
+          6,
+          35
+        ],
+        "src/specify_cli/doctrine/pack_assembler.py": [
+          0,
+          312
+        ],
+        "src/specify_cli/doctrine/pack_descriptor.py": [
+          0,
+          9
+        ],
+        "src/specify_cli/doctrine/pack_lineage.py": [
+          0,
+          54
+        ],
+        "src/specify_cli/doctrine/pack_manifest.py": [
+          0,
+          108
+        ],
+        "src/specify_cli/doctrine/pack_validator.py": [
+          222,
+          455
+        ],
+        "src/specify_cli/doctrine/snapshot.py": [
+          37,
+          289
+        ],
+        "src/specify_cli/doctrine/sources/__init__.py": [
+          6,
+          6
+        ],
+        "src/specify_cli/doctrine/sources/api_source.py": [
+          30,
+          176
+        ],
+        "src/specify_cli/doctrine/sources/git_source.py": [
+          24,
+          71
+        ],
+        "src/specify_cli/doctrine/sources/https_source.py": [
+          73,
+          408
+        ],
+        "src/specify_cli/doctrine/sources/protocol.py": [
+          15,
+          15
+        ],
+        "src/specify_cli/doctrine_service_factory.py": [
+          5,
+          7
+        ],
+        "src/specify_cli/doctrine_synthesizer/__init__.py": [
+          4,
+          4
+        ],
+        "src/specify_cli/doctrine_synthesizer/apply.py": [
+          63,
+          299
+        ],
+        "src/specify_cli/doctrine_synthesizer/conflict.py": [
+          10,
+          72
+        ],
+        "src/specify_cli/doctrine_synthesizer/provenance.py": [
+          15,
+          44
+        ],
+        "src/specify_cli/dossier/__init__.py": [
+          7,
+          7
+        ],
+        "src/specify_cli/dossier/api.py": [
+          0,
+          160
+        ],
+        "src/specify_cli/dossier/events.py": [
+          22,
+          160
+        ],
+        "src/specify_cli/dossier/hasher.py": [
+          13,
+          47
+        ],
+        "src/specify_cli/dossier/indexer.py": [
+          0,
+          158
+        ],
+        "src/specify_cli/dossier/manifest.py": [
+          24,
+          41
+        ],
+        "src/specify_cli/dossier/models.py": [
+          69,
+          119
+        ],
+        "src/specify_cli/dossier/rebaseline.py": [
+          0,
+          63
+        ],
+        "src/specify_cli/dossier/reconciler.py": [
+          50,
+          127
+        ],
+        "src/specify_cli/dossier/snapshot.py": [
+          15,
+          53
+        ],
+        "src/specify_cli/drg_writers/__init__.py": [
+          0,
+          3
+        ],
+        "src/specify_cli/drg_writers/registry.py": [
+          0,
+          39
+        ],
+        "src/specify_cli/encoding.py": [
+          5,
+          13
+        ],
+        "src/specify_cli/events/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/events/adapter.py": [
+          36,
+          64
+        ],
+        "src/specify_cli/events/decision_log.py": [
+          0,
+          85
+        ],
+        "src/specify_cli/events/sanitizer.py": [
+          33,
+          44
+        ],
+        "src/specify_cli/frontmatter.py": [
+          86,
+          135
+        ],
+        "src/specify_cli/git/__init__.py": [
+          2,
+          2
+        ],
+        "src/specify_cli/git/bookkeeping_commit.py": [
+          10,
+          15
+        ],
+        "src/specify_cli/git/commit_helpers.py": [
+          230,
+          351
+        ],
+        "src/specify_cli/git/protection_policy.py": [
+          55,
+          70
+        ],
+        "src/specify_cli/git/ref_advance.py": [
+          35,
+          134
+        ],
+        "src/specify_cli/git/sparse_checkout.py": [
+          153,
+          216
+        ],
+        "src/specify_cli/git/sparse_checkout_remediation.py": [
+          96,
+          116
+        ],
+        "src/specify_cli/gitignore_manager.py": [
+          62,
+          289
+        ],
+        "src/specify_cli/identity/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/identity/aliases.py": [
+          6,
+          7
+        ],
+        "src/specify_cli/identity/project.py": [
+          75,
+          210
+        ],
+        "src/specify_cli/intake/__init__.py": [
+          6,
+          6
+        ],
+        "src/specify_cli/intake/brief_writer.py": [
+          67,
+          79
+        ],
+        "src/specify_cli/intake/errors.py": [
+          33,
+          35
+        ],
+        "src/specify_cli/intake/packet.py": [
+          88,
+          97
+        ],
+        "src/specify_cli/intake/provenance.py": [
+          22,
+          22
+        ],
+        "src/specify_cli/intake/scanner.py": [
+          53,
+          100
+        ],
+        "src/specify_cli/intake_sources.py": [
+          4,
+          36
+        ],
+        "src/specify_cli/invocation/__init__.py": [
+          10,
+          18
+        ],
+        "src/specify_cli/invocation/adapters.py": [
+          11,
+          36
+        ],
+        "src/specify_cli/invocation/empty_charter.py": [
+          11,
+          29
+        ],
+        "src/specify_cli/invocation/errors.py": [
+          18,
+          37
+        ],
+        "src/specify_cli/invocation/executor.py": [
+          82,
+          293
+        ],
+        "src/specify_cli/invocation/lifecycle.py": [
+          32,
+          107
+        ],
+        "src/specify_cli/invocation/modes.py": [
+          9,
+          10
+        ],
+        "src/specify_cli/invocation/org_profiles.py": [
+          24,
+          36
+        ],
+        "src/specify_cli/invocation/projection_policy.py": [
+          18,
+          20
+        ],
+        "src/specify_cli/invocation/propagator.py": [
+          31,
+          100
+        ],
+        "src/specify_cli/invocation/record.py": [
+          83,
+          135
+        ],
+        "src/specify_cli/invocation/registry.py": [
+          19,
+          48
+        ],
+        "src/specify_cli/invocation/router.py": [
+          22,
+          95
+        ],
+        "src/specify_cli/invocation/task_class_map.py": [
+          4,
+          6
+        ],
+        "src/specify_cli/invocation/writer.py": [
+          27,
+          130
+        ],
+        "src/specify_cli/lanes/__init__.py": [
+          4,
+          4
+        ],
+        "src/specify_cli/lanes/_git.py": [
+          11,
+          18
+        ],
+        "src/specify_cli/lanes/auto_rebase.py": [
+          0,
+          435
+        ],
+        "src/specify_cli/lanes/branch_naming.py": [
+          93,
+          178
+        ],
+        "src/specify_cli/lanes/compute.py": [
+          41,
+          301
+        ],
+        "src/specify_cli/lanes/for_review_gate.py": [
+          15,
+          43
+        ],
+        "src/specify_cli/lanes/implement_support.py": [
+          42,
+          152
+        ],
+        "src/specify_cli/lanes/lane_env.py": [
+          8,
+          19
+        ],
+        "src/specify_cli/lanes/lifecycle_sync.py": [
+          0,
+          74
+        ],
+        "src/specify_cli/lanes/merge.py": [
+          57,
+          205
+        ],
+        "src/specify_cli/lanes/models.py": [
+          57,
+          71
+        ],
+        "src/specify_cli/lanes/persistence.py": [
+          31,
+          39
+        ],
+        "src/specify_cli/lanes/recovery.py": [
+          75,
+          336
+        ],
+        "src/specify_cli/lanes/stale_check.py": [
+          13,
+          27
+        ],
+        "src/specify_cli/lanes/worktree_allocator.py": [
+          60,
+          230
+        ],
+        "src/specify_cli/manifest.py": [
+          22,
+          156
+        ],
+        "src/specify_cli/merge/__init__.py": [
+          8,
+          8
+        ],
+        "src/specify_cli/merge/_constants.py": [
+          12,
+          12
+        ],
+        "src/specify_cli/merge/baseline.py": [
+          15,
+          76
+        ],
+        "src/specify_cli/merge/bookkeeping_projection.py": [
+          23,
+          110
+        ],
+        "src/specify_cli/merge/config.py": [
+          13,
+          34
+        ],
+        "src/specify_cli/merge/conflict_classifier.py": [
+          0,
+          270
+        ],
+        "src/specify_cli/merge/conflict_resolver.py": [
+          35,
+          98
+        ],
+        "src/specify_cli/merge/done_bookkeeping.py": [
+          33,
+          237
+        ],
+        "src/specify_cli/merge/executor.py": [
+          121,
+          613
+        ],
+        "src/specify_cli/merge/forecast.py": [
+          20,
+          74
+        ],
+        "src/specify_cli/merge/git_probes.py": [
+          22,
+          80
+        ],
+        "src/specify_cli/merge/ordering.py": [
+          29,
+          187
+        ],
+        "src/specify_cli/merge/preflight.py": [
+          36,
+          254
+        ],
+        "src/specify_cli/merge/push_preflight.py": [
+          47,
+          125
+        ],
+        "src/specify_cli/merge/resolve.py": [
+          22,
+          126
+        ],
+        "src/specify_cli/merge/retention.py": [
+          25,
+          74
+        ],
+        "src/specify_cli/merge/state.py": [
+          55,
+          160
+        ],
+        "src/specify_cli/merge/workspace.py": [
+          16,
+          61
+        ],
+        "src/specify_cli/migration/__init__.py": [
+          9,
+          9
+        ],
+        "src/specify_cli/migration/backfill_identity.py": [
+          28,
+          175
+        ],
+        "src/specify_cli/migration/backfill_mission_type.py": [
+          0,
+          70
+        ],
+        "src/specify_cli/migration/backfill_ownership.py": [
+          11,
+          104
+        ],
+        "src/specify_cli/migration/backfill_runtime_state.py": [
+          611,
+          666
+        ],
+        "src/specify_cli/migration/backfill_topology.py": [
+          40,
+          88
+        ],
+        "src/specify_cli/migration/canonicalization.py": [
+          36,
+          37
+        ],
+        "src/specify_cli/migration/gate.py": [
+          26,
+          36
+        ],
+        "src/specify_cli/migration/mission_state.py": [
+          451,
+          995
+        ],
+        "src/specify_cli/migration/normalize_mission_lifecycle.py": [
+          24,
+          146
+        ],
+        "src/specify_cli/migration/rebuild_state.py": [
+          199,
+          356
+        ],
+        "src/specify_cli/migration/rewrite_opposed_by.py": [
+          0,
+          164
+        ],
+        "src/specify_cli/migration/rewrite_shims.py": [
+          19,
+          143
+        ],
+        "src/specify_cli/migration/runner.py": [
+          34,
+          304
+        ],
+        "src/specify_cli/migration/runtime_state_cutover.py": [
+          84,
+          139
+        ],
+        "src/specify_cli/migration/schema_version.py": [
+          40,
+          58
+        ],
+        "src/specify_cli/migration/strip_frontmatter.py": [
+          44,
+          61
+        ],
+        "src/specify_cli/migration/verdict_provenance_backfill.py": [
+          107,
+          140
+        ],
+        "src/specify_cli/mission.py": [
+          108,
+          314
+        ],
+        "src/specify_cli/mission_brief.py": [
+          57,
+          72
+        ],
+        "src/specify_cli/mission_loader/__init__.py": [
+          8,
+          8
+        ],
+        "src/specify_cli/mission_loader/command.py": [
+          73,
+          73
+        ],
+        "src/specify_cli/mission_loader/contract_synthesis.py": [
+          23,
+          23
+        ],
+        "src/specify_cli/mission_loader/errors.py": [
+          38,
+          38
+        ],
+        "src/specify_cli/mission_loader/registry.py": [
+          43,
+          43
+        ],
+        "src/specify_cli/mission_loader/retrospective.py": [
+          9,
+          9
+        ],
+        "src/specify_cli/mission_loader/validator.py": [
+          92,
+          104
+        ],
+        "src/specify_cli/mission_metadata.py": [
+          161,
+          290
+        ],
+        "src/specify_cli/mission_step_contracts/__init__.py": [
+          2,
+          2
+        ],
+        "src/specify_cli/mission_step_contracts/executor.py": [
+          82,
+          246
+        ],
+        "src/specify_cli/mission_step_contracts/profile_defaults.py": [
+          6,
+          12
+        ],
+        "src/specify_cli/mission_v1/__init__.py": [
+          0,
+          2
+        ],
+        "src/specify_cli/mission_v1/events.py": [
+          0,
+          35
+        ],
+        "src/specify_cli/missions/__init__.py": [
+          5,
+          10
+        ],
+        "src/specify_cli/missions/_archive.py": [
+          51,
+          113
+        ],
+        "src/specify_cli/missions/_create.py": [
+          37,
+          55
+        ],
+        "src/specify_cli/missions/_read_path_resolver.py": [
+          228,
+          265
+        ],
+        "src/specify_cli/missions/_resolve_planning_branch.py": [
+          10,
+          25
+        ],
+        "src/specify_cli/missions/_substantive.py": [
+          88,
+          331
+        ],
+        "src/specify_cli/missions/operation_context.py": [
+          17,
+          38
+        ],
+        "src/specify_cli/missions/plan/__init__.py": [
+          0,
+          0
+        ],
+        "src/specify_cli/missions/plan/plan_interview.py": [
+          0,
+          124
+        ],
+        "src/specify_cli/missions/plan/specify_interview.py": [
+          0,
+          124
+        ],
+        "src/specify_cli/orchestrator_api/__init__.py": [
+          2,
+          2
+        ],
+        "src/specify_cli/orchestrator_api/commands.py": [
+          175,
+          1135
+        ],
+        "src/specify_cli/orchestrator_api/envelope.py": [
+          29,
+          69
+        ],
+        "src/specify_cli/ownership/__init__.py": [
+          7,
+          7
+        ],
+        "src/specify_cli/ownership/audit_targets.py": [
+          13,
+          51
+        ],
+        "src/specify_cli/ownership/frontmatter_source.py": [
+          18,
+          36
+        ],
+        "src/specify_cli/ownership/inference.py": [
+          20,
+          107
+        ],
+        "src/specify_cli/ownership/models.py": [
+          19,
+          38
+        ],
+        "src/specify_cli/ownership/validation.py": [
+          42,
+          159
+        ],
+        "src/specify_cli/ownership/workspace_strategy.py": [
+          3,
+          6
+        ],
+        "src/specify_cli/paths/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/paths/windows_migrate.py": [
+          33,
+          123
+        ],
+        "src/specify_cli/paths/windows_paths.py": [
+          34,
+          56
+        ],
+        "src/specify_cli/plan_validation.py": [
+          9,
+          32
+        ],
+        "src/specify_cli/policy/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/policy/audit.py": [
+          0,
+          43
+        ],
+        "src/specify_cli/policy/commit_guard.py": [
+          0,
+          64
+        ],
+        "src/specify_cli/policy/commit_guard_hook.py": [
+          9,
+          51
+        ],
+        "src/specify_cli/policy/config.py": [
+          40,
+          84
+        ],
+        "src/specify_cli/policy/hook_installer.py": [
+          0,
+          47
+        ],
+        "src/specify_cli/policy/merge_gates.py": [
+          0,
+          132
+        ],
+        "src/specify_cli/policy/risk_scorer.py": [
+          0,
+          102
+        ],
+        "src/specify_cli/post_merge/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/post_merge/retrospective_terminus.py": [
+          19,
+          81
+        ],
+        "src/specify_cli/post_merge/review_artifact_consistency.py": [
+          39,
+          99
+        ],
+        "src/specify_cli/post_merge/stale_assertions.py": [
+          64,
+          297
+        ],
+        "src/specify_cli/proof/__init__.py": [
+          0,
+          2
+        ],
+        "src/specify_cli/proof/events.py": [
+          0,
+          207
+        ],
+        "src/specify_cli/provisioning/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/provisioning/default_charter.py": [
+          31,
+          38
+        ],
+        "src/specify_cli/readiness/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/readiness/auth.py": [
+          18,
+          28
+        ],
+        "src/specify_cli/readiness/coordinator.py": [
+          73,
+          106
+        ],
+        "src/specify_cli/readiness/render.py": [
+          0,
+          49
+        ],
+        "src/specify_cli/readiness/upgrade_ux.py": [
+          69,
+          271
+        ],
+        "src/specify_cli/release/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/release/changelog.py": [
+          18,
+          157
+        ],
+        "src/specify_cli/release/payload.py": [
+          20,
+          35
+        ],
+        "src/specify_cli/release/version.py": [
+          7,
+          38
+        ],
+        "src/specify_cli/requirement_mapping.py": [
+          39,
+          178
+        ],
+        "src/specify_cli/retrospective/__init__.py": [
+          11,
+          11
+        ],
+        "src/specify_cli/retrospective/cli.py": [
+          51,
+          130
+        ],
+        "src/specify_cli/retrospective/config.py": [
+          6,
+          8
+        ],
+        "src/specify_cli/retrospective/deprecation.py": [
+          9,
+          20
+        ],
+        "src/specify_cli/retrospective/events.py": [
+          77,
+          80
+        ],
+        "src/specify_cli/retrospective/gate.py": [
+          0,
+          151
+        ],
+        "src/specify_cli/retrospective/generator.py": [
+          79,
+          542
+        ],
+        "src/specify_cli/retrospective/lifecycle_events.py": [
+          145,
+          160
+        ],
+        "src/specify_cli/retrospective/mode.py": [
+          20,
+          78
+        ],
+        "src/specify_cli/retrospective/policy.py": [
+          77,
+          330
+        ],
+        "src/specify_cli/retrospective/reader.py": [
+          112,
+          156
+        ],
+        "src/specify_cli/retrospective/schema.py": [
+          268,
+          293
+        ],
+        "src/specify_cli/retrospective/summary.py": [
+          205,
+          357
+        ],
+        "src/specify_cli/retrospective/tracer_writer.py": [
+          24,
+          66
+        ],
+        "src/specify_cli/retrospective/writer.py": [
+          120,
+          179
+        ],
+        "src/specify_cli/review/__init__.py": [
+          5,
+          5
+        ],
+        "src/specify_cli/review/_interpreter.py": [
+          7,
+          10
+        ],
+        "src/specify_cli/review/antipattern_checklist.py": [
+          2,
+          3
+        ],
+        "src/specify_cli/review/arbiter.py": [
+          0,
+          159
+        ],
+        "src/specify_cli/review/artifacts.py": [
+          99,
+          163
+        ],
+        "src/specify_cli/review/baseline.py": [
+          58,
+          245
+        ],
+        "src/specify_cli/review/cycle.py": [
+          83,
+          330
+        ],
+        "src/specify_cli/review/dirty_classifier.py": [
+          7,
+          33
+        ],
+        "src/specify_cli/review/fix_prompt.py": [
+          9,
+          80
+        ],
+        "src/specify_cli/review/gate_bindings.py": [
+          47,
+          94
+        ],
+        "src/specify_cli/review/gate_budget.py": [
+          39,
+          64
+        ],
+        "src/specify_cli/review/gate_registry.py": [
+          27,
+          33
+        ],
+        "src/specify_cli/review/lock.py": [
+          0,
+          94
+        ],
+        "src/specify_cli/review/pre_review_gate.py": [
+          116,
+          334
+        ],
+        "src/specify_cli/review/prompt_metadata.py": [
+          44,
+          97
+        ],
+        "src/specify_cli/review/scope_source.py": [
+          50,
+          100
+        ],
+        "src/specify_cli/review/verdict_aggregation.py": [
+          23,
+          37
+        ],
+        "src/specify_cli/review/verdict_commit_queue.py": [
+          22,
+          42
+        ],
+        "src/specify_cli/runtime/__init__.py": [
+          12,
+          19
+        ],
+        "src/specify_cli/runtime/agent_commands.py": [
+          139,
+          180
+        ],
+        "src/specify_cli/runtime/agent_skills.py": [
+          121,
+          184
+        ],
+        "src/specify_cli/runtime/asset_preparation.py": [
+          383,
+          497
+        ],
+        "src/specify_cli/runtime/bootstrap.py": [
+          78,
+          119
+        ],
+        "src/specify_cli/runtime/doctor.py": [
+          20,
+          123
+        ],
+        "src/specify_cli/runtime/generated_writer.py": [
+          19,
+          28
+        ],
+        "src/specify_cli/runtime/home.py": [
+          14,
+          16
+        ],
+        "src/specify_cli/runtime/merge.py": [
+          20,
+          39
+        ],
+        "src/specify_cli/runtime/migrate.py": [
+          27,
+          99
+        ],
+        "src/specify_cli/runtime/resolver.py": [
+          103,
+          200
+        ],
+        "src/specify_cli/runtime/show_origin.py": [
+          0,
+          109
+        ],
+        "src/specify_cli/saas_client/__init__.py": [
+          6,
+          6
+        ],
+        "src/specify_cli/saas_client/auth.py": [
+          83,
+          122
+        ],
+        "src/specify_cli/saas_client/client.py": [
+          42,
+          159
+        ],
+        "src/specify_cli/saas_client/endpoints.py": [
+          31,
+          31
+        ],
+        "src/specify_cli/saas_client/errors.py": [
+          10,
+          12
+        ],
+        "src/specify_cli/session_presence/__init__.py": [
+          6,
+          6
+        ],
+        "src/specify_cli/session_presence/content.py": [
+          13,
+          16
+        ],
+        "src/specify_cli/session_presence/hooks/__init__.py": [
+          4,
+          4
+        ],
+        "src/specify_cli/session_presence/hooks/base.py": [
+          8,
+          8
+        ],
+        "src/specify_cli/session_presence/hooks/claude_code_hook.py": [
+          45,
+          162
+        ],
+        "src/specify_cli/session_presence/manager.py": [
+          22,
+          80
+        ],
+        "src/specify_cli/session_presence/open_ops.py": [
+          0,
+          47
+        ],
+        "src/specify_cli/session_presence/upgrade_check.py": [
+          18,
+          69
+        ],
+        "src/specify_cli/session_presence/writers/__init__.py": [
+          9,
+          9
+        ],
+        "src/specify_cli/session_presence/writers/agents_md.py": [
+          12,
+          13
+        ],
+        "src/specify_cli/session_presence/writers/base.py": [
+          12,
+          12
+        ],
+        "src/specify_cli/session_presence/writers/claude_code.py": [
+          19,
+          37
+        ],
+        "src/specify_cli/session_presence/writers/markdown_rules.py": [
+          49,
+          259
+        ],
+        "src/specify_cli/session_presence/writers/null_writer.py": [
+          14,
+          17
+        ],
+        "src/specify_cli/session_presence/writers/registry.py": [
+          11,
+          11
+        ],
+        "src/specify_cli/session_presence/writers/skills_preamble.py": [
+          7,
+          7
+        ],
+        "src/specify_cli/shims/__init__.py": [
+          4,
+          4
+        ],
+        "src/specify_cli/shims/generator.py": [
+          39,
+          61
+        ],
+        "src/specify_cli/shims/registry.py": [
+          12,
+          17
+        ],
+        "src/specify_cli/skills/__init__.py": [
+          6,
+          6
+        ],
+        "src/specify_cli/skills/_agent_roster.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/skills/_user_input_block.py": [
+          7,
+          21
+        ],
+        "src/specify_cli/skills/command_installer.py": [
+          128,
+          582
+        ],
+        "src/specify_cli/skills/command_renderer.py": [
+          41,
+          178
+        ],
+        "src/specify_cli/skills/data/__init__.py": [
+          0,
+          0
+        ],
+        "src/specify_cli/skills/installer.py": [
+          112,
+          713
+        ],
+        "src/specify_cli/skills/manifest.py": [
+          58,
+          149
+        ],
+        "src/specify_cli/skills/manifest_errors.py": [
+          3,
+          6
+        ],
+        "src/specify_cli/skills/manifest_store.py": [
+          70,
+          183
+        ],
+        "src/specify_cli/skills/paths.py": [
+          59,
+          70
+        ],
+        "src/specify_cli/skills/registry.py": [
+          44,
+          75
+        ],
+        "src/specify_cli/skills/render_versions.py": [
+          4,
+          4
+        ],
+        "src/specify_cli/skills/retired.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/skills/verifier.py": [
+          40,
+          127
+        ],
+        "src/specify_cli/skills/vibe_config.py": [
+          20,
+          133
+        ],
+        "src/specify_cli/state/__init__.py": [
+          2,
+          2
+        ],
+        "src/specify_cli/state/contract.py": [
+          114,
+          133
+        ],
+        "src/specify_cli/state/doctor.py": [
+          0,
+          117
+        ],
+        "src/specify_cli/status/__init__.py": [
+          42,
+          44
+        ],
+        "src/specify_cli/status/_unsafe.py": [
+          4,
+          4
+        ],
+        "src/specify_cli/status/adapters.py": [
+          114,
+          133
+        ],
+        "src/specify_cli/status/aggregate.py": [
+          114,
+          154
+        ],
+        "src/specify_cli/status/bootstrap.py": [
+          25,
+          74
+        ],
+        "src/specify_cli/status/cutover_eligibility.py": [
+          23,
+          84
+        ],
+        "src/specify_cli/status/dependency_verdict.py": [
+          14,
+          14
+        ],
+        "src/specify_cli/status/doctor.py": [
+          236,
+          242
+        ],
+        "src/specify_cli/status/doctor_husks.py": [
+          77,
+          79
+        ],
+        "src/specify_cli/status/dup_key_repair.py": [
+          103,
+          110
+        ],
+        "src/specify_cli/status/emit.py": [
+          325,
+          346
+        ],
+        "src/specify_cli/status/event_log_merge.py": [
+          44,
+          46
+        ],
+        "src/specify_cli/status/identity_audit.py": [
+          27,
+          115
+        ],
+        "src/specify_cli/status/lane_reader.py": [
+          32,
+          42
+        ],
+        "src/specify_cli/status/lifecycle.py": [
+          146,
+          191
+        ],
+        "src/specify_cli/status/lifecycle_events.py": [
+          167,
+          277
+        ],
+        "src/specify_cli/status/locking.py": [
+          93,
+          101
+        ],
+        "src/specify_cli/status/migrate_lifecycle_envelope.py": [
+          53,
+          142
+        ],
+        "src/specify_cli/status/models.py": [
+          333,
+          338
+        ],
+        "src/specify_cli/status/preflight.py": [
+          13,
+          13
+        ],
+        "src/specify_cli/status/progress.py": [
+          72,
+          76
+        ],
+        "src/specify_cli/status/reducer.py": [
+          112,
+          128
+        ],
+        "src/specify_cli/status/resolved_binding.py": [
+          14,
+          15
+        ],
+        "src/specify_cli/status/review_claim_predicate.py": [
+          24,
+          24
+        ],
+        "src/specify_cli/status/review_result_parse.py": [
+          6,
+          23
+        ],
+        "src/specify_cli/status/store.py": [
+          252,
+          291
+        ],
+        "src/specify_cli/status/tail_reader.py": [
+          126,
+          126
+        ],
+        "src/specify_cli/status/transition_context.py": [
+          16,
+          16
+        ],
+        "src/specify_cli/status/transition_pipeline.py": [
+          59,
+          63
+        ],
+        "src/specify_cli/status/transitions.py": [
+          39,
+          52
+        ],
+        "src/specify_cli/status/uninitialized_hint.py": [
+          41,
+          45
+        ],
+        "src/specify_cli/status/validate.py": [
+          152,
+          157
+        ],
+        "src/specify_cli/status/verdict_vocab.py": [
+          25,
+          36
+        ],
+        "src/specify_cli/status/views.py": [
+          77,
+          128
+        ],
+        "src/specify_cli/status/work_package_lifecycle.py": [
+          92,
+          92
+        ],
+        "src/specify_cli/status/wp_metadata.py": [
+          158,
+          247
+        ],
+        "src/specify_cli/status/wp_review.py": [
+          8,
+          16
+        ],
+        "src/specify_cli/status/wp_state.py": [
+          298,
+          329
+        ],
+        "src/specify_cli/status/wp_status_metadata.py": [
+          16,
+          16
+        ],
+        "src/specify_cli/status/wp_view.py": [
+          77,
+          81
+        ],
+        "src/specify_cli/status/zeitgeist_bridge.py": [
+          168,
+          181
+        ],
+        "src/specify_cli/status_lanes.py": [
+          18,
+          18
+        ],
+        "src/specify_cli/task_metadata_validation.py": [
+          15,
+          105
+        ],
+        "src/specify_cli/task_utils/__init__.py": [
+          2,
+          2
+        ],
+        "src/specify_cli/task_utils/support.py": [
+          129,
+          301
+        ],
+        "src/specify_cli/tasks/__init__.py": [
+          2,
+          2
+        ],
+        "src/specify_cli/tasks/issue_matrix.py": [
+          56,
+          97
+        ],
+        "src/specify_cli/tasks/issue_matrix_migration.py": [
+          48,
+          109
+        ],
+        "src/specify_cli/tasks/issue_reference_discovery.py": [
+          26,
+          26
+        ],
+        "src/specify_cli/tasks_authoring/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/tasks_authoring/post_integration_warning.py": [
+          21,
+          36
+        ],
+        "src/specify_cli/template/__init__.py": [
+          4,
+          4
+        ],
+        "src/specify_cli/template/asset_generator.py": [
+          67,
+          135
+        ],
+        "src/specify_cli/template/manager.py": [
+          14,
+          103
+        ],
+        "src/specify_cli/template/renderer.py": [
+          88,
+          101
+        ],
+        "src/specify_cli/text_sanitization.py": [
+          11,
+          71
+        ],
+        "src/specify_cli/tool_surface/__init__.py": [
+          0,
+          0
+        ],
+        "src/specify_cli/tool_surface/bundles/__init__.py": [
+          1,
+          1
+        ],
+        "src/specify_cli/tool_surface/bundles/_builder.py": [
+          17,
+          49
+        ],
+        "src/specify_cli/tool_surface/bundles/claude.py": [
+          39,
+          130
+        ],
+        "src/specify_cli/tool_surface/bundles/claude_wrapper.py": [
+          11,
+          32
+        ],
+        "src/specify_cli/tool_surface/bundles/codex.py": [
+          0,
+          102
+        ],
+        "src/specify_cli/tool_surface/bundles/copilot.py": [
+          19,
+          27
+        ],
+        "src/specify_cli/tool_surface/bundles/model.py": [
+          67,
+          69
+        ],
+        "src/specify_cli/tool_surface/bundles/projection.py": [
+          77,
+          607
+        ],
+        "src/specify_cli/tool_surface/bundles/vscode.py": [
+          5,
+          5
+        ],
+        "src/specify_cli/tool_surface/docs.py": [
+          46,
+          127
+        ],
+        "src/specify_cli/tool_surface/enums.py": [
+          46,
+          46
+        ],
+        "src/specify_cli/tool_surface/findings.py": [
+          42,
+          44
+        ],
+        "src/specify_cli/tool_surface/model.py": [
+          45,
+          45
+        ],
+        "src/specify_cli/tool_surface/operations.py": [
+          169,
+          204
+        ],
+        "src/specify_cli/tool_surface/plan.py": [
+          41,
+          57
+        ],
+        "src/specify_cli/tool_surface/profiles/__init__.py": [
+          9,
+          9
+        ],
+        "src/specify_cli/tool_surface/profiles/_paths.py": [
+          15,
+          48
+        ],
+        "src/specify_cli/tool_surface/profiles/_render_helpers.py": [
+          9,
+          19
+        ],
+        "src/specify_cli/tool_surface/profiles/amazon_q_renderer.py": [
+          19,
+          22
+        ],
+        "src/specify_cli/tool_surface/profiles/augment_renderer.py": [
+          18,
+          19
+        ],
+        "src/specify_cli/tool_surface/profiles/capability_matrix.py": [
+          21,
+          27
+        ],
+        "src/specify_cli/tool_surface/profiles/codex_renderer.py": [
+          20,
+          39
+        ],
+        "src/specify_cli/tool_surface/profiles/manifest.py": [
+          42,
+          88
+        ],
+        "src/specify_cli/tool_surface/profiles/projection.py": [
+          82,
+          137
+        ],
+        "src/specify_cli/tool_surface/profiles/renderers.py": [
+          48,
+          58
+        ],
+        "src/specify_cli/tool_surface/providers/__init__.py": [
+          0,
+          0
+        ],
+        "src/specify_cli/tool_surface/providers/_discovery.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/tool_surface/providers/_registry.py": [
+          42,
+          43
+        ],
+        "src/specify_cli/tool_surface/providers/agent_profiles.py": [
+          112,
+          463
+        ],
+        "src/specify_cli/tool_surface/providers/command_skills.py": [
+          63,
+          150
+        ],
+        "src/specify_cli/tool_surface/providers/managed_skills.py": [
+          124,
+          379
+        ],
+        "src/specify_cli/tool_surface/providers/native_config.py": [
+          55,
+          149
+        ],
+        "src/specify_cli/tool_surface/providers/plugin_bundle.py": [
+          56,
+          159
+        ],
+        "src/specify_cli/tool_surface/providers/protocol.py": [
+          17,
+          17
+        ],
+        "src/specify_cli/tool_surface/providers/session_presence.py": [
+          118,
+          326
+        ],
+        "src/specify_cli/tool_surface/providers/slash_commands.py": [
+          60,
+          120
+        ],
+        "src/specify_cli/tool_surface/registry.py": [
+          10,
+          11
+        ],
+        "src/specify_cli/tool_surface/repair.py": [
+          54,
+          255
+        ],
+        "src/specify_cli/tool_surface/service.py": [
+          38,
+          86
+        ],
+        "src/specify_cli/tool_surface/status.py": [
+          57,
+          96
+        ],
+        "src/specify_cli/tracker/__init__.py": [
+          6,
+          6
+        ],
+        "src/specify_cli/tracker/config.py": [
+          62,
+          161
+        ],
+        "src/specify_cli/tracker/credentials.py": [
+          0,
+          105
+        ],
+        "src/specify_cli/tracker/discovery.py": [
+          57,
+          69
+        ],
+        "src/specify_cli/tracker/egress_verdict.py": [
+          32,
+          65
+        ],
+        "src/specify_cli/tracker/factory.py": [
+          8,
+          25
+        ],
+        "src/specify_cli/tracker/feature_flags.py": [
+          2,
+          2
+        ],
+        "src/specify_cli/tracker/gateway.py": [
+          0,
+          184
+        ],
+        "src/specify_cli/tracker/local_service.py": [
+          0,
+          145
+        ],
+        "src/specify_cli/tracker/origin.py": [
+          27,
+          156
+        ],
+        "src/specify_cli/tracker/origin_consumer.py": [
+          12,
+          28
+        ],
+        "src/specify_cli/tracker/origin_models.py": [
+          24,
+          24
+        ],
+        "src/specify_cli/tracker/saas_client.py": [
+          90,
+          412
+        ],
+        "src/specify_cli/tracker/saas_readiness.py": [
+          30,
+          86
+        ],
+        "src/specify_cli/tracker/saas_service.py": [
+          0,
+          205
+        ],
+        "src/specify_cli/tracker/service.py": [
+          26,
+          110
+        ],
+        "src/specify_cli/tracker/store.py": [
+          0,
+          200
+        ],
+        "src/specify_cli/tracker/ticket_context.py": [
+          13,
+          56
+        ],
+        "src/specify_cli/upgrade/__init__.py": [
+          6,
+          6
+        ],
+        "src/specify_cli/upgrade/assessment.py": [
+          0,
+          112
+        ],
+        "src/specify_cli/upgrade/autocommit.py": [
+          46,
+          209
+        ],
+        "src/specify_cli/upgrade/compat.py": [
+          0,
+          23
+        ],
+        "src/specify_cli/upgrade/detector.py": [
+          11,
+          31
+        ],
+        "src/specify_cli/upgrade/feature_meta.py": [
+          0,
+          81
+        ],
+        "src/specify_cli/upgrade/finalize.py": [
+          0,
+          21
+        ],
+        "src/specify_cli/upgrade/intent.py": [
+          0,
+          74
+        ],
+        "src/specify_cli/upgrade/legacy_detector.py": [
+          11,
+          15
+        ],
+        "src/specify_cli/upgrade/metadata.py": [
+          32,
+          113
+        ],
+        "src/specify_cli/upgrade/migrations/__init__.py": [
+          7,
+          34
+        ],
+        "src/specify_cli/upgrade/migrations/_legacy_codex_hashes.py": [
+          0,
+          2
+        ],
+        "src/specify_cli/upgrade/migrations/_merge_driver_seeding.py": [
+          0,
+          75
+        ],
+        "src/specify_cli/upgrade/migrations/base.py": [
+          30,
+          30
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_10_0_python_only.py": [
+          0,
+          163
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_10_12_charter_cleanup.py": [
+          0,
+          14
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_10_14_update_implement_slash_command.py": [
+          0,
+          84
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_10_1_populate_slash_commands.py": [
+          0,
+          82
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_10_2_update_slash_commands.py": [
+          0,
+          102
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_10_6_workflow_simplification.py": [
+          0,
+          102
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_10_8_fix_memory_structure.py": [
+          0,
+          154
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_10_9_repair_templates.py": [
+          0,
+          15
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_11_1_improved_workflow_templates.py": [
+          0,
+          81
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_11_1_update_implement_slash_command.py": [
+          0,
+          65
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_11_2_improved_workflow_templates.py": [
+          0,
+          81
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_11_3_workflow_agent_flag.py": [
+          0,
+          81
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_12_0_documentation_mission.py": [
+          0,
+          62
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_12_1_remove_kitty_specs_from_gitignore.py": [
+          0,
+          102
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_13_0_research_csv_schema_check.py": [
+          0,
+          84
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_13_0_update_charter_templates.py": [
+          0,
+          14
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_13_0_update_research_implement_templates.py": [
+          0,
+          62
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_13_1_exclude_worktrees.py": [
+          0,
+          44
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_13_5_add_commit_workflow_to_templates.py": [
+          0,
+          75
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_13_8_target_branch.py": [
+          0,
+          60
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_14_0_centralized_feature_detection.py": [
+          0,
+          86
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_16_2_remove_wp_status_gitignore_rule.py": [
+          0,
+          99
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_2_0_specify_to_kittify.py": [
+          0,
+          49
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_4_8_gitignore_agents.py": [
+          0,
+          62
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_6_5_commands_rename.py": [
+          0,
+          91
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_6_7_ensure_missions.py": [
+          0,
+          132
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_7_2_worktree_commands_dedup.py": [
+          0,
+          44
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_7_3_update_scripts.py": [
+          0,
+          58
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_8_0_remove_active_mission.py": [
+          0,
+          35
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_8_0_worktree_agents_symlink.py": [
+          0,
+          71
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_9_0_frontmatter_only_lanes.py": [
+          0,
+          182
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py": [
+          33,
+          320
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_9_2_research_mission_templates.py": [
+          0,
+          130
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_9_3_surface_repair_wiring.py": [
+          0,
+          52
+        ],
+        "src/specify_cli/upgrade/migrations/m_0_9_4_roo_deprecation.py": [
+          0,
+          85
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_0_0_charter_directory.py": [
+          0,
+          14
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_0_0_historical_status_migration.py": [
+          0,
+          15
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_0_0_retire_git_hooks.py": [
+          0,
+          62
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_0_11_install_skills.py": [
+          0,
+          70
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_0_11_remove_clarify_command.py": [
+          0,
+          60
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_0_1_fix_generated_command_templates.py": [
+          0,
+          70
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_0_1_tool_config_key_rename.py": [
+          0,
+          56
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_0_2_charter_context_bootstrap.py": [
+          0,
+          14
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_0_6_consistency_sweep.py": [
+          0,
+          310
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_0_7_fix_stale_overrides.py": [
+          0,
+          77
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_0_9_state_gitignore.py": [
+          0,
+          26
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_1_1_repair_skill_pack.py": [
+          0,
+          109
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_1_2_fix_charter_doctrine_skill.py": [
+          0,
+          14
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_1_2_fix_glossary_context_skill.py": [
+          0,
+          53
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_1_2_fix_orchestrator_api_skill.py": [
+          0,
+          52
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_1_2_fix_runtime_next_skill.py": [
+          0,
+          52
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_1_2_install_git_workflow_skill.py": [
+          0,
+          61
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_1_2_install_mission_system_skill.py": [
+          0,
+          62
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_1_2_remove_release_skill.py": [
+          0,
+          25
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_1_3_fix_planning_repository_terminology.py": [
+          0,
+          55
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_1_3_restore_prompt_commands.py": [
+          0,
+          160
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_1_4_enforce_command_file_state.py": [
+          0,
+          176
+        ],
+        "src/specify_cli/upgrade/migrations/m_2_2_0_profile_context_deployment.py": [
+          0,
+          41
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_0_0_canonical_context.py": [
+          0,
+          50
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_0_2_restore_prompt_commands.py": [
+          0,
+          52
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_0_3_globalize_skill_pack.py": [
+          0,
+          110
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py": [
+          0,
+          210
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_1_1_direct_canonical_commands.py": [
+          0,
+          60
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_1_1_event_log_merge_driver.py": [
+          0,
+          62
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_1_1_normalize_status_json.py": [
+          0,
+          54
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py": [
+          0,
+          102
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0a4_normalize_mission_lifecycle.py": [
+          0,
+          24
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0a4_safe_globalize_commands.py": [
+          0,
+          8
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc28_github_diff_attributes.py": [
+          0,
+          35
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc30_fix_runtime_next_result_default.py": [
+          0,
+          46
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_activate_builtin_mission_types.py": [
+          0,
+          61
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_charter_bundle_v2.py": [
+          0,
+          52
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_charter_manifest_defaults_repair.py": [
+          0,
+          32
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_codex_to_skills.py": [
+          0,
+          148
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_default_charter_pack.py": [
+          0,
+          72
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_fix_prompt_file_workaround.py": [
+          0,
+          46
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_kittify_profile_handoff.py": [
+          0,
+          108
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_pi_letta_backfill.py": [
+          0,
+          93
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_repository_root_checkout_terminology.py": [
+          0,
+          62
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_spk_skill_pack.py": [
+          0,
+          107
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_strip_selection_config.py": [
+          0,
+          66
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_sync_state_gitignore.py": [
+          0,
+          64
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_unified_bundle.py": [
+          0,
+          71
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_update_planning_templates.py": [
+          0,
+          83
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc39_refresh_orientation_block.py": [
+          0,
+          84
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc43_retire_profile_context_command.py": [
+          0,
+          40
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc45_retire_standalone_skill_surface.py": [
+          0,
+          143
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_3_encoding_provenance_gitignore_backfill.py": [
+          0,
+          18
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_4_derived_views_gitignore_backfill.py": [
+          0,
+          31
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_4_runtime_dirs_gitignore_backfill.py": [
+          0,
+          32
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_5_agents_skills_gitignore_backfill.py": [
+          0,
+          52
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_6_decisions_event_log_merge_driver.py": [
+          0,
+          11
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_6_gate_artifact_merge_drivers.py": [
+          0,
+          11
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_6_issue_matrix_driver_repoint.py": [
+          0,
+          11
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_6_meta_traces_merge_drivers.py": [
+          0,
+          11
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_6_retire_rtk_search_tooling.py": [
+          0,
+          104
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_6rc3_lint_report_gitignore_backfill.py": [
+          0,
+          49
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_6rc3_narrow_cursor_gitignore.py": [
+          0,
+          139
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_6rc3_worktrees_gitignore_backfill.py": [
+          0,
+          49
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_7_heal_provenance_paths.py": [
+          32,
+          107
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_7_review_cycle_merge_driver.py": [
+          0,
+          11
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_8_provision_kitty_env.py": [
+          51,
+          206
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_9_migrate_lifecycle_envelope.py": [
+          0,
+          56
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_2_x_normalize_activation_absence.py": [
+          0,
+          134
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_3_0_op_record_schema_v2.py": [
+          0,
+          147
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_3_0_session_presence_all_harnesses.py": [
+          0,
+          53
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_3_0_session_presence_claude_code.py": [
+          0,
+          34
+        ],
+        "src/specify_cli/upgrade/migrations/m_3_3_1_context_sources_consolidation.py": [
+          0,
+          130
+        ],
+        "src/specify_cli/upgrade/migrations/m_4_0_0_retired_hosted_target.py": [
+          0,
+          64
+        ],
+        "src/specify_cli/upgrade/migrations/m_unify_charter_activation.py": [
+          27,
+          121
+        ],
+        "src/specify_cli/upgrade/migrations/m_unify_charter_activation_finalize.py": [
+          0,
+          149
+        ],
+        "src/specify_cli/upgrade/migrations/m_zz_runtime_state_backfill.py": [
+          71,
+          94
+        ],
+        "src/specify_cli/upgrade/migrations/m_zz_verdict_provenance_backfill.py": [
+          0,
+          43
+        ],
+        "src/specify_cli/upgrade/outcome.py": [
+          24,
+          27
+        ],
+        "src/specify_cli/upgrade/pre30_guard.py": [
+          7,
+          16
+        ],
+        "src/specify_cli/upgrade/registry.py": [
+          28,
+          54
+        ],
+        "src/specify_cli/upgrade/runner.py": [
+          46,
+          263
+        ],
+        "src/specify_cli/upgrade/skill_update.py": [
+          0,
+          128
+        ],
+        "src/specify_cli/validators/__init__.py": [
+          3,
+          3
+        ],
+        "src/specify_cli/validators/csv_schema.py": [
+          0,
+          30
+        ],
+        "src/specify_cli/validators/paths.py": [
+          30,
+          151
+        ],
+        "src/specify_cli/validators/research.py": [
+          51,
+          165
+        ],
+        "src/specify_cli/verify_enhanced.py": [
+          16,
+          254
+        ],
+        "src/specify_cli/version_utils.py": [
+          8,
+          28
+        ],
+        "src/specify_cli/widen/__init__.py": [
+          0,
+          4
+        ],
+        "src/specify_cli/widen/audience.py": [
+          0,
+          96
+        ],
+        "src/specify_cli/widen/flow.py": [
+          0,
+          53
+        ],
+        "src/specify_cli/widen/interview_helpers.py": [
+          0,
+          117
+        ],
+        "src/specify_cli/widen/models.py": [
+          0,
+          84
+        ],
+        "src/specify_cli/widen/prereq.py": [
+          0,
+          22
+        ],
+        "src/specify_cli/widen/review.py": [
+          0,
+          142
+        ],
+        "src/specify_cli/widen/state.py": [
+          0,
+          67
+        ],
+        "src/specify_cli/workspace/__init__.py": [
+          4,
+          4
+        ],
+        "src/specify_cli/workspace/assert_initialized.py": [
+          12,
+          34
+        ],
+        "src/specify_cli/workspace/context.py": [
+          180,
+          366
+        ],
+        "src/specify_cli/workspace/root_resolver.py": [
+          31,
+          36
+        ],
+        "src/specify_cli/zeitgeist_client/__init__.py": [
+          1,
+          1
+        ],
+        "src/specify_cli/zeitgeist_client/budget.py": [
+          46,
+          74
+        ],
+        "src/specify_cli/zeitgeist_client/credentials.py": [
+          133,
+          184
+        ],
+        "src/specify_cli/zeitgeist_client/filtered_stream.py": [
+          26,
+          102
+        ],
+        "src/specify_cli/zeitgeist_client/grammar.py": [
+          15,
+          17
+        ],
+        "src/specify_cli/zeitgeist_client/live_frame.py": [
+          60,
+          157
+        ],
+        "src/specify_cli/zeitgeist_client/mcp_stdio.py": [
+          24,
+          63
+        ],
+        "src/specify_cli/zeitgeist_client/moments.py": [
+          167,
+          239
+        ],
+        "src/specify_cli/zeitgeist_client/operability.py": [
+          127,
+          138
+        ],
+        "src/specify_cli/zeitgeist_client/outbox_approval.py": [
+          207,
+          262
+        ],
+        "src/specify_cli/zeitgeist_client/repo_identity.py": [
+          120,
+          181
+        ],
+        "src/specify_cli/zeitgeist_client/resolution.py": [
+          129,
+          257
+        ],
+        "src/specify_cli/zeitgeist_client/sanitizer.py": [
+          17,
+          23
+        ],
+        "src/specify_cli/zeitgeist_client/subscription.py": [
+          82,
+          131
+        ],
+        "src/specify_cli/zeitgeist_client/transport.py": [
+          120,
+          183
+        ]
+      }
+    },
+    "matrix_union_after": {
+      "status": "pending-ci",
+      "why": "The post-change matrix union is the reconciliation of all 34 shard reports produced by a real ci-modules.yml run. Reproducing it locally means running the entire test suite, which CLAUDE.md's test policy assigns to the CI agent, not to an implementer.",
+      "retrieval": "gh run download <ci-aggregate run id> -n ci-aggregate-reconciled-coverage -D recon/",
+      "run_id": null,
+      "files": {}
+    },
+    "slice_breadth_probe": {
+      "status": "measured-local",
+      "purpose": "WP01's own effect, isolated: ONE slice run twice over an identical test selection, narrow --cov vs the broadened set. Per-file monotonicity is checked from these two reports.",
+      "slice": "lanes (registry module `lanes`, tier standard, shard 1/1)",
+      "narrow": {
+        "command": ".venv/bin/python -m pytest tests/lanes -m \"not performance\" --cov=specify_cli.lanes --cov-report=xml:narrow.xml -p no:cacheprovider -q",
+        "wall_clock_seconds": 140.85,
+        "report_bytes": 79718,
+        "files_in_report": 15,
+        "covered_statements": 1711,
+        "files": {
+          "src/specify_cli/lanes/__init__.py": [
+            4,
+            4
+          ],
+          "src/specify_cli/lanes/_git.py": [
+            18,
+            18
+          ],
+          "src/specify_cli/lanes/auto_rebase.py": [
+            332,
+            435
+          ],
+          "src/specify_cli/lanes/branch_naming.py": [
+            164,
+            178
+          ],
+          "src/specify_cli/lanes/compute.py": [
+            292,
+            301
+          ],
+          "src/specify_cli/lanes/for_review_gate.py": [
+            0,
+            43
+          ],
+          "src/specify_cli/lanes/implement_support.py": [
+            110,
+            152
+          ],
+          "src/specify_cli/lanes/lane_env.py": [
+            8,
+            19
+          ],
+          "src/specify_cli/lanes/lifecycle_sync.py": [
+            0,
+            74
+          ],
+          "src/specify_cli/lanes/merge.py": [
+            176,
+            205
+          ],
+          "src/specify_cli/lanes/models.py": [
+            71,
+            71
+          ],
+          "src/specify_cli/lanes/persistence.py": [
+            34,
+            39
+          ],
+          "src/specify_cli/lanes/recovery.py": [
+            286,
+            336
+          ],
+          "src/specify_cli/lanes/stale_check.py": [
+            26,
+            27
+          ],
+          "src/specify_cli/lanes/worktree_allocator.py": [
+            190,
+            230
+          ]
+        }
+      },
+      "broad": {
+        "command": ".venv/bin/python -m pytest tests/lanes -m \"not performance\" --cov=charter --cov=doctrine --cov=glossary --cov=kernel --cov=mission_runtime --cov=runtime --cov=specify_cli --cov-report=xml:broad.xml -p no:cacheprovider -q",
+        "wall_clock_seconds": 157.06,
+        "report_bytes": 4881542,
+        "files_in_report": 1258,
+        "covered_statements": 31937
+      },
+      "per_file_regressions_narrow_to_broad": []
+    }
+  }
+}
