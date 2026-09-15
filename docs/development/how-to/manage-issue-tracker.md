@@ -2,7 +2,7 @@
 title: Managing the Issue Tracker
 description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, sub-issue parenting, dependencies, triage, the label taxonomy, and the label-driven fleet workflow.'
 doc_status: active
-updated: '2026-09-14'
+updated: '2026-09-15'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -326,7 +326,7 @@ sub-states above (which flag *why* an issue sits in triage, not *where* it is in
 |---|---|---|
 | `status:triage` | New/untriaged work. The groom agent's queue. | Filing agents (`from:review`, `from:squad`, `from:ci`, …) always file into triage |
 | `status:ready` | Valid, de-duplicated, resolvable without a reserved decision. **The fleet's admission queue.** | The groom agent promotes triage → ready. Review-agent findings are promoted by the controller, never by the review agent itself |
-| `status:claimed` | An implementer VM is actively working this issue. **Lease — set and removed only by the dispatcher.** | Dispatcher only. **Humans never hand-set `status:claimed`** — a hand-set claim poisons the queue: the dispatcher counts it as occupied capacity, and if no VM actually holds it the issue can sit invisible indefinitely |
+| `status:claimed` | An implementer is actively working this issue. **Lease — valid only with a live claim comment naming the harness/model or dispatcher VM.** | The dispatcher sets and reaps fleet claims. A human-driven contributor may set it when beginning work and must comment `claimed by <harness>/<model> on <machine>`. Never add a bare claim when nobody is working the issue: the dispatcher treats the label as occupied capacity |
 | `status:blocked` | Genuinely blocked, with a **Depends on:** #`<n>` line naming the concrete gating issue. `bin/unblock.py` flips it back to `status:ready` automatically once all dependencies close. | Groom/controller |
 
 Issues with no `status:*` label **and** an open linked PR (a real `closes #` relationship)
@@ -360,7 +360,7 @@ PRs move through their own label set, driven by the same dispatcher (see also th
 | `squad:passed` / `squad:majors` | Squad verdict. Two `squad:majors` rounds is the cap — the merge agent then decides merge-with-findings or sends it back; never a third squad |
 | `squad:exhausted` | Two verdicts already posted (or the merge agent ruled out a further pass); merge proceeds on `[ci]` + controller evidence |
 | `ci:green` / `ci:red` | Best-effort label mirror of the latest exact-head `[ci]` comment. The comment is authoritative; the label is never a gate on its own |
-| `needs:implementer` | Any fix/rebase request that expects a new push. **Mandatory on every such request** — the dispatcher dispatches fix-round VMs from this label alone; a comment without it is never seen |
+| `needs:implementer` | Any fix/rebase request that expects a new push. **Mandatory on every such request** — the dispatcher dispatches fix-round VMs when this label or `squad:majors` admits the PR to the fix lane; a request comment carrying neither is never seen |
 
 ## See also
 
