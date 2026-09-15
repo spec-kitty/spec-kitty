@@ -1542,7 +1542,7 @@ on:
     types: [opened, synchronize]
 env:
   CMD: make test-fast
-  VENV_PYTHON: /tmp/venv/bin/python
+  VENV_PYTHON: "__VENV_PYTHON__"
 jobs:
   literal:
     runs-on: ubuntu-latest
@@ -1577,6 +1577,7 @@ def test_faultinjection_direct_commands_are_not_reported(tmp_path: Path) -> None
     """
     workflows = tmp_path / "workflows"
     workflows.mkdir()
-    (workflows / "ci-direct.yml").write_text(DIRECT_COMMAND_WORKFLOW, encoding="utf-8")
+    workflow = DIRECT_COMMAND_WORKFLOW.replace("__VENV_PYTHON__", (tmp_path / "venv" / "bin" / "python").as_posix())
+    (workflows / "ci-direct.yml").write_text(workflow, encoding="utf-8")
 
     assert command_indirection_offenders(workflows_dir=workflows) == []

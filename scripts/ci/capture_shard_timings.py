@@ -44,7 +44,6 @@ import json
 import sys
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -63,6 +62,11 @@ __all__ = [
 ]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+# Like select_source_artifacts.py, support direct checkout execution before
+# installing the package. Resolve the canonical clock from this script's repo.
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from kernel.clock import datetime, now_utc_compact_stamp, now_utc_iso  # noqa: E402
+
 REGISTRY_PATH = REPO_ROOT / ".github" / "ci-module-registry.yml"
 TIMINGS_PATH = REPO_ROOT / ".github" / "ci-shard-timings.json"
 
@@ -149,7 +153,7 @@ class ModuleCapture:
 
 def generate_run_id(label: str = "wp02", *, now: datetime | None = None) -> str:
     """A run id in the committed ``<label>-durations-<UTC timestamp>`` convention."""
-    stamp = (now or datetime.now(UTC)).strftime("%Y%m%dT%H%M%SZ")
+    stamp = now_utc_compact_stamp() if now is None else now.strftime("%Y%m%dT%H%M%SZ")
     return f"{label}-durations-{stamp}"
 
 
@@ -205,7 +209,7 @@ def capture_module(module: str, test_dirs: Sequence[str], *, run_id: str) -> Mod
         durations=recorder.durations,
         run_id=run_id,
         command=f"python scripts/ci/capture_shard_timings.py --module {module} --run-id {run_id} --write  # pytest {' '.join(argv)}",
-        captured_at=datetime.now(UTC).isoformat(),
+        captured_at=now_utc_iso(),
         exit_code=exit_code,
     )
 

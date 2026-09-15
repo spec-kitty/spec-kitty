@@ -185,14 +185,11 @@ def test_identity_anchor_is_cwd_invariant(sparse_lane_repo: tuple[Path, Path]) -
 
     assert primary_ident.feature_dir == canonical_feature_dir
     assert lane_ident.feature_dir == canonical_feature_dir, (
-        "F-007: the transaction anchor was re-derived from the lane CWD instead "
-        "of the canonical status surface."
+        "F-007: the transaction anchor was re-derived from the lane CWD instead of the canonical status surface."
     )
 
 
-def test_f007_lane_state_parity_no_genesis_misread(
-    sparse_lane_repo: tuple[Path, Path]
-) -> None:
+def test_f007_lane_state_parity_no_genesis_misread(sparse_lane_repo: tuple[Path, Path]) -> None:
     """F-007: lane state read from a sparse lane CWD matches the primary checkout.
 
     The transactional read driven from the sparse lane worktree (whose event log
@@ -226,9 +223,7 @@ def test_f007_lane_state_parity_no_genesis_misread(
     assert lane_actor == primary_actor
 
 
-def test_identity_consumes_canonical_surface_resolver(
-    sparse_lane_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_identity_consumes_canonical_surface_resolver(sparse_lane_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
     """#1737 / #1821: the anchor is resolved through the canonical surface authority.
 
     Proves ``_identity_for_request`` no longer maintains a parallel derivation:
@@ -242,16 +237,18 @@ def test_identity_consumes_canonical_surface_resolver(
     repo, _lane = sparse_lane_repo
     import specify_cli.coordination.surface_resolver as surface_resolver
 
-    calls: list[tuple[Path, str]] = []
+    calls: list[tuple[Path, str, bool]] = []
     real = surface_resolver.resolve_status_surface_with_anchor
 
     def _spy(
         repo_root: Path,
         mission_slug: str,
         topology: surface_resolver.MissionTopology | None = None,
+        *,
+        for_write: bool = False,
     ) -> surface_resolver.ResolvedStatusSurface:
-        calls.append((repo_root, mission_slug))
-        return real(repo_root, mission_slug, topology)
+        calls.append((repo_root, mission_slug, for_write))
+        return real(repo_root, mission_slug, topology, for_write=for_write)
 
     monkeypatch.setattr(surface_resolver, "resolve_status_surface_with_anchor", _spy)
 
@@ -272,6 +269,7 @@ def test_identity_consumes_canonical_surface_resolver(
         "independently (#1737 / #1821)."
     )
     assert calls[0][1] == _MISSION_SLUG
+    assert {call[2] for call in calls} == {False, True}, "read identity and write placement must retain their distinct purposes"
 
 
 # ---------------------------------------------------------------------------
@@ -299,9 +297,7 @@ def coord_repo(tmp_path: Path) -> tuple[Path, str]:
     return repo, _MID8
 
 
-def test_resolve_is_lock_serialized_under_concurrency(
-    coord_repo: tuple[Path, str]
-) -> None:
+def test_resolve_is_lock_serialized_under_concurrency(coord_repo: tuple[Path, str]) -> None:
     """#1357: concurrent resolves serialize and converge on ONE worktree.
 
     Many threads race ``resolve`` for the same coordination worktree. With the
@@ -341,12 +337,7 @@ def test_resolve_is_lock_serialized_under_concurrency(
     # Exactly one worktree registration for the coordination path.
     listing = _git(repo, "worktree", "list", "--porcelain").stdout
     resolved = str(expected_path.resolve())
-    count = sum(
-        1
-        for line in listing.splitlines()
-        if line.startswith("worktree ")
-        and Path(line.removeprefix("worktree ")).resolve() == Path(resolved)
-    )
+    count = sum(1 for line in listing.splitlines() if line.startswith("worktree ") and Path(line.removeprefix("worktree ")).resolve() == Path(resolved))
     assert count == 1, f"expected exactly one coord worktree registration, got {count}"
 
 
@@ -400,14 +391,8 @@ def test_wp01_verdict_vocab_symbols_are_importable_and_exported() -> None:
     import specify_cli.status as status_facade
 
     for name in _WP01_PROMOTED_VERDICT_VOCAB_SYMBOLS:
-        assert hasattr(status_facade, name), (
-            f"{name!r} must be importable from specify_cli.status "
-            "(WP01 facade promotion)."
-        )
-        assert name in status_facade.__all__, (
-            f"{name!r} must be listed in specify_cli.status.__all__ "
-            "(WP01 facade promotion)."
-        )
+        assert hasattr(status_facade, name), f"{name!r} must be importable from specify_cli.status (WP01 facade promotion)."
+        assert name in status_facade.__all__, f"{name!r} must be listed in specify_cli.status.__all__ (WP01 facade promotion)."
 
 
 def test_wp01_review_result_from_state_is_importable_and_exported() -> None:
@@ -418,10 +403,8 @@ def test_wp01_review_result_from_state_is_importable_and_exported() -> None:
     import specify_cli.status as status_facade
 
     assert hasattr(status_facade, _WP01_PROMOTED_REDUCER_SYMBOL), (
-        f"{_WP01_PROMOTED_REDUCER_SYMBOL!r} must be importable from "
-        "specify_cli.status (WP01 facade promotion)."
+        f"{_WP01_PROMOTED_REDUCER_SYMBOL!r} must be importable from specify_cli.status (WP01 facade promotion)."
     )
     assert _WP01_PROMOTED_REDUCER_SYMBOL in status_facade.__all__, (
-        f"{_WP01_PROMOTED_REDUCER_SYMBOL!r} must be listed in "
-        "specify_cli.status.__all__ (WP01 facade promotion)."
+        f"{_WP01_PROMOTED_REDUCER_SYMBOL!r} must be listed in specify_cli.status.__all__ (WP01 facade promotion)."
     )
