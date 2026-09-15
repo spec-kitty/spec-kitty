@@ -9,6 +9,8 @@ these tests construct a minimal real git repository in ``tmp_path``.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import json
 import os
 import shlex
@@ -19,6 +21,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.lanes import auto_rebase
 from specify_cli.lanes.auto_rebase import AutoRebaseReport, attempt_auto_rebase
 from specify_cli.lanes.models import ExecutionLane
 
@@ -1582,3 +1585,244 @@ class TestAutoRebaseSemanticConflict:
         # commit landed).
         rev = _run(["git", "rev-parse", "HEAD"], worktree_b)
         assert rev.returncode == 0
+
+
+def _patch_auto_rebase_run(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    reject_sparse: bool,
+) -> list[list[str]]:
+    """Wrap ``auto_rebase._run`` to record commands and simulate Git < 2.35.
+
+    With ``reject_sparse=True`` every command carrying ``--sparse`` fails the
+    way a pre-2.35 git answers it (``error: unknown option 'sparse'``); all
+    other commands delegate to the real runner. Returns the recorded command
+    list (mutated live, so assertions can read it after the call).
+    """
+    calls: list[list[str]] = []
+    real_run: Callable[..., subprocess.CompletedProcess[str]] = auto_rebase._run
+
+    def recording_run(cmd: list[str], cwd: Path, *, check: bool = False) -> subprocess.CompletedProcess[str]:
+        calls.append(list(cmd))
+        if reject_sparse and "--sparse" in cmd:
+            return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="error: unknown option `sparse'")
+        return real_run(cmd, cwd, check=check)
+
+    monkeypatch.setattr(auto_rebase, "_run", recording_run)
+    return calls
+
+
+class TestSparseFlagGating4202:
+    """#4202 — ``--sparse`` staging flags belong to sparse checkouts only.
+
+    ``git add --sparse`` / ``git rm --sparse`` require Git >= 2.35 and only
+    make sense inside a sparse-checkout worktree. Passing them unconditionally
+    aborted every lane auto-rebase status-artifact resolution
+    (``LANE_AUTO_REBASE_FAILED: R-STATUS-JSON-REMATERIALIZE``) on older Git,
+    even for plain non-sparse worktrees.
+    """
+
+    def test_stage_non_sparse_worktree_uses_plain_git_add(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        repo = _init_repo(tmp_path)
+        (repo / "notes.txt").write_text("hello\n", encoding="utf-8")
+        calls = _patch_auto_rebase_run(monkeypatch, reject_sparse=True)
+
+        ok, message = auto_rebase._stage_sparse(repo, "notes.txt")
+
+        assert (ok, message) == (True, None)
+        add_calls = [cmd for cmd in calls if cmd[:2] == ["git", "add"]]
+        assert add_calls == [["git", "add", "notes.txt"]]
+        assert not any("--sparse" in cmd for cmd in calls)
+
+    def test_stage_sparse_worktree_keeps_sparse_flag(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        repo = _init_repo(tmp_path)
+        _run(["git", "sparse-checkout", "init", "--no-cone"], repo)
+        _run(["git", "sparse-checkout", "set", "--no-cone", "/*"], repo)
+        (repo / "notes.txt").write_text("hello\n", encoding="utf-8")
+        calls = _patch_auto_rebase_run(monkeypatch, reject_sparse=False)
+
+        ok, message = auto_rebase._stage_sparse(repo, "notes.txt")
+
+        assert (ok, message) == (True, None)
+        add_calls = [cmd for cmd in calls if cmd[:2] == ["git", "add"]]
+        assert add_calls == [["git", "add", "--sparse", "notes.txt"]]
+
+    def test_stage_sparse_worktree_falls_back_when_git_rejects_sparse_flag(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        repo = _init_repo(tmp_path)
+        _run(["git", "sparse-checkout", "init", "--no-cone"], repo)
+        _run(["git", "sparse-checkout", "set", "--no-cone", "/*"], repo)
+        (repo / "notes.txt").write_text("hello\n", encoding="utf-8")
+        calls = _patch_auto_rebase_run(monkeypatch, reject_sparse=True)
+
+        ok, message = auto_rebase._stage_sparse(repo, "notes.txt")
+
+        assert (ok, message) == (True, None)
+        add_calls = [cmd for cmd in calls if cmd[:2] == ["git", "add"]]
+        assert add_calls == [
+            ["git", "add", "--sparse", "notes.txt"],
+            ["git", "add", "notes.txt"],
+        ]
+
+    def test_remove_non_sparse_worktree_uses_plain_git_rm(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        repo = _init_repo(tmp_path)
+        (repo / "notes.txt").write_text("hello\n", encoding="utf-8")
+        _run(["git", "add", "notes.txt"], repo)
+        _run(["git", "commit", "-m", "seed notes"], repo)
+        calls = _patch_auto_rebase_run(monkeypatch, reject_sparse=True)
+
+        ok, message = auto_rebase._remove_sparse(repo, "notes.txt")
+
+        assert (ok, message) == (True, None)
+        rm_calls = [cmd for cmd in calls if cmd[:2] == ["git", "rm"]]
+        assert rm_calls == [["git", "rm", "-f", "--ignore-unmatch", "notes.txt"]]
+        assert not (repo / "notes.txt").exists()
+        assert not any("--sparse" in cmd for cmd in calls)
+
+    def test_remove_sparse_worktree_falls_back_when_git_rejects_sparse_flag(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        repo = _init_repo(tmp_path)
+        _run(["git", "sparse-checkout", "init", "--no-cone"], repo)
+        _run(["git", "sparse-checkout", "set", "--no-cone", "/*"], repo)
+        (repo / "notes.txt").write_text("hello\n", encoding="utf-8")
+        _run(["git", "add", "notes.txt"], repo)
+        _run(["git", "commit", "-m", "seed notes"], repo)
+        calls = _patch_auto_rebase_run(monkeypatch, reject_sparse=True)
+
+        ok, message = auto_rebase._remove_sparse(repo, "notes.txt")
+
+        assert (ok, message) == (True, None)
+        rm_calls = [cmd for cmd in calls if cmd[:2] == ["git", "rm"]]
+        assert rm_calls == [
+            ["git", "rm", "-f", "--ignore-unmatch", "--sparse", "notes.txt"],
+            ["git", "rm", "-f", "--ignore-unmatch", "notes.txt"],
+        ]
+
+    def test_stage_failure_is_surfaced_not_retried(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        repo = _init_repo(tmp_path)
+        (repo / "notes.txt").write_text("hello\n", encoding="utf-8")
+        calls: list[list[str]] = []
+        real_run: Callable[..., subprocess.CompletedProcess[str]] = auto_rebase._run
+
+        def failing_run(cmd: list[str], cwd: Path, *, check: bool = False) -> subprocess.CompletedProcess[str]:
+            calls.append(list(cmd))
+            if cmd[:2] == ["git", "add"]:
+                return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="fatal: unable to stage")
+            return real_run(cmd, cwd, check=check)
+
+        monkeypatch.setattr(auto_rebase, "_run", failing_run)
+
+        ok, message = auto_rebase._stage_sparse(repo, "notes.txt")
+
+        assert ok is False
+        assert message is not None
+        assert "fatal: unable to stage" in message
+        add_calls = [cmd for cmd in calls if cmd[:2] == ["git", "add"]]
+        assert add_calls == [["git", "add", "notes.txt"]]
+
+    def test_non_sparse_status_conflict_resolves_on_git_without_sparse_flag(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Field-report repro (#4202): a NON-sparse lane worktree whose git
+        rejects ``--sparse`` must still resolve status conflicts — the
+        R-STATUS-JSON-REMATERIALIZE path that aborted with
+        ``LANE_AUTO_REBASE_FAILED`` before the gating fix."""
+        repo = _init_repo(tmp_path)
+        mission_slug = "4202-plain-worktree"
+        mission_branch = f"kitty/mission-{mission_slug}"
+        branch_b = f"kitty/mission-{mission_slug}-lane-a"
+        mission_dir = Path("kitty-specs") / mission_slug
+        status_events_rel = mission_dir / "status.events.jsonl"
+        status_json_rel = mission_dir / "status.json"
+        base_event = _status_event(
+            "01AAA000000000000000000001",
+            at="2026-06-15T04:00:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+        mission_event = _status_event(
+            "01BBB000000000000000000002",
+            at="2026-06-15T04:01:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP02",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+        lane_event = _status_event(
+            "01CCC000000000000000000003",
+            at="2026-06-15T04:02:00Z",
+            mission_slug=mission_slug,
+            wp_id="WP03",
+            from_lane="genesis",
+            to_lane="planned",
+        )
+
+        _write_status_events(repo / status_events_rel, [base_event])
+        (repo / status_json_rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / status_json_rel).write_text('{"event_count": 1}\n', encoding="utf-8")
+        _run(["git", "add", str(mission_dir)], repo)
+        _run(["git", "commit", "-m", "seed status artifacts"], repo)
+
+        _run(["git", "branch", mission_branch, "main"], repo)
+        _run(["git", "checkout", mission_branch], repo)
+        _write_status_events(repo / status_events_rel, [base_event, mission_event])
+        _run(["git", "add", str(status_events_rel)], repo)
+        _run(["git", "commit", "-m", "mission: append event"], repo)
+
+        _run(["git", "checkout", "-b", branch_b, "main"], repo)
+        _write_status_events(repo / status_events_rel, [base_event, lane_event])
+        _run(["git", "add", str(status_events_rel)], repo)
+        _run(["git", "commit", "-m", "lane: append event"], repo)
+        _run(["git", "checkout", "main"], repo)
+
+        worktree_b = repo / ".worktrees" / f"{mission_slug}-lane-a"
+        worktree_b.parent.mkdir(parents=True, exist_ok=True)
+        _run(["git", "worktree", "add", str(worktree_b), branch_b], repo)
+        _run(["git", "config", "user.email", "test@spec-kitty"], worktree_b)
+        _run(["git", "config", "user.name", "test"], worktree_b)
+
+        calls = _patch_auto_rebase_run(monkeypatch, reject_sparse=True)
+        report = attempt_auto_rebase(
+            lane=_make_lane(),
+            branch=branch_b,
+            mission_branch=mission_branch,
+            repo_root=repo,
+            worktree_path=worktree_b,
+        )
+
+        assert report.succeeded is True, report.halt_reason
+        assert not any("--sparse" in cmd for cmd in calls)
+        rule_ids = [getattr(classification.resolution, "rule_id", None) for classification in report.classifications]
+        assert rule_ids == [
+            "R-STATUS-EVENTS-JSONL-UNION",
+            "R-STATUS-JSON-REMATERIALIZE",
+        ]
+        committed_status = json.loads(_run(["git", "show", f"HEAD:{status_json_rel.as_posix()}"], worktree_b).stdout)
+        assert committed_status["event_count"] == 3
+        assert sorted(committed_status["work_packages"]) == ["WP01", "WP02", "WP03"]
