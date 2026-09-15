@@ -213,8 +213,8 @@ def find_collisions(index: dict[str, list[Path]]) -> dict[str, list[Path]]:
     return {name: paths for name, paths in index.items() if len(paths) > 1}
 
 
-def _write_github_output(complete: bool, missing_basenames: list[str]) -> None:
-    """Emit ``complete`` / ``missing`` via the delimiter (heredoc) form.
+def _write_github_output(complete: bool, missing_basenames: list[str], *, coverage: bool) -> None:
+    """Emit ``complete`` / ``missing`` / ``coverage`` via heredoc form.
 
     Never bare ``key=value``: the runner assigns outputs line-by-line, so a
     value containing a newline would inject additional step outputs. The
@@ -225,9 +225,11 @@ def _write_github_output(complete: bool, missing_basenames: list[str]) -> None:
     if not summary_path:
         return
     complete_value = "true" if complete else "false"
+    coverage_value = "true" if coverage else "false"
     with open(summary_path, "a", encoding="utf-8") as fh:
         fh.write(f"complete<<{_OUTPUT_DELIMITER}\n{complete_value}\n{_OUTPUT_DELIMITER}\n")
         fh.write(f"missing<<{_OUTPUT_DELIMITER}\n{','.join(missing_basenames)}\n{_OUTPUT_DELIMITER}\n")
+        fh.write(f"coverage<<{_OUTPUT_DELIMITER}\n{coverage_value}\n{_OUTPUT_DELIMITER}\n")
 
 
 def main(
@@ -279,7 +281,7 @@ def main(
 
     missing_basenames = sorted(shard.basename for shard in result.missing)
     stale_basenames = sorted(shard.basename for shard in result.stale)
-    resolved_count = len(registry_shards) - len(result.missing)
+    resolved_count = len(result.fresh) + len(result.stale)
     selection_note = (
         "no selection info (every missing shard was fallback-eligible)" if selected is None else f"{len(selected)} module(s) selected as fresh-required"
     )
@@ -289,7 +291,7 @@ def main(
         f"({selection_note})"
     )
 
-    _write_github_output(result.complete, missing_basenames)
+    _write_github_output(result.complete, missing_basenames, coverage=bool(result.fresh or result.stale))
 
     if result.missing:
         # C-005: a shard absent from BOTH the current and fallback runs (or
