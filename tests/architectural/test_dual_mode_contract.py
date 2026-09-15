@@ -374,3 +374,16 @@ def test_router_gate_fails_closed_on_unfamiliar_or_incomplete_conclusion() -> No
     assert classify({"a": "startup_failure"}).blocks
     assert classify({"a": "action_required"}).blocks
     assert classify({"a": ""}).blocks
+
+
+def test_ci_router_concurrency_is_per_sha_on_push_and_per_ref_on_pr() -> None:
+    """#4347: push→main keys concurrency per-SHA (a singleton group, no cancel) so a
+    merge burst never cancel-cascades landed main runs; pull_request / workflow_dispatch
+    keep the per-ref self-coalesce. Exact equality, not a substring -- a substring pin
+    passes for a broken always-cancel expression such as ``... || true`` that silently
+    re-enables the main cancel-cascade (the exact honesty hole #4347 closes)."""
+    workflow = _load_workflow(_WORKFLOWS_DIR / "ci-router.yml")
+    assert workflow["concurrency"] == {
+        "group": "ci-router-${{ github.event_name == 'push' && github.sha || github.ref }}",
+        "cancel-in-progress": "${{ github.event_name != 'push' }}",
+    }

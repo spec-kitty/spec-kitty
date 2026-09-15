@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-15T18:12:20.654972Z",
+      "decision_id": "01M2K4A5HEZVC3ZR295C745W9K",
+      "final_answer": "Confirm scope as summarized: Stage 1 = 1a (#4347 per-SHA main concurrency) + 2a (#4371 fleet fan-out cap incl. report-main coalesce-with-survivor and dedup reinforcement), one PR to upstream main, verified on merged main tip; #4208 classifier verified as acceptance gate with wiring-guard as follow-up; 3a/4a deferred to Missions 2/3.",
+      "input_key": "stage1_scope_confirmed",
+      "mission_id": "01M2K46VR0PCTTFS5K0RTT4ZZR",
+      "mission_slug": "ci-main-concurrency-fanout-cap-01M2K46V",
+      "opened_by": "cli",
+      "options": [
+        "Confirm scope as summarized",
+        "Adjust scope"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm Stage 1 (Mission 1) scope = ADR levers 1a (#4347 per-SHA main concurrency) + 2a (#4371 fleet fan-out cap: top-level concurrency, trim workflow_run types to completed, report-main coalesce-with-survivor, reinforce dedup), landed as one PR to upstream main, verified on the merged main tip; #4208 router-gate classifier re-verified under the new cancelled-input distribution as an acceptance gate (fix only if regressed, else follow-up); source-eligibility (3a) and terminal-cancel (4a) explicitly deferred to Missions 2 and 3.",
+      "rationale": null,
+      "resolved_at": "2026-09-15T18:15:55.397787Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.stage1-boundary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M2K46VR0PCTTFS5K0RTT4ZZR",
+  "version": 1
+}

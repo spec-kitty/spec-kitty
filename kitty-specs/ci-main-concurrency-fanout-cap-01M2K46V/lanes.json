@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "ci-main-concurrency-fanout-cap-01M2K46V",
+  "mission_id": "01M2K46VR0PCTTFS5K0RTT4ZZR",
+  "mission_branch": "kitty/mission-ci-main-concurrency-fanout-cap-01M2K46V",
+  "target_branch": "fix/ci-main-concurrency-fanout-cap",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-fleet-verdict.yml",
+        ".github/workflows/ci-router.yml",
+        "tests/architectural/test_dual_mode_contract.py",
+        "tests/ci/test_fleet_verdict.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-15T19:34:06.454134+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6658606015ecc1930da44d05c2497e51b0783293"
+}
