@@ -192,7 +192,7 @@ def test_check_blanked_runtime_slots_flags_empty_agent_on_active_wp() -> None:
         }
     }
     findings = check_blanked_runtime_slots(snapshot)
-    assert len(findings) == 1  # golden-count: cardinality-is-contract
+    assert len(findings) == 1
     assert findings[0].category == Category.BLANKED_RUNTIME_SLOT
     assert findings[0].severity == Severity.ERROR
     assert findings[0].wp_id == "WP01"
@@ -242,7 +242,7 @@ def test_status_doctor_not_healthy_over_blanked_agent_slot(tmp_path: Path) -> No
 
     assert result.is_healthy is False
     blanked = result.findings_by_category(Category.BLANKED_RUNTIME_SLOT)
-    assert len(blanked) == 1  # golden-count: cardinality-is-contract
+    assert len(blanked) == 1
     assert blanked[0].wp_id == "WP01"
 
 

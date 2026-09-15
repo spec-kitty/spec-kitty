@@ -142,7 +142,7 @@ def test_refresh_returns_source_and_never_appends() -> None:
 
     before = parse_allowlist_entries(source)
     after = parse_allowlist_entries(rewritten)
-    assert len(after) == len(before) == 1, "refresh must never append or drop an entry"  # golden-count: cardinality-is-contract
+    assert len(after) == len(before) == 1, "refresh must never append or drop an entry"
     assert {e.bare_name for e in after} == {"Foo"}, "the new dead symbol 'Bar' must never be admitted"
     assert "Bar" not in rewritten
     assert rewritten.count("SymbolKey(") == source.count("SymbolKey(")
@@ -202,7 +202,7 @@ def test_decide_ambiguous_on_two_candidates_without_module_path() -> None:
     decision = decide(_entry("Foo", source_module=None), still_dead)
     assert decision.outcome == Outcome.AMBIGUOUS
     assert decision.new_hash is None
-    assert len(decision.bare_matches) == 2  # golden-count: cardinality-is-contract
+    assert len(decision.bare_matches) == 2
 
 
 def test_decide_unrecoverable_refuses_even_with_single_candidate() -> None:
@@ -284,11 +284,11 @@ def test_module_path_recovery_is_comment_independent() -> None:
 
     for source in (canonical_source, garbled_comment_source, no_comment_source):
         entries = parse_allowlist_entries(source)
-        assert len(entries) == 1  # golden-count: cardinality-is-contract
+        assert len(entries) == 1
         assert entries[0].module_path == "synthetic.mod_a", "source_module= must win regardless of the comment"
 
         decisions = plan_refresh(corpus, decls, {}, source)
-        assert len(decisions) == 1  # golden-count: cardinality-is-contract
+        assert len(decisions) == 1
         assert decisions[0].outcome == Outcome.REFRESH, "the refresh decision must be identical across all 3 sources"
         assert decisions[0].new_hash is not None
 
@@ -525,7 +525,7 @@ def test_ac3_collision_tier_refresh_preserves_module_path_in_source() -> None:
 
     rewritten = refresh(corpus, decls, {}, source)
     entries = parse_allowlist_entries(rewritten)
-    assert len(entries) == 1  # golden-count: cardinality-is-contract
+    assert len(entries) == 1
     entry = entries[0]
     assert entry.kwarg_module_path == "synthetic.dup_a", "collision-tier module_path must be preserved"
     assert entry.body_hash != _OLD_HASH, "the collision-tier hash must be refreshed"
@@ -557,7 +557,7 @@ def test_content_tier_entry_needing_collision_tier_escalates_end_to_end() -> Non
     )
 
     decisions = plan_refresh(corpus, decls, {}, source)
-    assert len(decisions) == 1  # golden-count: cardinality-is-contract
+    assert len(decisions) == 1
     decision = decisions[0]
     assert decision.outcome == Outcome.NEEDS_MODULE_PATH, (
         "a content-tier entry whose target needs collision-tier keying must escalate, never REFRESH an ineffective content-tier hash"

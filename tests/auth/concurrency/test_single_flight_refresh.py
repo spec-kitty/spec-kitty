@@ -312,7 +312,7 @@ async def test_factory_returns_same_instance_across_concurrent_callers(
     tm_ids = {pair[0] for pair in pairs}
     tokens = {pair[1] for pair in pairs}
     # All 10 callers resolved the SAME TokenManager instance.
-    assert len(tm_ids) == 1, (  # golden-count: cardinality-is-contract
+    assert len(tm_ids) == 1, (
         f"Factory returned {len(tm_ids)} distinct TokenManagers; "
         f"expected 1 (singleton regression)"
     )

@@ -123,7 +123,7 @@ def test_build_test_evidence_payload_serializes_required_contract_fields() -> No
     assert payload["observed_at"] == "2026-06-09T12:00:05Z"
     assert payload["artifact_refs"][0]["uri"] == "artifacts/test-results.xml"
     assert isinstance(payload["idempotency_key"], str)
-    assert len(payload["idempotency_key"]) == 64  # golden-count: cardinality-is-contract
+    assert len(payload["idempotency_key"]) == 64
 
 
 def test_idempotency_key_is_deterministic_and_ignores_observed_at() -> None:

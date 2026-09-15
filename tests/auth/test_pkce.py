@@ -31,7 +31,7 @@ _VERIFIER_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
 
 def test_verifier_is_43_characters() -> None:
     verifier = generate_code_verifier()
-    assert len(verifier) == 43  # golden-count: cardinality-is-contract
+    assert len(verifier) == 43
 
 
 def test_verifier_uses_urlsafe_alphabet() -> None:
@@ -43,7 +43,7 @@ def test_verifier_is_random_between_calls() -> None:
     verifiers = {generate_code_verifier() for _ in range(32)}
     # 43 chars of CSPRNG output colliding within 32 calls is statistically
     # impossible; any repeat signals a broken implementation.
-    assert len(verifiers) == 32  # golden-count: cardinality-is-contract
+    assert len(verifiers) == 32
 
 
 def test_challenge_has_no_padding() -> None:
@@ -74,5 +74,5 @@ def test_rfc7636_known_answer() -> None:
 
 def test_generate_pkce_pair_returns_matching_verifier_and_challenge() -> None:
     verifier, challenge = generate_pkce_pair()
-    assert len(verifier) == 43  # golden-count: cardinality-is-contract
+    assert len(verifier) == 43
     assert generate_code_challenge(verifier) == challenge

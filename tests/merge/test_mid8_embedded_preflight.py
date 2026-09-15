@@ -241,7 +241,7 @@ class TestCheckMissionBranchResolverWarning:
         assert first_exists is True
         assert first_blocker is None
         dep = [w for w in caught if issubclass(w.category, DeprecationWarning)]
-        assert len(dep) == 1, "legacy failover must warn exactly once per process"  # golden-count: cardinality-is-contract
+        assert len(dep) == 1, "legacy failover must warn exactly once per process"
 
 
 class TestWorktreeTeardownSeamRouting:

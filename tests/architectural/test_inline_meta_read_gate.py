@@ -12,7 +12,7 @@ inline meta.json JSON parsing onto ``mission_metadata.load_meta`` /
 structural (CI-red on regression) gate that keeps the drained class from
 regrowing. **Non-vacuous** — modeled on
 ``test_resolution_authority_gates.py`` + ``resolution_gate_allowlist.yaml``, this
-gate implements the SAME four mechanics (not a weaker shape):
+gate implements the SAME three mechanics (not a weaker shape):
 
 1. **Integer floor** — ``INLINE_META_READ_FLOOR`` is the live post-drain census;
    the live inline-read count MUST be ``<= floor`` (a shrink-only CEILING, unlike
@@ -20,22 +20,17 @@ gate implements the SAME four mechanics (not a weaker shape):
 2. **Margin** — ``FLOOR_MARGIN`` bounds how far ABOVE the live count the floor may
    be pinned (``floor - live <= margin``); a floor pinned far above live would
    mask a future regression that grows the inline-read count back up toward it.
-3. **Routed-count floor (anti-mass-allow-list)** — mirrors
-   ``ROUTED_CANONICALIZER_FLOOR``: the number of call sites routed through
-   ``load_meta`` / ``load_meta_strict`` / ``load_meta_or_empty`` has its own
-   floor and can only rise. This is independent of the allow-list, so "draining"
-   the inline-read floor by mass-allow-listing sites (instead of routing them)
-   manufactures zero routed evidence and is structurally distinguishable.
-4. **Composite-key allow-list with stale-entry detection** — each deferred site
+3. **Composite-key allow-list with stale-entry detection** — each deferred site
    is a ``{key, rationale, issue}`` entry; ``allowlist_keys - live_keys``
    non-empty fails the build (a routed-away entry must be evicted, never left
    masking a drained site).
 
-The scanner excludes ``mission_metadata.py`` (the canonical reader's own
-implementation, whose internal ``json.loads`` calls ARE the authority, not a
-violation of it) and the ``task_utils`` path-signature adapter (a thin,
-behavior-preserving wrapper around the canonical reader — see
-``task_utils/support.py::load_meta`` docstring).
+The scanner covers every ``src/**/*.py`` file, including ``mission_metadata.py``
+(the canonical reader's own implementation) and the ``task_utils`` path-signature
+adapter — a prior per-file exemption for both was removed (FR-012) once it was
+measured to hide zero inline-read sites: the decode authority lives in
+``src/kernel/meta_decode.py``, and neither file contains a ``json.loads``/
+``json.load`` meta.json read of its own.
 """
 
 from __future__ import annotations
@@ -61,76 +56,14 @@ _REPO_ROOT = _THIS.parents[2]
 SRC_ROOT = _REPO_ROOT / "src"
 ALLOWLIST_PATH = _THIS.parent / "inline_meta_read_allowlist.yaml"
 
-# Per contract: the canonical reader's own internals, and the task_utils
-# path-signature adapter, are excluded from the INLINE-READ scan.
-EXCLUDED_REL_PATHS: frozenset[str] = frozenset(
-    {
-        "src/specify_cli/mission_metadata.py",
-        "src/specify_cli/task_utils/support.py",
-    }
-)
-
 # The variable-name heuristic half of the scanner (contract rule: var names
 # ``meta_path|meta_file|meta_json|target_meta_path``).
 META_PATH_VAR_NAMES: frozenset[str] = frozenset({"meta_path", "meta_file", "meta_json", "target_meta_path"})
 
-# The canonical reader family a routed call site targets.
-#
-# ``load_meta_fail_closed`` joined this family in mission
-# ``doctrine-charter-split-unification`` (FR-007 / #3140): it is the ONE public
-# fail-closed reader, a thin typed-contract wrapper that DELEGATES to the
-# canonical ``load_meta`` parser. Routing a caller onto it is therefore routing
-# THROUGH the canonical authority, not away from it. Omitting it here made this
-# floor read FR-007's routing as a drain (120 -> 103) and fail.
-#
-# ``_load_meta_fail_closed`` and ``_require_meta`` joined this family in the
-# PR #3175 landing pass (2026-08-04), fixing a THIRD recurrence of the same
-# census/floor mismatch. Commit 60b0bf2a2 ("landing fold: route 13
-# authority-bucket sites through the fail-closed wrapper") introduced these two
-# module-private helpers in ``src/specify_cli/mission_metadata.py`` and
-# collapsed 13 literal call sites onto them, mechanically dropping the routed
-# census 120 -> 110 without adding the new delegating names here. Verified
-# delegation chain (not an independent reader): ``mission_metadata._require_meta``
-# calls ``mission_metadata._load_meta_fail_closed``, which calls
-# ``core.paths.load_meta_fail_closed`` (via a deferred import — see that
-# function's own docstring), which calls ``mission_metadata.load_meta`` (the
-# canonical parser) directly. Every call site that moved onto ``_require_meta``/
-# ``_load_meta_fail_closed`` still reaches ``load_meta``; it lost census credit
-# only because the scanner matches callee *names*, not the transitive call
-# graph. Adding the two names here is the fix this gate's structure supports —
-# it does no call-graph resolution, so a full transitive walk would be a larger
-# structural change than this landing fold warrants.
-#
-# ``decode_meta`` and ``parse_meta_file`` joined this family in mission
-# ``meta-json-fail-closed-routing-01KZPJ1F`` (FR-008 / WP05 / T022). The mission
-# stood up the L1/L2/L3 decode seam (research.md D1/D3): the kernel L1 primitive
-# ``kernel.meta_decode.decode_meta`` (str/bytes -> dict, the single malformed
-# authority) and the public L2 reader ``mission_metadata.parse_meta_file`` (path
-# -> dict, empty->benign short-circuit). The five previously-unrouted blob-fed
-# read sites (ref_advance A/B, implement_cores C/D, merge_driver E) route onto
-# these two symbols instead of hand-rolling ``json.loads`` over meta content.
-# ``scan_routed_load_meta_calls`` counts callee *names*, so until these two names
-# were added here the routing was invisible to the census (WP02/03/04 route onto
-# still-uncounted names -- census-neutral by design; this WP is the single census
-# change that makes them countable). Adding them here counts the 5 routed sites
-# AND every internal L1/L2/L3 delegation, which is why the floor is re-pinned
-# below.
-ROUTED_CALLEES: frozenset[str] = frozenset(
-    {
-        "load_meta",
-        "load_meta_strict",
-        "load_meta_or_empty",
-        "load_meta_fail_closed",
-        "_load_meta_fail_closed",
-        "_require_meta",
-        "decode_meta",
-        "parse_meta_file",
-    }
-)
 
 # --------------------------------------------------------------------------- #
 # Concrete integer floors (NFR-002). Live census measured on this tree via
-# scan_inline_meta_reads(SRC_ROOT) / scan_routed_load_meta_calls(SRC_ROOT) — NOT
+# scan_inline_meta_reads(SRC_ROOT) — NOT
 # ``<= huge`` / ``>= 0`` placeholders (NFR-002 rejects vacuous bounds).
 #
 # WP16 (mission read-surface-ssot-closeout-01KWZV91): post Thread-B drain
@@ -148,207 +81,9 @@ INLINE_META_READ_FLOOR = 7
 # it). At INLINE_META_READ_FLOOR == live == 7 today, the gap is 0.
 FLOOR_MARGIN = 2
 
-# WP16 SC-004-equivalent anti-mass-allow-list guard: the number of call sites
-# routed through load_meta/load_meta_strict/load_meta_or_empty has its own
-# floor and can only rise. Live routed census on this tree is 120 (includes
-# mission_metadata.py's own internal call sites — e.g. load_meta_strict/
-# load_meta_or_empty delegating to load_meta, and the module's many other
-# public helpers reading meta.json through the one canonical primitive; those
-# ARE genuine routed-usage evidence, not the read implementation itself, which
-# is why mission_metadata.py is excluded from the INLINE scan but NOT from this
-# routed-usage census — plus the import-history SCAN's own load_meta_or_empty
-# call, #2262). Floor (117) sits 3 below the live count (within MARGIN(4)) and
-# strictly below it, so the anti-vacuity check proves the census is not merely
-# equal to a hand-entered value.
-#
-# Raised 117 -> 120 by mission runtime-state-birth-cutover-all-paths-01KYH654:
-# the live census rose 120 -> 123 because this mission routed NEW reads through
-# the canonical primitive instead of adding inline ones — the ratchet moving in
-# its intended direction. The companion INLINE_META_READ_FLOOR was deliberately
-# NOT touched: routing ``status.cutover_eligibility`` through ``load_meta``
-# drained the inline census back under its existing ceiling on its own.
-#
-# Raised 120 -> 123 by mission doctrine-charter-split-unification (FR-007 /
-# #3140): ``load_meta_fail_closed`` joined ROUTED_CALLEES (see its comment
-# above) and WP08/WP09 routed the census's unwrapped/divergent readers onto it,
-# so the live count rose 123 -> 126. The ratchet again moved in its intended
-# direction — these sites did not stop routing through the canonical authority,
-# they moved onto its typed fail-closed contract.
-#
-# Lowered -> 117 by "landing fold: collapse 7 duplicated meta-guard blocks
-# in doc_state.py into one helper" (commit 190932c2d, PR #3155 landing pass):
-# that fold legitimately consolidated 7 duplicated inline
-# ``load_meta_fail_closed(...)`` call sites in doc_state.py into ONE shared
-# ``_require_meta()`` helper that itself calls ``load_meta_fail_closed`` once.
-# Routing COVERAGE is unchanged — all 7 original call sites still ultimately
-# route through the canonical reader, just via one shared helper instead of 7
-# duplicated inline calls — but this test counts literal source-text
-# occurrences of routed calls, so deduplication mechanically dropped the live
-# count toward 120 (the value this fold's floor was pinned against). This is
-# the CEILING-ratchet's inverse case (cf. INLINE_META_READ_FLOOR above): a
-# legitimate drop from good deduplication, not a coverage regression. The
-# floor was set to 117 to preserve the established 3-below-live gap
-# (mechanic 2) and keep the anti-vacuity check
-# (``len(routed) > ROUTED_LOAD_META_FLOOR``) strictly satisfied.
-#
-# NOTE ON THIS COMMENT'S OWN HISTORY: the paragraph above and the one before it
-# previously carried internally-inconsistent numbers (a "120 -> 123" header
-# followed by "rose 123 -> 126" body text, then a "123 -> 120" drop claim
-# immediately followed by "floor is set to 117 (not 120)") that did not
-# reconcile with each other or with any measured tree. This is corrected here
-# rather than re-derived a further time: trust the dated entries below, which
-# are each backed by a command actually run against a real tree, not narrative
-# arithmetic.
-#
-# DROPPED 120 -> 110 by commit 60b0bf2a2 ("landing fold: route 13
-# authority-bucket sites through the fail-closed wrapper", PR #3175 landing
-# pass, pre-existing on main): that fold introduced the module-private
-# delegating helpers ``mission_metadata._load_meta_fail_closed`` and
-# ``mission_metadata._require_meta`` and moved 13 literal
-# ``load_meta_fail_closed(...)`` call sites onto them, collapsing the visible
-# text down to 3 direct calls plus the helpers' own internal delegation. Every
-# one of those 13 sites still reaches ``load_meta`` (verified delegation
-# chain: ``_require_meta`` -> ``_load_meta_fail_closed`` ->
-# ``core.paths.load_meta_fail_closed`` -> ``mission_metadata.load_meta``), but
-# neither helper name was added to :data:`ROUTED_CALLEES`, so the census
-# mechanically dropped even though routing coverage did not regress — this is
-# the SAME shape as the PR #3155 drop two paragraphs above (the THIRD
-# recurrence of this exact census/floor mismatch). ``ROUTED_LOAD_META_FLOOR``
-# (117) was left unmoved across this drop, which is what turned it into a
-# false-red CI failure: measured directly via
-# ``PWHEADLESS=1 uv run pytest tests/architectural/test_inline_meta_read_gate.py::test_routed_load_meta_floor``
-# on 2026-08-04, live == 110 < 117.
-#
-# FIXED 2026-08-04 (PR #3175 landing pass, this fold): added
-# ``_load_meta_fail_closed`` and ``_require_meta`` to :data:`ROUTED_CALLEES`
-# (see that constant's comment) so the census counts calls that reach the
-# canonical reader through these verified delegating wrappers, not just literal
-# calls to the four previously-named callees. Re-measured via
-# ``uv run python -c "from tests.architectural.test_inline_meta_read_gate import
-# scan_routed_load_meta_calls, SRC_ROOT; print(len(scan_routed_load_meta_calls(SRC_ROOT)))"``
-# on the same tree: live == 129 (110 + 12 newly-counted call sites in
-# ``mission_metadata.py`` + 7 in ``doc_analysis/doc_state.py``, whose OWN
-# locally-defined ``_require_meta`` also delegates to ``load_meta_fail_closed``
-# — same name, same delegating shape, independently verified). Floor raised
-# 117 -> 126 to restore the established 3-below-live gap (mechanic 2) against
-# the corrected 129, strictly satisfying the anti-vacuity check.
-#
-# FIXED 2026-08-05 (PR #3211 landing pass, F3): the 10 landing folds already
-# applied to this tree grew the routed census further -- measured directly
-# via ``PWHEADLESS=1 uv run pytest
-# tests/architectural/test_inline_meta_read_gate.py::test_routed_load_meta_floor``,
-# live == 131 > 126 + margin(4). No delegation-chain regression; genuine
-# growth in routed call sites. Floor raised 126 -> 128 to restore the
-# established 3-below-live gap (mechanic 2) against the corrected 131,
-# strictly satisfying the anti-vacuity check (same convention as the two
-# prior entries above).
-#
-# FIXED 2026-08-07 (PR #3248 landing pass): pre-existing main
-# breakage — the same red reproduces on ``upstream/main`` (live == 133 > 128 +
-# margin(4)); this docs-only PR adds no routed ``load_meta`` call sites in
-# ``src/``, so the growth is genuine census drift accumulated by merges between
-# pins, not a delegation-chain regression. Measured directly via
-# ``PWHEADLESS=1 uv run pytest
-# tests/architectural/test_inline_meta_read_gate.py::test_routed_load_meta_floor``
-# on the rebased tip: live == 133. Floor raised 128 -> 130 to restore the
-# established 3-below-live gap (mechanic 2) against the corrected 133, strictly
-# satisfying the anti-vacuity check (same convention as the three prior entries
-# above).
-#
-# RAISED 2026-08-10 (mission meta-json-fail-closed-routing-01KZPJ1F, WP05 / T022
-# + T023 -- the SINGLE census change of this mission): T022 added the new decode
-# family ``decode_meta`` (kernel L1) and ``parse_meta_file`` (public L2) to
-# :data:`ROUTED_CALLEES` (see that constant's comment). WP02/03/04 had already
-# routed the five blob-fed sites (ref_advance A/B, implement_cores C/D,
-# merge_driver E) onto these two names, but the census counted callee *names*
-# only, so the routing was invisible until the names were added -- census-neutral
-# by design (the gate sat at 133/130 through WP02-04). Adding the two names makes
-# the 5 routed sites AND every internal L1/L2/L3 delegation countable, so the
-# live routed census jumped 133 -> 138. Measured on this tree via
-# ``PYTHONPATH=$PWD/src python -c "from
-# tests.architectural.test_inline_meta_read_gate import
-# scan_routed_load_meta_calls, SRC_ROOT;
-# print(len(scan_routed_load_meta_calls(SRC_ROOT)))"`` on 2026-08-10: live == 138.
-# Floor raised 130 -> 135 to restore the established 3-below-live gap (mechanic 2)
-# against the fresh 138 (``floor == live - 3``; band ``live - MARGIN(4) <= floor
-# < live`` holds: 134 <= 135 < 138), strictly satisfying the anti-vacuity check
-# (same convention as the four prior entries above).
-#
-# RAISED 2026-08-14 (mission mission-type-guard-registry-01KZY2FG): the tree
-# accumulated genuine routed-call growth ahead of this mission (unrelated
-# merges between pins), not a delegation-chain regression -- this mission's own
-# CI-gate fixes (moving _mission_type_audit.py's MissionTypeRepository import
-# from charter.offering.missions.mission_type_repository onto the charter.missions
-# facade, and documenting its kitty-specs/ walk as a distinct C-001 corpus
-# walk) touch neither ROUTED_CALLEES nor any load_meta* call site, so they are
-# census-neutral by construction; the gate had simply drifted stale ahead of
-# this mission landing. Measured directly via
-# ``.venv/bin/python -c "from tests.architectural.test_inline_meta_read_gate
-# import scan_routed_load_meta_calls, SRC_ROOT;
-# print(len(scan_routed_load_meta_calls(SRC_ROOT)))"`` on this tree: live ==
-# 140. Floor raised 135 -> 137 to restore the established 3-below-live gap
-# (mechanic 2) against the fresh 140 (``floor == live - 3``; band
-# ``live - MARGIN(4) <= floor < live`` holds: 136 <= 137 < 140), strictly
-# satisfying the anti-vacuity check (same convention as the five prior entries
-# above).
-# RAISED 2026-08-15 (SK3466, #3482 landing): this change's OWN diff adds exactly
-# 2 new routed sites -- ``_meta_json_delta_is_finalize_attributable``
-# (mission_finalize.py) decodes both the git-HEAD-committed and the current
-# on-disk meta.json via ``kernel.meta_decode.decode_meta`` (already in
-# :data:`ROUTED_CALLEES`) instead of hand-rolling ``json.loads``. Live rises
-# 140 -> 142; floor raised 137 -> 139 to restore the established 3-below-live
-# gap (mechanic 2) against the corrected 142 (``floor == live - 3``; band
-# ``live - MARGIN(4) <= floor < live`` holds: 138 <= 139 < 142), strictly
-# satisfying the anti-vacuity check (same convention as the entries above).
-# rc3 M0 (mission_type backfill, PR #3614): the new
-# ``specify_cli.migration.backfill_mission_type`` module routes its meta reads
-# through ``core.paths.load_meta_fail_closed`` (a named ``ROUTED_CALLEES``
-# member) rather than hand-rolling ``json.loads``. Live rises 142 -> 144; floor
-# raised 139 -> 141 to restore the established 3-below-live gap (mechanic 2)
-# against the corrected 144 (``floor == live - 3``; band
-# ``live - MARGIN(4) <= floor < live`` holds: 140 <= 141 < 144), strictly
-# satisfying the anti-vacuity check (same convention as the entries above).
-# RAISED 2026-08-22 (post-#3659 main refresh): the consolidated landing added
-# two genuine routed sites: mission-check-prerequisites resume metadata now
-# uses ``load_meta_fail_closed``, and merge-baseline decoding now uses
-# ``decode_meta``. Live rises 144 -> 146; floor raised 141 -> 143 to preserve
-# the established 3-below-live gap (``142 <= 143 < 146``).
-# RAISED 2026-08-24 (#2938): four legacy branch-contract call sites now route
-# through ``load_meta_fail_closed``. Live rises 146 -> 150; floor raised
-# 143 -> 146, the lowest permitted value within the four-site margin
-# (``146 <= 146 < 150``).
-# RAISED 2026-08-28 (#3712 landing / #3773): the verdict-durability fix added
-# one routed ``load_meta_fail_closed(identity.feature_dir)`` call site (the
-# committed-annotation path for stored ``LANES`` missions). Live rises
-# 150 -> 151; floor raised 146 -> 147, again the lowest permitted value within
-# the four-site margin (``147 <= 147 < 151``). Measured directly via
-# ``pytest tests/architectural/test_inline_meta_read_gate.py::test_routed_load_meta_floor``
-# on the integrated PR tip.
-# RAISED 2026-09-03 (#3716 / commit-boundary mission): the discard-path
-# transactional fix added two genuine routed sites, both resolving the PRIMARY
-# target branch for the discard commits — ``load_meta`` in
-# ``mission_type._commit_flattened_meta`` (commit-the-flatten leg) and
-# ``load_meta_or_empty`` in ``retrospective_terminus._primary_target_branch``
-# (the retrospective degrade-ref). On the EXP lineage the integrated census is
-# 154 after merge-retention adds two routed reads. Explicit-owned-checkout adds
-# one canonical metadata read, raising live to 155; floor 151 is the lowest
-# permitted value within the four-site margin (``151 <= 151 < 155``).
-# RAISED 2026-09-08 (#3212): the backfill-runtime-state flip-counter fix added
-# one genuine routed site — ``load_meta`` in
-# ``runtime_state_cutover._already_at_snapshot_authority``, the read-only
-# pre-flip authority probe (``allow_missing=True, on_malformed="none"`` so the
-# probe can never crash a verdict-bearing dry-run; missing/malformed reads as
-# "not yet migrated"). Live rises 156 -> 157; floor raised 152 -> 153, the
-# lowest permitted value within the four-site margin (``153 <= 153 < 157``).
-# Measured directly via
-# ``pytest tests/architectural/test_inline_meta_read_gate.py::test_routed_load_meta_floor``
-# on the PR tip.
-ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 157
-
 
 # --------------------------------------------------------------------------- #
-# Composite-key allow-list machinery (mechanic 4).
+# Composite-key allow-list machinery (mechanic 3).
 # --------------------------------------------------------------------------- #
 @dataclass(frozen=True)
 class InlineMetaReadKey:
@@ -417,7 +152,7 @@ def load_baseline(path: Path) -> int:
 
 
 def staleness_twin_guard(allowlist_keys: set[InlineMetaReadKey], live_keys: set[InlineMetaReadKey]) -> list[InlineMetaReadKey]:
-    """Return allow-list keys with no matching live call site (mechanic 4).
+    """Return allow-list keys with no matching live call site (mechanic 3).
 
     A non-empty result is a stale-entry failure: the allow-list sanctions a site
     whose frozen token no longer matches any live call site — the entry must be
@@ -474,8 +209,12 @@ def _rel(path: Path, root: Path) -> str:
     cross-tree scan (e.g. a ``git worktree`` baseline) relativises against the
     tree it is scanning. Deriving the root from the gate file's own location
     made every ``rel`` absolute for a foreign tree, silently breaking the
-    ``EXCLUDED_REL_PATHS`` membership check and over-counting
-    ``mission_metadata.py`` as a violation (issue #3241).
+    path-membership checks that consume ``rel`` and over-counting
+    ``mission_metadata.py`` as a violation (issue #3241). The specific check
+    that broke then -- an ``EXCLUDED_REL_PATHS`` exemption for the canonical
+    reader's own module -- no longer exists (retired by #4315, since it hid
+    zero sites), but ``root`` stays load-bearing: the blind-spot test below
+    relies on it to relativise against a scratch tree.
     """
     try:
         return path.relative_to(root).as_posix()
@@ -708,15 +447,14 @@ class InlineMetaReadSite:
 def scan_inline_meta_reads(src_root: Path) -> list[InlineMetaReadSite]:
     """AST-walk ``src/**/*.py`` for inline ``json.loads``/``json.load`` reads of meta.json.
 
-    Excludes :data:`EXCLUDED_REL_PATHS` (the canonical reader's own internals and
-    the ``task_utils`` adapter) per the contract.
+    Scans every file under ``src_root``, with no per-file exemption (FR-012):
+    a prior exclusion for ``mission_metadata.py`` and the ``task_utils`` adapter
+    was removed once measured to hide zero inline-read sites.
     """
     sites: list[InlineMetaReadSite] = []
     repo_root = src_root.parent
     for path in _iter_source_files(src_root):
         rel = _rel(path, repo_root)
-        if rel in EXCLUDED_REL_PATHS:
-            continue
         sites.extend(_scan_file_for_inline_meta_reads(path, rel))
     return sites
 
@@ -772,33 +510,6 @@ def _live_inline_meta_read_keys(src_root: Path) -> set[InlineMetaReadKey]:
 
 
 # --------------------------------------------------------------------------- #
-# Routed-count census (mechanic 3 — anti-mass-allow-list).
-# --------------------------------------------------------------------------- #
-def scan_routed_load_meta_calls(src_root: Path) -> list[tuple[str, int]]:
-    """Return ``[(rel_path, lineno), ...]`` for every call to the routed reader family.
-
-    Deliberately includes ``mission_metadata.py`` — its many internal call sites
-    (``load_meta_strict``/``load_meta_or_empty`` delegating to ``load_meta``, and
-    its other public helpers reading meta.json through the one canonical
-    primitive) ARE genuine routed-usage evidence, distinct from the reader's own
-    JSON-parsing implementation (which is what the INLINE scan excludes).
-    """
-    sites: list[tuple[str, int]] = []
-    repo_root = src_root.parent
-    for path in _iter_source_files(src_root):
-        rel = _rel(path, repo_root)
-        source = path.read_text(encoding="utf-8")
-        try:
-            tree = ast.parse(source, filename=str(path))
-        except SyntaxError:
-            continue
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and _callee_name(node) in ROUTED_CALLEES:
-                sites.append((rel, node.lineno))
-    return sites
-
-
-# --------------------------------------------------------------------------- #
 # FR-010 — meta-content decoder enumeration (mission
 # meta-json-fail-closed-routing-01KZPJ1F, WP05 / T024).
 # --------------------------------------------------------------------------- #
@@ -850,7 +561,7 @@ def _count_kernel_l1_meta_decoders(src_root: Path) -> int:
     meta-path read because it decodes a ``raw: str | bytes`` parameter, not a
     file it opens itself. A healthy tree has exactly one such call.
     """
-    l1_path = src_root / "kernel" / "meta_decode.py"
+    l1_path = src_root.parent / _FR010_KERNEL_L1_REL
     if not l1_path.exists():
         return 0
     source = l1_path.read_text(encoding="utf-8")
@@ -1193,30 +904,31 @@ def test_scan_detects_two_hop_reassignment(tmp_path: Path) -> None:
 
 
 # --- T045: scanner integration on the real tree -----------------------------
-def test_scan_excludes_mission_metadata_and_task_utils() -> None:
-    """The scan never reports a site inside the two excluded files."""
-    sites = scan_inline_meta_reads(SRC_ROOT)
-    assert all(site.rel_path not in EXCLUDED_REL_PATHS for site in sites)
+def test_scan_reports_sites_inside_the_formerly_excluded_paths(tmp_path: Path) -> None:
+    """FR-012: closing the blind spot -- both formerly-excluded paths are scanned.
 
-
-def test_scan_routed_load_meta_calls_counts_call_sites(tmp_path: Path) -> None:
-    """Unit check: the routed scanner counts call sites, not definitions or imports."""
-    pkg = tmp_path / "src" / "scratch_pkg"
+    A prior ``EXCLUDED_REL_PATHS`` exemption hid inline meta.json reads inside
+    ``src/specify_cli/mission_metadata.py`` and the ``task_utils`` adapter from
+    this scan. It was removed once measured to hide zero real sites on this
+    tree -- but that measurement is invisible to every other check in this
+    module: deleting the constant alone reds with ``NameError``, and pinning
+    it to an empty frozenset leaves the old exclusion assertion vacuously
+    true. Only a planted site inside a formerly-excluded path, scanned and
+    reported here, distinguishes a real filter removal from a cosmetic one.
+    """
+    pkg = tmp_path / "src" / "specify_cli"
     pkg.mkdir(parents=True)
     (tmp_path / "src" / "__init__.py").write_text("", encoding="utf-8")
     (pkg / "__init__.py").write_text("", encoding="utf-8")
-    (pkg / "caller.py").write_text(
-        "from specify_cli.mission_metadata import load_meta\n"
-        "def load_meta():\n"  # a same-named def is NOT a call
-        "    pass\n"
-        "def user(feature_dir):\n"
-        "    a = load_meta(feature_dir)\n"
-        "    b = load_meta_strict(feature_dir)\n"
-        "    return a, b\n",
+    (pkg / "mission_metadata.py").write_text(
+        "class PlantedInFormerlyExcludedFile:\n"
+        "    def load(self, feature_dir):\n"
+        "        meta_path = feature_dir / 'meta.json'\n"
+        "        return json.loads(meta_path.read_text(encoding='utf-8'))\n",
         encoding="utf-8",
     )
-    routed = scan_routed_load_meta_calls(tmp_path / "src")
-    assert len(routed) == 2  # only the two Call nodes, not the def or the import  # golden-count: cardinality-is-contract
+    sites = scan_inline_meta_reads(tmp_path / "src")
+    assert any(s.key.enclosing_qualname == "PlantedInFormerlyExcludedFile.load" for s in sites)
 
 
 # --- T046: gate mechanic 1+2 — concrete floor + margin ----------------------
@@ -1242,31 +954,7 @@ def test_inline_meta_read_floor() -> None:
     )
 
 
-# --- T046: gate mechanic 3 — routed-count floor (anti-mass-allow-list) ------
-def test_routed_load_meta_floor() -> None:
-    """Concrete floor: routed load_meta*() call sites stay >= ROUTED_LOAD_META_FLOOR.
-
-    Mirrors ``test_routed_count_floor`` in ``test_resolution_authority_gates.py``:
-    both bounds are enforced (``live - MARGIN <= floor < live``) so the floor is a
-    concrete census integer, never a tautological ``>= len(routed)``.
-    """
-    routed = scan_routed_load_meta_calls(SRC_ROOT)
-    assert len(routed) >= ROUTED_LOAD_META_FLOOR, (
-        f"routed load_meta*() census dropped to {len(routed)}; expected "
-        f">= {ROUTED_LOAD_META_FLOOR}. A drop means call sites stopped routing "
-        "through the canonical reader family."
-    )
-    assert len(routed) > ROUTED_LOAD_META_FLOOR, (
-        "ROUTED_LOAD_META_FLOOR must be a concrete census integer strictly below the live routed count, not '>= len(routed)' (anti-vacuous)."
-    )
-    assert len(routed) - ROUTED_LOAD_META_FLOOR <= ROUTED_LOAD_META_FLOOR_MARGIN, (
-        f"ROUTED_LOAD_META_FLOOR ({ROUTED_LOAD_META_FLOOR}) is more than "
-        f"ROUTED_LOAD_META_FLOOR_MARGIN ({ROUTED_LOAD_META_FLOOR_MARGIN}) below the "
-        f"live routed count ({len(routed)}); tighten the floor."
-    )
-
-
-# --- T046: gate mechanic 4 — real-tree allow-list + staleness --------------
+# --- T046: gate mechanic 3 — real-tree allow-list + staleness --------------
 def test_inline_meta_read_gate_green_against_seeded_allowlist() -> None:
     """With the seeded allow-list, the gate reports zero violations."""
     allowlist = set(load_allowlist(ALLOWLIST_PATH))
@@ -1329,51 +1017,6 @@ def test_allowlist_entries_are_still_live() -> None:
     live = _live_inline_meta_read_keys(SRC_ROOT)
     stale = staleness_twin_guard(allowlist, live)
     assert stale == [], f"stale inline_meta_read allow-list entries: {stale}"
-
-
-# --- T047 self-test 3/3: mass-allow-list attempt is structurally caught ----
-def test_routed_count_floor_blocks_mass_allowlist(tmp_path: Path) -> None:
-    """Allow-listing every site (instead of routing) manufactures zero routed evidence.
-
-    Simulates the "drain the ceiling by mass-allow-listing" attack: sanction
-    every discovered inline-read site in a scratch tree with NO corresponding
-    ``load_meta*`` calls. The INLINE gate goes green (every site is
-    allow-listed), but the routed-count census computed from the SAME tree
-    stays at zero — proving the two mechanics are independent, so a floor tying
-    the routed census to the drained count (as ``ROUTED_LOAD_META_FLOOR`` does on
-    the real tree) trips RED on this shape of regression.
-    """
-    pkg = tmp_path / "src" / "scratch_pkg"
-    pkg.mkdir(parents=True)
-    (tmp_path / "src" / "__init__.py").write_text("", encoding="utf-8")
-    (pkg / "__init__.py").write_text("", encoding="utf-8")
-    (pkg / "reader.py").write_text(
-        "class ScratchReader:\n"
-        "    def load(self, feature_dir):\n"
-        "        meta_path = feature_dir / 'meta.json'\n"
-        "        return json.loads(meta_path.read_text(encoding='utf-8'))\n"
-        "    def load_other(self, feature_dir):\n"
-        "        meta_file = feature_dir / 'meta.json'\n"
-        "        return json.loads(meta_file.read_text(encoding='utf-8'))\n",
-        encoding="utf-8",
-    )
-    scratch_src = tmp_path / "src"
-
-    sites = scan_inline_meta_reads(scratch_src)
-    assert len(sites) == 2, "fixture must contain two genuine inline meta reads"  # golden-count: cardinality-is-contract
-
-    # "Mass allow-list" the drain: sanction every discovered site instead of
-    # routing the code onto load_meta*.
-    mass_allowlist = {site.key for site in sites}
-    assert check_inline_meta_read_gate(scratch_src, mass_allowlist) == [], "sanity: the mass allow-list must make the INLINE gate green"
-
-    # The routed-count census is INDEPENDENT of the allow-list: mass-allow-listing
-    # manufactures zero routing evidence in this fixture.
-    routed = scan_routed_load_meta_calls(scratch_src)
-    required_routed_floor = len(sites)  # one routed call should replace each drained read
-    assert len(routed) < required_routed_floor, "self-test invariant broken: a mass allow-list in this fixture must NOT be accompanied by genuine routed calls"
-    # This is exactly the failure shape ROUTED_LOAD_META_FLOOR catches on the real
-    # tree: a floor requiring routed growth reds when routing didn't happen.
 
 
 # --- FR-010: single-decoder enumeration + completeness + anti-vacuity canary -
@@ -1480,9 +1123,8 @@ def test_fr010_canary_allowed_shapes_do_not_trip(tmp_path: Path) -> None:
 # --- timing (fast-tier budget) ----------------------------------------------
 @pytest.mark.performance
 def test_gate_runs_under_fast_tier_budget() -> None:
-    """Both scans complete well under the 30 s fast-tier ceiling."""
+    """The inline-read scan completes well under the 30 s fast-tier ceiling."""
     start = time.monotonic()
     scan_inline_meta_reads(SRC_ROOT)
-    scan_routed_load_meta_calls(SRC_ROOT)
     elapsed = time.monotonic() - start
     assert elapsed < 30.0, f"inline meta-read scans took {elapsed:.2f}s (>30s budget)"

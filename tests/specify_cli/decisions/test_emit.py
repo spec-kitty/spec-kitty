@@ -305,7 +305,7 @@ def test_emit_decision_opened_fanout_sees_the_append_already_durable(
         tmp_path, MISSION_SLUG, decision_id="01KAAAAAAAAAAAAAAAAAAAAAAA", entry=entry, actor=ACTOR
     )
 
-    assert len(seen_lines) == 1  # golden-count: cardinality-is-contract
+    assert len(seen_lines) == 1
     assert json.loads(seen_lines[0])["event_type"] == DECISION_POINT_OPENED
 
 

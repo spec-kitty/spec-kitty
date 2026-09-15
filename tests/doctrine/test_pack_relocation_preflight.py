@@ -139,7 +139,7 @@ def test_graph_fragments_relocated_out_of_src_doctrine_root() -> None:
     assert not strays, f"DRG fragments still at the retired src/doctrine root: {strays}"
 
     fragments = sorted(PACKS_BUILT_IN.glob("*.graph.yaml"))
-    assert len(fragments) == 14, f"expected 14 DRG fragments under packs/built-in, found {len(fragments)}"  # golden-count: cardinality-is-contract
+    assert len(fragments) == 14, f"expected 14 DRG fragments under packs/built-in, found {len(fragments)}"
 
 
 def test_asset_payloads_relocated_under_packs_built_in() -> None:
@@ -187,7 +187,7 @@ def test_manifest_is_a_sorted_deduped_set() -> None:
 def test_manifest_includes_fragments_and_payloads() -> None:
     manifest = set(_load_manifest())
     fragments = [p for p in manifest if p.endswith(".graph.yaml")]
-    assert len(fragments) == 14, f"expected 14 DRG fragments, found {len(fragments)}"  # golden-count: cardinality-is-contract
+    assert len(fragments) == 14, f"expected 14 DRG fragments, found {len(fragments)}"
     # The manifest lists the pre-move payload locations (src/charter/offering/...); the
     # relocated locations are asserted by
     # ``test_asset_payloads_relocated_under_packs_built_in`` above.

@@ -192,14 +192,14 @@ class TestAssemblePack:
 
         assert result.ok is True, result.errors
         fragments = sorted((output / "drg").glob("*.graph.yaml"))
-        assert len(fragments) == 2, "one fragment per pack must survive, renumbered"  # golden-count: cardinality-is-contract
+        assert len(fragments) == 2, "one fragment per pack must survive, renumbered"
 
         rendered = [f.read_text(encoding="utf-8") for f in fragments]
         # The DUPLICATE edge itself (source+target+relation) must appear only
         # once across both re-emitted fragments -- the pruning behaviour this
         # path exists for.
         edge_block_count = sum(text.count("relation: requires") for text in rendered)
-        assert edge_block_count == 1, (  # golden-count: cardinality-is-contract
+        assert edge_block_count == 1, (
             f"expected exactly one surviving duplicate edge, got {edge_block_count}:\n"
             + "\n---\n".join(rendered)
         )

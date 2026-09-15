@@ -39,14 +39,6 @@ membership:
   tests/architectural/test_no_dead_modules.py: enforcement-allowlist
   tests/architectural/test_integration_boundary.py: enforcement-allowlist
 
-  # --- P2 shape-guard demotion targets (#3458). ---
-  # The frozen-ceiling ratchet is the one low-ROI shape guard in this module;
-  # every other test here is a behavioral unit test of the pure
-  # classify_golden_count/ratchet_violations/convert_counts_by_dir helpers
-  # (still real, still blocking — they test logic, not a frozen count).
-  tests/architectural/test_golden_count_ban.py: behavioral
-  tests/architectural/test_golden_count_ban.py::test_convert_sites_do_not_exceed_frozen_baseline: shape-guard
-
   # --- Already narrowed, reclassified out of shape-guard (#3447 WP05). ---
   # Was the low-ROI 12-agent byte-for-byte grid NFR-007 names; narrowed to two
   # canonical per-render-branch snapshots + a structural invariant derived

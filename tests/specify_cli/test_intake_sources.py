@@ -141,6 +141,6 @@ class TestScanForPlans:
         packet.write_text("# Packet\n", encoding="utf-8")
         results = scan_for_plans(tmp_path)
         found = [r for r in results if r[1] == "handoff"]
-        assert len(found) == 1  # golden-count: cardinality-is-contract
+        assert len(found) == 1
         assert found[0][0] == packet
         assert found[0][2] is None

@@ -38,10 +38,6 @@ structural test for this mission (NFR-008 amended) and it is deliberately
   basename *collides* with a generated artifact's basename outside the mission
   artifact structure is NOT classified as generated; a filename-only mutant misfires.
 
-* **C-006 registration (T057).** The new architectural test files resolve to exactly
-  one ``arch`` shard via the shared shard registry (negative absence check — no file
-  left shard-orphaned), never a positive count.
-
 Modelled on ``tests/architectural/untrusted_path_audit`` (the tool-derived inventory
 with an undercount arm, an overcount/ghost arm, and a drift-proof key) — here the
 drift-proof key is ``(module, symbol)``, stable across line moves and renames.
@@ -180,7 +176,7 @@ def _assigned_name(node: ast.stmt) -> tuple[str, ast.expr] | None:
     """``(symbol, value)`` for a module-level ``Assign`` / ``AnnAssign`` to a Name."""
     if (
         isinstance(node, ast.Assign)
-        and len(node.targets) == 1  # golden-count: cardinality-is-contract
+        and len(node.targets) == 1
         and isinstance(node.targets[0], ast.Name)
     ):
         return node.targets[0].id, node.value
@@ -621,33 +617,3 @@ def test_c8_generated_kind_is_classified_generated_and_rename_invariant() -> Non
     assert is_toolchain_generated_churn(generated) is True
     # It is NOT a primary kind (it is coord-generated), keeping the partitions honest.
     assert is_primary_artifact_kind(kind) is False
-
-
-# ===========================================================================
-# T057 — C-006: the new arch test files resolve to exactly one shard (negative)
-# ===========================================================================
-def test_new_arch_test_files_are_shard_registered() -> None:
-    """Each new WP10 architectural test file resolves to exactly one ``arch`` shard.
-
-    NEGATIVE absence check (no file left shard-orphaned) via the shared registry's
-    ``shard_for`` — never a positive count. New ``tests/architectural/*.py`` files are
-    auto-covered by the ``arch`` group's ``default_fallback`` hash bucket, so this
-    asserts the registration holds without hand-editing the shared balance table
-    (avoiding the golden-count-ban collision and the shard-map co-ownership).
-    """
-    from tests import _shard_registry as shard_registry
-
-    new_files = (
-        "tests/architectural/test_exemption_registry_ratchet.py",
-        "tests/architectural/tool_artifact_enrolment/test_enrolment_inventory.py",
-    )
-    orphaned: list[str] = []
-    for rel in new_files:
-        assert (_REPO_ROOT / rel).exists(), f"{rel} must exist for the registration check."
-        if shard_registry.shard_for("arch", rel) is None:
-            orphaned.append(rel)
-    assert not orphaned, (
-        "the following new architectural test file(s) resolve to NO arch shard "
-        "(shard-orphan — they would be selected by zero CI legs):\n"
-        + "\n".join(f"  - {f}" for f in orphaned)
-    )

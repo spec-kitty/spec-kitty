@@ -33,13 +33,16 @@ concurrency:
   group: release-readiness-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-  pull-requests: write
-
 jobs:
   check-readiness:
     runs-on: ubuntu-latest
+    # S8233: permissions relocated to job scope. pull-requests:write is
+    # preserved (deliberately NOT dropped) to keep this a behavior-identical
+    # relocation of the prior workflow-level grant; contents:read covers
+    # checkout + dorny/paths-filter.
+    permissions:
+      contents: read
+      pull-requests: write
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
       - name: Check out repository
@@ -56,12 +59,12 @@ jobs:
       - name: Install validator dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyyaml
+          pip install pyyaml==6.0.3 --only-binary=:all:
 
       - name: Detect release metadata changes
         if: github.event_name == 'pull_request'
         id: metadata_changes
-        uses: dorny/paths-filter@v4
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           filters: |
             version_sources:
@@ -82,11 +85,15 @@ jobs:
           steps.metadata_changes.outputs.validator_surface == 'true'
         id: validate
         continue-on-error: true
+        env:
+          # S7630: route the workflow-dispatch input through an env var so its
+          # value is never interpolated into the shell script body.
+          TAG: ${{ inputs.tag }}
         run: |
-          if [[ -n "${{ inputs.tag }}" ]]; then
-            echo "Running validation in tag mode for dry run: ${{ inputs.tag }}"
+          if [[ -n "$TAG" ]]; then
+            echo "Running validation in tag mode for dry run: $TAG"
             echo "scope=tag" >> "$GITHUB_OUTPUT"
-            python scripts/release/validate_release.py --mode tag --tag "${{ inputs.tag }}" --tag-pattern "v*.*.*"
+            python scripts/release/validate_release.py --mode tag --tag "$TAG" --tag-pattern "v*.*.*"
           elif [[ "${{ github.event_name }}" != "pull_request" || "${{ steps.metadata_changes.outputs.version_bump }}" == "true" ]]; then
             echo "Running validation in branch mode"
             echo "scope=full" >> "$GITHUB_OUTPUT"
@@ -177,6 +184,8 @@ jobs:
   # ---------------------------------------------------------------------------
   cutover-guard:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: >-
       github.event_name == 'pull_request' &&
       !contains(github.event.pull_request.labels.*.name, 'pr:deferred') &&
@@ -195,7 +204,7 @@ jobs:
           cache-dependency-path: uv.lock
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v8.1.0
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
 
       - name: Install the source-only guard environment
         run: |

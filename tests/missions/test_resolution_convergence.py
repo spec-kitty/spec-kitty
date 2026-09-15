@@ -496,7 +496,7 @@ def test_form_to_dir_all_unique() -> None:
         {"full_slug", "slug_mid8", "bare_mid8", "ulid", "numeric"}
     ), f"FORM_TO_DIR must have exactly these 5 handle-form keys, got {FORM_TO_DIR.keys()}"
     unique_paths = {str(p) for p in FORM_TO_DIR.values()}
-    assert len(unique_paths) == 5, (  # golden-count: cardinality-is-contract (distinctness check, not nameable)
+    assert len(unique_paths) == 5, (  # (distinctness check, not nameable)
         f"FORM_TO_DIR must contain 5 DISTINCT paths; "
         f"duplicates found: {FORM_TO_DIR}"
     )

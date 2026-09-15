@@ -411,8 +411,8 @@ _MIXTURE_FILES: frozenset[str] = frozenset(module for module, _qualname in _MIXT
 def test_recorded_denominator_matches_docstring_claim() -> None:
     """Sanity: the module docstring's stated "2 files / 13 functions" is the
     literal shape of the constants below, not independently-drifted prose."""
-    assert len(_MIXTURE_FILES) == 2  # golden-count: cardinality-is-contract
-    assert len(_MIXTURE_FUNCTION_PAIRS) == 13  # golden-count: cardinality-is-contract
+    assert len(_MIXTURE_FILES) == 2
+    assert len(_MIXTURE_FUNCTION_PAIRS) == 13
 
 
 def test_derived_mixture_matches_recorded_baseline() -> None:

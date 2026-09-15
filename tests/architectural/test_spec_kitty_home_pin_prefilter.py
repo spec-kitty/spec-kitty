@@ -25,8 +25,8 @@ Counts are REPORTED, never asserted (C-002)
 Every relation here is a **set** relation. The numbers are content, not thresholds: ``2737`` was
 already stale when this was written (the tree measures 2742 in this lane), and a criterion that
 asserts it trains reviewers to re-baseline on noise. The golden-count ratchet for
-``tests/architectural`` also sits at 25/25 with zero headroom, so a single ``len(x) == N`` here
-would trip it.
+``tests/architectural`` (retired by #4315) held this same directory at 25/25 with zero headroom --
+a single ``len(x) == N`` here would invite the same fragility that ratchet was built to catch.
 
 The 90 s figure is an EXECUTION ENVELOPE here, not an assertion
 -----------------------------------------------------------------

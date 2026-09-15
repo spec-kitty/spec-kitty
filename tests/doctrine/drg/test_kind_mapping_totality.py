@@ -140,11 +140,7 @@ def _enum_key(node: ast.expr) -> tuple[str, str] | None:
 
 def _dict_target_and_value(stmt: ast.stmt) -> tuple[ast.Name, ast.expr] | None:
     """Return ``(target, value)`` for a module-level ``NAME = {...}`` / ``NAME: T = {...}``."""
-    if (
-        isinstance(stmt, ast.Assign)
-        and len(stmt.targets) == 1  # golden-count: cardinality-is-contract
-        and isinstance(stmt.targets[0], ast.Name)
-    ):
+    if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and isinstance(stmt.targets[0], ast.Name):
         return stmt.targets[0], stmt.value
     if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name) and stmt.value is not None:
         return stmt.target, stmt.value

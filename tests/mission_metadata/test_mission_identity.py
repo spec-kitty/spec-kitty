@@ -47,7 +47,7 @@ def test_resolve_mission_identity_includes_mission_id(tmp_path: Path) -> None:
     assert isinstance(identity, MissionIdentity)
     assert identity.mission_id is not None
     assert identity.mission_id == ulid_val
-    assert len(identity.mission_id) == 26  # golden-count: cardinality-is-contract
+    assert len(identity.mission_id) == 26
     ULID.from_str(identity.mission_id)
 
 

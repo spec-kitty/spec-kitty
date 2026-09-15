@@ -156,7 +156,7 @@ class TestValidateBaseRef:
         _make_git_repo(repo)
 
         sha = _validate_base_ref(repo, "main")
-        assert len(sha) == 40, f"Expected full SHA, got: {sha!r}"  # golden-count: cardinality-is-contract
+        assert len(sha) == 40, f"Expected full SHA, got: {sha!r}"
         assert all(c in "0123456789abcdef" for c in sha)
 
     def test_invalid_ref_raises_exit(self, tmp_path: Path) -> None:
@@ -242,8 +242,6 @@ class TestImplementBaseFlagIntegration:
                 "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
                 lambda *_args, **_kwargs: None,
             ),
-            patch("specify_cli.cli.commands.implement._get_wp_lane_from_event_log",
-                  return_value="in_progress"),
             patch("specify_cli.status.emit._saas_fan_out"),
             patch("specify_cli.core.agent_config.get_auto_commit_default", return_value=False),
             patch("specify_cli.core.context_validation.require_main_repo", lambda f: f),
