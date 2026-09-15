@@ -425,6 +425,49 @@ def test_coordination_branch_deleted_raised_when_branch_gone(tmp_path: Path) -> 
     assert "doctor coordination --fix" in err.next_step
 
 
+def test_for_mission_factory_fills_payload_from_probe_inputs(tmp_path: Path) -> None:
+    """#4403: the ``for_mission`` factory is the ONE payload authority — it
+    composes ``coord_candidate`` via the ``coord_feature_dir`` single grammar
+    and threads the caller's authoritative ``primary_candidate`` through,
+    producing the same fields the former per-site hand-rolled builds did."""
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+    from specify_cli.missions._read_path_resolver import coord_feature_dir
+
+    primary = tmp_path / "kitty-specs" / "my-mission-01KTDVHZ"
+    err = CoordinationBranchDeleted.for_mission(
+        repo_root=tmp_path,
+        mission_slug="my-mission",
+        mid8="01KTDVHZ",
+        coordination_branch="kitty/mission-my-mission-01KTDVHZ-coord",
+        primary_candidate=primary,
+    )
+    assert isinstance(err, CoordinationBranchDeleted)
+    assert err.error_code == "COORDINATION_BRANCH_DELETED"
+    assert err.repo_root == tmp_path
+    assert err.mission_slug == "my-mission"
+    assert err.mid8 == "01KTDVHZ"
+    assert err.coordination_branch == "kitty/mission-my-mission-01KTDVHZ-coord"
+    assert err.coord_candidate == coord_feature_dir(tmp_path, "my-mission", "01KTDVHZ")
+    assert err.primary_candidate == primary
+    assert "doctor coordination --fix" in err.next_step
+
+
+def test_for_mission_factory_coerces_none_branch(tmp_path: Path) -> None:
+    """#4403 defensive arm: a ``None`` branch (unreachable on real DELETED
+    paths — the probe answers DELETED only when a branch was supplied) coerces
+    to ``""`` instead of crashing the data-loss raise."""
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+
+    err = CoordinationBranchDeleted.for_mission(
+        repo_root=tmp_path,
+        mission_slug="my-mission",
+        mid8="01KTDVHZ",
+        coordination_branch=None,
+        primary_candidate=tmp_path / "kitty-specs" / "my-mission-01KTDVHZ",
+    )
+    assert err.coordination_branch == ""
+
+
 def test_coord_mid8_derived_from_slug_when_meta_lacks_id(tmp_path: Path) -> None:
     """``_coord_mid8`` cascade layer 3: when meta declares neither ``mid8`` nor a
     >=8-char ``mission_id`` but the slug embeds one, the slug-derived mid8 is used
