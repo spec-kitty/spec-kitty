@@ -227,6 +227,34 @@ class TestMachineLoginE2E:
         assert "wrong-secret" not in result.stdout
         assert fake_storage.writes == []
 
+    def test_network_failure_uses_network_specific_remediation(
+        self,
+        fake_storage: FakeSecureStorage,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("SPEC_KITTY_MACHINE_CLIENT_ID", "cid_ci")
+        monkeypatch.setenv("SPEC_KITTY_MACHINE_CLIENT_SECRET", "super-secret")
+
+        request = httpx.Request("POST", "https://saas.invalid/oauth/token")
+        fake_client = AsyncMock()
+        fake_client.post = AsyncMock(side_effect=httpx.ConnectError("connection refused", request=request))
+
+        with (
+            patch(
+                "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+                return_value=fake_storage,
+            ),
+            patch("httpx.AsyncClient") as mock_client_cls,
+        ):
+            mock_client_cls.return_value.__aenter__.return_value = fake_client
+            result = runner.invoke(app, ["login", "--machine"])
+
+        assert result.exit_code == 1
+        assert "Could not reach the SaaS" in result.stdout
+        assert "Check SPEC_KITTY_SAAS_URL and network access from this runner." in result.stdout
+        assert "super-secret" not in result.stdout
+        assert fake_storage.writes == []
+
     def test_machine_and_headless_are_mutually_exclusive(
         self,
         fake_storage: FakeSecureStorage,
