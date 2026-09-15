@@ -81,7 +81,7 @@ def skipped_matrix_placeholder() -> dict:
     }
 
 
-def collect(tmp_path: Path, artifacts: list[dict], jobs: list[dict], *, latest: int = 2, event: str = "workflow_run") -> subprocess.CompletedProcess[str]:
+def collect(tmp_path: Path, artifacts: list[dict], jobs: list[dict], *, event: str = "workflow_run") -> subprocess.CompletedProcess[str]:
     repo, run, _ = source_fixture(tmp_path)
     run.update(run_attempt=2, status="completed", conclusion="success")
     for record in artifacts:
@@ -92,7 +92,6 @@ def collect(tmp_path: Path, artifacts: list[dict], jobs: list[dict], *, latest: 
     api.write_text(
         json.dumps(
             {
-                "repos/spec-kitty/spec-kitty/actions/runs/42": dict(run, run_attempt=latest),
                 "repos/spec-kitty/spec-kitty/actions/runs/42/attempts/2": run,
                 "repos/spec-kitty/spec-kitty/actions/runs/42/attempts/2/jobs?per_page=100": [{"jobs": jobs[:1]}, {"jobs": jobs[1:]}],
                 "repos/spec-kitty/spec-kitty/actions/runs/42/artifacts?per_page=100": [{"artifacts": artifacts[:1]}, {"artifacts": artifacts[1:]}],
@@ -174,7 +173,6 @@ def test_manual_replay_uses_requested_attempt_after_a_newer_rerun(tmp_path: Path
         tmp_path,
         [artifact("kernel", 1, 1), artifact("charter", 2, 2), artifact("kernel", 3, 3), artifact("charter", 3, 4)],
         [job("kernel", 1), job("charter", 2)],
-        latest=3,
         event="workflow_dispatch",
     )
     assert result.returncode == 0, result.stdout + result.stderr
