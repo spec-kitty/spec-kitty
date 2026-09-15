@@ -3990,7 +3990,7 @@ _Control which Zeitgeist status moments reach agent context (off / mine / team),
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ off     Switch moments to agents OFF: nothing surfaces, and                  │
-│         `spec-kitty zeitgeist mcp-serve` exits 0 with one line.              │
+│         the internal agent-context bridge exits cleanly with one line.       │
 │ on      Switch moments back ON at the documented default (`mine`: only       │
 │         missions this checkout is on).                                       │
 │ status  Show the effective mode, which file decided it, and the active       │
@@ -4003,8 +4003,8 @@ _Control which Zeitgeist status moments reach agent context (off / mine / team),
 ```
  Usage: spec-kitty moments off [OPTIONS]
 
- Switch moments to agents OFF: nothing surfaces, and `spec-kitty zeitgeist
- mcp-serve` exits 0 with one line.
+ Switch moments to agents OFF: nothing surfaces, and the internal agent-context
+ bridge exits cleanly with one line.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --repo            Write the per-repo override (<repo>/.kittify/config.toml)  │

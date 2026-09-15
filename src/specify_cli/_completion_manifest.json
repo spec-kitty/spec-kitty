@@ -1169,7 +1169,7 @@
    "deprecated": false,
    "commands": {
     "off": {
-     "help": "Switch moments to agents OFF: nothing surfaces, and\n`spec-kitty zeitgeist mcp-serve` exits 0 with one line.",
+     "help": "Switch moments to agents OFF: nothing surfaces, and\nthe internal agent-context bridge exits cleanly with one line.",
      "hidden": false,
      "deprecated": false
     },
