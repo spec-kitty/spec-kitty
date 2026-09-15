@@ -341,3 +341,53 @@ jobs:
               raise SystemExit(f"blocking job(s) did not succeed: {blocking}")
           print(f"modules-gate OK (mode={os.environ['MODE']})")
           PY
+
+  # ---------------------------------------------------------------------------
+  # summarize: name the shard that ACTUALLY failed (#4420).
+  #
+  # `fail-fast` above stops ~40 shards the moment one goes red, and GitHub
+  # reports every stopped shard as `cancelled` -- which `gh pr checks` and the
+  # PR check list both render identically to a genuine failure. One red shard
+  # therefore presents as forty, with nothing on the surface saying which one
+  # actually failed. That is a false-attribution hazard, not just noise: a
+  # reader can conclude their own change broke forty shards and start "fixing"
+  # tests it never touched.
+  #
+  # This job reads the run's own job list and prints the classification into
+  # the run summary. It changes NO verdict: it is excluded from every gate's
+  # `needs:` set, runs `if: always()`, and swallows its own errors, so it can
+  # neither redden a green run nor green a red one.
+  # ---------------------------------------------------------------------------
+  summarize:
+    name: shard outcome summary
+    needs: test
+    if: always()
+    # Job-level too, not just on the step: this workflow's RUN conclusion is
+    # itself consumed as a signal, so a summariser that failed (a checkout
+    # blip, an API 5xx) would turn a green run red -- manufacturing exactly
+    # the false red this job exists to prevent.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    # Job-level permissions REPLACE the workflow-level grant, so `contents`
+    # is restated; `actions: read` is the minimum the jobs API needs and is
+    # scoped to this job rather than widening the whole workflow.
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Summarize shard outcomes
+        # Never fail the run from the reporting seam.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          gh api "repos/${REPO}/actions/runs/${RUN_ID}/jobs?per_page=100" --paginate \
+            | python scripts/ci/summarize_shard_outcomes.py \
+            || echo "::notice title=Module shard outcomes::summary unavailable (reporting only; the run's verdict is unaffected)"
