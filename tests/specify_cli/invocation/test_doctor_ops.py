@@ -17,7 +17,7 @@ from tests._perf_helpers import assert_timing_budget
 from specify_cli import app as cli_app
 from specify_cli.doctor import ops as ops_module
 from specify_cli.doctor.ops import close_stale_ops, list_orphan_ops
-from specify_cli.invocation import executor as executor_module
+from specify_cli.invocation import writer as writer_module
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.record import OpCompletedEvent
 from specify_cli.invocation.writer import (
@@ -529,7 +529,7 @@ def test_sweep_reads_closure_spine_once_while_performing_real_closes(
     """One executor reads the spine once; each real close updates its snapshot."""
     ops_dir = _ops_dir(tmp_path)
     _generate_synthetic_ops(ops_dir, 3, _iso(_NOW - timedelta(hours=48)))
-    real_closed_invocation_ids = executor_module.closed_invocation_ids
+    real_closed_invocation_ids = writer_module.closed_invocation_ids
     reads = 0
 
     def counted_closed_invocation_ids(repo_root: Path) -> set[str]:
@@ -537,7 +537,10 @@ def test_sweep_reads_closure_spine_once_while_performing_real_closes(
         reads += 1
         return real_closed_invocation_ids(repo_root)
 
-    monkeypatch.setattr(executor_module, "closed_invocation_ids", counted_closed_invocation_ids)
+    monkeypatch.setattr(
+        "specify_cli.invocation.executor.closed_invocation_ids",
+        counted_closed_invocation_ids,
+    )
     monkeypatch.setattr(ProfileInvocationExecutor, "_commit_op_record", lambda *a, **k: None)
 
     report = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
