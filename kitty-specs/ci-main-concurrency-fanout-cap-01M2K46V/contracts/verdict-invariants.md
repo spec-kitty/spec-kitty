@@ -8,6 +8,7 @@ Stage 1 changes **no** `classify`/`report` behavior; these are the invariants th
 
 - **Test**: given a survivor whose second snapshot differs from the first, `report()` raises (does not post a stale verdict).
 - **Rationale**: under `cancel-in-progress: true`, only the last completion survives; it must recompute from live state. Pinned so a future edit cannot turn coalescing into a stale-post.
+- **Non-tautology guard (Renata, implement-review)**: the drift between the two `snapshot()` calls MUST be driven through the in-memory `API()` stub's mutating state so `report()` actually calls `snapshot` twice and compares — NOT by patching `snapshot` itself (which would assert the mock, not the behavior). Reviewer verifies the test exercises the real double-read.
 
 ## VI-2 — Newer verdict is never suppressed; only exact-duplicate running is
 
@@ -33,3 +34,9 @@ The running-suppression (`:325-331`, guard at `:329`) returns without posting **
 Stage 1 touches no source-eligibility or reconciliation logic in `ci-aggregate.yml` / `scripts/ci/reconcile_shards.py`.
 
 - **Test**: `tests/ci/test_reconcile_shards.py` and the aggregate guard tests stay green; the Stage-1 diff contains no `ci-aggregate.yml` / `reconcile_shards.py` / `aggregate_source.py` changes.
+
+## VI-6 — Coalescing depends on `types:[completed]` staying present (Renata LOW)
+
+The survivor's "later event will reconcile" behavior (VI-1) relies on upstream `completed` `workflow_run` events remaining the trigger. The Stage-1 trim to `types:[completed]` *preserves* the reconciling event (completions are exactly what remain), so the assumption holds. But a future narrowing of `types:` (or removing a completing upstream workflow) could silently turn coalescing into a suppression path — the same class as the Stage-3 compat edge case.
+
+- **Pin**: not unit-testable in pytest (C-002); documented here + in the top-level-concurrency golden-YAML pin's neighborhood so a future `types:` edit is reviewed against this dependency. A wedged terminal survivor is caught on the merged tip by **SC-006** (terminal-verdict presence).

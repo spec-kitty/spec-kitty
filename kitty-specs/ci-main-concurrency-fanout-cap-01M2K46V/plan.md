@@ -103,13 +103,8 @@ concurrency:
      cancel-in-progress: true
    ```
    `head_sha` uniquely identifies a tip for both main pushes and PR heads; `cancel-in-progress: true` coalesces redundant per-tip triggers to the **last** completion, which becomes the survivor (FR-003). It **never** cancels a different tip (different SHA → different group), so no landed tip's verdict is dropped (NFR-002).
-3. **`report-main` coalesce-with-survivor per tip** (`ci-fleet-verdict.yml:71-73`) — `group: ci-fleet-verdict-main` (single shared group across all tips, `cancel-in-progress: false` → queue) becomes per-tip coalesce:
-   ```yaml
-   concurrency:
-     group: ci-fleet-verdict-main-${{ github.event.workflow_run.head_sha }}
-     cancel-in-progress: true
-   ```
-   This removes the queue-outgrows-drain failure (FR-005) **without** the single-group hazard of cancelling *older tips'* unposted verdicts (which would be exactly the false-red NFR-002 forbids). Cross-tip incident-issue safety is preserved by `fleet_main.py`'s existing idempotent find/dedup + double-read (research §3).
+3. **`report-main` LEFT UNCHANGED** — `ci-fleet-verdict.yml:71-73` stays `group: ci-fleet-verdict-main` / `cancel-in-progress: false`. The post-plan squad (architect-alphonso, MAJOR) showed that moving it to per-SHA coalesce opens an incident **create-create race** (two concurrent red tips both create a `from:ci` issue → `len>1` raise → P0 intake wedges). The queue-outgrows-drain failure (FR-005) is resolved **upstream instead**: the `types:[completed]` trim + the top-level per-SHA coalesce cut `report-main` inflow to ≈1 run/tip, so the single-group `cancel:false` queue now drains trivially (N tips → N fast sequential posts). Keeping the single group preserves cross-tip incident-issue serialization. **Documented deviation from ADR Axis-2a's literal text (operator-ratified 2026-09-15); see research D4.**
+4. **`report` (PR) job comment refresh** — update the now-stale `cancel-in-progress: false` comment at `ci-fleet-verdict.yml:40-44` to note the top-level per-SHA key now owns same-head coalescing (C-YAML-6). No behavior change.
 
 ### Lever 2a (cont.) — dedup "reinforcement" = pin, not fabricate
 
@@ -119,12 +114,13 @@ The survivor-re-read is already correct: `fleet_verdict.report()` double-snapsho
 
 | Change | How it is proven | File |
 |---|---|---|
-| 1a router concurrency | golden-YAML shape pin (NEW), mirror `test_dual_mode_contract.py` `_load_workflow`→assert | `tests/architectural/test_dual_mode_contract.py` |
+| 1a router concurrency | golden-YAML **exact-equality** pin (NEW), mirror `test_dual_mode_contract.py` `_load_workflow`→assert (substring pins are fakeable — Renata HIGH) | `tests/architectural/test_dual_mode_contract.py` |
 | 2a `types:` trim | UPDATE existing assertion `{requested,in_progress,completed}`→`{completed}` | `tests/ci/test_fleet_verdict.py:125` |
-| 2a top-level concurrency | golden-YAML shape pin (NEW): `workflow["concurrency"]["group"]` contains `head_sha`, `cancel-in-progress is True` | `tests/ci/test_fleet_verdict.py` |
-| 2a report-main coalesce | UPDATE existing assertion to the new per-SHA group + `cancel-in-progress: True` | `tests/ci/test_fleet_main.py:166` |
-| dedup survivor guarantee | NEW unit test: double-snapshot re-read; newer verdict not suppressed; stale not posted | `tests/ci/test_fleet_verdict.py` |
-| YAML lint | `actionlint` + `shellcheck` run **manually** on both workflows, recorded in PR (no CI gate exists) | — |
+| 2a top-level concurrency | golden-YAML **exact-equality** pin (NEW): `workflow["concurrency"] == {group: "ci-fleet-verdict-${{ github.event.workflow_run.head_sha }}", cancel-in-progress: True}` | `tests/ci/test_fleet_verdict.py` |
+| 2a report-main | **UNCHANGED** — existing exact assertion `{ci-fleet-verdict-main, cancel:False}` stays green; do **NOT** edit `:166` | `tests/ci/test_fleet_main.py:166` |
+| dedup survivor guarantee | NEW unit test: double-snapshot re-read (drift via the `API()` stub, not by patching `snapshot` — non-tautology); newer verdict not suppressed; stale not posted | `tests/ci/test_fleet_verdict.py` |
+| YAML lint | `actionlint` + `shellcheck` run **manually** on both workflows; **raw invocation+output pasted in PR** (no CI gate exists) | — |
+| SC-006 terminal-verdict presence | merged-main-tip observation: each landed SHA has `[ci] green\|red @sha` (not stranded `running`) — detects the survivor-no-successor residual wedge | `quickstart.md` ledger |
 | #4208 cross-coupling | verify `router_gate.py` classify unchanged (byte-identical policy tests stay green); observe on merged main tip that fewer external-cancel main runs do not mis-block | `tests/architectural/test_dual_mode_contract.py` (existing, kept green) + merged-tip observation |
 
 ## Complexity Tracking
@@ -155,9 +151,10 @@ Suggested sequencing WITHIN that lane (for /spec-kitty.tasks to formalize):
 |---|---|---|
 | Coalescing (`cancel-in-progress: true`) drops the last-writer verdict → false-red/wedge (NFR-002) | HIGH | Per-**SHA** keys only — a group never spans two tips; the survivor is always the last completion and re-reads live evidence (double-snapshot). Dedup survivor test pins it. |
 | Softening the green path | HIGH | Aggregate fail-closed guard and source-eligibility untouched (Stage 2 owns 3a). NFR-001; never-green + guard tests kept green. |
-| Concurrency expression syntax error passes review but breaks at runtime (no actionlint CI gate) | MED | Run `actionlint` + `shellcheck` manually on both files; golden-YAML pins assert the exact resolved shape; final proof on the merged main tip. |
+| Concurrency expression syntax error passes review but breaks at runtime (no actionlint CI gate) | MED | Golden-YAML pins use **exact string/dict equality** (not fakeable substrings — Renata HIGH); run `actionlint`+`shellcheck` manually with raw output pasted in PR; final proof on the merged main tip. |
 | 1a shifts #4208 `router_gate.py` input distribution (fewer `cancelled`) | MED | No `router_gate.py` code change needed (it treats `cancelled` as blocking regardless); verify byte-identical-policy tests stay green; observe on merged tip that legitimate cancels still classify. Missing #4208 wiring-guard recorded as follow-up. |
-| `report-main` per-SHA coalesce lets two tips write the incident issue concurrently | LOW | `fleet_main.py` already dedups a single open incident issue + double-reads before writing (fail-closed on drift). |
+| Terminal survivor has no successor event → stranded `running` (missing verdict, NFR-002) | MED | **Residual, pre-existing in kind** (coalescing removes redundancy margin, not introduces the wedge). Detected on the merged tip by **SC-006** (terminal-verdict presence). Self-heal (running-sweep) deferred to Stage 3 / ADR 4b (operator-ratified). |
+| `report-main` incident create-create race | RESOLVED | `report-main` kept **unchanged** (single-group `cancel:false`) → cross-tip serialization preserved; the fan-out cap is delivered upstream (types + top-level coalesce). Was the original plan's MAJOR finding; reversed post-plan squad. |
 | ADR file absent on branch (governance authority via #4534) | LOW | Dependency recorded; operator merges #4534 first/concurrently; planning reads the identical DRAFT. |
 
 ## Branch Contract (restated)

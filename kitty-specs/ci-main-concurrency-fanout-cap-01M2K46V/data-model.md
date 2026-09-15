@@ -10,10 +10,10 @@ A GitHub Actions concurrency group serializes/coalesces runs that share a `group
 |---|---|---|---|---|
 | `ci-router.yml` | top-level | `ci-router-<sha>` on push→main; `ci-router-<ref>` on PR/dispatch | `false` on push, `true` otherwise | One group **per landed main tip** (singleton) vs one **per PR ref** |
 | `ci-fleet-verdict.yml` | top-level (NEW) | `ci-fleet-verdict-<head_sha>` | `true` | One group **per tip** (main or PR head) — coalesces redundant `completed` triggers |
-| `ci-fleet-verdict.yml` | `report-main` job | `ci-fleet-verdict-main-<head_sha>` | `true` | One group **per main tip** — coalesces redundant main-verdict runs; independent across tips |
-| `ci-fleet-verdict.yml` | `report` job (PR) | `ci-fleet-verdict-pr-<matrix.pr>` (unchanged) | `false` (unchanged) | One group **per PR** — unchanged by Stage 1 |
+| `ci-fleet-verdict.yml` | `report-main` job | `ci-fleet-verdict-main` (**UNCHANGED**) | `false` (**UNCHANGED**) | Single group across **all** main tips — **cross-tip serialization preserved** (two concurrent red tips cannot both create an incident issue); inflow is now ≈1/tip via the top-level coalesce, so the queue drains trivially |
+| `ci-fleet-verdict.yml` | `report` job (PR) | `ci-fleet-verdict-pr-<matrix.pr>` (unchanged) | `false` (unchanged) | One group **per PR** — unchanged by Stage 1 (comment refreshed only; C-YAML-6) |
 
-**Invariant CK-1 (no cross-tip coalescing).** Every key that carries `cancel-in-progress: true` embeds a per-tip discriminator (`github.sha` / `head_sha`). No group may span two distinct tips while cancel-in-progress is true — otherwise a newer tip could cancel an older tip's unposted verdict (violates NFR-002).
+**Invariant CK-1 (no cross-*landed-tip* coalescing).** No group that can span two distinct **landed main tips** may carry `cancel-in-progress: true` — otherwise a newer main tip could cancel an older tip's unposted verdict (violates NFR-002). Concretely, every `cancel:true` group keyed on **main content** embeds `github.sha` / `head_sha` (top-level fleet-verdict per-SHA; router per-SHA on push). **PR-ref coalescing is explicitly intended and exempt**: `ci-router-<ref>` (`cancel:true`, keyed on `github.ref`) SHOULD supersede an older PR commit's run — correct FR-002 behavior, not a CK-1 violation. Do **not** "fix" the PR-ref key to per-SHA. Note `report-main`'s single shared group carries `cancel:false`, so it is exempt by construction (no cancellation at all).
 
 **Invariant CK-2 (PR path preserved).** The `pull_request` branch of `ci-router.yml` and the `report` (PR) job keep their existing keys and `cancel-in-progress` values byte-for-byte (FR-002).
 
