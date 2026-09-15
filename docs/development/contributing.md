@@ -2,7 +2,7 @@
 title: Contributing to Spec Kitty
 description: The full contributor guide for Spec Kitty — developer setup, running tests, submitting pull requests, AI-assistance disclosure, and the release process.
 doc_status: active
-updated: '2026-09-14'
+updated: '2026-09-15'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -406,10 +406,11 @@ control. Agents and humans move work by changing labels, never by out-of-band as
 As a contributor, two things follow:
 
 - **Issues** flow through a `status:*` lifecycle — `status:triage` → `status:ready` (the
-  fleet's admission queue) → `status:claimed` (an implementer VM holds a lease) →
-  `status:blocked`. **Never hand-set `status:claimed`**: it is a dispatcher-only lease, and a
-  hand-set claim poisons the queue (the dispatcher counts it as occupied capacity, so the
-  issue can sit invisible indefinitely).
+  fleet's admission queue) → `status:claimed` (an implementer holds a lease) →
+  `status:blocked`. A human-driven contributor may claim work by adding `status:claimed`
+  while beginning it and commenting `claimed by <harness>/<model> on <machine>`; never add
+  a bare claim when nobody is actively working the issue, because the dispatcher treats the
+  label as occupied capacity.
 - **Pull requests** flow through their own lane labels — `ready-for-squad` (request
   adversarial review) → `squad:running` → `squad:passed` / `squad:majors` — plus
   `needs:implementer`, which is **mandatory on any fix/rebase request that expects a new
