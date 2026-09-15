@@ -120,19 +120,26 @@ jobs:
       # `if: always()` (run-all-regardless), capturing its pytest exit into
       # $GITHUB_ENV instead of discarding it. This step, also `if: always()`,
       # runs AFTER the artefact upload so xunit reports are preserved either
-      # way, then FAILS the job if any suite exited non-zero -- so a red suite
-      # can no longer leave the job green. Run-all is preserved: the complete
-      # failure set is surfaced (annotations + reports) before this fails.
+      # way, then FAILS the job if any suite exited on a GENUINE failure -- so a
+      # red suite can no longer leave the job green. Run-all is preserved: the
+      # complete failure set is surfaced (annotations + reports) before this
+      # fails.
+      #
+      # pytest exit 5 = "no tests were collected" (a marker-empty suite). Per
+      # spec.md Edge Case #4 a nightly suite that is *skipped* (marker-empty) is
+      # NOT a failure -- distinct from a *failed* one. So 0 (all passed) and 5
+      # (nothing to run) both pass; only a genuine failure exit (1/2/3/4/...)
+      # fails the job.
       - name: Fail the job if any nightly suite was red (run-all-then-fail-loud)
         if: always()
         shell: bash
         run: |
           status=0
-          if [ "${PERF_EXIT:-0}" -ne 0 ]; then
+          if [ "${PERF_EXIT:-0}" -ne 0 ] && [ "${PERF_EXIT:-0}" -ne 5 ]; then
             echo "::error::performance suite exited ${PERF_EXIT}"
             status=1
           fi
-          if [ "${E2E_EXIT:-0}" -ne 0 ]; then
+          if [ "${E2E_EXIT:-0}" -ne 0 ] && [ "${E2E_EXIT:-0}" -ne 5 ]; then
             echo "::error::e2e suite exited ${E2E_EXIT}"
             status=1
           fi
@@ -140,7 +147,7 @@ jobs:
             echo "One or more nightly suites failed; see the ::error:: annotations above and the uploaded xunit reports."
             exit 1
           fi
-          echo "All nightly performance/e2e suites passed."
+          echo "All nightly performance/e2e suites passed (exit 0 or a marker-empty exit 5)."
 
   # ---------------------------------------------------------------------------
   # interpreter-matrix: FR-021 -- above-3.12 interpreter lane, nightly-only.
@@ -199,15 +206,17 @@ jobs:
       # `if: always()` step (after the artefact upload) fails the matrix leg
       # if that interpreter's suite was red, so a divergence on 3.13 is no
       # longer invisible. `fail-fast: false` keeps every other leg running.
+      # pytest exit 5 ("no tests collected", a marker-empty suite) is a skip,
+      # not a failure (spec.md Edge Case #4), so 0 and 5 both pass here.
       - name: Fail the leg if this interpreter's suite was red (run-all-then-fail-loud)
         if: always()
         shell: bash
         run: |
-          if [ "${INTERPRETER_EXIT:-0}" -ne 0 ]; then
+          if [ "${INTERPRETER_EXIT:-0}" -ne 0 ] && [ "${INTERPRETER_EXIT:-0}" -ne 5 ]; then
             echo "::error::interpreter ${{ matrix.python-version }} suite exited ${INTERPRETER_EXIT}"
             exit 1
           fi
-          echo "Interpreter ${{ matrix.python-version }} suite passed."
+          echo "Interpreter ${{ matrix.python-version }} suite passed (exit 0 or a marker-empty exit 5)."
 
   # ---------------------------------------------------------------------------
   # generate-full-matrix / full-module-matrix: mission ci-modules-diff-scoping

@@ -83,6 +83,11 @@ def classify(conclusions: Mapping[str, str]) -> GateDecision:
     pass/fail decision stays byte-identical to the historical policy
     (contract C-gate-2/3/4).
     """
+    # This evaluates the WHOLE run's job set (every jobs-API row bar this gate's
+    # own). That equals "classify the gate's `needs:`" ONLY while every job is a
+    # gate dependency and none is `continue-on-error` (paula INFO-1 / alphonso
+    # LOW); the `needs:`==all-jobs invariant is pinned by
+    # test_dual_mode_contract.test_router_gate_step_wiring_and_needs_invariant_are_pinned.
     blocking = {job: conclusion for job, conclusion in conclusions.items() if conclusion not in NON_BLOCKING_CONCLUSIONS}
     return GateDecision(blocking=blocking)
 

@@ -57,7 +57,7 @@ from typing import Any
 import pytest
 import yaml
 
-from scripts.ci.router_gate import classify
+from scripts.ci.router_gate import ROUTER_GATE_JOB_NAME, classify
 
 pytestmark = pytest.mark.architectural
 
@@ -252,6 +252,64 @@ def test_ci_router_terminal_gate_declares_if_always_not_cancelled() -> None:
     gate_job = workflow["jobs"]["router-gate"]
     condition = gate_job.get("if", "")
     assert "always()" in condition, f"ci-router.yml: router-gate `if:` ({condition!r}) must contain always()"
+
+
+# ---------------------------------------------------------------------------
+# #4208 wiring/invariant guard (renata MINOR-1) — the router-gate got the
+# classifier but NOT the wiring guard the reconciler (#4360-B) got, leaving
+# three fail-*closed* drift modes unpinned: a job-name drift wedges the gate
+# permanently red (it classifies its own null conclusion as `incomplete`); a
+# gate step that stopped invoking the shipped classifier or the `attempts/`
+# jobs-API path would read stale/attempt-1 conclusions; a future top-level job
+# added OUTSIDE `needs:` could evaluate while in-progress. This is the
+# YAML-shape guard mirroring test_ci_aggregate_reconcile_step_invokes_shipped_module.
+# ---------------------------------------------------------------------------
+
+
+def test_router_gate_step_wiring_and_needs_invariant_are_pinned() -> None:
+    """#4208 / MINOR-1: pin the router-gate wiring so it cannot silently drift.
+
+    (a) ``ROUTER_GATE_JOB_NAME`` equals the gate job's ``name:`` in
+        ``ci-router.yml`` -- the classifier excludes the gate's own row by that
+        exact name, so a drift makes it read its own null conclusion as
+        ``incomplete`` and block forever (a false-red self-wedge).
+    (b) the gate step actually invokes ``scripts/ci/router_gate.py`` over the
+        ``attempts/$RUN_ATTEMPT`` jobs-API path (so a re-run reads fresh
+        conclusions, not attempt-1 residue).
+    (c) the gate's ``needs:`` equals the FULL set of non-gate top-level jobs --
+        the invariant that makes "classify every API job" == "classify needs":
+        because the gate waits on every other job, none is in-progress when it
+        evaluates. A future job added outside ``needs:`` breaks this and fails
+        here, rather than silently risking a false-red on an in-progress job.
+    """
+    path = _WORKFLOWS_DIR / "ci-router.yml"
+    workflow = _load_workflow(path)
+    gate_job = workflow["jobs"]["router-gate"]
+
+    # (a) job-name coupling between the classifier constant and the YAML.
+    assert gate_job.get("name") == ROUTER_GATE_JOB_NAME, (
+        f"ci-router.yml: router-gate `name:` ({gate_job.get('name')!r}) must equal "
+        f"router_gate.ROUTER_GATE_JOB_NAME ({ROUTER_GATE_JOB_NAME!r}); a drift wedges "
+        "the gate permanently red (it classifies its own null conclusion as incomplete)"
+    )
+
+    # (b) the step invokes the shipped classifier over the attempts/ jobs-API path.
+    steps = gate_job.get("steps") or []
+    run_text = "\n".join(str(s.get("run") or "") for s in steps if isinstance(s, dict))
+    assert "scripts/ci/router_gate.py" in run_text, "ci-router.yml: the router-gate step must invoke the shipped classifier scripts/ci/router_gate.py"
+    assert "attempts/" in run_text and "RUN_ATTEMPT" in run_text, (
+        "ci-router.yml: the router-gate step must read the Actions jobs API over the attempts/$RUN_ATTEMPT path (#4208) so a re-run reads fresh conclusions"
+    )
+
+    # (c) needs: == the full set of non-gate top-level jobs (classify-all invariant).
+    needs = gate_job.get("needs") or []
+    needs_set = set(needs) if isinstance(needs, list) else {needs}
+    non_gate_jobs = {name for name in workflow["jobs"] if name != "router-gate"}
+    assert needs_set == non_gate_jobs, (
+        "ci-router.yml: router-gate `needs:` must be exactly the non-gate top-level jobs "
+        f"(classify-all == classify-needs invariant). Outside needs: {sorted(non_gate_jobs - needs_set)}; "
+        f"extra in needs: {sorted(needs_set - non_gate_jobs)}"
+    )
 
 
 # ---------------------------------------------------------------------------

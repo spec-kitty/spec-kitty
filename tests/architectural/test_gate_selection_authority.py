@@ -253,3 +253,56 @@ def test_select_modules_tests_only_diff_is_never_narrower_than_its_src_twin(rout
         src_twin = select_modules([src_path], router=router)
         tests_only = select_modules([test_path], router=router)
         assert src_twin <= tests_only, f"{test_path}: {sorted(tests_only)} narrows the src twin {sorted(src_twin)}"
+
+
+# ---------------------------------------------------------------------------
+# spec-kitty#4454 reachability (renata MINOR-2) — every registry module that
+# owns a tests/ tree must be REACHED by a tests-only diff in that tree. The
+# canonical-mirror heuristic (`_canonical_test_mirror`) assumes a module's
+# tests live at ``tests/<src-leaf>``; a FUTURE module whose test dir differs
+# from the mirror AND lacks explicit ``test_dirs`` would silently select
+# nothing on a tests-only change -- reintroducing the exact false green #4454
+# closes. This guard ties `select_modules` reachability to the registry
+# inventory: the module/test-dir set is DERIVED from the registry (explicit
+# ``test_dirs`` when present, else the canonical mirror of each ``root``), never
+# hand-listed, so such a future module fails here instead of routing nowhere.
+# ---------------------------------------------------------------------------
+def _module_test_dirs(row: dict[str, object]) -> list[str]:
+    """The tests/ directories a registry module owns, derived from the registry.
+
+    Explicit ``test_dirs`` when the row declares them (the registry's own
+    authority); otherwise the canonical ``tests/`` mirror of each ``root`` --
+    the same deterministic transform ``select_modules`` uses to route a
+    tests-only diff back to its owning module.
+    """
+    from scripts.ci.gate_selection import _canonical_test_mirror
+
+    explicit = row.get("test_dirs")
+    if isinstance(explicit, list) and explicit:
+        return [str(test_dir) for test_dir in explicit]
+    roots = row.get("roots")
+    roots_list = roots if isinstance(roots, list) else []
+    return [_canonical_test_mirror(str(root)) for root in roots_list]
+
+
+def test_every_registry_module_test_tree_is_reachable(router: Router) -> None:
+    """T-reach: a tests-only diff in each registry module's declared/mirrored
+    test tree selects that module (never ``frozenset()``).
+
+    Reachability is derived from the registry inventory, so it fails closed for
+    a future module whose test dir does not match the canonical mirror and that
+    declares no explicit ``test_dirs`` -- exactly the silent-nothing false green
+    #4454 removed. A currently-unreachable module is a REAL finding, surfaced
+    here rather than papered over.
+    """
+    from scripts.ci.gate_selection import _registry_rows
+
+    unreachable: list[str] = []
+    for row in _registry_rows():
+        module = str(row["module"])
+        for test_dir in _module_test_dirs(row):
+            probe = f"{test_dir}/test_ci_reachability_probe.py"
+            selected = select_modules([probe], router=router)
+            if module not in selected:
+                unreachable.append(f"{module}: a tests-only diff in {test_dir!r} selected {sorted(selected)} (module not reached)")
+    assert not unreachable, "registry module(s) whose test tree routes to no owning module (spec-kitty#4454 false-green vector):\n" + "\n".join(unreachable)
