@@ -9,6 +9,7 @@ Verifies:
 from __future__ import annotations
 
 import io
+import shutil
 from pathlib import Path
 
 import pytest
@@ -101,3 +102,34 @@ def test_init_is_idempotent_on_rerun(
     assert config_content_after_first == config_content_after_second, (
         "config.yaml was modified by the second init run — silent merge/overwrite detected."
     )
+
+
+def test_init_repairs_requested_command_skills_in_initialized_clone(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Explicit --ai repairs an ignored agent surface in an initialized clone."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+
+    app1, _ = _make_app_with_buf()
+    result1 = _run(app1, ["init", "--ai", "codex", "--non-interactive"])
+    assert result1.exit_code == 0, result1.output
+
+    config_path = tmp_path / ".kittify" / "config.yaml"
+    config_before = config_path.read_text(encoding="utf-8")
+    skills_root = tmp_path / ".agents" / "skills"
+    assert skills_root.is_dir()
+
+    # Agent surfaces are intentionally ignored and therefore absent after a clone.
+    shutil.rmtree(tmp_path / ".agents")
+    assert not skills_root.exists()
+
+    app2, buf2 = _make_app_with_buf()
+    result2 = _run(app2, ["init", "--ai", "codex", "--non-interactive"])
+
+    assert result2.exit_code == 0, result2.output
+    assert (skills_root / "spec-kitty.plan" / "SKILL.md").is_file()
+    assert "command skills installed" in buf2.getvalue().lower()
+    assert config_path.read_text(encoding="utf-8") == config_before
