@@ -1078,6 +1078,15 @@ def _collapse_alias_in_transaction(
         raise TypeError("transactional status emit requires wp_id")
     if prepared.mirror_frontmatter_lane:
         _emit._mirror_phase1_frontmatter_lane(feature_dir, request.wp_id, prepared.resolved_lane)
+    # #4327: normalize the inline moment fields exactly as the persisted arm
+    # does (``prepare_transition`` already refused invalid values at the
+    # shared boundary before choosing this arm); the synthetic event a
+    # caller inspects must never carry an un-normalized gist/pointer shape a
+    # persisted event would not.
+    from specify_cli.status.moment_fields import validate_review_ref, validate_summary
+
+    summary = validate_summary(request.summary) if request.summary is not None else None
+    review_ref = validate_review_ref(request.review_ref, repo_root=request.repo_root) if request.review_ref is not None else None
     synthetic: StatusEvent = _emit.build_status_event(
         mission_slug=mission_slug,
         wp_id=request.wp_id,
@@ -1088,7 +1097,8 @@ def _collapse_alias_in_transaction(
         force=request.force,
         execution_mode=request.execution_mode,
         reason=request.reason,
-        review_ref=request.review_ref,
+        review_ref=review_ref,
+        summary=summary,
         review_result=request.review_result,
         policy_metadata=request.policy_metadata,
     )

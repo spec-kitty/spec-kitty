@@ -331,6 +331,18 @@ from .dup_key_repair import (
     plan_artifact_repair,
 )
 
+# #4327: the inline moment-field validators reach their ``cli.commands.agent``
+# consumers through this package surface, never by importing the submodule
+# directly -- the status boundary guard (``test_status_module_boundary``)
+# owns that seam. Only the four symbols the CLI boundary checks consume are
+# re-exported; the pointer-grammar internals stay submodule-private.
+from .moment_fields import (
+    ReviewRefValidationError,
+    SummaryValidationError,
+    validate_review_ref,
+    validate_summary,
+)
+
 # WP03/WP04 (runtime-state-birth-cutover-all-paths-01KYH654): the cut-over
 # predicate reaches its src/ consumer (``cli.commands.cutover_guard``) through
 # this package surface, not by importing the submodule directly -- the status
@@ -507,10 +519,12 @@ __all__ = [
     "LANE_ALIASES",
     "RepoEvidence",
     "ReviewApproval",
+    "ReviewRefValidationError",
     "SNAPSHOT_FILENAME",
     "StatusEvent",
     "StatusSnapshot",
     "StoreError",
+    "SummaryValidationError",
     "TERMINAL_LANES",
     "TransitionError",
     "ULID_PATTERN",
@@ -582,6 +596,8 @@ __all__ = [
     "validate_done_evidence",
     "validate_event_schema",
     "validate_materialization_drift",
+    "validate_review_ref",
+    "validate_summary",
     "validate_transition",
     "validate_transition_legality",
     "wp_snapshot_state",

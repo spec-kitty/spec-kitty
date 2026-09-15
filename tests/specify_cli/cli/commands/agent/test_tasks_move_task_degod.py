@@ -66,7 +66,8 @@ def test_do_move_task_accepts_move_task_args_param_object() -> None:
 def test_move_task_args_field_set_matches_pre_extraction_signature() -> None:
     """The param object groups every raw CLI-facing input the pre-extraction
     21-parameter signature carried (minus ``ports``, which stays a separate DI
-    seam) — NFR-002 behavior preservation."""
+    seam) — NFR-002 behavior preservation — plus ``summary``, the #4327
+    inline gist option added alongside ``--note``."""
     expected = {
         "task_id",
         "to",
@@ -77,6 +78,7 @@ def test_move_task_args_field_set_matches_pre_extraction_signature() -> None:
         "note",
         "review_feedback_file",
         "approval_ref",
+        "summary",
         "reviewer",
         "self_review_fallback",
         "intended_reviewer",

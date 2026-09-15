@@ -225,6 +225,9 @@ class _MoveTaskState:
     skip_review_artifact_check: bool
     auto_commit: bool | None
     json_output: bool
+    # One-line human gist of the transition for the NOW view (#4327);
+    # validated at the CLI boundary, separate from --note.
+    summary: str | None = None
     skip_pre_review_gate: bool = False
     model: str | None = None
     profile: str | None = None
@@ -1033,14 +1036,20 @@ def _mt_issue_matrix_facts(st: _MoveTaskState) -> str | None:
 
 
 def _mt_approval_facts(st: _MoveTaskState) -> tuple[str | None, str | None]:
-    """Late fact: auto-detected reviewer + defaulted approval reference."""
+    """Late fact: auto-detected reviewer + defaulted approval reference.
+
+    #4327 (Required 3): ``review_ref`` is pointer-only. The human note is NO
+    LONGER copied into the approval ref — it travels in ``reason`` (and, as a
+    bounded gist, in ``--summary``); the pointer slot takes ``--approval-ref``
+    or the synthetic ``auto-approval:<WP>:<date>`` token, which #3954's whole
+    -moment drop could never trip because it is short by construction.
+    """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
     if st.target_lane not in (Lane.APPROVED, Lane.DONE):
         return None, None
     effective_reviewer = st.reviewer or _tasks._detect_reviewer_name()
-    user_note = st.note.strip() if isinstance(st.note, str) else st.note
-    effective_approval_ref = st.approval_ref or (user_note if user_note else None) or f"auto-approval:{st.task_id}:{format_stamp(now_utc(), '%Y%m%d')}"
+    effective_approval_ref = st.approval_ref or f"auto-approval:{st.task_id}:{format_stamp(now_utc(), '%Y%m%d')}"
     return effective_reviewer, effective_approval_ref
 
 
@@ -2169,7 +2178,8 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
         # ``_mt_hop_review_result`` are NOT always the same object: on a
         # non-durably-persisted write (``--no-auto-commit`` / local-only),
         # ``_mt_hop_review_result`` falls back to ``st.evidence_dict["review"]``
-        # (built from ``effective_approval_ref``, which considers ``--note``)
+        # (built from ``effective_approval_ref``, the pointer-only approval
+        # identity of #4327)
         # while ``_mt_plan_review_result``'s non-durable fallback does not —
         # two independently-computed reference strings that can diverge,
         # tripping ``_check_review_result_consistency``'s "review_ref must
@@ -2243,7 +2253,11 @@ def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
         reference = (st.approval_ref or f"approval:{st.task_id}").strip() or (f"approval:{st.task_id}")
     else:
         verdict = emission_event_verdict(REJECTED)
-        reference = (st.review_feedback_pointer or st.note_text or f"review:{st.task_id}").strip() or f"review:{st.task_id}"
+        # #4327 (Required 3): pointer-only — the rejection rationale travels
+        # in ``reason`` (and optionally the bounded ``--summary``); the pointer
+        # slot takes the review-feedback pointer or the synthetic
+        # ``review:<WP>`` token, never the note's prose.
+        reference = (st.review_feedback_pointer or f"review:{st.task_id}").strip() or f"review:{st.task_id}"
     return ReviewResult(reviewer=reviewer, verdict=verdict, reference=reference)
 
 
@@ -2513,6 +2527,7 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
                 evidence=st.evidence_dict if target in (Lane.APPROVED, Lane.DONE) else None,
                 policy_metadata=hop_policy_metadata,
                 review_ref=_mt_hop_review_ref(emit_review_ref, target, hop_review_result),
+                summary=st.summary,
                 workspace_context=f"move-task:{st.repo_root}",
                 subtasks_complete=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
                 implementation_evidence_present=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
@@ -3022,6 +3037,9 @@ class _MoveTaskArgs:
     profile: str | None = None
     invocation_id: str | None = None
     owned_checkout: Path | None = None
+    # One-line human gist of the transition for the NOW view (#4327);
+    # validated at the CLI boundary, separate from --note.
+    summary: str | None = None
 
 
 def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> None:
@@ -3069,6 +3087,7 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
         note=args.note,
         review_feedback_file=args.review_feedback_file,
         approval_ref=args.approval_ref,
+        summary=args.summary,
         reviewer=args.reviewer,
         self_review_fallback=args.self_review_fallback,
         intended_reviewer=args.intended_reviewer,
@@ -3330,6 +3349,21 @@ def _run_arbiter_override(
     _arb_wp_events = [e for e in _arb_events if e.wp_id == task_id]
     _arb_latest = _arb_wp_events[-1] if _arb_wp_events else None
     _arb_review_ref = _arb_latest.review_ref if _arb_latest else None
+    # #4327: a legacy persisted event may still carry prose in ``review_ref``
+    # (written before the pointer-only rule). Re-threading that prose into a
+    # NEW transition would fail the pipeline's shared-boundary pointer
+    # validation; substitute the synthetic ``review:<WP>`` token instead —
+    # the legacy prose stays durable on the old event, never rewritten.
+    if _arb_review_ref is not None:
+        from specify_cli.status import (
+            ReviewRefValidationError,
+            validate_review_ref,
+        )
+
+        try:
+            _arb_review_ref = validate_review_ref(_arb_review_ref, repo_root=main_repo_root)
+        except ReviewRefValidationError:
+            _arb_review_ref = f"review:{task_id}"
 
     _arb_category, _arb_explanation = parse_category_from_note(note_text)
     _arb_actor = agent or "operator"

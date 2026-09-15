@@ -25,7 +25,8 @@ Options
 --shell-pid TEXT Shell PID
 --note TEXT History note
 --review-feedback-file PATH Path to review feedback file. Required for review-rejection edges (--to planned, incl. with --force; and in_review->in_progress). Recorded as the transition's on-wire review_ref rationale; omitting it makes the status event contract-invalid and hosted sync drops it.
---approval-ref TEXT Approval reference for approval/done transitions (e.g., PR#42)
+--approval-ref TEXT Approval reference — a pointer (e.g., PR#42, review-cycle://…, auto-approval:…, kitty-specs/…), never prose (#4327)
+--summary TEXT One-line human gist of the transition for the NOW view (≤240 UTF-8 bytes, printable, no newlines); the full note belongs in --note (#4327)
 --reviewer TEXT Reviewer name (auto-detected from git if omitted)
 --self-review-fallback Record that approval is a self-review fallback after the intended reviewer failed.
 --intended-reviewer TEXT Reviewer that should have reviewed this WP before fallback.

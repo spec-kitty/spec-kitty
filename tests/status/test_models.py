@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from specify_cli.status.models import (
@@ -326,3 +328,41 @@ class TestStatusSnapshot:
 
         with pytest.raises(KeyError, match="mission_slug"):
             StatusSnapshot.from_dict(data)
+
+
+class TestStatusEventSummaryRoundTrip:
+    """#4327: the optional ``summary`` survives the JSONL round trip, stays
+    absent for every event persisted before the field existed, and never
+    rewrites a legacy line's bytes."""
+
+    def test_summary_round_trips_through_to_dict_from_dict(self, sample_status_event: StatusEvent) -> None:
+        event = replace(sample_status_event, summary="Claimed after the interview answers")
+        d = event.to_dict()
+        assert d["summary"] == "Claimed after the interview answers"
+        assert StatusEvent.from_dict(d) == event
+
+    def test_absent_summary_stays_absent_and_off_the_wire_line(self, sample_status_event: StatusEvent) -> None:
+        # A summary-less event serialises WITHOUT the key (byte-compat with
+        # every pre-#4327 persisted line), and decodes back to None.
+        d = sample_status_event.to_dict()
+        assert "summary" not in d
+        assert StatusEvent.from_dict(d).summary is None
+
+    def test_legacy_persisted_line_without_summary_decodes_as_none(self) -> None:
+        legacy = {
+            "event_id": "01HXYZ0123456789ABCDEFGHJK",
+            "mission_slug": "034-test-feature",
+            "wp_id": "WP01",
+            "from_lane": "in_review",
+            "to_lane": "approved",
+            "at": "2026-01-01T00:00:00+00:00",
+            "actor": "reviewer",
+            "force": False,
+            "execution_mode": "worktree",
+            # Prose in review_ref: legal on any event persisted before #4327
+            # -- legacy decoding stays compatible, no history rewrite.
+            "review_ref": "Looks good to me, ship it after the focus-time fix",
+        }
+        event = StatusEvent.from_dict(legacy)
+        assert event.summary is None
+        assert event.review_ref == "Looks good to me, ship it after the focus-time fix"

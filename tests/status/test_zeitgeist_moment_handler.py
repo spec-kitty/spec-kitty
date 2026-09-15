@@ -1499,3 +1499,154 @@ def test_lifecycle_started_and_completed_events_broadcast_through_the_shared_pat
     _op, args = recorder.moment_offers()[0]
     _assert_event_args(args)
     assert args["attrs"]["mission_slug"] == "demo-mission"
+
+
+# ---------------------------------------------------------------------------
+# #4327: the inline ``summary`` attr and the capability gate around it
+# ---------------------------------------------------------------------------
+
+
+def test_summary_gate_is_off_on_an_events_pin_without_the_field() -> None:
+    """The installed codec decides: no ``summary`` field means no gist sent.
+
+    This pins the CURRENT pin (9.1.6, no ``summary`` on
+    ``StatusTransitionPayload``) so the gate's default state is explicit
+    evidence, not an assumption -- the events 10.x release + CLI pin bump
+    (spec-kitty-planning#2327) is what flips it.
+    """
+    from spec_kitty_events.status import StatusTransitionPayload
+
+    assert "summary" not in StatusTransitionPayload.model_fields
+    assert bridge._codec_declares_summary_field() is False
+
+
+def test_summary_not_broadcast_on_this_pin_still_offers_the_moment_and_logs(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Gate off: the moment is offered WITHOUT the gist, never dropped.
+
+    The omission is logged (INFO -- it is not a drop; the gist stays durable
+    on the persisted status event) so an operator can explain the missing
+    attr from logs alone.
+    """
+    recorder = OfferRecorder().install(monkeypatch)
+    with caplog.at_level(logging.INFO, logger="specify_cli.status.zeitgeist_bridge"):
+        _fire_transition(
+            from_lane="in_review",
+            to_lane="approved",
+            metadata=_transition_metadata(
+                summary="Approved after the focus-time fix",
+                evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": "review:WP01"}},
+            ),
+        )
+
+    assert [op for op, _args in recorder.moment_offers()] == ["event.publish"]
+    _op, args = recorder.moment_offers()[0]
+    assert args["kind"] == "WPStatusChanged"
+    assert "summary" not in args["attrs"]
+    assert "summary not broadcast" in caplog.text
+    assert "no summary field" in caplog.text
+
+
+def test_summary_reaches_the_payload_fields_once_the_codec_declares_it(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+) -> None:
+    """Gate on: the producer threads ``summary`` into the payload fields.
+
+    The full wire proof (the codec projecting the bounded ``summary`` attr)
+    is the events repo's own contract test (spec-kitty/spec-kitty-events#60,
+    landed on its main as commit 9225338, unreleased); this pins the CLI
+    half -- the moment is built with the gist in its payload once
+    ``StatusTransitionPayload`` declares the field.
+    """
+    from spec_kitty_events.status import StatusTransitionPayload
+
+    recorder = OfferRecorder().install(monkeypatch)
+    monkeypatch.setattr(bridge, "_codec_declares_summary_field", lambda: True)
+
+    captured: dict[str, Any] = {}
+    real_validate = StatusTransitionPayload.model_validate
+
+    def _spying_validate(cls: type, fields: dict[str, Any]) -> Any:
+        captured.update(fields)
+        # The installed pin has no ``summary`` field yet, so validate the
+        # captured fields without the one this test synthesises.
+        return real_validate({k: v for k, v in fields.items() if k != "summary"})
+
+    monkeypatch.setattr(StatusTransitionPayload, "model_validate", classmethod(_spying_validate))
+
+    _fire_transition(
+        from_lane="in_review",
+        to_lane="approved",
+        metadata=_transition_metadata(
+            summary="Approved after the focus-time fix",
+            evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": "review:WP01"}},
+        ),
+    )
+
+    assert captured["summary"] == "Approved after the focus-time fix"
+    # The moment itself is still offered exactly once.
+    assert [op for op, _args in recorder.moment_offers()] == ["event.publish"]
+
+
+def test_no_summary_no_gate_log(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A transition with no gist is quiet: nothing to omit, nothing to log."""
+    recorder = OfferRecorder().install(monkeypatch)
+    with caplog.at_level(logging.INFO, logger="specify_cli.status.zeitgeist_bridge"):
+        _fire_transition(
+            from_lane="in_review",
+            to_lane="approved",
+            metadata=_transition_metadata(evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": "review:WP01"}}),
+        )
+
+    assert [op for op, _args in recorder.moment_offers()] == ["event.publish"]
+    assert "summary not broadcast" not in caplog.text
+
+
+def test_every_emitted_status_event_offers_exactly_one_moment(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+    tmp_path: Path,
+) -> None:
+    """#4327 acceptance: one offer per EMITTED EVENT, not per command.
+
+    A command that legitimately emits multiple hops (the batch shell) gets
+    one moment per persisted event -- neither collapsed to one, nor doubled.
+    """
+    from specify_cli.status.emit import emit_status_transition_batch
+
+    recorder = OfferRecorder().install(monkeypatch)
+    feature_dir = tmp_path / "kitty-specs" / "demo-mission"
+    feature_dir.mkdir(parents=True)
+    _seed_planned(feature_dir, "WP01")
+
+    events = emit_status_transition_batch(
+        [
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="demo-mission",
+                wp_id="WP01",
+                to_lane="claimed",
+                actor="agent",
+            ),
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug="demo-mission",
+                wp_id="WP01",
+                to_lane="in_progress",
+                actor="agent",
+                workspace_context="worktree:/tmp",
+            ),
+        ]
+    )
+
+    assert len(events) == 2
+    moment_ops = [(op, args.get("kind")) for op, args in recorder.offers if op == "event.publish" and args.get("kind") == "WPStatusChanged"]
+    assert moment_ops == [("event.publish", "WPStatusChanged")] * 2

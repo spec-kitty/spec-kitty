@@ -174,6 +174,40 @@ def _infer_review_gates(
     return subtasks_complete, implementation_evidence_present
 
 
+def _validated_inline_fields(
+    request: TransitionRequest,
+) -> tuple[str | None, str | None]:
+    """Enforce the #4327 new-write inline moment rules on *request*.
+
+    Returns the validated ``(summary, review_ref)`` the event must carry:
+    ``summary`` (when supplied) is one printable line of at most 240 UTF-8
+    bytes; ``review_ref`` (when supplied) is pointer-shaped. A violation
+    raises :class:`TransitionError` carrying the validator's named
+    field/bound/size message, so every existing catch-site (CLI shells,
+    orchestrator API, lifecycle) reports it through its own clean error
+    path. This module is the single validation/build authority, so this is
+    the one enforcement point that no programmatic caller can bypass.
+    ``review_result.reference`` is deliberately NOT validated here: it has a
+    legacy-compat read path (a rework on a mission whose review artifact was
+    persisted before #4327 legitimately still carries a prose reference),
+    and rewriting those persisted artifacts is out of scope ("existing
+    persisted events without rewriting Git history").
+    """
+    from .moment_fields import (
+        ReviewRefValidationError,
+        SummaryValidationError,
+        validate_review_ref,
+        validate_summary,
+    )
+
+    try:
+        summary = validate_summary(request.summary) if request.summary is not None else None
+        review_ref = validate_review_ref(request.review_ref, repo_root=request.repo_root) if request.review_ref is not None else None
+    except (SummaryValidationError, ReviewRefValidationError) as exc:
+        raise _emit.TransitionError(str(exc)) from exc
+    return summary, review_ref
+
+
 def prepare_transition(
     *,
     request: TransitionRequest,
@@ -239,10 +273,21 @@ def prepare_transition(
 
     Raises:
         TypeError: when ``wp_id``/``to_lane``/``actor`` is missing.
-        TransitionError: when :func:`validate_transition` refuses the edge.
+        TransitionError: when :func:`validate_transition` refuses the edge,
+            or when the request's inline moment fields fail the #4327
+            new-write rules (see :func:`_validated_inline_fields`).
     """
     if request.wp_id is None or request.to_lane is None or request.actor is None:
         raise TypeError("Each status transition requires wp_id, to_lane, and actor")
+
+    # Step 0 (#4327, scope clarification 2026-09-14): enforce the new-write
+    # summary and pointer rules HERE -- the shared creation boundary every
+    # emission shell funnels through -- not only at the Typer options, so a
+    # programmatic caller (orchestrator API, lifecycle, workflow executor)
+    # cannot bypass validation. The CLI commands validate the same fields
+    # earlier still, before any review-cycle artifact is written; this is
+    # the backstop that makes the boundary itself fail-closed.
+    summary, review_ref = _validated_inline_fields(request)
 
     # Step 1: alias-resolve.
     raw_to_lane = str(request.to_lane).strip().lower()
@@ -295,7 +340,7 @@ def prepare_transition(
             subtasks_complete=subtasks_complete,
             implementation_evidence_present=implementation_evidence_present,
             reason=request.reason,
-            review_ref=request.review_ref,
+            review_ref=review_ref,
             evidence=done_evidence,
             review_result=request.review_result,
             current_actor=request.current_actor,
@@ -325,7 +370,8 @@ def prepare_transition(
         # canonical move-task command's cancel event carries operator/synthetic
         # onto the persisted StatusEvent.
         reason_source=request.reason_source,
-        review_ref=request.review_ref,
+        review_ref=review_ref,
+        summary=summary,
         evidence=done_evidence,
         review_result=request.review_result,
         policy_metadata=request.policy_metadata,

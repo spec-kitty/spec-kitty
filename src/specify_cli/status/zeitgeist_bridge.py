@@ -150,6 +150,21 @@ def resolved_binding_moment_handler(**kwargs: Any) -> None:
     )
 
 
+def _codec_declares_summary_field() -> bool:
+    """Whether the installed events codec's payload declares ``summary``.
+
+    Capability gate (#4327): the CLI sends the inline ``summary`` attr only
+    once the installed ``spec_kitty_events`` ``StatusTransitionPayload`` has
+    the field -- the same producer-gating pattern ``emit.py``'s
+    ``_EVENTS_SUPPORTS_RESOLVED_BINDING`` (a ``hasattr`` probe of the
+    installed events package) uses for additive contract fields. On an older
+    pin the moment is still offered (without the gist), never dropped, and
+    the summary stays durable in the canonical status log; the pin bump
+    (spec-kitty-planning#2327) flips this gate on with no further CLI change.
+    """
+    return "summary" in getattr(StatusTransitionPayload, "model_fields", {})
+
+
 def _broadcast_status_transition(kwargs: Mapping[str, Any]) -> None:
     """Build the ``WPStatusChanged`` payload/envelope pair and offer it once.
 
@@ -164,21 +179,34 @@ def _broadcast_status_transition(kwargs: Mapping[str, Any]) -> None:
     # Validated through the model's own schema (like the lifecycle path below):
     # a transition whose fan-out kwargs cannot form a payload is a dropped
     # moment with a logged reason, never a raised error into the seam.
+    payload_fields: dict[str, Any] = {
+        "mission_slug": mission_slug,
+        "wp_id": kwargs.get("wp_id"),
+        "from_lane": kwargs.get("from_lane"),
+        "to_lane": kwargs.get("to_lane"),
+        "actor": kwargs.get("actor"),
+        "force": bool(getattr(metadata, "force", False)),
+        "reason": getattr(metadata, "reason", None),
+        "execution_mode": getattr(metadata, "execution_mode", None),
+        "review_ref": getattr(metadata, "review_ref", None),
+        "evidence": evidence,
+    }
+    summary = getattr(metadata, "summary", None)
+    if summary is not None:
+        if _codec_declares_summary_field():
+            payload_fields["summary"] = summary
+        else:
+            # Not a drop: the moment is offered without the gist, and the
+            # summary stays durable on the persisted status event. Logged so
+            # the omission is explainable from operator logs alone.
+            logger.info(
+                "Zeitgeist WPStatusChanged summary not broadcast: the "
+                "installed spec_kitty_events StatusTransitionPayload has no "
+                "summary field (events pin bump pending, #4327); the gist "
+                "stays in the canonical status log"
+            )
     try:
-        payload = StatusTransitionPayload.model_validate(
-            {
-                "mission_slug": mission_slug,
-                "wp_id": kwargs.get("wp_id"),
-                "from_lane": kwargs.get("from_lane"),
-                "to_lane": kwargs.get("to_lane"),
-                "actor": kwargs.get("actor"),
-                "force": bool(getattr(metadata, "force", False)),
-                "reason": getattr(metadata, "reason", None),
-                "execution_mode": getattr(metadata, "execution_mode", None),
-                "review_ref": getattr(metadata, "review_ref", None),
-                "evidence": evidence,
-            }
-        )
+        payload = StatusTransitionPayload.model_validate(payload_fields)
     except ValidationError as exc:
         logger.warning("Zeitgeist moment WPStatusChanged not broadcast: %s", exc)
         return

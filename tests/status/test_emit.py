@@ -1778,7 +1778,7 @@ class TestBatchEmit:
                         wp_id="WP02",
                         to_lane="in_review",
                         actor="reviewer",
-                        review_ref="review-1",
+                        review_ref="review:WP02",
                     ),
                     TransitionRequest(
                         feature_dir=feature_dir,

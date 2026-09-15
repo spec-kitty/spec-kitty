@@ -179,6 +179,7 @@ def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass construc
     reason: str | None = None,
     reason_source: str | None = None,
     review_ref: str | None = None,
+    summary: str | None = None,
     evidence: DoneEvidence | None = None,
     review_result: ReviewResult | None = None,
     policy_metadata: dict[str, Any] | None = None,
@@ -203,6 +204,8 @@ def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass construc
         reason_source: Optional provenance discriminator for ``reason``
             (``"operator"`` / ``"synthetic"``); ``None`` when not tracked.
         review_ref: Optional review-feedback reference.
+        summary: Optional one-line human gist of the transition for the NOW
+            view (#4327); validated at the CLI boundary, never here.
         evidence: Optional :class:`DoneEvidence` for done transitions.
         review_result: Optional structured review outcome for review exits.
         policy_metadata: Optional orchestrator policy metadata dict.
@@ -223,6 +226,7 @@ def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass construc
         reason=reason,
         reason_source=reason_source,
         review_ref=review_ref,
+        summary=summary,
         evidence=evidence,
         review_result=review_result,
         policy_metadata=policy_metadata,
@@ -733,6 +737,15 @@ def _collapse_alias_in_place(
         wp_id,
     )
     _mirror_phase1_frontmatter_lane(feature_dir, wp_id, resolved_lane)
+    # #4327: normalize the inline moment fields exactly as the persisted arm
+    # does (``prepare_transition`` already refused invalid values at the
+    # shared boundary before choosing this arm); the synthetic event a
+    # caller inspects must never carry an un-normalized gist/pointer shape a
+    # persisted event would not.
+    from .moment_fields import validate_review_ref, validate_summary
+
+    summary = validate_summary(request.summary) if request.summary is not None else None
+    review_ref = validate_review_ref(request.review_ref, repo_root=request.repo_root) if request.review_ref is not None else None
     return build_status_event(
         mission_slug=mission_slug,
         wp_id=wp_id,
@@ -744,7 +757,8 @@ def _collapse_alias_in_place(
         execution_mode=request.execution_mode,
         reason=request.reason,
         reason_source=request.reason_source,
-        review_ref=request.review_ref,
+        review_ref=review_ref,
+        summary=summary,
         evidence=None,
         review_result=request.review_result,
         policy_metadata=request.policy_metadata,

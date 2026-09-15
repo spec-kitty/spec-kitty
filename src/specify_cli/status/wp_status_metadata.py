@@ -32,6 +32,10 @@ class WPStatusChangeMetadata:
     force: bool = False
     reason: str | None = None
     review_ref: str | None = None
+    # One-line human gist of the transition (#4327); carried onto the
+    # ``WPStatusChanged`` moment as the bounded inline ``summary`` attr by
+    # the Zeitgeist bridge (capability-gated on the installed codec).
+    summary: str | None = None
     execution_mode: str | None = None
     evidence: dict[str, Any] | None = None
     occurred_at: str | None = None
@@ -52,6 +56,7 @@ class WPStatusChangeMetadata:
             force=event.force,
             reason=event.reason,
             review_ref=event.review_ref,
+            summary=getattr(event, "summary", None),
             execution_mode=event.execution_mode,
             evidence=event.evidence.to_dict() if event.evidence else None,
             occurred_at=event.at,

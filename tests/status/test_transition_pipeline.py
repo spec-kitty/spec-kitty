@@ -189,7 +189,7 @@ class TestEventConstruction:
             _prepare(feature_dir, _request(to_lane="done", evidence={"review": {}}), Lane.APPROVED)
 
     def test_build_receives_provenance_policy_review_result_and_identity(self, feature_dir: Path) -> None:
-        review_result = ReviewResult(reviewer="rev", verdict="approved", reference="review-1")
+        review_result = ReviewResult(reviewer="rev", verdict="approved", reference="review:WP01")
         prepared = _prepare(
             feature_dir,
             _request(
@@ -199,7 +199,7 @@ class TestEventConstruction:
                 policy_metadata={"agent": "rev"},
                 reason="looks good",
                 reason_source="operator",
-                review_ref="review-1",
+                review_ref="review:WP01",
             ),
             Lane.IN_REVIEW,
         )
@@ -210,7 +210,7 @@ class TestEventConstruction:
         assert event.review_result == review_result
         assert event.policy_metadata == {"agent": "rev"}
         assert event.reason_source == "operator"
-        assert event.review_ref == "review-1"
+        assert event.review_ref == "review:WP01"
         assert event.from_lane == Lane.IN_REVIEW
 
     def test_at_is_stamped_on_event_and_annotation(self, feature_dir: Path) -> None:
@@ -458,3 +458,79 @@ def test_batch_emit_reads_log_once_for_the_whole_batch(feature_dir: Path, monkey
     assert counters.appends == 1
     assert counters.derive == 1
     assert counters.reads_before_append == 1
+
+
+# ---------------------------------------------------------------------------
+# #4327: the new-write inline moment rules are enforced HERE -- the shared
+# creation boundary -- so a programmatic caller cannot bypass them by
+# constructing a TransitionRequest directly.
+# ---------------------------------------------------------------------------
+
+
+class TestInlineMomentFieldBoundary:
+    def test_prose_review_ref_is_refused_for_a_programmatic_caller(self, feature_dir: Path) -> None:
+        request = _request(to_lane="claimed", review_ref="Looks good to me, ship it")
+        with pytest.raises(TransitionError, match="pointer forms"):
+            _prepare(feature_dir, request, Lane.PLANNED)
+
+    def test_oversize_summary_is_refused_with_the_named_bound(self, feature_dir: Path) -> None:
+        request = _request(to_lane="claimed", summary="a" * 241)
+        with pytest.raises(TransitionError, match=r"--summary is 241 UTF-8 bytes"):
+            _prepare(feature_dir, request, Lane.PLANNED)
+
+    def test_newline_summary_is_refused_for_a_programmatic_caller(self, feature_dir: Path) -> None:
+        request = _request(to_lane="claimed", summary="approved\nsilently")
+        with pytest.raises(TransitionError, match=r"U\+000A"):
+            _prepare(feature_dir, request, Lane.PLANNED)
+
+    def test_valid_summary_and_pointer_ride_the_built_event_normalised(self, feature_dir: Path) -> None:
+        request = _request(
+            to_lane="claimed",
+            summary="  Claimed   after the\tinterview answers  ",
+            review_ref="  review:WP01  ",
+        )
+        prepared = _prepare(feature_dir, request, Lane.PLANNED)
+        assert prepared.event is not None
+        assert prepared.event.summary == "Claimed after the interview answers"
+        assert prepared.event.review_ref == "review:WP01"
+
+    def test_absent_fields_stay_absent_for_legacy_shaped_callers(self, feature_dir: Path) -> None:
+        prepared = _prepare(feature_dir, _request(to_lane="claimed"), Lane.PLANNED)
+        assert prepared.event is not None
+        assert prepared.event.summary is None
+        assert prepared.event.review_ref is None
+
+    def test_review_result_reference_is_not_boundary_validated(self, feature_dir: Path) -> None:
+        """A ``review_result.reference`` carrying legacy prose is NOT refused:
+        it has a legacy-compat read path (a rework on a mission whose review
+        artifact predates #4327), and rewriting persisted artifacts is out of
+        scope -- only the ``review_ref``/``summary`` the request itself
+        declares are new-write validated."""
+        review_result = ReviewResult(reviewer="rev", verdict="approved", reference="free-form legacy prose")
+        prepared = _prepare(
+            feature_dir,
+            _request(to_lane="approved", actor="rev", review_result=review_result),
+            Lane.IN_REVIEW,
+        )
+        assert prepared.event is not None
+        assert prepared.event.review_result == review_result
+
+    def test_done_transition_carries_summary_and_keeps_reason_prose(self, feature_dir: Path) -> None:
+        """Completion (#4327 scope clarification): a done transition with a
+        valid gist plus a long multi-line local reason keeps the prose whole
+        in ``reason`` and leaves the pointer slot absent (never prose)."""
+        long_reason = "Merged WP01 into main after CI green;\nthe review artifact carries the reproduction command\nand the full verification transcript.\n"
+        request = _request(
+            to_lane="done",
+            actor="merge",
+            force=True,
+            summary="Done: merged after CI green",
+            reason=long_reason,
+            evidence={"review": {"reviewer": "r", "verdict": "approved", "reference": "review:WP01"}},
+        )
+        prepared = _prepare(feature_dir, request, Lane.APPROVED)
+        assert prepared.event is not None
+        assert prepared.event.to_lane == Lane.DONE
+        assert prepared.event.summary == "Done: merged after CI green"
+        assert prepared.event.reason == long_reason
+        assert prepared.event.review_ref is None

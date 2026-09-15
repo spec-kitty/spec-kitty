@@ -72,9 +72,7 @@ def _find_mission_slug(
     raw_handle = explicit_mission.strip()
     if repo_root is not None:
         try:
-            legacy_dir = placement_seam(get_main_repo_root(repo_root), raw_handle).read_dir(
-                MissionArtifactKind.PRIMARY_METADATA
-            )
+            legacy_dir = placement_seam(get_main_repo_root(repo_root), raw_handle).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         except MissionSelectorAmbiguous as exc:
             # Same shape as tasks_shared._find_mission_slug (#241): this
             # read-path resolver family raises BEFORE resolve_mission_handle
@@ -102,9 +100,7 @@ def _find_mission_slug(
         # C6 (WP05): the bare-modern-slug resolution is the ONE shared seam in
         # ``missions._read_path_resolver`` — the CLI consumes it rather than keeping
         # a byte-for-byte glob clone (NFR-004 single-definition).
-        if resolved_bare := resolve_bare_modern_mission_dir_name(
-            get_main_repo_root(repo_root), raw_handle
-        ):
+        if resolved_bare := resolve_bare_modern_mission_dir_name(get_main_repo_root(repo_root), raw_handle):
             return resolved_bare
         try:
             resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
@@ -273,9 +269,7 @@ def _enforce_emit_for_review_gate(
     if resolve_lane_alias(to) != Lane.FOR_REVIEW:
         return
 
-    decision: GateDecision = evaluate_for_review_gate(
-        main_repo_root, mission_slug, wp_id, force=force
-    )
+    decision: GateDecision = evaluate_for_review_gate(main_repo_root, mission_slug, wp_id, force=force)
     if not decision.passed:
         _output_error(
             json_output,
@@ -304,11 +298,19 @@ def emit(
         str | None,
         typer.Option("--mission", help="Mission slug (required in multi-mission repos)"),
     ] = None,
-
     force: Annotated[bool, typer.Option("--force", help="Force transition bypassing guards")] = False,
     reason: Annotated[str | None, typer.Option("--reason", help="Reason for forced transition")] = None,
     evidence_json: Annotated[str | None, typer.Option("--evidence-json", help="JSON string with done evidence")] = None,
-    review_ref: Annotated[str | None, typer.Option("--review-ref", help="Review feedback reference")] = None,
+    review_ref: Annotated[
+        str | None, typer.Option("--review-ref", help="Review reference — a pointer (review-cycle://…, auto-approval:…, PR#N, kitty-specs/…), never prose (#4327)")
+    ] = None,
+    summary: Annotated[
+        str | None,
+        typer.Option(
+            "--summary",
+            help=("One-line human gist of the transition for the NOW view (≤240 UTF-8 bytes, printable, no newlines); the full note belongs in --reason (#4327)"),
+        ),
+    ] = None,
     review_result_json: Annotated[
         str | None,
         typer.Option(
@@ -379,8 +381,7 @@ def emit(
                 example = '{"review": {"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}}'
                 _output_error(
                     json_output,
-                    f"Invalid JSON in --evidence-json: {exc}\n"
-                    f"Expected valid JSON object, e.g.: '{example}'",
+                    f"Invalid JSON in --evidence-json: {exc}\nExpected valid JSON object, e.g.: '{example}'",
                 )
                 raise typer.Exit(1)
 
@@ -395,6 +396,24 @@ def emit(
                 _output_error(json_output, str(exc))
                 raise typer.Exit(1)
 
+        # #4327 creation-time validation, before any write: the inline summary
+        # is bounded/printable/one-line here (never truncated silently), and
+        # review_ref is pointer-only — prose in the pointer slot is what #3954
+        # dropped whole at the relay's 240-byte per-attr bound.
+        from specify_cli.status import (
+            ReviewRefValidationError,
+            SummaryValidationError,
+            validate_review_ref,
+            validate_summary,
+        )
+
+        try:
+            validated_summary = validate_summary(summary) if summary is not None else None
+            validated_review_ref = validate_review_ref(review_ref, repo_root=repo_root) if review_ref is not None else None
+        except (SummaryValidationError, ReviewRefValidationError) as exc:
+            _output_error(json_output, str(exc))
+            raise typer.Exit(1)
+
         # FR-011: the shared, topology-aware for_review commit gate -- no-ops
         # unless the alias-resolved target lane is for_review, mirroring the
         # orchestrator-api transition surface's identical gate placement
@@ -408,23 +427,26 @@ def emit(
         # FR-004: the MissionStatus aggregate is the sole write entry point.
         # ms.transition() validates and delegates to the transactional path,
         # so this is behavior-preserving relative to the prior direct call.
-        event = ms.transition(TransitionRequest(
-            feature_dir=feature_dir,
-            mission_slug=mission_slug,
-            wp_id=wp_id,
-            to_lane=to,
-            actor=actor,
-            force=force,
-            reason=reason,
-            evidence=evidence,
-            review_ref=review_ref,
-            review_result=review_result,
-            workspace_context=workspace_context,
-            subtasks_complete=subtasks_complete,
-            implementation_evidence_present=implementation_evidence_present,
-            execution_mode=execution_mode,
-            repo_root=main_repo_root,
-        ))
+        event = ms.transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                to_lane=to,
+                actor=actor,
+                force=force,
+                reason=reason,
+                evidence=evidence,
+                review_ref=validated_review_ref,
+                summary=validated_summary,
+                review_result=review_result,
+                workspace_context=workspace_context,
+                subtasks_complete=subtasks_complete,
+                implementation_evidence_present=implementation_evidence_present,
+                execution_mode=execution_mode,
+                repo_root=main_repo_root,
+            )
+        )
 
         # ``transition()`` can materialize the coordination worktree and write
         # there even when the initial aggregate read from primary during the
@@ -432,10 +454,14 @@ def emit(
         # event log affected by this command.
         output_feature_dir = feature_dir
         try:
-            output_feature_dir = type(ms).load(
-                repo_root=main_repo_root,
-                mission_slug=mission_slug,
-            ).read_dir
+            output_feature_dir = (
+                type(ms)
+                .load(
+                    repo_root=main_repo_root,
+                    mission_slug=mission_slug,
+                )
+                .read_dir
+            )
         except Exception as reload_exc:  # noqa: BLE001
             logger.debug(
                 "Could not reload mission status after transition for %s: %s",
@@ -457,9 +483,7 @@ def emit(
         _output_result(
             json_output,
             result,
-            f"[green]OK[/green] {event.wp_id}: "
-            f"{event.from_lane} -> {event.to_lane} "
-            f"(event: {event.event_id[:12]}...)",
+            f"[green]OK[/green] {event.wp_id}: {event.from_lane} -> {event.to_lane} (event: {event.event_id[:12]}...)",
         )
 
     except typer.Exit:
@@ -468,6 +492,7 @@ def emit(
         # Check if it's a TransitionError (imported lazily above)
         try:
             from specify_cli.status import TransitionError
+
             if isinstance(exc, TransitionError):
                 _output_error(json_output, str(exc))
                 raise typer.Exit(1)
@@ -481,7 +506,6 @@ def emit(
 @app.command()
 def materialize(
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (required in multi-mission repos)")] = None,
-
     json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
 ) -> None:
     """Rebuild status.json from the canonical event log.
@@ -538,10 +562,7 @@ def materialize(
             wp_count = len(snapshot.work_packages)
             event_count = snapshot.event_count
 
-            console.print(
-                f"[green]Materialized[/green] {mission_slug}: "
-                f"{event_count} events -> {wp_count} WPs"
-            )
+            console.print(f"[green]Materialized[/green] {mission_slug}: {event_count} events -> {wp_count} WPs")
 
             # Lane distribution
             lane_parts = []
@@ -569,12 +590,9 @@ def doctor(
         str | None,
         typer.Option("--mission", help="Mission slug"),
     ] = None,
-
     stale_claimed: Annotated[
         int,
-        typer.Option(
-            "--stale-claimed-days", help="Threshold for stale claims (days)"
-        ),
+        typer.Option("--stale-claimed-days", help="Threshold for stale claims (days)"),
     ] = 7,
     stale_in_progress: Annotated[
         int,
@@ -619,9 +637,7 @@ def doctor(
         )
     except FileNotFoundError as e:
         if json_output:
-            console.print_json(
-                json.dumps({"error": str(e), "healthy": False})
-            )
+            console.print_json(json.dumps({"error": str(e), "healthy": False}))
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
@@ -681,9 +697,7 @@ def doctor(
             table.add_column("Message")
             table.add_column("Action")
             for f in result.findings:
-                severity_style = (
-                    "red" if f.severity == "error" else "yellow"
-                )
+                severity_style = "red" if f.severity == "error" else "yellow"
                 table.add_row(
                     f"[{severity_style}]{f.severity}[/{severity_style}]",
                     str(f.category),
@@ -707,7 +721,6 @@ def lifecycle(
         str | None,
         typer.Option("--mission", help="Mission slug"),
     ] = None,
-
     json_output: Annotated[
         bool,
         typer.Option("--json", help="Machine-readable JSON output"),
@@ -849,7 +862,6 @@ def migrate(
         str | None,
         typer.Option("--mission", "-f", help="Single mission slug to migrate"),
     ] = None,
-
     _all_features: Annotated[
         bool,
         typer.Option("--all", help="Migrate all features in kitty-specs/"),
@@ -933,7 +945,6 @@ def validate(
         str | None,
         typer.Option("--mission", help="Mission slug (required in multi-mission repos)"),
     ] = None,
-
     json_output: Annotated[
         bool,
         typer.Option("--json", help="Machine-readable JSON output"),
@@ -991,9 +1002,7 @@ def validate(
                 )
             )
         else:
-            console.print(
-                f"[green]Status Validation: {mission_slug}[/green]"
-            )
+            console.print(f"[green]Status Validation: {mission_slug}[/green]")
             console.print("No events to validate.")
             console.print("[green]Result: PASS[/green]")
         raise typer.Exit(0)
@@ -1012,9 +1021,7 @@ def validate(
             )
         )
     else:
-        console.print(
-            f"\n[bold]Status Validation: {mission_slug}[/bold]"
-        )
+        console.print(f"\n[bold]Status Validation: {mission_slug}[/bold]")
         console.print("-" * 50)
 
         if result.errors:
@@ -1029,9 +1036,7 @@ def validate(
 
         if result.passed:
             if result.warnings:
-                console.print(
-                    f"\n[green]Result: PASS[/green] ({len(result.warnings)} warning(s))"
-                )
+                console.print(f"\n[green]Result: PASS[/green] ({len(result.warnings)} warning(s))")
             else:
                 console.print("\n[green]Result: PASS[/green]")
         else:
@@ -1051,7 +1056,6 @@ def reconcile(
         str | None,
         typer.Option("--mission", "-f", help="Mission slug (required in multi-mission repos)"),
     ] = None,
-
     _dry_run: Annotated[
         bool,
         typer.Option("--dry-run/--apply", help="Preview vs persist reconciliation events"),

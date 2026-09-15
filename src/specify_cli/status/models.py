@@ -353,6 +353,13 @@ class StatusEvent:
     # lines stay byte-identical.
     reason_source: str | None = None
     review_ref: str | None = None
+    # One-line, human-readable gist of the transition for the NOW view
+    # (#4327). Producer-supplied and producer-validated at creation
+    # (``status/moment_fields.validate_summary``); the Zeitgeist bridge
+    # carries it on the ``WPStatusChanged`` moment as the bounded inline
+    # ``summary`` attr once the installed events codec declares the field.
+    # ``None`` for every transition recorded before the option existed.
+    summary: str | None = None
     evidence: DoneEvidence | None = None
     review_result: ReviewResult | None = None
     policy_metadata: dict[str, Any] | None = None
@@ -385,6 +392,8 @@ class StatusEvent:
         # fixtures) stay byte-identical — mirrors mission_id / review_result.
         if self.reason_source is not None:
             d["reason_source"] = self.reason_source
+        if self.summary is not None:
+            d["summary"] = self.summary
         if self.mission_id is not None:
             d["mission_id"] = self.mission_id
         return d
@@ -418,6 +427,9 @@ class StatusEvent:
             # None for legacy events written before reason_source existed (NFR-002).
             reason_source=data.get("reason_source"),
             review_ref=data.get("review_ref"),
+            # None for legacy events recorded before the inline summary attr
+            # existed (#4327).
+            summary=data.get("summary"),
             evidence=DoneEvidence.from_dict(evidence_data) if evidence_data else None,
             review_result=(
                 ReviewResult.from_dict(review_result_data)
@@ -868,6 +880,13 @@ class TransitionRequest:
     evidence: dict[str, Any] | None = None
     review_ref: str | None = None
     review_result: Any = None
+    # One-line human gist of the transition for the NOW view (#4327);
+    # validated at the CLI boundary (``status/moment_fields.validate_summary``)
+    # before any artifact write, and again at the shared creation boundary
+    # (``status/transition_pipeline._validated_inline_fields``) so no
+    # programmatic caller can bypass it; threaded onto the emitted
+    # ``StatusEvent``.
+    summary: str | None = None
     # Guard hints (callers may pre-compute these; emit derives them otherwise)
     workspace_context: str | None = None
     subtasks_complete: bool | None = None
