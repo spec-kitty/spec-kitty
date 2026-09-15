@@ -1,0 +1,33 @@
+{
+  "accept_commit": "cf299da3895a21eebeccd84b27bb6433fd132a66",
+  "acceptance_history": [
+    {
+      "accept_commit": "cf299da3895a21eebeccd84b27bb6433fd132a66",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-16T13:18:51.508126+00:00",
+      "accepted_by": "cursor",
+      "accepted_from_commit": "1898ecef56a4c5f1619f6e701c599d2f64b3dd4d"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-16T13:18:51.508126+00:00",
+  "accepted_by": "cursor",
+  "accepted_from_commit": "1898ecef56a4c5f1619f6e701c599d2f64b3dd4d",
+  "baseline_merge_commit": "bb51774f64766408fc4859cd340f45cfa968458e",
+  "coordination_branch": "kitty/mission-doctrine-org-init-from-template-01KXNA6P",
+  "created_at": "2026-07-16T11:15:18.430449+00:00",
+  "flattened": false,
+  "friendly_name": "Doctrine Org Init From Template",
+  "mission_id": "01KXNA6PRW6JQ9Y9M7HA882PZ3",
+  "mission_number": 178,
+  "mission_slug": "doctrine-org-init-from-template-01KXNA6P",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Today doctrine org init only writes a minimal three-file skeleton. Operators who create their own doctrine need that same command extended so they can optionally initialise from an existing template (local path or git URL with branch): honour .templateignore, validate the org name, substitute identity and registration-path tokens, and write the full rendered tree to a distinct pack destination—while keeping the minimal scaffold when no template is supplied.",
+  "purpose_tldr": "Extend doctrine org init so operators creating their own doctrine can render from a local or git template with validated ORG_NAME, LOCAL_PATH, and .templateignore.",
+  "slug": "doctrine-org-init-from-template-01KXNA6P",
+  "source_description": "Extend spec-kitty doctrine org init for operators who create their own doctrine: optional TEMPLATE (local/git), ORG_NAME validation, LOCAL_PATH substitution, .templateignore, PACK_PATH as distinct destination; minimal scaffold when TEMPLATE omitted.",
+  "target_branch": "feat/doctrine-org-init-from-template",
+  "topology": "coord",
+  "vcs": "git"
+}
