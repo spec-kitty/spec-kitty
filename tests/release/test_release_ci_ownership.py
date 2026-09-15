@@ -272,6 +272,35 @@ def test_release_checklist_marks_deferred_publish_workflows_as_p3_4b_prerequisit
     assert "release-readiness.yml" in checklist
 
 
+POST_TAG_CYCLE_HEADING = "Open the Next Development Cycle"
+
+
+def test_release_checklist_opens_the_next_cycle_right_after_the_tag() -> None:
+    """#4314: branch-mode ``validate_release.py`` requires main's version to
+    advance past the latest tag, so the tag itself turns the scheduled
+    release-readiness check red until main opens the next cycle (#4290 hit
+    this after v4.0.0rc1 and again after v4.0.0rc2). The canonical runbook
+    must say so, as a numbered Release Process step placed after the tag."""
+    checklist = RELEASE_CHECKLIST.read_text(encoding="utf-8")
+    tag_step = checklist.index("Tag the Release from `main`")
+    cycle_step = checklist.find(POST_TAG_CYCLE_HEADING)
+    assert cycle_step > tag_step, "RELEASE_CHECKLIST.md needs a post-tag step that opens the next development cycle"
+    step_heading = checklist[checklist.rfind("\n", 0, cycle_step) + 1 : checklist.find("\n", cycle_step)]
+    assert re.match(r"^### \d+\. ", step_heading), f"post-tag step must be a numbered Release Process step: {step_heading!r}"
+    step_body = checklist[cycle_step : checklist.find("\n## ", cycle_step)]
+    assert "does not advance beyond latest tag" in step_body.lower() or "advance beyond the latest tag" in step_body.lower()
+    assert "pyproject.toml" in step_body
+
+
+def test_contributing_release_process_mirrors_the_post_tag_cycle_step() -> None:
+    """#4314: the Release Process summary in contributing.md is subordinate to
+    RELEASE_CHECKLIST.md and must not omit the post-tag cycle step."""
+    contributing = (ROOT / "docs" / "development" / "contributing.md").read_text(encoding="utf-8")
+    release_process = contributing[contributing.index("## Release Process") :]
+    release_process = release_process[: release_process.find("\n## ", len("## Release Process"))]
+    assert POST_TAG_CYCLE_HEADING.lower() in release_process.lower()
+
+
 def test_reduced_ci_quality_has_exact_jobs() -> None:
     workflow = load_workflow("ci-quality.yml")
 

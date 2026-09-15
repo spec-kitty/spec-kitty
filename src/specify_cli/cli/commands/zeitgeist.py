@@ -122,7 +122,12 @@ def _resolve_store_key(repo: str | None) -> str:
 
 def _report_not_checked_out(exc: subscription.NotCheckedOut) -> None:
     console.print(f"[red]Error:[/red] {exc}")
-    console.print("[yellow]Hint:[/yellow] no Zeitgeist checkout is stored for this repo yet. Run the checkout flow first, then retry.")
+    console.print(
+        "[yellow]Hint:[/yellow] no Zeitgeist checkout is stored for this repo in this logical session. "
+        "Run the checkout flow (a publishing command) first, then retry. Readers reuse the same session as "
+        "publishing commands by default; for a distinct concurrent agent, set "
+        "SPEC_KITTY_ZEITGEIST_SESSION_ID to the same value in both processes."
+    )
     raise typer.Exit(1)
 
 

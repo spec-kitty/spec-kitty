@@ -115,7 +115,7 @@ jobs:
       # once the repository is on disk — GitHub loads its action.yml from the
       # caller's checkout before the action's own steps run. Without this the job
       # fails immediately: "Can't find 'action.yml' ... under .github/actions/warmup".
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           # Full history: some module tests (e.g. tests/upgrade's mission-corpus
           # recovery suite) `git archive` historical mission SHAs, which a shallow
@@ -142,9 +142,11 @@ jobs:
           idx="${shard%%/*}"
           total="${shard##*/}"
           slug="${idx}-of-${total}"
-          echo "idx=$idx" >> "$GITHUB_OUTPUT"
-          echo "total=$total" >> "$GITHUB_OUTPUT"
-          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+          {
+            echo "idx=$idx"
+            echo "total=$total"
+            echo "slug=$slug"
+          } >> "$GITHUB_OUTPUT"
           echo "module-tests: roots for $MODULE = $ROOTS"
           # Ownership declaration, logged for traceability only — the pytest
           # step measures the full top-level package set regardless (WP01,

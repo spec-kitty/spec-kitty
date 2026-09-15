@@ -388,6 +388,46 @@ class TestAnalysisAndReviewIngestors:
         assert helped == []
         assert len(not_helpful) == 1
         assert "not machine-readable" in not_helpful[0].summary
+        # #4065: the fallback must name the real gap — the verdict, not the
+        # count, is what is missing (the findings list did parse).
+        assert "no resolved verdict" in not_helpful[0].details
+        assert "machine-readable findings count" in not_helpful[0].details
+
+    def test_missing_verdict_analysis_report_fallback_names_the_verdict_gap(self) -> None:
+        """#4065: a hand-edited or foreign report whose findings count parses
+        cleanly but which carries no verdict key is not asserted — and the
+        fallback must say the verdict is the gap, not claim the count itself
+        was unreadable."""
+        text = (
+            "---\n"
+            "issue_counts:\n"
+            "  low: 1\n"
+            "  medium: 1\n"
+            "  critical: 0\n"
+            "  high: 0\n"
+            "  info: 0\n"
+            "findings:\n"
+            "  - id: C1\n"
+            "    severity: medium\n"
+            "    summary: something was off\n"
+            "  - id: C2\n"
+            "    severity: low\n"
+            "    summary: minor drift\n"
+            "---\n"
+            "\n"
+            "# Analysis Report\n"
+        )
+        helped, not_helpful, _gaps = self._ingestors(text, None)
+        assert helped == []
+        assert len(not_helpful) == 1
+        finding = not_helpful[0]
+        assert finding.category == "doc"
+        assert "not machine-readable" in finding.summary
+        # The count is machine-readable — the message must not deny that.
+        assert "carries a machine-readable findings count" in finding.details
+        assert "no resolved verdict" in finding.details
+        assert "the verdict key is absent" in finding.details
+        assert "does not carry a machine-readable findings count" not in finding.details
 
     def test_zero_finding_review_report_emits_helped(self) -> None:
         """#3793: mission-review-report.md with findings: 0 (verdict pass)

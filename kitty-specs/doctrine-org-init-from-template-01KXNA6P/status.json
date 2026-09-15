@@ -1,0 +1,43 @@
+{
+  "event_count": 19,
+  "last_event_id": "01KXNGGJFHTXDYJY4YJP8SA24T",
+  "materialized_at": "2026-07-16T13:05:33.169684+00:00",
+  "mission_number": "178",
+  "mission_slug": "doctrine-org-init-from-template-01KXNA6P",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KXNGGE5FNA4YN35TAV842PXZ",
+      "last_transition_at": "2026-07-16T13:05:28.751664+00:00",
+      "review_result": null
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KXNGGGDS66RNTK6WVN0V3XY9",
+      "last_transition_at": "2026-07-16T13:05:31.065744+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KXNGGJFHTXDYJY4YJP8SA24T",
+      "last_transition_at": "2026-07-16T13:05:33.169684+00:00"
+    }
+  }
+}

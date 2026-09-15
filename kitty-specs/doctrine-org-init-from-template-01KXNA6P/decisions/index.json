@@ -1,0 +1,55 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-07-16T11:55:39.002939Z",
+      "decision_id": "01KXNCGJKT70AA9KD89ND3AMTM",
+      "final_answer": "Entire template tree minus .templateignore (project scaffold); LOCAL_PATH defaults to pack",
+      "input_key": "template_copy_unit",
+      "mission_id": "01KXNA6PRW6JQ9Y9M7HA882PZ3",
+      "mission_slug": "doctrine-org-init-from-template-01KXNA6P",
+      "opened_by": "cli",
+      "options": [
+        "Entire template tree minus .templateignore (project scaffold)",
+        "Only the pack/ subdirectory contents into PACK_PATH",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "When TEMPLATE points at a doctrine-template-style repo root, what should be written under PACK_PATH?",
+      "rationale": null,
+      "resolved_at": "2026-07-16T11:57:32.380930Z",
+      "resolved_by": null,
+      "slot_key": "plan.render.copy-unit",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-07-16T11:57:33.277148Z",
+      "decision_id": "01KXNCM26XTMVSY97QP7G5W26J",
+      "final_answer": "Both supported: separate --branch option and branch encoded in TEMPLATE value",
+      "input_key": "git_branch_surface",
+      "mission_id": "01KXNA6PRW6JQ9Y9M7HA882PZ3",
+      "mission_slug": "doctrine-org-init-from-template-01KXNA6P",
+      "opened_by": "cli",
+      "options": [
+        "Separate --branch option",
+        "Branch encoded in TEMPLATE value only",
+        "Both supported",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How should operators specify the git branch when TEMPLATE is a git URL?",
+      "rationale": null,
+      "resolved_at": "2026-07-16T12:00:31.589985Z",
+      "resolved_by": null,
+      "slot_key": "plan.render.git-branch-surface",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KXNA6PRW6JQ9Y9M7HA882PZ3",
+  "version": 1
+}

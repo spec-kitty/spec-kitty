@@ -79,6 +79,17 @@ def test_status_names_the_global_file_that_decided(kittify_home: Path) -> None:
     assert str(kittify_home / "config.toml") in result.stdout
 
 
+def test_status_keeps_hidden_bridge_command_out_of_user_output(kittify_home: Path) -> None:
+    """A public status response must not teach users a hidden command path."""
+    (kittify_home / "config.toml").write_text('[moments]\nagents = "off"\n')
+
+    result = runner.invoke(moments_app, ["status"])
+
+    assert result.exit_code == 0
+    assert "agent-context bridge refuses to start" in result.stdout
+    assert "mcp-serve" not in result.stdout
+
+
 def test_status_reports_a_malformed_filter_as_invalid_not_as_no_filter(kittify_home: Path) -> None:
     """#201 squad follow-up: a typo'd `teammates` value must not read as
     "(no filter)" — that phrasing is what a developer expects for an unset

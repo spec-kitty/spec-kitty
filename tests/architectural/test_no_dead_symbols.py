@@ -1152,13 +1152,13 @@ _CATEGORY_C_DOCTOR_AUTO_DISCOVERY_SEAM: frozenset[SymbolKey] = frozenset(
             "run_channel_report", "7b85d1bda9aae6c822e97bf6fdcf592fddc365a48710197d103e836fdfd71333", source_module="specify_cli.cli.commands._channel_doctor"
         ),
         # specify_cli.cli.commands._env_file_doctor::register
-        SymbolKey("register", "5e2e984810eb13ddc42d05b32070af2f41f4561ada6a87415b01d0d942c75aca", source_module="specify_cli.cli.commands._env_file_doctor"),
+        SymbolKey("register", "f4c52c62e8b8ddfd63c5b1ff0860c75cc9deaceb6b463a7e8fed0416894193af", source_module="specify_cli.cli.commands._env_file_doctor"),
         # specify_cli.cli.commands._env_file_doctor::run_env_file_health
         SymbolKey(
             "run_env_file_health", "a01d73dc1ffe6ecc2db7561a3707c98e425a77aee9b722a8687f0f9601f97fb9", source_module="specify_cli.cli.commands._env_file_doctor"
         ),
         # specify_cli.cli.commands._provenance_doctor::register
-        SymbolKey("register", "52eac1277179077d9735c9e67756fade67aab73d384883645f69da6800f997d7", source_module="specify_cli.cli.commands._provenance_doctor"),
+        SymbolKey("register", "dd9512fa1755c070c893c618c9cbd51d9709e7edf367a0f30653c45649cd6fe3", source_module="specify_cli.cli.commands._provenance_doctor"),
         # specify_cli.cli.commands._provenance_doctor::run_provenance_audit
         SymbolKey(
             "run_provenance_audit", "a657b0dbc7e8d2b82fc80e005592413230902a240d550c1b12be39cd4cd66b2e", source_module="specify_cli.cli.commands._provenance_doctor"

@@ -314,7 +314,7 @@ class StreamState:
     def __init__(self) -> None:
         self._epoch: str | None = None
         self._presence: dict[str, dict[str, Any]] = {}
-        self._focus: dict[str, dict[str, Any]] = {}
+        self._focus: dict[tuple[str | None, str], dict[str, Any]] = {}
         self._reset_count = 0
         self._last_reset_reason: str | None = None
 
@@ -402,13 +402,14 @@ class StreamState:
         state = payload.get("state")
         if state not in _FOCUS_STATES:
             return
-        if state == "ended":
-            self._focus.pop(focus_ref, None)  # closed signal: dropped, never queued
-            return
         actor = payload.get("actor")
         session_ref = actor.get("session_ref") if isinstance(actor, dict) else None
         session_ref = grammar.ident(session_ref) if isinstance(session_ref, str) and session_ref else None
-        self._focus[focus_ref] = {
+        key = (session_ref, focus_ref)
+        if state == "ended":
+            self._focus.pop(key, None)  # only this session's focus ends
+            return
+        self._focus[key] = {
             "focus_ref": focus_ref,
             "session_ref": session_ref,
             "state": state,
@@ -426,24 +427,37 @@ class StreamState:
         # on ordinary silence, not only on an explicit end/revoke.
         for ref in [k for k, v in self._presence.items() if v["expires_at"] <= ts]:
             del self._presence[ref]
-        for ref in [k for k, v in self._focus.items() if v["expires_at"] <= ts]:
-            del self._focus[ref]
+        for focus_key in [k for k, v in self._focus.items() if v["expires_at"] <= ts]:
+            del self._focus[focus_key]
 
         presence = tuple(
             PresenceView(
-                session_ref=v["session_ref"], user=v["user"], repo=v["repo"],
-                branch=v["branch"], path=v["path"], kind=v["kind"], expires_at=v["expires_at"],
+                session_ref=v["session_ref"],
+                user=v["user"],
+                repo=v["repo"],
+                branch=v["branch"],
+                path=v["path"],
+                kind=v["kind"],
+                expires_at=v["expires_at"],
             )
             for v in self._presence.values()
         )
         focus = tuple(
             FocusView(
-                session_ref=v["session_ref"], focus_ref=v["focus_ref"], state=v["state"],
-                user=v["user"], repo=v["repo"], branch=v["branch"], expires_at=v["expires_at"],
+                session_ref=v["session_ref"],
+                focus_ref=v["focus_ref"],
+                state=v["state"],
+                user=v["user"],
+                repo=v["repo"],
+                branch=v["branch"],
+                expires_at=v["expires_at"],
             )
             for v in self._focus.values()
         )
         return TeamSnapshot(
-            epoch=self._epoch, presence=presence, focus=focus,
-            reset_count=self._reset_count, last_reset_reason=self._last_reset_reason,
+            epoch=self._epoch,
+            presence=presence,
+            focus=focus,
+            reset_count=self._reset_count,
+            last_reset_reason=self._last_reset_reason,
         )

@@ -55,38 +55,10 @@ _QUOTED_RE = re.compile(r'"([\w-]+)"')
 
 # FR-003c exception ledger — shrink-only, one row per (workflow, group, glob).
 #
-# ``packs.yml`` entered ``WORKFLOW_FILES`` in mission
-# ``sonar-per-pr-coverage-reuse`` WP03 (its ``uv run --frozen pytest`` jobs had
-# been invisible to the parser), which brought its filter block under FR-003c
-# for the first time and immediately surfaced two globs that match nothing.
-#
-# The ONLY sanctioned reason for a row is the one below: the path is
-# ``.gitignore``d in THIS repository, so a pull request can never present it to
-# ``dorny/paths-filter`` and the group can never fire on it. That is a real
-# finding about ``packs.yml``, not a modelling gap — but ``.github/workflows/``
-# is outside WP03's ownership, so it is recorded here and reported for the
-# workflow's owner to delete rather than silently patched or silently dropped.
-#
 # ``test_vestigial_glob_rows_stay_earned`` keeps this honest: a row whose glob
 # has left the workflow, or which has become live, reds until it is deleted —
 # the ledger cannot outlive its subject.
-VESTIGIAL_FILTER_GLOBS: dict[tuple[str, str, str], str] = {
-    ("packs.yml", "built_in", ".claude/**"): (
-        "`.claude/` is gitignored in this repository (.gitignore), so no PR "
-        "diff can ever contain a path under it and this glob can never make "
-        "`built_in` true. The tracked surface that actually carries generated "
-        "Claude command assets — and that DOES gate the lane — is listed in "
-        "the same filter block: "
-        "`tests/specify_cli/regression/_twelve_agent_baseline/**`."
-    ),
-    ("packs.yml", "built_in", ".agents/skills/**"): (
-        "`.agents/` is gitignored in this repository (.gitignore), so this "
-        "glob can never make `built_in` true. The tracked stand-ins for the "
-        "command-skill surface are already in the same filter block: "
-        "`.kittify/command-skills-manifest.json` and "
-        "`tests/specify_cli/skills/__snapshots__/**`."
-    ),
-}
+VESTIGIAL_FILTER_GLOBS: dict[tuple[str, str, str], str] = {}
 
 # NFR-007 fault-injection pair: a make target whose NAME shares nothing with
 # the live ``test-fast`` one, so a resolver that matched the literal string

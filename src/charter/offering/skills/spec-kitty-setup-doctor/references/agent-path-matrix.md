@@ -14,6 +14,7 @@ fresh per-repo snapshots of `spec-kitty-*` skills.
 | Claude Code | `claude` | native-root-required | `~/.claude/skills/` | `.claude/skills/` | `.claude/commands/` |
 | GitHub Copilot | `copilot` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.github/skills/` | `.github/prompts/` |
 | Gemini CLI | `gemini` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.gemini/skills/` | `.gemini/commands/` |
+| LLxprt Code | `llxprt` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.llxprt/skills/` | `.llxprt/commands/` |
 | Cursor | `cursor` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.cursor/skills/` | `.cursor/commands/` |
 | Qwen Code | `qwen` | native-root-required | `~/.qwen/skills/` | `.qwen/skills/` | `.qwen/commands/` |
 | opencode | `opencode` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.opencode/skills/` | `.opencode/command/` |
@@ -44,8 +45,11 @@ Agents in this class can read skills from the shared `.agents/skills/` root in
 addition to their agent-specific skill root. When both exist, the agent-specific
 root takes precedence.
 
-**Agents:** GitHub Copilot, Gemini CLI, Cursor, opencode, Windsurf, Codex CLI,
-Mistral Vibe, Pi, Letta Code, Auggie CLI, Roo Code, Kiro CLI, Google Antigravity
+**Agents:** GitHub Copilot, Gemini CLI, LLxprt Code, Cursor, opencode, Windsurf,
+Codex CLI, Mistral Vibe, Pi, Letta Code, Auggie CLI, Roo Code, Kiro CLI, Google Antigravity
+
+(LLxprt Code is the exception on precedence: its workspace `.agents/skills/`
+outranks `.llxprt/skills/`.)
 
 ### wrapper-only
 

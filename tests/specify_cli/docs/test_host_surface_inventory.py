@@ -20,7 +20,7 @@ EXPECTED_SURFACES = frozenset({
     "claude", "copilot", "gemini", "cursor", "qwen",
     "opencode", "windsurf", "kilocode", "auggie",
     # "roo" removed — Roo Code shut down on 2026-05-15 (C-007)
-    "q", "kiro", "agent", "codex", "vibe", "pi", "letta",
+    "q", "kiro", "agent", "codex", "vibe", "pi", "letta", "llxprt",
 })
 
 VALID_PARITY_STATUS = {"at_parity", "partial", "missing"}

@@ -115,6 +115,7 @@ def test_supported_harnesses_are_not_research_gaps(harness_key: str) -> None:
         "vibe",
         "pi",
         "letta",
+        "llxprt",
     ],
 )
 def test_not_applicable_harnesses_lack_native_primitive(harness_key: str) -> None:
@@ -137,6 +138,7 @@ def test_not_applicable_harnesses_lack_native_primitive(harness_key: str) -> Non
         "vibe",
         "pi",
         "letta",
+        "llxprt",
     ],
 )
 def test_not_applicable_harnesses_are_not_research_gaps(harness_key: str) -> None:

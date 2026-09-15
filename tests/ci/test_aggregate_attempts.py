@@ -71,6 +71,16 @@ def job(module: str, execution_attempt: int) -> dict:
     }
 
 
+def skipped_matrix_placeholder() -> dict:
+    return {
+        "run_id": 42,
+        "run_attempt": 2,
+        "name": "module-tests (${{ matrix.module }} shard ${{ matrix.shard }})",
+        "status": "completed",
+        "conclusion": "skipped",
+    }
+
+
 def collect(tmp_path: Path, artifacts: list[dict], jobs: list[dict], *, latest: int = 2, event: str = "workflow_run") -> subprocess.CompletedProcess[str]:
     repo, run, _ = source_fixture(tmp_path)
     run.update(run_attempt=2, status="completed", conclusion="success")
@@ -170,6 +180,32 @@ def test_manual_replay_uses_requested_attempt_after_a_newer_rerun(tmp_path: Path
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_empty_matrix_placeholder_job_contributes_no_execution() -> None:
+    """A diff-scoped PR selecting zero modules empties ci-modules.yml's matrix.
+
+    Its test job then skips cleanly (documented, intended), and GitHub Actions
+    emits one placeholder job for that skipped matrix job whose name is the
+    un-interpolated template, e.g. "module-tests (${{ matrix.module }} shard
+    ${{ matrix.shard }})", never an expanded shard name. select_artifacts must
+    treat that placeholder as "no shard ran" rather than raise.
+    """
+    from scripts.ci.select_source_artifacts import select_artifacts
+
+    source = {"run_id": 42, "run_attempt": 2, "head_sha": "a" * 40}
+    record = artifact("kernel", 1, 1)
+    record["workflow_run"]["head_sha"] = source["head_sha"]
+    execution = dict(job("kernel", 1), head_sha=source["head_sha"])
+    placeholder = {
+        "run_id": 42,
+        "run_attempt": 2,
+        "head_sha": source["head_sha"],
+        "name": "module-tests (${{ matrix.module }} shard ${{ matrix.shard }})",
+        "status": "completed",
+        "conclusion": "skipped",
+    }
+    assert select_artifacts(source, [execution, placeholder], [record]) == [record["name"]]
+
+
 def test_selection_binds_timestamps_inclusively_and_normalizes_offsets() -> None:
     from scripts.ci.select_source_artifacts import select_artifacts
 
@@ -183,6 +219,33 @@ def test_selection_binds_timestamps_inclusively_and_normalizes_offsets() -> None
     for created in ("2026-09-09T00:59:59Z", "2026-09-09T01:10:01Z"):
         record["created_at"] = created
         assert select_artifacts(source, [execution], [record]) == []
+
+
+def test_skipped_literal_matrix_placeholder_is_a_valid_empty_selection() -> None:
+    from scripts.ci.select_source_artifacts import select_artifacts
+
+    source = {"run_id": 42, "run_attempt": 2, "head_sha": "a" * 40}
+
+    assert select_artifacts(source, [skipped_matrix_placeholder()], []) == []
+
+
+def test_skipped_literal_matrix_placeholder_reaches_reconciliation(tmp_path: Path) -> None:
+    result = collect(tmp_path, [], [skipped_matrix_placeholder()])
+
+    assert result.returncode != 0
+    assert "unrecognized module shard job name" not in result.stdout + result.stderr
+    assert "registry-expected shard(s) missing" in result.stdout
+
+
+@pytest.mark.parametrize("status,conclusion", [("in_progress", None), ("completed", "success"), ("completed", "failure")])
+def test_literal_matrix_placeholder_fails_closed_unless_completed_and_skipped(status: str, conclusion: str | None) -> None:
+    from scripts.ci.select_source_artifacts import select_artifacts
+
+    source = {"run_id": 42, "run_attempt": 2, "head_sha": "a" * 40}
+    execution = dict(skipped_matrix_placeholder(), status=status, conclusion=conclusion)
+
+    with pytest.raises(ValueError, match="unrecognized module shard job name"):
+        select_artifacts(source, [execution], [])
 
 
 @pytest.mark.parametrize("mutation", ["rerun_without_upload", "expired", "future_only", "absent"])

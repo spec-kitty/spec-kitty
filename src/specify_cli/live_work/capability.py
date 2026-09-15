@@ -200,6 +200,7 @@ _OTHER_HARNESSES: tuple[str, ...] = (
     "vibe",
     "pi",
     "letta",
+    "llxprt",
 )
 
 _OTHER_ROWS: tuple[CapabilityRow, ...] = tuple(

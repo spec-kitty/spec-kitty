@@ -35,8 +35,15 @@ from pathlib import Path
 import pytest
 from rich.console import Console
 
-from specify_cli.cli.commands.review._dead_code import scan_dead_code
+from specify_cli.cli.commands.review._dead_code import (
+    _COMPLETE_ANCHOR_EVIDENCE,
+    scan_dead_code,
+)
 from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
+from specify_cli.merge.baseline import (
+    ANCHOR_EVIDENCE_CORPUS_PARENT_ATTESTED,
+    ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED,
+)
 from tests.specify_cli.cli.commands.review._dead_code_fixtures import scan
 
 pytestmark = pytest.mark.fast
@@ -61,9 +68,7 @@ def test_modern_mission_missing_baseline_emits_structured_failure(
     assert len(findings) == 1, f"Expected 1 finding, got {findings!r}"
     finding = findings[0]
     assert finding["type"] == "dead_code_baseline_missing"
-    assert finding["diagnostic_code"] == str(
-        MissionReviewDiagnostic.LIGHTWEIGHT_REVIEW_MISSING_BASELINE
-    )
+    assert finding["diagnostic_code"] == str(MissionReviewDiagnostic.LIGHTWEIGHT_REVIEW_MISSING_BASELINE)
     assert finding["diagnostic_code"] == "LIGHTWEIGHT_REVIEW_MISSING_BASELINE"
     assert finding["mission_id"] == "01KRKTT58XC5KR0HF523333R9S"
     assert finding["mission_slug"] == "example-modern-mission-01KRKTT5"
@@ -154,11 +159,184 @@ def test_undeterminable_finding_is_rendered_as_hard_failure(tmp_path: Path) -> N
 
 def test_diagnostic_code_string_is_stable() -> None:
     """The wire-stable code string MUST be exactly ``LIGHTWEIGHT_REVIEW_MISSING_BASELINE``."""
-    assert (
-        MissionReviewDiagnostic.LIGHTWEIGHT_REVIEW_MISSING_BASELINE.value
-        == "LIGHTWEIGHT_REVIEW_MISSING_BASELINE"
+    assert MissionReviewDiagnostic.LIGHTWEIGHT_REVIEW_MISSING_BASELINE.value == "LIGHTWEIGHT_REVIEW_MISSING_BASELINE"
+    assert MissionReviewDiagnostic.LEGACY_MISSION_DEAD_CODE_SKIP.value == "LEGACY_MISSION_DEAD_CODE_SKIP"
+
+
+# ---------------------------------------------------------------------------
+# #4231: the missing-baseline finding must distinguish a PR-accepted mission
+# (the merge likely happened and was never recorded) from a mission that never
+# merged. Same verdict weight — a hard fail either way — but distinct
+# ``reason`` + remediation so a later reader can tell the two states apart
+# without re-deriving the audit.
+# ---------------------------------------------------------------------------
+
+
+def test_pr_accepted_missing_baseline_names_pr_remediation(tmp_path: Path) -> None:
+    """Modern mission + PR acceptance + null baseline → pr_accepted_merge_unrecorded."""
+    findings: list[dict[str, str]] = []
+    console = Console(force_terminal=False, no_color=True, record=True)
+
+    scan_dead_code(
+        baseline_merge_commit=None,
+        repo_root=tmp_path,
+        console=console,
+        findings=findings,
+        mission_id="01KRKTT58XC5KR0HF523333R9S",
+        mission_slug="example-modern-mission-01KRKTT5",
+        acceptance_mode="pr",
     )
-    assert (
-        MissionReviewDiagnostic.LEGACY_MISSION_DEAD_CODE_SKIP.value
-        == "LEGACY_MISSION_DEAD_CODE_SKIP"
+
+    assert len(findings) == 1, f"Expected 1 finding, got {findings!r}"
+    finding = findings[0]
+    # Verdict weight unchanged: still the same type + diagnostic code (a hard
+    # fail — the gate cannot run without an anchor).
+    assert finding["type"] == "dead_code_baseline_missing"
+    assert finding["diagnostic_code"] == "LIGHTWEIGHT_REVIEW_MISSING_BASELINE"
+    # ...but the reason and remediation name the PR-specific state and repair.
+    assert finding["reason"] == "pr_accepted_merge_unrecorded"
+    assert "acceptance_mode: pr" in finding["remediation"]
+    assert "backfill-merge-commit" in finding["remediation"]
+    output = console.export_text()
+    assert "pr_accepted_merge_unrecorded" in output
+
+
+def test_non_pr_missing_baseline_keeps_never_merged_reason(tmp_path: Path) -> None:
+    """Modern mission + local/no acceptance mode + null baseline → never_merged reason."""
+    findings: list[dict[str, str]] = []
+    console = Console(force_terminal=False, no_color=True, record=True)
+
+    for acceptance_mode in (None, "local"):
+        findings.clear()
+        scan_dead_code(
+            baseline_merge_commit=None,
+            repo_root=tmp_path,
+            console=console,
+            findings=findings,
+            mission_id="01KRKTT58XC5KR0HF523333R9S",
+            mission_slug="example-modern-mission-01KRKTT5",
+            acceptance_mode=acceptance_mode,
+        )
+
+        assert len(findings) == 1, f"Expected 1 finding, got {findings!r}"
+        finding = findings[0]
+        assert finding["type"] == "dead_code_baseline_missing"
+        assert finding["reason"] == "never_merged_via_spec_kitty_merge"
+        assert "spec-kitty merge" in finding["remediation"]
+        assert "backfill-merge-commit" not in finding["remediation"]
+
+
+def test_pr_reason_absent_when_baseline_present(tmp_path: Path) -> None:
+    """The distinction only applies to the missing-baseline path: a recorded
+    baseline on a PR-accepted mission never emits a missing-baseline finding
+    at all (the gate runs for real)."""
+    findings: list[dict[str, str]] = []
+    console = Console(force_terminal=False, no_color=True, record=True)
+
+    scan_dead_code(
+        baseline_merge_commit=None,
+        repo_root=tmp_path,
+        console=console,
+        findings=findings,
+        # No mission_id → the legacy skip path: acceptance_mode must not
+        # resurrect a modern-style finding on a legacy mission.
+        mission_id=None,
+        mission_slug="legacy-mission",
+        acceptance_mode="pr",
     )
+
+    assert findings == []
+
+
+# ---------------------------------------------------------------------------
+# #4231 fix rounds: the anchor-evidence field. ``pr_merge_evidence``
+# (written only by the PR-merge recording seam) names what the recorded
+# anchor's completeness rests on. The two values that seam writes — both
+# recorded under the operator's attestation — and an absent field (the
+# ``spec-kitty merge`` local-recording lane) scan normally; any other
+# PRESENT value surfaces DEAD_CODE_EVIDENCE_INCOMPLETE instead of a green
+# scan over a possibly truncated diff.
+# ---------------------------------------------------------------------------
+
+
+def test_unrecognized_anchor_evidence_surfaces_incomplete_state(tmp_path: Path) -> None:
+    """A present-but-unrecognized ``pr_merge_evidence`` never scans green.
+
+    The recording seam refuses every unattested shape, so it never
+    writes ``corpus-parent`` — a present value like it means a
+    hand-edited or unknown-tool anchor whose completeness is unestablished.
+    The gate must surface that state INSTEAD of running the scan (an anchor
+    at an earlier same-PR commit silently truncates the diff), which this
+    test proves structurally: even though ``repo_root`` is not a git
+    repository (a running scan would fail undeterminable), the ONLY finding
+    is the evidence-incomplete one — the scan never started.
+    """
+    findings: list[dict[str, str]] = []
+    console = Console(force_terminal=False, no_color=True, record=True)
+
+    scan_dead_code(
+        baseline_merge_commit="0c523a100000000000000000000000000000000",
+        repo_root=tmp_path,
+        console=console,
+        findings=findings,
+        mission_id="01KRKTT58XC5KR0HF523333R9S",
+        mission_slug="example-modern-mission-01KRKTT5",
+        acceptance_mode="pr",
+        pr_merge_evidence="corpus-parent",
+    )
+
+    assert len(findings) == 1, f"Expected 1 finding, got {findings!r}"
+    finding = findings[0]
+    assert finding["type"] == "dead_code_evidence_incomplete"
+    assert finding["diagnostic_code"] == "MISSION_REVIEW_DEAD_CODE_EVIDENCE_INCOMPLETE"
+    assert finding["pr_merge_evidence"] == "corpus-parent"
+    assert "backfill-merge-commit" in finding["remediation"]
+    assert "--attest-first-landing-commit" in finding["remediation"]
+    output = console.export_text()
+    assert "MISSION_REVIEW_DEAD_CODE_EVIDENCE_INCOMPLETE" in output
+    assert "baseline evidence incomplete" in output
+
+
+def test_recognized_anchor_evidence_values_scan_normally(tmp_path: Path) -> None:
+    """The two seam-written (attested) values — and an absent field — never fire the code.
+
+    For these the gate proceeds to the real scan (here it fails
+    ``undeterminable`` because ``tmp_path`` is not a git repository — the
+    point is that the evidence branch did not short-circuit it).
+    """
+    console = Console(force_terminal=False, no_color=True, record=True)
+    for evidence_value in (
+        ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED,
+        ANCHOR_EVIDENCE_CORPUS_PARENT_ATTESTED,
+        None,
+        "",
+        "   ",
+    ):
+        findings: list[dict[str, str]] = []
+        scan_dead_code(
+            baseline_merge_commit="0c523a100000000000000000000000000000000",
+            repo_root=tmp_path,
+            console=console,
+            findings=findings,
+            mission_id="01KRKTT58XC5KR0HF523333R9S",
+            mission_slug="example-modern-mission-01KRKTT5",
+            pr_merge_evidence=evidence_value,
+        )
+        assert findings, f"expected the scan to run for {evidence_value!r}"
+        assert all(f["type"] != "dead_code_evidence_incomplete" for f in findings), f"evidence branch fired for recognized value {evidence_value!r}: {findings!r}"
+
+
+def test_complete_anchor_evidence_is_bound_to_the_writer_constants() -> None:
+    """The reader's accepted-evidence set can never drift from the writer's own constants.
+
+    ``_COMPLETE_ANCHOR_EVIDENCE`` used to hardcode the two evidence-class
+    string literals independently of ``specify_cli.merge.baseline`` (the
+    module that actually writes ``pr_merge_evidence``). Pinning it against
+    the imported constants here means a future rename of either constant's
+    VALUE breaks this test immediately, instead of silently desynchronizing
+    the reader from the writer.
+    """
+    assert {
+        ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED,
+        ANCHOR_EVIDENCE_CORPUS_PARENT_ATTESTED,
+    } == _COMPLETE_ANCHOR_EVIDENCE

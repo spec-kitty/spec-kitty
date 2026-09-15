@@ -213,19 +213,27 @@ def _coerce_sort_mission_number(value: object) -> int | None:
 
 
 # Higher priority = sorted first (list uses reverse=True).
-_MISSION_STATUS_PRIORITY: dict[str, int] = {"active": 3, "planned": 2, "done": 1, "draft": 0}
+_MISSION_STATUS_PRIORITY: dict[str, int] = {"active": 3, "planned": 2, "done": 1, "draft": 0, "discarded": -1}
 
 
 def _derive_mission_status(kanban_stats: dict[str, Any], meta_data: dict[str, Any] | None = None) -> str:
     """Derive mission lifecycle status from WP lane counts and lifecycle markers.
 
-    Returns one of ``"active"``, ``"planned"``, ``"done"``, or ``"draft"``.
+    Returns one of ``"active"``, ``"planned"``, ``"done"``, ``"draft"``, or
+    ``"discarded"``.
 
+    - ``"discarded"`` — ``discarded_at`` is set: the mission was abandoned via
+      ``mission close --discard`` (#704). Checked first, because an abandoned
+      mission's WP lane counts describe work that was thrown away, not work
+      still active or done, so status must never be re-derived from them once
+      the mission is marked discarded.
     - ``"active"``  — WPs in flight, OR all WPs terminal but mission not yet accepted
     - ``"planned"`` — no WP is active and planned work remains
     - ``"done"``    — all WPs terminal AND ``accepted_at`` is set in meta.json
     - ``"draft"``   — no WPs yet, or the event log is unreadable
     """
+    if meta_data and meta_data.get("discarded_at"):
+        return "discarded"
     if kanban_stats.get("error") or not kanban_stats.get("total", 0):
         return "draft"
     if kanban_stats.get("doing", 0) or kanban_stats.get("for_review", 0) or kanban_stats.get("approved", 0):

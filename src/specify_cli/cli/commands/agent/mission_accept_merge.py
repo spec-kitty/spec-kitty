@@ -86,6 +86,28 @@ def accept_feature(
     lenient: Annotated[bool, typer.Option("--lenient", help="Skip strict metadata validation")] = False,
     no_commit: Annotated[bool, typer.Option("--no-commit", help="Skip auto-commit (report only)")] = False,
     diagnose: Annotated[bool, typer.Option("--diagnose", help="Diagnose acceptance blockers without mutation")] = False,
+    merge_commit: Annotated[
+        str | None,
+        typer.Option(
+            "--merge-commit",
+            metavar="SHA",
+            help="With --mode pr: record this PR merge commit as the mission's post-merge review baseline (#4231).",
+        ),
+    ] = None,
+    target_branch: Annotated[
+        str | None,
+        typer.Option(
+            "--target-branch",
+            help="With --merge-commit: the branch the PR merged into. Defaults to the mission's declared target_branch, else the repository's primary branch.",
+        ),
+    ] = None,
+    attest_first_landing: Annotated[
+        bool,
+        typer.Option(
+            "--attest-first-landing-commit",
+            help=("With --merge-commit: attest the supplied commit's first parent is the pre-landing target tip (#4231). Required for every landing shape."),
+        ),
+    ] = False,
 ) -> None:
     """Perform mission acceptance workflow.
 
@@ -125,6 +147,9 @@ def accept_feature(
             no_commit=no_commit,
             diagnose=diagnose,
             allow_fail=False,  # Agent commands use strict validation
+            merge_commit=merge_commit,  # #4231: PR-merge evidence passthrough
+            target_branch=target_branch,  # #4231: PR base branch passthrough
+            attest_first_landing=attest_first_landing,  # #4231: anchor attestation passthrough
         )
     except typer.Exit:
         # Propagate typer.Exit cleanly

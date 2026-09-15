@@ -85,6 +85,7 @@ _NOT_APPLICABLE_REASONS: dict[str, str] = {
     "cursor": "No native agent primitive; use rule surfaces",
     "kiro": "No native agent primitive; use prompt surfaces",
     "gemini": "No native agent primitive; use command surfaces",
+    "llxprt": "No native agent primitive; use command surfaces",
     "qwen": "No native agent primitive; use command surfaces",
     "opencode": "No native agent primitive; use command surfaces",
     "kilocode": "No native agent primitive; use workflow surfaces",

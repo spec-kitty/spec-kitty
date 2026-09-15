@@ -416,6 +416,7 @@ _CONJUNCT_PULL_REQUEST_EVENT = "pull-request-event"
 _CONJUNCT_SAME_ORIGIN = "same-origin"
 _CONJUNCT_ASSEMBLY_SUCCEEDED = "assembly-succeeded"
 _CONJUNCT_ASSEMBLY_COMPLETE = "assembly-complete"
+_CONJUNCT_COVERAGE_AVAILABLE = "coverage-available"
 _CONJUNCT_CREDENTIAL_PRESENT = "credential-present"
 
 _THIS_REPOSITORY = "spec-kitty/spec-kitty"
@@ -468,8 +469,8 @@ def _run_gate_script(
     return outputs
 
 
-def _needs_context(*, result: str = "success", complete: str = "true") -> dict[str, Any]:
-    return {"collect": {"result": result, "outputs": {"complete": complete, "mode": "pr", "missing": ""}}}
+def _needs_context(*, result: str = "success", complete: str = "true", coverage: str = "true") -> dict[str, Any]:
+    return {"collect": {"result": result, "outputs": {"complete": complete, "coverage": coverage, "mode": "pr", "missing": ""}}}
 
 
 def _source_context(*, event: str = "pull_request", head_repository: str | None = _THIS_REPOSITORY) -> dict[str, Any]:
@@ -541,6 +542,12 @@ def test_execution_condition_refuses_an_incomplete_measurement(tmp_path: Path) -
     outputs = _run_gate_script(tmp_path, needs=_needs_context(complete="false"))
     assert outputs.get("run") == "false"
     assert outputs.get("unmet") == _CONJUNCT_ASSEMBLY_COMPLETE
+
+
+def test_execution_condition_refuses_an_empty_coverage_set(tmp_path: Path) -> None:
+    outputs = _run_gate_script(tmp_path, needs=_needs_context(coverage="false"))
+    assert outputs.get("run") == "false"
+    assert outputs.get("unmet") == _CONJUNCT_COVERAGE_AVAILABLE
 
 
 def test_execution_condition_skips_with_an_advisory_notice_when_the_credential_is_absent(tmp_path: Path) -> None:

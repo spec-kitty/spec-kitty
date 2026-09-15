@@ -1,6 +1,6 @@
 """Checkout/auth: local bearer-credential storage (Z1.md §3.2 item 7).
 
-``<runtime_state_root>/zeitgeist-credentials`` — a sibling of, deliberately
+``<runtime_state_root>/zeitgeist-sessions/<logical_session_id>/zeitgeist-credentials`` — a sibling of, deliberately
 NOT sharing, ``tracker/credentials.py``'s ``<root>/credentials`` file
 (Z1.md decision 3: different trust domains, coupling them would make Z1-T1 a
 co-owner of an unrelated file format). TOML, ``filelock``-guarded (decision
@@ -105,6 +105,8 @@ from filelock import FileLock
 
 from kernel.paths import get_runtime_state_root
 
+from .session_identity import logical_session_id
+
 CREDENTIALS_FILENAME = "zeitgeist-credentials"
 _LOCK_SUFFIX = ".lock"
 
@@ -167,6 +169,8 @@ class StoredCredential:
     # same backward-compatible reading every optional field here gets.
     focus_capability_credential: str | None = None
     focus_expires_at: str | None = None
+    session_ref: str | None = None
+    focus_session_ref: str | None = None
 
 
 @dataclass(frozen=True)
@@ -180,7 +184,7 @@ class NegativeEntry:
 
 
 def credentials_path() -> Path:
-    return get_runtime_state_root() / CREDENTIALS_FILENAME
+    return get_runtime_state_root() / "zeitgeist-sessions" / logical_session_id() / CREDENTIALS_FILENAME
 
 
 def _lock_path() -> Path:
@@ -207,6 +211,11 @@ def _locked() -> FileLock:
     Priivacy-ai/spec-kitty#37) — cheap and idempotent once already tight.
     """
     path = credentials_path()
+    root = get_runtime_state_root()
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    root.chmod(0o700)
+    path.parent.parent.mkdir(exist_ok=True, mode=0o700)
+    path.parent.parent.chmod(0o700)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     path.parent.chmod(0o700)
     if path.is_file():
@@ -300,6 +309,7 @@ def _positive_entry(
     repo_slug: str | None,
     team: str | None,
     previous: dict[str, str],
+    session_ref: str | None,
 ) -> dict[str, str]:
     """Build one positive store entry from its arguments.
 
@@ -327,9 +337,11 @@ def _positive_entry(
     if expires_at is not None:
         entry["expires_at"] = expires_at
     if _focus_lease_scope_unchanged(previous, relay_url=relay_url, host=host, repo_slug=repo_slug, team=team):
-        for field_name in ("focus_capability_credential", "focus_expires_at"):
+        for field_name in ("focus_capability_credential", "focus_expires_at", "focus_session_ref"):
             if field_name not in entry and field_name in previous:
                 entry[field_name] = previous[field_name]
+    if session_ref is not None:
+        entry["session_ref"] = session_ref
     if host is not None:
         entry["host"] = host
     if repo_slug is not None:
@@ -370,6 +382,7 @@ def store(
     host: str | None = None,
     repo_slug: str | None = None,
     team: str | None = None,
+    session_ref: str | None = None,
 ) -> None:
     if not repo:
         raise ValueError("repo must be non-empty")
@@ -382,6 +395,7 @@ def store(
     _reject_empty(host, "host")
     _reject_empty(repo_slug, "repo_slug")
     _reject_empty(team, "team")
+    _reject_empty(session_ref, "session_ref")
     if _is_legacy_name_key(repo):
         raise ValueError("repo must be a host/owner/repo credential-store key (resolution.store_key), not a bare repo name")
     lock = _locked()
@@ -405,11 +419,12 @@ def store(
             repo_slug=repo_slug,
             team=team,
             previous=previous,
+            session_ref=session_ref,
         )
         _write_all(data)
 
 
-def store_focus_capability(*, repo: str, capability_credential: str, expires_at: str | None = None) -> None:
+def store_focus_capability(*, repo: str, capability_credential: str, expires_at: str | None = None, session_ref: str | None = None) -> None:
     """Record the ``focus``-kind capability lease alongside ``repo``'s main
     credential (#186).
 
@@ -431,6 +446,7 @@ def store_focus_capability(*, repo: str, capability_credential: str, expires_at:
     _reject_empty(expires_at, "expires_at")
     if _is_legacy_name_key(repo):
         raise ValueError("repo must be a host/owner/repo credential-store key (resolution.store_key), not a bare repo name")
+    _reject_empty(session_ref, "session_ref")
     lock = _locked()
     with lock:
         data = _read_all()
@@ -439,6 +455,10 @@ def store_focus_capability(*, repo: str, capability_credential: str, expires_at:
             raise ValueError(f"no positive credential stored under {repo!r}; resolve_credentials first")
         merged = dict(previous)
         merged["focus_capability_credential"] = capability_credential
+        if session_ref is not None:
+            merged["focus_session_ref"] = session_ref
+        else:
+            merged.pop("focus_session_ref", None)
         if expires_at is not None:
             merged["focus_expires_at"] = expires_at
         elif "focus_expires_at" in merged:
@@ -478,7 +498,7 @@ def store_negative(*, repo: str, reason: str = "", expires_at: str | None = None
 
 
 def load(*, repo: str) -> StoredCredential | None:
-    if _is_legacy_name_key(repo):
+    if _is_legacy_name_key(repo) or not credentials_path().parent.is_dir():
         return None
     lock = _locked()
     with lock:
@@ -501,6 +521,8 @@ def load(*, repo: str) -> StoredCredential | None:
             team=entry.get("team"),
             focus_capability_credential=entry.get("focus_capability_credential"),
             focus_expires_at=entry.get("focus_expires_at"),
+            session_ref=entry.get("session_ref"),
+            focus_session_ref=entry.get("focus_session_ref"),
         )
     except KeyError:
         return None
@@ -511,7 +533,7 @@ def load_negative(*, repo: str) -> NegativeEntry | None:
     none (including when the key holds a positive credential, or when
     nothing is stored at all). The caller owns the expiry decision. A bare
     pre-#132 name reads as "nothing stored", like :func:`load`."""
-    if _is_legacy_name_key(repo):
+    if _is_legacy_name_key(repo) or not credentials_path().parent.is_dir():
         return None
     lock = _locked()
     with lock:

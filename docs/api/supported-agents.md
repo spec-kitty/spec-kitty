@@ -10,7 +10,7 @@ related:
 ---
 # Supported AI Agents Reference
 
-Spec Kitty currently exposes **16 agent surfaces**: 12 slash-command or prompt-file hosts and 4 project-local command-skill hosts.
+Spec Kitty currently exposes **17 agent surfaces**: 13 slash-command or prompt-file hosts and 4 project-local command-skill hosts.
 
 Slash-command agents get user-global command directories such as `~/.claude/commands/` or `~/.opencode/command/`. Codex CLI, Vibe, Pi, and Letta Code use shared project-local agent skills under `.agents/skills/spec-kitty.<command>/`.
 
@@ -25,6 +25,7 @@ Slash-command agents get user-global command directories such as `~/.claude/comm
 | Claude Code | `~/.claude/` | `commands/` | `/spec-kitty.*` |
 | GitHub Copilot | `~/.github/` | `prompts/` | `/spec-kitty.*` |
 | Google Gemini | `~/.gemini/` | `commands/` | `/spec-kitty.*` |
+| LLxprt Code | `~/Library/Preferences/llxprt-code/` (macOS) | `commands/` | `/spec-kitty.*` |
 | Cursor | `~/.cursor/` | `commands/` | `/spec-kitty.*` |
 | Qwen Code | `~/.qwen/` | `commands/` | `/spec-kitty.*` |
 | OpenCode | `~/.opencode/` | `command/` | `/spec-kitty.*` |
@@ -120,6 +121,53 @@ spec-kitty init my-project --ai copilot
 **Usage**:
 ```bash
 spec-kitty init my-project --ai gemini
+```
+
+---
+
+### LLxprt Code
+
+| Property | Value |
+|----------|-------|
+| Directory | `.llxprt/` |
+| Commands subdirectory | `commands/` |
+| CLI flag | `--ai llxprt` |
+| Status | Supported |
+
+LLxprt Code is a fork of Gemini CLI, so it reads the same TOML custom-command
+schema (`prompt`, optional `description`, `{{args}}` placeholder) from
+`.llxprt/commands/` at the project tier. User-global commands live under the
+envPaths('llxprt-code') config root — `~/Library/Preferences/llxprt-code/commands/`
+on macOS, `~/.config/llxprt-code/commands/` on Linux — overridable with the
+`LLXPRT_CONFIG_HOME` environment variable; the legacy `~/.llxprt/` tree is
+migrated to that layout at startup and is no longer read. Model profiles are
+stored at `<global-config>/profiles/<name>.json`
+(`~/Library/Preferences/llxprt-code/profiles/` on macOS)
+and loaded with `--profile-load <name>`.
+
+**Skills**: LLxprt Code also discovers `SKILL.md` Agent Skills. It reads the
+user-global roots `~/.agents/skills/` (the cross-tool standard) and
+`<global-config>/skills/` (`~/Library/Preferences/llxprt-code/skills/` on macOS), plus
+the project roots `.llxprt/skills/` and `.agents/skills/`, with `.agents/skills/`
+taking highest precedence. Spec Kitty installs its skill pack into the shared
+`.agents/skills/` root (the same primary root it uses for Gemini CLI, Kiro and the
+other shared-root agents), and keeps the user-global `~/.agents/skills/` copy in
+sync as the CLI upgrades. `.llxprt/skills/` is a declared secondary root: LLxprt
+reads it and Spec Kitty skill upgrades keep copies found there in sync, but the
+installer does not seed it.
+
+**Asking process questions**: LLxprt Code auto-continues an active todo list
+whenever a turn ends without a tool call, so a question written as plain text at
+the end of a turn is consumed by the continuation loop instead of reaching the
+user. Whenever spec-kitty commands run under `llxprt` interactively, an agent
+that needs a user process decision (PR-based flow versus direct commit, mission
+scope, merge strategy) must call `todo_pause` with the question as the reason
+before asking it. Tactical implementation choices do not warrant a pause; the
+agent proceeds with its best judgment.
+
+**Usage**:
+```bash
+spec-kitty init my-project --ai llxprt
 ```
 
 ---
@@ -312,7 +360,7 @@ You can initialize a project with multiple agents:
 spec-kitty init my-project --ai claude,pi
 
 # Initialize with all agents
-spec-kitty init my-project --ai claude,copilot,gemini,cursor,qwen,opencode,windsurf,codex,kilocode,auggie,q,kiro,antigravity,vibe,pi,letta
+spec-kitty init my-project --ai claude,copilot,gemini,cursor,qwen,opencode,windsurf,codex,kilocode,auggie,q,kiro,antigravity,vibe,pi,letta,llxprt
 ```
 
 This registers all specified agents, allowing team members to use their preferred tool. Slash-command files are installed in user-global agent roots at CLI startup; Codex, Vibe, Pi, and Letta command skills are installed project-locally under `.agents/skills/`.
