@@ -423,6 +423,11 @@ class ProfileInvocationExecutor:
         #: executor (``None`` before the first close). Read by the doctor sweep
         #: and the CLI complete path to surface a refused commit (#4397).
         self.last_op_commit: OpCommitOutcome | None = None
+        # Lazily populated only for doctor-sweep closes. One executor serves an
+        # entire stale sweep, so keep the append-only spine's membership set in
+        # memory and extend it after each successful append instead of reparsing
+        # the ever-growing spine once per Op (#4424).
+        self._doctor_sweep_closed_ids: set[str] | None = None
 
     def list_available_profiles(self) -> list[AgentProfile]:
         """Return the invocation catalog: profiles ``invoke`` can resolve.
@@ -857,9 +862,12 @@ class ProfileInvocationExecutor:
             raise InvocationError(f"Invocation record is unreadable: {invocation_id}") from exc
         if any(isinstance(row, dict) and row.get("event") == "completed" for row in rows):
             raise AlreadyClosedError(invocation_id)
-        if invocation_id in closed_invocation_ids(self._repo_root):
+        if self._doctor_sweep_closed_ids is None:
+            self._doctor_sweep_closed_ids = closed_invocation_ids(self._repo_root)
+        if invocation_id in self._doctor_sweep_closed_ids:
             raise AlreadyClosedError(invocation_id)
         append_op_closure(self._repo_root, completed)
+        self._doctor_sweep_closed_ids.add(invocation_id)
 
     def _promote_evidence_if_requested(
         self,

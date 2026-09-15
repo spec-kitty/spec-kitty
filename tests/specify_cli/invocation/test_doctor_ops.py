@@ -17,6 +17,7 @@ from tests._perf_helpers import assert_timing_budget
 from specify_cli import app as cli_app
 from specify_cli.doctor import ops as ops_module
 from specify_cli.doctor.ops import close_stale_ops, list_orphan_ops
+from specify_cli.invocation import writer as writer_module
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.record import OpCompletedEvent
 from specify_cli.invocation.writer import (
@@ -520,6 +521,62 @@ def test_sweep_enumeration_sweeps_1k_files(
     report = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
 
     assert report.swept == 1000
+
+
+def test_sweep_reads_closure_spine_once_while_performing_real_closes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One executor reads the spine once; each real close updates its snapshot."""
+    ops_dir = _ops_dir(tmp_path)
+    _generate_synthetic_ops(ops_dir, 3, _iso(_NOW - timedelta(hours=48)))
+    real_closed_invocation_ids = writer_module.closed_invocation_ids
+    reads = 0
+
+    def counted_closed_invocation_ids(repo_root: Path) -> set[str]:
+        nonlocal reads
+        reads += 1
+        return real_closed_invocation_ids(repo_root)
+
+    monkeypatch.setattr(
+        "specify_cli.invocation.executor.closed_invocation_ids",
+        counted_closed_invocation_ids,
+    )
+    monkeypatch.setattr(ProfileInvocationExecutor, "_commit_op_record", lambda *a, **k: None)
+
+    report = close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
+
+    assert report.swept == 3
+    assert reads == 1
+    assert len(read_op_closures(tmp_path)) == 3
+
+
+@pytest.mark.performance
+def test_sweep_real_closes_against_large_spine_under_2s(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Real spine closes stay linear when substantial closure history exists."""
+    ops_dir = _ops_dir(tmp_path)
+    _generate_synthetic_ops(ops_dir, 100, _iso(_NOW - timedelta(hours=48)))
+    history = [
+        OpCompletedEvent(
+            invocation_id=f"01KTC{i:021d}",
+            completed_at="2026-06-05T00:01:00+00:00",
+            outcome="abandoned",
+            closed_by="doctor_sweep",
+        )
+        for i in range(10_000)
+    ]
+    op_closures_path(tmp_path).write_text(
+        "".join(event.to_jsonl_line() + "\n" for event in history),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ProfileInvocationExecutor, "_commit_op_record", lambda *a, **k: None)
+
+    start = time.perf_counter()
+    close_stale_ops(tmp_path, threshold_hours=24.0, now=_NOW)
+    elapsed = time.perf_counter() - start
+
+    assert_timing_budget(elapsed, 2.0, name="100 real closes against 10k-row spine")
 
 
 @pytest.mark.performance
