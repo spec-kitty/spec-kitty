@@ -100,6 +100,12 @@ jobs:
       mode: ${{ steps.resolve-mode.outputs.mode }}
       complete: ${{ steps.reconcile.outputs.complete }}
       missing: ${{ steps.reconcile.outputs.missing }}
+      # spec-kitty#4537: true iff the reconciler actually wrote >=1 coverage
+      # file to resolved_dir. A zero-selection diff-scoped PR can be
+      # `complete=true` (nothing SELECTED is missing) while writing NO
+      # coverage at all -- `complete` alone under-specifies "is there
+      # anything for a coverage consumer to download and score".
+      has-coverage: ${{ steps.reconcile.outputs.has-coverage }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
@@ -269,7 +275,15 @@ jobs:
     if: >-
       always() &&
       (needs.collect.outputs.mode == 'full' ||
-        (needs.collect.result == 'success' && needs.collect.outputs.complete == 'true'))
+        (needs.collect.result == 'success' && needs.collect.outputs.complete == 'true' &&
+          needs.collect.outputs.has-coverage == 'true'))
+    # PR-mode conjunct `has-coverage == 'true'` (spec-kitty#4537): a
+    # diff-scoped PR selecting ZERO modules reconciles to `complete=true`
+    # with nothing written -- there is no coverage to download/score, so
+    # skip the job (the terminal `aggregate-gate` already treats a SKIPPED
+    # diff-cover as green). `mode == 'full'` stays UNCONDITIONED by
+    # has-coverage: full/manual mode must still fail closed when coverage
+    # evidence is unavailable, never silently skip.
     runs-on: ubuntu-latest
     # Budget re-checked against the BROADENED reconciled set (mission
     # sonar-per-pr-coverage-reuse WP05/T027): once coverage breadth is applied
@@ -406,7 +420,11 @@ jobs:
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
       needs.collect.result == 'success' &&
-      needs.collect.outputs.complete == 'true'
+      needs.collect.outputs.complete == 'true' &&
+      needs.collect.outputs.has-coverage == 'true'
+    # `has-coverage` (spec-kitty#4537): a zero-selection PR reconciles to
+    # `complete=true` with nothing written -- skip the informational report
+    # too rather than downloading an artefact that was never uploaded.
     # §C4, surface 1 of 3. Surface 2 is this job's absence from
     # `aggregate-gate.needs`; surface 3 (branch protection) is outside the
     # repository and is declared, never claimed.
@@ -444,6 +462,12 @@ jobs:
           # stable slug: no short-circuiting, so the log names every unmet
           # clause rather than the first, and a clause dropped in a later edit
           # reds exactly one named test instead of perturbing a shared string.
+          # NOTE (spec-kitty#4537): the empty-selection case is handled at the
+          # job-level `if:` (`needs.collect.outputs.has-coverage == 'true'`), so
+          # a zero-coverage run never reaches this evaluator. Do NOT add a
+          # has-coverage conjunct here to "restore parity" -- the job `if:`
+          # already skips before this runs, and has-coverage=='true' guarantees
+          # the reconciled-coverage download below succeeds.
           CONJUNCT_REASONS = {
               "pull-request-event": "the triggering run's event is not a pull request (FR-014/C-001)",
               "same-origin": "the triggering run's head repository is not this repository (FR-011/NFR-004)",

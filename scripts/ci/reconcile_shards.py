@@ -213,21 +213,31 @@ def find_collisions(index: dict[str, list[Path]]) -> dict[str, list[Path]]:
     return {name: paths for name, paths in index.items() if len(paths) > 1}
 
 
-def _write_github_output(complete: bool, missing_basenames: list[str]) -> None:
-    """Emit ``complete`` / ``missing`` via the delimiter (heredoc) form.
+def _write_github_output(complete: bool, missing_basenames: list[str], has_coverage: bool) -> None:
+    """Emit ``complete`` / ``missing`` / ``has-coverage`` via the delimiter
+    (heredoc) form.
 
     Never bare ``key=value``: the runner assigns outputs line-by-line, so a
     value containing a newline would inject additional step outputs. The
     registry validation keeps ``missing`` newline-free; the delimiter form
     also carries the ordinary embedded newlines this writes.
+
+    ``has-coverage`` (spec-kitty#4537) is ``true`` iff at least one coverage
+    file was actually written to the reconciled ``coverage/`` directory. A
+    diff-scoped PR that selects ZERO modules can reconcile to
+    ``complete=true`` (nothing SELECTED is missing) while writing NO coverage
+    file at all -- ``complete`` alone is not sufficient for a downstream job to
+    know there is anything to download and score.
     """
     summary_path = os.environ.get("GITHUB_OUTPUT")
     if not summary_path:
         return
     complete_value = "true" if complete else "false"
+    has_coverage_value = "true" if has_coverage else "false"
     with open(summary_path, "a", encoding="utf-8") as fh:
         fh.write(f"complete<<{_OUTPUT_DELIMITER}\n{complete_value}\n{_OUTPUT_DELIMITER}\n")
         fh.write(f"missing<<{_OUTPUT_DELIMITER}\n{','.join(missing_basenames)}\n{_OUTPUT_DELIMITER}\n")
+        fh.write(f"has-coverage<<{_OUTPUT_DELIMITER}\n{has_coverage_value}\n{_OUTPUT_DELIMITER}\n")
 
 
 def main(
@@ -280,16 +290,24 @@ def main(
     missing_basenames = sorted(shard.basename for shard in result.missing)
     stale_basenames = sorted(shard.basename for shard in result.stale)
     resolved_count = len(registry_shards) - len(result.missing)
+    # The number of coverage files actually WRITTEN to resolved_dir (fresh +
+    # stale) -- distinct from `resolved_count` above, which also counts a
+    # shard the completeness check treats as optional-and-ignored (an
+    # UNSELECTED shard absent from both current and previous, spec-kitty#4537:
+    # a diff-scoped PR selecting zero modules resolves 0 written files while
+    # `resolved_count`/`complete` both read as fully satisfied).
+    written_count = len(result.fresh) + len(result.stale)
+    has_coverage = written_count > 0
     selection_note = (
         "no selection info (every missing shard was fallback-eligible)" if selected is None else f"{len(selected)} module(s) selected as fresh-required"
     )
     print(
         f"ci-aggregate: resolved {resolved_count}/{len(registry_shards)} coverage file(s); "
         f"{len(result.stale)} served from the stale-artefact fallback: {stale_basenames} "
-        f"({selection_note})"
+        f"({selection_note}); {written_count} coverage file(s) written (has-coverage={str(has_coverage).lower()})"
     )
 
-    _write_github_output(result.complete, missing_basenames)
+    _write_github_output(result.complete, missing_basenames, has_coverage)
 
     if result.missing:
         # C-005: a shard absent from BOTH the current and fallback runs (or

@@ -210,6 +210,62 @@ def test_ci_aggregate_completeness_output_is_actually_consumed_downstream() -> N
     assert consumers, "needs.collect.outputs.complete must be read somewhere in the diff-cover job -- a computed-but-unconsumed signal is a dead output"
 
 
+def test_ci_aggregate_empty_selection_skips_coverage_consumers_but_gate_stays_green(tmp_path: Path) -> None:
+    """Regression for spec-kitty#4537.
+
+    Live repro: rebased #4493 (a diff-scoped PR selecting ZERO modules) --
+    `collect` succeeds with `complete=true` (nothing SELECTED is missing) but
+    `reconcile_shards.py` writes NO coverage file, so the "Upload reconciled
+    coverage set" step (`if-no-files-found: warn`) never creates the
+    `ci-aggregate-reconciled-coverage` artifact. `diff-cover` and `sonar-pr`
+    then unconditionally downloaded that absent artifact and FAILED,
+    reddening the terminal gate on a run where every product workflow was
+    green (run 35014561264).
+
+    Fix: a `has-coverage` signal from `collect`, consumed by both coverage
+    consumers' job-level `if:`, so an empty-selection run SKIPS them instead
+    of failing -- while `mode == 'full'` (manual/nightly replay) stays
+    UNCONDITIONED by `has-coverage`, preserving fail-closed behaviour when
+    coverage evidence is genuinely unavailable in a mode that must have it.
+    """
+    workflow = _aggregate_yaml()
+
+    collect_outputs = workflow["jobs"]["collect"].get("outputs", {})
+    assert collect_outputs.get("has-coverage") == "${{ steps.reconcile.outputs.has-coverage }}", (
+        f"collect job must expose outputs.has-coverage sourced from the reconcile step, got: {collect_outputs.get('has-coverage')!r}"
+    )
+
+    diff_cover_if = str(workflow["jobs"]["diff-cover"].get("if", ""))
+    assert "needs.collect.outputs.has-coverage == 'true'" in diff_cover_if, (
+        f"diff-cover job's if: must gate PR-mode on has-coverage=='true' (empty-selection skip), got: {diff_cover_if!r}"
+    )
+    # The `mode == 'full'` disjunct comes before the first top-level `||` --
+    # isolate it and assert has-coverage is absent there: full/manual mode
+    # must still run (and fail closed via its own always()-paired re-check)
+    # when coverage evidence is unavailable, never silently skip.
+    full_mode_disjunct = diff_cover_if.split("||", 1)[0]
+    assert "mode == 'full'" in full_mode_disjunct, f"could not isolate the full-mode disjunct in: {diff_cover_if!r}"
+    assert "has-coverage" not in full_mode_disjunct, (
+        f"full mode must remain UNCONDITIONED by has-coverage (fail-closed preserved), got disjunct: {full_mode_disjunct!r}"
+    )
+
+    sonar_pr_if = str(workflow["jobs"]["sonar-pr"].get("if", ""))
+    assert "needs.collect.outputs.has-coverage == 'true'" in sonar_pr_if, (
+        f"sonar-pr job's if: must also skip on empty selection (has-coverage=='true'), got: {sonar_pr_if!r}"
+    )
+
+    # The terminal gate's `needs:` set is unchanged (sonar-pr stays excluded;
+    # diff-cover stays included) -- and it must tolerate the SKIPPED diff-cover
+    # an empty-selection run now produces. The skipped-tolerance predicate
+    # itself is proven by executing the real extracted evaluator (imported,
+    # never re-derived) -- re-asserted here as the direct empty-selection
+    # regression rather than only the generic skipped-sibling case.
+    from tests.release.test_sonar_workflow import _run_verdict_script
+
+    tolerated = _run_verdict_script(tmp_path, {"collect": {"result": "success"}, "diff-cover": {"result": "skipped"}})
+    assert tolerated.returncode == 0, f"aggregate-gate must stay GREEN when an empty-selection run skips diff-cover; stderr: {tolerated.stderr}"
+
+
 def test_ci_aggregate_diffcover_gate_fails_under_90_excluding_census_dead() -> None:
     """T053: the real PR-blocking diff-cover gate, ``--fail-under=90`` on changed
     critical-path lines, excluding census-``dead`` surfaces from the denominator
@@ -684,10 +740,16 @@ def test_shipped_reconcile_script_rejects_untrusted_registry_row_values(tmp_path
 
 
 def test_shipped_reconcile_script_output_cannot_inject_step_outputs(tmp_path: Path) -> None:
-    """Validated missing names produce exactly the two intended outputs.
+    """Validated missing names produce exactly the intended outputs.
 
     The real script preserves its incomplete verdict and uses delimiter form;
     the separate refusal cases guard newline and delimiter-bearing row values.
+
+    2026-09-15 (spec-kitty#4537): `has-coverage` joined the output set --
+    not a loosening of this injection guard, `set(parsed)` is still an exact
+    equality against the full, named vocabulary; the new member is a
+    legitimate output (`has-coverage=false` here, since zero coverage files
+    were written), not a stray/injected one.
     """
     completed, github_output = _run_reconcile_script(
         tmp_path,
@@ -698,11 +760,12 @@ def test_shipped_reconcile_script_output_cannot_inject_step_outputs(tmp_path: Pa
     assert completed.returncode != 0, completed.stdout
     # No bare `key=value` write for either output: the delimiter form is
     # structural, not incidental.
-    assert not re.search(r"^(complete|missing)=", github_output, re.M), github_output
+    assert not re.search(r"^(complete|missing|has-coverage)=", github_output, re.M), github_output
     parsed = _parse_github_output(github_output)
-    assert set(parsed) == {"complete", "missing"}, f"injected or stray step outputs: {sorted(parsed)}"
+    assert set(parsed) == {"complete", "missing", "has-coverage"}, f"injected or stray step outputs: {sorted(parsed)}"
     assert parsed["complete"] == "false", github_output
     assert parsed["missing"] == _MERGE_BASENAME, github_output
+    assert parsed["has-coverage"] == "false", github_output
 
 
 def test_delimiter_output_form_neutralizes_newline_injection() -> None:
