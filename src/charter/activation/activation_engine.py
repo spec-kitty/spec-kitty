@@ -207,8 +207,12 @@ def plan_activation(
     returned**, so :func:`commit_plan` is never reached and nothing is written.
 
     FR-021: when the kind has no explicit activation set (``yaml_key`` absent in
-    ``config_data``), the supplied *default_ids* are materialized into the plan
-    first, mirroring the pre-PR-#1535 behavior, then *artifact_id* is appended.
+    ``config_data``), everything currently in force is materialized into the
+    plan first — *effective_ids* when the caller supplies them, else
+    *available_ids* — and then *artifact_id* is appended. Writing a bare
+    restrictive list into a previously-absent key would otherwise flip
+    "everything is available" to "only this one is", silently deactivating the
+    rest (#4253).
 
     Parameters
     ----------
