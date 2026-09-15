@@ -106,10 +106,7 @@ def test_mission_type_app_registers_list_exactly_once() -> None:
     which is the only signal a stale duplicate handler actually trips.
     """
     list_commands = [cmd for cmd in mission_type_app.registered_commands if cmd.name == "list"]
-    # golden-count: cardinality-is-contract -- already filtered to commands named
-    # "list"; the contract under test is "no duplicate registration", not the
-    # identity of a named member (that is asserted on the next line).
-    assert len(list_commands) == 1  # golden-count: cardinality-is-contract
+    assert len(list_commands) == 1
     assert list_commands[0].callback is not None
     assert list_commands[0].callback.__name__ == "list_mission_types"
 

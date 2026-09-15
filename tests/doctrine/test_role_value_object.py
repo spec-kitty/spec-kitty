@@ -120,7 +120,7 @@ class TestAgentProfileModel:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             p = AgentProfile(**_BASE, role="implementer")
-        assert len(w) == 1  # golden-count: cardinality-is-contract
+        assert len(w) == 1
         assert issubclass(w[0].category, DeprecationWarning)
         assert "test-p" in str(w[0].message)
         assert "roles: [implementer]" in str(w[0].message)

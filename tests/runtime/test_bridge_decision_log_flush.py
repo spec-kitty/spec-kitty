@@ -339,7 +339,7 @@ def test_gated_flush_does_not_duplicate(monkeypatch: pytest.MonkeyPatch, tmp_pat
     rb._dn_decision_materialize(h.ctx)
 
     assert h.request_count() == 1
-    assert len(buffers) == 1  # golden-count: cardinality-is-contract (exactly one buffer per gated advance)
+    assert len(buffers) == 1  # (exactly one buffer per gated advance)
     buffers[0].flush(h.log)
     assert h.request_count() == 1, "re-flushing the one-shot buffer must not duplicate the entry"
     assert buffers[0].call_count() == 0

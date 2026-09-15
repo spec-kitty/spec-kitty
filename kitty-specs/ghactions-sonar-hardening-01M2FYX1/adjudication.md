@@ -261,3 +261,67 @@ safe-as-written by this dossier**; they need their own review when that follow-u
       step by the `uv sync --frozen` line adjudicated in A1 (see the line tables above).
 - [ ] Confirm Section D makes no safety claim about `release.yml` / `release-readiness.yml:58-59`
       / `ci-nightly.yml` — those are flagged as open gaps for a follow-up, not adjudicated here.
+
+
+---
+
+## Section E — Deferred-surface resolution (follow-up mission, issue #4352)
+
+> Added by the follow-up mission that Section D deferred (issue #4352, milestone 4.0.0, epic
+> #1928). This section supersedes Section D's "honest gaps" for the three release-critical files:
+> the genuine findings are now **code-fixed**, and the residual first-party self-install /
+> frozen-lock findings are adjudicated won't-fix here, extending the A1/A2/A4 rationale. Source of
+> truth: a fresh live SonarCloud pull (`componentKeys=spec-kitty_spec-kitty&languages=githubactions&resolved=false`)
+> filtered to the three files — 5 findings on `release.yml`, 11 on `release-readiness.yml`, 6 on
+> `ci-nightly.yml`. **Validation constraint:** these workflows are not exercised by PR CI, so the
+> code fixes were validated by a manual dry-run (release-readiness `workflow_dispatch` in tag mode)
+> plus a local exercise of the changed install commands — see the PR's Tests-run section.
+
+### E1 — Code fixes landed (finding → fix)
+
+**`release.yml` (5 open findings, all fixed):**
+
+| Line | Rule | Fix |
+|---|---|---|
+| 15 | S8233 | Removed workflow-level `permissions: contents: write`; relocated to job scope — `build-release` and `verify-pypi-installability` get `contents: read`, `publish-pypi` keeps its own `contents: write` + `id-token: write`. |
+| 38 | S7637 | `astral-sh/setup-uv@v8.1.0` → `@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0`. |
+| 42 | S8544 | `uv sync ... --extra test --extra lint` gained `--frozen` (lock-verified self-install). |
+| 274 | S7637 | `softprops/action-gh-release@v3.0.0` → `@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0`. |
+| 287 | S7637 | `pypa/gh-action-pypi-publish@release/v1` → `@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2 (release/v1 tip)`. **OIDC preserved**: the SHA is simultaneously the `release/v1` branch tip and official tag `v1.14.2`; OIDC minting keys on the job's `id-token: write` + `environment: pypi`, never on the action ref form. |
+
+Also exact-pinned `twine==6.*`→`6.2.0` and `tomli==2.*`→`2.4.1` on release.yml:44 (issue-requested S8544 hardening; behavior-identical — those are the latest releases satisfying the prior `6.*`/`2.*` constraints today).
+
+**`release-readiness.yml` (11 open findings; 6 fixed, 5 adjudicated in E2):**
+
+| Line | Rule | Fix |
+|---|---|---|
+| 38 | S8233 | Removed workflow-level `pull-requests: write`; relocated to job scope — `check-readiness` keeps `contents: read` + `pull-requests: write` (retained for the PR-facing readiness-report surface), `cutover-guard` gets `contents: read`. |
+| 59 | S8544 + S8541 | `pip install pyyaml` → `pip install pyyaml==6.0.3 --only-binary=:all:`. |
+| 64 | S7637 | `dorny/paths-filter@v4` → `@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3`. |
+| 86, 87, 89 | S7630 | The three `${{ inputs.tag }}` interpolations in the Validate step's `run:` body were moved to a step-level `env: TAG: ${{ inputs.tag }}` binding; the script now reads `"$TAG"`. Removes the script-injection surface; behavior-identical. |
+| 198 | S7637 | `astral-sh/setup-uv@v8.1.0` → `@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0`. |
+
+**`ci-nightly.yml` (6 open findings; the frozen-lock half fixed, self-install half adjudicated in E2):**
+Actions were already SHA-pinned (no S7637) and the top-level `permissions: contents: read` needs no relocation (S8233 flags only write scopes). The real gap was the three `uv run pytest` calls omitting `--frozen`; lines 97, 105, 154 gained `--frozen`, closing the S8544 drift finding on each and bringing them in line with the adjudicated-safe A2 pattern (frozen no-op resync + test invocation, preceded in-step by `uv sync --frozen --all-extras`).
+
+### E2 — Residual won't-fix (extends A1/A2/A4)
+
+These remain open by design after E1 — the same first-party self-install / lock-export rationale as A1/A2/A4:
+
+- **`release-readiness.yml:58` S8544** — `python -m pip install --upgrade pip`. Runner's own `pip` upgrading itself before the pinned `pyyaml` install; no meaningful lock surface. Same rationale as **A4** (pinning the bootstrap `pip`/`pipx` buys no security benefit and risks drift from the runner image's bundled Python). **Won't Fix.**
+- **`release-readiness.yml:202` S8544** — `uv export --frozen --no-dev --no-hashes ... --output-file .cutover-requirements.lock.txt`. Versions are locked (`--frozen` against `uv.lock`), so the resolved set is deterministic. Honest caveat carried forward from Section D: `--no-hashes` drops the sha256 pins that A1 relies on for its integrity claim, so this is a **weaker** guarantee than A1, not equivalent. A candidate future hardening (out of this behavior-identical mission's scope) is to drop `--no-hashes` and install with `pip --require-hashes`; the structural test `test_release_readiness_cutover_guard_uses_public_lock_dependencies` pins the `uv export --frozen --no-dev` shape, so any such change must update that test. **Won't Fix (with noted caveat).**
+- **`release-readiness.yml:206` S8544** — `python -m pip install -r .cutover-requirements.lock.txt`. Installs the frozen-exported, version-pinned lock file produced on line 202; no unpinned resolution. **Won't Fix** (inherits the :202 caveat).
+- **`ci-nightly.yml:90` S8541** — `uv sync --frozen --all-extras` (self-install). Same as **A1**: `spec-kitty-cli` is a hatchling-built first-party package; `--no-build`/`--only-binary :all:` would refuse to build the very package under test and break the job. **Won't Fix.**
+- **`ci-nightly.yml:97,105,154` S8541** — after E1 these are `uv run --frozen pytest -m ...`. The `--no-build`/`--only-binary` half (S8541) remains and is the same **A2** no-op-frozen-resync-plus-invocation pattern: nothing new is built or resolved beyond the A1-covered self-install in the preceding `uv sync --frozen` step. **Won't Fix.**
+
+> Note: after E1 adds `--frozen` to `release.yml:42`, a subsequent SonarCloud re-scan may raise a
+> **new** S8541 (`--no-build`) on that now-frozen `uv sync` — the same A1 first-party hatchling
+> self-install pattern. If it appears, it is **Won't Fix** on the A1 rationale.
+
+### E3 — Follow-up noted (not ticketed; PR body)
+
+The five `# vX.Y.Z`-commented SHA pins are now immutable — a supply-chain win, but a future
+critical patch on any pinned action is frozen out until the SHA is bumped. Recommend a
+`github-actions` Dependabot/Renovate config so those pins receive automated bump PRs. Out of this
+mission's three-file scope; carried in the PR body rather than ticketed.
+

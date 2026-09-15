@@ -79,7 +79,8 @@ PROBED_VALUES: list[tuple[str, str, object, bool]] = [
 #: duplicating `true` keeps the count at 15 and reds nothing, silently dropping coverage of an
 #: unhashable value -- the exact hazard the `isinstance` guard exists for. Nothing else in this
 #: file pinned the labels. Set-equality satisfies "exactly 15" strictly more strongly, and is
-#: the `len(Lane) == 10` -> frozenset-of-members exemplar the golden-count ban is built around.
+#: the `len(Lane) == 10` -> frozenset-of-members exemplar the golden-count ban (retired by #4315)
+#: was built around.
 #: (An earlier pass annotated the three count sites as cardinality-is-contract; the WP07
 #: reviewer was right that these three are genuine `convert` sites, and this is the conversion.)
 PROBED_LABELS: Final[frozenset[str]] = frozenset(

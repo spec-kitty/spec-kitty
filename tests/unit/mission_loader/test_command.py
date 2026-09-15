@@ -726,7 +726,7 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
         warnings.simplefilter("always")
         ctx = command_mod._build_discovery_context(repo_root)
 
-    assert len(caught) == 1  # golden-count: cardinality-is-contract
+    assert len(caught) == 1
     assert "Invalid org-pack config; ignoring org layer:" in str(caught[0].message)
     # Fails soft to zero org roots -- resolution still proceeds, it just
     # can't trust the broken declaration.

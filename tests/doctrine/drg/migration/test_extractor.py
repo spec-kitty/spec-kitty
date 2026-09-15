@@ -1074,7 +1074,7 @@ class TestMissionTypeEdges:
             "action:plan/plan",
             "action:plan/review",
         }
-        assert len(plan_edges) == 4  # golden-count: cardinality-is-contract
+        assert len(plan_edges) == 4
 
     def test_documentation_emits_full_seven_edge_sequence(self) -> None:
         """A non-plan type emits its full 7-step sequence (FR-001 breadth)."""
@@ -1093,7 +1093,7 @@ class TestMissionTypeEdges:
             "action:documentation/publish",
             "action:documentation/accept",
         }
-        assert len(doc_edges) == 7  # golden-count: cardinality-is-contract
+        assert len(doc_edges) == 7
 
     def test_every_mission_type_edge_matches_its_action_sequence(self) -> None:
         """Each shipped type emits one requires edge per action_sequence step."""
@@ -1125,7 +1125,7 @@ class TestMissionTypeEdges:
             if e.source.startswith("mission_type:")
             and e.relation is Relation.REQUIRES
         ]
-        assert len(requires_edges) == 21  # golden-count: cardinality-is-contract
+        assert len(requires_edges) == 21
 
     def test_no_mission_type_or_sequence_action_node_is_orphan(
         self, tmp_path: Path
@@ -1415,11 +1415,7 @@ class TestAgentProfileImplementerIvanConstant:
             and target == _AGENT_PROFILE_IMPLEMENTER_IVAN
         ]
         # Behavior-preserving: still exactly 4 lineage edges into implementer-ivan.
-        # golden-count: cardinality-is-contract -- all 4 targets are the SAME
-        # constant, so a set/frozenset equality collapses to size 1 and would
-        # lose the "exactly 4 duplicated references" invariant this S1192 hoist
-        # is here to preserve.
-        assert len(lineage_targets) == 4  # golden-count: cardinality-is-contract
+        assert len(lineage_targets) == 4
         assert all(t is _AGENT_PROFILE_IMPLEMENTER_IVAN for t in lineage_targets)
 
 

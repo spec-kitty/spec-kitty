@@ -11,9 +11,6 @@ on:
         required: true
         type: string
 
-permissions:
-  contents: write
-
 env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
   RELEASE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
@@ -21,6 +18,8 @@ env:
 jobs:
   build-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -35,13 +34,13 @@ jobs:
           cache: 'pip'
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v8.1.0
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
 
       - name: Install tooling
         run: |
-          uv sync --python "$(which python)" --extra test --extra lint
+          uv sync --frozen --python "$(which python)" --extra test --extra lint
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
-          .venv/bin/pip install twine==6.* tomli==2.*
+          .venv/bin/pip install twine==6.2.0 tomli==2.4.1
 
       - name: Verify test isolation
         run: |
@@ -271,7 +270,7 @@ jobs:
         shell: bash
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3.0.0
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           body_path: release-notes.md
@@ -284,7 +283,7 @@ jobs:
           prerelease: ${{ steps.release_channel.outputs.is_prerelease }}
 
       - name: Publish distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2 (release/v1 branch tip; OIDC trusted publishing)
         with:
           packages-dir: dist/
 
@@ -293,6 +292,8 @@ jobs:
     needs: publish-pypi
     if: ${{ always() && needs.publish-pypi.result == 'success' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Check out repository
         uses: actions/checkout@v6

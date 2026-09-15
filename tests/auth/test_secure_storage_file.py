@@ -102,7 +102,7 @@ def test_write_creates_key_file_with_0600(storage: FastFileFallback, tmp_path: P
     if hasattr(os, "getuid"):
         mode = stat.S_IMODE(key_file.stat().st_mode)
         assert mode == 0o600
-    assert len(key_file.read_bytes()) == 32  # golden-count: cardinality-is-contract
+    assert len(key_file.read_bytes()) == 32
 
 
 def test_write_creates_credentials_file_with_0600(storage: FastFileFallback, tmp_path: Path):

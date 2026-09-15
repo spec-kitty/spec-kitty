@@ -333,7 +333,7 @@ def test_scan_204_missions(tmp_path: Path) -> None:
 
     report = run_audit(opts)
 
-    assert len(report.missions) == 204, (  # golden-count: cardinality-is-contract
+    assert len(report.missions) == 204, (
         f"Expected 204 missions, got {len(report.missions)}"
     )
 

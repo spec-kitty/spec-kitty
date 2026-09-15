@@ -64,7 +64,7 @@ finally:
 
 def _stable_fields(stdout: str) -> bytes:
     payloads = [json.loads(line) for line in stdout.splitlines() if line.strip()]
-    assert len(payloads) == 1  # golden-count: cardinality-is-contract
+    assert len(payloads) == 1
     payload = payloads[0]
     selected = {
         "error_code": payload["error_code"],

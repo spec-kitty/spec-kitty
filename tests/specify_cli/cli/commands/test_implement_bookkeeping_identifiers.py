@@ -237,7 +237,7 @@ def test_consumer_contract_five_tuple_positions_match_fixture(tmp_path: Path) ->
     result = consumer_resolve_ids(feature_dir, slug, tmp_path)
 
     assert isinstance(result, tuple)
-    assert len(result) == 5  # golden-count: cardinality-is-contract (C-006 5-tuple arity)
+    assert len(result) == 5  # (C-006 5-tuple arity)
     # tasks_move_task.py:1392 reads ONLY element [0] cross-lane.
     assert result[0] == coord_branch
     assert result[1] == mission_id

@@ -156,7 +156,7 @@ def test_dedup_retains_all_owners_surfaces_and_proofs_under_permutation() -> Non
     vibe = replace(codex, logical_owners=("vibe",), surface_ids=("vibe.a",), ownership=(OwnershipProof("manifest", "manifest:vibe:a"),))
     first = coalesce_effects((codex, vibe))
     assert first == coalesce_effects((vibe, codex))
-    assert len(first) == 1  # golden-count: cardinality-is-contract
+    assert len(first) == 1
     assert first[0].logical_owners == ("codex", "vibe")
     assert first[0].surface_ids == ("codex.a", "vibe.a")
     assert set(first[0].ownership) == set(codex.ownership + vibe.ownership)
@@ -175,10 +175,10 @@ def test_alias_dedup_uses_supplied_root_identity_without_following_links(tmp_pat
     (tmp_path / "hostile").symlink_to(sentinel, target_is_directory=True)
     left = replace(_effect(), root=OperationRoot("left", "project", tmp_path), path="hostile/a")
     right = replace(left, root=OperationRoot("right", "project", sentinel), path="a")
-    assert len(coalesce_effects((left, right))) == 2  # golden-count: cardinality-is-contract
+    assert len(coalesce_effects((left, right))) == 2
     alias = replace(left, root=OperationRoot("alias", "project", tmp_path))
     assert coalesce_effects((left, alias)) == coalesce_effects((alias, left))
-    assert len(coalesce_effects((left, alias))) == 1  # golden-count: cardinality-is-contract
+    assert len(coalesce_effects((left, alias))) == 1
 
 
 @pytest.mark.parametrize("after,owner", [(_file(b"contradictory"), "commands"), (_file(mode=0o755), "commands"), (_file(), "other")])

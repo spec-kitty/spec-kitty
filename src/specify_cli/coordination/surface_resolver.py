@@ -652,6 +652,8 @@ def resolve_status_surface(
     repo_root: Path,
     mission_slug: str,
     topology: MissionTopology | None = None,
+    *,
+    for_write: bool = False,
 ) -> Path:
     """Return the canonical status.events.jsonl path for the given mission.
 
@@ -670,13 +672,15 @@ def resolve_status_surface(
     Raises FileNotFoundError when meta.json is absent.
     Raises ValueError when meta.json is malformed.
     """
-    return resolve_status_surface_with_anchor(repo_root, mission_slug, topology).surface_path
+    return resolve_status_surface_with_anchor(repo_root, mission_slug, topology, for_write=for_write).surface_path
 
 
 def resolve_status_surface_with_anchor(
     repo_root: Path,
     mission_slug: str,
     topology: MissionTopology | None = None,
+    *,
+    for_write: bool = False,
 ) -> ResolvedStatusSurface:
     """Resolve the canonical status surface and primary anchor in one pass.
 
@@ -706,6 +710,10 @@ def resolve_status_surface_with_anchor(
        ``effective_topology`` already disposed above (no parallel derivation).
        The ``CoordState.DELETED`` case still hard-fails
        (:class:`CoordinationBranchDeleted`, #1848).
+
+    ``for_write`` preserves coordination validation for placement callers. A
+    completed mission's primary read authority does not grant write placement
+    for artifact kinds excluded from post-consolidation writes (#4358).
 
     Raises FileNotFoundError when meta.json is absent.
     Raises ValueError when meta.json is malformed.
@@ -742,7 +750,7 @@ def resolve_status_surface_with_anchor(
         repo_root,
         _canonicalize_primary_read_handle(repo_root, mission_slug),
     )
-    if _primary_mission_is_completed(primary_dir):
+    if not for_write and _primary_mission_is_completed(primary_dir):
         # Merge evidence makes primary authoritative — even when only the coord
         # husk carries a status.events.jsonl (pinned by
         # test_merged_primary_wins_even_when_only_coord_has_events): after a

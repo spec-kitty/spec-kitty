@@ -30,9 +30,7 @@ router transcription is pinned, matching the guarantee the mission's own contrac
 makes for the module registry.
 
 Added post-mission by the #3995 landing pass (squad folds paula-F1 /
-alphonso-M1 / alphonso-m2). New ``tests/architectural/*.py`` file: the ``arch``
-shard group auto-covers it via its hash-bucket fallback (see
-``tests/_arch_shard_map.py``), so no shard-map edit is required.
+alphonso-M1 / alphonso-m2).
 """
 
 from __future__ import annotations

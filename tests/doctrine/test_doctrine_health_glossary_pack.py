@@ -237,7 +237,7 @@ class TestCollectGlossaryPackHealth:
         assert health.healthy is False
         # The valid built-in pack still loads — only the broken one is skipped.
         assert health.pack_count == 1
-        assert len(health.invalid_packs) == 1  # golden-count: cardinality-is-contract
+        assert len(health.invalid_packs) == 1
         invalid = health.invalid_packs[0]
         assert invalid.layer == "project"
         assert "broken.glossary-pack.yaml" in invalid.path
