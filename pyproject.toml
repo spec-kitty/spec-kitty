@@ -693,7 +693,6 @@ exclude = [
     "src/specify_cli/doctrine/pack_validator.py",
     "src/specify_cli/doctrine/snapshot.py",
     "src/specify_cli/doctrine/sources/api_source.py",
-    "src/specify_cli/doctrine/sources/git_source.py",
     "src/specify_cli/doctrine/sources/https_source.py",
     "src/specify_cli/doctrine_synthesizer/apply.py",
     "src/specify_cli/doctrine_synthesizer/conflict.py",
