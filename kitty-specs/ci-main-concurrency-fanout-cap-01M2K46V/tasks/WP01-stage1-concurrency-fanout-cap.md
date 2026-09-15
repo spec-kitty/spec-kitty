@@ -12,6 +12,9 @@ requirement_refs:
 planning_base_branch: fix/ci-main-concurrency-fanout-cap
 merge_target_branch: fix/ci-main-concurrency-fanout-cap
 branch_strategy: Planning artifacts for this mission were generated on fix/ci-main-concurrency-fanout-cap. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/ci-main-concurrency-fanout-cap unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-ci-main-concurrency-fanout-cap-01M2K46V
+base_commit: 14b1e082752d04d80fdef43c9a77aa468187d38c
+created_at: '2026-09-15T19:37:15.660987+00:00'
 subtasks:
 - T001
 - T002

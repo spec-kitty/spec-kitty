@@ -13,5 +13,7 @@
   "purpose_tldr": "Stage 1 of the main-tip verdict-topology cluster (#4437): give each landed main tip its own terminal CI evaluation via per-SHA concurrency (#4347) and cap the fleet-verdict fan-out those extra runs would otherwise multiply (#4371).",
   "slug": "ci-main-concurrency-fanout-cap-01M2K46V",
   "target_branch": "fix/ci-main-concurrency-fanout-cap",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-15T19:37:02.697273+00:00"
 }
