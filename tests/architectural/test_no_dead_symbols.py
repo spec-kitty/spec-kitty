@@ -1145,6 +1145,12 @@ _CATEGORY_C_OPERATOR_CONFIG_PUBLIC_API: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_C_DOCTOR_AUTO_DISCOVERY_SEAM: frozenset[SymbolKey] = frozenset(
     {
+        # specify_cli.cli.commands._bytecode_doctor::register
+        SymbolKey("register", "0b36ce302a76619cd22bf8b785376bd02523b558285e18bfa70b5c63dde808ef", source_module="specify_cli.cli.commands._bytecode_doctor"),
+        # specify_cli.cli.commands._bytecode_doctor::run_bytecode_audit
+        SymbolKey(
+            "run_bytecode_audit", "1ba175bd1bbebfc569d06ec4975df6f6865bf175bf21dc0491e7f23308e46ad1", source_module="specify_cli.cli.commands._bytecode_doctor"
+        ),
         # specify_cli.cli.commands._channel_doctor::register
         SymbolKey("register", "3e40fc6641735900c4b86d367c7daf205425df768e6a63e9be1e789ee6fb3da7", source_module="specify_cli.cli.commands._channel_doctor"),
         # specify_cli.cli.commands._channel_doctor::run_channel_report

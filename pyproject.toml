@@ -2219,7 +2219,6 @@ exclude = [
     "tests/specify_cli/cli/commands/test_decision.py",
     "tests/specify_cli/cli/commands/test_decision_single_authority.py",
     "tests/specify_cli/cli/commands/test_decision_widen_subcommand.py",
-    "tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py",
     "tests/specify_cli/cli/commands/test_doctor_coordination.py",
     "tests/specify_cli/cli/commands/test_doctor_doctrine_integrity.py",
     "tests/specify_cli/cli/commands/test_doctor_doctrine_org_layer.py",

@@ -590,6 +590,7 @@ _CATEGORY_8_DISPATCHED_GOVERNED_OPS: frozenset[str] = frozenset(
 # enumerated here.
 _CATEGORY_9_AUTO_DISCOVERED_DOCTOR_SIBLINGS: frozenset[str] = frozenset(
     {
+        "specify_cli.cli.commands._bytecode_doctor",
         "specify_cli.cli.commands._channel_doctor",
         "specify_cli.cli.commands._env_file_doctor",
         "specify_cli.cli.commands._provenance_doctor",

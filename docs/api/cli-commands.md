@@ -1405,6 +1405,8 @@ _Project health diagnostics_
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ bytecode                Flag a corrupt installed-package .pyc before it      │
+│                         bites (#4124, #4130).                                │
 │ channel                 Report the active release channel (stable vs.        │
 │                         prerelease-opt-in).                                  │
 │ env-file                Report ``.kitty.env`` operator env-file health       │
@@ -1445,6 +1447,31 @@ _Project health diagnostics_
 │                         stranded under a retired                             │
 │                         resolver path, ahead of WP13's consumer-unification  │
 │                         (FR-008).                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor bytecode
+
+```
+ Usage: spec-kitty doctor bytecode [OPTIONS]
+
+ Flag a corrupt installed-package .pyc before it bites (#4124, #4130).
+
+ Reads each .pyc under the installed specify_cli package and flags one
+ whose header Python's import machinery would trust (so it would be
+ used as-is) but whose body fails to unmarshal into a code object --
+ the truncated-write shape that crashed a training machine in #4124.
+ A cache Python would already recompile from source (bad magic, stale
+ timestamp/size) is not flagged; it never bites. Read-only -- never
+ deletes anything.
+
+ Examples:
+     spec-kitty doctor bytecode
+     spec-kitty doctor bytecode --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Machine-readable JSON output                               │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
