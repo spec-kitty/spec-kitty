@@ -170,6 +170,32 @@ def test_manual_replay_uses_requested_attempt_after_a_newer_rerun(tmp_path: Path
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_empty_matrix_placeholder_job_contributes_no_execution() -> None:
+    """A diff-scoped PR selecting zero modules empties ci-modules.yml's matrix.
+
+    Its test job then skips cleanly (documented, intended), and GitHub Actions
+    emits one placeholder job for that skipped matrix job whose name is the
+    un-interpolated template, e.g. "module-tests (${{ matrix.module }} shard
+    ${{ matrix.shard }})", never an expanded shard name. select_artifacts must
+    treat that placeholder as "no shard ran" rather than raise.
+    """
+    from scripts.ci.select_source_artifacts import select_artifacts
+
+    source = {"run_id": 42, "run_attempt": 2, "head_sha": "a" * 40}
+    record = artifact("kernel", 1, 1)
+    record["workflow_run"]["head_sha"] = source["head_sha"]
+    execution = dict(job("kernel", 1), head_sha=source["head_sha"])
+    placeholder = {
+        "run_id": 42,
+        "run_attempt": 2,
+        "head_sha": source["head_sha"],
+        "name": "module-tests (${{ matrix.module }} shard ${{ matrix.shard }})",
+        "status": "completed",
+        "conclusion": "skipped",
+    }
+    assert select_artifacts(source, [execution, placeholder], [record]) == [record["name"]]
+
+
 def test_selection_binds_timestamps_inclusively_and_normalizes_offsets() -> None:
     from scripts.ci.select_source_artifacts import select_artifacts
 
