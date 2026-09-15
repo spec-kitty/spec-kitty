@@ -35,8 +35,15 @@ from pathlib import Path
 import pytest
 from rich.console import Console
 
-from specify_cli.cli.commands.review._dead_code import scan_dead_code
+from specify_cli.cli.commands.review._dead_code import (
+    _COMPLETE_ANCHOR_EVIDENCE,
+    scan_dead_code,
+)
 from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
+from specify_cli.merge.baseline import (
+    ANCHOR_EVIDENCE_CORPUS_PARENT_ATTESTED,
+    ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED,
+)
 from tests.specify_cli.cli.commands.review._dead_code_fixtures import scan
 
 pytestmark = pytest.mark.fast
@@ -299,8 +306,8 @@ def test_recognized_anchor_evidence_values_scan_normally(tmp_path: Path) -> None
     """
     console = Console(force_terminal=False, no_color=True, record=True)
     for evidence_value in (
-        "merge-commit-parent-attested",
-        "corpus-parent-attested",
+        ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED,
+        ANCHOR_EVIDENCE_CORPUS_PARENT_ATTESTED,
         None,
         "",
         "   ",
@@ -317,3 +324,19 @@ def test_recognized_anchor_evidence_values_scan_normally(tmp_path: Path) -> None
         )
         assert findings, f"expected the scan to run for {evidence_value!r}"
         assert all(f["type"] != "dead_code_evidence_incomplete" for f in findings), f"evidence branch fired for recognized value {evidence_value!r}: {findings!r}"
+
+
+def test_complete_anchor_evidence_is_bound_to_the_writer_constants() -> None:
+    """The reader's accepted-evidence set can never drift from the writer's own constants.
+
+    ``_COMPLETE_ANCHOR_EVIDENCE`` used to hardcode the two evidence-class
+    string literals independently of ``specify_cli.merge.baseline`` (the
+    module that actually writes ``pr_merge_evidence``). Pinning it against
+    the imported constants here means a future rename of either constant's
+    VALUE breaks this test immediately, instead of silently desynchronizing
+    the reader from the writer.
+    """
+    assert {
+        ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED,
+        ANCHOR_EVIDENCE_CORPUS_PARENT_ATTESTED,
+    } == _COMPLETE_ANCHOR_EVIDENCE

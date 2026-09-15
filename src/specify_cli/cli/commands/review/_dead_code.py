@@ -9,6 +9,11 @@ from pathlib import Path
 
 from rich.console import Console
 
+from specify_cli.merge.baseline import (
+    ANCHOR_EVIDENCE_CORPUS_PARENT_ATTESTED,
+    ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED,
+)
+
 from ._diagnostics import MissionReviewDiagnostic
 
 _IDENTIFIER_CHARCLASS = r"\w"
@@ -190,10 +195,14 @@ _REASON_NEVER_MERGED = "never_merged_via_spec_kitty_merge"
 #: scans normally; a PRESENT value outside this set means the anchor's
 #: completeness is not established, so the gate surfaces that state instead of
 #: reporting a green scan over a possibly truncated diff.
+#:
+#: Bound to the writer's own constants (``specify_cli.merge.baseline``) rather
+#: than duplicating the string literals here, so the reader and the writer can
+#: never drift out of sync.
 _COMPLETE_ANCHOR_EVIDENCE = frozenset(
     {
-        "merge-commit-parent-attested",
-        "corpus-parent-attested",
+        ANCHOR_EVIDENCE_MERGE_COMMIT_PARENT_ATTESTED,
+        ANCHOR_EVIDENCE_CORPUS_PARENT_ATTESTED,
     }
 )
 
