@@ -235,10 +235,41 @@ def _git_show_stage(worktree: Path, rel_path: str, stage: int) -> str | None:
     return result.stdout
 
 
+def _result_output(result: subprocess.CompletedProcess[str]) -> str:
+    return result.stderr.strip() or result.stdout.strip()
+
+
+def _rejected_sparse_flag(result: subprocess.CompletedProcess[str]) -> bool:
+    """True when git failed specifically because it does not know ``--sparse``.
+
+    Git older than 2.35 answers ``git add --sparse`` / ``git rm --sparse``
+    with ``error: unknown option 'sparse'``; any other failure is a real
+    staging/removal error the caller must surface.
+    """
+    combined = f"{result.stderr}\n{result.stdout}"
+    return "unknown option" in combined and "sparse" in combined
+
+
 def _stage_sparse(worktree: Path, rel_path: str) -> tuple[bool, str | None]:
-    result = _run(["git", "add", "--sparse", rel_path], worktree)
+    """Stage ``rel_path`` for the managed-artifact resolution arms.
+
+    ``--sparse`` exists so a sparse-checkout worktree can stage a path outside
+    its checkout patterns (Git >= 2.35 only). It was previously passed
+    unconditionally, which aborted every lane auto-rebase conflict resolution
+    on Git < 2.35 with ``error: unknown option 'sparse'`` even for plain,
+    non-sparse worktrees (#4202). It is now used only when the worktree
+    actually has ``core.sparseCheckout`` enabled, with a plain-``git``-command
+    fallback when the flag itself is what git rejected.
+    """
+    if _sparse_checkout_enabled(worktree):
+        result = _run(["git", "add", "--sparse", rel_path], worktree)
+        if result.returncode == 0:
+            return True, None
+        if not _rejected_sparse_flag(result):
+            return False, _result_output(result)
+    result = _run(["git", "add", rel_path], worktree)
     if result.returncode != 0:
-        return False, result.stderr.strip() or result.stdout.strip()
+        return False, _result_output(result)
     return True, None
 
 
@@ -257,15 +288,29 @@ def _reapply_sparse_checkout(worktree: Path) -> str | None:
 
 
 def _remove_sparse(worktree: Path, rel_path: str) -> tuple[bool, str | None]:
+    """Remove ``rel_path`` from the worktree and the index (take-theirs arm).
+
+    ``--sparse`` gating mirrors :func:`_stage_sparse`: only genuine
+    sparse-checkout worktrees get the flag, and a git that rejects the flag
+    outright (Git < 2.35) degrades to the plain ``git rm`` command (#4202).
+    """
     target = worktree / rel_path
     if target.exists():
         try:
             target.unlink()
         except OSError as exc:
             return False, f"could not remove {rel_path}: {exc!r}"
-    result = _run(["git", "rm", "-f", "--ignore-unmatch", "--sparse", rel_path], worktree)
+    if _sparse_checkout_enabled(worktree):
+        result = _run(
+            ["git", "rm", "-f", "--ignore-unmatch", "--sparse", rel_path], worktree
+        )
+        if result.returncode == 0:
+            return True, None
+        if not _rejected_sparse_flag(result):
+            return False, _result_output(result)
+    result = _run(["git", "rm", "-f", "--ignore-unmatch", rel_path], worktree)
     if result.returncode != 0:
-        return False, result.stderr.strip() or result.stdout.strip()
+        return False, _result_output(result)
     return True, None
 
 
@@ -310,7 +355,7 @@ def _resolve_status_events(
 
     ok, message = _stage_sparse(worktree, rel_path)
     if not ok:
-        return None, f"{RULE_ID_STATUS_EVENTS}: git add --sparse {rel_path} failed: {message}"
+        return None, f"{RULE_ID_STATUS_EVENTS}: git add {rel_path} failed: {message}"
     return _managed_classification(file_path, RULE_ID_STATUS_EVENTS), None
 
 
@@ -324,7 +369,7 @@ def _resolve_take_theirs(
         ok, message = _remove_sparse(worktree, rel_path)
         if not ok:
             return None, (
-                f"{RULE_ID_COORDINATION_ARTIFACT}: git rm --sparse {rel_path} "
+                f"{RULE_ID_COORDINATION_ARTIFACT}: git rm {rel_path} "
                 f"failed: {message}"
             )
         return _managed_classification(file_path, RULE_ID_COORDINATION_ARTIFACT), None
@@ -340,7 +385,7 @@ def _resolve_take_theirs(
     ok, message = _stage_sparse(worktree, rel_path)
     if not ok:
         return None, (
-            f"{RULE_ID_COORDINATION_ARTIFACT}: git add --sparse {rel_path} "
+            f"{RULE_ID_COORDINATION_ARTIFACT}: git add {rel_path} "
             f"failed: {message}"
         )
     return _managed_classification(file_path, RULE_ID_COORDINATION_ARTIFACT), None
@@ -362,7 +407,7 @@ def _resolve_status_json(
 
     ok, message = _stage_sparse(worktree, rel_path)
     if not ok:
-        return None, f"{RULE_ID_STATUS_JSON}: git add --sparse {rel_path} failed: {message}"
+        return None, f"{RULE_ID_STATUS_JSON}: git add {rel_path} failed: {message}"
     return _managed_classification(file_path, RULE_ID_STATUS_JSON), None
 
 
@@ -385,7 +430,7 @@ def _hydrate_status_events_from_index(feature_dir: Path, worktree: Path) -> str 
 
     ok, message = _stage_sparse(worktree, rel_path)
     if not ok:
-        return f"{RULE_ID_STATUS_JSON}: git add --sparse {rel_path} failed: {message}"
+        return f"{RULE_ID_STATUS_JSON}: git add {rel_path} failed: {message}"
     return None
 
 
