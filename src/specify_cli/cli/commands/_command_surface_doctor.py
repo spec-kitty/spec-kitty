@@ -37,6 +37,7 @@ from specify_cli.core.paths import locate_project_root
 
 from ._doctor_shared import (
     _NOT_IN_PROJECT_MESSAGE,
+    _emit_not_in_project,
     _json_error,
     _json_output_guard,
     console,
@@ -564,15 +565,15 @@ def _print_command_files_table(issues: list[dict[str, str]]) -> None:
     console.print()
 
 
-def _resolve_or_exit(exit_code: int) -> Path:
-    """Resolve the project root or exit with *exit_code* and the standard message."""
+def _resolve_or_exit(exit_code: int, json_output: bool) -> Path:
+    """Resolve the project root or exit with *exit_code*, honoring ``--json`` (#4242)."""
     try:
         project_path: Path | None = locate_project_root()
     except Exception as exc:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        _emit_not_in_project(json_output)
         raise typer.Exit(exit_code) from exc
     if project_path is None:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        _emit_not_in_project(json_output)
         raise typer.Exit(exit_code)
     return project_path
 
@@ -581,7 +582,7 @@ def run_command_files(json_output: bool) -> None:
     """Entry point for ``doctor command-files`` (0 healthy / 1 issues)."""
     from specify_cli.runtime.doctor import check_command_file_health
 
-    project_path = _resolve_or_exit(1)
+    project_path = _resolve_or_exit(1, json_output)
     issues = check_command_file_health(project_path)
 
     if json_output:

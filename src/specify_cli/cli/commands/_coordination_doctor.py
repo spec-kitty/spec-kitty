@@ -43,7 +43,7 @@ from specify_cli.core.paths import locate_project_root
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.mission_metadata import load_meta
 
-from ._doctor_shared import console
+from ._doctor_shared import _emit_not_in_project, console
 
 # ``__all__`` lists this sibling's cross-module contract: the entrypoint +
 # ``DoctorFinding`` + the health-check helpers ``doctor.py`` re-exports, plus
@@ -1444,10 +1444,10 @@ def run_coordination_health(
     try:
         repo_root = locate_project_root()
     except Exception as exc:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        _emit_not_in_project(json_output)
         raise typer.Exit(1) from exc
     if repo_root is None:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        _emit_not_in_project(json_output)
         raise typer.Exit(1)
 
     from specify_cli.context.mission_resolver import (

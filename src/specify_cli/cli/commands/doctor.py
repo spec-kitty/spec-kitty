@@ -38,6 +38,7 @@ from ._doctor_shared import (
     _CI_ENV_VARS as _CI_ENV_VARS,
     _NOT_IN_PROJECT_MESSAGE as _NOT_IN_PROJECT_MESSAGE,
     _STARTED_AT_COLUMN as _STARTED_AT_COLUMN,
+    _emit_not_in_project as _emit_not_in_project,
     _is_interactive_environment as _is_interactive_environment,
     _json_error as _json_error,
     _json_output_guard as _json_output_guard,
@@ -364,6 +365,32 @@ def _print_state_warnings(report: object) -> None:
     console.print()
 
 
+def _resolve_project_root_or_exit(json_output: bool, *, exit_code: int) -> Path:
+    """Resolve the project root, honoring the ``--json`` contract on the failure path.
+
+    Both failure modes of ``locate_project_root`` — raising, or returning
+    ``None`` — route through :func:`_emit_not_in_project`, so a ``--json`` caller
+    always receives machine-parseable stdout instead of human prose (#4242).
+    Returns the resolved root on success. ``exit_code`` is the command's own
+    documented not-in-project exit code (1 for most; 2 for the config-error
+    family — ``shim-registry`` / ``contracts``).
+    """
+    # Annotate the local explicitly: the ``specify_cli.*`` mypy override uses
+    # ``follow_imports = "skip"`` for narrow checks, which erases
+    # ``locate_project_root``'s ``Path | None`` return to ``Any``; the annotation
+    # recovers it so the None-narrowing below yields a real ``Path`` return.
+    repo_root: Path | None
+    try:
+        repo_root = locate_project_root()
+    except Exception as exc:
+        _emit_not_in_project(json_output)
+        raise typer.Exit(exit_code) from exc
+    if repo_root is None:
+        _emit_not_in_project(json_output)
+        raise typer.Exit(exit_code)
+    return repo_root
+
+
 @app.command(name="state-roots")
 def state_roots(
     json_output: Annotated[
@@ -383,15 +410,7 @@ def state_roots(
     """
     from specify_cli.state.doctor import check_state_roots
 
-    try:
-        repo_root = locate_project_root()
-    except Exception as exc:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1) from exc
-
-    if repo_root is None:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1)
+    repo_root = _resolve_project_root_or_exit(json_output, exit_code=1)
 
     report = check_state_roots(repo_root)
 
@@ -427,14 +446,7 @@ def workspaces(
         spec-kitty doctor workspaces --fix
         spec-kitty doctor workspaces --json
     """
-    try:
-        repo_root = locate_project_root()
-    except Exception as exc:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1) from exc
-    if repo_root is None:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1)
+    repo_root = _resolve_project_root_or_exit(json_output, exit_code=1)
 
     run_workspaces(repo_root, fix, json_output)
 
@@ -479,14 +491,7 @@ def identity(
         spec-kitty doctor identity --mission 083-foo
         spec-kitty doctor identity --fail-on legacy,orphan
     """
-    try:
-        repo_root = locate_project_root()
-    except Exception as exc:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1) from exc
-    if repo_root is None:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1)
+    repo_root = _resolve_project_root_or_exit(json_output, exit_code=1)
     run_identity_audit(repo_root, json_output, mission, fail_on)
 
 
@@ -513,14 +518,7 @@ def topology(
         spec-kitty doctor topology --json
         spec-kitty doctor topology --mission 083-foo
     """
-    try:
-        repo_root = locate_project_root()
-    except Exception as exc:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1) from exc
-    if repo_root is None:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1)
+    repo_root = _resolve_project_root_or_exit(json_output, exit_code=1)
     run_topology_audit(repo_root, json_output, mission)
 
 
@@ -564,14 +562,7 @@ def mission_type(
         spec-kitty doctor mission-type --mission 083-foo
         spec-kitty doctor mission-type --fail-on unknown,activated-unresolvable
     """
-    try:
-        repo_root = locate_project_root()
-    except Exception as exc:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1) from exc
-    if repo_root is None:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1)
+    repo_root = _resolve_project_root_or_exit(json_output, exit_code=1)
     run_mission_type_audit(repo_root, json_output, mission, fail_on)
 
 
@@ -659,10 +650,7 @@ def shim_registry(
         check_shim_registry,
     )
 
-    repo_root = locate_project_root()
-    if repo_root is None:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(2)
+    repo_root = _resolve_project_root_or_exit(json_output, exit_code=2)
 
     try:
         report = check_shim_registry(repo_root)
@@ -778,10 +766,7 @@ def contracts(
         check_contract_registry,
     )
 
-    repo_root = locate_project_root()
-    if repo_root is None:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(2)
+    repo_root = _resolve_project_root_or_exit(json_output, exit_code=2)
 
     try:
         report = check_contract_registry(repo_root)
@@ -868,10 +853,7 @@ def invocation_pairing(
     """
     from specify_cli.invocation.lifecycle import doctor_orphan_report
 
-    repo_root = locate_project_root()
-    if repo_root is None:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1)
+    repo_root = _resolve_project_root_or_exit(json_output, exit_code=1)
 
     report = doctor_orphan_report(repo_root)
     orphan_count_raw = report.get("orphan_count", 0)
@@ -1022,10 +1004,7 @@ def ops(
     if threshold is not None and not close_stale:
         raise typer.BadParameter("--threshold requires --close-stale")
 
-    repo_root = locate_project_root()
-    if repo_root is None:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1)
+    repo_root = _resolve_project_root_or_exit(json_output, exit_code=1)
 
     if close_stale:
         _run_ops_sweep(
@@ -1121,7 +1100,10 @@ def mission_state(
     try:
         resolved_root = locate_project_root()
     except Exception as exc:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        # A raised locate is a genuine not-in-project error (honor --json); a
+        # returned ``None`` is NOT — it is a valid fixtures-only state that is
+        # forwarded to the sibling for reconciliation against ``--fixture-dir``.
+        _emit_not_in_project(json_output)
         raise typer.Exit(1) from exc
     run_mission_state(
         audit=audit,
@@ -1175,14 +1157,7 @@ def doctrine_check(
     """
     from charter.drg import load_pack_registry
 
-    try:
-        repo_root = locate_project_root()
-    except Exception as exc:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1) from exc
-    if repo_root is None:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1)
+    repo_root = _resolve_project_root_or_exit(json_output, exit_code=1)
 
     registry = load_pack_registry(repo_root)
 
@@ -1420,14 +1395,7 @@ def cutover(
         spec-kitty doctor cutover
         spec-kitty doctor cutover --json
     """
-    try:
-        repo_root = locate_project_root()
-    except Exception as exc:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1) from exc
-    if repo_root is None:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1)
+    repo_root = _resolve_project_root_or_exit(json_output, exit_code=1)
     run_cutover_audit(repo_root, json_output=json_output)
 
 
@@ -1467,12 +1435,5 @@ def review_cycle_reconcile(
         spec-kitty doctor review-cycle-reconcile --mission my-mission-01ABCD
         spec-kitty doctor review-cycle-reconcile --json
     """
-    try:
-        repo_root = locate_project_root()
-    except Exception as exc:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1) from exc
-    if repo_root is None:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1)
+    repo_root = _resolve_project_root_or_exit(json_output, exit_code=1)
     run_review_cycle_reconciliation(repo_root, json_output=json_output, mission=mission)
