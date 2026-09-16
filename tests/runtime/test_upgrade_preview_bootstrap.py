@@ -491,6 +491,59 @@ def test_stale_marker_with_exact_canonical_body_is_repaired(owner_home: Path) ->
     _apply_exact(assessment)
 
 
+def test_cross_release_upgrade_migrates_changed_command_body(owner_home: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """#4609: a 3.2.7-era canonical file (old marker + old release's body, no inventory)
+    migrates in place to this release's changed canonical output instead of being
+    silently preserved as an "Unproven existing asset"."""
+    import logging
+
+    caplog.set_level(logging.WARNING, logger="specify_cli.runtime.agent_commands")
+    agent_commands.ensure_global_agent_commands(agent_keys=["claude"])
+    target = owner_home / ".claude/commands/spec-kitty.plan.md"
+    target.chmod(0o644)
+    stale = b"<!-- spec-kitty-command-version: 3.2.7 -->\n# old release canonical body\n"
+    target.write_bytes(stale)
+    # A pre-4.x install wrote no asset inventory to prove ownership with.
+    (owner_home / ".kittify/cache/slash_commands-assets.json").unlink()
+    assessment = agent_commands.assess_global_agent_commands(agent_keys=["claude"])
+    effect = next(e for e in assessment.effects if e.destination == target)
+    assert effect.action == "update"
+    assert any(proof.kind == "canonical_content" for proof in effect.ownership)
+    assert not [r for r in caplog.records if "could not migrate" in r.getMessage()], "A proven migration must not warn"
+    _apply_exact(assessment)
+    assert target.read_bytes() != stale, "The old-release file must be replaced by this release's output"
+    second = agent_commands.assess_global_agent_commands(agent_keys=["claude"])
+    assert second.complete and not second.effects, "The migrated file must land on the no-churn baseline"
+
+
+@pytest.mark.parametrize("drift", ["edited-current-marker", "no-marker"])
+def test_unmigratable_command_file_is_preserved_and_named(
+    owner_home: Path,
+    caplog: pytest.LogCaptureFixture,
+    drift: str,
+) -> None:
+    """#4609: a canonical-name file that cannot be proven unedited stays preserved
+    AND is named in one warning -- never silently left behind."""
+    import logging
+
+    caplog.set_level(logging.WARNING, logger="specify_cli.runtime.agent_commands")
+    agent_commands.ensure_global_agent_commands(agent_keys=["claude"])
+    target = owner_home / ".claude/commands/spec-kitty.plan.md"
+    target.chmod(0o644)
+    drifted = target.read_bytes() + b"\nuser edit below the current marker\n" if drift == "edited-current-marker" else b"user's own file with no managed marker\n"
+    target.write_bytes(drifted)
+    before = snapshot({"home": owner_home})
+    assessment = agent_commands.assess_global_agent_commands(agent_keys=["claude"])
+    assert not any(e.destination == target for e in assessment.effects), "Unproven drift must stay preserved"
+    disposition = next(d for d in assessment.dispositions if (d.path or "").endswith("spec-kitty.plan.md"))
+    # Inventory-known drift maps to ``consent_required``; unproven files to ``preserve``.
+    assert disposition.state in {"preserve", "consent_required"}
+    [record] = [r for r in caplog.records if "could not migrate" in r.getMessage()]
+    assert "spec-kitty.plan.md" in record.getMessage()
+    assert_unchanged(before, snapshot({"home": owner_home}))
+    assert target.read_bytes() == drifted
+
+
 def test_orphan_atomic_artifact_is_incomplete_and_never_changed(owner_home: Path, skill_source: Path) -> None:
     from specify_cli.runtime.generated_writer import generated_temporary_path
 

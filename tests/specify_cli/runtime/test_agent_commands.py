@@ -222,6 +222,115 @@ class TestRendererStaleRemoval:
 
 
 # ---------------------------------------------------------------------------
+# #4609: cross-release canonical-predecessor proof + unmigrated-file warning
+# ---------------------------------------------------------------------------
+
+
+class TestIsCanonicalPredecessor:
+    """FR (#4609): a managed marker naming another CLI release proves provenance."""
+
+    @staticmethod
+    def _existing(old_version: str, body: bytes) -> bytes:
+        return f"<!-- spec-kitty-command-version: {old_version} -->\n".encode() + body
+
+    def test_cross_release_marker_with_changed_body_is_predecessor(self) -> None:
+        """The #4609 scenario: 3.2.7 marker + 3.2.7 body upgrades to changed 4.x output."""
+        from specify_cli.runtime.agent_commands import _is_canonical_predecessor
+
+        existing = self._existing("3.2.7", b"# old release canonical body\n")
+        desired = self._existing("4.0.0rc2", b"# new release canonical body\n")
+        assert _is_canonical_predecessor(existing, desired, "4.0.0rc2") is True
+
+    def test_same_version_identical_body_is_predecessor(self) -> None:
+        """A marker-only refresh of this release's own output still qualifies."""
+        from specify_cli.runtime.agent_commands import _is_canonical_predecessor
+
+        body = b"# canonical body\n"
+        existing = self._existing("4.0.0rc2", body)
+        desired = self._existing("4.0.0rc2", body)
+        assert _is_canonical_predecessor(existing, desired, "4.0.0rc2") is True
+
+    def test_same_version_edited_body_is_not_predecessor(self) -> None:
+        """Current-version marker plus drifted content is a user edit: preserved."""
+        from specify_cli.runtime.agent_commands import _is_canonical_predecessor
+
+        existing = self._existing("4.0.0rc2", b"# canonical body with user edit\n")
+        desired = self._existing("4.0.0rc2", b"# canonical body\n")
+        assert _is_canonical_predecessor(existing, desired, "4.0.0rc2") is False
+
+    def test_unmarked_file_is_not_predecessor(self) -> None:
+        """No managed marker means no spec-kitty provenance: preserved."""
+        from specify_cli.runtime.agent_commands import _is_canonical_predecessor
+
+        desired = self._existing("4.0.0rc2", b"# canonical body\n")
+        assert _is_canonical_predecessor(b"# user's own file\n", desired, "4.0.0rc2") is False
+
+    def test_crlf_marker_line_is_recognized(self) -> None:
+        """The byte-level marker regex tolerates CRLF files (macOS/pipx-era output)."""
+        from specify_cli.runtime.agent_commands import _is_canonical_predecessor
+
+        existing = b"<!-- spec-kitty-command-version: 3.2.7 -->\r\n# old body\r\n"
+        desired = self._existing("4.0.0rc2", b"# new body\n")
+        assert _is_canonical_predecessor(existing, desired, "4.0.0rc2") is True
+
+    def test_marker_inside_toml_prompt_body_counts(self) -> None:
+        """TOML agents carry the marker inside the ``prompt = \"\"\"...\"\"\"`` body, not after frontmatter."""
+        from specify_cli.runtime.agent_commands import _is_canonical_predecessor
+
+        existing = b'prompt = """\n<!-- spec-kitty-command-version: 3.2.7 -->\n# old body\n"""\n'
+        desired = b'prompt = """\n<!-- spec-kitty-command-version: 4.0.0rc2 -->\n# new body\n"""\n'
+        assert _is_canonical_predecessor(existing, desired, "4.0.0rc2") is True
+
+
+class TestWarnUnmigratedCommands:
+    """FR (#4609): canonical command files that could not be migrated are never silent."""
+
+    @staticmethod
+    def _disposition(path: str, state: str):
+        from specify_cli.tool_surface.operations import Disposition
+
+        return Disposition("slash_commands", None, path, state, "Changed managed asset")
+
+    def test_preserved_canonical_name_is_named(self, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+
+        from specify_cli.runtime.agent_commands import _warn_unmigrated_commands
+
+        caplog.set_level(logging.WARNING, logger="specify_cli.runtime.agent_commands")
+        _warn_unmigrated_commands(
+            (self._disposition(".claude/commands/spec-kitty.plan.md", "preserve"),),
+            {"spec-kitty.plan.md"},
+        )
+        [record] = [r for r in caplog.records if "could not migrate" in r.getMessage()]
+        assert ".claude/commands/spec-kitty.plan.md" in record.getMessage()
+        assert "Changed managed asset" in record.getMessage()
+
+    def test_non_canonical_preserves_are_not_named(self, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+
+        from specify_cli.runtime.agent_commands import _warn_unmigrated_commands
+
+        caplog.set_level(logging.WARNING, logger="specify_cli.runtime.agent_commands")
+        _warn_unmigrated_commands(
+            (self._disposition(".claude/commands/spec-kitty.custom.md", "preserve"),),
+            {"spec-kitty.plan.md"},
+        )
+        assert not [r for r in caplog.records if "could not migrate" in r.getMessage()]
+
+    def test_no_warning_when_nothing_is_preserved(self, caplog: pytest.LogCaptureFixture) -> None:
+        import logging
+
+        from specify_cli.runtime.agent_commands import _warn_unmigrated_commands
+
+        caplog.set_level(logging.WARNING, logger="specify_cli.runtime.agent_commands")
+        _warn_unmigrated_commands(
+            (self._disposition(".claude/commands/spec-kitty.plan.md", "unchanged"),),
+            {"spec-kitty.plan.md"},
+        )
+        assert not [r for r in caplog.records if "could not migrate" in r.getMessage()]
+
+
+# ---------------------------------------------------------------------------
 # T024: Lock written only after successful full install
 # ---------------------------------------------------------------------------
 
