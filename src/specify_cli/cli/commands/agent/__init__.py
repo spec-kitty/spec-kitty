@@ -8,6 +8,7 @@ from specify_cli.cli.commands.agent_retrospect import app as retrospect_app
 from specify_cli.cli.commands.decision import decision_app
 
 from . import config, context, mission, release, status, tasks, tests, workflow
+from .acceptance_verdict import acceptance_verdict
 from .issue_verdict import issue_verdict_command
 from .tracer_append import tracer_append
 
@@ -37,6 +38,13 @@ app.add_typer(
     hidden=True,
 )
 app.command(name="issue-verdict")(issue_verdict_command)
+# #3951 (F-58): both verdict commands live at the ``agent`` level.  Before
+# this, ``issue-verdict`` was reachable at ``agent issue-verdict`` while
+# ``acceptance-verdict`` lived only under ``agent mission`` — an operator
+# following the one-level pattern hit "No such command".  The
+# ``agent mission acceptance-verdict`` registration stays: mission-step
+# prompts and the docs name it.
+app.command(name="acceptance-verdict")(acceptance_verdict)
 
 
 @app.command(name="check-prerequisites", hidden=True)

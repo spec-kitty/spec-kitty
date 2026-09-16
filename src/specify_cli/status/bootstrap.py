@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
@@ -22,6 +23,9 @@ from specify_cli.frontmatter import FrontmatterError
 from specify_cli.status.models import TransitionRequest
 from specify_cli.status.reducer import materialize
 from specify_cli.status.wp_metadata import read_wp_frontmatter
+
+if TYPE_CHECKING:
+    from specify_cli.core.owned_mission import OwnedMission
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +97,7 @@ def bootstrap_canonical_state(
     capability: GuardCapability = GuardCapability.STANDARD,
     repo_root: Path | None = None,
     effective_root: Path | None = None,
+    owned_mission: OwnedMission | None = None,
 ) -> BootstrapResult:
     """Ensure every WP in a feature has canonical status state.
 
@@ -173,6 +178,10 @@ def bootstrap_canonical_state(
                 reason="canonical bootstrap",
                 repo_root=repo_root,
                 effective_root=effective_root,
+                # #3866: thread the caller's validated value object so the
+                # per-WP identity derivation does not re-run
+                # ``resolve_owned_mission`` for every seeded WP.
+                owned_mission=owned_mission,
             ),
             capability=capability,
         )

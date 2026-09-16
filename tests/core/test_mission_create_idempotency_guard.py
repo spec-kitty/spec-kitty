@@ -30,6 +30,7 @@ import pytest
 
 from mission_runtime import MissionTopology
 from specify_cli.core.mission_creation import (
+    MissionAlreadyExistsError,
     MissionCreationError,
     MissionCreationResult,
     create_mission_core,
@@ -156,6 +157,12 @@ def test_second_live_duplicate_create_is_refused_4033(tmp_path: Path) -> None:
 
     with pytest.raises(MissionCreationError) as excinfo:
         _create(tmp_path, "dup-mission-guard")
+
+    # #3861: the refusal is the TYPED already-exists signal -- callers
+    # (orchestrator-api ``specify``) classify on ``error_code``, never on the
+    # message prose.
+    assert isinstance(excinfo.value, MissionAlreadyExistsError)
+    assert excinfo.value.error_code == "MISSION_ALREADY_EXISTS"
 
     error_message = str(excinfo.value)
     assert "dup-mission-guard" in error_message

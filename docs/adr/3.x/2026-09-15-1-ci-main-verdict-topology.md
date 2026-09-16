@@ -80,6 +80,38 @@ The four in-scope mechanisms, all confirmed against the tree at HEAD `e72e13ca01
    guard is right; the fallback source is unsatisfiable** — live-grounded by "CI
    Aggregate = 1 failure" in the recent-25 main window (LIVE_CI_GROUNDING.md).
 
+   > **Superseded post-Stage-1 — corrected mechanism (2026-09-16).** The mechanism
+   > narrated in this item is falsified by live verification (Mission
+   > `ci-aggregate-source-eligibility-01M2MFDD`, research D-01/D-02 —
+   > `kitty-specs/ci-aggregate-source-eligibility-01M2MFDD/research.md`). Two corrections,
+   > both verified against the live tree/API:
+   >
+   > 1. **Mechanism superseded.** There are **no `report-main` legs** in `ci-modules.yml`
+   >    (`grep report-main` → 0 hits), so the "on main the CI Modules `report-main` legs are
+   >    `skipped`, not `success`" narration above is factually wrong. Main CI Modules runs
+   >    conclude **`success`** (verified via `gh run list --workflow ci-modules.yml --branch
+   >    main`), and the `--branch main --status success` fallback query **succeeds** — it
+   >    does *not* return `[]`. The refusal is not an unsatisfiable fallback: it is
+   >    `reconcile` correctly refusing on **SELECTED-but-undelivered** shards of a
+   >    **red/partial PR-head** CI Modules run that triggered a `main`-labelled CI Aggregate.
+   > 2. **The failure is cosmetic — no main-verdict consumer reads the mislabelled run.**
+   >    `scripts/ci/fleet_main.py:50` derives the main verdict from an
+   >    `event=push&branch=main` query, to which a `workflow_run`-event aggregate is
+   >    invisible; `scripts/ci/fleet_verdict.py:395-405` resolves an aggregate trigger back
+   >    to its **source** CI Modules run and tests provenance on *that* run (:405), so a
+   >    PR-head aggregate routes to the PR path, never `main=true`; and branch protection
+   >    requires only `"Clean install verification"` (`strict:false`) — **CI Aggregate is
+   >    not a required check**. The red run is the PR's **own correct red** (its coverage was
+   >    incomplete), merely *displayed* under a `main` label GitHub assigns to `workflow_run`
+   >    handlers and that cannot be relabelled.
+   >
+   > **Consequence.** #4360-A is therefore a **doctrine-record error plus an untested,
+   > provenance-blind source-selection surface**, not a release-authority correctness bug.
+   > Axis-3a (below) is delivered as **tested provenance hardening + this doctrine
+   > correction** (defense-in-depth + honesty), not the removal of a consumed main verdict
+   > false-red. The ratified Decision Outcome and lever table are unchanged; only this
+   > mechanism narration is annotated.
+
 4. **#4430 — terminal-cancel posts no verdict.** `scripts/ci/fleet_verdict.py:86-95`:
    the red set at `:89` is `{"failure","timed_out","startup_failure","action_required"}`
    — **`cancelled` is absent** — and `:95` returns `green` only when all runs are
@@ -215,6 +247,32 @@ rationale, and the tradeoff of the alternatives.
   removes. Contingency: if Axis 2 (fan-out cap) is chosen such that main produces a
   first-class successful CI Modules run of its own, the fallback becomes satisfiable and
   3a's role shrinks to a safety net.
+
+  > **Superseded post-Stage-1 — corrected mechanism (2026-09-16).** The near-term premise
+  > for 3a is corrected by live verification (Mission
+  > `ci-aggregate-source-eligibility-01M2MFDD`, research D-01/D-02 —
+  > `kitty-specs/ci-aggregate-source-eligibility-01M2MFDD/research.md`), matching the
+  > annotation on #4360-A in *Context and Problem Statement* above. Two corrections:
+  >
+  > 1. **Mechanism superseded.** The fallback does **not** return `[]`: there are **no
+  >    `report-main` legs** in `ci-modules.yml` (0 grep hits), main CI Modules runs conclude
+  >    **`success`**, and the `--branch main --status success` query **succeeds**. The
+  >    refusal is `reconcile` on **SELECTED-but-undelivered** shards of a **red/partial
+  >    PR-head** run adjudicated under a `main` label — not an unsatisfiable source query.
+  > 2. **The failure is cosmetic.** No main-verdict consumer reads the mislabelled run
+  >    (`fleet_main.py:50` `event=push&branch=main`; `fleet_verdict.py:395-405` resolves the
+  >    aggregate back to its source run and tests provenance there, never `main=true`; branch
+  >    protection requires only `"Clean install verification"`, `strict:false` — CI Aggregate
+  >    is not a required check). It is the PR's own correct red under a `main` label.
+  >
+  > **Therefore Axis-3a is delivered as tested provenance hardening + this doctrine
+  > correction** — defense-in-depth + honesty: PR-head/failed evidence is provably never
+  > treated as an eligible *main* source, and the source decision always resolves either an
+  > eligible source or a **named** reason instead of a silent `[]` — **not** a
+  > release-authority correctness fix (no consumed main-verdict false-red exists to remove).
+  > The ratified lever selection (3a near-term behind the preserved guard; 3b as the durable
+  > target) is **unchanged**, and the fail-closed guard (`ci-aggregate.yml:375-382`) stays
+  > untouched.
 - **3b — Stand up a non-Actions main baseline (RECOMMENDED as the durable target).**
   An authoritative main-green proof that does not depend on the `workflow_run` ledger
   (**#4371(d)**) — this **obviates #4360-A entirely**. *Rationale:* removes the "PR-head

@@ -36,15 +36,17 @@ from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
-    resolve_config_id,
 )
 from charter.activation.pack_context import CharterPackConfigError
 from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
 from charter.activation.kind_vocabulary import ArtifactKind, MissionTypeNotAnArtifactKind
 
+from specify_cli.cli.commands.charter._cascade_shared import (
+    drg_urn_to_config_id,
+    render_kind_filtered_line,
+)
 from specify_cli.cli.commands.charter.activate import (
     RESYNTHESIZE_HELP,
-    _render_kind_filtered_line,
     render_pack_config_error,
     run_full_synthesize,
     validate_pack_config,
@@ -183,12 +185,7 @@ def _render_cascade_deactivation(
     for urn in plan.deactivate:
         kind_value, _, _ = urn.partition(":")
         kind_token = ArtifactKind(kind_value).operator_token
-        try:
-            config_id = resolve_config_id(
-                urn, doctrine_root=doctrine_root, org_roots=org_roots, layer_roots=layer_roots
-            )
-        except (UnknownArtifactIdError, ValueError):
-            config_id = urn.partition(":")[2]
+        config_id = drg_urn_to_config_id(urn, doctrine_root, layer_roots, org_roots)
         try:
             manager.deactivate(
                 ctx_project,
@@ -222,19 +219,20 @@ def _render_cascade_deactivation(
     # SAME shared helper `activate.py`'s cascade-activation and no-cascade
     # warning render paths already use (FR-009), so the wording is identical
     # and never re-coined here. Resolves each URN's bare id to its
-    # config-stem id FIRST, the SAME `resolve_config_id(...)` call (with the
+    # config-stem id FIRST, the SAME `drg_urn_to_config_id` call (with the
     # same fallback) the `plan.deactivate` loop above already makes -- never
-    # the raw bare id from `urn.partition(":")` alone.
-    for urn in sorted(plan.not_cascaded_kind_filtered):
-        kind_value, _, _ = urn.partition(":")
+    # the raw bare id from `urn.partition(":")` alone. The plan's
+    # kind-filtered field is kind-bucketed (issue #3772), same
+    # kind -> sorted-bare-IDs shape as the activate-side siblings, so the
+    # render order (kinds sorted, then ids sorted within each kind) is
+    # byte-identical to the previous flat sorted-URN iteration.
+    for kind_value in sorted(plan.not_cascaded_kind_filtered):
         kind_token = ArtifactKind(kind_value).operator_token
-        try:
-            config_id = resolve_config_id(
-                urn, doctrine_root=doctrine_root, org_roots=org_roots, layer_roots=layer_roots
+        for filtered_id in plan.not_cascaded_kind_filtered[kind_value]:
+            config_id = drg_urn_to_config_id(
+                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots
             )
-        except (UnknownArtifactIdError, ValueError):
-            config_id = urn.partition(":")[2]
-        _render_kind_filtered_line(kind_token, config_id)
+            render_kind_filtered_line(kind_token, config_id)
 
 
 def deactivate_cmd(

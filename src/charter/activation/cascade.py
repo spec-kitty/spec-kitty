@@ -139,6 +139,25 @@ def _bare_id(urn: str) -> str:
     return urn.split(":", 1)[1] if ":" in urn else urn
 
 
+def _bucket_by_kind(refs: list[ReferencedArtifact]) -> dict[str, list[str]]:
+    """Bucket *refs* by kind value into per-kind sorted lists of bare IDs.
+
+    Issue #3772: the single kind-bucketing seam for the cascade result/report
+    fields -- the ``setdefault(...).append(...)`` + per-list ``sort()`` block
+    ``cascade_activation_targets`` and ``referenced_but_not_cascaded`` each
+    duplicated (and ``deactivation_plan``'s kind-filtered field now shares
+    too). Every caller sorts each bucket's IDs so rendering is deterministic;
+    bucket insertion order follows *refs*, which callers already sort by
+    ``(kind, artifact_id)`` upstream.
+    """
+    buckets: dict[str, list[str]] = {}
+    for ref in refs:
+        buckets.setdefault(ref.kind.value, []).append(ref.artifact_id)
+    for ids in buckets.values():
+        ids.sort()
+    return buckets
+
+
 # ---------------------------------------------------------------------------
 # CascadeScope value object (T048; data model §6; Contract C3.3)
 # ---------------------------------------------------------------------------
@@ -380,20 +399,12 @@ def cascade_activation_targets(
         Per-kind activated IDs and per-kind skipped-by-scope IDs, each list
         sorted for deterministic rendering.
     """
-    activated: dict[str, list[str]] = {}
-    skipped: dict[str, list[str]] = {}
     activatable, kind_filtered = _referenced_artifacts(graph, source_urn)
-    for ref in activatable:
-        bucket = activated if scope.selects(ref.kind) else skipped
-        bucket.setdefault(ref.kind.value, []).append(ref.artifact_id)
-    for table in (activated, skipped):
-        for ids in table.values():
-            ids.sort()
-    not_cascaded_kind_filtered: dict[str, list[str]] = {}
-    for ref in kind_filtered:
-        not_cascaded_kind_filtered.setdefault(ref.kind.value, []).append(ref.artifact_id)
-    for ids in not_cascaded_kind_filtered.values():
-        ids.sort()
+    in_scope = [ref for ref in activatable if scope.selects(ref.kind)]
+    out_of_scope = [ref for ref in activatable if not scope.selects(ref.kind)]
+    activated = _bucket_by_kind(in_scope)
+    skipped = _bucket_by_kind(out_of_scope)
+    not_cascaded_kind_filtered = _bucket_by_kind(kind_filtered)
     return CascadeActivationResult(
         activated=activated,
         skipped_by_scope=skipped,
@@ -479,17 +490,9 @@ def referenced_but_not_cascaded(
         ``not_cascaded_kind_filtered`` are empty and ``has_skipped`` is
         ``False`` (the caller emits no warning).
     """
-    skipped: dict[str, list[str]] = {}
     activatable, kind_filtered = _referenced_artifacts(graph, source_urn)
-    for ref in activatable:
-        skipped.setdefault(ref.kind.value, []).append(ref.artifact_id)
-    for ids in skipped.values():
-        ids.sort()
-    not_cascaded_kind_filtered: dict[str, list[str]] = {}
-    for ref in kind_filtered:
-        not_cascaded_kind_filtered.setdefault(ref.kind.value, []).append(ref.artifact_id)
-    for ids in not_cascaded_kind_filtered.values():
-        ids.sort()
+    skipped = _bucket_by_kind(activatable)
+    not_cascaded_kind_filtered = _bucket_by_kind(kind_filtered)
     return NoCascadeReport(
         source_urn=source_urn,
         skipped=skipped,
@@ -534,23 +537,22 @@ class DeactivationPlan:
         another still-activated source — kept (never removed) with the
         referencing source named (Contract C3.4, no silent removal).
     not_cascaded_kind_filtered:
-        Sorted URNs of nodes reached by the candidate collection that are
-        structurally non-activatable (``template``/``asset``, C-001) —
-        collected by the shared :func:`_referenced_artifacts` seam instead of
-        being silently dropped (issue #3705, FR-007). Deliberately a flat
-        ``list[str]`` of URNs, NOT kind-bucketed like
-        ``CascadeActivationResult``'s/``NoCascadeReport``'s equivalent field
-        (plan.md §2) — ``deactivate.py``'s existing render loop already
-        partitions a URN into kind/config-id itself
-        (``urn.partition(":")``), so this is the shape that call site already
-        knows how to render, not an inconsistency with the other two. Never
-        overlaps ``deactivate`` or any ``SharedSkip`` in ``skipped_shared``
-        (C-006).
+        Kind → sorted bare IDs of nodes reached by the candidate collection
+        that are structurally non-activatable (``template``/``asset``, C-001)
+        — collected by the shared :func:`_referenced_artifacts` seam instead
+        of being silently dropped (issue #3705, FR-007). Unified to the same
+        kind → sorted-bare-IDs shape as ``CascadeActivationResult``'s and
+        ``NoCascadeReport``'s equivalent fields (issue #3772): the flat
+        ``list[str]`` of URNs this field previously carried rendered
+        identically only through a colon-boundary lexical-order coincidence,
+        and any non-render consumer would have seen two different payloads
+        under one field name. Never overlaps ``deactivate`` or any
+        ``SharedSkip`` in ``skipped_shared`` (C-006).
     """
 
     deactivate: list[str] = field(default_factory=list)
     skipped_shared: list[SharedSkip] = field(default_factory=list)
-    not_cascaded_kind_filtered: list[str] = field(default_factory=list)
+    not_cascaded_kind_filtered: dict[str, list[str]] = field(default_factory=dict)
 
 
 def deactivation_plan(
@@ -608,8 +610,10 @@ def deactivation_plan(
     # (ADR 2026-08-20-1). Populated from `kind_filtered` directly, never
     # through the `scope.selects()`-gated candidate loop above (C-006): a
     # kind-filtered node was never a deactivation candidate and this does
-    # not change that, it only reports what was reached.
-    not_cascaded_kind_filtered = sorted(ref.urn for ref in kind_filtered)
+    # not change that, it only reports what was reached. Kind-bucketed
+    # through the same `_bucket_by_kind` seam as the activate-side fields
+    # (issue #3772).
+    not_cascaded_kind_filtered = _bucket_by_kind(kind_filtered)
 
     # Remaining active sources (target excluded — its references must not keep a
     # candidate alive). For each remaining source, the set of artifacts it still

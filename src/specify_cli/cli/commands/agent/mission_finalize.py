@@ -196,6 +196,9 @@ def _bootstrap_canonical_state_via_mission(
             capability=capability or GuardCapability.STANDARD,
             repo_root=owned.primary,
             effective_root=owned.root,
+            # #3866: thread the validated value object so the per-WP seed
+            # loop does not re-run resolve_owned_mission for every WP.
+            owned_mission=owned,
         )
     if capability is None:
         return _mission.bootstrap_canonical_state(planning_dir, mission_slug, dry_run=dry_run)

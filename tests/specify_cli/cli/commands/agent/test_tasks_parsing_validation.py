@@ -255,6 +255,43 @@ def test_issue_matrix_missing_file_blocker_names_regenerate_command(tmp_path: Pa
     assert "src/specify_cli/cli/commands/review/ERROR_CODES.md" in blocker
 
 
+def test_issue_matrix_blocker_names_issue_verdict_remedy_command(tmp_path: Path) -> None:
+    """#3951 (F-36): the unresolved-entries blocker must name the command
+    that fills a verdict row.  "Fill in verdicts before approving" without
+    the command sent orchestrating agents guessing at
+    ``agent mission issue-verdict`` / ``agent tasks issue-verdict``, both
+    of which are "No such command"."""
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Fix Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8")
+
+    _write_issue_matrix_json(feature_dir, "unknown")
+    blocker = _issue_matrix_approval_blocker(feature_dir)
+
+    assert blocker is not None
+    assert "spec-kitty agent issue-verdict --mission" in blocker
+    assert "--issue" in blocker
+    assert "--verdict" in blocker
+    assert "--actor" in blocker
+
+
+def test_issue_matrix_missing_file_blocker_also_names_issue_verdict_remedy(
+    tmp_path: Path,
+) -> None:
+    """#3951 (F-36): the missing-artifact blocker names the regenerate
+    command, but a regenerated matrix still needs its verdicts filled — the
+    same remedy line rides along so the operator is not sent back to an
+    unfilled matrix with no next step."""
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Fix Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8")
+
+    blocker = _issue_matrix_approval_blocker(feature_dir)
+
+    assert blocker is not None
+    assert "spec-kitty agent issue-verdict --mission" in blocker
+
+
 def test_issue_matrix_in_mission_passes_approved_blocks_done(tmp_path: Path) -> None:
     feature_dir = tmp_path / "kitty-specs" / "demo"
     feature_dir.mkdir(parents=True)

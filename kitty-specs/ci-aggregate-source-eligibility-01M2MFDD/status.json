@@ -1,0 +1,51 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M2MK45P8Y5FYWZG9HX3BRZF0",
+  "materialized_at": "2026-09-16T07:50:27.272517+00:00",
+  "mission_number": "",
+  "mission_slug": "ci-aggregate-source-eligibility-01M2MFDD",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2MK44EPHTM4Q4HWGZ7YE6EW",
+      "last_transition_at": "2026-09-16T07:50:26.006456+00:00",
+      "review_result": {
+        "reference": "Review passed (Renata): green-path leak structurally impossible; INV-A/B in tested helper; execution-grounded wiring guard; frozen guard byte-identical; 293 tests/ci green, mypy/ruff/format/terminology clean",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2217947,
+      "shell_pid_created_at": "1789543112.63"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2MK45P8Y5FYWZG9HX3BRZF0",
+      "last_transition_at": "2026-09-16T07:50:27.272517+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): faithful additive ADR annotation, claims match verified research, ratified decision intact",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2221222,
+      "shell_pid_created_at": "1789543215.6"
+    }
+  }
+}

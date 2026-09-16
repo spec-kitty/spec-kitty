@@ -195,12 +195,46 @@ COMMANDS = ["check-prerequisites", "finalize-tasks", "spec-commit", "accept"]
 
 
 @pytest.mark.parametrize("command", COMMANDS)
-@pytest.mark.parametrize("topology", ["lanes", "coord", "lanes_with_coord"])
+@pytest.mark.parametrize(
+    "topology",
+    [
+        "lanes",
+        "coord",
+        "lanes_with_coord",
+        # #3862 item A: the owned preflight parses the stored value through the
+        # MissionTopology enum before the shared is_single_branch predicate —
+        # these pin that an unknown string and a non-string value degrade to
+        # the same refusal the old raw-string comparison produced.
+        "single_branch ",
+        "garbage",
+        42,
+    ],
+)
 def test_unsupported_topology_is_readonly(checkouts, command, topology):
     primary, owned, sibling = checkouts
     meta_path = owned / "kitty-specs" / SLUG / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     meta["topology"] = topology
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    before = snapshot(primary), snapshot(owned), snapshot(sibling)
+    result = invoke(command, owned)
+    assert result.exit_code == 1, result.output
+    assert json.loads(result.output)["error_code"] == "OWNED_TOPOLOGY_UNSUPPORTED"
+    assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
+
+
+@pytest.mark.parametrize("command", COMMANDS)
+def test_absent_topology_is_readonly(checkouts, command):
+    """#3862 item A: a mission with NO stored topology key is refused, not defaulted.
+
+    The enum-based parse degrades a missing ``topology`` to ``None``, which the
+    shared predicate refuses — the exact outcome of the old
+    ``meta.get("topology") != "single_branch"`` string comparison.
+    """
+    primary, owned, sibling = checkouts
+    meta_path = owned / "kitty-specs" / SLUG / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    del meta["topology"]
     meta_path.write_text(json.dumps(meta), encoding="utf-8")
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke(command, owned)
@@ -578,3 +612,30 @@ def test_accept_writing_modes_refuse_staged_changes(ready_accept_checkouts, extr
     assert result.exit_code == 1, result.output
     assert json.loads(result.output)["error_code"] == "OWNED_INDEX_REFUSED"
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
+
+
+def test_nested_symlink_escape_is_refused_at_write_time_not_resolve(checkouts):
+    """#3866: resolve no longer stats the whole mission tree per call.
+
+    The resolve-time validation is a top-level boundary tripwire only, so a
+    symlink nested deeper than the mission root no longer fails the resolve
+    (the old O(tree) scan's only unique catch) — it is refused by
+    ``OwnedMission.files`` at write time, which re-validates the actual
+    written paths.
+    """
+    from mission_runtime import ActionContextError
+    from specify_cli.core.owned_mission import resolve_owned_mission
+
+    primary, owned, _sibling = checkouts
+    link = owned / "kitty-specs" / SLUG / "tasks" / "escaped.txt"
+    try:
+        link.symlink_to(primary / "app.py")
+    except OSError as exc:
+        pytest.skip(f"File symlinks unavailable on this host: {exc}")
+
+    context = resolve_owned_mission(primary, owned, SLUG)
+    assert context.directory == owned / "kitty-specs" / SLUG
+
+    with pytest.raises(ActionContextError) as refused:
+        context.files([Path("tasks") / "escaped.txt"])
+    assert refused.value.code == "OWNED_MISSION_PATH_REFUSED"

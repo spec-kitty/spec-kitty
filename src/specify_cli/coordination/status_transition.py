@@ -81,6 +81,7 @@ from specify_cli.workspace import canonicalize_feature_dir, delete_context
 
 if TYPE_CHECKING:
     from specify_cli.core.dependency_graph import DependencyReadiness
+    from specify_cli.core.owned_mission import OwnedMission
 
 _logger = logging.getLogger(__name__)
 
@@ -895,10 +896,26 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
     # trusting the (CWD-dependent, existence-gated) canonicalize redirect alone.
     primary_root = None
     if request.effective_root is not None:
-        from specify_cli.core.owned_mission import resolve_owned_mission
+        from mission_runtime import ActionContextError  # noqa: PLC0415
+        from specify_cli.core.owned_mission import resolve_owned_mission  # noqa: PLC0415
 
-        primary_root = _repo_root_for_feature(raw_feature_dir, request.repo_root)
-        owned = resolve_owned_mission(primary_root, request.effective_root, mission_slug)
+        owned = request.owned_mission
+        if owned is not None:
+            # #3866: the caller threaded the validated value object — reuse it
+            # instead of re-deriving ownership (claim resolve + mission resolve
+            # + git branch probes) per event. A cheap identity guard fails
+            # closed on a threaded object that does not describe this request;
+            # it is never silently re-resolved, which would hide the caller bug
+            # and re-pay the derivation this field exists to skip.
+            if owned.root != request.effective_root or owned.slug != mission_slug:
+                raise ActionContextError(
+                    "OWNED_MISSION_PATH_REFUSED",
+                    "Threaded owned mission does not match the request's checkout or mission.",
+                )
+            primary_root = owned.primary
+        else:
+            primary_root = _repo_root_for_feature(raw_feature_dir, request.repo_root)
+            owned = resolve_owned_mission(primary_root, request.effective_root, mission_slug)
         feature_dir, repo_root = owned.directory, owned.root
     else:
         canonical_feature_dir = canonicalize_feature_dir(raw_feature_dir)
@@ -1570,6 +1587,7 @@ def emit_inner_state_changed_transactional(
     operation: str | None = None,
     capability: GuardCapability = GuardCapability.STANDARD,
     effective_root: Path | None = None,
+    owned_mission: OwnedMission | None = None,
 ) -> InnerStateChanged:
     """Persist AND commit one off-axis ``InnerStateChanged`` annotation (FR-007).
 
@@ -1620,6 +1638,9 @@ def emit_inner_state_changed_transactional(
         actor=actor,
         repo_root=repo_root,
         effective_root=effective_root,
+        # #3866: thread the caller's validated value object so the identity
+        # derivation below does not re-run ``resolve_owned_mission``.
+        owned_mission=owned_mission,
     )
     identity = _identity_for_request(request)
 

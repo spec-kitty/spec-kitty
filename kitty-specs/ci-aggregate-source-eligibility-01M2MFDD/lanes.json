@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "mission_slug": "ci-aggregate-source-eligibility-01M2MFDD",
+  "mission_id": "01M2MFDDY0D3GH4E2VERHEBK1Z",
+  "mission_branch": "kitty/mission-ci-aggregate-source-eligibility-01M2MFDD",
+  "target_branch": "fix/ci-aggregate-source-eligibility",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-aggregate.yml",
+        "scripts/ci/source_eligibility.py",
+        "tests/ci/test_source_eligibility.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-09-15-1-ci-main-verdict-topology.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-16T07:15:01.332385+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9308cd88556b7872083dec6bf683775997cbed0b"
+}

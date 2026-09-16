@@ -263,7 +263,13 @@ def _spec_artifact_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
     return dirty
 
 
-def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str, *, effective_root: Path | None = None) -> None:
+def _stamp_birth_cutover_for_accept(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    effective_root: Path | None = None,
+    owned: OwnedMission | None = None,
+) -> None:
     """Auto-stamp the birth-cutover into the mission branch at the terminal
     ``accept`` seam (WP02 / FR-001 / FR-004 / FR-005 / FR-006 / NFR-003).
 
@@ -326,8 +332,11 @@ def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str, *, effec
     # function exists to preserve, while a raw mission-spec-dir join re-derives
     # placement the seam already owns.
     status_feature_dir = _coord_status_feature_dir(repo_root, mission_slug, **scope)
-    owned = None
-    if effective_root is not None:
+    # #3866: the accept flow already validated ownership (``_validate_owned_
+    # mode``); thread that value object instead of re-running the full
+    # ``resolve_owned_mission`` here. The resolve stays as the fallback for
+    # any caller that only holds an ``effective_root``.
+    if owned is None and effective_root is not None:
         from specify_cli.core.paths import resolve_canonical_root
 
         owned = resolve_owned_mission(resolve_canonical_root(effective_root), effective_root, mission_slug)
@@ -1044,7 +1053,9 @@ def accept(
             # into that SAME partition-aware commit rather than needing a
             # second committer.
             try:
-                _stamp_birth_cutover_for_accept(repo_root, mission_slug, **scope)
+                # #3866: pass the already-validated ``owned`` value object so
+                # the stamp does not re-run ``resolve_owned_mission``.
+                _stamp_birth_cutover_for_accept(repo_root, mission_slug, **scope, owned=owned)
             except (MissingMissionIdError, AcceptanceError, ActionContextError) as stamp_exc:
                 _stamp_exc = stamp_exc
         if commit_required and _accept_exc is None and pr_merge_evidence is not None:

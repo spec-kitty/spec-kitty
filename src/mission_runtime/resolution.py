@@ -44,6 +44,7 @@ from mission_runtime.context import (
     MissionTopology,
     StatusSurfaceFragment,
     WorkspaceFragment,
+    is_single_branch,
     routes_through_coordination,
 )
 from mission_runtime.identity import mid8_from_slug, resolve_mid8
@@ -1045,6 +1046,11 @@ def mission_context_for(
     :class:`MissionResolver` threaded to every downstream canonicalizer call in
     this function's body so no read path bypasses the injected walk. ``None``
     preserves historical behaviour.
+
+    ``effective_root`` (owned mode): the already-validated owned checkout
+    root. When set, ``repo_root`` is vestigial — it does not participate in
+    the derivation (#3862 item B; see the pinned invariance note at the
+    ``primary_root`` fold below).
     """
     from specify_cli.core.paths import get_feature_target_branch
     from specify_cli.core.paths import get_main_repo_root
@@ -1065,6 +1071,15 @@ def mission_context_for(
     # An owned-checkout caller instead threads the root already validated by
     # ``resolve_ownership_claim``. Folding it through ``get_main_repo_root``
     # would silently cross-read a sibling checkout (#3328 / C-002).
+    #
+    # #3862 item B: on the owned arm (``effective_root is not None``) the
+    # ``repo_root`` parameter is VESTIGIAL — it does not participate in this
+    # derivation at all, which is why callers may legitimately pass either
+    # ``owned.primary`` or ``owned.root`` (or a CWD-derived root) without the
+    # answer changing. That invariance is a pinned contract, not an accident:
+    # ``tests/mission_runtime/test_owned_single_branch_ssot.py`` fails if a
+    # future edit makes ``repo_root`` load-bearing here, forcing the
+    # inconsistent caller pairings to be reconciled first.
     primary_root = get_main_repo_root(repo_root) if effective_root is None else effective_root.resolve()
     try:
         candidate_dir = candidate_feature_dir_for_mission(primary_root, mission_handle, resolver=resolver)
@@ -1476,6 +1491,23 @@ def _assemble_artifact_placement_fragment(
     return ArtifactPlacementFragment(placement_ref=branch_ref.destination_ref)
 
 
+def _require_owned_single_branch(context: MissionContext) -> None:
+    """The ONE owned-placement topology refusal (#3862 item A).
+
+    Both owned arms (``resolve_placement_only`` / ``resolve_artifact_surface``)
+    refused a non-``single_branch`` stored topology with a byte-identical
+    duplicated ``ActionContextError`` tuple; this guard is the single hoisted
+    refusal, disposing against the ONE enum-based
+    :func:`~mission_runtime.context.is_single_branch` predicate — the same
+    predicate the owned checkout preflight
+    (:func:`specify_cli.core.owned_mission.resolve_owned_mission`) applies to
+    the raw meta read — so the invariant is expressed once, enum-based, and
+    the historical string/enum representations cannot drift apart.
+    """
+    if not is_single_branch(context.topology):
+        raise ActionContextError("OWNED_TOPOLOGY_UNSUPPORTED", "Explicit placement requires single_branch.")
+
+
 def resolve_placement_only(
     repo_root: Path,
     mission_slug: str,
@@ -1550,8 +1582,7 @@ def resolve_placement_only(
     """
     if effective_root is not None:
         context = mission_context_for(repo_root, mission_slug, resolver=resolver, effective_root=effective_root)
-        if context.topology is not MissionTopology.SINGLE_BRANCH:
-            raise ActionContextError("OWNED_TOPOLOGY_UNSUPPORTED", "Explicit placement requires single_branch.")
+        _require_owned_single_branch(context)
         target = context.artifact(kind).commit_target
         if target is None:
             raise ActionContextError("OWNED_ARTIFACT_UNSUPPORTED", f"Artifact {kind.value} has no commit target.")
@@ -2037,8 +2068,7 @@ def resolve_artifact_surface(
     """
     if effective_root is not None:
         context = mission_context_for(repo_root, mission_slug, resolver=resolver, effective_root=effective_root)
-        if context.topology is not MissionTopology.SINGLE_BRANCH:
-            raise ActionContextError("OWNED_TOPOLOGY_UNSUPPORTED", "Explicit placement requires single_branch.")
+        _require_owned_single_branch(context)
         return ResolvedSurface(path=context.artifact(kind).read_dir, surface_kind=TopologySurface.PRIMARY)
 
     from specify_cli.core.paths import get_main_repo_root

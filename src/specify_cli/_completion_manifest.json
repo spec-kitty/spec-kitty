@@ -28,6 +28,11 @@
      "hidden": false,
      "deprecated": false
     },
+    "acceptance-verdict": {
+     "help": "Record an acceptance-criterion verdict, or register/execute a negative\ninvariant (FR-007/FR-008) — exactly one of ``--criterion``/\n``--negative-invariant``, both routed through the WP03 write seam.",
+     "hidden": false,
+     "deprecated": false
+    },
     "check-prerequisites": {
      "help": "Deprecated compatibility alias forwarding to agent mission check-prerequisites.",
      "hidden": true,
@@ -306,6 +311,11 @@
       },
       "verify": {
        "help": "Cross-check deferred decisions against inline sentinel markers.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "list": {
+       "help": "List the mission's recorded decision moments (read-only).",
        "hidden": false,
        "deprecated": false
       },
@@ -630,6 +640,11 @@
    "hidden": false,
    "deprecated": false,
    "commands": {
+    "bytecode": {
+     "help": "Flag a corrupt installed-package .pyc before it bites (#4124, #4130).\n\nReads each .pyc under the installed specify_cli package and flags one\nwhose header Python's import machinery would trust (so it would be\nused as-is) but whose body fails to unmarshal into a code object --\nthe truncated-write shape that crashed a training machine in #4124.\nA cache Python would already recompile from source (bad magic, stale\ntimestamp/size) is not flagged; it never bites. Read-only -- never\ndeletes anything.\n\nExamples:\n    spec-kitty doctor bytecode\n    spec-kitty doctor bytecode --json",
+     "hidden": false,
+     "deprecated": false
+    },
     "channel": {
      "help": "Report the active release channel (stable vs. prerelease-opt-in).\n\nReads SPEC_KITTY_PRERELEASE (default OFF — stable channel). Never\nmutates state.\n\nExamples:\n    spec-kitty doctor channel\n    spec-kitty doctor channel --json",
      "hidden": false,

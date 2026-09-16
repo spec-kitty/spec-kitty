@@ -2518,6 +2518,9 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
                 implementation_evidence_present=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
                 repo_root=st.main_repo_root,
                 effective_root=st.owned.root if st.owned else None,
+                # #3866: thread the validated value object so the per-hop
+                # identity derivation does not re-run resolve_owned_mission.
+                owned_mission=st.owned,
                 review_result=hop_review_result,
                 annotation_delta=annotation_delta,
             ),
@@ -2784,6 +2787,11 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
             mission_slug=st.mission_slug,
             repo_root=st.main_repo_root,
             effective_root=owned.root,
+            # #3866: thread the validated value object so the annotation's
+            # identity derivation does not re-run resolve_owned_mission. Only
+            # the transactional sibling consumes it (the flat emitter shares
+            # this call shape but not the field).
+            **({"owned_mission": owned} if emitter is emit_inner_state_changed_transactional else {}),
         )
     else:
         emitter(

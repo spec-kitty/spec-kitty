@@ -11,6 +11,8 @@ Also covers the ``--server`` flag (WP04 / T019):
 - _check_server_session() async function (200, 401, network error)
 - doctor_impl server=False makes no outbound calls
 - doctor_impl server=True renders active/re-authenticate output
+- a failed server check is an F-008 critical finding and exits 1 even when
+  the local session is healthy (#4607)
 
 And the issuer/server mismatch guard (issue #253): ``--server`` must never
 attempt a refresh — and thereby clear the session — when the stored
@@ -1113,7 +1115,12 @@ def test_doctor_impl_server_true_renders_unknown_session_id(
 def test_doctor_impl_server_true_renders_reauthenticate(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """server=True + 401 → output contains 're-authenticate' guidance."""
+    """server=True + 401 → re-authenticate guidance, an F-008 finding, exit 1.
+
+    A failed server check is a critical finding even when the local access
+    token is still valid (#4607) — the exit code must agree with the detail
+    line rendered directly beneath the Findings section.
+    """
     session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
     _patch_state(monkeypatch, session=session)
 
@@ -1143,7 +1150,106 @@ def test_doctor_impl_server_true_renders_reauthenticate(
 
     output = buf.getvalue()
     assert "re-authenticate" in output or "login" in output.lower()
-    assert exit_code == 0
+    assert "F-008" in output
+    assert "No problems detected" not in output
+    assert exit_code == 1
+
+
+def test_doctor_impl_server_http_500_is_finding_and_exit_1(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#4607: HTTP 500 on the server check → F-008 finding and exit 1.
+
+    The observed bug: a healthy local session plus a failing server check
+    printed ``No problems detected.`` and exited 0, so a CI health gate
+    passed cleanly through a total backend outage.
+    """
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    _patch_state(monkeypatch, session=session)
+
+    fake_status = ServerSessionStatus(active=False, error="Server returned HTTP 500")
+
+    import asyncio
+
+    def _fake_run(coro):  # type: ignore[no-untyped-def]
+        coro.close()  # Prevent "coroutine never awaited" warning.
+        return fake_status
+
+    monkeypatch.setattr(asyncio, "run", _fake_run)
+
+    buf = io.StringIO()
+    monkeypatch.setattr(
+        _auth_doctor,
+        "console",
+        Console(file=buf, width=120, record=False, force_terminal=False),
+    )
+
+    exit_code = doctor_impl(
+        json_output=False,
+        unstick_lock=False,
+        stuck_threshold=60.0,
+        server=True,
+    )
+
+    output = buf.getvalue()
+    assert "F-008" in output
+    assert "Server returned HTTP 500" in output
+    assert "No problems detected" not in output
+    assert exit_code == 1
+
+
+def test_doctor_impl_server_http_500_json_finding_and_exit_1(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """#4607 in --json mode: the F-008 finding lands in ``findings`` and exit is 1."""
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    _patch_state(monkeypatch, session=session)
+
+    fake_status = ServerSessionStatus(active=False, error="Server returned HTTP 500")
+
+    import asyncio
+
+    def _fake_run(coro):  # type: ignore[no-untyped-def]
+        coro.close()  # Prevent "coroutine never awaited" warning.
+        return fake_status
+
+    monkeypatch.setattr(asyncio, "run", _fake_run)
+
+    exit_code = doctor_impl(
+        json_output=True,
+        unstick_lock=False,
+        stuck_threshold=60.0,
+        server=True,
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert payload["server_session"]["active"] is False
+    assert payload["server_session"]["error"] == "Server returned HTTP 500"
+    f008 = [f for f in payload["findings"] if f["id"] == "F-008"]
+    assert len(f008) == 1
+    assert f008[0]["severity"] == "critical"
+    assert "Server returned HTTP 500" in f008[0]["summary"]
+    assert exit_code == 1
+
+
+def test_assemble_report_failed_server_probe_is_critical_finding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#4607 at the assembly seam: an inactive probe flips the verdict off ``ok``."""
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    _patch_state(monkeypatch, session=session)
+
+    report = assemble_report(
+        server_probe=ServerSessionStatus(active=False, error="Server returned HTTP 500"),
+    )
+
+    assert report.auth_verdict.state == "fail"
+    f008 = next(f for f in report.findings if f.id == "F-008")
+    assert f008.severity == "critical"
+    assert "Server returned HTTP 500" in f008.summary
+    assert compute_exit_code(report.findings) == 1
 
 
 def test_doctor_impl_server_true_json_includes_server_session(

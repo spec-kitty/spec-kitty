@@ -12,13 +12,18 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, ClassVar, Literal, Optional, TypeAlias
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Optional, TypeAlias
 
 from pydantic import BaseModel
 
 from specify_cli.identity.aliases import with_tracked_mission_slug_aliases
 from specify_cli.mission_metadata import mission_identity_fields
 from specify_cli.retrospective.schema import Mode
+
+if TYPE_CHECKING:
+    # Runtime import would pull ``core.owned_mission`` into every status
+    # consumer at load time; the field is only ever annotated here (#3866).
+    from specify_cli.core.owned_mission import OwnedMission
 
 
 class Lane(StrEnum):
@@ -879,6 +884,15 @@ class TransitionRequest:
     # unit as the lane event, so a resolved binding can never lag its claim.
     annotation_delta: WPInnerStateDelta | None = None
     effective_root: Path | None = None
+    # #3866: the validated owned-mission value object, threaded by callers
+    # that already resolved one so the transactional identity derivation
+    # reuses it instead of re-running ``resolve_owned_mission`` (ownership
+    # claim + mission resolve + git branch probes) per event. ``None`` — the
+    # default — keeps the re-resolve path for every caller that only holds an
+    # ``effective_root``. Must describe the same checkout/mission as
+    # ``effective_root``/``mission_slug``; a mismatch fails closed at the
+    # identity seam.
+    owned_mission: OwnedMission | None = None
 
 
 @dataclass

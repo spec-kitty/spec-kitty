@@ -9,7 +9,7 @@ consume (D11, DIRECTIVE_044): a single status reduction per WP yielding lane
 (C-001).
 
 Wording note on "committed": everywhere this module says "committed" (the
-module name, ``committed_wp_lane``, the ``WpEnding``/verdict docstrings) it
+module name, the ``WpEnding``/verdict docstrings) it
 means the PRIMARY-surface (repo-root checkout) working tree — read via
 ``placement_seam(...).read_dir(MissionArtifactKind.PRIMARY_METADATA)`` — as
 opposed to the (possibly stale) coordination checkout. It is deliberately
@@ -33,14 +33,31 @@ Single-reduction contract (C-004): each public function performs exactly ONE
 ``mission_terminal_verdict`` reduces once for the WHOLE mission and folds
 every WP from that single reduced snapshot (never re-reducing per WP).
 
-Primary-surface contract (D9/D14/BLOCKER-1): ``mission_terminal_verdict`` and
-``committed_wp_lane`` read ``mission_number`` via the sanctioned
-``read_primary_meta`` primitive and the committed status surface via the
-sanctioned ``runtime_bridge_identity._primary_runtime_feature_dir`` identity
-seam — never a hand-composed primary path. ``primary_feature_dir_for_mission``
-was deleted; manual path composition trips
-``tests/architectural/test_no_read_side_bypass.py``, which does not sanction
-``src/runtime/next/``.
+Primary-surface contract (D9/D14/BLOCKER-1, unified #3829 items 1+4):
+``mission_terminal_verdict`` and ``committed_status_dir`` anchor BOTH reads —
+the ``mission_number`` gate AND the committed status surface — on the ONE
+sanctioned identity-seam dir (``runtime_bridge_identity.
+_primary_runtime_feature_dir``), reading the meta from that dir through the
+ONE fail-closed reader (:func:`specify_cli.core.paths.load_meta_fail_closed`
+— the same reader :func:`read_primary_meta` routes through, FR-007/#3162) —
+never a hand-composed primary path. Before #3829 the two reads used two
+different resolvers (``read_primary_meta``'s compose-then-canonicalize
+cascade for the meta, the seam's caller-canonicalization for the log), and
+for a non-composed handle they could disagree — a merged mission addressed
+by a bare human-slug handle read the ``mission_number`` from one dir and the
+event log from another, yielding a ``"none"`` verdict that reopened the
+#2947 fall-through. One resolver for both reads closes that by construction.
+``primary_feature_dir_for_mission`` was deleted; manual path composition
+trips ``tests/architectural/test_no_read_side_bypass.py``, which does not
+sanction ``src/runtime/next/``.
+
+Decline-on-unhandleable contract (#3829 item 1): a traversal-unsafe handle
+(the path-guard ``UnsafePathSegmentError``) or an ambiguous selector
+(``MissionSelectorAmbiguous``) makes the committed reads DECLINE (verdict
+``"none"`` / lane ``None``) instead of raising — those handle-form errors
+belong to the caller's own typed read path (``resolve_handle_to_read_path``
+classifies them), which the #2947 short-circuit now falls through to instead
+of pre-empting with a raw ``ValueError``.
 """
 
 from __future__ import annotations
@@ -133,32 +150,67 @@ def wp_ending(feature_dir: Path, wp_id: str) -> WpEnding:
     return _fold_wp_state(snapshot.work_packages.get(wp_id))
 
 
+def _committed_surface(repo_root: Path, mission_slug: str) -> Path | None:
+    """Resolve the committed PRIMARY surface through ONE resolver (#3829 items 1+4).
+
+    Returns the identity-seam PRIMARY feature dir
+    (:func:`runtime.next.runtime_bridge_identity._primary_runtime_feature_dir`)
+    when the mission is MERGED — the committed ``mission_number`` is present
+    in that dir's meta, read through the ONE fail-closed
+    :func:`specify_cli.core.paths.load_meta_fail_closed` reader — else
+    ``None`` (not merged / no primary meta). Both the ``mission_number`` gate
+    and the status read anchor on this ONE dir, so a non-composed handle can
+    never split them across two resolvers (#3829 item 4: before the
+    unification, ``read_primary_meta``'s canonicalize cascade and the seam's
+    caller-canonicalization disagreed for a bare human-slug handle, yielding
+    ``"none"`` for a genuinely merged mission).
+
+    A traversal-unsafe handle (``UnsafePathSegmentError``) or an ambiguous
+    selector (``MissionSelectorAmbiguous``) likewise returns ``None`` — the
+    DECLINE contract (#3829 item 1): those handle-form errors are classified
+    by the caller's own typed read path (``resolve_handle_to_read_path``),
+    which the #2947 short-circuit falls through to instead of pre-empting
+    with a raw ``ValueError``. A corrupt/non-object meta still raises the
+    typed :class:`~specify_cli.core.paths.MissionMetaReadError` — the same
+    fail-loud contract :func:`read_primary_meta` had (never silently
+    declined).
+    """
+    from specify_cli.core.paths import UnsafePathSegmentError, load_meta_fail_closed
+    from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
+
+    from runtime.next.runtime_bridge_identity import _primary_runtime_feature_dir
+
+    try:
+        feature_dir = _primary_runtime_feature_dir(repo_root, mission_slug)
+    except (UnsafePathSegmentError, MissionSelectorAmbiguous):
+        return None
+    meta = load_meta_fail_closed(feature_dir) or {}
+    if meta.get("mission_number") is None:
+        return None
+    return feature_dir
+
+
 def mission_terminal_verdict(repo_root: Path, mission_slug: str) -> TerminalVerdict:
     """Return the mission's committed-authority terminal verdict (IC-02).
 
-    Reads ``mission_number`` from the PRIMARY meta
-    (:func:`~specify_cli.missions._read_path_resolver.read_primary_meta`) and
-    the committed status surface from the PRIMARY feature dir
-    (``runtime_bridge_identity._primary_runtime_feature_dir`` — the sanctioned
-    identity seam, D14/BLOCKER-1) — never the coordination checkout, and never
-    a hand-composed primary path. Keys ONLY on the committed
-    ``mission_number`` (assigned at merge time, ``merge/ordering.py``); never
-    ``merge-state.json`` / ``MERGE_HEAD`` (C-005). A genuinely-absent
-    committed status log is ``"none"``, not a conflict (D9/C-003).
+    Anchors BOTH reads — the ``mission_number`` gate and the committed status
+    surface — on the ONE identity-seam PRIMARY dir via
+    :func:`_committed_surface` (#3829 item 4) — never the coordination
+    checkout, and never a hand-composed primary path. Keys ONLY on the
+    committed ``mission_number`` (assigned at merge time, ``merge/ordering.py``);
+    never ``merge-state.json`` / ``MERGE_HEAD`` (C-005). A genuinely-absent
+    committed status log is ``"none"``, not a conflict (D9/C-003). A
+    traversal-unsafe or ambiguous handle declines to ``"none"`` (#3829 item
+    1) so the caller's own typed read path classifies it.
 
     "Committed" here means the PRIMARY checkout's current working tree, not
     a git ref (see the module docstring's wording note) -- both reads below
     are plain filesystem reads of that checkout as it stands right now.
     """
-    from specify_cli.missions._read_path_resolver import read_primary_meta
-
-    primary_meta, _declares_coordination = read_primary_meta(repo_root, mission_slug)
-    if primary_meta.get("mission_number") is None:
+    feature_dir = _committed_surface(repo_root, mission_slug)
+    if feature_dir is None:
         return "none"
 
-    from runtime.next.runtime_bridge_identity import _primary_runtime_feature_dir
-
-    feature_dir = _primary_runtime_feature_dir(repo_root, mission_slug)
     if not has_event_log(feature_dir):
         return "none"
 
@@ -171,39 +223,23 @@ def mission_terminal_verdict(repo_root: Path, mission_slug: str) -> TerminalVerd
     return "terminal" if all(ending.acceptable for ending in endings) else "blocked_conflict"
 
 
-def committed_wp_lane(repo_root: Path, mission_slug: str, wp_id: str) -> str | None:
-    """Return the committed PRIMARY-surface lane for *wp_id*, or ``None``.
+def committed_status_dir(repo_root: Path, mission_slug: str) -> Path | None:
+    """Return the committed PRIMARY status dir when authoritative, or ``None`` (#3829 item 3).
 
-    ``None`` means PRIMARY is not the authoritative status surface for this
-    mission, so the caller (``agent tasks status``'s board, D10/IC-04) must
-    fall back to its own coordination-aware read. That is the case whenever
-    the mission is **not merged** — keyed on the committed ``mission_number``
-    (assigned at merge, ``merge/ordering.py``), exactly as
-    :func:`mission_terminal_verdict` keys it (#2947). An in-flight
-    coordination-topology mission's status lives only on the coordination
-    worktree until merge folds it back onto PRIMARY; crucially, its PRIMARY
-    surface may still carry an event log (planning-phase events, or a decoy),
-    so ``has_event_log`` alone is NOT a sound merged-signal — without the
-    ``mission_number`` gate the board would read that PRIMARY decoy and
-    misreport an in-flight WP's lane (e.g. a genuine COORD ``in_progress`` as
-    a stale PRIMARY ``blocked``). ``None`` is also returned when the
-    committed log is genuinely absent on PRIMARY.
-
-    "Committed"/"PRIMARY surface" means the current working tree of the
-    PRIMARY checkout, not a git ref (see the module docstring's wording
-    note) — this reads whatever is on disk there right now.
+    The board's ONE-reduction anchor: the same identity-seam PRIMARY dir and
+    the same ``mission_number`` merge gate as
+    :func:`mission_terminal_verdict`, additionally requiring the committed status
+    log to be present (``has_event_log``). ``None`` means PRIMARY is not the
+    authoritative status surface for this mission (not merged, no committed
+    log, or an unhandleable handle) — the caller falls back to its own
+    coordination-aware read. Sourcing the WHOLE board row (lane + companion
+    fields + the readiness reduction) from this one dir keeps a merged
+    mission's row internally consistent: never a committed lane beside
+    stale coordination companions.
     """
-    from specify_cli.missions._read_path_resolver import read_primary_meta
-    from runtime.next.runtime_bridge_identity import _primary_runtime_feature_dir
-
-    primary_meta, _declares_coordination = read_primary_meta(repo_root, mission_slug)
-    if primary_meta.get("mission_number") is None:
-        # Not merged: PRIMARY is not authoritative (an in-flight mission's
-        # PRIMARY event log, if any, is a planning/decoy log). Defer to the
-        # board's coordination-aware read.
+    feature_dir = _committed_surface(repo_root, mission_slug)
+    if feature_dir is None:
         return None
-
-    feature_dir = _primary_runtime_feature_dir(repo_root, mission_slug)
     if not has_event_log(feature_dir):
         return None
-    return wp_ending(feature_dir, wp_id).lane
+    return feature_dir

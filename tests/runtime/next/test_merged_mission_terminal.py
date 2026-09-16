@@ -361,3 +361,114 @@ class TestMissionNumberAssignedEventLogAbsent:
             verdict = mission_terminal_verdict(tmp_path, mission_slug)
 
         assert verdict == "none"
+
+
+# ---------------------------------------------------------------------------
+# #3829 item 1: the short-circuit declines on handle-form errors so the
+# entry points' own typed classification shapes are restored byte-for-byte
+# (pre-#3825 baseline verified against commit cf341341c).
+# ---------------------------------------------------------------------------
+
+
+class TestHandleFormErrorsFallThrough:
+    """A traversal-unsafe / empty handle must surface the SAME error the
+    entry point produced BEFORE the #2947 short-circuit was added — the
+    short-circuit's ``read_primary_meta`` pre-empted those with a raw
+    ``ValueError`` raised ahead of ``query_current_state``'s typed
+    ``MissionNotFoundError`` / read-path classification."""
+
+    @pytest.mark.regression
+    def test_query_empty_handle_is_typed_mission_not_found(self, tmp_path: Path) -> None:
+        """Pre-#3825 baseline: ``query_current_state('')`` raised the typed
+        ``MissionNotFoundError`` (the resolver's ``require_explicit_feature``
+        arm). The #3825 short-circuit turned it into a raw
+        ``UnsafePathSegmentError`` from ``_compose_primary_feature_dir``."""
+        from runtime.next.runtime_bridge import MissionNotFoundError, query_current_state
+
+        with pytest.raises(MissionNotFoundError, match="''"):
+            query_current_state("claude", "", tmp_path)
+
+    @pytest.mark.regression
+    def test_query_traversal_handle_raises_the_path_guard_from_the_resolver(self, tmp_path: Path) -> None:
+        """Pre-#3825 baseline: a traversal handle raised the path-guard
+        ``ValueError`` from the read-side resolver — never from the
+        short-circuit. With the decline, the raise comes from the same
+        resolver the pre-#3825 code reached."""
+        from specify_cli.core.paths import UnsafePathSegmentError
+        from runtime.next.runtime_bridge import query_current_state
+
+        with pytest.raises(UnsafePathSegmentError, match="traversal guard"):
+            query_current_state("claude", "../foo", tmp_path)
+
+    @pytest.mark.regression
+    def test_advance_traversal_handle_still_raises_path_guard(self, tmp_path: Path) -> None:
+        from specify_cli.core.paths import UnsafePathSegmentError
+        from runtime.next.runtime_bridge import decide_next_via_runtime
+
+        with pytest.raises(UnsafePathSegmentError, match="traversal guard"):
+            decide_next_via_runtime("claude", "../foo", "success", tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# #3829 item 2: the blocked_conflict reason carries an operator remediation
+# affordance (the board command + the move-task that resolves a straggler).
+# ---------------------------------------------------------------------------
+
+
+class TestBlockedConflictRemediationAffordance:
+    @pytest.mark.regression
+    def test_advance_mode_reason_names_recovery_commands(self, tmp_path: Path) -> None:
+        from runtime.next.runtime_bridge import decide_next_via_runtime
+
+        mission_slug = "042-conflict-remediation"
+        repo_root, primary_dir, coord_dir = _build_repo(
+            tmp_path,
+            mission_slug,
+            mission_number=9,
+            wps={"WP01": Lane.DONE, "WP02": Lane.PLANNED},
+        )
+
+        with (
+            patch(
+                "runtime.next.runtime_bridge_identity._primary_runtime_feature_dir",
+                return_value=primary_dir,
+            ),
+            patch(
+                "runtime.next.runtime_bridge._resolve_runtime_feature_dir",
+                return_value=coord_dir,
+            ),
+        ):
+            decision = decide_next_via_runtime("claude", mission_slug, "success", repo_root)
+
+        assert decision.kind == "blocked"
+        assert "spec-kitty agent tasks status --mission 042-conflict-remediation" in (decision.reason or "")
+        assert "spec-kitty agent tasks move-task <wp> --to approved" in (decision.reason or "")
+
+    @pytest.mark.regression
+    def test_query_mode_reason_names_recovery_commands(self, tmp_path: Path) -> None:
+        from runtime.next.runtime_bridge import query_current_state
+
+        mission_slug = "042-conflict-remediation-query"
+        repo_root, primary_dir, coord_dir = _build_repo(
+            tmp_path,
+            mission_slug,
+            mission_number=9,
+            wps={"WP01": Lane.DONE, "WP02": Lane.PLANNED},
+        )
+
+        with (
+            patch(
+                "runtime.next.runtime_bridge_identity._primary_runtime_feature_dir",
+                return_value=primary_dir,
+            ),
+            patch(
+                "mission_runtime.mission_context_for",
+                return_value=_mission_context_for_coord(mission_slug, coord_dir),
+            ),
+        ):
+            decision = query_current_state("claude", mission_slug, repo_root)
+
+        assert decision.kind == "query"
+        assert decision.mission_state == "blocked"
+        assert "spec-kitty agent tasks status --mission 042-conflict-remediation-query" in (decision.reason or "")
+        assert "spec-kitty agent tasks move-task <wp> --to approved" in (decision.reason or "")

@@ -22,6 +22,12 @@ banner and the detail read from one verdict. Three mechanised rules
    expired access token whose refresh chain has not been proven live.
 3. **A headline may not contradict its own detail.** ``headline`` is derived
    from ``state``; there is no way to set it independently.
+4. **A probe that ran and failed is a failure, never ``ok``** (#4607).
+   :func:`evaluate_auth_verdict` returns ``fail`` for an inactive server
+   probe even when the local access token is still valid — local token
+   validity never overrides the answer the user explicitly asked the
+   server for, so a CI gate reading ``auth doctor --server``'s exit code
+   cannot pass cleanly through a backend outage.
 
 Dependency direction: this is an **auth** concept (token-expiry semantics live
 in ``auth/session.py``), so it lives under ``auth``. ``sync`` consumes it
@@ -127,28 +133,38 @@ def _refresh_evidence(session: StoredSession, now: datetime) -> str:
     return f"refresh valid {_humanize((refresh_exp - now).total_seconds())}"
 
 
+def _probe_failed_verdict(server_probe: ServerProbe) -> HealthVerdict:
+    """Verdict for a server probe that ran and did not confirm the session.
+
+    This is the #4607 fix: a failed ``auth doctor --server`` check is a
+    ``fail`` even when the local access token is still valid — a probe that
+    ran and could not confirm must never let the ladder answer ``ok``.
+    """
+    return HealthVerdict(
+        state="fail",
+        evidence=server_probe.error or "server rejected the session",
+        remediation=_LOGIN_REMEDIATION,
+    )
+
+
 def _resolve_expired_access(server_probe: ServerProbe | None) -> HealthVerdict:
     """Verdict for an expired access token whose refresh token is still valid.
 
     This is the #3723 fix: with no server probe the refresh chain is
-    **unproven**, so the honest verdict is ``unknown`` — never ``ok``.
+    **unproven**, so the honest verdict is ``unknown`` — never ``ok``. A
+    probe that ran and failed never reaches here; the ladder's probe rule
+    (#4607) has already answered ``fail``.
     """
-    if server_probe is None:
-        return HealthVerdict(
-            state="unknown",
-            evidence="access token expired; refresh chain not verified offline",
-            detail="Run with a server probe to confirm the session is live.",
-            remediation=_SERVER_REMEDIATION,
-        )
-    if server_probe.active:
+    if server_probe is not None and server_probe.active:
         return HealthVerdict(
             state="ok",
             evidence="access token expired but server confirms the session is live",
         )
     return HealthVerdict(
-        state="fail",
-        evidence=server_probe.error or "server rejected the session",
-        remediation=_LOGIN_REMEDIATION,
+        state="unknown",
+        evidence="access token expired; refresh chain not verified offline",
+        detail="Run with a server probe to confirm the session is live.",
+        remediation=_SERVER_REMEDIATION,
     )
 
 
@@ -166,10 +182,11 @@ def evaluate_auth_verdict(
 
     - no session                         -> ``fail``    (no active session)
     - refresh token known-expired        -> ``fail``    (re-authenticate)
+    - server probe ran and is inactive   -> ``fail``    (the #4607 fix — a failed
+      check is a failure even when the local access token is valid)
     - access token valid                 -> ``ok``      (names both windows)
     - access expired, refresh valid, no probe    -> ``unknown``  (the #3723 fix)
     - access expired, refresh valid, probe live  -> ``ok``
-    - access expired, refresh valid, probe failed -> ``fail``
     """
     if session is None and session_assessment_reason == "storage_decryption_failed":
         return HealthVerdict(
@@ -192,6 +209,8 @@ def evaluate_auth_verdict(
             evidence=f"refresh token expired {ago} ago",
             remediation=_LOGIN_REMEDIATION,
         )
+    if server_probe is not None and not server_probe.active:
+        return _probe_failed_verdict(server_probe)
     if access_ok:
         access_left = _humanize((session.access_token_expires_at - now).total_seconds())
         return HealthVerdict(

@@ -185,21 +185,19 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SOURCE_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          # The pure decision reads provenance (event/head_branch/conclusion)
+          # from the triggering run; `null` on workflow_dispatch (belt-and-braces
+          # with the `if:` gate above -> NoFallback). The success-only + branch-scope
+          # filters (LEAK-A/B) now live in scripts/ci/source_eligibility.py, so
+          # this step only GATHERS candidates and lets the tested helper DECIDE.
+          TRIGGER_JSON: ${{ toJSON(github.event.workflow_run) }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch || 'main' }}
         run: |
           set -euo pipefail
-          branch="$SOURCE_BRANCH"
-          run_id=$(gh run list --repo "${{ github.repository }}" --workflow ci-modules.yml \
-            --branch "$branch" --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
-          if [ -z "$run_id" ] && [ "$branch" != "$DEFAULT_BRANCH" ]; then
-            # No prior successful run on the PR's own branch (e.g. its first
-            # push) -- fall back to the default branch's most recent success
-            # so an UNSELECTED (unchanged) module can still be backfilled.
-            run_id=$(gh run list --repo "${{ github.repository }}" --workflow ci-modules.yml \
-              --branch "$DEFAULT_BRANCH" --status success --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
-          fi
-          echo "run-id=${run_id}" >> "$GITHUB_OUTPUT"
+          inventory=$(gh run list --repo "${{ github.repository }}" --workflow ci-modules.yml \
+            --limit 30 --json databaseId,conclusion,headBranch,event 2>/dev/null || echo '[]')
+          printf '%s' "$inventory" \
+            | python3 scripts/ci/source_eligibility.py --default-branch "$DEFAULT_BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Download the fallback run's shard artefacts (stale shards only)
         if: steps.last-success.outputs.run-id != ''

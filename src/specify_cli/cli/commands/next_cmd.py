@@ -454,7 +454,8 @@ def _run_charter_preflight_for_next(repo_root, *, advancing: bool, json_output: 
     stdout_redirect = contextlib.redirect_stdout(sys.stderr) if json_output else contextlib.nullcontext()
     with stdout_redirect:
         result = run_preflight_for_dashboard(repo_root)
-    emit_advisory_warnings(result)
+    # #3971: scope the single surfaced ambient warning to this consumer.
+    emit_advisory_warnings(result, consumer="next", repo_root=repo_root)
 
 
 def _resolve_mission_slug(

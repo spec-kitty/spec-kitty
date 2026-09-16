@@ -751,6 +751,48 @@ def test_render_stale_findings_all_grades(tmp_path: Path) -> None:
     ex._render_stale_findings(report)
 
 
+def test_render_stale_findings_info_block_is_prominent(tmp_path: Path) -> None:
+    """#3957: message-content (info) findings render as a named block with
+    per-assertion file:line entries, placed BEFORE the low-grade noise —
+    not as a single trailing count note buried behind it."""
+    info_finding = StaleAssertionFinding(
+        test_file=Path("tests/test_msg.py"),
+        test_line=21,
+        source_file=Path("src/msg.py"),
+        source_line=3,
+        changed_symbol="old error message",
+        confidence="info",
+        hint="message-content hint marker",
+        label="message-content-check",
+    )
+    low_finding = StaleAssertionFinding(
+        test_file=Path("tests/test_x.py"),
+        test_line=10,
+        source_file=Path("src/x.py"),
+        source_line=5,
+        changed_symbol="foo",
+        confidence="low",
+        hint="low-grade hint marker",
+    )
+    report = StaleAssertionReport(
+        base_ref="a", head_ref="HEAD", repo_root=tmp_path,
+        findings=[_finding("high"), info_finding, low_finding],
+        elapsed_seconds=0.1, files_scanned=2, findings_per_100_loc=1.0,
+    )
+
+    with ex.console.capture() as captured:
+        ex._render_stale_findings(report)
+    output = captured.get()
+
+    # A named block header (not a bare count note) ...
+    assert "Message-content assertions skipped as info grade" in output
+    # ... whose entries carry the assertion's own file:line and hint.
+    assert "test_msg.py:21" in output
+    assert "message-content hint marker" in output
+    # Prominence: the info block appears before the low-grade noise.
+    assert output.index("Message-content assertions") < output.index("low-grade hint marker")
+
+
 # ---------------------------------------------------------------------------
 # #3131 T011 — WP02 owned unit assertions for the retention-enforcement gates.
 # ---------------------------------------------------------------------------

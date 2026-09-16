@@ -421,6 +421,9 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
                 repo_root=st.main_repo_root,
                 operation=f"mark-status {wp_id}",
                 effective_root=st.owned.root,
+                # #3866: thread the validated value object so the per-WP
+                # annotation identity does not re-run resolve_owned_mission.
+                owned_mission=st.owned,
             )
             st.applied_event_ids.append(event.event_id)
             st.applied_wps.append(wp_id)

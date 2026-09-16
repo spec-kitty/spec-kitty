@@ -200,11 +200,11 @@ def test_genuine_not_found_still_emits_mission_not_found(tmp_path: Path) -> None
 def test_specify_duplicate_mission_classifies_to_structured_error_code(
     tmp_path: Path,
 ) -> None:
-    """The delegate's own bare ``{"error": ...}`` (a plain ``RuntimeError``
-    from an empty-changeset ``safe_commit``, verified against production --
-    see ``commands.py``'s ``_MISSION_DUPLICATE_MARKERS`` docstring) must be
-    classified into the structured ``MISSION_ALREADY_EXISTS`` code, never
-    surfaced as the bare unstructured payload it arrived as.
+    """#3861: the delegate's TYPED duplicate signal (``error_code`` carried in
+    the ``--json`` error payload by ``MissionAlreadyExistsError``'s emission in
+    ``mission_create._run_create_core_phase``) is consumed verbatim by the
+    orchestrator-api ``specify`` verb and surfaced as the structured
+    ``MISSION_ALREADY_EXISTS`` code.
     """
     import typer
 
@@ -213,9 +213,11 @@ def test_specify_duplicate_mission_classifies_to_structured_error_code(
             json.dumps(
                 {
                     "error": (
-                        "meta.json commit failed: safe_commit: nothing to "
-                        "commit for destination_ref='wp03-work' (empty changeset)"
-                    )
+                        "A mission named 'wp03-dup-classify' of type "
+                        "'software-dev' already exists and is not abandoned "
+                        "(#4033)."
+                    ),
+                    "error_code": "MISSION_ALREADY_EXISTS",
                 }
             )
         )
@@ -252,6 +254,68 @@ def test_specify_duplicate_mission_classifies_to_structured_error_code(
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is False
     assert envelope["error_code"] == "MISSION_ALREADY_EXISTS"
+    assert "message" in envelope["data"]
+
+
+def test_specify_duplicate_prose_without_typed_code_is_not_already_exists(
+    tmp_path: Path,
+) -> None:
+    """#3861 regression pin: classification consumes ONLY the delegate's typed
+    ``error_code``. A bare ``{"error": ...}`` payload whose PROSE happens to
+    carry the old duplicate markers ("nothing to commit", "empty changeset",
+    "already exists") but carries NO typed code now classifies as the generic
+    ``MISSION_CREATE_FAILED`` -- under the retired substring heuristic this
+    exact payload was misclassified as ``MISSION_ALREADY_EXISTS``, so a
+    message-wording change in ``create_mission`` could silently flip the
+    reported failure code. Wording can no longer mislabel in either
+    direction.
+    """
+    import typer
+
+    def _fake_prose_only(slug: str, mission_type: str | None, topology: object) -> None:
+        print(
+            json.dumps(
+                {
+                    "error": (
+                        "meta.json commit failed: safe_commit: nothing to "
+                        "commit for destination_ref='wp03-work' (empty changeset)"
+                    )
+                }
+            )
+        )
+        raise typer.Exit(1)
+
+    with patch(
+        "specify_cli.cli.commands.lifecycle._create_mission_for_specify_json",
+        side_effect=_fake_prose_only,
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "specify",
+                "--mission",
+                "wp03-dup-prose",
+                "--mission-type",
+                "software-dev",
+                "--policy",
+                json.dumps(
+                    {
+                        "orchestrator_id": "test-orch",
+                        "orchestrator_version": "0.0.1",
+                        "agent_family": "claude",
+                        "approval_mode": "full_auto",
+                        "sandbox_mode": "workspace_write",
+                        "network_mode": "none",
+                        "dangerous_flags": [],
+                    }
+                ),
+            ],
+            catch_exceptions=False,
+        )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "MISSION_CREATE_FAILED"
     assert "message" in envelope["data"]
 
 

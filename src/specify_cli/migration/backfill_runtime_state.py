@@ -1431,17 +1431,20 @@ def _plan_compatibility_repairs(
 
 
 def _runtime_feature_dir(feature_dir: Path, owned: OwnedMission | None) -> Path:
-    """Keep explicit single-branch IO on a freshly validated exact mission root."""
+    """Keep explicit single-branch IO on the exact threaded mission root."""
     if owned is None:
         canonical: Path = canonicalize_feature_dir(feature_dir)
         return canonical
     from mission_runtime import ActionContextError
-    from specify_cli.core.owned_mission import resolve_owned_mission
 
-    current = resolve_owned_mission(owned.primary, owned.root, owned.slug)
-    if current != owned or feature_dir.resolve() != current.directory:
+    # #3866: ``owned`` is the caller-validated value object — re-deriving it
+    # through ``resolve_owned_mission`` (ownership claim + mission resolve +
+    # git branch probes) per backfill/cutover phase was pure re-resolution of
+    # a value the caller already holds. The exact-directory guard below keeps
+    # every write anchored to that validated mission root.
+    if feature_dir.resolve() != owned.directory:
         raise ActionContextError("OWNED_MISSION_PATH_REFUSED", "Runtime state must use the selected mission directory.")
-    directory: Path = current.directory
+    directory: Path = owned.directory
     return directory
 
 

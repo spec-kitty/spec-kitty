@@ -19,7 +19,6 @@ in ``doctor.py``; the safety predicates + argv fast-paths key on those names
 from __future__ import annotations
 
 import json
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn, cast
@@ -46,8 +45,6 @@ if TYPE_CHECKING:
     from specify_cli.skills.command_installer import VerifyReport
     from specify_cli.skills.manifest_store import SkillsManifest
 
-logger = logging.getLogger(__name__)
-
 # ``__all__`` lists this sibling's cross-module public contract only: the
 # command entrypoints ``doctor.py`` delegates to plus the FR-006 test-facing
 # symbols re-exported through the ``doctor`` shim. The remaining helpers are
@@ -62,30 +59,6 @@ __all__ = [
     "_load_slash_command_state",
     "_repair_slash_command_state",
 ]
-
-
-def _vibe_skill_path_configured(project_path: Path) -> bool:
-    from specify_cli.skills.vibe_config import VIBE_SKILL_PATH
-
-    config_path = project_path / ".vibe" / "config.toml"
-    if not config_path.exists():
-        return False
-
-    try:
-        import tomllib  # noqa: PLC0415
-
-        raw = config_path.read_text(encoding="utf-8")
-        data = tomllib.loads(raw) if raw.strip() else {}
-    except Exception as exc:
-        logger.debug("Failed to read %s: %s", config_path, exc)
-        return False
-
-    skill_paths = data.get("skill_paths")
-    if isinstance(skill_paths, str):
-        return bool(skill_paths == VIBE_SKILL_PATH)
-    if isinstance(skill_paths, list):
-        return VIBE_SKILL_PATH in [str(path) for path in skill_paths]
-    return False
 
 
 def _get_slash_command_agents(project_path: Path) -> list[str]:
@@ -305,6 +278,7 @@ def _load_command_skill_state(
     """Load command-skill manifest state and configured command-skill agents."""
     from specify_cli.core.agent_config import load_agent_config
     from specify_cli.skills import command_installer, manifest_store
+    from specify_cli.skills.vibe_config import skill_path_configured
 
     config = load_agent_config(project_path)
     supported = set(command_installer.SUPPORTED_AGENTS)
@@ -315,9 +289,7 @@ def _load_command_skill_state(
     uninstalled_agents = [
         agent for agent in configured_agents if agent not in set(manifest_agents)
     ]
-    vibe_config_missing = "vibe" in configured_agents and not _vibe_skill_path_configured(
-        project_path
-    )
+    vibe_config_missing = "vibe" in configured_agents and not skill_path_configured(project_path)
     return (
         manifest,
         report,

@@ -1671,7 +1671,13 @@ def _phase_finalize_and_summary(run: _MergeRunState) -> None:
 
 
 def _render_stale_findings(stale_report: StaleAssertionReport | None) -> None:
-    """Render the stale-assertion findings block in the merge summary (T013/T023)."""
+    """Render the stale-assertion findings block in the merge summary (T013/T023).
+
+    #3957: message-content (info-grade) assertions are the real signal the
+    analyzer skips, so they are surfaced as a named block with per-assertion
+    ``file:line`` entries — placed BEFORE the low-grade noise, never buried
+    behind it as a trailing count note.
+    """
     console.print("\n[bold]Stale assertion findings:[/bold]")
     if stale_report is None:
         console.print("  [yellow]Stale-assertion check could not run.[/yellow]")
@@ -1688,14 +1694,18 @@ def _render_stale_findings(stale_report: StaleAssertionReport | None) -> None:
         console.print(
             f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}"
         )
+    if info_grade:
+        console.print(
+            f"  Message-content assertions skipped as info grade ({len(info_grade)}) — "
+            "review manually if diagnostic text changed:"
+        )
+        for finding in info_grade:
+            console.print(
+                f"  [info] {finding.test_file.name}:{finding.test_line} — {finding.hint}"
+            )
     for finding in low_grade:
         console.print(
             f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}"
-        )
-    if info_grade:
-        console.print(
-            f"  Note: {len(info_grade)} message-content assertion(s) skipped "
-            "(info grade) — review manually if diagnostic text changed."
         )
 
 

@@ -63,6 +63,9 @@ def stale_check(
       high   — identifier referenced directly inside Assert or assert* call
       medium — identifier appears anywhere in an assertion node
       low    — string literal matches a Constant in an assertion-bearing position
+      info   — message-content check (literal checked against captured
+               diagnostic text); skipped from CI noise, surfaced for manual
+               review (#3957)
     """
     resolved_root = repo_root.resolve()
 
@@ -95,14 +98,24 @@ def stale_check(
         console.print("[green]No stale assertions detected.[/green]\n")
         return
 
-    # Group by confidence for readability.
-    for level in ("high", "medium", "low"):
+    # Group by confidence for readability. Info-grade (message-content)
+    # findings are surfaced with their own title, not silently dropped
+    # (#3957) — they are the assertions the analyzer deliberately skips.
+    for level in ("high", "medium", "low", "info"):
         level_findings = [f for f in report.findings if f.confidence == level]
         if not level_findings:
             continue
 
+        if level == "info":
+            title = (
+                "[bold]INFO — message-content assertions[/bold] "
+                "(skipped from CI noise; review manually if diagnostic text changed)"
+            )
+        else:
+            title = f"[bold]{level.upper()} confidence[/bold]"
+
         table = Table(
-            title=f"[bold]{level.upper()} confidence[/bold]",
+            title=title,
             show_header=True,
             header_style="bold",
         )

@@ -9,7 +9,9 @@ an org pack was invisible to the cascade engine — dependent org-pack artifacts
 were silently neither activated nor reported as skipped. Separately,
 ``_layer_roots.resolve_layer_roots`` only ever registered the FIRST org root
 into its single-value ``roots["org"]`` slot, so even once the DRG walk saw
-pack 2..N, the DRG-bare-ID -> config-stem-ID mapping (``_drg_id_to_config_id``)
+pack 2..N, the DRG-bare-ID -> config-stem-ID mapping (``_cascade_shared.py``'s
+``drg_urn_to_config_id``, consolidated there from ``activate.py``'s
+``_drg_id_to_config_id`` by issue #3772)
 still only consulted pack 1 -- an org-pack-2..N cascade target would resolve to
 its raw DRG ID (unresolvable by ``CharterPackManager.activate``) instead of its
 real config stem.
@@ -33,6 +35,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.cli.commands.charter import activate as activate_mod
+from specify_cli.cli.commands.charter import _cascade_shared as cascade_shared_mod
 from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
 
 runner = CliRunner()
@@ -290,8 +293,10 @@ class TestIdMappingWideningNonVacuous:
         DRG-visibility org-roots threading stays intact, and proves T011's
         two-pack test goes RED again.
 
-        Monkeypatches ``activate.resolve_config_id`` to drop the ``org_roots``
-        keyword before delegating -- i.e. exactly ``_drg_id_to_config_id``'s
+        Monkeypatches ``_cascade_shared.resolve_config_id`` (the binding the
+        consolidated ``drg_urn_to_config_id`` helper calls, relocated there
+        from ``activate.py`` by issue #3772) to drop the ``org_roots``
+        keyword before delegating -- i.e. exactly the ID-mapping helper's
         pre-T008 call shape (``layer_roots`` only). ``load_validated_graph``'s
         own ``org_roots=`` argument (T009) is left completely untouched, so
         the cascade engine still WALKS into pack 2 and reports
@@ -300,7 +305,7 @@ class TestIdMappingWideningNonVacuous:
         """
         _write_two_pack_chain(project_root)
 
-        real_resolve_config_id = activate_mod.resolve_config_id
+        real_resolve_config_id = cascade_shared_mod.resolve_config_id
 
         def _resolve_config_id_without_org_roots(urn, *, doctrine_root, org_roots=None, layer_roots=None):
             del org_roots  # pre-T008 shape: never received the chain.
@@ -309,7 +314,7 @@ class TestIdMappingWideningNonVacuous:
             )
 
         monkeypatch.setattr(
-            activate_mod, "resolve_config_id", _resolve_config_id_without_org_roots
+            cascade_shared_mod, "resolve_config_id", _resolve_config_id_without_org_roots
         )
 
         result = _activate(

@@ -89,7 +89,7 @@ pipeline. Write exactly one file and return the filename and final line count.
 - title: `{title}`
 - dependencies: `{dependencies}`
 - owned_files: `{owned_files}`
-- execution_mode: derive from `owned_files` (`planning_artifact` for kitty-specs/docs-only WPs, otherwise `code_change`)
+- execution_mode: derive from `owned_files` (`planning_artifact` only when every entry is confined to `kitty-specs/` or `docs/`, otherwise `code_change`; see Ownership rules below)
 - requirement_refs: `{requirement_refs}`
 - subtasks: `{subtasks}`
 
@@ -219,7 +219,9 @@ Include the correct implementation command:
 **Ownership rules**:
 - `owned_files`: List of glob patterns for files this WP touches — no two WPs may overlap.
 - `authoritative_surface`: Path prefix that must be a prefix of at least one `owned_files` entry.
-- `execution_mode`: `"code_change"` for source code changes, `"planning_artifact"` for kitty-specs docs.
+- `execution_mode`: `"code_change"` for source code changes, `"planning_artifact"` only for work confined to planning surfaces.
+- **kitty-specs ownership ban**: a `code_change` WP must NOT list any `kitty-specs/` path in `owned_files` — `finalize-tasks --validate-only` rejects it with `INVALID_WP_OWNED_FILES_KITTY_SPECS`. The exemption is a `planning_artifact` WP whose **every** `owned_files` entry is confined to `kitty-specs/` or `docs/` — a planning WP that also owns a `src/`, `tests/`, or any other non-planning path is not exempt and is rejected the same way.
+- **Where per-WP design notes go**: design notes, plan-marker edits, and other `kitty-specs/` deliverables belong in their own separate confined `planning_artifact` WP, with every `owned_files` entry under `kitty-specs/` or `docs/`. Split a mixed WP into a planning WP plus a code WP rather than mixing the two ownership kinds.
 - Agents working on a WP should prefer to stay within their `owned_files` list; a small, well-justified out-of-map edit is acceptable when recorded with a one-line rationale (the no-overlap rule above is the real guard against parallel-WP collisions).
 
 ### 4a. Assign Agent Profiles

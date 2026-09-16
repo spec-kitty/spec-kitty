@@ -736,6 +736,7 @@ def _count_wp_endings(
             acceptable_endings += 1
     return done_endings, acceptable_endings
 
+
 def _should_advance_wp_step(
     step_id: str,
     feature_dir: Path,
@@ -784,10 +785,7 @@ def _should_advance_wp_step(
         # no-silent-fallback stance on ``MissionSelectorAmbiguous`` (C-009): a
         # caller that anchors (``repo_root=``) must name the mission explicitly.
         if mission_slug is None:
-            raise ValueError(
-                "_should_advance_wp_step: mission_slug is required when repo_root "
-                "is supplied (anchoring); feature_dir.name is not a mission handle."
-            )
+            raise ValueError("_should_advance_wp_step: mission_slug is required when repo_root is supplied (anchoring); feature_dir.name is not a mission handle.")
         anchor_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
 
     tasks_dir = anchor_dir / "tasks"
@@ -850,11 +848,7 @@ def _wp_blocks_step(step_id: str, state: Any, has_provenance: bool = False) -> b
         # (UNINITIALIZED) or never lifecycled past creation (GENESIS) must not
         # be conflated with a genuinely-exempt handed-off state -- either one
         # is pending work that has to block the implement -> review advance.
-        return (
-            lane in (Lane.UNINITIALIZED, Lane.GENESIS)
-            or state.is_blocked
-            or (state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED))
-        )
+        return lane in (Lane.UNINITIALIZED, Lane.GENESIS) or state.is_blocked or (state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED))
     if step_id == "review":
         return not is_acceptable_ending(str(lane), has_provenance=has_provenance)
     return False
@@ -1211,9 +1205,7 @@ def _check_composed_action_guard(
     ``repo_root`` (#3704 WP03, FR-003) is forwarded unchanged; defaults to
     ``None`` (built-in tree only, matching every existing caller of this
     compat surface that does not yet pass a real ``repo_root``)."""
-    return _composition._check_composed_action_guard(
-        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id, repo_root=repo_root
-    )
+    return _composition._check_composed_action_guard(action, feature_dir, mission=mission, legacy_step_id=legacy_step_id, repo_root=repo_root)
 
 
 def _dispatch_via_composition(
@@ -1743,9 +1735,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
     # WP iteration check: if we're on a WP step and WPs remain, don't advance runtime
     if ctx.result == "success" and current_step_id and _is_wp_iteration_step(current_step_id):
         try:
-            should_advance = _should_advance_wp_step(
-                current_step_id, feature_dir, repo_root=repo_root, mission_slug=mission_slug
-            )
+            should_advance = _should_advance_wp_step(current_step_id, feature_dir, repo_root=repo_root, mission_slug=mission_slug)
         except CanonicalStatusNotFoundError as exc:
             return _materialize_decision(
                 _cores.DecisionEnvelope(
@@ -1819,8 +1809,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
             )
         except _cores.UnregisteredMissionFamilyError:
             logger.warning(
-                "Unregistered mission_family %r reached the CLI guard path; "
-                "returning a neutral (empty) guard result.",
+                "Unregistered mission_family %r reached the CLI guard path; returning a neutral (empty) guard result.",
                 mission_type,
             )
             guard_failures = []
@@ -2339,6 +2328,15 @@ def _merged_mission_short_circuit(
     in-flight query/decide fixtures) — the only two verdicts this function
     ever materializes a ``Decision`` for are ``"terminal"`` and
     ``"blocked_conflict"``.
+
+    #3829 item 1: the ``"none"`` fall-through also covers the
+    handle-form errors ``mission_terminal_verdict`` declines on
+    (traversal-unsafe / ambiguous handles) — the raw path-guard
+    ``ValueError`` those handles used to raise FROM THIS SHORT-CIRCUIT
+    pre-empted the caller's own typed classification
+    (``resolve_handle_to_read_path`` → ``MissionNotFoundError`` /
+    read-path code); declining restores the pre-#3825 error shapes
+    byte-for-byte.
     """
     from runtime.next.committed_authority import mission_terminal_verdict
 
@@ -2363,7 +2361,11 @@ def _merged_mission_short_circuit(
     # ``kind: query`` invariant (``mission_state="blocked"``, mirroring the
     # finalized-override ``blocked:`` precedent), advancing mode emits an
     # actionable ``kind: blocked``. Field set mirrors the inline blocked
-    # emissions; no invented payload shape.
+    # emissions; no invented payload shape. The reason carries an operator
+    # remediation affordance (#3829 item 2): the fail-closed block is
+    # correct, but it previously named no recovery command — an operator
+    # seeing ``kind: blocked`` indefinitely had no pointer to the board that
+    # shows the straggling WP or to the move-task that resolves it.
     blocked_kind = DecisionKind.query if terminal_kind == DecisionKind.query else DecisionKind.blocked
     return _materialize_decision(
         _cores.DecisionEnvelope(
@@ -2373,7 +2375,13 @@ def _merged_mission_short_circuit(
             mission=mission_type,
             mission_state="blocked",
             timestamp=now,
-            reason="Merged mission has committed work packages that are not an acceptable ending (conflict)",
+            reason=(
+                "Merged mission has committed work packages that are not an "
+                "acceptable ending (conflict). Inspect the committed board with "
+                f"'spec-kitty agent tasks status --mission {mission_slug}' and "
+                "resolve the straggling work package(s) — e.g. "
+                f"'spec-kitty agent tasks move-task <wp> --to approved --mission {mission_slug}'."
+            ),
         )
     )
 

@@ -56,8 +56,9 @@ def resolve_org_root_chain(repo_root: Path) -> list[Path]:
     function instead of a new dict key.
 
     Callers that need the full chain for ID-mapping
-    (``activate.py``/``deactivate.py``'s ``_drg_id_to_config_id``/
-    ``_source_urn``/``_active_urns``) pass this list through
+    (``_cascade_shared.py``'s ``drg_urn_to_config_id`` and
+    ``activate.py``/``deactivate.py``'s ``_source_urn``/``_active_urns``)
+    pass this list through
     :func:`charter.activation.kind_vocabulary.resolve_artifact_urn` /
     ``resolve_config_id``'s existing, independent ``org_roots: list[Path] |
     None`` keyword -- ``kind_vocabulary._org_scan_dirs`` already walks the

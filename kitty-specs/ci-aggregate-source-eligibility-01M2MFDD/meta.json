@@ -1,0 +1,35 @@
+{
+  "accept_commit": "273f2cfed02827e0f9d8d4abeb195e80927dcacd",
+  "acceptance_history": [
+    {
+      "accept_commit": "273f2cfed02827e0f9d8d4abeb195e80927dcacd",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-16T07:48:49.401373+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "d2291671277f27226ee2473ac727bd8486995192"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-16T07:48:49.401373+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "d2291671277f27226ee2473ac727bd8486995192",
+  "baseline_merge_commit": "cd0595b70a2576cc209a9b2217511ee50e2d4b8d",
+  "created_at": "2026-09-16T06:45:36.339339+00:00",
+  "flattened": true,
+  "friendly_name": "CI Aggregate Source-Eligibility (main-verdict provenance)",
+  "merged_at": "2026-09-16T07:50:52.409360+00:00",
+  "merged_commit": "112ccd74022a0a0a19a80dece8cfbe631381212c",
+  "mid8": "01M2MFDD",
+  "mission_id": "01M2MFDDY0D3GH4E2VERHEBK1Z",
+  "mission_number": null,
+  "mission_slug": "ci-aggregate-source-eligibility-01M2MFDD",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Stage 2 of the ratified CI main-tip verdict topology cluster (#4437). Today a red/partial pull-request run can be mislabelled as a main-branch CI Aggregate verdict, producing a standing false failure on main that erodes trust in main's release-authority signal. This mission extracts the source-eligibility decision into a tested, provenance-aware surface so main's pass/fail signal reflects only genuine main-branch evidence.",
+  "purpose_tldr": "Make CI Aggregate's main-verdict source-eligibility honest: a PR-head or failed run must never be adjudicated as a main-branch verdict.",
+  "slug": "ci-aggregate-source-eligibility-01M2MFDD",
+  "status_phase": "1",
+  "target_branch": "fix/ci-aggregate-source-eligibility",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-16T07:18:46.720392+00:00"
+}

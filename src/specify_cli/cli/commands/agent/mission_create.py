@@ -520,7 +520,14 @@ def _run_create_core_phase(
     except MissionCreationError as exc:
         error_msg = str(exc)
         if json_output:
-            _emit_json({"error": error_msg})
+            # #3861: carry the delegate's TYPED failure reason (e.g.
+            # ``MissionAlreadyExistsError.error_code``) into the --json
+            # envelope so scripted callers (the orchestrator-api ``specify``
+            # verb) classify on the structured code, never on message prose.
+            error_payload: dict[str, object] = {"error": error_msg}
+            if exc.error_code is not None:
+                error_payload["error_code"] = exc.error_code
+            _emit_json(error_payload)
         else:
             console.print(f"[bold red]Error:[/bold red] {error_msg}")
             _print_worktree_navigation_hint(mission_slug, error_msg)

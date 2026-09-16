@@ -29,6 +29,13 @@ indistinguishable from a truly revoked token and clears the local session
 (issue #253), which is wrong for a read-adjacent diagnostic to do on a
 migration path every user hits.
 
+A check that fails — any ``active=False`` result, from an HTTP 500 to a
+network error — is a critical F-008 finding and exits 1, even when the
+local access token is still valid (issue #4607): a CI gate reading the
+exit code must not pass cleanly through a total backend outage. The
+verdict ladder in ``specify_cli.auth.verdict`` is the authority for that
+decision; this module only renders it.
+
 Public API (consumed by ``cli.commands.auth.doctor`` and tests):
 
 - :class:`Finding`, :class:`SessionSummary`, :class:`LockSummary`,

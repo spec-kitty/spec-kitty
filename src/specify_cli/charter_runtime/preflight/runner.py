@@ -55,6 +55,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from specify_cli.charter_runtime.freshness import compute_freshness
+from specify_cli.charter_runtime.preflight.ambient_warning import dedupe_warnings
 
 from .result import CharterPreflightCheck, CharterPreflightResult, CheckState
 
@@ -386,6 +387,11 @@ def _advisory_missing_charter_result(
     ``blocked_reason``) differing only in the per-check ``detail`` text and
     which warning constant is attached — factored out once a second call
     site made the duplication real (DIRECTIVE_025 Boy Scout Rule).
+
+    #3971: the ``warnings`` list is de-duplicated at birth
+    (:func:`ambient_warning.dedupe_warnings`) so every consumer — the stderr
+    seam, the dashboard's persisted banner, the JSON contract — receives a
+    duplicate-free list without each having to re-filter.
     """
     return CharterPreflightResult(
         passed=True,
@@ -401,7 +407,7 @@ def _advisory_missing_charter_result(
         auto_refresh_applied=False,
         auto_refresh_actions=[],
         blocked_reason=None,
-        warnings=[warning],
+        warnings=dedupe_warnings([warning]),
     )
 
 

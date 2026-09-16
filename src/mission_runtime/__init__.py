@@ -40,6 +40,7 @@ from mission_runtime.context import (
     MissionExecutionContext,
     MissionTopology,
     classify_topology,
+    is_single_branch,
     routes_through_coordination,
 )
 from mission_runtime.artifacts import (
@@ -93,6 +94,9 @@ __all__ = [
     "declared_read_surface",
     "enforce_checkout_identity",
     "is_primary_artifact_kind",
+    # owned-ssot-3862 item A: the SINGLE enum-based single_branch predicate the
+    # owned-placement arms and the owned checkout preflight dispose against.
+    "is_single_branch",
     "kind_for_mission_file",
     "kind_is_coordination_residue",
     "mid8_from_slug",

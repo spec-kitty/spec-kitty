@@ -33,6 +33,12 @@ from typing import Any, TextIO
 
 import typer
 
+from specify_cli.charter_runtime.preflight.ambient_warning import (
+    dedupe_warnings,
+    record_surfaced,
+    render_ambient_warning,
+    warning_already_surfaced,
+)
 from specify_cli.charter_runtime.preflight.config import load_preflight_config
 from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
 
@@ -57,11 +63,33 @@ def emit_advisory_warnings(
     result: CharterPreflightResult,
     *,
     stderr: TextIO | None = None,
+    consumer: str = "charter preflight",
+    repo_root: Path | None = None,
 ) -> None:
-    """Render passed advisory warnings on stderr without polluting JSON stdout."""
+    """Render passed advisory warnings on stderr without polluting JSON stdout.
+
+    #3971: each distinct ambient warning is surfaced at most once per
+    command run (process lifetime) — a repeated hook invocation in the same
+    process prints the duplicate no more — and the single surfaced instance
+    carries its scope (the consumer that ran preflight and the repo root
+    the condition was computed against). The warning text itself carries
+    the concrete remedy (an exact recovery command).
+
+    Args:
+        result: The preflight result whose ``warnings`` are advisory notes.
+        stderr: Optional stream override (mostly for tests). Defaults to
+            ``sys.stderr``.
+        consumer: Human-readable consumer name for the scope suffix, e.g.
+            ``"next"`` or ``"implement"``.
+        repo_root: The repository root preflight ran against, for the scope
+            suffix. ``None`` renders as ``<unresolved>``.
+    """
     err = stderr if stderr is not None else sys.stderr
-    for warning in result.warnings:
-        print(f"Warning: {warning}", file=err)
+    for warning in dedupe_warnings(list(result.warnings)):
+        if warning_already_surfaced(warning):
+            continue
+        record_surfaced(warning)
+        print(render_ambient_warning(warning, consumer=consumer, repo_root=repo_root), file=err)
 
 
 def run_preflight_or_abort(
@@ -105,7 +133,7 @@ def run_preflight_or_abort(
     )
 
     if result.passed:
-        emit_advisory_warnings(result, stderr=stderr)
+        emit_advisory_warnings(result, stderr=stderr, consumer=consumer, repo_root=repo_root)
         _logger.info("charter preflight passed (consumer=%s)", consumer)
         return result
 

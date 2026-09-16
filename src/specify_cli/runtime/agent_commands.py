@@ -33,7 +33,7 @@ from specify_cli.core.config import DEFAULT_MISSION_KEY
 from specify_cli.runtime.bootstrap import _get_cli_version
 from specify_cli.runtime.home import get_kittify_home
 from specify_cli.runtime.asset_preparation import _GlobalAssetPreparation
-from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment
+from specify_cli.tool_surface.operations import ApplyConsent, Disposition, OwnerAssessment
 
 logger = logging.getLogger(__name__)
 
@@ -244,6 +244,38 @@ def _file_has_current_version_marker(path: Path, cli_version: str) -> bool:
     return any(line.strip() == expected for line in content.splitlines()[:_VERSION_MARKER_HEAD_LINES])
 
 
+#: One managed marker line, capturing the CLI version it names. Byte-level
+#: twin of ``_VERSION_MARKER_PREFIX`` so the predecessor check compares the
+#: exact bytes the renderers emit (including the TOML agents, whose marker
+#: sits inside the ``prompt = """..."""`` body rather than after frontmatter).
+_VERSION_MARKER_LINE = re.compile(rb"(?m)^<!-- spec-kitty-command-version: ([^\r\n]+?) -->\r?\n")
+
+
+def _is_canonical_predecessor(existing: bytes, desired: bytes, current_version: str) -> bool:
+    """Return True when *existing* command-file bytes provably came from a spec-kitty release.
+
+    #4609: a file whose managed marker names a DIFFERENT CLI version carries
+    spec-kitty's own provenance stamp from that other release, so upgrading it
+    in place is provenance-safe even when the rendered content changed between
+    the two releases. Without this, a 3.2.7 -> 4.x upgrade silently left every
+    content-changed command file (specify/plan/tasks/analyze) at the old
+    version: the pre-4.x install wrote no asset inventory, so ``asset()``
+    could prove neither ownership nor equality and preserved each file as an
+    "Unproven existing asset" -- permanently, with no warning.
+
+    A marker naming the CURRENT version only qualifies when the bytes are
+    otherwise identical: current-version marker plus drifted content is a
+    user edit of this release's own output, which stays preserved.
+    """
+    match = _VERSION_MARKER_LINE.search(existing)
+    if match is None:
+        return False
+    declared = match.group(1).decode("utf-8", "replace").strip()
+    if declared != current_version:
+        return True
+    return _VERSION_MARKER_LINE.sub(b"", existing) == _VERSION_MARKER_LINE.sub(b"", desired)
+
+
 def _agent_commands_healthy(agent_key: str, templates_dir: Path, cli_version: str) -> bool:
     """Return True when one agent's global command directory is complete."""
     expected = _expected_command_filenames(agent_key, templates_dir)
@@ -319,7 +351,11 @@ def assess_global_agent_commands(
     """Read/render the entire selected agent bundle without installing sources.
 
     A scoped call never updates the all-agent stamp. Unknown prefixed paths
-    and edited generated files are preserved, independent of marker freshness.
+    and edited generated files are preserved, independent of marker freshness;
+    a managed marker naming a *different* CLI version proves canonical
+    provenance and migrates in place even when the content changed between
+    releases (#4609). Canonical command files that still cannot be migrated
+    are never silent: one warning names them.
     """
     from specify_cli.core.config import AGENT_COMMAND_CONFIG
     from specify_cli.shims.registry import PROMPT_DRIVEN_COMMANDS
@@ -333,6 +369,7 @@ def assess_global_agent_commands(
         prepared = AssetPreparation("slash_commands", root, home / "cache", _LOCK_FILENAME, consent)
         keys = tuple(sorted(set(AGENT_COMMAND_CONFIG if agent_keys is None else agent_keys)))
         selected_roots: dict[str, Path] = {}
+        canonical_names: set[str] = set()
         templates = _get_command_templates_dir() if templates_dir is None else templates_dir
         prepared.observe(templates, members=True)
         for command in sorted(PROMPT_DRIVEN_COMMANDS):
@@ -357,6 +394,7 @@ def assess_global_agent_commands(
                 continue
             rendered = _render_agent_commands(key, templates, _resolve_script_type() if script_type is None else script_type)
             canonical = {name for name, _content in rendered}
+            canonical_names.update(canonical)
             for name, content in rendered:
                 target = output / name
                 predecessor = False
@@ -373,8 +411,12 @@ def assess_global_agent_commands(
                     # `observe()` call just above already confirmed this is a
                     # regular file under the owner's own managed destination.
                     existing_bytes = target.read_bytes()
-                    marker = rb"(?m)^<!-- spec-kitty-command-version: [^\r\n]+ -->\r?\n"
-                    predecessor = bool(re.search(marker, existing_bytes)) and re.sub(marker, b"", existing_bytes) == re.sub(marker, b"", content)
+                    # #4609: a managed marker naming a different CLI version
+                    # proves the bytes are an older release's canonical output
+                    # (the pre-4.x line wrote no inventory to prove it with),
+                    # so they are a canonical predecessor even when the
+                    # rendered content changed between the two releases.
+                    predecessor = _is_canonical_predecessor(existing_bytes, content, _get_cli_version())
                 prepared.asset(target, content, 0o444, canonical_predecessor=predecessor)
             if state.kind == "directory":
                 for existing in output.iterdir():
@@ -386,6 +428,7 @@ def assess_global_agent_commands(
             assessment,
             effects=tuple(replace(effect, logical_owners=_command_effect_owners(effect.destination, selected_roots)) for effect in assessment.effects),
         )
+        _warn_unmigrated_commands(assessment.dispositions, canonical_names)
         return prepared, assessment
 
     try:
@@ -398,6 +441,33 @@ def assess_global_agent_commands(
         return assessment
     except (OSError, ValueError, KeyError) as exc:
         return incomplete("slash_commands", root, exc)
+
+
+def _warn_unmigrated_commands(dispositions: tuple[Disposition, ...], canonical_names: set[str]) -> None:
+    """Name every canonical command file this assessment could not migrate (#4609).
+
+    ``asset()`` deliberately preserves an existing file it cannot prove is
+    unedited canonical output -- that refusal is the safe half of the
+    contract; this warning is the other half: the ones it refused are never
+    silent. Scoped to the canonical filename set so a user's own unrelated
+    ``spec-kitty.*`` file or an unproven command directory is not reported
+    here (those keeps are deliberate too, and ``retire()`` already keeps them
+    namelessly).
+    """
+    unmigrated = sorted(
+        f"{disposition.path} ({disposition.reason})"
+        for disposition in dispositions
+        if disposition.state in {"preserve", "consent_required"} and (disposition.path or "").rsplit("/", 1)[-1] in canonical_names
+    )
+    if not unmigrated:
+        return
+    logger.warning(
+        "spec-kitty could not migrate %d global command file(s) and left them unchanged: %s. "
+        "Their contents differ from this version's canonical command output and could not be "
+        "proven unedited; remove the named files and run any spec-kitty command to reinstall them.",
+        len(unmigrated),
+        ", ".join(unmigrated),
+    )
 
 
 def _apply_command_assessment(assessment: OwnerAssessment, *, rebuild: Callable[[], OwnerAssessment]) -> None:

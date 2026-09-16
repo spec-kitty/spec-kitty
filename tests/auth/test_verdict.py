@@ -4,7 +4,8 @@ Covers the type-level invariants (evidence-required, headline-derived) and the
 full decision ladder of ``evaluate_auth_verdict``, including the load-bearing
 #3723 case: an expired
 access token whose refresh chain is unproven offline is ``unknown``, never
-``ok``.
+``ok``; and the #4607 case: a server probe that ran and failed is ``fail``
+even when the local access token is still valid.
 """
 
 from __future__ import annotations
@@ -145,6 +146,29 @@ def test_expired_access_probe_failed_is_fail() -> None:
     )
     assert v.state == "fail"
     assert "Could not obtain access token." in v.evidence
+
+
+def test_valid_access_probe_failed_is_fail() -> None:
+    """The #4607 fix: a failed server probe is a failure even when the local
+    access token is still valid — local validity never overrides the answer
+    the user explicitly asked the server for."""
+    v = evaluate_auth_verdict(
+        _session(access_delta=timedelta(minutes=15), refresh_delta=timedelta(days=30)),
+        now_utc(),
+        server_probe=_Probe(active=False, error="Server returned HTTP 500"),
+    )
+    assert v.state == "fail"
+    assert "Server returned HTTP 500" in v.evidence
+    assert v.remediation == "spec-kitty auth login"
+
+
+def test_valid_access_probe_live_is_ok() -> None:
+    v = evaluate_auth_verdict(
+        _session(access_delta=timedelta(minutes=15), refresh_delta=timedelta(days=30)),
+        now_utc(),
+        server_probe=_Probe(active=True),
+    )
+    assert v.state == "ok"
 
 
 def test_legacy_refresh_none_is_ok_when_access_valid() -> None:

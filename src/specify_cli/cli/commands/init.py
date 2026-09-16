@@ -165,18 +165,29 @@ def _repair_requested_command_skills(project: Path, agents: list[str]) -> bool:
         return False
 
     from specify_cli.skills.command_installer import CANONICAL_COMMANDS
+    from specify_cli.skills.vibe_config import ensure_project_skill_path, skill_path_configured
 
     skills_root = project / ".agents" / "skills"
-    missing = any(not (skills_root / f"spec-kitty.{command}" / "SKILL.md").is_file() for command in CANONICAL_COMMANDS)
-    if not missing:
+    missing_skills = any(not (skills_root / f"spec-kitty.{command}" / "SKILL.md").is_file() for command in CANONICAL_COMMANDS)
+    # #4433: the vibe pointer is part of vibe's command surface, so an
+    # explicitly requested vibe gets it restored too — surgically, without
+    # re-running the installer over present (possibly user-edited) skills.
+    vibe_pointer_missing = "vibe" in command_agents and not skill_path_configured(project)
+    if not (missing_skills or vibe_pointer_missing):
         return False
 
     protected = GitignoreManager(project).protect_all_agents()
     if not protected.success:
         raise ValueError("Cannot repair command delivery: " + "; ".join(protected.errors))
-    _console.print("[yellow]Restoring missing command skills for this initialized clone.[/yellow]")
-    if not _install_command_skill_agents(project, command_agents):
-        raise ValueError("Command-skill repair remains incomplete; resolve the reported collision or error")
+    if missing_skills:
+        _console.print("[yellow]Restoring missing command skills for this initialized clone.[/yellow]")
+        if not _install_command_skill_agents(project, command_agents):
+            raise ValueError("Command-skill repair remains incomplete; resolve the reported collision or error")
+    if vibe_pointer_missing and not skill_path_configured(project):
+        # Reached when the skills were present and only the pointer was lost;
+        # after an installer run the pointer is already restored.
+        _console.print("[yellow]Restoring the missing vibe skill-path pointer for this initialized clone.[/yellow]")
+        ensure_project_skill_path(project)
     return True
 
 
@@ -217,6 +228,7 @@ def _check_initialized_command_skills(project: Path, requested: str | None) -> l
     """Diagnose clone-local delivery gaps without rewriting initialized projects."""
     from specify_cli.skills.command_installer import CANONICAL_COMMANDS
     from specify_cli.skills.paths import skill_path_observations
+    from specify_cli.skills.vibe_config import skill_path_configured
 
     selected = _validated_agent_selection(requested, load_agent_config(project).available)
     if not _COMMAND_SKILL_AGENTS.intersection(selected):
@@ -227,10 +239,19 @@ def _check_initialized_command_skills(project: Path, requested: str | None) -> l
         observations = skill_path_observations(project, path)
         if observations[-1].state.kind != "file" or path.stat().st_size == 0:
             missing.append(command)
-    if missing:
-        raise ValueError(
-            "Configured agent command skills are missing or empty: " + ", ".join(missing) + ". Run: spec-kitty agent config sync --create-missing --keep-orphaned"
-        )
+    # #4433: vibe resolves the shared skills through the gitignored
+    # ``.vibe/config.toml`` ``skill_paths`` pointer — an independently missable
+    # part of the command surface (doctor already diagnoses it), so init's
+    # "Already Initialized" verdict must agree with doctor's on what "ready"
+    # means instead of exiting 0 over a broken vibe surface.
+    vibe_pointer_missing = "vibe" in selected and not skill_path_configured(project)
+    if missing or vibe_pointer_missing:
+        gaps = []
+        if missing:
+            gaps.append("Configured agent command skills are missing or empty: " + ", ".join(missing))
+        if vibe_pointer_missing:
+            gaps.append("the vibe skill-path pointer (.vibe/config.toml skill_paths) is missing")
+        raise ValueError("; ".join(gaps) + ". Run: spec-kitty agent config sync --create-missing --keep-orphaned")
     return selected
 
 

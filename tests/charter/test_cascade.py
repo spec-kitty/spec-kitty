@@ -917,7 +917,11 @@ def test_deactivation_plan_collects_kind_filtered_node_and_it_never_leaks() -> N
         active_urns={"toolguide:qa-carrier-lint"},
     )
     assert isinstance(plan, DeactivationPlan)
-    assert plan.not_cascaded_kind_filtered == ["asset:qa-traceability-lint"]
+    # Issue #3772: the field is kind-bucketed (dict[str, list[str]] of bare
+    # IDs), unified with the activate-side siblings -- this is the ONE
+    # engine-level shape assertion the unification necessarily moves; every
+    # rendered-output assertion is unchanged.
+    assert plan.not_cascaded_kind_filtered == {"asset": ["qa-traceability-lint"]}
     assert "asset:qa-traceability-lint" not in plan.deactivate
     assert all(skip.urn != "asset:qa-traceability-lint" for skip in plan.skipped_shared)
     assert plan.deactivate == ["tactic:qa"]

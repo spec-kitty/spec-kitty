@@ -144,6 +144,89 @@ def test_initialized_clone_rejects_unusable_skills(monkeypatch, tmp_path, agent,
     assert config.read_text() == f"agents:\n  available: [{agent}]\n"
 
 
+def _seed_vibe_clone(project: Path) -> None:
+    """Seed an initialized vibe clone whose managed skills are present (#4433).
+
+    ``command_installer.install`` builds the shared skill surface and its
+    manifest but not the ``.vibe/config.toml`` pointer — the exact asymmetry
+    this issue closes: the pointer is an independently missable, gitignored
+    part of the surface, present skills notwithstanding.
+    """
+    import subprocess
+
+    from specify_cli.skills import command_installer
+
+    subprocess.run(["git", "init", "-q", str(project)], check=True)
+    config = project / ".kittify/config.yaml"
+    config.parent.mkdir()
+    config.write_text("agents:\n  available: [vibe]\n", encoding="utf-8")
+    command_installer.install(project, "vibe")
+    assert not (project / ".vibe/config.toml").exists()
+
+
+def test_initialized_clone_diagnoses_missing_vibe_skill_path_pointer(monkeypatch, tmp_path):
+    """Skills present + vibe pointer absent is a broken surface, not ready (#4433).
+
+    Doctor already treats the ``.vibe/config.toml`` ``skill_paths`` pointer as
+    an independently missable part of the vibe command surface; init's
+    "Already Initialized" exit 0 must not disagree with it.
+    """
+    _seed_vibe_clone(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    app, buf = _make_app_with_buf()
+    result = _run(app, ["init", "--non-interactive"])
+    assert result.exit_code == 1
+    flattened = " ".join(buf.getvalue().split())
+    assert "vibe skill-path pointer" in flattened
+    assert ".vibe/config.toml" in flattened
+    assert "spec-kitty agent config sync --create-missing --keep-orphaned" in flattened
+    # Diagnosis only — the missing pointer and project state are untouched.
+    assert not (tmp_path / ".vibe/config.toml").exists()
+    assert (tmp_path / ".agents/skills/spec-kitty.plan/SKILL.md").is_file()
+    assert (tmp_path / ".kittify/config.yaml").read_text() == "agents:\n  available: [vibe]\n"
+
+
+def test_initialized_clone_vibe_pointer_recovery_and_repeat(monkeypatch, tmp_path):
+    """The recommended recovery command clears the pointer gap; init then exits 0."""
+    from specify_cli.cli.commands.agent.config import app as config_app
+
+    _seed_vibe_clone(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    app, _ = _make_app_with_buf()
+    assert _run(app, ["init", "--non-interactive"]).exit_code == 1
+    recovered = CliRunner().invoke(config_app, ["sync", "--create-missing", "--keep-orphaned"])
+    assert recovered.exit_code == 0, recovered.output
+    pointer = tmp_path / ".vibe/config.toml"
+    assert pointer.is_file()
+    before = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    for _ in range(2):
+        assert _run(app, ["init", "--non-interactive"]).exit_code == 0
+    after = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    assert after == before
+
+
+def test_initialized_clone_explicit_vibe_restores_pointer_only(monkeypatch, tmp_path):
+    """An explicit ``--ai vibe`` restores the pointer surgically (#4433).
+
+    Present managed skills are never re-run through the installer just to
+    repair the pointer.
+    """
+    _seed_vibe_clone(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    app, buf = _make_app_with_buf()
+    before = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    result = _run(app, ["init", "--non-interactive", "--ai", "vibe"])
+    assert result.exit_code == 0, buf.getvalue()
+    assert (tmp_path / ".vibe/config.toml").is_file()
+    after = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    # The pointer is the only managed-surface addition; protect_all_agents()
+    # may also (re)write .gitignore, which is its documented job.
+    assert set(after) - set(before) <= {Path(".vibe/config.toml"), Path(".gitignore")}
+    assert {k: v for k, v in after.items() if k not in (Path(".vibe/config.toml"), Path(".gitignore"))} == {
+        k: v for k, v in before.items() if k != Path(".gitignore")
+    }
+
+
 @pytest.mark.parametrize("agent", ["claude", "qwen", "kilocode"])
 def test_initialized_clone_restores_native_agent_skills(monkeypatch, tmp_path, agent):
     """A clone re-run restores the gitignored NATIVE skill root (#4425)."""

@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#4334": {
+      "evidence_ref": "sonar-pr (already shipped #4334) confirmed independent of the fallback source query: reads source.json from current-run prepare_source, continue-on-error, excluded from aggregate-gate; live-proven skipped-not-failed in run 35062966456 (research D-06)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4347": {
+      "evidence_ref": "Stage 1 (per-SHA main concurrency); merged to upstream main via PR #4541",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4360": {
+      "evidence_ref": "Axis 3a delivered as tested provenance source-eligibility surface (WP01) + doctrine correction (WP02); #4360-B shipped (#4515). Durable close = ADR 2026-09-15-1 Axis-3 lever 3b (non-Actions main baseline), the recorded follow-up that retires the axis. PR uses Refs #4360 (Closes pending operator confirmation)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#4371": {
+      "evidence_ref": "Stage 1 (fleet fan-out cap); merged via PR #4541",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4437": {
+      "evidence_ref": "Epic (3-stage cluster); Stage 2 of 3. Remaining: Stage 3 #4430 (terminal-cancel). Epic stays open until all stages land",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4515": {
+      "evidence_ref": "#4360-B diff-scoped reconciliation (reconcile_shards.py) already shipped in PR #4515; frozen boundary here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4541": {
+      "evidence_ref": "Stage 1 PR, merged to upstream main; this mission builds on that base",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

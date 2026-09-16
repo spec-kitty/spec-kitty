@@ -264,11 +264,14 @@ spec-kitty orchestrator-api specify \
 | `--policy` | yes | Policy metadata JSON (see [Required Flags](#required-flags)). |
 
 Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
-`MISSION_ALREADY_EXISTS` (a retry whose scaffold is byte-identical to what is
-already committed — a duplicate/no-op-commit signature), `MISSION_CREATE_FAILED`
+`MISSION_ALREADY_EXISTS` (the mission-creation delegate refused a duplicate —
+a live same-key prior mission (#4033), or a retry whose scaffold is
+byte-identical to what is already committed — surfaced as the typed
+`MissionAlreadyExistsError` signal), `MISSION_CREATE_FAILED`
 (any other creation failure with no more specific `error_code`; a typed
 upstream code such as `CharterPackConfigError` is passed through verbatim
-instead).
+instead). Classification consumes only the delegate's typed `error_code`,
+never its message prose (#3861).
 
 ### plan
 

@@ -450,7 +450,7 @@ spec-kitty orchestrator-api specify \
 | Code | Cause |
 |------|-------|
 | `POLICY_METADATA_REQUIRED` | `--policy` missing |
-| `MISSION_ALREADY_EXISTS` | The delegate mission-creation call failed with a duplicate/no-op-commit signature |
+| `MISSION_ALREADY_EXISTS` | The delegate mission-creation call refused a duplicate (typed `MissionAlreadyExistsError` signal, #3861) |
 | `MISSION_CREATE_FAILED` | Mission creation failed for any other reason (or the delegate's own typed `error_code`, passed through verbatim when present) |
 
 **Usage notes:**
@@ -875,8 +875,8 @@ transition — it never invokes the WP-loop or `next` engines.
 | `SAFE_COMMIT_RECOVERY_FAILED` | append-history | Safe commit created or attempted a commit but could not restore caller staging |
 | `TRANSITION_REJECTED` | start-implementation, start-review, transition | Guard failure or invalid transition |
 | `WP_ALREADY_CLAIMED` | start-implementation, start-review | Another actor owns the WP |
-| `MISSION_ALREADY_EXISTS` | specify | Delegate mission-creation call failed with a duplicate/no-op-commit signature |
-| `MISSION_CREATE_FAILED` | specify | Mission creation failed for a reason other than a detected duplicate |
+| `MISSION_ALREADY_EXISTS` | specify | Delegate mission-creation call refused a duplicate (typed `MissionAlreadyExistsError` signal, #3861) |
+| `MISSION_CREATE_FAILED` | specify | Mission creation failed for a reason other than a typed duplicate signal |
 | `PLAN_SETUP_FAILED` | plan | Delegate plan-scaffold call failed with no more specific typed `error_code` of its own |
 | `TASKS_FINALIZE_FAILED` | tasks | Delegate finalize-tasks call failed with no more specific typed `error_code` of its own |
 | `CHECK_PREREQUISITES_FAILED` | check-prerequisites | Delegate validation call failed with no more specific typed `error_code` of its own |

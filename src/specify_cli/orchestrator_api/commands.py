@@ -29,10 +29,11 @@ Error codes used:
                                  approved dependency lane's tip is not (yet) a git
                                  ancestor of the claimed workspace's HEAD, even
                                  after self-heal re-ran the reuse-path merges
-  MISSION_ALREADY_EXISTS      -- specify: the delegate mission-creation call failed
-                                 with a duplicate/no-op-commit signature (WP03)
+  MISSION_ALREADY_EXISTS      -- specify: the delegate mission-creation call
+                                 failed with its own typed duplicate signal
+                                 (MissionAlreadyExistsError, #3861)
   MISSION_CREATE_FAILED       -- specify: mission creation failed for a reason
-                                 other than a detected duplicate (WP03)
+                                 other than a typed duplicate signal (WP03)
   PLAN_SETUP_FAILED           -- plan: the delegate plan-scaffold call failed and
                                  carried no more specific error_code of its own (WP03)
   TASKS_FINALIZE_FAILED       -- tasks: the delegate finalize-tasks call failed and
@@ -2117,41 +2118,6 @@ def _extract_json_payload(raw_output: str) -> dict[str, Any] | None:
     return None
 
 
-# Markers observed in ``create_mission``'s own bare-exception message when a
-# second ``specify`` targets a slug/mid8 pairing that already produced an
-# identical on-disk mission: the retry's meta.json/spec.md scaffold is
-# byte-identical to what is already committed, so the underlying
-# ``safe_commit`` sees an empty changeset and raises a plain ``RuntimeError``
-# with no ``error_code`` of its own (verified against production behavior --
-# see the WP03 tracer entry). This surface classifies that established
-# failure into a stable, structured code instead of letting it flatten to a
-# generic one.
-_MISSION_DUPLICATE_MARKERS = ("nothing to commit", "empty changeset", "already exists")
-
-
-def _classify_specify_create_error(payload: dict[str, Any] | None, raw_output: str) -> tuple[str, str, dict[str, Any]]:
-    """Classify a failed ``specify`` delegate call into ``(error_code, message, data)``.
-
-    A typed upstream ``error_code`` (e.g. ``CharterPackConfigError``,
-    ``CoordinationBranchDiverged``) is trusted verbatim. A bare
-    ``{"error": ...}`` payload (``MissionCreationError`` / a generic
-    ``RuntimeError``) is pattern-matched against the known duplicate-mission
-    signature; anything else falls back to a generic, still-structured code
-    -- never a bare exception/traceback (this repo's dominant failure mode).
-    """
-    if payload is None:
-        message = raw_output.strip() or "mission creation failed"
-        return "MISSION_CREATE_FAILED", message, {"raw_output": raw_output}
-    message = str(payload.get("error") or payload.get("message") or "mission creation failed")
-    error_code = payload.get("error_code")
-    if error_code:
-        return str(error_code), message, payload
-    lowered = message.lower()
-    if any(marker in lowered for marker in _MISSION_DUPLICATE_MARKERS):
-        return "MISSION_ALREADY_EXISTS", message, payload
-    return "MISSION_CREATE_FAILED", message, payload
-
-
 def _classify_delegate_error(
     payload: dict[str, Any] | None,
     raw_output: str,
@@ -2159,9 +2125,17 @@ def _classify_delegate_error(
     fallback_code: str,
     fallback_message: str,
 ) -> tuple[str, str, dict[str, Any]]:
-    """Classify a failed ``plan``/``tasks`` delegate call, trusting any typed
-    ``error_code`` the delegate already carries and falling back to a
-    verb-specific structured code otherwise -- never a bare exception.
+    """Classify a failed ``plan``/``tasks``/``specify`` delegate call, trusting
+    any typed ``error_code`` the delegate already carries and falling back to
+    a verb-specific structured code otherwise -- never a bare exception.
+
+    ``specify`` uses the same seam (#3861): the mission-creation delegate now
+    surfaces its duplicate-mission refusal as a typed
+    ``MissionAlreadyExistsError`` whose ``error_code`` travels in the JSON
+    error payload, so this trust-the-typed-code path is the ONLY
+    already-exists classification -- the retired substring heuristic over
+    the delegate's message prose could silently mislabel when wording
+    changed.
     """
     if payload is None:
         message = raw_output.strip() or fallback_message
@@ -2214,7 +2188,12 @@ def specify(
     except typer.Exit:
         raw_output = capture.getvalue()
         payload = _extract_json_payload(raw_output)
-        error_code, message, error_data = _classify_specify_create_error(payload, raw_output)
+        error_code, message, error_data = _classify_delegate_error(
+            payload,
+            raw_output,
+            fallback_code="MISSION_CREATE_FAILED",
+            fallback_message="mission creation failed",
+        )
         _fail(cmd, error_code, message, error_data)
         return
 
