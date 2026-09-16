@@ -490,7 +490,7 @@ terms:
   surface: provenance sidecar
 - confidence: 1.0
   definition: Optional owner/repo Git provider reference (e.g. 
-    Priivacy-ai/spec-kitty). Unchanged from pre-081 meaning.
+    spec-kitty/spec-kitty). Unchanged from pre-081 meaning.
   status: active
   surface: repo_slug
 - confidence: 1.0
