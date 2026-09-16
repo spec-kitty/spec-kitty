@@ -212,13 +212,21 @@ def test_revoke_signal_counts_only_approved_items_as_revocable(state_root: Path,
     assert signal.revocable_count == 1
 
 
-# --- MCP signal: exactly the subscription two-tool surface -------------------
+# --- MCP signal: exactly the subscription and authored tool surfaces ---------
 
 
 def test_mcp_signal_reports_reachable_and_the_exact_read_tool_surface():
     signal = operability.mcp_signal()
     assert signal.reachable is True
-    assert signal.tool_names == ("zeitgeist_activity", "zeitgeist_status", "zeitgeist_watch")
+    assert signal.tool_names == (
+        "zeitgeist_activity",
+        "zeitgeist_inbox",
+        "zeitgeist_read",
+        "zeitgeist_reply",
+        "zeitgeist_send",
+        "zeitgeist_status",
+        "zeitgeist_watch",
+    )
 
 
 def test_mcp_signal_reports_unreachable_when_agent_moments_are_off(moments_config: Path):

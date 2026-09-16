@@ -81,7 +81,11 @@ from specify_cli.zeitgeist_client import credentials, moments, operability, outb
 
 app = typer.Typer(
     name="zeitgeist",
-    help="Read-only access to one team's live Zeitgeist presence/focus stream and status-moment events, plus a local human-gated prose approval surface.",
+    help=(
+        "Access to one team's live Zeitgeist presence/focus stream and status-moment "
+        "events, authored peer messaging (#4269), a local human-gated prose approval "
+        "surface, and operability drills."
+    ),
 )
 
 _REPO_ARGUMENT = typer.Argument(
@@ -312,6 +316,163 @@ def activity(
     except ValueError as exc:
         console.print(str(exc), markup=False)
         raise typer.Exit(1) from None
+
+
+# --- #4269: authored peer messaging ------------------------------------------
+
+_KIND_ARGUMENT = typer.Argument(
+    ...,
+    help=("Authored kind: intent, progress, question, answer, decision, handoff, blocker, resolution, next, or message (a peer reply)."),
+)
+_BODY_ARGUMENT = typer.Argument(..., help="Authored body text; the live wire carries at most 240 chars.")
+_AUDIENCE_OPTION = typer.Option(
+    None,
+    "--audience",
+    help="team (the default when a mission binding resolves it) or peer:<logical-session-id> to address one agent.",
+)
+_TRUNCATE_OPTION = typer.Option(False, "--truncate", help="Explicitly cut an oversize body to the 240-char wire bound instead of failing.")
+_THREAD_OPTION = typer.Option(None, "--thread", help="Thread id; defaults to this message's own id (a new conversation's root).")
+
+
+def _authored() -> Any:
+    """Lazy import of the authored service — ``live_work.authored`` pulls
+    ``spec_kitty_events.models`` and ``ulid``, which a bare ``--help`` or any
+    unrelated command must not pay for at CLI startup."""
+    from specify_cli.live_work import authored  # noqa: PLC0415
+
+    return authored
+
+
+def _print_send_result(module: Any, result: Any, *, as_json: bool) -> None:
+    if as_json:
+        console.emit_json(result.as_dict())
+        return
+    outcome = result.outcome.value
+    style = "green" if outcome == "accepted" else "yellow" if outcome == "offered" else "red"
+    console.print(f"[{style}]{outcome}[/{style}]  message={result.message_id}  thread={result.thread}  audience={result.audience}")
+    if result.reply_to:
+        console.print(f"  reply_to={result.reply_to}")
+    if result.truncated:
+        console.print("  [yellow]body truncated to the 240-char wire bound (explicit --truncate)[/yellow]")
+    if result.reason:
+        console.print(f"  [yellow]{result.reason}[/yellow]", markup=False, highlight=False)
+    console.print(f"  [dim]{module.DELIVERY_SCOPE_NOTE}[/dim]", markup=False, highlight=False)
+
+
+@app.command()
+def send(
+    kind: str = _KIND_ARGUMENT,
+    body: str = _BODY_ARGUMENT,
+    audience: str | None = _AUDIENCE_OPTION,
+    thread: str | None = _THREAD_OPTION,
+    truncate: bool = _TRUNCATE_OPTION,
+    as_json: bool = _JSON_OPTION,
+) -> None:
+    """Author and publish one live message (#4269) — accepted/offered/failed,
+    never retained delivery."""
+    module = _authored()
+    try:
+        result = module.send(kind, body, cwd=Path.cwd(), audience=audience, thread=thread, allow_truncate=truncate)
+    except moments.MomentsDisabled as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(0) from None
+    except module.AuthoredMessageError as exc:
+        console.print(f"[red]Error:[/red] {exc}", markup=False, highlight=False)
+        raise typer.Exit(1) from None
+    _print_send_result(module, result, as_json=as_json)
+    if result.outcome is module.SendOutcome.FAILED:
+        raise typer.Exit(1)
+
+
+@app.command()
+def reply(
+    reply_to: str = typer.Argument(..., help="The message id being replied to; it must still be in the relay's recent window."),
+    body: str = _BODY_ARGUMENT,
+    audience: str | None = _AUDIENCE_OPTION,
+    truncate: bool = _TRUNCATE_OPTION,
+    as_json: bool = _JSON_OPTION,
+) -> None:
+    """Reply to one authored message — thread and audience come from the
+    parent; a peer thread is never broadened to team scope."""
+    module = _authored()
+    try:
+        result = module.reply(reply_to, body, cwd=Path.cwd(), audience=audience, allow_truncate=truncate)
+    except moments.MomentsDisabled as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(0) from None
+    except module.AuthoredMessageError as exc:
+        console.print(f"[red]Error:[/red] {exc}", markup=False, highlight=False)
+        raise typer.Exit(1) from None
+    _print_send_result(module, result, as_json=as_json)
+    if result.outcome is module.SendOutcome.FAILED:
+        raise typer.Exit(1)
+
+
+def _print_message_views(result: dict[str, Any], *, as_json: bool) -> None:
+    if as_json:
+        console.emit_json(result)
+        return
+    for message in result["messages"]:
+        console.print(message["untrusted_text"], markup=False, highlight=False)
+    summary = {k: v for k, v in result.items() if k not in {"messages", "settings"}}
+    console.print(summary)
+
+
+@app.command()
+def read(
+    thread: str | None = typer.Argument(None, help="Thread id; omit to read all recent authored messages."),
+    repo: str | None = _REPO_ARGUMENT,
+    window: int = typer.Option(900, "--window", min=0, help="Lookback seconds within the relay's configured retention."),
+    max_messages: int = typer.Option(100, "--max-messages", min=1, help="Maximum messages delivered in one read."),
+    as_json: bool = _JSON_OPTION,
+) -> None:
+    """Read a conversation thread (or recent authored messages) from the
+    relay's recent ring; bodies render inside untrusted markers."""
+    module = _authored()
+    key = _resolve_store_key(repo)
+    try:
+        result = module.read_conversation(key, thread=thread, window_s=window, max_messages=max_messages)
+    except subscription.NotCheckedOut as exc:
+        _report_not_checked_out(exc)
+        return
+    except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+        _report_connection_fault(exc)
+        return
+    _print_message_views(result, as_json=as_json)
+
+
+@app.command()
+def inbox(
+    repo: str | None = _REPO_ARGUMENT,
+    consumer: str | None = typer.Option(None, "--consumer", help="Stable logical agent ID shared with watch/activity/MCP."),
+    window: int = typer.Option(900, "--window", min=0, help="Lookback seconds within the relay's configured retention."),
+    max_messages: int = typer.Option(50, "--max-messages", min=1, help="Maximum messages delivered in one scan."),
+    acknowledge: str | None = typer.Option(None, "--acknowledge", help="The receipt returned by a previous successful inbox call."),
+    replay: bool = typer.Option(False, "--replay", help="Intentionally include previously acknowledged messages."),
+    as_json: bool = _JSON_OPTION,
+) -> None:
+    """Addressed inbox: novel authored messages for this consumer, over the
+    same novelty/receipt policy as agent watch."""
+    module = _authored()
+    key = _resolve_store_key(repo)
+    try:
+        result = module.inbox(key, consumer=consumer, window_s=window, max_messages=max_messages, acknowledge=acknowledge, replay=replay)
+        _print_message_views(result, as_json=as_json)
+        sys.stdout.flush()
+    except moments.MomentsDisabled as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(0) from None
+    except subscription.NotCheckedOut as exc:
+        _report_not_checked_out(exc)
+        return
+    except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+        _report_connection_fault(exc)
+        return
+    receipt = result.get("receipt")
+    if receipt:
+        # Delivery succeeded once the output above landed — commit the
+        # receipt now, exactly like the activity command does.
+        module.acknowledge_inbox(key, receipt, consumer=consumer)
 
 
 @app.command(name="mcp-serve", hidden=True)

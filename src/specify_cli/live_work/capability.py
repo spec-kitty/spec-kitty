@@ -175,9 +175,10 @@ _POLICY_ROWS: tuple[CapabilityRow, ...] = (
     CapabilityRow(
         "all",
         "authored_messages",
-        CapabilityStatus.NOT_INSTRUMENTED,
-        "none",
-        "authored communication is spec-kitty#4269's surface; model private reasoning is never narrative",
+        CapabilityStatus.EXACT,
+        "CLI `zeitgeist send/reply` + MCP zeitgeist_send/zeitgeist_reply (#4269)",
+        "authored by an explicit human/agent call site, never a capture hook (#4269); "
+        "live ring only, no retained delivery; 'finding' has no contract kind yet and is refused as unsupported vocabulary",
     ),
 )
 

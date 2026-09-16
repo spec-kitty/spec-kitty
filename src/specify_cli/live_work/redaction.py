@@ -40,6 +40,7 @@ __all__ = [
     "is_excluded_path",
     "redact_command_summary",
     "relativize_path",
+    "secret_material_reason",
 ]
 
 
@@ -395,3 +396,57 @@ def redact_command_summary(command: str | Sequence[str]) -> RedactionResult:
     if len(summary) > MAX_SUMMARY_CHARS:
         summary = summary[: MAX_SUMMARY_CHARS - 1] + "…"
     return RedactionResult(summary)
+
+
+def secret_material_reason(text: str) -> str | None:
+    """Why ``text`` may not be published as authored prose, or ``None``.
+
+    The authored-message gate (#4269): a human or agent deliberately
+    publishing a bounded message is different from a command summary, where
+    redaction silently replaces the secret and the summary ships anyway —
+    an authored message whose *content* is a secret is refused outright
+    (publishing ``[redacted]`` as someone's authored words would be a false
+    message, not a safe one). This classifier reuses the same detectors
+    :func:`redact_command_summary` applies per token — Bearer prefixes,
+    secret-named assignments, credential-shaped/high-entropy/JWT tokens,
+    basic-auth shapes, URL userinfo — but reports a category instead of
+    rewriting. The category never echoes the matched text, so the refusal
+    message itself cannot leak what it refused.
+
+    Whitespace-delimited tokens only: this is a prose gate, not a parser,
+    and a secret the author split across tokens is indistinguishable from
+    prose by construction — the relay's bounded-attr world has no room for
+    a tighter scan to matter.
+    """
+    if not isinstance(text, str):
+        return None
+    expect_secret_value = False
+    for token in text.split():
+        bare = _strip_quotes(token)
+        if expect_secret_value:
+            return "bearer credential"
+        if bare.lower() == "bearer":
+            expect_secret_value = True
+            continue
+        assignment = _ENV_ASSIGNMENT_RE.match(bare)
+        if assignment is not None:
+            key, value = assignment.group(1), assignment.group(2)
+            if _is_secret_arg_name(key) or _is_credential_shaped(_strip_quotes(value)):
+                return "secret-named assignment or credential-shaped value"
+            continue
+        if bare.startswith("-") and "=" in bare:
+            name, value = bare.split("=", 1)
+            if _is_secret_arg_name(name) or _is_credential_shaped(_strip_quotes(value)):
+                return "secret-named flag value"
+            if _BEARER_TOKEN_RE.search(value):
+                return "bearer credential"
+            continue
+        if _BEARER_TOKEN_RE.match(bare):
+            return "bearer credential"
+        if _is_basic_auth_shaped(bare) and ":" in bare:
+            return "basic-auth credential"
+        if _is_credential_shaped(bare):
+            return "credential-shaped or high-entropy token"
+        if _URL_USERINFO_RE.search(bare):
+            return "URL userinfo credential"
+    return None
