@@ -351,6 +351,98 @@ specialization:
         assert "generic" in profile_ids
         assert "python-only" in profile_ids
 
+    def test_scope_filtered_ids_record_language_scoped_drops(
+        self, tmp_path: Path
+    ) -> None:
+        """#4572: a language-scope drop is recorded, not silent.
+
+        Parity with ``BaseDoctrineRepository.scope_filtered_ids`` (FR-013):
+        the catalog-miss diagnosis reads this set so a present-but-scoped
+        profile surfaces ``SCOPE_FILTERED`` instead of ``MISSING_ARTIFACT``.
+        """
+        shipped = tmp_path / "built-in"
+        shipped.mkdir()
+
+        (shipped / "python-only.agent.yaml").write_text(
+            """profile-id: python-only
+name: Python Only
+purpose: Python specialist
+roles:
+  - implementer
+applies_to_languages:
+  - python
+specialization:
+  primary-focus: Python implementation
+""",
+            encoding="utf-8",
+        )
+        (shipped / "generic.agent.yaml").write_text(
+            """profile-id: generic
+name: Generic
+purpose: Generic specialist
+roles:
+  - implementer
+specialization:
+  primary-focus: General implementation
+""",
+            encoding="utf-8",
+        )
+
+        repo = AgentProfileRepository(built_in_dir=shipped, active_languages=["typescript"])
+
+        assert repo.get("python-only") is None
+        assert repo.scope_filtered_ids == frozenset({"python-only"})
+        # The unscoped profile is neither dropped nor recorded.
+        assert repo.get("generic") is not None
+        assert "generic" not in repo.scope_filtered_ids
+
+    def test_later_layer_readmission_removes_scope_filtered_record(
+        self, tmp_path: Path
+    ) -> None:
+        """#4572: an org overlay that re-admits a scoped-out builtin clears the record.
+
+        The record must never outlive the drop it describes — once a higher
+        layer loads the profile (e.g. by widening or removing its
+        ``applies_to_languages`` scope), the id is in the catalog and
+        ``get()`` resolves it, so it is no longer scope-filtered.
+        """
+        shipped = tmp_path / "built-in"
+        shipped.mkdir()
+        (shipped / "python-only.agent.yaml").write_text(
+            """profile-id: python-only
+name: Python Only
+purpose: Python specialist
+roles:
+  - implementer
+applies_to_languages:
+  - python
+specialization:
+  primary-focus: Python implementation
+""",
+            encoding="utf-8",
+        )
+        org = tmp_path / "org-pack"
+        org.mkdir()
+        # Same profile-id, no language scope: the org layer re-admits it.
+        (org / "python-only.agent.yaml").write_text(
+            """profile-id: python-only
+name: Python Only (org override)
+purpose: Python specialist, any language
+roles:
+  - implementer
+specialization:
+  primary-focus: Python implementation
+""",
+            encoding="utf-8",
+        )
+
+        repo = AgentProfileRepository(
+            built_in_dir=shipped, org_dirs=[org], active_languages=["typescript"]
+        )
+
+        assert repo.get("python-only") is not None
+        assert repo.scope_filtered_ids == frozenset()
+
     def test_skips_project_profiles_when_language_scope_does_not_match(
         self, shipped_profiles_dir: Path, tmp_path: Path
     ) -> None:

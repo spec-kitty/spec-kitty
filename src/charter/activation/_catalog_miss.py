@@ -45,7 +45,11 @@ catalog-miss call sites in ``charter.activation.context``:
   :class:`CharterCatalogMissWarning` and a structured ``logger.warning``
   with extra fields ``kind`` / ``id`` / ``cause`` / ``suggestion`` so the
   miss shows up in any log aggregator and in the mission traceability
-  surface that tails the logger.
+  surface that tails the logger. Emission is bounded once per process
+  per ``(kind, id)`` (#4572), and a ``SCOPE_FILTERED`` ``agent_profile``
+  miss is not warned at all — ``agent profile list`` reports those
+  profiles available, and the prompt stanza carries the condition
+  instead.
 
 The renderer integration in ``charter.activation.context`` keeps emitting the prompt
 (no hard fail) so concurrent work can continue, but every miss now
@@ -82,6 +86,44 @@ _LOGGER = logging.getLogger(__name__)
 # of 0.75 corresponds roughly to "one or two character edits away" for the
 # kebab-case identifiers that doctrine artifact IDs use.
 _TYPO_SIMILARITY_CUTOFF = 0.75
+
+#: Once-per-process emission latch (#4572). Each distinct
+#: ``(selector_kind, artifact_id)`` miss is surfaced at most once per
+#: process (one CLI invocation = one process). A charter render that
+#: revisits the same miss — a re-render inside one command run — emits
+#: nothing the second time, so a multiply-rendered selection can no
+#: longer stack duplicate warning lines over the command's own output.
+#: Same shape as the ``retrospective.deprecation._EMITTED`` and
+#: charter-preflight ``ambient_warning._SURFACED`` precedents (#3971).
+_EMITTED: set[tuple[str, str]] = set()
+
+#: Kinds whose SCOPE_FILTERED misses are deliberately NOT surfaced on
+#: the warning channels (#4572). An ``agent_profile`` that exists on
+#: disk but is excluded by its ``applies_to_languages`` scope is still
+#: reported as *available* by ``spec-kitty agent profile list`` (which
+#: reads the ungated catalog by documented design, FR-008) — warning
+#: "catalog miss" for it on stderr contradicted that availability
+#: surface and buried the claim command's own output under dozens of
+#: warning lines. The condition is not hidden: the prompt stanza still
+#: carries the SCOPE_FILTERED cause and its remediation hint, and
+#: ``agent profile list`` remains the availability surface. Every
+#: other kind keeps the FR-013 contract unchanged — a scope-filtered
+#: styleguide still warns (pinned by
+#: ``tests/charter/test_context_catalog_miss.py``).
+_QUIET_SCOPE_FILTERED_KINDS: frozenset[str] = frozenset({"agent_profile"})
+
+
+def _reset_emitted_for_testing() -> None:
+    """Clear the once-per-process emission latch.
+
+    Underscore-private on purpose (mirrors the ``ambient_warning`` /
+    ``retrospective.deprecation`` reset precedents): tests that
+    exercise the emission pathway MUST reset the latch between cases,
+    because a test process is one long "command run" and the first
+    emitting test would otherwise consume every later test's emission
+    of the same key.
+    """
+    _EMITTED.clear()
 
 
 class CatalogMissCause(str, Enum):  # noqa: UP042 — keep str mixin for Py3.10 compat
@@ -339,6 +381,19 @@ def emit_catalog_miss_warning(
     ``cause``, ``suggestion``, optional ``context``) so consumers can
     correlate the warning regardless of which channel they tail.
 
+    Emission policy (#4572):
+
+    * **Once per process** per ``(selector_kind, artifact_id)`` — a
+      repeated miss of the same selector inside one command run emits
+      nothing, so re-renders cannot stack duplicate warning lines.
+    * A ``SCOPE_FILTERED`` miss for a kind in
+      :data:`_QUIET_SCOPE_FILTERED_KINDS` (``agent_profile``) emits
+      nothing on either channel: the artifact exists and
+      ``agent profile list`` reports it available, so a "catalog
+      miss" warning would contradict that availability surface. The
+      renderer's prompt stanza still carries the condition, so the
+      miss is never silently hidden.
+
     Args:
         selector_kind: Doctrine kind (e.g. ``"styleguide"``).
         artifact_id: The missing ID.
@@ -350,6 +405,17 @@ def emit_catalog_miss_warning(
             module.  Defaults to ``3`` to point past the renderer
             helper.
     """
+    if (
+        diagnosis.cause is CatalogMissCause.SCOPE_FILTERED
+        and selector_kind in _QUIET_SCOPE_FILTERED_KINDS
+    ):
+        return
+
+    emission_key = (selector_kind, artifact_id)
+    if emission_key in _EMITTED:
+        return
+    _EMITTED.add(emission_key)
+
     parts = [
         f"Charter catalog miss for {selector_kind}:{artifact_id}",
         f"cause={diagnosis.cause.value}",

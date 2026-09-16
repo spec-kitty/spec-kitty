@@ -19,6 +19,15 @@ Coverage:
   (typo, missing artifact, schema-failure suggestion).
 * :class:`TestProfileRendererIntegration` — same surfacing for profile-
   cited directive misses.
+* :class:`TestOncePerProcessEmissionLatch` — #4572: each distinct
+  ``(kind, id)`` miss surfaces at most once per process.
+* :class:`TestScopeFilteredAgentProfileQuietPolicy` — #4572: a
+  scope-filtered ``agent_profile`` is not reported as a catalog miss
+  (``agent profile list`` reports it available); other kinds
+  unchanged.
+* :class:`TestAgentProfileCatalogListReconciliation` — #4572 live
+  render path: the agent-profile selection render agrees with the
+  profile-list availability surface.
 """
 
 from __future__ import annotations
@@ -42,8 +51,12 @@ from charter.activation._catalog_miss import (
     format_catalog_miss_stanza,
 )
 from charter.activation.context_renderers.profile_sections import _render_profile_directives
-from charter.activation.context_renderers.selection_block import _render_selected_styleguides
+from charter.activation.context_renderers.selection_block import (
+    _render_selected_agent_profiles,
+    _render_selected_styleguides,
+)
 from charter.offering.agent_profiles import AgentProfile
+from charter.offering.agent_profiles.repository import AgentProfileRepository
 from charter.offering.styleguides.repository import StyleguideRepository
 
 
@@ -556,3 +569,215 @@ class TestScopeFilteredRendererIntegration:
         # Regression guard: genuinely absent artifact must still be MISSING_ARTIFACT.
         assert "Cause: missing_artifact" in joined
         assert "Cause: scope_filtered" not in joined
+
+
+# ---------------------------------------------------------------------------
+# #4572 — once-per-process emission + agent-profile/list reconciliation
+# ---------------------------------------------------------------------------
+
+
+def _write_agent_profile_yaml(directory: Path, filename: str, data: dict) -> None:
+    """Write an agent-profile YAML fixture into *directory*."""
+    directory.mkdir(parents=True, exist_ok=True)
+    y = YAML()
+    y.default_flow_style = False
+    with open(directory / filename, "w", encoding="utf-8") as fh:
+        y.dump(data, fh)
+
+
+class TestOncePerProcessEmissionLatch:
+    """#4572: each distinct ``(kind, id)`` miss surfaces at most once per process."""
+
+    def test_repeat_emission_of_same_miss_is_suppressed(self) -> None:
+        diagnosis = CatalogMissDiagnosis(cause=CatalogMissCause.MISSING_ARTIFACT)
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            for _ in range(3):
+                emit_catalog_miss_warning(
+                    selector_kind="styleguide",
+                    artifact_id="repeat-miss",
+                    diagnosis=diagnosis,
+                )
+        miss = [
+            w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
+        ]
+        assert len(miss) == 1
+
+    def test_distinct_misses_each_still_emit(self) -> None:
+        diagnosis = CatalogMissDiagnosis(cause=CatalogMissCause.MISSING_ARTIFACT)
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            emit_catalog_miss_warning(
+                selector_kind="styleguide", artifact_id="miss-a", diagnosis=diagnosis
+            )
+            emit_catalog_miss_warning(
+                selector_kind="tactic", artifact_id="miss-a", diagnosis=diagnosis
+            )
+            emit_catalog_miss_warning(
+                selector_kind="styleguide", artifact_id="miss-b", diagnosis=diagnosis
+            )
+        miss = [
+            w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
+        ]
+        assert len(miss) == 3
+
+    def test_reset_helper_rearms_emission(self) -> None:
+        from charter.activation._catalog_miss import _reset_emitted_for_testing
+
+        diagnosis = CatalogMissDiagnosis(cause=CatalogMissCause.MISSING_ARTIFACT)
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            emit_catalog_miss_warning(
+                selector_kind="styleguide", artifact_id="latch-reset", diagnosis=diagnosis
+            )
+            emit_catalog_miss_warning(
+                selector_kind="styleguide", artifact_id="latch-reset", diagnosis=diagnosis
+            )
+            _reset_emitted_for_testing()
+            emit_catalog_miss_warning(
+                selector_kind="styleguide", artifact_id="latch-reset", diagnosis=diagnosis
+            )
+        miss = [
+            w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
+        ]
+        assert len(miss) == 2
+
+
+class TestScopeFilteredAgentProfileQuietPolicy:
+    """#4572: a scope-filtered agent profile is not reported as a catalog miss.
+
+    ``agent profile list`` reads the ungated catalog (FR-008) and reports a
+    language-scoped profile as available; warning "catalog miss" for the same
+    id on the render path contradicted that availability surface. Every other
+    kind keeps the FR-013 contract — a scope-filtered miss still warns.
+    """
+
+    def test_scope_filtered_agent_profile_emits_no_warning_and_no_log(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        diagnosis = classify_scope_filtered_miss("java-jenny", ["python"])
+        with (
+            caplog.at_level(logging.WARNING, logger="charter.activation._catalog_miss"),
+            warnings.catch_warnings(record=True) as captured,
+        ):
+            warnings.simplefilter("always")
+            emit_catalog_miss_warning(
+                selector_kind="agent_profile",
+                artifact_id="java-jenny",
+                diagnosis=diagnosis,
+            )
+        miss = [
+            w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
+        ]
+        assert miss == []
+        assert [
+            r for r in caplog.records if r.name == "charter.activation._catalog_miss"
+        ] == []
+
+    def test_scope_filtered_styleguide_still_warns(self) -> None:
+        """FR-013 unchanged for non-profile kinds (regression guard)."""
+        diagnosis = classify_scope_filtered_miss("python-style", ["java"])
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            emit_catalog_miss_warning(
+                selector_kind="styleguide",
+                artifact_id="python-style",
+                diagnosis=diagnosis,
+            )
+        miss = [
+            w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
+        ]
+        assert len(miss) == 1
+        assert "scope_filtered" in str(miss[0].message)
+
+    def test_missing_agent_profile_still_warns(self) -> None:
+        """A genuinely absent profile keeps warning (no over-suppression)."""
+        diagnosis = CatalogMissDiagnosis(cause=CatalogMissCause.MISSING_ARTIFACT)
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            emit_catalog_miss_warning(
+                selector_kind="agent_profile",
+                artifact_id="never-existed",
+                diagnosis=diagnosis,
+            )
+        miss = [
+            w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
+        ]
+        assert len(miss) == 1
+
+
+class TestAgentProfileCatalogListReconciliation:
+    """#4572 live render path: the selection render agrees with profile list.
+
+    A real ``AgentProfileRepository`` language-filtered to the repo's active
+    languages silently dropped language-scoped profiles with no
+    ``scope_filtered_ids`` record, so a charter that selected them rendered
+    ``cause=missing_artifact`` for profiles ``agent profile list`` reports
+    available. The repository now records the drop (FR-013 parity) and the
+    emitter stays quiet for that class.
+    """
+
+    def test_selected_language_scoped_profile_renders_scope_filtered_without_warning(
+        self, tmp_path: Path
+    ) -> None:
+        built_in_dir = tmp_path / "built-in"
+        _write_agent_profile_yaml(
+            built_in_dir,
+            "java-only.agent.yaml",
+            {
+                "profile-id": "java-only",
+                "name": "Java Only",
+                "purpose": "Java specialist",
+                "roles": ["implementer"],
+                "applies_to_languages": ["java"],
+                "specialization": {"primary-focus": "Java implementation"},
+            },
+        )
+        _write_agent_profile_yaml(
+            built_in_dir,
+            "any-lang.agent.yaml",
+            {
+                "profile-id": "any-lang",
+                "name": "Any Language",
+                "purpose": "Generic specialist",
+                "roles": ["implementer"],
+                "specialization": {"primary-focus": "General implementation"},
+            },
+        )
+
+        repo = AgentProfileRepository(
+            built_in_dir=built_in_dir, active_languages=["python"]
+        )
+        # Repository-level filter contract is unchanged (pinned separately);
+        # the drop is now *recorded* rather than silent.
+        assert repo.get("java-only") is None
+        assert repo.scope_filtered_ids == frozenset({"java-only"})
+        assert repo.get("any-lang") is not None
+
+        class _ServiceWithRealRepo:
+            agent_profiles = repo
+
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            lines = _render_selected_agent_profiles(
+                ["java-only", "any-lang", "absent-profile"],
+                _ServiceWithRealRepo(),
+            )
+        joined = "\n".join(lines)
+
+        # The scoped profile renders the honest cause — present, excluded by
+        # the language scope — never MISSING_ARTIFACT.
+        assert "agent_profile:java-only" in joined
+        assert "Cause: scope_filtered" in joined
+        assert "applies_to_languages" in joined
+        # The available profile renders normally; the absent one still misses.
+        assert "Cause: missing_artifact" in joined
+
+        # Reconciliation: only the genuinely absent id warns. The listed-
+        # available java-only contributes no warning line.
+        miss = [
+            w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
+        ]
+        assert len(miss) == 1
+        assert "agent_profile:absent-profile" in str(miss[0].message)
+        assert "java-only" not in str(miss[0].message)

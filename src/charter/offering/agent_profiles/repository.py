@@ -254,6 +254,7 @@ class AgentProfileRepository:
         self._provenance: dict[str, str] = {}
         self._source_paths: dict[str, Path] = {}
         self._skipped: list[SkippedProfile] = []
+        self._scope_filtered_ids: set[str] = set()
         self._built_in_dir = built_in_dir or self._default_built_in_dir()
         self._org_dirs: list[Path] = list(org_dirs) if org_dirs else []
         self._project_dir = project_dir
@@ -321,6 +322,25 @@ class AgentProfileRepository:
             self._skipped,
             key=lambda s: (_LAYER_RANK.get(s.layer, len(_LAYER_RANK)), s.path),
         )
+
+    @property
+    def scope_filtered_ids(self) -> frozenset[str]:
+        """IDs of profiles excluded by the active language scope filter.
+
+        A profile appears here when its YAML exists on disk and passed
+        schema validation, but its ``applies_to_languages`` field did
+        not overlap with the active language set configured at
+        construction time. Parity with
+        :class:`charter.offering.base.BaseDoctrineRepository`'s property
+        of the same name (FR-013): the catalog-miss diagnosis
+        (:func:`charter.activation.context_renderers.catalog_diagnosis._diagnose_catalog_miss`)
+        reads this set so a present-but-scoped profile surfaces
+        ``SCOPE_FILTERED`` rather than ``MISSING_ARTIFACT`` (#4572).
+        The set is populated during :meth:`_load` and is read-only
+        after that; an id that a later layer successfully re-admits
+        is removed.
+        """
+        return frozenset(self._scope_filtered_ids)
 
     def _load(self) -> None:
         """Load profiles from built-in, org, and project layers.
@@ -413,6 +433,11 @@ class AgentProfileRepository:
             self._provenance[profile.profile_id] = layer
             self._source_paths[profile.profile_id] = yaml_file
             loaded[profile.profile_id] = profile
+            # A successful load re-admits the id even if an earlier
+            # layer's copy was scope-filtered (an org/project overlay
+            # can widen or drop the applies_to_languages scope) — the
+            # record must never outlive the drop it describes (#4572).
+            self._scope_filtered_ids.discard(profile.profile_id)
 
         return loaded
 
@@ -515,6 +540,14 @@ class AgentProfileRepository:
             return None
 
         if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
+            # #4572: record the drop instead of vanishing silently.
+            # Without this record the catalog-miss diagnosis could not
+            # distinguish a present-but-language-scoped profile from
+            # one that never existed, so a charter-selected profile
+            # that ``agent profile list`` reports available was
+            # diagnosed ``MISSING_ARTIFACT``. Parity with
+            # ``BaseDoctrineRepository.scope_filtered_ids`` (FR-013).
+            self._scope_filtered_ids.add(profile_id)
             return None
 
         if layer != "builtin":
@@ -967,6 +1000,9 @@ class AgentProfileRepository:
 
         # Update in-memory profiles
         self._profiles[profile.profile_id] = profile
+        # A saved profile is loaded regardless of scope state — clear any
+        # stale scope-filtered record for it (#4572).
+        self._scope_filtered_ids.discard(profile.profile_id)
 
         # Invalidate hierarchy index
         self._hierarchy_index = None
@@ -1019,6 +1055,7 @@ class AgentProfileRepository:
         if built_in_profile:
             # Revert to built-in version
             self._profiles[profile_id] = built_in_profile
+            self._scope_filtered_ids.discard(profile_id)
         else:
             # Remove from profiles (was project-only)
             self._profiles.pop(profile_id, None)

@@ -70,3 +70,19 @@ def _git_init_tmp_path(request: pytest.FixtureRequest) -> None:
         resolve_canonical_repo_root.cache_clear()
     except Exception:
         pass
+
+
+@pytest.fixture(autouse=True)
+def _reset_catalog_miss_emission_latch() -> None:
+    """Reset the once-per-process catalog-miss emission latch around each case.
+
+    #4572: ``emit_catalog_miss_warning`` surfaces each distinct
+    ``(selector_kind, artifact_id)`` miss at most once per process; a test
+    process is one long command run, so without this fixture the first
+    miss-emitting test would consume every later test's emission of the same
+    key. Mirrors the ``retrospective.deprecation`` and charter-preflight
+    ``ambient_warning`` reset patterns (#3971).
+    """
+    from charter.activation._catalog_miss import _reset_emitted_for_testing
+
+    _reset_emitted_for_testing()
