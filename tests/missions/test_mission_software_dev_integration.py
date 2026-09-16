@@ -2,14 +2,19 @@
 
 Verifies:
 - Loading the real mission.yaml from disk
-- Named guards section documents the guard expressions
-- v0 legacy keys coexist alongside the tolerated v1 keys
-- Typed inputs and outputs present and correctly structured
+- The retired mission-DSL v1 compat keys are absent from the shipped catalog
+- The v0 configuration keys are intact
 
 The mission-DSL v1 runtime (schema validator, state machine, transition
 graph) was retired in mission dead-port-disposition-01M1TZVN; the
 ``states:``/``transitions:`` blocks were deleted from the built-in packs at
-the same time, so the structure/graph/reachability tests went with them.
+the same time, so the structure/graph/reachability tests went with them. The
+DRIFT-1 follow-up (#3961) stripped the remaining compat-ignored blocks
+(``mission:``/``initial:``/``guards:``/``inputs:``/``outputs:``) from the
+shipped catalogs, so the guards/inputs/outputs/mission-block pins went with
+them — replaced here by the retirement assertion below, matching
+``MISSION_COMPAT_IGNORED_FIELDS`` in ``src/specify_cli/mission.py`` and the
+widened ratchet in ``tests/architectural/test_no_retired_subsystems.py``.
 """
 
 from __future__ import annotations
@@ -52,84 +57,43 @@ class TestMissionYamlPresence:
 
 
 # ---------------------------------------------------------------------------
-# Guards section
+# Retired mission-DSL v1 blocks
 # ---------------------------------------------------------------------------
 
+RETIRED_DSL_KEYS = frozenset(
+    {"mission", "initial", "states", "transitions", "guards", "inputs", "outputs"}
+)
 
-class TestGuardsSection:
-    """Named guards section provides documentation for guard expressions."""
 
-    def test_guards_present(self, software_dev_config: dict) -> None:
-        assert "guards" in software_dev_config
+class TestRetiredDslBlocks:
+    """The shipped catalog carries no mission-DSL v1 residue.
 
-    def test_five_guards_defined(self, software_dev_config: dict) -> None:
-        guards = software_dev_config["guards"]
-        assert frozenset(guards.keys()) == frozenset(
-            {"has_spec", "has_plan", "has_tasks", "all_wps_accepted", "review_passed"}
+    The v1 blocks were compat-ignored at load (``MISSION_COMPAT_IGNORED_FIELDS``)
+    even before their removal, so nothing could consume them; the shipped
+    catalog is configuration only. This is the per-catalog pin matching the
+    tree-wide ratchet in ``tests/architectural/test_no_retired_subsystems.py``.
+    """
+
+    def test_retired_keys_absent(self, software_dev_config: dict) -> None:
+        present = RETIRED_DSL_KEYS & set(software_dev_config)
+        assert not present, (
+            f"shipped software-dev mission.yaml must not carry retired "
+            f"mission-DSL v1 keys: {sorted(present)}"
         )
 
-    def test_guard_names(self, software_dev_config: dict) -> None:
-        expected = {"has_spec", "has_plan", "has_tasks", "all_wps_accepted", "review_passed"}
-        assert set(software_dev_config["guards"].keys()) == expected
-
-    def test_each_guard_has_description_and_check(self, software_dev_config: dict) -> None:
-        for name, guard in software_dev_config["guards"].items():
-            assert "description" in guard, f"Guard '{name}' missing description"
-            assert "check" in guard, f"Guard '{name}' missing check"
-            assert isinstance(guard["description"], str)
-            assert isinstance(guard["check"], str)
+    def test_mission_identity_is_top_level(self, software_dev_config: dict) -> None:
+        assert software_dev_config["name"] == "Software Dev Kitty"
+        assert software_dev_config["version"] == "1.0.0"
+        assert "software" in software_dev_config["description"].lower()
 
 
 # ---------------------------------------------------------------------------
-# Typed inputs and outputs
-# ---------------------------------------------------------------------------
-
-
-class TestInputsAndOutputs:
-    """Mission declares typed input parameters and output artifacts."""
-
-    def test_inputs_present(self, software_dev_config: dict) -> None:
-        assert "inputs" in software_dev_config
-        assert len(software_dev_config["inputs"]) >= 2
-
-    def test_input_names(self, software_dev_config: dict) -> None:
-        names = {i["name"] for i in software_dev_config["inputs"]}
-        assert "feature_description" in names
-        assert "project_root" in names
-
-    def test_input_types_valid(self, software_dev_config: dict) -> None:
-        valid_types = {"string", "path", "url", "boolean", "integer"}
-        for inp in software_dev_config["inputs"]:
-            assert inp["type"] in valid_types, f"Invalid input type: {inp['type']}"
-
-    def test_outputs_present(self, software_dev_config: dict) -> None:
-        assert "outputs" in software_dev_config
-        assert len(software_dev_config["outputs"]) >= 3
-
-    def test_output_names(self, software_dev_config: dict) -> None:
-        names = {o["name"] for o in software_dev_config["outputs"]}
-        assert "specification" in names
-        assert "implementation_plan" in names
-        assert "task_breakdown" in names
-        assert "source_code" in names
-
-    def test_output_types_valid(self, software_dev_config: dict) -> None:
-        valid_types = {"artifact", "report", "data"}
-        for out in software_dev_config["outputs"]:
-            assert out["type"] in valid_types, f"Invalid output type: {out['type']}"
-
-    def test_outputs_have_paths(self, software_dev_config: dict) -> None:
-        for out in software_dev_config["outputs"]:
-            assert "path" in out, f"Output '{out['name']}' missing path"
-
-
-# ---------------------------------------------------------------------------
-# v0 backward compatibility
+# v0 configuration keys
 # ---------------------------------------------------------------------------
 
 
 class TestV0BackwardCompatibility:
-    """v0 legacy keys must coexist with v1 fields."""
+    """The v0 configuration keys are the whole shipped file post-retirement."""
 
     def test_v0_name_preserved(self, software_dev_config: dict) -> None:
         assert software_dev_config["name"] == "Software Dev Kitty"
@@ -156,22 +120,3 @@ class TestV0BackwardCompatibility:
     def test_v0_agent_context_preserved(self, software_dev_config: dict) -> None:
         assert "agent_context" in software_dev_config
         assert "TDD" in software_dev_config["agent_context"]
-
-
-# ---------------------------------------------------------------------------
-# Mission block
-# ---------------------------------------------------------------------------
-
-
-class TestMissionBlock:
-    """The mission metadata block has correct v1 identity fields."""
-
-    def test_mission_name(self, software_dev_config: dict) -> None:
-        assert software_dev_config["mission"]["name"] == "software-dev"
-
-    def test_mission_version(self, software_dev_config: dict) -> None:
-        assert software_dev_config["mission"]["version"] == "2.0.0"
-
-    def test_mission_description(self, software_dev_config: dict) -> None:
-        desc = software_dev_config["mission"]["description"]
-        assert "state machine" in desc.lower() or "software" in desc.lower()
