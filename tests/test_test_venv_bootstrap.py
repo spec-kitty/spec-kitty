@@ -6,6 +6,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from queue import Empty
 from typing import Any
 
 import pytest
@@ -140,6 +141,55 @@ def _wait_for_removal(path: Path, timeout: float = 5.0) -> None:
     raise AssertionError(f"Timed out waiting for removal of {path}")
 
 
+def _drain_worker_outcomes(results: Any, count: int) -> list[tuple[str, str]]:
+    """Collect every child outcome before any assertion runs.
+
+    A child that exits without queueing a result must not discard its
+    siblings' payloads: record a ("missing", ...) marker instead of letting
+    queue.Empty escape the drain, so the combined exit-code/outcome
+    assertion that follows prints every child's status and payload
+    (spec-kitty#4486's diagnostic acceptance bullet).
+    """
+    outcomes: list[tuple[str, str]] = []
+    for _ in range(count):
+        try:
+            outcomes.append(results.get(timeout=1))
+        except Empty:
+            outcomes.append(("missing", "no result queued"))
+    return outcomes
+
+
+class _FakeResultsQueue:
+    """Minimal results.get() stand-in for the drain-path unit tests."""
+
+    def __init__(self, items: list[tuple[str, str]]) -> None:
+        self._items = list(items)
+
+    def get(self, timeout: float = 1) -> tuple[str, str]:
+        del timeout
+        if not self._items:
+            raise Empty
+        return self._items.pop(0)
+
+
+def test_drain_worker_outcomes_preserves_error_payloads() -> None:
+    results = _FakeResultsQueue([("error", "RuntimeError('boom')"), ("ok", "/venv")])
+    assert _drain_worker_outcomes(results, 2) == [
+        ("error", "RuntimeError('boom')"),
+        ("ok", "/venv"),
+    ]
+
+
+def test_drain_worker_outcomes_marks_missing_results_instead_of_raising() -> None:
+    # A child that exits without queueing a result must not cost its sibling
+    # the payload report: queue.Empty becomes a ("missing", ...) marker.
+    results = _FakeResultsQueue([("ok", "/venv")])
+    assert _drain_worker_outcomes(results, 2) == [
+        ("ok", "/venv"),
+        ("missing", "no result queued"),
+    ]
+
+
 def test_two_spawned_processes_publish_one_shared_venv(tmp_path: Path) -> None:
     context = _spawn_context()
     start = context.Event()
@@ -153,10 +203,12 @@ def test_two_spawned_processes_publish_one_shared_venv(tmp_path: Path) -> None:
     for process in processes:
         process.join(timeout=10)
 
-    assert [process.exitcode for process in processes] == [0, 0]
-    outcomes = sorted(results.get(timeout=1) for _ in processes)
+    outcomes = _drain_worker_outcomes(results, len(processes))
     expected = str(tmp_path / root_conftest._VENV_CACHE_PATH)
-    assert outcomes == [("ok", expected), ("ok", expected)]
+    assert ([process.exitcode for process in processes], sorted(outcomes)) == (
+        [0, 0],
+        [("ok", expected), ("ok", expected)],
+    )
     count_path = tmp_path / ".pytest_cache" / "build-count.txt"
     assert len(count_path.read_text(encoding="utf-8").splitlines()) == 1
 
@@ -492,9 +544,11 @@ def test_two_spawned_windows_processes_publish_one_shared_venv(tmp_path: Path) -
     for process in processes:
         process.join(timeout=20)
 
-    assert [process.exitcode for process in processes] == [0, 0]
-    outcomes = sorted(results.get(timeout=1) for _ in processes)
+    outcomes = _drain_worker_outcomes(results, len(processes))
     expected = str(tmp_path / root_conftest._VENV_CACHE_PATH)
-    assert outcomes == [("ok", expected), ("ok", expected)]
+    assert ([process.exitcode for process in processes], sorted(outcomes)) == (
+        [0, 0],
+        [("ok", expected), ("ok", expected)],
+    )
     count_path = tmp_path / ".pytest_cache" / "build-count.txt"
     assert len(count_path.read_text(encoding="utf-8").splitlines()) == 1
