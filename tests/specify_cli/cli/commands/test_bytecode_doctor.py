@@ -12,7 +12,6 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import json
-import marshal
 import os
 import py_compile
 import struct
@@ -27,6 +26,8 @@ from typer.testing import CliRunner
 import specify_cli.cli.commands.doctor as doctor_module
 from specify_cli.cli.commands import _bytecode_doctor
 from tests._support.eacces import mode_bits_enforced
+from tests._support.pyc_corruption import corrupt_non_code_body as _corrupt_non_code_body
+from tests._support.pyc_corruption import corrupt_truncated_body as _corrupt_truncated_body
 
 pytestmark = [pytest.mark.fast]
 
@@ -57,18 +58,6 @@ def _purge_pkg_modules() -> None:
 
 def _init_pyc(pkg_dir: Path) -> Path:
     return Path(importlib.util.cache_from_source(str(pkg_dir / "__init__.py")))
-
-
-def _corrupt_truncated_body(pyc: Path) -> None:
-    """Intact 16-byte header, garbage body -- the #4124 field signature."""
-    data = pyc.read_bytes()
-    pyc.write_bytes(data[:16] + b"\x00" * 8)
-
-
-def _corrupt_non_code_body(pyc: Path) -> None:
-    """Header intact; body unmarshals to a non-code object."""
-    data = pyc.read_bytes()
-    pyc.write_bytes(data[:16] + marshal.dumps(b"not-a-code-object"))
 
 
 def _corrupt_magic(pyc: Path) -> None:

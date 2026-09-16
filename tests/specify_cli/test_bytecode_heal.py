@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
-import marshal
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -20,6 +19,8 @@ from pathlib import Path
 import pytest
 
 from specify_cli import bytecode_heal
+from tests._support.pyc_corruption import corrupt_non_code_body as _corrupt_non_code
+from tests._support.pyc_corruption import corrupt_truncated_body as _corrupt_truncated
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -51,18 +52,6 @@ def _purge_pkg_modules() -> None:
     for name in list(sys.modules):
         if name == _PKG or name.startswith(f"{_PKG}."):
             del sys.modules[name]
-
-
-def _corrupt_truncated(pyc: Path) -> None:
-    """Truncated body with an intact header — the field signature (#4124)."""
-    data = pyc.read_bytes()
-    pyc.write_bytes(data[:20] + b"\x00" * 42)
-
-
-def _corrupt_non_code(pyc: Path) -> None:
-    """Body unmarshals to a non-code object -> ``ImportError: Non-code object``."""
-    data = pyc.read_bytes()
-    pyc.write_bytes(data[:16] + marshal.dumps(b"not-a-code-object"))
 
 
 def _import_pkg() -> None:
