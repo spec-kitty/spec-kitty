@@ -99,24 +99,26 @@ scoped to (a) one test function, (b) an ``at=`` keyword reaching
 set of production entry points, measures, on this tree, TODAY:
 
 * **2 files**: :data:`_MIXTURE_FILES`
-* **13 test functions**: :data:`_MIXTURE_FUNCTION_PAIRS`
+* **14 test functions**: :data:`_MIXTURE_FUNCTION_PAIRS`
 
 recorded as literal, checked-in constants below (not narrative alone) so a
 reviewer can re-run :func:`_derive_mixtures` and confirm the constants match,
 or see exactly which (file, function) pair entered or left the set the next
-time this file changes. Every one of these 13 is a pre-existing,
-already-audited case using ``_event(...)``'s stably-past-dated default
-(``2026-04-26``, forever in the past relative to any real clock reading a
-maintainer's machine could plausibly have) alongside a production
-now()-helper -- genuinely safe forever, unlike #3157's future-dated literal,
-which is why they are grandfathered into the baseline rather than fixed:
-this WP's mandate is the standing CHECK, not a remediation sweep of every
-already-safe existing mixture. The frozen-baseline-shrink-only-ratchet
-convention applies going forward: :func:`test_derived_mixture_matches_
+time this file changes. Every one of these 14 is an already-audited case
+using ``_event(...)``'s stably-past-dated default (``2026-04-26``, forever in
+the past relative to any real clock reading a maintainer's machine could
+plausibly have) alongside a production now()-helper -- genuinely safe
+forever, unlike #3157's future-dated literal, which is why they are
+grandfathered into the baseline rather than fixed: this WP's mandate is the
+standing CHECK, not a remediation sweep of every already-safe existing
+mixture. The newest pair (14th, #3938's ``user``-actor resume regression)
+follows the identical shape as its recorded neighbors. The
+frozen-baseline-shrink-only-ratchet convention applies going forward:
+:func:`test_derived_mixture_matches_
 recorded_baseline` reds on EITHER direction of drift (a new, unrecorded
 mixture appearing, or a recorded one disappearing without the constant being
 updated), so growth requires a conscious edit to this file, and a future
-maintainer who actually fixes one of the 13 shrinks the recorded set instead
+maintainer who actually fixes one of the 14 shrinks the recorded set instead
 of leaving it stale.
 """
 
@@ -381,6 +383,10 @@ _MIXTURE_FUNCTION_PAIRS: frozenset[MixturePair] = frozenset(
         ("tests/status/test_work_package_lifecycle.py", "test_start_implementation_noops_in_progress_same_actor"),
         (
             "tests/status/test_work_package_lifecycle.py",
+            "test_start_implementation_resumes_in_progress_user_actor_noop",
+        ),
+        (
+            "tests/status/test_work_package_lifecycle.py",
             "test_start_implementation_rejects_in_progress_different_actor",
         ),
         (
@@ -409,10 +415,10 @@ _MIXTURE_FILES: frozenset[str] = frozenset(module for module, _qualname in _MIXT
 
 
 def test_recorded_denominator_matches_docstring_claim() -> None:
-    """Sanity: the module docstring's stated "2 files / 13 functions" is the
+    """Sanity: the module docstring's stated "2 files / 14 functions" is the
     literal shape of the constants below, not independently-drifted prose."""
     assert len(_MIXTURE_FILES) == 2
-    assert len(_MIXTURE_FUNCTION_PAIRS) == 13
+    assert len(_MIXTURE_FUNCTION_PAIRS) == 14
 
 
 def test_derived_mixture_matches_recorded_baseline() -> None:
