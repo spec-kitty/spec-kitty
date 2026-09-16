@@ -45,7 +45,7 @@ specify → research → plan → review
 
 ### documentation
 ```
-discover → audit → design → generate → validate → publish
+discover → audit → design → generate → validate → publish → accept
 ```
 
 ## Gating by Mission
