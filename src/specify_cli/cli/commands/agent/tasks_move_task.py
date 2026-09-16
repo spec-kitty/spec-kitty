@@ -1205,22 +1205,27 @@ def _mt_pre_review_block_enabled(main_repo_root: Path) -> bool:
 
 
 def _mt_pre_review_gate_declared(scope_source_root: Path) -> bool:
-    """#3821: has this repo declared a pre-review gate command to run?
+    """#3821: does this repo declare anything for a bound gate to run?
 
-    Reads the SAME ``review:`` config section (``review.test_command``) the
-    activation-selected ``ScopeSource`` reads — a repo that has configured a
-    command has declared the gate and it fires normally; a repo that has not
-    (the ``spec-kitty init`` consumer default) has not declared it, so the
-    built-in ``software-dev`` review contract's gate binding must not run
-    there. #2598 closed #2534 on the premise that "a consumer repo that has
-    not declared it" never activates the binding — but the binding ships
-    built-in on that very contract, so every consumer repo activates it
-    (#3821); the repo's own config is the one signal the join cannot fake.
+    Asks the SAME activation-selected ``ScopeSource`` the dispatch would use
+    (:func:`_mt_resolve_scope_source` — the single test-command authority,
+    FR-011): a source with a runnable command means the gate is declared and
+    fires normally. A source with NO command is undeclared — the
+    ``spec-kitty init`` consumer default — so the built-in
+    ``software-dev`` review contract's gate binding must not run there.
+    #2598 closed #2534 on the premise that "a consumer repo that has not
+    declared it" never activates the binding — but the binding ships built-in
+    on that very contract, so every consumer repo activates it (#3821); the
+    source's own command is the one signal the join cannot fake.
 
-    A configured-but-malformed command still counts as declared: dispatch then
-    surfaces the engine's visible ``no test command configured`` warn, which a
-    broken declaration deserves (never a quiet skip).
+    A configured-but-malformed ``review.test_command`` (truthy in config but
+    the source refuses to render it) still counts as declared via the config
+    fallback: dispatch then surfaces the engine's visible
+    ``no test command configured`` warn, which a broken declaration deserves
+    — never a quiet skip.
     """
+    if _mt_resolve_scope_source(scope_source_root).test_command() is not None:
+        return True
     return bool(_mt_review_config_section(scope_source_root).get(_PRE_REVIEW_CONFIG_KEY_TEST_COMMAND_REPLACEMENT))
 
 
