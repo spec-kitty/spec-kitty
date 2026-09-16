@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock
@@ -29,6 +30,7 @@ from specify_cli.coordination.status_service import (
 )
 from specify_cli.coordination.transaction import BookkeepingCommitFailed, BookkeepingWorktreeMissing
 from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.core.owned_mission import OwnedMission
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.status.models import (
     InnerStateChanged,
@@ -1190,3 +1192,118 @@ def test_three_doors_build_the_same_event_and_validate_once_each(
     assert {(args[0], args[1]) for args in calls} == {(Lane.PLANNED, Lane.CLAIMED)}
     assert not hasattr(st, "validate_transition"), "the transactional shell must not validate itself (P-2)"
     assert not hasattr(st, "_prepare_event"), "the pre-promotion duplicate is gone (FR-005/FR-006)"
+
+
+# ---------------------------------------------------------------------------
+# #3866 — threaded ``owned_mission`` on TransitionRequest: the identity
+# derivation reuses the caller's validated value object instead of re-running
+# ``resolve_owned_mission`` (ownership claim + mission resolve + git branch
+# probes) per event/phase. Fail-closed mismatch guard; no silent re-resolve.
+# ---------------------------------------------------------------------------
+
+
+def _threaded_owned(repo: Path, tmp_path: Path) -> OwnedMission:
+    return OwnedMission(
+        primary=repo,
+        root=tmp_path / "owned",
+        directory=repo / "kitty-specs" / MISSION_DIRNAME,
+        slug=MISSION_SLUG,
+        target="main",
+    )
+
+
+def test_identity_reuses_threaded_owned_mission_without_rederivation(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A threaded ``owned_mission`` short-circuits the per-event re-resolve.
+
+    Neither ``resolve_owned_mission`` nor the ``_repo_root_for_feature`` git
+    probe may run when the request already carries the validated value object
+    — that re-derivation was the #3866 per-event cost.
+    """
+    from types import SimpleNamespace
+
+    from specify_cli.coordination import status_transition as st
+
+    def _must_not_run(*_a: object, **_k: object) -> object:
+        raise AssertionError("threaded owned_mission must not re-derive ownership")
+
+    monkeypatch.setattr("specify_cli.core.owned_mission.resolve_owned_mission", _must_not_run)
+    monkeypatch.setattr(st, "_repo_root_for_feature", _must_not_run)
+    monkeypatch.setattr(
+        "mission_runtime.resolve_placement_only",
+        lambda *_a, **_k: SimpleNamespace(ref="refs/heads/placement"),
+    )
+
+    owned = _threaded_owned(repo, tmp_path)
+    request = _request(repo)
+    request.effective_root = owned.root
+    request.owned_mission = owned
+    identity = st._identity_for_request(request)
+
+    assert identity.feature_dir == owned.directory
+    assert identity.repo_root == owned.root
+    assert identity.primary_root == owned.primary
+    assert identity.destination_ref == "refs/heads/placement"
+
+
+@pytest.mark.parametrize("mismatch", ["checkout", "mission"])
+def test_identity_fails_closed_on_threaded_owned_mission_mismatch(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mismatch: str
+) -> None:
+    """A threaded object that does not describe the request is refused.
+
+    The mismatch is never silently re-resolved — falling back would both hide
+    the caller bug and re-pay the derivation the field exists to skip.
+    """
+    from mission_runtime import ActionContextError
+    from specify_cli.coordination import status_transition as st
+
+    def _must_not_run(*_a: object, **_k: object) -> object:
+        raise AssertionError("a mismatched owned_mission must not silently re-resolve")
+
+    monkeypatch.setattr("specify_cli.core.owned_mission.resolve_owned_mission", _must_not_run)
+
+    owned = _threaded_owned(repo, tmp_path)
+    owned = replace(owned, root=tmp_path / "elsewhere") if mismatch == "checkout" else replace(owned, slug="some-other-mission")
+    request = _request(repo)
+    request.effective_root = tmp_path / "owned"
+    request.owned_mission = owned
+
+    with pytest.raises(ActionContextError) as refused:
+        st._identity_for_request(request)
+    assert refused.value.code == "OWNED_MISSION_PATH_REFUSED"
+
+
+def test_inner_state_door_threads_owned_mission_into_identity(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``emit_inner_state_changed_transactional`` carries the kwarg onto the request.
+
+    The identity seam must see the caller's value object, not just the bare
+    ``effective_root`` (#3866).
+    """
+    from specify_cli.coordination import status_transition as st
+
+    recorded: list[TransitionRequest] = []
+
+    def _record_identity(request: TransitionRequest) -> object:
+        recorded.append(request)
+        return _owned_identity(repo, primary_root=repo)
+
+    monkeypatch.setattr(st, "_identity_for_request", _record_identity)
+
+    owned = _threaded_owned(repo, tmp_path)
+    emit_inner_state_changed_transactional(
+        repo / "kitty-specs" / MISSION_DIRNAME,
+        "WP01",
+        WPInnerStateDelta(note="threaded"),
+        actor="issue-3866-test",
+        mission_slug=MISSION_SLUG,
+        repo_root=repo,
+        effective_root=owned.root,
+        owned_mission=owned,
+    )
+
+    assert recorded[0].owned_mission is owned
+    assert recorded[0].effective_root == owned.root

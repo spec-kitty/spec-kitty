@@ -93,7 +93,16 @@ def resolve_owned_mission(
     if ProtectionPolicy.resolve(primary).is_protected(target) or ProtectionPolicy.resolve(root).is_protected(target):
         raise ActionContextError("OWNED_BRANCH_REFUSED", f"Protected destination refused: {target}")
     result = OwnedMission(primary.resolve(), root, directory, mission.feature_dir.name, target)
-    result.files(list(directory.rglob("*")))
+    # #3866: the resolve-time validation is a bounded top-level tripwire, not a
+    # full-tree scan. ``directory.rglob("*")`` stat'd every entry of the mission
+    # tree on every resolve (~8 call sites, several calls per command) — an
+    # O(tree) latency cliff whose only unique value was catching a symlink
+    # escape before write time; ``OwnedMission.files`` re-validates the actual
+    # written paths at write time anyway, so a nested symlink escape is still
+    # refused there. Validating the top level keeps the boundary tripwire (a
+    # symlinked mission-root entry escaping the checkout is refused at resolve,
+    # before any effects) at O(top-level entries) instead of O(tree).
+    result.files(list(directory.iterdir()))
     return result
 
 

@@ -506,3 +506,51 @@ class TestBootstrapResultDataclass:
         )
         assert result.total_wps == 3
         assert result.already_initialized == 1
+
+
+def test_bootstrap_threads_owned_mission_into_per_wp_requests(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#3866 — every per-WP seed request carries the caller's validated value object.
+
+    The per-WP identity derivation must not re-run ``resolve_owned_mission``
+    for each seeded WP; the threaded ``owned_mission`` rides the request.
+    """
+    from specify_cli.coordination import status_transition
+    from specify_cli.core.owned_mission import OwnedMission
+
+    feature_dir = tmp_path / "kitty-specs" / "060-test"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    _write_wp_file(tasks_dir, "WP01")
+    _write_wp_file(tasks_dir, "WP02")
+
+    recorded: list = []
+
+    def _record_emit(request, **_kwargs):
+        recorded.append(request)
+        return None
+
+    def _must_not_run(*_a, **_k):
+        raise AssertionError("per-WP seed must not re-run resolve_owned_mission")
+
+    monkeypatch.setattr(status_transition, "emit_status_transition_transactional", _record_emit)
+    monkeypatch.setattr(status_transition, "read_events_transactional", lambda **_k: [])
+    monkeypatch.setattr("specify_cli.status.bootstrap.materialize", lambda *_a, **_k: None)
+    monkeypatch.setattr("specify_cli.core.owned_mission.resolve_owned_mission", _must_not_run)
+
+    owned = OwnedMission(
+        primary=tmp_path, root=tmp_path / "owned", directory=feature_dir, slug="060-test", target="main"
+    )
+    result = bootstrap_canonical_state(
+        feature_dir,
+        "060-test",
+        repo_root=tmp_path,
+        effective_root=owned.root,
+        owned_mission=owned,
+    )
+
+    assert result.newly_seeded == 2
+    assert [request.wp_id for request in recorded] == ["WP01", "WP02"]
+    assert all(request.owned_mission is owned for request in recorded)
+    assert all(request.effective_root == owned.root for request in recorded)
