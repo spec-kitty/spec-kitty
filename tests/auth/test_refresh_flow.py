@@ -401,16 +401,30 @@ class TestRefresh409AndGeneration:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "retry_after", ["soon", "1.5", None, ["2"], {"s": 2}]
+        "retry_after",
+        [
+            "soon",
+            "1.5",
+            None,
+            ["2"],
+            {"s": 2},
+            # Stdlib json.loads accepts these bare tokens, so they arrive
+            # here as floats; int() on them raises OverflowError/ValueError.
+            float("inf"),
+            float("-inf"),
+            float("nan"),
+        ],
     )
     async def test_refresh_409_benign_replay_malformed_retry_after_falls_back_to_zero(
         self, retry_after
     ):
-        """409 + replay marker + malformed ``retry_after`` → RefreshReplayError(retry_after=0), never a raw ValueError/TypeError.
+        """409 + replay marker + malformed ``retry_after`` → RefreshReplayError(retry_after=0), never a raw ValueError/TypeError/OverflowError.
 
         Regression for #4557: ``int(body.get("retry_after", 0))`` let a
         server-controlled non-numeric ``retry_after`` escape the typed error
-        contract as an unhandled exception.
+        contract as an unhandled exception — including a non-finite float
+        (``Infinity``/``-Infinity``/``NaN``), whose ``int()`` coercion raises
+        ``OverflowError``/``ValueError`` outside every typed catch.
         """
         flow = TokenRefreshFlow()
         session = _make_session()
@@ -422,6 +436,41 @@ class TestRefresh409AndGeneration:
                 409,
                 {"error": "refresh_replay_benign_retry", "retry_after": retry_after},
             )
+
+            with pytest.raises(RefreshReplayError) as exc_info:
+                await flow.refresh(session)
+
+        assert exc_info.value.retry_after == 0
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "raw_body",
+        [
+            '{"error": "refresh_replay_benign_retry", "retry_after": Infinity}',
+            '{"error": "refresh_replay_benign_retry", "retry_after": -Infinity}',
+        ],
+        ids=["infinity", "neg-infinity"],
+    )
+    async def test_refresh_409_benign_replay_bare_infinity_token_is_contained(
+        self, raw_body
+    ):
+        """409 + replay marker with a bare ``Infinity`` token in the raw body → RefreshReplayError(retry_after=0).
+
+        Regression for #4557 (squad pass 2): ``httpx.Response.json()``
+        delegates to stdlib ``json.loads``, which accepts the bare
+        ``Infinity``/``-Infinity`` tokens by default, so the field arrives as
+        a non-finite float — and ``int(float("inf"))`` raises ``OverflowError``,
+        which no typed catch in ``refresh_transaction._run_locked`` sees. The
+        defensive parser must contain it. A real ``httpx.Response`` is used
+        (not the Mock helper) so the ``json.loads`` path is genuinely exercised.
+        """
+        flow = TokenRefreshFlow()
+        session = _make_session()
+
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__.return_value = mock_client
+            mock_client.post.return_value = httpx.Response(409, text=raw_body)
 
             with pytest.raises(RefreshReplayError) as exc_info:
                 await flow.refresh(session)
@@ -512,12 +561,36 @@ class TestParseRetryAfter:
     """Direct unit tests for the defensive ``retry_after`` parser."""
 
     @pytest.mark.parametrize(
-        "value,expected", [(2, 2), ("2", 2), (0, 0), (True, 1)]
+        "value,expected",
+        [
+            (2, 2),
+            ("2", 2),
+            (0, 0),
+            (True, 1),
+            (1.9, 1),  # JSON number 1.5/1.9 arrives as a float and truncates
+            (-5, 0),  # negatives clamp to 0 — never a sleep duration
+            ("-5", 0),
+        ],
     )
     def test_valid_values(self, value, expected):
         assert _parse_retry_after(value) == expected
 
-    @pytest.mark.parametrize("value", [None, "soon", "1.5", "", ["2"], {"s": 2}])
+    @pytest.mark.parametrize(
+        "value",
+        [
+            None,
+            "soon",
+            "1.5",  # the *string* is not numeric → 0 (a JSON number 1.5 is not)
+            "",
+            ["2"],
+            {"s": 2},
+            # Bare JSON tokens stdlib json.loads accepts; int() raises
+            # OverflowError (inf) / ValueError (nan) on them.
+            float("inf"),
+            float("-inf"),
+            float("nan"),
+        ],
+    )
     def test_malformed_values_fall_back_to_zero(self, value):
         assert _parse_retry_after(value) == 0
 
