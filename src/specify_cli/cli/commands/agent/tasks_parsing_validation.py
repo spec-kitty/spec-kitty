@@ -7,7 +7,8 @@ guard, the stale/stalled review status annotations, and the
 ``move-task → for_review/approved/done`` readiness validation.
 
 Import direction is one-way (INV-2): this module may import from
-``tasks_outline`` / ``tasks_materialization`` (seam↔seam is allowed) but MUST
+``tasks_outline`` / ``tasks_materialization`` / ``tasks_dependency_graph``
+(seam↔seam is allowed) but MUST
 NOT import from ``tasks`` (the god-module re-exports these names back for
 existing call sites).
 
@@ -37,6 +38,9 @@ if TYPE_CHECKING:
     )
     from specify_cli.workspace.context import ResolvedWorkspace
 
+from specify_cli.cli.commands.agent.tasks_dependency_graph import (
+    _count_behind_commits_outside_planning_artifacts,
+)
 from specify_cli.core.constants import (
     KITTY_SPECS_DIR,
     MISSION_TYPE_RESEARCH,
@@ -665,10 +669,22 @@ def _check_branch_currency(
         check_branch,
         mission_slug,
     ):
+        # #3940: report source divergence, not the raw commit count — the
+        # behind set on a missions-family branch is dominated by orchestrator
+        # ledger commits (kitty-specs/ + .kittify/) that are not divergence.
+        non_ledger_count = _count_behind_commits_outside_planning_artifacts(
+            worktree_path,
+            check_branch,
+            behind_count,
+        )
         guidance: list[str] = []
         guidance.append(f"{check_branch} branch has new commits not in this worktree!")
         guidance.append("")
-        guidance.append(f"Your branch is behind {check_branch} by {behind_count} commit(s).")
+        guidance.append(
+            f"Your branch is behind {check_branch} by {behind_count} commit(s) "
+            f"({non_ledger_count} non-ledger commit(s) touching files outside "
+            "kitty-specs/ and .kittify/)."
+        )
         guidance.append("Rebase before review:")
         guidance.append(f"  cd {worktree_path}")
         guidance.append(f"  git rebase {check_branch}")

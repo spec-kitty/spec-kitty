@@ -23,6 +23,7 @@ import pytest
 from specify_cli.cli.commands.agent.tasks_dependency_graph import (
     _behind_commits_touch_only_planning_artifacts,
     _check_dependent_warnings,
+    _count_behind_commits_outside_planning_artifacts,
     compute_incomplete_dependents,
 )
 from specify_cli.core.dependency_graph import get_dependents
@@ -337,3 +338,89 @@ def test_behind_commits_diffs_check_branch_not_head(tmp_path: Path) -> None:
         f"diff must target merge_base..check_branch, not merge_base..HEAD (F1 regression): {diff_cmds[0]!r}"
     )
     assert "HEAD" not in diff_cmds[0], f"diff must not reference HEAD (F1): {diff_cmds[0]!r}"
+
+
+# ---------------------------------------------------------------------------
+# _behind_commits_touch_only_planning_artifacts — #3940 whole-tree ledger roots
+# ---------------------------------------------------------------------------
+
+
+def test_behind_commits_other_mission_ledger_is_non_blocking(tmp_path: Path) -> None:
+    """#3940: ledger commits for OTHER missions on the target branch are
+    planning-only — a missions-family branch carries the orchestrator's
+    ledger for every mission on it, and none of it is source divergence."""
+    responses = [
+        _subproc(returncode=0, stdout="abc123\n"),  # merge-base
+        _subproc(
+            returncode=0,
+            stdout=(
+                f"kitty-specs/{MISSION_SLUG}/tasks.md\n"
+                "kitty-specs/some-other-mission/status.events.jsonl\n"
+                "kitty-specs/third-mission/plan.md\n"
+            ),
+        ),
+    ]
+    with patch("subprocess.run", side_effect=responses):
+        result = _behind_commits_touch_only_planning_artifacts(tmp_path, "main", MISSION_SLUG)
+    assert result is True
+
+
+def test_behind_commits_kittify_subtree_is_non_blocking(tmp_path: Path) -> None:
+    """#3940: the whole ``.kittify/`` tree is ledger state, not just the
+    previously-allowed ``workspaces/``/config subset."""
+    responses = [
+        _subproc(returncode=0, stdout="abc123\n"),  # merge-base
+        _subproc(
+            returncode=0,
+            stdout=".kittify/workspaces/wp01.json\n.kittify/missions/state.json\n.kittify/config.yml\n",
+        ),
+    ]
+    with patch("subprocess.run", side_effect=responses):
+        result = _behind_commits_touch_only_planning_artifacts(tmp_path, "main", MISSION_SLUG)
+    assert result is True
+
+
+def test_behind_commits_mixed_ledger_and_source_still_blocks(tmp_path: Path) -> None:
+    """#3940 guard: broadening the ledger roots must not let real source
+    divergence through."""
+    responses = [
+        _subproc(returncode=0, stdout="abc123\n"),  # merge-base
+        _subproc(
+            returncode=0,
+            stdout="kitty-specs/other-mission/tasks.md\nsrc/specify_cli/foo.py\n",
+        ),
+    ]
+    with patch("subprocess.run", side_effect=responses):
+        result = _behind_commits_touch_only_planning_artifacts(tmp_path, "main", MISSION_SLUG)
+    assert result is False
+
+
+# ---------------------------------------------------------------------------
+# _count_behind_commits_outside_planning_artifacts — #3940 source-divergence count
+# ---------------------------------------------------------------------------
+
+
+def test_count_behind_commits_outside_ledger(tmp_path: Path) -> None:
+    """Reports the pathspec-excluded count when it can be determined."""
+    with patch("subprocess.run", return_value=_subproc(returncode=0, stdout="2\n")):
+        result = _count_behind_commits_outside_planning_artifacts(tmp_path, "main", 88)
+    assert result == 2
+
+
+def test_count_behind_commits_failure_falls_back_to_raw_count(tmp_path: Path) -> None:
+    """Fail-open fallback: an undeterminable count keeps the conservative raw
+    behind count (the transition already blocks in that state)."""
+    with patch("subprocess.run", return_value=_subproc(returncode=128, stdout="")):
+        result = _count_behind_commits_outside_planning_artifacts(tmp_path, "main", 88)
+    assert result == 88
+
+
+def test_count_behind_commits_uses_ledger_excludes(tmp_path: Path) -> None:
+    """The count pathspec excludes exactly the ledger roots, so the two
+    #3940 helpers can never drift apart on what a ledger path is."""
+    with patch("subprocess.run", return_value=_subproc(returncode=0, stdout="0\n")) as mock_run:
+        _count_behind_commits_outside_planning_artifacts(tmp_path, "release/upstream", 7)
+    cmd = mock_run.call_args.args[0]
+    assert cmd[:3] == ["git", "rev-list", "--count"]
+    assert "HEAD..release/upstream" in cmd
+    assert cmd[-4:] == ["--", ".", ":(exclude)kitty-specs", ":(exclude).kittify"]

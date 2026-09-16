@@ -20,6 +20,7 @@ from specify_cli.core.vcs.git import (
     git_diff_names_checked,
     git_ls_tree_names_checked,
     git_merge_base,
+    git_rev_list_count,
     merge_base_changed_files,
 )
 
@@ -301,4 +302,70 @@ class TestGitDiffNamesChecked:
         fake = MagicMock(returncode=0, stdout="")
         with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake) as mock_run:
             git_diff_names(tmp_path, "base", "head", timeout=10)
+        assert mock_run.call_args.kwargs["timeout"] == 10
+
+
+class TestGitRevListCount:
+    """Fail-closed ``git rev-list --count`` (#3940)."""
+
+    def test_counts_range_on_real_repo(self, tmp_path):
+        repo = _make_repo(tmp_path)
+        _run(["git", "checkout", "-b", "side"], repo)
+        _commit(repo, "src/a.py", "a\n", "a")
+        _commit(repo, "src/b.py", "b\n", "b")
+        _run(["git", "checkout", "main"], repo)
+
+        assert git_rev_list_count(repo, "HEAD..side") == 2
+
+    def test_pathspec_excludes_subtree(self, tmp_path):
+        # #3940's core shape: ledger-only commits under an excluded root do
+        # not count; only the commit touching a matching path does.
+        repo = _make_repo(tmp_path)
+        _run(["git", "checkout", "-b", "side"], repo)
+        _commit(repo, "kitty-specs/other-mission/tasks.md", "t\n", "ledger")
+        _commit(repo, ".kittify/workspaces/wp.json", "w\n", "workspaces")
+        _commit(repo, "src/a.py", "a\n", "source")
+        _run(["git", "checkout", "main"], repo)
+
+        counted = git_rev_list_count(
+            repo,
+            "HEAD..side",
+            pathspecs=(".", ":(exclude)kitty-specs", ":(exclude).kittify"),
+        )
+
+        assert counted == 1
+
+    def test_non_zero_exit_returns_none(self, tmp_path):
+        repo = _make_repo(tmp_path)
+
+        assert git_rev_list_count(repo, "HEAD..does-not-exist") is None
+
+    def test_non_numeric_stdout_returns_none(self, tmp_path):
+        fake = MagicMock(returncode=0, stdout="not-a-count\n")
+        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake):
+            assert git_rev_list_count(tmp_path, "HEAD..main") is None
+
+    def test_empty_stdout_returns_none(self, tmp_path):
+        fake = MagicMock(returncode=0, stdout="")
+        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake):
+            assert git_rev_list_count(tmp_path, "HEAD..main") is None
+
+    def test_no_pathspecs_omits_separator(self, tmp_path):
+        fake = MagicMock(returncode=0, stdout="0\n")
+        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake) as mock_run:
+            assert git_rev_list_count(tmp_path, "HEAD..main") == 0
+        cmd = mock_run.call_args.args[0]
+        assert "--" not in cmd
+
+    def test_pathspecs_passed_after_separator(self, tmp_path):
+        fake = MagicMock(returncode=0, stdout="0\n")
+        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake) as mock_run:
+            git_rev_list_count(tmp_path, "HEAD..main", pathspecs=(".", ":(exclude)x"))
+        cmd = mock_run.call_args.args[0]
+        assert cmd[-3:] == ["--", ".", ":(exclude)x"]
+
+    def test_timeout_is_passed_through(self, tmp_path):
+        fake = MagicMock(returncode=0, stdout="0\n")
+        with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake) as mock_run:
+            git_rev_list_count(tmp_path, "HEAD..main", timeout=10)
         assert mock_run.call_args.kwargs["timeout"] == 10

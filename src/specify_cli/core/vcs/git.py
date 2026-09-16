@@ -1185,6 +1185,56 @@ def git_ls_tree_names_checked(
     return tuple(line.strip() for line in result.stdout.splitlines() if line.strip())
 
 
+def git_rev_list_count(
+    repo: Path,
+    rev_range: str,
+    *,
+    pathspecs: tuple[str, ...] | None = None,
+    timeout: float | None = None,
+) -> int | None:
+    """Fail-closed ``git rev-list --count <rev_range> [-- <pathspecs>]``.
+
+    Counts commits in a revision range, optionally restricted by pathspecs
+    (a commit counts when its changed-path set intersects the pathspec
+    match — exclude pathspecs such as ``":(exclude)kitty-specs"`` subtract
+    a subtree from that match). Returns ``None`` when the command exits
+    non-zero or its stdout is not a bare non-negative integer, so callers
+    can fail closed instead of reading an undetermined count as zero
+    (mirrors the ``*_checked`` fail-distinguishing primitives).
+
+    Args:
+        repo: Repository/worktree path to run the command in.
+        rev_range: Revision range or rev-set argument, e.g. ``"HEAD..main"``.
+        pathspecs: Optional pathspecs passed after ``--``; when given, only
+            commits touching at least one matching path are counted.
+        timeout: Optional subprocess timeout (seconds); ``TimeoutExpired``
+            propagates (not swallowed).
+
+    Returns:
+        The commit count on success; ``None`` on non-zero exit or
+        non-numeric stdout.
+    """
+    cmd = ["git", "rev-list", "--count", rev_range]
+    if pathspecs:
+        cmd.extend(["--", *pathspecs])
+    result = subprocess.run(
+        cmd,
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+        timeout=timeout,
+    )
+    if result.returncode != 0:
+        return None
+    stdout = result.stdout.strip()
+    if not stdout.isdigit():
+        return None
+    return int(stdout)
+
+
 def merge_base_changed_files(
     worktree: Path,
     base_ref: str,

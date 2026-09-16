@@ -16,6 +16,9 @@ Contents:
   composing :func:`compute_incomplete_dependents` with workspace resolution.
 - :func:`_behind_commits_touch_only_planning_artifacts` — git subprocess helper
   that keeps lane transitions from being blocked by planning-only commits.
+- :func:`_count_behind_commits_outside_planning_artifacts` — #3940 companion:
+  counts behind-commits touching files outside the ledger trees so the block
+  guidance reports source divergence, not the raw commit count.
 
 One-way import rule (INV-2): this module MUST NOT import from
 ``specify_cli.cli.commands.agent.tasks``. ``tasks.py`` imports from here.
@@ -30,7 +33,11 @@ from specify_cli.cli.console import console
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import get_main_repo_root
-from specify_cli.core.vcs.git import git_diff_names_checked, git_merge_base
+from specify_cli.core.vcs.git import (
+    git_diff_names_checked,
+    git_merge_base,
+    git_rev_list_count,
+)
 from specify_cli.status import Lane, resolve_lane_alias
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
@@ -38,7 +45,16 @@ __all__ = [
     "compute_incomplete_dependents",
     "_check_dependent_warnings",
     "_behind_commits_touch_only_planning_artifacts",
+    "_count_behind_commits_outside_planning_artifacts",
+    "_PLANNING_LEDGER_ROOTS",
 ]
+
+
+# #3940: roots of the ledger/planning trees whose commits never count as
+# source divergence in the lane-currency check. Whole trees, not per-mission
+# subtrees — a missions-family target branch carries the orchestrator's
+# ledger commits for every mission on the branch.
+_PLANNING_LEDGER_ROOTS = ("kitty-specs/", ".kittify/")
 
 
 
@@ -167,7 +183,7 @@ def _check_dependent_warnings(repo_root: Path, mission_slug: str, wp_id: str, ta
 def _behind_commits_touch_only_planning_artifacts(
     worktree_path: Path,
     check_branch: str,
-    mission_slug: str,
+    mission_slug: str,  # noqa: ARG001 — kept for the injected-callable signature (#3940)
 ) -> bool:
     """Return True when upstream commits only touch planning/status files.
 
@@ -189,6 +205,14 @@ def _behind_commits_touch_only_planning_artifacts(
     non-blocking). This resolves the prior NFR-002 exception where the diff
     stayed a direct subprocess call because ``git_diff_names`` collapsed
     "failed" and "empty" into the same empty tuple.
+
+    #3940: the ledger trees are matched WHOLE — ``kitty-specs/`` and
+    ``.kittify/`` at the root, not per-mission subtrees. A missions-family
+    target branch carries the orchestrator's ledger/planning commits for
+    *every* mission on the branch, so a lane can sit "behind" by dozens of
+    commits that touch zero source paths; counting those as divergence forced
+    a pointless rebase across ~90 ledger-only commits (the #3940 report). The
+    check therefore decides "behind" on source divergence, not commit count.
     """
     merge_base = git_merge_base(worktree_path, "HEAD", check_branch)
     if merge_base is None:
@@ -205,12 +229,36 @@ def _behind_commits_touch_only_planning_artifacts(
     if not changed_files:
         return True
 
-    allowed_prefixes = (
-        f"kitty-specs/{mission_slug}/",
-        ".kittify/workspaces/",
-    )
-    allowed_exact_paths = {
-        ".kittify/config.yaml",
-        ".kittify/config.yml",
-    }
-    return all(path.startswith(allowed_prefixes) or path in allowed_exact_paths for path in changed_files)
+    # #3940: whole-tree ledger roots (see _PLANNING_LEDGER_ROOTS).
+    return all(path.startswith(_PLANNING_LEDGER_ROOTS) for path in changed_files)
+
+
+def _count_behind_commits_outside_planning_artifacts(
+    worktree_path: Path,
+    check_branch: str,
+    behind_count: int,
+) -> int:
+    """Count behind-commits touching files outside the ledger trees (#3940).
+
+    One fail-closed ``git_rev_list_count`` call over ``HEAD..check_branch``
+    with the ledger roots excluded via pathspecs, so the block guidance
+    reports *source* divergence — the number of commits the lane actually
+    has to rebase across — instead of the raw behind count, which is
+    dominated by orchestrator ledger commits.
+
+    Args:
+        worktree_path: Lane worktree whose HEAD is behind.
+        check_branch: The branch the lane is measured against.
+        behind_count: The raw behind count, used as the fail-open fallback
+            when the count cannot be determined (the transition already
+            blocks in that state, so the message just stays conservative).
+
+    Returns:
+        The number of behind commits touching at least one file outside
+        ``kitty-specs/`` and ``.kittify/``, or ``behind_count`` on failure.
+    """
+    pathspecs = (".", *(f":(exclude){root.rstrip('/')}" for root in _PLANNING_LEDGER_ROOTS))
+    counted = git_rev_list_count(worktree_path, f"HEAD..{check_branch}", pathspecs=pathspecs)
+    if counted is None:
+        return behind_count
+    return counted

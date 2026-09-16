@@ -238,6 +238,7 @@ from specify_cli.cli.commands.agent.tasks_status_view import (
 from specify_cli.cli.commands.agent.tasks_dependency_graph import (
     _behind_commits_touch_only_planning_artifacts,
     _check_dependent_warnings,
+    _count_behind_commits_outside_planning_artifacts,
     compute_incomplete_dependents,
 )
 
@@ -333,6 +334,7 @@ __all__ = [
     "ProtectionPolicy",
     "RealRender",
     "_behind_commits_touch_only_planning_artifacts",
+    "_count_behind_commits_outside_planning_artifacts",
     "_check_dependent_warnings",
     "_lane_targets_for_emit",
     "_wp_lane_from_status_events",

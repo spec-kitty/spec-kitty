@@ -1028,3 +1028,53 @@ def test_validate_worktree_state_missing_worktree_falls_through(tmp_path: Path) 
         list_wp_branch_specs_changes_for_guard=lambda **_k: [],
     )
     assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Sub-split validator: _check_branch_currency — #3940 source-divergence report
+# ---------------------------------------------------------------------------
+
+
+def test_check_branch_currency_reports_non_ledger_count(tmp_path: Path) -> None:
+    """#3940: the block message reports source divergence (commits touching
+    files outside the ledger trees), not the raw behind count that is
+    dominated by orchestrator ledger commits."""
+    responses = [
+        _make_subproc(0, "88\n"),  # raw behind count
+        _make_subproc(0, "2\n"),   # non-ledger count (pathspec-excluded)
+    ]
+    with patch("subprocess.run", side_effect=responses):
+        guidance = _check_branch_currency(
+            worktree_path=tmp_path,
+            check_branch="missions/family",
+            mission_slug="demo",
+            wp_id="WP01",
+            target_lane="for_review",
+            behind_commits_touch_only_planning_artifacts=lambda *_a: False,
+        )
+    assert guidance is not None
+    joined = "\n".join(guidance)
+    assert "behind missions/family by 88 commit(s)" in joined
+    assert "2 non-ledger commit(s) touching files outside kitty-specs/ and .kittify/" in joined
+
+
+def test_check_branch_currency_count_failure_falls_back_to_raw_count(tmp_path: Path) -> None:
+    """#3940: when the non-ledger count cannot be determined, the message
+    stays conservative and reports the raw behind count."""
+    responses = [
+        _make_subproc(0, "88\n"),   # raw behind count
+        _make_subproc(128, ""),     # non-ledger count fails
+    ]
+    with patch("subprocess.run", side_effect=responses):
+        guidance = _check_branch_currency(
+            worktree_path=tmp_path,
+            check_branch="main",
+            mission_slug="demo",
+            wp_id="WP01",
+            target_lane="for_review",
+            behind_commits_touch_only_planning_artifacts=lambda *_a: False,
+        )
+    assert guidance is not None
+    joined = "\n".join(guidance)
+    assert "behind main by 88 commit(s)" in joined
+    assert "88 non-ledger commit(s)" in joined
