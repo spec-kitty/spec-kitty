@@ -208,6 +208,25 @@ class SafeCommitEmptyChangeset(SafeCommitError):
         super().__init__(message, destination_ref=destination_ref)
 
 
+class SafeCommitStagedTreeUnchanged(SafeCommitError):
+    """The staged tree matches HEAD: a genuine empty changeset (benign no-op).
+
+    Raised ONLY on the index authority (``_staged_tree_is_empty``), never on
+    git output text — a rejecting pre-commit hook can print a
+    "nothing to commit"-shaped message while leaving a real staged change in
+    the index, and that path raises the generic ``RuntimeError`` instead.
+    Previously raised as a bare ``RuntimeError`` whose message downstream
+    callers had to substring-match (#3861); the type is now the typed signal
+    and the message is byte-identical for those prose-matching consumers.
+    """
+
+    error_code = "SAFE_COMMIT_STAGED_TREE_UNCHANGED"
+
+    def __init__(self, *, destination_ref: str | None) -> None:
+        message = f"safe_commit: nothing to commit for destination_ref={destination_ref!r} (empty changeset)"
+        super().__init__(message, destination_ref=destination_ref)
+
+
 class SafeCommitNotAWorktree(SafeCommitError):
     """``worktree_root`` is not a valid worktree of ``repo_root``."""
 
@@ -1079,6 +1098,8 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
     Raises:
         SafeCommitDestinationRefShape: ``destination_ref`` starts with ``refs/heads/``.
         SafeCommitEmptyChangeset: ``paths`` is empty.
+        SafeCommitStagedTreeUnchanged: the staged tree matches HEAD (a genuine
+            empty changeset — benign no-op, distinct from a rejecting hook).
         SafeCommitNotAWorktree: ``worktree_root`` is not a git worktree of ``repo_root``.
         SafeCommitHeadMismatch: worktree HEAD does not match ``destination_ref``.
         SafeCommitDestinationNotFound: ``destination_ref`` does not exist in the repo.
@@ -1190,7 +1211,7 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
                 if _staged_tree_is_empty(worktree_root):
                     # Benign no-op: staged content already matches HEAD. The
                     # commit router maps this distinct message to "unchanged".
-                    raise RuntimeError(f"safe_commit: nothing to commit for destination_ref={destination_ref!r} (empty changeset)")
+                    raise SafeCommitStagedTreeUnchanged(destination_ref=destination_ref)
                 # Genuine failure (rejecting pre-commit hook, lock, etc.) — carry
                 # git's own combined output so it is NOT mistaken for an empty
                 # changeset (failure-path behavior unchanged: both streams).

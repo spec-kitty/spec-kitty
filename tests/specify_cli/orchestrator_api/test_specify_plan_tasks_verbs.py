@@ -501,6 +501,13 @@ def test_specify_twice_for_same_slug_fails_closed_with_structured_error(tmp_path
     assert second["success"] is False, second
     assert second["error_code"] is not None
     assert second["error_code"] != ""
+    # #3861: the duplicate refusal arrives as the delegate's TYPED
+    # ``MissionAlreadyExistsError`` signal (emitted by the #4033 guard, the
+    # first refusal a frozen-``mission_id`` re-run hits), carried through the
+    # ``--json`` error payload as ``error_code`` -- pinned here so a future
+    # message-wording change in the delegate can never flip the reported
+    # failure code.
+    assert second["error_code"] == "MISSION_ALREADY_EXISTS"
     # Never a bare unstructured exception surface.
     assert "message" in second["data"]
 

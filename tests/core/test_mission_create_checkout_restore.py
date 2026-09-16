@@ -365,3 +365,46 @@ def test_meta_json_commit_hard_failure_message_names_step_and_git_error(
     # The exception chain preserves the original error for debuggability.
     assert isinstance(exc_info.value.__cause__, RuntimeError)
     assert "unable to write new index file" in str(exc_info.value.__cause__)
+
+
+def test_meta_json_commit_empty_changeset_surfaces_typed_already_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#3861: a genuine empty-changeset refusal at the scaffold commit (a
+    byte-identical scaffold already committed -- the duplicate-mission
+    signature the WP03 tracer observed) is re-raised as the TYPED
+    ``MissionAlreadyExistsError`` instead of a bare ``RuntimeError``, keeping
+    the "meta.json commit failed" step context in the message.
+
+    The classification is by exception TYPE (``SafeCommitStagedTreeUnchanged``
+    -- safe_commit's index-authority no-op signal), never by message prose:
+    the mock raises the typed error exactly as production's ``safe_commit``
+    now does, with no prefix baked in.
+    """
+    from specify_cli.core.mission_creation import MissionAlreadyExistsError
+    from specify_cli.git.commit_helpers import SafeCommitStagedTreeUnchanged
+
+    _init_git_repo(tmp_path)
+
+    boom = SafeCommitStagedTreeUnchanged(destination_ref=_ORIGINAL_BRANCH)
+
+    def _explode(*_args: object, **_kwargs: object) -> None:
+        raise boom
+
+    monkeypatch.setattr("specify_cli.core.mission_creation._commit_feature_file", _explode)
+
+    with pytest.raises(MissionAlreadyExistsError) as exc_info:
+        create_mission_core(
+            tmp_path,
+            "meta-commit-empty-changeset",
+            allow_worktree_context=True,
+            **_mission_summary("meta-commit-empty-changeset"),
+        )
+
+    assert exc_info.value.error_code == "MISSION_ALREADY_EXISTS"
+    # NFR-001 step context is preserved by the typed re-raise, verbatim with
+    # the generic wrap's message shape.
+    assert "meta.json commit failed" in str(exc_info.value)
+    assert "empty changeset" in str(exc_info.value)
+    # The exception chain preserves the typed underlying signal.
+    assert exc_info.value.__cause__ is boom

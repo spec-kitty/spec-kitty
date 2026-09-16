@@ -192,6 +192,75 @@ def test_run_create_core_phase_handles_creation_error(monkeypatch: pytest.Monkey
         )
 
 
+def test_run_create_core_phase_carries_typed_error_code_into_json(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """#3861: the delegate's typed failure reason travels in the ``--json``
+    error payload as ``error_code`` so scripted callers (the orchestrator-api
+    ``specify`` verb) classify on the structured code, never on message
+    prose. A generic ``MissionCreationError`` (no typed reason) still emits
+    the bare ``{"error": ...}`` shape -- no code is invented for it."""
+
+    import json
+
+    import specify_cli.core.mission_creation as core
+
+    def _dup(**_k: object) -> None:
+        raise core.MissionAlreadyExistsError("A mission named '001-demo' of type 'software-dev' already exists and is not abandoned (#4033).")
+
+    monkeypatch.setattr(core, "create_mission_core", _dup)
+    with pytest.raises(typer.Exit):
+        seam._run_create_core_phase(
+            repo_root=tmp_path,
+            mission_slug="001-demo",
+            resolved_mission_type="software-dev",
+            target_branch=None,
+            friendly_name=None,
+            purpose_tldr=None,
+            purpose_context=None,
+            pr_bound=False,
+            force_recreate_coordination_branch=False,
+            owned_checkout=None,
+            json_output=True,
+        )
+
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert payload["error_code"] == "MISSION_ALREADY_EXISTS"
+    assert "already exists" in payload["error"]
+
+
+def test_run_create_core_phase_generic_error_omits_error_code(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """#3861 complement: a generic (unclassified) ``MissionCreationError``
+    keeps the bare ``{"error": ...}`` payload -- no typed reason is invented,
+    and downstream fallback classification (``MISSION_CREATE_FAILED``) owns
+    the generic code."""
+
+    import json
+
+    import specify_cli.core.mission_creation as core
+
+    def _boom(**_k: object) -> None:
+        raise core.MissionCreationError("nope")
+
+    monkeypatch.setattr(core, "create_mission_core", _boom)
+    with pytest.raises(typer.Exit):
+        seam._run_create_core_phase(
+            repo_root=tmp_path,
+            mission_slug="001-demo",
+            resolved_mission_type=None,
+            target_branch=None,
+            friendly_name=None,
+            purpose_tldr=None,
+            purpose_context=None,
+            pr_bound=False,
+            force_recreate_coordination_branch=False,
+            owned_checkout=None,
+            json_output=True,
+        )
+
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert "error_code" not in payload
+    assert payload["error"] == "nope"
+
+
 # ---------------------------------------------------------------------------
 # _print_worktree_navigation_hint
 # ---------------------------------------------------------------------------

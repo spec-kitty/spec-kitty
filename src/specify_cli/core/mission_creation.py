@@ -51,6 +51,7 @@ from specify_cli.git.commit_helpers import (
     ProtectedBranchRefused,
     SafeCommitDestinationNotFound,
     SafeCommitHeadMismatch,
+    SafeCommitStagedTreeUnchanged,
 )
 from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
 from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8, strip_numeric_prefix
@@ -77,7 +78,29 @@ _BOOTSTRAP_META_COMMIT_SKIPS = (
 
 
 class MissionCreationError(RuntimeError):
-    """Raised when mission creation fails."""
+    """Raised when mission creation fails.
+
+    Carries an optional structured ``error_code`` (``None`` on the base class:
+    a generic, unclassified creation failure) so JSON/scripted callers can
+    consume a typed failure reason instead of pattern-matching the message
+    prose (#3861).
+    """
+
+    error_code: str | None = None
+
+
+class MissionAlreadyExistsError(MissionCreationError):
+    """A live same-key prior mission already exists (#4033 / #3861).
+
+    The typed already-exists-vs-failed signal on the mission-creation
+    surface: raised by the idempotency guard (a live prior mission shares
+    the base slug and mission type) and by the scaffold commit's genuine
+    empty-changeset refusal (byte-identical scaffold already committed --
+    the same duplicate-mission signature). ``error_code`` is the stable
+    identifier consumed by the orchestrator-api ``specify`` verb.
+    """
+
+    error_code = "MISSION_ALREADY_EXISTS"
 
 
 @dataclass(slots=True)
@@ -756,7 +779,7 @@ def _create_mission_core_impl(
     allow_duplicate:
         Escape hatch for the idempotency guard (#4033, FR-004). Defaults to
         ``False``, preserving the guard: creation is refused with
-        :class:`MissionCreationError` when a LIVE prior mission shares the
+        :class:`MissionAlreadyExistsError` when a LIVE prior mission shares the
         same base ``mission_slug`` AND ``mission_type`` (FR-001). Abandoned
         priors (canceled, genesis, or spec never committed) never trigger
         the guard regardless of this flag (FR-003). Pass ``True`` to
@@ -874,7 +897,7 @@ def _create_mission_core_impl(
         )
         if duplicate is not None:
             duplicate_dir_name, duplicate_mid8 = duplicate
-            raise MissionCreationError(
+            raise MissionAlreadyExistsError(
                 f"A mission named '{strip_numeric_prefix(mission_slug)}' of type "
                 f"'{effective_mission_type}' already exists and is not "
                 f"abandoned: {duplicate_dir_name} (mid8 {duplicate_mid8}). "
@@ -1280,6 +1303,15 @@ def _create_mission_core_impl(
             planning_branch,
             exc,
         )
+    except SafeCommitStagedTreeUnchanged as exc:
+        # #3861: a byte-identical scaffold already committed is the same
+        # duplicate-mission signature the #4033 guard refuses pre-write (the
+        # residual path the guard can allow through, e.g. ``allow_duplicate``
+        # callers re-running with a frozen ``mission_id``). Keep the step
+        # context in the message but surface the TYPED already-exists signal
+        # (``MissionAlreadyExistsError``) so callers classify on the code,
+        # never on the prose.
+        raise MissionAlreadyExistsError(f"meta.json commit failed: {exc}") from exc
     except Exception as exc:
         raise RuntimeError(f"meta.json commit failed: {exc}") from exc
 
