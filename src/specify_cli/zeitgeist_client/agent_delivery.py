@@ -17,9 +17,15 @@ from typing import Any
 
 from spec_kitty_events.models import normalize_event_id
 
-from . import credentials, moments, session_identity
+from . import credentials, history, moments, session_identity
 from .live_frame import LiveFrame
 from .receipts import ReceiptStore
+
+# The hostile-relay scan bound, derived rather than restated: one catch-up
+# reads at most ``history.MAX_HISTORY_PAGES`` pages of ``history.
+# MAX_HISTORY_FRAMES`` retained frames each, so a single ``select()`` scan
+# never sees more frames than that product (finding #5, PR #4224).
+MAX_SCAN_FRAMES: int = history.MAX_HISTORY_PAGES * history.MAX_HISTORY_FRAMES
 
 
 def consumer_identity(consumer: str | None = None) -> tuple[str, bool]:
@@ -116,9 +122,8 @@ class AgentDelivery:
         event_count = 0
         identities: list[tuple[str, bool]] = []
         counts = {"filtered": 0, "duplicates": 0, "rate": 0, "budget": 0}
-        scanned = 0
-        for frame in islice(frames, 10_000):
-            scanned += 1
+        iterator = iter(frames)
+        for frame in islice(iterator, MAX_SCAN_FRAMES):
             live = LiveFrame(**frame)
             if not self.predicate(live):
                 counts["filtered"] += 1
@@ -149,11 +154,16 @@ class AgentDelivery:
                 identities.append((identity, is_event))
             if is_event and identity not in budget_ids:
                 remaining -= 1
+        # A source that yields exactly MAX_SCAN_FRAMES frames and is exhausted
+        # has not hit the scan limit; only a frame beyond the cap proves the
+        # scan was cut short. The probe frame is discarded — surfacing it
+        # would exceed the very bound being reported (finding #5, PR #4224).
+        scan_limit_reached = next(iterator, None) is not None
         result: dict[str, Any] = {
             "repo": self.repo,
             "frames": surfaced,
             "withheld": counts,
-            "scan_limit_reached": scanned == 10_000,
+            "scan_limit_reached": scan_limit_reached,
             "settings": self.settings.as_dict(),
             "consumer_continuity": "stable" if self.stable_consumer else "process_only",
             "own_filter": "not_requested",

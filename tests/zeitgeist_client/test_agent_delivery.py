@@ -395,3 +395,171 @@ def test_receipt_consumer_override_is_explicit(monkeypatch):
     assert consumer_identity("explicit-consumer") == ("explicit-consumer", True)
     with pytest.raises(ValueError, match="consumer"):
         consumer_identity("")
+
+
+# --- PR #4224 squad MINORs (issue #4549, children A/B/C/E) -------------------
+
+
+def test_scan_cap_is_derived_from_the_shared_history_bounds() -> None:
+    from specify_cli.zeitgeist_client import agent_delivery, history
+
+    # Derived, never restated: one catch-up reads at most MAX_HISTORY_PAGES
+    # pages of MAX_HISTORY_FRAMES frames each (finding #5, PR #4224). The
+    # product pins the previous hard-coded 10_000 bound.
+    assert agent_delivery.MAX_SCAN_FRAMES == history.MAX_HISTORY_PAGES * history.MAX_HISTORY_FRAMES
+    assert agent_delivery.MAX_SCAN_FRAMES == 10_000
+
+
+def test_scan_limit_only_reports_a_source_beyond_the_cap(policy) -> None:
+    """Finding #5 (PR #4224): a source that yields exactly the scan cap and
+    is exhausted has NOT hit the limit — only a frame beyond the cap proves
+    the scan was cut short."""
+    from specify_cli.zeitgeist_client import agent_delivery
+
+    cap = agent_delivery.MAX_SCAN_FRAMES
+    exhausted_at_cap = [event(i) for i in range(1, cap + 1)]
+    assert policy.select(exhausted_at_cap, max_frames=1)["scan_limit_reached"] is False
+    assert policy.select(exhausted_at_cap + [event(cap + 1)], max_frames=1)["scan_limit_reached"] is True
+
+
+def test_admission_refusal_acknowledges_the_previous_receipt_and_reports_the_full_shape(policy, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Finding #3 (PR #4224): a repos-filter refusal must acknowledge the
+    caller's previous successful delivery (never silently drop the receipt)
+    and carry the same result keys an admitted call returns."""
+    from specify_cli.zeitgeist_client import moments
+    from specify_cli.zeitgeist_client.agent_delivery import frame_identity
+
+    delivered = event(1)
+    receipt = policy.select([delivered], max_frames=1)["receipt"]
+    assert receipt is not None
+    assert policy.receipts.known(policy.context) == set()
+    # An admission refusal the receipt digest cannot predict (any future
+    # refusal dimension outside the current filters): the ordering contract
+    # under test is "acknowledge before the admission check".
+    monkeypatch.setattr(moments, "allows_repo", lambda settings, store_key: False)
+    for call in (subscription.agent_watch, subscription.agent_activity):
+        result = call(policy.repo, delivery=policy, acknowledge=receipt)
+        assert result["withheld_by"] == "repos_filter"
+        assert result["frames"] == []
+        assert result["receipt"] is None
+        assert result["withheld"] == {"filtered": 0, "duplicates": 0, "rate": 0, "budget": 0}
+        assert result["own_filter"] == "not_read"
+    assert policy.receipts.known(policy.context) == {frame_identity(delivered)}
+
+
+def test_cross_page_coverage_merges_gaps_and_aggregates_counts(policy, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Finding #4 (PR #4224): a multi-page catch-up reports the union — every
+    gap retained, withheld frames summed, truncation/reset OR-ed — never just
+    the last page plus one arbitrary gap."""
+    from specify_cli.zeitgeist_client import history
+
+    def page(repo: str, *, since: str | None = None, **_kw: object) -> dict:
+        base = {
+            "source": "relay_retained_history",
+            "epoch": "e1",
+            "requested_window_s": 900,
+            "retention_s": None,
+            "complete": False,
+        }
+        if since is None:
+            return {
+                "frames": [event(1)],
+                "coverage": {
+                    **base,
+                    "seq": 10,
+                    "reset": False,
+                    "gap": {"from_seq": 1, "to_seq": 2},
+                    "truncated": True,
+                    "withheld_count": 2,
+                    "continuation": "e1:1",
+                },
+            }
+        return {
+            "frames": [event(2)],
+            "coverage": {**base, "seq": 20, "reset": True, "gap": {"from_seq": 12, "to_seq": 14}, "truncated": False, "withheld_count": 3, "continuation": None},
+        }
+
+    monkeypatch.setattr(history, "read_history", page)
+    result = subscription.agent_activity(policy.repo, delivery=policy, max_frames=10)
+    coverage = result["coverage"]
+    assert coverage["seq"] == 20
+    assert coverage["epoch"] == "e1"
+    assert coverage["truncated"] is True
+    assert coverage["withheld_count"] == 5
+    assert coverage["reset"] is True
+    assert coverage["gap"] == {"from_seq": 1, "to_seq": 2}
+    assert coverage["gaps"] == [{"from_seq": 1, "to_seq": 2}, {"from_seq": 12, "to_seq": 14}]
+    assert coverage["continuation"] is None
+    assert len(result["frames"]) == 2
+
+
+def test_cli_activity_parity_and_acknowledgement(policy, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Finding #11 (PR #4224): the ``activity`` command's own CLI-level test —
+    same delivery as the shared surface, receipt committed only after the
+    output landed."""
+    import json
+
+    from specify_cli.cli.commands.zeitgeist import app
+    from specify_cli.zeitgeist_client import history
+    from typer.testing import CliRunner
+
+    frame = event(1)
+    monkeypatch.setattr(history, "read_history", lambda *a, **kw: {"frames": [frame], "coverage": {"continuation": None}})
+    monkeypatch.setattr("specify_cli.zeitgeist_client.agent_delivery.AgentDelivery", lambda *a, **kw: policy)
+    expected = subscription.agent_activity(policy.repo, delivery=policy)
+    result = CliRunner().invoke(app, ["activity", policy.repo, "--consumer", "agent-a", "--json"])
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["frames"] == expected["frames"]
+    assert payload["withheld"] == expected["withheld"]
+    assert len(policy.receipts.known(policy.context)) == 1
+
+
+def test_cli_activity_failed_output_never_acknowledges(policy, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.cli.commands.zeitgeist import app
+    from specify_cli.cli.console import console
+    from specify_cli.zeitgeist_client import history
+    from typer.testing import CliRunner
+
+    monkeypatch.setattr("specify_cli.zeitgeist_client.agent_delivery.AgentDelivery", lambda *a, **kw: policy)
+    monkeypatch.setattr(history, "read_history", lambda *a, **kw: {"frames": [event(1)], "coverage": {"continuation": None}})
+
+    def failed(*a, **kw):
+        raise BrokenPipeError("closed")
+
+    monkeypatch.setattr(console, "emit_json", failed)
+    result = CliRunner().invoke(app, ["activity", policy.repo, "--json"])
+    assert result.exit_code != 0
+    assert policy.receipts.known(policy.context) == set()
+
+
+@pytest.mark.parametrize("flags,expected", [([], True), (["--raw"], False)])
+def test_cli_activity_own_filter_default_and_raw_opt_out(policy, monkeypatch: pytest.MonkeyPatch, flags: list[str], expected: bool) -> None:
+    """Finding #2 (PR #4224): ``activity`` gains the ``--raw`` own-filter
+    escape hatch, at parity with ``status``/``watch`` and the MCP tools'
+    ``filter_own``."""
+    from specify_cli.cli.commands.zeitgeist import app
+    from typer.testing import CliRunner
+
+    seen: dict[str, object] = {}
+
+    def fake_agent_activity(repo: str, **kwargs: object) -> dict:
+        seen["filter_own"] = kwargs.get("filter_own")
+        return {"repo": repo, "frames": [], "receipt": None}
+
+    monkeypatch.setattr("specify_cli.zeitgeist_client.agent_delivery.AgentDelivery", lambda *a, **kw: policy)
+    monkeypatch.setattr(subscription, "agent_activity", fake_agent_activity)
+    result = CliRunner().invoke(app, ["activity", policy.repo, "--json", *flags])
+    assert result.exit_code == 0, result.output
+    assert seen["filter_own"] is expected
+
+
+def test_receipt_store_file_is_private(policy) -> None:
+    """Finding #9 (PR #4224): the receipts sqlite carries acknowledgement
+    tokens — credential-adjacent — so it is 0600, and a store first created
+    under a lax umask is re-tightened on every later open."""
+    assert policy.receipts.known(policy.context) == set()  # forces creation
+    assert policy.receipts.path.stat().st_mode & 0o777 == 0o600
+    policy.receipts.path.chmod(0o644)
+    policy.receipts.known(policy.context)
+    assert policy.receipts.path.stat().st_mode & 0o777 == 0o600

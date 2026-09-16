@@ -11,18 +11,69 @@ import json
 import math
 import re
 import threading
+import time
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from typing import Any, cast
 
 from . import budget, credentials, subscription, own_filter
 from .live_frame import parse_live_frame
 
-_READ_SLOTS = threading.BoundedSemaphore(4)
-
+MAX_HISTORY_PAGES = 20
 MAX_HISTORY_BYTES = 8 * 1024 * 1024
 MAX_HISTORY_FRAMES = 500
 _CURSOR = re.compile(r"[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}:[0-9]{1,19}")
+
+# A permit held longer than the 90s socket-read cap belongs to a worker that
+# ``budget.run_with_deadline`` already abandoned (its caller returned at the
+# whole-call deadline); reaping it is bookkeeping only — the abandoned
+# worker's socket is never touched.
+_STALE_READ_HOLD_S = 95.0
+
+
+class _ReadSlots:
+    """A history-read permit ledger that reaps holds abandoned by timeouts.
+
+    ``read_history`` runs its socket read under ``budget.run_with_deadline``,
+    which abandons a timed-out worker thread still blocked in
+    ``resp.read()``; that worker's ``finally`` releases its permit only when
+    the socket dies on its own. A plain ``BoundedSemaphore`` therefore leaks
+    the permit for the process lifetime, and four stuck reads disable
+    history reads entirely. Each hold here instead carries its acquisition
+    time, and ``acquire`` reaps holds older than ``stale_hold_s`` first — a
+    stuck read costs one slot for a bounded window, never forever. Releasing
+    a reaped token is a no-op, so the abandoned worker's own late ``finally``
+    can never free a permit a later reader is holding."""
+
+    def __init__(self, capacity: int = 4, *, stale_hold_s: float = _STALE_READ_HOLD_S, clock: Callable[[], float] = time.monotonic) -> None:
+        self._capacity = capacity
+        self._stale_hold_s = stale_hold_s
+        self._clock = clock
+        self._lock = threading.Lock()
+        self._held: dict[int, float] = {}
+        self._next_token = 0
+
+    def acquire(self) -> int | None:
+        """Take a permit token, or ``None`` when every slot is still held."""
+        with self._lock:
+            now = self._clock()
+            for token, taken_at in list(self._held.items()):
+                if now - taken_at > self._stale_hold_s:
+                    del self._held[token]
+            if len(self._held) >= self._capacity:
+                return None
+            self._next_token += 1
+            self._held[self._next_token] = now
+            return self._next_token
+
+    def release(self, token: int) -> None:
+        """Release a permit; a reaped token is a no-op, never a double release."""
+        with self._lock:
+            self._held.pop(token, None)
+
+
+_READ_SLOTS = _ReadSlots()
 
 
 class HistoryProtocolError(ValueError):
@@ -130,7 +181,9 @@ def read_history(
     )
     if filter_own:
         request.add_header("X-Zeitgeist-Own-Sessions", own_filter.identity_header(stored))
-    if not _READ_SLOTS.acquire(blocking=False):
+    slots = _READ_SLOTS
+    token = slots.acquire()
+    if token is None:
         raise HistoryProtocolError("History reader busy: previous timed-out reads have not finished")
 
     def read() -> dict[str, Any]:
@@ -143,7 +196,11 @@ def read_history(
                 raise HistoryProtocolError("History response exceeds byte limit")
             return _project(_decode(body), repo=repo, window_s=window_s)
         finally:
-            _READ_SLOTS.release()
+            # Release onto the ledger this read acquired from, never onto
+            # whatever ``_READ_SLOTS`` names by the time an abandoned worker
+            # finally exits — resolving the global at release time would let
+            # a straggler from one ledger pop a token minted by another.
+            slots.release(token)
 
     outcome = budget.run_with_deadline(read, deadline_s=min(timeout_s, 90.0))
     if not outcome.completed:

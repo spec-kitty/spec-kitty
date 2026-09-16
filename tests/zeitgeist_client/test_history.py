@@ -26,6 +26,16 @@ def relay(monkeypatch):
         def do_GET(self):
             state.requests.append((self.path, dict(self.headers)))
             body = state.body if isinstance(state.body, bytes) else json.dumps(state.body).encode()
+            pad = getattr(state, "pad", 0)
+            if pad:
+                # A body padded past the drip horizon: the drip keeps each
+                # socket recv inside the per-read socket timeout, so an
+                # abandoned worker stays blocked in ``resp.read()`` for the
+                # whole drip, holding its permit — the finding #8 leak shape
+                # (a short finite drip lets the worker finish and release
+                # naturally; a hung server unblocks it on the socket
+                # timeout).
+                body = body + b" " * pad
             self.send_response(200)
             self.send_header("Content-Length", str(len(body)))
             if getattr(state, "own_ack", None) is not None:
@@ -150,12 +160,60 @@ def test_slow_drip_cannot_extend_whole_call_deadline(relay):
 
 
 def test_exhausted_reader_slots_are_reported_without_connecting(relay, monkeypatch):
-    import threading
-
-    monkeypatch.setattr(history, "_READ_SLOTS", threading.BoundedSemaphore(0))
+    monkeypatch.setattr(history, "_READ_SLOTS", history._ReadSlots(capacity=0))
     with pytest.raises(history.HistoryProtocolError, match="busy"):
         history.read_history("github.com/acme/repo")
     assert relay.requests == []
+
+
+def test_timed_out_read_does_not_disable_history_for_the_process_lifetime(relay, monkeypatch):
+    """Finding #8 (PR #4224), red-first: ``budget.run_with_deadline`` abandons
+    a timed-out worker still holding its read permit, so the permit must be
+    reaped after a bounded window instead of leaking until socket death —
+    four such reads used to disable history reads for the whole process."""
+    monkeypatch.setattr(history, "_READ_SLOTS", history._ReadSlots(capacity=1, stale_hold_s=0.3))
+    relay.drip = True
+    with pytest.raises(TimeoutError, match="whole-call deadline"):
+        history.read_history("github.com/acme/repo", timeout_s=0.2)
+    # The abandoned worker still holds the one slot: an immediate retry is
+    # honestly busy, without connecting.
+    with pytest.raises(history.HistoryProtocolError, match="busy"):
+        history.read_history("github.com/acme/repo")
+    # Once the hold is stale it is reaped on acquire, and history recovers on
+    # its own — no process restart, no socket surgery.
+    relay.drip = False
+    time.sleep(0.35)
+    result = history.read_history("github.com/acme/repo")
+    assert result["frames"]
+
+
+def test_four_reads_stuck_in_resp_read_never_disable_history_for_the_process(relay, monkeypatch):
+    """Finding #8 (PR #4224), the original defect shape and #4568's binding
+    acceptance: four timed-out reads abandoned while still blocked in
+    ``resp.read()`` (a drip keeps every socket recv inside the per-read
+    socket timeout, so the abandoned worker only finishes when the padded
+    body does) used to exhaust every ``BoundedSemaphore(4)`` permit and
+    disable history reads for the whole process lifetime. Each abandoned
+    hold is reaped after the bounded stale window, so history recovers on
+    its own — no process restart, no socket surgery."""
+    monkeypatch.setattr(history, "_READ_SLOTS", history._ReadSlots(capacity=4, stale_hold_s=1.5))
+    relay.pad = 1024
+    relay.drip = True
+    for _ in range(4):
+        with pytest.raises(TimeoutError, match="whole-call deadline"):
+            history.read_history("github.com/acme/repo", timeout_s=0.2)
+    # All four permits are held by workers stuck mid-read: a fifth read is
+    # honestly busy, without connecting.
+    requests_before = len(relay.requests)
+    with pytest.raises(history.HistoryProtocolError, match="busy"):
+        history.read_history("github.com/acme/repo")
+    assert len(relay.requests) == requests_before
+    # Once the holds are stale they are reaped on acquire and history
+    # recovers — the exact scenario that used to disable it process-wide.
+    relay.drip = False
+    time.sleep(1.6)
+    result = history.read_history("github.com/acme/repo")
+    assert result["frames"]
 
 
 def test_agent_history_requests_issuer_identity_and_requires_ack(relay, monkeypatch):

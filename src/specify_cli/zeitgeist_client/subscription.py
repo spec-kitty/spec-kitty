@@ -428,11 +428,23 @@ def agent_watch(
     from . import moments
 
     policy = delivery if delivery is not None else AgentDelivery(repo)
+    # A previous successful delivery is acknowledged even when this call is
+    # refused by the repos admission filter: dropping the caller's receipt
+    # here would silently lose an ack (no error, no commit) and force a
+    # duplicate re-delivery on the next admitted call (finding #3, PR #4224).
+    policy.acknowledge(acknowledge)
     if not moments.allows_repo(policy.settings, repo):
-        return {"repo": repo, "frames": [], "withheld_by": "repos_filter", "settings": policy.settings.as_dict()}
+        return {
+            "repo": repo,
+            "frames": [],
+            "withheld_by": "repos_filter",
+            "withheld": {"filtered": 0, "duplicates": 0, "rate": 0, "budget": 0},
+            "receipt": None,
+            "own_filter": "not_read" if filter_own else "disabled",
+            "settings": policy.settings.as_dict(),
+        }
     timeout_s = _clamp_timeout(timeout_s)
     max_frames = min(_require_positive_max_frames(max_frames), MAX_WATCH_FRAMES)
-    policy.acknowledge(acknowledge)
     stream = resolve_stream(repo, filter_own=filter_own)
     gen = stream.watch(idle_timeout_s=timeout_s)
     try:
@@ -456,33 +468,69 @@ def agent_activity(
 ) -> dict[str, Any]:
     """Bounded retained catch-up; replay intentionally retrieves seen frames."""
     from .agent_delivery import AgentDelivery
-    from .history import read_history
+    from .history import MAX_HISTORY_PAGES, read_history
     from . import moments
 
     policy = delivery if delivery is not None else AgentDelivery(repo)
-    if not moments.allows_repo(policy.settings, repo):
-        return {"repo": repo, "frames": [], "withheld_by": "repos_filter", "settings": policy.settings.as_dict()}
-    max_frames = min(_require_positive_max_frames(max_frames), MAX_WATCH_FRAMES)
+    # Acknowledge before the admission check, for the same reason as
+    # agent_watch: a refused call must not drop the caller's receipt
+    # (finding #3, PR #4224).
     policy.acknowledge(acknowledge)
+    if not moments.allows_repo(policy.settings, repo):
+        return {
+            "repo": repo,
+            "frames": [],
+            "withheld_by": "repos_filter",
+            "withheld": {"filtered": 0, "duplicates": 0, "rate": 0, "budget": 0},
+            "receipt": None,
+            "own_filter": "not_read" if filter_own else "disabled",
+            "settings": policy.settings.as_dict(),
+        }
+    max_frames = min(_require_positive_max_frames(max_frames), MAX_WATCH_FRAMES)
     deadline = time.monotonic() + _clamp_timeout(timeout_s)
     coverage: dict[str, Any] = {}
+    gaps: list[dict[str, Any]] = []
     own_verified = False
+
+    def merge_coverage(page_coverage: Mapping[str, Any]) -> None:
+        """Fold one page's coverage into the catch-up whole. A multi-page
+        catch-up must report the union, never just the last page: withheld
+        frames sum, truncation and reset OR together, every retained gap is
+        kept, and epoch/seq/continuation track the furthest page read
+        (finding #4, PR #4224)."""
+        if not coverage:
+            coverage.update(page_coverage)
+        else:
+            # ``read_history`` always returns the full coverage shape; the
+            # ``get`` defaults only keep a partial dict from crashing an
+            # in-flight catch-up (the old blind ``update`` was accidentally
+            # tolerant of one).
+            for key in ("epoch", "seq"):
+                if key in page_coverage:
+                    coverage[key] = page_coverage[key]
+            coverage["truncated"] = coverage.get("truncated", False) or page_coverage.get("truncated", False)
+            coverage["withheld_count"] = coverage.get("withheld_count", 0) + page_coverage.get("withheld_count", 0)
+            coverage["continuation"] = page_coverage.get("continuation")
+        coverage["reset"] = coverage.get("reset", False) or page_coverage.get("reset", False)
+        gap = page_coverage.get("gap")
+        if gap is not None and gap not in gaps:
+            gaps.append(gap)
+        # ``gap`` stays the earliest single gap for existing consumers; the
+        # full accumulation rides alongside it as ``gaps``.
+        coverage["gap"] = gaps[0] if gaps else None
+        coverage["gaps"] = list(gaps)
 
     def retained_frames() -> Iterator[dict[str, Any]]:
         nonlocal own_verified
         since = None
-        for _ in range(20):
+        for _ in range(MAX_HISTORY_PAGES):
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 coverage["scan_limit_reached"] = True
                 return
             page = read_history(repo, window_s=window_s, timeout_s=remaining, since=since, filter_own=filter_own)
             own_verified = filter_own
-            previous_gap = coverage.get("gap")
-            previous_reset = coverage.get("reset", False)
-            coverage.update(page["coverage"])
-            coverage["gap"] = coverage.get("gap") or previous_gap
-            coverage["reset"] = coverage.get("reset", False) or previous_reset
+            merge_coverage(page["coverage"])
             yield from page["frames"]
             continuation = coverage.get("continuation")
             if continuation is None:
