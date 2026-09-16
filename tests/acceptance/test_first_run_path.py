@@ -186,6 +186,38 @@ def test_specify_on_main_discloses_uncommitted_scaffold(project: Path) -> None:
     assert _porcelain(project), "pending scaffold must remain visible to Git"
 
 
+def test_specify_on_main_human_output_reports_meta_not_committed(project: Path) -> None:
+    """#4608: the human path must not claim a commit the guard refused.
+
+    ``--json`` discloses the uncommitted scaffold (test above); the plain
+    human output used to unconditionally print "Meta committed to main"
+    while no commit existed — the exact false report in the issue.
+    """
+    result = _cli(project, "specify", "task-list")
+    assert result.returncode == 0, _unwrapped(result)
+    output = _unwrapped(result)
+    assert "Meta not committed" in output
+    assert "untracked" in output
+    assert "Meta committed to" not in output
+    # What actually happened: no new commit, scaffold on disk, untracked.
+    assert _git(project, "rev-list", "--count", "HEAD").stdout.strip() == "1"
+    assert _porcelain(project)
+    assert len(_missions(project)) == 1
+
+
+def test_specify_on_feature_branch_human_output_reports_meta_committed(project: Path) -> None:
+    """#4608 counterpart: on a non-protected branch the commit really lands,
+    so the "Meta committed to" line stays and is true."""
+    _git(project, "checkout", "-b", "my-first-mission")
+    result = _cli(project, "specify", "task-list")
+    assert result.returncode == 0, _unwrapped(result)
+    output = _unwrapped(result)
+    assert "Meta committed to my-first-mission" in output
+    assert "Meta not committed" not in output
+    # The scaffold commit landed: HEAD moved past the init commit.
+    assert _git(project, "rev-list", "--count", "HEAD").stdout.strip() == "2"
+
+
 # ---------------------------------------------------------------------------
 # #4035 — the reporter's exact scenario
 # ---------------------------------------------------------------------------
