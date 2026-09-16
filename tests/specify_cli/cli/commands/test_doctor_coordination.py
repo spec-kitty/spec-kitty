@@ -659,6 +659,16 @@ def test_mission_scoped_fix_does_not_backfill_another_mission(
         )
 
     assert exc.value.exit_code == 0
+    # Positive direction (#4544): the scoped mission's own topology must be
+    # re-derived. ``flatten_coordination_metadata`` pops ``topology`` so the
+    # backfill re-derives it; without this pin, deleting the backfill call
+    # entirely (not just unscoping it) leaves every test green while a
+    # flattened mission ends up with no stored ``topology`` at all.
+    fixed_meta = json.loads((selected_dir / "meta.json").read_text())
+    assert "topology" in fixed_meta, (
+        "the mission-scoped fix must re-derive the scoped mission's own "
+        "topology after the flatten pops it"
+    )
     assert other_meta_path.read_bytes() == before
 
 
