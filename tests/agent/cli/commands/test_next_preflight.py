@@ -23,6 +23,23 @@ from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
 pytestmark = pytest.mark.fast
 
 
+@pytest.fixture(autouse=True)
+def _reset_ambient_warning_latch() -> None:
+    """Reset the once-per-command-run ambient-warning latch around each case.
+
+    #3971: ``emit_advisory_warnings`` surfaces each distinct ambient warning
+    at most once per process; a test process is one long command run, so
+    without this fixture the first advisory-emitting test would consume
+    every later test's emission. Mirrors the
+    ``retrospective.deprecation`` reset pattern.
+    """
+    from specify_cli.charter_runtime.preflight.ambient_warning import _reset_surfaced_for_testing
+
+    _reset_surfaced_for_testing()
+    yield
+    _reset_surfaced_for_testing()
+
+
 def _pass_result() -> CharterPreflightResult:
     return CharterPreflightResult(
         passed=True,
