@@ -1,0 +1,60 @@
+# CI Stale-Running Sweep -- reactive backstop for the cancelled-reporter wedge.
+#
+# Mission ci-terminal-cancel-verdict-01M2NC7Z, WP02 (4b; FR-007/008/009,
+# NFR-003/004). This is the ONLY home for the stale-running sweep: a dedicated
+# scheduled workflow, deliberately NOT a job in ci-nightly.yml (operator-ratified
+# host decision), so it carries its own cadence and its own least-privilege
+# permission set.
+#
+# The sweep is a BACKSTOP, not the verdict authority (C-003 / FR-008 / SW-1). It
+# detects a head whose latest `[ci]` verdict is `running` while every required
+# run has already reached a terminal state -- the cancelled-reporter /
+# cancelled-main wedge the in-CI reporter (ci-fleet-verdict.yml) cannot reach --
+# and surfaces it ONLY: an idempotent `[ci-sweep]`-namespaced watch comment on
+# the affected PR plus a `::warning::` annotation. It never posts a
+# `[ci] <state>` verdict, edits the reporter's comments, re-triggers CI, or
+# releases a head. All decision logic lives in the shipped, unit-tested module
+# `scripts/ci/stale_running_sweep.py`; this workflow is the thin `gh` edge.
+#
+# `schedule` + `workflow_dispatch` ONLY: no `pull_request` / `push` trigger, so a
+# PR event can never start this job and it can never enter a merge-blocking
+# `needs:` chain. All `uses:` references are SHA-pinned (`@<40-hex> # v<tag>`).
+
+name: CI Stale-Running Sweep
+
+on:
+  schedule:
+    # Every 4 hours at :23 -- off a round hour, frequent enough to catch a wedge
+    # the same working day without spamming (the surface is idempotent anyway).
+    - cron: '23 */4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-stale-running-sweep
+  cancel-in-progress: false
+
+# Least privilege: read the repository, write only the PR watch comment.
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Trusted default-branch checkout; the sweep executes no PR code.
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: '3.12'
+      # fleet_verdict (imported read-only for its GitHub client) requires PyYAML.
+      - run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
+      - name: Sweep for stale-running heads and surface a watch item
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python3 scripts/ci/stale_running_sweep.py --repository "$GITHUB_REPOSITORY"
