@@ -363,70 +363,16 @@ class TestMissionTerminalVerdict:
         assert verdict == "terminal"
 
 
-class TestCommittedWpLane:
-    """``committed_wp_lane`` (D10/IC-04) — the per-WP committed lane reader.
-
-    Gated on the committed ``mission_number`` exactly like
-    ``mission_terminal_verdict``: PRIMARY is authoritative only once merged.
-    """
-
-    @pytest.mark.parametrize("handle", ["../escape", "foo/bar", ""])
-    @pytest.mark.regression
-    def test_unsafe_handle_declines_to_none(self, tmp_path: Path, handle: str) -> None:
-        """#3829 item 1: same decline contract as ``mission_terminal_verdict``."""
-        from runtime.next.committed_authority import committed_wp_lane
-
-        assert committed_wp_lane(tmp_path, handle, "WP01") is None
-
-    @pytest.mark.regression
-    def test_none_when_not_merged_even_with_primary_decoy_log(self, tmp_path: Path) -> None:
-        """#2947 coord regression: an in-flight mission (``mission_number`` absent)
-        whose PRIMARY surface carries a decoy event log must yield ``None`` — the
-        ``mission_number`` gate short-circuits BEFORE the decoy is read — so the
-        board falls back to its coordination-aware read (the real COORD lane)
-        instead of misreporting the stale PRIMARY decoy.
-
-        RED before the gate: ``has_event_log`` alone was true for the decoy, so
-        ``committed_wp_lane`` returned the decoy lane (``blocked``) and clobbered
-        a genuine COORD ``in_progress``.
-        """
-        from runtime.next.committed_authority import committed_wp_lane
-
-        primary = tmp_path / "kitty-specs" / _SLUG
-        _write_meta(primary, mission_number=None)  # in-flight, not merged
-        _seed(primary, "WP01", from_lane=Lane.IN_PROGRESS, to_lane=Lane.BLOCKED)  # decoy
-
-        with patch(
-            "runtime.next.runtime_bridge_identity._primary_runtime_feature_dir",
-            return_value=primary,
-        ):
-            lane = committed_wp_lane(tmp_path, _SLUG, "WP01")
-
-        assert lane is None
-
-    def test_returns_committed_lane_when_merged(self, tmp_path: Path) -> None:
-        """A merged mission (``mission_number`` assigned) reads the PRIMARY
-        committed lane — the #2947 board fix for a stale-coord-worktree merged
-        mission."""
-        from runtime.next.committed_authority import committed_wp_lane
-
-        primary = tmp_path / "kitty-specs" / _SLUG
-        _write_meta(primary, mission_number=7)
-        _seed(primary, "WP01", from_lane=Lane.APPROVED, to_lane=Lane.DONE)
-
-        with patch(
-            "runtime.next.runtime_bridge_identity._primary_runtime_feature_dir",
-            return_value=primary,
-        ):
-            lane = committed_wp_lane(tmp_path, _SLUG, "WP01")
-
-        assert lane == Lane.DONE
-
-
 class TestCommittedStatusDir:
     """``committed_status_dir`` (#3829 item 3) — the board's ONE-reduction
     anchor: the same identity-seam dir and ``mission_number`` merge gate as
-    the other two readers, additionally requiring the committed log."""
+    :func:`mission_terminal_verdict`, additionally requiring the committed log.
+
+    Supersedes the per-WP ``committed_wp_lane`` reader the pre-#3829 board
+    used (deleted with its last caller): sourcing the lane per WP beside a
+    separately-read companions row was exactly the mixed-authority row item 3
+    closes — the whole row now comes from this ONE dir.
+    """
 
     def test_returns_dir_when_merged_with_log(self, tmp_path: Path) -> None:
         from runtime.next.committed_authority import committed_status_dir
@@ -448,8 +394,9 @@ class TestCommittedStatusDir:
     )
     def test_none_when_not_merged_or_log_absent(self, tmp_path: Path, mission_number: int | None) -> None:
         """``None`` when PRIMARY is not the authoritative status surface:
-        un-merged (decoy log tolerated, mirroring ``committed_wp_lane``'s
-        gate) or merged with a genuinely-absent committed log."""
+        un-merged (decoy log tolerated, mirroring
+        ``mission_terminal_verdict``'s gate) or merged with a
+        genuinely-absent committed log."""
         from runtime.next.committed_authority import committed_status_dir
 
         primary = tmp_path / "kitty-specs" / _SLUG
@@ -469,7 +416,7 @@ class TestCommittedStatusDir:
 
     @pytest.mark.parametrize("handle", ["../escape", "foo/bar", ""])
     def test_unsafe_handle_declines_to_none(self, tmp_path: Path, handle: str) -> None:
-        """#3829 item 1: same decline contract as the other two readers."""
+        """#3829 item 1: same decline contract as ``mission_terminal_verdict``."""
         from runtime.next.committed_authority import committed_status_dir
 
         assert committed_status_dir(tmp_path, handle) is None

@@ -136,9 +136,10 @@ def _build_corrupt_primary_fixture(tmp_path: Path) -> tuple[Path, Path]:
 
     The PRIMARY carries a genuinely-present but unparsable
     ``status.events.jsonl`` (``has_event_log`` is True — the file exists — so
-    ``committed_wp_lane`` does not take its "genuinely absent" ``None`` early
-    exit; it must read through to ``wp_ending`` -> ``read_event_stream``,
-    which raises ``StoreError`` on the malformed line). The COORD checkout
+    the committed-authority read does not take its "genuinely absent" ``None``
+    early exit; it must read through to ``wp_ending`` ->
+    ``read_event_stream``, which raises ``StoreError`` on the malformed
+    line). The COORD checkout
     carries a normal, valid event log so the board's own fallback lane read
     (``_st_runtime_row``) has somewhere else to land -- isolating the
     regression to exactly the committed-authority read this fold guards.
@@ -178,8 +179,10 @@ def test_status_board_degrades_on_corrupt_primary_event_log(tmp_path: Path, monk
     """PR-introduced regression: a corrupt PRIMARY ``status.events.jsonl``
     must not crash the board (``agent tasks status``).
 
-    Before this fold, ``committed_wp_lane`` -> ``wp_ending`` ->
-    ``read_event_stream`` raised ``StoreError`` UNWRAPPED inside the board's
+    Before this fold, the committed-authority lane read (the per-WP
+    ``committed_wp_lane`` reader the #3825 board used, since deleted with its
+    last caller) -> ``wp_ending`` -> ``read_event_stream`` raised
+    ``StoreError`` UNWRAPPED inside the board's
     per-WP row loop for a merged mission (``mission_number`` assigned) whose
     committed PRIMARY log is corrupt/malformed -- crashing the whole command.
     Before this PR (i.e. pre-committed-authority-read), the board degraded

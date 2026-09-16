@@ -9,7 +9,7 @@ consume (D11, DIRECTIVE_044): a single status reduction per WP yielding lane
 (C-001).
 
 Wording note on "committed": everywhere this module says "committed" (the
-module name, ``committed_wp_lane``, the ``WpEnding``/verdict docstrings) it
+module name, the ``WpEnding``/verdict docstrings) it
 means the PRIMARY-surface (repo-root checkout) working tree — read via
 ``placement_seam(...).read_dir(MissionArtifactKind.PRIMARY_METADATA)`` — as
 opposed to the (possibly stale) coordination checkout. It is deliberately
@@ -34,7 +34,7 @@ Single-reduction contract (C-004): each public function performs exactly ONE
 every WP from that single reduced snapshot (never re-reducing per WP).
 
 Primary-surface contract (D9/D14/BLOCKER-1, unified #3829 items 1+4):
-``mission_terminal_verdict`` and ``committed_wp_lane`` anchor BOTH reads —
+``mission_terminal_verdict`` and ``committed_status_dir`` anchor BOTH reads —
 the ``mission_number`` gate AND the committed status surface — on the ONE
 sanctioned identity-seam dir (``runtime_bridge_identity.
 _primary_runtime_feature_dir``), reading the meta from that dir through the
@@ -227,8 +227,8 @@ def committed_status_dir(repo_root: Path, mission_slug: str) -> Path | None:
     """Return the committed PRIMARY status dir when authoritative, or ``None`` (#3829 item 3).
 
     The board's ONE-reduction anchor: the same identity-seam PRIMARY dir and
-    the same ``mission_number`` merge gate as :func:`mission_terminal_verdict`
-    / :func:`committed_wp_lane`, additionally requiring the committed status
+    the same ``mission_number`` merge gate as
+    :func:`mission_terminal_verdict`, additionally requiring the committed status
     log to be present (``has_event_log``). ``None`` means PRIMARY is not the
     authoritative status surface for this mission (not merged, no committed
     log, or an unhandleable handle) — the caller falls back to its own
@@ -243,38 +243,3 @@ def committed_status_dir(repo_root: Path, mission_slug: str) -> Path | None:
     if not has_event_log(feature_dir):
         return None
     return feature_dir
-
-
-def committed_wp_lane(repo_root: Path, mission_slug: str, wp_id: str) -> str | None:
-    """Return the committed PRIMARY-surface lane for *wp_id*, or ``None``.
-
-    ``None`` means PRIMARY is not the authoritative status surface for this
-    mission, so the caller (``agent tasks status``'s board, D10/IC-04) must
-    fall back to its own coordination-aware read. That is the case whenever
-    the mission is **not merged** — keyed on the committed ``mission_number``
-    (assigned at merge, ``merge/ordering.py``), exactly as
-    :func:`mission_terminal_verdict` keys it (#2947). An in-flight
-    coordination-topology mission's status lives only on the coordination
-    worktree until merge folds it back onto PRIMARY; crucially, its PRIMARY
-    surface may still carry an event log (planning-phase events, or a decoy),
-    so ``has_event_log`` alone is NOT a sound merged-signal — without the
-    ``mission_number`` gate the board would read that PRIMARY decoy and
-    misreport an in-flight WP's lane (e.g. a genuine COORD ``in_progress`` as
-    a stale PRIMARY ``blocked``). ``None`` is also returned when the
-    committed log is genuinely absent on PRIMARY, and — like every read in
-    this module — for a traversal-unsafe or ambiguous handle (#3829 item 1:
-    the caller's own typed read path classifies those).
-
-    "Committed"/"PRIMARY surface" means the current working tree of the
-    PRIMARY checkout, not a git ref (see the module docstring's wording
-    note) — this reads whatever is on disk there right now.
-    """
-    feature_dir = _committed_surface(repo_root, mission_slug)
-    if feature_dir is None:
-        # Not merged (or an unhandleable handle): PRIMARY is not
-        # authoritative. Defer to the board's coordination-aware read.
-        return None
-
-    if not has_event_log(feature_dir):
-        return None
-    return wp_ending(feature_dir, wp_id).lane
