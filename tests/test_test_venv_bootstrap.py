@@ -39,7 +39,14 @@ def _fake_build(venv_dir: Path, source_version: str) -> None:
 
 def _blocking_build(venv_dir: Path, source_version: str) -> None:
     del source_version
-    (venv_dir.parent / "builder-started").write_text(str(venv_dir), encoding="utf-8")
+    started = venv_dir.parent / "builder-started"
+    # Publish atomically: a plain write_text makes the file visible (and thus
+    # _wait_for-observable) before its content lands, so a reader racing the
+    # write observes "" — which Path("") turns into ".", a path that always
+    # exists and fails the reclaim assertion for the wrong reason.
+    staged = started.with_name(f"{started.name}.tmp-{os.getpid()}")
+    staged.write_text(str(venv_dir), encoding="utf-8")
+    os.replace(staged, started)
     time.sleep(30)
 
 
@@ -124,6 +131,15 @@ def _wait_for(path: Path, timeout: float = 5.0) -> None:
     raise AssertionError(f"Timed out waiting for {path}")
 
 
+def _wait_for_removal(path: Path, timeout: float = 5.0) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not path.exists():
+            return
+        time.sleep(0.01)
+    raise AssertionError(f"Timed out waiting for removal of {path}")
+
+
 def test_two_spawned_processes_publish_one_shared_venv(tmp_path: Path) -> None:
     context = _spawn_context()
     start = context.Event()
@@ -179,6 +195,9 @@ def test_killed_builder_is_reclaimed_without_touching_other_siblings(tmp_path: P
     started_path = tmp_path / ".pytest_cache" / "builder-started"
     _wait_for(started_path)
     abandoned_temp = Path(started_path.read_text(encoding="utf-8"))
+    # Fail loudly on a torn read instead of silently testing ".", which always
+    # exists and would fail the reclaim wait below for the wrong reason.
+    assert abandoned_temp.is_absolute(), f"empty or torn read of {started_path}"
     builder.terminate()
     builder.join(timeout=5)
 
@@ -194,7 +213,7 @@ def test_killed_builder_is_reclaimed_without_touching_other_siblings(tmp_path: P
     )
 
     assert _fake_valid(recovered, _SOURCE_VERSION)
-    assert not abandoned_temp.exists()
+    _wait_for_removal(abandoned_temp)
     assert (sentinel / "keep").read_text(encoding="utf-8") == "safe"
 
 
