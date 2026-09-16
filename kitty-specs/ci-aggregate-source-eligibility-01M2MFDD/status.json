@@ -4,7 +4,7 @@
   "materialized_at": "2026-09-16T07:50:27.272517+00:00",
   "mission_number": "",
   "mission_slug": "ci-aggregate-source-eligibility-01M2MFDD",
-  "mission_type": "",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -20,32 +20,63 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M2MK44EPHTM4Q4HWGZ7YE6EW",
       "last_transition_at": "2026-09-16T07:50:26.006456+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: pure resolve_source tagged-union + workflow wiring, red-first (17 module-absent errors -> 23 pass). Gates: pytest tests/ci/test_source_eligibility.py 23 pass; tests/ci/ 293 pass (all-extras synced; the 34 earlier fails were missing coverage/diff-cover extras, pre-existing/env, identical without my edit); ruff check clean; ruff format --check clean; terminology guard 90 pass; actionlint (with shellcheck) exit 0 no findings. Helper actually wired at ci-aggregate.yml:200; run-id output name + dispatch gate preserved; fail-closed guard byte-identical; reconciler/router/fleet-verdict untouched.",
+        "Review passed (Renata): green-path leak structurally impossible; INV-A/B in tested helper; execution-grounded wiring guard; frozen guard byte-identical; 293 tests/ci green, mypy/ruff/format/terminology clean"
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed (Renata): green-path leak structurally impossible; INV-A/B in tested helper; execution-grounded wiring guard; frozen guard byte-identical; 293 tests/ci green, mypy/ruff/format/terminology clean",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 2217947,
-      "shell_pid_created_at": "1789543112.63"
+      "role": "reviewer",
+      "shell_pid": 2263038,
+      "shell_pid_created_at": "1789544221.56",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M2MK45P8Y5FYWZG9HX3BRZF0",
       "last_transition_at": "2026-09-16T07:50:27.272517+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: ADR #4360-A annotated with both corrections (mechanism superseded; failure cosmetic), dated 2026-09-16, at Context item 3 and Axis 3a; ratified Decision Outcome/lever table intact; terminology guard 90 passed; retired-surface scan 0 hits; no index drift.",
+        "Review passed (reviewer-renata): faithful additive ADR annotation, claims match verified research, ratified decision intact"
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed (reviewer-renata): faithful additive ADR annotation, claims match verified research, ratified decision intact",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 2221222,
-      "shell_pid_created_at": "1789543215.6"
+      "role": "reviewer",
+      "shell_pid": 2240102,
+      "shell_pid_created_at": "1789543766.25",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     }
   }
 }
