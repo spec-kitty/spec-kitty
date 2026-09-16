@@ -3149,6 +3149,7 @@ pages:
     - {slug: "getting-started", text: "Getting Started", level: 2}
     - {slug: "practical-usage", text: "Practical Usage", level: 2}
     - {slug: "spec-kitty-agent", text: "spec-kitty agent", level: 2}
+    - {slug: "spec-kitty-agent-acceptance-verdict", text: "spec-kitty agent acceptance-verdict", level: 2}
     - {slug: "spec-kitty-agent-action", text: "spec-kitty agent action", level: 2}
     - {slug: "spec-kitty-agent-action-implement", text: "spec-kitty agent action implement", level: 2}
     - {slug: "spec-kitty-agent-action-review", text: "spec-kitty agent action review", level: 2}
@@ -3164,6 +3165,7 @@ pages:
     - {slug: "spec-kitty-agent-decision", text: "spec-kitty agent decision", level: 2}
     - {slug: "spec-kitty-agent-decision-cancel", text: "spec-kitty agent decision cancel", level: 2}
     - {slug: "spec-kitty-agent-decision-defer", text: "spec-kitty agent decision defer", level: 2}
+    - {slug: "spec-kitty-agent-decision-list", text: "spec-kitty agent decision list", level: 2}
     - {slug: "spec-kitty-agent-decision-open", text: "spec-kitty agent decision open", level: 2}
     - {slug: "spec-kitty-agent-decision-resolve", text: "spec-kitty agent decision resolve", level: 2}
     - {slug: "spec-kitty-agent-decision-verify", text: "spec-kitty agent decision verify", level: 2}
@@ -3541,6 +3543,7 @@ pages:
     - {slug: "spec-kitty-docs", text: "spec-kitty docs", level: 2}
     - {slug: "spec-kitty-docs-query", text: "spec-kitty docs query", level: 2}
     - {slug: "spec-kitty-doctor", text: "spec-kitty doctor", level: 2}
+    - {slug: "spec-kitty-doctor-bytecode", text: "spec-kitty doctor bytecode", level: 2}
     - {slug: "spec-kitty-doctor-channel", text: "spec-kitty doctor channel", level: 2}
     - {slug: "spec-kitty-doctor-command-files", text: "spec-kitty doctor command-files", level: 2}
     - {slug: "spec-kitty-doctor-contracts", text: "spec-kitty doctor contracts", level: 2}
@@ -3713,6 +3716,8 @@ pages:
     - {slug: "spec-kitty-workflow-import", text: "spec-kitty workflow import", level: 2}
     - {slug: "spec-kitty-workflow-list", text: "spec-kitty workflow list", level: 2}
     - {slug: "spec-kitty-zeitgeist", text: "spec-kitty zeitgeist", level: 2}
+    - {slug: "spec-kitty-zeitgeist-activity", text: "spec-kitty zeitgeist activity", level: 2}
+    - {slug: "spec-kitty-zeitgeist-inbox", text: "spec-kitty zeitgeist inbox", level: 2}
     - {slug: "spec-kitty-zeitgeist-operability", text: "spec-kitty zeitgeist operability", level: 2}
     - {slug: "spec-kitty-zeitgeist-operability-drill-rollback", text: "spec-kitty zeitgeist operability drill-rollback", level: 2}
     - {slug: "spec-kitty-zeitgeist-operability-drill-rotation", text: "spec-kitty zeitgeist operability drill-rotation", level: 2}
@@ -3724,6 +3729,9 @@ pages:
     - {slug: "spec-kitty-zeitgeist-outbox-reject", text: "spec-kitty zeitgeist outbox reject", level: 2}
     - {slug: "spec-kitty-zeitgeist-outbox-revoke", text: "spec-kitty zeitgeist outbox revoke", level: 2}
     - {slug: "spec-kitty-zeitgeist-outbox-show", text: "spec-kitty zeitgeist outbox show", level: 2}
+    - {slug: "spec-kitty-zeitgeist-read", text: "spec-kitty zeitgeist read", level: 2}
+    - {slug: "spec-kitty-zeitgeist-reply", text: "spec-kitty zeitgeist reply", level: 2}
+    - {slug: "spec-kitty-zeitgeist-send", text: "spec-kitty zeitgeist send", level: 2}
     - {slug: "spec-kitty-zeitgeist-status", text: "spec-kitty zeitgeist status", level: 2}
     - {slug: "spec-kitty-zeitgeist-watch", text: "spec-kitty zeitgeist watch", level: 2}
     - {slug: "internal-hidden-commands", text: "Internal / hidden commands", level: 2}
@@ -5360,6 +5368,16 @@ pages:
     - {slug: "6-invariants-acceptance-criteria", text: "6. Invariants & acceptance criteria", level: 2}
     - {slug: "7-explicitly-out-of-scope-later-missions", text: "7. Explicitly out of scope (later missions)", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/architecture/zeitgeist-session-identity.md"
+    title: "Zeitgeist publisher and lease identity"
+    divio_type: "explanation"
+    abstract: "How logical agents, SaaS leases, and relay session references relate."
+    anchors:
+    - {slug: "issuer-and-relay-boundaries", text: "Issuer and relay boundaries", level: 2}
+    - {slug: "cache-reconnects-and-restart", text: "Cache, reconnects, and restart", level: 2}
+    - {slug: "cleanup-is-separate-from-authority", text: "Cleanup is separate from authority", level: 2}
+    - {slug: "issue-traceability", text: "Issue traceability", level: 2}
+    - {slug: "reader-own-session-suppression", text: "Reader own-session suppression", level: 2}
   - path: "docs/archive/program-evidence/R2-T1-local-legacy-removal/README.md"
     title: "R2-T1 historical program evidence"
     divio_type: "reference"
@@ -9783,6 +9801,15 @@ pages:
     - {slug: "risks-watch-items", text: "Risks / watch items", level: 2}
     - {slug: "immediate-next-steps", text: "Immediate next steps", level: 2}
     - {slug: "links", text: "Links", level: 2}
+  - path: "docs/plans/agent-moment-delivery-4216.md"
+    title: "Agent moment delivery policy"
+    divio_type: "explanation"
+    abstract: "Agent moment delivery for #4216: team-scoped default for unfamiliar peer activity, identity-scoped receipts as the novelty policy, bounded catch-up shared by CLI and MCP."
+    anchors:
+    - {slug: "approach-and-boundaries", text: "Approach and boundaries", level: 2}
+    - {slug: "design-decisions-and-limitations", text: "Design decisions and limitations", level: 2}
+    - {slug: "issue-matrix", text: "Issue matrix", level: 2}
+    - {slug: "tooling-friction", text: "Tooling friction", level: 2}
   - path: "docs/plans/charter-resolution/README.md"
     title: "Charter-Resolution Program"
     divio_type: "none"

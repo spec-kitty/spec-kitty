@@ -1,6 +1,6 @@
 """T020 — CLI integration tests for ``spec-kitty agent decision`` subgroup.
 
-Uses ``typer.testing.CliRunner`` to exercise all five subcommands against
+Uses ``typer.testing.CliRunner`` to exercise all six subcommands against
 isolated tmp_path fixtures.  Real service calls are used where practical;
 emitting events is mocked to avoid side effects outside the decisions module.
 
@@ -10,6 +10,7 @@ Coverage:
   - defer: happy-path
   - cancel: happy-path
   - verify: clean, drift (exit 1), drift + --no-fail-on-stale (exit 0)
+  - list: empty mission, post-open entry, --status filter, invalid --status
   - invalid --flow value produces structured error
 """
 
@@ -818,3 +819,100 @@ def test_verify_json_shape(tmp_path: Path) -> None:
     assert "findings" in data
     assert isinstance(data["findings"], list)
     assert data["status"] in ("clean", "drift")
+
+
+# ---------------------------------------------------------------------------
+# #3951 — decision list (read-only listing of the mission's moments)
+# ---------------------------------------------------------------------------
+
+
+def _list_decisions(tmp_path: Path, *extra_args: str) -> dict:
+    """Run ``agent decision list`` and parse its single JSON line."""
+    result = _invoke(
+        ["decision", "list", "--mission", MISSION_SLUG, *extra_args],
+        cwd=tmp_path,
+    )
+    assert result.exit_code == 0, f"list failed: {result.output}"
+    lines = [line for line in result.output.splitlines() if line.strip()]
+    assert len(lines) == 1, f"expected exactly 1 JSON line, got: {result.output!r}"
+    return json.loads(lines[0])
+
+
+def test_list_empty_mission_returns_zero_decisions(tmp_path: Path) -> None:
+    """A mission with no decision moments lists cleanly (count 0, exit 0)."""
+    _setup_mission(tmp_path)
+
+    data = _list_decisions(tmp_path)
+
+    assert data["contract"] == "decision_list_v1"
+    assert data["mission_slug"] == MISSION_SLUG
+    assert data["count"] == 0
+    assert data["decisions"] == []
+
+
+def test_list_after_open_shows_entry(tmp_path: Path) -> None:
+    """An opened decision appears with its id, status, and question."""
+    _setup_mission(tmp_path)
+    decision_id = _open_decision(tmp_path)
+
+    data = _list_decisions(tmp_path)
+
+    assert data["count"] == 1
+    entry = data["decisions"][0]
+    assert entry["decision_id"] == decision_id
+    assert entry["status"] == "open"
+    assert entry["origin_flow"] == "charter"
+    assert entry["input_key"] == "team_size"
+    assert entry["question"] == "How large is the team?"
+    assert entry["final_answer"] is None
+    assert data["mission_id"] == MISSION_ID
+
+
+def test_list_status_filter_and_resolved_fields(tmp_path: Path) -> None:
+    """--status filters the listing; a resolved decision carries its answer."""
+    _setup_mission(tmp_path)
+    resolved_id = _open_decision(tmp_path, input_key="team_size")
+    _open_decision(tmp_path, input_key="fav_color", step_id=None, slot_key="slot-1")
+
+    with patch("specify_cli.decisions.emit.emit_decision_resolved", return_value=7):
+        result = _invoke(
+            [
+                "decision",
+                "resolve",
+                resolved_id,
+                "--mission",
+                MISSION_SLUG,
+                "--final-answer",
+                "6-20",
+            ],
+            cwd=tmp_path,
+        )
+    assert result.exit_code == 0, f"resolve failed: {result.output}"
+
+    data = _list_decisions(tmp_path, "--status", "resolved")
+
+    assert data["count"] == 1
+    entry = data["decisions"][0]
+    assert entry["decision_id"] == resolved_id
+    assert entry["status"] == "resolved"
+    assert entry["final_answer"] == "6-20"
+    assert entry["resolved_at"] is not None
+
+    # Unfiltered listing still shows both decisions.
+    assert _list_decisions(tmp_path)["count"] == 2
+
+
+def test_list_invalid_status_exits_1_structured(tmp_path: Path) -> None:
+    """An invalid --status value is a structured JSON error naming valid values."""
+    _setup_mission(tmp_path)
+
+    result = _invoke(
+        ["decision", "list", "--mission", MISSION_SLUG, "--status", "bogus"],
+        cwd=tmp_path,
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stderr)
+    assert payload["code"] == "DECISION_MISSING_STEP_OR_SLOT"
+    assert "open" in payload["details"]["valid_values"]
+    assert "bogus" in payload["error"]

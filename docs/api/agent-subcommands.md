@@ -43,22 +43,89 @@ _Commands for AI agents to execute spec-kitty mission actions programmatically_
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ tracer-append  Append a dated, attributed finding to the mission's tracer    │
-│                surface.                                                      │
-│ issue-verdict  Set an issue-matrix row's verdict, routed via                 │
-│                ``write_target(ISSUE_MATRIX)``.                               │
-│ config         Manage project AI agent configuration (add, remove, list      │
-│                agents)                                                       │
-│ mission        Mission lifecycle commands for AI agents                      │
-│ tasks          Task workflow commands for AI agents                          │
-│ context        Agent context management commands                             │
-│ release        Release packaging commands for AI agents                      │
-│ action         Mission action commands that display prompts and instructions │
-│                for agents                                                    │
-│ status         Canonical status management commands                          │
-│ tests          Test-related commands for AI agents                           │
-│ decision       Decision Moment ledger for interview questions.               │
-│ retrospect     Retrospective synthesis commands                              │
+│ tracer-append       Append a dated, attributed finding to the mission's      │
+│                     tracer surface.                                          │
+│ issue-verdict       Set an issue-matrix row's verdict, routed via            │
+│                     ``write_target(ISSUE_MATRIX)``.                          │
+│ acceptance-verdict  Record an acceptance-criterion verdict, or               │
+│                     register/execute a negative                              │
+│                     invariant (FR-007/FR-008) — exactly one of               │
+│                     ``--criterion``/                                         │
+│                     ``--negative-invariant``, both routed through the WP03   │
+│                     write seam.                                              │
+│ config              Manage project AI agent configuration (add, remove, list │
+│                     agents)                                                  │
+│ mission             Mission lifecycle commands for AI agents                 │
+│ tasks               Task workflow commands for AI agents                     │
+│ context             Agent context management commands                        │
+│ release             Release packaging commands for AI agents                 │
+│ action              Mission action commands that display prompts and         │
+│                     instructions for agents                                  │
+│ status              Canonical status management commands                     │
+│ tests               Test-related commands for AI agents                      │
+│ decision            Decision Moment ledger for interview questions.          │
+│ retrospect          Retrospective synthesis commands                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent acceptance-verdict
+
+```
+ Usage: spec-kitty agent acceptance-verdict [OPTIONS]
+
+ Record an acceptance-criterion verdict, or register/execute a negative
+ invariant (FR-007/FR-008) — exactly one of ``--criterion``/
+ ``--negative-invariant``, both routed through the WP03 write seam.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission                                   TEXT  Mission slug, mid8, or  │
+│                                                      mission_id              │
+│                                                      [required]              │
+│    --criterion                                 TEXT  Acceptance criterion id │
+│                                                      (e.g. FR-001); mutually │
+│                                                      exclusive with          │
+│                                                      --negative-invariant    │
+│    --result                                    TEXT  pass | fail | pending   │
+│                                                      (required with          │
+│                                                      --criterion)            │
+│    --verification-method                       TEXT  Criterion mode: how     │
+│                                                      this was verified       │
+│                                                      (updates proof_type).   │
+│                                                      Negative-invariant      │
+│                                                      mode: grep_absence |    │
+│                                                      route_check |           │
+│                                                      custom_command          │
+│                                                      (required with          │
+│                                                      --negative-invariant).  │
+│    --actor                                     TEXT  Actor recording this    │
+│                                                      verdict                 │
+│    --evidence                                  TEXT  Evidence reference      │
+│                                                      (URL/path/etc.)         │
+│    --negative-invariant                        TEXT  Negative invariant id   │
+│                                                      to register/execute     │
+│                                                      (FR-007/FR-008);        │
+│                                                      mutually exclusive with │
+│                                                      --criterion             │
+│    --description                               TEXT  Negative invariant      │
+│                                                      description (required   │
+│                                                      with                    │
+│                                                      --negative-invariant)   │
+│    --verification-command                      TEXT  grep pattern or command │
+│                                                      verifying the           │
+│                                                      invariant's absence     │
+│    --scope                                     TEXT  Whitespace-separated    │
+│                                                      repo-relative search    │
+│                                                      root(s); grep_absence   │
+│                                                      only                    │
+│    --execute                   --no-execute          Run the invariant's     │
+│                                                      verification            │
+│                                                      immediately after       │
+│                                                      registering (FR-008;    │
+│                                                      default: on)            │
+│                                                      [default: execute]      │
+│    --json                                            Output JSON format      │
+│    --help                  -h                        Show this message and   │
+│                                                      exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -377,6 +444,7 @@ _Decision Moment ledger for interview questions._
 │ defer    Defer a decision for later resolution.                              │
 │ cancel   Cancel a decision (deemed no longer relevant).                      │
 │ verify   Cross-check deferred decisions against inline sentinel markers.     │
+│ list     List the mission's recorded decision moments (read-only).           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -429,6 +497,25 @@ _Decision Moment ledger for interview questions._
 │    --json             --no-json          Output JSON (default true)          │
 │                                          [default: json]                     │
 │    --help         -h                     Show this message and exit.         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent decision list
+
+```
+ Usage: spec-kitty agent decision list [OPTIONS]
+
+ List the mission's recorded decision moments (read-only).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission                   TEXT  Mission handle (slug, mission_id, or    │
+│                                      mid8)                                   │
+│                                      [required]                              │
+│    --status                    TEXT  Only list decisions in this status:     │
+│                                      open | resolved | deferred | canceled   │
+│    --json         --no-json          Output JSON (default true)              │
+│                                      [default: json]                         │
+│    --help     -h                     Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

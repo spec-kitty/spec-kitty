@@ -1,12 +1,14 @@
 """Decision Moment CLI subgroup — ``spec-kitty agent decision ...``
 
-Exposes five subcommands that map directly to the decisions service and verifier:
+Exposes six subcommands that map directly to the decisions service, verifier,
+and store:
 
     open      — open a new decision moment
     resolve   — resolve a decision with a final answer
     defer     — defer a decision for later resolution
     cancel    — cancel a decision (no longer relevant)
     verify    — cross-check deferred decisions against inline markers
+    list      — list the mission's recorded decision moments
 
 All subcommands output JSON to stdout and exit 0 on success, 1 on structured error.
 """
@@ -26,7 +28,9 @@ from mission_runtime import ActionContextError
 from specify_cli.decisions.models import (
     DecisionErrorCode,
     DecisionOpenResponse,
+    DecisionStatus,
     DecisionTerminalResponse,
+    IndexEntry,
     OriginFlow,
 )
 from specify_cli.decisions.service import (
@@ -513,6 +517,97 @@ def cmd_verify(
 
     if result.findings and fail_on_stale:
         raise typer.Exit(1)
+
+
+# ---------------------------------------------------------------------------
+# Subcommand: list
+# ---------------------------------------------------------------------------
+
+
+def _entry_to_dict(entry: IndexEntry) -> dict[str, object]:
+    """Serialize one IndexEntry for ``decision list`` output."""
+    return {
+        "decision_id": entry.decision_id,
+        "status": entry.status.value,
+        "origin_flow": entry.origin_flow.value,
+        "input_key": entry.input_key,
+        "question": entry.question,
+        "step_id": entry.step_id,
+        "slot_key": entry.slot_key,
+        "final_answer": entry.final_answer,
+        "rationale": entry.rationale,
+        "created_at": entry.created_at.isoformat(),
+        "resolved_at": entry.resolved_at.isoformat() if entry.resolved_at else None,
+        "resolved_by": entry.resolved_by,
+    }
+
+
+@decision_app.command("list")
+def cmd_list(
+    mission: str = typer.Option(..., "--mission", help="Mission handle (slug, mission_id, or mid8)"),
+    status: str | None = typer.Option(
+        None, "--status", help="Only list decisions in this status: open | resolved | deferred | canceled"
+    ),
+    json_out: bool = typer.Option(True, "--json/--no-json", help="Output JSON (default true)"),  # noqa: ARG001
+) -> None:
+    """List the mission's recorded decision moments (read-only)."""
+    # Optional status filter — validated at the CLI boundary the same way
+    # ``cmd_open`` validates ``--flow`` (structured error naming the valid
+    # values, never a raw traceback).
+    status_filter: DecisionStatus | None = None
+    if status is not None:
+        try:
+            status_filter = DecisionStatus(status)
+        except ValueError:
+            valid = ", ".join(s.value for s in DecisionStatus)
+            _handle_decision_error(
+                DecisionError(
+                    code=DecisionErrorCode.MISSING_STEP_OR_SLOT,
+                    details={"status": status, "valid_values": valid},
+                    message=f"Invalid --status value {status!r}. Must be one of: {valid}",
+                )
+            )
+            return  # unreachable — _handle_decision_error raises
+
+    try:
+        repo_root, mission_slug = _resolve_repo_root_and_slug(mission)
+    except ActionContextError as exc:
+        _handle_action_context_error(exc)
+        return  # unreachable — _handle_action_context_error raises
+
+    # Read-path mediation — same single guarded read-side seam as ``verify``
+    # (WP08 T037, FR-030): the decisions index lives in the coordination
+    # worktree under coord topology, and this read must never walk up to
+    # ``kitty-specs/`` on its own.
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        StatusReadPathNotFound,
+        resolve_handle_to_read_path,
+    )
+
+    try:
+        mission_dir = resolve_handle_to_read_path(repo_root, mission_slug)
+    except (StatusReadPathNotFound, MissionSelectorAmbiguous) as exc:
+        _handle_action_context_error(
+            ActionContextError(exc.error_code, str(exc))
+        )
+        return  # unreachable — _handle_action_context_error raises
+
+    from specify_cli.decisions.store import load_index
+
+    index = load_index(mission_dir)
+    entries = sorted(index.entries, key=lambda e: (e.created_at, e.decision_id))
+    if status_filter is not None:
+        entries = [e for e in entries if e.status is status_filter]
+
+    payload = {
+        "contract": "decision_list_v1",
+        "mission_slug": mission_slug,
+        "mission_id": index.mission_id or None,
+        "count": len(entries),
+        "decisions": [_entry_to_dict(e) for e in entries],
+    }
+    typer.echo(json.dumps(payload, sort_keys=True))
 
 
 # ---------------------------------------------------------------------------

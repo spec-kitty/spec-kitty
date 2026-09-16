@@ -74,6 +74,18 @@ _VALID_VERDICTS: frozenset[str] = frozenset(
 # duplication.
 _FILL_VERDICTS_HINT = "before approving"
 
+# #3951 (F-36): the remedy command for an unfilled verdict row.  The
+# approve-gate blocker previously said only "Fill in verdicts" without
+# naming the command that does it, so orchestrating agents guessed at
+# ``agent mission issue-verdict`` / ``agent tasks issue-verdict`` and hit
+# "No such command".  Shared by the two "Fill verdicts" blocker messages.
+_ISSUE_VERDICT_REMEDY = (
+    "Record a verdict per row with: spec-kitty agent issue-verdict --mission "
+    "<handle> --issue <#NNN> --verdict "
+    "<fixed|verified-already-fixed|deferred-with-followup|in-mission> "
+    "--actor <actor> [--wp <WPnn>] [--evidence-ref <evidence>]"
+)
+
 
 def _issue_matrix_error_prefix(feature_dir: Path) -> str:
     """``"ERROR: <actual-artifact>"`` for the approve-gate messages (#4330).
@@ -248,6 +260,7 @@ def _issue_matrix_approval_blocker(
             f"Fill verdicts {_FILL_VERDICTS_HINT}.\n"
             f"This file is normally scaffolded automatically. If it is missing, "
             f"regenerate it: spec-kitty agent mission finalize-tasks --mission {feature_dir.name}\n"
+            f"{_ISSUE_VERDICT_REMEDY}\n"
             f"Schema and worked example: src/specify_cli/cli/commands/review/ERROR_CODES.md"
         )
 
@@ -285,6 +298,7 @@ def _issue_matrix_approval_blocker(
             "Still 'in-mission' (resolve to fixed / verified-already-fixed / "
             f"deferred-with-followup before done): {', '.join(unresolved_in_mission)}"
         )
+    lines.append(_ISSUE_VERDICT_REMEDY)
     return "\n".join(lines)
 
 
