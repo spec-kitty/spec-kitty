@@ -1052,7 +1052,9 @@ async def test_login_401_is_terminal_actionable_and_redacted(payload, expected, 
         ({"error": "slow_down"}, "(unrecognized server error code, redacted)"),
         ({"error": ["untrusted-secret"]}, "(unrecognized server error code, redacted)"),
         ({"error": "untrusted-secret"}, "(unrecognized server error code, redacted)"),
-        (["untrusted-secret"], "(unrecognized server error code, redacted)"),
+        ({}, "(the response carried no error code)"),
+        ({"error": None}, "(the response carried no error code)"),
+        (["untrusted-secret"], "(the response carried no error code)"),
     ],
 )
 async def test_login_401_instruction_matches_what_the_message_carries(payload, instruction):
@@ -1062,6 +1064,9 @@ async def test_login_401_instruction_matches_what_the_message_carries(payload, i
     ask the user to report "this status and error code". An unrecognized code
     is redacted, so the instruction must name only the HTTP status and say
     the code was redacted — never ask for a code the message does not carry.
+    A response that carried no error code at all must not claim a redaction:
+    nothing was withheld, so the instruction says the response carried no
+    code.
     """
     poll = Mock(return_value=_mock_httpx_response(401, payload))
     with _install_routed_client(
@@ -1073,8 +1078,33 @@ async def test_login_401_instruction_matches_what_the_message_carries(payload, i
         await DeviceCodeFlow(saas_base_url=_SAAS).login()
     message = str(caught.value)
     assert instruction in message
-    if "redacted" in instruction:
+    if "status and error code" not in instruction:
         assert "and error code" not in message
+    assert "untrusted-secret" not in message
+
+
+@pytest.mark.asyncio
+async def test_login_401_non_json_body_reports_no_error_code():
+    """A 401 whose body is not JSON at all carries no error code to redact."""
+
+    def _non_json_401(data):
+        r = Mock(spec=httpx.Response)
+        r.status_code = 401
+        r.text = "untrusted-secret"
+        r.json = Mock(side_effect=ValueError("not JSON"))
+        return r
+
+    with _install_routed_client(
+        {
+            "/oauth/device": _mock_httpx_response(200, _device_response()),
+            "/oauth/token": _Dynamic(_non_json_401),
+        }
+    ), pytest.raises(AuthenticationError) as caught:
+        await DeviceCodeFlow(saas_base_url=_SAAS).login()
+    message = str(caught.value)
+    assert "(the response carried no error code)" in message
+    assert "unrecognized server error code" not in message
+    assert "and error code" not in message
     assert "untrusted-secret" not in message
 
 

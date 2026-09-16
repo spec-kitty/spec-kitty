@@ -262,17 +262,27 @@ class DeviceCodeFlow:
             # contains. Only a recognized code is named above; an unrecognized
             # code is redacted, so the message names just the HTTP status and
             # says so, rather than asking the user to report a code the
-            # message does not carry.
-            report_instruction = (
-                "If it fails again, report this status and error code to your administrator."
-                if isinstance(error, str) and error in reasons
-                else "If it fails again, report this status to your administrator "
-                "(unrecognized server error code, redacted)."
-            )
+            # message does not carry. A response that carried no error code
+            # at all is a third case: nothing was withheld, so the message
+            # must not claim a redaction either.
+            if isinstance(error, str) and error in reasons:
+                report_instruction = (
+                    "If it fails again, report this status and error code to your administrator."
+                )
+            elif error is None:
+                report_instruction = (
+                    "If it fails again, report this status to your administrator "
+                    "(the response carried no error code)."
+                )
+            else:
+                report_instruction = (
+                    "If it fails again, report this status to your administrator "
+                    "(unrecognized server error code, redacted)."
+                )
             raise AuthenticationError(
                 f"Token poll failed: HTTP 401 ({reason}). "
                 "Run `spec-kitty auth login --headless` for a new device code. "
-                f"{report_instruction}"
+                + report_instruction
             )
 
         if response.status_code == 429:
