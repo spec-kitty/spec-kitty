@@ -39,8 +39,11 @@ def test_never_captured_rows_are_explicit_policy() -> None:
     # The deliberately-unbuilt surfaces are named, not silently absent.
     assert rows[("all", "mission_review_outcomes")].status == CapabilityStatus.NOT_INSTRUMENTED
     assert "#4231" in rows[("all", "mission_review_outcomes")].limitation
-    assert rows[("all", "authored_messages")].status == CapabilityStatus.NOT_INSTRUMENTED
+    # #4269 landed: authored messages are an exact-attribution supported
+    # surface now, with the live-ring-only honesty limitation stated.
+    assert rows[("all", "authored_messages")].status == CapabilityStatus.EXACT
     assert "#4269" in rows[("all", "authored_messages")].limitation
+    assert "never a capture hook" in rows[("all", "authored_messages")].limitation
 
 
 def test_whole_mission_lifecycle_is_mapped_per_the_2026_09_14_clarification() -> None:

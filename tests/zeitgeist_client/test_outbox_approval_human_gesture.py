@@ -218,7 +218,17 @@ def test_mcp_server_exposes_no_outbox_approval_tool() -> None:
     server = mcp_stdio.build_server()
     tool_manager = server._tool_manager  # noqa: SLF001 - introspecting the built tool registry is the point of this guard
     names = set(tool_manager._tools.keys())  # noqa: SLF001
-    assert names == {"zeitgeist_status", "zeitgeist_watch", "zeitgeist_activity"}
+    # #4269 added the authored tools to the surface; the approval surface
+    # itself still has no tool — the per-name assertions below are the guard.
+    assert names == {
+        "zeitgeist_status",
+        "zeitgeist_watch",
+        "zeitgeist_activity",
+        "zeitgeist_send",
+        "zeitgeist_reply",
+        "zeitgeist_read",
+        "zeitgeist_inbox",
+    }
     for name in names:
         lowered = name.lower()
         assert "approve" not in lowered

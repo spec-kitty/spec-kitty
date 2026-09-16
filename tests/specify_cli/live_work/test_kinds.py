@@ -83,6 +83,18 @@ def test_emission_set_is_the_documented_subset() -> None:
         "lifecycle.retrospective_failed",
         "lifecycle.retrospective_skipped",
         "coverage.gap_recorded",
+        # #4269's authored surface — the contract's closed narrative family
+        # plus the peer reply kind, emitted by live_work.authored only.
+        "narrative.intent_declared",
+        "narrative.progress_reported",
+        "narrative.question_asked",
+        "narrative.question_answered",
+        "narrative.decision_recorded",
+        "narrative.handoff_performed",
+        "narrative.blocker_raised",
+        "narrative.blocker_resolved",
+        "narrative.next_proposed",
+        "message.peer_sent",
     }
 
 
@@ -104,15 +116,22 @@ def test_payload_ids_fit_the_relay_kind_grammar() -> None:
 def test_family_map_is_total_and_families_are_contract_subset() -> None:
     assert set(FAMILY_BY_EMISSION_KIND) == set(EMITTED_KINDS)
     assert {"lifecycle", "session", "action", "narrative", "message", "coverage"} >= EMISSION_FAMILIES
-    assert {"session", "action", "lifecycle", "coverage"} == EMISSION_FAMILIES
+    # #4269: the narrative and message families joined the emission set —
+    # all six of the contract's families are now represented.
+    assert {"session", "action", "lifecycle", "coverage", "narrative", "message"} == EMISSION_FAMILIES
 
 
 def test_deliberately_absent_kinds_are_named_in_the_module_docstring() -> None:
     from specify_cli.live_work import kinds as kinds_module
 
     docstring = kinds_module.__doc__ or ""
-    for absent in ("narrative", "mission_review", "#4269", "#4231"):
+    for absent in ("mission_review", "#4269", "#4231", "finding"):
         assert absent in docstring, f"module docstring must name the absent surface {absent!r}"
-    # And the absent kinds really are absent.
+    # The still-absent kinds really are absent.
     with pytest.raises(ValueError):
-        WorkEmissionKind("narrative.intent_declared")
+        WorkEmissionKind("lifecycle.mission_review_captured")
+    with pytest.raises(ValueError):
+        WorkEmissionKind("session.binding_changed")
+    # And the authored kinds really are members now.
+    assert WorkEmissionKind("narrative.intent_declared") is WorkEmissionKind.NARRATIVE_INTENT_DECLARED
+    assert WorkEmissionKind("message.peer_sent") is WorkEmissionKind.MESSAGE_PEER_SENT

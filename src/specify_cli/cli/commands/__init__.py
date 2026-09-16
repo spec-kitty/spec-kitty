@@ -345,7 +345,14 @@ def register_commands(app: typer.Typer) -> None:
     app.command(name="validate-tasks")(validate_tasks_module.validate_tasks)
     app.command()(verify_module.verify_setup)
     app.add_typer(workflow_module.app, name="workflow", help="Manage mission workflow definitions")
-    app.add_typer(zeitgeist_module.app, name="zeitgeist", help="Read-only access to one team's live Zeitgeist presence/focus stream and status-moment events.")
+    app.add_typer(
+        zeitgeist_module.app,
+        name="zeitgeist",
+        help=(
+            "Access to one team's live Zeitgeist presence/focus stream and status-moment events, "
+            "authored peer messaging (#4269), a local human-gated prose approval surface, and operability drills."
+        ),
+    )
     app.add_typer(profiles_cmd_module.app, name="profiles")
     app.command(name="dispatch", help="Dispatch a request to a governed Op (canonical surface).")(dispatch_module.dispatch)
     app.add_typer(profile_invocation_module.profile_invocation_app, name="profile-invocation")

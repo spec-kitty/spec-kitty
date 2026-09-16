@@ -67,7 +67,16 @@ async def test_server_exposes_exactly_the_status_and_watch_tools() -> None:
     async with create_connected_server_and_client_session(server) as client:
         listed = await client.list_tools()
         names = {t.name for t in listed.tools}
-    assert names == {"zeitgeist_status", "zeitgeist_watch", "zeitgeist_activity"}
+    assert names == {
+        "zeitgeist_status",
+        "zeitgeist_watch",
+        "zeitgeist_activity",
+        # #4269's authored surface — the same service the CLI commands call.
+        "zeitgeist_send",
+        "zeitgeist_reply",
+        "zeitgeist_read",
+        "zeitgeist_inbox",
+    }
 
 
 async def test_no_tool_input_schema_names_a_relay_url_or_credential_field() -> None:
@@ -564,3 +573,75 @@ async def test_own_filter_default_and_explicit_values_reach_shared_transport(too
         result = await client.call_tool(tool, {"repo": "github.com/acme/widget", **arguments})
     assert not result.isError, result.content
     assert seen == [expected]
+
+
+# --- #4269: the authored tools -----------------------------------------------
+
+
+def _authored_env(monkeypatch: pytest.MonkeyPatch, relay_url: str, token: str) -> None:
+    """Fake ``send()``'s environment down to the credential store: an admitted
+    credential, a repository (no mission) binding, and the checkout's store
+    key — the real SaaS gateway is not this suite's subject."""
+    from types import SimpleNamespace
+
+    from specify_cli.live_work.bindings import RepositoryBinding, ResolvedBindings
+
+    credential = SimpleNamespace(relay_url=relay_url, token=token, capability_credential=None, session_ref="sess-author")
+    monkeypatch.setattr("specify_cli.zeitgeist_client.resolution.resolve_credentials", lambda cwd, deadline=None, force=False: credential)
+    monkeypatch.setattr("specify_cli.zeitgeist_client.resolution.store_key_for_checkout", lambda cwd: "github.com/acme/widget")
+    monkeypatch.setattr(
+        "specify_cli.live_work.bindings.resolve_bindings",
+        lambda cwd: ResolvedBindings(repository=RepositoryBinding(slug="acme/widget"), mission=None, repo_root=Path(cwd)),
+    )
+    monkeypatch.setenv("SPEC_KITTY_ZEITGEIST_SESSION_ID", "agent-a")
+
+
+async def test_send_tool_publishes_and_reports_the_outcome(state_root: Path, managed_control_double, monkeypatch: pytest.MonkeyPatch) -> None:
+    from .conftest import mint_capability_token
+
+    now = now_epoch()
+    token = mint_capability_token(
+        managed_control_double.capability_key, sub="probe", team="acme", deployment="d1", repo="spec-kitty", kind="presence", iat=now, exp=now + 300
+    )
+    managed_control_double.set_shared_token(token)
+    _authored_env(monkeypatch, managed_control_double.url, token)
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool("zeitgeist_send", {"kind": "question", "body": "which tag ships?", "audience": "team"})
+    assert not result.isError, result.content
+    payload = result.data if hasattr(result, "data") else json.loads(result.content[0].text)
+    assert payload["outcome"] == "accepted"
+    assert payload["kind"] == "question"
+    assert payload["delivery_scope"] == "live relay ring only; delivery is never retained and ages out with the ring"
+    assert managed_control_double.applied_op_count("event.publish") == 1
+
+
+async def test_send_tool_failure_is_a_tool_error_naming_the_code(state_root: Path, managed_control_double, monkeypatch: pytest.MonkeyPatch) -> None:
+    _authored_env(monkeypatch, managed_control_double.url, "unused")
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool("zeitgeist_send", {"kind": "finding", "body": "no contract kind for this"})
+    assert result.isError
+    assert "unsupported_kind" in str(result.content)
+    assert managed_control_double.applied_op_count("event.publish") == 0
+
+
+async def test_read_tool_reports_a_tool_error_when_not_checked_out(state_root: Path) -> None:
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool("zeitgeist_read", {"repo": "github.com/acme/never-checked-out"})
+    assert result.isError
+
+
+async def test_send_tool_schema_takes_no_credential_and_optional_repo() -> None:
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        listed = await client.list_tools()
+    tools = {tool.name: tool for tool in listed.tools}
+    for name in ("zeitgeist_send", "zeitgeist_reply", "zeitgeist_read", "zeitgeist_inbox"):
+        props = set((tools[name].inputSchema or {}).get("properties", {}))
+        assert "relay_url" not in props
+        assert "token" not in props
+        assert "capability_credential" not in props
+        assert "repo" not in (tools[name].inputSchema or {}).get("required", [])
+    assert set((tools["zeitgeist_send"].inputSchema or {})["properties"]) >= {"kind", "body", "repo", "audience", "thread", "allow_truncate"}

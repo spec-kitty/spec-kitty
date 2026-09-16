@@ -75,6 +75,17 @@ def test_every_emitted_kind_has_a_constructible_shape() -> None:
         WorkEmissionKind.RETROSPECTIVE_FAILED: {"text": "retrospective failed: generator error"},
         WorkEmissionKind.RETROSPECTIVE_SKIPPED: {"text": "retrospective skipped: cli_flag"},
         WorkEmissionKind.COVERAGE_GAP: {"coverage": CoverageDetail(area="claude-code-capture")},
+        # #4269's authored kinds: the prose is the observation.
+        WorkEmissionKind.NARRATIVE_INTENT_DECLARED: {"text": "intent: ship the launcher", "action": None},
+        WorkEmissionKind.NARRATIVE_PROGRESS_REPORTED: {"text": "progress: WP02 done", "action": None},
+        WorkEmissionKind.NARRATIVE_QUESTION_ASKED: {"text": "which tag ships?", "action": None},
+        WorkEmissionKind.NARRATIVE_QUESTION_ANSWERED: {"text": "the stable 4.x tag", "action": None},
+        WorkEmissionKind.NARRATIVE_DECISION_RECORDED: {"text": "decision: pin the stable tag", "action": None},
+        WorkEmissionKind.NARRATIVE_HANDOFF_PERFORMED: {"text": "handoff to reviewer", "action": None},
+        WorkEmissionKind.NARRATIVE_BLOCKER_RAISED: {"text": "blocked on relay auth", "action": None},
+        WorkEmissionKind.NARRATIVE_BLOCKER_RESOLVED: {"text": "relay auth fixed", "action": None},
+        WorkEmissionKind.NARRATIVE_NEXT_PROPOSED: {"text": "next: run the walkthrough", "action": None},
+        WorkEmissionKind.MESSAGE_PEER_SENT: {"text": "peer reply", "action": None},
     }
     assert set(shapes) == set(WorkEmissionKind)
     for kind, overrides in shapes.items():

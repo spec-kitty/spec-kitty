@@ -543,7 +543,7 @@
      "deprecated": false,
      "commands": {
       "init": {
-       "help": "Scaffold a minimal org doctrine pack skeleton (FR-006).\n\nCreates three files under *pack-path*::\n\n    org-charter.yaml   — governance policy stub\n    drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)\n    README.md          — authoring quickstart\n\nRefuses to overwrite an existing directory unless ``--force`` is passed.",
+       "help": "Scaffold a minimal org pack or render from a template.\n\nWithout ``--template``, creates three files under *pack-path*::\n\n    org-charter.yaml   — governance policy stub\n    drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)\n    README.md          — authoring quickstart\n\nWith ``--template``, copies the full template tree (minus ``.templateignore``),\nsubstitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under *pack-path*.\n\nRefuses to overwrite an existing directory unless ``--force`` is passed.",
        "hidden": false,
        "deprecated": false
       },
@@ -785,7 +785,7 @@
      "deprecated": false,
      "commands": {
       "init": {
-       "help": "Scaffold a minimal org doctrine pack skeleton (FR-006).\n\nCreates three files under *pack-path*::\n\n    org-charter.yaml   — governance policy stub\n    drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)\n    README.md          — authoring quickstart\n\nRefuses to overwrite an existing directory unless ``--force`` is passed.",
+       "help": "Scaffold a minimal org pack or render from a template.\n\nWithout ``--template``, creates three files under *pack-path*::\n\n    org-charter.yaml   — governance policy stub\n    drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)\n    README.md          — authoring quickstart\n\nWith ``--template``, copies the full template tree (minus ``.templateignore``),\nsubstitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under *pack-path*.\n\nRefuses to overwrite an existing directory unless ``--force`` is passed.",
        "hidden": false,
        "deprecated": false
       },
@@ -877,7 +877,7 @@
    "deprecated": false
   },
   "init": {
-   "help": "Initialize a new Spec Kitty project.\n\nCreates project files only. Does not initialize a git repository.\nDoes not create any commits.\n\nIf PROJECT_NAME is omitted, init runs in the current directory.\nRe-running init in an already-initialized directory exits cleanly (idempotent).\n\nNote: The --no-git flag from previous versions has been removed.\n      init never touches git state regardless of flags.\n\nInteractive Mode (default):\n- Prompts you to select AI assistants\n\nNon-Interactive Mode:\n- Enabled with --non-interactive/--yes, SPEC_KITTY_NON_INTERACTIVE=1, or non-TTY\n- Skips all prompts; --ai is required\n- Perfect for CI/CD and automation\n\nWhat Gets Created:\n- .kittify/ - Project scaffold (memory, config)\n- Agent command and skill surfaces (.claude/commands/, .agents/skills/, etc.)\n- .gitignore and .claudeignore\n\nSpecifying AI Assistants (--ai flag):\nUse comma-separated agent keys (no spaces). Valid keys include:\ncodex, claude, gemini, cursor, qwen, opencode, windsurf, kilocode,\nauggie, copilot, q, kiro, antigravity, vibe, pi, letta, llxprt.\n\nTemplate Discovery (Development Mode):\nSet SPEC_KITTY_TEMPLATE_ROOT to override bundled templates for local development.\n\nExamples:\n  spec-kitty init --ai codex                    # Current directory (default)\n  spec-kitty init my-project                    # Interactive mode\n  spec-kitty init my-project --ai codex         # With Codex\n  spec-kitty init my-project --ai codex,claude  # Multiple agents\n  spec-kitty init --ai claude --non-interactive # Non-interactive\n\nCanonical Next Steps (after init):\n  spec-kitty next --agent <agent> --mission <slug>         # Enter mission loop\n  spec-kitty agent action implement <WP> --agent <name>   # Implement a work package\n  spec-kitty agent action review    <WP> --agent <name>   # Review a work package\n\nMissions:\n- Missions are selected per-feature during /spec-kitty.specify",
+   "help": "Initialize a new Spec Kitty project.\n\nCreates project files only. Does not initialize a git repository.\nDoes not create any commits.\n\nIf PROJECT_NAME is omitted, init runs in the current directory.\nRe-running init in an already-initialized directory is idempotent for project\nstate: it verifies the configured agents' skill surfaces, additively restoring\nmissing per-agent skill roots (e.g. .claude/skills/) through the canonical\ninstaller, and exits 1 with the recovery command\n`spec-kitty agent config sync --create-missing --keep-orphaned` when shared\ncommand skills (codex/vibe/pi/letta) are missing or empty. An existing\nper-agent skill file that is empty, a directory, or a symlink exits 1 naming\nits path and is preserved untouched — rename or remove it and re-run init.\n\nNote: The --no-git flag from previous versions has been removed.\n      init never touches git state regardless of flags.\n\nInteractive Mode (default):\n- Prompts you to select AI assistants\n\nNon-Interactive Mode:\n- Enabled with --non-interactive/--yes, SPEC_KITTY_NON_INTERACTIVE=1, or non-TTY\n- Skips all prompts; --ai is required\n- Perfect for CI/CD and automation\n\nWhat Gets Created:\n- .kittify/ - Project scaffold (memory, config)\n- Agent command and skill surfaces (.claude/commands/, .agents/skills/, etc.)\n- .gitignore and .claudeignore\n\nSpecifying AI Assistants (--ai flag):\nUse comma-separated agent keys (no spaces). Valid keys include:\ncodex, claude, gemini, cursor, qwen, opencode, windsurf, kilocode,\nauggie, copilot, q, kiro, antigravity, vibe, pi, letta, llxprt.\n\nTemplate Discovery (Development Mode):\nSet SPEC_KITTY_TEMPLATE_ROOT to override bundled templates for local development.\n\nExamples:\n  spec-kitty init --ai codex                    # Current directory (default)\n  spec-kitty init my-project                    # Interactive mode\n  spec-kitty init my-project --ai codex         # With Codex\n  spec-kitty init my-project --ai codex,claude  # Multiple agents\n  spec-kitty init --ai claude --non-interactive # Non-interactive\n\nCanonical Next Steps (after init):\n  spec-kitty next --agent <agent> --mission <slug>         # Enter mission loop\n  spec-kitty agent action implement <WP> --agent <name>   # Implement a work package\n  spec-kitty agent action review    <WP> --agent <name>   # Review a work package\n\nMissions:\n- Missions are selected per-feature during /spec-kitty.specify",
    "hidden": false,
    "deprecated": false
   },
@@ -999,6 +999,11 @@
    "commands": {
     "backfill-identity": {
      "help": "Write a ULID mission_id into any meta.json that lacks one.\n\nThis command is **idempotent** — running it twice produces identical\nstate.  Existing ``mission_id`` values are never overwritten.  The\ncommand also coerces legacy string-typed ``mission_number`` values\n(e.g. ``\"042\"`` → ``42``) while walking each mission.\n\nAfter writing, the dossier parity hash is recomputed for every mission\nthat was modified.  Individual dossier failures are logged as warnings\nand do not abort the run.\n\n**When to run:**\n\n- After upgrading from a spec-kitty version that predates ``mission_id``\n- After pulling a clone that has legacy missions (no ``mission_id``)\n- As part of CI checks on legacy repositories\n\nExit codes:\n\n- ``0`` — all results are ``wrote`` or ``skip``\n- ``1`` — one or more ``error`` results (corrupt JSON, sentinel strings, …)\n\nExamples:\n\n    spec-kitty migrate backfill-identity --dry-run --json\n\n    spec-kitty migrate backfill-identity --mission 083-foo-bar\n\n    spec-kitty migrate backfill-identity",
+     "hidden": false,
+     "deprecated": false
+    },
+    "backfill-merge-commit": {
+     "help": "Record a GitHub PR's real merge commit as a mission's review baseline (#4231).\n\nA mission accepted through ``acceptance_mode: pr`` never passes through\n``spec-kitty merge``, so its ``meta.json`` never carried\n``baseline_merge_commit`` — leaving ``spec-kitty review --mode post-merge``\nunreachable (``MISSION_REVIEW_MODE_MISMATCH``) and the lightweight\ndead-code gate failing a cleanly merged mission. This command repairs\nthat state from REAL evidence: the merge commit you supply is verified\nagainst git (it must resolve in this repository, carry the mission's\n``kitty-specs/<slug>/meta.json``, its first parent must not — proving it\nis the commit that introduced the mission corpus — and it must have\nlanded on the target branch, so an unmerged mission-branch commit is\nrefused) before ``baseline_merge_commit`` (the first parent) and the\nprovenance pair ``pr_merge_commit`` (the landing commit itself) /\n``pr_merge_evidence`` (what the anchor's completeness rests on) are\nwritten through the same canonical seam ``spec-kitty merge`` and\n``accept --mode pr --merge-commit`` use.\n\n**What the anchor proves depends on the landing shape — and on your\nattestation, never on git.** Checks 1–6 prove the commit landed on the\ntarget branch and introduced the mission corpus; they cannot prove its\nfirst parent is the PRE-LANDING TARGET TIP for any shape. A two-parent\nmerge commit's first parent is the tip only if the merge was performed\non the target branch — an internal merge (the corpus branch merged into\nthe implementation branch, the target then fast-forwarded to the\nresult) is graph-identical and its first parent is an implementation\ncommit. A single-parent landing commit (squash, or a corpus-first stack)\nhas the tip as its parent only if it was the first commit of the\nlanding. Both shapes therefore require ``--attest-first-landing-commit``\n— your explicit attestation — and record it as the anchor's evidence\nclass (``pr_merge_evidence: merge-commit-parent-attested`` /\n``corpus-parent-attested``), so the anchor's completeness rests on a\nrecorded operator attestation, never on a claim git did not make.\nAnchoring at the wrong tip would silently under-scan the dead-code\ngate. Full forge commit-list evidence, which would prove the tip\noutright, is tracked in #4277.\n\n**Idempotent**: a mission whose ``meta.json`` already carries a\n``baseline_merge_commit`` is skipped and never overwritten.\n\nExit codes:\n\n- ``0`` — recorded, skipped (already recorded), or ``--dry-run``\n- ``1`` — the merge evidence could not be verified, or the mission handle\n  is unknown\n\nExamples:\n\n    spec-kitty migrate backfill-merge-commit --mission 321-mission --merge-commit <sha> --dry-run\n\n    spec-kitty migrate backfill-merge-commit --mission 321-mission --merge-commit <sha>",
      "hidden": false,
      "deprecated": false
     },
@@ -1174,7 +1179,7 @@
      "deprecated": false
     },
     "on": {
-     "help": "Switch moments back ON at the documented default (`mine`: only\nmissions this checkout is on).",
+     "help": "Switch moments back ON at the documented default (`team`).",
      "hidden": false,
      "deprecated": false
     },
@@ -1571,7 +1576,7 @@
    }
   },
   "zeitgeist": {
-   "help": "Read-only access to one team's live Zeitgeist presence/focus stream and status-moment events.",
+   "help": "Access to one team's live Zeitgeist presence/focus stream and status-moment events, authored peer messaging (#4269), a local human-gated prose approval surface, and operability drills.",
    "hidden": false,
    "deprecated": false,
    "commands": {
@@ -1582,6 +1587,31 @@
     },
     "watch": {
      "help": "Print live frames plus a final summary, bounded by whole-call\n``--timeout`` and ``--max-frames`` count.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "activity": {
+     "help": "Catch up on retained activity using the same policy as agent watch.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "send": {
+     "help": "Author and publish one live message (#4269) — accepted/offered/failed,\nnever retained delivery.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "reply": {
+     "help": "Reply to one authored message — thread and audience come from the\nparent; a peer thread is never broadened to team scope.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "read": {
+     "help": "Read a conversation thread (or recent authored messages) from the\nrelay's recent ring; bodies render inside untrusted markers.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "inbox": {
+     "help": "Addressed inbox: novel authored messages for this consumer, over the\nsame novelty/receipt policy as agent watch.",
      "hidden": false,
      "deprecated": false
     },

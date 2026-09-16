@@ -172,6 +172,11 @@ _SCHEMA_VERSION = "1.0.0"
 # classified distinctly from an ordinary REJECTED so the loss is loud.
 _THROTTLED_STATUS = 429
 
+# managed_control.schema.json's ControlEnvelope.request_id pattern — the
+# grammar a caller-supplied stable id (#4269) must satisfy before any
+# network attempt is made.
+_REQUEST_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}")
+
 # The one-line stderr notice emitted when the single attempt comes back
 # throttled (#180: "lost silently" → lost loudly).
 THROTTLE_NOTICE = "relay throttled; moment dropped"
@@ -334,8 +339,19 @@ class ZeitgeistClient:
 
     # -- the primitive ------------------------------------------------
 
-    def offer(self, op: str, args: Mapping[str, Any]) -> OfferResult:
-        request_id = str(uuid.uuid4())
+    def offer(self, op: str, args: Mapping[str, Any], *, request_id: str | None = None) -> OfferResult:
+        # A caller-supplied request_id is #4269's stable-contribution-id
+        # primitive: the relay's replay cache dedupes on (scope, request_id),
+        # so a bounded retry that re-offers the SAME id is idempotent
+        # server-side (a replayed id returns the original 202 and never
+        # re-executes). The id must satisfy the envelope's own grammar —
+        # validated here, before any network attempt, so a malformed one is
+        # a local refusal rather than a relay 422. None keeps the original
+        # per-call uuid4: every pre-#4269 caller keeps its exact behavior.
+        if request_id is None:
+            request_id = str(uuid.uuid4())
+        elif not _REQUEST_ID_RE.fullmatch(request_id):
+            raise ValueError("request_id must match [A-Za-z0-9][A-Za-z0-9._@+-]{0,63} (the relay ControlEnvelope's own grammar)")
 
         try:
             sanitizer.assert_clean(args)
