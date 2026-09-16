@@ -14,6 +14,8 @@ import importlib.util
 import json
 import marshal
 import os
+import py_compile
+import struct
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -73,6 +75,11 @@ def _corrupt_magic(pyc: Path) -> None:
     """Bad magic number -- Python recompiles this on its own; never a finding."""
     data = pyc.read_bytes()
     pyc.write_bytes(b"\xff\xff\xff\xff" + data[4:])
+
+
+def _write_hash_based_pyc(source: Path, pyc: Path) -> None:
+    """Overwrite *pyc* with a real hash-based cache (``flags & 0x1``) for *source*."""
+    py_compile.compile(str(source), cfile=str(pyc), invalidation_mode=py_compile.PycInvalidationMode.CHECKED_HASH)
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +177,81 @@ class TestScanBytecodeCache:
             assert result.unreadable_count == 1
         finally:
             os.chmod(pyc, 0o644)
+
+
+# ---------------------------------------------------------------------------
+# Hash-based cache (flags & 0x1) -- the branch left to the body check
+# ---------------------------------------------------------------------------
+
+
+class TestHashBasedCache:
+    def test_valid_hash_based_cache_yields_no_findings(self, fake_pkg: Path) -> None:
+        source = fake_pkg / "__init__.py"
+        pyc = _init_pyc(fake_pkg)
+        _write_hash_based_pyc(source, pyc)
+        flags = struct.unpack("<I", pyc.read_bytes()[4:8])[0]
+        assert flags & 0x1  # sanity: this really is a hash-based cache
+
+        result = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
+
+        assert result.findings == []
+
+    def test_corrupt_hash_based_cache_body_is_a_finding(self, fake_pkg: Path) -> None:
+        source = fake_pkg / "__init__.py"
+        pyc = _init_pyc(fake_pkg)
+        _write_hash_based_pyc(source, pyc)
+        flags = struct.unpack("<I", pyc.read_bytes()[4:8])[0]
+        assert flags & 0x1  # sanity: this really is a hash-based cache
+        data = pyc.read_bytes()
+        pyc.write_bytes(data[:16] + b"\x00" * 8)
+
+        result = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
+
+        assert len(result.findings) == 1
+        assert result.findings[0].pyc_path.endswith(".pyc")
+
+
+# ---------------------------------------------------------------------------
+# Changed-source false-positive guard -- the docstring's core FP promise
+# ---------------------------------------------------------------------------
+
+
+class TestChangedSourceGuard:
+    def test_changed_source_is_not_flagged_python_would_recompile(self, fake_pkg: Path) -> None:
+        """A source edited after the cache was written must never be flagged.
+
+        Python's own header check would already reject this cache on mtime/size
+        mismatch and recompile from source -- it never bites, so this check must
+        not report a finding for it either.
+        """
+        source = fake_pkg / "__init__.py"
+        pyc = _init_pyc(fake_pkg)
+        assert pyc.exists()
+
+        source.write_text("VALUE = 1\nEXTRA = 2\n")  # different size than when cached
+        far_future = 4102444800.0  # 2100-01-01, far enough that no header could match it
+        os.utime(source, (far_future, far_future))
+
+        result = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
+
+        assert result.findings == []
+
+
+# ---------------------------------------------------------------------------
+# Loose .pyc outside a __pycache__ layout -- source_from_cache ValueError skip
+# ---------------------------------------------------------------------------
+
+
+class TestLoosePyc:
+    def test_loose_pyc_outside_pycache_layout_is_skipped_without_error(self, tmp_path: Path) -> None:
+        loose_dir = tmp_path / "loose"
+        loose_dir.mkdir()
+        (loose_dir / "module.pyc").write_bytes(b"\x00" * 20)
+
+        result = _bytecode_doctor._scan_bytecode_cache(loose_dir)
+
+        assert result.findings == []
+        assert result.unreadable_count == 0
 
 
 # ---------------------------------------------------------------------------
