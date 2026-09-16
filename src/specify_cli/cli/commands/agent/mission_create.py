@@ -682,7 +682,8 @@ def _emit_create_result_phase(
                 f"branch); kitty-specs/{result.mission_slug}/ is left on disk, untracked"
             )
             console.print(
-                "   Planning artifacts must land on a feature branch, or land via the mission lane worktree (re-run with '--start-branch <feature-branch>')."
+                "   Planning artifacts must land on a feature branch, or land via the mission lane worktree "
+                "— switch to a feature branch first, or re-run 'agent mission create --start-branch <feature-branch>'."
             )
         else:
             console.print(f"   Meta committed to {result.target_branch}; spec.md scaffold left untracked")
