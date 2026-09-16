@@ -23,6 +23,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+import ulid
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
@@ -209,3 +210,111 @@ def test_status_board_degrades_on_corrupt_primary_event_log(tmp_path: Path, monk
 
     # Degraded: falls back to the coord-read lane instead of crashing.
     assert lanes_by_id == {"WP01": "planned"}
+
+
+# ---------------------------------------------------------------------------
+# #3829 item 3: the WHOLE row comes from one committed reduction — never a
+# committed lane beside stale coordination companions.
+# ---------------------------------------------------------------------------
+
+
+def _seed_companions(feature_dir: Path, wp_id: str, *, agent: str, model: str, profile: str) -> None:
+    """Seed a resolved-binding annotation on *feature_dir* for *wp_id*.
+
+    The companion fields (``agent`` / ``resolved_model`` /
+    ``resolved_agent_profile``) are event-sourced off-axis slots
+    (:class:`~specify_cli.status.models.InnerStateChanged`), so a divergent
+    pair of annotations on the two surfaces makes the mixed-authority
+    regression observable end to end.
+    """
+    from specify_cli.status.models import InnerStateChanged, WPInnerStateDelta
+    from specify_cli.status.store import append_annotations_atomic_verified
+
+    append_annotations_atomic_verified(
+        feature_dir,
+        [
+            InnerStateChanged(
+                # Annotation event_ids are ULID-validated on read-back, so a
+                # fresh ULID per (surface, WP) is minted here rather than the
+                # readable slug the lane ``StatusEvent`` fixtures use.
+                event_id=str(ulid.ULID()),
+                wp_id=wp_id,
+                at="2026-01-02T00:00:00+00:00",
+                actor="test",
+                delta=WPInnerStateDelta(agent=agent, model=model, agent_profile=profile, role="implementer"),
+            )
+        ],
+    )
+
+
+@pytest.mark.regression
+def test_status_board_row_companions_come_from_the_committed_surface(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#3829 item 3: for a merged mission on a not-yet-cleaned coordination
+    checkout, the row's companion fields (``agent`` / ``resolved_model`` /
+    ``resolved_agent_profile`` via ``reconstruct_wp_view``) must come from the
+    SAME committed reduction the lane came from — never the stale
+    coordination checkout's pre-merge companions beside the committed lane."""
+    primary, coord = _build_two_surface_fixture(tmp_path)
+    # Divergent companions: the committed surface records the merged
+    # actuals; the stale coord checkout still shows its pre-merge pick-up.
+    _seed_companions(primary, "WP01", agent="committed-agent", model="committed-model", profile="committed-profile")
+    _seed_companions(coord, "WP01", agent="stale-agent", model="stale-model", profile="stale-profile")
+
+    workspace = SimpleNamespace(execution_mode="code_change", resolution_kind="lane_workspace")
+    monkeypatch.chdir(tmp_path)
+
+    with (
+        setup_mocked_env(tmp_path, mission_slug=_SLUG, workspace_resolution=workspace),
+        patch(
+            "specify_cli.missions._read_path_resolver.resolve_handle_to_read_path",
+            return_value=coord,
+        ),
+    ):
+        result = runner.invoke(app, ["status", "--mission", _SLUG, "--json"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    row = {wp["id"]: wp for wp in payload["work_packages"]}["WP01"]
+
+    # The whole row is committed-sourced: lane AND companions.
+    assert row["lane"] == "approved"
+    assert row["agent"] == "committed-agent"
+    assert row["resolved_model"] == "committed-model"
+    assert row["resolved_agent_profile"] == "committed-profile"
+
+
+@pytest.mark.regression
+def test_status_board_row_companions_still_follow_coord_surface_when_not_merged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The not-merged arm: with no committed authority (``mission_number``
+    absent), the whole row — lane AND companions — still comes from the
+    coordination read, byte-identical to the pre-#3829 board."""
+    primary, coord = _build_two_surface_fixture(tmp_path)
+    # Un-merge the PRIMARY meta: the coord surface becomes the row's one
+    # authority again.
+    meta = json.loads((primary / "meta.json").read_text(encoding="utf-8"))
+    meta["mission_number"] = None
+    (primary / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    _seed_companions(primary, "WP01", agent="committed-agent", model="committed-model", profile="committed-profile")
+    _seed_companions(coord, "WP01", agent="stale-agent", model="stale-model", profile="stale-profile")
+
+    workspace = SimpleNamespace(execution_mode="code_change", resolution_kind="lane_workspace")
+    monkeypatch.chdir(tmp_path)
+
+    with (
+        setup_mocked_env(tmp_path, mission_slug=_SLUG, workspace_resolution=workspace),
+        patch(
+            "specify_cli.missions._read_path_resolver.resolve_handle_to_read_path",
+            return_value=coord,
+        ),
+    ):
+        result = runner.invoke(app, ["status", "--mission", _SLUG, "--json"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    row = {wp["id"]: wp for wp in payload["work_packages"]}["WP01"]
+
+    # Whole row coordination-sourced: the in-flight mission's real state.
+    assert row["lane"] == "planned"
+    assert row["agent"] == "stale-agent"
+    assert row["resolved_model"] == "stale-model"
+    assert row["resolved_agent_profile"] == "stale-profile"
