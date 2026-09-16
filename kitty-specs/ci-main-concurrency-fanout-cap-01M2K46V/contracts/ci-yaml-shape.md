@@ -5,6 +5,7 @@ These are the exact resolved shapes the golden-YAML pytest assertions must enfor
 ## C-YAML-1 — `ci-router.yml` top-level concurrency (Lever 1a)
 
 ```yaml
+# round-trip: skip: illustrative CI-router concurrency shape, not a Pydantic contract example
 concurrency:
   group: ci-router-${{ github.event_name == 'push' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.event_name != 'push' }}
@@ -18,6 +19,7 @@ Assertions (NEW pin, `tests/architectural/test_dual_mode_contract.py`) — **EXA
 ## C-YAML-2 — `ci-fleet-verdict.yml` trigger types (Lever 2a.1)
 
 ```yaml
+# round-trip: skip: illustrative workflow_run trigger shape, not a Pydantic contract example
 on:
   workflow_run:
     workflows: [ ...8 unchanged... ]
@@ -31,6 +33,7 @@ Assertions (UPDATE `tests/ci/test_fleet_verdict.py` around `:125`):
 ## C-YAML-3 — `ci-fleet-verdict.yml` top-level concurrency (Lever 2a.2)
 
 ```yaml
+# round-trip: skip: illustrative fleet-verdict top-level concurrency shape, not a Pydantic contract example
 concurrency:
   group: ci-fleet-verdict-${{ github.event.workflow_run.head_sha }}
   cancel-in-progress: true
@@ -44,6 +47,7 @@ Assertions (NEW pin, `tests/ci/test_fleet_verdict.py`) — **EXACT equality** (a
 > **Reversed post-plan squad (Alphonso MAJOR, operator-ratified 2026-09-15).** Moving `report-main` to per-SHA coalesce opens a create-create race on the single `from:ci` incident issue. `report-main` is therefore **left unchanged**; the fan-out cap is delivered entirely by C-YAML-2 (types trim) + C-YAML-3 (top-level coalesce), which cut `report-main` inflow to ≈1/tip so the existing single-group queue drains trivially.
 
 ```yaml
+# round-trip: skip: illustrative report-main (unchanged) concurrency shape, not a Pydantic contract example
 jobs:
   report-main:
     concurrency:
@@ -58,6 +62,7 @@ Assertion (existing `tests/ci/test_fleet_main.py:166` **stays green as-is — do
 ## C-YAML-5 — `report` (PR) job concurrency (unchanged — negative pin)
 
 ```yaml
+# round-trip: skip: illustrative report(PR) (unchanged) concurrency shape, not a Pydantic contract example
 jobs:
   report:
     concurrency:
