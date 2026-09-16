@@ -775,18 +775,14 @@ def _resolve_lane_merge_retention(
     from specify_cli.core.paths import resolve_merge_retention
     from specify_cli.mission_metadata import load_meta_or_empty
 
-    primary_meta_dir = placement_seam(main_repo_root, mission_slug).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
+    primary_meta_dir = placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     retention = resolve_merge_retention(
         primary_meta_dir,
         explicit_delete_branch=delete_branch,
         explicit_remove_worktree=remove_worktree,
     )
     is_coord = "coordination_branch" in load_meta_or_empty(primary_meta_dir)
-    mission_branch_deletable = (
-        retention.teardown_coordination if is_coord else retention.delete_branch
-    )
+    mission_branch_deletable = retention.teardown_coordination if is_coord else retention.delete_branch
     return retention, mission_branch_deletable
 
 
@@ -809,9 +805,7 @@ def _apply_lane_merge_cleanup(
         for lane in lanes_manifest.lanes:
             # Legacy lane-worktree grammar ({slug}-{lane}, no mid8) ⇒ mission_id=None
             # reproduces the historical name byte-identically (FR-005).
-            wt_path = worktree_path(
-                main_repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id
-            )
+            wt_path = worktree_path(main_repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id)
             if wt_path.exists():
                 run_command(
                     ["git", "worktree", "remove", str(wt_path), "--force"],
@@ -1196,10 +1190,7 @@ def _enforce_claim_ancestry(
     _fail(
         cmd,
         "ANCESTRY_NOT_ESTABLISHED",
-        (
-            f"cannot claim {wp}: ancestry could not be established after "
-            f"self-heal for: {', '.join(result.missing_refs)}"
-        ),
+        (f"cannot claim {wp}: ancestry could not be established after self-heal for: {', '.join(result.missing_refs)}"),
         {
             **_mission_identity_payload(mission_dir),
             "wp_id": wp,
@@ -1208,9 +1199,7 @@ def _enforce_claim_ancestry(
     )
 
 
-def _lane_assignment_or_legacy(
-    main_repo_root: Path, mission: str, wp: str
-) -> tuple[LanesManifest, ExecutionLane] | _StartWorkspace:
+def _lane_assignment_or_legacy(main_repo_root: Path, mission: str, wp: str) -> tuple[LanesManifest, ExecutionLane] | _StartWorkspace:
     """Shared prologue of the two workspace resolvers (ONE fallback grammar).
 
     Returns the ``(manifest, lane)`` pair when ``wp`` is lane-assigned;
@@ -1415,10 +1404,7 @@ def start_implementation(
     # reads, so the provenance map threaded into the gate is consistent with the
     # lanes it decides against.
     _snapshot = reduce(read_events(mission_dir))
-    wp_lanes = {
-        wp_id: state.get("lane", Lane.PLANNED)
-        for wp_id, state in _snapshot.work_packages.items()
-    }
+    wp_lanes = {wp_id: state.get("lane", Lane.PLANNED) for wp_id, state in _snapshot.work_packages.items()}
     # Only gate the not-yet-started claim transition. Re-invoking start-implementation
     # on a WP that is already in_progress/for_review/.../approved is a no-op resume
     # in the lifecycle layer and must not be rejected just because a dependency later
@@ -1468,6 +1454,23 @@ def start_implementation(
     # move this above ``_resolve_start_workspace`` -- see
     # ``_enforce_claim_ancestry``'s docstring for the deadlock hazard.
     _enforce_claim_ancestry(cmd, main_repo_root, mission, mission_dir, wp, Path(workspace_path))
+
+    # #3946 (F-78): a reused lane's persisted workspace context must follow the
+    # WP that just claimed it, exactly as the native ``implement`` flow refreshes
+    # it via the same helper — otherwise every later lane commit warns
+    # ACTIVE_WP_CONTEXT_STALE and the guard scopes against the prior WP. No-op
+    # when the lane has no context (an orchestrator-driven mission never created
+    # one; that shape is unchanged). ``mission_dir.name`` is the canonical
+    # mission directory name the native flow saves the context under.
+    from specify_cli.lanes.implement_support import refresh_reused_lane_context
+
+    refresh_reused_lane_context(
+        main_repo_root,
+        mission_dir.name,
+        start_ws.lane_id,
+        wp,
+        parse_wp_dependencies(wp_path),
+    )
 
     try:
         start_result = start_implementation_status(
@@ -1627,9 +1630,7 @@ def _enforce_for_review_commit_gate(cmd: str, main_repo_root: Path, mission: str
         evaluate_for_review_gate,
     )
 
-    decision: GateDecision = evaluate_for_review_gate(
-        main_repo_root, mission, wp, force=force
-    )
+    decision: GateDecision = evaluate_for_review_gate(main_repo_root, mission, wp, force=force)
     if not decision.passed:
         _fail(
             cmd,
@@ -1641,8 +1642,6 @@ def _enforce_for_review_commit_gate(cmd: str, main_repo_root: Path, mission: str
                 "lane_id": decision.lane_id,
             },
         )
-
-
 
 
 @app.command(name="transition")
@@ -1725,9 +1724,7 @@ def transition(
         # (mirrors start_implementation's own `_resolve_start_workspace`
         # call) and enforces ancestry BEFORE the `claimed` event below.
         claim_ws = _resolve_start_workspace(cmd, main_repo_root, mission, mission_dir, wp)
-        _enforce_claim_ancestry(
-            cmd, main_repo_root, mission, mission_dir, wp, Path(claim_ws.workspace_path)
-        )
+        _enforce_claim_ancestry(cmd, main_repo_root, mission, mission_dir, wp, Path(claim_ws.workspace_path))
 
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
     from specify_cli.status import TransitionError
@@ -2132,9 +2129,7 @@ def _extract_json_payload(raw_output: str) -> dict[str, Any] | None:
 _MISSION_DUPLICATE_MARKERS = ("nothing to commit", "empty changeset", "already exists")
 
 
-def _classify_specify_create_error(
-    payload: dict[str, Any] | None, raw_output: str
-) -> tuple[str, str, dict[str, Any]]:
+def _classify_specify_create_error(payload: dict[str, Any] | None, raw_output: str) -> tuple[str, str, dict[str, Any]]:
     """Classify a failed ``specify`` delegate call into ``(error_code, message, data)``.
 
     A typed upstream ``error_code`` (e.g. ``CharterPackConfigError``,
@@ -2189,9 +2184,7 @@ def specify(
         None,
         "--topology",
         help=(
-            "Create-time mission shape: single_branch | lanes | coord | "
-            "lanes_with_coord. Default: context-derived (matches the host "
-            "CLI's own --topology default)."
+            "Create-time mission shape: single_branch | lanes | coord | lanes_with_coord. Default: context-derived (matches the host CLI's own --topology default)."
         ),
     ),
     policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
@@ -2425,9 +2418,7 @@ def _sanitize_forbidden_error_code(value: Any, forbidden: str, replacement: str)
     """
     if isinstance(value, dict):
         return {
-            (_sanitize_forbidden_error_code(k, forbidden, replacement) if isinstance(k, str) else k): (
-                _sanitize_forbidden_error_code(v, forbidden, replacement)
-            )
+            (_sanitize_forbidden_error_code(k, forbidden, replacement) if isinstance(k, str) else k): (_sanitize_forbidden_error_code(v, forbidden, replacement))
             for k, v in value.items()
         }
     if isinstance(value, list):
@@ -2437,9 +2428,7 @@ def _sanitize_forbidden_error_code(value: Any, forbidden: str, replacement: str)
     return value
 
 
-def _classify_check_prerequisites_error(
-    payload: dict[str, Any] | None, raw_output: str
-) -> tuple[str, str, dict[str, Any]]:
+def _classify_check_prerequisites_error(payload: dict[str, Any] | None, raw_output: str) -> tuple[str, str, dict[str, Any]]:
     """Classify a failed ``check-prerequisites`` delegate call.
 
     The host CLI's own detection-failure payload carries
@@ -2564,9 +2553,7 @@ class _TimedWriteOutcome:
     raised: Exception | None = None
 
 
-def _run_write_with_timeout(
-    fn: Callable[[], AnalysisReportResult], *, timeout_seconds: float
-) -> _TimedWriteOutcome:
+def _run_write_with_timeout(fn: Callable[[], AnalysisReportResult], *, timeout_seconds: float) -> _TimedWriteOutcome:
     """Run ``fn`` bounded by ``timeout_seconds`` in a daemon worker thread.
 
     A REAL enforced bound (NFR-004(b) / T020): ``Thread.join(timeout=...)``
@@ -2677,16 +2664,10 @@ def _classify_record_analysis_failure(
     """
     from specify_cli.analysis_report import VERDICT_UNKNOWN
 
-    write_confirmed = (
-        reread is not None
-        and reread.generated_at is not None
-        and _is_strictly_after(reread.generated_at, call_start)
-    )
+    write_confirmed = reread is not None and reread.generated_at is not None and _is_strictly_after(reread.generated_at, call_start)
     if not write_confirmed:
         return "RECORD_ANALYSIS_WRITE_NOT_CONFIRMED", (
-            "record-analysis could not confirm a fresh write: no "
-            "analysis-report.md with a generated_at timestamp later than "
-            "this call's start was found on disk."
+            "record-analysis could not confirm a fresh write: no analysis-report.md with a generated_at timestamp later than this call's start was found on disk."
         )
     if submitted_verdict == VERDICT_UNKNOWN:
         return "RECORD_ANALYSIS_VERDICT_UNRELIABLE", (
@@ -2695,9 +2676,7 @@ def _classify_record_analysis_failure(
             "recorded (verdict: unknown is never reported as success)."
         )
     return "RECORD_ANALYSIS_VERDICT_UNRELIABLE", (
-        f"analysis-report.md was written but its verdict "
-        f"({reread.verdict if reread else None!r}) does not match the "
-        f"submitted verdict ({submitted_verdict!r})."
+        f"analysis-report.md was written but its verdict ({reread.verdict if reread else None!r}) does not match the submitted verdict ({submitted_verdict!r})."
     )
 
 
@@ -2836,9 +2815,7 @@ def record_analysis(
     capture = io.StringIO()
     try:
         with contextlib.redirect_stdout(capture):
-            _enforce_analysis_report_write_preflight(
-                main_repo_root, json_output=True, placement_ref=placement_ref, mission_slug=mission_slug
-            )
+            _enforce_analysis_report_write_preflight(main_repo_root, json_output=True, placement_ref=placement_ref, mission_slug=mission_slug)
     except typer.Exit:
         raw_output = capture.getvalue()
         payload = _extract_json_payload(raw_output)
@@ -2899,11 +2876,7 @@ def record_analysis(
     report_path = write_feature_dir / "analysis-report.md"
     reread = _reread_analysis_report(report_path)
 
-    write_confirmed = (
-        reread is not None
-        and reread.generated_at is not None
-        and _is_strictly_after(reread.generated_at, call_start)
-    )
+    write_confirmed = reread is not None and reread.generated_at is not None and _is_strictly_after(reread.generated_at, call_start)
     success = write_confirmed and submitted_verdict != VERDICT_UNKNOWN and reread is not None and reread.verdict == submitted_verdict
 
     if success and reread is not None:
@@ -2918,9 +2891,7 @@ def record_analysis(
         _emit(envelope)
         return
 
-    error_code, message = _classify_record_analysis_failure(
-        submitted_verdict=submitted_verdict, reread=reread, call_start=call_start
-    )
+    error_code, message = _classify_record_analysis_failure(submitted_verdict=submitted_verdict, reread=reread, call_start=call_start)
     failure_data: dict[str, Any] = {"mission_slug": mission_slug, "submitted_verdict": submitted_verdict}
     if reread is not None:
         failure_data["reread_verdict"] = reread.verdict
@@ -3325,14 +3296,8 @@ def cancel_decision(
 
 _HELP_ANSWER_AGENT = "Agent/actor identity performing this call (required)"
 _HELP_ANSWER_VALUE = "The answer value to persist for the pending decision"
-_HELP_ANSWER_RESULT = (
-    "Outcome of the current issuance: success | failed | blocked "
-    "(required alongside --answer)"
-)
-_HELP_ANSWER_DECISION_ID = (
-    "Run-snapshot pending decision id to answer (auto-resolved when omitted "
-    "and exactly one decision is pending)"
-)
+_HELP_ANSWER_RESULT = "Outcome of the current issuance: success | failed | blocked (required alongside --answer)"
+_HELP_ANSWER_DECISION_ID = "Run-snapshot pending decision id to answer (auto-resolved when omitted and exactly one decision is pending)"
 
 # Single canonical source, shared with the host CLI's own
 # ``next_cmd._VALID_RESULTS`` (``next_cmd.py:51``) and mirroring
@@ -3446,9 +3411,7 @@ def answer_decision(
     # Mirrors ``next_cmd.py``'s ``_handle_answer`` exactly: the
     # PRIMARY-partition read (never the coord-only husk) so ``mission_type``
     # comes from the real ``meta.json``.
-    feature_dir = _placement_seam(main_repo_root, mission).read_dir(
-        _MissionArtifactKind.PRIMARY_METADATA
-    )
+    feature_dir = _placement_seam(main_repo_root, mission).read_dir(_MissionArtifactKind.PRIMARY_METADATA)
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission, main_repo_root, mission_type)
     run_dir = Path(run_ref.run_dir)
@@ -3484,8 +3447,7 @@ def answer_decision(
             _fail(
                 cmd,
                 "DECISION_NOT_PENDING",
-                f"Decision {resolved_decision_id!r} is not currently pending "
-                f"for mission {mission!r}",
+                f"Decision {resolved_decision_id!r} is not currently pending for mission {mission!r}",
                 {"decision_id": resolved_decision_id},
             )
             return
@@ -3650,9 +3612,7 @@ def _check_no_snapshot_drift(mission_dir: Path, snapshot: StatusSnapshot) -> Non
     try:
         persisted = json.loads(status_json_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise StoreError(
-            f"status.json could not be read for snapshot-drift comparison: {exc}"
-        ) from exc
+        raise StoreError(f"status.json could not be read for snapshot-drift comparison: {exc}") from exc
 
     persisted_wp_ids = set(persisted.get("work_packages") or {})
     fresh_wp_ids = set(snapshot.work_packages)
@@ -3682,11 +3642,7 @@ def _open_decisions(mission_dir: Path) -> list[dict[str, str]]:
     from specify_cli.decisions.store import load_index
 
     index = load_index(mission_dir)
-    return [
-        {"decision_id": entry.decision_id, "origin": entry.origin_flow.value}
-        for entry in index.entries
-        if entry.status.value == "open"
-    ]
+    return [{"decision_id": entry.decision_id, "origin": entry.origin_flow.value} for entry in index.entries if entry.status.value == "open"]
 
 
 def _reduce_design_status(planning_dir: Path, mission_dir: Path) -> dict[str, Any]:

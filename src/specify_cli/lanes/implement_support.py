@@ -52,6 +52,53 @@ class LaneWorkspaceResult:
             self.lane_test_env = {}
 
 
+def refresh_reused_lane_context(
+    repo_root: Path,
+    mission_slug: str,
+    lane_id: str | None,
+    wp_id: str,
+    declared_deps: list[str],
+) -> bool:
+    """Refresh a reused lane's workspace context to the newly active WP (#3946).
+
+    A shared lane worktree outlives its WPs: claiming a later WP into the lane
+    advances the canonical active WP, but the lane's persisted workspace context
+    keeps ``current_wp`` from the earlier WP until something refreshes it —
+    every later lane commit then warns ``ACTIVE_WP_CONTEXT_STALE`` and scopes
+    against the prior WP's ownership (F-78). Both WP writers that reuse a lane
+    — the native ``implement`` flow and the orchestrator API's
+    ``start-implementation`` — route through this helper so the refresh cannot
+    drift between them. No-op (returns ``False``) when the lane has no
+    persisted context: an orchestrator-driven mission that never created one
+    keeps that shape.
+
+    Args:
+        repo_root: Main repository root.
+        mission_slug: Mission slug used for the lane's context filename (the
+            same string the context was saved under).
+        lane_id: Lane identifier; ``None`` is a no-op (no lane workspace).
+        wp_id: The WP now active in the lane.
+        declared_deps: Declared dependencies for this WP.
+
+    Returns:
+        True when an existing context was found and refreshed.
+    """
+    if lane_id is None:
+        return False
+
+    from specify_cli.workspace.context import load_context
+
+    context_name = _worktree_dir_name(mission_slug, mission_id=None, lane_id=lane_id)
+    existing_ctx = load_context(repo_root, context_name)
+    if existing_ctx is None:
+        return False
+    existing_ctx.wp_id = wp_id
+    existing_ctx.current_wp = wp_id
+    existing_ctx.dependencies = declared_deps
+    save_context(repo_root, existing_ctx)
+    return True
+
+
 def create_lane_workspace(
     repo_root: Path,
     mission_slug: str,
@@ -113,9 +160,7 @@ def create_lane_workspace(
     # "commits beyond base", which read as reuse — skipping the ``base_commit``
     # provenance write below and defeating ``for_review_gate``'s recorded-
     # honored-base lookup on exactly the divergent-``--base`` lane it exists for.
-    predicted_path, predicted_branch = predict_lane_worktree(
-        repo_root, mission_slug, lane_id
-    )
+    predicted_path, predicted_branch = predict_lane_worktree(repo_root, mission_slug, lane_id)
     is_reuse = predicted_path.exists() or branch_exists(repo_root, predicted_branch)
 
     workspace_path, branch_name = allocate_lane_worktree(
@@ -141,29 +186,13 @@ def create_lane_workspace(
     # actually created). No-regression pin: a default no-``--base`` coord
     # lane still records ``coordination_branch`` exactly as before.
     coordination_branch = _read_coordination_branch(repo_root, mission_slug)
-    honored_base = (
-        base
-        if base is not None
-        else (
-            coordination_branch
-            if coordination_branch is not None
-            else lanes_manifest.mission_branch
-        )
-    )
-
-    from specify_cli.workspace.context import load_context
+    honored_base = base if base is not None else (coordination_branch if coordination_branch is not None else lanes_manifest.mission_branch)
 
     base_branch = honored_base
 
     if is_reuse:
-        # Reuse — refresh context to reflect the new active WP.
-        context_name = _worktree_dir_name(mission_slug, mission_id=None, lane_id=lane_id)
-        existing_ctx = load_context(repo_root, context_name)
-        if existing_ctx is not None:
-            existing_ctx.wp_id = wp_id
-            existing_ctx.current_wp = wp_id
-            existing_ctx.dependencies = declared_deps
-            save_context(repo_root, existing_ctx)
+        # Reuse — refresh context to reflect the new active WP (#3946).
+        refresh_reused_lane_context(repo_root, mission_slug, lane_id, wp_id, declared_deps)
     else:
         # Fresh creation — update frontmatter and create context.
         base_commit_sha = _rev_parse(repo_root, base_branch)
@@ -183,9 +212,7 @@ def create_lane_workspace(
         # FR-006: persist the lane-specific test-DB env so consumers
         # (agents, test runners) do not have to re-derive it. Empty for
         # planning-artifact workspaces; non-empty for code lanes.
-        persisted_lane_test_env = (
-            lane_test_env(mission_slug, lane_id) if lane_id is not None else {}
-        )
+        persisted_lane_test_env = lane_test_env(mission_slug, lane_id) if lane_id is not None else {}
 
         context = WorkspaceContext(
             wp_id=wp_id,
@@ -248,13 +275,13 @@ def _planning_dir(main_repo_root: Path, mission_slug: str) -> Path:
     topology (coord-topology missions carry a SEPARATE status/coord dir that
     does NOT hold ``lanes.json``, #2118).
     """
-    return placement_seam(main_repo_root, mission_slug).read_dir(
-        MissionArtifactKind.WORK_PACKAGE_TASK
-    )
+    return placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
 
 
 def reenter_lane_self_heal(
-    main_repo_root: Path, mission_slug: str, wp_id: str,
+    main_repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
 ) -> Path | None:
     """Idempotent self-heal re-entry for a stale lane workspace (FR-005/#3281/C-006).
 
@@ -306,9 +333,7 @@ def reenter_lane_self_heal(
         return None
     workspace_path: Path
     if is_planning_lane(lane):
-        workspace_path = create_planning_workspace(
-            mission_slug, wp_id, list(lane.write_scope), main_repo_root
-        )
+        workspace_path = create_planning_workspace(mission_slug, wp_id, list(lane.write_scope), main_repo_root)
         status_dir = placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
         if check_claim_ancestry(main_repo_root, mission_slug, status_dir, wp_id, workspace_path).ok:
             return workspace_path
@@ -324,9 +349,7 @@ def reenter_lane_self_heal(
         workspace_path, _branch = predict_lane_worktree(main_repo_root, mission_slug, lane.lane_id)
     if not workspace_path.exists():
         return None
-    _merge_recorded_planning_commit(
-        main_repo_root, workspace_path, lane.lane_id, manifest.planning_commit_sha
-    )
+    _merge_recorded_planning_commit(main_repo_root, workspace_path, lane.lane_id, manifest.planning_commit_sha)
     _merge_dependency_lane_tips(main_repo_root, workspace_path, mission_slug, lane, manifest)
     return workspace_path
 
@@ -384,10 +407,7 @@ def _dependency_lane_status(mission_dir: Path) -> dict[str, str]:
     if not events:
         return {}
     snapshot = reduce(events)
-    return {
-        wp_id: str(state.get("lane", Lane.PLANNED))
-        for wp_id, state in snapshot.work_packages.items()
-    }
+    return {wp_id: str(state.get("lane", Lane.PLANNED)) for wp_id, state in snapshot.work_packages.items()}
 
 
 def _approved_dependency_lane_refs(
@@ -423,10 +443,7 @@ def _approved_dependency_lane_refs(
         dep_lane = by_id.get(dep_id)
         if dep_lane is None or not dep_lane.wp_ids:
             continue
-        all_approved = all(
-            dependency_lanes.get(wp_id) in (Lane.APPROVED, Lane.DONE)
-            for wp_id in dep_lane.wp_ids
-        )
+        all_approved = all(dependency_lanes.get(wp_id) in (Lane.APPROVED, Lane.DONE) for wp_id in dep_lane.wp_ids)
         if not all_approved:
             continue
         branch = lane_branch_name(mission_slug, dep_id)
@@ -477,13 +494,9 @@ def check_claim_ancestry(
         return AncestryCheckResult(ok=True)
 
     missing: list[str] = []
-    if manifest.planning_commit_sha and not _is_git_ancestor(
-        workspace_path, manifest.planning_commit_sha, head
-    ):
+    if manifest.planning_commit_sha and not _is_git_ancestor(workspace_path, manifest.planning_commit_sha, head):
         missing.append(f"recorded planning commit {manifest.planning_commit_sha}")
-    for dep_id, branch in _approved_dependency_lane_refs(
-        main_repo_root, mission_slug, mission_dir, lane, manifest
-    ):
+    for dep_id, branch in _approved_dependency_lane_refs(main_repo_root, mission_slug, mission_dir, lane, manifest):
         if not _is_git_ancestor(workspace_path, branch, head):
             missing.append(f"approved dependency lane {dep_id} ({branch})")
 
