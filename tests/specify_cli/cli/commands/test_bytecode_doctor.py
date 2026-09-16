@@ -13,6 +13,7 @@ import importlib
 import importlib.util
 import json
 import marshal
+import os
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -23,6 +24,7 @@ from typer.testing import CliRunner
 
 import specify_cli.cli.commands.doctor as doctor_module
 from specify_cli.cli.commands import _bytecode_doctor
+from tests._support.eacces import mode_bits_enforced
 
 pytestmark = [pytest.mark.fast]
 
@@ -112,13 +114,15 @@ def test_register_is_idempotent_safe_to_call_directly() -> None:
 
 class TestScanBytecodeCache:
     def test_valid_cache_yields_no_findings(self, fake_pkg: Path) -> None:
-        findings = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
-        assert findings == []
+        result = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
+        assert result.findings == []
+        assert result.unreadable_count == 0
 
     def test_truncated_body_is_a_finding(self, fake_pkg: Path) -> None:
         _corrupt_truncated_body(_init_pyc(fake_pkg))
 
-        findings = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
+        result = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
+        findings = result.findings
 
         assert len(findings) == 1
         assert findings[0].pyc_path.endswith(".pyc")
@@ -127,7 +131,8 @@ class TestScanBytecodeCache:
     def test_non_code_body_is_a_finding(self, fake_pkg: Path) -> None:
         _corrupt_non_code_body(_init_pyc(fake_pkg))
 
-        findings = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
+        result = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
+        findings = result.findings
 
         assert len(findings) == 1
         assert "non-code object" in findings[0].reason
@@ -136,13 +141,35 @@ class TestScanBytecodeCache:
         """Python's own loader already recompiles a bad-magic cache -- never a finding."""
         _corrupt_magic(_init_pyc(fake_pkg))
 
-        findings = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
+        result = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
 
-        assert findings == []
+        assert result.findings == []
 
     def test_missing_root_yields_no_findings(self, tmp_path: Path) -> None:
-        findings = _bytecode_doctor._scan_bytecode_cache(tmp_path / "does-not-exist")
-        assert findings == []
+        result = _bytecode_doctor._scan_bytecode_cache(tmp_path / "does-not-exist")
+        assert result.findings == []
+        assert result.unreadable_count == 0
+
+    def test_unreadable_pyc_is_skipped_not_flagged_but_counted(self, fake_pkg: Path) -> None:
+        """An unreadable cache is never a finding -- its body was never inspected --
+
+        but must not silently make an audit that skipped part of the cache report
+        "clean" as if it had checked everything (#4130 fold: fail-closed honesty).
+        """
+        pyc = _init_pyc(fake_pkg)
+        os.chmod(pyc, 0o000)
+        try:
+            if not mode_bits_enforced(pyc):
+                pytest.skip(
+                    "SKIPPED HONESTLY, not passed: this process can read a 0o000 "
+                    "file (running as root, or a filesystem that ignores mode "
+                    "bits), so the unreadable branch cannot be constructed here."
+                )
+            result = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
+            assert result.findings == []
+            assert result.unreadable_count == 1
+        finally:
+            os.chmod(pyc, 0o644)
 
 
 # ---------------------------------------------------------------------------
@@ -182,9 +209,66 @@ class TestDoctorBytecodeCli:
         assert payload["findings"][0]["path"].endswith(".pyc")
 
     def test_unresolvable_root_errors(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Root resolution failure is an operational error (exit 2), distinct from
+
+        exit 1 ("finding present") -- the audit itself could not run at all.
+        """
         monkeypatch.setattr(_bytecode_doctor, "package_root", lambda: None)
 
         result = runner.invoke(doctor_module.app, ["bytecode"])
 
-        assert result.exit_code == 1
+        assert result.exit_code == 2
         assert "could not resolve" in result.output.lower()
+
+    def test_unresolvable_root_json_output_is_parseable_and_exits_2(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """``--json`` must stay valid JSON even on the operational-error path."""
+        monkeypatch.setattr(_bytecode_doctor, "package_root", lambda: None)
+
+        result = runner.invoke(doctor_module.app, ["bytecode", "--json"])
+
+        assert result.exit_code == 2
+        payload = json.loads(result.output)
+        assert payload["root"] is None
+        assert payload["findings"] == []
+        assert payload["finding_count"] == 0
+        assert "error" in payload
+
+    def test_json_output_surfaces_unreadable_count(self, fake_pkg: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        pyc = _init_pyc(fake_pkg)
+        os.chmod(pyc, 0o000)
+        try:
+            if not mode_bits_enforced(pyc):
+                pytest.skip(
+                    "SKIPPED HONESTLY, not passed: this process can read a 0o000 "
+                    "file (running as root, or a filesystem that ignores mode "
+                    "bits), so the unreadable branch cannot be constructed here."
+                )
+            monkeypatch.setattr(_bytecode_doctor, "package_root", lambda: fake_pkg)
+
+            result = runner.invoke(doctor_module.app, ["bytecode", "--json"])
+
+            assert result.exit_code == 0  # unreadable is not itself a finding
+            payload = json.loads(result.output)
+            assert payload["unreadable_count"] == 1
+        finally:
+            os.chmod(pyc, 0o644)
+
+    def test_human_output_surfaces_unreadable_count(self, fake_pkg: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        pyc = _init_pyc(fake_pkg)
+        os.chmod(pyc, 0o000)
+        try:
+            if not mode_bits_enforced(pyc):
+                pytest.skip(
+                    "SKIPPED HONESTLY, not passed: this process can read a 0o000 "
+                    "file (running as root, or a filesystem that ignores mode "
+                    "bits), so the unreadable branch cannot be constructed here."
+                )
+            monkeypatch.setattr(_bytecode_doctor, "package_root", lambda: fake_pkg)
+
+            result = runner.invoke(doctor_module.app, ["bytecode"])
+
+            assert result.exit_code == 0
+            assert "1" in result.output
+            assert "unreadable" in result.output.lower()
+        finally:
+            os.chmod(pyc, 0o644)

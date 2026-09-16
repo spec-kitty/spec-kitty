@@ -63,6 +63,21 @@ class _BytecodeFinding:
     reason: str
 
 
+@dataclass(frozen=True)
+class _ScanResult:
+    """Outcome of a bytecode-cache scan: findings plus what could not be scanned.
+
+    ``unreadable_count`` tracks ``.pyc`` files the scan could not even read
+    (permission errors, races with a concurrent purge). An unreadable file is
+    never itself a finding -- its body was never inspected -- but dropping it
+    silently would let the audit report "clean" when part of the cache was
+    never actually checked. Surfacing the count keeps "clean" honest.
+    """
+
+    findings: list[_BytecodeFinding]
+    unreadable_count: int
+
+
 def _cache_header_is_trusted(source_path: Path, header: bytes) -> bool:
     """True when Python's own import machinery would use this cache without recompiling.
 
@@ -116,21 +131,28 @@ def _corrupt_body_reason(body: bytes) -> str | None:
     return None
 
 
-def _scan_bytecode_cache(root: Path) -> list[_BytecodeFinding]:
+def _scan_bytecode_cache(root: Path) -> _ScanResult:
     """Read-only scan of every ``*.pyc`` under *root*.
 
     Flags only a cache file whose header Python's import machinery would
     trust (so it would be used as-is, no recompile) but whose body fails to
     unmarshal into a code object -- the truncated-write shape from #4124.
     Never deletes or mutates anything.
+
+    A ``.pyc`` this scan cannot even read (``OSError``) is never treated as a
+    finding -- it was never inspected -- but is tallied in
+    ``_ScanResult.unreadable_count`` so the caller can report it instead of
+    silently narrowing what "clean" means.
     """
     findings: list[_BytecodeFinding] = []
+    unreadable_count = 0
     if not root.is_dir():
-        return findings
+        return _ScanResult(findings, unreadable_count)
     for pyc_path in sorted(root.rglob("*.pyc")):
         try:
             data = pyc_path.read_bytes()
         except OSError:
+            unreadable_count += 1
             continue
         try:
             source_path = Path(importlib.util.source_from_cache(str(pyc_path)))
@@ -141,40 +163,66 @@ def _scan_bytecode_cache(root: Path) -> list[_BytecodeFinding]:
         reason = _corrupt_body_reason(data[_PYC_HEADER_SIZE:])
         if reason is not None:
             findings.append(_BytecodeFinding(str(pyc_path.relative_to(root)), reason))
-    return findings
+    return _ScanResult(findings, unreadable_count)
+
+
+def _emit_unresolvable_root_error(*, json_output: bool) -> None:
+    """Report the operational error when the installed package root cannot be resolved."""
+    message = "could not resolve the installed specify_cli package root"
+    if json_output:
+        payload = {
+            "error": message,
+            "root": None,
+            "findings": [],
+            "finding_count": 0,
+            "unreadable_count": 0,
+        }
+        console.print_json(json.dumps(payload, indent=2))
+    else:
+        console.print(f"[red]Error:[/red] {message}")
 
 
 def run_bytecode_audit(*, json_output: bool) -> None:
     """Entry point for ``doctor bytecode``.
 
     Advisory (matches ``doctor provenance``'s informational shape): exits 1
-    when a finding is present so CI can gate on it if desired, but this
-    command never mutates anything.
+    when a finding is present so CI can gate on it if desired, and 2 when the
+    audit itself could not run (an operational/config error -- the installed
+    package root could not be resolved). This command never mutates
+    anything.
     """
     root = package_root()
     if root is None:
-        console.print("[red]Error:[/red] could not resolve the installed specify_cli package root")
-        raise typer.Exit(1)
+        _emit_unresolvable_root_error(json_output=json_output)
+        raise typer.Exit(2)
 
-    findings = _scan_bytecode_cache(root)
+    scan_result = _scan_bytecode_cache(root)
+    findings = scan_result.findings
+    unreadable_count = scan_result.unreadable_count
 
     if json_output:
         payload = {
             "root": str(root),
             "findings": [{"path": f.pyc_path, "reason": f.reason} for f in findings],
             "finding_count": len(findings),
+            "unreadable_count": unreadable_count,
             "heal_hint": _HEAL_HINT,
         }
         console.print_json(json.dumps(payload, indent=2))
         raise typer.Exit(1 if findings else 0)
 
     if not findings:
-        console.print("[green]Bytecode cache[/green]: no corrupt .pyc files found under the installed package.")
+        message = "[green]Bytecode cache[/green]: no corrupt .pyc files found under the installed package."
+        if unreadable_count:
+            message += f" ({unreadable_count} file(s) unreadable and skipped from this scan)"
+        console.print(message)
         raise typer.Exit(0)
 
     console.print(f"\n[bold yellow]Corrupt bytecode cache file(s)[/bold yellow] -- {len(findings)} under {root}\n")
     for finding in findings:
         console.print(f"  • [yellow]{finding.pyc_path}[/yellow]: {finding.reason}")
+    if unreadable_count:
+        console.print(f"\n  [dim]Note:[/dim] {unreadable_count} file(s) were unreadable and skipped from this scan.")
     console.print(f"\n  [dim]Fix:[/dim] {_HEAL_HINT}\n")
     raise typer.Exit(1)
 
