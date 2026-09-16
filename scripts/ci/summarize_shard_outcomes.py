@@ -208,13 +208,83 @@ def render_annotation(summary: Summary) -> str:
     return f"::notice title=Module shard outcomes::{summary.headline}"
 
 
+#: Printed when the payload cannot be turned into a job list at all. Matches
+#: the ``|| echo`` fallback the workflow prints when this script exits
+#: non-zero (``.github/workflows/ci-modules.yml``), so a reader sees the same
+#: message regardless of which layer degraded.
+DEGRADED_NOTICE = "::notice title=Module shard outcomes::summary unavailable (reporting only; the run's verdict is unaffected)"
+
+
+def _iter_json_documents(raw: str) -> Iterable[object]:
+    """Decode every whitespace-separated JSON document in ``raw``, in order.
+
+    ``gh api --paginate`` merges pages for a list endpoint, but the jobs
+    endpoint returns an *object* per page (``{"jobs": [...]}``), so pagination
+    concatenates whole objects with no separator: ``{"jobs":[...]}{"jobs":[...
+    ]}``. A single ``json.loads`` call chokes on anything past page one with
+    ``json.JSONDecodeError: Extra data``. Decoding one document at a time
+    with :meth:`json.JSONDecoder.raw_decode` is what actually honours
+    ``--paginate``'s contract for an object endpoint.
+    """
+    decoder = json.JSONDecoder()
+    index = 0
+    length = len(raw)
+    while index < length:
+        if raw[index].isspace():
+            index += 1
+            continue
+        document, index = decoder.raw_decode(raw, index)
+        yield document
+
+
+def _flatten_job_pages(pages: Iterable[object]) -> list[object]:
+    """Chain the ``"jobs"`` list out of one or more page objects."""
+    jobs: list[object] = []
+    for page in pages:
+        if isinstance(page, dict):
+            page_jobs = page.get("jobs", [])
+            if isinstance(page_jobs, list):
+                jobs.extend(page_jobs)
+    return jobs
+
+
+def _is_page_object(item: object) -> bool:
+    return isinstance(item, dict) and "jobs" in item
+
+
 def _load_jobs(raw: str) -> list[object]:
-    """Accept the API envelope (``{"jobs": [...]}``) or a bare list."""
-    payload = json.loads(raw)
+    """Parse every input shape the jobs endpoint can hand this script.
+
+    Accepts, in order of how they arise in practice:
+
+    - a single API envelope, ``{"jobs": [...]}`` (today's single-page shape);
+    - concatenated envelopes from ``gh api --paginate`` on a run with more
+      than one page of jobs, ``{"jobs":[...]}{"jobs":[...]}``, with no
+      separator between them;
+    - a bare list of job dicts, ``[{...}, {...}]`` (existing fixtures rely on
+      this shape);
+    - a list of envelopes, the ``--slurp`` shape, ``[{"jobs": [...]}, ...]``.
+
+    Raises:
+        json.JSONDecodeError: if ``raw`` contains no decodable JSON document
+            at all -- a ``gh`` error string, an HTML error body, a truncated
+            response. The caller degrades gracefully on this rather than
+            letting it propagate.
+    """
+    documents = list(_iter_json_documents(raw))
+    if not documents:
+        return []
+    if len(documents) > 1:
+        # Concatenated pages: each document is itself an envelope.
+        return _flatten_job_pages(documents)
+
+    payload = documents[0]
     if isinstance(payload, dict):
         jobs = payload.get("jobs", [])
         return list(jobs) if isinstance(jobs, list) else []
     if isinstance(payload, list):
+        if payload and all(_is_page_object(item) for item in payload):
+            return _flatten_job_pages(payload)
         return list(payload)
     return []
 
@@ -234,7 +304,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("summarize-shard-outcomes: empty jobs payload; nothing to summarize", file=sys.stderr)
         return 0
 
-    summary = summarize(_load_jobs(raw))
+    try:
+        jobs = _load_jobs(raw)
+    except json.JSONDecodeError:
+        # The stdlib fail-closed property this docstring promises must hold
+        # here too, not only in the workflow's `|| echo` fallback: a `gh`
+        # error string, an HTML 5xx body, or a truncated response must
+        # degrade, never crash a step running under `if: always()`.
+        print(DEGRADED_NOTICE)
+        return 0
+
+    summary = summarize(jobs)
     markdown = render_markdown(summary)
 
     print(render_annotation(summary))

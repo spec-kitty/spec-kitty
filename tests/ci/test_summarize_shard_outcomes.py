@@ -164,3 +164,60 @@ def test_malformed_job_entries_do_not_crash_the_summariser():
 
     assert [outcome.name for outcome in summary.failed] == ["module-tests (unit shard 1/2)"]
     assert len(summary.other) == 2
+
+
+def test_paginated_jobs_are_joined_and_a_page_two_failure_is_still_named(tmp_path, capsys):
+    """`gh api --paginate` on the jobs endpoint concatenates whole objects (#4420 follow-up).
+
+    Unlike a list endpoint, ``--paginate`` does not merge an *object*
+    endpoint's pages -- it writes ``{"jobs":[...]}{"jobs":[...]}`` back to
+    back with no separator. A run with >100 jobs pipes exactly this shape to
+    stdin, and the genuinely failed shard can land on any page.
+    """
+    page_one = {"jobs": [_job(f"module-tests (agent shard {index}/3)", "cancelled") for index in range(1, 4)]}
+    page_two = {
+        "jobs": [
+            _job("module-tests (release shard 1/1)", "failure", "https://example.invalid/release"),
+            *(_job(f"module-tests (charter shard {index}/5)", "cancelled") for index in range(1, 6)),
+        ]
+    }
+    path = tmp_path / "jobs.json"
+    path.write_text(json.dumps(page_one) + json.dumps(page_two), encoding="utf-8")
+
+    assert main(["--jobs-file", str(path)]) == 0
+    output = capsys.readouterr().out
+    assert "module-tests (release shard 1/1)" in output
+    assert "8" in output  # the other 8 jobs across both pages were cancelled, not failed
+
+
+def test_a_list_of_page_objects_from_slurp_is_flattened(tmp_path, capsys):
+    """The ``--slurp`` shape wraps each page's envelope in an outer JSON array."""
+    pages = [
+        {"jobs": [_job("module-tests (unit shard 1/2)", "success")]},
+        {"jobs": [_job("module-tests (release shard 1/1)", "failure")]},
+    ]
+    path = tmp_path / "jobs.json"
+    path.write_text(json.dumps(pages), encoding="utf-8")
+
+    assert main(["--jobs-file", str(path)]) == 0
+    output = capsys.readouterr().out
+    assert "module-tests (release shard 1/1)" in output
+    assert "2 of 2" not in output  # only one job actually failed, not both
+
+
+def test_invalid_json_stdin_degrades_instead_of_crashing(tmp_path, capsys):
+    """A `gh` error string or an HTML 5xx body must never produce a traceback (#4420 follow-up).
+
+    This is the fail-closed property the module docstring promises, enforced
+    inside the script itself rather than relying solely on the workflow's
+    ``|| echo`` fallback.
+    """
+    path = tmp_path / "jobs.json"
+    path.write_text("gh: api error: 502 Bad Gateway\n", encoding="utf-8")
+
+    assert main(["--jobs-file", str(path)]) == 0
+    out, err = capsys.readouterr()
+    assert "Traceback" not in out
+    assert "Traceback" not in err
+    assert "::notice title=Module shard outcomes::" in out
+    assert "unavailable" in out
