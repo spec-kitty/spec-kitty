@@ -2,8 +2,10 @@
 
 WP04 (#676) — Review-cycle counter inventory
 ============================================
-The ``review-cycle-N.md`` artifact and the implicit counter ``N`` (computed
-from ``len(glob("review-cycle-*.md")) + 1``) are mutated by
+The ``review-cycle-N.md`` artifact and the counter ``N`` (allocated by the
+rejection writer as ``max(parsed) + 1`` through
+``ReviewCycleArtifact.next_cycle_number`` — never a count of files present,
+#3243) are mutated by
 ``_persist_review_feedback``, which lives in
 ``src/specify_cli/cli/commands/agent/tasks_materialization.py`` — see that
 function's own docstring for the current behaviour rather than a line-number
@@ -1864,7 +1866,10 @@ def review(
         except ValueError as cycle_err:
             print(
                 "Error: cannot determine the next review-cycle number for "
-                f"{normalized_wp_id}: {cycle_err}"
+                f"{normalized_wp_id}: {cycle_err}\n"
+                f"Note: {normalized_wp_id} is already claimed for review "
+                "(in_review); remove or rename the unparseable sibling file "
+                "named above, then re-run this same review command to resume."
             )
             raise typer.Exit(1)
 

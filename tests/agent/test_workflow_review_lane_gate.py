@@ -811,3 +811,68 @@ def test_review_prompt_includes_mission_review_antipattern_checklist(workflow_re
     assert "Locked decision" in content
     assert "Shared-file ownership" in content
     assert "Production fragility" in content
+
+
+def test_review_prompt_numbers_feedback_path_by_writer_max_plus_one_on_gap(
+    workflow_repo: Path,
+) -> None:
+    """#3243: the advertised feedback path follows the writer's max+1 allocation.
+
+    Drives the real ``review`` command (not the seam in isolation) with a
+    numbering gap on disk — ``review-cycle-1.md`` + ``review-cycle-3.md`` — so
+    the count of artifacts (2) diverges from the max parsed cycle (3). The
+    prompt must advertise ``review-feedback-4.md`` (max+1, the number the
+    rejection writer would allocate), never ``review-feedback-3.md``
+    (len(glob)+1, the pre-#3243 count derivation this test exists to keep
+    retired at the call site).
+    """
+    _wp_path, feature_slug = _setup_review_fixture(workflow_repo)
+    sub_artifact_dir = workflow_repo / "kitty-specs" / feature_slug / "tasks" / "WP01-test"
+    sub_artifact_dir.mkdir(parents=True, exist_ok=True)
+    (sub_artifact_dir / "review-cycle-1.md").write_text("cycle 1\n", encoding="utf-8")
+    (sub_artifact_dir / "review-cycle-3.md").write_text("cycle 3\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        workflow.app,
+        ["review", "WP01", "--mission", feature_slug, "--agent", "test-reviewer"],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    prompt_file = _prompt_path_from_output(result.stdout)
+    content = prompt_file.read_text(encoding="utf-8")
+    advertised = sub_artifact_dir / "review-feedback-4.md"
+    assert f"{advertised}" in content
+    # The count-based derivation (len(glob) + 1 = 3) is exactly the
+    # pre-#3243 off-by-one this PR retires; it must not come back.
+    assert "review-feedback-3.md" not in content
+
+
+def test_review_prompt_fails_closed_on_unparseable_cycle_sibling(
+    workflow_repo: Path,
+) -> None:
+    """#3243: an unparseable review-cycle sibling makes ``review`` exit 1.
+
+    The old count derivation globbed and counted blindly, so
+    ``review-cycle-final.md`` merely inflated the count and the prompt still
+    advertised a path the rejection writer would refuse — the #3430 "printed
+    command not runnable as printed" shape. The prompt must instead fail
+    closed here (typer.Exit(1)) with a repair message naming the sibling and
+    telling the operator the WP is already claimed for review and that
+    re-running the same command resumes it.
+    """
+    _wp_path, feature_slug = _setup_review_fixture(workflow_repo)
+    sub_artifact_dir = workflow_repo / "kitty-specs" / feature_slug / "tasks" / "WP01-test"
+    sub_artifact_dir.mkdir(parents=True, exist_ok=True)
+    (sub_artifact_dir / "review-cycle-1.md").write_text("cycle 1\n", encoding="utf-8")
+    (sub_artifact_dir / "review-cycle-final.md").write_text("not parseable\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        workflow.app,
+        ["review", "WP01", "--mission", feature_slug, "--agent", "test-reviewer"],
+    )
+
+    assert result.exit_code == 1, result.stdout
+    assert "Error: cannot determine the next review-cycle number for WP01" in result.stdout
+    assert "review-cycle-final.md" in result.stdout
+    assert "WP01 is already claimed for review" in result.stdout
+    assert "re-run this same review command to resume" in result.stdout
