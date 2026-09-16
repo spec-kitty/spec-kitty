@@ -464,7 +464,15 @@ def test_cross_page_coverage_merges_gaps_and_aggregates_counts(policy, monkeypat
         if since is None:
             return {
                 "frames": [event(1)],
-                "coverage": {**base, "seq": 10, "reset": False, "gap": {"from_seq": 1, "to_seq": 2}, "truncated": True, "withheld_count": 2, "continuation": "e1:1"},
+                "coverage": {
+                    **base,
+                    "seq": 10,
+                    "reset": False,
+                    "gap": {"from_seq": 1, "to_seq": 2},
+                    "truncated": True,
+                    "withheld_count": 2,
+                    "continuation": "e1:1",
+                },
             }
         return {
             "frames": [event(2)],
