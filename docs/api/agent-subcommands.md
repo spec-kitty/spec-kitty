@@ -1914,6 +1914,9 @@ _Test-related commands for AI agents_
    high   — identifier referenced directly inside Assert or assert* call
    medium — identifier appears anywhere in an assertion node
    low    — string literal matches a Constant in an assertion-bearing position
+   info   — message-content check (literal checked against captured
+            diagnostic text); skipped from CI noise, surfaced for manual
+            review (#3957)
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --base          TEXT  Base git ref for the diff [required]                │
