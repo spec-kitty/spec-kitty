@@ -2,7 +2,7 @@
 # Runtime DAG-based Mission Template (v2.1.0)
 # =============================================================================
 #
-# Transitional template alongside the v1 state-machine mission.yaml.
+# Transitional template alongside the mission.yaml configuration.
 # Used by spec-kitty next when bridging to spec-kitty-runtime.
 #
 # The runtime engine uses DAG-based step planning instead of state transitions.

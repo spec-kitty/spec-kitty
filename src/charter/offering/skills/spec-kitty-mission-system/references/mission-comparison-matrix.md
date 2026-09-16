@@ -7,9 +7,9 @@ Side-by-side comparison of the 4 built-in Spec Kitty missions.
 | | software-dev | research | plan | documentation |
 |---|---|---|---|---|
 | **Domain** | software | research | planning | documentation |
-| **Steps** | 9 (DAG) | 6 (state machine) | 4 (linear) | 6 (phases) |
+| **Steps** | 7 (DAG) | 6 (DAG) | 4 (linear) | 7 (DAG; 6 workflow phases) |
 | **Has WP iteration** | Yes (implement, review) | No | No | No |
-| **Has loops** | No | Yes (gather_more) | No | No |
+| **Has loops** | No | No (gathering is iterative; the DAG is linear) | No | No |
 | **Default** | Yes | No | No | No |
 
 ## Required Artifacts
@@ -33,9 +33,10 @@ discovery → specify → plan → tasks → implement → review → accept
 
 ### research
 ```
-scoping → methodology → gathering ⇄ synthesis → output → done
+scoping → methodology → gathering → synthesis → output → accept
 ```
-Note: `gathering ⇄ synthesis` loop allows iterative evidence collection.
+Note: source gathering is iterative — sources are registered as found until
+the evidence base is sufficient for synthesis.
 
 ### plan
 ```
@@ -47,36 +48,35 @@ specify → research → plan → review
 discover → audit → design → generate → validate → publish
 ```
 
-## Guards by Mission
+## Gating by Mission
+
+The mission-DSL v1 guard expressions were retired with the DSL runtime
+(dead-port-disposition-01M1TZVN). Gating now lives on two shared surfaces for
+every mission type: step progression via the `mission-runtime.yaml` DAG
+(`depends_on`), and WP lane transitions via the status model (transition
+matrix, review gates, dependency gating). What differs per mission type is
+the artifact expectation checked at acceptance:
 
 ### software-dev
 
-| Transition | Guard |
-|---|---|
-| specify → plan | `artifact_exists("spec.md")` |
-| plan → implement | `artifact_exists("plan.md")` AND `artifact_exists("tasks.md")` |
-| implement → review | `all_wp_status("approved_or_done")` |
-| review → done | `gate_passed("review_approved")` |
+`spec.md`, `plan.md`, `tasks.md` required; review must be approved before
+acceptance; validation checks `git_clean`, `all_tests_pass`,
+`kanban_complete`, `no_clarification_markers`.
 
 ### research
 
-| Transition | Guard |
-|---|---|
-| scoping → methodology | `artifact_exists("spec.md")` |
-| methodology → gathering | `artifact_exists("plan.md")` |
-| gathering → synthesis | `event_count("source_documented", 3)` |
-| synthesis → output | `artifact_exists("findings.md")` |
-| output → done | `gate_passed("publication_approved")` |
+`spec.md`, `plan.md`, `tasks.md`, `findings.md` required; at least 3 sources
+documented before synthesis; publication approved at acceptance.
 
 ### plan
 
-No guards defined — transitions are manual.
+`goals.md`, `plan.md` required (optional `research.md`); plan approval gates
+acceptance.
 
 ### documentation
 
-No guards in state machine — validation checks run during acceptance:
-`all_divio_types_valid`, `no_conflicting_generators`, `templates_populated`,
-`gap_analysis_complete`.
+Validation checks run during acceptance: `all_divio_types_valid`,
+`no_conflicting_generators`, `templates_populated`, `gap_analysis_complete`.
 
 ## Agent Context
 

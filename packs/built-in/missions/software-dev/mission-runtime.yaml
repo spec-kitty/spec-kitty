@@ -10,7 +10,7 @@
 # Runtime Planning Template (v2.2.0)
 # =============================================================================
 #
-# Transitional planning template alongside the v1 state-machine mission.yaml.
+# Transitional planning template alongside the mission.yaml configuration.
 # Used by spec-kitty next for run-state planning only. The CLI-internal
 # runtime owns DAG planning; the retired spec-kitty-runtime PyPI package is
 # no longer involved. The live action dispatch for

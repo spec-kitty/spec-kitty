@@ -187,15 +187,18 @@ _RETIRED_SURFACE_RE = re.compile(
 
 # Mission dead-port-disposition-01M1TZVN retired the mission-DSL v1 runtime and
 # deleted the ``states:``/``transitions:`` blocks from every shipped
-# ``mission.yaml``. Unlike ``_RETIRED_SURFACE_RE`` above (arbitrary prose,
-# anywhere in a matched surface file), this key is only ever a *top-level*
-# YAML mapping key re-appearing in a ``mission.yaml`` — so the detector is
+# ``mission.yaml``; its DRIFT-1 follow-up (#3961) stripped the remaining
+# compat-ignored blocks (``mission:``/``initial:``/``guards:``/``inputs:``/
+# ``outputs:``) from the shipped catalogs, so the ratchet now covers the whole
+# retired key set. Unlike ``_RETIRED_SURFACE_RE`` above (arbitrary prose,
+# anywhere in a matched surface file), these keys are only ever *top-level*
+# YAML mapping keys re-appearing in a ``mission.yaml`` — so the detector is
 # scoped to that filename and anchored to column 0, and it does not fire on
-# the word appearing in prose or nested/indented YAML. Third-party packs and
+# the words appearing in prose or nested/indented YAML. Third-party packs and
 # project ``.kittify/overrides`` mission.yaml files are intentionally out of
 # scope: MISSION_COMPAT_IGNORED_FIELDS tolerates the keys there by design
 # (src/specify_cli/mission.py); this gate governs only our shipped surface.
-_MISSION_DSL_V1_KEY_RE = re.compile(r"^(states|transitions):")
+_MISSION_DSL_V1_KEY_RE = re.compile(r"^(mission|initial|states|transitions|guards|inputs|outputs):")
 
 
 def _retired_path_violations(root: Path) -> list[str]:
@@ -505,6 +508,8 @@ def test_mission_dsl_v1_guard_rejects_planted_blocks_but_ignores_indented_and_pr
     (other_dir / "notes.md").write_text("states: and transitions: are retired.\n", encoding="utf-8")
     violations = _mission_dsl_v1_violations(tmp_path)
     assert violations == [
+        "packs/mission-x/mission.yaml:1: mission:",
+        "packs/mission-x/mission.yaml:4: initial:",
         "packs/mission-x/mission.yaml:6: states:",
         "packs/mission-x/mission.yaml:9: transitions:",
     ]

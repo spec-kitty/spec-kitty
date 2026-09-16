@@ -76,7 +76,7 @@ Every mission has a `meta.json` that records which mission type it uses:
 }
 ```
 
-The `mission` field determines which templates, guards, and validation rules
+The `mission` field determines which templates and validation rules
 apply. Default is `software-dev` if omitted.
 
 ---
@@ -87,18 +87,17 @@ apply. Default is `software-dev` if omitted.
 
 Full software development lifecycle with work packages and code review.
 
-**Steps:**
+**Steps (runtime DAG):**
 ```
 discovery → specify → plan → tasks → implement → review → accept
 ```
 
 **Required artifacts:** `spec.md`, `plan.md`, `tasks.md`
 
-**Guards:**
-- `specify → plan`: `spec.md` must exist
-- `plan → implement`: `plan.md` and `tasks.md` must exist
-- `implement → review`: all WPs must be `approved` or `done`
-- `review → accept`: review must be approved
+**Gating:** step ordering comes from the `mission-runtime.yaml` DAG
+(`depends_on`); work-package lane transitions are validated by the status
+model, and a WP cannot be claimed past its dependencies until each is
+`approved` or `done`. Review must be approved before acceptance.
 
 **Agent context:** TDD practices, library-first architecture, tests before code.
 
@@ -107,27 +106,22 @@ produces code changes.
 
 ### research
 
-Systematic research with evidence-gated transitions.
+Systematic research with evidence-gated synthesis.
 
-**Steps (state machine):**
+**Steps (runtime DAG):**
 ```
-scoping → methodology → gathering → synthesis → output → done
-                            ↑            │
-                            └── gather_more (loop back)
+scoping → methodology → gathering → synthesis → output → accept
 ```
 
 **Required artifacts:** `spec.md`, `plan.md`, `tasks.md`, `findings.md`
 
-**Guards:**
-- `scoping → methodology`: scope document must exist
-- `methodology → gathering`: methodology plan must exist
-- `gathering → synthesis`: at least 3 sources documented
-- `synthesis → output`: findings document must exist
-- `output → done`: publication approved
+**Gating:** step ordering comes from the `mission-runtime.yaml` DAG
+(`depends_on`). The mission expects at least 3 documented sources before
+synthesis, and publication is approved at acceptance.
 
-**Special:** The `gathering → synthesis → gathering` loop allows iterative
-evidence collection. Source tracking in `source-register.csv`, evidence in
-`evidence-log.csv`.
+**Special:** Source gathering is iterative — sources are registered as they
+are found until the evidence base is sufficient for synthesis. Source tracking
+in `source-register.csv`, evidence in `evidence-log.csv`.
 
 **Use when:** Investigating technologies, conducting literature reviews,
 evaluating options, any work requiring structured evidence gathering.
@@ -199,12 +193,14 @@ steps:
 
 This is what `spec-kitty next` uses to determine step ordering.
 
-### mission.yaml (Configuration + State Machine)
+### mission.yaml (Configuration)
 
-Contains both v0 configuration (artifacts, validation, agent context) and
-v1 state machine definitions (states, transitions, guards):
+Mission configuration: workflow phases, expected artifacts, commands, agent
+context, and validation rules. (The former v1 state-machine blocks —
+`initial`, `states`, `transitions`, `guards`, `inputs`, `outputs` — were
+retired with the mission-DSL v1 runtime in dead-port-disposition-01M1TZVN;
+step sequencing is authored in `mission-runtime.yaml` instead.)
 
-**v0 fields (configuration):**
 ```yaml
 name: "Software Dev Kitty"
 domain: "software"
@@ -223,28 +219,6 @@ mcp_tools:
   recommended: [code-search, test-runner]
 validation:
   checks: [git_clean, all_tests_pass, kanban_complete]
-```
-
-**v1 fields (state machine):**
-```yaml
-initial: discovery
-states:
-  - name: discovery
-  - name: specify
-  - name: plan
-  - name: implement
-  - name: review
-  - name: done
-transitions:
-  - trigger: advance
-    source: specify
-    dest: plan
-    conditions:
-      - 'artifact_exists("spec.md")'
-guards:
-  has_spec:
-    description: "Specification document must exist"
-    check: 'artifact_exists("spec.md")'
 ```
 
 ### mission-steps/ (Agent Prompts)
@@ -382,21 +356,21 @@ seeing review-scoped doctrine during implementation and vice versa.
 
 ---
 
-## 6 Guard Primitives
+## Gating (post-retirement)
 
-Guards block step transitions until conditions are met:
+The mission-DSL v1 guard expressions (`artifact_exists(...)`,
+`gate_passed(...)`, `all_wp_status(...)`, `any_wp_status(...)`,
+`input_provided(...)`, `event_count(...)`) were retired with the DSL runtime
+(dead-port-disposition-01M1TZVN). Gating now lives on two surfaces:
 
-| Guard | Syntax | What it checks |
-|---|---|---|
-| `artifact_exists` | `artifact_exists("spec.md")` | File exists in mission dir |
-| `gate_passed` | `gate_passed("review_approved")` | Event exists in mission event log |
-| `all_wp_status` | `all_wp_status("approved_or_done")` | Every WP is in the specified lane, or in any lane in a named accepted-ready set |
-| `any_wp_status` | `any_wp_status("for_review")` | At least one WP is in the lane |
-| `input_provided` | `input_provided("architecture")` | Input was provided to runtime |
-| `event_count` | `event_count("source_documented", 3)` | Minimum event count in log |
+- **Step progression** — the `mission-runtime.yaml` DAG: a step runs only
+  after every step in its `depends_on` list has completed.
+- **WP lane transitions** — the status model (append-only event log): the
+  9-lane transition matrix, review gates, and dependency gating (a WP with
+  `dependencies` cannot be claimed until each is `approved` or `done`).
 
-Guards are composed as `conditions` lists on transitions. All conditions in the
-list must pass for the transition to fire.
+Artifact expectations are declared as `artifacts.required` in `mission.yaml`
+and checked by the mission's `validation.checks` at acceptance.
 
 ---
 
@@ -446,9 +420,9 @@ cat kitty-specs/<mission-slug>/meta.json | jq .mission
 
 ---
 
-## The Two State Machines
+## The Two State Surfaces
 
-Missions involve two orthogonal state machines:
+Missions track two orthogonal state surfaces:
 
 **Mission-type state** — which phase of the workflow are we in?
 ```

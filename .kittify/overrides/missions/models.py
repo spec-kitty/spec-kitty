@@ -5,46 +5,17 @@ truth for ``mission.schema.yaml``.  The model mirrors the hand-written schema
 exactly; it is **not** the runtime domain model used by
 ``MissionTemplateRepository`` (which operates on raw dicts).
 
-Key design note: the ``states`` array uses a discriminated union—each item
-is either a bare string (state id) or a ``MissionStateObject`` with an
-explicit ``id`` and optional ``agent_profile``.  JSON Schema represents this
-via ``oneOf``; Pydantic via ``str | MissionStateObject``.
+The former ``orchestration`` state machine (``MissionOrchestration`` /
+``MissionStateObject`` / ``MissionTransition``) was retired in mission
+dead-port-disposition-01M1TZVN: it was a REQUIRED field that no artefact in
+the tree ever supplied, whose only name-level producer match was the
+mission-DSL v1 blocks that the same mission deleted. Step sequencing is
+authored in ``mission-runtime.yaml`` (a DAG of ``depends_on`` edges) instead.
 """
 
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
-
-
-class MissionStateObject(BaseModel):
-    """Expanded state with optional agent-profile binding."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
-
-    id: str
-    agent_profile: str | None = Field(default=None, alias="agent-profile", pattern=r"^[a-z][a-z0-9-]*$")
-
-
-class MissionTransition(BaseModel):
-    """A state transition."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
-
-    from_state: str = Field(alias="from")
-    to: str
-    on: str | None = None
-    agent_profile: str | None = Field(default=None, alias="agent-profile", pattern=r"^[a-z][a-z0-9-]*$")
-
-
-class MissionOrchestration(BaseModel):
-    """State-machine definition for the mission."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    states: list[str | MissionStateObject] = Field(min_length=1)
-    transitions: list[MissionTransition] = Field(min_length=1)
-    guards: list[str] = Field(default_factory=list)
-    required_artifacts: list[str] = Field(min_length=1)
 
 
 class MissionStep(BaseModel):
@@ -75,5 +46,4 @@ class Mission(BaseModel):
     name: str
     description: str | None = None
     tags: list[str] = Field(default_factory=list)
-    orchestration: MissionOrchestration
     steps: list[MissionStep] = Field(default_factory=list)

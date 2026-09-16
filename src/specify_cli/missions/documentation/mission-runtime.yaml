@@ -2,7 +2,7 @@
 # Runtime Planning Template (v2.0.0) — documentation mission
 # =============================================================================
 #
-# Sidecar planning template alongside the legacy state-machine mission.yaml.
+# Sidecar planning template alongside the mission.yaml configuration.
 # Used by spec-kitty next for run-state planning. The CLI-internal runtime
 # owns DAG planning. Live action dispatch for discover/audit/design/generate/
 # validate/publish is handled by StepContractExecutor composition in

@@ -296,14 +296,19 @@ class TestPlanMissionRegressions:
 
         # Load and parse
         data = yaml.safe_load(r_mission.read_text())
-        assert "mission" in data, "research must have 'mission' key at top level"
 
-        # The legacy `states:`/`transitions:` blocks were removed from the
-        # built-in mission catalogs (mission dead-port-disposition-01M1TZVN); the
-        # research catalog is still intact and isolated, verified via its stable
-        # content rather than the retired state machine.
-        assert "states" not in data, "research states/transitions blocks are retired (dead-port-disposition)"
-        assert data["mission"].get("name"), "research must declare a mission name"
+        # The mission-DSL v1 blocks were removed from the built-in mission
+        # catalogs (mission dead-port-disposition-01M1TZVN removed the
+        # `states:`/`transitions:` blocks; its DRIFT-1 follow-up #3961 removed
+        # the remaining `mission:`/`initial:`/`guards:`/`inputs:`/`outputs:`
+        # residue). The research catalog now ships configuration only and is
+        # verified via its stable content rather than the retired state machine.
+        retired_dsl_keys = {"mission", "initial", "states", "transitions", "guards", "inputs", "outputs"}
+        assert not (retired_dsl_keys & set(data)), (
+            f"research mission.yaml must not carry retired mission-DSL v1 keys: "
+            f"{sorted(retired_dsl_keys & set(data))}"
+        )
+        assert data.get("name"), "research must declare a mission name"
         assert data.get("commands"), "research must declare its commands"
 
         # Verify templates directory exists for research
