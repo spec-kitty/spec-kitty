@@ -1204,6 +1204,26 @@ def _mt_pre_review_block_enabled(main_repo_root: Path) -> bool:
     return bool(_mt_review_config_section(main_repo_root).get(_PRE_REVIEW_CONFIG_KEY_BLOCK, False))
 
 
+def _mt_pre_review_gate_declared(scope_source_root: Path) -> bool:
+    """#3821: has this repo declared a pre-review gate command to run?
+
+    Reads the SAME ``review:`` config section (``review.test_command``) the
+    activation-selected ``ScopeSource`` reads — a repo that has configured a
+    command has declared the gate and it fires normally; a repo that has not
+    (the ``spec-kitty init`` consumer default) has not declared it, so the
+    built-in ``software-dev`` review contract's gate binding must not run
+    there. #2598 closed #2534 on the premise that "a consumer repo that has
+    not declared it" never activates the binding — but the binding ships
+    built-in on that very contract, so every consumer repo activates it
+    (#3821); the repo's own config is the one signal the join cannot fake.
+
+    A configured-but-malformed command still counts as declared: dispatch then
+    surfaces the engine's visible ``no test command configured`` warn, which a
+    broken declaration deserves (never a quiet skip).
+    """
+    return bool(_mt_review_config_section(scope_source_root).get(_PRE_REVIEW_CONFIG_KEY_TEST_COMMAND_REPLACEMENT))
+
+
 def _mt_pre_review_gate_env_disable_reason() -> str | None:
     """#3980: the gate's own opt-out env, or ``None`` if not set.
 
@@ -1377,6 +1397,39 @@ def _mt_empty_scope_verdict(reason: str, *, excluded_scope_files: tuple[str, ...
     )
 
 
+#: #3821: the calm, consumer-facing reason recorded when a bound gate does not
+#: fire because the repo has not declared one. Deliberately names NO internal
+#: concept (no ``ScopeSource``, no authorities module) — an operator in a
+#: ``spec-kitty init`` consumer repo has never heard of those, and the absence
+#: is expected, not a defect. Distinct from the escape hatch's visible yellow
+#: ``SKIPPED`` line (#2573): an explicit opt-out is surfaced, an undeclared
+#: repo's default is recorded in transition metadata only.
+_PRE_REVIEW_GATE_NOT_DECLARED_REASON = (
+    "pre-review regression gate not declared by this repo — skipped (non-blocking; configure review.test_command in .kittify/config.yaml to declare one)"
+)
+
+
+def _mt_not_declared_skip_verdict() -> pre_review_gate.GateVerdict:
+    """The quiet ``SKIPPED`` verdict for a repo that has not declared the gate (#3821).
+
+    Deliberately NOT a ``NO_COVERAGE`` warn: an undeclared repo has no coverage
+    gap to surface — nothing was declared to verify against — so #2598's
+    acceptance criterion ("the pre-review gate does not fire/leak in a consumer
+    repo that has not declared it") makes this a metadata-only skip.
+    """
+    return pre_review_gate.GateVerdict(
+        outcome=pre_review_gate.GateOutcome.SKIPPED,
+        scope=pre_review_gate.ScopeResult(
+            test_targets=(),
+            matched_shard_groups=(),
+            matched_composite_dirs=(),
+            empty_cone_composite_dirs=(),
+            excluded_scope_files=(),
+        ),
+        reason=_PRE_REVIEW_GATE_NOT_DECLARED_REASON,
+    )
+
+
 def _mt_cancelled_verdict() -> pre_review_gate.GateVerdict:
     """The terminal ``CANCELLED`` verdict a ``KeyboardInterrupt`` degrades to (T041/C-003).
 
@@ -1457,14 +1510,20 @@ _PRE_REVIEW_BLOCK_UNENFORCEABLE_HINT = (
 )
 
 
-def _mt_pre_review_gate_console_warning(verdict: pre_review_gate.GateVerdict, *, block_enabled: bool) -> str:
-    """Human-readable (non-JSON) console line surfacing the verdict.
+def _mt_pre_review_gate_console_warning(verdict: pre_review_gate.GateVerdict, *, block_enabled: bool) -> str | None:
+    """Human-readable (non-JSON) console line surfacing the verdict, or ``None``
+    when the verdict renders no line at all.
 
     ``block_enabled`` does not change the warn-vs-block semantics here (the
     transition still proceeds — you cannot block on data that doesn't
     exist) — it only decides whether the ``NO_COVERAGE``/``UNVERIFIED_BASELINE``
     line escalates from a routine dim advisory to an explicit block-inert
     warning naming the ``review.test_command`` prerequisite.
+
+    ``SKIPPED`` (#3821) renders NO line by default — the gate "does not
+    fire/leak" in a repo that never declared it — with the one exception of
+    ``block_enabled``: an operator who opted into the block deserves to hear
+    it cannot engage, exactly like the other can't-enforce outcomes.
     """
     outcome = verdict.outcome
     if outcome is pre_review_gate.GateOutcome.NEW_FAILURES:
@@ -1478,6 +1537,12 @@ def _mt_pre_review_gate_console_warning(verdict: pre_review_gate.GateVerdict, *,
                 f"[yellow]Pre-review regression gate:[/yellow] {_PRE_REVIEW_BLOCK_UNENFORCEABLE_HINT} (outcome={outcome.value}: {verdict.reason or 'unverified'})"
             )
         return f"[dim]Pre-review regression gate: {outcome.value} — {verdict.reason or 'unverified'}[/dim]"
+    if outcome is pre_review_gate.GateOutcome.SKIPPED:
+        if block_enabled:
+            return (
+                f"[yellow]Pre-review regression gate:[/yellow] {_PRE_REVIEW_BLOCK_UNENFORCEABLE_HINT} (outcome={outcome.value}: {verdict.reason or 'gate skipped'})"
+            )
+        return None
     if outcome is pre_review_gate.GateOutcome.SOURCE_MISMATCH:
         # FR-009/FR-011 (mission scopesource-gate-followup-01KY6S9P WP04):
         # warn-shaped, fail-open by construction (absent from
@@ -1554,7 +1619,8 @@ class _TransitionGateEffect:
     """The observable surface the aggregate decision maps onto (hook performs it).
 
     ``metadata`` is the ``policy_metadata`` payload; ``console_lines`` are the
-    per-handler warn lines (≤1 per handler, NFR-002); ``representative`` is the
+    per-handler warn lines (≤1 per handler, NFR-002 — a ``SKIPPED`` verdict
+    renders none, #3821); ``representative`` is the
     single verdict the metadata/block message render from; ``blocked`` /
     ``terminal`` / ``should_exit`` drive the two hard-stops (T041).
     """
@@ -1792,7 +1858,11 @@ def _mt_collect_transition_gate_verdicts(
     warn WITHOUT loading the activation graph (bounded cost, NFR-005). A
     resolution with no active binding (no contract / no binding / not activated)
     returns the resolver's **distinguishable** ``NO_COVERAGE`` reason
-    (FR-008/012), never a silent vanish.
+    (FR-008/012), never a silent vanish. A resolution WITH active bindings but
+    no declared gate command (``review.test_command`` unset and no override
+    above) returns one quiet ``SKIPPED`` verdict instead of dispatching (#3821):
+    the built-in binding ships with the ``software-dev`` review contract, so
+    binding resolution alone cannot tell a declared gate from an undeclared one.
     """
     wp = getattr(st, "wp", None)
     status_observer = None if st.json_output else _mt_human_gate_status_observer(_tasks)
@@ -1816,6 +1886,11 @@ def _mt_collect_transition_gate_verdicts(
     resolution = _mt_resolve_active_gate_bindings(st)
     if not resolution.active:
         return [_mt_empty_scope_verdict(resolution.reason)]
+    if not _mt_pre_review_gate_declared(inputs.scope_source_root):
+        # #3821: the binding resolved ACTIVE (it ships built-in with the
+        # ``software-dev`` review contract), but this repo has declared no
+        # command for any handler to run — the gate does not fire here.
+        return [_mt_not_declared_skip_verdict()]
     if not st.json_output:
         _tasks.console.print(_PRE_REVIEW_GATE_RUNNING_NOTICE)
     ctx = _mt_build_transition_gate_context(st, inputs, status_observer=status_observer)
@@ -1923,9 +1998,18 @@ def _mt_translate_gate_verdicts(
     )
     if terminal:
         metadata["transition_applied"] = False
-    console_lines = tuple(_mt_pre_review_gate_console_warning(verdict, block_enabled=block_enabled) for verdict in aggregate.warnings) or (
-        _mt_pre_review_gate_console_warning(representative, block_enabled=block_enabled),
-    )
+    # #3821: a ``SKIPPED`` verdict renders NO console line, so the per-verdict
+    # lines are filtered for ``None`` (the renderer's quiet-skip signal). The
+    # incumbent's representative fallback only ever fired for an EMPTY
+    # ``warnings`` sequence (every verdict rendered a line before #3821), so it
+    # is preserved for exactly that case — an all-``SKIPPED`` set renders zero
+    # lines, never a fallback line.
+    rendered_warnings = tuple(_mt_pre_review_gate_console_warning(verdict, block_enabled=block_enabled) for verdict in aggregate.warnings)
+    if rendered_warnings:
+        console_lines = tuple(line for line in rendered_warnings if line is not None)
+    else:
+        representative_line = _mt_pre_review_gate_console_warning(representative, block_enabled=block_enabled)
+        console_lines = () if representative_line is None else (representative_line,)
     return _TransitionGateEffect(
         metadata=metadata,
         console_lines=console_lines,

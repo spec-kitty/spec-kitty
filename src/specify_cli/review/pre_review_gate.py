@@ -549,6 +549,14 @@ class GateOutcome(StrEnum):
     SOURCE_MISMATCH = "source_mismatch"  # FR-009/FR-011: baseline/head ScopeSource identity differs -> warn
     TIMED_OUT = "timed_out"
     CANCELLED = "cancelled"
+    # #3821: the gate did not run because the repo has not declared a gate to
+    # run (no ``review.test_command`` configured, no override scope pinned).
+    # Deliberately NOT a ``NO_COVERAGE`` warn: there is no coverage gap to
+    # surface on a gate this repo never declared — #2598's acceptance
+    # criterion ("does not fire/leak in a consumer repo that has not declared
+    # it") makes this a quiet skip, recorded in transition metadata, never a
+    # console warn.
+    SKIPPED = "skipped"
     SCOPE_OVERSIZED = "scope_oversized"
 
 
