@@ -1943,7 +1943,6 @@ exclude = [
     "tests/post_merge/test_stale_assertions_message.py",
     "tests/post_merge/test_stale_assertions_precision.py",
     "tests/prompts/test_prompt_fragment_rendering.py",
-    "tests/prompts/test_tasks_prompt_ownership_metadata.py",
     "tests/proof/test_event_schemas.py",
     "tests/readiness/test_auth_coordinator_matrix.py",
     "tests/readiness/test_auth_renderer.py",
