@@ -411,6 +411,9 @@ As a contributor, two things follow:
   and `taken-by-human` while beginning it, then commenting
   `claimed by <harness>/<model> on <machine>`; never add a bare claim when nobody is actively
   working the issue, because the dispatcher treats the label as occupied capacity.
+  `taken-by-human` is the load-bearing half of that pair: it is the only label that keeps the
+  fleet's PR-routed fix and recovery lanes off your PR (they read the PR's own labels, never the
+  linked issue's `status:claimed`), so a claim without it can still collide with a fleet VM.
 - **Pull requests** flow through their own lane labels — `ready-for-squad` (request
   adversarial review) → `squad:running` → `squad:passed` / `squad:majors` — plus
   `needs:implementer`, which is **mandatory on any fix/rebase request that expects a new
