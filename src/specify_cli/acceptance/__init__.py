@@ -729,6 +729,55 @@ def _optional_artifact_tokens(mission: Mission | None) -> list[str]:
     return list(_FALLBACK_OPTIONAL_ARTIFACTS)
 
 
+def _approved_lane_source_roots(
+    repo_root: Path,
+    feature_dir: Path,
+    lanes: dict[str, list[str]],
+) -> tuple[Path, ...]:
+    """Worktrees of this mission's fully-approved execution lanes (#4254).
+
+    Acceptance evaluates path conventions BEFORE the approved lane's source is
+    integrated into the primary checkout, so a lane that introduces the first
+    ``tests/`` or ``docs/`` has them only in its own worktree. Those trees are
+    the genuine candidate source for this acceptance, and they are what the
+    build-path check may additionally look in.
+
+    Only lanes whose every work package is already ``approved``/``done`` are
+    returned, so an unapproved lane — or any other checkout on disk — can
+    never satisfy a declared path. A lane with no work packages contributes
+    nothing. Missing or corrupt ``lanes.json`` yields no roots at all: the
+    check then behaves exactly as it did before this change rather than
+    guessing at a topology.
+    """
+    from specify_cli.lanes.branch_naming import worktree_path  # noqa: PLC0415
+    from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json  # noqa: PLC0415
+
+    accepted_wps = {*lanes.get("approved", []), *lanes.get("done", [])}
+    if not accepted_wps:
+        return ()
+    try:
+        manifest = read_lanes_json(feature_dir)
+    except CorruptLanesError:
+        return ()
+    if manifest is None:
+        return ()
+
+    roots: list[Path] = []
+    for lane in manifest.lanes:
+        lane_wps = set(getattr(lane, "wp_ids", ()) or ())
+        if not lane_wps or not lane_wps <= accepted_wps:
+            continue
+        candidate = worktree_path(
+            repo_root,
+            manifest.mission_slug,
+            mission_id=manifest.mission_id,
+            lane_id=lane.lane_id,
+        )
+        if candidate.is_dir():
+            roots.append(candidate)
+    return tuple(roots)
+
+
 def _missing_artifacts(feature_dir: Path, mission: Mission | None) -> tuple[list[str], list[str]]:
     required = [feature_dir / _spec_file(), feature_dir / _plan_file(), feature_dir / _tasks_file()]
     # ``Path`` normalizes trailing slashes, so a ``contracts/`` token maps to the
@@ -1258,6 +1307,7 @@ def collect_feature_summary(
         feature_dir,
         planning_read_dir,
         strict_metadata=strict_metadata,
+        candidate_source_roots=_approved_lane_source_roots(repo_root, feature_dir, lanes),
     )
     if dedup_tokens:
         # FR-002: apply the dedup query result explicitly — evaluate_path_conventions

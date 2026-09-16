@@ -5,7 +5,7 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 
 from specify_cli.config.path_conventions import ARTIFACT_ROUTED_KEYS
 from specify_cli.mission import Mission
@@ -49,6 +49,12 @@ class PathValidationResult:
     missing_artifact_tokens: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     suggestions: list[str] = field(default_factory=list)
+    #: #4254: declared path -> the candidate source root that satisfied it,
+    #: for a build path that exists only in the tree being accepted and not
+    #: yet in ``project_root``. Empty for every path found at ``project_root``
+    #: itself, so a reader can tell "already integrated" from "present in the
+    #: approved lane".
+    satisfied_by: dict[str, str] = field(default_factory=dict)
 
     @property
     def is_valid(self) -> bool:
@@ -228,6 +234,7 @@ def validate_mission_paths(
     path_prefix: str | Path | None = None,
     feature_dir: Path | None = None,
     path_overrides: dict[str, str] | None = None,
+    candidate_source_roots: Sequence[Path] = (),
 ) -> PathValidationResult:
     """Validate that project directories follow mission-defined conventions.
 
@@ -249,6 +256,17 @@ def validate_mission_paths(
             residual of the "no resolution to the repo primary" rule — it mirrors
             the #2113 ``_planning_read_dir`` seam). Research's ``path_prefix``
             routing is unaffected.
+        candidate_source_roots: Additional trees a BUILD/source path may live in
+            (#4254). Acceptance runs before the approved lane's source is
+            integrated, so a lane that introduces the first ``tests/`` or
+            ``docs/`` has those directories only in its own worktree — checking
+            ``project_root`` alone reported them missing and blocked acceptance
+            of reviewed work. A path found in one of these roots is recorded as
+            existing, with the satisfying root noted in ``satisfied_by``. The
+            caller decides which trees qualify (the acceptance caller passes
+            only APPROVED lanes, so an unapproved or foreign checkout cannot
+            satisfy a path); artifact-tagged paths never consult them — mission
+            artifacts stay on the primary surface.
 
     Returns:
         PathValidationResult summarising the state of each required path.
@@ -295,6 +313,20 @@ def validate_mission_paths(
         if full_path.exists():
             result.existing_paths.append(relative_path)
             continue
+
+        # #4254: a build/source path may legitimately exist only in the
+        # candidate tree being accepted, which is not yet integrated into
+        # ``project_root``. Artifact paths are deliberately excluded — they
+        # belong to the mission's primary surface.
+        if not is_artifact_tagged and candidate_source_roots and not candidate.is_absolute():
+            satisfying = next(
+                (root for root in candidate_source_roots if (root / candidate).exists()),
+                None,
+            )
+            if satisfying is not None:
+                result.existing_paths.append(relative_path)
+                result.satisfied_by[relative_path] = str(satisfying)
+                continue
 
         # Report the resolved location actually tested above, not the bare
         # declared token (#3085a) — otherwise remediation names a different,
