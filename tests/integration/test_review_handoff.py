@@ -200,24 +200,27 @@ def test_review_prompt_includes_in_repo_path(
     constructed by the workflow.review() function and is testable by examining
     the sub-artifact directory creation logic.
 
-    This test validates T015 by directly exercising the path-construction
-    logic in isolation (the full workflow.review() requires a live git
+    This test validates T015 by directly exercising the real path-construction
+    seam in isolation (the full workflow.review() requires a live git
     event-log with for_review status, making it impractical to call via CLI
-    in a simple integration test).
+    in a simple integration test). #3243: the seam is the shared
+    ``next_review_feedback_source_path`` derivation — the same max+1 cycle
+    numbering the rejection writer allocates with — so what is asserted here
+    is the production derivation, not a re-implementation of it (the former
+    inline ``len(glob(...)) + 1`` simulation had drifted from production and
+    kept passing while asserting stale logic).
     """
+    from specify_cli.review.cycle import next_review_feedback_source_path
+
     repo_root, worktree, mission_slug = review_handoff_repo
     wp_slug = "WP01-test-handoff"
 
-    # Simulate the path-construction logic from workflow.review():
+    # The sub-artifact dir workflow.review() resolves (PRIMARY partition):
     # sub_artifact_dir = main_repo_root / "kitty-specs" / mission_slug / "tasks" / wp_slug
-    # next_cycle = len(existing_cycles) + 1
-    # review_feedback_path = sub_artifact_dir / f"review-cycle-{next_cycle}.md"
     sub_artifact_dir = repo_root / "kitty-specs" / mission_slug / "tasks" / wp_slug
     sub_artifact_dir.mkdir(parents=True, exist_ok=True)
 
-    existing_cycles = sorted(sub_artifact_dir.glob("review-cycle-*.md"))
-    next_cycle = len(existing_cycles) + 1
-    review_feedback_path = sub_artifact_dir / f"review-cycle-{next_cycle}.md"
+    review_feedback_path = next_review_feedback_source_path(sub_artifact_dir)
 
     # Assertions
     # 1. The path is within kitty-specs/ (in-repo, not /tmp)
@@ -227,14 +230,20 @@ def test_review_prompt_includes_in_repo_path(
     # 2. The path uses the WP slug (kebab-case), not just the WP ID
     assert wp_slug in str(review_feedback_path)
 
-    # 3. The path follows review-cycle-N.md naming
-    assert review_feedback_path.name == "review-cycle-1.md"
+    # 3. The path follows review-feedback-N.md naming — the reviewer-authored
+    # feedback filename, deliberately NOT the tool-authored review-cycle-N.md
+    # (#3430: advertising review-cycle-N.md printed a rejection command the
+    # provenance guard refuses).
+    assert review_feedback_path.name == "review-feedback-1.md"
 
-    # 4. Next cycle increments when a prior review cycle file exists
-    review_feedback_path.write_text("# Cycle 1 feedback\n")
-    existing_cycles_2 = sorted(sub_artifact_dir.glob("review-cycle-*.md"))
-    next_cycle_2 = len(existing_cycles_2) + 1
-    assert next_cycle_2 == 2
+    # 4. Next cycle increments when a prior review cycle artifact exists —
+    # numbered by max+1, so the advertised number always matches the number
+    # the rejection writer will allocate (#3243).
+    (sub_artifact_dir / "review-cycle-1.md").write_text("# Cycle 1 feedback\n")
+    assert (
+        next_review_feedback_source_path(sub_artifact_dir).name
+        == "review-feedback-2.md"
+    )
 
     # 5. The path is under kitty-specs/, not a standalone temp file
     # (On CI, repo_root itself may be under /tmp, so we check the relative structure)

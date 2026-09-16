@@ -23,6 +23,7 @@ from specify_cli.review.cycle import (
     VerdictPersistenceOutcome,
     build_review_cycle_pointer,
     create_rejected_review_cycle,
+    next_review_feedback_source_path,
     resolve_review_cycle_pointer,
     review_feedback_source_path,
     validate_review_artifact_file,
@@ -321,6 +322,59 @@ def test_review_prompt_feedback_path_is_accepted_as_a_feedback_source(
     assert review_feedback_source_path(wp_dir, 2).name not in {
         path.name for path in wp_dir.glob("review-cycle-*.md")
     }
+
+
+def test_next_review_feedback_source_path_matches_writer_allocation(
+    tmp_path: Path,
+) -> None:
+    """#3243: the advertised feedback path is numbered by the SAME max+1
+    authority the rejection writer allocates the artifact with.
+
+    The prompt used to derive its advertised number as a COUNT of
+    ``review-cycle-*.md`` files + 1, which diverges from the writer's
+    ``max(parsed) + 1`` allocation whenever the count is not the max — and
+    the mismatch is not cosmetic: the reviewer authors feedback at the
+    advertised number, then the rejection allocates a DIFFERENT cycle
+    number, so the "predicts the next rejection artifact path" contract the
+    review prompt exists for silently breaks.
+    """
+    wp_dir = tmp_path / "kitty-specs" / "mission" / "tasks" / "WP01-core"
+    wp_dir.mkdir(parents=True)
+
+    # Empty dir -> cycle 1.
+    assert next_review_feedback_source_path(wp_dir).name == "review-feedback-1.md"
+
+    # A duplicate pair (the exact on-disk state #3243 reports: cycles 1 and 2
+    # both present) -> the next number is max+1 = 3.
+    (wp_dir / "review-cycle-1.md").write_text("cycle 1\n", encoding="utf-8")
+    (wp_dir / "review-cycle-2.md").write_text("cycle 2\n", encoding="utf-8")
+    assert next_review_feedback_source_path(wp_dir).name == "review-feedback-3.md"
+
+    # A numbering GAP (1 and 3 present, 2 deleted) -> max+1 = 4. The count
+    # derivation advertises 3 here — one behind the writer's allocation.
+    (wp_dir / "review-cycle-2.md").unlink()
+    (wp_dir / "review-cycle-3.md").write_text("cycle 3\n", encoding="utf-8")
+    assert next_review_feedback_source_path(wp_dir).name == "review-feedback-4.md"
+
+
+def test_next_review_feedback_source_path_refuses_unparseable_sibling(
+    tmp_path: Path,
+) -> None:
+    """#3243/#3430: an unparseable sibling makes the derivation refuse, so a
+    caller advertising the path fails closed with the repair message instead
+    of printing a rejection command the writer would refuse.
+
+    The count derivation silently included ``review-cycle-final.md`` in the
+    total, advertising a number the writer's ``next_cycle_number`` refuses to
+    allocate at all — the printed command was not runnable as printed.
+    """
+    wp_dir = tmp_path / "kitty-specs" / "mission" / "tasks" / "WP01-core"
+    wp_dir.mkdir(parents=True)
+    (wp_dir / "review-cycle-1.md").write_text("cycle 1\n", encoding="utf-8")
+    (wp_dir / "review-cycle-final.md").write_text("not a number\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unparseable review-cycle filename"):
+        next_review_feedback_source_path(wp_dir)
 
 
 def test_guard_feedback_source_provenance_refuses_by_parse_alone_no_verdict_read(

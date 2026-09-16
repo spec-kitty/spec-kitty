@@ -30,17 +30,21 @@ Sites in this module that **mention** ``review-cycle-*`` artifacts but do
 * ``_has_prior_rejection``, which performs a read-only ``glob`` check.
 * fix-mode prompt rendering, which reads the latest artifact via
   ``ReviewCycleArtifact.from_file`` / ``.latest``; no write.
-* review-prompt rendering, which reads the counter to compute a *placeholder*
-  path ``review-feedback-{next_cycle}.md``
-  (:func:`specify_cli.review.cycle.review_feedback_source_path`) for
-  inclusion in instructional output to the human reviewer. Nothing is
+* review-prompt rendering, which computes a *placeholder* path
+  ``review-feedback-{next_cycle}.md`` for inclusion in instructional output
+  to the human reviewer, numbered through the shared read-only seam
+  :func:`specify_cli.review.cycle.next_review_feedback_source_path`
+  (``ReviewCycleArtifact.next_cycle_number``, the SAME max+1 authority the
+  rejection writer allocates with — #3243; the prompt used to count files
+  instead, diverging from the allocation on any numbering gap). Nothing is
   written; the reviewer authors that file and the ``review-cycle-N.md``
   artifact only materialises when they subsequently run ``move-task --to
   planned``.
 
 Re-running ``spec-kitty agent action implement WPNN`` is therefore a
 counter-no-op by construction: this module never calls
-``ReviewCycleArtifact.write`` or ``ReviewCycleArtifact.next_cycle_number``.
+``ReviewCycleArtifact.write``, and its only ``next_cycle_number`` use is the
+read-only derivation inside the shared advertised-path seam above.
 The unit and integration tests under
 ``tests/specify_cli/cli/commands/agent/test_review_cycle_counter.py`` and
 ``tests/integration/test_review_cycle_rejection_only.py`` lock in this
@@ -96,8 +100,8 @@ from specify_cli.review.prompt_metadata import (
 from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
 from specify_cli.review.cycle import (
     REVIEW_FEEDBACK_SENTINELS,
+    next_review_feedback_source_path,
     resolve_review_cycle_pointer,
-    review_feedback_source_path,
 )
 from specify_cli.status import feature_status_lock
 from specify_cli.status import AgentAssignment, Lane
@@ -1844,9 +1848,25 @@ def review(
             / wp_slug
         )
         sub_artifact_dir.mkdir(parents=True, exist_ok=True)
-        existing_cycles = sorted(sub_artifact_dir.glob("review-cycle-*.md"))
-        next_cycle = len(existing_cycles) + 1
-        review_feedback_path = review_feedback_source_path(sub_artifact_dir, next_cycle)
+        # #3243: the advertised feedback path is numbered by the SAME
+        # max(parsed)+1 authority the rejection writer allocates the
+        # ``review-cycle-N.md`` artifact with
+        # (``next_review_feedback_source_path`` -> ``ReviewCycleArtifact.
+        # next_cycle_number``) — never a count of files present, which
+        # diverges from the allocation on any numbering gap and silently
+        # mis-numbers the printed rejection command. An unparseable sibling
+        # makes the derivation refuse: fail closed HERE, with the repair
+        # message, rather than printing a rejection command the writer would
+        # refuse after the reviewer has already authored feedback into it
+        # (the #3430 "printed command not runnable as printed" shape).
+        try:
+            review_feedback_path = next_review_feedback_source_path(sub_artifact_dir)
+        except ValueError as cycle_err:
+            print(
+                "Error: cannot determine the next review-cycle number for "
+                f"{normalized_wp_id}: {cycle_err}"
+            )
+            raise typer.Exit(1)
 
         prompt_lines = _executor.build_review_prompt_lines(
             normalized_wp_id=normalized_wp_id,

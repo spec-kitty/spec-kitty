@@ -73,6 +73,34 @@ def review_feedback_source_path(sub_artifact_dir: Path, cycle_number: int) -> Pa
     return sub_artifact_dir / f"review-feedback-{cycle_number}.md"
 
 
+def next_review_feedback_source_path(sub_artifact_dir: Path) -> Path:
+    """Return the reviewer-facing feedback path for the NEXT review cycle.
+
+    The cycle number is derived through :meth:`ReviewCycleArtifact.
+    next_cycle_number` — the SAME ``max(parsed) + 1`` authority the rejection
+    writer allocates the ``review-cycle-N.md`` artifact with — never a count
+    of files present. #3243: the review prompt used to derive its advertised
+    number as ``len(glob("review-cycle-*.md")) + 1``, which diverges from the
+    writer's allocation whenever the count is not the max (a numbering gap
+    from a deleted middle artifact advertises ``review-feedback-3.md`` while
+    the rejection allocates ``review-cycle-4.md``; an unparseable sibling like
+    ``review-cycle-final.md`` inflates the count AND makes the writer refuse
+    outright, so the printed rejection command was not runnable — the exact
+    #3430 failure shape one level up).
+
+    Raises:
+        ValueError: propagate :meth:`ReviewCycleArtifact.next_cycle_number`'s
+            refusal (unparseable sibling filename, or a colliding next number)
+            — a caller advertising a path the writer would refuse must fail
+            closed with the same repair message, not print a command that
+            cannot be run as printed.
+    """
+    return review_feedback_source_path(
+        sub_artifact_dir,
+        ReviewCycleArtifact.next_cycle_number(sub_artifact_dir),
+    )
+
+
 def _review_cycle_wp_dir(
     repo_root: Path,
     mission_slug: str,
