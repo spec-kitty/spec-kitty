@@ -1,0 +1,51 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M2NPK1TE8HA9SQSX68W8G15M",
+  "materialized_at": "2026-09-16T18:10:14.990441+00:00",
+  "mission_number": "",
+  "mission_slug": "ci-terminal-cancel-verdict-01M2NC7Z",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2NPK0N530XB4ANCBYPPYDSS",
+      "last_transition_at": "2026-09-16T18:10:13.797105+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): precedence exact (all-completed AND cancelled), never-green structural, release proof independently non-fakeable (revert→red), frozen surfaces untouched; 87 + 317 tests/ci green",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2863247,
+      "shell_pid_created_at": "1789580498.83"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2NPK1TE8HA9SQSX68W8G15M",
+      "last_transition_at": "2026-09-16T18:10:14.990441+00:00",
+      "review_result": {
+        "reference": "Review passed: authority-creep clean (only write is POST create of a [ci-sweep]-namespaced comment L264 + ::warning::; base GitHub.request is POST-on-payload/GET-only via urllib, structurally cannot PATCH/DELETE reporter comments; no rerun/dispatch/auto-release path). find_stale_running pure (no I/O/subprocess/clock), gh confined to main() edge. SW-3 fail-closed and SW-2 idempotent both tested. Workflow schedule+workflow_dispatch only, permissions contents:read+pull-requests:write, actions SHA-pinned, wiring guard proves it invokes shipped module. Frozen fleet_verdict.py/ci-fleet-verdict.yml/router_gate.py untouched. Gates: tests/ci 330 passed, ruff+format+mypy clean, terminology 90 passed, actionlint 0 errors. Anti-pattern checklist all PASS.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2867574,
+      "shell_pid_created_at": "1789580562.4"
+    }
+  }
+}

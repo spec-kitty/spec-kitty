@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "mission_slug": "ci-terminal-cancel-verdict-01M2NC7Z",
+  "mission_id": "01M2NC7ZVT551HD66PS4WWNFDT",
+  "mission_branch": "kitty/mission-ci-terminal-cancel-verdict-01M2NC7Z",
+  "target_branch": "fix/ci-terminal-cancel-verdict",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "scripts/ci/fleet_verdict.py",
+        "tests/ci/test_fleet_main.py",
+        "tests/ci/test_fleet_verdict.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-stale-running-sweep.yml",
+        "scripts/ci/stale_running_sweep.py",
+        "tests/ci/test_stale_running_sweep.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-16T17:40:24.613405+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "21f1b92139b851f1b7329522540fbbb5829b11c7"
+}

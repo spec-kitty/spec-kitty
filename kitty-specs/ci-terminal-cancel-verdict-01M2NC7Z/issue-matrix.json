@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#4430": {
+      "evidence_ref": "This mission closes #4430: WP01 (4a) adds infra-error so a terminal-cancel posts a fresh verdict releasing the head (never-green); WP02 (4b) sweep backstops the no-reporter residual. Was closed-COMPLETED at ADR ratification but code never landed; reopened at PR",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": null
+    },
+    "#4437": {
+      "evidence_ref": "Epic (3-stage cluster). Stage 3 of 3 lands here (Stage 1 #4541, Stage 2 #4596 merged+verified). Remaining durable targets tracked on the epic: 3b non-Actions main baseline + 1d",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4541": {
+      "evidence_ref": "Stage 1 PR, merged+verified on upstream main",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4596": {
+      "evidence_ref": "Stage 2 PR (#4360-A), merged+verified on upstream main tip",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

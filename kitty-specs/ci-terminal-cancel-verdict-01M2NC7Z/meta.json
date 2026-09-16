@@ -1,0 +1,35 @@
+{
+  "accept_commit": "51d9df6b83f01b09e36daeb6862d454f5316ebeb",
+  "acceptance_history": [
+    {
+      "accept_commit": "51d9df6b83f01b09e36daeb6862d454f5316ebeb",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-16T18:08:54.841015+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "7d8df0a28a420b1c522253331376b6db2164c85b"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-16T18:08:54.841015+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "7d8df0a28a420b1c522253331376b6db2164c85b",
+  "baseline_merge_commit": "3ce2b9f9e7e9ddaa50e42104331bd59b083d6343",
+  "created_at": "2026-09-16T15:09:26.793735+00:00",
+  "flattened": true,
+  "friendly_name": "CI Terminal-Cancel Verdict (infra-error)",
+  "merged_at": "2026-09-16T18:10:38.861139+00:00",
+  "merged_commit": "4880be6b0462c5c8de7d00bb3b7012060ae15517",
+  "mid8": "01M2NC7Z",
+  "mission_id": "01M2NC7ZVT551HD66PS4WWNFDT",
+  "mission_number": null,
+  "mission_slug": "ci-terminal-cancel-verdict-01M2NC7Z",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Stage 3 of the ratified CI main-tip verdict topology cluster (#4437). Today a cancelled required CI run posts no verdict, wedging the pull request on a stale 'running' forever. This mission adds an infra-error terminal class to the shared verdict classifier (4a, releases the head in-CI, never green) and a reactive stale-running sweep backstop (4b) for cases where no reporter fired, so a cancellation never silently blocks a PR.",
+  "purpose_tldr": "A terminally-cancelled CI run must post an honest infra-error verdict that releases the PR head, never stranding it on a stale running.",
+  "slug": "ci-terminal-cancel-verdict-01M2NC7Z",
+  "status_phase": "1",
+  "target_branch": "fix/ci-terminal-cancel-verdict",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-16T17:41:49.959724+00:00"
+}

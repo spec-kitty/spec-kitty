@@ -1,0 +1,99 @@
+{
+  "mission_slug": "ci-terminal-cancel-verdict-01M2NC7Z",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "classify returns infra-error for a fully-terminal set with a cancelled run and no red (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T18:15:00+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "full report() release test: a fresh infra-error verdict posts and the running-guard is bypassed; independently verified non-fakeable (revert->red)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T18:15:00+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "precedence gated on all-present-completed AND any-cancelled, after red/deferred/incomplete (INV-2 tested)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T18:15:00+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "skipped stays running, timed_out stays red (INV-5)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T18:15:00+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "a cancelled main run yields infra-error and no P0 incident (test_fleet_main migration; fleet_main gate is state != red)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T18:15:00+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "infra-error explanatory comment line + classify docstring",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T18:15:00+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "stale-running sweep detects latest running + all required runs terminal and flags a ci-sweep watch item (WP02, 20 tests)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T18:15:00+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "sweep surfaces only: imported urllib client cannot PATCH/DELETE; no verdict/re-trigger/auto-release path (negative-assertion tests)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T18:15:00+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "full report() release pin + flipped pinned contracts + execution-grounded sweep wiring guard",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T18:15:00+00:00",
+      "notes": ""
+    }
+  ],
+  "negative_invariants": []
+}
