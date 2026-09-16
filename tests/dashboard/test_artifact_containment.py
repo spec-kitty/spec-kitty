@@ -150,3 +150,110 @@ class TestArtifactRoutesHonourContainment:
 
         handler.send_response.assert_called_once_with(200)
         assert handler.wfile.getvalue() == b"# API contract\n"
+
+
+class TestResearchRouteHonoursContainment:
+    """``handle_research`` confines both its listing and file-serve branches
+    the same way ``_handle_artifact_directory`` does — a research file is
+    served, a mission file outside ``research/`` (including a symlinked
+    ``research/`` root escaping the mission) is refused."""
+
+    def test_listing_returns_only_files_under_research(self, tmp_path: Path) -> None:
+        mission_dir = _mission_dir(tmp_path)
+        research_dir = mission_dir / "research"
+        research_dir.mkdir(parents=True)
+        (research_dir / "notes.md").write_text("# Research notes\n", encoding="utf-8")
+        (mission_dir / "plan.md").write_text("private plan", encoding="utf-8")
+        (research_dir / "alias.md").symlink_to(mission_dir / "plan.md")
+        handler = _handler(tmp_path)
+
+        with patch.object(features_module, "resolve_feature_planning_dir", return_value=mission_dir):
+            features_module.FeatureHandler.handle_research(handler, "/api/research/001-test-mission")
+
+        handler.send_response.assert_called_once_with(200)
+        body = json.loads(handler.wfile.getvalue())
+        assert body["artifacts"] == [{"name": "notes.md", "path": "research/notes.md", "icon": "📝"}]
+
+    def test_file_route_serves_a_file_inside_research(self, tmp_path: Path) -> None:
+        mission_dir = _mission_dir(tmp_path)
+        research_dir = mission_dir / "research"
+        research_dir.mkdir(parents=True)
+        (research_dir / "notes.md").write_text("# Research notes\n", encoding="utf-8")
+        handler = _handler(tmp_path)
+
+        with patch.object(features_module, "resolve_feature_planning_dir", return_value=mission_dir):
+            features_module.FeatureHandler.handle_research(
+                handler,
+                "/api/research/001-test-mission/research%2Fnotes.md",
+            )
+
+        handler.send_response.assert_called_once_with(200)
+        assert handler.wfile.getvalue() == b"# Research notes\n"
+
+    def test_file_route_refuses_a_mission_file_outside_research(self, tmp_path: Path) -> None:
+        mission_dir = _mission_dir(tmp_path)
+        research_dir = mission_dir / "research"
+        research_dir.mkdir(parents=True)
+        (mission_dir / "plan.md").write_text("private plan", encoding="utf-8")
+        handler = _handler(tmp_path)
+
+        with patch.object(features_module, "resolve_feature_planning_dir", return_value=mission_dir):
+            features_module.FeatureHandler.handle_research(
+                handler,
+                "/api/research/001-test-mission/plan.md",
+            )
+
+        handler.send_response.assert_called_once_with(404)
+        assert handler.wfile.getvalue() == b""
+
+    def test_file_route_refuses_the_missions_own_spec_via_the_research_route(self, tmp_path: Path) -> None:
+        mission_dir = _mission_dir(tmp_path)
+        research_dir = mission_dir / "research"
+        research_dir.mkdir(parents=True)
+        (mission_dir / "spec.md").write_text("private specification", encoding="utf-8")
+        handler = _handler(tmp_path)
+
+        with patch.object(features_module, "resolve_feature_planning_dir", return_value=mission_dir):
+            features_module.FeatureHandler.handle_research(
+                handler,
+                "/api/research/001-test-mission/spec.md",
+            )
+
+        handler.send_response.assert_called_once_with(404)
+        assert handler.wfile.getvalue() == b""
+
+    def test_symlinked_research_root_escaping_the_mission_is_not_listed(self, tmp_path: Path) -> None:
+        mission_dir = _mission_dir(tmp_path)
+        mission_dir.mkdir(parents=True)
+        external = tmp_path / "outside-mission"
+        external.mkdir()
+        (external / "private.md").write_text("outside content", encoding="utf-8")
+        research_dir = mission_dir / "research"
+        research_dir.symlink_to(external, target_is_directory=True)
+        handler = _handler(tmp_path)
+
+        with patch.object(features_module, "resolve_feature_planning_dir", return_value=mission_dir):
+            features_module.FeatureHandler.handle_research(handler, "/api/research/001-test-mission")
+
+        handler.send_response.assert_called_once_with(200)
+        body = json.loads(handler.wfile.getvalue())
+        assert body["artifacts"] == []
+
+    def test_symlinked_research_root_escaping_the_mission_is_not_served(self, tmp_path: Path) -> None:
+        mission_dir = _mission_dir(tmp_path)
+        mission_dir.mkdir(parents=True)
+        external = tmp_path / "outside-mission"
+        external.mkdir()
+        (external / "private.md").write_text("outside content", encoding="utf-8")
+        research_dir = mission_dir / "research"
+        research_dir.symlink_to(external, target_is_directory=True)
+        handler = _handler(tmp_path)
+
+        with patch.object(features_module, "resolve_feature_planning_dir", return_value=mission_dir):
+            features_module.FeatureHandler.handle_research(
+                handler,
+                "/api/research/001-test-mission/research%2Fprivate.md",
+            )
+
+        handler.send_response.assert_called_once_with(404)
+        assert handler.wfile.getvalue() == b""

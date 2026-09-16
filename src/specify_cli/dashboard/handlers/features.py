@@ -30,6 +30,7 @@ from ..scanner import (
 )
 from .base import DashboardHandler
 from charter.activation.mission_type_key import read_mission_type
+from specify_cli.core.utils import ensure_within_directory
 from specify_cli.upgrade.legacy_detector import is_legacy_format
 from specify_cli.mission import MissionError, get_mission_by_name
 
@@ -47,11 +48,17 @@ def _require_project_path(project_dir: str | None) -> Path:
 
 
 def _artifact_path_is_contained(path: Path, mission_dir: Path, artifact_dir: Path) -> bool:
-    """Require both boundaries, including when the artifact root is a symlink."""
+    """Require containment below BOTH roots, reusing the canonical C-002 seam.
+
+    Fail-closed: ``ensure_within_directory`` raises ``ValueError`` when the
+    resolved path escapes a root, and ``path.resolve()`` inside it can raise
+    ``OSError``/``RuntimeError`` on an unresolvable path or symlink loop.
+    """
     try:
-        resolved = path.resolve()
-        return resolved.is_relative_to(mission_dir.resolve()) and resolved.is_relative_to(artifact_dir.resolve())
-    except (OSError, RuntimeError):
+        ensure_within_directory(path, mission_dir)
+        ensure_within_directory(path, artifact_dir)
+        return True
+    except (ValueError, OSError, RuntimeError):
         return False
 
 
@@ -250,9 +257,9 @@ class FeatureHandler(DashboardHandler):
                         response["main_file"] = error_msg + research_md.read_text(encoding="utf-8", errors="replace")
 
                 research_dir = feature_dir / "research"
-                if research_dir.exists() and research_dir.is_dir():
+                if _artifact_path_is_contained(research_dir, feature_dir, research_dir) and research_dir.is_dir():
                     for file_path in sorted(research_dir.rglob("*")):
-                        if file_path.is_file():
+                        if file_path.is_file() and _artifact_path_is_contained(file_path, feature_dir, research_dir):
                             relative_path = str(file_path.relative_to(feature_dir))
                             icon = "📄"
                             if file_path.suffix == ".csv":
@@ -283,10 +290,9 @@ class FeatureHandler(DashboardHandler):
             file_path_encoded = parts[4]
             file_path_str = urllib.parse.unquote(file_path_encoded)
             artifact_file = (feature_dir / file_path_str).resolve()
+            research_dir = (feature_dir / "research").resolve()
 
-            try:
-                artifact_file.relative_to(feature_dir.resolve())
-            except ValueError:
+            if not _artifact_path_is_contained(artifact_file, feature_dir, research_dir):
                 self.send_response(404)
                 send_csp_header(self)
                 self.end_headers()
