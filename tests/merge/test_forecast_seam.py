@@ -13,11 +13,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 import typer
 
+from mission_runtime import MissionArtifactKind, MissionTopology, placement_seam
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.merge import forecast
 from specify_cli.merge.config import MergeStrategy
@@ -172,6 +174,103 @@ def test_retaining_mission_forecast_reports_resolved_retention(
     assert payload["retention"]["branch_source"] == "meta"
     assert payload["retention"]["worktree_source"] == "meta"
     assert payload["retention"]["warnings"]
+
+
+@pytest.mark.parametrize("topology", list(MissionTopology))
+def test_forecast_retention_reads_primary_metadata_surface_across_topologies(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    topology: MissionTopology,
+) -> None:
+    """#3833: dry-run retention == executor retention, for every topology.
+
+    The forecast must read the retention decision off the mission's
+    ``PRIMARY_METADATA`` surface -- the SAME ``placement_seam(...).read_dir``
+    derivation the merge executor's retention leg uses -- never off
+    ``feature_dir_for_preview`` (the ``WORK_PACKAGE_TASK`` surface, which only
+    happens to resolve to the same ``kitty-specs/<slug>/`` dir today). The
+    decoy WORK_PACKAGE_TASK dir below (no ``meta.json``) makes the two
+    derivations DISAGREE: reading retention off it would report the default
+    delete/remove, while the real primary meta (``retain_branches``/
+    ``retain_worktrees: true``) retains. Asserts both the resolved decision
+    equality with the executor derivation and the exact dir handed to
+    ``resolve_merge_retention``.
+    """
+    mission = create_mission_fixture(tmp_path)
+    meta_path = mission.mission_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["retain_branches"] = True
+    meta["retain_worktrees"] = True
+    meta["topology"] = topology.value
+    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    write_work_package(mission, WorkPackageSpec(lane="approved"))
+    append_status_event(
+        mission, from_lane=Lane.FOR_REVIEW, to_lane=Lane.APPROVED,
+        event_id="01KVXHDKFORECAST00000005",
+    )
+    _lanes_json_for(mission)
+
+    # Decoy WORK_PACKAGE_TASK surface: same mission slug name, NO meta.json —
+    # a retention read off this dir resolves (None, None) → default delete.
+    decoy_wp_surface = tmp_path / "decoy-wp-surface" / mission.mission_slug
+    decoy_wp_surface.mkdir(parents=True)
+
+    real_resolve_artifact_surface = forecast.resolve_artifact_surface
+
+    def _decoy_work_package_surface(repo_root: Path, slug: str, kind: MissionArtifactKind):
+        if kind is MissionArtifactKind.WORK_PACKAGE_TASK:
+            return SimpleNamespace(path=decoy_wp_surface)
+        return real_resolve_artifact_surface(repo_root, slug, kind)
+
+    monkeypatch.setattr(forecast, "resolve_artifact_surface", _decoy_work_package_surface)
+    monkeypatch.setattr(
+        "specify_cli.merge.forecast.get_main_repo_root", lambda _r: mission.repo_root
+    )
+
+    # Spy on the resolver the forecast calls, recording the dir it is handed.
+    recorded_dirs: list[Path] = []
+    real_resolve_merge_retention = forecast.resolve_merge_retention
+
+    def _recording_resolver(primary_meta_dir: Path, **kwargs: object):
+        recorded_dirs.append(primary_meta_dir)
+        return real_resolve_merge_retention(primary_meta_dir, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(forecast, "resolve_merge_retention", _recording_resolver)
+
+    forecast.run_dry_run_forecast(
+        repo_root=mission.repo_root,
+        resolved_feature=mission.mission_slug,
+        resolved_target_branch="main",
+        resolved_strategy=MergeStrategy.SQUASH,
+        delete_branch=None,
+        remove_worktree=None,
+        push=False,
+        json_output=True,
+    )
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+
+    # Executor-side derivation, exactly as ``_run_lane_based_merge`` performs
+    # it (contracts/retention-resolver-contract.md, consumption item 1).
+    executor_meta_dir = placement_seam(mission.repo_root, mission.mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
+    executor_decision = real_resolve_merge_retention(
+        executor_meta_dir, explicit_delete_branch=None, explicit_remove_worktree=None
+    )
+
+    # The forecast handed the resolver the executor's PRIMARY_METADATA dir,
+    # not the WORK_PACKAGE_TASK preview dir.
+    assert recorded_dirs == [executor_meta_dir]
+    assert executor_meta_dir != decoy_wp_surface
+
+    # Dry-run retention == executor retention, for this topology.
+    assert payload["delete_branch"] == executor_decision.delete_branch is False
+    assert payload["remove_worktree"] == executor_decision.remove_worktree is False
+    assert payload["retention"]["branch_source"] == executor_decision.branch_source == "meta"
+    assert payload["retention"]["worktree_source"] == executor_decision.worktree_source == "meta"
+    assert payload["retention"]["warnings"] == list(executor_decision.warnings)
 
 
 def test_review_artifact_conflict_blocks_json(

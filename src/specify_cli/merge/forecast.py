@@ -160,6 +160,10 @@ def run_dry_run_forecast(
         )
         raise typer.Exit(1)
 
+    # The ONE placement seam for this mission — every partition-routed read
+    # below (LANE_STATE, PRIMARY_METADATA) goes through it, mirroring the
+    # executor's seam construction in ``_run_lane_based_merge``.
+    seam = placement_seam(get_main_repo_root(repo_root), resolved_feature)
     try:
         # FR-001 (#2185): ``lanes.json`` is a LANE_STATE (PRIMARY-partition)
         # artifact — it lives ONLY on the PRIMARY checkout post-#2106. The
@@ -168,11 +172,7 @@ def run_dry_run_forecast(
         # absent → the forecast spuriously reports missing lanes. Route by kind so
         # the dry-run reads the real PRIMARY lane manifest.
         lanes_manifest = require_lanes_json(
-            placement_seam(
-                get_main_repo_root(repo_root), resolved_feature
-            ).read_dir(
-                MissionArtifactKind.LANE_STATE
-            )
+            seam.read_dir(MissionArtifactKind.LANE_STATE)
         )
     except (MissingLanesError, CorruptLanesError) as exc:
         _emit_dry_run_error(error_msg=str(exc), json_output=json_output)
@@ -223,13 +223,20 @@ def run_dry_run_forecast(
 
     would_assign_number = _scan_would_assign_mission_number(repo_root, feature_dir_for_preview)
 
-    # FR-008 (#3131): resolve the SAME retention decision the merge executor
-    # would make -- via the single shared resolver -- instead of echoing the
-    # raw CLI flags. ``feature_dir_for_preview`` is already the PRIMARY meta
-    # dir (see the comment above it), which is where ``meta.json`` retention
-    # policy lives.
+    # FR-008 (#3131, #3833): resolve the SAME retention decision the merge
+    # executor would make -- via the single shared resolver -- off the mission's
+    # PRIMARY_METADATA dir: the SAME surface the executor's retention leg reads
+    # (``placement_seam(...).read_dir(MissionArtifactKind.PRIMARY_METADATA)`` in
+    # ``_run_lane_based_merge``) and the abort path reads too. Do NOT read it off
+    # ``feature_dir_for_preview`` above -- that is the WORK_PACKAGE_TASK surface
+    # (kept for the review-artifact gate and the mission-number scan), a SECOND,
+    # independent derivation of "where meta.json lives" that happens to resolve
+    # to the same ``kitty-specs/<slug>/`` dir for every topology today; if the
+    # WORK_PACKAGE_TASK home ever diverged from PRIMARY_METADATA, a preview read
+    # off it would report "will delete" while the real merge retains.
+    primary_meta_dir = seam.read_dir(MissionArtifactKind.PRIMARY_METADATA)
     retention_decision = resolve_merge_retention(
-        feature_dir_for_preview,
+        primary_meta_dir,
         explicit_delete_branch=delete_branch,
         explicit_remove_worktree=remove_worktree,
     )

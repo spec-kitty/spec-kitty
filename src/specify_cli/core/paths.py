@@ -1011,6 +1011,11 @@ def resolve_merge_retention(
     the merge executor, the dry-run forecast, and the abort path so they
     never disagree about what gets cleaned up.
 
+    A resolver, NOT a pure function (#3833): it performs ``meta.json`` I/O
+    via :func:`read_retention_from_meta` → :func:`load_meta_fail_closed`
+    (exactly like :func:`resolve_merge_target_branch` reads its meta), so a
+    caller must not assume it is I/O-free.
+
     Args:
         primary_meta_dir: Mission directory (primary partition) containing
             (or expected to contain) ``meta.json``.
