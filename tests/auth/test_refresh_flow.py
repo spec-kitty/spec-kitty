@@ -28,7 +28,7 @@ from specify_cli.auth.errors import (
     SessionInvalidError,
     TokenRefreshError,
 )
-from specify_cli.auth.flows.refresh import TokenRefreshFlow
+from specify_cli.auth.flows.refresh import TokenRefreshFlow, _parse_retry_after
 from specify_cli.auth.session import StoredSession, Team
 
 
@@ -400,6 +400,54 @@ class TestRefresh409AndGeneration:
         assert exc_info.value.retry_after == 2
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "retry_after", ["soon", "1.5", None, ["2"], {"s": 2}]
+    )
+    async def test_refresh_409_benign_replay_malformed_retry_after_falls_back_to_zero(
+        self, retry_after
+    ):
+        """409 + replay marker + malformed ``retry_after`` → RefreshReplayError(retry_after=0), never a raw ValueError/TypeError.
+
+        Regression for #4557: ``int(body.get("retry_after", 0))`` let a
+        server-controlled non-numeric ``retry_after`` escape the typed error
+        contract as an unhandled exception.
+        """
+        flow = TokenRefreshFlow()
+        session = _make_session()
+
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__.return_value = mock_client
+            mock_client.post.return_value = _mock_httpx_response(
+                409,
+                {"error": "refresh_replay_benign_retry", "retry_after": retry_after},
+            )
+
+            with pytest.raises(RefreshReplayError) as exc_info:
+                await flow.refresh(session)
+
+        assert exc_info.value.retry_after == 0
+
+    @pytest.mark.asyncio
+    async def test_refresh_409_benign_replay_missing_retry_after_is_zero(self):
+        """409 + replay marker with no ``retry_after`` key → RefreshReplayError(retry_after=0)."""
+        flow = TokenRefreshFlow()
+        session = _make_session()
+
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__.return_value = mock_client
+            mock_client.post.return_value = _mock_httpx_response(
+                409,
+                {"error": "refresh_replay_benign_retry"},
+            )
+
+            with pytest.raises(RefreshReplayError) as exc_info:
+                await flow.refresh(session)
+
+        assert exc_info.value.retry_after == 0
+
+    @pytest.mark.asyncio
     async def test_refresh_409_other_error_raises_token_refresh_error(self):
         """409 + {"error": "some_other_error"} → TokenRefreshError (not RefreshReplayError)."""
         flow = TokenRefreshFlow()
@@ -453,6 +501,25 @@ class TestRefresh409AndGeneration:
             updated = await flow.refresh(session)
 
         assert updated.generation is None
+
+
+# ---------------------------------------------------------------------------
+# _parse_retry_after helper (#4557)
+# ---------------------------------------------------------------------------
+
+
+class TestParseRetryAfter:
+    """Direct unit tests for the defensive ``retry_after`` parser."""
+
+    @pytest.mark.parametrize(
+        "value,expected", [(2, 2), ("2", 2), (0, 0), (True, 1)]
+    )
+    def test_valid_values(self, value, expected):
+        assert _parse_retry_after(value) == expected
+
+    @pytest.mark.parametrize("value", [None, "soon", "1.5", "", ["2"], {"s": 2}])
+    def test_malformed_values_fall_back_to_zero(self, value):
+        assert _parse_retry_after(value) == 0
 
 
 # ---------------------------------------------------------------------------

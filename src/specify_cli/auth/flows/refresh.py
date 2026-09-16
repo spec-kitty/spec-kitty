@@ -111,7 +111,9 @@ class TokenRefreshFlow:
             except ValueError:
                 body = {}
             if isinstance(body, dict) and body.get("error") == "refresh_replay_benign_retry":
-                raise RefreshReplayError(retry_after=int(body.get("retry_after", 0)))
+                raise RefreshReplayError(
+                    retry_after=_parse_retry_after(body.get("retry_after"))
+                )
             # Non-replay 409 (unexpected) — fall through to generic TokenRefreshError below
 
         self._raise_known_auth_error(response)
@@ -241,6 +243,27 @@ class TokenRefreshFlow:
                 "Session has been invalidated server-side. "
                 "Run `spec-kitty auth login` again."
             )
+
+
+def _parse_retry_after(value: Any) -> int:
+    """Parse the 409 replay body's ``retry_after`` as whole seconds.
+
+    The field is server-controlled; a malformed value (``"soon"``, ``"1.5"``,
+    ``null``) must not escape as a raw ``ValueError``/``TypeError`` past the
+    typed error contract this flow guarantees. An unparseable or missing
+    field yields ``0`` — the same default the old ``int(body.get(..., 0))``
+    gave a *missing* field — so the retry decision in
+    ``run_refresh_transaction._run_locked`` is unchanged.
+    """
+    if value is None:
+        return 0
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        log.warning(
+            "refresh_replay_benign_retry carried a non-int retry_after: %r", value
+        )
+        return 0
 
 
 def _parse_iso_utc(value: str) -> datetime:
