@@ -46,7 +46,6 @@ __all__ = [
     "_check_dependent_warnings",
     "_behind_commits_touch_only_planning_artifacts",
     "_count_behind_commits_outside_planning_artifacts",
-    "_PLANNING_LEDGER_ROOTS",
 ]
 
 
