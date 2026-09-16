@@ -1,0 +1,89 @@
+{
+  "mission_slug": "ci-aggregate-source-eligibility-01M2MFDD",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Source-selection extracted to a pure, unit-tested surface invoked by the aggregate workflow",
+      "proof_type": "automated_test",
+      "evidence": "scripts/ci/source_eligibility.py (new) invoked by ci-aggregate.yml last-success step; 23 tests in tests/ci/test_source_eligibility.py green; wiring guard confirms the step calls the helper and no inline gh-run-list decision remains",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T07:45:00+00:00",
+      "notes": "WP01 commit cc7de8ebda"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Provenance-aware main-source classification (pull_request/failed trigger = not a main source)",
+      "proof_type": "automated_test",
+      "evidence": "resolve_source returns NotAMainSource for event=pull_request or conclusion=failure; test_pr_head_trigger_is_not_a_main_source_even_with_a_successful_main_candidate asserts a successful main candidate is NOT resolved for a PR-head trigger",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T07:45:00+00:00",
+      "notes": "Defense-in-depth honesty; cosmetic finding (research D-02)"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Never silently empty: always an eligible source OR a named reason slug",
+      "proof_type": "automated_test",
+      "evidence": "INV-C: every SourceDecision variant maps to a non-empty eligibility slug; run-id=\"\" always co-occurs with a named slug; malformed input raises ValueError with ::error::",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T07:45:00+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Correct provenance-honest source resolution; PR diff-cover path unchanged (PR's correct red neither relabelled nor suppressed)",
+      "proof_type": "automated_test",
+      "evidence": "resolve_source resolves an eligible source only from legitimate provenance; the collect.if / PR diff-cover path is untouched (absent from the diff); no job-flow/attribution change",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T07:45:00+00:00",
+      "notes": "Re-scoped: cosmetic, no consumer affected (research D-02)"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Success-only, branch-scoped source ({source-branch union default-branch})",
+      "proof_type": "automated_test",
+      "evidence": "INV-A success-only (test_red_source_branch_run_is_rejected) + INV-B branch-scope (test_unrelated_branch_success_is_rejected); the old server-side --status success filter reproduced inside the tested helper",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T07:45:00+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Manual replay (workflow_dispatch) takes no fallback",
+      "proof_type": "automated_test",
+      "evidence": "INV-F: workflow_dispatch -> NoFallback, ledger not queried; the workflow's if: github.event_name != 'workflow_dispatch' gate preserved",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T07:45:00+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "ADR #4360-A annotated with both verified premise-falsifications (mechanism superseded; failure cosmetic)",
+      "proof_type": "manual_review",
+      "evidence": "docs/adr/3.x/2026-09-15-1-ci-main-verdict-topology.md +58/-0: two dated blockquotes at mechanism item 3 and Axis-3 3a; ratified Decision Outcome/lever table intact; claims match research D-01/D-02",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T07:45:00+00:00",
+      "notes": "WP02 commit 8923c072d7"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Non-fakeable wiring guard + guard-preservation proof",
+      "proof_type": "automated_test",
+      "evidence": "Wiring guard EXECUTES the real extracted last-success run: block against a stubbed no-source gh, asserts run-id=\"\" + named slug + set(outputs)=={run-id,eligibility}; fail-closed guard run-text byte-identical (test_fail_closed_guard_step_run_is_byte_identical)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-16T07:45:00+00:00",
+      "notes": ""
+    }
+  ],
+  "negative_invariants": []
+}
