@@ -13,6 +13,15 @@
 # Census at classification time (tracked files, excluding dist/** and
 # .worktrees/** and generated agent-copy directories): 2,471 occurrence lines
 # across 938 files -> 2,298 PRESERVE / 173 UPDATE across 54 files.
+#
+# Fix-round companion (2026-09-16): `.all-contributorsrc` `projectOwner`
+# "Priivacy-ai" -> "spec-kitty". That key does not match the target term
+# (it carries the bare org, not `Priivacy-ai/spec-kitty`), but it is the
+# generation source for the CONTRIBUTORS.md link table this edit renamed:
+# `all-contributors-cli generate` reads projectOwner/projectName from
+# `.all-contributorsrc` (scripts/sync_all_contributors.py `generate_readme`),
+# so leaving it stale would make the next bot run revert the CONTRIBUTORS.md
+# rename. Source-first, same stale-org class.
 
 target:
   term: Priivacy-ai/spec-kitty
