@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from dataclasses import dataclass
 import json
+import logging
 import math
 import tomllib
 
@@ -18,6 +19,8 @@ from specify_cli.session_presence.writers.markdown_rules import (
 from specify_cli.tool_surface.operations import InputObservation
 
 VIBE_SKILL_PATH = ".agents/skills"
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -172,3 +175,32 @@ def ensure_project_skill_path(project_root: Path, *, prepared: PreparedVibeConfi
         raise ValueError("Native config precondition changed")
     if batch.file.changed:
         _atomic_write(project_root / batch.file.path, batch.file.content.decode("utf-8"), root=project_root, expected=batch.file.before)
+
+
+def skill_path_configured(project_root: Path) -> bool:
+    """Report whether ``.vibe/config.toml`` points ``skill_paths`` at the shared skills.
+
+    The pointer is an independently missable part of the vibe command surface:
+    ``.vibe/`` is gitignored with the rest of the agent surface
+    (``gitignore_manager``), so a clone can lose it exactly like the shared
+    skill files themselves. ``init``'s initialized-project check and ``doctor
+    skills`` both read it through this one seam so the two diagnostics agree
+    on what "ready" means (#4433).
+    """
+    config_path = project_root / ".vibe" / "config.toml"
+    if not config_path.exists():
+        return False
+
+    try:
+        raw = config_path.read_text(encoding="utf-8")
+        data = tomllib.loads(raw) if raw.strip() else {}
+    except Exception as exc:
+        logger.debug("Failed to read %s: %s", config_path, exc)
+        return False
+
+    skill_paths = data.get("skill_paths")
+    if isinstance(skill_paths, str):
+        return skill_paths == VIBE_SKILL_PATH
+    if isinstance(skill_paths, list):
+        return VIBE_SKILL_PATH in [str(path) for path in skill_paths]
+    return False
