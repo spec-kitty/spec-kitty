@@ -446,6 +446,9 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_issue_matrix_facts as _mt_issue_matrix_facts,
     _mt_output as _mt_output,
     _mt_matches_owned_file as _mt_matches_owned_file,
+    # #3821: the undeclared-repo quiet skip — the declaration probe and the
+    # ``SKIPPED`` verdict builder join the family surface like every other def.
+    _mt_not_declared_skip_verdict as _mt_not_declared_skip_verdict,
     _mt_owned_file_patterns as _mt_owned_file_patterns,
     _mt_persist_wp_file as _mt_persist_wp_file,
     _mt_post_transition_diagnostic as _mt_post_transition_diagnostic,
@@ -454,6 +457,8 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_pre_review_dirty_paths as _mt_pre_review_dirty_paths,
     _mt_pre_review_gate_block_message as _mt_pre_review_gate_block_message,
     _mt_pre_review_gate_console_warning as _mt_pre_review_gate_console_warning,
+    # #3821 sibling: the repo-declaration probe for the built-in gate binding.
+    _mt_pre_review_gate_declared as _mt_pre_review_gate_declared,
     # #2573 fast-follow (FR-002): the --skip-pre-review-gate flag + disable-env
     # skip-reason resolution join the family surface like every other def.
     _mt_pre_review_gate_env_disable_reason as _mt_pre_review_gate_env_disable_reason,

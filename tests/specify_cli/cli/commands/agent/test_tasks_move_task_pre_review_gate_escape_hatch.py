@@ -250,6 +250,10 @@ def test_progress_notice_printed_before_running_nonempty_scope() -> None:
         patch(f"{_MODULE}._mt_pre_review_changed_files", return_value=("src/example.py",)),
         patch(f"{_MODULE}._mt_pre_review_dirty_paths", return_value=()),
         patch(f"{_MODULE}._mt_resolve_active_gate_bindings", return_value=active),
+        # #3821: this arm is about a RUNNING gate, so the fixture repo counts as
+        # declared (the undeclared-repo quiet skip is covered in
+        # ``test_pre_review_gate_integration.py``).
+        patch(f"{_MODULE}._mt_pre_review_gate_declared", return_value=True),
         patch(f"{_MODULE}._mt_build_transition_gate_context", return_value=object()),
         patch(f"{_MODULE}._mt_dispatch_transition_gates", side_effect=_fake_dispatch),
         patch(f"{_TASKS}.console") as console_mock,

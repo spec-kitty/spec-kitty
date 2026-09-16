@@ -283,6 +283,10 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_mt_pre_review_dirty_paths",
     "_mt_pre_review_gate_with_override_scope",
     "_mt_empty_scope_verdict",
+    # #3821: the undeclared-repo quiet skip — the declaration probe and the
+    # ``SKIPPED`` verdict builder are native move-task seam defs.
+    "_mt_pre_review_gate_declared",
+    "_mt_not_declared_skip_verdict",
     # WP16 (lifecycle-gate-execution-context-01KY72GQ, IC-07f): the retired
     # new_checkout_paths byproduct-diff now enrols the gate subprocess's
     # created paths into the tool-artifact owner compensator.
@@ -577,7 +581,13 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     diff) and ``_recovery_commit_sha`` (the cycle-safe cause-chain walk)
     (tasks_mark_status 15 -> 17; golden count 177 -> 179 — the docstring's
     running total above is already stale against the golden, so this entry
-    pins the actual delta)."""
+    pins the actual delta). #3821 then added the undeclared-repo quiet-skip
+    pair — ``_mt_pre_review_gate_declared`` (the declaration probe that asks
+    the activation-selected ``ScopeSource`` whether the repo declares a gate
+    to run) and ``_mt_not_declared_skip_verdict`` (the calm ``SKIPPED``
+    verdict builder) — a native move-task seam def pair (tasks_move_task
+    96 -> 98, counted against the live tuple — the prose totals above are
+    stale; golden count 179 -> 181)."""
     # TODO(under-investigation, operator-flagged): the operator doubts this
     # consolidated compat guard earns its ROI. Every seam-local symbol addition
     # costs a three-part edit — register in the per-seam tuple, add an identity
@@ -585,7 +595,4 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     # low incremental regression-catch value over the identity-re-export guard
     # alone. Revisit whether this file's own hardcoded-count guard should be
     # relaxed or dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    # CLI boundary WP05 adds the two status error renderers: 179 -> 181.
-    # #4670 (WP02, verdict-attribution) adds the event-log active-reviewer
-    # resolver (tasks_move_task): 181 -> 182.
-    assert len(SYMBOL_TO_MODULE) == 182  # golden-count: cardinality-is-contract
+    assert len(SYMBOL_TO_MODULE) == 184  # golden-count: cardinality-is-contract

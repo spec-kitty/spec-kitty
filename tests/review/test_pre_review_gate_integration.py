@@ -88,6 +88,7 @@ from specify_cli.review.gate_bindings import (
     resolve_gate_bindings_for_transition,
 )
 from specify_cli.review.gate_registry import TransitionGateContext
+from specify_cli.review.scope_source import DeclaredCommandScopeSource
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.store import append_event
 from specify_cli.status.reducer import materialize
@@ -662,15 +663,27 @@ def test_pre_existing_failure_does_not_block(tmp_path: Path) -> None:
 # Shard-bounding coverage now lives only at the engine level, against an
 # injected fixture ScopeSource (tests/review/test_pre_review_gate_engine.py).
 # ---------------------------------------------------------------------------
-# T006 — empty-cone composite: no_coverage warn, not a clean pass (SC-007)
+# #2534 → #3821 — a repo that has not declared the gate: quiet skip, never a
+# block. (The pre-#380 empty-cone scenario this slot used to pin is retired —
+# see the T006 retirement note above.)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.integration
-def test_empty_cone_composite_is_no_coverage_not_clean(
+def test_undeclared_repo_with_block_on_skips_without_blocking(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """#3821: block ON in a repo that declared no gate — a quiet ``skipped``
+    verdict, never a block and never a dispatch.
+
+    The built-in ``software-dev`` review contract binds the gate in every
+    consumer repo, so binding resolution alone cannot tell a declared gate
+    from an undeclared one; with no ``review.test_command`` and no override
+    the hook must refuse to fire it at all. The block toggle stays inert
+    exactly as it was on the no-coverage path — there is still no verified
+    new-failure verdict to block on.
+    """
     monkeypatch.setattr(tasks_move_task, "_pre_review_gate_filter_groups", lambda: _FAKE_GROUPS)
     monkeypatch.setattr(tasks_move_task, "_pre_review_gate_composite_routing", lambda: _FAKE_ROUTING)
 
@@ -680,39 +693,37 @@ def test_empty_cone_composite_is_no_coverage_not_clean(
 
     feature_dir, _wp = _build_wp_file(tmp_path, _MISSION, "WP01")
     _seed_wp_event(feature_dir, "WP01", "in_progress")
-    _write_config_yaml(tmp_path, block=True)  # block ON — must still never fire on no_coverage
+    _write_config_yaml(tmp_path, block=True)  # block ON — must still never fire on a skip
     ports, router = _fake_ports(feature_dir)
 
     _run_move(tmp_path, ports=ports, workspace_resolution=_fixture_workspace(repo))
 
     assert len(router.status_calls) == 1  # never blocked
     metadata = _gate_metadata(router.status_calls[0])
-    assert metadata["outcome"] == "no_coverage"
+    assert metadata["outcome"] == "skipped"
     assert metadata["blocked"] is False
 
 
 # ---------------------------------------------------------------------------
-# #2534 — consumer repo (no live gate-coverage authority) degrades calmly
+# #3821 — consumer repo that never declared the gate: quiet skip, no leak
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.integration
-def test_consumer_repo_missing_gate_authority_degrades_to_calm_warn(
+def test_consumer_repo_undeclared_gate_skips_quietly(
     tmp_path: Path,
 ) -> None:
-    """No configured test command degrades to a non-blocking ``no_coverage`` warn.
+    """#3821: a consumer repo (no ``review.test_command``, no override) gets one
+    quiet ``skipped`` verdict — the gate does not fire or leak there.
 
-    MIGRATED (#380): with ``GateCoverageScopeSource`` retired,
-    ``resolve_scope_source`` always returns ``DeclaredCommandScopeSource``,
-    which never raises ``GateAuthoritiesUnavailable`` — that exception class
-    is now dead code (caught defensively, never raised). The fixture repo
-    here has no ``review.test_command``/``review.pre_review_test_command``
-    configured anywhere, so ``DeclaredCommandScopeSource.test_command()``
-    returns ``None`` and the gate emits the structured
-    ``_NO_TEST_COMMAND_REASON`` ``NO_COVERAGE`` verdict instead of raising.
-    The invariant this test still guards — a non-blocking ``no_coverage``
-    warn, never a crash or a block — is unchanged; only the mechanism
-    (structured verdict vs. caught exception) and the reason text changed.
+    #2598 closed #2534 on the premise that an undeclared consumer repo never
+    activates the Spec-Kitty handler; the binding ships built-in with the
+    ``software-dev`` review contract, so that premise never held and every
+    work-package transition surfaced gate noise (first the internal
+    ``tests.architectural._gate_coverage`` module name, then — after #380
+    retired that authority — the internal ``ScopeSource`` jargon). The calm
+    reason recorded in transition metadata names neither, and the transition
+    is never blocked.
     """
     repo = _build_base_repo(tmp_path, extra_base_files={"src/wp01/foo.py": "VALUE = 1\n"})
     _write_file(repo, "src/wp01/foo.py", "VALUE = 2\n")
@@ -727,10 +738,14 @@ def test_consumer_repo_missing_gate_authority_degrades_to_calm_warn(
 
     assert len(router.status_calls) == 1  # never blocked
     metadata = _gate_metadata(router.status_calls[0])
-    assert metadata["outcome"] == "no_coverage"
+    assert metadata["outcome"] == "skipped"
     assert metadata["blocked"] is False
     reason = metadata["reason"] or ""
-    assert reason == "no test command configured for the injected ScopeSource — review proceeds without it"
+    assert reason == tasks_move_task._PRE_REVIEW_GATE_NOT_DECLARED_REASON
+    # No internal concept leaks into the consumer-facing reason.
+    assert "ScopeSource" not in reason
+    assert "authorities" not in reason
+    assert "_gate_coverage" not in reason
 
 
 # ---------------------------------------------------------------------------
@@ -1087,6 +1102,88 @@ def test_console_warning_new_failures_unaffected_by_block_enabled() -> None:
     without_block = tasks_move_task._mt_pre_review_gate_console_warning(verdict, block_enabled=False)
     assert with_block == without_block
     assert "review.test_command" not in with_block
+
+
+# ---------------------------------------------------------------------------
+# #3821 — the undeclared-repo quiet skip: renderer, translation, declaration
+# ---------------------------------------------------------------------------
+
+
+def _skipped_verdict() -> pre_review_gate.GateVerdict:
+    return tasks_move_task._mt_not_declared_skip_verdict()
+
+
+@pytest.mark.fast
+def test_console_warning_skipped_is_quiet_by_default() -> None:
+    """#3821: an undeclared repo's ``skipped`` verdict renders NO console line —
+    the gate "does not fire/leak in a consumer repo that has not declared it"
+    (#2598's acceptance criterion, restated against the built-in binding)."""
+    assert tasks_move_task._mt_pre_review_gate_console_warning(_skipped_verdict(), block_enabled=False) is None
+
+
+@pytest.mark.fast
+def test_console_warning_skipped_with_block_enabled_surfaces_cannot_enforce_hint() -> None:
+    """#3821's one exception: an operator who opted into the block still hears
+    it cannot engage — the same explicit hint the other can't-enforce outcomes
+    surface, naming the ``review.test_command`` prerequisite."""
+    line = tasks_move_task._mt_pre_review_gate_console_warning(_skipped_verdict(), block_enabled=True)
+    assert line is not None
+    assert "[dim]" not in line
+    assert "[yellow]" in line
+    assert "review.test_command" in line
+    assert "COULD NOT be enforced" in line
+    assert "skipped" in line
+
+
+@pytest.mark.fast
+def test_translate_all_skipped_verdicts_render_no_console_lines() -> None:
+    """An all-``skipped`` verdict list renders ZERO console lines — the
+    representative fallback must not resurrect one — while the metadata still
+    records the calm skip and the transition proceeds."""
+    effect = tasks_move_task._mt_translate_gate_verdicts([_skipped_verdict()], block_enabled=False, force=False)
+    assert effect.console_lines == ()
+    assert effect.blocked is False
+    assert effect.terminal is False
+    assert effect.should_exit is False
+    assert effect.metadata["outcome"] == "skipped"
+    assert effect.metadata["reason"] == tasks_move_task._PRE_REVIEW_GATE_NOT_DECLARED_REASON
+
+
+@pytest.mark.fast
+def test_translate_skipped_verdict_does_not_swallow_other_warnings() -> None:
+    """A ``skipped`` verdict renders no line of its own but never suppresses a
+    sibling warn verdict's line (no cross-suppression, NFR-002)."""
+    effect = tasks_move_task._mt_translate_gate_verdicts([_skipped_verdict(), _no_coverage_verdict()], block_enabled=False, force=False)
+    assert effect.console_lines == ("[dim]Pre-review regression gate: no_coverage — excluded scope — unverified[/dim]",)
+
+
+@pytest.mark.fast
+def test_pre_review_gate_declared_reads_the_resolved_source(tmp_path: Path) -> None:
+    """#3821: the declaration check asks the SAME activation-selected
+    ``ScopeSource`` the dispatch would use — a source with a runnable command
+    is declared; a bare repo with no config is not; a configured-but-malformed
+    ``review.test_command`` still counts as declared via the config fallback
+    so the engine's visible warn surfaces instead of a quiet skip."""
+    # Undeclared: no config anywhere — the consumer-repo default.
+    assert tasks_move_task._mt_pre_review_gate_declared(tmp_path) is False
+
+    # Declared: a source with a runnable command (patched the same way the
+    # observability fixtures patch it).
+    class _DeclaredSource:
+        def test_command(self) -> list[str] | None:
+            return ["pytest", "tests/example"]
+
+    with pytest.MonkeyPatch.context() as declared:
+        declared.setattr(tasks_move_task, "_mt_resolve_scope_source", lambda root: _DeclaredSource())
+        assert tasks_move_task._mt_pre_review_gate_declared(tmp_path) is True
+
+    # Declared via config fallback: a truthy template the source itself cannot
+    # render (malformed shell quoting) still counts — the broken declaration
+    # deserves the engine's visible warn, never a quiet skip.
+    (tmp_path / ".kittify").mkdir(exist_ok=True)
+    (tmp_path / ".kittify" / "config.yaml").write_text("review:\n  test_command: 'echo \"unbalanced'\n", encoding="utf-8")
+    assert DeclaredCommandScopeSource(repo_root=tmp_path).test_command() is None
+    assert tasks_move_task._mt_pre_review_gate_declared(tmp_path) is True
 
 
 # ---------------------------------------------------------------------------
