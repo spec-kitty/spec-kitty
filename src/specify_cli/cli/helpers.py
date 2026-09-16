@@ -14,7 +14,7 @@ import click
 import typer
 from rich.align import Align
 from rich.text import Text
-from typer.core import TyperGroup
+from typer.core import TyperCommand, TyperGroup
 
 # Deferred (TYPE_CHECKING + function-local in git_resolution_failure_message):
 # charter.resolution's module-level import chain (jsonschema/rfc3987) is the
@@ -105,6 +105,97 @@ class BannerGroup(TyperGroup):
             return
         show_banner()
         super().format_help(ctx, formatter)
+
+
+# ---------------------------------------------------------------------------
+# Mission-agnostic ``--mission`` accept-and-ignore (#3953)
+# ---------------------------------------------------------------------------
+
+_MISSION_OPTION_NAME = "--mission"
+
+
+def _ignored_mission_option() -> click.Option:
+    """The hidden, non-exposed ``--mission`` option appended to mission-agnostic commands."""
+    return click.Option(
+        [_MISSION_OPTION_NAME],
+        expose_value=False,
+        hidden=True,
+        help="Accepted and ignored: this command is not mission-scoped.",
+    )
+
+
+def _with_ignored_mission_option(params: list[click.Parameter]) -> list[click.Parameter]:
+    """Append the ignored ``--mission`` option unless ``params`` already declares one."""
+    if any(_MISSION_OPTION_NAME in param.opts for param in params):
+        return params
+    return [*params, _ignored_mission_option()]
+
+
+class MissionAgnosticCommand(TyperCommand):
+    """Leaf command class that accepts-and-ignores ``--mission``.
+
+    The shipped mission-step skill text (``packs/built-in/missions/
+    mission-steps/**/prompt.md``) instructs agents to pass
+    ``--mission <handle>`` to *every* spec-kitty command in multi-mission
+    repos. Mission-scoped commands declare a real ``--mission`` option;
+    mission-agnostic ones (``agent profile list`` and the like) rejected it
+    with ``No such option: --mission``, so the instruction was contradicted
+    by the CLI once per session (#3953). Appending a hidden, non-exposed
+    ``--mission`` option here makes those commands accept and ignore the
+    flag: the value parses and is discarded, the callback never sees it,
+    and ``--help`` stays unchanged. Commands that declare their own
+    ``--mission`` — matched by option name, not parameter name, since
+    several declare it behind a ``feature`` parameter — are untouched.
+    """
+
+    def get_params(self, ctx: click.Context) -> list[click.Parameter]:
+        return _with_ignored_mission_option(super().get_params(ctx))
+
+
+class MissionAgnosticGroup(TyperGroup):
+    """Group form of :class:`MissionAgnosticCommand` for sub-apps used as leaf commands.
+
+    A sub-app registered via ``add_typer`` whose callback owns the options and
+    which registers no commands (``charter list``) is a leaf surface at click
+    level — its group object is what parses the options, so the ignored
+    ``--mission`` rides on the group class.
+    """
+
+    def get_params(self, ctx: click.Context) -> list[click.Parameter]:
+        return _with_ignored_mission_option(super().get_params(ctx))
+
+
+def make_leaf_commands_mission_agnostic(app: typer.Typer) -> int:
+    """Point every registered leaf command's click class at the mission-agnostic classes.
+
+    Two leaf shapes exist. A registered command (``@app.command``) becomes a
+    click Command and is retargeted to :class:`MissionAgnosticCommand`. A
+    sub-app registered via ``add_typer`` that declares no commands of its own
+    (callback-owned options, e.g. ``charter list``) is a leaf *group* and is
+    retargeted to :class:`MissionAgnosticGroup`; anything else is a real
+    group and is recursed into.
+
+    Commands already carrying a custom click class are left alone — that
+    class was chosen deliberately — and both mission-agnostic classes
+    no-op for commands that declare a real ``--mission``. Idempotent.
+    Returns the number of leaf commands retargeted.
+    """
+    retargeted = 0
+    for info in app.registered_commands:
+        if info.cls is None or info.cls is TyperCommand:
+            info.cls = MissionAgnosticCommand
+            retargeted += 1
+    for group_info in app.registered_groups:
+        sub = group_info.typer_instance
+        if not sub.registered_commands and not sub.registered_groups:
+            # ``info.cls`` defaults to a DefaultPlaceholder wrapping None.
+            cls = getattr(sub.info.cls, "value", sub.info.cls)
+            if cls is None or cls is TyperGroup:
+                sub.info.cls = MissionAgnosticGroup
+                retargeted += 1
+        else:
+            retargeted += make_leaf_commands_mission_agnostic(sub)
+    return retargeted
 
 
 def _should_use_simple_help() -> bool:

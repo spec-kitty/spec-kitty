@@ -175,7 +175,7 @@ def _run_startup_project_gates(ctx: typer.Context) -> None:
 
 def _build_app() -> typer.Typer:
     from specify_cli.cli.commands import register_commands
-    from specify_cli.cli.helpers import BannerGroup
+    from specify_cli.cli.helpers import BannerGroup, make_leaf_commands_mission_agnostic
 
     app = typer.Typer(
         name="spec-kitty",
@@ -200,6 +200,12 @@ def _build_app() -> typer.Typer:
             ensure_executable_scripts=ensure_executable_scripts,
         )
     register_commands(app)
+    # #3953: the mission-step skill text says to pass --mission to every
+    # spec-kitty command in multi-mission repos, so mission-agnostic leaf
+    # commands accept-and-ignore it instead of exiting 2 with
+    # "No such option: --mission". Runs after every registration path above
+    # (including the register_commands fast paths) so all leaves are covered.
+    make_leaf_commands_mission_agnostic(app)
     return app
 
 
