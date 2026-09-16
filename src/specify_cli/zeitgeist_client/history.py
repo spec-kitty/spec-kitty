@@ -181,7 +181,8 @@ def read_history(
     )
     if filter_own:
         request.add_header("X-Zeitgeist-Own-Sessions", own_filter.identity_header(stored))
-    token = _READ_SLOTS.acquire()
+    slots = _READ_SLOTS
+    token = slots.acquire()
     if token is None:
         raise HistoryProtocolError("History reader busy: previous timed-out reads have not finished")
 
@@ -195,7 +196,11 @@ def read_history(
                 raise HistoryProtocolError("History response exceeds byte limit")
             return _project(_decode(body), repo=repo, window_s=window_s)
         finally:
-            _READ_SLOTS.release(token)
+            # Release onto the ledger this read acquired from, never onto
+            # whatever ``_READ_SLOTS`` names by the time an abandoned worker
+            # finally exits — resolving the global at release time would let
+            # a straggler from one ledger pop a token minted by another.
+            slots.release(token)
 
     outcome = budget.run_with_deadline(read, deadline_s=min(timeout_s, 90.0))
     if not outcome.completed:
