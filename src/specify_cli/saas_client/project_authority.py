@@ -9,7 +9,6 @@ from pathlib import Path
 from specify_cli.saas_client.endpoints import AdmissionAnswer
 from specify_cli.saas_client.errors import SaasConsentError
 from specify_cli.zeitgeist_client import repo_identity
-from specify_cli.zeitgeist_client.resolution import repo_slug_and_host
 
 
 def resolve_project_team_slug(
@@ -27,6 +26,10 @@ def resolve_project_team_slug(
     """
     if project_root is None:
         raise SaasConsentError("project_authority_unavailable: collaboration requires the owning checkout")
+    # Function-local to avoid the package cycle resolution -> saas_client.auth
+    # -> saas_client.client -> project_authority -> resolution on cold imports.
+    from specify_cli.zeitgeist_client.resolution import repo_slug_and_host
+
     try:
         origin = repo_identity.origin_url(str(project_root), repo_identity.Deadline())
     except repo_identity.RepoIdentityError as exc:

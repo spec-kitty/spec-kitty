@@ -2,6 +2,8 @@
 
 import httpx
 import pytest
+import subprocess
+import sys
 
 from specify_cli.saas_client import client as client_module
 from specify_cli.saas_client.client import SaasClient
@@ -64,6 +66,43 @@ def test_admitted_project_uses_server_slug_not_numeric_team_id(destination_clien
     assert requests[0].url.params["repo_slug"] == "project/owned-a"
     assert requests[0].url.params["host"] == "github.com"
     assert requests[1].url.path == f"/a/team-b/collaboration/decision-points/{DECISION_ID}/widen"
+
+
+def test_project_admission_is_cached_for_command_scoped_client(destination_client):
+    instance, requests, _ = destination_client
+
+    instance.post_widen(DECISION_ID, [1])
+    instance.post_widen(DECISION_ID, [2])
+
+    assert sum("repo-admission" in request.url.path for request in requests) == 1
+    assert sum(request.method == "POST" for request in requests) == 2
+
+
+def test_matching_malformed_team_slug_is_rejected(destination_client, monkeypatch):
+    instance, requests, answer = destination_client
+    malformed = "../other"
+    answer["team"] = {"id": "42", "slug": malformed}
+    monkeypatch.setattr(
+        client_module,
+        "_authenticated_authority_for_token",
+        lambda _: ("account", "private", malformed),
+    )
+
+    with pytest.raises(SaasConsentError, match="invalid team slug"):
+        instance.post_widen(DECISION_ID, [1])
+
+    assert not any(request.method == "POST" for request in requests)
+
+
+def test_zeitgeist_resolution_imports_in_cold_interpreter() -> None:
+    result = subprocess.run(
+        [sys.executable, "-c", "import specify_cli.zeitgeist_client.resolution"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_missing_project_authority_refuses_without_http(destination_client):

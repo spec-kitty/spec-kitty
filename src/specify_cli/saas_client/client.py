@@ -105,6 +105,11 @@ class SaasClient:
         self._team_slug = team_slug
         self._timeout = timeout
         self._project_root = Path(project_root) if project_root is not None else None
+        # A CLI client is command-scoped and its token/project root are immutable.
+        # Cache one positive admission for the command; mid-command revocation is
+        # enforced on the next client/command rather than adding a round trip to
+        # every collaboration endpoint in the same flow.
+        self._resolved_project_team_slug: str | None = None
         self._http = _http or httpx.Client(
             headers={"Authorization": f"Bearer {token}"},
             timeout=timeout,
@@ -255,7 +260,10 @@ class SaasClient:
         authority = _authenticated_authority_for_token(self._token)
         if authority is None:
             raise SaasAuthError("Exactly one token-matched Collaborative Teamspace is required")
-        slug = resolve_project_team_slug(self._project_root, authority[2], self.check_repo_admission)
+        slug = self._resolved_project_team_slug
+        if slug is None:
+            slug = resolve_project_team_slug(self._project_root, authority[2], self.check_repo_admission)
+            self._resolved_project_team_slug = slug
         if team_slug is not None and team_slug.strip() != slug:
             raise SaasConsentError("target_authority_mismatch: collaborative team path substitution refused")
         if self._team_slug is not None and self._team_slug.strip() != slug:
