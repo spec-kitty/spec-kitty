@@ -816,7 +816,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        221
+        242
       ],
       "dependency": false,
       "disposition": "none",
@@ -831,7 +831,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        225
+        246
       ],
       "dependency": false,
       "disposition": "none",
@@ -846,7 +846,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        211
+        232
       ],
       "dependency": false,
       "disposition": "none",
@@ -861,7 +861,23 @@
       ],
       "form": "derived-relation",
       "lines": [
-        197
+        218
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_fleet_main.py::test_infra_error_tip_appended_to_open_incident_does_not_escalate",
+      "file": "tests/ci/test_fleet_main.py",
+      "scope": "test_infra_error_tip_appended_to_open_incident_does_not_escalate",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        127,
+        130
       ],
       "dependency": false,
       "disposition": "none",
@@ -876,9 +892,9 @@
       ],
       "form": "derived-relation",
       "lines": [
-        175,
-        177,
-        180
+        196,
+        198,
+        201
       ],
       "dependency": false,
       "disposition": "none",
@@ -893,7 +909,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        145
+        166
       ],
       "dependency": false,
       "disposition": "none",
@@ -908,8 +924,8 @@
       ],
       "form": "derived-relation",
       "lines": [
-        136,
-        138
+        157,
+        159
       ],
       "dependency": false,
       "disposition": "none",
@@ -969,7 +985,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        322
+        371
       ],
       "dependency": false,
       "disposition": "none",
@@ -984,7 +1000,22 @@
       ],
       "form": "path-anchored",
       "lines": [
-        307
+        356
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_fleet_verdict.py::test_terminal_cancel_reposts_and_is_not_suppressed",
+      "file": "tests/ci/test_fleet_verdict.py",
+      "scope": "test_terminal_cancel_reposts_and_is_not_suppressed",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        267
       ],
       "dependency": false,
       "disposition": "none",
