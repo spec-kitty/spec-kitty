@@ -258,10 +258,21 @@ class DeviceCodeFlow:
             reason = "device authorization was rejected"
             if isinstance(error, str):
                 reason = reasons.get(error, reason)
+            # The closing instruction must match what the message actually
+            # contains. Only a recognized code is named above; an unrecognized
+            # code is redacted, so the message names just the HTTP status and
+            # says so, rather than asking the user to report a code the
+            # message does not carry.
+            report_instruction = (
+                "If it fails again, report this status and error code to your administrator."
+                if isinstance(error, str) and error in reasons
+                else "If it fails again, report this status to your administrator "
+                "(unrecognized server error code, redacted)."
+            )
             raise AuthenticationError(
                 f"Token poll failed: HTTP 401 ({reason}). "
                 "Run `spec-kitty auth login --headless` for a new device code. "
-                "If it fails again, report this status and error code to your administrator."
+                f"{report_instruction}"
             )
 
         if response.status_code == 429:

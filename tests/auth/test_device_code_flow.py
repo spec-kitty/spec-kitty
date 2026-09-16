@@ -1042,6 +1042,43 @@ async def test_login_401_is_terminal_actionable_and_redacted(payload, expected, 
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "payload, instruction",
+    [
+        ({"error": "invalid_grant"}, "report this status and error code to your administrator"),
+        ({"error": "invalid_client"}, "report this status and error code to your administrator"),
+        ({"error": "invalid_request"}, "report this status and error code to your administrator"),
+        ({"error": "authorization_pending"}, "(unrecognized server error code, redacted)"),
+        ({"error": "slow_down"}, "(unrecognized server error code, redacted)"),
+        ({"error": ["untrusted-secret"]}, "(unrecognized server error code, redacted)"),
+        ({"error": "untrusted-secret"}, "(unrecognized server error code, redacted)"),
+        (["untrusted-secret"], "(unrecognized server error code, redacted)"),
+    ],
+)
+async def test_login_401_instruction_matches_what_the_message_carries(payload, instruction):
+    """The closing "report ..." line only asks for an error code the message names.
+
+    A recognized 401 error code appears in the reason, so the instruction may
+    ask the user to report "this status and error code". An unrecognized code
+    is redacted, so the instruction must name only the HTTP status and say
+    the code was redacted — never ask for a code the message does not carry.
+    """
+    poll = Mock(return_value=_mock_httpx_response(401, payload))
+    with _install_routed_client(
+        {
+            "/oauth/device": _mock_httpx_response(200, _device_response()),
+            "/oauth/token": _Dynamic(poll),
+        }
+    ), pytest.raises(AuthenticationError) as caught:
+        await DeviceCodeFlow(saas_base_url=_SAAS).login()
+    message = str(caught.value)
+    assert instruction in message
+    if "redacted" in instruction:
+        assert "and error code" not in message
+    assert "untrusted-secret" not in message
+
+
+@pytest.mark.asyncio
 async def test_login_non_json_401_is_terminal_and_redacted():
     response = _mock_httpx_response(401, text="untrusted-secret")
     response.json.side_effect = ValueError("untrusted-secret")
