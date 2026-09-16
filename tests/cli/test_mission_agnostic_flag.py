@@ -31,6 +31,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.helpers import (
     MissionAgnosticCommand,
     MissionAgnosticGroup,
+    _ignored_mission_option,
     make_leaf_commands_mission_agnostic,
 )
 
@@ -193,6 +194,28 @@ def test_bare_mission_without_value_still_fails_loudly() -> None:
     result = CliRunner().invoke(root, ["profile", "list", "--mission"])
     assert result.exit_code == 2
     assert "requires an argument" in result.output
+
+
+def test_ignored_option_is_typer_native_not_foreign_click() -> None:
+    """The ignored option comes from typer's own click universe, never the real ``click`` package.
+
+    Wheel installs resolve any typer in the declared ``>=0.24.1,<0.28`` range,
+    and the 0.26+/0.27 era vendors its own click (``typer._click``) whose
+    parser shares no classes with the real ``click`` package: a real-click
+    ``Option`` injected into a vendored-click command crashes every
+    invocation with ``'Context' object has no attribute
+    '_param_default_explicit'`` (found by ``tests/architectural/
+    test_remediation_effectiveness.py`` against its wheel-install venv,
+    typer 0.27.2 + click 8.5.0 — and it crashed even without ``--mission``,
+    because click processes every param to apply defaults).
+    ``TyperOption`` lives in ``typer.core`` beside ``TyperCommand`` in both
+    eras, so the class's module is pinned to typer's own, not ``click``'s.
+    """
+    from typer.core import TyperCommand
+
+    option = _ignored_mission_option()
+    assert type(option).__module__ == TyperCommand.__module__
+    assert type(option).__module__.split(".")[0] == "typer"
 
 
 def test_walker_recurses_into_nested_sub_apps() -> None:

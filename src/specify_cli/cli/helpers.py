@@ -14,7 +14,7 @@ import click
 import typer
 from rich.align import Align
 from rich.text import Text
-from typer.core import TyperCommand, TyperGroup
+from typer.core import TyperCommand, TyperGroup, TyperOption
 
 # Deferred (TYPE_CHECKING + function-local in git_resolution_failure_message):
 # charter.resolution's module-level import chain (jsonschema/rfc3987) is the
@@ -114,10 +114,24 @@ class BannerGroup(TyperGroup):
 _MISSION_OPTION_NAME = "--mission"
 
 
-def _ignored_mission_option() -> click.Option:
-    """The hidden, non-exposed ``--mission`` option appended to mission-agnostic commands."""
-    return click.Option(
-        [_MISSION_OPTION_NAME],
+def _ignored_mission_option() -> TyperOption:
+    """The hidden, non-exposed ``--mission`` option appended to mission-agnostic commands.
+
+    Built from :class:`typer.core.TyperOption` — typer's own option class —
+    and never a bare ``click.Option``: wheel installs resolve any typer in
+    the declared ``>=0.24.1,<0.28`` range, and the 0.26+/0.27 era vendors its
+    own click (``typer._click``) whose parser shares no classes with the
+    real ``click`` package. A real-click ``Option`` injected into a
+    vendored-click command crashes every invocation with
+    ``'Context' object has no attribute '_param_default_explicit'``
+    (found by ``tests/architectural/test_remediation_effectiveness.py``
+    against its wheel-install venv, typer 0.27.2 + click 8.5.0).
+    ``TyperOption`` is the one option class guaranteed to live in the same
+    click universe as ``TyperCommand`` in both eras, and takes the same
+    click-style keyword arguments.
+    """
+    return TyperOption(
+        param_decls=[_MISSION_OPTION_NAME],
         expose_value=False,
         hidden=True,
         help="Accepted and ignored: this command is not mission-scoped.",
