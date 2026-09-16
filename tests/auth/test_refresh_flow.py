@@ -689,3 +689,72 @@ async def test_refresh_healthy_session_no_extra_me_call(
 
     assert refreshed is True
     assert me_route.call_count == 0
+
+
+class TestRefreshCredentialDiagnostics:
+    """Issue #3233: recovery guidance must not expose credentials."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("refresh_token", [None, "", " ", "\t\n"])
+    async def test_missing_refresh_credential_never_opens_http_client(self, refresh_token):
+        with (
+            patch("specify_cli.auth.flows.refresh.PublicHttpClient") as client,
+            pytest.raises(TokenRefreshError, match="refresh credential.*auth login"),
+        ):
+            await TokenRefreshFlow().refresh(_make_session(refresh_token=refresh_token))
+        client.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status_code", [400, 401])
+    @pytest.mark.parametrize(
+        ("error", "diagnostic", "recovery"),
+        [
+            ("invalid_request", "refresh request", "auth login"),
+            ("invalid_client", "client identification", "administrator"),
+        ],
+    )
+    async def test_known_errors_explain_distinct_recovery(self, status_code, error, diagnostic, recovery):
+        secret = "sensitive-refresh-credential"
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as client:
+            http = AsyncMock()
+            client.return_value.__aenter__.return_value = http
+            http.post.return_value = _mock_httpx_response(
+                status_code, {"error": error, "error_description": secret}, text=secret
+            )
+            with pytest.raises(TokenRefreshError) as caught:
+                await TokenRefreshFlow().refresh(_make_session())
+        message = str(caught.value)
+        assert error in message
+        assert diagnostic in message
+        assert recovery in message
+        assert secret not in message
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status_code", [400, 401, 409, 500])
+    async def test_unrecognized_http_error_does_not_echo_body(self, status_code):
+        secret = "sensitive-refresh-credential"
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as client:
+            http = AsyncMock()
+            client.return_value.__aenter__.return_value = http
+            http.post.return_value = _mock_httpx_response(
+                status_code, {"error": secret}, text=secret
+            )
+            with pytest.raises(TokenRefreshError) as caught:
+                await TokenRefreshFlow().refresh(_make_session())
+        assert f"HTTP {status_code}" in str(caught.value)
+        assert secret not in str(caught.value)
+
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("payload", [None, [], "sensitive-refresh-credential"])
+    @pytest.mark.parametrize("status_code", [400, 401, 409])
+    async def test_non_object_error_json_uses_safe_http_diagnostic(self, payload, status_code):
+        with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as client:
+            http = AsyncMock()
+            client.return_value.__aenter__.return_value = http
+            response = _mock_httpx_response(status_code, text="sensitive-refresh-credential")
+            response.json.return_value = payload
+            http.post.return_value = response
+            with pytest.raises(TokenRefreshError, match=f"HTTP {status_code}") as caught:
+                await TokenRefreshFlow().refresh(_make_session())
+        assert "sensitive-refresh-credential" not in str(caught.value)

@@ -4,9 +4,9 @@ shared team-scoped surface (program-graph handle Z7-C).
 "Official-SDK" per the node criterion means the ``mcp`` PyPI package
 (``modelcontextprotocol/python-sdk``, ``pyproject.toml``'s
 ``mcp>=1.27.1,<2.0.0``) — never a hand-rolled JSON-RPC loop reimplementing
-MCP's own framing. ``build_server()`` wires exactly two tools,
-``zeitgeist_status``/``zeitgeist_watch``, onto :mod:`subscription`'s
-``status()``/``watch()`` — the SAME functions the CLI adapter
+MCP's own framing. ``build_server()`` wires three tools,
+``zeitgeist_status``/``zeitgeist_watch``/``zeitgeist_activity``, onto
+:mod:`subscription`'s snapshot and shared agent-delivery surfaces — the SAME functions the CLI adapter
 (``cli/commands/zeitgeist.py``) calls, so an MCP client and a terminal user
 observe identical bounded-read/bounded-watch behavior; neither adapter
 re-derives it independently ("share Z1 service").
@@ -35,14 +35,11 @@ firehose would flood, so :func:`build_server` resolves
 ``moments.load_settings()`` once per stdio session and refuses to start at
 all under ``[moments] agents = "off"`` (one stderr line, exit 0 — stderr,
 because stdout IS the MCP transport and must stay protocol-clean).
-Otherwise every ``zeitgeist_watch`` call carries the developer's
-``moments.frame_predicate`` into ``subscription.watch`` — the relay still
-sends everything; what changes is what THIS stream delivers — and passes the
-events that survive through one ``MomentRateGate`` per session, so at most N
-moments per minute reach agent context and the rest are summarised as
-"+k more" rather than silently lost. ``zeitgeist_status`` stays unfiltered:
-presence/focus is liveness, not moments, and the snapshot never carries
-broadcast prose.
+Watch and activity use the same filter, novelty and bounded receipt policy as
+CLI agent reads. Consumers acknowledge successful batches on the next call;
+unacknowledged responses remain unread. Settings are fixed for this server's
+lifetime; local mission discovery for explicit ``mine`` is refreshed per call.
+Status reports liveness and honors the configured repository restriction.
 
 ``subscription.NotCheckedOut`` (and every other unusable-key fault,
 :class:`resolution.StoreKeyError` included) is deliberately left to
@@ -70,9 +67,10 @@ import sys
 
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from mcp.server.fastmcp import FastMCP
+from pydantic import StrictBool
 
 from . import moments, subscription
 
@@ -104,9 +102,14 @@ _INSTRUCTIONS = (
     "— the credential-store key, host/owner/repo (e.g. github.com/acme/"
     "widget), under which `spec-kitty zeitgeist checkout` stored the team "
     "context; omit `repo` to derive that key from the checkout this server "
-    "process runs in, exactly as the CLI commands do. Neither tool accepts "
-    "a relay URL or credential, and neither writes anything to disk. "
-    "`timeout_s` is always clamped to a 90s honest reported-live ceiling."
+    "process runs in, exactly as the CLI commands do. No tool accepts "
+    "a relay URL or credential, and only acknowledged event identities are stored locally. "
+    "`timeout_s` is always clamped to a 90s honest reported-live ceiling. "
+    "Pass a stable consumer ID across reconnects. After successfully receiving a "
+    "watch/activity response, pass its receipt as acknowledge on the next call "
+    "with the same consumer, repo and settings. Unacknowledged frames may repeat. "
+    "Own-publisher suppression defaults true and requires relay acknowledgment. "
+    "consumer overrides delivery receipts only; publisher identity uses the canonical Zeitgeist session selector."
 )
 
 
@@ -126,7 +129,7 @@ def _resolve_store_key(repo: str | None) -> str:
     from specify_cli.zeitgeist_client.resolution import StoreKeyError, parse_store_key, store_key_for_checkout
 
     if repo is not None:
-        return parse_store_key(repo)
+        return cast(str, parse_store_key(repo))
     cwd = Path.cwd()
     derived = store_key_for_checkout(cwd)
     if derived is None:
@@ -135,12 +138,11 @@ def _resolve_store_key(repo: str | None) -> str:
             "not a git checkout with a hosted origin remote. Pass host/owner/repo "
             "(e.g. github.com/acme/widget) explicitly."
         )
-    return derived
+    return cast(str, derived)
 
 
 def build_server(settings: moments.MomentSettings | None = None) -> FastMCP:
-    """A fresh :class:`FastMCP` instance exposing exactly the
-    ``zeitgeist_status``/``zeitgeist_watch`` tool pair. Called once per
+    """A fresh :class:`FastMCP` instance exposing status, watch and activity tools. Called once per
     stdio session by :func:`run_stdio` — no module-level singleton, so tests
     can build independent servers without sharing state.
 
@@ -149,7 +151,7 @@ def build_server(settings: moments.MomentSettings | None = None) -> FastMCP:
     because a switched-off surface starting up empty would look like a
     working one that merely never hears anything.
 
-    The moment predicate and rate gate are built HERE, once per server, from
+    The settings snapshot is built HERE, once per server, from
     that one settings read — a mid-session config edit changes the next
     session, not a live one, which is the honest reading of "the setting
     this server started under".
@@ -157,8 +159,6 @@ def build_server(settings: moments.MomentSettings | None = None) -> FastMCP:
     resolved = settings if settings is not None else moments.load_settings()
     if resolved.agents is moments.MomentsMode.OFF:
         raise moments.MomentsDisabled(resolved)
-    predicate = moments.frame_predicate(resolved, local_missions=moments.local_missions(moments.locate_repo_root()))
-    rate_gate = moments.MomentRateGate(resolved.rate_per_minute)
 
     server: FastMCP = FastMCP(SERVER_NAME, instructions=_INSTRUCTIONS)
 
@@ -171,8 +171,11 @@ def build_server(settings: moments.MomentSettings | None = None) -> FastMCP:
         ),
         structured_output=True,
     )
-    def zeitgeist_status(repo: str | None = None, timeout_s: float = subscription.DEFAULT_STATUS_TIMEOUT_S) -> dict[str, Any]:
-        return subscription.status(_resolve_store_key(repo), timeout_s=timeout_s)
+    def zeitgeist_status(repo: str | None = None, timeout_s: float = subscription.DEFAULT_STATUS_TIMEOUT_S, filter_own: StrictBool = True) -> dict[str, Any]:
+        key = _resolve_store_key(repo)
+        if not moments.allows_repo(resolved, key):
+            return {"repo": key, "presence": [], "focus": [], "withheld_by": "repos_filter"}
+        return subscription.status(key, timeout_s=timeout_s, filter_own=filter_own)
 
     @server.tool(
         name="zeitgeist_watch",
@@ -189,26 +192,44 @@ def build_server(settings: moments.MomentSettings | None = None) -> FastMCP:
         repo: str | None = None,
         timeout_s: float = subscription.DEFAULT_WATCH_TIMEOUT_S,
         max_frames: int = subscription.MAX_WATCH_FRAMES,
+        consumer: str | None = None,
+        acknowledge: str | None = None,
+        filter_own: StrictBool = True,
     ) -> dict[str, Any]:
+        from .agent_delivery import AgentDelivery
+
         key = _resolve_store_key(repo)
-        if not moments.allows_repo(resolved, key):
-            # #190 item 2: a repos allowlist drops other repos' moments before
-            # this server opens any connection for them — said plainly, never
-            # dressed up as an ordinary empty stream.
-            return {"repo": key, "frames": [], "withheld_by": "repos_filter"}
-        frames = _agent_frames(
-            subscription.watch(key, timeout_s=timeout_s, max_frames=max_frames, frame_filter=predicate)
+        policy = AgentDelivery(key, settings=resolved, consumer=consumer)
+        result = subscription.agent_watch(key, timeout_s=timeout_s, max_frames=max_frames, delivery=policy, acknowledge=acknowledge, filter_own=filter_own)
+        result["frames"] = _agent_frames(result["frames"])
+        return result
+
+    @server.tool(
+        name="zeitgeist_activity",
+        description=(
+            "Bounded retained activity catch-up. replay=true deliberately retrieves acknowledged activity. "
+            "Receipt acknowledgement uses the same consumer and settings as watch."
+        ),
+        structured_output=True,
+    )
+    def zeitgeist_activity(
+        repo: str | None = None,
+        window_s: int = 900,
+        timeout_s: float = subscription.DEFAULT_STATUS_TIMEOUT_S,
+        max_frames: int = subscription.MAX_WATCH_FRAMES,
+        replay: bool = False,
+        consumer: str | None = None,
+        acknowledge: str | None = None,
+        filter_own: StrictBool = True,
+    ) -> dict[str, Any]:
+        from .agent_delivery import AgentDelivery
+
+        key = _resolve_store_key(repo)
+        policy = AgentDelivery(key, settings=resolved, consumer=consumer)
+        result = subscription.agent_activity(
+            key, window_s=window_s, timeout_s=timeout_s, max_frames=max_frames, replay=replay, delivery=policy, acknowledge=acknowledge, filter_own=filter_own
         )
-        surfaced: list[dict[str, Any]] = []
-        for frame in frames:
-            # The cap counts EVENT frames only: presence/focus are liveness,
-            # not moments (#190 item 4 governs what floods agent context).
-            if frame.get("frame_type") != "event" or rate_gate.admit():
-                surfaced.append(frame)
-        result: dict[str, Any] = {"repo": key, "frames": surfaced}
-        summary = rate_gate.take_summary()
-        if summary is not None:
-            result["rate_note"] = summary
+        result["frames"] = _agent_frames(result["frames"])
         return result
 
     return server

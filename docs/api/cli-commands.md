@@ -4212,8 +4212,7 @@ _Control which Zeitgeist status moments reach agent context (off / mine / team),
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ off     Switch moments to agents OFF: nothing surfaces, and                  │
 │         the internal agent-context bridge exits cleanly with one line.       │
-│ on      Switch moments back ON at the documented default (`mine`: only       │
-│         missions this checkout is on).                                       │
+│ on      Switch moments back ON at the documented default (`team`).           │
 │ status  Show the effective mode, which file decided it, and the active       │
 │         filters.                                                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -4236,11 +4235,16 @@ _Control which Zeitgeist status moments reach agent context (off / mine / team),
 
 ## spec-kitty moments on
 
+Team moments are enabled by default, including unfamiliar missions and moments
+without a mission. Explicit `agents = "mine"` limits delivery to locally known
+or configured missions; it does not represent developer assignment. `off` disables
+agent delivery. Global and repo allowlists intersect, and their rate ceilings use
+the lower configured value. A repo cannot widen global restrictions.
+
 ```
  Usage: spec-kitty moments on [OPTIONS]
 
- Switch moments back ON at the documented default (`mine`: only missions this
- checkout is on).
+ Switch moments back ON at the documented default (`team`).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --repo            Write the per-repo override (<repo>/.kittify/config.toml)  │
@@ -6257,7 +6261,7 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 ## spec-kitty zeitgeist watch
 
 ```
- Usage: spec-kitty zeitgeist watch [OPTIONS] [REPO]
+Usage: spec-kitty zeitgeist watch [OPTIONS] [REPO]
 
  Print live frames plus a final summary, bounded by whole-call ``--timeout``
  and ``--max-frames`` count.
@@ -6269,19 +6273,87 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 │                     current checkout's origin remote.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --timeout             FLOAT RANGE [x>=0.001]  Maximum seconds for the whole  │
-│                                               watch (clamped to <= 90s, the  │
-│                                               honest reported-live ceiling). │
-│                                               [default: 5.0]                 │
-│ --max-frames          INTEGER RANGE [x>=1]    Stop after this many frames    │
-│                                               even if the window has not     │
-│                                               elapsed.                       │
-│                                               [default: 500]                 │
-│ --json                                        Emit plain JSON instead of a   │
-│                                               human-readable summary.        │
-│ --help        -h                              Show this message and exit.    │
+│ --timeout           FLOAT RANGE [x>=0.001]  Maximum seconds for the whole    │
+│                                             watch (clamped to <= 90s, the    │
+│                                             honest reported-live ceiling).   │
+│                                             [default: 5.0]                   │
+│ --max-frames        INTEGER RANGE [x>=1]    Maximum delivered frames; agent  │
+│                                             mode scans within the timeout to │
+│                                             count withheld frames.           │
+│                                             [default: 500]                   │
+│ --json                                      Emit plain JSON instead of a     │
+│                                             human-readable summary.          │
+│ --raw                                       Diagnostic stream: explicitly    │
+│                                             bypass agent filters, receipts   │
+│                                             and rate limits.                 │
+│ --consumer          TEXT                    Delivery receipt context override; │
+│                                             publisher identity is unchanged. │
+│ --help                                      Show this message and exit.      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
+
+Agent mode defaults to `team` within the one requested, authorized repository.
+It does not subscribe to other account repositories. Set a stable logical
+consumer with `--consumer` only when a separate receipt context is desired.
+By default, receipts use the publisher/credential selector from #4217:
+`SPEC_KITTY_ZEITGEIST_SESSION_ID`, the Codex thread, or the stable default.
+Separate CLI/MCP processes therefore share receipt continuity automatically.
+`--raw` includes own activity and bypasses agent preferences, novelty and rate limits for diagnostics.
+
+Settings apply on the next CLI command; restart MCP to reload its settings.
+The summary reports effective filters, withheld counts, and `own_filter=relay_verified`
+after the relay confirms own-session suppression. Watch, status, and activity
+request `filterOwn=true`; each read forwards the current cached presence/focus
+issuer references so separate processes in one logical session share identity.
+Another session under the same human account remains visible. Missing cached
+identity or missing relay acknowledgment fails explicitly. `watch --raw` and
+`status --raw` request `filterOwn=false`; MCP tools also accept `filter_own=false`.
+See [session identity](../architecture/zeitgeist-session-identity.md) for cache and reconnect semantics.
+
+## spec-kitty zeitgeist activity
+
+```
+Usage: spec-kitty zeitgeist activity [OPTIONS] [REPO]
+
+ Catch up on retained activity using the same policy as agent watch.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   repo      [REPO]  Credential-store key this checkout's credential is       │
+│                     stored under, as host/owner/repo (e.g.                   │
+│                     github.com/acme/widget). Omit to derive it from the      │
+│                     current checkout's origin remote.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --window            INTEGER RANGE [x>=0]    Lookback seconds within the      │
+│                                             relay's configured retention.    │
+│                                             [default: 900]                   │
+│ --timeout           FLOAT RANGE [x>=0.001]  [default: 2.0]                   │
+│ --max-frames        INTEGER RANGE [x>=1]    [default: 500]                   │
+│ --replay                                    Intentionally include previously │
+│                                             acknowledged activity.           │
+│ --consumer          TEXT                    Stable logical agent ID shared   │
+│                                             with watch/MCP.                  │
+│ --json                                      Emit plain JSON instead of a     │
+│                                             human-readable summary.          │
+│ --help                                      Show this message and exit.      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+Catch-up reads the relay's bounded retained history and applies the same policy
+as watch. Previously acknowledged events do not consume the context budget;
+filtered or withheld events remain unread. `--replay` intentionally retrieves
+previously acknowledged activity. Unsupported retention windows fail explicitly.
+Coverage reports reset, gap, truncation and continuation without claiming a
+complete past or a race-free history/live handoff (relay #296).
+
+CLI acknowledges a batch after successful output and flush. MCP watch/activity
+return a `receipt`; pass it as `acknowledge` on the next call with the same
+consumer, repository and filters. A failed/unacknowledged response may be
+reoffered. Acknowledgement retries are idempotent for one day. Receipts contain
+identity digests and timestamps, never event prose; capacity exhaustion is an
+explicit error, never silent eviction. Changing filters starts a separate
+receipt context. Routine admitted credential renewal preserves it; legacy
+credentials without admission metadata conservatively reset it on rotation.
 
 ## Internal / hidden commands
 

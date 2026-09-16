@@ -20,7 +20,9 @@ Error semantics (feature 080, spec §7.2):
   :class:`SessionInvalidError`. The server has administratively invalidated
   this session; ``TokenManager`` clears local state and the user must
   re-login.
-- Any other HTTP error → :class:`TokenRefreshError`.
+- Missing local refresh credentials or ``invalid_request`` / ``invalid_client``
+  responses → :class:`TokenRefreshError` with specific recovery guidance.
+- Any other HTTP error → :class:`TokenRefreshError` without the response body.
 - Transport-level failures → :class:`NetworkError`.
 """
 
@@ -74,6 +76,12 @@ class TokenRefreshFlow:
             TokenRefreshError: Any other HTTP failure during refresh.
             NetworkError: Transport-level failure (DNS, connect, timeout).
         """
+        if not isinstance(session.refresh_token, str) or not session.refresh_token.strip():
+            raise TokenRefreshError(
+                "No usable refresh credential is stored. "
+                "Run `spec-kitty auth login` again."
+            )
+
         saas_url = get_saas_base_url()
         url = f"{saas_url}/oauth/token"
         data = {
@@ -102,15 +110,15 @@ class TokenRefreshFlow:
                 body = response.json()
             except ValueError:
                 body = {}
-            if body.get("error") == "refresh_replay_benign_retry":
+            if isinstance(body, dict) and body.get("error") == "refresh_replay_benign_retry":
                 raise RefreshReplayError(retry_after=int(body.get("retry_after", 0)))
             # Non-replay 409 (unexpected) — fall through to generic TokenRefreshError below
 
         self._raise_known_auth_error(response)
 
         raise TokenRefreshError(
-            f"Token refresh failed: HTTP {response.status_code} - "
-            f"{response.text[:500]}"
+            f"Token refresh failed: HTTP {response.status_code}. "
+            "Retry later; if this persists, contact your Team Kitty administrator."
         )
 
     def _update_session(
@@ -209,7 +217,20 @@ class TokenRefreshFlow:
             body = response.json()
         except ValueError:
             body = {}
-        error = body.get("error", "")
+        error = body.get("error", "") if isinstance(body, dict) else ""
+        if error == "invalid_request":
+            raise TokenRefreshError(
+                "The server rejected the refresh request (invalid_request): "
+                "a required parameter is missing or malformed. "
+                "Run `spec-kitty auth login` again; if this persists, "
+                "contact your Team Kitty administrator."
+            )
+        if error == "invalid_client":
+            raise TokenRefreshError(
+                "The server rejected the CLI client identification (invalid_client). "
+                "Check that this CLI is supported by your Team Kitty server; "
+                "contact your administrator to verify the CLI client configuration."
+            )
         if error == "invalid_grant":
             raise RefreshTokenExpiredError(
                 "Refresh token is invalid or expired. "

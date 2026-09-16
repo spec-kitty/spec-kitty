@@ -13,31 +13,16 @@ objects, which ``filtered_stream.FilteredStream`` applies client-side before a
 frame is delivered — the exact seam Priivacy-ai/spec-kitty#190 names
 ("applied client-side in the stream client").
 
-**Quiet by default.** ``[moments] agents`` defaults to ``mine``, never
-``team``: an agent surfaces moments about missions the developer is working
-on, not everything the team broadcasts. An unreadable or unknown mode value
-fails closed to ``off`` — a typo in a config file must never widen what an
-agent receives.
+**Team awareness by default.** Unconfigured agents receive team moments,
+including unfamiliar missions and moments without a mission. Explicit ``mine``
+restricts delivery to locally known or configured missions; this is a checkout
+proxy, never an assignment or ownership claim. Invalid modes fail closed to off.
 
-**One setting, two files.** The developer-global default lives in
-``~/.kittify/config.toml`` (:func:`kernel.paths.get_kittify_home`), a repo
-may override it in ``<repo>/.kittify/config.toml`` — the same two-file shape
-every other per-developer preference uses (global home + project ``.kittify``
-override). Filters and rate use per-key repo-over-global precedence. The
-``agents`` mode is narrow-only across the two files (``off < mine < team``):
-repo content may quiet a checkout, never widen a developer's explicit global
-unsubscribe. There is no deeper merge (a repo override replaces a whole list,
-it does not union it), because "which moments do I want *here*" is one
-decision, not a diff.
-
-The ``mine`` basis is deliberately cheap and honest about being a proxy:
-spec-kitty has no hosted assignment model to ask, so "the missions the
-developer is on" means the missions this checkout knows — its
-``kitty-specs/<slug>/`` directories (:func:`local_missions`) — plus whatever
-``[moments].missions`` adds. A moment whose mission matches neither is
-dropped; a checkout with no ``kitty-specs/`` at all therefore surfaces
-nothing under ``mine`` except explicitly configured missions, which is the
-quiet-by-default reading of the requirement, not a gap.
+**One setting, two files.** Global preferences live in ``~/.kittify/config.toml``
+and repository preferences in ``<repo>/.kittify/config.toml``. Both scopes can
+narrow delivery: modes choose ``off < mine < team``, allowlists intersect, and
+rate ceilings choose the lower configured value. Repository content cannot
+widen an explicit developer-global restriction.
 
 Nothing here performs network I/O, so this module sits outside the egress
 consent boundary by construction; and nothing here reads a credential —
@@ -54,7 +39,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import tomli_w
 from spec_kitty_events.zeitgeist_attrs import VOLATILE_EVENT_TYPES
@@ -66,8 +51,8 @@ class MomentsMode(StrEnum):
     """How much of the team's moment stream an agent surface may deliver.
 
     ``off``  — nothing; the MCP server refuses to start (#190 item 3).
-    ``mine`` — moments about missions this developer is on (the default).
-    ``team`` — everything the team's relay carries.
+    ``mine`` — moments about locally known or explicitly configured missions.
+    ``team`` — everything the team's relay carries (the default).
     """
 
     OFF = "off"
@@ -75,10 +60,8 @@ class MomentsMode(StrEnum):
     TEAM = "team"
 
 
-#: The documented default mode. "Never everything by default" (#190): a
-#: developer who opts at nothing gets ``mine``, and only an explicit
-#: ``agents = "team"`` widens the stream.
-DEFAULT_AGENTS_MODE = MomentsMode.MINE
+#: Team awareness is the default; explicit preferences may narrow it.
+DEFAULT_AGENTS_MODE = MomentsMode.TEAM
 
 #: #190 item 4: "at most N moments per minute surfaced to an agent (default
 #: small)". Small enough that a chatty team cannot flood an agent's context,
@@ -118,6 +101,9 @@ class MomentSettings:
     config file's path, or that path marked invalid when the stored value was
     unreadable — so ``status`` can say *why* rather than just *what*.
 
+    ``blocked_filters`` names valid allowlists with no overlap across scopes.
+    These admit nothing; an empty tuple alone would mean no restriction.
+
     ``invalid_filters`` names which of ``repos``/``missions``/``teammates``/
     ``kinds`` were PRESENT in the deciding config but not a list — the shape
     :func:`_string_list` quietly empties to the same tuple an unset key
@@ -147,6 +133,7 @@ class MomentSettings:
     rate_per_minute: int = DEFAULT_RATE_PER_MINUTE
     agents_source: str = "default"
     invalid_filters: frozenset[str] = frozenset()
+    blocked_filters: frozenset[str] = frozenset()
 
     def as_dict(self) -> dict[str, Any]:
         """JSON-safe projection (StrEnum members serialise as their values;
@@ -158,6 +145,7 @@ class MomentSettings:
         re-deriving it against :data:`KNOWN_KIND_NAMES` itself."""
         payload = asdict(self)
         payload["invalid_filters"] = sorted(self.invalid_filters)
+        payload["blocked_filters"] = sorted(self.blocked_filters)
         payload["kinds_unknown"] = [] if "kinds" in self.invalid_filters else list(unknown_kind_names(self.kinds))
         return payload
 
@@ -186,7 +174,7 @@ def locate_repo_root(cwd: Path | None = None) -> Path | None:
     project_root = locate_project_root(cwd if cwd is not None else Path.cwd())
     if project_root is None or not (project_root / REPO_CONFIG_DIRNAME).is_dir():
         return None
-    return project_root
+    return cast(Path, project_root)
 
 
 def _read_section(path: Path) -> tuple[dict[str, Any], str | None]:
@@ -202,7 +190,7 @@ def _read_section(path: Path) -> tuple[dict[str, Any], str | None]:
     syntax error ANYWHERE in the file — even outside ``[moments]`` — must not
     read as "this file said nothing", because that silently discards an
     explicit ``agents = "off"`` and every filter the file set, widening the
-    effective mode to the ``mine`` default (Priivacy-ai/spec-kitty#211). The
+    effective mode to the ``team`` default (Priivacy-ai/spec-kitty#211). The
     caller fails that scope's mode closed instead."""
     try:
         with path.open("rb") as fh:
@@ -331,7 +319,7 @@ def _coerce_rate(raw: Any) -> int:
     moments), since that is what a developer writing 0 asked for."""
     if isinstance(raw, bool) or not isinstance(raw, int) or raw < 0:
         return DEFAULT_RATE_PER_MINUTE
-    return raw
+    return int(raw)
 
 
 def load_settings(
@@ -340,8 +328,7 @@ def load_settings(
     home: Path | None = None,
 ) -> MomentSettings:
     """The effective settings for one developer in one checkout: the global
-    file's ``[moments]`` table overlaid by the repo file's, per key, repo
-    winning.
+    and repo ``[moments]`` tables combined without widening either scope.
 
     ``project_root=None`` discovers the checkout from the process working
     directory (:func:`locate_repo_root`); ``None`` found simply means no repo
@@ -353,8 +340,18 @@ def load_settings(
     global_section, global_error = _read_section(global_config_path(home=home))
     repo_section, repo_error = _read_section(repo_config_path(project_root)) if project_root is not None else ({}, None)
 
-    merged: dict[str, Any] = {**global_section, **repo_section}
-    invalid_filters = _malformed_filter_keys(merged)
+    invalid_filters = _malformed_filter_keys(global_section) | _malformed_filter_keys(repo_section)
+    filters: dict[str, tuple[str, ...]] = {}
+    blocked_filters: set[str] = set()
+    for key in _FILTER_KEYS:
+        configured = [_string_list(section[key]) for section in (global_section, repo_section) if key in section]
+        values = configured[0] if configured else ()
+        if len(configured) == 2:
+            values = tuple(value for value in values if value in configured[1])
+            if not values and key not in invalid_filters:
+                blocked_filters.add(key)
+        filters[key] = values
+    rates = [_coerce_rate(section["rate_per_minute"]) for section in (global_section, repo_section) if "rate_per_minute" in section]
     mode, agents_source = _resolve_mode(
         global_section,
         repo_section,
@@ -365,13 +362,14 @@ def load_settings(
     )
     return MomentSettings(
         agents=mode,
-        repos=_string_list(merged.get("repos")),
-        missions=_string_list(merged.get("missions")),
-        teammates=_string_list(merged.get("teammates")),
-        kinds=_string_list(merged.get("kinds")),
-        rate_per_minute=_coerce_rate(merged.get("rate_per_minute")),
+        repos=filters["repos"],
+        missions=filters["missions"],
+        teammates=filters["teammates"],
+        kinds=filters["kinds"],
+        rate_per_minute=min(rates) if rates else DEFAULT_RATE_PER_MINUTE,
         agents_source=agents_source,
         invalid_filters=invalid_filters,
+        blocked_filters=frozenset(blocked_filters),
     )
 
 
@@ -420,7 +418,7 @@ def write_agents_mode(
 
 def local_missions(project_root: Path | None) -> frozenset[str]:
     """The mission slugs this checkout resolves — the cheap, local stand-in
-    for "missions this developer is on".
+    for locally known missions, not developer assignment.
 
     Routed through :class:`~specify_cli.context.mission_resolver.FsMissionResolver`
     (the sanctioned mission-discovery boundary — a raw ``kitty-specs/`` walk
@@ -430,7 +428,7 @@ def local_missions(project_root: Path | None) -> frozenset[str]:
     root yields the empty set.
 
     Under ``mine``, a checkout that resolves nothing therefore surfaces no
-    moments beyond explicitly configured missions (quiet by default), never
+    moments beyond explicitly configured missions, never
     everything.
     """
     if project_root is None:
@@ -524,7 +522,7 @@ def frame_predicate(
       ``mine`` admits moments whose mission is one of this checkout's own
       (:data:`local_missions`) or of the configured ``missions``.
 
-    An event that names no mission fails ``mine`` (quiet by default); the
+    An event that names no mission fails explicit ``mine``; the
     same moment passes ``team`` subject to the filters alone.
 
     A ``kinds``/``teammates``/``missions`` value present in config but not a
@@ -539,7 +537,7 @@ def frame_predicate(
     teammates = frozenset(settings.teammates)
     configured_missions = frozenset(settings.missions)
     my_missions = configured_missions | frozenset(local_missions)
-    predicate_relevant_invalid = settings.invalid_filters & {"kinds", "teammates", "missions"}
+    predicate_relevant_invalid = (settings.invalid_filters | settings.blocked_filters) & {"kinds", "teammates", "missions"}
 
     def predicate(live_frame: Any) -> bool:
         if getattr(live_frame, "frame_type", None) != "event":
@@ -562,8 +560,7 @@ def frame_predicate(
         mission = event_mission(payload)
         if configured_missions and (mission is None or mission not in configured_missions):
             return False
-        # mine: a moment with no mission cannot be shown to be this
-        # developer's, so it stays quiet rather than surfacing by default.
+        # Explicit mine requires a locally known or configured mission.
         return not (settings.agents is MomentsMode.MINE and (mission is None or mission not in my_missions))
 
     return predicate
@@ -579,7 +576,7 @@ def allows_repo(settings: MomentSettings, store_key: str) -> bool:
     A ``repos`` value present in config but not a list fails closed here —
     every repo is refused, never every repo admitted — matching
     :func:`frame_predicate`'s treatment of the other three filters."""
-    if "repos" in settings.invalid_filters:
+    if "repos" in settings.invalid_filters | settings.blocked_filters:
         return False
     return not settings.repos or store_key in settings.repos
 

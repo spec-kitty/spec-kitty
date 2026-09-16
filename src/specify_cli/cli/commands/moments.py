@@ -7,14 +7,14 @@ second writer:
 
 * ``off``   — write ``[moments] agents = "off"``; the MCP server then refuses
   to start (exit 0, one line) and every other agent surface goes quiet.
-* ``on``    — write the documented default back (``mine``), undoing an off.
+* ``on``    — write the documented default back (``team``), undoing an off.
 * ``status``— say which mode is effective, WHICH file decided it, and what
   else filters the stream.
 
 The write target defaults to the developer-global home ``.kittify/config.toml``
 because this is a per-developer preference; ``--repo`` writes the per-repo
 ``<root>/.kittify/config.toml`` override instead for "quiet in THIS checkout
-only". Precedence (repo beats global beats default) lives in
+only". Narrow-only precedence lives in
 :func:`zeitgeist_client.moments.load_settings` — after any write this module
 re-reads and prints the *effective* mode, because with both files in play
 the file just written is not always the one that decides.
@@ -81,11 +81,10 @@ def off(repo: bool = _REPO_SCOPE_OPTION) -> None:
 
 @moments_app.command()
 def on(repo: bool = _REPO_SCOPE_OPTION) -> None:
-    """Switch moments back ON at the documented default (`mine`: only
-    missions this checkout is on)."""
+    """Switch moments back ON at the documented default (`team`)."""
     scope, project_root = _resolve_scope(repo)
-    written = moments.write_agents_mode(moments.MomentsMode.MINE, scope=scope, project_root=project_root)
-    console.print(f"on — {moments.MomentsMode.MINE.value} written to {written}", markup=False)
+    written = moments.write_agents_mode(moments.DEFAULT_AGENTS_MODE, scope=scope, project_root=project_root)
+    console.print(f"on — {moments.DEFAULT_AGENTS_MODE.value} written to {written}", markup=False)
     _print_effective(moments.load_settings(project_root=project_root))
 
 
@@ -100,6 +99,8 @@ def status(as_json: bool = _JSON_OPTION) -> None:
     for name in ("repos", "missions", "teammates", "kinds"):
         if name in settings.invalid_filters:
             rendered = "invalid value in config — failing closed (blocks everything on this filter)"
+        elif name in settings.blocked_filters:
+            rendered = "global and repo allowlists do not overlap — blocks everything on this filter"
         else:
             values = getattr(settings, name)
             rendered = ", ".join(values) if values else "(no filter)"
