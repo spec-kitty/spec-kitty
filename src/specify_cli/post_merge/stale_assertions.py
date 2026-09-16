@@ -19,6 +19,7 @@ Algorithm overview:
 from __future__ import annotations
 
 import ast
+import re
 import subprocess
 import time
 import warnings
@@ -241,6 +242,55 @@ def _is_generic_literal(value: str) -> bool:
     return value.strip().lower() in _GENERIC_LITERAL_TOKENS
 
 
+# ---------------------------------------------------------------------------
+# #3957 — structural noise-literal gate, closing the #2343 residual.
+#
+# The #2343 stop-list suppressed pinned generic tokens but was deliberately
+# not length-gated, which left two residual noise classes that buried real
+# signal in the merge output:
+#   - F-60: one-character literals — ``open()`` file-mode strings like
+#     ``"a"``/``"r"`` that a diff removes whenever raw ``open(...)`` calls go
+#     away. A one-character literal is never assert-critical signal.
+#   - F-79: single bare lowercase words like ``"items"``/``"url"``/
+#     ``"payload"`` that a large schema-module deletion removes en masse. A
+#     removed literal is only emitted when it is symbol-shaped (contains an
+#     underscore, an uppercase letter, or a digit — ``"E001"``,
+#     ``"old_key"``) or carries ≥ 2 tokens (``"bad request"``).
+#
+# This EXTENDS the #2343 genuineness rule; it does not replace it. The
+# stop-list stays as-is, and genuinely short but symbol-shaped literals
+# (error codes) remain signal (FR-004).
+# ---------------------------------------------------------------------------
+
+# ``open()`` file-mode strings: any short combination of mode characters
+# (including ``+``), e.g. "a", "rb", "w+", "ab+".
+_FILE_MODE_LITERAL_PATTERN = re.compile(r"[arwbt+]{1,4}")
+
+# A single bare lowercase word with no symbol shape: "items", "url", ...
+_SINGLE_LOWERCASE_WORD_PATTERN = re.compile(r"[a-z]+")
+
+
+def _is_noise_literal(value: str) -> bool:
+    """Return True iff *value* is structural noise, never assert-critical signal.
+
+    True when *value*:
+      - is generic per the #2343 stop-list (``_is_generic_literal``), or
+      - is shorter than two characters (F-60 one-char literals), or
+      - is an ``open()`` file-mode string ("a", "rb", "w+", ...), or
+      - is a single bare lowercase word with no symbol shape (F-79).
+
+    Symbol-shaped single tokens survive ("E001", "old_key", "BadRequest"),
+    as do multi-token literals ("bad request").
+    """
+    if _is_generic_literal(value):
+        return True
+    if len(value) < 2:
+        return True
+    if _FILE_MODE_LITERAL_PATTERN.fullmatch(value):
+        return True
+    return bool(_SINGLE_LOWERCASE_WORD_PATTERN.fullmatch(value))
+
+
 def _extract_changed_symbols(
     base_ref: str,
     head_ref: str,
@@ -314,8 +364,10 @@ def _extract_changed_symbols(
         removed_lits = base_lit_vals - head_lit_vals
 
         for val, lineno in base_lits:
-            # FR-004: generic/noise literals are suppressed, not emitted.
-            if val in removed_lits and not _is_generic_literal(val):
+            # FR-004 + #3957: generic/noise literals are suppressed, not
+            # emitted — the #2343 stop-list plus the one-char/file-mode/
+            # single-lowercase-word rules that closed its residual.
+            if val in removed_lits and not _is_noise_literal(val):
                 symbols.append(
                     _SourceSymbol(
                         name=val,
@@ -491,6 +543,43 @@ def _is_message_capture_expr(node: ast.expr) -> bool:
     return False
 
 
+def _ordered_removal_sites(syms: list[_SourceSymbol]) -> list[_SourceSymbol]:
+    """Return removal sites sorted by (file name, line) for deterministic output.
+
+    ``_extract_changed_symbols`` iterates a ``set`` of ``(value, lineno)``
+    pairs, so the incoming order is nondeterministic across processes; the
+    collapsed hint must name sites in a stable order.
+    """
+    return sorted(syms, key=lambda sym: (sym.source_file.name, sym.source_line))
+
+
+# Primary site plus at most three named extras in a collapsed hint; further
+# sites are summarised as a count so the hint stays on one line (#3957).
+_MAX_NAMED_REMOVAL_SITES = 4
+
+
+def _collapsed_literal_hint(lit_val: str, sites: list[_SourceSymbol]) -> str:
+    """Build the one-line hint for a removed literal, naming every removal site.
+
+    #3957: the same literal removed from N source sites previously produced N
+    findings per test line — a wall of repeats that buried real signal (F-79).
+    One collapsed finding now names the primary site plus the extras.
+    """
+    primary, extras = sites[0], sites[1:]
+    hint = (
+        f"Assertion contains string literal {lit_val!r} which was "
+        f"removed from {primary.source_file.name}:{primary.source_line}"
+    )
+    if not extras:
+        return hint
+    named = extras[: _MAX_NAMED_REMOVAL_SITES - 1]
+    hidden = len(extras) - len(named)
+    site_text = ", ".join(f"{sym.source_file.name}:{sym.source_line}" for sym in named)
+    if hidden > 0:
+        site_text += f", +{hidden} more"
+    return f"{hint} (+{len(extras)} more removal site(s): {site_text})"
+
+
 def _literal_findings_for_assertion(
     assertion: ast.AST,
     line: int,
@@ -504,6 +593,9 @@ def _literal_findings_for_assertion(
     left-hand operand is a message-capture expression (FR-009), the finding is
     downgraded to ``info`` grade with label ``message-content-check`` so it
     does not trigger CI noise while still being auditable.
+
+    #3957: one finding per (assertion, literal) — every removal site is named
+    in the collapsed hint instead of emitting one repeat finding per site.
     """
     findings: list[StaleAssertionFinding] = []
     constants_in_assertion = _constants_in_subtree(assertion)
@@ -520,22 +612,19 @@ def _literal_findings_for_assertion(
             grade = "info"
             label = "message-content-check"
 
-        for sym in syms:
-            findings.append(
-                StaleAssertionFinding(
-                    test_file=test_path,
-                    test_line=line,
-                    source_file=sym.source_file,
-                    source_line=sym.source_line,
-                    changed_symbol=lit_val,
-                    confidence=grade,
-                    hint=(
-                        f"Assertion contains string literal {lit_val!r} which was "
-                        f"removed from {sym.source_file.name}:{sym.source_line}"
-                    ),
-                    label=label,
-                )
+        sites = _ordered_removal_sites(syms)
+        findings.append(
+            StaleAssertionFinding(
+                test_file=test_path,
+                test_line=line,
+                source_file=sites[0].source_file,
+                source_line=sites[0].source_line,
+                changed_symbol=lit_val,
+                confidence=grade,
+                hint=_collapsed_literal_hint(lit_val, sites),
+                label=label,
             )
+        )
     return findings
 
 

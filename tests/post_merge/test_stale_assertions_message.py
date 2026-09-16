@@ -5,8 +5,10 @@ comparison whose LHS is a message-capture expression, the finding must be
 downgraded to ``info`` grade with label ``message-content-check`` rather than
 emitted as a ``low``-confidence stale-assertion finding.
 
-Also covers the ``changed_literals`` multi-site fix (T022): the same literal
-removed across multiple source files must produce one finding per removal site.
+Also covers the ``changed_literals`` multi-site contract: the same literal
+removed across multiple source files produces ONE collapsed finding per test
+line whose hint names every removal site (#3957, superseding the per-site
+emission that produced the F-79 wall of repeat hints).
 """
 
 from __future__ import annotations
@@ -196,14 +198,14 @@ class TestMessageCaptureFPSuppression:
 
 
 # ---------------------------------------------------------------------------
-# T022: changed_literals multi-site — all removal sites reported
+# T022/#3957: changed_literals multi-site — one collapsed finding, all sites named
 # ---------------------------------------------------------------------------
 
 class TestChangedLiteralsMultiSite:
-    """T022: same literal removed from N source files → N findings emitted."""
+    """T022/#3957: same literal removed from N source files → 1 collapsed finding."""
 
-    def test_three_removal_sites_produce_three_findings(self, tmp_path: Path) -> None:
-        """A literal removed from 3 different source files produces 3 findings."""
+    def test_three_removal_sites_collapse_to_one_finding(self, tmp_path: Path) -> None:
+        """A literal removed from 3 different source files produces 1 finding naming all 3."""
         test_file = tmp_path / "test_sample.py"
         test_file.write_text(textwrap.dedent("""\
             def test_bad_request():
@@ -211,21 +213,29 @@ class TestChangedLiteralsMultiSite:
         """))
 
         syms = [
-            _make_sym("bad request", tmp_path / "module_a.py", line=10),
             _make_sym("bad request", tmp_path / "module_b.py", line=20),
             _make_sym("bad request", tmp_path / "module_c.py", line=30),
+            _make_sym("bad request", tmp_path / "module_a.py", line=10),
         ]
         findings = _scan_test_file(test_file, syms)
 
-        # All 3 removal sites should be reported.
-        assert len(findings) == 3, (
-            f"Expected 3 findings (one per removal site), got {len(findings)}: {findings}"
+        # One collapsed finding per (assertion, literal) — not one per site.
+        assert len(findings) == 1, (
+            f"Expected 1 collapsed finding, got {len(findings)}: {findings}"
         )
-        source_files = {f.source_file.name for f in findings}
-        assert source_files == {"module_a.py", "module_b.py", "module_c.py"}
+        finding = findings[0]
+        # Primary site is the deterministically first (sorted) site.
+        assert finding.source_file.name == "module_a.py"
+        assert finding.source_line == 10
+        # Every removal site is named in the hint.
+        assert "module_a.py:10" in finding.hint
+        assert "module_b.py:20" in finding.hint
+        assert "module_c.py:30" in finding.hint
+        assert "+2 more removal site(s)" in finding.hint
+        assert "\n" not in finding.hint
 
     def test_two_different_literals_each_from_two_sites(self, tmp_path: Path) -> None:
-        """Two different literals, each removed from 2 files → 4 findings total."""
+        """Two different literals, each removed from 2 files → 2 collapsed findings."""
         test_file = tmp_path / "test_sample.py"
         test_file.write_text(textwrap.dedent("""\
             def test_errors():
@@ -241,16 +251,46 @@ class TestChangedLiteralsMultiSite:
         ]
         findings = _scan_test_file(test_file, syms)
 
-        assert len(findings) == 4, (
-            f"Expected 4 findings, got {len(findings)}: {findings}"
+        assert len(findings) == 2, (
+            f"Expected 2 collapsed findings (one per literal), got {len(findings)}: {findings}"
         )
         alpha_findings = [f for f in findings if f.changed_symbol == "error alpha"]
         beta_findings = [f for f in findings if f.changed_symbol == "error beta"]
-        assert len(alpha_findings) == 2
-        assert len(beta_findings) == 2
+        assert len(alpha_findings) == 1
+        assert len(beta_findings) == 1
+        assert "alpha_a.py:1" in alpha_findings[0].hint
+        assert "alpha_b.py:2" in alpha_findings[0].hint
+        assert "beta_a.py:1" in beta_findings[0].hint
+        assert "beta_b.py:2" in beta_findings[0].hint
+
+    def test_many_sites_summarised_beyond_three_named(self, tmp_path: Path) -> None:
+        """6 removal sites → primary + 3 named extras + '+2 more' (hint stays one line)."""
+        test_file = tmp_path / "test_sample.py"
+        test_file.write_text(textwrap.dedent("""\
+            def test_it():
+                assert result == "old value"
+        """))
+
+        syms = [
+            _make_sym("old value", tmp_path / f"module_{i}.py", line=i)
+            for i in range(1, 7)
+        ]
+        findings = _scan_test_file(test_file, syms)
+
+        assert len(findings) == 1
+        hint = findings[0].hint
+        assert "+5 more removal site(s)" in hint
+        assert "module_1.py:1" in hint
+        assert "module_2.py:2" in hint
+        assert "module_3.py:3" in hint
+        assert "module_4.py:4" in hint
+        # Beyond the primary + 3 named extras, sites are summarised as a count.
+        assert "module_5.py:5" not in hint
+        assert "module_6.py:6" not in hint
+        assert "+2 more" in hint
 
     def test_single_removal_site_still_works(self, tmp_path: Path) -> None:
-        """Baseline: single removal site produces one finding (no regression)."""
+        """Baseline: single removal site produces one plain finding (no collapse suffix)."""
         test_file = tmp_path / "test_sample.py"
         test_file.write_text(textwrap.dedent("""\
             def test_it():
@@ -263,6 +303,8 @@ class TestChangedLiteralsMultiSite:
         assert len(findings) == 1
         assert findings[0].source_file.name == "source.py"
         assert findings[0].source_line == 5
+        assert "more removal site" not in findings[0].hint
+        assert "removed from source.py:5" in findings[0].hint
 
 
 # ---------------------------------------------------------------------------

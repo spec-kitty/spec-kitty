@@ -13,7 +13,11 @@ Two false-positive engines are fixed by SUPPRESSING (not emitting) findings:
 2. Generic-literal noise (#2343) — a removed string literal is suppressed
    only when it is a member of the pinned generic-token set or is all
    punctuation/whitespace/empty (``_is_generic_literal``), never by length
-   alone.
+   alone. #3957 extends this with structural noise rules
+   (``_is_noise_literal``): one-character literals, ``open()`` file-mode
+   strings, and single bare lowercase words ("items"/"url"/"payload") are
+   suppressed too, while symbol-shaped ("E001", "old_key") and multi-word
+   ("bad request") literals remain signal.
 
 Every "paired" test below runs the SAME fixture twice: once with the
 relevant suppression helper monkeypatched to always return the pre-fix
@@ -184,7 +188,7 @@ class TestGenericLiteralSuppressionPaired:
         """)
         head_sha = _commit(repo, "reformat: remove generic literals")
 
-        with mock.patch.object(stale_assertions, "_is_generic_literal", return_value=False):
+        with mock.patch.object(stale_assertions, "_is_noise_literal", return_value=False):
             disabled_report = run_check(base_ref=base_sha, head_ref=head_sha, repo_root=repo)
 
         enabled_report = run_check(base_ref=base_sha, head_ref=head_sha, repo_root=repo)
@@ -198,6 +202,76 @@ class TestGenericLiteralSuppressionPaired:
         )
         assert enabled_generic == set(), (
             f"suppression enabled must suppress all generic-literal removals, got {enabled_generic}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# (b2) #3957 — structural noise literals (F-60/F-79), PAIRED on the same fixture
+# ---------------------------------------------------------------------------
+
+class TestNoiseLiteralSuppressionPaired:
+    """#3957: one-char/file-mode/single-lowercase-word removals — disabled
+    noisy, enabled ~0, while symbol-shaped and multi-word signal survives."""
+
+    def test_noise_literals_paired_disabled_noisy_enabled_near_zero(self, tmp_path: Path) -> None:
+        repo = _setup_repo(tmp_path)
+
+        # Base: the F-60 shape (raw open() mode strings) and the F-79 shape
+        # (generic schema words removed en masse), beside genuine signal.
+        _write(repo, "src/pkg/schema.py", """\
+            MODE_APPEND = "a"
+            MODE_READ_BINARY = "rb"
+            MODE_WRITE_PLUS = "w+"
+            LIST_KEY = "items"
+            LINK_KEY = "url"
+            BODY_KEY = "payload"
+            ERROR_CODE = "E001"
+            LEGACY_MSG = "bad request"
+        """)
+        _write(repo, "tests/test_schema.py", """\
+            def test_modes():
+                assert mode == "a"
+                assert binary == "rb"
+                assert plus == "w+"
+
+            def test_generic_words():
+                assert body == "items"
+                assert body == "url"
+                assert body == "payload"
+
+            def test_code():
+                assert code == "E001"
+
+            def test_message():
+                assert msg == "bad request"
+        """)
+        base_sha = _commit(repo, "base")
+
+        _write(repo, "src/pkg/schema.py", """\
+            ERROR_CODE = "E002"
+        """)
+        head_sha = _commit(repo, "remove raw open() calls and schema keys")
+
+        with mock.patch.object(stale_assertions, "_is_noise_literal", return_value=False):
+            disabled_report = run_check(base_ref=base_sha, head_ref=head_sha, repo_root=repo)
+
+        enabled_report = run_check(base_ref=base_sha, head_ref=head_sha, repo_root=repo)
+
+        noise_values = {"a", "rb", "w+", "items", "url", "payload"}
+        signal_values = {"E001", "bad request"}
+
+        disabled_noise = {f.changed_symbol for f in disabled_report.findings} & noise_values
+        enabled_noise = {f.changed_symbol for f in enabled_report.findings} & noise_values
+        enabled_signal = {f.changed_symbol for f in enabled_report.findings} & signal_values
+
+        assert disabled_noise == noise_values, (
+            f"suppression disabled must surface all 6 noise-literal removals, got {disabled_noise}"
+        )
+        assert enabled_noise == set(), (
+            f"suppression enabled must suppress all noise-literal removals, got {enabled_noise}"
+        )
+        assert enabled_signal == signal_values, (
+            f"symbol-shaped and multi-word literals must remain signal, got {enabled_signal}"
         )
 
 

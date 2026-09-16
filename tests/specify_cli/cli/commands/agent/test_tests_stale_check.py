@@ -237,6 +237,57 @@ class TestJsonOutputMode:
 
 
 # ---------------------------------------------------------------------------
+# #3957: human output surfaces info-grade message-content findings
+# ---------------------------------------------------------------------------
+
+class TestInfoGradeHumanOutput:
+    """#3957: info-grade (message-content) findings must not be dropped from
+    the human-readable output — they are the assertions the analyzer
+    deliberately skips, so they are surfaced under their own title."""
+
+    def test_info_findings_rendered_in_human_output(self, tmp_path: Path) -> None:
+        report = StaleAssertionReport(
+            base_ref="base",
+            head_ref="HEAD",
+            repo_root=tmp_path,
+            findings=[
+                StaleAssertionFinding(
+                    test_file=tmp_path / "tests" / "test_msg.py",
+                    test_line=21,
+                    source_file=tmp_path / "src" / "msg.py",
+                    source_line=3,
+                    changed_symbol="old error message",
+                    confidence="info",
+                    hint="message-content hint marker",
+                    label="message-content-check",
+                ),
+            ],
+            elapsed_seconds=0.5,
+            files_scanned=3,
+            findings_per_100_loc=2.5,
+        )
+
+        with mock.patch(
+            "specify_cli.cli.commands.agent.tests.run_check",
+            return_value=report,
+        ):
+            result = runner.invoke(
+                tests_app,
+                ["--base", "HEAD~1", "--repo", str(tmp_path)],
+            )
+
+        assert result.exit_code == 0, (
+            f"CLI exited with code {result.exit_code}:\n{result.output}"
+        )
+        assert "INFO" in result.output, (
+            "Expected an INFO block for info-grade findings in human output"
+        )
+        assert "review manually" in result.output
+        assert "old error message" in result.output
+        assert "test_msg.py" in result.output
+
+
+# ---------------------------------------------------------------------------
 # Registration: agent/__init__.py registers the tests subapp
 # ---------------------------------------------------------------------------
 
