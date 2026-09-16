@@ -37,7 +37,6 @@ import os
 import re
 import subprocess
 import sys
-import textwrap
 from pathlib import Path
 from typing import Any
 
@@ -211,6 +210,16 @@ def test_ci_aggregate_completeness_output_is_actually_consumed_downstream() -> N
     assert consumers, "needs.collect.outputs.complete must be read somewhere in the diff-cover job -- a computed-but-unconsumed signal is a dead output"
 
 
+def test_ci_aggregate_empty_selection_skips_coverage_consumers() -> None:
+    """A complete zero-module selection emits no coverage artifact, so the
+    workflow must gate consumers on an explicit materialized-coverage signal."""
+    workflow = _aggregate_yaml()
+    collect_outputs = workflow["jobs"]["collect"].get("outputs", {})
+    assert "coverage" in collect_outputs
+    job_if = str(workflow["jobs"]["diff-cover"].get("if", ""))
+    assert "needs.collect.outputs.coverage == 'true'" in job_if
+
+
 def test_ci_aggregate_diffcover_gate_fails_under_90_excluding_census_dead() -> None:
     """T053: the real PR-blocking diff-cover gate, ``--fail-under=90`` on changed
     critical-path lines, excluding census-``dead`` surfaces from the denominator
@@ -344,32 +353,44 @@ def test_stale_artefact_fallback_raises_when_shard_missing_from_both_runs() -> N
 
 
 # ---------------------------------------------------------------------------
-# REAL-SCRIPT execution (review finding, WP10 fix): the twin above proves the
-# ALGORITHM; the tests below extract the ACTUAL embedded Python heredoc out of
-# the shipped ci-aggregate.yml `collect` job and execute it as a subprocess
-# against synthetic `current`/`previous`/registry fixtures -- so a drift
-# between the twin and the shipped script (e.g. the twin raising on a
+# REAL-SCRIPT execution (review finding, WP10 fix; #4360-B extraction): the twin
+# above proves the ALGORITHM; the tests below execute the ACTUAL shipped
+# ``scripts/ci/reconcile_shards.py`` (extracted from ci-aggregate.yml's inline
+# heredoc so it is unit-testable -- the reason it shipped broken) as a
+# subprocess against synthetic `current`/`previous`/registry fixtures -- so a
+# drift between the twin and the shipped script (e.g. the twin raising on a
 # missing-from-both shard while the shipped script silently accepted it) is
-# caught here, not only in the twin's own self-consistent tests above.
+# caught here, not only in the twin's own self-consistent tests above. The
+# `collect` job wires this exact script (asserted by
+# ``test_ci_aggregate_reconcile_step_invokes_shipped_module`` below).
 # ---------------------------------------------------------------------------
-def _extract_heredoc_python(run_text: str) -> str:
-    match = re.search(r"<<'PY'\n(?P<body>.*?)\n[ \t]*PY\b", run_text, re.S)
-    assert match is not None, "expected a `<<'PY' ... PY` heredoc block in this step's `run:` text"
-    return textwrap.dedent(match.group("body"))
+_RECONCILE_SCRIPT_PATH = _REPO_ROOT / "scripts" / "ci" / "reconcile_shards.py"
 
 
-def _reconcile_script_source() -> str:
-    """Extract the ACTUAL 'Reconcile shard artefacts ...' step's embedded
-    Python from the shipped ci-aggregate.yml -- never a re-typed copy."""
+def _shipped_reconcile_script() -> Path:
+    """The ACTUAL shipped reconcile script the aggregate step invokes -- never a
+    re-typed copy."""
+    if not _RECONCILE_SCRIPT_PATH.exists():
+        pytest.fail(f"shipped reconcile script missing: {_RECONCILE_SCRIPT_PATH.relative_to(_REPO_ROOT)} (#4360-B extraction not delivered)")
+    return _RECONCILE_SCRIPT_PATH
+
+
+def test_ci_aggregate_reconcile_step_invokes_shipped_module() -> None:
+    """The `collect` job's reconcile step must invoke the extracted, unit-tested
+    ``scripts/ci/reconcile_shards.py`` (#4360-B) -- not an inline heredoc. This
+    guards the wiring the shipped-script tests below depend on: they run the
+    module directly, so a broken `run:` call would otherwise go unnoticed."""
     workflow = _aggregate_yaml()
-    for job in workflow.get("jobs", {}).values():
-        for step in job.get("steps", []):
-            name = str(step.get("name", "")) if isinstance(step, dict) else ""
-            if "Reconcile shard artefacts" in name:
-                run_text = step.get("run")
-                assert isinstance(run_text, str), "the reconcile step must carry a `run:` script"
-                return _extract_heredoc_python(run_text)
-    pytest.fail("ci-aggregate.yml's `collect` job must have a 'Reconcile shard artefacts...' step")
+    reconcile_steps = [
+        step
+        for job in workflow.get("jobs", {}).values()
+        for step in job.get("steps", [])
+        if isinstance(step, dict) and "Reconcile shard artefacts" in str(step.get("name", ""))
+    ]
+    assert reconcile_steps, "ci-aggregate.yml's `collect` job must have a 'Reconcile shard artefacts...' step"
+    run_text = str(reconcile_steps[0].get("run", ""))
+    assert "scripts/ci/reconcile_shards.py" in run_text, "the reconcile step must invoke the extracted scripts/ci/reconcile_shards.py module (#4360-B)"
+    assert "<<'PY'" not in run_text, "the reconcile logic must live in the unit-tested module, never re-inlined as a heredoc"
 
 
 def _run_reconcile_script(
@@ -405,15 +426,13 @@ def _run_reconcile_script(
         selected_dir.mkdir(parents=True, exist_ok=True)
         (selected_dir / "selected-modules.json").write_text(json.dumps(selected), encoding="utf-8")
 
-    script_path = tmp_path / "reconcile_extracted.py"
-    script_path.write_text(_reconcile_script_source(), encoding="utf-8")
     output_path = tmp_path / "github_output.txt"
     output_path.write_text("", encoding="utf-8")
 
     env = dict(os.environ)
     env["GITHUB_OUTPUT"] = str(output_path)
     completed = subprocess.run(
-        [sys.executable, str(script_path)],
+        [sys.executable, str(_shipped_reconcile_script())],
         cwd=workdir,
         env=env,
         capture_output=True,
@@ -571,6 +590,20 @@ def test_shipped_reconcile_script_falls_back_for_every_module_when_selection_inf
     assert (resolved_dir / _MERGE_BASENAME).read_bytes() == b"PREVIOUS-MERGE"
 
 
+def test_shipped_reconcile_script_reports_empty_selection_has_no_coverage(tmp_path: Path) -> None:
+    completed, github_output = _run_reconcile_script(
+        tmp_path,
+        current={},
+        previous={},
+        registry_rows=[_MERGE_ROW],
+        selected=[],
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    parsed = _parse_github_output(github_output)
+    assert parsed.get("complete") == "true", github_output
+    assert parsed.get("coverage") == "false", github_output
+
+
 def test_shipped_reconcile_script_ignores_a_malformed_selected_modules_file(tmp_path: Path) -> None:
     """A corrupt/malformed selected-modules.json must never crash the job --
     it degrades to "no selection info known" (fallback-eligible for all),
@@ -586,14 +619,12 @@ def test_shipped_reconcile_script_ignores_a_malformed_selected_modules_file(tmp_
     (github_dir / "ci-module-registry.yml").write_text(yaml.safe_dump({"modules": [_MERGE_ROW]}), encoding="utf-8")
     (selected_dir / "selected-modules.json").write_text("{not valid json", encoding="utf-8")
 
-    script_path = tmp_path / "reconcile_extracted.py"
-    script_path.write_text(_reconcile_script_source(), encoding="utf-8")
     output_path = tmp_path / "github_output.txt"
     output_path.write_text("", encoding="utf-8")
     env = dict(os.environ)
     env["GITHUB_OUTPUT"] = str(output_path)
     completed = subprocess.run(
-        [sys.executable, str(script_path)],
+        [sys.executable, str(_shipped_reconcile_script())],
         cwd=workdir,
         env=env,
         capture_output=True,
@@ -615,8 +646,6 @@ def test_shipped_reconcile_script_rejects_same_run_basename_collision(tmp_path: 
     (current_dir / "artifact-a" / _MERGE_BASENAME).write_bytes(b"SHARD-A")
     (current_dir / "artifact-b" / _MERGE_BASENAME).write_bytes(b"SHARD-B")
 
-    script_path = tmp_path / "reconcile_extracted.py"
-    script_path.write_text(_reconcile_script_source(), encoding="utf-8")
     github_dir = tmp_path / "workdir" / "out" / "aggregate" / "source"
     github_dir.mkdir(parents=True, exist_ok=True)
     (github_dir / "ci-module-registry.yml").write_text(yaml.safe_dump({"modules": [_MERGE_ROW]}), encoding="utf-8")
@@ -626,7 +655,7 @@ def test_shipped_reconcile_script_rejects_same_run_basename_collision(tmp_path: 
     env["GITHUB_OUTPUT"] = str(output_path)
 
     completed = subprocess.run(
-        [sys.executable, str(script_path)],
+        [sys.executable, str(_shipped_reconcile_script())],
         cwd=tmp_path / "workdir",
         env=env,
         capture_output=True,
@@ -695,7 +724,7 @@ def test_shipped_reconcile_script_output_cannot_inject_step_outputs(tmp_path: Pa
     # structural, not incidental.
     assert not re.search(r"^(complete|missing)=", github_output, re.M), github_output
     parsed = _parse_github_output(github_output)
-    assert set(parsed) == {"complete", "missing"}, f"injected or stray step outputs: {sorted(parsed)}"
+    assert set(parsed) == {"complete", "missing", "coverage"}, f"injected or stray step outputs: {sorted(parsed)}"
     assert parsed["complete"] == "false", github_output
     assert parsed["missing"] == _MERGE_BASENAME, github_output
 

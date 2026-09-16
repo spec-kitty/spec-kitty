@@ -78,7 +78,7 @@ jobs:
           # metadata validation, build integrity, exact wheel installability,
           # and shared-package drift checks.
           python -m pytest -v --import-mode=importlib tests/release 2>&1 | tee pytest-output.txt
-          exit ${PIPESTATUS[0]}
+          exit "${PIPESTATUS[0]}"
 
       - name: Validate release metadata
         run: python scripts/release/validate_release.py --mode tag --tag "${RELEASE_TAG}" --tag-pattern "v*.*.*"
@@ -111,7 +111,7 @@ jobs:
           # Count tracked migration files in source. The test suite may generate
           # temporary files in the workspace, so verify against the repository
           # contents rather than the mutated working tree.
-          SOURCE_COUNT=$(git ls-files src/specify_cli/upgrade/migrations | grep '/m_.*\.py$' | wc -l | tr -d ' ')
+          SOURCE_COUNT=$(git ls-files src/specify_cli/upgrade/migrations | grep -c '/m_.*\.py$' | tr -d ' ')
           echo "Source migrations count: $SOURCE_COUNT"
 
           # Extract wheel to temp directory
@@ -161,7 +161,7 @@ jobs:
           WHEEL_DOCTRINE_COUNT=$(find /tmp/wheel_check/charter/offering -type f 2>/dev/null | wc -l | tr -d ' ')
           echo "Wheel doctrine file count: $WHEEL_DOCTRINE_COUNT"
 
-          SOURCE_SKILL_COUNT=$(git ls-files src/charter/offering/skills | grep '/SKILL\.md$' | wc -l | tr -d ' ')
+          SOURCE_SKILL_COUNT=$(git ls-files src/charter/offering/skills | grep -c '/SKILL\.md$' | tr -d ' ')
           echo "Source bundled skill count: $SOURCE_SKILL_COUNT"
 
           WHEEL_SKILL_COUNT=$(find /tmp/wheel_check/charter/offering/skills -path '*/SKILL.md' -type f 2>/dev/null | wc -l | tr -d ' ')

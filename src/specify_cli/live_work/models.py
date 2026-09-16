@@ -352,6 +352,26 @@ class Observation(BaseModel):
         }
         if self.kind in failed_or_skipped and not self.text:
             raise ValueError(f"kind {self.kind.value!r} requires honest inline text — failure and skip are first-class, never laundered into silence")
+        # Narrative/message kinds (#4269's authored surface) carry authored
+        # prose: the text IS the observation, and a typed action detail can
+        # never stand in for it — an authored message with no body is inert.
+        narrative_kinds = {
+            WorkEmissionKind.NARRATIVE_INTENT_DECLARED,
+            WorkEmissionKind.NARRATIVE_PROGRESS_REPORTED,
+            WorkEmissionKind.NARRATIVE_QUESTION_ASKED,
+            WorkEmissionKind.NARRATIVE_QUESTION_ANSWERED,
+            WorkEmissionKind.NARRATIVE_DECISION_RECORDED,
+            WorkEmissionKind.NARRATIVE_HANDOFF_PERFORMED,
+            WorkEmissionKind.NARRATIVE_BLOCKER_RAISED,
+            WorkEmissionKind.NARRATIVE_BLOCKER_RESOLVED,
+            WorkEmissionKind.NARRATIVE_NEXT_PROPOSED,
+            WorkEmissionKind.MESSAGE_PEER_SENT,
+        }
+        if self.kind in narrative_kinds:
+            if not self.text:
+                raise ValueError(f"kind {self.kind.value!r} requires the authored text — the prose is the observation")
+            if self.action is not None:
+                raise ValueError(f"kind {self.kind.value!r} must not carry a typed action detail — authored prose is the observation")
         # Delegation kinds must name their counterpart (shared contract:
         # session.delegated_from or recipient — never neither).
         if (

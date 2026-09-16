@@ -1152,13 +1152,13 @@ _CATEGORY_C_DOCTOR_AUTO_DISCOVERY_SEAM: frozenset[SymbolKey] = frozenset(
             "run_channel_report", "7b85d1bda9aae6c822e97bf6fdcf592fddc365a48710197d103e836fdfd71333", source_module="specify_cli.cli.commands._channel_doctor"
         ),
         # specify_cli.cli.commands._env_file_doctor::register
-        SymbolKey("register", "5e2e984810eb13ddc42d05b32070af2f41f4561ada6a87415b01d0d942c75aca", source_module="specify_cli.cli.commands._env_file_doctor"),
+        SymbolKey("register", "f4c52c62e8b8ddfd63c5b1ff0860c75cc9deaceb6b463a7e8fed0416894193af", source_module="specify_cli.cli.commands._env_file_doctor"),
         # specify_cli.cli.commands._env_file_doctor::run_env_file_health
         SymbolKey(
             "run_env_file_health", "a01d73dc1ffe6ecc2db7561a3707c98e425a77aee9b722a8687f0f9601f97fb9", source_module="specify_cli.cli.commands._env_file_doctor"
         ),
         # specify_cli.cli.commands._provenance_doctor::register
-        SymbolKey("register", "52eac1277179077d9735c9e67756fade67aab73d384883645f69da6800f997d7", source_module="specify_cli.cli.commands._provenance_doctor"),
+        SymbolKey("register", "dd9512fa1755c070c893c618c9cbd51d9709e7edf367a0f30653c45649cd6fe3", source_module="specify_cli.cli.commands._provenance_doctor"),
         # specify_cli.cli.commands._provenance_doctor::run_provenance_audit
         SymbolKey(
             "run_provenance_audit", "a657b0dbc7e8d2b82fc80e005592413230902a240d550c1b12be39cd4cd66b2e", source_module="specify_cli.cli.commands._provenance_doctor"
@@ -2009,18 +2009,13 @@ _CATEGORY_C_LIVE_WORK_CAPTURE_PUBLIC_SURFACE: frozenset[SymbolKey] = frozenset(
         ),
         SymbolKey(
             "FAMILY_BY_EMISSION_KIND",
-            "4ad9da79ebea08a774b554ef62f2908bf05d7f52c2490336544a52d7a56c2394",
+            "1a354ac95982b19d0fbbd32f8d911a1f0e810a570c626a20580ca8b3d90bf544",
             source_module="specify_cli.live_work.kinds",
         ),
         SymbolKey(
             "WORK_CONTRACT_VERSION",
             "f60bd4a8eccc1adf9a46950f8084dfe4a9503f06d349e3cdec7f5a52ec2a9a74",
             source_module="specify_cli.live_work.kinds",
-        ),
-        SymbolKey(
-            "MAX_ATTRS",
-            "847dfdbd099f9b71c5b1aa01d3396a1328ab56afffd91b9d4216397f9199db51",
-            source_module="specify_cli.live_work.publisher",
         ),
         SymbolKey(
             "MAX_OBSERVATIONS_PER_INVOCATION",
@@ -2036,6 +2031,37 @@ _CATEGORY_C_LIVE_WORK_CAPTURE_PUBLIC_SURFACE: frozenset[SymbolKey] = frozenset(
             "MAX_WATCHED_PATHS",
             "4b5def206513a5f888383a0aa5deca4d8f5363913625772c159b3419de76c3ca",
             source_module="specify_cli.live_work.watcher",
+        ),
+    }
+)
+
+
+# ---------- D. Live Work authored-message service surface (#4269) ----------
+# The ``specify_cli.live_work.authored`` service (spec-kitty#4269, authored
+# publish/reply/read/inbox): its runtime callers are the ``zeitgeist
+# send/reply/read/inbox`` CLI commands and the MCP ``zeitgeist_*`` tools,
+# which import the service functions, the typed error and the outcome enum
+# by name. The three symbols below are the service's *result type and wire
+# bounds* — the vocabulary its tests pin and the e2e A-question->B-reply
+# qualification (e2e#452) consumes by name; none has a second src/
+# importer yet. TODO(triage): wire the first by-name consumer or drop from
+# __all__ (FR-303, spec-kitty#4269).
+_CATEGORY_D_LIVE_WORK_AUTHORED_PUBLIC_SURFACE: frozenset[SymbolKey] = frozenset(
+    {
+        SymbolKey(
+            "MAX_BODY_CHARS",
+            "a261b2cb10c71e416e6510b99867f762a39fbea39abffab22e7839b74c5fb76e",
+            source_module="specify_cli.live_work.authored",
+        ),
+        SymbolKey(
+            "MAX_SEND_ATTEMPTS",
+            "ca7665b7b15916df6bab54376f11ab423df60fa7665dc540c8b2bb74d8e23c7e",
+            source_module="specify_cli.live_work.authored",
+        ),
+        SymbolKey(
+            "SendResult",
+            "61611126fce6c3eb3e543ab379e43c7982e82c704a69a0e98bd90ff0d213af32",
+            source_module="specify_cli.live_work.authored",
         ),
     }
 )
@@ -2084,6 +2110,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API
     | _CATEGORY_C_TEAM_KITTY_LAUNCH_DEFAULTS_3980
     | _CATEGORY_C_LIVE_WORK_CAPTURE_PUBLIC_SURFACE
+    | _CATEGORY_D_LIVE_WORK_AUTHORED_PUBLIC_SURFACE
 )
 
 

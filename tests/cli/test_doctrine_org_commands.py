@@ -169,6 +169,212 @@ def test_doctrine_org_validate_rejects_invalid_kind(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Template render path (doctrine-org-init-from-template WP03)
+# ---------------------------------------------------------------------------
+
+
+def _write_mini_template(root: Path) -> None:
+    (root / "pack").mkdir()
+    (root / "pack" / "org-charter.yaml").write_text(
+        'org_name: "{{ORG_NAME}}"\npath: "{{LOCAL_PATH}}"\n',
+        encoding="utf-8",
+    )
+    (root / "README.md").write_text("# {{ORG_NAME}}\n", encoding="utf-8")
+    (root / "kitty-specs").mkdir()
+    (root / "kitty-specs" / "skip.md").write_text("skip\n", encoding="utf-8")
+    (root / ".templateignore").write_text("kitty-specs/\n", encoding="utf-8")
+
+
+def test_doctrine_org_init_template_happy_path(tmp_path: Path) -> None:
+    """``--template`` renders full tree with tokens substituted and ignores applied."""
+    tpl = tmp_path / "tpl"
+    tpl.mkdir()
+    _write_mini_template(tpl)
+    dest = tmp_path / "out"
+
+    result = runner.invoke(
+        app,
+        [
+            "org",
+            "init",
+            str(dest),
+            "--template",
+            str(tpl),
+            "--org-name",
+            "acme-corp",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    charter = (dest / "pack" / "org-charter.yaml").read_text(encoding="utf-8")
+    assert "acme-corp" in charter
+    assert "pack" in charter  # default LOCAL_PATH
+    assert "{{ORG_NAME}}" not in charter
+    assert not (dest / "kitty-specs").exists()
+    assert "rendered" in result.output.lower() or "Org doctrine" in result.output
+
+
+def test_doctrine_org_init_template_requires_org_name(tmp_path: Path) -> None:
+    tpl = tmp_path / "tpl"
+    tpl.mkdir()
+    _write_mini_template(tpl)
+    dest = tmp_path / "out"
+
+    result = runner.invoke(
+        app,
+        ["org", "init", str(dest), "--template", str(tpl)],
+    )
+
+    assert result.exit_code != 0
+    assert "org_name" in result.output.lower() or "ORG_NAME" in result.output
+
+
+def test_doctrine_org_init_template_rejects_invalid_org_name(tmp_path: Path) -> None:
+    tpl = tmp_path / "tpl"
+    tpl.mkdir()
+    _write_mini_template(tpl)
+    dest = tmp_path / "out"
+
+    result = runner.invoke(
+        app,
+        [
+            "org",
+            "init",
+            str(dest),
+            "--template",
+            str(tpl),
+            "--org-name",
+            "Acme",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "org_name.format" in result.output
+    assert not dest.exists()
+
+
+def test_doctrine_org_init_template_force_overwrite(tmp_path: Path) -> None:
+    tpl = tmp_path / "tpl"
+    tpl.mkdir()
+    _write_mini_template(tpl)
+    dest = tmp_path / "out"
+    dest.mkdir()
+    (dest / "stale.txt").write_text("old\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "org",
+            "init",
+            str(dest),
+            "--template",
+            str(tpl),
+            "--org-name",
+            "acme-corp",
+            "--force",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (dest / "pack" / "org-charter.yaml").is_file()
+    assert not (dest / "stale.txt").exists()
+
+
+def test_doctrine_org_init_from_local_folder(tmp_path: Path) -> None:
+    """Operator path: ``--template`` points at a local doctrine-template folder."""
+    local_folder = tmp_path / "doctrine-template"
+    local_folder.mkdir()
+    _write_mini_template(local_folder)
+    dest = tmp_path / "rendered-pack"
+
+    result = runner.invoke(
+        app,
+        [
+            "org",
+            "init",
+            str(dest),
+            "--template",
+            str(local_folder),
+            "--org-name",
+            "acme-corp",
+            "--local-path",
+            "pack",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    charter = (dest / "pack" / "org-charter.yaml").read_text(encoding="utf-8")
+    assert "acme-corp" in charter
+    assert "{{ORG_NAME}}" not in charter
+    assert not (dest / ".templateignore").exists()
+    assert not (dest / "kitty-specs").exists()
+
+
+def test_doctrine_org_init_from_bitbucket_ssh_at_ref(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Git TEMPLATE: ssh://git@…@feat/… clones via GitSource with parsed ref."""
+    from specify_cli.doctrine.sources.protocol import FetchResult
+
+    calls: dict[str, object] = {}
+
+    class FakeGitSource:
+        def __init__(
+            self,
+            url: str,
+            ref: str | None = None,
+            *,
+            inject_token: bool = True,
+        ) -> None:
+            calls["url"] = url
+            calls["ref"] = ref
+            calls["inject_token"] = inject_token
+
+        def fetch(self, target_dir: Path) -> FetchResult:
+            _write_mini_template(target_dir)
+            return FetchResult(
+                ok=True, artifacts_written=2, pack_version="deadbeef", errors=[]
+            )
+
+    monkeypatch.setattr(
+        "specify_cli.doctrine.template_render.resolve.GitSource",
+        FakeGitSource,
+    )
+
+    template = (
+        "ssh://git@git.example.com:7999/org/doctrine-template.git"
+        "@feat/make-embeddable-template"
+    )
+    dest = tmp_path / "from-git"
+
+    result = runner.invoke(
+        app,
+        [
+            "org",
+            "init",
+            str(dest),
+            "--template",
+            template,
+            "--org-name",
+            "acme-corp",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls["url"] == (
+        "ssh://git@git.example.com:7999/org/doctrine-template.git"
+    )
+    assert calls["ref"] == "feat/make-embeddable-template"
+    assert calls["inject_token"] is False
+    assert (dest / "pack" / "org-charter.yaml").is_file()
+    assert "acme-corp" in (dest / "pack" / "org-charter.yaml").read_text(
+        encoding="utf-8"
+    )
+    assert not (dest / ".git").exists()
+    assert not (dest / ".templateignore").exists()
+
+
+# ---------------------------------------------------------------------------
 # FR-004 / AC-7 (operator ruling #2, reviews/plan.ruling.md): org_validate's
 # internal validate_pack(...) call carries an explicit check_drg_root=True —
 # no carve-out. Two cases: (a) a parameter-value assertion mirroring T016's

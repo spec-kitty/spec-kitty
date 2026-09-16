@@ -763,12 +763,15 @@ def _resolve_not_found(
             CoordinationBranchDeleted,
         )
 
-        raise CoordinationBranchDeleted(
+        # #4403: the payload is built by the ONE ``for_mission`` factory — the
+        # coord candidate it composes is the same ``coord_feature_dir`` value
+        # composed above (``DELETED`` is only reachable with a non-empty
+        # ``mid8``, i.e. exactly the arm that composed it).
+        raise CoordinationBranchDeleted.for_mission(
             repo_root=repo_root,
             mission_slug=mission_slug,
             mid8=mid8 or "",
             coordination_branch=coordination_branch,
-            coord_candidate=coord_candidate,
             primary_candidate=primary_candidate,
         )
 
@@ -1049,13 +1052,14 @@ def resolve_handle_to_read_path(
             )
             is CoordState.DELETED
         ):
-            composed_coord = coord_feature_dir(repo_root, handle, mid8)
-            raise CoordinationBranchDeleted(
+            # #4403: the payload is built by the ONE ``for_mission`` factory
+            # (it composes the coord candidate; the primary candidate stays
+            # this site's composed primary dir).
+            raise CoordinationBranchDeleted.for_mission(
                 repo_root=repo_root,
                 mission_slug=handle,
                 mid8=mid8,
                 coordination_branch=coordination_branch,
-                coord_candidate=composed_coord,
                 primary_candidate=_compose_primary_feature_dir(repo_root, handle),
             )
 

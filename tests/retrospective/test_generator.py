@@ -253,6 +253,70 @@ class TestFindingsClassification:
         assert "self-review fallback" in finding.summary
         assert "claude failed" in finding.details
 
+    def test_single_arbiter_override_details_do_not_read_as_recurring(self) -> None:
+        """#4065: a first and only arbiter override must not read as a
+        recurring pattern — the "recurring use" clause is count > 1 only."""
+        events = [
+            {
+                "wp_id": "WP04",
+                "actor": "user",
+                "reason": "Arbiter override: deadlock at cycle 1",
+                "from_lane": "for_review",
+                "to_lane": "approved",
+                "event_id": "a1",
+            },
+        ]
+        not_helpful, gaps = _build_event_mining_findings(
+            events=events,
+            events_rel="kitty-specs/demo/status.events.jsonl",
+            finding_id_counters={},
+            ev_reg=_EvidenceRegistry(),
+        )
+
+        assert not_helpful == []
+        assert len(gaps) == 1
+        finding = gaps[0]
+        assert finding.summary == "Arbiter override needed for WP04 (1x)"
+        assert "escape hatch" in finding.details
+        assert "ecurring use" not in finding.details, (
+            f"a 1x override must not read as a pattern: {finding.details!r}"
+        )
+
+    def test_repeated_arbiter_overrides_keep_recurring_use_reading(self) -> None:
+        """#4065: two genuinely separate overrides on one WP still read as a
+        recurring pattern worth a policy/guard look."""
+        events = [
+            {
+                "wp_id": "WP07",
+                "actor": "user",
+                "reason": "Arbiter override: deadlock at cycle 1",
+                "from_lane": "for_review",
+                "to_lane": "approved",
+                "event_id": "c1",
+            },
+            {
+                "wp_id": "WP07",
+                "actor": "user",
+                "reason": "Arbiter override: re-approval after rework",
+                "from_lane": "in_review",
+                "to_lane": "approved",
+                "event_id": "c2",
+            },
+        ]
+        not_helpful, gaps = _build_event_mining_findings(
+            events=events,
+            events_rel="kitty-specs/demo/status.events.jsonl",
+            finding_id_counters={},
+            ev_reg=_EvidenceRegistry(),
+        )
+
+        assert not_helpful == []
+        assert len(gaps) == 1
+        finding = gaps[0]
+        assert finding.summary == "Arbiter override needed for WP07 (2x)"
+        assert "escape hatch" in finding.details
+        assert "Recurring use suggests the normal review path is blocked" in finding.details
+
     def test_mid_with_backward_moves_has_lane_friction(self) -> None:
         """Backward moves without reviewer feedback are process friction, not rejections."""
         policy = make_policy()

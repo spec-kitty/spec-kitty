@@ -25,7 +25,7 @@ from kernel.clock import now_epoch
 import pytest
 from mcp.shared.memory import create_connected_server_and_client_session
 
-from specify_cli.zeitgeist_client import credentials, mcp_stdio, moments
+from specify_cli.zeitgeist_client import credentials, mcp_stdio, moments, subscription
 
 
 def _checkout_with_origin(bare: Path, dest: Path, origin: str) -> Path:
@@ -59,7 +59,7 @@ def _presence(session_ref: str = "a" * 12) -> dict[str, object]:
 
 
 def _checkout(double_url: str, *, repo: str = "github.com/acme/spec-kitty", credential: str = "team-a-cred") -> None:
-    credentials.store(repo=repo, relay_url=double_url, token=credential, token_kind="shared_team")
+    credentials.store(repo=repo, relay_url=double_url, token=credential, session_ref="issuer-reader", token_kind="shared_team")
 
 
 async def test_server_exposes_exactly_the_status_and_watch_tools() -> None:
@@ -67,7 +67,16 @@ async def test_server_exposes_exactly_the_status_and_watch_tools() -> None:
     async with create_connected_server_and_client_session(server) as client:
         listed = await client.list_tools()
         names = {t.name for t in listed.tools}
-    assert names == {"zeitgeist_status", "zeitgeist_watch"}
+    assert names == {
+        "zeitgeist_status",
+        "zeitgeist_watch",
+        "zeitgeist_activity",
+        # #4269's authored surface — the same service the CLI commands call.
+        "zeitgeist_send",
+        "zeitgeist_reply",
+        "zeitgeist_read",
+        "zeitgeist_inbox",
+    }
 
 
 async def test_no_tool_input_schema_names_a_relay_url_or_credential_field() -> None:
@@ -243,7 +252,9 @@ async def test_no_repo_argument_reads_the_real_checkout_own_credential_end_to_en
         tmp_path / "work" / "acme" / "widget",
         "https://github.com/acme/widget.git",
     )
-    credentials.store(repo="github.com/acme/widget", relay_url=managed_stream_double.url, token="team-a-cred", token_kind="shared_team")
+    credentials.store(
+        repo="github.com/acme/widget", relay_url=managed_stream_double.url, token="team-a-cred", session_ref="issuer-reader", token_kind="shared_team"
+    )
     managed_stream_double.push_frame(_frame(seq=1, frame=_presence(session_ref="g" * 12)))
     managed_stream_double.close_stream()
 
@@ -273,7 +284,9 @@ async def test_watch_tool_with_no_repo_argument_reads_the_real_checkout_own_cred
         tmp_path / "work" / "acme" / "widget",
         "https://github.com/acme/widget.git",
     )
-    credentials.store(repo="github.com/acme/widget", relay_url=managed_stream_double.url, token="team-a-cred", token_kind="shared_team")
+    credentials.store(
+        repo="github.com/acme/widget", relay_url=managed_stream_double.url, token="team-a-cred", session_ref="issuer-reader", token_kind="shared_team"
+    )
     managed_stream_double.push_frame(_frame(seq=1, frame=_presence(session_ref="h" * 12)))
     managed_stream_double.close_stream()
 
@@ -441,9 +454,7 @@ async def test_run_stdio_when_off_is_one_stderr_line_and_a_clean_exit(
     assert rest.strip() == ""
 
 
-async def test_teammates_agent_receives_the_wp_move_an_opted_out_agents_receives_nothing(
-    state_root: Path, managed_stream_double
-) -> None:
+async def test_teammates_agent_receives_the_wp_move_an_opted_out_agents_receives_nothing(state_root: Path, managed_stream_double) -> None:
     """The acceptance pair from #190, on the wire: the same broadcast moment,
     two developers — the teammate's default-configured server delivers the WP
     move, the opted-out developer's server starts at all."""
@@ -456,11 +467,7 @@ async def test_teammates_agent_receives_the_wp_move_an_opted_out_agents_receives
         result = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0})
     structured = result.structuredContent
     assert structured is not None
-    moments_seen = [
-        frame["payload"]["kind"]
-        for frame in structured["frames"]
-        if frame["frame_type"] == "event"
-    ]
+    moments_seen = [frame["payload"]["kind"] for frame in structured["frames"] if frame["frame_type"] == "event"]
     assert moments_seen == ["WPStatusChanged"]
 
     with pytest.raises(moments.MomentsDisabled):
@@ -472,7 +479,7 @@ async def test_mine_mode_surfaces_own_missions_and_drops_foreign_ones(
 ) -> None:
     _local_checkout_missions(tmp_path, monkeypatch, "034-demo")
     _checkout(managed_stream_double.url)
-    managed_stream_double.push_frame(_status_moment(seq=1))                       # own mission
+    managed_stream_double.push_frame(_status_moment(seq=1))  # own mission
     managed_stream_double.push_frame(_status_moment(seq=2, mission="999-theirs"))  # someone else's
     managed_stream_double.close_stream()
 
@@ -485,9 +492,7 @@ async def test_mine_mode_surfaces_own_missions_and_drops_foreign_ones(
     assert slugs == ["034-demo"]  # the moment arrived with its own mission named
 
 
-async def test_repo_filter_drops_other_repos_moments_without_opening_a_connection(
-    state_root: Path, managed_stream_double
-) -> None:
+async def test_repo_filter_drops_other_repos_moments_without_opening_a_connection(state_root: Path, managed_stream_double) -> None:
     _checkout(managed_stream_double.url, repo="github.com/acme/widget")
     server = mcp_stdio.build_server(_settings(repos=("github.com/acme/widget",)))
     async with create_connected_server_and_client_session(server) as client:
@@ -517,4 +522,126 @@ async def test_rate_cap_surfaces_one_moment_and_summarises_the_rest(state_root: 
     types = [frame["frame_type"] for frame in structured["frames"]]
     assert types.count("presence") == 1
     assert types.count("event") == 1
-    assert structured["rate_note"] == "+2 more moments withheld (agent rate cap: 1/min)"
+    assert structured["rate_note"].startswith("+2 more moments withheld (agent rate cap: 1/min)")
+    assert structured["withheld"]["rate"] == 2
+
+
+async def test_acknowledged_mcp_overlap_is_novelty_filtered_before_budget(state_root: Path, managed_stream_double) -> None:
+    """Successful tool receipts survive another bounded watch in one consumer."""
+    _checkout(managed_stream_double.url)
+    frame = _status_moment(1, mission="unfamiliar-billing")
+    managed_stream_double.push_frame(frame)
+    managed_stream_double.close_stream()
+    server = mcp_stdio.build_server()
+    args = {"repo": "github.com/acme/spec-kitty", "consumer": "logical-agent-a", "timeout_s": 2.0, "max_frames": 1}
+    async with create_connected_server_and_client_session(server) as client:
+        first = await client.call_tool("zeitgeist_watch", args)
+        assert not first.isError
+        assert len(first.structuredContent["frames"]) == 1
+        receipt = first.structuredContent["receipt"]
+        managed_stream_double.push_frame(frame)
+        managed_stream_double.push_frame(_status_moment(2, mission="another-mission"))
+        managed_stream_double.close_stream()
+        second = await client.call_tool("zeitgeist_watch", {**args, "acknowledge": receipt})
+    assert not second.isError
+    assert [frame["seq"] for frame in second.structuredContent["frames"]] == [2]
+    assert second.structuredContent["withheld"]["duplicates"] == 1
+
+
+@pytest.mark.parametrize("tool", ["zeitgeist_status", "zeitgeist_watch", "zeitgeist_activity"])
+@pytest.mark.parametrize("value", ["false", "true", 1, 0, None])
+async def test_own_filter_rejects_coercible_non_booleans(tool, value, state_root):
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool(tool, {"repo": "github.com/acme/widget", "filter_own": value})
+    assert result.isError
+    assert "valid boolean" in str(result.content)
+
+
+@pytest.mark.parametrize("tool,method", [("zeitgeist_status", "status"), ("zeitgeist_watch", "agent_watch"), ("zeitgeist_activity", "agent_activity")])
+@pytest.mark.parametrize("arguments,expected", [({}, True), ({"filter_own": True}, True), ({"filter_own": False}, False)])
+async def test_own_filter_default_and_explicit_values_reach_shared_transport(tool, method, arguments, expected, state_root, monkeypatch):
+    seen = []
+
+    def read(repo, **kwargs):
+        seen.append(kwargs["filter_own"])
+        return {"repo": repo, "frames": []}
+
+    monkeypatch.setattr(subscription, method, read)
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool(tool, {"repo": "github.com/acme/widget", **arguments})
+    assert not result.isError, result.content
+    assert seen == [expected]
+
+
+# --- #4269: the authored tools -----------------------------------------------
+
+
+def _authored_env(monkeypatch: pytest.MonkeyPatch, relay_url: str, token: str) -> None:
+    """Fake ``send()``'s environment down to the credential store: an admitted
+    credential, a repository (no mission) binding, and the checkout's store
+    key — the real SaaS gateway is not this suite's subject."""
+    from types import SimpleNamespace
+
+    from specify_cli.live_work.bindings import RepositoryBinding, ResolvedBindings
+
+    credential = SimpleNamespace(relay_url=relay_url, token=token, capability_credential=None, session_ref="sess-author")
+    monkeypatch.setattr("specify_cli.zeitgeist_client.resolution.resolve_credentials", lambda cwd, deadline=None, force=False: credential)
+    monkeypatch.setattr("specify_cli.zeitgeist_client.resolution.store_key_for_checkout", lambda cwd: "github.com/acme/widget")
+    monkeypatch.setattr(
+        "specify_cli.live_work.bindings.resolve_bindings",
+        lambda cwd: ResolvedBindings(repository=RepositoryBinding(slug="acme/widget"), mission=None, repo_root=Path(cwd)),
+    )
+    monkeypatch.setenv("SPEC_KITTY_ZEITGEIST_SESSION_ID", "agent-a")
+
+
+async def test_send_tool_publishes_and_reports_the_outcome(state_root: Path, managed_control_double, monkeypatch: pytest.MonkeyPatch) -> None:
+    from .conftest import mint_capability_token
+
+    now = now_epoch()
+    token = mint_capability_token(
+        managed_control_double.capability_key, sub="probe", team="acme", deployment="d1", repo="spec-kitty", kind="presence", iat=now, exp=now + 300
+    )
+    managed_control_double.set_shared_token(token)
+    _authored_env(monkeypatch, managed_control_double.url, token)
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool("zeitgeist_send", {"kind": "question", "body": "which tag ships?", "audience": "team"})
+    assert not result.isError, result.content
+    payload = result.data if hasattr(result, "data") else json.loads(result.content[0].text)
+    assert payload["outcome"] == "accepted"
+    assert payload["kind"] == "question"
+    assert payload["delivery_scope"] == "live relay ring only; delivery is never retained and ages out with the ring"
+    assert managed_control_double.applied_op_count("event.publish") == 1
+
+
+async def test_send_tool_failure_is_a_tool_error_naming_the_code(state_root: Path, managed_control_double, monkeypatch: pytest.MonkeyPatch) -> None:
+    _authored_env(monkeypatch, managed_control_double.url, "unused")
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool("zeitgeist_send", {"kind": "finding", "body": "no contract kind for this"})
+    assert result.isError
+    assert "unsupported_kind" in str(result.content)
+    assert managed_control_double.applied_op_count("event.publish") == 0
+
+
+async def test_read_tool_reports_a_tool_error_when_not_checked_out(state_root: Path) -> None:
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool("zeitgeist_read", {"repo": "github.com/acme/never-checked-out"})
+    assert result.isError
+
+
+async def test_send_tool_schema_takes_no_credential_and_optional_repo() -> None:
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        listed = await client.list_tools()
+    tools = {tool.name: tool for tool in listed.tools}
+    for name in ("zeitgeist_send", "zeitgeist_reply", "zeitgeist_read", "zeitgeist_inbox"):
+        props = set((tools[name].inputSchema or {}).get("properties", {}))
+        assert "relay_url" not in props
+        assert "token" not in props
+        assert "capability_credential" not in props
+        assert "repo" not in (tools[name].inputSchema or {}).get("required", [])
+    assert set((tools["zeitgeist_send"].inputSchema or {})["properties"]) >= {"kind", "body", "repo", "audience", "thread", "allow_truncate"}

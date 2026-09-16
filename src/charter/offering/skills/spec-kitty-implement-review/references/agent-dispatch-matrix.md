@@ -12,6 +12,7 @@ including `spec-kitty agent tasks move-task`.
 | Claude Code | `claude` | `claude -p "<prompt>" --output-format json -C <dir>` | Gold standard. Supports `--allowedTools`. |
 | GitHub Codex | `codex` | `cat prompt.md \| codex exec --sandbox danger-full-access -C <dir> -` | Stdin only (no positional prompt with `-C`). Use `--add-dir` for read access to the repository root checkout. `move-task` writes git/status locks, so `workspace-write`/`--full-auto` is too narrow. |
 | Google Gemini | `gemini` | `gemini -p "<prompt>" --yolo --output-format json -C <dir>` | Large context window (1M tokens). |
+| LLxprt Code | `llxprt` | `cd <dir> && llxprt -p "<prompt>" --approval-mode=yolo` | Bun-based Gemini CLI fork. No `-C` and no `--output-format json`; `cd` into the workspace first. Model profiles via `--profile-load <name>`. When a mission step needs a user process decision (PR-based flow vs direct commit, mission scope, merge strategy), call `todo_pause` with the question as the reason *before* asking it: the todo continuation auto-advances any turn that ends without a tool call, so a plain-text question never reaches the user. Do not pause for tactical implementation choices; proceed with best judgment. |
 | GitHub Copilot | `copilot` | `copilot -p "<prompt>" --yolo --silent` | Requires GitHub Copilot subscription. |
 | OpenCode | `opencode` | `opencode run "<prompt>" --format json -C <dir>` | Multi-provider support. |
 | Qwen Code | `qwen` | `qwen -p "<prompt>" --yolo --output-format json -C <dir>` | Fork of Gemini CLI, identical interface. |

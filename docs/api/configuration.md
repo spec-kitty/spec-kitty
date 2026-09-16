@@ -326,6 +326,7 @@ Spec Kitty supports AI agents across different platforms. Agent configuration is
 | `claude` | `~/.claude/commands/` | Claude (Anthropic) |
 | `copilot` | `~/.github/prompts/` | GitHub Copilot |
 | `gemini` | `~/.gemini/commands/` | Google Gemini |
+| `llxprt` | `~/Library/Preferences/llxprt-code/commands/` (macOS) | LLxprt Code |
 | `cursor` | `~/.cursor/commands/` | Cursor AI |
 | `qwen` | `~/.qwen/commands/` | Qwen Code |
 | `opencode` | `~/.opencode/command/` | OpenCode |

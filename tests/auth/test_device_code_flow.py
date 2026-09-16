@@ -1007,3 +1007,50 @@ class TestAuthLoginHeadlessCliRunner:
         # DeviceFlowDenied is a subclass of AuthenticationError, which
         # _run_device_flow reports as "Device flow failed: ...".
         assert "Device flow failed" in result.stdout or "denied" in result.stdout.lower()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "payload, expected",
+    [
+        ({"error": "invalid_grant"}, "invalid_grant"),
+        ({"error": "invalid_client"}, "invalid_client"),
+        ({"error": "invalid_request"}, "invalid_request"),
+        ({"error": "authorization_pending"}, "HTTP 401"),
+        ({"error": "slow_down"}, "HTTP 401"),
+        ({"error": ["untrusted-secret"]}, "HTTP 401"),
+        ({"error": "untrusted-secret"}, "HTTP 401"),
+        (["untrusted-secret"], "HTTP 401"),
+    ],
+)
+async def test_login_401_is_terminal_actionable_and_redacted(payload, expected, caplog):
+    """A rejected device grant must not become pending or expose server text."""
+    if isinstance(payload, dict):
+        payload = {**payload, "error_description": "untrusted-secret", "access_token": "untrusted-secret"}
+    poll = Mock(return_value=_mock_httpx_response(401, payload))
+    with _install_routed_client(
+        {
+            "/oauth/device": _mock_httpx_response(200, _device_response()),
+            "/oauth/token": _Dynamic(poll),
+        }
+    ), pytest.raises(AuthenticationError) as caught:
+        await DeviceCodeFlow(saas_base_url=_SAAS).login()
+    assert expected in str(caught.value)
+    assert "spec-kitty auth login --headless" in str(caught.value)
+    assert "untrusted-secret" not in str(caught.value) + caplog.text
+    assert poll.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_login_non_json_401_is_terminal_and_redacted():
+    response = _mock_httpx_response(401, text="untrusted-secret")
+    response.json.side_effect = ValueError("untrusted-secret")
+    with _install_routed_client(
+        {
+            "/oauth/device": _mock_httpx_response(200, _device_response()),
+            "/oauth/token": response,
+        }
+    ), pytest.raises(AuthenticationError) as caught:
+        await DeviceCodeFlow(saas_base_url=_SAAS).login()
+    assert "spec-kitty auth login --headless" in str(caught.value)
+    assert "untrusted-secret" not in str(caught.value)

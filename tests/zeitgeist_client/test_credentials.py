@@ -136,7 +136,8 @@ def test_credentials_file_lives_under_runtime_state_root_not_tracker_file(state_
     credentials.store(repo="github.com/acme/spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
     path = credentials.credentials_path()
     assert path.name == "zeitgeist-credentials"
-    assert path.parent == state_root
+    assert path.parent.parent.parent == state_root
+    assert path.parent.parent.name == "zeitgeist-sessions"
     assert path != state_root / "credentials"  # tracker's own file, never shared (decision 3)
 
 
@@ -599,9 +600,7 @@ def test_reminting_with_a_new_relay_url_drops_the_stale_focus_lease(state_root: 
     the main credential's rewrite points at a different relay -- serving it
     would get every focus frame rejected until the stale lease expires."""
     _seed_main_credential()
-    credentials.store_focus_capability(
-        repo="github.com/acme/widget", capability_credential="focus-jwt", expires_at=_iso_in(1200)
-    )
+    credentials.store_focus_capability(repo="github.com/acme/widget", capability_credential="focus-jwt", expires_at=_iso_in(1200))
 
     credentials.store(
         repo="github.com/acme/widget",

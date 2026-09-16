@@ -34,7 +34,7 @@ import typer
 from specify_cli.core.paths import locate_project_root
 from specify_cli.upgrade.migrations.m_3_2_7_heal_provenance_paths import describe_leaks
 
-from ._doctor_shared import console
+from ._doctor_shared import _emit_not_in_project, console
 
 __all__ = ["register", "run_provenance_audit"]
 
@@ -96,9 +96,9 @@ def register(app: typer.Typer) -> None:
         try:
             repo_root = locate_project_root()
         except Exception as exc:
-            console.print("[red]Error:[/red] Not in a spec-kitty project")
+            _emit_not_in_project(json_output)
             raise typer.Exit(1) from exc
         if repo_root is None:
-            console.print("[red]Error:[/red] Not in a spec-kitty project")
+            _emit_not_in_project(json_output)
             raise typer.Exit(1)
         run_provenance_audit(repo_root, json_output=json_output)

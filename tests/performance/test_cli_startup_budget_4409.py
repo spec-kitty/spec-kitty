@@ -21,6 +21,7 @@ deterministic, so that half runs everywhere.
 
 from __future__ import annotations
 
+import ast
 import subprocess
 import sys
 import time
@@ -32,41 +33,100 @@ from tests._perf_helpers import assert_timing_budget
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-#: Modules that must not import ``jsonschema`` at module scope: each one is
-#: reachable from the CLI's own import graph, and each uses it in exactly one
-#: function. Deferring is what bought the ~2.2 s.
-_DEFERRED_JSONSCHEMA_MODULES = (
-    "src/charter/offering/agent_profiles/validation.py",
-    "src/charter/offering/directives/validation.py",
-    "src/charter/offering/paradigms/validation.py",
-    "src/charter/offering/styleguides/validation.py",
-    "src/charter/offering/tactics/validation.py",
-    "src/charter/offering/toolguides/validation.py",
-    "src/specify_cli/bulk_edit/occurrence_map.py",
-    "src/specify_cli/skills/manifest_store.py",
-)
-
 #: Generous enough to absorb a loaded laptop or CI runner, tight enough to
 #: catch the ~1.8 s regression this issue removed (pre-fix was ~3.2 s).
 _HELP_BUDGET_SECONDS = 2.5
 
 
-@pytest.mark.parametrize("relative_path", _DEFERRED_JSONSCHEMA_MODULES)
-def test_jsonschema_stays_out_of_module_scope(relative_path: str) -> None:
-    """The structural half: deterministic, and it is what actually regresses.
+def _is_type_checking_guard(node: ast.AST) -> bool:
+    """True if ``node`` is ``if TYPE_CHECKING:`` or ``if typing.TYPE_CHECKING:``.
 
-    A module-scope ``import jsonschema`` anywhere in this set silently
-    reintroduces the whole format-checker chain for every CLI invocation.
+    The guard's body never executes at runtime, so imports inside it are
+    exempt from the module-scope scan below.
     """
-    source = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+    if not isinstance(node, ast.If):
+        return False
+    test = node.test
+    if isinstance(test, ast.Name):
+        return test.id == "TYPE_CHECKING"
+    return isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING"
 
-    offending = [line for line in source.splitlines() if line.startswith(("import jsonschema", "from jsonschema"))]
+
+def _module_scope_jsonschema_imports(source: str) -> list[int]:
+    """Return line numbers importing jsonschema outside deferred call sites.
+
+    An import guarded by ``if TYPE_CHECKING:`` is exempt: that branch is
+    ``False`` at runtime and never executes, so it never pulls in the
+    ``jsonschema._format -> rfc3987_syntax`` chain this scan exists to catch.
+    The guard's ``else:`` branch (and everything else — plain module-scope
+    imports, ``try:``-guarded imports, class-body imports) still executes at
+    import time and stays flagged.
+    """
+    offending: list[int] = []
+
+    def visit(node: ast.AST) -> None:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            return
+        is_jsonschema_import = (
+            isinstance(node, ast.Import) and any(alias.name == "jsonschema" or alias.name.startswith("jsonschema.") for alias in node.names)
+        ) or (isinstance(node, ast.ImportFrom) and node.module is not None and (node.module == "jsonschema" or node.module.startswith("jsonschema.")))
+        if is_jsonschema_import:
+            offending.append(node.lineno)
+        if _is_type_checking_guard(node):
+            for child in node.orelse:
+                visit(child)
+            return
+        for child in ast.iter_child_nodes(node):
+            visit(child)
+
+    visit(ast.parse(source))
+    return offending
+
+
+def test_jsonschema_stays_out_of_module_scope() -> None:
+    """The structural half scans every source module, not a hand-picked list.
+
+    A module-scope ``import jsonschema`` anywhere in the CLI source tree can
+    reintroduce the whole format-checker chain for every CLI invocation.
+    """
+    offending = {
+        path.relative_to(REPO_ROOT).as_posix(): lines
+        for path in sorted((REPO_ROOT / "src").rglob("*.py"))
+        if (lines := _module_scope_jsonschema_imports(path.read_text(encoding="utf-8")))
+    }
 
     assert not offending, (
-        f"#4409: {relative_path} imports jsonschema at module scope ({offending}). "
+        f"#4409: source modules import jsonschema at module scope ({offending}). "
         "That pulls jsonschema._format -> rfc3987_syntax (~1.8s) into every "
         "`spec-kitty` invocation. Import it inside the function that validates."
     )
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        "try:\n    import jsonschema\nexcept ImportError:\n    pass\n",
+        "class Validator:\n    import jsonschema\n",
+    ),
+)
+def test_indented_module_scope_jsonschema_import_is_detected(source: str) -> None:
+    """The structural guard remains non-vacuous for indented module blocks."""
+    assert _module_scope_jsonschema_imports(source)
+
+
+def test_function_local_jsonschema_import_is_allowed() -> None:
+    """Deferred call-site imports are the intended fast-startup pattern."""
+    assert _module_scope_jsonschema_imports("def validate():\n    import jsonschema\n") == []
+
+
+def test_type_checking_guarded_jsonschema_import_is_allowed() -> None:
+    """A ``TYPE_CHECKING``-guarded import never executes, so it pays no startup cost."""
+    assert _module_scope_jsonschema_imports("from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from jsonschema import validate\n") == []
+
+
+def test_else_branch_of_type_checking_guard_is_still_detected() -> None:
+    """The ``else:`` branch of a ``TYPE_CHECKING`` guard executes at runtime, so it stays flagged."""
+    assert _module_scope_jsonschema_imports("from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    pass\nelse:\n    import jsonschema\n")
 
 
 @pytest.mark.performance
@@ -82,5 +142,8 @@ def test_help_stays_inside_its_startup_budget() -> None:
     )
     elapsed = time.monotonic() - started
 
-    assert completed.returncode == 0, completed.stderr[-2000:]
-    assert_timing_budget(elapsed, _HELP_BUDGET_SECONDS, name="spec-kitty --help startup")
+    measured = elapsed if completed.returncode == 0 else float("inf")
+    name = "spec-kitty --help startup"
+    if completed.returncode != 0:
+        name = f"{name}; exit={completed.returncode}; stderr={completed.stderr[-2000:]}"
+    assert_timing_budget(measured, _HELP_BUDGET_SECONDS, name=name)

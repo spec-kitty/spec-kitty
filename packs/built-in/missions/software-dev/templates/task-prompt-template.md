@@ -100,6 +100,9 @@ Use language identifiers in code blocks: ````python`,````bash`
 - Specify mandatory tests and where they live.
 - Provide commands or scripts to run.
 - Describe fixtures or data seeding expectations.
+- If this WP owns typed sources (including tests), include the project's
+  configured compiler/typecheck command, matching CI. A passing test runner
+  does not replace compiler diagnostics; a failed compiler check fails the gate.
 
 ## Risks & Mitigations
 
@@ -110,6 +113,8 @@ Use language identifiers in code blocks: ````python`,````bash`
 
 - Key acceptance checkpoints for `/spec-kitty.review`.
 - Any context reviewers should revisit before approving.
+- If typed sources changed, confirm the implementer ran the configured compiler
+  check in addition to the test runner and that compiler diagnostics passed.
 
 ## Activity Log
 

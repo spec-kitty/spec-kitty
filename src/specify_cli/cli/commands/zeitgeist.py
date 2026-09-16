@@ -69,6 +69,7 @@ import asyncio
 import dataclasses
 import getpass
 import time
+import sys
 import urllib.error
 from pathlib import Path
 from typing import Any
@@ -76,11 +77,15 @@ from typing import Any
 import typer
 
 from specify_cli.cli.console import console
-from specify_cli.zeitgeist_client import credentials, operability, outbox_approval, subscription, transport
+from specify_cli.zeitgeist_client import credentials, moments, operability, outbox_approval, subscription, transport
 
 app = typer.Typer(
     name="zeitgeist",
-    help="Read-only access to one team's live Zeitgeist presence/focus stream and status-moment events, plus a local human-gated prose approval surface.",
+    help=(
+        "Access to one team's live Zeitgeist presence/focus stream and status-moment "
+        "events, authored peer messaging (#4269), a local human-gated prose approval "
+        "surface, and operability drills."
+    ),
 )
 
 _REPO_ARGUMENT = typer.Argument(
@@ -122,7 +127,12 @@ def _resolve_store_key(repo: str | None) -> str:
 
 def _report_not_checked_out(exc: subscription.NotCheckedOut) -> None:
     console.print(f"[red]Error:[/red] {exc}")
-    console.print("[yellow]Hint:[/yellow] no Zeitgeist checkout is stored for this repo yet. Run the checkout flow first, then retry.")
+    console.print(
+        "[yellow]Hint:[/yellow] no Zeitgeist checkout is stored for this repo in this logical session. "
+        "Run the checkout flow (a publishing command) first, then retry. Readers reuse the same session as "
+        "publishing commands by default; for a distinct concurrent agent, set "
+        "SPEC_KITTY_ZEITGEIST_SESSION_ID to the same value in both processes."
+    )
     raise typer.Exit(1)
 
 
@@ -154,15 +164,16 @@ def status(
         help=f"Seconds to listen before reporting (clamped to <= {subscription.MAX_TIMEOUT_S}s, the honest reported-live ceiling).",
     ),
     as_json: bool = _JSON_OPTION,
+    raw: bool = typer.Option(False, "--raw", help="Include own session in the diagnostic snapshot."),
 ) -> None:
     """One bounded snapshot of ``repo``'s live presence/focus state."""
     key = _resolve_store_key(repo)
     try:
-        result = subscription.status(key, timeout_s=timeout)
+        result = subscription.status(key, timeout_s=timeout, filter_own=not raw)
     except subscription.NotCheckedOut as exc:
         _report_not_checked_out(exc)
         return
-    except (urllib.error.URLError, TimeoutError) as exc:
+    except (urllib.error.URLError, TimeoutError, ValueError) as exc:
         _report_connection_fault(exc)
         return
 
@@ -185,17 +196,30 @@ def watch(
         subscription.MAX_WATCH_FRAMES,
         "--max-frames",
         min=1,
-        help="Stop after this many frames even if the window has not elapsed.",
+        help="Maximum delivered frames; agent mode scans within the timeout to count withheld frames.",
     ),
     as_json: bool = _JSON_OPTION,
+    raw: bool = typer.Option(False, "--raw", help="Diagnostic stream: include own session and bypass agent filters, receipts and rate limits."),
+    consumer: str | None = typer.Option(
+        None, "--consumer", help="Delivery receipt context override; publisher identity still uses SPEC_KITTY_ZEITGEIST_SESSION_ID."
+    ),
 ) -> None:
     """Print live frames plus a final summary, bounded by whole-call
     ``--timeout`` and ``--max-frames`` count."""
     key = _resolve_store_key(repo)
     started = time.monotonic()
     count = 0
+    result: dict[str, Any] = {}
+    policy = None
     try:
-        frame_iter = subscription.watch(key, timeout_s=timeout, max_frames=max_frames)
+        if raw:
+            frame_iter = subscription.watch(key, timeout_s=timeout, max_frames=max_frames)
+        else:
+            from specify_cli.zeitgeist_client.agent_delivery import AgentDelivery
+
+            policy = AgentDelivery(key, consumer=consumer)
+            result = subscription.agent_watch(key, timeout_s=timeout, max_frames=max_frames, delivery=policy)
+            frame_iter = iter(result["frames"])
         for frame in frame_iter:
             count += 1
             if as_json:
@@ -215,6 +239,12 @@ def watch(
                 console.print(subscription.render_event(frame), markup=False, highlight=False)
             else:
                 console.print(f"[bold]{frame['frame_type']}[/bold]  seq={frame['seq']}  {frame['payload']}")
+    except moments.MomentsDisabled as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(0) from None
+    except ValueError as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(1) from None
     except subscription.NotCheckedOut as exc:
         _report_not_checked_out(exc)
     except (urllib.error.URLError, TimeoutError) as exc:
@@ -236,11 +266,221 @@ def watch(
             "frames": count,
             "reason": reason,
             "elapsed_s": round(elapsed_s, 3),
+            **{k: v for k, v in result.items() if k not in {"frames", "repo", "receipt"}},
         }
         if as_json:
             console.emit_json(summary, indent=None)
         else:
             console.print(f"watch summary  frames={count}  reason={reason}  elapsed_s={elapsed_s:.3f}")
+            console.print({k: v for k, v in summary.items() if k not in {"type", "repo", "frames", "reason", "elapsed_s"}})
+        sys.stdout.flush()
+        if policy is not None:
+            policy.acknowledge(result.get("receipt"))
+
+
+@app.command()
+def activity(
+    repo: str | None = _REPO_ARGUMENT,
+    window: int = typer.Option(900, "--window", min=0, help="Lookback seconds within the relay's configured retention."),
+    timeout: float = typer.Option(subscription.DEFAULT_STATUS_TIMEOUT_S, "--timeout", min=0.001),
+    max_frames: int = typer.Option(subscription.MAX_WATCH_FRAMES, "--max-frames", min=1),
+    replay: bool = typer.Option(False, "--replay", help="Intentionally include previously acknowledged activity."),
+    consumer: str | None = typer.Option(None, "--consumer", help="Stable logical agent ID shared with watch/MCP."),
+    as_json: bool = _JSON_OPTION,
+) -> None:
+    """Catch up on retained activity using the same policy as agent watch."""
+    from specify_cli.zeitgeist_client.agent_delivery import AgentDelivery
+
+    key = _resolve_store_key(repo)
+    try:
+        policy = AgentDelivery(key, consumer=consumer)
+        result = subscription.agent_activity(key, window_s=window, timeout_s=timeout, max_frames=max_frames, replay=replay, delivery=policy)
+        if as_json:
+            console.emit_json(result)
+        else:
+            for frame in result["frames"]:
+                if frame["frame_type"] == "event":
+                    console.print(subscription.render_event(frame), markup=False, highlight=False)
+                else:
+                    console.print(frame)
+            console.print({k: v for k, v in result.items() if k not in {"frames", "receipt"}})
+        sys.stdout.flush()
+        policy.acknowledge(result.get("receipt"))
+    except moments.MomentsDisabled as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(0) from None
+    except subscription.NotCheckedOut as exc:
+        _report_not_checked_out(exc)
+    except (urllib.error.URLError, TimeoutError) as exc:
+        _report_connection_fault(exc)
+    except ValueError as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(1) from None
+
+
+# --- #4269: authored peer messaging ------------------------------------------
+
+_KIND_ARGUMENT = typer.Argument(
+    ...,
+    help=("Authored kind: intent, progress, question, answer, decision, handoff, blocker, resolution, next, or message (a peer reply)."),
+)
+_BODY_ARGUMENT = typer.Argument(..., help="Authored body text; the live wire carries at most 240 chars.")
+_AUDIENCE_OPTION = typer.Option(
+    None,
+    "--audience",
+    help="team (the default when a mission binding resolves it) or peer:<logical-session-id> to address one agent.",
+)
+_TRUNCATE_OPTION = typer.Option(False, "--truncate", help="Explicitly cut an oversize body to the 240-char wire bound instead of failing.")
+_THREAD_OPTION = typer.Option(None, "--thread", help="Thread id; defaults to this message's own id (a new conversation's root).")
+
+
+def _authored() -> Any:
+    """Lazy import of the authored service — ``live_work.authored`` pulls
+    ``spec_kitty_events.models`` and ``ulid``, which a bare ``--help`` or any
+    unrelated command must not pay for at CLI startup."""
+    from specify_cli.live_work import authored  # noqa: PLC0415
+
+    return authored
+
+
+def _print_send_result(result: Any, *, as_json: bool) -> None:
+    from specify_cli.live_work.authored import DELIVERY_SCOPE_NOTE  # noqa: PLC0415
+
+    if as_json:
+        console.emit_json(result.as_dict())
+        return
+    outcome = result.outcome.value
+    style = "green" if outcome == "accepted" else "yellow" if outcome == "offered" else "red"
+    console.print(f"[{style}]{outcome}[/{style}]  message={result.message_id}  thread={result.thread}  audience={result.audience}")
+    if result.reply_to:
+        console.print(f"  reply_to={result.reply_to}")
+    if result.truncated:
+        console.print("  [yellow]body truncated to the 240-char wire bound (explicit --truncate)[/yellow]")
+    if result.reason:
+        console.print(f"  [yellow]{result.reason}[/yellow]", markup=False, highlight=False)
+    console.print(f"  [dim]{DELIVERY_SCOPE_NOTE}[/dim]", markup=False, highlight=False)
+
+
+@app.command()
+def send(
+    kind: str = _KIND_ARGUMENT,
+    body: str = _BODY_ARGUMENT,
+    audience: str | None = _AUDIENCE_OPTION,
+    thread: str | None = _THREAD_OPTION,
+    truncate: bool = _TRUNCATE_OPTION,
+    as_json: bool = _JSON_OPTION,
+) -> None:
+    """Author and publish one live message (#4269) — accepted/offered/failed,
+    never retained delivery."""
+    from specify_cli.live_work.authored import AuthoredMessageError, SendOutcome  # noqa: PLC0415
+
+    module = _authored()
+    try:
+        result = module.send(kind, body, cwd=Path.cwd(), audience=audience, thread=thread, allow_truncate=truncate)
+    except moments.MomentsDisabled as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(0) from None
+    except AuthoredMessageError as exc:
+        console.print(f"[red]Error:[/red] {exc}", markup=False, highlight=False)
+        raise typer.Exit(1) from None
+    _print_send_result(result, as_json=as_json)
+    if result.outcome is SendOutcome.FAILED:
+        raise typer.Exit(1)
+
+
+@app.command()
+def reply(
+    reply_to: str = typer.Argument(..., help="The message id being replied to; it must still be in the relay's recent window."),
+    body: str = _BODY_ARGUMENT,
+    audience: str | None = _AUDIENCE_OPTION,
+    truncate: bool = _TRUNCATE_OPTION,
+    as_json: bool = _JSON_OPTION,
+) -> None:
+    """Reply to one authored message — thread and audience come from the
+    parent; a peer thread is never broadened to team scope."""
+    from specify_cli.live_work.authored import AuthoredMessageError, SendOutcome  # noqa: PLC0415
+
+    module = _authored()
+    try:
+        result = module.reply(reply_to, body, cwd=Path.cwd(), audience=audience, allow_truncate=truncate)
+    except moments.MomentsDisabled as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(0) from None
+    except AuthoredMessageError as exc:
+        console.print(f"[red]Error:[/red] {exc}", markup=False, highlight=False)
+        raise typer.Exit(1) from None
+    _print_send_result(result, as_json=as_json)
+    if result.outcome is SendOutcome.FAILED:
+        raise typer.Exit(1)
+
+
+def _print_message_views(result: dict[str, Any], *, as_json: bool) -> None:
+    if as_json:
+        console.emit_json(result)
+        return
+    for message in result["messages"]:
+        console.print(message["untrusted_text"], markup=False, highlight=False)
+    summary = {k: v for k, v in result.items() if k not in {"messages", "settings"}}
+    console.print(summary)
+
+
+@app.command()
+def read(
+    thread: str | None = typer.Argument(None, help="Thread id; omit to read all recent authored messages."),
+    repo: str | None = _REPO_ARGUMENT,
+    window: int = typer.Option(900, "--window", min=0, help="Lookback seconds within the relay's configured retention."),
+    max_messages: int = typer.Option(100, "--max-messages", min=1, help="Maximum messages delivered in one read."),
+    as_json: bool = _JSON_OPTION,
+) -> None:
+    """Read a conversation thread (or recent authored messages) from the
+    relay's recent ring; bodies render inside untrusted markers."""
+    module = _authored()
+    key = _resolve_store_key(repo)
+    try:
+        result = module.read_conversation(key, thread=thread, window_s=window, max_messages=max_messages)
+    except subscription.NotCheckedOut as exc:
+        _report_not_checked_out(exc)
+        return
+    except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+        _report_connection_fault(exc)
+        return
+    _print_message_views(result, as_json=as_json)
+
+
+@app.command()
+def inbox(
+    repo: str | None = _REPO_ARGUMENT,
+    consumer: str | None = typer.Option(None, "--consumer", help="Stable logical agent ID shared with watch/activity/MCP."),
+    window: int = typer.Option(900, "--window", min=0, help="Lookback seconds within the relay's configured retention."),
+    max_messages: int = typer.Option(50, "--max-messages", min=1, help="Maximum messages delivered in one scan."),
+    acknowledge: str | None = typer.Option(None, "--acknowledge", help="The receipt returned by a previous successful inbox call."),
+    replay: bool = typer.Option(False, "--replay", help="Intentionally include previously acknowledged messages."),
+    as_json: bool = _JSON_OPTION,
+) -> None:
+    """Addressed inbox: novel authored messages for this consumer, over the
+    same novelty/receipt policy as agent watch."""
+    module = _authored()
+    key = _resolve_store_key(repo)
+    try:
+        result = module.inbox(key, consumer=consumer, window_s=window, max_messages=max_messages, acknowledge=acknowledge, replay=replay)
+        _print_message_views(result, as_json=as_json)
+        sys.stdout.flush()
+    except moments.MomentsDisabled as exc:
+        console.print(str(exc), markup=False)
+        raise typer.Exit(0) from None
+    except subscription.NotCheckedOut as exc:
+        _report_not_checked_out(exc)
+        return
+    except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+        _report_connection_fault(exc)
+        return
+    receipt = result.get("receipt")
+    if receipt:
+        from specify_cli.live_work.authored import acknowledge_inbox  # noqa: PLC0415
+
+        # Delivery succeeded once the output above landed — commit the
+        # receipt now, exactly like the activity command does.
+        acknowledge_inbox(key, receipt, consumer=consumer)
 
 
 @app.command(name="mcp-serve", hidden=True)

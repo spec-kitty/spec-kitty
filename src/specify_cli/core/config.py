@@ -20,6 +20,7 @@ AI_CHOICES = {
     "vibe": "Mistral Vibe",
     "pi": "Pi",
     "letta": "Letta Code",
+    "llxprt": "LLxprt Code",
 }
 
 MISSION_CHOICES = {
@@ -41,6 +42,7 @@ AGENT_TOOL_REQUIREMENTS: dict[str, tuple[str, str]] = {
     "kiro": ("kiro-cli", "https://kiro.dev/docs/cli/"),
     "pi": ("pi", "https://pi.dev/docs/latest"),
     "letta": ("letta", "https://docs.letta.com/letta-code/cli/"),
+    "llxprt": ("llxprt", "https://github.com/vybestack/llxprt-code"),
 }
 
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
@@ -64,6 +66,7 @@ AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
     "q": {"dir": ".amazonq/prompts", "ext": "md", "arg_format": "$ARGUMENTS"},
     "kiro": {"dir": ".kiro/prompts", "ext": "md", "arg_format": "$ARGUMENTS"},
     "antigravity": {"dir": ".agent/workflows", "ext": "md", "arg_format": "$ARGUMENTS"},
+    "llxprt": {"dir": ".llxprt/commands", "ext": "toml", "arg_format": "{{args}}"},
 }
 
 # Skill installation classes (PRD section 6)
@@ -89,6 +92,11 @@ AGENT_SKILL_CONFIG: dict[str, dict[str, str | list[str] | None]] = {
     "q":            {"class": SKILL_CLASS_WRAPPER, "skill_roots": None},
     "kiro":         {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".kiro/skills/"]},
     "antigravity":  {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".agent/skills/"]},
+    # LLxprt Code reads the cross-tool .agents/skills/ standard alongside its own
+    # .llxprt/skills/ root at the project tier (.agents/skills/ wins), and
+    # ~/.agents/skills/ plus <global-config>/skills/ (macOS:
+    # ~/Library/Preferences/llxprt-code/skills/) at the user-global tier.
+    "llxprt":       {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".llxprt/skills/"]},
 }
 
 BANNER = """

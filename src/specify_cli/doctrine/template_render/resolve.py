@@ -1,0 +1,260 @@
+"""Resolve TEMPLATE (local path or git URL) to a readable source tree."""
+
+from __future__ import annotations
+
+import re
+import shutil
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
+from urllib.parse import urlparse
+
+from typing import Literal, Protocol
+
+from specify_cli.doctrine.sources.git_source import GitSource
+from specify_cli.doctrine.sources.protocol import FetchResult
+
+RULE_BRANCH_CONFLICT = "branch.conflict"
+RULE_TEMPLATE_MISSING = "template.missing"
+RULE_TEMPLATE_NOT_DIR = "template.not_directory"
+RULE_TEMPLATE_GIT_FETCH = "template.git_fetch"
+RULE_TEMPLATE_SCHEME_REJECTED = "template.scheme_rejected"
+RULE_TEMPLATE_USERINFO_REJECTED = "template.userinfo_rejected"
+
+# TEMPLATE resolves to exactly one of these two kinds.
+KIND_LOCAL: Literal["local"] = "local"
+KIND_GIT: Literal["git"] = "git"
+TemplateKind = Literal["local", "git"]
+
+
+class _GitSourceLike(Protocol):
+    def __init__(
+        self,
+        url: str,
+        ref: str | None = None,
+        *,
+        inject_token: bool = True,
+    ) -> None: ...
+
+    def fetch(self, target_dir: Path) -> FetchResult: ...
+
+
+@dataclass(frozen=True, slots=True)
+class ParsedTemplate:
+    """TEMPLATE string after separating location from encoded ref."""
+
+    location: str
+    encoded_ref: str | None
+    kind: TemplateKind
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedTemplateSource:
+    """Materialised template root ready to copy from."""
+
+    kind: TemplateKind
+    root: Path
+    ref: str | None
+    cleanup: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ResolveError:
+    """Structured resolve failure."""
+
+    rule_id: str
+    message: str
+
+
+# Allow ``/`` in refs (e.g. ``feat/make-embeddable-template``). Reject ``@`` so
+# ``ssh://git@host/...`` userinfo is not taken as the ref separator — the engine
+# backtracks to the final ``@`` before the ref.
+_HTTPS_AT_REF = re.compile(r"^(https://.+?)@([^@]+)$")
+
+
+def parse_template_ref(template: str) -> ParsedTemplate:
+    """Parse TEMPLATE into location + optional encoded branch/ref.
+
+    Preferred encoding: ``#<ref>`` fragment on any URL or path-like string.
+    ``@<ref>`` is only accepted on ``https://`` and ``ssh://`` URLs so
+    ``git@host:path`` SCP-like forms are not misparsed.
+    """
+    stripped = template.strip()
+    if "#" in stripped:
+        location, _, ref = stripped.partition("#")
+        encoded = ref.strip() or None
+        return ParsedTemplate(
+            location=location,
+            encoded_ref=encoded,
+            kind=_classify_location(location),
+        )
+
+    https_match = _HTTPS_AT_REF.match(stripped)
+    if https_match:
+        return ParsedTemplate(
+            location=https_match.group(1),
+            encoded_ref=https_match.group(2),
+            kind=KIND_GIT,
+        )
+    if stripped.startswith("ssh://"):
+        authority, separator, path = stripped.removeprefix("ssh://").partition("/")
+        if separator and "@" in path:
+            repo_path, _, ref = path.rpartition("@")
+            if repo_path and ref:
+                return ParsedTemplate(
+                    location=f"ssh://{authority}/{repo_path}",
+                    encoded_ref=ref,
+                    kind=KIND_GIT,
+                )
+        # An ``@`` in the authority is SSH userinfo, never a ref separator.
+        return ParsedTemplate(location=stripped, encoded_ref=None, kind=KIND_GIT)
+
+    return ParsedTemplate(
+        location=stripped,
+        encoded_ref=None,
+        kind=_classify_location(stripped),
+    )
+
+
+def merge_branch_refs(
+    encoded_ref: str | None,
+    branch_option: str | None,
+) -> tuple[str | None, ResolveError | None]:
+    """Merge TEMPLATE-encoded ref with ``--branch``.
+
+    Returns ``(effective_ref, error)``. Error is set on conflict.
+    """
+    for raw_ref in (encoded_ref, branch_option):
+        if raw_ref is not None and (raw_ref.lstrip().startswith("-") or any(ord(char) < 32 or ord(char) == 127 for char in raw_ref)):
+            return None, ResolveError("branch.invalid", "Git ref must not be an option or contain control characters (branch.invalid).")
+    opt = branch_option.strip() if branch_option else None
+    if opt == "":
+        opt = None
+    enc = encoded_ref.strip() if encoded_ref else None
+    if enc == "":
+        enc = None
+
+    if opt is not None and enc is not None and opt != enc:
+        return None, ResolveError(
+            rule_id=RULE_BRANCH_CONFLICT,
+            message=(f"Conflicting git refs ({RULE_BRANCH_CONFLICT}): --branch={opt!r} vs TEMPLATE-encoded={enc!r}"),
+        )
+    return opt or enc, None
+
+
+def resolve_template_source(
+    template: str,
+    branch: str | None = None,
+    *,
+    git_source_factory: type[_GitSourceLike] | None = None,
+) -> tuple[ResolvedTemplateSource | None, ResolveError | None]:
+    """Resolve TEMPLATE to a local directory root.
+
+    For git templates, clones into a temp directory (``cleanup=True``).
+    ``git_source_factory`` is injectable for tests (defaults to ``GitSource``).
+    """
+    if _https_authority_has_userinfo(template):
+        return None, ResolveError(
+            rule_id=RULE_TEMPLATE_USERINFO_REJECTED,
+            message=(f"TEMPLATE HTTPS URLs must not contain credentials ({RULE_TEMPLATE_USERINFO_REJECTED}); use SSH or a credential helper"),
+        )
+
+    try:
+        parsed = parse_template_ref(template)
+        rejected_scheme = _is_rejected_scheme(parsed.location)
+    except ValueError:
+        return None, ResolveError("template.invalid", "Malformed template location (template.invalid).")
+    effective_ref, conflict = merge_branch_refs(parsed.encoded_ref, branch)
+    if conflict is not None:
+        return None, conflict
+
+    if rejected_scheme:
+        return None, ResolveError(
+            rule_id=RULE_TEMPLATE_SCHEME_REJECTED,
+            message=(
+                f"TEMPLATE scheme rejected ({RULE_TEMPLATE_SCHEME_REJECTED}): only https://, ssh://, git@, and local paths are allowed (got {parsed.location!r})"
+            ),
+        )
+
+    if parsed.kind == KIND_LOCAL:
+        return _resolve_local(parsed.location)
+
+    factory: type[_GitSourceLike] = git_source_factory or GitSource
+    return _resolve_git(parsed.location, effective_ref, factory)
+
+
+def _is_rejected_scheme(location: str) -> bool:
+    """Reject plaintext remote schemes (http://, git://) fail-closed."""
+    if location.startswith(("http://", "git://")):
+        return True
+    parsed = urlparse(location)
+    return parsed.scheme in {"http", "git"}
+
+
+def _https_authority_has_userinfo(template: str) -> bool:
+    """Reject userinfo without echoing or misparsing credential material."""
+    stripped = template.strip()
+    if not stripped.lower().startswith("https://"):
+        return False
+    authority = stripped[len("https://") :].split("/", 1)[0]
+    return "@" in authority
+
+
+def _classify_location(location: str) -> TemplateKind:
+    if location.startswith(("https://", "http://", "ssh://", "git@")):
+        return KIND_GIT
+    # SCP-like git@ already covered; bare host:path with .git is treated as git
+    # only when it looks like a URL scheme we already handle.
+    parsed = urlparse(location)
+    if parsed.scheme in {"https", "http", "ssh", "git"}:
+        return KIND_GIT
+    return KIND_LOCAL
+
+
+def _resolve_local(
+    location: str,
+) -> tuple[ResolvedTemplateSource | None, ResolveError | None]:
+    root = Path(location).expanduser().resolve()
+    if not root.exists():
+        return None, ResolveError(
+            rule_id=RULE_TEMPLATE_MISSING,
+            message=f"TEMPLATE path does not exist ({RULE_TEMPLATE_MISSING}): {root}",
+        )
+    if not root.is_dir():
+        return None, ResolveError(
+            rule_id=RULE_TEMPLATE_NOT_DIR,
+            message=(f"TEMPLATE path is not a directory ({RULE_TEMPLATE_NOT_DIR}): {root}"),
+        )
+    return (
+        ResolvedTemplateSource(kind=KIND_LOCAL, root=root, ref=None, cleanup=False),
+        None,
+    )
+
+
+def _resolve_git(
+    url: str,
+    ref: str | None,
+    factory: type[_GitSourceLike],
+) -> tuple[ResolvedTemplateSource | None, ResolveError | None]:
+    target = Path(tempfile.mkdtemp(prefix="spec-kitty-template-"))
+    # Never inject GIT_TOKEN into arbitrary --template remotes (FR-001).
+    try:
+        source = factory(url=url, ref=ref, inject_token=False)
+        result = source.fetch(target)
+    except OSError as exc:
+        shutil.rmtree(target, ignore_errors=True)
+        return None, ResolveError(
+            rule_id=RULE_TEMPLATE_GIT_FETCH,
+            message=f"TEMPLATE git resolve failed ({RULE_TEMPLATE_GIT_FETCH}): {exc.strerror or 'Git execution failed'}",
+        )
+    if not result.ok:
+        detail = "; ".join(result.errors) if result.errors else "git fetch failed"
+        shutil.rmtree(target, ignore_errors=True)
+        return None, ResolveError(
+            rule_id=RULE_TEMPLATE_GIT_FETCH,
+            message=f"TEMPLATE git resolve failed ({RULE_TEMPLATE_GIT_FETCH}): {detail}",
+        )
+    return (
+        ResolvedTemplateSource(kind=KIND_GIT, root=target, ref=ref, cleanup=True),
+        None,
+    )

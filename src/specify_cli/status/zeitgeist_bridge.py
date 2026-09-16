@@ -85,6 +85,7 @@ if TYPE_CHECKING:
     from specify_cli.zeitgeist_client.credentials import StoredCredential
     from specify_cli.zeitgeist_client.repo_identity import Deadline
     from specify_cli.zeitgeist_client.transport import OfferResult
+    from specify_cli.zeitgeist_client.resolution import FocusLease
 
 logger = logging.getLogger(__name__)
 
@@ -108,16 +109,6 @@ _PRESENCE_ACTIVITY: Literal["file_edit", "command"] = "command"
 #: rejected. (transport.py's docstring cites a wider bound from zeitgeist#38;
 #: the canonical schema this programme deploys still enforces 64.)
 _FOCUS_REF_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}")
-
-# Per-process session identity for offered moments. The relay derives an opaque
-# ``session_ref`` from it (the raw id never reaches a rendered surface), and
-# moments carry no liveness semantics, so a fresh id per process groups this
-# process's moments without pretending to be a long-lived session.
-#
-# Since #186 the SAME id also backs this process's presence/focus frames: the
-# three frame types key off it relay-side, so one process is one actor on the
-# live panel rather than three unrelated ones.
-_SESSION_ID = str(uuid.uuid4())
 
 
 def saas_moment_handler(**kwargs: Any) -> None:
@@ -377,7 +368,7 @@ def _broadcast_moment(
     deadline = repo_identity.Deadline()
 
     credential = _resolve_credentials(cwd, deadline=deadline)
-    if credential is None:
+    if credential is None or not credential.session_ref:
         # Not admitted anywhere / nothing configured / Team Kitty unreachable:
         # the MVP's "a repo no team admitted produces nothing anywhere".
         logger.debug("Zeitgeist moment %s not broadcast: no relay credentials", event_type)
@@ -386,7 +377,7 @@ def _broadcast_moment(
     # EventArgs requires session_id on every event frame (the relay derives the
     # actor's opaque session_ref from it); kind/attrs are required too, ref is
     # optional and omitted when the family declares no aggregate field.
-    offer_args: dict[str, Any] = {"session_id": _SESSION_ID, "kind": event_type, "attrs": attrs}
+    offer_args: dict[str, Any] = {"session_id": credential.session_ref, "kind": event_type, "attrs": attrs}
     if ref:
         offer_args["ref"] = ref
     _offer_and_log(credential, event_type, offer_args)
@@ -430,12 +421,14 @@ def _offer_and_log(credential: StoredCredential, event_type: str, offer_args: Ma
     """
     from specify_cli.zeitgeist_client.transport import ClientConfig, ZeitgeistClient  # noqa: PLC0415
 
+    if not credential.session_ref:
+        return
     client = ZeitgeistClient(
         ClientConfig(
             relay_url=credential.relay_url,
             token=credential.token,
             harness=_HARNESS_ID,
-            session_id=_SESSION_ID,
+            session_id=credential.session_ref,
             agent_id=None,
             # ``repo``/``branch`` feed only the presence/focus ops this handler
             # never sends; filling them would cost a git probe per transition
@@ -499,13 +492,15 @@ def _refresh_liveness_bounded(
     from specify_cli.zeitgeist_client import repo_identity  # noqa: PLC0415
     from specify_cli.zeitgeist_client.transport import ClientConfig, ZeitgeistClient  # noqa: PLC0415
 
+    if not credential.session_ref:
+        return
     try:
         config = ClientConfig.for_repository(
             str(cwd),
             relay_url=credential.relay_url,
             token=credential.token,
             harness=_HARNESS_ID,
-            session_id=_SESSION_ID,
+            session_id=credential.session_ref,
             agent_id=None,
             capability_credential=credential.capability_credential,
             deadline=deadline,
@@ -524,9 +519,7 @@ def _refresh_liveness_bounded(
         # Zero-attempt discipline, same as the sanitizer gate: a ref outside
         # FocusArgs' grammar is a guaranteed 422; skipping beats sending a
         # frame built to be rejected. Presence above already went out.
-        logger.debug(
-            "Zeitgeist focus ref %r does not fit the relay's focus_ref grammar; focus frame skipped", composed
-        )
+        logger.debug("Zeitgeist focus ref %r does not fit the relay's focus_ref grammar; focus frame skipped", composed)
         return
 
     capability = _resolve_focus_capability(cwd, deadline=deadline)
@@ -534,14 +527,13 @@ def _refresh_liveness_bounded(
         logger.debug("Zeitgeist focus frame %s not published: no focus-kind capability", composed)
         return
 
-    # The X-Zeitgeist-Capability header must carry the FOCUS lease; everything
-    # else about the config is unchanged.
-    focus_config = replace(config, capability_credential=capability)
+    # Focus uses its own capability and issuer-owned session reference.
+    focus_config = replace(config, capability_credential=capability.capability_credential, session_id=capability.session_ref)
     _log_offer_outcome(f"focus.start {composed}", ZeitgeistClient(focus_config).focus_start(mission_slug, wp_id))
 
 
-def _resolve_focus_capability(cwd: Path, *, deadline: Deadline) -> str | None:
-    """The checkout's ``focus``-kind capability JWT, or ``None`` to stay silent.
+def _resolve_focus_capability(cwd: Path, *, deadline: Deadline) -> FocusLease | None:
+    """The checkout's focus capability and raw session ID, or ``None``.
 
     ``deadline`` shares this broadcast's one Git budget
     (Priivacy-ai/spec-kitty#203) instead of letting this lookup open its
@@ -549,9 +541,9 @@ def _resolve_focus_capability(cwd: Path, *, deadline: Deadline) -> str | None:
     transport-chain import: resolution pulls httpx, which the status package
     must not pay for at import time.
     """
-    from specify_cli.zeitgeist_client.resolution import resolve_focus_capability  # noqa: PLC0415
+    from specify_cli.zeitgeist_client.resolution import resolve_focus_lease  # noqa: PLC0415
 
-    return resolve_focus_capability(cwd, deadline=deadline)
+    return resolve_focus_lease(cwd, deadline=deadline)
 
 
 def _resolve_credentials(cwd: Path, *, deadline: Deadline) -> StoredCredential | None:

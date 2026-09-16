@@ -1698,6 +1698,9 @@ def _prepare_review_workspace(
 
     # Concurrent review isolation: acquire review lock or apply env-var
     # isolation — only after the workspace is proven to exist.
+    from rich.markup import escape
+
+    from specify_cli.cli.console import console
     from specify_cli.review.lock import ReviewLock, ReviewLockError, _get_isolation_config, _apply_env_var_isolation
 
     isolation_config = _get_isolation_config(main_repo_root)
@@ -1707,7 +1710,10 @@ def _prepare_review_workspace(
         try:
             ReviewLock.acquire(Path(workspace.worktree_path), wp_id, agent or "unknown")
         except ReviewLockError as e:
-            print(f"[red]{e}[/red]")
+            # #4163: the builtin ``print`` echoed these tags literally, and the
+            # lock message carries arbitrary text (agent handles, paths), so it
+            # is escaped before it reaches the markup renderer.
+            console.print(f"[red]{escape(str(e))}[/red]")
             raise typer.Exit(1) from e
 
     return workspace

@@ -77,6 +77,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.saas_client import client as _client_mod
+from specify_cli.zeitgeist_client import repo_identity
 
 pytestmark = pytest.mark.fast
 
@@ -94,8 +95,11 @@ class _RecordingResponse:
     is_success = True
     text = "{}"
 
+    def __init__(self, payload: dict[str, Any] | None = None) -> None:
+        self._payload = payload or {}
+
     def json(self) -> dict[str, Any]:
-        return {}
+        return self._payload
 
 
 class RecordingHttp:
@@ -103,11 +107,18 @@ class RecordingHttp:
 
     def __init__(self, sink: list[dict[str, Any]]) -> None:
         self._sink = sink
+        self._project_slug = "project-a"
 
     def get(self, url: str, *, timeout: float | None = None) -> _RecordingResponse:
         del timeout
         self._sink.append({"method": "GET", "url": url, "json": None})
-        return _RecordingResponse()
+        return _RecordingResponse(
+            {
+                "admitted": True,
+                "team": {"id": "42", "slug": TEAM_A},
+                "repo_slug": f"acme-holdings/{self._project_slug}",
+            }
+        )
 
     def post(self, url: str, *, json: Any = None, headers: dict[str, str] | None = None, timeout: float | None = None) -> _RecordingResponse:
         del headers, timeout
@@ -268,6 +279,11 @@ def harness(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Harness:
     monkeypatch.setenv("SPEC_KITTY_TEAM_SLUG", TEAM_A)
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     monkeypatch.chdir(a_root)
+    monkeypatch.setattr(
+        repo_identity,
+        "origin_url",
+        lambda cwd, deadline: "https://github.com/acme-holdings/project-a.git",
+    )
 
     h = Harness(a_root, b_root)
 
@@ -360,8 +376,8 @@ def test_fr003_slug_differential_within_one_checkout_flips_the_outcome(
     # Half 1 — the OWNING slug transmits. Without this the flip is unprovable.
     owning = harness.widen(DECISION_ID_OWNED_BY_A, "--mission-slug", A_MISSION)
     assert owning.exit_code == 0, owning.output
-    assert len(harness.sink) == 1, (
-        f"the owning slug must still transmit exactly one request; if it refuses, the differential below proves nothing: {harness.sink!r}"
+    assert sum(record["method"] == "POST" for record in harness.sink) == 1, (
+        f"the owning slug must still transmit exactly one collaboration request; if it refuses, the differential below proves nothing: {harness.sink!r}"
     )
     assert DECISION_ID_OWNED_BY_A in transmitted_text(harness.sink)
 
@@ -420,9 +436,11 @@ def test_sc002_positive_control_owning_checkout_still_transmits_exactly_one_requ
     result = harness.widen(DECISION_ID_OWNED_BY_A)
 
     assert result.exit_code == 0, result.output
-    assert len(harness.sink) == 1, f"expected exactly one request, got {harness.sink!r}"
+    assert len(harness.sink) == 2, f"expected one admission lookup and one collaboration request, got {harness.sink!r}"
+    assert harness.sink[0]["method"] == "GET"
+    assert "/api/v1/sync/repo-admission/" in harness.sink[0]["url"]
 
-    (request,) = harness.sink
+    request = next(record for record in harness.sink if record["method"] == "POST")
     assert request["method"] == "POST"
     assert request["url"] == (f"{SAAS_URL}/a/{TEAM_A}/collaboration/decision-points/{DECISION_ID_OWNED_BY_A}/widen"), "same endpoint as before the fix"
     assert request["json"] == {"invited_user_ids": [101]}, "same payload as before the fix"
@@ -503,9 +521,10 @@ def test_sc002_clause_c_unreadable_ledger_must_not_veto_a_hit_elsewhere(harness:
     )
 
     assert result.exit_code == 0, result.output
-    assert len(harness.sink) == 1, f"an unreadable ledger in a mission that is NOT the answer vetoed a positive hit elsewhere: {result.output}"
-    assert harness.sink[0]["url"].endswith(f"/decision-points/{DECISION_ID_OWNED_BY_A}/widen")
-    assert harness.sink[0]["json"] == {"invited_user_ids": [101]}
+    requests = [record for record in harness.sink if record["method"] == "POST"]
+    assert len(requests) == 1, f"an unreadable ledger in a mission that is NOT the answer vetoed a positive hit elsewhere: {result.output}"
+    assert requests[0]["url"].endswith(f"/decision-points/{DECISION_ID_OWNED_BY_A}/widen")
+    assert requests[0]["json"] == {"invited_user_ids": [101]}
 
 
 # ---------------------------------------------------------------------------

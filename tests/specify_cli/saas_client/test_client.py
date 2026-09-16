@@ -38,7 +38,7 @@ from specify_cli.saas_client import auth as saas_auth_module
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.usefixtures("stub_project_authority")]
 
 
 def test_public_api_imports() -> None:

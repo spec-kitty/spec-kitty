@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.core.config import AI_CHOICES
 from specify_cli.live_work.capability import (
     CapabilityMatrix,
     CapabilityStatus,
@@ -38,8 +39,11 @@ def test_never_captured_rows_are_explicit_policy() -> None:
     # The deliberately-unbuilt surfaces are named, not silently absent.
     assert rows[("all", "mission_review_outcomes")].status == CapabilityStatus.NOT_INSTRUMENTED
     assert "#4231" in rows[("all", "mission_review_outcomes")].limitation
-    assert rows[("all", "authored_messages")].status == CapabilityStatus.NOT_INSTRUMENTED
+    # #4269 landed: authored messages are an exact-attribution supported
+    # surface now, with the live-ring-only honesty limitation stated.
+    assert rows[("all", "authored_messages")].status == CapabilityStatus.EXACT
     assert "#4269" in rows[("all", "authored_messages")].limitation
+    assert "never a capture hook" in rows[("all", "authored_messages")].limitation
 
 
 def test_whole_mission_lifecycle_is_mapped_per_the_2026_09_14_clarification() -> None:
@@ -87,23 +91,13 @@ def test_every_other_production_harness_is_enumerated_not_claimed() -> None:
     instrumented = {row.harness for row in per_harness if row.status == CapabilityStatus.EXACT}
     assert instrumented == {"claude", "codex"}
     not_instrumented = {row.harness for row in per_harness if row.status == CapabilityStatus.NOT_INSTRUMENTED}
-    # The repo's full harness roster minus the two adapted harnesses.
-    assert not_instrumented == {
-        "cursor",
-        "copilot",
-        "gemini",
-        "qwen",
-        "opencode",
-        "windsurf",
-        "kilocode",
-        "auggie",
-        "q",
-        "kiro",
-        "antigravity",
-        "vibe",
-        "pi",
-        "letta",
-    }
+    # The repo's full harness roster (core.config.AI_CHOICES) minus the two
+    # adapted harnesses. Derived from AI_CHOICES rather than hand-listed, so
+    # registering a new agent in AI_CHOICES without enumerating it here (or
+    # giving it an EXACT adapter) fails this gate instead of silently dropping
+    # it from the coverage matrix — the failure mode that let #3973 add
+    # `llxprt` everywhere except `_OTHER_HARNESSES` while this test stayed green.
+    assert not_instrumented == set(AI_CHOICES) - instrumented
 
 
 def test_codec_state_is_a_visible_matrix_field() -> None:

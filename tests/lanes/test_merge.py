@@ -1,5 +1,6 @@
 """Tests for lane-based merge operations."""
 
+import os
 import subprocess
 
 import pytest
@@ -533,3 +534,42 @@ class TestInfoAttributesSeedTeardownSeam:
 
         # Restored to prior state: the file we created is gone entirely.
         assert not attributes_path.exists()
+
+
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="POSIX fake-git shim; the git_repo suite runs on POSIX CI shards.",
+)
+def test_ensure_merge_driver_config_raises_on_git_failure(tmp_path, monkeypatch):
+    """The exception types init tolerates (#4159) are the ones the real helper raises.
+
+    ``init`` wraps :func:`_ensure_merge_driver_git_config` in
+    ``except (OSError, subprocess.CalledProcessError)`` and proves it with two
+    *mocked* failures (``tests/agent/test_init_command.py``). Those tests never
+    drive the real helper, so a future refactor that wrapped its failure in a
+    different exception type would slip past both and silently re-break the
+    init-abort this PR fixes. This pins the other half end-to-end: when the
+    underlying ``git config`` invocation genuinely fails, the real helper raises
+    ``subprocess.CalledProcessError`` (``_set_local_git_config``'s ``check=True``)
+    -- the caught type -- and nothing else.
+    """
+    from specify_cli.lanes import merge as merge_module
+
+    repo = _make_repo(tmp_path)  # real git repo; the helper's .git guard passes
+
+    # A ``git`` that always exits non-zero, resolved via the merge pipeline's
+    # single env authority (``_make_merge_env``), so only the helper's own
+    # git-config calls fail -- not the real repo built above.
+    fake_bin = tmp_path / "fake-bin"
+    fake_bin.mkdir()
+    fake_git = fake_bin / "git"
+    fake_git.write_text("#!/bin/sh\nexit 1\n")
+    fake_git.chmod(0o755)
+    monkeypatch.setattr(
+        merge_module,
+        "_make_merge_env",
+        lambda: {"PATH": str(fake_bin)},
+    )
+
+    with pytest.raises(subprocess.CalledProcessError):
+        merge_module._ensure_merge_driver_git_config(repo)

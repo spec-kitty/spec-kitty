@@ -78,13 +78,15 @@ class TestGetAgentDirsForProject:
 
         agent_dirs = get_agent_dirs_for_project(tmp_path)
 
-        # Should return all 12 slash-command agents (fallback).
-        # Count is 12 post roo removal (2026-05-15, C-007); command-skill agents
-        # use AGENT_SKILL_CONFIG and are not listed in AGENT_DIRS.
-        assert len(agent_dirs) == 12
+        # Should return all 13 slash-command agents (fallback).
+        # Count went 12 post roo removal (2026-05-15, C-007) and back to 13 when
+        # llxprt registered; command-skill agents use AGENT_SKILL_CONFIG and are
+        # not listed in AGENT_DIRS.
+        assert len(agent_dirs) == 13
         assert (".claude", "commands") in agent_dirs
         assert (".opencode", "command") in agent_dirs
         assert (".kiro", "prompts") in agent_dirs
+        assert (".llxprt", "commands") in agent_dirs
 
     def test_fallback_when_config_empty(self, tmp_path):
         """Test fallback when config.available is empty."""
@@ -96,9 +98,9 @@ class TestGetAgentDirsForProject:
 
         agent_dirs = get_agent_dirs_for_project(tmp_path)
 
-        # Should return all 12 slash-command agents (fallback for empty).
+        # Should return all 13 slash-command agents (fallback for empty).
         # See test_fallback_to_all_agents_when_no_config for count history.
-        assert len(agent_dirs) == 12
+        assert len(agent_dirs) == 13
 
 
 class TestMigrationRespectsConfig:
@@ -230,9 +232,10 @@ class TestAgentDirMapping:
 
     def test_agent_dir_to_key_complete(self):
         """Verify all agents have key mappings."""
-        # All 12 slash-command agents should be mapped (roo removed 2026-05-15, C-007)
-        # (command-skill agents use AGENT_SKILL_CONFIG, not AGENT_DIR_TO_KEY).
-        assert len(AGENT_DIR_TO_KEY) == 12
+        # All 13 slash-command agents should be mapped (roo removed 2026-05-15,
+        # C-007; llxprt added) — command-skill agents use AGENT_SKILL_CONFIG,
+        # not AGENT_DIR_TO_KEY.
+        assert len(AGENT_DIR_TO_KEY) == 13
 
         # Verify special mappings
         assert AGENT_DIR_TO_KEY[".github"] == "copilot"
@@ -241,6 +244,7 @@ class TestAgentDirMapping:
         assert AGENT_DIR_TO_KEY[".kiro"] == "kiro"
         assert AGENT_DIR_TO_KEY[".claude"] == "claude"
         assert AGENT_DIR_TO_KEY[".opencode"] == "opencode"
+        assert AGENT_DIR_TO_KEY[".llxprt"] == "llxprt"
 
     def test_all_agent_dirs_have_keys(self):
         """Verify all AGENT_DIRS have corresponding keys."""

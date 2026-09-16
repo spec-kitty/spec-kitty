@@ -706,7 +706,7 @@ def test_codex_expands_to_real_profiles(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "harness_key",
-    ["windsurf", "cursor", "gemini", "qwen", "opencode", "kilocode", "vibe", "pi", "letta"],
+    ["windsurf", "cursor", "gemini", "llxprt", "qwen", "opencode", "kilocode", "vibe", "pi", "letta"],
 )
 def test_not_applicable_harnesses_yield_not_applicable_status(harness_key: str, tmp_path: Path) -> None:
     provider = _provider(tmp_path)

@@ -31,10 +31,14 @@ class GitSource:
         url: Repository URL (SSH or HTTPS).
         ref: Optional branch, tag, or commit SHA to check out.  When omitted,
             the default branch is used (``origin/HEAD`` on update).
+        inject_token: When True (default), embed ``GIT_TOKEN`` as HTTPS
+            userinfo for CI-authenticated fetches. Set False for untrusted
+            template URLs (doctrine ``org init --template``).
     """
 
     url: str
     ref: str | None = None
+    inject_token: bool = True
 
     # ------------------------------------------------------------------
     # Public API
@@ -63,59 +67,41 @@ class GitSource:
                 ok=False,
                 artifacts_written=0,
                 pack_version=None,
-                errors=[
-                    _redact_git_tokens(clone_proc.stderr.strip())
-                    or "git clone failed"
-                ],
+                errors=[_redact_git_tokens(clone_proc.stderr.strip()) or "git clone failed"],
             )
 
         if self.ref:
-            checkout_proc = self._run_git(
-                ["git", "-C", str(target_dir), "checkout", self.ref]
-            )
+            checkout_proc = self._run_git(["git", "-C", str(target_dir), "checkout", self.ref])
             if checkout_proc.returncode != 0:
                 shutil.rmtree(target_dir, ignore_errors=True)
                 return FetchResult(
                     ok=False,
                     artifacts_written=0,
                     pack_version=None,
-                    errors=[
-                        _redact_git_tokens(checkout_proc.stderr.strip())
-                        or "git checkout failed"
-                    ],
+                    errors=[_redact_git_tokens(checkout_proc.stderr.strip()) or "git checkout failed"],
                 )
 
         return self._success_result(target_dir)
 
     def _update(self, target_dir: Path) -> FetchResult:
-        fetch_proc = self._run_git(
-            ["git", "-C", str(target_dir), "fetch", "--tags", "origin"]
-        )
+        fetch_proc = self._run_git(["git", "-C", str(target_dir), "fetch", "--tags", "origin"])
         if fetch_proc.returncode != 0:
             # Existing clone remains untouched on update failure.
             return FetchResult(
                 ok=False,
                 artifacts_written=0,
                 pack_version=None,
-                errors=[
-                    _redact_git_tokens(fetch_proc.stderr.strip())
-                    or "git fetch failed"
-                ],
+                errors=[_redact_git_tokens(fetch_proc.stderr.strip()) or "git fetch failed"],
             )
 
         reset_target = self.ref if self.ref else "origin/HEAD"
-        reset_proc = self._run_git(
-            ["git", "-C", str(target_dir), "reset", "--hard", reset_target]
-        )
+        reset_proc = self._run_git(["git", "-C", str(target_dir), "reset", "--hard", reset_target])
         if reset_proc.returncode != 0:
             return FetchResult(
                 ok=False,
                 artifacts_written=0,
                 pack_version=None,
-                errors=[
-                    _redact_git_tokens(reset_proc.stderr.strip())
-                    or "git reset failed"
-                ],
+                errors=[_redact_git_tokens(reset_proc.stderr.strip()) or "git reset failed"],
             )
 
         return self._success_result(target_dir)
@@ -129,16 +115,15 @@ class GitSource:
         )
 
     def _describe(self, target_dir: Path) -> str | None:
-        describe = self._run_git(
-            ["git", "-C", str(target_dir), "describe", "--tags", "--always"]
-        )
+        describe = self._run_git(["git", "-C", str(target_dir), "describe", "--tags", "--always"])
         if describe.returncode != 0:
             return None
         version = describe.stdout.strip()
         return version or None
 
-    @staticmethod
-    def _inject_token(url: str) -> str:
+    def _inject_token(self, url: str) -> str:
+        if not self.inject_token:
+            return url
         token = os.environ.get("GIT_TOKEN")
         if not token:
             return url
@@ -150,11 +135,15 @@ class GitSource:
 
     @staticmethod
     def _run_git(argv: list[str]) -> subprocess.CompletedProcess[str]:
+        # Non-interactive by default: an automated fetch must fail closed on a
+        # missing credential rather than hang on a terminal prompt.
+        env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
         return subprocess.run(  # noqa: S603 - argv is constructed in-module
             argv,
             capture_output=True,
             text=True,
             check=False,
+            env=env,
         )
 
 

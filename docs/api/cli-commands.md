@@ -91,6 +91,66 @@ For non-obvious runtime behaviour an operator may encounter:
 │                                                        checkout for a        │
 │                                                        single-branch         │
 │                                                        mission.              │
+│ --merge-commit                                   SHA   With --mode pr:       │
+│                                                        record this PR merge  │
+│                                                        commit as the         │
+│                                                        mission's post-merge  │
+│                                                        review baseline. The  │
+│                                                        commit is verified    │
+│                                                        against git before    │
+│                                                        anything is written — │
+│                                                        it must carry         │
+│                                                        kitty-specs/<slug>/m… │
+│                                                        its first parent must │
+│                                                        not, and it must have │
+│                                                        landed on the target  │
+│                                                        branch. Every landing │
+│                                                        shape additionally    │
+│                                                        needs                 │
+│                                                        --attest-first-landi… │
+│ --target-branch                                  TEXT  With --merge-commit:  │
+│                                                        the branch the PR     │
+│                                                        merged into (the PR's │
+│                                                        base branch).         │
+│                                                        Defaults to the       │
+│                                                        mission's declared    │
+│                                                        target_branch, else   │
+│                                                        the repository's      │
+│                                                        primary branch.       │
+│ --attest-first-land…                                   With --merge-commit:  │
+│                                                        attest that the       │
+│                                                        supplied commit's     │
+│                                                        first parent is the   │
+│                                                        pre-landing target    │
+│                                                        tip — for a           │
+│                                                        two-parent merge      │
+│                                                        commit, that the      │
+│                                                        merge was performed   │
+│                                                        ON the target branch  │
+│                                                        (an internal merge    │
+│                                                        fast-forwarded onto   │
+│                                                        the target is         │
+│                                                        graph-identical, and  │
+│                                                        its first parent is   │
+│                                                        an implementation     │
+│                                                        commit); for a        │
+│                                                        single-parent landing │
+│                                                        (squash or            │
+│                                                        corpus-first stack),  │
+│                                                        that it was the first │
+│                                                        commit of the         │
+│                                                        landing. Required for │
+│                                                        every landing shape:  │
+│                                                        git cannot prove      │
+│                                                        either, and a wrong   │
+│                                                        anchor silently       │
+│                                                        under-scans the       │
+│                                                        dead-code gate. The   │
+│                                                        attestation is        │
+│                                                        recorded in           │
+│                                                        pr_merge_evidence,    │
+│                                                        never presented as a  │
+│                                                        git proof.            │
 │ --help                -h                               Show this message and │
 │                                                        exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -673,7 +733,7 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ init      Scaffold a minimal org doctrine pack skeleton (FR-006).            │
+│ init      Scaffold a minimal org pack or render from a template.             │
 │ validate  Validate an org doctrine pack using schema and DRG checks          │
 │           (FR-006).                                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -684,24 +744,38 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 ```
  Usage: spec-kitty charter org init [OPTIONS] PACK_PATH
 
- Scaffold a minimal org doctrine pack skeleton (FR-006).
+ Scaffold a minimal org pack or render from a template.
 
- Creates three files under *pack-path*::
+ Without ``--template``, creates three files under *pack-path*::
 
      org-charter.yaml   — governance policy stub
      drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
      README.md          — authoring quickstart
 
+ With ``--template``, copies the full template tree (minus
+ ``.templateignore``),
+ substitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under
+ *pack-path*.
+
  Refuses to overwrite an existing directory unless ``--force`` is passed.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the directory to initialise as an org      │
-│                           doctrine pack.                                     │
+│ *    pack_path      PATH  Destination directory for the scaffold or rendered │
+│                           doctrine tree.                                     │
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force            Overwrite an existing pack directory.                     │
-│ --help   -h        Show this message and exit.                               │
+│ --force                     Overwrite an existing pack directory.            │
+│ --template            TEXT  Local template directory or git URL (HTTPS/SSH;  │
+│                             optional #branch). When omitted, scaffolds the   │
+│                             minimal three-file pack.                         │
+│ --org-name            TEXT  Validated org/pack identity for {{ORG_NAME}}     │
+│                             (required with --template).                      │
+│ --local-path          TEXT  Value for {{LOCAL_PATH}} (default: pack).        │
+│                             Distinct from PACK_PATH.                         │
+│ --branch              TEXT  Git ref when --template is a git URL (may also   │
+│                             be encoded in TEMPLATE).                         │
+│ --help        -h            Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2081,7 +2155,7 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ init      Scaffold a minimal org doctrine pack skeleton (FR-006).            │
+│ init      Scaffold a minimal org pack or render from a template.             │
 │ validate  Validate an org doctrine pack using schema and DRG checks          │
 │           (FR-006).                                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -2092,24 +2166,38 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 ```
  Usage: spec-kitty doctrine org init [OPTIONS] PACK_PATH
 
- Scaffold a minimal org doctrine pack skeleton (FR-006).
+ Scaffold a minimal org pack or render from a template.
 
- Creates three files under *pack-path*::
+ Without ``--template``, creates three files under *pack-path*::
 
      org-charter.yaml   — governance policy stub
      drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
      README.md          — authoring quickstart
 
+ With ``--template``, copies the full template tree (minus
+ ``.templateignore``),
+ substitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under
+ *pack-path*.
+
  Refuses to overwrite an existing directory unless ``--force`` is passed.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the directory to initialise as an org      │
-│                           doctrine pack.                                     │
+│ *    pack_path      PATH  Destination directory for the scaffold or rendered │
+│                           doctrine tree.                                     │
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force            Overwrite an existing pack directory.                     │
-│ --help   -h        Show this message and exit.                               │
+│ --force                     Overwrite an existing pack directory.            │
+│ --template            TEXT  Local template directory or git URL (HTTPS/SSH;  │
+│                             optional #branch). When omitted, scaffolds the   │
+│                             minimal three-file pack.                         │
+│ --org-name            TEXT  Validated org/pack identity for {{ORG_NAME}}     │
+│                             (required with --template).                      │
+│ --local-path          TEXT  Value for {{LOCAL_PATH}} (default: pack).        │
+│                             Distinct from PACK_PATH.                         │
+│ --branch              TEXT  Git ref when --template is a git URL (may also   │
+│                             be encoded in TEMPLATE).                         │
+│ --help        -h            Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2502,8 +2590,14 @@ _Glossary management commands_
  Does not create any commits.
 
  If PROJECT_NAME is omitted, init runs in the current directory.
- Re-running init in an already-initialized directory exits cleanly
- (idempotent).
+ Re-running init in an already-initialized directory is idempotent for project
+ state: it verifies the configured agents' skill surfaces, additively restoring
+ missing per-agent skill roots (e.g. .claude/skills/) through the canonical
+ installer, and exits 1 with the recovery command
+ `spec-kitty agent config sync --create-missing --keep-orphaned` when shared
+ command skills (codex/vibe/pi/letta) are missing or empty. An existing
+ per-agent skill file that is empty, a directory, or a symlink exits 1 naming
+ its path and is preserved untouched — rename or remove it and re-run init.
 
  Note: The --no-git flag from previous versions has been removed.
        init never touches git state regardless of flags.
@@ -2525,7 +2619,7 @@ _Glossary management commands_
  Specifying AI Assistants (--ai flag):
  Use comma-separated agent keys (no spaces). Valid keys include:
  codex, claude, gemini, cursor, qwen, opencode, windsurf, kilocode,
- auggie, copilot, q, kiro, antigravity, vibe, pi, letta.
+ auggie, copilot, q, kiro, antigravity, vibe, pi, letta, llxprt.
 
  Template Discovery (Development Mode):
  Set SPEC_KITTY_TEMPLATE_ROOT to override bundled templates for local
@@ -2984,6 +3078,8 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ backfill-identity          Write a ULID mission_id into any meta.json that   │
 │                            lacks one.                                        │
+│ backfill-merge-commit      Record a GitHub PR's real merge commit as a       │
+│                            mission's review baseline (#4231).                │
 │ backfill-topology          Persist each legacy mission's MissionTopology     │
 │                            into its meta.json.                               │
 │ backfill-mission-type      Mint a profile-resolving ``mission_type`` into    │
@@ -3047,6 +3143,131 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │ --mission          SLUG  Scope to a single mission slug (e.g. 083-foo-bar).  │
 │                          Omit to process all.                                │
 │ --help     -h            Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty migrate backfill-merge-commit
+
+```
+ Usage: spec-kitty migrate backfill-merge-commit [OPTIONS]
+
+ Record a GitHub PR's real merge commit as a mission's review baseline (#4231).
+
+ A mission accepted through ``acceptance_mode: pr`` never passes through
+ ``spec-kitty merge``, so its ``meta.json`` never carried
+ ``baseline_merge_commit`` — leaving ``spec-kitty review --mode post-merge``
+ unreachable (``MISSION_REVIEW_MODE_MISMATCH``) and the lightweight
+ dead-code gate failing a cleanly merged mission. This command repairs
+ that state from REAL evidence: the merge commit you supply is verified
+ against git (it must resolve in this repository, carry the mission's
+ ``kitty-specs/<slug>/meta.json``, its first parent must not — proving it
+ is the commit that introduced the mission corpus — and it must have
+ landed on the target branch, so an unmerged mission-branch commit is
+ refused) before ``baseline_merge_commit`` (the first parent) and the
+ provenance pair ``pr_merge_commit`` (the landing commit itself) /
+ ``pr_merge_evidence`` (what the anchor's completeness rests on) are
+ written through the same canonical seam ``spec-kitty merge`` and
+ ``accept --mode pr --merge-commit`` use.
+
+ **What the anchor proves depends on the landing shape — and on your
+ attestation, never on git.** Checks 1–6 prove the commit landed on the
+ target branch and introduced the mission corpus; they cannot prove its
+ first parent is the PRE-LANDING TARGET TIP for any shape. A two-parent
+ merge commit's first parent is the tip only if the merge was performed
+ on the target branch — an internal merge (the corpus branch merged into
+ the implementation branch, the target then fast-forwarded to the
+ result) is graph-identical and its first parent is an implementation
+ commit. A single-parent landing commit (squash, or a corpus-first stack)
+ has the tip as its parent only if it was the first commit of the
+ landing. Both shapes therefore require ``--attest-first-landing-commit``
+ — your explicit attestation — and record it as the anchor's evidence
+ class (``pr_merge_evidence: merge-commit-parent-attested`` /
+ ``corpus-parent-attested``), so the anchor's completeness rests on a
+ recorded operator attestation, never on a claim git did not make.
+ Anchoring at the wrong tip would silently under-scan the dead-code
+ gate. Full forge commit-list evidence, which would prove the tip
+ outright, is tracked in #4277.
+
+ **Idempotent**: a mission whose ``meta.json`` already carries a
+ ``baseline_merge_commit`` is skipped and never overwritten.
+
+ Exit codes:
+
+ - ``0`` — recorded, skipped (already recorded), or ``--dry-run``
+ - ``1`` — the merge evidence could not be verified, or the mission handle
+   is unknown
+
+ Examples:
+
+     spec-kitty migrate backfill-merge-commit --mission 321-mission
+ --merge-commit <sha> --dry-run
+
+     spec-kitty migrate backfill-merge-commit --mission 321-mission
+ --merge-commit <sha>
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission                            HANDLE  Mission to repair            │
+│                                                 (mission_id / mid8 / slug).  │
+│                                                 [required]                   │
+│ *  --merge-commit                       SHA     The PR merge commit that     │
+│                                                 landed the mission on its    │
+│                                                 target branch. Read it off   │
+│                                                 the merged PR, then supply   │
+│                                                 it here; the migration       │
+│                                                 verifies it against git      │
+│                                                 before writing anything — it │
+│                                                 must carry the mission's     │
+│                                                 kitty-specs/<slug>/meta.jso… │
+│                                                 its first parent must not,   │
+│                                                 and it must have landed on   │
+│                                                 the target branch. Every     │
+│                                                 landing shape additionally   │
+│                                                 needs                        │
+│                                                 --attest-first-landing-comm… │
+│                                                 [required]                   │
+│    --target-branch                      TEXT    The branch the PR merged     │
+│                                                 into (the PR's base branch), │
+│                                                 for the landing check.       │
+│                                                 Defaults to the mission's    │
+│                                                 declared target_branch, else │
+│                                                 the repository's primary     │
+│                                                 branch.                      │
+│    --attest-first-landing-com…                  Attest that the supplied     │
+│                                                 --merge-commit's first       │
+│                                                 parent is the pre-landing    │
+│                                                 target tip. Required for     │
+│                                                 every landing shape: for a   │
+│                                                 two-parent merge commit,     │
+│                                                 attest the merge was         │
+│                                                 performed ON the target      │
+│                                                 branch (a merge performed on │
+│                                                 a mission or sibling branch  │
+│                                                 and then fast-forwarded onto │
+│                                                 the target is                │
+│                                                 graph-identical, and its     │
+│                                                 first parent is an           │
+│                                                 implementation commit, not   │
+│                                                 the tip); for a              │
+│                                                 single-parent landing        │
+│                                                 (squash or corpus-first      │
+│                                                 stack), attest the supplied  │
+│                                                 commit was the FIRST commit  │
+│                                                 of the landing. Git cannot   │
+│                                                 prove either — and a wrong   │
+│                                                 anchor silently under-scans  │
+│                                                 the dead-code gate. The      │
+│                                                 attestation is recorded in   │
+│                                                 pr_merge_evidence, never     │
+│                                                 presented as a git proof.    │
+│    --dry-run                                    Verify the merge evidence    │
+│                                                 and report what would be     │
+│                                                 written without writing any  │
+│                                                 files. The JSON shape is     │
+│                                                 identical to a live run.     │
+│    --json                                       Emit the per-mission         │
+│                                                 backfill result row as       │
+│                                                 structured JSON.             │
+│    --help                       -h              Show this message and exit.  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3990,9 +4211,8 @@ _Control which Zeitgeist status moments reach agent context (off / mine / team),
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ off     Switch moments to agents OFF: nothing surfaces, and                  │
-│         `spec-kitty zeitgeist mcp-serve` exits 0 with one line.              │
-│ on      Switch moments back ON at the documented default (`mine`: only       │
-│         missions this checkout is on).                                       │
+│         the internal agent-context bridge exits cleanly with one line.       │
+│ on      Switch moments back ON at the documented default (`team`).           │
 │ status  Show the effective mode, which file decided it, and the active       │
 │         filters.                                                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -4003,8 +4223,8 @@ _Control which Zeitgeist status moments reach agent context (off / mine / team),
 ```
  Usage: spec-kitty moments off [OPTIONS]
 
- Switch moments to agents OFF: nothing surfaces, and `spec-kitty zeitgeist
- mcp-serve` exits 0 with one line.
+ Switch moments to agents OFF: nothing surfaces, and the internal agent-context
+ bridge exits cleanly with one line.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --repo            Write the per-repo override (<repo>/.kittify/config.toml)  │
@@ -4018,8 +4238,7 @@ _Control which Zeitgeist status moments reach agent context (off / mine / team),
 ```
  Usage: spec-kitty moments on [OPTIONS]
 
- Switch moments back ON at the documented default (`mine`: only missions this
- checkout is on).
+ Switch moments back ON at the documented default (`team`).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --repo            Write the per-repo override (<repo>/.kittify/config.toml)  │
@@ -5735,13 +5954,14 @@ _Manage mission workflow definitions_
 
 ## spec-kitty zeitgeist
 
-_Read-only access to one team's live Zeitgeist presence/focus stream and status-moment events._
+_Access to one team's live Zeitgeist presence/focus stream and status-moment events, authored peer messaging (#4269), a local human-gated prose approval surface, and operability drills._
 
 ```
  Usage: spec-kitty zeitgeist [OPTIONS] COMMAND [ARGS]...
 
- Read-only access to one team's live Zeitgeist presence/focus stream and
- status-moment events.
+ Access to one team's live Zeitgeist presence/focus stream and status-moment
+ events, authored peer messaging (#4269), a local human-gated prose approval
+ surface, and operability drills.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
@@ -5750,6 +5970,20 @@ _Read-only access to one team's live Zeitgeist presence/focus stream and status-
 │ status       One bounded snapshot of ``repo``'s live presence/focus state.   │
 │ watch        Print live frames plus a final summary, bounded by whole-call   │
 │              ``--timeout`` and ``--max-frames`` count.                       │
+│ activity     Catch up on retained activity using the same policy as agent    │
+│              watch.                                                          │
+│ send         Author and publish one live message (#4269) —                   │
+│              accepted/offered/failed,                                        │
+│              never retained delivery.                                        │
+│ reply        Reply to one authored message — thread and audience come from   │
+│              the                                                             │
+│              parent; a peer thread is never broadened to team scope.         │
+│ read         Read a conversation thread (or recent authored messages) from   │
+│              the                                                             │
+│              relay's recent ring; bodies render inside untrusted markers.    │
+│ inbox        Addressed inbox: novel authored messages for this consumer,     │
+│              over the                                                        │
+│              same novelty/receipt policy as agent watch.                     │
 │ outbox       Inspect/approve/reject/revoke locally queued Zeitgeist prose.   │
 │              Every decision requires a real human at a real terminal — there │
 │              is no --yes/--force option and no reachability from MCP or a    │
@@ -5762,6 +5996,71 @@ _Read-only access to one team's live Zeitgeist presence/focus stream and status-
 │              implementation, no relay-url/token option, no network beyond    │
 │              the one optional canary offer `report` makes when repo already  │
 │              has a stored checkout.                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist activity
+
+```
+ Usage: spec-kitty zeitgeist activity [OPTIONS] [REPO]
+
+ Catch up on retained activity using the same policy as agent watch.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   repo      [REPO]  Credential-store key this checkout's credential is       │
+│                     stored under, as host/owner/repo (e.g.                   │
+│                     github.com/acme/widget). Omit to derive it from the      │
+│                     current checkout's origin remote.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --window              INTEGER RANGE [x>=0]    Lookback seconds within the    │
+│                                               relay's configured retention.  │
+│                                               [default: 900]                 │
+│ --timeout             FLOAT RANGE [x>=0.001]  [default: 2.0]                 │
+│ --max-frames          INTEGER RANGE [x>=1]    [default: 500]                 │
+│ --replay                                      Intentionally include          │
+│                                               previously acknowledged        │
+│                                               activity.                      │
+│ --consumer            TEXT                    Stable logical agent ID shared │
+│                                               with watch/MCP.                │
+│ --json                                        Emit plain JSON instead of a   │
+│                                               human-readable summary.        │
+│ --help        -h                              Show this message and exit.    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist inbox
+
+```
+ Usage: spec-kitty zeitgeist inbox [OPTIONS] [REPO]
+
+ Addressed inbox: novel authored messages for this consumer, over the same
+ novelty/receipt policy as agent watch.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   repo      [REPO]  Credential-store key this checkout's credential is       │
+│                     stored under, as host/owner/repo (e.g.                   │
+│                     github.com/acme/widget). Omit to derive it from the      │
+│                     current checkout's origin remote.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --consumer              TEXT                  Stable logical agent ID shared │
+│                                               with watch/activity/MCP.       │
+│ --window                INTEGER RANGE [x>=0]  Lookback seconds within the    │
+│                                               relay's configured retention.  │
+│                                               [default: 900]                 │
+│ --max-messages          INTEGER RANGE [x>=1]  Maximum messages delivered in  │
+│                                               one scan.                      │
+│                                               [default: 50]                  │
+│ --acknowledge           TEXT                  The receipt returned by a      │
+│                                               previous successful inbox      │
+│                                               call.                          │
+│ --replay                                      Intentionally include          │
+│                                               previously acknowledged        │
+│                                               messages.                      │
+│ --json                                        Emit plain JSON instead of a   │
+│                                               human-readable summary.        │
+│ --help          -h                            Show this message and exit.    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -6009,6 +6308,94 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty zeitgeist read
+
+```
+ Usage: spec-kitty zeitgeist read [OPTIONS] [THREAD] [REPO]
+
+ Read a conversation thread (or recent authored messages) from the relay's
+ recent ring; bodies render inside untrusted markers.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   thread      [THREAD]  Thread id; omit to read all recent authored          │
+│                         messages.                                            │
+│   repo        [REPO]    Credential-store key this checkout's credential is   │
+│                         stored under, as host/owner/repo (e.g.               │
+│                         github.com/acme/widget). Omit to derive it from the  │
+│                         current checkout's origin remote.                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --window                INTEGER RANGE [x>=0]  Lookback seconds within the    │
+│                                               relay's configured retention.  │
+│                                               [default: 900]                 │
+│ --max-messages          INTEGER RANGE [x>=1]  Maximum messages delivered in  │
+│                                               one read.                      │
+│                                               [default: 100]                 │
+│ --json                                        Emit plain JSON instead of a   │
+│                                               human-readable summary.        │
+│ --help          -h                            Show this message and exit.    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist reply
+
+```
+ Usage: spec-kitty zeitgeist reply [OPTIONS] REPLY_TO BODY
+
+ Reply to one authored message — thread and audience come from the parent; a
+ peer thread is never broadened to team scope.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    reply_to      TEXT  The message id being replied to; it must still be   │
+│                          in the relay's recent window.                       │
+│                          [required]                                          │
+│ *    body          TEXT  Authored body text; the live wire carries at most   │
+│                          240 chars.                                          │
+│                          [required]                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --audience          TEXT  team (the default when a mission binding resolves  │
+│                           it) or peer:<logical-session-id> to address one    │
+│                           agent.                                             │
+│ --truncate                Explicitly cut an oversize body to the 240-char    │
+│                           wire bound instead of failing.                     │
+│ --json                    Emit plain JSON instead of a human-readable        │
+│                           summary.                                           │
+│ --help      -h            Show this message and exit.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist send
+
+```
+ Usage: spec-kitty zeitgeist send [OPTIONS] KIND BODY
+
+ Author and publish one live message (#4269) — accepted/offered/failed, never
+ retained delivery.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    kind      TEXT  Authored kind: intent, progress, question, answer,      │
+│                      decision, handoff, blocker, resolution, next, or        │
+│                      message (a peer reply).                                 │
+│                      [required]                                              │
+│ *    body      TEXT  Authored body text; the live wire carries at most 240   │
+│                      chars.                                                  │
+│                      [required]                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --audience          TEXT  team (the default when a mission binding resolves  │
+│                           it) or peer:<logical-session-id> to address one    │
+│                           agent.                                             │
+│ --thread            TEXT  Thread id; defaults to this message's own id (a    │
+│                           new conversation's root).                          │
+│ --truncate                Explicitly cut an oversize body to the 240-char    │
+│                           wire bound instead of failing.                     │
+│ --json                    Emit plain JSON instead of a human-readable        │
+│                           summary.                                           │
+│ --help      -h            Show this message and exit.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty zeitgeist status
 
 ```
@@ -6029,6 +6416,8 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 │                                            [default: 2.0]                    │
 │ --json                                     Emit plain JSON instead of a      │
 │                                            human-readable summary.           │
+│ --raw                                      Include own session in the        │
+│                                            diagnostic snapshot.              │
 │ --help     -h                              Show this message and exit.       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -6052,13 +6441,342 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 │                                               watch (clamped to <= 90s, the  │
 │                                               honest reported-live ceiling). │
 │                                               [default: 5.0]                 │
-│ --max-frames          INTEGER RANGE [x>=1]    Stop after this many frames    │
-│                                               even if the window has not     │
-│                                               elapsed.                       │
+│ --max-frames          INTEGER RANGE [x>=1]    Maximum delivered frames;      │
+│                                               agent mode scans within the    │
+│                                               timeout to count withheld      │
+│                                               frames.                        │
 │                                               [default: 500]                 │
 │ --json                                        Emit plain JSON instead of a   │
 │                                               human-readable summary.        │
+│ --raw                                         Diagnostic stream: include own │
+│                                               session and bypass agent       │
+│                                               filters, receipts and rate     │
+│                                               limits.                        │
+│ --consumer            TEXT                    Delivery receipt context       │
+│                                               override; publisher identity   │
+│                                               still uses                     │
+│                                               SPEC_KITTY_ZEITGEIST_SESSION_… │
 │ --help        -h                              Show this message and exit.    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## Internal / hidden commands
+
+> The following commands are hidden from the default `--help` output but documented here for internal reference.
+
+
+## spec-kitty __force_multi_command_mode__
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty __force_multi_command_mode__ [OPTIONS]
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent check-prerequisites
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty agent check-prerequisites [OPTIONS]
+
+ Deprecated compatibility alias forwarding to agent mission
+ check-prerequisites.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --mission                TEXT  Mission slug                                  │
+│ --json                         Output JSON format                            │
+│ --paths-only                   Only output path variables                    │
+│ --include-tasks                Include tasks.md in validation                │
+│ --help           -h            Show this message and exit.                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent decision widen
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty agent decision widen [OPTIONS] DECISION_ID
+
+  Call the widen endpoint for a decision. Not for end users.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    decision_id      TEXT  ULID of the DecisionPoint to widen [required]    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --invited               TEXT  Comma-separated Teamspace user IDs to       │
+│                                  invite                                      │
+│                                  [required]                                  │
+│    --mission-slug          TEXT  Mission slug                                │
+│    --dry-run                     Print what would be called without calling  │
+│                                  it                                          │
+│    --help          -h            Show this message and exit.                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent profile
+
+> **Internal**: hidden from the default `--help` output.
+
+_Compatibility alias for listing agent profiles_
+
+```
+ Usage: spec-kitty agent profile [OPTIONS] COMMAND [ARGS]...
+
+ Compatibility alias for listing agent profiles
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ list  List agent profiles (activated-only by default; --all for the full     │
+│       catalog).                                                              │
+│ show  Show the full resolved definition of an agent profile                  │
+│       (FR-013/014/015).                                                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent profile get
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty agent profile get [OPTIONS] PROFILE_ID
+
+ Show the full resolved definition of an agent profile (FR-013/014/015).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    profile_id      TEXT  Profile ID to show. [required]                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Output JSON object.                                        │
+│ --all             Bypass the activation gate for inspection (show            │
+│                   non-activated profiles).                                   │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty commit-guard-hook
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty commit-guard-hook [OPTIONS] [_ARGS]...
+
+ Run the commit guard and exit with its result code.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine
+
+> **Internal**: hidden from the default `--help` output.
+
+> **Deprecated**: [DEPRECATED — use `spec-kitty charter`] Manage org-layer doctrine packs
+
+```
+ Usage: spec-kitty doctrine [OPTIONS] COMMAND [ARGS]...
+
+ (deprecated)
+ [DEPRECATED — use `spec-kitty charter`] Manage org-layer doctrine packs
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ fetch             Fetch org doctrine pack(s) from their configured remote    │
+│                   sources.                                                   │
+│ regenerate-graph  Regenerate the shipped DRG graph source deterministically  │
+│                   (FR-009).                                                  │
+│ new               Scaffold a stub doctrine artifact YAML (FR-016).           │
+│ validate          Validate project-layer doctrine artifacts against their    │
+│                   schemas (FR-017).                                          │
+│ pack              Validate or assemble doctrine packs.                       │
+│ org               Manage org-layer doctrine pack authoring (init, validate). │
+│ mission-type      Mission type commands.                                     │
+│ asset             Resolve shipped and overlay doctrine assets (no install —  │
+│                   C-002).                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-acceptance-matrix
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-acceptance-matrix [OPTIONS] BASE OURS THEIRS
+
+ Row-aware, 3-way merge of ``acceptance-matrix.json``; write result to ``ours``
+ (FR-008).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-event-log
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-event-log [OPTIONS] BASE OURS THEIRS
+
+ Merge ``status.events.jsonl`` conflict inputs using event-log semantics.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-issue-matrix
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-issue-matrix [OPTIONS] BASE OURS THEIRS
+
+ Row-aware, 3-way merge of ``issue-matrix.json``; write result to ``ours``
+ (FR-008).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-meta
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-meta [OPTIONS] BASE OURS THEIRS
+
+ Field-merge conflicting ``meta.json`` blobs; write result to ``ours``.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-review-cycle
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-review-cycle [OPTIONS] BASE OURS THEIRS
+
+ Reconcile a ``review-cycle-N.md`` collision, best-effort, non-aborting.
+
+ Two distinct verdict documents colliding under the same filename are
+ NEVER unioned/field-merged/interleaved into one document -- see the
+ module-level design-decision comment immediately above this function for
+ the full reasoning (embed both verbatim, never fabricate a blended
+ verdict). Unlike WP18's original T077 driver, a divergent collision no
+ longer aborts the squash (FR-014/D-PLAN-6): the ``.md`` render is
+ non-authoritative, unread prose now that ``status.events.jsonl``'s
+ ``review_result`` event slot is the sole verdict authority, so refusing
+ the merge over it is no longer justified.
+
+ Identical content on both sides (byte-for-byte) is the trivial fast path:
+ resolves cleanly, exit 0, never reported as a conflict. Otherwise, both
+ raw documents are embedded verbatim inside standard git-style conflict
+ markers (never blended field-by-field -- a review verdict has no safely
+ mergeable sub-fields the way a JSON matrix row does) and the driver
+ exits 0, so ``git merge --squash -X theirs`` treats the path as resolved
+ and the squash proceeds.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty merge-driver-traces
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty merge-driver-traces [OPTIONS] BASE OURS THEIRS
+
+ Union conflicting ``traces/*.md`` documents; write result to ``ours``.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    base_path        BASE    [required]                                     │
+│ *    ours_path        OURS    [required]                                     │
+│ *    theirs_path      THEIRS  [required]                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty profiles get
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty profiles get [OPTIONS] PROFILE_ID
+
+ Show the full resolved definition of an agent profile (FR-013/014/015).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    profile_id      TEXT  Profile ID to show. [required]                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Output JSON object.                                        │
+│ --all             Bypass the activation gate for inspection (show            │
+│                   non-activated profiles).                                   │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist mcp-serve
+
+> **Internal**: hidden from the default `--help` output.
+
+```
+ Usage: spec-kitty zeitgeist mcp-serve [OPTIONS]
+
+ Serve the Z7-C stdio MCP adapter (``mcp_stdio.run_stdio``) until the client
+ disconnects. Process entry point for an MCP client's launcher — not meant for
+ direct interactive use, hence hidden.
+
+ #190: switched off (`spec-kitty moments off`), this prints one line to
+ stderr and exits 0 — stdout stays clean for the MCP framing protocol —
+ rather than starting a server that would only ever look broken.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 <!-- END GENERATED -->

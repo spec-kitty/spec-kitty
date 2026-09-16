@@ -78,6 +78,7 @@ def _credential() -> StoredCredential:
         token="relay-token",
         token_issued_at="2026-08-25T00:00:00+00:00",
         token_kind="presence",
+        session_ref="presence-lease",
         capability_credential="capability-jwt",
     )
 
@@ -190,7 +191,7 @@ def no_focus_capability(monkeypatch: pytest.MonkeyPatch) -> None:
     presence and guarantees no test ever touches the real resolution path
     (which would read the ambient credential store).
     """
-    monkeypatch.setattr(resolution_module, "resolve_focus_capability", lambda *a, **k: None)
+    monkeypatch.setattr(resolution_module, "resolve_focus_lease", lambda *a, **k: None)
 
 
 @pytest.fixture
@@ -199,11 +200,11 @@ def focus_capability(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     recording the cwd each request came from."""
     seen: list[str] = []
 
-    def fake_resolve(cwd: Path, **kwargs: Any) -> str | None:
+    def fake_resolve(cwd: Path, **kwargs: Any) -> resolution_module.FocusLease | None:
         seen.append(str(cwd))
-        return "focus-jwt"
+        return resolution_module.FocusLease("focus-jwt", "focus-lease")
 
-    monkeypatch.setattr(resolution_module, "resolve_focus_capability", fake_resolve)
+    monkeypatch.setattr(resolution_module, "resolve_focus_lease", fake_resolve)
     return seen
 
 
@@ -227,7 +228,7 @@ def test_ensure_registers_exactly_one_zeitgeist_handler_per_slot() -> None:
 def test_session_id_matches_the_relay_schema_pattern() -> None:
     # managed_control.schema.json EventArgs.session_id:
     # [A-Za-z0-9][A-Za-z0-9._:-]{0,127}
-    assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", bridge._SESSION_ID)
+    assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", _credential().session_ref)
 
 
 # ---------------------------------------------------------------------------
@@ -505,9 +506,9 @@ def test_one_broadcast_shares_one_git_deadline_across_credentials_presence_and_f
             capability_credential=kwargs.get("capability_credential"),
         )
 
-    def fake_resolve_focus_capability(cwd: Path, **kwargs: Any) -> str | None:
+    def fake_resolve_focus_capability(cwd: Path, **kwargs: Any) -> resolution_module.FocusLease | None:
         seen_deadlines.append(kwargs.get("deadline"))
-        return "focus-jwt"
+        return resolution_module.FocusLease("focus-jwt", "focus-lease")
 
     class _FakeZeitgeistClient:
         def __init__(self, config: Any) -> None:
@@ -523,7 +524,7 @@ def test_one_broadcast_shares_one_git_deadline_across_credentials_presence_and_f
             return self.offer("focus.start", {})
 
     monkeypatch.setattr(resolution_module, "resolve_credentials", fake_resolve_credentials)
-    monkeypatch.setattr(resolution_module, "resolve_focus_capability", fake_resolve_focus_capability)
+    monkeypatch.setattr(resolution_module, "resolve_focus_lease", fake_resolve_focus_capability)
     monkeypatch.setattr(transport_module.ClientConfig, "for_repository", classmethod(fake_for_repository))
     monkeypatch.setattr(transport_module, "ZeitgeistClient", _FakeZeitgeistClient)
 
@@ -797,7 +798,7 @@ def test_overlong_focus_ref_is_filtered_before_any_attempt(
     def must_not_be_asked(cwd: Any, **kwargs: Any) -> str | None:
         raise AssertionError("focus resolver consulted for a ref that cannot go out")
 
-    monkeypatch.setattr(resolution_module, "resolve_focus_capability", must_not_be_asked)
+    monkeypatch.setattr(resolution_module, "resolve_focus_lease", must_not_be_asked)
     caplog.set_level(logging.DEBUG, logger=bridge.__name__)
 
     _fire_transition(mission_slug="m" * 70)

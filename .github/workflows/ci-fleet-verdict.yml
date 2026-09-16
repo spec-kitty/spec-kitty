@@ -3,7 +3,26 @@ name: CI Fleet Verdict
 on:
   workflow_run:
     workflows: [CI Router, CI Modules, Packs, CI Quality, ci-windows, Release Readiness Check, Check Shared Package Drift, CI Aggregate]
-    types: [requested, in_progress, completed]
+    # A verdict is a function of terminal upstream state only (#4371): requested /
+    # in_progress transitions are pure fan-out with no verdict value.
+    types: [completed]
+
+# Cap the per-subject fan-out (#4371): coalesce all redundant workflow_run triggers for
+# one verdict subject to a single surviving run, with a key that never mixes subjects.
+# The seven direct producers run on the head they verified, so their head_sha IS the
+# subject — a PR head, or the exact main tip of a push run — and distinct subjects have
+# distinct SHAs → distinct groups. CI Aggregate is the exception: a workflow_run child
+# always executes on the default branch, so an aggregate completion's head_sha is the
+# *current main tip*, not the PR head it verified (its display_title binds it to exactly
+# one source CI Modules run). Keying that path on head_sha would land every PR's
+# aggregate completion in the current tip's group and cancel/replace other subjects'
+# runs — the dropped-verdict hole NFR-002 forbids — so the aggregate path keys on the
+# aggregate run's own id instead: a per-subject singleton group (only a re-run of the
+# same aggregate run shares it, which is same-subject newer evidence). The survivor is
+# the last completion and re-reads live evidence, so coalescing loses no verdict.
+concurrency:
+  group: ci-fleet-verdict-${{ github.event.workflow_run.path == '.github/workflows/ci-aggregate.yml' && format('aggregate-{0}', github.event.workflow_run.id) || github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
 
 jobs:
   identify:
@@ -17,7 +36,7 @@ jobs:
       main: ${{ steps.source.outputs.main }}
     steps:
       # All jobs use trusted default-branch code, never source PR code/artifacts.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
       - run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
@@ -37,8 +56,12 @@ jobs:
     strategy:
       matrix:
         pr: ${{ fromJSON(needs.identify.outputs.prs) }}
-    # A superseding queued event is safe only within the same PR: its survivor
-    # re-reads every current gate. Global concurrency could lose another PR.
+    # Same-subject coalescing is owned by the top-level concurrency block — direct
+    # producers key on their own head_sha and the CI Aggregate path on its run id, so
+    # distinct verdict subjects never share a group — plus the reporter's
+    # double-snapshot head-drift guard. This per-PR group with cancel-in-progress:false
+    # remains as defence-in-depth so a superseding queued event for the same PR still
+    # survivor-re-reads every gate.
     concurrency:
       group: ci-fleet-verdict-pr-${{ matrix.pr }}
       cancel-in-progress: false
@@ -49,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
       - run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2
@@ -78,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
       - run: python3 -m pip install --quiet --disable-pip-version-check pyyaml==6.0.2

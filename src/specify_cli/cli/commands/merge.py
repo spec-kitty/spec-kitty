@@ -68,6 +68,7 @@ from specify_cli.cli.helpers import show_banner
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.paths import (
     MissionMetaReadError,
+    UnsafePathSegmentError,
     get_main_repo_root,
     resolve_merge_retention,
 )
@@ -251,7 +252,7 @@ def _resolve_slug_or_exit(repo_root: Path, mission: str | None) -> str | None:
     mission_slug_raw = (mission or "").strip() or None
     try:
         return _resolve_mission_slug(repo_root, mission_slug_raw)
-    except ValueError as exc:
+    except UnsafePathSegmentError as exc:
         console.print(f"[red]Error:[/red] {_SAFE_PATH_SEGMENT_DIAGNOSTIC}: {exc}")
         raise typer.Exit(2) from exc
 

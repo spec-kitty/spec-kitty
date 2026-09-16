@@ -58,6 +58,7 @@ boundary rule and layout).
 - [Git worktrees](git-worktrees.md) — what worktrees share and keep separate.
 - [Git workflow: who does what](git-workflow.md) — infrastructure git vs content git.
 - [Multi-agent orchestration](multi-agent-orchestration.md) — coordinating work across agents.
+- [Zeitgeist publisher and lease identity](zeitgeist-session-identity.md) — logical agents, SaaS leases, and relay session references.
 - [Kanban workflow](kanban-workflow.md) — the nine lanes and their transitions.
 - [Mission transition gates](mission-gates.md) — the declarative, asset-backed, trust-gated model for the checks that guard lane transitions.
 - [The runtime loop](runtime-loop.md) — how `spec-kitty next` inverts control.

@@ -334,6 +334,7 @@ class ManagedStreamDouble:
                     self.send_header("Content-Length", "0")
                     self.end_headers()
                     return
+                self.send_header("X-Zeitgeist-Filter-Own", "true" if "filterOwn=true" in self.path else "false")
                 self.send_header("Content-Type", "text/event-stream")
                 self.send_header("Cache-Control", "no-cache")
                 self.send_header("Transfer-Encoding", "chunked")
@@ -839,7 +840,7 @@ class ManagedStreamAuthDouble:
                 with double._lock:
                     double.received_headers.append(dict(self.headers))
 
-                if self.path != "/managed/stream":
+                if self.path.split("?", 1)[0] != "/managed/stream":
                     self._deny(404, "not found")
                     return
 
@@ -862,6 +863,7 @@ class ManagedStreamAuthDouble:
                     return
 
                 self.send_response(200)
+                self.send_header("X-Zeitgeist-Filter-Own", "true" if "filterOwn=true" in self.path else "false")
                 self.send_header("Content-Type", "text/event-stream")
                 self.send_header("Cache-Control", "no-cache")
                 self.send_header("Transfer-Encoding", "chunked")

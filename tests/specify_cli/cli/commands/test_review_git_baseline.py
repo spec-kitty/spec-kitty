@@ -276,13 +276,9 @@ def test_review_report_frontmatter_structure(tmp_path: Path, monkeypatch: pytest
     assert "verdict" in fm_dict, f"Missing 'verdict' in frontmatter: {fm_dict}"
     assert "reviewed_at" in fm_dict, f"Missing 'reviewed_at' in frontmatter: {fm_dict}"
     assert "findings" in fm_dict, f"Missing 'findings' in frontmatter: {fm_dict}"
-    assert fm_dict["verdict"] in ("pass", "pass_with_notes", "fail"), (
-        f"Invalid verdict: {fm_dict['verdict']}"
-    )
+    assert fm_dict["verdict"] in ("pass", "pass_with_notes", "fail"), f"Invalid verdict: {fm_dict['verdict']}"
     # reviewed_at must look like an ISO timestamp
-    assert "T" in fm_dict["reviewed_at"] and "+" in fm_dict["reviewed_at"], (
-        f"reviewed_at not ISO 8601: {fm_dict['reviewed_at']!r}"
-    )
+    assert "T" in fm_dict["reviewed_at"] and "+" in fm_dict["reviewed_at"], f"reviewed_at not ISO 8601: {fm_dict['reviewed_at']!r}"
     assert fm_dict["findings"].isdigit(), f"findings must be integer, got: {fm_dict['findings']!r}"
 
 
@@ -398,9 +394,7 @@ def test_review_post_merge_invalid_issue_matrix_exits_nonzero(
     assert "issue_matrix_present: true" in report_text
 
 
-def test_review_passes_with_notes_when_dead_code_scan_finds_symbol(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_review_passes_with_notes_when_dead_code_scan_finds_symbol(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root, feature_dir = _setup_fixture(
         tmp_path,
         {"WP01": "done"},
@@ -503,6 +497,57 @@ def test_check_env_skew_warn_branch_prints_mismatch_and_continues(
     # The review must have run to completion past the warn-loud preflight,
     # not exited early.
     report_path = feature_dir / "mission-review-report.md"
-    assert report_path.exists(), (
-        "warn-loud env-skew divergence must not stop the review from running"
+    assert report_path.exists(), "warn-loud env-skew divergence must not stop the review from running"
+
+
+def test_review_post_merge_surfaces_unrecognized_anchor_evidence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A present-but-unrecognized ``pr_merge_evidence`` fails gate 2 (#4231).
+
+    The recording seam never writes an unrecognized value, so this state means
+    a hand-edited or unknown-tool anchor. ``review --mode post-merge`` must
+    honour the field: the dead-code gate surfaces the incomplete-evidence
+    diagnostic instead of reporting a green scan over a possibly truncated
+    diff — here over a fixture whose real diff would otherwise scan clean.
+    """
+    repo_root, feature_dir = _setup_fixture(
+        tmp_path,
+        {"WP01": "done"},
+        baseline_merge_commit="0000000000000000000000000000000000000000",
     )
+
+    # The recorded mission meta carries a baseline AND an anchor-evidence
+    # value the gate does not recognize as complete.
+    import json
+
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["pr_merge_evidence"] = "corpus-parent"
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+
+    monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.find_repo_root",
+        lambda: repo_root,
+    )
+    _mock_resolved = _make_mock_resolved(feature_dir)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.resolve_mission_handle",
+        lambda handle, repo_root: _mock_resolved,
+    )
+
+    runner = CliRunner()
+    app = _build_cli_app()
+    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "post-merge"])
+
+    report_path = feature_dir / "mission-review-report.md"
+    assert report_path.exists(), "mission-review-report.md was not written"
+    content = report_path.read_text(encoding="utf-8")
+
+    assert "verdict: fail" in content
+    assert "MISSION_REVIEW_DEAD_CODE_EVIDENCE_INCOMPLETE" in content
+    assert "dead_code_evidence_incomplete" in content
+    assert "  - id: gate_2\n    name: dead_code_scan\n    command: spec-kitty review (internal gate 2)\n    exit_code: 1\n    result: fail" in content
+    # The clean-scan line the same fixture produces without the field must
+    # NOT appear: the gate surfaced the evidence state instead of scanning.
+    assert "0 unreferenced public symbols" not in result.output
+    assert result.exit_code == 1, result.output

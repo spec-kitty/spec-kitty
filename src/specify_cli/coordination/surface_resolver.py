@@ -223,6 +223,55 @@ class CoordinationBranchDeleted(StatusReadPathNotFound):  # type: ignore[misc, u
     def __str__(self) -> str:  # pragma: no cover - trivial formatting
         return f"Coordination branch {self.coordination_branch!r} for mission {self.mission_slug!r} is declared in meta.json but deleted from git. {self.next_step}"
 
+    @classmethod
+    def for_mission(
+        cls,
+        *,
+        repo_root: Path,
+        mission_slug: str,
+        mid8: str,
+        coordination_branch: str | None,
+        primary_candidate: Path,
+    ) -> CoordinationBranchDeleted:
+        """Build the #1848 deleted-branch error payload from the probe's inputs.
+
+        The ONE construction site for the ``DELETED`` → fail-closed policy
+        (#4403): every consumer of
+        :func:`~specify_cli.missions._read_path_resolver.probe_coord_state`
+        that refuses a deleted coordination branch routes through this factory
+        instead of hand-rebuilding the same 6-kwarg payload — this resolver's
+        ``resolve_status_surface_with_anchor``, ``mission_runtime.resolution``'s
+        ``_resolve_status_surface_dir`` effective-root arm and
+        ``_classify_artifact_surface``, and ``_read_path_resolver``'s
+        ``_resolve_not_found`` DELETED tail and ``resolve_handle_to_read_path``
+        pre-probe tail. (The issue counted three sites; the two
+        ``_read_path_resolver`` legs are the same policy and were consolidated
+        in the same pass — the whack-a-field risk was two of five sites
+        drifting on a ``CoordState``→policy contract change.)
+
+        ``coord_candidate`` is composed here via WP01's
+        :func:`~specify_cli.missions._read_path_resolver.coord_feature_dir`
+        single grammar — the one value every site already built identically.
+        ``primary_candidate`` stays a caller parameter because its PROVENANCE
+        genuinely differs per site (the seam-resolved ``read_dir_for`` dir, a
+        backfill-recovered bare dir, or the composed primary dir); each site's
+        own in-hand value is the authoritative primary anchor.
+
+        ``coordination_branch`` is ``str | None`` only defensively:
+        ``probe_coord_state`` can answer ``DELETED`` only when a branch was
+        supplied, so the ``or ""`` coercion below is unreachable on any real
+        call path (kept so a future caller cannot crash the data-loss raise
+        with a ``None`` branch).
+        """
+        return cls(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            mid8=mid8,
+            coordination_branch=coordination_branch or "",
+            coord_candidate=coord_feature_dir(repo_root, mission_slug, mid8),
+            primary_candidate=primary_candidate,
+        )
+
 
 def read_worktree_registry(repo_root: Path) -> frozenset[Path]:
     """Return resolved paths registered in ``git worktree list --porcelain``.
@@ -893,12 +942,14 @@ def resolve_status_surface_with_anchor(
     # a distinct, actionable error rather than silently composing a coord path or
     # falling back to primary (FR-005 / FR-008). This stays a hard-fail (WP05).
     if coord_state is CoordState.DELETED:
-        raise CoordinationBranchDeleted(
+        # #4403: the DELETED → build-and-raise policy routes through the ONE
+        # ``CoordinationBranchDeleted.for_mission`` factory (single payload
+        # authority); only the site-specific ``primary_candidate`` is threaded.
+        raise CoordinationBranchDeleted.for_mission(
             repo_root=repo_root,
             mission_slug=mission_slug,
             mid8=mid8,
             coordination_branch=coord_branch,
-            coord_candidate=composed_coord_dir,
             primary_candidate=feature_dir,
         )
     # Option B loud primary fallback (FR-001 / FR-003 / #1716): the coord worktree

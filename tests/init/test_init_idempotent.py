@@ -9,6 +9,7 @@ Verifies:
 from __future__ import annotations
 
 import io
+import shutil
 from pathlib import Path
 
 import pytest
@@ -43,7 +44,7 @@ def test_initialized_clone_diagnoses_missing_codex_skills(monkeypatch, tmp_path)
     third_party.write_text("Keep custom skill", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
     app, buf = _make_app_with_buf()
-    result = _run(app, ["init", "--ai", "codex", "--non-interactive"])
+    result = _run(app, ["init", "--non-interactive"])
     assert result.exit_code == 1
     assert "spec-kitty agent config sync --create-missing --keep-orphaned" in " ".join(buf.getvalue().split())
     assert not (tmp_path / ".agents/skills/spec-kitty.specify").exists()
@@ -52,8 +53,7 @@ def test_initialized_clone_diagnoses_missing_codex_skills(monkeypatch, tmp_path)
     assert third_party.read_text() == "Keep custom skill"
 
 
-@pytest.mark.parametrize("selection", [[], ["--ai", "codex"], ["--ai", "CODEX;codex"]])
-def test_initialized_clone_recovery_and_repeat(monkeypatch, tmp_path, selection):
+def test_initialized_clone_manual_recovery_and_repeat(monkeypatch, tmp_path):
     import subprocess
     from specify_cli.cli.commands.agent.config import app as config_app
 
@@ -63,9 +63,29 @@ def test_initialized_clone_recovery_and_repeat(monkeypatch, tmp_path, selection)
     config.write_text("agents:\n  available: [codex]\n")
     monkeypatch.chdir(tmp_path)
     app, _ = _make_app_with_buf()
-    assert _run(app, ["init", "--non-interactive", *selection]).exit_code == 1
+    assert _run(app, ["init", "--non-interactive"]).exit_code == 1
     recovered = CliRunner().invoke(config_app, ["sync", "--create-missing", "--keep-orphaned"])
     assert recovered.exit_code == 0, recovered.output
+    for command in ("specify", "plan", "tasks"):
+        assert (tmp_path / f".agents/skills/spec-kitty.{command}/SKILL.md").stat().st_size > 0
+    before = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    for _ in range(2):
+        assert _run(app, ["init", "--non-interactive"]).exit_code == 0
+    after = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    assert after == before
+
+
+@pytest.mark.parametrize("selection", [["--ai", "codex"], ["--ai", "CODEX;codex"]])
+def test_initialized_clone_explicit_selection_repairs_and_repeats(monkeypatch, tmp_path, selection):
+    import subprocess
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    config.write_text("agents:\n  available: [codex]\n")
+    monkeypatch.chdir(tmp_path)
+    app, _ = _make_app_with_buf()
+    assert _run(app, ["init", "--non-interactive", *selection]).exit_code == 0
     for command in ("specify", "plan", "tasks"):
         assert (tmp_path / f".agents/skills/spec-kitty.{command}/SKILL.md").stat().st_size > 0
     before = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
@@ -75,7 +95,14 @@ def test_initialized_clone_recovery_and_repeat(monkeypatch, tmp_path, selection)
     assert after == before
 
 
-@pytest.mark.parametrize("selection,expected", [("codex", "spec-kitty agent config add codex"), ("invalid", "Invalid --ai"), (",;", "Invalid --ai")])
+@pytest.mark.parametrize(
+    "selection,expected",
+    [
+        ("codex", "spec-kitty agent config add codex"),
+        ("invalid", "Invalid AI assistant(s)"),
+        (",;", "--ai flag did not contain any valid agent identifiers"),
+    ],
+)
 def test_initialized_clone_rejects_unconfigured_selection(monkeypatch, tmp_path, selection, expected):
     config = tmp_path / ".kittify/config.yaml"
     config.parent.mkdir()
@@ -383,3 +410,34 @@ def test_init_is_idempotent_on_rerun(
     # Config must be unchanged (no silent merge/overwrite)
     config_content_after_second = config_path.read_text(encoding="utf-8")
     assert config_content_after_first == config_content_after_second, "config.yaml was modified by the second init run — silent merge/overwrite detected."
+
+
+def test_init_repairs_requested_command_skills_in_initialized_clone(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Explicit --ai repairs an ignored agent surface in an initialized clone."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+
+    app1, _ = _make_app_with_buf()
+    result1 = _run(app1, ["init", "--ai", "codex", "--non-interactive"])
+    assert result1.exit_code == 0, result1.output
+
+    config_path = tmp_path / ".kittify" / "config.yaml"
+    config_before = config_path.read_text(encoding="utf-8")
+    skills_root = tmp_path / ".agents" / "skills"
+    assert skills_root.is_dir()
+
+    # Agent surfaces are intentionally ignored and therefore absent after a clone.
+    shutil.rmtree(tmp_path / ".agents")
+    assert not skills_root.exists()
+
+    app2, buf2 = _make_app_with_buf()
+    result2 = _run(app2, ["init", "--ai", "codex", "--non-interactive"])
+
+    assert result2.exit_code == 0, result2.output
+    assert (skills_root / "spec-kitty.plan" / "SKILL.md").is_file()
+    assert "command skills installed" in buf2.getvalue().lower()
+    assert config_path.read_text(encoding="utf-8") == config_before

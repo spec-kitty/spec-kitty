@@ -1,0 +1,109 @@
+{
+  "mission_slug": "doctrine-org-init-from-template-01KXNA6P",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "When TEMPLATE is omitted, doctrine org init scaffolds the existing minimal org pack under PACK_PATH (same three files and overwrite/--force semantics).",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_doctrine_org_commands.py::test_doctrine_org_init_scaffolds_minimal_pack, test_doctrine_org_init_refuses_to_overwrite_existing — minimal three-file scaffold and refuse-overwrite retained without --template.",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-16",
+      "notes": "NFR-002 compatibility covered by the same CLI suite."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "When TEMPLATE is provided, doctrine org init accepts TEMPLATE, ORG_NAME, and optional LOCAL_PATH and performs a template render into PACK_PATH.",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_doctrine_org_commands.py::test_doctrine_org_init_template_happy_path, test_doctrine_org_init_template_requires_org_name; tests/specify_cli/doctrine/test_template_render_pipeline.py::test_pipeline_happy_path.",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-16",
+      "notes": "CLI wires --template/--org-name/--local-path/--branch to render_org_pack."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "TEMPLATE may be a local directory or git HTTPS/SSH URL; branch may be encoded and/or passed via --branch; revision is resolved before render.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/doctrine/test_template_render_resolve.py — local path, HTTPS #ref/@ref, SSH fragment, scp git@ userinfo preservation, --branch merge/conflict, GitSource factory resolve, fetch failure.",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-16",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "ORG_NAME validated fail-closed against doctrine-template contract (kebab-case, length, reserved doctrine-org, placeholders/TODO); clear rule_id error; no sanitising.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/doctrine/test_template_render_validation.py::test_validate_org_name_rejects_invalid / test_validate_org_name_accepts_valid; CLI test_doctrine_org_init_template_rejects_invalid_org_name; pipeline test_pipeline_rejects_invalid_org_before_write.",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-16",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "LOCAL_PATH is distinct from PACK_PATH; omitted LOCAL_PATH defaults to pack; substituted for {{LOCAL_PATH}}.",
+      "proof_type": "automated_test",
+      "evidence": "DEFAULT_LOCAL_PATH=pack in template_render package; pipeline/CLI happy paths write to PACK_PATH while substituting LOCAL_PATH; substitute tests cover {{LOCAL_PATH}} replacement.",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-16",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "LOCAL_PATH validated as non-empty path string; reject placeholders/TODO; clear error; no sanitising.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/doctrine/test_template_render_validation.py::test_validate_local_path_rejects_invalid / test_validate_local_path_accepts_valid.",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-16",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Render honours .templateignore; matching paths excluded from PACK_PATH; built-in exclude of .git/ and .templateignore itself.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/doctrine/test_template_render_ignore_copy.py::test_copy_excludes_templateignore_git_and_listed_paths.",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-16",
+      "notes": "removeprefix('./') used so .git is not corrupted to git."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Substitute every literal {{ORG_NAME}} and {{LOCAL_PATH}} across copied file contents.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/doctrine/test_template_render_substitute.py::test_substitute_replaces_both_tokens; CLI/pipeline happy paths assert substituted content under PACK_PATH.",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-16",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Fail if unfilled {{ORG_NAME}} or {{LOCAL_PATH}} tokens would remain; do not present a successful render.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/doctrine/test_template_render_substitute.py::test_substitute_fails_on_leftover_tokens.",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-16",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "On resolve or validation failure, do not leave a partially rendered destination presented as success.",
+      "proof_type": "automated_test",
+      "evidence": "test_pipeline_rejects_invalid_org_before_write (no write); test_resolve_local_missing / test_resolve_git_fetch_failure; CLI invalid org-name leaves destination absent.",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-07-16",
+      "notes": "NFR-001 actionable errors covered by rule_id messages in validation/resolve failures."
+    }
+  ],
+  "negative_invariants": []
+}

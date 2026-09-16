@@ -39,8 +39,12 @@ _SAFE_PATH_SEGMENT_RE: re.Pattern[str] = re.compile(
 )
 
 
+class UnsafePathSegmentError(ValueError):
+    """Raised when a value is not a canonical safe path segment."""
+
+
 def assert_safe_path_segment(value: str) -> str:
-    """Return ``value`` if it is a single safe path segment; else raise ValueError.
+    """Return ``value`` if it is a single safe path segment.
 
     Rejects empty/whitespace-only, ``"."``, ``".."``, any ``"/"`` or ``"\\"``
     (path separators), non-ASCII input, values beginning with ``"."`` (hidden-file
@@ -65,44 +69,44 @@ def assert_safe_path_segment(value: str) -> str:
         ``value`` unchanged when valid.
 
     Raises:
-        ValueError: When ``value`` is not a safe single path segment.
+        UnsafePathSegmentError: When ``value`` is not a safe single path segment.
     """
     stripped = value.strip() if value else value
 
     # Reject empty or whitespace-only
     if not stripped:
-        raise ValueError(
+        raise UnsafePathSegmentError(
             f"Not a safe path segment: {value!r} — value must not be empty or whitespace-only."
         )
 
     # Reject leading or trailing whitespace — a value that differs from its
     # stripped form is ambiguous and would silently produce wrong path segments.
     if value != stripped:
-        raise ValueError(
+        raise UnsafePathSegmentError(
             f"Not a safe path segment: {value!r} — value must not contain leading or trailing whitespace."
         )
 
     # Reject any ".." substring (covers ..foo, foo.., a..b, and literal ..)
     if ".." in stripped:
-        raise ValueError(
+        raise UnsafePathSegmentError(
             f"Not a safe path segment: {value!r} — value must not contain '..' (traversal guard)."
         )
 
     # Reject leading dot (covers .hidden, .dot-only, etc.)
     if stripped.startswith("."):
-        raise ValueError(
+        raise UnsafePathSegmentError(
             f"Not a safe path segment: {value!r} — value must not begin with '.' (traversal guard)."
         )
 
     # Reject path separators (/ and \) — catches a/b, a\b, /absolute, trailing/
     if "/" in stripped or "\\" in stripped:
-        raise ValueError(
+        raise UnsafePathSegmentError(
             f"Not a safe path segment: {value!r} — value must not contain path separators."
         )
 
     # Reject non-ASCII and enforce the segment grammar
     if not _SAFE_PATH_SEGMENT_RE.fullmatch(stripped):
-        raise ValueError(
+        raise UnsafePathSegmentError(
             f"Not a safe path segment: {value!r} — value must match the canonical segment grammar "
             f"(ASCII alphanumerics, hyphens, underscores, and interior dots only; "
             f"must begin with an alphanumeric character)."
@@ -1126,6 +1130,7 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
 
 
 __all__ = [
+    "UnsafePathSegmentError",
     "assert_safe_path_segment",
     "locate_project_root",
     "lint_report_path",

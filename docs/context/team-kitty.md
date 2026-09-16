@@ -2,7 +2,7 @@
 title: 'Context: Team Kitty and Zeitgeist'
 description: "Glossary context for the hosted product: how the CLI, its Zeitgeist client, the per-team relay, and the Team Kitty SaaS fit together, and why 'sync' is a dead word."
 doc_status: active
-updated: '2026-09-07'
+updated: '2026-09-13'
 audience: docs/context/audience/internal/ai-collaboration-agent.md
 type: explanation
 related:
@@ -91,7 +91,7 @@ sequenceDiagram
         Z->>S: GET /api/v1/sync/repo-admission/?repo_slug=…
         S-->>Z: admitted + team, or 403 / not admitted (negative cached 5 min)
         Z->>S: POST /api/v1/live/capability/cli/ {repo_slug, kind: presence}
-        S-->>Z: relay_url, relay_token, capability_credential, expires_at
+        S-->>Z: relay_url, relay_token, capability_credential, expires_at, session_ref, logical_session_id
     end
     Z->>R: POST /managed/control op=event.publish (one request, 750 ms budget)
     R-->>Z: 202 / 429 / 4xx (logged, never retried)
@@ -104,6 +104,9 @@ Alt text: the CLI persists locally first, resolves a capability from the
 SaaS only when it has none cached, publishes the moment directly to the
 team's relay once without retry, and the SaaS learns about it by polling the
 relay.
+
+Publisher identity, lease generations, cache isolation, and the reader contract are
+explained in [Zeitgeist publisher and lease identity](../architecture/zeitgeist-session-identity.md).
 
 ## Where the code lives (CLI)
 
@@ -118,7 +121,14 @@ relay.
 | Bearer for the SaaS calls | `src/specify_cli/saas_client/auth.py::load_auth_context` → env token, `.kittify/saas-auth.json`, or the `spec-kitty auth login` session via `auth/server_target.py` and the token manager |
 
 Lifecycle moments (mission created, specify/plan/tasks beats, decision points,
-op invocations) travel the same path through `fire_lifecycle_saas_fanout`.
+op invocations) travel the same path through `fire_lifecycle_saas_fanout`. So
+do the six runtime moments of `spec-kitty next` (run started/completed, step
+issued/auto-completed, decision input requested/answered): the runtime journals
+each transition to `run.events.jsonl`, and the producer the status seam
+registers at the runtime emitter seam
+(`src/specify_cli/events/runtime_moments.py`, #3929) publishes it with the
+journal record's timestamp and an `event_id` derived from that record, so one
+transition is one moment however often it is re-emitted.
 
 ## Where the code lives (SaaS and relay)
 

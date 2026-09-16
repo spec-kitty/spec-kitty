@@ -39,7 +39,14 @@ def _fake_build(venv_dir: Path, source_version: str) -> None:
 
 def _blocking_build(venv_dir: Path, source_version: str) -> None:
     del source_version
-    (venv_dir.parent / "builder-started").write_text(str(venv_dir), encoding="utf-8")
+    started = venv_dir.parent / "builder-started"
+    # Publish atomically: a plain write_text makes the file visible (and thus
+    # _wait_for-observable) before its content lands, so a reader racing the
+    # write observes "" — which Path("") turns into ".", a path that always
+    # exists and fails the reclaim assertion for the wrong reason.
+    staged = started.with_name(f"{started.name}.tmp-{os.getpid()}")
+    staged.write_text(str(venv_dir), encoding="utf-8")
+    os.replace(staged, started)
     time.sleep(30)
 
 
@@ -124,6 +131,15 @@ def _wait_for(path: Path, timeout: float = 5.0) -> None:
     raise AssertionError(f"Timed out waiting for {path}")
 
 
+def _wait_for_removal(path: Path, timeout: float = 5.0) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not path.exists():
+            return
+        time.sleep(0.01)
+    raise AssertionError(f"Timed out waiting for removal of {path}")
+
+
 def test_two_spawned_processes_publish_one_shared_venv(tmp_path: Path) -> None:
     context = _spawn_context()
     start = context.Event()
@@ -179,6 +195,9 @@ def test_killed_builder_is_reclaimed_without_touching_other_siblings(tmp_path: P
     started_path = tmp_path / ".pytest_cache" / "builder-started"
     _wait_for(started_path)
     abandoned_temp = Path(started_path.read_text(encoding="utf-8"))
+    # Fail loudly on a torn read instead of silently testing ".", which always
+    # exists and would fail the reclaim wait below for the wrong reason.
+    assert abandoned_temp.is_absolute(), f"empty or torn read of {started_path}"
     builder.terminate()
     builder.join(timeout=5)
 
@@ -194,7 +213,7 @@ def test_killed_builder_is_reclaimed_without_touching_other_siblings(tmp_path: P
     )
 
     assert _fake_valid(recovered, _SOURCE_VERSION)
-    assert not abandoned_temp.exists()
+    _wait_for_removal(abandoned_temp)
     assert (sentinel / "keep").read_text(encoding="utf-8") == "safe"
 
 
@@ -269,6 +288,49 @@ def test_expired_heartbeat_is_reclaimed_even_when_pid_is_live(tmp_path: Path) ->
 
     assert _fake_valid(final, _SOURCE_VERSION)
     assert not abandoned.exists()
+
+
+def test_live_owner_with_stale_heartbeat_is_not_stolen_within_grace(tmp_path: Path) -> None:
+    """A live owner survives a transient heartbeat gap (spec-kitty#4486).
+
+    Mirror of ``test_expired_heartbeat_is_reclaimed_even_when_pid_is_live``:
+    staleness beyond the lease window alone must not abandon a token-verified
+    live owner — a loaded Windows runner stalls a healthy heartbeat far past
+    a compressed lease — only staleness that also outlives the grace floor
+    does. Deterministic: fixed heartbeat offset, no timing race.
+    """
+    cache = tmp_path / ".pytest_cache"
+    building = cache / "spec-kitty-test-venv.build-live"
+    _fake_build(building, _SOURCE_VERSION)
+    state_path = tmp_path / root_conftest._VENV_STATE_PATH
+    state_path.write_text(
+        json.dumps(
+            {
+                "state": "BUILDING",
+                "owner_pid": os.getpid(),
+                "process_start_token": root_conftest._process_start_token(os.getpid()),
+                "heartbeat_at": now_epoch() - 1.0,
+                "lease_seconds": 0.1,
+                "temp_path": str(building),
+                "source_version": _SOURCE_VERSION,
+                "environment_hash": root_conftest._test_venv_environment_hash(
+                    tmp_path, _SOURCE_VERSION
+                ),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="Timed out waiting"):
+        root_conftest._ensure_test_venv(
+            tmp_path,
+            _SOURCE_VERSION,
+            _build=_fake_build,
+            _validate=_fake_valid,
+            _wait_timeout=0.5,
+        )
+
+    assert building.exists()
 
 
 @pytest.mark.parametrize("entry_kind", ["directory", "file", "symlink"])
@@ -424,10 +486,15 @@ def test_two_spawned_windows_processes_publish_one_shared_venv(tmp_path: Path) -
     ]
 
     start.set()
+    # windows-latest spawn + conftest import alone measured ~8.6s of the old
+    # 10s budget on the spec-kitty#4486 run; the join headroom is not the
+    # assertion under test, so keep it generous.
     for process in processes:
-        process.join(timeout=10)
+        process.join(timeout=20)
 
     assert [process.exitcode for process in processes] == [0, 0]
-    assert all(results.get(timeout=1)[0] == "ok" for _ in processes)
+    outcomes = sorted(results.get(timeout=1) for _ in processes)
+    expected = str(tmp_path / root_conftest._VENV_CACHE_PATH)
+    assert outcomes == [("ok", expected), ("ok", expected)]
     count_path = tmp_path / ".pytest_cache" / "build-count.txt"
     assert len(count_path.read_text(encoding="utf-8").splitlines()) == 1

@@ -18,6 +18,7 @@ function. These tests verify that:
 from __future__ import annotations
 
 import contextlib
+import sys
 import tomllib
 from pathlib import Path
 from unittest.mock import patch
@@ -113,6 +114,73 @@ def test_sync_writes_parseable_qwen_toml(tmp_path: Path, monkeypatch: pytest.Mon
     parsed = tomllib.loads(target.read_text(encoding="utf-8"))
     assert parsed["description"] == "Execute a work package implementation"
     assert "{{args}}" in parsed["prompt"]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows APPDATA resolution is not exercised")
+def test_sync_writes_parseable_llxprt_toml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """LLxprt Code forks Gemini CLI's TOML custom-command loader.
+
+    User-global commands live under the envPaths('llxprt-code') config root
+    (``~/Library/Preferences/llxprt-code/commands/`` on macOS), not the legacy
+    ``~/.llxprt/`` tree that llxprt migrates away from at startup.
+    """
+    templates_dir = _get_command_templates_dir()
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
+    monkeypatch.delenv("LLXPRT_CONFIG_HOME", raising=False)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+
+    _sync_agent_commands("llxprt", templates_dir, "sh")
+
+    if sys.platform == "darwin":
+        commands_root = home / "Library" / "Preferences" / "llxprt-code" / "commands"
+    else:
+        commands_root = home / ".config" / "llxprt-code" / "commands"
+    target = commands_root / "spec-kitty.implement.toml"
+    assert target.is_file()
+    parsed = tomllib.loads(target.read_text(encoding="utf-8"))
+    assert parsed["description"] == "Execute a work package implementation"
+    assert "{{args}}" in parsed["prompt"]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows APPDATA resolution is not exercised")
+def test_llxprt_global_command_dir_uses_platform_config_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """LLxprt resolves its global root via envPaths('llxprt-code'), not ~/.llxprt."""
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.delenv("LLXPRT_CONFIG_HOME", raising=False)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+
+    if sys.platform == "darwin":
+        expected = tmp_path / "home" / "Library" / "Preferences" / "llxprt-code" / "commands"
+    else:
+        expected = tmp_path / "home" / ".config" / "llxprt-code" / "commands"
+
+    assert get_global_command_dir("llxprt") == expected
+
+
+def test_llxprt_global_commands_respect_llxprt_config_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """LLxprt's documented LLXPRT_CONFIG_HOME override should be honored."""
+    monkeypatch.setenv("LLXPRT_CONFIG_HOME", str(tmp_path / "custom-llxprt"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+
+    assert get_global_command_dir("llxprt") == tmp_path / "custom-llxprt" / "commands"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows APPDATA resolution is not exercised")
+def test_llxprt_global_commands_use_xdg_config_home_on_linux(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """On non-darwin platforms the XDG config home feeds envPaths-style resolution."""
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.delenv("LLXPRT_CONFIG_HOME", raising=False)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+
+    if sys.platform == "darwin":
+        expected = tmp_path / "home" / "Library" / "Preferences" / "llxprt-code" / "commands"
+    else:
+        expected = tmp_path / "xdg-config" / "llxprt-code" / "commands"
+
+    assert get_global_command_dir("llxprt") == expected
 
 
 def test_opencode_global_commands_use_xdg_config_home(tmp_path: Path, monkeypatch) -> None:

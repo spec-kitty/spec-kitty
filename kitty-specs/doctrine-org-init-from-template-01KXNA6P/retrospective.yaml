@@ -1,0 +1,170 @@
+schema_version: 1
+mission_id: 01KXNA6PRW6JQ9Y9M7HA882PZ3
+mission_slug: doctrine-org-init-from-template-01KXNA6P
+mission_number: 178
+friendly_name: Doctrine Org Init From Template
+mission_type: software-dev
+target_branch: feat/doctrine-org-init-from-template
+created_at: '2026-07-16T13:25:06.487171+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-07-16T13:25:06.487171+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-008
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-008
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-008
+not_helpful:
+- id: n-007
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-015
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-001
+  category: process
+  summary: WP01 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-009
+  details: WP WP01 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP01 used self-review fallback instead of independent review
+  evidence_refs:
+  - e-012
+  details: 'WP WP01 recorded 1 ReviewerSelfApproval event(s): user self-reviewed after intended reviewer peer-reviewer failed
+    (Operator asked to proceed; same-session self-review fallback). Treat this as a review-independence gap.'
+- id: n-002
+  category: process
+  summary: WP02 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-010
+  details: WP WP02 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP02 used self-review fallback instead of independent review
+  evidence_refs:
+  - e-013
+  details: 'WP WP02 recorded 1 ReviewerSelfApproval event(s): user self-reviewed after intended reviewer peer-reviewer failed
+    (Operator asked to proceed; same-session self-review fallback). Treat this as a review-independence gap.'
+- id: n-003
+  category: process
+  summary: WP03 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-011
+  details: WP WP03 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP03 used self-review fallback instead of independent review
+  evidence_refs:
+  - e-014
+  details: 'WP WP03 recorded 1 ReviewerSelfApproval event(s): user self-reviewed after intended reviewer peer-reviewer failed
+    (Operator asked to proceed; same-session self-review fallback). Treat this as a review-independence gap.'
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/doctrine-org-init-from-template-01KXNA6P/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/doctrine-org-init-from-template-01KXNA6P/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/doctrine-org-init-from-template-01KXNA6P/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/doctrine-org-init-from-template-01KXNA6P/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/doctrine-org-init-from-template-01KXNA6P/tasks/WP01-validation-and-resolve.md
+- id: e-006
+  kind: file
+  path: kitty-specs/doctrine-org-init-from-template-01KXNA6P/tasks/WP02-ignore-copy-and-substitute.md
+- id: e-007
+  kind: file
+  path: kitty-specs/doctrine-org-init-from-template-01KXNA6P/tasks/WP03-cli-wiring.md
+- id: e-008
+  kind: file
+  path: kitty-specs/doctrine-org-init-from-template-01KXNA6P/status.events.jsonl
+- id: e-009
+  kind: event_range
+  path: kitty-specs/doctrine-org-init-from-template-01KXNA6P/status.events.jsonl
+  range: 01KXNF96BFNRYKHR834TMXN9BZ..01KXNGGE5FNA4YN35TAV842PXZ
+- id: e-010
+  kind: event_range
+  path: kitty-specs/doctrine-org-init-from-template-01KXNA6P/status.events.jsonl
+  range: 01KXNG8DXNYZ1WNS2VGZGE5BG0..01KXNGGGDS66RNTK6WVN0V3XY9
+- id: e-011
+  kind: event_range
+  path: kitty-specs/doctrine-org-init-from-template-01KXNA6P/status.events.jsonl
+  range: 01KXNGEMKTW6PG8KKXYWKJ9M3T..01KXNGGJFHTXDYJY4YJP8SA24T
+- id: e-012
+  kind: event_range
+  path: kitty-specs/doctrine-org-init-from-template-01KXNA6P/status.events.jsonl
+  range: 01KXNF972Y92DX87GPX4GJDBD8
+- id: e-013
+  kind: event_range
+  path: kitty-specs/doctrine-org-init-from-template-01KXNA6P/status.events.jsonl
+  range: 01KXNG8EQ9VD0Z4Q1RWCCTERYG
+- id: e-014
+  kind: event_range
+  path: kitty-specs/doctrine-org-init-from-template-01KXNA6P/status.events.jsonl
+  range: 01KXNGENCK60FJMZX6TDD6FCDA
+- id: e-015
+  kind: file
+  path: kitty-specs/doctrine-org-init-from-template-01KXNA6P/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

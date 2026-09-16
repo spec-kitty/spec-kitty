@@ -35,7 +35,7 @@ What Gets Created:
 Specifying AI Assistants (--ai flag):
 Use comma-separated agent keys (no spaces). Valid keys include:
 codex, claude, gemini, cursor, qwen, opencode, windsurf, kilocode,
-auggie, copilot, q, kiro, antigravity, vibe, pi, letta.
+auggie, copilot, q, kiro, antigravity, vibe, pi, letta, llxprt.
 
 Template Discovery (Development Mode):
 Set SPEC_KITTY_TEMPLATE_ROOT to override bundled templates for local development.

@@ -19,7 +19,8 @@ production code path.
 Same docker-gated discipline as
 ``tests/zeitgeist_client/test_managed_relay_docker_local.py`` (skip unless
 ``docker`` AND the ``dkr-m1-02-zeitgeist:contract`` image already exist
-locally, never pulled). This module's own ``zg-i324-*``-prefixed
+locally, never pulled; SPEC_KITTY_TEST_RELAY_IMAGE can select an isolated
+image built from the relay candidate under test). This module's own ``zg-i324-*``-prefixed
 container/network/volume are a disjoint namespace from that module's
 ``zg-fix15-*`` ones, so both suites may run concurrently on the same host.
 """
@@ -50,7 +51,7 @@ from specify_cli.zeitgeist_client.credentials import StoredCredential
 from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED
 from tests.zeitgeist_client.conftest import mint_capability_token
 
-IMAGE = "dkr-m1-02-zeitgeist:contract"
+IMAGE = os.environ.get("SPEC_KITTY_TEST_RELAY_IMAGE", "dkr-m1-02-zeitgeist:contract")
 NETWORK = "zg-i324-net"
 CONTAINER_NAME = "zg-i324-relay"
 VOLUME_NAME = "zg-i324-relay-data"
@@ -89,9 +90,7 @@ def _docker_available() -> bool:
 def _image_ready() -> bool:
     if not _docker_available():
         return False
-    result = subprocess.run(
-        ["docker", "image", "inspect", IMAGE], capture_output=True, text=True, timeout=10, env=_docker_env()
-    )
+    result = subprocess.run(["docker", "image", "inspect", IMAGE], capture_output=True, text=True, timeout=10, env=_docker_env())
     return result.returncode == 0
 
 
@@ -102,9 +101,7 @@ pytestmark = [
 
 
 def _run(args: list[str], *, tolerate: tuple[str, ...] = ()) -> subprocess.CompletedProcess:
-    result = subprocess.run(
-        ["docker", *args], capture_output=True, text=True, timeout=CMD_TIMEOUT_S, env=_docker_env()
-    )
+    result = subprocess.run(["docker", *args], capture_output=True, text=True, timeout=CMD_TIMEOUT_S, env=_docker_env())
     if result.returncode != 0 and not any(marker in (result.stderr or "").lower() for marker in tolerate):
         raise AssertionError(f"`docker {' '.join(args)}` exited {result.returncode}: {result.stderr}")
     return result
@@ -238,9 +235,7 @@ def _make_entry() -> IndexEntry:
     )
 
 
-def test_decision_point_opened_reaches_a_real_relay_and_is_readable_back(
-    relay: _RelayHandle, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_decision_point_opened_reaches_a_real_relay_and_is_readable_back(relay: _RelayHandle, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The real production chain (``emit_decision_opened`` through
     ``ZeitgeistClient.offer("event.publish", ...)``) against a REAL relay:
     the control offer is accepted (a genuine ``SENT``, not this package's
@@ -265,6 +260,7 @@ def test_decision_point_opened_reaches_a_real_relay_and_is_readable_back(
             token=relay.shared_token,
             token_issued_at="2026-08-27T00:00:00+00:00",
             token_kind="presence",
+            session_ref="decision-test-lease",
             capability_credential=moment_jwt,
         )
 
@@ -281,9 +277,7 @@ def test_decision_point_opened_reaches_a_real_relay_and_is_readable_back(
         exp=now + 300.0,
     )
     stream = filtered_stream.FilteredStream(
-        filtered_stream.TeamStreamConfig(
-            relay_url=relay.base_url, relay_token=relay.shared_token, capability_credential=watch_jwt
-        )
+        filtered_stream.TeamStreamConfig(relay_url=relay.base_url, relay_token=relay.shared_token, capability_credential=watch_jwt)
     )
     frames: list[filtered_stream.LiveFrame] = []
     errors: list[BaseException] = []

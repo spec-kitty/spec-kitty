@@ -33,6 +33,7 @@ from specify_cli.saas_client.errors import (
     SaasNotFoundError,
     SaasTimeoutError,
 )
+from specify_cli.saas_client.project_authority import resolve_project_team_slug
 
 logger = logging.getLogger(__name__)
 
@@ -83,14 +84,11 @@ class SaasClient:
         _http: Optional pre-constructed ``httpx.Client``.  Pass a mock client
             in tests to intercept HTTP calls without network access.
         project_root: The checkout that **owns the data this client will send**
-            (#3030 FR-030) — the repository holding the mission or decision
-            record, not the process's current working directory.  Every request
-            is refused unless that project has consented to hosted sync.
-            ``None`` **denies**: a transport that has not been told whose data it
-            carries cannot resolve consent, and inability to determine consent is
-            never consent.  The refusing default is deliberate so that a future
-            construction site which forgets to pass it fails loudly rather than
-            leaking silently.
+            — the repository holding the mission or decision record. Team-scoped
+            collaboration requests require this checkout's canonical hosted
+            admission to match the authenticated team (#3178). ``None`` refuses
+            collaboration because session membership alone cannot establish the
+            project's destination.
     """
 
     def __init__(
@@ -107,6 +105,11 @@ class SaasClient:
         self._team_slug = team_slug
         self._timeout = timeout
         self._project_root = Path(project_root) if project_root is not None else None
+        # A CLI client is command-scoped and its token/project root are immutable.
+        # Cache one positive admission for the command; mid-command revocation is
+        # enforced on the next client/command rather than adding a round trip to
+        # every collaboration endpoint in the same flow.
+        self._resolved_project_team_slug: str | None = None
         self._http = _http or httpx.Client(
             headers={"Authorization": f"Bearer {token}"},
             timeout=timeout,
@@ -257,7 +260,10 @@ class SaasClient:
         authority = _authenticated_authority_for_token(self._token)
         if authority is None:
             raise SaasAuthError("Exactly one token-matched Collaborative Teamspace is required")
-        slug = authority[2]
+        slug = self._resolved_project_team_slug
+        if slug is None:
+            slug = resolve_project_team_slug(self._project_root, authority[2], self.check_repo_admission)
+            self._resolved_project_team_slug = slug
         if team_slug is not None and team_slug.strip() != slug:
             raise SaasConsentError("target_authority_mismatch: collaborative team path substitution refused")
         if self._team_slug is not None and self._team_slug.strip() != slug:
@@ -468,11 +474,18 @@ class SaasClient:
             params["host"] = host
         path = f"/api/v1/sync/repo-admission/?{urlencode(params)}"
         resp = self._get(path)
-        data: dict[str, Any] = resp.json()
+        try:
+            data = resp.json()
+        except ValueError as exc:
+            raise SaasConsentError("project_authority_unavailable: admission response is not JSON") from exc
+        if not isinstance(data, dict):
+            raise SaasConsentError("project_authority_unavailable: admission response is not an object")
+        if data.get("admitted") is True and not isinstance(data.get("repo_slug"), str):
+            raise SaasConsentError("project_authority_unavailable: admission response does not identify the repository")
         return cast(
             AdmissionAnswer,
             {
-                "admitted": bool(data.get("admitted", False)),
+                "admitted": data.get("admitted") is True,
                 "team": data.get("team"),
                 "provider": data.get("provider"),
                 "repo_slug": str(data.get("repo_slug", repo_slug)),

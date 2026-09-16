@@ -18,6 +18,10 @@ Public API:
   observation through the existing client.
 * :func:`watch_changed_files` — the labeled changed-file fallback.
 * :func:`install_hooks` / :func:`uninstall_hooks` — harness hook registration.
+* :mod:`authored` — #4269's CLI/MCP authored publish, reply and bounded
+  conversation retrieval over the same relay path (imported directly, not
+  re-exported here: it drags ``spec_kitty_events.models`` and ``ulid``,
+  which the hook fast path this package's other consumers ride must not pay).
 """
 
 from __future__ import annotations

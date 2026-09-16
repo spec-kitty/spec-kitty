@@ -36,6 +36,7 @@ from specify_cli.auth.session import StoredSession, Team
 from specify_cli.saas_client import auth as saas_auth_module
 from specify_cli.saas_client.errors import SaasAuthError
 from specify_cli.zeitgeist_client import credentials, resolution
+from specify_cli.zeitgeist_client.session_identity import logical_session_id
 from specify_cli.zeitgeist_client.resolution import (
     KIND_PRESENCE,
     CapabilityDenied,
@@ -53,6 +54,7 @@ def _iso_in(seconds: float) -> str:
 
 MINT_BODY = {
     "session_ref": "01ABC",
+    "logical_session_id": logical_session_id(),
     "deployment_id": "dep-1",
     "repo_slug": "acme/widget",
     "kind": "presence",
@@ -338,7 +340,7 @@ class TestCapabilityMint:
         request = route.calls[0].request
         assert request.headers["Authorization"] == "Bearer test-token"
         assert request.headers["X-Team-Slug"] == "acme"
-        assert json_module.loads(request.content) == {"repo_slug": "acme/widget", "kind": "presence"}
+        assert json_module.loads(request.content) == {"repo_slug": "acme/widget", "kind": "presence", "logical_session_id": logical_session_id()}
         assert minted.relay_url == MINT_BODY["relay_url"]
         assert minted.relay_token == MINT_BODY["relay_token"]
         assert minted.capability_credential == MINT_BODY["capability_credential"]

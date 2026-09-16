@@ -214,7 +214,7 @@ class DeviceCodeFlow:
             NetworkError: On httpx transport errors, so the poller can log
                 and retry on the next tick.
             AuthenticationError: On unexpected HTTP status codes (not
-                200/400/429).
+                200/400/429), or a rejected device grant (401).
         """
         url = f"{self._saas_base_url}/oauth/token"
         data = {
@@ -240,6 +240,29 @@ class DeviceCodeFlow:
                 raise AuthenticationError(
                     f"Token poll response was not JSON: {exc}"
                 ) from exc
+
+        if response.status_code == 401:
+            # A 401 is terminal even if its body claims polling is pending.
+            # Only locally defined text is safe to surface: descriptions and
+            # unknown error codes can contain credentials or arbitrary markup.
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = None
+            error = payload.get("error") if isinstance(payload, dict) else None
+            reasons = {
+                "invalid_grant": "invalid_grant: device authorization was rejected",
+                "invalid_client": "invalid_client: the OAuth client was rejected",
+                "invalid_request": "invalid_request: the device grant request was rejected",
+            }
+            reason = "device authorization was rejected"
+            if isinstance(error, str):
+                reason = reasons.get(error, reason)
+            raise AuthenticationError(
+                f"Token poll failed: HTTP 401 ({reason}). "
+                "Run `spec-kitty auth login --headless` for a new device code. "
+                "If it fails again, report this status and error code to your administrator."
+            )
 
         if response.status_code == 429:
             return {

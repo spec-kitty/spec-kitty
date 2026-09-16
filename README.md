@@ -108,7 +108,7 @@ cd my-project
 spec-kitty verify-setup
 ```
 
-Replace `claude` with your agent key when needed. Common choices include `codex`, `cursor`, `gemini`, `copilot`, `opencode`, `qwen`, `windsurf`, `kiro`, `vibe`, `pi`, and `letta`. See [Supported Agents](docs/api/supported-agents.md) for the current list.
+Replace `claude` with your agent key when needed. Common choices include `codex`, `cursor`, `gemini`, `copilot`, `opencode`, `qwen`, `windsurf`, `kiro`, `vibe`, `pi`, `letta`, and `llxprt`. See [Supported Agents](docs/api/supported-agents.md) for the current list.
 
 Open your AI coding agent in the project and run the core workflow:
 

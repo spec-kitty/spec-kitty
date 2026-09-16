@@ -1210,6 +1210,9 @@ def implement_capture_baseline(
 
     w = _wf()
     try:
+        from rich.markup import escape
+
+        from specify_cli.cli.console import console
         from specify_cli.review.baseline import capture_baseline
         from specify_cli.review.scope_source import resolve_scope_source
 
@@ -1230,10 +1233,12 @@ def implement_capture_baseline(
             wp_slug=wp_slug,
             scope_source=resolve_scope_source(main_repo_root),
         )
+        # Rich markup only renders through the CLI console seam; the builtin
+        # print emitted the tags literally (#4163).
         if baseline is not None and baseline.failed > 0:
-            print(f"[dim]Baseline: {baseline.failed} pre-existing test failure(s) captured[/dim]")
+            console.print(f"[dim]Baseline: {baseline.failed} pre-existing test failure(s) captured[/dim]")
         elif baseline is not None and baseline.failed == -1:
-            print("[yellow]Warning: baseline test capture failed — no baseline context available[/yellow]")
+            console.print("[yellow]Warning: baseline test capture failed — no baseline context available[/yellow]")
 
         # Commit the baseline artifact whenever capture actually wrote one
         # (any non-sentinel result, clean OR dirty) — NOT only when
@@ -1286,9 +1291,12 @@ def implement_capture_baseline(
                 # owned file" with no trace of WHY the commit was refused (e.g.
                 # a protected target / SafeCommitHeadMismatch).
                 logger.warning("Baseline artifact commit failed: %s", bl_commit_exc)
-                print(
+                # The refusal text is arbitrary (git output such as
+                # ``! [rejected] main -> main``): escape it so Rich neither
+                # swallows bracketed words nor raises MarkupError on it.
+                console.print(
                     f"[yellow]Warning: baseline artifact was not committed "
-                    f"({bl_commit_exc}); a later move to for_review may block on it.[/yellow]"
+                    f"({escape(str(bl_commit_exc))}); a later move to for_review may block on it.[/yellow]"
                 )
     except Exception as bl_err:
         logger.warning("Baseline capture error: %s", bl_err)
