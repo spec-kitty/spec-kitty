@@ -70,10 +70,11 @@ def test_tasks_prompt_prevents_duplicate_create_intent_stubs(prompt_path: Path) 
 # (INVALID_WP_OWNED_FILES_KITTY_SPECS): a code_change WP may not own kitty-specs/
 # paths, and the only exemption is a planning_artifact WP whose EVERY owned_files
 # entry is confined to kitty-specs/ or docs/ (mission_parsing._is_confined_
-# planning_wp, ownership.validation._PLANNING_PREFIXES). These tests pin the
-# /spec-kitty.tasks prompt and the WP template to that validator so the rule is
-# stated where authors write owned_files, instead of being discovered as a
-# finalize-tasks round-trip (#3934).
+# planning_wp, ownership.validation._PLANNING_PREFIXES). Parametrized over
+# _OWNERSHIP_RULE_PROMPT_SURFACES, these tests pin the /spec-kitty.tasks prompt,
+# the WP template, and the staged tasks-outline / tasks-packages prompts to that
+# validator so the rule is stated where authors write owned_files, instead of
+# being discovered as a finalize-tasks round-trip (#3934, #4078).
 
 
 @pytest.mark.parametrize("prompt_path", _OWNERSHIP_RULE_PROMPT_SURFACES, ids=_repo_relative_id)
