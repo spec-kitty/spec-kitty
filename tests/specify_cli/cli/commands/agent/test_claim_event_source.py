@@ -349,3 +349,70 @@ class TestSubtaskCompletionIdempotent:
         from specify_cli.core.subtask_rows import unchecked_subtask_ids_from_snapshot
 
         assert unchecked_subtask_ids_from_snapshot(feature_dir, "WP01", ["T001"]) == []
+
+
+# ---------------------------------------------------------------------------
+# #3938 — implement on an in_progress WP claimed by move-task's ``user``
+# placeholder resumes (no conflict) and regenerates the prompt file.
+# ---------------------------------------------------------------------------
+
+
+class TestInProgressUserActorResume:
+    """``move-task WP04 --to in_progress`` without ``--agent`` records the
+    placeholder actor ``user`` (``tasks_move_task.py::_mt_execute``'s
+    ``st.agent or "user"`` fallback). A recovering orchestrator then runs
+    ``agent action implement WP04 --agent <agent>`` to hand the WP to a real
+    implementer. Before #3938's fix that invocation refused with
+    "WP WP04 is already claimed for implementation by 'user'" and exited
+    before the prompt path was emitted, so the implementer was dispatched
+    against either the raw kitty-specs WP prompt or a stale prompt path from
+    another mission's ``spec-kitty-prompts`` directory (F-52/F-67). The
+    documented behavior is the no-op resume: the claim succeeds as a resume,
+    the WP stays ``in_progress`` with no new transition events, and the
+    mission-scoped prompt file is (re)written and its path printed."""
+
+    def test_implement_resumes_user_claimed_in_progress_and_rewrites_prompt(
+        self, workflow_repo: Path
+    ) -> None:
+        from runtime.next._tmp_namespace import prompt_tmp_dir
+
+        feature_dir, _wp_path = _seed_mission(workflow_repo)
+        # The move-task-shaped history: planned (seeded) -> in_progress with
+        # the ``user`` placeholder actor, exactly as a bare
+        # ``move-task WP01 --to in_progress`` records it.
+        append_event(
+            feature_dir,
+            StatusEvent(
+                event_id="test-WP01-user-in-progress",
+                mission_slug=_MISSION_SLUG,
+                wp_id="WP01",
+                from_lane=Lane.PLANNED,
+                to_lane=Lane.IN_PROGRESS,
+                at="2026-01-02T00:00:00+00:00",
+                actor="user",
+                force=True,
+                execution_mode="worktree",
+            ),
+        )
+        transitions_before = [e for e in read_events(feature_dir) if e.wp_id == "WP01"]
+
+        result = _claim_wp01(agent="recovery-agent")
+        assert result.exit_code == 0, result.stdout
+
+        # No-op resume: the WP stays in_progress with no NEW transition events
+        # (the resume refresh rides an InnerStateChanged annotation, not a
+        # lane transition), and no "already claimed" refusal was printed.
+        transitions_after = [e for e in read_events(feature_dir) if e.wp_id == "WP01"]
+        assert transitions_after == transitions_before
+        assert "already claimed" not in result.stdout
+        snapshot = reduce(read_event_stream(feature_dir).transitions, read_event_stream(feature_dir).annotations)
+        assert snapshot.work_packages["WP01"]["lane"] == Lane.IN_PROGRESS
+
+        # F-67: the implementation prompt file is (re)generated at the
+        # mission-scoped path and the path is emitted for the implementer.
+        prompt_file = (
+            prompt_tmp_dir(workflow_repo) / f"spec-kitty-implement-{_MISSION_SLUG}-WP01.md"
+        )
+        assert prompt_file.exists(), "resume must (re)write the implementation prompt file"
+        assert "WP01" in prompt_file.read_text(encoding="utf-8")
+        assert str(prompt_file) in result.stdout

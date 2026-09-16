@@ -28,18 +28,25 @@ from specify_cli.workspace import canonicalize_feature_dir
 #: a real agent identity (``implement-command`` — the internal ``spec-kitty
 #: implement`` compat surface's default ``effective_actor`` when invoked
 #: without ``--actor``, per its own docstring "compatibility surface for
-#: direct callers"; ``unknown`` — a generic fallback elsewhere). Neither is a
+#: direct callers"; ``unknown`` — a generic fallback elsewhere; ``user`` —
+#: ``agent tasks move-task``'s ``st.agent or "user"`` fallback
+#: (``tasks_move_task.py::_mt_execute``) when a lane is moved without
+#: ``--agent``, e.g. a bare ``move-task WP04 --to in_progress``). None is a
 #: real owner, so every ownership check in this module (and, per FIX-M2-03,
 #: :mod:`specify_cli.cli.commands.agent.tasks_transition_core`'s
 #: ``move-task`` agent-ownership guard) treats a WP whose CURRENT assignee is
 #: one of these as unclaimed-in-practice: the first real agent identity to
-#: touch it becomes the de facto owner, no ``--force`` required. Public (no
-#: leading underscore) so both ownership checks share the ONE definition
-#: instead of drifting out of sync (the original private
+#: touch it becomes the de facto owner, no ``--force`` required. Without
+#: ``user`` here, the #3938 shape — ``move-task WP04 --to in_progress``
+#: (actor ``user``) then ``agent action implement WP04 --agent <agent>`` —
+#: refused the documented no-op resume with "already claimed for
+#: implementation by 'user'" and aborted before the prompt was regenerated.
+#: Public (no leading underscore) so both ownership checks share the ONE
+#: definition instead of drifting out of sync (the original private
 #: ``_GENERIC_IMPLEMENTATION_ACTORS`` spelling here only ever gated the
 #: claim/in_progress start path; ``move-task`` silently lacked the same
 #: allowance until FIX-M2-03).
-GENERIC_IMPLEMENTATION_ACTORS = frozenset({"implement-command", "unknown"})
+GENERIC_IMPLEMENTATION_ACTORS = frozenset({"implement-command", "unknown", "user"})
 
 
 class WorkPackageClaimConflict(TransitionError):

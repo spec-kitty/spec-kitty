@@ -443,6 +443,36 @@ def test_start_implementation_rejects_in_progress_different_actor(tmp_path: Path
     assert exc_info.value.claimed_by == "other-agent"
 
 
+def test_start_implementation_resumes_in_progress_user_actor_noop(tmp_path: Path) -> None:
+    """#3938: ``move-task WP04 --to in_progress`` without ``--agent`` records
+    the placeholder actor ``user`` (``tasks_move_task.py::_mt_execute``'s
+    ``st.agent or "user"`` fallback). A subsequent ``agent action implement
+    WP04 --agent <agent>`` must be the documented no-op resume, not a claim
+    conflict -- before the fix this refused with "WP WP04 is already claimed
+    for implementation by 'user'" and aborted before the implementation
+    prompt was regenerated, leaving a recovering orchestrator with no prompt
+    file to point an implementer at (F-52/F-67)."""
+    feature_dir = _feature_dir(tmp_path)
+    append_event(feature_dir, _event("01AAAA0000000000000000001A", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED))
+    append_event(
+        feature_dir,
+        _event("01BBBB0000000000000000002B", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS, actor="user"),
+    )
+
+    result = start_implementation_status(
+        feature_dir=feature_dir,
+        mission_slug="099-lifecycle-test",
+        wp_id="WP01",
+        actor="claude",
+        workspace_context="worktree:/nonexistent/wp01",
+        execution_mode="worktree",
+        repo_root=tmp_path,
+    )
+
+    assert result.no_op is True
+    assert len(read_events(feature_dir)) == 2
+
+
 def test_start_implementation_allows_forced_rework_from_review_lane(tmp_path: Path) -> None:
     feature_dir = _feature_dir(tmp_path)
     append_event(
@@ -660,14 +690,15 @@ def test_generic_implementation_actors_exported_on_status_facade() -> None:
     import specify_cli.status as status_facade
 
     assert status_facade.GENERIC_IMPLEMENTATION_ACTORS is GENERIC_IMPLEMENTATION_ACTORS
-    assert frozenset({"implement-command", "unknown"}) == GENERIC_IMPLEMENTATION_ACTORS
+    assert frozenset({"implement-command", "unknown", "user"}) == GENERIC_IMPLEMENTATION_ACTORS
 
 
 @pytest.mark.parametrize("generic_current", sorted(GENERIC_IMPLEMENTATION_ACTORS))
 def test_actors_compatible_treats_generic_placeholder_as_unclaimed(generic_current: str) -> None:
     """A WP whose CURRENT assignee is a generic placeholder (the internal
     ``implement`` compat surface's default when invoked without ``--actor``,
-    or the plain ``unknown`` fallback) is not a real owner -- any real
+    the plain ``unknown`` fallback, or move-task's ``user`` fallback when a
+    lane is moved without ``--agent``) is not a real owner -- any real
     requested actor is compatible without needing ``allow_generic_existing``
     to be a real-vs-real match.
     """
