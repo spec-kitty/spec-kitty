@@ -213,6 +213,16 @@ def _context_sources_consolidation_expected(rel_path: str, old_lines: list[str])
             "https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/offering/artifact_kinds.py",
         )
         text = text.replace("src/doctrine/", "src/charter/offering/")
+        # Repo-move cleanup (#4562, 2026-09-16): the remaining public blob
+        # links on this page (kind_vocabulary.py, context.py) re-homed from
+        # the pre-2026-09-07 org name to spec-kitty/spec-kitty -- live nav
+        # links, not historical citations, so the rename is sanctioned here.
+        # Runs after the #3964 replacement above so that already-rehomed
+        # URL is untouched and only the old-org prefix flips.
+        text = text.replace(
+            "https://github.com/Priivacy-ai/spec-kitty/blob/main/",
+            "https://github.com/spec-kitty/spec-kitty/blob/main/",
+        )
         text = text.replace(
             '  context-sources: "<AgentContextSources | null>"\n',
             "",

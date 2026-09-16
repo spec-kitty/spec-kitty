@@ -94,7 +94,7 @@ exceptions:
     reason: "Historical closeout record of still-open sibling issue citations"
   - path: "tests/glossary/test_canonical_promotion.py"
     action: do_not_change
-    reason: "The old-org blob URL is a text.replace() lookup key that re-homes pre-move links; renaming the key would break the re-homing"
+    reason: "The old-org blob URL is a text.replace() lookup key that re-homes pre-move links; renaming the key would break the re-homing. Fix round: the file's sanctioned-diff model for docs/architecture/doctrine-kinds.md gained the #4562 old-org blob-prefix replacement (the doc's two remaining blob links are live nav links, renamed in the doc), mirroring the #3964 precedent."
   - path: "tests/proof/test_event_schemas.py"
     action: do_not_change
     reason: "Historical sample payload pair (repository= + pull/1 URL under the old org)"
