@@ -230,16 +230,27 @@ def test_coord_husk_meta_unreadable_degrades_to_silent_match(tmp_path: Path) -> 
     Exercises ``_resolve_branch_match_operands``'s ``PlanningBranchResolutionFailed``
     branch directly: ``plan_read_dir`` has no ``meta.json``, so the canonical target
     read raises and ``match_target`` falls back to ``invoking_branch``.
+
+    #3786: the identity is now an injected :class:`CheckoutIdentity` value object
+    (resolved once at the ``setup_plan`` entrypoint) — no ``chdir`` and no
+    internal-symbol patch needed to make this deterministic.
     """
     from specify_cli.cli.commands.agent.mission_setup_plan import (
         _resolve_branch_match_operands,
     )
+    from specify_cli.core.checkout_identity import CheckoutIdentity, Intent
 
     plan_read_dir = tmp_path / "coord-husk"  # no meta.json here
     plan_read_dir.mkdir()
 
+    invocation_identity = CheckoutIdentity(
+        invoking_root=tmp_path,
+        canonical_target=tmp_path,
+        is_owner=True,
+        intent=Intent.WRITE,
+    )
     invoking_branch, match_target = _resolve_branch_match_operands(
-        tmp_path,
+        invocation_identity,
         plan_read_dir,
         fallback_branch="kitty/mission-x-lane-a",
         get_current_branch=lambda _root: "kitty/mission-x-lane-a",

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import json
 import subprocess
 from pathlib import Path
@@ -14,6 +13,7 @@ from ulid import ULID
 
 from specify_cli.cli.commands.agent.mission import CommitToBranchResult, app
 from specify_cli.coordination.commit_router import CommitRouterResult
+from specify_cli.core.checkout_identity import CheckoutIdentity
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -1284,10 +1284,21 @@ requirement_refs:
                 "specify_cli.cli.commands.agent.mission._show_branch_context",
                 return_value=(None, "main"),
             ),
-            # ``finalize-tasks`` resolves write ownership from the ambient
-            # checkout, not the mocked project root. The fixture root is the
-            # canonical target, so running there makes the test deterministic.
-            contextlib.chdir(tmp_path),
+            # #3786: ``finalize-tasks`` resolves its invoking-checkout identity
+            # ONCE at the entrypoint — the command's single identity seam. Inject
+            # a self-owned ``CheckoutIdentity`` value object rooted at ``tmp_path``
+            # through it, so the write-ownership guard sees a deterministic
+            # ambient checkout — no ``chdir`` into a real repo (the #3778
+            # technique this replaces).
+            patch(
+                "specify_cli.cli.commands.agent.mission_finalize.resolve_checkout_identity",
+                side_effect=lambda _cwd, intent: CheckoutIdentity(
+                    invoking_root=tmp_path,
+                    canonical_target=tmp_path,
+                    is_owner=True,
+                    intent=intent,
+                ),
+            ),
             patch(
                 "specify_cli.coordination.commit_router.commit_for_mission",
                 return_value=CommitRouterResult(
@@ -1333,21 +1344,23 @@ class TestSetupPlanCommand:
             lambda *args, **kwargs: GitPreflightResult(repo_root=tmp_path),
         )
 
-    # ``setup-plan`` resolves the invoking checkout's branch via
-    # ``get_current_branch(resolve_checkout_identity(Path.cwd()).invoking_root)``
-    # (the FR-006/#3124 honest branch-match), NOT the mocked ``_show_branch_context``.
-    # That reads the AMBIENT checkout, so ``current_branch`` came out as whatever
-    # branch the worktree running the test happened to be on — green in a ``main``
-    # CI checkout, red in any non-``main`` worktree. Pin ``get_current_branch`` to
-    # ``main`` so the resolution is deterministic.
+    # ``setup-plan`` resolves the invoking checkout's identity ONCE at its
+    # entrypoint (#3786) — ``resolve_checkout_identity(Path.cwd(), WRITE)`` on
+    # the ``mission_setup_plan`` module — and injects it downstream, so that is
+    # the command's ONE identity seam. Inject a self-owned
+    # ``CheckoutIdentity`` value object rooted at ``tmp_path`` (a real repo on
+    # ``main``) through it: the real, unpatched ``get_current_branch`` then
+    # reads ``main`` off the injected root — deterministic from any checkout
+    # running the suite, with no ``chdir`` and no internal-symbol patch (the
+    # #3778 techniques this replaces).
     #
-    # This is a scaffold-shape test: with the pin, ``current_branch == "main"`` is a
+    # This is a scaffold-shape test: ``current_branch == "main"`` here is a
     # tautology, NOT the branch-honesty guard. The real invoking-vs-primary
     # derivation contract (FR-006/#3124) is verified separately by
     # ``tests/specify_cli/cli/commands/agent/test_setup_plan_branch_match.py``,
     # which uses real ``git worktree add`` lanes with ``get_current_branch``
     # deliberately UNPATCHED.
-    @patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main")
+    @patch("specify_cli.cli.commands.agent.mission_setup_plan.resolve_checkout_identity")
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main"))
@@ -1358,13 +1371,23 @@ class TestSetupPlanCommand:
         mock_show_branch: Mock,
         mock_find: Mock,
         mock_locate: Mock,
-        mock_get_current_branch: Mock,
+        mock_resolve_identity: Mock,
         tmp_path: Path,
     ) -> None:
         """Should scaffold plan template and output JSON format."""
         # Setup
         mock_locate.return_value = tmp_path
         mock_show_branch.return_value = (tmp_path, "main")
+        # #3786 identity-seam injection: a self-owned value object rooted at
+        # ``tmp_path`` (a real repo on ``main``), so the real ``get_current_branch``
+        # reads ``main`` off the injected root regardless of the checkout running
+        # the suite.
+        mock_resolve_identity.side_effect = lambda _cwd, intent: CheckoutIdentity(
+            invoking_root=tmp_path,
+            canonical_target=tmp_path,
+            is_owner=True,
+            intent=intent,
+        )
         # A SUBSTANTIVE plan template means setup-plan DOES commit plan.md, so
         # ``_commit_to_branch`` is invoked and its typed result is serialized into
         # the --json payload. A bare ``Mock`` return leaks an un-serializable

@@ -43,7 +43,7 @@ import typer
 from charter.activation.mission_type_profiles import resolve_mission_type_context
 from charter.resolution import ResolutionResult
 from mission_runtime import MissionArtifactKind, placement_seam
-from specify_cli.core.checkout_identity import Intent, resolve_checkout_identity
+from specify_cli.core.checkout_identity import CheckoutIdentity, Intent, resolve_checkout_identity
 from specify_cli.core.constants import MISSION_TYPE_DOCUMENTATION
 from specify_cli.doc_analysis.doc_state import GeneratorConfig
 from specify_cli.mission import _canonical_meta_mission_type, get_mission_type
@@ -330,7 +330,7 @@ def _emit_spec_missing(spec_file: Path, feature_dir: Path, mission_slug: str, *,
 
 
 def _resolve_branch_match_operands(
-    invocation_cwd: Path,
+    invocation_identity: CheckoutIdentity,
     plan_read_dir: Path,
     *,
     fallback_branch: str,
@@ -341,19 +341,21 @@ def _resolve_branch_match_operands(
     FR-006 / #3124: ``branch_matches_target`` must reflect the INVOKING checkout's
     HEAD against the mission's canonical ``meta.json`` target — not the primary
     checkout's HEAD (which ``locate_project_root`` re-anchored ``repo_root`` onto).
-    ``resolve_checkout_identity`` yields the invoking checkout root — the lane
-    worktree itself for a linked worktree, the primary for an owner invocation — so
-    ``get_current_branch`` reads the honest branch. The comparison target is the
-    canonical ``meta.json`` value read off the PRIMARY planning surface
-    (``plan_read_dir``). When ``meta.json`` is unreadable (a coord husk) both
-    operands collapse to the invoking HEAD, so the guard degrades to a silent match
-    rather than a spurious disagreement.
+    ``invocation_identity`` carries the invoking checkout root — the lane
+    worktree itself for a linked worktree, the primary for an owner invocation —
+    so ``get_current_branch`` reads the honest branch. The identity is resolved
+    ONCE at the ``setup_plan`` entrypoint (#3786) — the single boundary that
+    legitimately reads ambient state — and injected here; this helper never
+    reads ``Path.cwd()`` or re-resolves the identity itself. The comparison
+    target is the canonical ``meta.json`` value read off the PRIMARY planning
+    surface (``plan_read_dir``). When ``meta.json`` is unreadable (a coord husk)
+    both operands collapse to the invoking HEAD, so the guard degrades to a
+    silent match rather than a spurious disagreement.
 
-    This changes only the *match* operands; the deliberate primary-anchored target
-    resolution feeding every display/planning field is left untouched.
+    This changes only the *match* operands; the deliberate primary-anchored
+    target resolution feeding every display/planning field is left untouched.
     """
-    identity = resolve_checkout_identity(invocation_cwd, Intent.WRITE)
-    invoking_branch = get_current_branch(identity.invoking_root) or fallback_branch
+    invoking_branch = get_current_branch(invocation_identity.invoking_root) or fallback_branch
     try:
         match_target = load_mission_target_branch(plan_read_dir)
     except PlanningBranchResolutionFailed:
@@ -1077,8 +1079,14 @@ def setup_plan(
         # (above) stays primary-anchored for every display/planning field; only the
         # match value reflects the invoking checkout. ``plan_read_dir`` is the
         # PRIMARY planning surface where the canonical meta.json lives.
+        #
+        # #3786: the identity is resolved ONCE here, at the command entrypoint —
+        # the single boundary that legitimately reads ambient state — and injected
+        # into ``_resolve_branch_match_operands``; nothing below this point reads
+        # ``Path.cwd()`` for identity.
+        invocation_identity = resolve_checkout_identity(Path.cwd(), Intent.WRITE)
         current_branch, match_target_branch = _resolve_branch_match_operands(
-            Path.cwd(),
+            invocation_identity,
             plan_read_dir,
             fallback_branch=target_branch,
             get_current_branch=_mission.get_current_branch,

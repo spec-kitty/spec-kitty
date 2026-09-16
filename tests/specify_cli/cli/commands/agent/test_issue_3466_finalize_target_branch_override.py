@@ -29,7 +29,6 @@ feature branch as HEAD. It runs the real ``finalize-tasks`` CLI command
 
 from __future__ import annotations
 
-import contextlib
 import json
 import subprocess
 from pathlib import Path
@@ -127,19 +126,30 @@ def _scaffold_mission_pinned_to_main(repo: Path) -> Path:
 def _run_finalize_with_override(
     repo: Path, target_branch_override: str, *, mission_slug: str = MISSION_SLUG
 ) -> Result:
-    # ``finalize-tasks`` enforces write-ownership from the AMBIENT invoking
-    # checkout (``resolve_checkout_identity(Path.cwd(), Intent.WRITE)``), not the
-    # mocked ``locate_project_root``. ``repo`` is a standalone git repo (its
-    # ``.git`` is a directory → self-owned); run inside it so the ownership check
-    # sees an owned checkout — as it does in a ``main`` CI checkout. Without the
-    # chdir the invoking cwd is whatever worktree runs the suite, so a linked
-    # worktree is refused with CHECKOUT_WRITE_OWNERSHIP_REFUSED (green on CI's
-    # own checkout, red in any linked worktree). This is a shared helper: the
-    # chdir is inert for the callers that assert exit-1 revert/error paths (they
-    # never reach the ownership gate) — it only un-blocks the ``exit_code == 0``
-    # callers, and their git-state assertions already pass an explicit ``cwd=repo``.
+    # ``finalize-tasks`` enforces write-ownership from the invoking checkout,
+    # not the mocked ``locate_project_root``. #3786 moved that read to the
+    # command's single identity seam — ``resolve_checkout_identity`` at the
+    # ``mission_finalize`` entrypoint — so inject a self-owned
+    # ``CheckoutIdentity`` value object rooted at ``repo`` (a standalone git
+    # repo whose ``.git`` is a directory → self-owned) instead of ``chdir``-ing
+    # into it (the #3778 technique this replaces): the ownership check sees an
+    # owned checkout deterministically, from any worktree running the suite.
+    # This is a shared helper: the injection is inert for the callers that
+    # assert exit-1 revert/error paths (they never reach the ownership gate) —
+    # it only un-blocks the ``exit_code == 0`` callers, and their git-state
+    # assertions already pass an explicit ``cwd=repo``.
+    from specify_cli.core.checkout_identity import CheckoutIdentity
+
     with (
-        contextlib.chdir(repo),
+        patch(
+            "specify_cli.cli.commands.agent.mission_finalize.resolve_checkout_identity",
+            side_effect=lambda _cwd, intent: CheckoutIdentity(
+                invoking_root=repo,
+                canonical_target=repo,
+                is_owner=True,
+                intent=intent,
+            ),
+        ),
         patch(
             "specify_cli.cli.commands.agent.mission.locate_project_root",
             return_value=repo,
@@ -236,11 +246,23 @@ def test_target_branch_override_reaches_wp_status_bookkeeping(
 
 def test_branch_contract_write_ownership_uses_target_mission_checkout(
     protected_target_repo: ProtectedTargetRepo,  # noqa: F811
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The write gate follows the mission directory, not the primary-repo shape."""
+    """The write gate follows the mission directory, not the primary-repo shape.
+
+    #3786: the guard takes the invoking checkout as an injected
+    ``CheckoutIdentity`` value object (resolved once at the ``finalize_tasks``
+    entrypoint) — no ``chdir`` and no internal-symbol patch needed to make the
+    three invocation shapes deterministic.
+    """
     from specify_cli.cli.commands.agent.mission_finalize import _enforce_branch_contract_write_ownership
+    from specify_cli.core.checkout_identity import CheckoutIdentity, Intent, resolve_checkout_identity
     from typer import Exit
+
+    def _identity(checkout: Path) -> CheckoutIdentity:
+        # A real value object resolved from an EXPLICIT checkout path — not the
+        # ambient cwd — so a linked worktree honestly reports ``is_owner=False``
+        # with the worktree itself as ``invoking_root``.
+        return resolve_checkout_identity(checkout, Intent.WRITE)
 
     repo = protected_target_repo.repo_root
     mission_dir = repo / "kitty-specs" / "issue-3466-write-ownership"
@@ -255,16 +277,19 @@ def test_branch_contract_write_ownership_uses_target_mission_checkout(
     _git(repo, "worktree", "add", "-q", "-b", "op/write-ownership-foreign", str(foreign))
 
     owner_mission = owner / "kitty-specs" / "issue-3466-write-ownership"
-    monkeypatch.chdir(owner)
-    _enforce_branch_contract_write_ownership(owner_mission, json_output=False)
+    _enforce_branch_contract_write_ownership(
+        owner_mission, invocation_identity=_identity(owner), json_output=False
+    )
 
-    monkeypatch.chdir(foreign)
     with pytest.raises(Exit):
-        _enforce_branch_contract_write_ownership(owner_mission, json_output=False)
+        _enforce_branch_contract_write_ownership(
+            owner_mission, invocation_identity=_identity(foreign), json_output=False
+        )
 
-    monkeypatch.chdir(owner)
     with pytest.raises(Exit):
-        _enforce_branch_contract_write_ownership(mission_dir, json_output=False)
+        _enforce_branch_contract_write_ownership(
+            mission_dir, invocation_identity=_identity(owner), json_output=False
+        )
 
 
 # ---------------------------------------------------------------------------
