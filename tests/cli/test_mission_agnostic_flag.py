@@ -103,11 +103,7 @@ def test_every_leaf_command_accepts_mission() -> None:
     all_leaves = leaves(root)
     assert len(all_leaves) > 100, "guard the guard: the tree walk found implausibly few commands"
     ctx = click.Context(root)
-    offenders = [
-        path
-        for path, leaf in all_leaves
-        if not any("--mission" in param.opts for param in leaf.get_params(ctx))
-    ]
+    offenders = [path for path, leaf in all_leaves if not any("--mission" in param.opts for param in leaf.get_params(ctx))]
     assert offenders == [], f"commands that reject --mission: {offenders}"
 
 
@@ -240,6 +236,7 @@ def test_walker_targets_sub_app_leaf_commands_as_groups() -> None:
 
 def test_walker_leaves_custom_command_classes_alone() -> None:
     """A command already carrying a deliberate click class keeps it."""
+
     class CustomCommand(TyperCommand):
         pass
 

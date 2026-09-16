@@ -187,6 +187,8 @@ def make_leaf_commands_mission_agnostic(app: typer.Typer) -> int:
             retargeted += 1
     for group_info in app.registered_groups:
         sub = group_info.typer_instance
+        if sub is None:
+            continue
         if not sub.registered_commands and not sub.registered_groups:
             # ``info.cls`` defaults to a DefaultPlaceholder wrapping None.
             cls = getattr(sub.info.cls, "value", sub.info.cls)
