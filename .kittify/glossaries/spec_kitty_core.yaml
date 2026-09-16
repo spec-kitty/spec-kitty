@@ -441,7 +441,7 @@ terms:
     status: active
 
   - surface: repo_slug
-    definition: Optional owner/repo Git provider reference (e.g. Priivacy-ai/spec-kitty). Unchanged from pre-081 meaning.
+    definition: Optional owner/repo Git provider reference (e.g. spec-kitty/spec-kitty). Unchanged from pre-081 meaning.
     confidence: 1.0
     status: active
 
