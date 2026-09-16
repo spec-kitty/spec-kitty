@@ -173,7 +173,15 @@ def status(
     except subscription.NotCheckedOut as exc:
         _report_not_checked_out(exc)
         return
-    except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+    except ValueError as exc:
+        # Own-filter contract failures (no cached publisher identity; a relay
+        # that will not confirm filtering) are explicit, named faults — the
+        # same ones ``watch``/``activity`` already map this way. Reporting
+        # them as "could not reach the relay" misdiagnoses a contract-
+        # mandated refusal as a network problem (finding #1, PR #4224).
+        console.print(str(exc), markup=False)
+        raise typer.Exit(1) from None
+    except (urllib.error.URLError, TimeoutError) as exc:
         _report_connection_fault(exc)
         return
 
@@ -286,6 +294,7 @@ def activity(
     max_frames: int = typer.Option(subscription.MAX_WATCH_FRAMES, "--max-frames", min=1),
     replay: bool = typer.Option(False, "--replay", help="Intentionally include previously acknowledged activity."),
     consumer: str | None = typer.Option(None, "--consumer", help="Stable logical agent ID shared with watch/MCP."),
+    raw: bool = typer.Option(False, "--raw", help="Diagnostic read: include own session (skip relay own-session suppression)."),
     as_json: bool = _JSON_OPTION,
 ) -> None:
     """Catch up on retained activity using the same policy as agent watch."""
@@ -294,7 +303,12 @@ def activity(
     key = _resolve_store_key(repo)
     try:
         policy = AgentDelivery(key, consumer=consumer)
-        result = subscription.agent_activity(key, window_s=window, timeout_s=timeout, max_frames=max_frames, replay=replay, delivery=policy)
+        # ``--raw`` is the own-filter escape hatch parity with ``status``/
+        # ``watch`` and the MCP tools' ``filter_own``: against a pre-#295
+        # relay, or a session with no cached publisher identity, this is the
+        # one CLI-side way to read retained activity unfiltered (finding #2,
+        # PR #4224).
+        result = subscription.agent_activity(key, window_s=window, timeout_s=timeout, max_frames=max_frames, replay=replay, delivery=policy, filter_own=not raw)
         if as_json:
             console.emit_json(result)
         else:

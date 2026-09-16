@@ -150,12 +150,31 @@ def test_slow_drip_cannot_extend_whole_call_deadline(relay):
 
 
 def test_exhausted_reader_slots_are_reported_without_connecting(relay, monkeypatch):
-    import threading
-
-    monkeypatch.setattr(history, "_READ_SLOTS", threading.BoundedSemaphore(0))
+    monkeypatch.setattr(history, "_READ_SLOTS", history._ReadSlots(capacity=0))
     with pytest.raises(history.HistoryProtocolError, match="busy"):
         history.read_history("github.com/acme/repo")
     assert relay.requests == []
+
+
+def test_timed_out_read_does_not_disable_history_for_the_process_lifetime(relay, monkeypatch):
+    """Finding #8 (PR #4224), red-first: ``budget.run_with_deadline`` abandons
+    a timed-out worker still holding its read permit, so the permit must be
+    reaped after a bounded window instead of leaking until socket death —
+    four such reads used to disable history reads for the whole process."""
+    monkeypatch.setattr(history, "_READ_SLOTS", history._ReadSlots(capacity=1, stale_hold_s=0.3))
+    relay.drip = True
+    with pytest.raises(TimeoutError, match="whole-call deadline"):
+        history.read_history("github.com/acme/repo", timeout_s=0.2)
+    # The abandoned worker still holds the one slot: an immediate retry is
+    # honestly busy, without connecting.
+    with pytest.raises(history.HistoryProtocolError, match="busy"):
+        history.read_history("github.com/acme/repo")
+    # Once the hold is stale it is reaped on acquire, and history recovers on
+    # its own — no process restart, no socket surgery.
+    relay.drip = False
+    time.sleep(0.35)
+    result = history.read_history("github.com/acme/repo")
+    assert result["frames"]
 
 
 def test_agent_history_requests_issuer_identity_and_requires_ack(relay, monkeypatch):

@@ -31,6 +31,11 @@ class ReceiptStore:
     def _connect(self) -> sqlite3.Connection:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         db = sqlite3.connect(self.path, timeout=5.0)
+        # Acknowledgement tokens and delivery digests are credential-adjacent:
+        # the file is created 0600 and every later open re-tightens it, so a
+        # store first created under a lax umask never keeps group/world bits
+        # (finding #9, PR #4224).
+        self.path.chmod(0o600)
         db.execute("CREATE TABLE IF NOT EXISTS receipts (context TEXT, identity TEXT, shown REAL, event INTEGER, PRIMARY KEY(context, identity))")
         db.execute("CREATE TABLE IF NOT EXISTS pending (context TEXT, token TEXT PRIMARY KEY, identities TEXT, created REAL)")
         return db

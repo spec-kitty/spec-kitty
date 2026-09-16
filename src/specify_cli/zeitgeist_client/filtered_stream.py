@@ -71,6 +71,7 @@ import queue
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -155,7 +156,14 @@ class FilteredStream:
         apply here; whether/when to reconnect is the caller's decision, not
         this generator's.
         """
-        url = self._config.relay_url.rstrip("/") + _STREAM_PATH
+        # Query merge, never ``+= "?filterOwn=…"``: a relay_url that already
+        # carries a query string must keep it, and a bare ``?`` append would
+        # silently discard it (finding #10, PR #4224; history.py's urlencode
+        # construction is the reference).
+        relay = urllib.parse.urlsplit(self._config.relay_url)
+        query = dict(urllib.parse.parse_qsl(relay.query))
+        query["filterOwn"] = "true" if self._config.own_sessions is not None else "false"
+        url = relay._replace(path=relay.path.rstrip("/") + _STREAM_PATH, query=urllib.parse.urlencode(query)).geturl()
         headers = {
             # Two independent gates, each with its OWN credential — see the
             # module docstring's FIX-M2-15 note. `relay_token` falls back to
@@ -165,10 +173,7 @@ class FilteredStream:
             "X-Zeitgeist-Capability": self._config.capability_credential,
         }
         if self._config.own_sessions is not None:
-            url += "?filterOwn=true"
             headers["X-Zeitgeist-Own-Sessions"] = self._config.own_sessions
-        else:
-            url += "?filterOwn=false"
         req = urllib.request.Request(url, headers=headers, method="GET")
         opener = budget.NoRedirects.build()
         deadline = None if idle_timeout_s is None else time.monotonic() + idle_timeout_s

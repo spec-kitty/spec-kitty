@@ -246,3 +246,21 @@ def test_status_requests_own_filter_by_default_and_raw_opt_out(monkeypatch, flag
     monkeypatch.setattr(subscription, "status", status)
     result = runner.invoke(app, ["status", "github.com/acme/widget", "--json", *flags])
     assert result.exit_code == 0, result.stdout
+
+
+def test_status_own_filter_contract_fault_is_not_a_connection_fault(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Finding #1 (PR #4224, issue #4549): ``status`` maps the own-filter
+    contract's explicit ``ValueError`` failures (no cached publisher
+    identity; a relay that will not confirm filtering) to their own handler,
+    exactly like ``watch``/``activity`` — never to "could not reach the
+    relay"."""
+    message = "Zeitgeist relay did not confirm own filtering; upgrade the relay or explicitly request a raw feed"
+
+    def _raise(repo: str, *, timeout_s: float = 2.0, filter_own: bool = True) -> dict[str, object]:
+        raise ValueError(message)
+
+    monkeypatch.setattr(subscription, "status", _raise)
+    result = runner.invoke(app, ["status", "github.com/acme/spec-kitty"])
+    assert result.exit_code == 1
+    assert message in result.stdout
+    assert "could not reach the relay" not in result.stdout

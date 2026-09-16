@@ -254,6 +254,41 @@ def test_module_offers_no_multi_subscription_aggregate_helper() -> None:
     assert offenders == []
 
 
+# --- request URL construction -------------------------------------------------
+
+
+@pytest.mark.parametrize("own_sessions,filter_own", [(None, "false"), ("issuer-a", "true")])
+def test_watch_merges_filterown_into_a_relay_url_query_string(monkeypatch: pytest.MonkeyPatch, own_sessions: str | None, filter_own: str) -> None:
+    """Finding #10 (PR #4224, issue #4549): ``filterOwn`` merges into a
+    relay_url's existing query string instead of blindly appending ``?…``
+    (which would silently discard it) — the same urlencode construction
+    ``history.py`` already uses."""
+    from types import SimpleNamespace
+
+    observed: dict[str, str] = {}
+
+    class _Response:
+        headers = {"X-Zeitgeist-Filter-Own": filter_own}
+
+        def __enter__(self) -> _Response:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            pass
+
+        def readline(self) -> bytes:
+            return b""
+
+    def _open(request: urllib.request.Request, **_kwargs: object) -> _Response:
+        observed["url"] = request.full_url
+        return _Response()
+
+    monkeypatch.setattr(filtered_stream.budget.NoRedirects, "build", lambda: SimpleNamespace(open=_open))
+    config = filtered_stream.TeamStreamConfig("http://relay/base/?ticket=x", "inner", "outer", own_sessions)
+    assert list(filtered_stream.FilteredStream(config).watch()) == []
+    assert observed["url"] == f"http://relay/base/managed/stream?ticket=x&filterOwn={filter_own}"
+
+
 # --- fault / compatibility ----------------------------------------------------
 
 
