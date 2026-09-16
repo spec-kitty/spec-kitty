@@ -343,7 +343,9 @@ def _authored() -> Any:
     return authored
 
 
-def _print_send_result(module: Any, result: Any, *, as_json: bool) -> None:
+def _print_send_result(result: Any, *, as_json: bool) -> None:
+    from specify_cli.live_work.authored import DELIVERY_SCOPE_NOTE  # noqa: PLC0415
+
     if as_json:
         console.emit_json(result.as_dict())
         return
@@ -356,7 +358,7 @@ def _print_send_result(module: Any, result: Any, *, as_json: bool) -> None:
         console.print("  [yellow]body truncated to the 240-char wire bound (explicit --truncate)[/yellow]")
     if result.reason:
         console.print(f"  [yellow]{result.reason}[/yellow]", markup=False, highlight=False)
-    console.print(f"  [dim]{module.DELIVERY_SCOPE_NOTE}[/dim]", markup=False, highlight=False)
+    console.print(f"  [dim]{DELIVERY_SCOPE_NOTE}[/dim]", markup=False, highlight=False)
 
 
 @app.command()
@@ -370,17 +372,19 @@ def send(
 ) -> None:
     """Author and publish one live message (#4269) — accepted/offered/failed,
     never retained delivery."""
+    from specify_cli.live_work.authored import AuthoredMessageError, SendOutcome  # noqa: PLC0415
+
     module = _authored()
     try:
         result = module.send(kind, body, cwd=Path.cwd(), audience=audience, thread=thread, allow_truncate=truncate)
     except moments.MomentsDisabled as exc:
         console.print(str(exc), markup=False)
         raise typer.Exit(0) from None
-    except module.AuthoredMessageError as exc:
+    except AuthoredMessageError as exc:
         console.print(f"[red]Error:[/red] {exc}", markup=False, highlight=False)
         raise typer.Exit(1) from None
-    _print_send_result(module, result, as_json=as_json)
-    if result.outcome is module.SendOutcome.FAILED:
+    _print_send_result(result, as_json=as_json)
+    if result.outcome is SendOutcome.FAILED:
         raise typer.Exit(1)
 
 
@@ -394,17 +398,19 @@ def reply(
 ) -> None:
     """Reply to one authored message — thread and audience come from the
     parent; a peer thread is never broadened to team scope."""
+    from specify_cli.live_work.authored import AuthoredMessageError, SendOutcome  # noqa: PLC0415
+
     module = _authored()
     try:
         result = module.reply(reply_to, body, cwd=Path.cwd(), audience=audience, allow_truncate=truncate)
     except moments.MomentsDisabled as exc:
         console.print(str(exc), markup=False)
         raise typer.Exit(0) from None
-    except module.AuthoredMessageError as exc:
+    except AuthoredMessageError as exc:
         console.print(f"[red]Error:[/red] {exc}", markup=False, highlight=False)
         raise typer.Exit(1) from None
-    _print_send_result(module, result, as_json=as_json)
-    if result.outcome is module.SendOutcome.FAILED:
+    _print_send_result(result, as_json=as_json)
+    if result.outcome is SendOutcome.FAILED:
         raise typer.Exit(1)
 
 
@@ -470,9 +476,11 @@ def inbox(
         return
     receipt = result.get("receipt")
     if receipt:
+        from specify_cli.live_work.authored import acknowledge_inbox  # noqa: PLC0415
+
         # Delivery succeeded once the output above landed — commit the
         # receipt now, exactly like the activity command does.
-        module.acknowledge_inbox(key, receipt, consumer=consumer)
+        acknowledge_inbox(key, receipt, consumer=consumer)
 
 
 @app.command(name="mcp-serve", hidden=True)

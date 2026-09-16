@@ -4235,12 +4235,6 @@ _Control which Zeitgeist status moments reach agent context (off / mine / team),
 
 ## spec-kitty moments on
 
-Team moments are enabled by default, including unfamiliar missions and moments
-without a mission. Explicit `agents = "mine"` limits delivery to locally known
-or configured missions; it does not represent developer assignment. `off` disables
-agent delivery. Global and repo allowlists intersect, and their rate ceilings use
-the lower configured value. A repo cannot widen global restrictions.
-
 ```
  Usage: spec-kitty moments on [OPTIONS]
 
@@ -5960,13 +5954,14 @@ _Manage mission workflow definitions_
 
 ## spec-kitty zeitgeist
 
-_Read-only access to one team's live Zeitgeist presence/focus stream and status-moment events._
+_Access to one team's live Zeitgeist presence/focus stream and status-moment events, authored peer messaging (#4269), a local human-gated prose approval surface, and operability drills._
 
 ```
  Usage: spec-kitty zeitgeist [OPTIONS] COMMAND [ARGS]...
 
- Read-only access to one team's live Zeitgeist presence/focus stream and
- status-moment events.
+ Access to one team's live Zeitgeist presence/focus stream and status-moment
+ events, authored peer messaging (#4269), a local human-gated prose approval
+ surface, and operability drills.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
@@ -5975,6 +5970,20 @@ _Read-only access to one team's live Zeitgeist presence/focus stream and status-
 │ status       One bounded snapshot of ``repo``'s live presence/focus state.   │
 │ watch        Print live frames plus a final summary, bounded by whole-call   │
 │              ``--timeout`` and ``--max-frames`` count.                       │
+│ activity     Catch up on retained activity using the same policy as agent    │
+│              watch.                                                          │
+│ send         Author and publish one live message (#4269) —                   │
+│              accepted/offered/failed,                                        │
+│              never retained delivery.                                        │
+│ reply        Reply to one authored message — thread and audience come from   │
+│              the                                                             │
+│              parent; a peer thread is never broadened to team scope.         │
+│ read         Read a conversation thread (or recent authored messages) from   │
+│              the                                                             │
+│              relay's recent ring; bodies render inside untrusted markers.    │
+│ inbox        Addressed inbox: novel authored messages for this consumer,     │
+│              over the                                                        │
+│              same novelty/receipt policy as agent watch.                     │
 │ outbox       Inspect/approve/reject/revoke locally queued Zeitgeist prose.   │
 │              Every decision requires a real human at a real terminal — there │
 │              is no --yes/--force option and no reachability from MCP or a    │
@@ -5987,6 +5996,71 @@ _Read-only access to one team's live Zeitgeist presence/focus stream and status-
 │              implementation, no relay-url/token option, no network beyond    │
 │              the one optional canary offer `report` makes when repo already  │
 │              has a stored checkout.                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist activity
+
+```
+ Usage: spec-kitty zeitgeist activity [OPTIONS] [REPO]
+
+ Catch up on retained activity using the same policy as agent watch.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   repo      [REPO]  Credential-store key this checkout's credential is       │
+│                     stored under, as host/owner/repo (e.g.                   │
+│                     github.com/acme/widget). Omit to derive it from the      │
+│                     current checkout's origin remote.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --window              INTEGER RANGE [x>=0]    Lookback seconds within the    │
+│                                               relay's configured retention.  │
+│                                               [default: 900]                 │
+│ --timeout             FLOAT RANGE [x>=0.001]  [default: 2.0]                 │
+│ --max-frames          INTEGER RANGE [x>=1]    [default: 500]                 │
+│ --replay                                      Intentionally include          │
+│                                               previously acknowledged        │
+│                                               activity.                      │
+│ --consumer            TEXT                    Stable logical agent ID shared │
+│                                               with watch/MCP.                │
+│ --json                                        Emit plain JSON instead of a   │
+│                                               human-readable summary.        │
+│ --help        -h                              Show this message and exit.    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist inbox
+
+```
+ Usage: spec-kitty zeitgeist inbox [OPTIONS] [REPO]
+
+ Addressed inbox: novel authored messages for this consumer, over the same
+ novelty/receipt policy as agent watch.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   repo      [REPO]  Credential-store key this checkout's credential is       │
+│                     stored under, as host/owner/repo (e.g.                   │
+│                     github.com/acme/widget). Omit to derive it from the      │
+│                     current checkout's origin remote.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --consumer              TEXT                  Stable logical agent ID shared │
+│                                               with watch/activity/MCP.       │
+│ --window                INTEGER RANGE [x>=0]  Lookback seconds within the    │
+│                                               relay's configured retention.  │
+│                                               [default: 900]                 │
+│ --max-messages          INTEGER RANGE [x>=1]  Maximum messages delivered in  │
+│                                               one scan.                      │
+│                                               [default: 50]                  │
+│ --acknowledge           TEXT                  The receipt returned by a      │
+│                                               previous successful inbox      │
+│                                               call.                          │
+│ --replay                                      Intentionally include          │
+│                                               previously acknowledged        │
+│                                               messages.                      │
+│ --json                                        Emit plain JSON instead of a   │
+│                                               human-readable summary.        │
+│ --help          -h                            Show this message and exit.    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -6234,6 +6308,94 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty zeitgeist read
+
+```
+ Usage: spec-kitty zeitgeist read [OPTIONS] [THREAD] [REPO]
+
+ Read a conversation thread (or recent authored messages) from the relay's
+ recent ring; bodies render inside untrusted markers.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   thread      [THREAD]  Thread id; omit to read all recent authored          │
+│                         messages.                                            │
+│   repo        [REPO]    Credential-store key this checkout's credential is   │
+│                         stored under, as host/owner/repo (e.g.               │
+│                         github.com/acme/widget). Omit to derive it from the  │
+│                         current checkout's origin remote.                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --window                INTEGER RANGE [x>=0]  Lookback seconds within the    │
+│                                               relay's configured retention.  │
+│                                               [default: 900]                 │
+│ --max-messages          INTEGER RANGE [x>=1]  Maximum messages delivered in  │
+│                                               one read.                      │
+│                                               [default: 100]                 │
+│ --json                                        Emit plain JSON instead of a   │
+│                                               human-readable summary.        │
+│ --help          -h                            Show this message and exit.    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist reply
+
+```
+ Usage: spec-kitty zeitgeist reply [OPTIONS] REPLY_TO BODY
+
+ Reply to one authored message — thread and audience come from the parent; a
+ peer thread is never broadened to team scope.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    reply_to      TEXT  The message id being replied to; it must still be   │
+│                          in the relay's recent window.                       │
+│                          [required]                                          │
+│ *    body          TEXT  Authored body text; the live wire carries at most   │
+│                          240 chars.                                          │
+│                          [required]                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --audience          TEXT  team (the default when a mission binding resolves  │
+│                           it) or peer:<logical-session-id> to address one    │
+│                           agent.                                             │
+│ --truncate                Explicitly cut an oversize body to the 240-char    │
+│                           wire bound instead of failing.                     │
+│ --json                    Emit plain JSON instead of a human-readable        │
+│                           summary.                                           │
+│ --help      -h            Show this message and exit.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist send
+
+```
+ Usage: spec-kitty zeitgeist send [OPTIONS] KIND BODY
+
+ Author and publish one live message (#4269) — accepted/offered/failed, never
+ retained delivery.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    kind      TEXT  Authored kind: intent, progress, question, answer,      │
+│                      decision, handoff, blocker, resolution, next, or        │
+│                      message (a peer reply).                                 │
+│                      [required]                                              │
+│ *    body      TEXT  Authored body text; the live wire carries at most 240   │
+│                      chars.                                                  │
+│                      [required]                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --audience          TEXT  team (the default when a mission binding resolves  │
+│                           it) or peer:<logical-session-id> to address one    │
+│                           agent.                                             │
+│ --thread            TEXT  Thread id; defaults to this message's own id (a    │
+│                           new conversation's root).                          │
+│ --truncate                Explicitly cut an oversize body to the 240-char    │
+│                           wire bound instead of failing.                     │
+│ --json                    Emit plain JSON instead of a human-readable        │
+│                           summary.                                           │
+│ --help      -h            Show this message and exit.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty zeitgeist status
 
 ```
@@ -6254,6 +6416,8 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 │                                            [default: 2.0]                    │
 │ --json                                     Emit plain JSON instead of a      │
 │                                            human-readable summary.           │
+│ --raw                                      Include own session in the        │
+│                                            diagnostic snapshot.              │
 │ --help     -h                              Show this message and exit.       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -6261,7 +6425,7 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 ## spec-kitty zeitgeist watch
 
 ```
-Usage: spec-kitty zeitgeist watch [OPTIONS] [REPO]
+ Usage: spec-kitty zeitgeist watch [OPTIONS] [REPO]
 
  Print live frames plus a final summary, bounded by whole-call ``--timeout``
  and ``--max-frames`` count.
@@ -6273,87 +6437,28 @@ Usage: spec-kitty zeitgeist watch [OPTIONS] [REPO]
 │                     current checkout's origin remote.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --timeout           FLOAT RANGE [x>=0.001]  Maximum seconds for the whole    │
-│                                             watch (clamped to <= 90s, the    │
-│                                             honest reported-live ceiling).   │
-│                                             [default: 5.0]                   │
-│ --max-frames        INTEGER RANGE [x>=1]    Maximum delivered frames; agent  │
-│                                             mode scans within the timeout to │
-│                                             count withheld frames.           │
-│                                             [default: 500]                   │
-│ --json                                      Emit plain JSON instead of a     │
-│                                             human-readable summary.          │
-│ --raw                                       Diagnostic stream: explicitly    │
-│                                             bypass agent filters, receipts   │
-│                                             and rate limits.                 │
-│ --consumer          TEXT                    Delivery receipt context override; │
-│                                             publisher identity is unchanged. │
-│ --help                                      Show this message and exit.      │
+│ --timeout             FLOAT RANGE [x>=0.001]  Maximum seconds for the whole  │
+│                                               watch (clamped to <= 90s, the  │
+│                                               honest reported-live ceiling). │
+│                                               [default: 5.0]                 │
+│ --max-frames          INTEGER RANGE [x>=1]    Maximum delivered frames;      │
+│                                               agent mode scans within the    │
+│                                               timeout to count withheld      │
+│                                               frames.                        │
+│                                               [default: 500]                 │
+│ --json                                        Emit plain JSON instead of a   │
+│                                               human-readable summary.        │
+│ --raw                                         Diagnostic stream: include own │
+│                                               session and bypass agent       │
+│                                               filters, receipts and rate     │
+│                                               limits.                        │
+│ --consumer            TEXT                    Delivery receipt context       │
+│                                               override; publisher identity   │
+│                                               still uses                     │
+│                                               SPEC_KITTY_ZEITGEIST_SESSION_… │
+│ --help        -h                              Show this message and exit.    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
-
-Agent mode defaults to `team` within the one requested, authorized repository.
-It does not subscribe to other account repositories. Set a stable logical
-consumer with `--consumer` only when a separate receipt context is desired.
-By default, receipts use the publisher/credential selector from #4217:
-`SPEC_KITTY_ZEITGEIST_SESSION_ID`, the Codex thread, or the stable default.
-Separate CLI/MCP processes therefore share receipt continuity automatically.
-`--raw` includes own activity and bypasses agent preferences, novelty and rate limits for diagnostics.
-
-Settings apply on the next CLI command; restart MCP to reload its settings.
-The summary reports effective filters, withheld counts, and `own_filter=relay_verified`
-after the relay confirms own-session suppression. Watch, status, and activity
-request `filterOwn=true`; each read forwards the current cached presence/focus
-issuer references so separate processes in one logical session share identity.
-Another session under the same human account remains visible. Missing cached
-identity or missing relay acknowledgment fails explicitly. `watch --raw` and
-`status --raw` request `filterOwn=false`; MCP tools also accept `filter_own=false`.
-See [session identity](../architecture/zeitgeist-session-identity.md) for cache and reconnect semantics.
-
-## spec-kitty zeitgeist activity
-
-```
-Usage: spec-kitty zeitgeist activity [OPTIONS] [REPO]
-
- Catch up on retained activity using the same policy as agent watch.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   repo      [REPO]  Credential-store key this checkout's credential is       │
-│                     stored under, as host/owner/repo (e.g.                   │
-│                     github.com/acme/widget). Omit to derive it from the      │
-│                     current checkout's origin remote.                        │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --window            INTEGER RANGE [x>=0]    Lookback seconds within the      │
-│                                             relay's configured retention.    │
-│                                             [default: 900]                   │
-│ --timeout           FLOAT RANGE [x>=0.001]  [default: 2.0]                   │
-│ --max-frames        INTEGER RANGE [x>=1]    [default: 500]                   │
-│ --replay                                    Intentionally include previously │
-│                                             acknowledged activity.           │
-│ --consumer          TEXT                    Stable logical agent ID shared   │
-│                                             with watch/MCP.                  │
-│ --json                                      Emit plain JSON instead of a     │
-│                                             human-readable summary.          │
-│ --help                                      Show this message and exit.      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-Catch-up reads the relay's bounded retained history and applies the same policy
-as watch. Previously acknowledged events do not consume the context budget;
-filtered or withheld events remain unread. `--replay` intentionally retrieves
-previously acknowledged activity. Unsupported retention windows fail explicitly.
-Coverage reports reset, gap, truncation and continuation without claiming a
-complete past or a race-free history/live handoff (relay #296).
-
-CLI acknowledges a batch after successful output and flush. MCP watch/activity
-return a `receipt`; pass it as `acknowledge` on the next call with the same
-consumer, repository and filters. A failed/unacknowledged response may be
-reoffered. Acknowledgement retries are idempotent for one day. Receipts contain
-identity digests and timestamps, never event prose; capacity exhaustion is an
-explicit error, never silent eviction. Changing filters starts a separate
-receipt context. Routine admitted credential renewal preserves it; legacy
-credentials without admission metadata conservatively reset it on rotation.
 
 ## Internal / hidden commands
 
