@@ -359,9 +359,10 @@ class TestDeactivateCascadeOutputAbsence:
 # side of C-002's cross-command symmetry (NFR-003/SC-003): `charter
 # activate --cascade all` and `charter deactivate --cascade all` must AGREE
 # on the same kind-filtered node, using the SAME shared rendering helper
-# (`_render_kind_filtered_line`/`KIND_FILTERED_LABEL`, imported from
-# `activate.py` per this WP's precedented cross-command import at
-# `deactivate.py:45-50`) -- never a second, divergent render path.
+# (`render_kind_filtered_line`/`KIND_FILTERED_LABEL`, defined in the neutral
+# `_cascade_shared.py` module both commands import since issue #3772's
+# de-dup -- previously `activate.py`'s `_render_kind_filtered_line`, imported
+# cross-module by `deactivate.py`) -- never a second, divergent render path.
 # ---------------------------------------------------------------------------
 
 
@@ -380,7 +381,7 @@ class TestDeactivateKindFilteredNodeRendering:
         requirement: the deactivation-side line must render the RESOLVED
         config-stem id (matching the activation-side line), never the raw
         bare DRG id -- this assertion fails if `_render_cascade_deactivation`
-        passed `urn.partition(":")[2]` straight to `_render_kind_filtered_line`
+        passed `urn.partition(":")[2]` straight to `render_kind_filtered_line`
         instead of resolving through `resolve_config_id(...)` first.
         """
         pack_a_root = project_root / "org-packs" / "deact-packA"

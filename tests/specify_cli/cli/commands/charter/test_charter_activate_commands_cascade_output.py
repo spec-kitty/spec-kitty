@@ -134,7 +134,7 @@ class TestCascadeOutputAbsence:
 # ``--suggests--> asset:qa-traceability-lint``) exists only as a hand-built
 # DRG in the engine-level unit tests (``tests/charter/test_cascade.py``); the
 # CLI-level ATDD tests here need real on-disk artifact files so
-# ``_drg_id_to_config_id``/``CharterPackManager.activate`` can resolve them,
+# ``_cascade_shared.py``'s ``drg_urn_to_config_id``/``CharterPackManager.activate`` can resolve them,
 # and use directive/tactic/asset kinds as the fixture's equivalent kind/id
 # (a directive source rather than a toolguide -- same DRG shape).
 # ---------------------------------------------------------------------------
@@ -404,10 +404,11 @@ class TestKindFilteredNodeRendering:
         self, project_root: Path
     ) -> None:
         """The kind-filtered line renders the RESOLVED config-stem ID, not the
-        raw DRG bare ID (`_drg_id_to_config_id`'s docstring, activate.py:123-152):
+        raw DRG bare ID (`drg_urn_to_config_id`'s docstring,
+        `_cascade_shared.py`):
         an org-pack-2..N node's bare DRG id and config-stem id differ. This
         assertion fails if the implementation passes the unresolved bare ID
-        straight to `_render_kind_filtered_line`.
+        straight to `render_kind_filtered_line`.
         """
         pack_a_root = project_root / "org-packs" / "packA"
         pack_b_root = project_root / "org-packs" / "packB"
@@ -588,10 +589,10 @@ class TestNoCascadeKindFilteredRendering:
         self, project_root: Path
     ) -> None:
         """The no-cascade kind-filtered line renders the RESOLVED config-stem
-        ID, not the raw DRG bare ID (`_drg_id_to_config_id`'s docstring,
-        activate.py:123-152): an org-pack-2..N node's bare DRG id and
+        ID, not the raw DRG bare ID (`drg_urn_to_config_id`'s docstring,
+        `_cascade_shared.py`): an org-pack-2..N node's bare DRG id and
         config-stem id differ. This assertion fails if the implementation
-        passes the unresolved bare ID straight to `_render_kind_filtered_line`.
+        passes the unresolved bare ID straight to `render_kind_filtered_line`.
         """
         pack_a_root = project_root / "org-packs" / "nc-packA"
         pack_b_root = project_root / "org-packs" / "nc-packB"

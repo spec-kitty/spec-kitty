@@ -45,7 +45,6 @@ from charter.activation.kind_vocabulary import (
     MissionTypeNotAnArtifactKind,
     UnknownArtifactIdError,
     resolve_artifact_urn,
-    resolve_config_id,
 )
 from charter.activation.pack_context import CharterPackConfigError, PackContext
 from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
@@ -54,6 +53,10 @@ from charter.activation.project_registration import (
     plan_project_registration,
 )
 
+from specify_cli.cli.commands.charter._cascade_shared import (
+    drg_urn_to_config_id,
+    render_kind_filtered_line,
+)
 from specify_cli.cli.commands.charter._layer_roots import (
     resolve_layer_roots,
     resolve_org_root_chain,
@@ -68,18 +71,6 @@ RESYNTHESIZE_HELP = (
     "immediately. Default: off -- activation stays a fast config-only write "
     "and the signal reports stale until a later reconcile (NFR-001)."
 )
-
-#: FR-009 -- the ONE shared definition of the kind-filtered-node label,
-#: consumed by :func:`_render_kind_filtered_line` below (this WP's call site)
-#: and, in later WPs of this mission, by `_render_no_cascade_warning`
-#: (WP03) and `deactivate.py`'s `_render_cascade_deactivation` (WP04) --
-#: never re-coined at any of those call sites (Sonar S1192). Styled `[dim]`
-#: like the existing `Skipped (out of scope)` line, but with distinct
-#: literal text so the two remain grep-distinguishable (FR-008): a
-#: structurally non-activatable kind (`template`/`asset`, C-001) must never
-#: be mistaken for a scope-excluded one. Never phrased as a warning/error/
-#: failure (FR-003) -- issue #3705 is a silent-drop bug, not a failure.
-KIND_FILTERED_LABEL = "[dim]Not cascaded[/dim]: {kind_token}/{config_id} (kind not charter-activatable)"
 
 #: FR-004 -- the explicit zero-activatable-targets message. Printed once,
 #: never per-node, when the cascade resolved zero activatable targets AND at
@@ -147,52 +138,6 @@ def _source_urn(
         return resolved
     except UnknownArtifactIdError:
         return None
-
-
-def _drg_id_to_config_id(
-    kind_value: str,
-    drg_id: str,
-    doctrine_root: Path,
-    layer_roots: dict[str, Path] | None,
-    org_roots: list[Path] | None = None,
-) -> str:
-    """Map a cascade-reported DRG bare ID back to its config-stem ID.
-
-    The cascade engine works in DRG URN space (e.g. ``DIRECTIVE_001``) while
-    activation lists use config-stem IDs (e.g.
-    ``001-architectural-integrity-standard``). Falls back to the DRG ID when no
-    config stem resolves (so rendering never crashes on an orphan node).
-
-    ``org_roots`` (T008/T009): the full declaration-ordered org-pack chain —
-    see :func:`specify_cli.cli.commands.charter._layer_roots.resolve_org_root_chain`
-    for why this is threaded as a separate parameter rather than widened into
-    ``layer_roots``. Without it, a cascade-reported ID that only resolves
-    through org pack 2..N fell back to the raw DRG ID here (pack 1 was the
-    only pack ``layer_roots["org"]`` could ever carry).
-    """
-    try:
-        resolved: str = resolve_config_id(
-            f"{kind_value}:{drg_id}",
-            doctrine_root=doctrine_root,
-            org_roots=org_roots,
-            layer_roots=layer_roots,
-        )
-        return resolved
-    except (UnknownArtifactIdError, ValueError):
-        return drg_id
-
-
-def _render_kind_filtered_line(kind_token: str, config_id: str) -> None:
-    """Render one line for a kind-filtered (structurally non-activatable) node.
-
-    FR-009: the single shared rendering helper -- WP03's
-    ``_render_no_cascade_warning`` extension and WP04's
-    ``deactivate._render_cascade_deactivation`` both call this same helper
-    (importing it from this module) rather than each re-coining the wording
-    (Sonar S1192). This WP (WP02) is the first call site, wired into
-    :func:`_render_cascade_activation` below.
-    """
-    console.print(KIND_FILTERED_LABEL.format(kind_token=kind_token, config_id=config_id))
 
 
 def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) -> None:
@@ -362,8 +307,8 @@ def _render_cascade_activation(
         for cascade_drg_id in result.activated[kind_value]:
             # The cascade engine reports DRG bare IDs; activation lists use
             # config-stem IDs. Resolve back through the kind-vocabulary bridge.
-            config_id = _drg_id_to_config_id(
-                kind_value, cascade_drg_id, doctrine_root, layer_roots, org_roots
+            config_id = drg_urn_to_config_id(
+                f"{kind_value}:{cascade_drg_id}", doctrine_root, layer_roots, org_roots
             )
             try:
                 _activate_cascade_target(
@@ -382,8 +327,8 @@ def _render_cascade_activation(
     for kind_value in sorted(result.skipped_by_scope):
         kind_token = ArtifactKind(kind_value).operator_token
         for skipped_id in result.skipped_by_scope[kind_value]:
-            config_id = _drg_id_to_config_id(
-                kind_value, skipped_id, doctrine_root, layer_roots, org_roots
+            config_id = drg_urn_to_config_id(
+                f"{kind_value}:{skipped_id}", doctrine_root, layer_roots, org_roots
             )
             console.print(
                 f"[dim]Skipped (out of scope)[/dim]: {kind_token}/{config_id}"
@@ -399,10 +344,10 @@ def _render_cascade_activation(
     for kind_value in sorted(result.not_cascaded_kind_filtered):
         kind_token = ArtifactKind(kind_value).operator_token
         for filtered_id in result.not_cascaded_kind_filtered[kind_value]:
-            config_id = _drg_id_to_config_id(
-                kind_value, filtered_id, doctrine_root, layer_roots, org_roots
+            config_id = drg_urn_to_config_id(
+                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots
             )
-            _render_kind_filtered_line(kind_token, config_id)
+            render_kind_filtered_line(kind_token, config_id)
 
     # FR-004: fires ONLY when the cascade resolved zero activatable targets
     # AND at least one referenced node was specifically kind-filtered --
@@ -492,8 +437,8 @@ def _render_no_cascade_warning(
     for kind_value in sorted(report.skipped):
         kind_token = ArtifactKind(kind_value).operator_token
         for skipped_drg_id in report.skipped[kind_value]:
-            config_id = _drg_id_to_config_id(
-                kind_value, skipped_drg_id, doctrine_root, layer_roots, org_roots
+            config_id = drg_urn_to_config_id(
+                f"{kind_value}:{skipped_drg_id}", doctrine_root, layer_roots, org_roots
             )
             console.print(
                 f"[yellow]Warning[/yellow]: referenced {kind_token}/{config_id} "
@@ -524,10 +469,10 @@ def _render_no_cascade_warning(
     for kind_value in sorted(report.not_cascaded_kind_filtered):
         kind_token = ArtifactKind(kind_value).operator_token
         for filtered_id in report.not_cascaded_kind_filtered[kind_value]:
-            config_id = _drg_id_to_config_id(
-                kind_value, filtered_id, doctrine_root, layer_roots, org_roots
+            config_id = drg_urn_to_config_id(
+                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots
             )
-            _render_kind_filtered_line(kind_token, config_id)
+            render_kind_filtered_line(kind_token, config_id)
 
 
 def run_full_synthesize(repo_root: Path) -> None:

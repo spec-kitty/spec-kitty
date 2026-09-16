@@ -1029,8 +1029,13 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
         # status is unchanged (still no src/ importer -- it is the public return type
         # of ``deactivation_plan()``, consumed by the CLI layer and tests).
         # Prior hash: 527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43
+        # Re-pinned 2026-09-16 (#3772): the de-dup consolidation unified this
+        # dataclass's ``not_cascaded_kind_filtered`` field to the kind-bucketed
+        # ``dict[str, list[str]]`` shape its activate-side siblings already
+        # carry -- a body-only change, the symbol's status is unchanged (still
+        # no src/ importer). Prior hash: ea81133908c5385ae013a8057ac7f863386247ba90b64e212b54be895d7e1615
         SymbolKey(
-            "DeactivationPlan", "ea81133908c5385ae013a8057ac7f863386247ba90b64e212b54be895d7e1615", source_module="charter.activation.cascade"
+            "DeactivationPlan", "7969f9715636c68b9fbf15569aa12af1e52f7ba9fc9f4e5b3a697c7274b8364f", source_module="charter.activation.cascade"
         ),  # charter.activation.cascade::DeactivationPlan
         SymbolKey(
             "ReferencedArtifact", "80d3c02ebae2c466ff75be630ecfd259036be62ea0a1394dbab6503f75414afc", source_module="charter.activation.cascade"
