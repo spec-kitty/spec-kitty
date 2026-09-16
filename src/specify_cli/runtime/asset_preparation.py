@@ -289,7 +289,9 @@ class AssetPreparation:
         self.parents(path)
         proof = OwnershipProof("manifest", f"{self.inventory.name}:{relative}") if owned else OwnershipProof("managed_path", f"{self.owner}:{relative}")
         if canonical_predecessor:
-            proof = OwnershipProof("canonical_content", f"{self.owner}:{relative}:version-only-change")
+            # #4609: covers both a version-only marker refresh and a full
+            # cross-release content upgrade of an older release's marked file.
+            proof = OwnershipProof("canonical_content", f"{self.owner}:{relative}:canonical-predecessor")
         self._effect(path, desired, content, proof)
         self.entries[relative] = asdict(desired)
 
