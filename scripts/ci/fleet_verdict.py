@@ -84,7 +84,14 @@ def latest_run(runs: list[dict[str, Any]], *, workflow_id: int, repository: str,
 
 
 def classify(runs: dict[str, dict[str, Any] | None], labels: set[str]) -> str:
-    """Never turn absent, cancelled, skipped or incomplete evidence into green."""
+    """Never turn absent, cancelled, skipped or incomplete evidence into green.
+
+    A fully-terminal required set whose only non-success signal is a cancelled run
+    (an infra/timeout kill, not a code failure) is ``infra-error``: never green, and
+    never premature — every required run must be terminal first. It ranks after red
+    (a real failure dominates a co-cancelled run), after deferred (an intentional skip
+    label wins), and after the incomplete check (a pending or absent run stays running).
+    """
     present = [r for r in runs.values() if r]
     if any(r.get("status") == "completed" and r.get("conclusion") in {"failure", "timed_out", "startup_failure", "action_required"} for r in present):
         return "red"
@@ -92,6 +99,8 @@ def classify(runs: dict[str, dict[str, Any] | None], labels: set[str]) -> str:
         return "running"
     if not runs or len(present) != len(runs):
         return "running"
+    if all(r.get("status") == "completed" for r in present) and any(r.get("conclusion") == "cancelled" for r in present):
+        return "infra-error"
     return "green" if all(r.get("status") == "completed" and r.get("conclusion") == "success" for r in present) else "running"
 
 
@@ -279,6 +288,8 @@ def comment_body(repository: str, evidence: dict[str, Any], reporter_id: int, at
     lines = [f"[ci] {state} @{head} on {host}", "", MARKER, f"Existing Actions gates for this exact {scope}; no additional test run.", ""]
     if state == "running":
         lines.append("Evidence is pending, incomplete, cancelled, or intentionally deferred; this is not a code failure verdict.")
+    elif state == "infra-error":
+        lines.append("A required run was cancelled (an infra or timeout kill), not a code failure; re-run the cancelled gate to release the head.")
     for name, run in evidence["runs"].items():
         lines.append(
             f"- {name}: {run['status']}/{run['conclusion']} ({run['html_url']}, attempt {run['run_attempt']})" if run else f"- {name}: awaiting matching run"

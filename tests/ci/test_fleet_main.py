@@ -106,14 +106,35 @@ def test_recovery_is_appended_without_closure_or_new_incident() -> None:
     assert len(api.mutations) == 2
 
 
-@pytest.mark.parametrize("conclusion", ["cancelled", "skipped", None])
-def test_incomplete_main_evidence_cannot_claim_green_or_open_p0(conclusion) -> None:
-
+@pytest.mark.parametrize("conclusion,expected", [("cancelled", "infra-error"), ("skipped", "running"), (None, "running")])
+def test_incomplete_main_evidence_cannot_claim_green_or_open_p0(conclusion, expected) -> None:
+    # Main coherence: a terminally-cancelled required run is infra-error (never green),
+    # skipped/absent evidence stays running — and NONE of them opens a P0, because the
+    # fleet_main.py intake gate keys on state == "red", which none of these are.
     api = MainAPI()
     api.runs["ci-modules.yml"][0].update(conclusion=conclusion)
-    assert fleet_main.snapshot(api, ROOT, IDS)["state"] == "running"
+    assert fleet_main.snapshot(api, ROOT, IDS)["state"] == expected
     fleet_main.report(api, ROOT, IDS, 123, 1)
     assert not api.mutations
+
+
+def test_infra_error_tip_appended_to_open_incident_does_not_escalate() -> None:
+    # An open red incident whose main tip later observes an infra-error (a cancelled
+    # required run, not a code failure) records the observation as an appended comment;
+    # it opens no new P0, changes no priority/label, and leaves the incident open —
+    # only the fleet closes or re-prioritises an incident.
+    api = MainAPI()
+    api.runs["ci-quality.yml"][0]["conclusion"] = "failure"
+    fleet_main.report(api, ROOT, IDS, 123, 1)
+    assert api.mutations[0][0] == "issues"
+    api.runs["ci-quality.yml"][0].update(conclusion="cancelled", run_attempt=2)
+    fleet_main.report(api, ROOT, IDS, 124, 1)
+    assert len(api.mutations) == 2
+    path, payload = api.mutations[1]
+    assert path == "issues/20/comments"
+    assert f"[ci] infra-error @{HEAD}" in payload["body"]
+    assert set(payload) == {"body"}
+    assert api.incidents[0]["state"] == "open"
 
 
 @pytest.mark.parametrize(

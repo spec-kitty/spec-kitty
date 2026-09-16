@@ -172,7 +172,7 @@ def test_spoofed_or_unassociated_run_cannot_supply_evidence(field: str, value: A
     [
         ("in_progress", None, "running"),
         ("queued", None, "running"),
-        ("completed", "cancelled", "running"),
+        ("completed", "cancelled", "infra-error"),
         ("completed", "skipped", "running"),
         ("completed", "failure", "red"),
         ("completed", "success", "green"),
@@ -249,6 +249,55 @@ def test_running_ledger_does_not_suppress_a_terminal_verdict() -> None:
     assert api.posts and api.posts[0]["body"].startswith(f"[ci] green @{HEAD}")
 
 
+def completed(conclusion: str | None) -> dict[str, Any]:
+    """A terminal required-gate run for pure classify() precedence tests."""
+    return {"status": "completed", "conclusion": conclusion}
+
+
+def test_terminal_cancel_reposts_and_is_not_suppressed() -> None:
+    # FR-001/FR-003/FR-005 release proof: a fully-terminal required set with a
+    # cancelled run (no red) is infra-error, and the running-dedup guard must NOT
+    # swallow it. Seed a prior terminal running verdict that WOULD suppress a
+    # running re-post (Bot + MARKER + "[ci] running @HEAD"); on today's code the
+    # cancelled gate classifies as running and the guard suppresses (no post),
+    # after the fix it classifies as infra-error — a distinct terminal state the
+    # guard leaves alone — so a fresh "[ci] infra-error @HEAD" is published,
+    # releasing the head. This exercises the full report() path, not bare classify.
+    api = API()
+    api.runs["ci-quality.yml"][0]["conclusion"] = "cancelled"
+    api.comments = [{"body": f"[ci] running @{HEAD} on github-actions\n\n{MARKER}\nrunning evidence", "user": {"type": "Bot"}}]
+    report(api, ROOT, 7, IDS, 123, 1)
+    assert api.posts and api.posts[0]["body"].startswith(f"[ci] infra-error @{HEAD}")
+    assert MARKER in api.posts[0]["body"]
+
+
+def test_cancel_among_pending_runs_stays_running() -> None:
+    # INV-2 never-premature: a cancelled run does not decide the verdict while any
+    # required run is still non-terminal (in_progress) or entirely absent (None).
+    assert classify({"g": completed("cancelled"), "h": {"status": "in_progress", "conclusion": None}}, set()) == "running"
+    assert classify({"g": completed("cancelled"), "h": None}, set()) == "running"
+
+
+def test_failure_and_cancel_is_red() -> None:
+    # INV-3 red dominates: a real failure is never washed to infra-error by a co-cancelled run.
+    assert classify({"g": completed("failure"), "h": completed("cancelled")}, set()) == "red"
+
+
+def test_deferred_not_overridden_by_cancel() -> None:
+    # INV-4 deferred respected: an intentional skip label takes precedence over a cancelled run.
+    assert classify({"g": completed("cancelled")}, {"pr:skip-ci"}) == "running"
+
+
+def test_all_success_green_never_infra() -> None:
+    # INV-1 never-green→infra-error: an all-success terminal set has no cancelled run, so it stays green.
+    assert classify({"g": completed("success"), "h": completed("success")}, set()) == "green"
+
+
+def test_skipped_is_not_cancelled() -> None:
+    # INV-5 skipped≠cancelled: infra-error requires a cancelled conclusion, not merely "not green".
+    assert classify({"g": completed("skipped"), "h": completed("success")}, set()) == "running"
+
+
 def replay_fixture(tmp_path: Path) -> tuple[API, Path, dict[str, Any]]:
     checkout = tmp_path / "reviewed"
     checkout.mkdir()
@@ -316,7 +365,7 @@ def test_replay_refuses_unreviewed_or_superseded_evidence(tmp_path: Path, change
     assert not api.posts
 
 
-@pytest.mark.parametrize("state,expected", [("failure", "red"), ("cancelled", "running")])
+@pytest.mark.parametrize("state,expected", [("failure", "red"), ("cancelled", "infra-error")])
 def test_replay_preserves_other_required_gate_results(tmp_path: Path, state: str, expected: str) -> None:
     api, checkout, replay = replay_fixture(tmp_path)
     api.runs["ci-quality.yml"][0]["conclusion"] = state
