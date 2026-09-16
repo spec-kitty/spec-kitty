@@ -269,7 +269,7 @@ def plan_activation(
     current = _current_list(config_data, yaml_key)
 
     was_unrestricted = current is None
-    if was_unrestricted:
+    if current is None:  # the UNRESTRICTED state; narrows `current` for the else branch
         # #4253: an absent key is the UNRESTRICTED state — every EFFECTIVE
         # artifact is in force, which is strictly wider than the default
         # pack. Materializing ``default_ids`` here therefore did not merely
