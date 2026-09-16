@@ -144,8 +144,18 @@ def list_profiles(
         "--show-available",
         help="Also show available-but-not-activated profiles (annotated by state).",
     ),
+    mission: str | None = typer.Option(
+        None,
+        "--mission",
+        hidden=True,
+        help=(
+            "Accepted and ignored: profiles are mission-agnostic. Lets agents "
+            "pass --mission uniformly in multi-mission repos (#3953)."
+        ),
+    ),
 ) -> None:
     """List agent profiles (activated-only by default; --all for the full catalog)."""
+    del mission  # mission-agnostic: accepted for CLI consistency only (#3953)
     # FR-008 / T031: This command does not open an InvocationRecord at baseline.
     # If a future version of `profiles list` opens an invocation, it should use:
     #   derive_mode("profiles.list")  -> ModeOfWork.QUERY
@@ -323,8 +333,18 @@ def show_profile(
         "--all",
         help="Bypass the activation gate for inspection (show non-activated profiles).",
     ),
+    mission: str | None = typer.Option(
+        None,
+        "--mission",
+        hidden=True,
+        help=(
+            "Accepted and ignored: profiles are mission-agnostic. Lets agents "
+            "pass --mission uniformly in multi-mission repos (#3953)."
+        ),
+    ),
 ) -> None:
     """Show the full resolved definition of an agent profile (FR-013/014/015)."""
+    del mission  # mission-agnostic: accepted for CLI consistency only (#3953)
     repo_root = find_repo_root()
     profiles, provenance, owner = _profile_catalog(repo_root)
     by_id = {p.profile_id: p for p in profiles}

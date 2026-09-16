@@ -154,3 +154,25 @@ class TestAgentProfileCompatibilityAlias:
         profile_ids = [p["profile_id"] for p in profiles]
         assert "implementer-fixture" in profile_ids
         assert all(p["identifier"] == p["profile_id"] for p in profiles)
+
+
+class TestMissionFlagAcceptedAndIgnored:
+    """Profiles are mission-agnostic; ``--mission`` must not be rejected (#3953)."""
+
+    def test_agent_profile_list_accepts_mission_flag(self, tmp_path: Path) -> None:
+        project = _setup_project(tmp_path)
+        with patch("specify_cli.cli.commands.profiles_cmd.find_repo_root", return_value=project):
+            result = runner.invoke(cli_app, ["agent", "profile", "list", "--mission", "042-some-mission", "--json"])
+        assert result.exit_code == 0, result.output
+        profile_ids = [p["profile_id"] for p in _json_payload(result.output)]
+        assert "implementer-fixture" in profile_ids
+
+    def test_profiles_show_accepts_mission_flag(self, tmp_path: Path) -> None:
+        project = _setup_project(tmp_path)
+        with patch("specify_cli.cli.commands.profiles_cmd.find_repo_root", return_value=project):
+            result = runner.invoke(
+                cli_app,
+                ["profiles", "show", "implementer-fixture", "--mission", "042-some-mission", "--json"],
+            )
+        assert result.exit_code == 0, result.output
+        assert _json_payload(result.output)["profile_id"] == "implementer-fixture"
