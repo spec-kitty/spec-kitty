@@ -218,6 +218,47 @@ def test_ignored_option_is_typer_native_not_foreign_click() -> None:
     assert type(option).__module__.split(".")[0] == "typer"
 
 
+def test_reregistration_keeps_the_invariant(monkeypatch) -> None:
+    """A defensive re-registration (the freshness script's shape) cannot un-retarget leaves.
+
+    ``scripts/docs/check_cli_reference_freshness.py`` re-calls
+    ``register_commands`` on an already-registered app with spoofed argv to
+    guarantee the full tree; before the walker ran inside
+    ``register_commands``, the duplicate ``CommandInfo`` objects that
+    appended overrode the retargeted ones, and 19 top-level commands went
+    back to rejecting ``--mission`` for the rest of the process.
+    """
+    import sys
+
+    from specify_cli.cli.commands import register_commands
+
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    monkeypatch.setattr(sys, "argv", ["pytest"])  # not a fast-path invocation
+    root = typer.Typer()
+    register_commands(root)
+
+    # The freshness script's defensive re-registration shape (#3953 fix round).
+    monkeypatch.setattr(sys, "argv", ["spec-kitty", "--help"])
+    register_commands(root)
+
+    click_root = get_command(root)
+
+    def leaves(node: click.Command) -> list[click.Command]:
+        sub = getattr(node, "commands", None)
+        if not sub:
+            return [node]
+        found: list[click.Command] = []
+        for cmd in sub.values():
+            found.extend(leaves(cmd))
+        return found
+
+    all_leaves = leaves(click_root)
+    assert len(all_leaves) > 100, "guard the guard: implausibly few commands registered"
+    ctx = click.Context(click_root)
+    offenders = [leaf for leaf in all_leaves if not any("--mission" in p.opts for p in leaf.get_params(ctx))]
+    assert offenders == []
+
+
 def test_walker_recurses_into_nested_sub_apps() -> None:
     """Commands two group levels deep are retargeted."""
     inner = typer.Typer()

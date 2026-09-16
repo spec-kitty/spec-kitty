@@ -180,11 +180,19 @@ _LIVE_WORK_GROUP_HELP = (
 
 def register_commands(app: typer.Typer) -> None:
     """Attach all extracted commands to the root Typer application."""
+    # #3953: every registration exit below applies the mission-agnostic
+    # ``--mission`` classes, so a *re*-registration (e.g. the freshness
+    # script's defensive ``register_commands(app)`` with spoofed argv, which
+    # appends fresh CommandInfos that would otherwise override the already-
+    # retargeted ones) can never leave un-retargeted leaves behind.
+    from specify_cli.cli.helpers import make_leaf_commands_mission_agnostic
+
     if _is_next_fast_path(sys.argv):
         from . import next_cmd as next_cmd_module
 
         app.command(name="next")(next_cmd_module.next_step)
         _apply_short_help_options(app)
+        make_leaf_commands_mission_agnostic(app)
         return
 
     if _is_live_work_hook_fast_path(sys.argv):
@@ -192,6 +200,7 @@ def register_commands(app: typer.Typer) -> None:
 
         app.add_typer(live_work_module.app, name="live-work", help=_LIVE_WORK_GROUP_HELP)
         _apply_short_help_options(app)
+        make_leaf_commands_mission_agnostic(app)
         return
 
     from . import accept as accept_module
@@ -364,6 +373,7 @@ def register_commands(app: typer.Typer) -> None:
     _sort_root_command_metadata(app)
     _enforce_top_level_empty_group_help(app)
     _apply_short_help_options(app)
+    make_leaf_commands_mission_agnostic(app)
 
 
 __all__ = ["register_commands"]
