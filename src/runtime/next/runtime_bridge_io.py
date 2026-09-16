@@ -81,7 +81,7 @@ import os
 import re
 import shutil
 import tempfile
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
@@ -1190,6 +1190,42 @@ class _ArtifactPresenceHomes:
                 home = self._feature_dir
             self._by_kind[kind] = home
         return home
+
+
+def artifact_search_paths(
+    feature_dir: Path,
+    *,
+    mission_family: str,
+    repo_root: Path | None = None,
+    names: Iterable[str] | None = None,
+) -> dict[str, str]:
+    """Where a guard looked for each expected artifact (#3883).
+
+    A blocked decision that says an artifact is missing without saying which
+    directory it read is not diagnosable without a source read — that is what
+    turned the reported disagreement between the query and advance paths into
+    a dead end for the operator. This resolves the same
+    :class:`_ArtifactPresenceHomes` seam :func:`gather_artifact_presence` uses
+    for its own reads, so the reported path is the path that was actually
+    checked rather than a second, drifting reconstruction of it.
+
+    Paths are repo-relative when ``repo_root`` contains them (what an operator
+    can paste into ``ls``), absolute otherwise. ``names`` narrows the result to
+    the artifacts a caller cares about — normally the ones that failed.
+    """
+    homes = _ArtifactPresenceHomes(feature_dir, _artifact_presence_seam(feature_dir, repo_root))
+    wanted = set(names) if names is not None else set(_presence_filenames_for(mission_family, repo_root=repo_root))
+    resolved: dict[str, str] = {}
+    for tag in sorted(wanted):
+        candidate = homes.read_dir(tag) / tag
+        if repo_root is not None:
+            try:
+                resolved[tag] = str(candidate.relative_to(repo_root))
+                continue
+            except ValueError:
+                pass  # outside the repo (worktree/absolute home): report it whole
+        resolved[tag] = str(candidate)
+    return resolved
 
 
 def gather_artifact_presence(

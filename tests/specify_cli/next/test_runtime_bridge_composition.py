@@ -1419,6 +1419,10 @@ def test_decision_shape_unchanged_for_composed_action(
         "prompt_file",
         "reason",
         "guard_failures",
+        # #3883: the path each failing guard read, carried beside the failure
+        # names so a blocked decision is diagnosable without a source read.
+        # Additive and defaulted — ``guard_failures`` itself is untouched.
+        "guard_failure_paths",
         "progress",
         "origin",
         "run_id",
