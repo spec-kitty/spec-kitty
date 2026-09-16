@@ -104,6 +104,26 @@ _COORD_ROUTING_TOPOLOGIES: frozenset[MissionTopology] = frozenset(
 )
 
 
+def is_single_branch(topology: MissionTopology | None) -> bool:
+    """The SINGLE owned-placement topology predicate (#3862 item A).
+
+    The ONE predicate every ``single_branch`` invariant check flows through —
+    the owned-placement arms of ``mission_context_for`` /
+    ``resolve_placement_only`` / ``resolve_artifact_surface`` and the owned
+    checkout preflight (``specify_cli.core.owned_mission``) dispose against
+    this enum member rather than restating a raw ``"single_branch"`` meta
+    string or a second enum comparison, so the string and enum
+    representations cannot drift apart. A ``None`` (absent / malformed /
+    degraded) stored-topology read is refused — fail-closed, the same
+    refusal the owned preflight has always applied to a missing value.
+
+    Distinct from :func:`routes_through_coordination` (the coord-routing
+    half of the same grid): this names the owned-placement eligibility of
+    the coord-less, lane-less cell only.
+    """
+    return topology is MissionTopology.SINGLE_BRANCH
+
+
 def routes_through_coordination(topology: MissionTopology) -> bool:
     """The SINGLE routing predicate: does this topology route through coordination? (FR-005).
 

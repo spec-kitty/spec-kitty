@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
-from mission_runtime import ActionContextError
+from mission_runtime import ActionContextError, MissionTopology, is_single_branch
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.core.utils import ensure_within_directory
@@ -47,6 +47,27 @@ def effective_root_kwargs(root: Path | None) -> _EffectiveRootKwargs:
     return {"effective_root": root} if root is not None else {}
 
 
+def _stored_topology(meta: dict[str, Any] | None) -> MissionTopology | None:
+    """Parse the stored ``topology`` meta value to the enum; anything else is ``None``.
+
+    The enum-based front half of the owned single_branch refusal (#3862 item A):
+    a missing/corrupt meta (``None``), an absent key, a non-string value, or an
+    unknown string all degrade to ``None`` here, which the shared
+    :func:`mission_runtime.is_single_branch` predicate refuses — the exact
+    outcomes the previous raw ``meta.get("topology") != "single_branch"``
+    string comparison produced, now expressed against the ONE
+    :class:`mission_runtime.MissionTopology` enum the placement arms use, so
+    the two representations cannot drift.
+    """
+    raw = meta.get("topology") if meta is not None else None
+    if not isinstance(raw, str):
+        return None
+    try:
+        return MissionTopology(raw)
+    except ValueError:
+        return None
+
+
 def resolve_owned_mission(
     primary: Path,
     checkout: Path,
@@ -84,7 +105,8 @@ def resolve_owned_mission(
     except ValueError as exc:
         raise ActionContextError("OWNED_MISSION_PATH_REFUSED", "Mission directory escapes the selected checkout.") from exc
     meta = load_meta_fail_closed(directory)
-    if meta is None or meta.get("topology") != "single_branch" or meta.get("coordination_branch"):
+    topology = _stored_topology(meta)
+    if meta is None or not is_single_branch(topology) or meta.get("coordination_branch"):
         raise ActionContextError("OWNED_TOPOLOGY_UNSUPPORTED", "--owned-checkout currently requires single_branch.")
     current = get_current_branch(root)
     target = str(meta.get("target_branch") or "")

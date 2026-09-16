@@ -195,12 +195,46 @@ COMMANDS = ["check-prerequisites", "finalize-tasks", "spec-commit", "accept"]
 
 
 @pytest.mark.parametrize("command", COMMANDS)
-@pytest.mark.parametrize("topology", ["lanes", "coord", "lanes_with_coord"])
+@pytest.mark.parametrize(
+    "topology",
+    [
+        "lanes",
+        "coord",
+        "lanes_with_coord",
+        # #3862 item A: the owned preflight parses the stored value through the
+        # MissionTopology enum before the shared is_single_branch predicate —
+        # these pin that an unknown string and a non-string value degrade to
+        # the same refusal the old raw-string comparison produced.
+        "single_branch ",
+        "garbage",
+        42,
+    ],
+)
 def test_unsupported_topology_is_readonly(checkouts, command, topology):
     primary, owned, sibling = checkouts
     meta_path = owned / "kitty-specs" / SLUG / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     meta["topology"] = topology
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    before = snapshot(primary), snapshot(owned), snapshot(sibling)
+    result = invoke(command, owned)
+    assert result.exit_code == 1, result.output
+    assert json.loads(result.output)["error_code"] == "OWNED_TOPOLOGY_UNSUPPORTED"
+    assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
+
+
+@pytest.mark.parametrize("command", COMMANDS)
+def test_absent_topology_is_readonly(checkouts, command):
+    """#3862 item A: a mission with NO stored topology key is refused, not defaulted.
+
+    The enum-based parse degrades a missing ``topology`` to ``None``, which the
+    shared predicate refuses — the exact outcome of the old
+    ``meta.get("topology") != "single_branch"`` string comparison.
+    """
+    primary, owned, sibling = checkouts
+    meta_path = owned / "kitty-specs" / SLUG / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    del meta["topology"]
     meta_path.write_text(json.dumps(meta), encoding="utf-8")
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke(command, owned)

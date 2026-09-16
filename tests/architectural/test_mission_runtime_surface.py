@@ -96,6 +96,12 @@ _PUBLIC_SURFACE = sorted(
         # symbol, so it is pinned here.
         "declared_read_surface",
         "is_primary_artifact_kind",
+        # owned-ssot-3862 item A: the SINGLE enum-based single_branch predicate
+        # the owned-placement arms (resolution.py) and the owned checkout
+        # preflight (specify_cli.core.owned_mission) dispose against, instead
+        # of each restating a raw ``"single_branch"`` meta string or a second
+        # enum comparison — a package-root public symbol, so it is pinned here.
+        "is_single_branch",
         # lifecycle-gate-execution-context-01KY72GQ WP11 (IC-07a): the
         # self-bookkeeping allowlist predicate ``is_self_bookkeeping_path`` (gate-
         # read-surface-completion WP05 / FR-003) was retired onto the canonical
