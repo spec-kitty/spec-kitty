@@ -30,7 +30,7 @@ This change gives you **explicit control** over your agent configuration:
 - **Cleaner projects**: Remove agents you don't use without them reappearing
 - **Multi-agent workflows**: Configure exactly which agents are available
 
-See [ADR #6: Config-Driven Agent Management](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/1.x/2026-01-23-6-config-driven-agent-management.md) for technical details.
+See [ADR #6: Config-Driven Agent Management](https://github.com/spec-kitty/spec-kitty/blob/main/docs/adr/1.x/2026-01-23-6-config-driven-agent-management.md) for technical details.
 
 ## Migration Steps
 

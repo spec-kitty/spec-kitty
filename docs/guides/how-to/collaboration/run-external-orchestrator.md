@@ -73,7 +73,7 @@ script directory is not on `PATH`. Activate that environment or install from
 the environment where you run Spec Kitty.
 
 The source repository is
-[`Priivacy-ai/spec-kitty-orchestrator`](https://github.com/Priivacy-ai/spec-kitty-orchestrator)
+[`spec-kitty/spec-kitty-orchestrator`](https://github.com/spec-kitty/spec-kitty-orchestrator)
 if you want to inspect code, issues, or release history. Do not install from
 GitHub unless you are intentionally testing unreleased provider changes.
 

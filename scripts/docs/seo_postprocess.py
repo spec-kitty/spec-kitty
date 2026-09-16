@@ -243,7 +243,7 @@ def kitty_specs_json_ld(page: Page, base_url: str) -> list[dict[str, object]]:
             "publisher": {
                 "@type": "Organization",
                 "name": "Spec Kitty",
-                "url": "https://github.com/Priivacy-ai/spec-kitty",
+                "url": "https://github.com/spec-kitty/spec-kitty",
             },
         }
     ]
@@ -276,7 +276,7 @@ def seo_block(page: Page, base_url: str, image_path: str, *, emit_description: b
             "publisher": {
                 "@type": "Organization",
                 "name": "Spec Kitty",
-                "url": "https://github.com/Priivacy-ai/spec-kitty",
+                "url": "https://github.com/spec-kitty/spec-kitty",
             },
             "about": ["Spec Kitty", "AI coding agents", "spec-driven development", "CLI documentation"],
         },

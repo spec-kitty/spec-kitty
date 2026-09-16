@@ -51,7 +51,7 @@ PR in the pass, posted first.
 
 ```bash
 unset GITHUB_TOKEN   # keyring auth has full repo scope; a limited env token may not
-gh pr comment <N> --repo Priivacy-ai/spec-kitty \
+gh pr comment <N> --repo spec-kitty/spec-kitty \
   --body "Claiming this PR for today's landing pass: rebase onto upstream/main, adjudicate red checks, fold fixes as needed. Evidence to follow."
 ```
 
@@ -107,10 +107,10 @@ commit your branch is based on, so the comparison is a fetch, not a test run:
 
 ```bash
 unset GITHUB_TOKEN
-gh run list --repo Priivacy-ai/spec-kitty --branch main --limit 5 \
+gh run list --repo spec-kitty/spec-kitty --branch main --limit 5 \
   --json databaseId,name,conclusion,headSha
 # then, per failing job, pull the logs and diff the failing-test sets:
-gh api --allow-escape-sequences "/repos/Priivacy-ai/spec-kitty/actions/jobs/<job-id>/logs" \
+gh api --allow-escape-sequences "/repos/spec-kitty/spec-kitty/actions/jobs/<job-id>/logs" \
   | sed 's/\x1b\[[0-9;]*m//g' | grep -E "^FAILED|short test summary| failed,"
 ```
 

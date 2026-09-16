@@ -26,7 +26,7 @@ kept honest.
 ## Docs site publication source
 
 > `docs.spec-kitty.ai` is intentionally deployed from the promotion-only
-> upstream repository (`Priivacy-ai/spec-kitty`) by
+> upstream repository (`spec-kitty/spec-kitty`) by
 > `.github/workflows/docs-pages.yml`. This EXPERIMENTAL repository is the
 > source of the promoted tree, but it does not claim the custom domain: its
 > Pages workflow skips when Pages is unavailable and its deployment guard

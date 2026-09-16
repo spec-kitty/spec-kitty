@@ -643,7 +643,7 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 
 ## Getting Help
 
-**Issues**: https://github.com/Priivacy-ai/spec-kitty/issues
+**Issues**: https://github.com/spec-kitty/spec-kitty/issues
 
 **Common Issues**:
 - Template bundling bug → Upgrade to v0.10.9+

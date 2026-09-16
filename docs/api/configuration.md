@@ -381,7 +381,7 @@ agents:
 **See**:
 - [Managing AI Agents](../guides/how-to/collaboration/manage-agents.md) - Complete guide to agent management commands
 - [CLI Reference: spec-kitty agent config](agent-subcommands.md#spec-kitty-agent-config) - Command syntax and options
-- [ADR #6: Config-Driven Agent Management](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/1.x/2026-01-23-6-config-driven-agent-management.md) - Architectural decision rationale
+- [ADR #6: Config-Driven Agent Management](https://github.com/spec-kitty/spec-kitty/blob/main/docs/adr/1.x/2026-01-23-6-config-driven-agent-management.md) - Architectural decision rationale
 
 > **Legacy behavior**: Projects without `agents.available` field default to the full slash-command agent set for backward compatibility (currently 13 agent keys in the active CLI surface). To adopt config-driven model, use `spec-kitty agent config remove` to remove unwanted agents.
 

@@ -201,7 +201,7 @@ it lands, ships with provenance guarantees rather than a bare code move.
 This plan tracks the **why** (extraction invariants and sub-areas); the epics track the
 **what-ships-when**. The table below is a snapshot for orientation, not a schedule. It
 will turn over as milestones close. Verify live state via
-`gh issue view <n> --repo Priivacy-ai/spec-kitty` before acting.
+`gh issue view <n> --repo spec-kitty/spec-kitty` before acting.
 
 | Work | Sub-area (§3) | Owning epic | State |
 |---|---|---|---|

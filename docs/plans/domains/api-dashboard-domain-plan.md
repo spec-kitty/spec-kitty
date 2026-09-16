@@ -191,7 +191,7 @@ legacy `Feature` label, and keep it retired as the dashboard delivery lands in 3
 
 This plan tracks the **why** (the API/dashboard invariants and sub-areas); the epics track
 the **what-ships-when**. The table below is a snapshot for orientation, not a schedule.
-Verify live state via `gh issue view <n> --repo Priivacy-ai/spec-kitty` before acting.
+Verify live state via `gh issue view <n> --repo spec-kitty/spec-kitty` before acting.
 
 | Work | Sub-area (§3) | Owning epic | Milestone |
 |---|---|---|---|

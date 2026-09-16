@@ -60,7 +60,7 @@
       "_enableSearch": true,
       "_disableContribution": false,
       "_gitContribute": {
-        "repo": "https://github.com/Priivacy-ai/spec-kitty",
+        "repo": "https://github.com/spec-kitty/spec-kitty",
         "branch": "main"
       },
       "_appLogoPath": "assets/images/logo_small.webp",

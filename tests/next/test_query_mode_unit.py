@@ -227,7 +227,7 @@ class TestQueryModeOutput:
         monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
         monkeypatch.setattr(
             "specify_cli.readiness.auth.probe_auth_status",
-            lambda **_kw: (AuthStatus.LOGGED_OUT_IN_TEAMSPACE, "Priivacy-ai/spec-kitty"),
+            lambda **_kw: (AuthStatus.LOGGED_OUT_IN_TEAMSPACE, "spec-kitty/spec-kitty"),
         )
         mock_decision = _make_mock_decision(is_query=True, mission_state="specify")
 

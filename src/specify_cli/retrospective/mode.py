@@ -11,7 +11,7 @@ This module is scheduled for retirement.  It is retained through spec-kitty 3.2.
 
 **Retirement plan:**
 - Deprecation target: spec-kitty 3.3.0
-- Follow-up issue: https://github.com/Priivacy-ai/spec-kitty/issues/TBD
+- Follow-up issue: https://github.com/spec-kitty/spec-kitty/issues/TBD
   (Issue title: "Retire retrospective.config + mode shim modules")
 - Rationale: ``gate.py`` and ``_internal_runtime/retrospective_terminus.py`` import
   ``detect`` from here; migrating those callers requires cross-cutting changes to the

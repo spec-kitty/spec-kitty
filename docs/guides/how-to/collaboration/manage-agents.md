@@ -85,7 +85,7 @@ Managed command surfaces are created and refreshed by CLI commands. You should n
 
 > **Why This Matters**: In spec-kitty 0.11.x and earlier, users could manually delete agent directories, but migrations would recreate them. Starting in 0.12.0, migrations respect `config.yaml` - if an agent is not listed in `available`, its directory stays deleted. See [Upgrading to 0.12.0](../installation/install-and-upgrade.md) for details.
 
-For architectural details, see [ADR #6: Config-Driven Agent Management](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/1.x/2026-01-23-6-config-driven-agent-management.md).
+For architectural details, see [ADR #6: Config-Driven Agent Management](https://github.com/spec-kitty/spec-kitty/blob/main/docs/adr/1.x/2026-01-23-6-config-driven-agent-management.md).
 
 ## Listing Agents
 
@@ -565,7 +565,7 @@ If your issue isn't covered here:
 1. Check [Supported AI Agents](../../../api/supported-agents.md) for agent-specific requirements
 2. Review [Configuration Reference](../../../api/configuration.md) for config.yaml schema
 3. Consult [CLI Commands Reference](../../../api/agent-subcommands.md#spec-kitty-agent-config) for detailed command syntax
-4. Report bugs at [spec-kitty GitHub Issues](https://github.com/Priivacy-ai/spec-kitty/issues)
+4. Report bugs at [spec-kitty GitHub Issues](https://github.com/spec-kitty/spec-kitty/issues)
 
 ## See Also
 
@@ -585,7 +585,7 @@ For more information on agent management and related topics:
 
 ### Architecture
 
-- [ADR #6: Config-Driven Agent Management](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/1.x/2026-01-23-6-config-driven-agent-management.md) - Architectural decision record explaining why migrations now respect `config.yaml` and the config-driven model rationale
+- [ADR #6: Config-Driven Agent Management](https://github.com/spec-kitty/spec-kitty/blob/main/docs/adr/1.x/2026-01-23-6-config-driven-agent-management.md) - Architectural decision record explaining why migrations now respect `config.yaml` and the config-driven model rationale
 
 ### Migration Guides
 

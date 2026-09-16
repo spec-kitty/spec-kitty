@@ -37,7 +37,7 @@ def _protect_main_script() -> str:
     return (
         "".join(script_lines)
         .replace("${{ github.event.before }}", "1111111111111111111111111111111111111111")
-        .replace("${{ github.repository }}", "Priivacy-ai/spec-kitty")
+        .replace("${{ github.repository }}", "spec-kitty/spec-kitty")
     )
 
 

@@ -85,12 +85,12 @@ The repo's CI runs an automated equivalent of this check on every PR
 If you work across `spec-kitty-cli` and `spec-kitty-events` /
 `spec-kitty-tracker` simultaneously (e.g. testing an unreleased events
 contract change), see
-[`docs/development/local-overrides.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/development/local-overrides.md)
+[`docs/development/local-overrides.md`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/development/local-overrides.md)
 for editable-install patterns that don't pollute committed config.
 
 ## Why this happened
 
-See [ADR 2026-04-25-1: Shared Package Boundary](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-25-1-shared-package-boundary.md)
+See [ADR 2026-04-25-1: Shared Package Boundary](https://github.com/spec-kitty/spec-kitty/blob/main/docs/adr/3.x/2026-04-25-1-shared-package-boundary.md)
 for the full decision rationale and the alternatives considered.
 
 ## Supersedes

@@ -29,7 +29,7 @@ overwritten, so operator edits survive re-runs.
 post-merge-write-authoring-finish-01KYRRM5 WP06 (#1738 FR-012/FR-013)
 ------------------------------------------------------------------------
 :func:`detect_issue_references` also recognises a **same-repo** GitHub
-issue URL (``https://github.com/Priivacy-ai/spec-kitty/issues/<n>``), not
+issue URL (``https://github.com/spec-kitty/spec-kitty/issues/<n>``), not
 only ``#NNNN`` -- one regex, match-then-filter in Python (see
 ``_CANONICAL_REPO_SLUG``); a cross-repo URL is matched but filtered before
 it can ever become an :class:`IssueReference`, so it cannot newly require a

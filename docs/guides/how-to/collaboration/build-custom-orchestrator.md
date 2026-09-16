@@ -141,7 +141,7 @@ merge-mission(mission)
 
 ## Reference Implementation
 
-Use [`spec-kitty-orchestrator`](https://github.com/Priivacy-ai/spec-kitty-orchestrator) as a concrete provider example.
+Use [`spec-kitty-orchestrator`](https://github.com/spec-kitty/spec-kitty-orchestrator) as a concrete provider example.
 
 ## See Also
 

@@ -177,7 +177,7 @@ The planning was distributed across four surfaces, none of which is the domain's
 **This plan now becomes the domain's index.** It does not replace the open-core plan,
 the glossary program, the design corpus, or the epics — it ties them together under one
 set of invariants and surfaces the gaps they collectively leave open (§4). Verify live
-issue/epic state with `gh issue view <n> --repo Priivacy-ai/spec-kitty` before acting.
+issue/epic state with `gh issue view <n> --repo spec-kitty/spec-kitty` before acting.
 
 ---
 
@@ -459,7 +459,7 @@ program-planning maturity (`doc_status: draft`), ahead of its per-mission specs.
 This plan tracks the **why** (invariants and sub-areas); the epic tracks the
 **what-ships-when**. The table below is a snapshot for orientation, not a schedule. It
 will turn over as milestones close. Verify live state via
-`gh issue view <n> --repo Priivacy-ai/spec-kitty` before acting.
+`gh issue view <n> --repo spec-kitty/spec-kitty` before acting.
 
 | Issue | Pri | Sub-area (§3) | Milestone | Owning epic | Notes |
 |---|---|---|---|---|---|

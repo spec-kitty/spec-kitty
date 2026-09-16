@@ -229,7 +229,7 @@ spec-kitty agent retrospect policy --json   # shows resolved policy + source map
 If `spec-kitty retrospect` reports "No such command", run `spec-kitty upgrade` and re-check.
 
 For the full operator quickstart including test-runner commands, see
-[quickstart.md](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/retrospective-default-policy-01KS049J/quickstart.md).
+[quickstart.md](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/retrospective-default-policy-01KS049J/quickstart.md).
 
 ---
 

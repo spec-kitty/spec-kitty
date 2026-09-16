@@ -3,7 +3,7 @@ export default {
   iconLinks: [
     {
       icon: 'github',
-      href: 'https://github.com/Priivacy-ai/spec-kitty',
+      href: 'https://github.com/spec-kitty/spec-kitty',
       title: 'GitHub'
     }
   ]

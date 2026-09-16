@@ -156,7 +156,7 @@ artifact (kind, ID, higher layer, lower layer, field counts), or reports
 are in play. The same data is available as a `collisions` array under
 `--json`.
 
-See [ADR 2026-05-16-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
+See [ADR 2026-05-16-1](https://github.com/spec-kitty/spec-kitty/blob/main/docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
 for the rationale behind this design.
 
 ---
@@ -193,13 +193,13 @@ therefore requires an adapter: either giving `MissionTypeProfile` an `id` and a
 `BaseDoctrineRepository` subclass, or a small explicit field-merge in the resolver.
 That adapter is owned, tested work — not a free ride. Modulo that adapter, per-type
 governance layering reuses rather than reinvents the merge contract in
-[ADR 2026-05-16-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md).
+[ADR 2026-05-16-1](https://github.com/spec-kitty/spec-kitty/blob/main/docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md).
 Mission-type governance itself resolves through a single charter-mediated seam
 keyed off `meta.json`; this override is the project-tier customisation layer of
 that seam. For the whole resolution model — the two governance grains, the reserved
 slots for templates and gates, and the leak-closure invariant — see
 [Mission-Type Resolution](mission-type-resolution.md) and
-[ADR 2026-07-14-2](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md).
+[ADR 2026-07-14-2](https://github.com/spec-kitty/spec-kitty/blob/main/docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md).
 
 ## DRG composition
 

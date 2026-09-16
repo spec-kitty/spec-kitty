@@ -9,8 +9,8 @@ updated: '2026-06-03'
 # Cutover Runbook: Retrospective Events — Local to Upstream
 
 **Status**: Pending upstream release of `spec_kitty_events` with retrospective events.
-**Relevant ADR**: AD-004 in [`kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/plan.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/plan.md)
-**Events contract**: [`kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md)
+**Relevant ADR**: AD-004 in [`kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/plan.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/plan.md)
+**Events contract**: [`kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md)
 
 ---
 
@@ -41,7 +41,7 @@ boundary test.
 lands):
 
 ```
-https://github.com/Priivacy-ai/spec-kitty/issues/<ISSUE_NUMBER>
+https://github.com/spec-kitty/spec-kitty/issues/<ISSUE_NUMBER>
 ```
 
 The follow-up patch must:
@@ -49,9 +49,9 @@ The follow-up patch must:
 1. Open the actual GitHub issue against `spec_kitty_events` with title:
    "Add retrospective lifecycle events (8) to public surface." Body should
    link to
-   [`kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/plan.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/plan.md)
+   [`kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/plan.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/plan.md)
    and
-   [`kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md),
+   [`kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md),
    and paste the eight event names and their payload field minimums from the
    contract.
 2. Replace the `<TODO: WP12>` marker in
@@ -88,7 +88,7 @@ EOF
 ```
 
 Cross-check each field against
-[`contracts/retrospective_events_v1.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md).
+[`contracts/retrospective_events_v1.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md).
 If any field is missing or renamed, open a follow-up issue against
 `spec_kitty_events` before proceeding — do not paper over the mismatch with an
 adapter.
@@ -144,7 +144,7 @@ added in the WP03 follow-up patch):
 Retrospective lifecycle event models.
 
 Post-cutover: these names are re-exported from `spec_kitty_events.retrospective`.
-Upstream issue: https://github.com/Priivacy-ai/spec-kitty/issues/<ISSUE_NUMBER>
+Upstream issue: https://github.com/spec-kitty/spec-kitty/issues/<ISSUE_NUMBER>
 """
 ```
 
@@ -222,7 +222,7 @@ tranche's acceptance does not require the upstream release to land (AD-004).
 
 ## See also
 
-- Events contract: [`kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md)
-- Shared package boundary ADR: [`docs/adr/3.x/2026-04-25-1-shared-package-boundary.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-25-1-shared-package-boundary.md)
+- Events contract: [`kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md)
+- Shared package boundary ADR: [`docs/adr/3.x/2026-04-25-1-shared-package-boundary.md`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/adr/3.x/2026-04-25-1-shared-package-boundary.md)
 - Boundary test: `tests/architectural/test_retrospective_events_boundary.py`
 - Operator overview: [`docs/architecture/retrospective-learning-loop.md`](../architecture/retrospective-learning-loop.md)

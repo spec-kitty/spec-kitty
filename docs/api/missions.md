@@ -308,7 +308,7 @@ gate an unrelated, undeclared mission type's plan.
 
 ## Authoring Custom Missions
 
-Custom missions are project-authored mission definitions that the Local Custom Mission Loader discovers, validates, and runs through the same composition path used by the built-in `software-dev` mission. This section is the canonical reference for the `mission.yaml` format. For an operator-narrative walkthrough, see [`kitty-specs/local-custom-mission-loader-01KQ2VNJ/quickstart.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/local-custom-mission-loader-01KQ2VNJ/quickstart.md).
+Custom missions are project-authored mission definitions that the Local Custom Mission Loader discovers, validates, and runs through the same composition path used by the built-in `software-dev` mission. This section is the canonical reference for the `mission.yaml` format. For an operator-narrative walkthrough, see [`kitty-specs/local-custom-mission-loader-01KQ2VNJ/quickstart.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/local-custom-mission-loader-01KQ2VNJ/quickstart.md).
 
 ### YAML shape
 
@@ -355,7 +355,7 @@ Every entry in `steps[]` is a `PromptStep`. The table below covers every author-
 
 Every custom mission MUST declare a final `PromptStep` whose `id == "retrospective"`. The validator checks one rule: the last entry of `steps[]` (after dependency-aware sort) has `id == "retrospective"`. Missing or misnamed markers are rejected with the stable error code `MISSION_RETROSPECTIVE_MISSING`.
 
-Execution semantics for the marker step are deferred to the retrospective-execution tranche (#506–#511); v1 only enforces the structural rule. See [research §R-001](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/local-custom-mission-loader-01KQ2VNJ/research.md) for the rationale.
+Execution semantics for the marker step are deferred to the retrospective-execution tranche (#506–#511); v1 only enforces the structural rule. See [research §R-001](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/local-custom-mission-loader-01KQ2VNJ/research.md) for the rationale.
 
 ### Profile binding
 
@@ -364,7 +364,7 @@ A composed step needs a profile so the runtime knows which agent persona to disp
 - `agent_profile`: per-step inline declaration. The loader's contract synthesizer auto-generates a single-step `MissionStepContract` for the step. This is the ergonomic default for most authors.
 - `contract_ref`: reference to a pre-existing `MissionStepContract` ID in the on-disk repository. Use this when multiple missions share the same contract or when a contract's execution rules need to be authored separately. If the referenced contract does not resolve, the loader rejects with `MISSION_CONTRACT_REF_UNRESOLVED`.
 
-Declaring both `agent_profile` and `contract_ref` on the same step is rejected with `MISSION_STEP_AMBIGUOUS_BINDING`. Declaring neither (and having no `requires_inputs`) is rejected with `MISSION_STEP_NO_PROFILE_BINDING`. See [research §R-003](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/local-custom-mission-loader-01KQ2VNJ/research.md) for the full rationale.
+Declaring both `agent_profile` and `contract_ref` on the same step is rejected with `MISSION_STEP_AMBIGUOUS_BINDING`. Declaring neither (and having no `requires_inputs`) is rejected with `MISSION_STEP_NO_PROFILE_BINDING`. See [research §R-003](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/local-custom-mission-loader-01KQ2VNJ/research.md) for the full rationale.
 
 Built-in missions (`software-dev`, `research`, `documentation`) do not set `agent_profile` on their shipped steps; the executor resolves each `(mission, action)` through a built-ins-only defaults table instead. When a table default (e.g. `researcher-robbie` for `software-dev/specify`) is deactivated in the project, the executor falls back to the highest-`routing-priority` available profile carrying the default's role (`researcher`, `architect`, `implementer`, or `reviewer`), and blocks with a structured composition error — not a crash — when no available profile carries that role. `charter deactivate agent-profile <id>` and `charter preflight` warn when a deactivated profile is one of these defaults. A project that wants a specific profile for a built-in step without relying on priority can deactivate the shipped default (the fallback then picks its own activated same-role profile) or define a custom mission type with explicit per-step `agent_profile` bindings.
 
@@ -391,7 +391,7 @@ The following `mission.key` values are reserved for built-in missions and cannot
 - `documentation`
 - `plan`
 
-Any non-builtin discovery tier that produces a definition with one of these keys is rejected at load time with the stable error code `MISSION_KEY_RESERVED`. Built-in dispatch logic is hard-coded to these keys, so silent shadowing would be a footgun. To customize behavior of a built-in workflow, rename your mission to a non-reserved key. See [research §R-002](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/local-custom-mission-loader-01KQ2VNJ/research.md) for the rationale.
+Any non-builtin discovery tier that produces a definition with one of these keys is rejected at load time with the stable error code `MISSION_KEY_RESERVED`. Built-in dispatch logic is hard-coded to these keys, so silent shadowing would be a footgun. To customize behavior of a built-in workflow, rename your mission to a non-reserved key. See [research §R-002](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/local-custom-mission-loader-01KQ2VNJ/research.md) for the rationale.
 
 ### Discovery precedence
 
@@ -506,7 +506,7 @@ Detail key conventions:
 
 ### Example: ERP integration mission
 
-The reference fixture used by the loader's test suite lives at [`tests/fixtures/missions/erp-integration/mission.yaml`](https://github.com/Priivacy-ai/spec-kitty/blob/main/tests/fixtures/missions/erp-integration/mission.yaml). The fixture is the **authoritative** copy of this example: any drift between the fixture and the operator narrative in [quickstart.md](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/local-custom-mission-loader-01KQ2VNJ/quickstart.md) is resolved in favor of the fixture, since the fixture is what the test suite executes against.
+The reference fixture used by the loader's test suite lives at [`tests/fixtures/missions/erp-integration/mission.yaml`](https://github.com/spec-kitty/spec-kitty/blob/main/tests/fixtures/missions/erp-integration/mission.yaml). The fixture is the **authoritative** copy of this example: any drift between the fixture and the operator narrative in [quickstart.md](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/local-custom-mission-loader-01KQ2VNJ/quickstart.md) is resolved in favor of the fixture, since the fixture is what the test suite executes against.
 
 Inline copy of the fixture:
 
@@ -600,7 +600,7 @@ $ spec-kitty mission run no-such-key --mission x --json
 
 Exit code 2. Validation errors do NOT start a run; the `kitty-specs/<slug>/` directory is not created.
 
-For the operator-narrative walkthrough (decision resolution, advancement, recovery from validation failures), see [`kitty-specs/local-custom-mission-loader-01KQ2VNJ/quickstart.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/local-custom-mission-loader-01KQ2VNJ/quickstart.md).
+For the operator-narrative walkthrough (decision resolution, advancement, recovery from validation failures), see [`kitty-specs/local-custom-mission-loader-01KQ2VNJ/quickstart.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/local-custom-mission-loader-01KQ2VNJ/quickstart.md).
 
 ---
 

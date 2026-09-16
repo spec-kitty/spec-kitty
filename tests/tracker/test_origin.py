@@ -570,7 +570,7 @@ class TestBindMissionOrigin:
             project_uuid=UUID("8a4a7da6-a97c-4bb4-893a-b31664abfee4"),
             project_slug="spec-kitty",
             node_id="node-123",
-            repo_slug="Priivacy-ai/spec-kitty",
+            repo_slug="spec-kitty/spec-kitty",
             build_id="build-123",
         )
 
@@ -592,7 +592,7 @@ class TestBindMissionOrigin:
                 "uuid": "8a4a7da6-a97c-4bb4-893a-b31664abfee4",
                 "slug": "spec-kitty",
                 "node_id": "node-123",
-                "repo_slug": "Priivacy-ai/spec-kitty",
+                "repo_slug": "spec-kitty/spec-kitty",
                 "build_id": "build-123",
             },
         )
@@ -603,7 +603,7 @@ class TestBindMissionOrigin:
                 "uuid": "8a4a7da6-a97c-4bb4-893a-b31664abfee4",
                 "slug": "spec-kitty",
                 "node_id": "node-123",
-                "repo_slug": "Priivacy-ai/spec-kitty",
+                "repo_slug": "spec-kitty/spec-kitty",
                 "build_id": "build-123",
             },
         )
@@ -649,7 +649,7 @@ class TestBindMissionOrigin:
             project_uuid=None,
             project_slug="spec-kitty",
             node_id="node-123",
-            repo_slug="Priivacy-ai/spec-kitty",
+            repo_slug="spec-kitty/spec-kitty",
             build_id=None,
         )
 

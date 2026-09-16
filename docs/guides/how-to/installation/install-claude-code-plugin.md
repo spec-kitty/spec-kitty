@@ -25,7 +25,7 @@ agent profiles directly inside Claude Code.
 
 ```bash
 # Add the Spec Kitty plugin from the git-based marketplace:
-claude plugin marketplace add https://github.com/Priivacy-ai/spec-kitty
+claude plugin marketplace add https://github.com/spec-kitty/spec-kitty
 
 # Verify the plugin is listed:
 claude plugin list

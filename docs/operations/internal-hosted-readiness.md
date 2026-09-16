@@ -15,7 +15,7 @@ audience: internal / pre-launch operators
 > **Audience:** internal contributors and dev operators who are dogfooding
 > the hidden hosted-readiness path. This page is **not** for end users.
 > The public Spec Kitty experience remains local-first; see the
-> [README](https://github.com/Priivacy-ai/spec-kitty/blob/main/README.md) for the current default workflow.
+> [README](https://github.com/spec-kitty/spec-kitty/blob/main/README.md) for the current default workflow.
 
 ## When this page applies
 

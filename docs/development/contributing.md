@@ -27,7 +27,7 @@ Please note that this project is released with a [Contributor Code of Conduct](.
 
 You don't need to write code to help shape Spec Kitty. **Ideas, use-cases, and objections are genuinely wanted** — especially on design decisions still in flight.
 
-- **Look for the [`feedback-welcome`](https://github.com/Priivacy-ai/spec-kitty/labels/feedback-welcome) label.** Issues carrying it are open for community input; many contain an **Open decision** block calling out exactly where we'd like your perspective. Comment freely — a rough thought is more useful than silence.
+- **Look for the [`feedback-welcome`](https://github.com/spec-kitty/spec-kitty/labels/feedback-welcome) label.** Issues carrying it are open for community input; many contain an **Open decision** block calling out exactly where we'd like your perspective. Comment freely — a rough thought is more useful than silence.
 - **Filing something new?** Use the **💡 Idea / brainstorm / feedback** issue template (it auto-applies `feedback-welcome`), or the bug / enhancement templates for concrete reports. A partial sketch is fine — a maintainer will triage it and, if it's actionable, turn it into a tracked mission.
 - **No pressure to formalize.** You don't have to write a full proposal; tell us the problem you hit or the outcome you want, and we'll take it from there.
 
@@ -118,7 +118,7 @@ two `spec-kitty` binaries on your `PATH`.
 To install the latest `main` branch from GitHub with `uv`:
 
 ```bash
-uv tool install "spec-kitty-cli @ git+https://github.com/Priivacy-ai/spec-kitty.git@main"
+uv tool install "spec-kitty-cli @ git+https://github.com/spec-kitty/spec-kitty.git@main"
 uv tool update-shell
 # Open a new shell if uv changed your PATH, then verify:
 spec-kitty --version
@@ -127,7 +127,7 @@ spec-kitty --version
 To install the latest `main` branch from GitHub with `pipx`:
 
 ```bash
-pipx install "git+https://github.com/Priivacy-ai/spec-kitty.git@main"
+pipx install "git+https://github.com/spec-kitty/spec-kitty.git@main"
 pipx ensurepath
 # Open a new shell if pipx changed your PATH, then verify:
 spec-kitty --version
@@ -137,11 +137,11 @@ To update an existing GitHub-based global install to the latest `main` branch,
 force a reinstall through the same tool manager:
 
 ```bash
-uv tool install --force --upgrade "spec-kitty-cli @ git+https://github.com/Priivacy-ai/spec-kitty.git@main"
+uv tool install --force --upgrade "spec-kitty-cli @ git+https://github.com/spec-kitty/spec-kitty.git@main"
 ```
 
 ```bash
-pipx install --force "git+https://github.com/Priivacy-ai/spec-kitty.git@main"
+pipx install --force "git+https://github.com/spec-kitty/spec-kitty.git@main"
 ```
 
 For the latest PyPI release instead of GitHub `main`, install or upgrade by
@@ -213,7 +213,7 @@ before it is published to PyPI, avoid replacing your normal global
 For normal contributor work, run from a source checkout:
 
 ```bash
-git clone https://github.com/Priivacy-ai/spec-kitty.git
+git clone https://github.com/spec-kitty/spec-kitty.git
 cd spec-kitty
 
 # Latest main:
@@ -235,12 +235,12 @@ For a one-shot smoke test without cloning or installing a persistent tool, use
 ```bash
 # Latest main:
 SPEC_KITTY_NO_UPGRADE_CHECK=1 SPEC_KITTY_NO_NAG=1 \
-  uvx --isolated --from "git+https://github.com/Priivacy-ai/spec-kitty.git@main" \
+  uvx --isolated --from "git+https://github.com/spec-kitty/spec-kitty.git@main" \
   spec-kitty --version
 
 # Specific pull request:
 SPEC_KITTY_NO_UPGRADE_CHECK=1 SPEC_KITTY_NO_NAG=1 \
-  uvx --isolated --from "git+https://github.com/Priivacy-ai/spec-kitty.git@refs/pull/<PR_NUMBER>/head" \
+  uvx --isolated --from "git+https://github.com/spec-kitty/spec-kitty.git@refs/pull/<PR_NUMBER>/head" \
   spec-kitty --version
 ```
 
@@ -252,7 +252,7 @@ tmp="$(mktemp -d)"
 
 UV_TOOL_DIR="$tmp/tools" UV_TOOL_BIN_DIR="$tmp/bin" \
   uv tool install --force \
-  "spec-kitty-cli @ git+https://github.com/Priivacy-ai/spec-kitty.git@refs/pull/<PR_NUMBER>/head"
+  "spec-kitty-cli @ git+https://github.com/spec-kitty/spec-kitty.git@refs/pull/<PR_NUMBER>/head"
 
 SPEC_KITTY_NO_UPGRADE_CHECK=1 SPEC_KITTY_NO_NAG=1 \
   "$tmp/bin/spec-kitty" --version

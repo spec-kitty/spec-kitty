@@ -24,7 +24,7 @@ This creates two files:
 
 ### 2. Add Public Key to spec-kitty-events Repository
 
-1. Go to https://github.com/Priivacy-ai/spec-kitty-events/settings/keys
+1. Go to https://github.com/spec-kitty/spec-kitty-events/settings/keys
 2. Click "Add deploy key"
 3. Title: "spec-kitty CI/CD Read-Only"
 4. Key: Paste contents of `spec-kitty-events-deploy-key.pub`
@@ -33,7 +33,7 @@ This creates two files:
 
 ### 3. Add Private Key to spec-kitty Repository Secrets
 
-1. Go to https://github.com/Priivacy-ai/spec-kitty/settings/secrets/actions
+1. Go to https://github.com/spec-kitty/spec-kitty/settings/secrets/actions
 2. Click "New repository secret"
 3. Name: `SPEC_KITTY_EVENTS_DEPLOY_KEY`
 4. Value: Paste contents of `spec-kitty-events-deploy-key` (PRIVATE key, entire file)

@@ -3,7 +3,7 @@
 Covers FR-012/FR-013/C-011/SC-008 of ``post-merge-write-authoring-finish-01KYRRM5``:
 
 - **T026**: the SINGLE ``_GH_ISSUE_PATTERN`` recognises a same-repo GitHub
-  issue URL (``https://github.com/Priivacy-ai/spec-kitty/issues/<n>``) in
+  issue URL (``https://github.com/spec-kitty/spec-kitty/issues/<n>``) in
   addition to the existing ``#NNNN`` form -- match-then-filter, discrimination
   in Python, never a second matcher. A ``/pull/`` URL is never matched (a PR
   is not an issue); a cross-repo URL is matched by the regex but filtered out

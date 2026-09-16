@@ -13,7 +13,7 @@ related:
 # HOW TO MAINTAIN — Spec Kitty Issue Tracker
 
 > Maintainer entry-point for tracker hygiene. Authored 2026-06-16 (planner-priti, governance op).
-> Grounded in **live repo data** (`Priivacy-ai/spec-kitty`) and the operator conventions in
+> Grounded in **live repo data** (`spec-kitty/spec-kitty`) and the operator conventions in
 > `work/TRACKER_DOCTRINE_NOTES.md`. Items marked **(inferred)**
 > are derived from observed usage, not an explicit written rule; everything else is **confirmed**
 > from the label taxonomy, native GitHub Types, or an existing convention doc.
@@ -183,9 +183,9 @@ us split a minor cycle into as many patches as the work needs without re-litigat
   title. To attach issues to a **closed** (retroactive) milestone, use the API by **number**:
   ```bash
   unset GITHUB_TOKEN
-  gh api repos/Priivacy-ai/spec-kitty/milestones -X POST -f title="3.2.x" -f state="open" -f description="<one-line goal + link to docs/changelog/3.2.x.md>"
-  gh issue edit <num> --repo Priivacy-ai/spec-kitty --milestone "3.2.x"        # open milestone, by title
-  gh api repos/Priivacy-ai/spec-kitty/issues/<num> -X PATCH -F milestone=<N>   # any/closed milestone, by number
+  gh api repos/spec-kitty/spec-kitty/milestones -X POST -f title="3.2.x" -f state="open" -f description="<one-line goal + link to docs/changelog/3.2.x.md>"
+  gh issue edit <num> --repo spec-kitty/spec-kitty --milestone "3.2.x"        # open milestone, by title
+  gh api repos/spec-kitty/spec-kitty/issues/<num> -X PATCH -F milestone=<N>   # any/closed milestone, by number
   ```
 
 ### 5b. Declarations of intent (the canonical goal home)

@@ -19,7 +19,7 @@ related:
 
 > Spec Kitty is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). Installation commands below target the spec-kitty distribution while crediting the original project.
 
-> **📖 Looking for the complete workflow?** See the [README: Getting Started guide](https://github.com/Priivacy-ai/spec-kitty#-getting-started-complete-workflow) for the full lifecycle from CLI installation through feature development and merging.
+> **📖 Looking for the complete workflow?** See the [README: Getting Started guide](https://github.com/spec-kitty/spec-kitty#-getting-started-complete-workflow) for the full lifecycle from CLI installation through feature development and merging.
 
 ![Install Spec Kitty — Mission Kitty as a detective with a toolbox and gears](../../../assets/images/install-spec-kitty-mission-kitty.png)
 
@@ -88,17 +88,17 @@ Use the GitHub install path when you need the latest unreleased code from
 
 **Using pipx (preferred):**
 ```bash
-pipx install git+https://github.com/Priivacy-ai/spec-kitty.git
+pipx install git+https://github.com/spec-kitty/spec-kitty.git
 ```
 
 **Using uv:**
 ```bash
-uv tool install spec-kitty-cli --from git+https://github.com/Priivacy-ai/spec-kitty.git
+uv tool install spec-kitty-cli --from git+https://github.com/spec-kitty/spec-kitty.git
 ```
 
 **Using pip in an activated virtual environment or managed CI Python image:**
 ```bash
-python -m pip install git+https://github.com/Priivacy-ai/spec-kitty.git
+python -m pip install git+https://github.com/spec-kitty/spec-kitty.git
 ```
 
 ### Initialize a New Project

@@ -11,7 +11,7 @@ related:
 ---
 # How to Install and Upgrade Spec Kitty
 
-> **Formal requirements**: [`kitty-specs/cli-upgrade-nag-lazy-project-migrations-01KQ6YDN/spec.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/cli-upgrade-nag-lazy-project-migrations-01KQ6YDN/spec.md)
+> **Formal requirements**: [`kitty-specs/cli-upgrade-nag-lazy-project-migrations-01KQ6YDN/spec.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/cli-upgrade-nag-lazy-project-migrations-01KQ6YDN/spec.md)
 
 ---
 
@@ -268,7 +268,7 @@ spec-kitty upgrade --dry-run --json | jq '.pending_migrations | length'
 ```
 
 Schema (stable across patch releases):
-[`kitty-specs/cli-upgrade-nag-lazy-project-migrations-01KQ6YDN/contracts/compat-planner.json`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/cli-upgrade-nag-lazy-project-migrations-01KQ6YDN/contracts/compat-planner.json)
+[`kitty-specs/cli-upgrade-nag-lazy-project-migrations-01KQ6YDN/contracts/compat-planner.json`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/cli-upgrade-nag-lazy-project-migrations-01KQ6YDN/contracts/compat-planner.json)
 
 ---
 

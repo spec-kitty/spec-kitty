@@ -100,4 +100,4 @@ Address each finding before restarting implementation to avoid double-claiming a
 - [Recover from Interrupted Merge](recover-from-interrupted-merge.md) — when `spec-kitty merge` was interrupted
 - [CLI Reference: spec-kitty implement](../../../api/cli-commands.md#spec-kitty-implement)
 - [CLI Reference: spec-kitty doctor](../../../api/cli-commands.md#spec-kitty-doctor)
-- [Status Model](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/status-model.md) — how lane transitions are recorded
+- [Status Model](https://github.com/spec-kitty/spec-kitty/blob/main/docs/status-model.md) — how lane transitions are recorded

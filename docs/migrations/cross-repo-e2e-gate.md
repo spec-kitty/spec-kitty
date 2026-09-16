@@ -10,8 +10,8 @@ updated: '2026-06-03'
 
 **Status**: Active as of mission
 `stability-and-hygiene-hardening-2026-04-01KQ4ARB` (2026-04-26).
-**ADR**: [`docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md)
-**Skill**: [`src/doctrine/skills/spec-kitty-mission-review/SKILL.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/skills/spec-kitty-mission-review/SKILL.md)
+**ADR**: [`docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md)
+**Skill**: [`src/doctrine/skills/spec-kitty-mission-review/SKILL.md`](https://github.com/spec-kitty/spec-kitty/blob/main/src/doctrine/skills/spec-kitty-mission-review/SKILL.md)
 
 This guide tells operators how to run the cross-repo end-to-end gate
 that `spec-kitty-mission-review` now enforces, and how to handle the
@@ -121,7 +121,7 @@ SPEC_KITTY_ENABLE_SAAS_SYNC=1 \
 ## Follow-up
 
 [Either a follow-up issue link, e.g. "Tracked as
-Priivacy-ai/spec-kitty#NNN" OR a written commitment to retry against
+spec-kitty/spec-kitty#NNN" OR a written commitment to retry against
 the endpoint within a documented window.]
 ```
 
@@ -169,12 +169,12 @@ blockers*, not for deferred bugs.
 ## Cross-references
 
 - ADR (the gate rationale, full alternatives table):
-  [`docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md)
+  [`docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md)
 - Skill source (the enforcement code path):
-  [`src/doctrine/skills/spec-kitty-mission-review/SKILL.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/skills/spec-kitty-mission-review/SKILL.md)
+  [`src/doctrine/skills/spec-kitty-mission-review/SKILL.md`](https://github.com/spec-kitty/spec-kitty/blob/main/src/doctrine/skills/spec-kitty-mission-review/SKILL.md)
 - Mission spec (FR-038, FR-039, FR-040, FR-041, NFR-006, C-010):
-  [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md)
+  [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md)
 - Issue matrix (the row-coverage gate input):
-  [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/issue-matrix.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/issue-matrix.md)
+  [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/issue-matrix.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/issue-matrix.md)
 - Research D1 (the matrix shape decision that this gate reads):
-  [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/research.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/research.md)
+  [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/research.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/research.md)

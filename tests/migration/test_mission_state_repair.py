@@ -635,11 +635,11 @@ def test_repo_slug_preserves_https_remote_colon(monkeypatch: pytest.MonkeyPatch,
         assert repo_root == tmp_path
         assert args == ("config", "--get", "remote.origin.url")
         assert check is False
-        return _Result("https://github.com/Priivacy-ai/spec-kitty.git\n")
+        return _Result("https://github.com/spec-kitty/spec-kitty.git\n")
 
     monkeypatch.setattr("specify_cli.migration.mission_state._git", fake_git)
 
-    assert _repo_slug(tmp_path) == "Priivacy-ai/spec-kitty"
+    assert _repo_slug(tmp_path) == "spec-kitty/spec-kitty"
 
 
 def test_repair_refuses_when_common_git_lock_is_held(tmp_path: Path) -> None:

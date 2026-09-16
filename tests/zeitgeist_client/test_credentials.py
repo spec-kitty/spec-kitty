@@ -215,12 +215,12 @@ def test_host_and_repo_slug_round_trip_verbatim(state_root: Path):
         token="tok-a",
         token_kind="shared_team",
         host="github.int.exe.xyz",
-        repo_slug="Priivacy-ai/spec-kitty",
+        repo_slug="spec-kitty/spec-kitty",
     )
     loaded = credentials.load(repo="github.com/acme/spec-kitty")
     assert loaded is not None
     assert loaded.host == "github.int.exe.xyz"
-    assert loaded.repo_slug == "Priivacy-ai/spec-kitty"
+    assert loaded.repo_slug == "spec-kitty/spec-kitty"
 
 
 def test_empty_host_is_rejected_when_provided(state_root: Path):

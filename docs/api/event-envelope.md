@@ -11,7 +11,7 @@ related:
 # Event Envelope Reference
 
 This document describes the vendored machine-facing contract enforced by
-[`src/specify_cli/core/upstream_contract.json`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/specify_cli/core/upstream_contract.json)
+[`src/specify_cli/core/upstream_contract.json`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/core/upstream_contract.json)
 and `specify_cli.core.contract_gate.validate_outbound_payload()`.
 
 The current contract version is `3.0.0`.

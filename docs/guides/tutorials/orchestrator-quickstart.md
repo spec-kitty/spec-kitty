@@ -81,7 +81,7 @@ If either command is missing, check that the Python environment where you
 installed the package is on `PATH`.
 
 The source repository is
-[`Priivacy-ai/spec-kitty-orchestrator`](https://github.com/Priivacy-ai/spec-kitty-orchestrator)
+[`spec-kitty/spec-kitty-orchestrator`](https://github.com/spec-kitty/spec-kitty-orchestrator)
 if you want to inspect code, issues, or release history. Do not install from
 GitHub unless you are intentionally testing unreleased provider changes.
 

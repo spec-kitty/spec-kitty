@@ -11,7 +11,7 @@ haven't migrated yet.
 
 **Retirement plan:**
 - Deprecation target: spec-kitty 3.3.0
-- Follow-up issue: https://github.com/Priivacy-ai/spec-kitty/issues/TBD
+- Follow-up issue: https://github.com/spec-kitty/spec-kitty/issues/TBD
   (Issue title: "Retire retrospective.config + mode shim modules")
 - Rationale: external callers may still import this module. Product behavior
   is now policy-driven: default enabled, durable opt-out via

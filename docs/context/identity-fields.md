@@ -62,7 +62,7 @@ See `kitty-specs/081-canonical-baseline-and-repository-boundary/spec.md` for the
 
 | | |
 |---|---|
-| **Definition** | Optional `owner/repo` Git provider reference (e.g. `Priivacy-ai/spec-kitty`). Unchanged from pre-081 meaning. |
+| **Definition** | Optional `owner/repo` Git provider reference (e.g. `spec-kitty/spec-kitty`). Unchanged from pre-081 meaning. |
 | **Context** | Identity Fields |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |

@@ -32,7 +32,7 @@ This document defines the **target-state** canonical terminology for Spec Kitty'
 |-------|-------|-------------|-----------|----------------|
 | `repository_uuid` | Repository | Stable local repository identity, minted once per repository. Required namespace key for body sync and deduplication. | Immutable once minted | Was mislabeled as `project_uuid` before mission 081 |
 | `repository_label` | Repository | Human-readable display name derived from git remote or directory name. | Mutable; display only | Was called `project_slug` before mission 081 |
-| `repo_slug` | Repository | Optional `owner/repo` Git provider reference (e.g. `Priivacy-ai/spec-kitty`). | Unchanged from current; optional | No change -- retains pre-081 meaning |
+| `repo_slug` | Repository | Optional `owner/repo` Git provider reference (e.g. `spec-kitty/spec-kitty`). | Unchanged from current; optional | No change -- retains pre-081 meaning |
 | `project_uuid` | Collaboration | SaaS-assigned project binding. Absent until a repository is bound to a SaaS project. Never locally minted. | Absent until binding | Was incorrectly used for locally minted repository identity |
 | `mission_id` | Mission | **Canonical mission machine identity.** ULID (26 chars), minted at `agent mission create`. Aggregate key for events, selectors, and dashboard scanner. | Immutable once minted | Replaces `mission_number` as canonical identity as of mission 083 |
 | `mid8` | Mission | First 8 characters of `mission_id`. Short disambiguator used in branch and worktree names. | Derived from `mission_id` | New in mission 083 |

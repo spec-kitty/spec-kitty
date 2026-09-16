@@ -1,0 +1,109 @@
+# Occurrence map for the issue-4562 bulk edit (change_mode: bulk_edit).
+#
+# Mission: retire stale `Priivacy-ai/spec-kitty` owner/repo references left by
+# the 2026-09-07 repository move to `spec-kitty/spec-kitty`, while preserving
+# historical citations (issue/PR/commit links that resolve to real records
+# under the old org via GitHub's rename redirect).
+#
+# This is an issue -> branch -> PR cleanup (#4562), not a kitty-specs mission,
+# so the artifact lives at the repository root rather than under
+# kitty-specs/<mission>/; the schema is the one the runtime gate enforces
+# (src/charter/offering/schemas/occurrence-map.schema.yaml).
+#
+# Census at classification time (tracked files, excluding dist/** and
+# .worktrees/** and generated agent-copy directories): 2,471 occurrence lines
+# across 938 files -> 2,298 PRESERVE / 173 UPDATE across 54 files.
+
+target:
+  term: Priivacy-ai/spec-kitty
+  replacement: spec-kitty/spec-kitty
+  operation: rename
+
+categories:
+  # No code symbol, import path, or serialized key carries the target string;
+  # occurrences inside src/** are historical issue citations -> guarded.
+  code_symbols:         { action: do_not_change }
+  import_paths:         { action: do_not_change }
+  filesystem_paths:     { action: do_not_change }
+  serialized_keys:      { action: do_not_change }
+  # CLI subcommands/flags are unaffected; `--repo` targets in *docs* are
+  # user-facing guidance and are classified under user_facing_strings.
+  cli_commands:         { action: do_not_change }
+  # Live reader guidance (install/clone/gh targets, blob/tree nav links,
+  # repo-identity examples, docfx/SEO config) is renamed; historical-record
+  # clusters are carved out under exceptions below.
+  user_facing_strings:  { action: rename }
+  # Per the issue: case-by-case. Generic repo-identity fixtures rename
+  # (consistently, input+assertion together); citation-shaped and
+  # historical-sample fixtures are carved out under exceptions.
+  tests_fixtures:       { action: manual_review }
+  # kitty-ops/** operation logs are append-only evidence -> guarded.
+  logs_telemetry:       { action: do_not_change }
+
+exceptions:
+  - path: "kitty-specs/**"
+    action: do_not_change
+    reason: "Immutable mission snapshots (issue classification rule)"
+  - path: "docs/adr/**"
+    action: do_not_change
+    reason: "ADR content is historical record; ADR *links* elsewhere are renamed"
+  - path: "docs/changelog/**"
+    action: do_not_change
+    reason: "Changelog history"
+  - path: "docs/plans/**"
+    action: do_not_change
+    reason: "Dated historical planning/engineering/investigation records"
+  - path: "docs/plans/domains/**"
+    action: rename
+    reason: "Standing live guidance ('verify live state via gh issue view --repo ...'), not a dated record"
+  - path: "docs/reports/**"
+    action: do_not_change
+    reason: "Raw historical mission evidence (actions/runs URLs, embedded fixtures)"
+  - path: "kitty-ops/**"
+    action: do_not_change
+    reason: "Append-only operational evidence logs"
+  - path: ".kittify/evidence/**"
+    action: do_not_change
+    reason: "Historical mission evidence records"
+  - path: ".kittify/glossaries/spec_kitty_core.yaml"
+    action: do_not_change
+    reason: "PR #4561 owns the repo_slug example line; do not duplicate"
+  - path: "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml"
+    action: do_not_change
+    reason: "PR #4561 owns the repo_slug example line; do not duplicate"
+  - path: "docs/operations/identity-boundary-ci-gate.md"
+    action: do_not_change
+    reason: "Doc self-describes as 'Historical only' (gate deleted, workflows deleted)"
+  - path: "docs/operations/sync-drain.md"
+    action: do_not_change
+    reason: "Deprecated page kept as historical record of the deleted sync transport"
+  - path: "docs/migrations/2-1-main-cutover-checklist.md"
+    action: do_not_change
+    reason: "Completed historical cutover checklist (records what was configured at the time)"
+  - path: "docs/migrations/teamspace-mission-state-920-closeout.md"
+    action: do_not_change
+    reason: "Historical closeout record of still-open sibling issue citations"
+  - path: "tests/glossary/test_canonical_promotion.py"
+    action: do_not_change
+    reason: "The old-org blob URL is a text.replace() lookup key that re-homes pre-move links; renaming the key would break the re-homing"
+  - path: "tests/proof/test_event_schemas.py"
+    action: do_not_change
+    reason: "Historical sample payload pair (repository= + pull/1 URL under the old org)"
+  - path: "tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py"
+    action: do_not_change
+    reason: "Citation-shaped spec fixtures ('Fix Priivacy-ai/spec-kitty issue #1582')"
+  - path: "tests/agent/cli/commands/test_tasks_helpers.py"
+    action: do_not_change
+    reason: "Citation-shaped spec fixtures ('Fix Priivacy-ai/spec-kitty issue #1582')"
+  - path: "tests/status/test_doctor.py"
+    action: do_not_change
+    reason: "Citation-shaped spec fixtures ('Addresses Priivacy-ai/spec-kitty issue #1582')"
+  - path: "tests/dossier/test_events.py"
+    action: do_not_change
+    reason: "Historical citation of spec-kitty-end-to-end-testing#37"
+  - path: "src/specify_cli/dossier/events.py"
+    action: do_not_change
+    reason: "Historical citation of spec-kitty-end-to-end-testing#37"
+  - path: ".gitignore"
+    action: do_not_change
+    reason: "Historical citation comment (Priivacy-ai/spec-kitty#1166)"

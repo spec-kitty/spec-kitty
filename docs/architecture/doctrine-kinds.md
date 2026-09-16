@@ -22,7 +22,7 @@ built-in doctrine.
 ## Single source of truth
 
 The kind list on this page is not invented for the docs — it is read directly from
-[`src/charter/activation/kind_vocabulary.py`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/charter/activation/kind_vocabulary.py)
+[`src/charter/activation/kind_vocabulary.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/activation/kind_vocabulary.py)
 and [`src/charter/offering/artifact_kinds.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/offering/artifact_kinds.py),
 and cross-checked against the running CLI. You can reproduce the same list yourself:
 
@@ -171,7 +171,7 @@ To **author and resolve** an asset end to end, follow the asset section of
 "Activatable" and "delivered" are two different questions. A kind is **delivered** when its
 resolved artifacts reach the rendered doctrine bundle a mission action consumes. The delivery rail
 records a verdict for **every** `NodeKind` in one total table (`_ACTION_BUNDLE_DELIVERY_BY_KIND` in
-[`src/charter/activation/context.py`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/charter/activation/context.py)),
+[`src/charter/activation/context.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/activation/context.py)),
 with two columns — the bundle *slot* the kind feeds, and the *gate* that filters it. The gate is a
 **total function** over kinds, so there are three categories, not two:
 

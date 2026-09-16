@@ -342,7 +342,7 @@ def test_shared_package_drift_fails_on_cli_direct_reference(
     write_pyproject(
         cli,
         dependencies=[
-            "spec-kitty-events @ git+https://github.com/Priivacy-ai/spec-kitty-events@9fe707345469aaaf5d232247724a0e6a08925645",
+            "spec-kitty-events @ git+https://github.com/spec-kitty/spec-kitty-events@9fe707345469aaaf5d232247724a0e6a08925645",
             "spec-kitty-tracker>=0.5.2,<0.6",
         ],
     )

@@ -147,7 +147,7 @@ of scope to fix in this mission**:
 
 ## Why this happened
 
-See [ADR 2026-07-26-2: Doctrine Artefact Pack Layout Convention](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md)
+See [ADR 2026-07-26-2: Doctrine Artefact Pack Layout Convention](https://github.com/spec-kitty/spec-kitty/blob/main/docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md)
 and the mission spec at
 `kitty-specs/relocate-builtin-doctrine-packs-01KYT87F/spec.md` for the full
 rationale, the built-in → org → project resolution-seam goal, and why loader

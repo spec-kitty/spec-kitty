@@ -71,7 +71,7 @@ This is also why modern distributions (Ubuntu 24.04, Debian 12, Fedora) refuse `
 If you are working **on** Spec Kitty (not just with it), you clone the repository and install in editable mode:
 
 ```bash
-git clone https://github.com/Priivacy-ai/spec-kitty
+git clone https://github.com/spec-kitty/spec-kitty
 cd spec-kitty
 python -m venv .venv
 source .venv/bin/activate

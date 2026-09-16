@@ -406,7 +406,7 @@ tar czf security-doctrine-v1.0.0.tar.gz -C my-pack .
 
 For organisations with an existing governance API server, expose pack contents under a
 base URL. The contract for that API is in
-[contracts/org-doctrine-source-api-contract.md](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/layered-doctrine-org-layer-01KRNPEE/contracts/org-doctrine-source-api-contract.md)
+[contracts/org-doctrine-source-api-contract.md](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/layered-doctrine-org-layer-01KRNPEE/contracts/org-doctrine-source-api-contract.md)
 (in the mission's planning artifacts).
 
 ### Versioning strategy

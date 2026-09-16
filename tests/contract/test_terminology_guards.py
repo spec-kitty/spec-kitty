@@ -328,7 +328,7 @@ def test_orchestrator_api_docs_do_not_teach_removed_json_flag_or_unpinned_provid
     forbidden_patterns = (
         r"spec-kitty orchestrator-api[^\n]*--json",
         r"--json[^\n]*spec-kitty orchestrator-api",
-        r"git\+https://github\.com/Priivacy-ai/spec-kitty-orchestrator\.git",
+        r"git\+https://github\.com/spec-kitty/spec-kitty-orchestrator\.git",
     )
     for path, content in _live_doc_scan_targets():
         for pattern in forbidden_patterns:
