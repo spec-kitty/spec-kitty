@@ -244,3 +244,88 @@ def test_a_missing_lanes_manifest_offers_nothing(
     _lane_worktree(repo_root, with_dirs=("tests", "docs"))
 
     assert _approved_lane_source_roots(repo_root, feature_dir, {"approved": ["WP01"]}) == ()
+
+
+# ---------------------------------------------------------------------------
+# End-to-end wiring proof: the real ``collect_feature_summary`` entry point,
+# not the validator or the gate helper each already tested in isolation.
+# ---------------------------------------------------------------------------
+
+
+def _wp_task_file(feature_dir: Path, *, wp_id: str = "WP01") -> None:
+    """A minimal WP task file so ``_iter_work_packages`` finds ``wp_id``."""
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    (tasks_dir / f"{wp_id}-sample.md").write_text(
+        f"---\nwork_package_id: {wp_id}\ntitle: Sample\nagent: claude\nassignee: claude\nshell_pid: '1'\n---\n\n# WP\n",
+        encoding="utf-8",
+    )
+
+
+def _approve_wp(feature_dir: Path, *, wp_id: str = "WP01") -> None:
+    """Write a real, event-sourced ``approved`` transition for ``wp_id``.
+
+    Uses the canonical ``append_event`` writer (mirrors
+    ``test_populate_criteria_from_review_evidence.py``) so
+    ``collect_feature_summary``'s own status read -- not a hand-built
+    snapshot -- puts the WP's lane into ``approved``.
+    """
+    from specify_cli.status import Lane, ReviewResult, StatusEvent
+    from specify_cli.status._unsafe import append_event
+
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=f"evt-{wp_id}-approved",
+            mission_slug=_SLUG,
+            wp_id=wp_id,
+            from_lane=Lane.IN_REVIEW,
+            to_lane=Lane.APPROVED,
+            at="2026-01-01T00:00:00+00:00",
+            actor="reviewer-renata",
+            force=False,
+            execution_mode="worktree",
+            review_result=ReviewResult(
+                reviewer="reviewer-renata",
+                verdict="approved",
+                reference=f"review-cycle://{_SLUG}/{wp_id}/1",
+            ),
+        ),
+    )
+
+
+def test_collect_feature_summary_reports_approved_lane_build_path_as_satisfied(
+    mission_repo: tuple[Path, Path],
+) -> None:
+    """The #4254 wiring seam, proved end-to-end through the real accept
+    entry point -- not the validator (``validate_mission_paths``) or the
+    caller-side gate helper (``_approved_lane_source_roots``) each of the
+    other tests in this file already exercises in isolation.
+
+    ``collect_feature_summary`` (``acceptance/__init__.py``) threads
+    ``candidate_source_roots=_approved_lane_source_roots(...)`` into
+    ``evaluate_path_conventions``. Every other test here calls
+    ``validate_mission_paths``/``_approved_lane_source_roots`` directly, so
+    if that ``candidate_source_roots=`` argument were ever dropped from the
+    real call site, every one of them would still pass while the production
+    fix silently reverted -- this is the one test that would go red.
+    """
+    from specify_cli.acceptance import collect_feature_summary
+
+    repo_root, feature_dir = mission_repo
+    _lane_worktree(repo_root, with_dirs=("tests", "docs"))
+    _lanes_json(feature_dir, wp_ids=("WP01",))
+    _wp_task_file(feature_dir)
+    _approve_wp(feature_dir)
+
+    summary = collect_feature_summary(repo_root, _SLUG, strict_metadata=True, mutate_matrix=False)
+
+    rendered_violations = "\n".join(summary.path_violations)
+    assert "tests" not in rendered_violations, (
+        "#4254: acceptance still reported the approved lane's reviewed tests/ "
+        f"as missing through the real collect_feature_summary entry point: {summary.path_violations!r}"
+    )
+    assert "docs" not in rendered_violations, (
+        "#4254: acceptance still reported the approved lane's reviewed docs/ "
+        f"as missing through the real collect_feature_summary entry point: {summary.path_violations!r}"
+    )
