@@ -166,6 +166,7 @@ class AssetPreparation:
         self.dispositions: list[Disposition] = []
         self.entries: dict[str, dict[str, object]] = {}
         self.previous: dict[str, dict[str, object]] = {}
+        self._prune_candidates: dict[Path, tuple[Path, ...]] | None = None
         self.selected: set[Path] = set()
         self.temporary_paths: set[Path] = set()
         self.environment = tuple((name, os.environ.get(name)) for name in _SOURCE_ENV)
@@ -331,10 +332,17 @@ class AssetPreparation:
 
     def prune_missing(self, destination: Path) -> None:
         """Inspect recorded descendants absent from this complete source tree."""
-        candidates = sorted((self.root.path / p for p in self.previous), key=lambda p: len(p.parts))
+        if self._prune_candidates is None:
+            descendants: dict[Path, list[Path]] = {}
+            for relative in self.previous:
+                path = self.root.path / relative
+                for parent in path.parents:
+                    descendants.setdefault(parent, []).append(path)
+            self._prune_candidates = {parent: tuple(sorted(paths, key=lambda path: len(path.parts))) for parent, paths in descendants.items()}
+        candidates = self._prune_candidates.get(destination, ())
         retired: list[Path] = []
         for path in candidates:
-            if destination not in path.parents or path in self.selected or any(parent in retired for parent in path.parents):
+            if path in self.selected or any(parent in retired for parent in path.parents):
                 continue
             self.retire(path)
             retired.append(path)
