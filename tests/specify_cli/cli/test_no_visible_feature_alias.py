@@ -124,12 +124,29 @@ def test_help_output_never_mentions_feature_alias() -> None:
 
     This is the user-visible contract: regardless of Click's internal
     representation, the alias must never appear in rendered help.
+
+    Each leaf is invoked DIRECTLY, not through the assembled root app:
+    routing ~268 ``--help`` invocations through the root callback chain
+    (``main_callback`` → ``root_callback`` → ``ensure_runtime`` /
+    ``ensure_global_agent_skills`` / ``ensure_global_agent_commands`` /
+    startup gates) made this single ``fast``+``unit`` test run for 30+
+    minutes (#4636). The ``--help`` option short-circuits in
+    ``parse_args`` before any command callback runs, so a direct leaf
+    invoke renders the exact same help text without paying the root
+    bootstrap once per leaf. The only rendering difference is the usage
+    line's prog name (the leaf name instead of the full command path),
+    which cannot carry option flags and so cannot mask a ``--feature``
+    regression.
     """
     runner = CliRunner()
     offenders: list[tuple[str, str]] = []
-    for path, _cmd in _walk_leaf_commands(cli):
-        result = runner.invoke(
-            cli, list(path) + ["--help"], catch_exceptions=False
+    for path, cmd in _walk_leaf_commands(cli):
+        result = runner.invoke(cmd, ["--help"], catch_exceptions=False)
+        # A leaf whose --help fails to render cannot be checked — fail
+        # loudly instead of silently skipping its surface invariant.
+        assert result.exit_code == 0, (
+            f"--help did not render cleanly for leaf {' '.join(path)} "
+            f"(exit {result.exit_code}): {result.output}"
         )
         if FEATURE_TOKEN_RE.search(result.output):
             offenders.append((" ".join(path), result.output))
