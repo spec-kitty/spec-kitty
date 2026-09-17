@@ -1,0 +1,36 @@
+{
+  "accept_commit": "263025888aca9a98455133f3d4f14353952af9bf",
+  "acceptance_history": [
+    {
+      "accept_commit": "263025888aca9a98455133f3d4f14353952af9bf",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-09-16T23:49:19.241604+00:00",
+      "accepted_by": "codex",
+      "accepted_from_commit": "a473d974ed679fc499ccdf7e03aaf675e27abf1c"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-09-16T23:49:19.241604+00:00",
+  "accepted_by": "codex",
+  "accepted_from_commit": "a473d974ed679fc499ccdf7e03aaf675e27abf1c",
+  "baseline_merge_commit": "c26c0c1e52cf036437525a24c97dc1c287f3f691",
+  "created_at": "2026-09-16T18:24:03.675054+00:00",
+  "flattened": true,
+  "friendly_name": "CLI Boundary Robustness",
+  "merged_at": "2026-09-16T23:54:10.523353+00:00",
+  "merged_commit": "c26c0c1e52cf036437525a24c97dc1c287f3f691",
+  "mid8": "01M2NQCB",
+  "mission_id": "01M2NQCB2B9CTGFDXZVATQKJWR",
+  "mission_number": 201,
+  "mission_slug": "cli-boundary-robustness-01M2NQCB",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Machine consumers (agents, CI pipelines, jq) and operators depend on the CLI behaving predictably at its edges. Today a non-UTF-8 .kittify/config.yaml crashes every command at startup, several --json commands emit human prose instead of JSON on their error and empty paths, and two commands leak Typer internals as real values. This mission hardens all three boundary classes so the CLI degrades gracefully and honors its machine contract.",
+  "purpose_tldr": "Make the spec-kitty CLI fail gracefully at its boundary so a corrupt config never bricks the tool and --json output is always machine-readable.",
+  "slug": "cli-boundary-robustness-01M2NQCB",
+  "status_phase": "1",
+  "target_branch": "fix/cli-boundary-robustness",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-16T20:20:07.424754+00:00"
+}

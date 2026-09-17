@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-16T18:24:54.263313Z",
+      "decision_id": "01M2NQDWFQ6HY5A8A90VQ0E69H",
+      "final_answer": "Honor the test-frozen #4242 precedent across all --json surfaces. D1: errors emit {\"ok\":false,\"error\":{\"code\":<stable slug>,\"message\":<human>}}; empty-but-success (exit 0) paths emit the domain's normal success envelope with empty collections (no stray error key). D2: a --json error path's exit code equals its non-json exit code (incl. exit 2 for not_in_project per NFR-001). D3: --json => stdout is JSON-only on every exit path; human prose goes to stderr.",
+      "input_key": "json_envelope_contract",
+      "mission_id": "01M2NQCB2B9CTGFDXZVATQKJWR",
+      "mission_slug": "cli-boundary-robustness-01M2NQCB",
+      "opened_by": "cli",
+      "options": [
+        "Honor #4242 frozen precedent (ok:false/error{code,message} on errors; success-with-empty-collections on empty exit-0; exit code equals non-json exit incl. exit 2 for not_in_project; stdout JSON-only, prose to stderr)",
+        "Define a new/different envelope contract",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Canonical --json machine contract (D1 envelope + D2 exit code + D3 stream discipline): honor the existing test-frozen #4242 precedent across all --json surfaces?",
+      "rationale": null,
+      "resolved_at": "2026-09-16T18:28:54.703797Z",
+      "resolved_by": null,
+      "slot_key": "specify.json-contract.envelope-and-streams",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-16T18:50:59.785343Z",
+      "decision_id": "01M2NRXNA9Y4P8QVTRMHP0D5KH",
+      "final_answer": "Shape-gate on in-scope adopted surfaces + universal parse-ability. The enumeration gate asserts the canonical error envelope SHAPE ({ok:false,error:{code,message}}) on the error paths of every command this mission ADOPTS, plus json.loads-parseability on ALL --json-capable commands (discovered by structural Typer introspection over the 4 flag vocabularies: json_output, --json, json:bool, output_json), plus an explicit+extensible empty-path case list. Converge divergent envelope shapes inside touched files (e.g. cli/helpers.py:474 exit_git_resolution_failure) onto the canonical shape. Downgrade SC-005/NFR-004 to in-scope surfaces. File a follow-up issue for full cross-repo envelope convergence of the remaining ~12 divergent shapes (charter_bundle.py, implement.py, _mission_state_doctor.py, etc.) as a deferred DIRECTIVE_040 architecture item. Rationale: honors expand+close-the-class for what the mission touches, keeps the 4.0.0 MVP blast radius bounded (~10-12 files), keeps the closure claim honest, and gives the residual a tracked home. Squad consensus (paula-patterns + reviewer-renata).",
+      "input_key": "json_gate_closure_scope",
+      "mission_id": "01M2NQCB2B9CTGFDXZVATQKJWR",
+      "mission_slug": "cli-boundary-robustness-01M2NQCB",
+      "opened_by": "cli",
+      "options": [
+        "Shape-gate on in-scope adopted surfaces + universal parse-ability + converge divergent shapes inside touched files; file a follow-up for full cross-repo convergence; downgrade SC-005/NFR-004 to in-scope (RECOMMENDED, squad consensus, bounded MVP)",
+        "Full shape convergence now across all ~24+ --json error surfaces (strongest closure, ~24-file blast radius, touches files no issue filed against)",
+        "Parse-only gate as originally specced (smallest, leaves 8 divergent shapes, weak closure, re-report risk)"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How wide does the --json envelope-SHAPE convergence reach (post-spec squad finding B1: >=24 files, >=8 divergent shapes all pass a parse-only gate)?",
+      "rationale": null,
+      "resolved_at": "2026-09-16T18:51:21.622133Z",
+      "resolved_by": null,
+      "slot_key": "specify.json-gate.closure-scope",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M2NQCB2B9CTGFDXZVATQKJWR",
+  "version": 1
+}

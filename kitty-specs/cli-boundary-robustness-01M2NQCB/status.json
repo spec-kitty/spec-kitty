@@ -1,0 +1,256 @@
+{
+  "event_count": 75,
+  "last_event_id": "01M2PA909915XQQEG57GHJ1AX3",
+  "materialized_at": "2026-09-16T23:54:17.257193+00:00",
+  "mission_number": "201",
+  "mission_slug": "cli-boundary-robustness-01M2NQCB",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M2PA8TH72Z3G2AFXZEB3F4NW",
+      "last_transition_at": "2026-09-16T23:54:11.367208+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: unreadable startup config is contained; issue-pinned CLI, consistency, runtime-version, import-purity, lint, and typing guards pass",
+        "Fix cycle 1: doctor now asserts exit 0 plus recognizable diagnostics; valid config also exercises doctor; 94 adjacent tests pass",
+        "Review passed: fix cycle closes doctor outcome and healthy normal-command assertions; red-first proof reproduced; focused, adjacent, purity, Ruff, and format gates green. Package mypy retains 56 pre-existing unrelated errors."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Review passed: fix cycle closes doctor outcome and healthy normal-command assertions; red-first proof reproduced; focused, adjacent, purity, Ruff, and format gates green. Package mypy retains 56 pre-existing unrelated errors.",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 62354,
+      "shell_pid_created_at": "1789591414.874363",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      },
+      "tracker_refs": [
+        "#4600"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M2PA8VPCFNHMPGXTEVHDAG17",
+      "last_transition_at": "2026-09-16T23:54:12.556227+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: canonical JSON envelope seam, doctor re-export, JSON-aware shared failures, and updated helper contract; 70 scoped tests pass",
+        "Fix cycle 1: ATDD history rebuilt with RED test-only commit be1733590 and GREEN implementation commit b87975075; 70 scoped and 90 terminology tests pass",
+        "Review passed: rebuilt history proves test-only RED at be1733590 from mission base (json_contract absent; collection fails as recorded), production GREEN at b87975075, and separately owned helper-contract alignment at 849f5e3df. Final gates: 9 focused + 61 compatibility tests, ruff, 1931-file format check, 90 terminology tests, unique envelope constructor, and direct doctor re-export all pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Review passed: rebuilt history proves test-only RED at be1733590 from mission base (json_contract absent; collection fails as recorded), production GREEN at b87975075, and separately owned helper-contract alignment at 849f5e3df. Final gates: 9 focused + 61 compatibility tests, ruff, 1931-file format check, 90 terminology tests, unique envelope constructor, and direct doctor re-export all pass.",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 61242,
+      "shell_pid_created_at": "1789591303.85709",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      },
+      "tracker_refs": [
+        "#4532",
+        "#4601"
+      ]
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2PA8WV8WBQD5P0RTREQ97R4",
+      "last_transition_at": "2026-09-16T23:54:13.736968+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: red checkpoint 3 failed/2 passed, then 30 scoped tests pass; whole-repo ruff lint/format and strict mypy target pass",
+        "Review passed: RED→GREEN history verified; bare context parity and placeholder exclusion hold; context JSON errors use the shared canonical envelope with stdout-clean transport and preserved exit codes; success payloads remain unwrapped; owned-file boundary, terminology, focused/legacy tests, ruff, full format, and strict mypy all pass. Anti-patterns: dead code PASS; synthetic fixtures PASS; silent empty returns PASS (pre-existing workspace detection returns are intentional); FR coverage PASS; frozen surface PASS; locked decisions PASS; shared ownership PASS; production fragility PASS."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: RED→GREEN history verified; bare context parity and placeholder exclusion hold; context JSON errors use the shared canonical envelope with stdout-clean transport and preserved exit codes; success payloads remain unwrapped; owned-file boundary, terminology, focused/legacy tests, ruff, full format, and strict mypy all pass. Anti-patterns: dead code PASS; synthetic fixtures PASS; silent empty returns PASS (pre-existing workspace detection returns are intentional); FR coverage PASS; frozen surface PASS; locked decisions PASS; shared ownership PASS; production fragility PASS.",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 70026,
+      "shell_pid_created_at": "1789592171.829995",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      },
+      "tracker_refs": [
+        "#4597",
+        "#4601"
+      ]
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2PA8XZNV5J29Q7MHT725F4H",
+      "last_transition_at": "2026-09-16T23:54:14.901567+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: red-first boundary coverage, canonical JSON errors, activated-only alias default; 20 focused tests pass",
+        "Review passed (reviewer-renata). Anti-pattern checklist: dead code PASS (helpers have live command callers); synthetic-fixture PASS (CliRunner exercises production paths); silent empty return PASS; FR coverage PASS for WP04 scope; frozen surface PASS; locked decisions PASS; shared-file ownership PASS/N/A (only owned files); production fragility PASS (only documented typer.Exit transport). Verified genuine RED checkpoint at dc7a5c3c0: 5 failures, then GREEN at e705c2414: 7 focused + 13 compatibility tests; all four root aliases exercised; Ruff lint and whole-repo format pass; targeted mypy passes. Package mypy still has 56 pre-existing errors outside WP04-owned files."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata). Anti-pattern checklist: dead code PASS (helpers have live command callers); synthetic-fixture PASS (CliRunner exercises production paths); silent empty return PASS; FR coverage PASS for WP04 scope; frozen surface PASS; locked decisions PASS; shared-file ownership PASS/N/A (only owned files); production fragility PASS (only documented typer.Exit transport). Verified genuine RED checkpoint at dc7a5c3c0: 5 failures, then GREEN at e705c2414: 7 focused + 13 compatibility tests; all four root aliases exercised; Ruff lint and whole-repo format pass; targeted mypy passes. Package mypy still has 56 pre-existing errors outside WP04-owned files.",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 98059,
+      "shell_pid_created_at": "1789592485.277642",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      },
+      "tracker_refs": [
+        "#4598",
+        "#4600",
+        "#4601"
+      ]
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01M2PA8Z4T445NJF3HY2Z7C5ZE",
+      "last_transition_at": "2026-09-16T23:54:16.090456+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: fixed #4643 empty-success JSON and adopted remaining #4533 command boundaries; 3193 focused + 1842 fast tests green",
+        "Fix cycle 1: added real status-builder coverage, complete five-caller root-boundary matrix, paired archive/materialize error transport and success-shape tests; 75 relevant tests green",
+        "Review passed: cycle-1 gaps closed with load-bearing builder, five-caller, archive/materialize transport, exit-fidelity, and success-shape tests; 22 WP regressions + 78 related tests green; ruff, mypy, format, and diff checks green. Anti-pattern checklist: dead code PASS; synthetic-fixture PASS; silent-empty-return PASS; FR coverage PASS; frozen surface PASS; locked decisions PASS; shared-file ownership PASS; production fragility PASS.",
+        "Fix cycle 3: archive _exit_error now accurately returns NoReturn; 22 WP tests and 8 archive tests green; strict package mypy matches lane-b at 56 baseline errors with zero archive/WP05 delta",
+        "Review passed cycle 3:  truthfully declares NoReturn and always raises typer.Exit; no casts, ignores, or suppressions; strict package mypy is byte-identical to lane-b (56 baseline errors/36 files, zero archive.py and zero WP05 delta); 100 relevant behavior tests green; ruff, format, and diff checks green. Anti-pattern checklist: dead code PASS; synthetic-fixture PASS; silent-empty-return PASS; FR coverage PASS; frozen surface PASS; locked decisions PASS; shared-file ownership PASS; production fragility PASS."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Review passed cycle 3:  truthfully declares NoReturn and always raises typer.Exit; no casts, ignores, or suppressions; strict package mypy is byte-identical to lane-b (56 baseline errors/36 files, zero archive.py and zero WP05 delta); 100 relevant behavior tests green; ruff, format, and diff checks green. Anti-pattern checklist: dead code PASS; synthetic-fixture PASS; silent-empty-return PASS; FR coverage PASS; frozen surface PASS; locked decisions PASS; shared-file ownership PASS; production fragility PASS.",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 75008,
+      "shell_pid_created_at": "1789596573.556649",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      },
+      "tracker_refs": [
+        "#4533",
+        "#4643"
+      ]
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "codex",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01M2PA909915XQQEG57GHJ1AX3",
+      "last_transition_at": "2026-09-16T23:54:17.257193+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: structural enumeration closure and five-callback guard green; focused 42 passed, fast suite 1842 passed; package mypy restored to exact 56-error pre-mission baseline with no archive.py diagnostics.",
+        "Explicit 171-path classification; 69 parse-only drivers; 85 architectural tests and combined quality gates pass; mypy baseline 56 existing source errors",
+        "Operator authorized continuing implementation despite stale analysis caused by regenerated shared charter; analysis report remains unchanged",
+        "Fix cycle 2: 49 parse-only commands prove nonzero error and JSON; 20 default-success paths have explicit non-JSON parser-error evidence and #4664 deferral; corrected empty-stream evidence. Combined gate 89 passed; targeted 60 passed; Ruff clean.",
+        "Independent review of fix cycle 2: 171 explicit path/callback classifications; 49 legacy JSON error-arm drivers require nonzero exit and recognizable error payload; 20 success-only paths explicitly deferred with parser-error probes; empty-stream evidence corrected; architectural gate 85 passed and mission fast suite 1842 passed, 5 skipped."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": {
+        "actor": "operator",
+        "at": "2026-09-16T23:13:39Z",
+        "reason": "[custom] Administrative return to review to record independent verdict through claimed review seam",
+        "wp_id": "WP06"
+      },
+      "review_result": {
+        "reference": "Independent review of fix cycle 2: 171 explicit path/callback classifications; 49 legacy JSON error-arm drivers require nonzero exit and recognizable error payload; 20 success-only paths explicitly deferred with parser-error probes; empty-stream evidence corrected; architectural gate 85 passed and mission fast suite 1842 passed, 5 skipped.",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 78233,
+      "shell_pid_created_at": "1789598133.668962",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done"
+      },
+      "tracker_refs": [
+        "#4532",
+        "#4533",
+        "#4597",
+        "#4598",
+        "#4600",
+        "#4601",
+        "#4643",
+        "#4646"
+      ]
+    }
+  }
+}

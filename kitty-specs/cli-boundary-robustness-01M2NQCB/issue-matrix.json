@@ -1,0 +1,173 @@
+{
+  "rows": {
+    "#2605": {
+      "evidence_ref": "Follow-up: #2605 remains open for implement --json stdout contamination; spec.md Deferred Follow-ups.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Bug: `spec-kitty implement --json` allocator contaminates stdout with Rich output and reports result:null (ANSI in error) on a SUCCESSFUL lane allocation",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2779": {
+      "evidence_ref": "Follow-up: #2779 remains open under #4646 per the ratified bounded OptionInfo scope.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Extract a repo_root-parameterized core for `charter generate`/`synthesize` (retire the Typer-command-as-library call in --resynthesize)",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2899": {
+      "evidence_ref": "Follow-up: #2899 remains the out-of-scope traversal-guard sibling epic.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Umbrella: harden traversal-guard error surfaces (CLI traceback + orchestrator-api JSON envelope)",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4242": {
+      "evidence_ref": "spec.md C-001 and existing frozen #4242 contract tests",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "doctor state-roots --json (and 6 sibling doctor subcommands) emit human prose on stdout on the not-in-project error path, breaking the --json machine contract",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4532": {
+      "evidence_ref": "WP02 shared JSON contract seam and WP06 closure gate",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "doctor family: unify the not-in-project guard control-flow into one shared helper (renderer is single-sourced, the guard is still copy-pasted)",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    },
+    "#4533": {
+      "evidence_ref": "WP05 archive/materialize adoption and WP06 closure gate",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "--json commands leak prose on stdout outside a project beyond the doctor family (archive, materialize) \u2014 enforce the contract at the locate_project_root choke point",
+      "verdict": "in-mission",
+      "wp": "WP05"
+    },
+    "#4597": {
+      "evidence_ref": "WP03 context default repair and WP06 placeholder guard",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "bug: `spec-kitty context` (no subcommand) crashes \u2014 leaks a Typer OptionInfo as the workspace name",
+      "verdict": "in-mission",
+      "wp": "WP03"
+    },
+    "#4598": {
+      "evidence_ref": "WP04 activated-only call-site repair and WP06 guard",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "bug: `spec-kitty mission-type list` / `mission list` always shows inactive types (truthy OptionInfo default for include_inactive)",
+      "verdict": "in-mission",
+      "wp": "WP04"
+    },
+    "#4600": {
+      "evidence_ref": "WP01 startup instance plus WP04 malformed-content instance",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "bug: malformed .kittify/config.yaml crashes with uncaught traceback \u2014 non-UTF-8 bricks every command at startup (UnicodeDecodeError)",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#4601": {
+      "evidence_ref": "WP03 context and WP04 mission-type JSON adoption",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "bug: `context info --json` and `mission-type show --json` emit prose on stdout on error paths (--json contract gap, cf. #4242)",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#4637": {
+      "evidence_ref": "Follow-up: #4637 remains open for state-file robustness; spec.md Deferred Follow-ups.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "bug: `agent release prep` crashes with uncaught FileNotFoundError when pyproject.toml is absent (every non-Python project)",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4642": {
+      "evidence_ref": "Follow-up: #4642 remains open for state-file robustness; spec.md Deferred Follow-ups.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "bug: corrupt per-mission state files crash `next` (meta.json) and `agent decision verify`/`resolve` (decisions/index.json) with uncaught tracebacks",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4643": {
+      "evidence_ref": "WP05 empty-success repair with WP06 closure gate",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "bug: `agent tasks status --json` prints prose (not JSON) on the no-work-packages path (exit 0), breaking the machine contract",
+      "verdict": "in-mission",
+      "wp": "WP05"
+    },
+    "#4646": {
+      "evidence_ref": "WP06 bounded class-closure gates for owned instances",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "CLI bug family: Typer-command-called-as-plain-function leaks OptionInfo sentinels",
+      "verdict": "in-mission",
+      "wp": "WP06"
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,247 @@
+schema_version: 1
+mission_id: 01M2NQCB2B9CTGFDXZVATQKJWR
+mission_slug: cli-boundary-robustness-01M2NQCB
+mission_number: 201
+friendly_name: CLI Boundary Robustness
+mission_type: software-dev
+target_branch: fix/cli-boundary-robustness
+created_at: '2026-09-16T23:54:18.831678+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-16T23:54:18.831678+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-002
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-011
+not_helpful:
+- id: n-014
+  category: doc
+  summary: analysis-report.md present; findings not machine-readable
+  evidence_refs:
+  - e-025
+  details: An analysis-report.md artifact is present for this mission and its frontmatter carries a machine-readable
+    findings count, but no resolved verdict (the verdict key is absent or records the legacy 'unknown' marker), so the
+    count is not asserted; review it manually.
+- id: n-010
+  category: implementation
+  summary: WP01 needed 2 implementation cycles
+  evidence_refs:
+  - e-021
+  details: WP WP01 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-011
+  category: implementation
+  summary: WP02 needed 2 implementation cycles
+  evidence_refs:
+  - e-022
+  details: WP WP02 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-012
+  category: implementation
+  summary: WP05 needed 3 implementation cycles
+  evidence_refs:
+  - e-023
+  details: WP WP05 entered in_progress 3 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-013
+  category: implementation
+  summary: WP06 needed 3 implementation cycles
+  evidence_refs:
+  - e-024
+  details: WP WP06 entered in_progress 3 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-006
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-017
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-007
+  category: process
+  summary: WP02 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-018
+  details: WP WP02 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-008
+  category: process
+  summary: WP05 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-019
+  details: WP WP05 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP06 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-016
+  details: WP WP06 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-009
+  category: process
+  summary: WP06 required 4 --force override(s) during workflow
+  evidence_refs:
+  - e-020
+  details: WP WP06 required 4 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-012
+  details: WP WP01 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-013
+  details: WP WP02 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP05 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP05 was sent back from review/approval to an earlier lane 2 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP06 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP06 was sent back from review/approval to an earlier lane 2 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/tasks/WP01-startup-config-robustness.md
+- id: e-006
+  kind: file
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/tasks/WP02-shared-json-contract.md
+- id: e-007
+  kind: file
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/tasks/WP03-context-boundary-adoption.md
+- id: e-008
+  kind: file
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/tasks/WP04-mission-type-boundary-adoption.md
+- id: e-009
+  kind: file
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/tasks/WP05-remaining-json-adoption.md
+- id: e-010
+  kind: file
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/tasks/WP06-class-closure-gates.md
+- id: e-011
+  kind: file
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/status.events.jsonl
+- id: e-012
+  kind: event_range
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/status.events.jsonl
+  range: 01M2NZ3EZR2VJFHNW4BNE722EW
+- id: e-013
+  kind: event_range
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/status.events.jsonl
+  range: 01M2NYX8DKNV5F533XY52519P0
+- id: e-014
+  kind: event_range
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/status.events.jsonl
+  range: 01M2P1YS2V97APY820HXAWKNGT..01M2P42M3VRB0HD8P04KNJNYFW
+- id: e-015
+  kind: event_range
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/status.events.jsonl
+  range: 01M2P4PH4F2RJD499KZCDB9E9B..01M2P876Z6EDX0QC02GJAQDSXG
+- id: e-016
+  kind: event_range
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/status.events.jsonl
+  range: 01M2P7WQZ1VDC6RBHFS8V24QWQ
+- id: e-017
+  kind: event_range
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/status.events.jsonl
+  range: 01M2NZ3EZR2VJFHNW4BNE722EW
+- id: e-018
+  kind: event_range
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/status.events.jsonl
+  range: 01M2NYX8DKNV5F533XY52519P0
+- id: e-019
+  kind: event_range
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/status.events.jsonl
+  range: 01M2P1YS2V97APY820HXAWKNGT..01M2P42M3VRB0HD8P04KNJNYFW
+- id: e-020
+  kind: event_range
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/status.events.jsonl
+  range: 01M2P4PH4F2RJD499KZCDB9E9B..01M2P876Z6EDX0QC02GJAQDSXG
+- id: e-021
+  kind: event_range
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/status.events.jsonl
+  range: implementation_cycles
+- id: e-022
+  kind: event_range
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/status.events.jsonl
+  range: implementation_cycles
+- id: e-023
+  kind: event_range
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/status.events.jsonl
+  range: implementation_cycles
+- id: e-024
+  kind: event_range
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/status.events.jsonl
+  range: implementation_cycles
+- id: e-025
+  kind: file
+  path: kitty-specs/cli-boundary-robustness-01M2NQCB/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

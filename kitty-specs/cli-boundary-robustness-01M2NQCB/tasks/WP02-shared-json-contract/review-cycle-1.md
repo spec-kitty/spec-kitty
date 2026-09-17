@@ -1,0 +1,11 @@
+---
+affected_files: []
+cycle_number: 1
+mission_slug: cli-boundary-robustness-01M2NQCB
+reproduction_command:
+reviewed_at: '2026-09-16T20:35:37Z'
+reviewer_agent: user
+wp_id: WP02
+---
+
+**Issue 1 — Required red-first checkpoint is missing:** WP02 requires the focused acceptance test to be created and committed before implementation, and its evidence checklist requires retained red/green output. Lane commit `1380145f0` introduces `tests/specify_cli/cli/commands/test_json_contract_boundary.py` together with all production changes (`json_contract.py`, `helpers.py`, and `_doctor_shared.py`), so the history contains no independently verifiable failing-first checkpoint or retained red run. Rework the WP history/evidence so the acceptance test exists in a test-only commit that demonstrably fails against the pre-implementation production tree, followed by the implementation commit and a recorded green run. Preserve the current behavior and the later ownership amendment; the reviewed implementation itself passed 70 focused/compatibility tests, ruff, whole-repository format, and the 90-test terminology guard.

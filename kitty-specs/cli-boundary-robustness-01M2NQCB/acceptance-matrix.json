@@ -1,0 +1,129 @@
+{
+  "mission_slug": "cli-boundary-robustness-01M2NQCB",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Import-time config read fails soft",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/bootstrap/test_cli_boundary_config_4600.py",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-09-16T23:39:41.589710+00:00",
+      "notes": "Automated regression passed; see evidence."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Content-load config read fails loud and clear",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/bootstrap/test_cli_boundary_config_4600.py",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-09-16T23:40:21.795741+00:00",
+      "notes": "Automated regression passed; see evidence."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Malformed-but-parseable config degrades gracefully",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_mission_type_boundary_contract.py",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-09-16T23:40:30.746005+00:00",
+      "notes": "Automated regression passed; see evidence."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Sibling startup/config/version reads are hardened",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/bootstrap/test_cli_boundary_config_4600.py",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-09-16T23:40:39.726460+00:00",
+      "notes": "Automated regression passed; see evidence."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Adopted --json error paths emit the canonical envelope",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_cli_boundary_contract_enumeration.py",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-09-16T23:40:48.750715+00:00",
+      "notes": "Automated regression passed; see evidence."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "--json empty paths emit valid success JSON at exit zero",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_status_cmd_seam.py",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-09-16T23:40:57.748477+00:00",
+      "notes": "Automated regression passed; see evidence."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Adopted --json paths keep stdout machine-clean",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_cli_boundary_contract_enumeration.py",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-09-16T23:41:13.903536+00:00",
+      "notes": "Automated regression passed; see evidence."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Adopted not-in-project paths honor --json",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_remaining_json_boundary_contract.py",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-09-16T23:41:22.844051+00:00",
+      "notes": "Automated regression passed; see evidence."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "No-subcommand invocation uses resolved defaults",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_context_boundary_contract.py",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-09-16T23:41:31.739978+00:00",
+      "notes": "Automated regression passed; see evidence."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "List commands respect the activated-only default",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_mission_type_boundary_contract.py",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-09-16T23:41:40.695035+00:00",
+      "notes": "Automated regression passed; see evidence."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "No internal placeholder leaks into output",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_cli_boundary_contract_enumeration.py",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-09-16T23:41:49.672910+00:00",
+      "notes": "Automated regression passed; see evidence."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Filed issues have traceable regression coverage",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_cli_boundary_contract_enumeration.py",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-09-16T23:41:58.648671+00:00",
+      "notes": "Automated regression passed; see evidence."
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "mission_slug": "cli-boundary-robustness-01M2NQCB",
+  "mission_id": "01M2NQCB2B9CTGFDXZVATQKJWR",
+  "mission_branch": "kitty/mission-cli-boundary-robustness-01M2NQCB",
+  "target_branch": "fix/cli-boundary-robustness",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/consistency_check.py",
+        "src/specify_cli/bootstrap/env_file.py",
+        "src/specify_cli/core/git_ops.py",
+        "src/specify_cli/core/vcs/git.py",
+        "src/specify_cli/core/worktree.py",
+        "src/specify_cli/runtime/doctor.py",
+        "tests/specify_cli/bootstrap/test_cli_boundary_config_4600.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_doctor_shared.py",
+        "src/specify_cli/cli/helpers.py",
+        "src/specify_cli/cli/json_contract.py",
+        "tests/specify_cli/cli/commands/test_json_contract_boundary.py",
+        "tests/specify_cli/cli/test_helpers.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/context.py",
+        "tests/specify_cli/cli/commands/test_context_boundary_contract.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/mission_type.py",
+        "src/specify_cli/cli/commands/mission_type.py",
+        "tests/specify_cli/cli/commands/test_mission_type_boundary_contract.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/agent_utils/status.py",
+        "src/specify_cli/cli/commands/agent/tasks_status_cmd.py",
+        "src/specify_cli/cli/commands/archive.py",
+        "src/specify_cli/cli/commands/dashboard.py",
+        "src/specify_cli/cli/commands/glossary.py",
+        "src/specify_cli/cli/commands/materialize.py",
+        "src/specify_cli/cli/commands/research.py",
+        "src/specify_cli/cli/commands/validate_encoding.py",
+        "src/specify_cli/cli/commands/validate_tasks.py",
+        "src/specify_cli/cli/commands/verify.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_status_cmd_seam.py",
+        "tests/specify_cli/cli/commands/test_remaining_json_boundary_contract.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/architectural/test_cli_boundary_contract_enumeration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-16T21:06:20.502169+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2d10b82ec17d35bd249a2b14df445e2d9b5718ab"
+}
