@@ -2,7 +2,7 @@
 title: Managing the Issue Tracker
 description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, sub-issue parenting, dependencies, triage, the label taxonomy, and the label-driven fleet workflow.'
 doc_status: active
-updated: '2026-09-15'
+updated: '2026-09-17'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -136,7 +136,12 @@ When you decompose an epic into issues:
 
 Every open issue carries two orthogonal classifications a triage pass must get
 right: **what kind of thing it is** (native type) and **how urgent it is**
-(priority). They are set independently and mean different things.
+(priority). They are set independently and mean different things. A third,
+independent axis — **which code domain it lives in** — is carried by the
+`domain:*` labels; assign it from
+[Domain labels](#domain-labels-which-code-domain-the-work-routes-to) rather
+than guessing a surface, since that section keys each label to the enforced
+Modularity SSOT.
 
 ### Native type is the kind carrier
 
@@ -230,22 +235,82 @@ orthogonal to native type (a `catfooding` issue is still a Bug, Feature, or Task
 - `design-spike` — Foundational design work.
 - `research` — Research / experiment validation work.
 
-### Subsystem / domain labels — *where* the work lives
+### Domain labels — *which code domain* the work routes to
 
-Route an issue to its owning surface. Apply every domain that genuinely applies.
+`domain:*` labels route an issue to the **code domain** it lives in. The domain
+set is keyed to the **Modularity SSOT** — the enforced pair CI actually defends,
+not this prose:
+
+- **Module inventory** — `pyproject.toml`
+  `[tool.hatch.build.targets.wheel].packages`, guarded by
+  `tests/architectural/test_pyproject_shape.py`.
+- **Import direction** — the `landscape` fixture in
+  `tests/architectural/conftest.py` + `tests/architectural/test_layer_rules.py`,
+  whose enforced chain is
+  `kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`.
+
+Every prose module map — this section,
+[`docs/architecture/00_landscape/README.md`](../../architecture/00_landscape/README.md),
+`docs/architecture/04_implementation_mapping` — is a **derived view**; on any
+conflict the enforced pair wins. Because the top `specify_cli` module is large, a
+few `domain:*` labels route to its high-traffic sub-packages rather than to the
+whole application layer.
+
+**Selection rule.** Pick the `domain:*` whose code the fix will actually edit;
+apply every domain that genuinely applies (a change spanning modules carries one
+label per surface it really touches). A `domain:*` answers *which module*,
+independently of native type, priority, and the cross-cutting concern labels
+below.
+
+| Label | Code domain (SSOT module / sub-package) |
+|-------|------------------------------------------|
+| `domain:kernel` | `src/kernel/` — zero-dependency foundation primitives (root layer) |
+| `domain:charter` | `src/charter/` — governance authority; **includes the former doctrine system** now absorbed at `src/charter/offering/` |
+| `domain:glossary` | `src/glossary/` — terminology / semantic-integrity pipeline + DRG glossary bridge |
+| `domain:runtime` | `src/runtime/next/_internal_runtime/` — canonical mission control loop |
+| `domain:mission-runtime` | `src/mission_runtime/` — artifact-placement seam (PlacementSeam, resolver port, identity, lifecycle_phase) |
+| `domain:cli` | `src/specify_cli/cli/` — control-plane / CLI command surface |
+| `domain:status` | `src/specify_cli/status/` + `lanes/` + `coordination/` + `workspace/` — status event-log & lane state machine |
+| `domain:merge` | `src/specify_cli/merge/` — mission merge / lane consolidation, retention, preflight |
+| `domain:skills` | `src/specify_cli/skills/` + `upgrade/` — command/skill rendering, install, and migration deployment |
+| `domain:tracker` | `src/specify_cli/tracker/` — tracker provider integrations & connectors (`spec_kitty_tracker` consumer) |
+| `domain:ci` | GitHub Actions workflows (`.github/workflows/`) + `scripts/ci/` — pipeline, gate selection, coverage aggregation |
+| `domain:onboarding` | first-run setup spanning modules (init, charter, remote, first mission) |
+
+> `domain:ci` and `domain:onboarding` name a *workflow surface* that spans
+> modules rather than a single package. They are still domain labels because they
+> answer *where the work lives* for routing — unlike the concern labels below,
+> which name a quality/experience axis that can attach to any domain.
+
+**Legacy non-namespaced labels (operator-owned rename).** These predate the
+`domain:*` namespace but still name a code domain. The target `domain:*` name is
+shown; the rename is an **operator decision** — a rename touches saved searches
+and any label-name automation, so it is not performed as a docs change.
+
+| Legacy label | Target | Code domain |
+|---|---|---|
+| `git` | `domain:git` | `src/specify_cli/git/` + worktree / topology helpers |
+| `dashboard` | `domain:dashboard` | `src/specify_cli/dashboard/` |
+| `saas` | `domain:hosted` | hosted Team Kitty surface: `saas_client/` + `zeitgeist_client/` + `auth/` |
+| `agent-profiles` | `domain:agent-profiles` | agent-profile system in `src/charter/offering/` + profile loading in `specify_cli` |
+| `schema-versioning` | `domain:schema-versioning` | schema / versioning infrastructure (`src/specify_cli/schemas/`, migrations) |
+
+`sync` is **retired, not renamed**: the local sync transport (daemon, offline
+queue, projection delivery) was deleted in The Convergence (ADR
+[`2026-09-06-1-convergence-retirement-and-client-repo-inversion`](../../adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md));
+the hosted path is now the Zeitgeist moment. Re-route any live `sync` issue to
+`domain:hosted` (or `domain:tracker`) and close the transport-specific residue.
+
+### Cross-cutting concern labels — *what quality/experience axis*, not a code domain
+
+These name a concern that spans modules; they are **not** `domain:*` labels and
+do not route to one package. Apply them alongside a `domain:*` label.
 
 - `reliability` — Runtime reliability, resiliency, observability, incident
   prevention.
-- `usability` — Operator/user experience and ergonomics.
+- `usability` — Operator / user experience and ergonomics.
 - `workflow` — Workflow / UX improvements.
-- `git` — How Spec Kitty uses git.
-- `doctrine` — Doctrine system.
-- `agent-profiles` — Agent-profile system.
-- `schema-versioning` — Schema-versioning infrastructure.
-- `sync` — Local event sync, sync daemon, offline queue, projection delivery.
-- `saas` — Hosted SaaS projection, `saas_client`, auth, hosted teamspace.
-- `dashboard` — Dashboard features.
-- `windows` — Windows-specific issues.
+- `windows` — Windows-specific issues (a platform axis, not a module).
 
 ### Triage-state labels — transient hygiene state, not classification
 

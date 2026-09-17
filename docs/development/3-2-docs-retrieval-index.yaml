@@ -7184,7 +7184,8 @@ pages:
     - {slug: "what-good-first-issue-means-here", text: "What \"good first issue\" means here", level: 3}
     - {slug: "label-taxonomy", text: "Label taxonomy", level: 2}
     - {slug: "classification-labels-what-kind-of-work-it-is", text: "Classification labels — what *kind of work* it is", level: 3}
-    - {slug: "subsystem-domain-labels-where-the-work-lives", text: "Subsystem / domain labels — *where* the work lives", level: 3}
+    - {slug: "domain-labels-which-code-domain-the-work-routes-to", text: "Domain labels — *which code domain* the work routes to", level: 3}
+    - {slug: "cross-cutting-concern-labels-what-quality-experience-axis-not-a-code-domain", text: "Cross-cutting concern labels — *what quality/experience axis*, not a code domain", level: 3}
     - {slug: "triage-state-labels-transient-hygiene-state-not-classification", text: "Triage-state labels — transient hygiene state, not classification", level: 3}
     - {slug: "pr-workflow-labels-for-pull-requests-not-issues", text: "PR-workflow labels — for pull requests, not issues", level: 3}
     - {slug: "lifecycle-community-labels", text: "Lifecycle & community labels", level: 3}
