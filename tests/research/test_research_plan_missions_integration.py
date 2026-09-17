@@ -31,7 +31,7 @@ schema (missing required step fields, a steps-free template, a broken
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -66,12 +66,14 @@ _SATISFIED_FACTS: Mapping[str, Any] = {
 }
 
 
-def _load_yaml(mission_name: str) -> dict:
+def _load_yaml(mission_name: str) -> dict[str, Any]:
     """Load a mission.yaml from the missions directory."""
     path = MISSIONS_DIR / mission_name / "mission.yaml"
     assert path.exists(), f"Missing mission.yaml at {path}"
     with open(path) as f:
-        return yaml.safe_load(f)
+        loaded = yaml.safe_load(f)
+    assert isinstance(loaded, dict), f"{path} did not load as a mapping"
+    return loaded
 
 
 def _load_runtime(mission_name: str) -> MissionTemplate:
@@ -118,7 +120,7 @@ def _guard_failures(
     return evaluate_guards(snapshot)
 
 
-def _mutated_runtime(mission_name: str, mutate) -> MissionTemplate:
+def _mutated_runtime(mission_name: str, mutate: Callable[[dict[str, Any]], None]) -> MissionTemplate:
     """Load a copy of a real mission-runtime.yaml after mutating its raw dict."""
     path = MISSIONS_DIR / mission_name / "mission-runtime.yaml"
     raw = yaml.safe_load(path.read_text())
@@ -410,7 +412,7 @@ class TestReplacementCatchesCurrentSchemaRegressions:
     def test_loader_rejects_a_step_missing_its_title(self) -> None:
         """A current-schema regression: dropping a required step field."""
 
-        def mutate(raw: dict) -> None:
+        def mutate(raw: dict[str, Any]) -> None:
             del raw["steps"][0]["title"]
 
         with pytest.raises(ValidationError):
@@ -433,7 +435,7 @@ class TestReplacementCatchesCurrentSchemaRegressions:
         depending on its predecessor. The lifecycle-chain assertion is what
         holds this constraint, so it must fail on the break."""
 
-        def mutate(raw: dict) -> None:
+        def mutate(raw: dict[str, Any]) -> None:
             raw["steps"][1]["depends_on"] = []
 
         broken = _mutated_runtime("research", mutate)
@@ -445,7 +447,7 @@ class TestReplacementCatchesCurrentSchemaRegressions:
         guard table no longer knows it (the guard would fail closed at
         runtime). The consistency check surfaces exactly this failure."""
 
-        def mutate(raw: dict) -> None:
+        def mutate(raw: dict[str, Any]) -> None:
             for step in raw["steps"]:
                 if step["id"] == "gathering":
                     step["id"] = "collection"
