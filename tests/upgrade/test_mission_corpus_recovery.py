@@ -18,6 +18,9 @@ from typing import Any
 
 import pytest
 
+from specify_cli.audit.classifiers.status_json import _is_terminal_snapshot
+from specify_cli.status import materialize_snapshot, materialize_to_json
+
 from tests.architectural import test_archive_root_byte_identical as gate
 from tests.architectural.test_upgrade_recovery_preservation import (
     build_recovery_repo,
@@ -212,8 +215,22 @@ def test_original_full_corpus_fails_then_recovered_and_landed_corpus_passes(
         if path.endswith("meta.json"):
             target.unlink()
         else:
-            source = gate.SOURCE if path == gate.SNAPSHOTS[2] else gate.ORIGINAL
-            target.write_bytes(git(REPO_ROOT, "show", f"{source}:{path}"))
+            mission_dir = target.parent
+            terminal = _is_terminal_snapshot(materialize_to_json(materialize_snapshot(mission_dir)))
+            if terminal:
+                # A completed (all-WPs-done) mission's snapshot drift is no
+                # longer a hard teamspace blocker after the corpus-tolerance
+                # fix (SNAPSHOT_DRIFT_TERMINAL/WARNING) -- writing back the
+                # old drifted status.json would no longer reintroduce a
+                # blocker here, defeating this loop's anti-hollowing proof.
+                # Corrupt the JSON outright instead: CORRUPT_JSON is a hard
+                # blocker regardless of mission terminality, so the
+                # scan-reaches-this-file / re-detects-a-defect proof still
+                # holds for terminal missions too.
+                target.write_bytes(b"{ not valid json")
+            else:
+                source = gate.SOURCE if path == gate.SNAPSHOTS[2] else gate.ORIGINAL
+                target.write_bytes(git(REPO_ROOT, "show", f"{source}:{path}"))
         bad_result, bad = audit(repo, recovered_membership)
         with pytest.raises(AssertionError, match="full corpus TeamSpace blockers remain"):
             assert_zero(bad_result, bad)
@@ -397,6 +414,18 @@ def test_real_upgrade_yes_preserves_history_until_separate_tty_consent(tmp_path:
     git(repo, "config", "commit.gpgsign", "false")
     directory = gate.SNAPSHOTS[0].rsplit("/", 1)[0]
     export_tree(repo, gate.ORIGINAL, directory)
+    snapshot_path = repo / gate.SNAPSHOTS[0]
+    mission_dir = snapshot_path.parent
+    if _is_terminal_snapshot(materialize_to_json(materialize_snapshot(mission_dir))):
+        # This mission is completed (every WP reaches "done" in the event
+        # log), so its historical snapshot drift alone is no longer a hard
+        # teamspace blocker after the corpus-tolerance fix
+        # (SNAPSHOT_DRIFT_TERMINAL is WARNING, not ERROR) -- the damaged
+        # corpus would no longer reach the gate this test proves. Corrupt
+        # the JSON outright instead: CORRUPT_JSON is a hard blocker
+        # regardless of mission terminality, so this test still exercises a
+        # real damaged-corpus gate.
+        snapshot_path.write_bytes(b"{ not valid json")
     git(repo, "add", "-f", ".")
     git(repo, "commit", "-m", "Real damaged historical corpus")
     before = inventory(repo)
@@ -420,7 +449,5 @@ def test_real_upgrade_yes_preserves_history_until_separate_tty_consent(tmp_path:
     (tmp_path / "upgrade-approved.stderr").write_bytes(stderr)
     assert b"--fix" in stdout, "independent TTY consent prompt was not reached"
     assert inventory(repo) != before, "separate consent never reached the repair owner"
-    from specify_cli.status.reducer import materialize_snapshot, materialize_to_json
-
     snapshot = repo / gate.SNAPSHOTS[0]
     assert snapshot.read_bytes() == materialize_to_json(materialize_snapshot(snapshot.parent)).encode()
