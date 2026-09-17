@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "review-ref-wire-bound-01M2QNMY",
+  "mission_id": "01M2QNMY7RBESVYKPDD6R7XXRD",
+  "mission_branch": "kitty/mission-review-ref-wire-bound-01M2QNMY",
+  "target_branch": "issue-3954-review-ref-wire-bound",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/status/zeitgeist_bridge.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_review_ref_broadcast.py",
+        "tests/status/test_zeitgeist_moment_handler.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-17T12:48:49.072175+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "83282f877be3b9cb3f4cfc3c5d574d4efbf3d0b7"
+}

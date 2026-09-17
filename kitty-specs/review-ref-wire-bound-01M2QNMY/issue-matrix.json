@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#3954": {
+      "evidence_ref": "0882302adb",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4266": {
+      "evidence_ref": "Dead dependency: CLOSED/NOT_PLANNED, superseded by planning#2269 (Zeitgeist carries NOW, Git carries DONE); no action in this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4318": {
+      "evidence_ref": "0882302adb",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4319": {
+      "evidence_ref": "Prior art: CLOSED unmerged under Robert's KISS audit; superseded by this fresh minimal interim. Reference only.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4327": {
+      "evidence_ref": "Explicitly OUT of scope (post-MVP structural fix: dedicated summary attr + review_ref pointer-only); follow-up tracked in #4327.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4336": {
+      "evidence_ref": "PR implementing #4327; out of scope post-MVP; kept separate so merging it doesn't collapse the interim/structural split.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,51 @@
+{
+  "event_count": 6,
+  "last_event_id": "01M2QSWTT1RRVY7KJJX3YGKMDZ",
+  "materialized_at": "2026-09-17T13:46:30.081755+00:00",
+  "mission_number": "",
+  "mission_slug": "review-ref-wire-bound-01M2QNMY",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M2QSWTT1RRVY7KJJX3YGKMDZ",
+      "last_transition_at": "2026-09-17T13:46:30.081755+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Approved by reviewer-renata (opus): matches contract, boundary clean, full T1-T8+T5b red-first, KISS, ruff/mypy clean, #4318 fixed, SUNSET marked."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Approved by reviewer-renata (opus): matches contract, boundary clean, full T1-T8+T5b red-first, KISS, ruff/mypy clean, #4318 fixed, SUNSET marked.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3804884,
+      "shell_pid_created_at": "1789649941.15",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    }
+  }
+}
