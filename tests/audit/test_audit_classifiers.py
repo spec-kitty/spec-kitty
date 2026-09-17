@@ -19,7 +19,7 @@ from specify_cli.audit.classifiers.mission_events import classify_mission_events
 from specify_cli.audit.classifiers.status_events import classify_status_events_jsonl
 from specify_cli.audit.classifiers.status_json import classify_status_json
 from specify_cli.audit.classifiers.wp_files import classify_wp_files
-from specify_cli.audit.models import Severity
+from specify_cli.audit.models import Severity, is_teamspace_blocker
 
 
 # ---------------------------------------------------------------------------
@@ -655,6 +655,92 @@ def test_status_json_non_ascii_materialized_snapshot_is_not_drift(
     findings = classify_status_json(tmp_path)
 
     assert "SNAPSHOT_DRIFT" not in _codes(findings)
+
+
+def test_status_json_terminal_mission_drift_is_warning_not_blocker(
+    tmp_path: Path,
+) -> None:
+    """A completed (all-WPs-done) mission's frozen, drifted status.json must
+    report SNAPSHOT_DRIFT_TERMINAL/WARNING, not SNAPSHOT_DRIFT/ERROR — the
+    archive gate forbids editing an archived dossier's status.json, so a
+    hard teamspace-blocker on unfixable drift would be permanently red.
+    """
+    from specify_cli.status.reducer import materialize
+
+    _write_json(
+        tmp_path / "meta.json",
+        {
+            "mission_id": _VALID_ULID,
+            "mission_slug": "test-mission",
+            "mission_number": 1,
+            "mission_type": "software-dev",
+        },
+    )
+    _write_jsonl(
+        tmp_path / "status.events.jsonl",
+        [{**_MODERN_EVENT, "to_lane": "done"}],
+    )
+    materialize(tmp_path)
+
+    # Simulate the frozen dossier drifting from the current reducer by
+    # hand-editing the persisted status.json without touching the event log
+    # (exactly what an archived, immutable dossier looks like after the
+    # reducer's output shape evolves).
+    status_path = tmp_path / "status.json"
+    persisted = json.loads(status_path.read_text(encoding="utf-8"))
+    persisted["event_count"] = persisted["event_count"] + 1
+    status_path.write_text(
+        json.dumps(persisted, sort_keys=True, indent=2) + "\n", encoding="utf-8"
+    )
+
+    findings = classify_status_json(tmp_path)
+
+    terminal_drift = [f for f in findings if f.code == "SNAPSHOT_DRIFT_TERMINAL"]
+    assert len(terminal_drift) == 1
+    assert terminal_drift[0].severity == Severity.WARNING
+    assert is_teamspace_blocker(terminal_drift[0]) is False
+    assert "SNAPSHOT_DRIFT" not in _codes(findings)
+
+
+def test_status_json_active_mission_drift_stays_hard_blocker(
+    tmp_path: Path,
+) -> None:
+    """An active (not all-WPs-done) mission's drifted status.json must keep
+    the existing SNAPSHOT_DRIFT/ERROR teamspace-blocker behavior — its live
+    status.json is stale and fixable by regeneration, unlike a frozen
+    archived dossier.
+    """
+    from specify_cli.status.reducer import materialize
+
+    _write_json(
+        tmp_path / "meta.json",
+        {
+            "mission_id": _VALID_ULID,
+            "mission_slug": "test-mission",
+            "mission_number": 1,
+            "mission_type": "software-dev",
+        },
+    )
+    _write_jsonl(
+        tmp_path / "status.events.jsonl",
+        [{**_MODERN_EVENT, "to_lane": "in_progress"}],
+    )
+    materialize(tmp_path)
+
+    status_path = tmp_path / "status.json"
+    persisted = json.loads(status_path.read_text(encoding="utf-8"))
+    persisted["event_count"] = persisted["event_count"] + 1
+    status_path.write_text(
+        json.dumps(persisted, sort_keys=True, indent=2) + "\n", encoding="utf-8"
+    )
+
+    findings = classify_status_json(tmp_path)
+
+    drift = [f for f in findings if f.code == "SNAPSHOT_DRIFT"]
+    assert len(drift) == 1
+    assert drift[0].severity == Severity.ERROR
+    assert is_teamspace_blocker(drift[0]) is True
+    assert "SNAPSHOT_DRIFT_TERMINAL" not in _codes(findings)
 
 
 # ---------------------------------------------------------------------------

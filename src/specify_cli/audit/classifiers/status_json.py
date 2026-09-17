@@ -118,13 +118,48 @@ def classify_status_json(
         persisted_normalised = raw_text
 
     if computed_json != persisted_normalised:
-        findings.append(
-            MissionFinding(
-                code="SNAPSHOT_DRIFT",
-                severity=Severity.ERROR,
-                artifact_path="status.json",
-                detail="reducer output does not match persisted status.json",
+        if _is_terminal_snapshot(computed_json):
+            findings.append(
+                MissionFinding(
+                    code="SNAPSHOT_DRIFT_TERMINAL",
+                    severity=Severity.WARNING,
+                    artifact_path="status.json",
+                    detail=(
+                        "a completed mission's frozen status.json no longer matches "
+                        "the current reducer output, but every work package is "
+                        "'done' and the dossier is immutable (the archive gate "
+                        "forbids editing it), so this drift is not an actionable "
+                        "TeamSpace-readiness problem"
+                    ),
+                )
             )
-        )
+        else:
+            findings.append(
+                MissionFinding(
+                    code="SNAPSHOT_DRIFT",
+                    severity=Severity.ERROR,
+                    artifact_path="status.json",
+                    detail="reducer output does not match persisted status.json",
+                )
+            )
 
     return findings
+
+
+def _is_terminal_snapshot(computed_json: str) -> bool:
+    """Return True when every work package in the authoritative reducer
+    output (``computed_json``, from ``materialize_to_json``) has reached the
+    terminal ``done`` lane.
+
+    A mission with no work packages at all is not considered terminal —
+    an empty ``work_packages`` mapping usually means the reducer could not
+    reconstruct any state (e.g. an empty or absent event log), which is an
+    active/unfixable-by-regeneration case, not a completed one.
+    """
+    work_packages = json.loads(computed_json).get("work_packages", {})
+    if not isinstance(work_packages, dict) or not work_packages:
+        return False
+    return all(
+        isinstance(wp, dict) and wp.get("lane") == "done"
+        for wp in work_packages.values()
+    )

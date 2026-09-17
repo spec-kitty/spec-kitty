@@ -72,6 +72,27 @@ def _lane_rows() -> list[dict[str, object]]:
                 "wp_id": "WP01",
             }
         )
+    # WP02 stays "planned" (never transitions) so the reducer's authoritative
+    # snapshot is NOT all-WPs-done -- this mission is a live, in-development
+    # worktree with a stale primary snapshot, not a completed/archived
+    # dossier, so the #2320 regression must keep exercising the hard
+    # SNAPSHOT_DRIFT/ERROR path (the corpus-tolerance fix's
+    # SNAPSHOT_DRIFT_TERMINAL/WARNING downgrade is for archived, all-done
+    # missions only).
+    rows.append(
+        {
+            "actor": "claude-code",
+            "at": "2026-07-03T10:00:00+00:00",
+            "event_id": "01KWNP7Q8R9TVWXY2Z3A4B5C5C",
+            "execution_mode": "worktree",
+            "force": False,
+            "from_lane": "planned",
+            "to_lane": "planned",
+            "mission_id": _MISSION_ID,
+            "mission_slug": _SLUG,
+            "wp_id": "WP02",
+        }
+    )
     return rows
 
 
@@ -94,10 +115,17 @@ def _seed_mission(root: Path) -> Path:
     (mission / "status.events.jsonl").write_text(
         "".join(json.dumps(row) + "\n" for row in _lane_rows()), encoding="utf-8"
     )
-    # Frozen / stale snapshot — the drift the audit flags.
+    # Frozen / stale snapshot — the drift the audit flags. WP02 is already
+    # correctly "planned" here (it never advances); only WP01 is stale.
     (mission / "status.json").write_text(
         json.dumps(
-            {"summary": {"planned": 1}, "work_packages": {"WP01": {"lane": "planned"}}},
+            {
+                "summary": {"planned": 2},
+                "work_packages": {
+                    "WP01": {"lane": "planned"},
+                    "WP02": {"lane": "planned"},
+                },
+            },
             indent=2,
             sort_keys=True,
         )
@@ -145,7 +173,7 @@ def test_repair_from_worktree_materializes_primary_status_json(tmp_path: Path) -
     )
     summary = json.loads((primary_mission / "status.json").read_text(encoding="utf-8"))["summary"]
     assert summary["done"] == 1
-    assert summary["planned"] == 0
+    assert summary["planned"] == 1
 
 
 def test_repair_from_worktree_leaves_coord_worktree_clean(tmp_path: Path) -> None:

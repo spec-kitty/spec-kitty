@@ -164,8 +164,14 @@ def test_original_full_corpus_fails_then_recovered_and_landed_corpus_passes(
     expected = {
         "R2-T1-local-legacy-removal": "IDENTITY_MISSING",
         "reject-cyclic-lane-graphs-01M0QCK4": "IDENTITY_MISSING",
-        "doctrine-drg-silent-drop-boundary-01M0PE7E": "SNAPSHOT_DRIFT",
-        "symbolkey-source-module-01M0B0SF": "SNAPSHOT_DRIFT",
+        # Both missions are completed (every WP reaches "done" in the event
+        # log), so their frozen status.json drift downgrades to the
+        # non-blocking SNAPSHOT_DRIFT_TERMINAL/WARNING code (corpus-tolerance
+        # fix) instead of the hard SNAPSHOT_DRIFT/ERROR teamspace blocker.
+        # ``assert_zero`` above still fails on this corpus because the two
+        # IDENTITY_MISSING findings remain hard blockers.
+        "doctrine-drg-silent-drop-boundary-01M0PE7E": "SNAPSHOT_DRIFT_TERMINAL",
+        "symbolkey-source-module-01M0B0SF": "SNAPSHOT_DRIFT_TERMINAL",
     }
     for mission in original["missions"]:
         name = mission["mission_slug"]

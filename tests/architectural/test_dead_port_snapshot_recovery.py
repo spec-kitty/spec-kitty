@@ -58,12 +58,21 @@ def recovered_repo(historical_repo: Path) -> Path:
 def test_exact_reviewed_replay_passes_without_hiding_original_corpus_drift(historical_repo: Path) -> None:
     gate.test_no_preexisting_archived_file_was_modified()
     original = (historical_repo / SNAPSHOT).read_bytes()
-    assert "SNAPSHOT_DRIFT" in {finding.code for finding in classify_status_json(historical_repo / DIRECTORY)}
+    # dead-port-disposition-01M1VRA2 is a terminal (all-WPs-done) archived
+    # mission, so its unfixable snapshot drift downgrades to the
+    # non-blocking SNAPSHOT_DRIFT_TERMINAL/WARNING code (corpus-tolerance
+    # fix) rather than the hard SNAPSHOT_DRIFT/ERROR blocker -- but drift is
+    # still surfaced, not silently hidden.
+    codes_before = {finding.code for finding in classify_status_json(historical_repo / DIRECTORY)}
+    assert "SNAPSHOT_DRIFT_TERMINAL" in codes_before
+    assert "SNAPSHOT_DRIFT" not in codes_before
     assert (historical_repo / SNAPSHOT).read_bytes() == original
     recover(historical_repo)
     gate.test_no_preexisting_archived_file_was_modified()
     candidate = (historical_repo / SNAPSHOT).read_bytes()
-    assert "SNAPSHOT_DRIFT" not in {finding.code for finding in classify_status_json(historical_repo / DIRECTORY)}
+    codes_after = {finding.code for finding in classify_status_json(historical_repo / DIRECTORY)}
+    assert "SNAPSHOT_DRIFT" not in codes_after
+    assert "SNAPSHOT_DRIFT_TERMINAL" not in codes_after
     assert (historical_repo / SNAPSHOT).read_bytes() == candidate
     git(historical_repo, "commit", "-m", "Land reviewed recovery")
     git(historical_repo, "update-ref", "refs/remotes/origin/main", "HEAD")
