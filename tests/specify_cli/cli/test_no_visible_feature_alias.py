@@ -132,11 +132,26 @@ def test_help_output_never_mentions_feature_alias() -> None:
     startup gates) made this single ``fast``+``unit`` test run for 30+
     minutes (#4636). The ``--help`` option short-circuits in
     ``parse_args`` before any command callback runs, so a direct leaf
-    invoke renders the exact same help text without paying the root
-    bootstrap once per leaf. The only rendering difference is the usage
-    line's prog name (the leaf name instead of the full command path),
-    which cannot carry option flags and so cannot mask a ``--feature``
-    regression.
+    invoke renders the leaf's own help text without paying the root
+    bootstrap once per leaf. Two classes of output differ from a
+    root-routed invoke, and both are intentionally out of scope for this
+    invariant: the usage line's prog name (the leaf name instead of the
+    full command path), and ancestor group-callback side output — e.g.
+    the deprecated ``doctrine`` group's CR-02 deprecation banner
+    (``cli/commands/doctrine.py::_deprecation_warning``) and the
+    ``tracker`` group's rollout-gate callback
+    (``cli/commands/tracker.py::tracker_callback``). Neither can mask a
+    ``--feature`` regression: the prog name is not an option flag, the
+    group-callback text is static side output, and the leaf's Options
+    section renders byte-identically either way.
+
+    The direct form is also strictly stronger for gated groups: with the
+    ``tracker`` rollout gate closed, a root-routed invoke exited 1 before
+    the leaf's help ever rendered, and with no exit-code assert the old
+    test would have scanned the gate's error text and silently passed
+    those leaves. Direct invoke plus the ``exit_code == 0`` assert below
+    closes that hole — any future leaf whose ``--help`` stops rendering
+    fails loudly instead of being skipped.
     """
     runner = CliRunner()
     offenders: list[tuple[str, str]] = []
