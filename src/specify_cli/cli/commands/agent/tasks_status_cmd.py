@@ -40,7 +40,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, NoReturn, TypeAlias
 
 import typer
 
@@ -150,6 +150,26 @@ class _StatusState:
     stalled_wps: list[dict[str, object]] = field(default_factory=list)
 
 
+def _status_error(json_output: bool, message: str) -> None:
+    """Render status failures at the command boundary."""
+    from specify_cli.cli.commands.agent import tasks as _tasks
+    from specify_cli.cli.json_contract import json_error
+
+    if json_output:
+        _tasks.console.emit_json(json_error("status_failed", message))
+    else:
+        _tasks._output_error(False, message)
+
+
+def _status_selector_error(code: str, message: str, exit_code: int, details: dict[str, object]) -> NoReturn:
+    """Adapt selector diagnostics before legacy delegates render any output."""
+    from specify_cli.cli.commands.agent import tasks as _tasks
+    from specify_cli.cli.json_contract import json_error
+
+    _tasks.console.emit_json({**json_error(code, message), **details})
+    raise typer.Exit(exit_code)
+
+
 def _st_resolve_dirs(st: _StatusState) -> None:
     """Phase A: repo/mission resolution + the CWD-independent read-dir resolution.
 
@@ -162,10 +182,16 @@ def _st_resolve_dirs(st: _StatusState) -> None:
     st.cwd = Path.cwd().resolve()
     repo_root = _tasks.locate_project_root(st.cwd)
     if repo_root is None:
+        _status_error(st.json_output, "Not in a spec-kitty project")
         raise typer.Exit(1)
     st.repo_root = repo_root
 
-    st.mission_slug = _tasks._find_mission_slug(explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root)
+    st.mission_slug = _tasks._find_mission_slug(
+        explicit_mission=st.mission,
+        json_output=st.json_output,
+        repo_root=repo_root,
+        error_handler=_status_selector_error if st.json_output else None,
+    )
     st.main_repo_root, _ = _tasks._ensure_target_branch_checked_out(repo_root, st.mission_slug, st.json_output)
 
     # Route through the single guarded read-side seam (WP01/IC-01; FR-002, C-007).
@@ -191,7 +217,7 @@ def _st_resolve_dirs(st: _StatusState) -> None:
         if legacy_dir.exists():
             feature_dir = legacy_dir
         else:
-            _tasks.console.print(f"[red]Error:[/red] Mission directory not found: {feature_dir}")
+            _status_error(st.json_output, f"Mission directory not found: {feature_dir}")
             raise typer.Exit(1)
     st.feature_dir = feature_dir
 
@@ -199,7 +225,7 @@ def _st_resolve_dirs(st: _StatusState) -> None:
     # WP03 T009). The STATUS leg stays on the coord-aware ``feature_dir`` above.
     st.tasks_dir = placement_seam(st.main_repo_root, st.mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / "tasks"
     if not st.tasks_dir.exists():
-        _tasks.console.print(f"[red]Error:[/red] Tasks directory not found: {st.tasks_dir}")
+        _status_error(st.json_output, f"Tasks directory not found: {st.tasks_dir}")
         raise typer.Exit(1)
 
 
@@ -316,7 +342,6 @@ def _st_load_work_packages(st: _StatusState) -> None:
     byte-identical to the coordination-aware board of before.
     """
     from runtime.next.committed_authority import committed_status_dir
-    from specify_cli.cli.commands.agent import tasks as _tasks
 
     committed_dir = committed_status_dir(st.main_repo_root, st.mission_slug)
     status_read_dir = committed_dir if committed_dir is not None else st.feature_dir
@@ -413,10 +438,6 @@ def _st_load_work_packages(st: _StatusState) -> None:
                 "workspace_kind": workspace_kind,
             }
         )
-
-    if not st.work_packages:
-        _tasks.console.print(f"[yellow]No work packages found in {st.tasks_dir}[/yellow]")
-        raise typer.Exit(0)
 
 
 def _st_apply_review_flags(st: _StatusState) -> None:
@@ -852,7 +873,6 @@ def _do_status(
     order as the original single body: resolve → load → flag → render — so the
     WP05 byte-identical aggregation and the git/clock staleness sequence are intact.
     """
-    from specify_cli.cli.commands.agent import tasks as _tasks
 
     ports = ports or _default_status_ports()
     st = _StatusState(mission=mission, json_output=json_output, stale_threshold=stale_threshold)
@@ -863,11 +883,14 @@ def _do_status(
         if st.json_output:
             _st_emit_json(st, ports)
             return
+        if not st.work_packages:
+            ports.render.human(f"[yellow]No work packages found in {st.tasks_dir}[/yellow]")
+            return
         _st_render_human(st, ports)
     except typer.Exit:
         raise
     except Exception as e:
-        _tasks._output_error(json_output, str(e))
+        _status_error(json_output, str(e))
         raise typer.Exit(1) from None
 
 

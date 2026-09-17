@@ -1150,33 +1150,23 @@ def mission_type_list(
     # real layer, matching this command's own contract (activation-scoped
     # listing is `charter mission-type list`'s job, not this one's).
     from specify_cli.cli.commands.charter.mission_type import (  # noqa: PLC0415
+        mission_type_error_boundary,
         resolve_layered_roster,
         resolve_mission_type_source_layer,
     )
 
     repo_root = Path.cwd()
 
-    # CL-006/NFR-002 (post-fix verification sweep, mission
-    # up-mission-type-seam-01KZY1JB): sibling of the same unguarded call in
-    # ``charter mission-type list`` -- ``resolve_layered_roster`` loud-fails
-    # BY DESIGN (WP03, PR-CONTRACT-002) on a malformed/unreadable YAML file
-    # anywhere in the built-in/org/project ``mission_types/`` layers. A bare
-    # ``except ValueError`` also catches ``pydantic.ValidationError`` (this
-    # resolver's other documented ``Raises`` type) since it subclasses
-    # ``ValueError`` in the pinned pydantic version.
-    try:
+    with mission_type_error_boundary(json_output):
         roster = resolve_layered_roster(repo_root)
-    except ValueError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
-    rows: list[_MissionTypeRow] = [
-        _MissionTypeRow(
-            id=mt_id,
-            source_layer=resolve_mission_type_source_layer(mt_id, repo_root),
-            display_name=mission_type.display_name,
-        )
-        for mt_id, mission_type in roster.items()
-    ]
+        rows: list[_MissionTypeRow] = [
+            _MissionTypeRow(
+                id=mt_id,
+                source_layer=resolve_mission_type_source_layer(mt_id, repo_root),
+                display_name=mission_type.display_name,
+            )
+            for mt_id, mission_type in roster.items()
+        ]
 
     # Sort: built-in first (already the case), then by id within each layer.
     rows.sort(key=lambda r: (r.source_layer != "built-in", r.id))

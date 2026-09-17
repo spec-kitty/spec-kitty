@@ -2,7 +2,8 @@
 
 This module is the **single canonical home (H1, I-3)** for the cross-cutting
 infrastructure every ``doctor`` sibling needs: the shared Rich ``console``
-singleton, the ``--json`` output guards, and the module constants. Extracting
+singleton, the root-resolution guard, and the module constants. The canonical
+CLI JSON contract is re-exported from :mod:`specify_cli.cli.json_contract`. Extracting
 it first (WP02, #2059) gives WP03–WP10 a stable surface to import, and removes
 the dominant circular-import hazard: every module that emits output MUST use the
 SAME :class:`rich.console.Console` instance, never re-instantiate one (a
@@ -10,8 +11,8 @@ per-module ``Console()`` breaks ``--json`` stdout cleanliness and the byte-pinne
 doctrine-selections snapshot).
 
 Import discipline (one-way graph, I-2): this module imports only the standard
-library, :mod:`rich`, and :mod:`._profile_health_render` (for the ``console``
-singleton). It must NEVER import a cluster sibling or ``doctor.py``.
+library, Typer, the CLI JSON contract, core env helpers, and
+:mod:`._profile_health_render` (for the ``console`` singleton). It must NEVER import a cluster sibling or ``doctor.py``.
 
 Canonical console direction: ``console`` is instantiated exactly once in
 :mod:`._profile_health_render` and re-exported here. ``doctor.py`` and every
@@ -21,12 +22,17 @@ extracted sibling import ``console`` from this module, so a single
 
 from __future__ import annotations
 
-import json
-import logging
 import os
-import warnings
-from collections.abc import Generator
-from contextlib import contextmanager
+from collections.abc import Callable
+from pathlib import Path
+from typing import Literal, overload
+
+import typer
+
+from specify_cli.cli.json_contract import (
+    json_error as _json_error,
+    json_output_guard as _json_output_guard,
+)
 
 from specify_cli.core.env import is_interactive, is_truthy
 
@@ -43,6 +49,7 @@ __all__ = [
     "_json_output_guard",
     "_json_error",
     "_emit_not_in_project",
+    "resolve_project_root_or_exit",
 ]
 
 # CI env-vars that should force non-interactive behaviour even when stdin
@@ -81,33 +88,6 @@ def _is_interactive_environment() -> bool:
     return all(not is_truthy(os.environ.get(var)) for var in _CI_ENV_VARS)
 
 
-@contextmanager
-def _json_output_guard(enabled: bool) -> Generator[None, None, None]:
-    """Keep ``--json`` stdout/stderr machine-clean."""
-    if not enabled:
-        yield
-        return
-
-    previous_disable = logging.root.manager.disable
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        logging.disable(logging.CRITICAL)
-        try:
-            yield
-        finally:
-            logging.disable(previous_disable)
-
-
-def _json_error(code: str, message: str) -> dict[str, object]:
-    return {
-        "ok": False,
-        "error": {
-            "code": code,
-            "message": message,
-        },
-    }
-
-
 def _emit_not_in_project(json_output: bool) -> None:
     """Emit the not-in-project error on the channel the caller contracted for.
 
@@ -119,6 +99,32 @@ def _emit_not_in_project(json_output: bool) -> None:
     the whole family honors ``--json`` identically (#4242).
     """
     if json_output:
-        console.print_json(json.dumps(_json_error("not_in_project", _NOT_IN_PROJECT_MESSAGE), indent=2))
+        console.emit_json(_json_error("not_in_project", _NOT_IN_PROJECT_MESSAGE))
     else:
         console.print(f"[red]Error:[/red] {_NOT_IN_PROJECT_MESSAGE}")
+
+
+@overload
+def resolve_project_root_or_exit(resolver: Callable[[], Path | None], json_output: bool, *, exit_code: int = 1, allow_none: Literal[False] = False) -> Path: ...
+
+
+@overload
+def resolve_project_root_or_exit(resolver: Callable[[], Path | None], json_output: bool, *, exit_code: int = 1, allow_none: bool) -> Path | None: ...
+
+
+def resolve_project_root_or_exit(resolver: Callable[[], Path | None], json_output: bool, *, exit_code: int = 1, allow_none: bool = False) -> Path | None:
+    """Resolve through the caller's patchable seam or emit the doctor error.
+
+    ``allow_none`` preserves mission-state's fixtures-only return; a raised
+    resolver is always an error, even when fixtures permit an absent project.
+    Each command retains its own failure exit code.
+    """
+    try:
+        root = resolver()
+    except Exception as exc:
+        _emit_not_in_project(json_output)
+        raise typer.Exit(exit_code) from exc
+    if root is None and not allow_none:
+        _emit_not_in_project(json_output)
+        raise typer.Exit(exit_code)
+    return root

@@ -37,7 +37,7 @@ def dashboard(
     ),
 ) -> None:
     """Open or stop the Spec Kitty dashboard."""
-    project_root = get_project_root_or_exit()
+    project_root = get_project_root_or_exit(json_output=emit_json)
 
     # --json: emit mission registry keyed by mission_id and exit early.
     if emit_json:

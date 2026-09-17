@@ -126,7 +126,7 @@ def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
     if git_path.is_file():
         # Worktree: .git file contains "gitdir: /path/to/real/.git/worktrees/name"
         try:
-            content = git_path.read_text().strip()
+            content = git_path.read_text(encoding="utf-8").strip()
             if content.startswith("gitdir:"):
                 git_dir = Path(content[7:].strip())
                 exclude_file = git_dir / "info" / "exclude"
@@ -145,13 +145,13 @@ def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
     existing: set[str] = set()
     if exclude_file.exists():
         with contextlib.suppress(OSError):
-            existing = set(exclude_file.read_text().splitlines())
+            existing = set(exclude_file.read_text(encoding="utf-8").splitlines())
 
     # Add new patterns if not already present
     new_patterns = [p for p in patterns if p not in existing]
     if new_patterns:
         try:
-            with exclude_file.open("a") as f:
+            with exclude_file.open("a", encoding="utf-8") as f:
                 # Add comment if this is our first addition
                 marker = "# Added by spec-kitty (worktree symlinks)"
                 if marker not in existing:
@@ -262,9 +262,7 @@ def _existing_worktree_is_valid(worktree_path: Path) -> bool:
     return is_valid_workspace
 
 
-def _create_workspace_with_fallback(
-    repo_root: Path, worktree_path: Path, branch_name: str
-) -> None:
+def _create_workspace_with_fallback(repo_root: Path, worktree_path: Path, branch_name: str) -> None:
     """Create the worktree via the VCS abstraction, falling back to direct git.
 
     Get VCS implementation and create the workspace (full checkout, no sparse

@@ -34,6 +34,7 @@ from specify_cli.core.checkout_identity import (
 )
 from specify_cli.core.paths import locate_project_root
 
+from . import _doctor_shared
 from ._doctor_shared import (
     _emit_not_in_project,
     _json_error,
@@ -538,15 +539,7 @@ def _print_command_files_table(issues: list[dict[str, str]]) -> None:
 
 def _resolve_or_exit(exit_code: int, json_output: bool) -> Path:
     """Resolve the project root or exit with *exit_code*, honoring ``--json`` (#4242)."""
-    try:
-        project_path: Path | None = locate_project_root()
-    except Exception as exc:
-        _emit_not_in_project(json_output)
-        raise typer.Exit(exit_code) from exc
-    if project_path is None:
-        _emit_not_in_project(json_output)
-        raise typer.Exit(exit_code)
-    return project_path
+    return _doctor_shared.resolve_project_root_or_exit(locate_project_root, json_output, exit_code=exit_code)
 
 
 def run_command_files(json_output: bool) -> None:
@@ -795,15 +788,7 @@ def _guard_tool_surfaces_fix(json_output: bool) -> None:
 
 def _resolve_tool_surfaces_project(json_output: bool) -> Path:
     """Resolve project root for ``doctor tool-surfaces`` (exit 2 when not in project)."""
-    try:
-        project_path: Path | None = locate_project_root()
-    except Exception as exc:
-        _emit_not_in_project(json_output)
-        raise typer.Exit(2) from exc
-    if project_path is None:
-        _emit_not_in_project(json_output)
-        raise typer.Exit(2)
-    return project_path
+    return _doctor_shared.resolve_project_root_or_exit(locate_project_root, json_output, exit_code=2)
 
 
 def run_tool_surfaces_audit(

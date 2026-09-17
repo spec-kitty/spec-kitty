@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from charter.bundle import CHARTER_YAML
 from charter.activation.catalog import resolve_doctrine_root
@@ -92,12 +93,11 @@ class CharterYamlCorruptError(RuntimeError):
     verify".
     """
 
+
 # ---------------------------------------------------------------------------
 # DRG source kinds: these carry edges to other kinds in the DRG (Pattern A).
 # ---------------------------------------------------------------------------
-_DRG_SOURCE_KINDS: frozenset[str] = frozenset(
-    {"directive", "tactic", "styleguide", "toolguide"}
-)
+_DRG_SOURCE_KINDS: frozenset[str] = frozenset({"directive", "tactic", "styleguide", "toolguide"})
 
 # ---------------------------------------------------------------------------
 # Map from CLI kind names (in YAML_KEY_MAP) to DRG URN singular kind prefixes.
@@ -118,9 +118,7 @@ _CLI_KIND_TO_DRG_SINGULAR: dict[str, str] = {
 }
 
 # Inverse: DRG singular → CLI kind (for DRG edge traversal lookups).
-_DRG_SINGULAR_TO_CLI_KIND: dict[str, str] = {
-    v: k for k, v in _CLI_KIND_TO_DRG_SINGULAR.items()
-}
+_DRG_SINGULAR_TO_CLI_KIND: dict[str, str] = {v: k for k, v in _CLI_KIND_TO_DRG_SINGULAR.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -248,9 +246,7 @@ class ConsistencyReport:
     verification_errors: list[str] = field(default_factory=list)
     unreconciled_tensions: list[TensionFinding] = field(default_factory=list)
     enforcement_lattice_violations: list[str] = field(default_factory=list)
-    decision_documentation_on_implement_violations: list[str] = field(
-        default_factory=list
-    )
+    decision_documentation_on_implement_violations: list[str] = field(default_factory=list)
     suggestions: list[str] = field(default_factory=list)
 
     def to_json(self) -> str:
@@ -264,13 +260,9 @@ class ConsistencyReport:
                 "reference_id_divergences": self.reference_id_divergences,
                 "graph_kind_gaps": self.graph_kind_gaps,
                 "verification_errors": self.verification_errors,
-                "unreconciled_tensions": [
-                    t.to_json_dict() for t in self.unreconciled_tensions
-                ],
+                "unreconciled_tensions": [t.to_json_dict() for t in self.unreconciled_tensions],
                 "enforcement_lattice_violations": self.enforcement_lattice_violations,
-                "decision_documentation_on_implement_violations": (
-                    self.decision_documentation_on_implement_violations
-                ),
+                "decision_documentation_on_implement_violations": (self.decision_documentation_on_implement_violations),
                 "suggestions": self.suggestions,
             },
             indent=2,
@@ -310,7 +302,10 @@ def _load_config_yaml_mapping(config_path: Path) -> dict[str, Any]:
     if not config_path.exists():
         return {}
     yaml = YAML(typ="safe")
-    data = yaml.load(config_path) or {}
+    try:
+        data = yaml.load(config_path.read_text(encoding="utf-8")) or {}
+    except (OSError, UnicodeDecodeError, YAMLError) as exc:
+        raise CharterPackConfigError(f"Cannot read configuration {config_path}: {exc}") from exc
     return data if isinstance(data, dict) else {}
 
 
@@ -338,10 +333,7 @@ def _load_raw_activation_source(repo_root: Path) -> dict[str, Any]:
     if charter_path is None:
         return config_data
     if not charter_path.exists():
-        raise CharterPackConfigError(
-            f".kittify/config.yaml 'charter:' pointer names {charter_path}, "
-            f"which does not exist."
-        )
+        raise CharterPackConfigError(f".kittify/config.yaml 'charter:' pointer names {charter_path}, which does not exist.")
     try:
         loaded = load_charter_yaml(charter_path)
     except Exception as exc:  # noqa: BLE001  # re-raised as a typed, fail-closed signal.
@@ -419,10 +411,7 @@ def _check_unknown_references(
         for activated_id in sorted(activated):
             if activated_id not in known_ids:
                 unknown_references.append(f"{kind}/{activated_id}")
-                suggestions.append(
-                    f"{kind}/{activated_id}: Not found in doctrine. "
-                    f"Run 'charter deactivate {kind} {activated_id}' to remove."
-                )
+                suggestions.append(f"{kind}/{activated_id}: Not found in doctrine. Run 'charter deactivate {kind} {activated_id}' to remove.")
 
 
 def _check_drg_cross_kind_refs(
@@ -524,9 +513,7 @@ def _check_duplicates(
         seen: set[str] = set()
         for item in raw_list:
             if item in seen:
-                kind_violations.append(
-                    f"{kind}/{item}: Duplicate entry in activation set."
-                )
+                kind_violations.append(f"{kind}/{item}: Duplicate entry in activation set.")
             seen.add(item)
 
 
@@ -568,10 +555,7 @@ def _check_kind_violation_for_artifact(
         return  # Correct kind.
     other_kind = _find_owning_kind(artifact_id, kind, all_doctrine_ids)
     if other_kind is not None:
-        kind_violations.append(
-            f"{kind}/{artifact_id}: ID belongs to kind "
-            f"'{other_kind}', not '{kind}'."
-        )
+        kind_violations.append(f"{kind}/{artifact_id}: ID belongs to kind '{other_kind}', not '{kind}'.")
 
 
 def _find_owning_kind(
@@ -638,26 +622,18 @@ def _load_reference_ids_by_kind(ctx: ProjectContext) -> dict[str, frozenset[str]
     try:
         data = load_charter_yaml(charter_yaml_path)
     except Exception as exc:  # noqa: BLE001  # re-raised as a typed, fail-closed signal below.
-        raise CharterYamlCorruptError(
-            f"{charter_yaml_path} could not be parsed: {exc}"
-        ) from exc
+        raise CharterYamlCorruptError(f"{charter_yaml_path} could not be parsed: {exc}") from exc
 
     if not isinstance(data, dict):
-        raise CharterYamlCorruptError(
-            f"{charter_yaml_path} does not contain a YAML mapping at its document root."
-        )
+        raise CharterYamlCorruptError(f"{charter_yaml_path} does not contain a YAML mapping at its document root.")
 
     catalog = data.get("catalog")
     if not isinstance(catalog, dict):
-        raise CharterYamlCorruptError(
-            f"{charter_yaml_path} is missing a valid 'catalog' mapping."
-        )
+        raise CharterYamlCorruptError(f"{charter_yaml_path} is missing a valid 'catalog' mapping.")
 
     entries = catalog.get("references")
     if not isinstance(entries, list):
-        raise CharterYamlCorruptError(
-            f"{charter_yaml_path} catalog is missing a valid 'references' list."
-        )
+        raise CharterYamlCorruptError(f"{charter_yaml_path} catalog is missing a valid 'references' list.")
 
     by_kind: dict[str, set[str]] = {}
     for entry in entries:
@@ -789,9 +765,7 @@ def _check_reference_id_forward_parity(
         known_ref_ids = references_by_kind.get(kind_enum.value, frozenset())
         for stem in sorted(set(raw_list)):
             try:
-                urn = resolve_artifact_urn(
-                    kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots
-                )
+                urn = resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots)
             except UnknownArtifactIdError:
                 continue  # Already reported by _check_unknown_references.
             _, _, canonical_id = urn.partition(":")
@@ -860,9 +834,7 @@ def _resolve_graph_kind_parity_stem(
     Exception`` would silently misreport a real bug as ordinary drift.
     """
     try:
-        urn = resolve_artifact_urn(
-            kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots
-        )
+        urn = resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots)
     except UnknownArtifactIdError as exc:
         verification_errors.append(f"{cli_kind}/{stem}: {exc}")
         suggestions.append(
@@ -941,10 +913,7 @@ def _check_graph_kind_parity(
         full_drg = load_validated_graph(repo_root)
         activated_drg = filter_graph_by_activation(full_drg, pack_context)
     except Exception as exc:  # noqa: BLE001  # fail-closed signal below, not a silent pass.
-        verification_errors.append(
-            f"drg: Could not verify config<->graph kind parity "
-            f"({type(exc).__name__}: {exc})."
-        )
+        verification_errors.append(f"drg: Could not verify config<->graph kind parity ({type(exc).__name__}: {exc}).")
         suggestions.append(
             f"drg: Could not verify config<->graph kind parity "
             f"({type(exc).__name__}: {exc}). Regenerate graph.yaml / run "
@@ -1025,9 +994,7 @@ class _GateResources:
         if self._full_drg_error is not None:
             raise self._full_drg_error
         if self._full_drg is None:  # pragma: no cover -- guarded by the load-or-store-error branch above.
-            raise RuntimeError(
-                "_GateResources.full_drg: unreachable -- neither a graph nor an error was recorded."
-            )
+            raise RuntimeError("_GateResources.full_drg: unreachable -- neither a graph nor an error was recorded.")
         return self._full_drg
 
     def directives(self) -> DirectiveRepository:
@@ -1037,17 +1004,13 @@ class _GateResources:
             from charter.activation.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
 
             try:
-                self._directives = _build_doctrine_service(
-                    self.repo_root, org_roots=list(self.pack_context.org_roots)
-                ).directives
+                self._directives = _build_doctrine_service(self.repo_root, org_roots=list(self.pack_context.org_roots)).directives
             except Exception as exc:  # noqa: BLE001  # memoized; re-raised below to every caller in this run.
                 self._directives_error = exc
         if self._directives_error is not None:
             raise self._directives_error
         if self._directives is None:  # pragma: no cover -- guarded by the build-or-store-error branch above.
-            raise RuntimeError(
-                "_GateResources.directives: unreachable -- neither directives nor an error was recorded."
-            )
+            raise RuntimeError("_GateResources.directives: unreachable -- neither directives nor an error was recorded.")
         return self._directives
 
 
@@ -1055,9 +1018,7 @@ class _GateResources:
 #: :func:`_gate_resources_scope` and consulted by :func:`_resolve_full_drg` /
 #: :func:`_resolve_directives`. ``None`` outside that scope -- the default
 #: (unshared, load-directly) behavior every scan_* function already had.
-_GATE_RESOURCES: contextvars.ContextVar[_GateResources | None] = contextvars.ContextVar(
-    "_charter_consistency_check_gate_resources", default=None
-)
+_GATE_RESOURCES: contextvars.ContextVar[_GateResources | None] = contextvars.ContextVar("_charter_consistency_check_gate_resources", default=None)
 
 
 @contextmanager
@@ -1074,9 +1035,7 @@ def _gate_resources_scope(ctx: ProjectContext) -> Iterator[None]:
     scan_* unit tests -- are completely unaffected and keep loading
     independently, exactly as before.
     """
-    resources = _GateResources(
-        repo_root=ctx.require_repo_root(), pack_context=ctx.require_pack_context()
-    )
+    resources = _GateResources(repo_root=ctx.require_repo_root(), pack_context=ctx.require_pack_context())
     token = _GATE_RESOURCES.set(resources)
     try:
         yield
@@ -1126,9 +1085,7 @@ def _resolve_directives(repo_root: Path, pack_context: PackContext) -> Directive
     # same Any-narrowing effect. A bare `return` here would trip
     # mypy's `no-any-return` (this module carries zero pre-existing mypy
     # findings; this narrows the value instead of suppressing the check).
-    directives: DirectiveRepository = _build_doctrine_service(
-        repo_root, org_roots=list(pack_context.org_roots)
-    ).directives
+    directives: DirectiveRepository = _build_doctrine_service(repo_root, org_roots=list(pack_context.org_roots)).directives
     return directives
 
 
@@ -1172,12 +1129,9 @@ def _run_fail_closed_gate(
     try:
         target.extend(scan())
     except Exception as exc:  # noqa: BLE001  # fail-closed signal below, not a silent pass.
-        verification_errors.append(
-            f"drg: Could not verify {message_stem} ({type(exc).__name__}: {exc})."
-        )
+        verification_errors.append(f"drg: Could not verify {message_stem} ({type(exc).__name__}: {exc}).")
         suggestions.append(
-            f"drg: Could not verify {message_stem} ({type(exc).__name__}: {exc}). "
-            f"Regenerate graph.yaml / run 'spec-kitty charter resynthesize' and retry."
+            f"drg: Could not verify {message_stem} ({type(exc).__name__}: {exc}). Regenerate graph.yaml / run 'spec-kitty charter resynthesize' and retry."
         )
 
 
@@ -1249,13 +1203,7 @@ def _active_reconciles_tension_edges(
     """
     from charter.drg import Relation  # noqa: PLC0415
 
-    return [
-        edge
-        for edge in full_drg.edges
-        if edge.relation == Relation.RECONCILES_TENSION
-        and edge.source in active_urns
-        and edge.target in active_urns
-    ]
+    return [edge for edge in full_drg.edges if edge.relation == Relation.RECONCILES_TENSION and edge.source in active_urns and edge.target in active_urns]
 
 
 def _tension_reconciled_urns(
@@ -1269,9 +1217,7 @@ def _tension_reconciled_urns(
     it -- the same side being bridged by two different active reconcilers is
     equivalent to being bridged by one.
     """
-    return {
-        edge.target for edge in _active_reconciles_tension_edges(full_drg, active_urns)
-    }
+    return {edge.target for edge in _active_reconciles_tension_edges(full_drg, active_urns)}
 
 
 def scan_unreconciled_tensions(ctx: ProjectContext) -> list[TensionFinding]:
@@ -1305,11 +1251,7 @@ def scan_unreconciled_tensions(ctx: ProjectContext) -> list[TensionFinding]:
         return []
 
     reconciled_urns = _tension_reconciled_urns(full_drg, active_urns)
-    return [
-        TensionFinding(pair=pair)
-        for pair in sorted(candidate_pairs)
-        if not (pair[0] in reconciled_urns and pair[1] in reconciled_urns)
-    ]
+    return [TensionFinding(pair=pair) for pair in sorted(candidate_pairs) if not (pair[0] in reconciled_urns and pair[1] in reconciled_urns)]
 
 
 def _check_unreconciled_tensions(
@@ -1396,11 +1338,7 @@ def scan_enforcement_lattice_violations(ctx: ProjectContext) -> list[str]:
 
     active_urns = _build_tension_active_urns(full_drg, pack_context)
     edges = _active_reconciles_tension_edges(full_drg, active_urns)
-    directive_edges = [
-        edge
-        for edge in edges
-        if _urn_is_directive(edge.source) and _urn_is_directive(edge.target)
-    ]
+    directive_edges = [edge for edge in edges if _urn_is_directive(edge.source) and _urn_is_directive(edge.target)]
     if not directive_edges:
         return []
 
@@ -1423,15 +1361,10 @@ def scan_enforcement_lattice_violations(ctx: ProjectContext) -> list[str]:
             # condition, not a legitimate "nothing to rank" skip.
             missing = edge.source if reconciler is None else edge.target
             raise RuntimeError(
-                f"reconciles_tension edge {edge.source} -> {edge.target} names "
-                f"{missing}, which the DRG reports active but the directive "
-                f"repository cannot resolve."
+                f"reconciles_tension edge {edge.source} -> {edge.target} names {missing}, which the DRG reports active but the directive repository cannot resolve."
             )
         if reconciler.enforcement == Enforcement.REQUIRED:
-            violations.append(
-                f"reconciles_tension {edge.source} -> {edge.target}: reconciler "
-                f"{edge.source} must never be promoted to 'required'."
-            )
+            violations.append(f"reconciles_tension {edge.source} -> {edge.target}: reconciler {edge.source} must never be promoted to 'required'.")
             continue
         if reconciler.enforcement < operand.enforcement:
             violations.append(
@@ -1553,12 +1486,8 @@ def scan_decision_documentation_scoped_on_implement(ctx: ProjectContext) -> list
     pack_context = ctx.require_pack_context()
     full_drg = _resolve_full_drg(repo_root)
 
-    resolved = resolve_context(
-        full_drg, _IMPLEMENT_ACTION_URN, depth=_MIN_EFFECTIVE_DEPTH
-    )
-    directive_urns = sorted(
-        urn for urn in resolved.artifact_urns if _urn_is_directive(urn)
-    )
+    resolved = resolve_context(full_drg, _IMPLEMENT_ACTION_URN, depth=_MIN_EFFECTIVE_DEPTH)
+    directive_urns = sorted(urn for urn in resolved.artifact_urns if _urn_is_directive(urn))
     if not directive_urns:
         return []
 
@@ -1572,15 +1501,8 @@ def scan_decision_documentation_scoped_on_implement(ctx: ProjectContext) -> list
             # DRG; a miss here means the doctrine repository and the DRG
             # graph disagree on what exists -- a genuine "could not verify"
             # condition, not a legitimate "nothing to check" skip.
-            raise RuntimeError(
-                f"{_IMPLEMENT_ACTION_URN} delivers {urn}, which the DRG "
-                f"reports resolvable but the directive repository cannot "
-                f"resolve."
-            )
-        if (
-            directive.enforcement == Enforcement.REQUIRED
-            and _is_decision_documentation_directive(directive)
-        ):
+            raise RuntimeError(f"{_IMPLEMENT_ACTION_URN} delivers {urn}, which the DRG reports resolvable but the directive repository cannot resolve.")
+        if directive.enforcement == Enforcement.REQUIRED and _is_decision_documentation_directive(directive):
             violations.append(
                 f"{_IMPLEMENT_ACTION_URN} delivers {urn} ('{directive.title}'), "
                 f"a required decision-documentation directive; decision "
@@ -1663,18 +1585,15 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         # every other corrupt-input branch in this module honors).
         return ConsistencyReport(
             coherent=False,
-            verification_errors=[f"charter.yaml: {exc}"],
+            verification_errors=[f"charter.yaml: {exc.body}"],
             suggestions=[
                 f"charter.yaml: Could not verify config<->charter.yaml "
-                f"activation parity ({exc}). Fix the .kittify/config.yaml "
+                f"activation parity ({exc.body}). Fix the .kittify/config.yaml "
                 f"'charter:' pointer, or restore charter.yaml from version "
                 f"control."
             ],
         )
-    activated_by_kind = {
-        kind: None if raw is None else frozenset(raw)
-        for kind, raw in raw_activated_by_kind.items()
-    }
+    activated_by_kind = {kind: None if raw is None else frozenset(raw) for kind, raw in raw_activated_by_kind.items()}
 
     if not _has_explicit_activation(raw_activated_by_kind):
         # D3 (decision DM-01KY1XHEH2T9RDX8ZCHCSV2VA0): the unreconciled-tension
@@ -1693,17 +1612,13 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         # ``_gate_resources_scope`` cache -- down from three independent
         # loads pre-refactor.
         with _gate_resources_scope(ctx):
-            _check_unreconciled_tensions(
-                ctx, unreconciled_tensions, verification_errors, suggestions
-            )
+            _check_unreconciled_tensions(ctx, unreconciled_tensions, verification_errors, suggestions)
             # FR-002: the enforcement lattice gate is likewise always-on -- it
             # reuses the same activation read as the tension scan just above
             # (scan_enforcement_lattice_violations resolves activation from
             # ``ctx`` directly) and is well-defined under implicit all-active.
             # Unlike tensions, a lattice violation IS folded into ``coherent``.
-            _check_enforcement_lattice(
-                ctx, enforcement_lattice_violations, verification_errors, suggestions
-            )
+            _check_enforcement_lattice(ctx, enforcement_lattice_violations, verification_errors, suggestions)
             # FR-004: the decision-documentation-on-implement gate is likewise
             # always-on -- it resolves ``implement``'s delivered bundle straight
             # from the DRG (not project activation state), so it is equally
@@ -1716,32 +1631,20 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
                 suggestions,
             )
         return ConsistencyReport(
-            coherent=not (
-                enforcement_lattice_violations
-                or decision_documentation_on_implement_violations
-                or verification_errors
-            ),
+            coherent=not (enforcement_lattice_violations or decision_documentation_on_implement_violations or verification_errors),
             verification_errors=verification_errors,
             unreconciled_tensions=unreconciled_tensions,
             enforcement_lattice_violations=enforcement_lattice_violations,
-            decision_documentation_on_implement_violations=(
-                decision_documentation_on_implement_violations
-            ),
+            decision_documentation_on_implement_violations=(decision_documentation_on_implement_violations),
             suggestions=suggestions,
         )
 
     all_doctrine_ids = _collect_all_doctrine_ids(ctx, manager)
 
-    _check_unknown_references(
-        activated_by_kind, all_doctrine_ids, unknown_references, suggestions
-    )
-    _check_drg_cross_kind_refs(
-        ctx, activated_by_kind, missing_from_doctrine, suggestions
-    )
+    _check_unknown_references(activated_by_kind, all_doctrine_ids, unknown_references, suggestions)
+    _check_drg_cross_kind_refs(ctx, activated_by_kind, missing_from_doctrine, suggestions)
     _check_duplicates(raw_activated_by_kind, kind_violations)
-    _check_kind_violations(
-        activated_by_kind, all_doctrine_ids, unknown_references, kind_violations
-    )
+    _check_kind_violations(activated_by_kind, all_doctrine_ids, unknown_references, kind_violations)
     _check_reference_id_parity(
         ctx,
         raw_activated_by_kind,
@@ -1749,19 +1652,13 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         verification_errors,
         suggestions,
     )
-    _check_graph_kind_parity(
-        ctx, raw_activated_by_kind, graph_kind_gaps, verification_errors, suggestions
-    )
+    _check_graph_kind_parity(ctx, raw_activated_by_kind, graph_kind_gaps, verification_errors, suggestions)
     # T009 (#3808): as in the implicit-all-active branch above, these three
     # calls share ONE DRG load (and one DoctrineService build) via the
     # ``_gate_resources_scope`` cache.
     with _gate_resources_scope(ctx):
-        _check_unreconciled_tensions(
-            ctx, unreconciled_tensions, verification_errors, suggestions
-        )
-        _check_enforcement_lattice(
-            ctx, enforcement_lattice_violations, verification_errors, suggestions
-        )
+        _check_unreconciled_tensions(ctx, unreconciled_tensions, verification_errors, suggestions)
+        _check_enforcement_lattice(ctx, enforcement_lattice_violations, verification_errors, suggestions)
         _check_decision_documentation_on_implement(
             ctx,
             decision_documentation_on_implement_violations,
@@ -1796,8 +1693,6 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         verification_errors=verification_errors,
         unreconciled_tensions=unreconciled_tensions,
         enforcement_lattice_violations=enforcement_lattice_violations,
-        decision_documentation_on_implement_violations=(
-            decision_documentation_on_implement_violations
-        ),
+        decision_documentation_on_implement_violations=(decision_documentation_on_implement_violations),
         suggestions=suggestions,
     )

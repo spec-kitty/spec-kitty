@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 from dataclasses import replace
@@ -26,6 +25,7 @@ if TYPE_CHECKING:
     from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
 
 from specify_cli.cli.console import CliConsole, console
+from specify_cli.cli.json_contract import json_error
 from specify_cli.core.config import BANNER
 from specify_cli.core.env import is_truthy
 from specify_cli.core.project_resolver import locate_project_root
@@ -221,7 +221,7 @@ def _should_use_simple_help() -> bool:
         return True
     if raw in {"0", "false", "no", "off"}:
         return False
-    return console.width < 100
+    return bool(console.width < 100)
 
 
 def _format_simple_help(group: TyperGroup, ctx: click.Context, formatter: click.HelpFormatter) -> None:
@@ -423,10 +423,16 @@ def callback(ctx: typer.Context) -> None:
         pass
 
 
-def get_project_root_or_exit(start: Path | None = None) -> Path:
-    """Return the project root or exit when .kittify cannot be located."""
-    project_root = locate_project_root(start)
+def get_project_root_or_exit(start: Path | None = None, *, json_output: bool = False) -> Path:
+    """Return the project root or exit 1, optionally emitting the JSON error contract.
+
+    Existing callers retain their human-readable diagnostics unless they opt in.
+    """
+    project_root: Path | None = locate_project_root(start)
     if project_root is None:
+        if json_output:
+            console.emit_json(json_error("not_in_project", "Unable to locate the Spec Kitty project root (.kittify directory not found)."))
+            raise typer.Exit(1)
         console.print("[red]Error:[/red] Unable to locate the Spec Kitty project root (.kittify directory not found).")
         console.print("[dim]Run this command from the project root or from a feature worktree under .worktrees/<feature>/.[/dim]")
         console.print("[dim]Tip: Initialize a project with 'spec-kitty init <name>' if one does not exist.[/dim]")
@@ -471,7 +477,7 @@ def exit_git_resolution_failure(
     """
     message = git_resolution_failure_message(exc, project_root)
     if json_output:
-        typer.echo(json.dumps({"error": "git_resolution_failed", "message": message}), err=True)
+        console.emit_json(json_error("git_resolution_failed", message))
     else:
         console.print(f"[red]Error:[/red] {message}")
     raise typer.Exit(1) from exc

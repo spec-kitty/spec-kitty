@@ -184,7 +184,7 @@ class GitVCS:
         # For worktrees, .git is a file with "gitdir: /path/to/git/dir"
         if git_path.is_file():
             try:
-                git_content = git_path.read_text().strip()
+                git_content = git_path.read_text(encoding="utf-8").strip()
                 if git_content.startswith("gitdir:"):
                     git_dir_str = git_content.split(":", 1)[1].strip()
                     git_dir = Path(git_dir_str)

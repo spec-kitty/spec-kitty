@@ -12,12 +12,14 @@ from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.cli import StepTracker
+from specify_cli.cli.json_contract import json_error
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import get_project_root_or_exit
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.tool_checker import check_tool_for_tracker
 from specify_cli.dashboard.diagnostics import run_diagnostics
 from specify_cli.task_utils import TaskCliError, find_repo_root
+from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 from specify_cli.verify_enhanced import run_enhanced_verify
 
 
@@ -116,7 +118,7 @@ def verify_setup(
         repo_root = find_repo_root()
     except TaskCliError as exc:
         if json_output:
-            output_data["error"] = str(exc)
+            output_data.update(json_error("repository_detection_failed", str(exc)))
             if check_tools:
                 output_data["tools"] = {key: {"available": available} for key, available in tool_statuses.items()}
             print(json.dumps(output_data))
@@ -127,11 +129,15 @@ def verify_setup(
             )
         raise typer.Exit(1) from exc
 
-    project_root = get_project_root_or_exit(repo_root)
+    project_root = get_project_root_or_exit(repo_root, json_output=json_output)
     cwd = Path.cwd()
 
     # Detect feature directory from --mission flag or current context
-    feature_dir = _existing_feature_dir(project_root, mission_slug)
+    try:
+        feature_dir = _existing_feature_dir(project_root, mission_slug)
+    except MissionSelectorAmbiguous as exc:
+        _report_ambiguous_selector(exc, json_output)
+        raise typer.Exit(1) from exc
 
     result = run_enhanced_verify(
         repo_root=repo_root,
@@ -153,6 +159,14 @@ def verify_setup(
         return
 
     return
+
+
+def _report_ambiguous_selector(exc: MissionSelectorAmbiguous, json_output: bool) -> None:
+    """Render selector context consistently for verification and diagnostics."""
+    if json_output:
+        console.emit_json({**json_error(exc.error_code, str(exc)), "handle": exc.handle, "candidates": exc.candidates})
+    else:
+        console.print(f"[red]Error:[/red] {exc}")
 
 
 def _run_diagnostics_mode(json_output: bool, check_tools: bool, *, feature: str | None = None) -> None:
@@ -179,12 +193,12 @@ def _run_diagnostics_mode(json_output: bool, check_tools: bool, *, feature: str 
             # Human-readable output with Rich panels
             _print_diagnostics(diag, check_tools)
 
+    except MissionSelectorAmbiguous as exc:
+        _report_ambiguous_selector(exc, json_output)
+        raise typer.Exit(1) from exc
     except Exception as exc:
         if json_output:
-            error_output = {
-                "status": "error",
-                "message": str(exc),
-            }
+            error_output = json_error("diagnostics_failed", str(exc))
             console.emit_json(error_output)
         else:
             console.print(f"[red]✗ Diagnostics failed:[/red] {exc}")

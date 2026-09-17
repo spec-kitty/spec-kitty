@@ -29,8 +29,9 @@ the parity contract); interception pins live in
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import typer
 
@@ -215,6 +216,7 @@ def _find_mission_slug(
     json_output: bool = False,
     repo_root: Path | None = None,
     render: Render | None = None,
+    error_handler: Callable[[str, str, int, dict[str, object]], NoReturn] | None = None,
 ) -> str:
     """Require an explicit mission slug (no auto-detection).
 
@@ -227,6 +229,9 @@ def _find_mission_slug(
         explicit_mission: Mission slug provided via --mission.
         json_output: Propagate to resolver error rendering.
         repo_root: Repository root; if provided, enables canonical resolver.
+        error_handler: Optional command-owned failure renderer/exit handler.
+            Receives code, message, human exit code and selector details before
+            output. Default preserves the legacy rendering of other families.
 
     Returns:
         Mission slug (e.g., "008-unified-python-cli")
@@ -238,6 +243,8 @@ def _find_mission_slug(
 
     if not explicit_mission or not explicit_mission.strip():
         err = "--mission <slug> is required"
+        if error_handler is not None:
+            error_handler("mission_required", err, 1, {})
         if json_output:
             render = render or _tasks.RealRender()
             print(render.json_envelope({"error": err}))
@@ -257,6 +264,8 @@ def _find_mission_slug(
                 _tasks.get_main_repo_root(repo_root), raw_handle
             ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         except MissionSelectorAmbiguous as exc:
+            if error_handler is not None:
+                error_handler(exc.error_code, str(exc), 2, {"handle": exc.handle, "candidates": exc.candidates})
             # This read-path resolver family raises BEFORE resolve_mission_handle
             # ever runs (#241), so an ambiguous handle must map onto the SAME
             # shared {"success": False, "error_code": ..., "error": ...,
@@ -283,6 +292,17 @@ def _find_mission_slug(
             # handle — is the canonical mission slug downstream consumers need.
             legacy_name: str = legacy_dir.name
             return legacy_name
+        if error_handler is not None:
+            from specify_cli.context.mission_resolver import AmbiguousHandleError, MissionNotFoundError, resolve_mission
+
+            try:
+                canonical_slug: str = resolve_mission(raw_handle, repo_root).mission_slug
+                return canonical_slug
+            except AmbiguousHandleError as exc:
+                details = exc.to_dict()
+                error_handler(str(details["error"]), str(exc), 2, {"handle": exc.handle, "candidates": details["candidates"]})
+            except MissionNotFoundError as exc:
+                error_handler("MISSION_NOT_FOUND", str(exc), 2, {"handle": exc.handle})
         try:
             resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
             resolved_slug: str = resolved.mission_slug

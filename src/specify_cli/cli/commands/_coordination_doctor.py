@@ -32,7 +32,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -43,7 +42,8 @@ from specify_cli.core.paths import locate_project_root
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.mission_metadata import load_meta
 
-from ._doctor_shared import _emit_not_in_project, console
+from . import _doctor_shared
+from ._doctor_shared import console
 
 # ``__all__`` lists this sibling's cross-module contract: the entrypoint +
 # ``DoctorFinding`` + the health-check helpers ``doctor.py`` re-exports, plus
@@ -1396,19 +1396,15 @@ def _emit_coordination_findings(findings: list[DoctorFinding], json_output: bool
 def _emit_mission_resolver_error(
     error_code: str, handle: str | None, json_output: bool
 ) -> None:
-    """Emit a mission-resolver failure with ``doctor mission-state`` parity.
-
-    JSON surface: a ``{"error": <code>, "handle": <handle>}`` envelope to stdout
-    (mirrors ``_mission_state_doctor._emit_json_error``). Human surface: a red
-    one-liner. The caller raises ``typer.Exit(1)``.
-    """
+    """Emit the canonical error with its stable code and mission handle context."""
+    label = "Mission not found" if error_code == "MISSION_NOT_FOUND" else "Ambiguous handle"
+    message = f"{label}: {handle!r}"
     if json_output:
-        json.dump({"error": error_code, "handle": handle}, sys.stdout)
-        sys.stdout.write("\n")
-        sys.stdout.flush()
+        payload = _doctor_shared._json_error(error_code, message)
+        payload["handle"] = handle
+        console.emit_json(payload)
     else:
-        label = "Mission not found" if error_code == "MISSION_NOT_FOUND" else "Ambiguous handle"
-        console.print(f"[red]Error:[/red] {label}: {handle!r}")
+        console.print(f"[red]Error:[/red] {message}")
 
 
 def run_coordination_health(
@@ -1442,14 +1438,7 @@ def run_coordination_health(
     unresolvable or ambiguous handle fails closed with exit 1 and a
     mission-state-parity error (no silent fallback).
     """
-    try:
-        repo_root = locate_project_root()
-    except Exception as exc:
-        _emit_not_in_project(json_output)
-        raise typer.Exit(1) from exc
-    if repo_root is None:
-        _emit_not_in_project(json_output)
-        raise typer.Exit(1)
+    repo_root = _doctor_shared.resolve_project_root_or_exit(locate_project_root, json_output)
 
     from specify_cli.context.mission_resolver import (
         AmbiguousHandleError,

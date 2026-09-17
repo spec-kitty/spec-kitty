@@ -34,6 +34,7 @@ from specify_cli.runtime.home import get_kittify_home
 # ``_doctor_shared`` (the canonical home, H1/I-3). Every sibling imports from
 # there so exactly one ``Console()`` backs the whole surface. The redundant
 # aliases mark these as intentional re-exports kept importable from ``doctor``.
+from . import _doctor_shared
 from ._doctor_shared import (
     _CI_ENV_VARS as _CI_ENV_VARS,
     _NOT_IN_PROJECT_MESSAGE as _NOT_IN_PROJECT_MESSAGE,
@@ -256,16 +257,7 @@ def skills(
     ] = False,
 ) -> None:
     """Check command-skill manifest drift for Codex, Vibe, Pi, and Letta."""
-    try:
-        project_path = locate_project_root()
-    except Exception as exc:
-        if json_output:
-            console.print_json(
-                json.dumps(_json_error("not_in_project", _NOT_IN_PROJECT_MESSAGE), indent=2)
-            )
-            raise typer.Exit(2) from exc
-        console.print(f"[red]Error:[/red] {_NOT_IN_PROJECT_MESSAGE}")
-        raise typer.Exit(2) from exc
+    project_path = _doctor_shared.resolve_project_root_or_exit(locate_project_root, json_output, exit_code=2)
     run_skills_audit(fix, json_output, project_path)
 
 
@@ -366,29 +358,8 @@ def _print_state_warnings(report: object) -> None:
 
 
 def _resolve_project_root_or_exit(json_output: bool, *, exit_code: int) -> Path:
-    """Resolve the project root, honoring the ``--json`` contract on the failure path.
-
-    Both failure modes of ``locate_project_root`` — raising, or returning
-    ``None`` — route through :func:`_emit_not_in_project`, so a ``--json`` caller
-    always receives machine-parseable stdout instead of human prose (#4242).
-    Returns the resolved root on success. ``exit_code`` is the command's own
-    documented not-in-project exit code (1 for most; 2 for the config-error
-    family — ``shim-registry`` / ``contracts``).
-    """
-    # Annotate the local explicitly: the ``specify_cli.*`` mypy override uses
-    # ``follow_imports = "skip"`` for narrow checks, which erases
-    # ``locate_project_root``'s ``Path | None`` return to ``Any``; the annotation
-    # recovers it so the None-narrowing below yields a real ``Path`` return.
-    repo_root: Path | None
-    try:
-        repo_root = locate_project_root()
-    except Exception as exc:
-        _emit_not_in_project(json_output)
-        raise typer.Exit(exit_code) from exc
-    if repo_root is None:
-        _emit_not_in_project(json_output)
-        raise typer.Exit(exit_code)
-    return repo_root
+    """Preserve the doctor's resolver binding while delegating the shared guard."""
+    return _doctor_shared.resolve_project_root_or_exit(locate_project_root, json_output, exit_code=exit_code)
 
 
 @app.command(name="state-roots")
@@ -1093,23 +1064,11 @@ def mission_state(
     ] = False,
 ) -> None:
     """Audit, repair, or TeamSpace-validate mission-state shapes."""
-    # Resolve the project root HERE, through the shim's ``locate_project_root``
-    # binding — the patchable seam (#2059, mirrors the ``workspaces`` shell). A
-    # ``None`` root is valid for a fixtures-only run, so it is forwarded as-is;
-    # the sibling reconciles ``None`` against ``--fixture-dir`` / fixtures.
-    try:
-        resolved_root = locate_project_root()
-    except Exception as exc:
-        # A raised locate is a genuine not-in-project error here (honor
-        # --json). A *returned* ``None`` is forwarded as-is to the sibling
-        # (``_resolve_audit_root`` in ``_mission_state_doctor.py``), which
-        # treats it as the valid fixtures-only state when fixtures are in
-        # play (``--fixture-dir`` / ``--include-fixtures``) but as the
-        # terminal not-in-project error otherwise — and honors ``--json`` on
-        # that terminal branch too via the same ``json_output`` threaded
-        # through ``run_mission_state`` (#4242 class-closing fold).
-        _emit_not_in_project(json_output)
-        raise typer.Exit(1) from exc
+    # The runner owns mode/fixture validation before rejecting a missing root.
+    # A resolver exception remains an immediate failure, even with fixtures.
+    resolved_root = _doctor_shared.resolve_project_root_or_exit(
+        locate_project_root, json_output, allow_none=True
+    )
     run_mission_state(
         audit=audit,
         fix=fix,

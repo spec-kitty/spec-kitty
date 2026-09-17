@@ -638,6 +638,8 @@ from specify_cli.cli.commands.agent.tasks_status_cmd import (
     _st_render_planned as _st_render_planned,
     _st_render_review_queues as _st_render_review_queues,
     _st_render_summary as _st_render_summary,
+    _status_error as _status_error,
+    _status_selector_error as _status_selector_error,
     _st_resolve_dirs as _st_resolve_dirs,
     _st_resolve_execution_mode as _st_resolve_execution_mode,
 )

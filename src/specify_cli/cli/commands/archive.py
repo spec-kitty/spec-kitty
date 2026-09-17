@@ -20,13 +20,14 @@ from typing import Annotated
 import typer
 
 from specify_cli.cli.console import console
+from specify_cli.cli.json_contract import json_error
 from specify_cli.core.paths import locate_project_root
 from specify_cli.missions._archive import (
     MissionArchiveRefused,
     archive_mission,
     list_archived_missions,
 )
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous, candidate_feature_dir_for_mission
 
 app = typer.Typer(
     name="archive",
@@ -59,12 +60,25 @@ def create(
     """Archive a terminal mission (AM-1..AM-5)."""
     root = locate_project_root()
     if root is None:
-        console.print("[red]Not in a spec-kitty project (no project root resolved).[/red]")
+        if json_output:
+            console.emit_json(json_error("not_in_project", "Not in a spec-kitty project (no project root resolved)."))
+        else:
+            console.print("[red]Not in a spec-kitty project (no project root resolved).[/red]")
         raise typer.Exit(_EXIT_ERROR)
 
-    feature_dir = candidate_feature_dir_for_mission(root, mission)
+    try:
+        feature_dir = candidate_feature_dir_for_mission(root, mission)
+    except MissionSelectorAmbiguous as exc:
+        if json_output:
+            console.emit_json({**json_error(exc.error_code, str(exc)), "handle": exc.handle, "candidates": exc.candidates})
+        else:
+            console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
     if not feature_dir.exists():
-        console.print(f"[red]Mission not found: {mission}[/red]")
+        if json_output:
+            console.emit_json(json_error("mission_not_found", f"Mission not found: {mission}"))
+        else:
+            console.print(f"[red]Mission not found: {mission}[/red]")
         raise typer.Exit(_EXIT_ERROR)
 
     try:
@@ -75,9 +89,10 @@ def create(
             reason=reason,
         )
     except MissionArchiveRefused as refused:
-        console.print(
-            f"[red]Archive refused ({refused.code}):[/red] {refused.reason}"
-        )
+        if json_output:
+            console.emit_json(json_error(refused.code, refused.reason))
+        else:
+            console.print(f"[red]Archive refused ({refused.code}):[/red] {refused.reason}")
         raise typer.Exit(_EXIT_REFUSED) from refused
 
     record = outcome.record
@@ -112,7 +127,10 @@ def list_archives(
     """Enumerate archived missions (AM-3)."""
     root = locate_project_root()
     if root is None:
-        console.print("[red]Not in a spec-kitty project (no project root resolved).[/red]")
+        if json_output:
+            console.emit_json(json_error("not_in_project", "Not in a spec-kitty project (no project root resolved)."))
+        else:
+            console.print("[red]Not in a spec-kitty project (no project root resolved).[/red]")
         raise typer.Exit(_EXIT_ERROR)
 
     records = list_archived_missions(root)

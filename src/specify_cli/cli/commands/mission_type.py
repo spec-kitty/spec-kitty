@@ -35,6 +35,7 @@ from rich.text import Text
 
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import get_project_root_or_exit
+from specify_cli.cli.json_contract import json_error
 from specify_cli.mission import (
     Mission,
     MissionError,
@@ -422,8 +423,14 @@ def run_cmd(
     """Start (or attach to) a runtime for a project-authored custom mission definition."""
     from specify_cli.mission_loader.command import run_custom_mission
 
-    project_root = get_project_root_or_exit()
-    mission_slug = _resolve_mission_slug(project_root, mission_slug)
+    from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
+
+    project_root = get_project_root_or_exit(json_output=json_output)
+    try:
+        mission_slug = _resolve_mission_slug(project_root, mission_slug)
+    except MissionSelectorAmbiguous as exc:
+        _emit_selector_error(exc, json_output=json_output)
+        raise typer.Exit(1) from exc
     result = run_custom_mission(mission_key, mission_slug, project_root)
     _render_envelope(result.envelope, json_output)
     raise typer.Exit(code=result.exit_code)
@@ -437,7 +444,12 @@ def _render_envelope(envelope: dict[str, Any], json_output: bool) -> None:
     rich :class:`Panel` mirroring the same fields.
     """
     if json_output:
-        print(json.dumps(envelope, indent=2, sort_keys=False))
+        if envelope.get("result") == "error":
+            payload = json_error(str(envelope["error_code"]), str(envelope["message"]))
+            payload.update({key: envelope[key] for key in ("details", "warnings") if key in envelope})
+            console.emit_json(payload)
+        else:
+            print(json.dumps(envelope, indent=2, sort_keys=False))
         return
     _render_human(envelope)
 
@@ -1255,27 +1267,20 @@ def _branch_resolvable(repo_root: Path, branch: str) -> bool:
     return False
 
 
-def _emit_selector_error(exc: Exception, *, json_output: bool = False) -> None:
-    """Render a structured ``MISSION_AMBIGUOUS_SELECTOR`` error and exit non-zero.
-
-    When ``json_output`` is set, emits the same shared ``{"success": False,
-    "error_code": ..., "error": ..., "handle": ..., "candidates": [...]}``
-    JSON envelope used elsewhere for ``MissionSelectorAmbiguous`` (e.g.
-    ``status.py``/``tasks_shared.py``'s ``_find_mission_slug``), instead of
-    Rich-formatted text on stdout (spec-kitty#477).
-    """
+def _emit_mission_error(message: str, *, code: str, json_output: bool) -> None:
+    """Preserve human diagnostics while emitting the shared machine contract."""
     if json_output:
-        print(
-            json.dumps(
-                {
-                    "success": False,
-                    "error_code": getattr(exc, "error_code", "MISSION_AMBIGUOUS_SELECTOR"),
-                    "error": str(exc),
-                    "handle": getattr(exc, "handle", ""),
-                    "candidates": getattr(exc, "candidates", []),
-                }
-            )
-        )
+        console.emit_json(json_error(code, Text.from_markup(message).plain))
+    else:
+        console.print(message)
+
+
+def _emit_selector_error(exc: Exception, *, json_output: bool = False) -> None:
+    """Render a selector failure, retaining handle/candidate diagnostic metadata."""
+    if json_output:
+        payload = json_error(getattr(exc, "error_code", "MISSION_AMBIGUOUS_SELECTOR"), str(exc))
+        payload.update(handle=getattr(exc, "handle", ""), candidates=getattr(exc, "candidates", []))
+        console.emit_json(payload)
         return
     console.print(f"[red]MISSION_AMBIGUOUS_SELECTOR[/red]\n{exc}")
 
@@ -1314,7 +1319,7 @@ def reopen_cmd(
     from specify_cli.mission_metadata import clear_merge_metadata
     from specify_cli.status import emit_mission_reopened, is_mission_completed
 
-    project_root = get_project_root_or_exit()
+    project_root = get_project_root_or_exit(json_output=json_output)
     repo_root = _resolve_primary_repo_root(project_root)
 
     try:
@@ -1326,23 +1331,27 @@ def reopen_cmd(
     # Fail-closed predicate (a): meta.json absent / corrupt (no resolvable mission_id).
     meta = _safe_load_meta(resolved.feature_dir)
     if meta is None or not resolved.mission_id:
-        console.print(
+        _emit_mission_error(
             "[red]Error:[/red] mission is unrecoverable — "
             f"meta.json is missing or corrupt for handle [bold]{handle}[/bold].\n"
             "[dim]Remediation: restore meta.json (or run "
-            "`spec-kitty migrate backfill-identity`) before re-opening.[/dim]"
+            "`spec-kitty migrate backfill-identity`) before re-opening.[/dim]",
+            code="mission_unrecoverable",
+            json_output=json_output,
         )
         raise typer.Exit(1)
 
     # Fail-closed predicate (b): branch in neither local repo nor any remote.
     mission_branch = resolved.mission_branch or meta.get("mission_branch")
     if mission_branch and not _branch_resolvable(repo_root, str(mission_branch)):
-        console.print(
+        _emit_mission_error(
             "[red]Error:[/red] mission is unrecoverable — branch "
             f"[bold]{mission_branch}[/bold] resolves in neither the local repo "
             "nor any configured remote.\n"
             "[dim]Remediation: fetch the branch (`git fetch <remote> "
-            f"{mission_branch}`) or restore it before re-opening.[/dim]"
+            f"{mission_branch}`) or restore it before re-opening.[/dim]",
+            code="mission_branch_unavailable",
+            json_output=json_output,
         )
         raise typer.Exit(1)
 
@@ -1351,11 +1360,13 @@ def reopen_cmd(
     # metadata mutation so a rejected re-open leaves meta.json untouched and
     # writes no event. The emit helper enforces the same invariant defensively.
     if not is_mission_completed(resolved.feature_dir):
-        console.print(
+        _emit_mission_error(
             "[red]Error:[/red] cannot re-open: mission "
             f"[bold]{resolved.mission_slug}[/bold] has not completed/merged.\n"
             "[dim]Remediation: a mission can only be re-opened after it has "
-            "merged or all its work packages are terminal.[/dim]"
+            "merged or all its work packages are terminal.[/dim]",
+            code="mission_not_completed",
+            json_output=json_output,
         )
         raise typer.Exit(1)
 
@@ -1434,19 +1445,22 @@ def follow_up_cmd(
 
     # Validate: exactly one of --commit / --pr.
     if (commit is None) == (pr is None):
-        console.print(
-            "[red]Error:[/red] supply exactly one of [cyan]--commit <40-hex>[/cyan] "
-            "or [cyan]--pr <int>[/cyan]."
+        _emit_mission_error(
+            "[red]Error:[/red] supply exactly one of [cyan]--commit <40-hex>[/cyan] or [cyan]--pr <int>[/cyan].",
+            code="invalid_follow_up_reference",
+            json_output=json_output,
         )
         raise typer.Exit(1)
 
     if commit is not None and not re.fullmatch(r"[0-9a-fA-F]{40}", commit):
-        console.print(
-            f"[red]Error:[/red] --commit must be a 40-character hex SHA, got {commit!r}."
+        _emit_mission_error(
+            f"[red]Error:[/red] --commit must be a 40-character hex SHA, got {commit!r}.",
+            code="invalid_commit_sha",
+            json_output=json_output,
         )
         raise typer.Exit(1)
 
-    project_root = get_project_root_or_exit()
+    project_root = get_project_root_or_exit(json_output=json_output)
     repo_root = _resolve_primary_repo_root(project_root)
 
     try:
@@ -1456,10 +1470,12 @@ def follow_up_cmd(
         raise typer.Exit(1) from exc
 
     if not resolved.mission_id:
-        console.print(
+        _emit_mission_error(
             "[red]Error:[/red] mission has no resolvable mission_id for handle "
             f"[bold]{handle}[/bold].\n"
-            "[dim]Remediation: run `spec-kitty migrate backfill-identity`.[/dim]"
+            "[dim]Remediation: run `spec-kitty migrate backfill-identity`.[/dim]",
+            code="mission_identity_missing",
+            json_output=json_output,
         )
         raise typer.Exit(1)
 
@@ -1468,11 +1484,13 @@ def follow_up_cmd(
     # terminal). Checked before emitting so a rejected follow-up writes no event.
     # The emit helper enforces the same invariant defensively.
     if not is_mission_completed(resolved.feature_dir):
-        console.print(
+        _emit_mission_error(
             "[red]Error:[/red] cannot record follow-up: mission "
             f"[bold]{resolved.mission_slug}[/bold] has not completed/merged.\n"
             "[dim]Remediation: follow-ups can only be recorded after a mission "
-            "has merged or all its work packages are terminal.[/dim]"
+            "has merged or all its work packages are terminal.[/dim]",
+            code="mission_not_completed",
+            json_output=json_output,
         )
         raise typer.Exit(1)
 
@@ -1569,7 +1587,7 @@ def list_mission_types(
         charter_mission_type_list,
     )
 
-    charter_mission_type_list(json_output=json_output)
+    charter_mission_type_list(json_output=json_output, include_inactive=False)
 
 
 @app.command("show")
@@ -1591,95 +1609,60 @@ def show_mission_type(
     is not an activated type.
     """
     from charter.activation.mission_type_profiles import (  # noqa: PLC0415
-        MissionTypeEmptyActionSequenceError,
         UnknownMissionTypeError,
         existing_mission_types,
         resolve_mission_type_context,
     )
     from specify_cli.cli.commands.charter.mission_type import (  # noqa: PLC0415
+        mission_type_error_boundary,
         resolve_layered_roster,
         resolve_mission_type_source_layer,
     )
 
     repo_root = Path.cwd()
-    activated_ids = existing_mission_types(repo_root)
+    with mission_type_error_boundary(json_output):
+        activated_ids = existing_mission_types(repo_root)
 
-    if mission_type_id not in activated_ids:
-        err = UnknownMissionTypeError(mission_type_id, registered_ids=activated_ids)
-        console.print(f"[red]Error:[/red] {err}")
-        raise typer.Exit(1)
+        if mission_type_id not in activated_ids:
+            err = UnknownMissionTypeError(mission_type_id, registered_ids=activated_ids)
+            raise err
 
-    # FR-007 (WP07/T017, PLAN-FRESH2-001 site 1): reach the FR-001 layered
-    # lookup, not the built-in-only ``MissionTypeRepository.default()`` --
-    # an activated-but-non-built-in type must succeed here, not hard-fail.
-    #
-    # CL-006/NFR-002 (post-fix verification sweep, mission
-    # up-mission-type-seam-01KZY1JB): sibling of the same unguarded call in
-    # ``charter mission-type list`` / ``doctrine mission-type list`` --
-    # ``resolve_layered_roster`` loud-fails BY DESIGN (WP03,
-    # PR-CONTRACT-002) on a malformed/unreadable YAML file anywhere in the
-    # built-in/org/project ``mission_types/`` layers, even when the
-    # malformed file is unrelated to ``mission_type_id`` (the scan is
-    # directory-wide, not per-id). A bare ``except ValueError`` also catches
-    # ``pydantic.ValidationError`` (this resolver's other documented
-    # ``Raises`` type) since it subclasses ``ValueError`` in the pinned
-    # pydantic version.
-    try:
         mt = resolve_layered_roster(repo_root).get(mission_type_id)
-    except ValueError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
-    if mt is None:
-        err = UnknownMissionTypeError(mission_type_id, registered_ids=activated_ids)
-        console.print(f"[red]Error:[/red] {err}")
-        raise typer.Exit(1)
+        if mt is None:
+            err = UnknownMissionTypeError(mission_type_id, registered_ids=activated_ids)
+            raise err
 
-    # FR-007 (sites 2/3): one real, resolved value shared by both the JSON
-    # and Panel branches below -- not two independently-hardcoded literals.
-    source_layer = resolve_mission_type_source_layer(mission_type_id, repo_root)
+        # FR-007 (sites 2/3): one real, resolved value shared by both the JSON
+        # and Panel branches below -- not two independently-hardcoded literals.
+        source_layer = resolve_mission_type_source_layer(mission_type_id, repo_root)
 
-    try:
-        resolved = resolve_mission_type_context(repo_root, mission_type=mission_type_id)
-        action_seq = resolved.action_sequence
-        # S-C cutover (mission-step-creatability-01KXQA6R WP01, FR-003): the
-        # retired `MissionType.template_set` field is replaced by the resolved
-        # context's `template_set` (still `ResolvedMissionType.template_set`
-        # per C-006 -- an immutable mapping, never the model field).
-        template_mapping = resolved.template_set
-    except UnknownMissionTypeError:
-        # Optional-narrowing (WP07 S-B cutover): `MissionType.action_sequence` is
-        # `list[str] | None` since WP01 (projection-sourced post-cutover, YAML no
-        # longer carries a literal fallback) — narrow before `list()` for mypy --strict.
-        action_seq = list(mt.action_sequence or [])
-        # Mirrors the resolver's own computation (FR-002): the retired model
-        # field has no fallback value to read, so this narrow branch computes
-        # the mapping straight from the step authority instead.
-        from charter.missions import (  # noqa: PLC0415
-            MissionStepRepository,
-            project_template_set,
-        )
+        try:
+            resolved = resolve_mission_type_context(repo_root, mission_type=mission_type_id)
+            action_seq = resolved.action_sequence
+            # S-C cutover (mission-step-creatability-01KXQA6R WP01, FR-003): the
+            # retired `MissionType.template_set` field is replaced by the resolved
+            # context's `template_set` (still `ResolvedMissionType.template_set`
+            # per C-006 -- an immutable mapping, never the model field).
+            template_mapping = resolved.template_set
+        except UnknownMissionTypeError:
+            # Optional-narrowing (WP07 S-B cutover): `MissionType.action_sequence` is
+            # `list[str] | None` since WP01 (projection-sourced post-cutover, YAML no
+            # longer carries a literal fallback) — narrow before `list()` for mypy --strict.
+            action_seq = list(mt.action_sequence or [])
+            # Mirrors the resolver's own computation (FR-002): the retired model
+            # field has no fallback value to read, so this narrow branch computes
+            # the mapping straight from the step authority instead.
+            from charter.missions import (  # noqa: PLC0415
+                MissionStepRepository,
+                project_template_set,
+            )
 
-        fallback_steps = list(
-            MissionStepRepository.default()
-            .resolve_all_for_mission_type(mission_type_id, pack_context=None)
-            .values()
-        )
-        template_mapping = project_template_set(fallback_steps)
-    except MissionTypeEmptyActionSequenceError as exc:
-        # PR-CONTRACT-001 (pre-merge squad, mission up-mission-type-seam-
-        # 01KZY1JB): CL-003's loud-fail exception is a sibling ValueError
-        # subclass of UnknownMissionTypeError, not a child of it -- the
-        # `except UnknownMissionTypeError` above does not catch it. Mirrors
-        # `charter_mission_type_list`'s existing handling
-        # (charter/mission_type.py:151-160) instead of inventing a second
-        # error-reporting style for the same exception type.
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
-
-    # `dict()`-wrap: `ResolvedMissionType.template_set` is a `MappingProxyType`,
-    # which `json.dumps` cannot serialize directly (TypeError) -- and the panel
-    # branch below needs a concrete mapping to test truthiness/sort on.
-    template_set = dict(template_mapping) if template_mapping is not None else None
+            fallback_steps = list(MissionStepRepository.default().resolve_all_for_mission_type(mission_type_id, pack_context=None).values())
+            template_mapping = project_template_set(fallback_steps)
+        # `dict()`-wrap: `ResolvedMissionType.template_set` is a `MappingProxyType`,
+        # which `json.dumps` cannot serialize directly (TypeError) -- and the panel
+        # branch below needs a concrete mapping to test truthiness/sort on.
+        template_set = dict(template_mapping) if template_mapping is not None else None
 
     if json_output:
         data = {

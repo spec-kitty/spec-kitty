@@ -54,273 +54,262 @@ def _get_last_event_time(events: list[StatusEvent], wp_id: str) -> datetime | No
 
 
 def show_kanban_status(mission_slug: str | None = None) -> dict:
-    """Display kanban status board for work packages in a feature.
-
-    This function can be called directly by agents to get a beautiful
-    status display without running a CLI command.
-
-    Args:
-        mission_slug: Feature slug (e.g., "012-documentation-mission").
-                     If None, attempts to auto-detect from current directory.
-
-    Returns:
-        dict: Status data including work packages, metrics, and progress
-
-    Example:
-        >>> from specify_cli.agent_utils.status import show_kanban_status
-        >>> show_kanban_status("012-documentation-mission")
-    """
+    """Render the agent status board, retaining the public display API."""
     try:
-        cwd = Path.cwd().resolve()
-        repo_root = locate_project_root(cwd)
+        data = build_kanban_status(mission_slug)
+    except Exception as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        return {"error": str(exc)}
+    if not data["work_packages"]:
+        console.print("[yellow]No work packages found[/yellow]")
+        return data
+    by_lane = {lane: [] for lane in Lane if lane not in NON_DISPLAY_LANES}
+    for wp in data["work_packages"]:
+        if wp["lane"] in by_lane:
+            by_lane[wp["lane"]].append(wp)
+    _display_status_board(data["mission_slug"], data["work_packages"], by_lane,
+                          data["total_wps"], data["done_count"], data["in_progress_count"],
+                          data["planned_count"], data["done_percentage"], data["progress_percentage"],
+                          data["parallelization"])
+    return data
 
-        if repo_root is None:
-            console.print("[red]Error:[/red] Not in a spec-kitty project")
-            return {"error": "Not in a spec-kitty project"}
 
-        # mission_slug is required; no auto-detection
-        if not mission_slug:
-            msg = (
-                "mission_slug is required. "
-                "Pass it explicitly: show_kanban_status('057-my-feature')"
-            )
-            console.print(f"[red]Error:[/red] {msg}")
-            return {"error": msg}
+def build_kanban_status(mission_slug: str | None = None) -> dict:
+    """Build status data without rendering; genuine input errors raise to the caller."""
+    cwd = Path.cwd().resolve()
+    repo_root = locate_project_root(cwd)
 
-        # Read-only path: use worktree-aware resolution so detached-worktree
-        # verification (#984) reads the current worktree's events, not the
-        # primary checkout's potentially-divergent state.
-        main_repo_root = get_status_read_root()
+    if repo_root is None:
+        raise ValueError("Not in a spec-kitty project")
 
-        # STATUS leg (C-001 / NFR-001): the append-only event log stays
-        # coord-aware so the kanban lanes reflect the worktree-local log.
-        # read-surface-ssot-closeout WP08 / FR-001 / NFR-001: routed through the
-        # kind-aware placement seam instead of the kind-blind
-        # resolve_feature_dir_for_mission (same coord-aware STATUS_STATE resolution).
-        feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
-            MissionArtifactKind.STATUS_STATE
+    # mission_slug is required; no auto-detection
+    if not mission_slug:
+        msg = (
+            "mission_slug is required. "
+            "Pass it explicitly: show_kanban_status('057-my-feature')"
         )
+        raise ValueError(msg)
 
-        if not feature_dir.exists():
-            console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")
-            return {"error": f"Feature directory not found: {feature_dir}"}
+    # Read-only path: use worktree-aware resolution so detached-worktree
+    # verification (#984) reads the current worktree's events, not the
+    # primary checkout's potentially-divergent state.
+    main_repo_root = get_status_read_root()
 
-        # PRIMARY leg: the WP*.md frontmatter glob (#2187, WORK_PACKAGE_TASK) and
-        # the mission identity (#2186, PRIMARY_METADATA) live ONLY on the PRIMARY
-        # checkout post-#2106 — the coord husk carries neither. Both PRIMARY-kinds
-        # resolve topology-blind to the same PRIMARY dir via the kind-aware seam.
-        # read-side-placement-seam-migration WP07: names WORK_PACKAGE_TASK
-        # through the seam authority instead of the kind-blind
-        # ``resolve_planning_read_dir`` — behavior-identical here since
-        # WORK_PACKAGE_TASK is PRIMARY-partition (no fail-loud arm reachable).
-        primary_dir = placement_seam(main_repo_root, mission_slug).read_dir(
-            MissionArtifactKind.WORK_PACKAGE_TASK
-        )
+    # STATUS leg (C-001 / NFR-001): the append-only event log stays
+    # coord-aware so the kanban lanes reflect the worktree-local log.
+    # read-surface-ssot-closeout WP08 / FR-001 / NFR-001: routed through the
+    # kind-aware placement seam instead of the kind-blind
+    # resolve_feature_dir_for_mission (same coord-aware STATUS_STATE resolution).
+    feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.STATUS_STATE
+    )
 
-        tasks_dir = primary_dir / "tasks"
+    if not feature_dir.exists():
+        raise FileNotFoundError(f"Feature directory not found: {feature_dir}")
 
-        if not tasks_dir.exists():
-            console.print(f"[red]Error:[/red] Tasks directory not found: {tasks_dir}")
-            return {"error": f"Tasks directory not found: {tasks_dir}"}
+    # PRIMARY leg: the WP*.md frontmatter glob (#2187, WORK_PACKAGE_TASK) and
+    # the mission identity (#2186, PRIMARY_METADATA) live ONLY on the PRIMARY
+    # checkout post-#2106 — the coord husk carries neither. Both PRIMARY-kinds
+    # resolve topology-blind to the same PRIMARY dir via the kind-aware seam.
+    # read-side-placement-seam-migration WP07: names WORK_PACKAGE_TASK
+    # through the seam authority instead of the kind-blind
+    # ``resolve_planning_read_dir`` — behavior-identical here since
+    # WORK_PACKAGE_TASK is PRIMARY-partition (no fail-loud arm reachable).
+    primary_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
+    )
 
-        identity = resolve_mission_identity(primary_dir)
+    tasks_dir = primary_dir / "tasks"
 
-        # Load project config for stall threshold
-        config_file = main_repo_root / ".kittify" / "config.yaml"
-        config: dict = {}
-        if config_file.exists():
-            try:
-                import yaml as _yaml  # noqa: PLC0415
-                config = _yaml.safe_load(config_file.read_text(encoding="utf-8")) or {}
-            except Exception:  # noqa: BLE001
-                config = {}
-        threshold_minutes: int = (
-            int(config.get("review", {}).get("stall_threshold_minutes", 30))
-            if isinstance(config, dict)
-            else 30
-        )
+    if not tasks_dir.exists():
+        raise FileNotFoundError(f"Tasks directory not found: {tasks_dir}")
 
-        # Build lane map from event log (canonical source of truth)
-        from specify_cli.status import reduce, read_events  # noqa: PLC0415
-        events = read_events(feature_dir)
-        snapshot = reduce(events)
-        # snapshot.work_packages: {wp_id: {"lane": ..., ...}}
-        event_log_lanes: dict[str, Lane] = {
-            wp_id: Lane(state.get("lane", Lane.GENESIS))
-            for wp_id, state in snapshot.work_packages.items()
-        }
+    identity = resolve_mission_identity(primary_dir)
 
-        # Collect all work packages with dependencies (static metadata from frontmatter)
-        import re
-        work_packages = []
-        for wp_file in sorted(tasks_dir.glob("WP*.md")):
-            front, body, padding = split_frontmatter(wp_file.read_text(encoding="utf-8-sig"))
+    # Load project config for stall threshold
+    config_file = main_repo_root / ".kittify" / "config.yaml"
+    config: dict = {}
+    if config_file.exists():
+        try:
+            import yaml as _yaml  # noqa: PLC0415
+            config = _yaml.safe_load(config_file.read_text(encoding="utf-8")) or {}
+        except Exception:  # noqa: BLE001
+            config = {}
+    threshold_minutes: int = (
+        int(config.get("review", {}).get("stall_threshold_minutes", 30))
+        if isinstance(config, dict)
+        else 30
+    )
 
-            wp_id = extract_scalar(front, "work_package_id")
-            title = extract_scalar(front, "title")
-            phase = extract_scalar(front, "phase") or "Unknown Phase"
+    # Build lane map from event log (canonical source of truth)
+    from specify_cli.status import reduce, read_events  # noqa: PLC0415
+    events = read_events(feature_dir)
+    snapshot = reduce(events)
+    # snapshot.work_packages: {wp_id: {"lane": ..., ...}}
+    event_log_lanes: dict[str, Lane] = {
+        wp_id: Lane(state.get("lane", Lane.GENESIS))
+        for wp_id, state in snapshot.work_packages.items()
+    }
 
-            # Lane comes from event log; default to Lane.GENESIS for unseeded WPs
-            # (WPs not yet in the log have not been through finalize-tasks).
-            # Contract 3 (FR-008): read side must agree with write side.
-            lane: Lane = event_log_lanes.get(wp_id or "", Lane.GENESIS)
+    # Collect all work packages with dependencies (static metadata from frontmatter)
+    import re
+    work_packages = []
+    for wp_file in sorted(tasks_dir.glob("WP*.md")):
+        front, body, padding = split_frontmatter(wp_file.read_text(encoding="utf-8-sig"))
 
-            # Parse dependencies
-            dependencies = []
-            if "dependencies:" in front:
-                dep_match = re.search(r'dependencies:\s*\n((?:\s+-\s+"[^"]+"\s*\n)*)', front, re.MULTILINE)
-                if dep_match:
-                    dep_text = dep_match.group(1)
-                    dependencies = re.findall(r'"([^"]+)"', dep_text)
+        wp_id = extract_scalar(front, "work_package_id")
+        title = extract_scalar(front, "title")
+        phase = extract_scalar(front, "phase") or "Unknown Phase"
 
-            work_packages.append({
-                "id": wp_id,
-                "title": title,
-                "lane": lane,
-                "phase": phase,
-                "file": wp_file.name,
-                "artifact_dir": wp_file.stem,
-                "dependencies": dependencies
-            })
+        # Lane comes from event log; default to Lane.GENESIS for unseeded WPs
+        # (WPs not yet in the log have not been through finalize-tasks).
+        # Contract 3 (FR-008): read side must agree with write side.
+        lane: Lane = event_log_lanes.get(wp_id or "", Lane.GENESIS)
 
-        if not work_packages:
-            console.print(f"[yellow]No work packages found in {tasks_dir}[/yellow]")
-            return {"error": "No work packages found", "work_packages": []}
+        # Parse dependencies
+        dependencies = []
+        if "dependencies:" in front:
+            dep_match = re.search(r'dependencies:\s*\n((?:\s+-\s+"[^"]+"\s*\n)*)', front, re.MULTILINE)
+            if dep_match:
+                dep_text = dep_match.group(1)
+                dependencies = re.findall(r'"([^"]+)"', dep_text)
 
-        # Group by lane using Lane enum keys (avoids raw lane-string comparisons)
-        by_lane: dict[Lane, list] = {
-            Lane.PLANNED: [], Lane.CLAIMED: [], Lane.IN_PROGRESS: [], Lane.IN_REVIEW: [],
-            Lane.FOR_REVIEW: [], Lane.APPROVED: [], Lane.DONE: [], Lane.BLOCKED: [], Lane.CANCELED: [],
-        }
-        for wp in work_packages:
-            lane = wp["lane"]
-            if lane in NON_DISPLAY_LANES:
-                # Genesis/uninitialized WPs are non-display (not finalized); silently skip them
-                # from all kanban columns — they will appear once finalize-tasks
-                # seeds them to planned (Contract 2, FR-008).
-                pass
-            elif lane in by_lane:
-                by_lane[lane].append(wp)
+        work_packages.append({
+            "id": wp_id,
+            "title": title,
+            "lane": lane,
+            "phase": phase,
+            "file": wp_file.name,
+            "artifact_dir": wp_file.stem,
+            "dependencies": dependencies
+        })
+
+    # Group by lane using Lane enum keys (avoids raw lane-string comparisons)
+    by_lane: dict[Lane, list] = {
+        Lane.PLANNED: [], Lane.CLAIMED: [], Lane.IN_PROGRESS: [], Lane.IN_REVIEW: [],
+        Lane.FOR_REVIEW: [], Lane.APPROVED: [], Lane.DONE: [], Lane.BLOCKED: [], Lane.CANCELED: [],
+    }
+    for wp in work_packages:
+        lane = wp["lane"]
+        if lane in NON_DISPLAY_LANES:
+            # Genesis/uninitialized WPs are non-display (not finalized); silently skip them
+            # from all kanban columns — they will appear once finalize-tasks
+            # seeds them to planned (Contract 2, FR-008).
+            pass
+        elif lane in by_lane:
+            by_lane[lane].append(wp)
+        else:
+            # Fallback: use progress_bucket to classify unknown lanes
+            bucket = wp_state_for(lane).progress_bucket()
+            if bucket == "terminal":
+                by_lane[Lane.DONE].append(wp)
+            elif bucket == "review":
+                by_lane[Lane.FOR_REVIEW].append(wp)
             else:
-                # Fallback: use progress_bucket to classify unknown lanes
-                bucket = wp_state_for(lane).progress_bucket()
-                if bucket == "terminal":
-                    by_lane[Lane.DONE].append(wp)
-                elif bucket == "review":
-                    by_lane[Lane.FOR_REVIEW].append(wp)
-                else:
-                    by_lane[Lane.PLANNED].append(wp)
+                by_lane[Lane.PLANNED].append(wp)
 
-        # Calculate metrics using progress_bucket() — no raw lane-string comparisons.
-        # Genesis/uninitialized WPs are excluded from all metric buckets (non-display; Contract 2).
-        _display_wps = [wp for wp in work_packages if wp["lane"] not in NON_DISPLAY_LANES]
-        # Count only display WPs so the total matches the summed lane buckets;
-        # genesis WPs are non-display and would otherwise inflate the total while
-        # appearing in no column (review m1).
-        total = len(_display_wps)
-        done_count = sum(
-            1 for wp in _display_wps
-            if wp_state_for(wp["lane"]).progress_bucket() == "terminal"
-            and wp["lane"] == Lane.DONE
-        )
-        in_progress = sum(
-            1 for wp in _display_wps
-            if wp_state_for(wp["lane"]).progress_bucket() in ("in_flight", "review")
-        )
-        planned_count = sum(
-            1 for wp in _display_wps
-            if wp_state_for(wp["lane"]).progress_bucket() == "not_started"
-        )
-        progress_result = compute_weighted_progress(snapshot)
-        progress_pct = round(progress_result.percentage, 1)
-        done_pct = round(compute_done_percentage(done_count, total), 1)
+    # Calculate metrics using progress_bucket() — no raw lane-string comparisons.
+    # Genesis/uninitialized WPs are excluded from all metric buckets (non-display; Contract 2).
+    _display_wps = [wp for wp in work_packages if wp["lane"] not in NON_DISPLAY_LANES]
+    # Count only display WPs so the total matches the summed lane buckets;
+    # genesis WPs are non-display and would otherwise inflate the total while
+    # appearing in no column (review m1).
+    total = len(_display_wps)
+    done_count = sum(
+        1 for wp in _display_wps
+        if wp_state_for(wp["lane"]).progress_bucket() == "terminal"
+        and wp["lane"] == Lane.DONE
+    )
+    in_progress = sum(
+        1 for wp in _display_wps
+        if wp_state_for(wp["lane"]).progress_bucket() in ("in_flight", "review")
+    )
+    planned_count = sum(
+        1 for wp in _display_wps
+        if wp_state_for(wp["lane"]).progress_bucket() == "not_started"
+    )
+    progress_result = compute_weighted_progress(snapshot)
+    progress_pct = round(progress_result.percentage, 1)
+    done_pct = round(compute_done_percentage(done_count, total), 1)
 
-        # Analyze parallelization opportunities
-        done_wp_ids = {wp["id"] for wp in work_packages if wp["lane"] == Lane.DONE}
-        parallel_info = _analyze_parallelization(work_packages, done_wp_ids)
+    # Analyze parallelization opportunities
+    done_wp_ids = {wp["id"] for wp in work_packages if wp["lane"] == Lane.DONE}
+    parallel_info = _analyze_parallelization(work_packages, done_wp_ids)
 
-        # --- Stale verdict detection (T023) ---
-        # Warn if approved/done WPs have a review artifact with verdict=rejected
-        stale_verdicts: list[dict[str, str]] = []
-        # T064/FR-012: a SEPARATE channel from stale_verdicts (not folded into
-        # it) for the "artifact present but unreadable" refusal signal, so the
-        # existing stale_verdicts contract (pinned byte-for-byte by
-        # tests/agent/test_agent_utils_status.py, outside this WP's owned
-        # surface) is untouched for the rejected-verdict case.
-        damaged_verdicts: list[dict[str, str]] = []
-        for wp in work_packages:
-            if wp["lane"] not in (Lane.APPROVED, Lane.DONE):
-                continue
-            wp_id = wp["id"]
-            if not wp_id:
-                continue
-            lookup = event_sourced_review_result(feature_dir, wp_id)
-            if not lookup.slot_present:
-                # absent -- legitimately no verdict recorded yet, not damage.
-                continue
-            if lookup.result is None:
-                # refuse (FR-012): distinct board entry, not a command crash —
-                # a damaged event-log ``review_result`` slot, never silently
-                # folded into the same "no verdict" case a genuinely absent
-                # slot produces.
-                damaged_verdicts.append(
-                    {"wp_id": wp_id, "artifact": "review artifact: unreadable/damaged verdict record"}
-                )
-                wp["_damaged_verdict"] = True
-                continue
-            if is_changes_requested(lookup.result.verdict):
-                stale_verdicts.append({"wp_id": wp_id, "artifact": "review artifact: verdict=rejected"})
-                wp["_stale_verdict"] = True
+    # --- Stale verdict detection (T023) ---
+    # Warn if approved/done WPs have a review artifact with verdict=rejected
+    stale_verdicts: list[dict[str, str]] = []
+    # T064/FR-012: a SEPARATE channel from stale_verdicts (not folded into
+    # it) for the "artifact present but unreadable" refusal signal, so the
+    # existing stale_verdicts contract (pinned byte-for-byte by
+    # tests/agent/test_agent_utils_status.py, outside this WP's owned
+    # surface) is untouched for the rejected-verdict case.
+    damaged_verdicts: list[dict[str, str]] = []
+    for wp in work_packages:
+        if wp["lane"] not in (Lane.APPROVED, Lane.DONE):
+            continue
+        wp_id = wp["id"]
+        if not wp_id:
+            continue
+        lookup = event_sourced_review_result(feature_dir, wp_id)
+        if not lookup.slot_present:
+            # absent -- legitimately no verdict recorded yet, not damage.
+            continue
+        if lookup.result is None:
+            # refuse (FR-012): distinct board entry, not a command crash —
+            # a damaged event-log ``review_result`` slot, never silently
+            # folded into the same "no verdict" case a genuinely absent
+            # slot produces.
+            damaged_verdicts.append(
+                {"wp_id": wp_id, "artifact": "review artifact: unreadable/damaged verdict record"}
+            )
+            wp["_damaged_verdict"] = True
+            continue
+        if is_changes_requested(lookup.result.verdict):
+            stale_verdicts.append({"wp_id": wp_id, "artifact": "review artifact: verdict=rejected"})
+            wp["_stale_verdict"] = True
 
-        # --- Stall detection (T025) ---
-        # Flag in_review WPs whose last event is older than the threshold
-        current_instant = now_utc()
-        stalled_wps: list[dict] = []
-        for wp in by_lane.get(Lane.IN_REVIEW, []):
-            wp_id = wp["id"]
-            if not wp_id:
-                continue
-            last_event_time = _get_last_event_time(events, wp_id)
-            if last_event_time is not None:
-                age_minutes = (current_instant - last_event_time).total_seconds() / 60
-                if age_minutes > threshold_minutes:
-                    stall_label = f"STALLED — no move-task in {int(age_minutes)}m"
-                    wp["_stall_label"] = stall_label
-                    stalled_wps.append({
-                        "wp_id": wp_id,
-                        "age_minutes": int(age_minutes),
-                        "mission_slug": mission_slug,
-                    })
+    # --- Stall detection (T025) ---
+    # Flag in_review WPs whose last event is older than the threshold
+    current_instant = now_utc()
+    stalled_wps: list[dict] = []
+    for wp in by_lane.get(Lane.IN_REVIEW, []):
+        wp_id = wp["id"]
+        if not wp_id:
+            continue
+        last_event_time = _get_last_event_time(events, wp_id)
+        if last_event_time is not None:
+            age_minutes = (current_instant - last_event_time).total_seconds() / 60
+            if age_minutes > threshold_minutes:
+                stall_label = f"STALLED — no move-task in {int(age_minutes)}m"
+                wp["_stall_label"] = stall_label
+                stalled_wps.append({
+                    "wp_id": wp_id,
+                    "age_minutes": int(age_minutes),
+                    "mission_slug": mission_slug,
+                })
 
-        # Display the status board
-        _display_status_board(mission_slug, work_packages, by_lane, total, done_count,
-                            in_progress, planned_count, done_pct, progress_pct, parallel_info)
-
-        # Return structured data (by_lane uses Lane.value to produce string keys)
-        lane_counts = Counter(wp["lane"].value for wp in work_packages)
-        return {
-            "mission_slug": identity.mission_slug,
-            "mission_number": identity.mission_number,
-            "mission_type": identity.mission_type,
-            "total_wps": total,
-            "by_lane": dict(lane_counts),
-            "work_packages": work_packages,
-            "progress_percentage": progress_pct,
-            "progress_semantics": PROGRESS_SEMANTICS,
-            "weighted_percentage": progress_pct,
-            "done_percentage": done_pct,
-            "done_count": done_count,
-            "in_progress_count": in_progress,
-            "planned_count": planned_count,
-            "parallelization": parallel_info,
-            "stalled_wps": stalled_wps,
-            "stale_verdicts": stale_verdicts,
-            "damaged_verdicts": damaged_verdicts,
-        }
-
-    except Exception as e:
-        console.print(f"[red]Error:[/red] {e}")
-        return {"error": str(e)}
+    # Return structured data (by_lane uses Lane.value to produce string keys)
+    lane_counts = Counter(wp["lane"].value for wp in work_packages)
+    return {
+        "mission_slug": identity.mission_slug,
+        "mission_number": identity.mission_number,
+        "mission_type": identity.mission_type,
+        "total_wps": total,
+        "by_lane": dict(lane_counts),
+        "work_packages": work_packages,
+        "progress_percentage": progress_pct,
+        "progress_semantics": PROGRESS_SEMANTICS,
+        "weighted_percentage": progress_pct,
+        "done_percentage": done_pct,
+        "done_count": done_count,
+        "in_progress_count": in_progress,
+        "planned_count": planned_count,
+        "parallelization": parallel_info,
+        "stalled_wps": stalled_wps,
+        "stale_verdicts": stale_verdicts,
+        "damaged_verdicts": damaged_verdicts,
+    }
 
 
 def _analyze_parallelization(work_packages: list, done_wp_ids: set) -> dict:

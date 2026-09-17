@@ -6,13 +6,13 @@ plus canonical MissionContext token lifecycle (resolve, show).
 
 from __future__ import annotations
 
-import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
 
 import typer
-from rich.console import Console
 from specify_cli.cli.console import console
+from specify_cli.cli.json_contract import json_error
 from rich.table import Table
 from typing_extensions import Annotated
 
@@ -26,6 +26,24 @@ from specify_cli.workspace.context import (
 )
 
 app = typer.Typer(help="Query workspace context information")
+
+
+def _emit_error(code: str, message: str, json_output: bool) -> None:
+    """Render a boundary failure without defining another envelope authority."""
+    if json_output:
+        console.emit_json(json_error(code, message))
+    else:
+        console.print(f"[red]Error:[/red] {message}")
+
+
+@contextmanager
+def _workspace_read_boundary(json_output: bool) -> Iterator[None]:
+    """Keep workspace filesystem failures at the command output boundary."""
+    try:
+        yield
+    except OSError as exc:
+        _emit_error("workspace_read_failed", f"Could not read workspace context: {exc}", json_output)
+        raise typer.Exit(1) from exc
 
 
 def detect_current_workspace(cwd: Path, _repo_root: Path) -> str | None:
@@ -52,8 +70,8 @@ def detect_current_workspace(cwd: Path, _repo_root: Path) -> str | None:
 
 @app.command(name="info")
 def info_command(
-    workspace: str = typer.Option(None, "--workspace", "-w", help="Workspace name (auto-detected if inside worktree)"),
-    json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
+    workspace: Annotated[str | None, typer.Option("--workspace", "-w", help="Workspace name (auto-detected if inside worktree)")] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
 ) -> None:
     """Show context information for current or specified workspace.
 
@@ -62,7 +80,7 @@ def info_command(
         spec-kitty context info
 
         # Explicit workspace
-        spec-kitty context info --workspace 010-feature-lane-a
+        spec-kitty context info --workspace 010-mission-lane-a
 
         # JSON output
         spec-kitty context info --json
@@ -70,29 +88,32 @@ def info_command(
     try:
         repo_root = find_repo_root()
     except TaskCliError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        _emit_error("not_in_project", str(e), json_output)
         raise typer.Exit(1) from e
 
     # Auto-detect workspace if not provided
     if workspace is None:
         workspace = detect_current_workspace(Path.cwd(), repo_root)
         if workspace is None:
-            console.print("[red]Error:[/red] Not inside a worktree and no --workspace specified")
-            console.print("\nRun from inside a worktree or use --workspace flag:")
-            console.print("  spec-kitty context info --workspace 010-feature-lane-a")
+            _emit_error("no_worktree", "Not inside a worktree and no --workspace specified", json_output)
+            if not json_output:
+                console.print("\nRun from inside a worktree or use --workspace flag:")
+                console.print("  spec-kitty context info --workspace 010-mission-lane-a")
             raise typer.Exit(1)
 
     # Load context
-    context = load_context(repo_root, workspace)
+    with _workspace_read_boundary(json_output):
+        context = load_context(repo_root, workspace)
     if context is None:
-        console.print(f"[red]Error:[/red] No context found for workspace: {workspace}")
-        console.print("\nContext file not found:")
-        console.print(f"  {repo_root / '.kittify' / 'workspaces' / f'{workspace}.json'}")
+        _emit_error("workspace_not_found", f"No context found for workspace: {workspace}", json_output)
+        if not json_output:
+            console.print("\nContext file not found:")
+            console.print(f"  {repo_root / '.kittify' / 'workspaces' / f'{workspace}.json'}")
         raise typer.Exit(1)
 
     # Output
     if json_output:
-        print(json.dumps(context.to_dict(), indent=2))
+        console.emit_json(context.to_dict())
     else:
         console.print("\n[bold cyan]📍 Workspace Context[/bold cyan]")
         console.print("─" * 50)
@@ -103,7 +124,7 @@ def info_command(
         table.add_column("Value")
 
         table.add_row("Work Package", f"[bold]{context.wp_id}[/bold]")
-        table.add_row("Feature", context.mission_slug)
+        table.add_row("Mission", context.mission_slug)
         table.add_row("Base Branch", f"[cyan]{context.base_branch}[/cyan]")
         base_commit = context.base_commit[:12] if context.base_commit else "unknown"
         table.add_row("Base Commit", f"[dim]{base_commit}[/dim]")
@@ -119,7 +140,7 @@ def info_command(
 
 @app.command(name="list")
 def list_command(
-    json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
+    json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
     show_orphaned: bool = typer.Option(False, "--orphaned", help="Show only orphaned contexts"),
 ) -> None:
     """List all workspace contexts.
@@ -137,13 +158,14 @@ def list_command(
     try:
         repo_root = find_repo_root()
     except TaskCliError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        _emit_error("not_in_project", str(e), json_output)
         raise typer.Exit(1) from e
 
     if show_orphaned:
-        orphaned = find_orphaned_contexts(repo_root)
+        with _workspace_read_boundary(json_output):
+            orphaned = find_orphaned_contexts(repo_root)
         if json_output:
-            print(json.dumps([{"workspace": name, "context": ctx.to_dict()} for name, ctx in orphaned], indent=2))
+            console.emit_json([{"workspace": name, "context": ctx.to_dict()} for name, ctx in orphaned])
         else:
             if not orphaned:
                 console.print("[green]✓[/green] No orphaned contexts found")
@@ -158,9 +180,10 @@ def list_command(
 
             console.print("[dim]Clean up with: spec-kitty context cleanup[/dim]\n")
     else:
-        contexts = list_contexts(repo_root)
+        with _workspace_read_boundary(json_output):
+            contexts = list_contexts(repo_root)
         if json_output:
-            print(json.dumps([ctx.to_dict() for ctx in contexts], indent=2))
+            console.emit_json([ctx.to_dict() for ctx in contexts])
         else:
             if not contexts:
                 console.print("[dim]No workspace contexts found[/dim]")
@@ -170,7 +193,7 @@ def list_command(
 
             table = Table(show_header=True)
             table.add_column("WP", style="bold")
-            table.add_column("Feature", style="dim")
+            table.add_column("Mission", style="dim")
             table.add_column("Base", style="cyan")
             table.add_column("Dependencies")
             table.add_column("Status")
@@ -245,27 +268,30 @@ def mission_resolve_command(
 ) -> None:
     """Resolve and persist a MissionContext token.
 
-    Creates a new bound context for the given work package and feature,
+    Creates a new bound context for the given work package and mission,
     writes it to .kittify/runtime/contexts/, and prints the token.
 
     The token can be passed to other commands via --context <token>.
 
     Examples:
         # Resolve and print token for piping
-        TOKEN=$(spec-kitty context mission-resolve --wp WP01 --mission 057-my-feature)
+        TOKEN=$(spec-kitty context mission-resolve --wp WP01 --mission 057-my-mission)
 
         # Resolve and print full JSON
-        spec-kitty context mission-resolve --wp WP01 --mission 057-my-feature --json
+        spec-kitty context mission-resolve --wp WP01 --mission 057-my-mission --json
     """
     from specify_cli.context import resolve_context, ContextResolutionError
 
     repo_root = locate_project_root()
     if repo_root is None:
-        console.print("[red]Error:[/red] Could not locate project root (no .kittify/ directory found)")
+        _emit_error("not_in_project", "Could not locate project root (no .kittify/ directory found)", json_output)
         raise typer.Exit(1)
 
     mission_norm = mission.strip() if isinstance(mission, str) else None
     if not mission_norm:
+        if json_output:
+            _emit_error("missing_mission", "--mission <slug> is required", True)
+            raise typer.Exit(2)
         raise typer.BadParameter("--mission <slug> is required")
     canonical = mission_norm
 
@@ -277,11 +303,11 @@ def mission_resolve_command(
             repo_root=repo_root,
         )
     except ContextResolutionError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        _emit_error("context_resolution_failed", str(e), json_output)
         raise typer.Exit(1) from e
 
     if json_output:
-        print(json.dumps(ctx.to_dict(), indent=2))
+        console.emit_json(ctx.to_dict())
     else:
         # Plain token output for easy piping / shell capture
         print(ctx.token)
@@ -305,20 +331,23 @@ def mission_show_command(
 
     repo_root = locate_project_root()
     if repo_root is None:
-        console.print("[red]Error:[/red] Could not locate project root (no .kittify/ directory found)")
+        _emit_error("not_in_project", "Could not locate project root (no .kittify/ directory found)", json_output)
         raise typer.Exit(1)
 
     try:
         ctx = load_mission_context(context_token, repo_root)
     except ContextNotFoundError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        _emit_error("context_not_found", str(e), json_output)
         raise typer.Exit(1) from e
     except ContextCorruptedError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        _emit_error("context_corrupted", str(e), json_output)
+        raise typer.Exit(1) from e
+    except (UnicodeDecodeError, OSError) as e:
+        _emit_error("context_corrupted", f"Cannot read context token '{context_token}': {e}", json_output)
         raise typer.Exit(1) from e
 
     if json_output:
-        print(json.dumps(ctx.to_dict(), indent=2))
+        console.emit_json(ctx.to_dict())
     else:
         console.print("\n[bold cyan]MissionContext[/bold cyan]")
         console.print("─" * 60)
@@ -329,7 +358,7 @@ def mission_show_command(
 
         table.add_row("Token", f"[bold]{ctx.token}[/bold]")
         table.add_row("WP Code", f"[bold]{ctx.wp_code}[/bold]")
-        table.add_row("Feature Slug", ctx.mission_slug)
+        table.add_row("Mission Slug", ctx.mission_slug)
         table.add_row("Mission ID", ctx.mission_id)
         table.add_row("Work Package ID", ctx.work_package_id)
         table.add_row("Project UUID", ctx.project_uuid)

@@ -41,7 +41,8 @@ from specify_cli.upgrade.migrations.m_3_2_8_provision_kitty_env import (
     GOVERNED_SECRET_VARS,
 )
 
-from ._doctor_shared import _emit_not_in_project, console
+from . import _doctor_shared
+from ._doctor_shared import console
 
 __all__ = ["register", "run_env_file_health"]
 
@@ -158,7 +159,8 @@ def _read_tier_file(path: Path) -> dict[str, str]:
         text = path.read_text(encoding="utf-8")
     except OSError:
         return {}
-    return parse_env_file(text)
+    values: dict[str, str] = parse_env_file(text)
+    return values
 
 
 def _raw_tier_value(var: str, *, real_present: bool, repo_present: bool, repo_values: dict[str, str], home_values: dict[str, str]) -> str | None:
@@ -281,12 +283,5 @@ def register(app: typer.Typer) -> None:
             spec-kitty doctor env-file
             spec-kitty doctor env-file --json
         """
-        try:
-            repo_root = locate_project_root()
-        except Exception as exc:
-            _emit_not_in_project(json_output)
-            raise typer.Exit(1) from exc
-        if repo_root is None:
-            _emit_not_in_project(json_output)
-            raise typer.Exit(1)
+        repo_root = _doctor_shared.resolve_project_root_or_exit(locate_project_root, json_output)
         run_env_file_health(repo_root, json_output=json_output)

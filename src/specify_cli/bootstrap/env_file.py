@@ -184,8 +184,7 @@ def _read_tier(path: Path) -> dict[str, str]:
     # binding it to a constant).
     if parsed.pop("SPEC_KITTY_HOME", None) is not None:
         warnings.warn(
-            f"{path} defines SPEC_KITTY_HOME; ignoring that line "
-            "(the locator that finds this file cannot be redefined by it).",
+            f"{path} defines SPEC_KITTY_HOME; ignoring that line (the locator that finds this file cannot be redefined by it).",
             UserWarning,
             stacklevel=3,
         )
@@ -205,14 +204,16 @@ def _read_config_env_file_pointer(repo_root: Path | None) -> str | None:
     top-level key is invisible to it.
 
     Returns the raw (unexpanded) value, or ``None`` when there's no repo, no
-    config file, no such key, or the key's value is blank.
+    readable config file, no such key, or the key's value is blank.
+    This optional import-time pointer probe must not disable repair commands;
+    required config-content reads report corruption at their own boundary.
     """
     if repo_root is None:
         return None
     config_path = repo_root / _CONFIG_YAML_RELATIVE
     try:
         text = config_path.read_text(encoding="utf-8")
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         return None
     for raw_line in text.splitlines():
         if not raw_line.startswith(_ENV_FILE_CONFIG_PREFIX):

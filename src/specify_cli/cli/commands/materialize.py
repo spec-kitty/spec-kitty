@@ -10,14 +10,31 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
+from pathlib import Path
 from typing import Annotated, Any
 
 import typer
 from specify_cli.cli.console import console
+from specify_cli.cli.json_contract import json_error
 
 from specify_cli.core.paths import locate_project_root
+from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 from kernel.clock import now_utc_iso
 
+
+
+def _resolve_selected_dir(repo_root: Path, mission_slug: str, json_output: bool) -> Path:
+    """Resolve the status partition, rendering expected selector ambiguity."""
+    from mission_runtime import MissionArtifactKind, placement_seam
+
+    try:
+        return placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
+    except MissionSelectorAmbiguous as exc:
+        if json_output:
+            console.emit_json({**json_error(exc.error_code, str(exc)), "handle": exc.handle, "candidates": exc.candidates})
+        else:
+            console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
 
 
 def materialize(
@@ -52,7 +69,10 @@ def materialize(
 
     repo_root = locate_project_root()
     if repo_root is None:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        if json_output:
+            console.emit_json(json_error("not_in_project", "Not in a spec-kitty project"))
+        else:
+            console.print("[red]Error:[/red] Not in a spec-kitty project")
         raise typer.Exit(1)
 
     specs_dir = repo_root / KITTY_SPECS_DIR
@@ -70,15 +90,12 @@ def materialize(
         # append-only ``status.events.jsonl`` log via ``materialize()`` — the
         # STATUS-namespace surface. Route through the seam on ``STATUS_STATE``
         # (coord-aware) rather than the kind-blind slug resolver (NFR-001).
-        from mission_runtime import MissionArtifactKind, placement_seam
-
-        feature_dirs = [
-            placement_seam(repo_root, mission_slug).read_dir(
-                MissionArtifactKind.STATUS_STATE
-            )
-        ]
+        feature_dirs = [_resolve_selected_dir(repo_root, mission_slug, json_output)]
         if not feature_dirs[0].exists():
-            console.print(f"[red]Error:[/red] Mission not found: {mission_slug}")
+            if json_output:
+                console.emit_json(json_error("mission_not_found", f"Mission not found: {mission_slug}"))
+            else:
+                console.print(f"[red]Error:[/red] Mission not found: {mission_slug}")
             raise typer.Exit(1)
     else:
         if not specs_dir.exists():
@@ -117,7 +134,10 @@ def materialize(
     }
 
     if json_output:
-        console.print_json(json.dumps(summary, indent=2))
+        if errors:
+            console.emit_json({**summary, **json_error("materialize_failed", "; ".join(errors))})
+        else:
+            console.print_json(json.dumps(summary, indent=2))
     else:
         if not processed:
             console.print("[dim]No features materialised.[/dim]")

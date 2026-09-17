@@ -21,6 +21,8 @@ such charter doors (layer direction: kernel <- doctrine <- charter <- specify_cl
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -28,8 +30,10 @@ import typer
 from specify_cli.cli.console import console
 from rich.table import Table
 
+from charter.activation.pack_context import CharterPackConfigError
+from specify_cli.cli.json_contract import json_error, json_output_guard
+
 from charter.activation.mission_type_profiles import (
-    MissionTypeEmptyActionSequenceError,
     UnknownMissionTypeError,
     existing_mission_types,
     resolve_mission_type_context,
@@ -42,6 +46,7 @@ if TYPE_CHECKING:
 __all__ = [
     "charter_mission_type_app",
     "charter_mission_type_list",
+    "mission_type_error_boundary",
     "resolve_layered_roster",
     "resolve_mission_type_source_layer",
 ]
@@ -124,18 +129,67 @@ def resolve_mission_type_source_layer(mission_type_id: str, repo_root: Path) -> 
 _NOT_ACTIVATED_ACTION_SEQUENCE = "(not activated)"
 
 
-def _resolve_action_sequence_or_report(repo_root: Path, mt_id: str) -> list[str]:
-    """Resolve *mt_id*'s action sequence, or print+exit on an empty one.
-
-    Isolates the ``MissionTypeEmptyActionSequenceError`` handling shared by
-    every activated row so the caller loop stays flat (CL-003/NFR-002: an
-    empty action sequence must never render as a quiet ``[]`` row).
-    """
+@contextmanager
+def mission_type_error_boundary(json_output: bool) -> Iterator[None]:
+    """Translate required mission-type content failures at the command boundary."""
     try:
-        return list(resolve_mission_type_context(repo_root, mission_type=mt_id).action_sequence)
-    except MissionTypeEmptyActionSequenceError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
+        with json_output_guard(json_output):
+            yield
+    except (CharterPackConfigError, ValueError, OSError) as exc:
+        message = exc.body if isinstance(exc, CharterPackConfigError) else str(exc)
+        if json_output:
+            code = "invalid_mission_type"
+            if isinstance(exc, CharterPackConfigError):
+                code = "CHARTER_PACK_CONFIG_INVALID"
+            elif isinstance(exc, UnknownMissionTypeError):
+                code = "unknown_mission_type"
+            console.emit_json(json_error(code, message))
+        else:
+            console.print(f"[red]Error:[/red] {message}")
         raise typer.Exit(1) from exc
+
+
+def _mission_type_rows(repo_root: Path, activated_ids: list[str], roster: dict[str, MissionType], include_inactive: bool) -> list[dict[str, object]]:
+    """Build display rows without coupling successful data to its renderer."""
+    activated_id_set = set(activated_ids)
+    # Preserves the pre-CR-02 row order (activated ids, in their own order)
+    # and appends any inactive ids -- sorted for determinism, since the
+    # roster dict has no declared order guarantee of its own -- only when
+    # `--include-inactive` was passed.
+    ordered_ids = list(activated_ids)
+    if include_inactive:
+        ordered_ids.extend(sorted(set(roster) - activated_id_set))
+
+    rows: list[dict[str, object]] = []
+    for mt_id in ordered_ids:
+        mt = roster.get(mt_id)
+        if mt is None:
+            # Activated but unresolvable in any layer -- WP05's own
+            # activation scan already validates resolvability before
+            # activating, so this is a defensive backstop for a genuine
+            # configuration inconsistency, not an expected steady-state
+            # path. Report the failure plainly rather than a placeholder
+            # "unknown" layer treated as a successful row (CL-006/NFR-002).
+            err = UnknownMissionTypeError(mt_id, registered_ids=activated_ids)
+            raise err
+
+        is_activated = mt_id in activated_id_set
+        if is_activated:
+            action_seq: list[str] | str = list(resolve_mission_type_context(repo_root, mission_type=mt_id).action_sequence)
+        else:
+            action_seq = _NOT_ACTIVATED_ACTION_SEQUENCE
+
+        rows.append(
+            {
+                "id": mt_id,
+                "source_layer": resolve_mission_type_source_layer(mt_id, repo_root),
+                "display_name": mt.display_name,
+                "action_sequence": action_seq,
+                "activated": is_activated,
+            }
+        )
+
+    return rows
 
 
 @charter_mission_type_app.command("list")
@@ -172,62 +226,10 @@ def charter_mission_type_list(
     (the FR-006 gate), so there is nothing to compute for it.
     """
     repo_root = Path.cwd()
-    activated_ids = existing_mission_types(repo_root)
-
-    # CL-006/NFR-002 (post-fix verification sweep, mission
-    # up-mission-type-seam-01KZY1JB): ``resolve_layered_roster`` scans every
-    # built-in/org/project ``mission_types/`` directory up front and
-    # loud-fails BY DESIGN (WP03, PR-CONTRACT-002) on a malformed/unreadable
-    # YAML file anywhere in them. Pre-fix this call had no exception
-    # boundary, so that loud-fail was a raw, uncaught traceback rather than
-    # a clean, operator-readable exit. A bare ``except ValueError`` also
-    # catches ``pydantic.ValidationError`` (this resolver's other documented
-    # ``Raises`` type) since it subclasses ``ValueError`` in the pinned
-    # pydantic version.
-    try:
+    with mission_type_error_boundary(json_output):
+        activated_ids = existing_mission_types(repo_root)
         roster = resolve_layered_roster(repo_root)
-    except ValueError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
-
-    activated_id_set = set(activated_ids)
-    # Preserves the pre-CR-02 row order (activated ids, in their own order)
-    # and appends any inactive ids -- sorted for determinism, since the
-    # roster dict has no declared order guarantee of its own -- only when
-    # `--include-inactive` was passed.
-    ordered_ids = list(activated_ids)
-    if include_inactive:
-        ordered_ids.extend(sorted(set(roster) - activated_id_set))
-
-    rows: list[dict[str, object]] = []
-    for mt_id in ordered_ids:
-        mt = roster.get(mt_id)
-        if mt is None:
-            # Activated but unresolvable in any layer -- WP05's own
-            # activation scan already validates resolvability before
-            # activating, so this is a defensive backstop for a genuine
-            # configuration inconsistency, not an expected steady-state
-            # path. Report the failure plainly rather than a placeholder
-            # "unknown" layer treated as a successful row (CL-006/NFR-002).
-            err = UnknownMissionTypeError(mt_id, registered_ids=activated_ids)
-            console.print(f"[red]Error:[/red] {err}")
-            raise typer.Exit(1)
-
-        is_activated = mt_id in activated_id_set
-        if is_activated:
-            action_seq: list[str] | str = _resolve_action_sequence_or_report(repo_root, mt_id)
-        else:
-            action_seq = _NOT_ACTIVATED_ACTION_SEQUENCE
-
-        rows.append(
-            {
-                "id": mt_id,
-                "source_layer": resolve_mission_type_source_layer(mt_id, repo_root),
-                "display_name": mt.display_name,
-                "action_sequence": action_seq,
-                "activated": is_activated,
-            }
-        )
+        rows = _mission_type_rows(repo_root, activated_ids, roster, include_inactive)
 
     if json_output:
         console.print_json(json.dumps(rows))

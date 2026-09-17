@@ -15,6 +15,7 @@ from pathlib import Path
 
 import typer
 from specify_cli.cli.console import CliConsole
+from specify_cli.cli.json_contract import json_error, json_output_guard
 from rich.table import Table
 
 from glossary.events import (
@@ -50,6 +51,14 @@ _VALID_SCOPES = {s.value for s in GlossaryScope}
 
 # Valid strictness values for validation
 _VALID_STRICTNESS = {s.value for s in Strictness}
+
+
+def _glossary_error(json_output: bool, code: str, message: str) -> None:
+    """Emit an adopted failure while preserving human diagnostics."""
+    if json_output:
+        console.emit_json(json_error(code, message))
+    else:
+        console.print(f"[red]Error: {message}[/red]")
 
 
 def _load_store_from_seeds(repo_root: Path) -> GlossaryStore:
@@ -313,28 +322,29 @@ def list_terms(
     scope_enum: GlossaryScope | None = None
     if scope:
         if scope not in _VALID_SCOPES:
-            console.print(
-                f"[red]Error: Invalid scope '{scope}'. Valid scopes: {', '.join(sorted(_VALID_SCOPES))}[/red]"
-            )
+            _glossary_error(json_output, "invalid_scope", f"Invalid scope '{scope}'. Valid scopes: {', '.join(sorted(_VALID_SCOPES))}")
             raise typer.Exit(1)
         scope_enum = GlossaryScope(scope)
 
     # Validate status
     valid_statuses = {"active", "deprecated", "draft"}
     if status and status not in valid_statuses:
-        console.print(
-            f"[red]Error: Invalid status '{status}'. Valid statuses: {', '.join(sorted(valid_statuses))}[/red]"
-        )
+        _glossary_error(json_output, "invalid_status", f"Invalid status '{status}'. Valid statuses: {', '.join(sorted(valid_statuses))}")
         raise typer.Exit(1)
 
     # Check glossary directory exists
     glossaries_dir = repo_root / ".kittify" / "glossaries"
     if not glossaries_dir.exists():
-        console.print("[red]Error: Glossary not initialized. Run 'spec-kitty init' with glossary enabled.[/red]")
+        _glossary_error(json_output, "glossary_not_initialized", "Glossary not initialized. Run 'spec-kitty init' with glossary enabled.")
         raise typer.Exit(1)
 
     # Load store from seed files
-    store = _load_store_from_seeds(repo_root)
+    try:
+        with json_output_guard(json_output):
+            store = _load_store_from_seeds(repo_root)
+    except Exception as exc:
+        _glossary_error(json_output, "glossary_load_failed", str(exc))
+        raise typer.Exit(1) from exc
 
     # Get all terms with filters
     all_terms = _get_all_terms_from_store(store, scope_enum, status)
@@ -420,19 +430,22 @@ def conflicts(
 
     # Validate strictness filter
     if strictness and strictness not in _VALID_STRICTNESS:
-        console.print(
-            f"[red]Error: Invalid strictness '{strictness}'. Valid values: {', '.join(sorted(_VALID_STRICTNESS))}[/red]"
-        )
+        _glossary_error(json_output, "invalid_strictness", f"Invalid strictness '{strictness}'. Valid values: {', '.join(sorted(_VALID_STRICTNESS))}")
         raise typer.Exit(1)
 
     # Collect events from all mission event logs
     events_dir = repo_root / ".kittify" / "events" / "glossary"
     all_events: list[dict] = []
 
-    if events_dir.exists():
-        for event_file in sorted(events_dir.glob("*.events.jsonl")):
-            for event in read_events(event_file):
-                all_events.append(event)
+    try:
+        with json_output_guard(json_output):
+            if events_dir.exists():
+                for event_file in sorted(events_dir.glob("*.events.jsonl")):
+                    for event in read_events(event_file):
+                        all_events.append(event)
+    except Exception as exc:
+        _glossary_error(json_output, "glossary_events_failed", str(exc))
+        raise typer.Exit(1) from exc
 
     if not all_events:
         if json_output:
@@ -769,7 +782,7 @@ def _validate_single_file(file_path: Path, json_output: bool) -> None:
                                        "field": None, "message": f"YAML parse error: {exc}"}]}],
                 "total_files": 1, "valid_files": 0, "invalid_files": 1,
             }
-            print(json_lib.dumps(result, indent=2))
+            console.emit_json({**result, **json_error("glossary_validation_failed", f"YAML parse error: {exc}")})
         else:
             console.print(f"[red]YAML parse error in {file_path}: {exc}[/red]")
         raise typer.Exit(1) from exc
@@ -802,7 +815,7 @@ def _validate_single_file(file_path: Path, json_output: bool) -> None:
                            "term_count": 0, "errors": errors}],
                 "total_files": 1, "valid_files": 0, "invalid_files": 1,
             }
-            print(json_lib.dumps(result, indent=2))
+            console.emit_json({**result, **json_error("glossary_validation_failed", str(exc))})
         else:
             console.print(f"\n[red]Validating {file_path}...[/red]\n")
             for e in exc.errors:
@@ -816,6 +829,14 @@ def _validate_single_file(file_path: Path, json_output: bool) -> None:
                 console.print(f"  [red]✗[/red] {loc}: {e.message}")
             console.print(f"\n{len(exc.errors)} error(s) in {file_path}")
         raise typer.Exit(1) from exc
+
+
+def _emit_validation_summary(result: dict, invalid_count: int) -> None:
+    """Keep successful validation data intact; add the common envelope on failure."""
+    if invalid_count:
+        console.emit_json({**result, **json_error("glossary_validation_failed", f"{invalid_count} file(s) failed validation")})
+    else:
+        print(json_lib.dumps(result, indent=2))
 
 
 def _validate_directory(dir_path: Path, json_output: bool) -> None:
@@ -892,12 +913,13 @@ def _validate_directory(dir_path: Path, json_output: bool) -> None:
     valid_count = len(file_results) - invalid_count
 
     if json_output:
-        print(json_lib.dumps({
+        result = {
             "files": file_results,
             "total_files": len(file_results),
             "valid_files": valid_count,
             "invalid_files": invalid_count,
-        }, indent=2))
+        }
+        _emit_validation_summary(result, invalid_count)
     else:
         console.print(
             f"\nSummary: {invalid_count} of {len(file_results)} file(s) failed validation."
@@ -914,7 +936,6 @@ def validate_cmd(
     path: Path = typer.Argument(
         ...,
         help="Path to a glossary seed file (.yaml) or directory of seed files",
-        exists=True,
     ),
     json_output: bool = typer.Option(
         False,
@@ -923,10 +944,16 @@ def validate_cmd(
     ),
 ) -> None:
     """Validate glossary seed file(s) against the schema."""
+    if not path.exists():
+        message = f"Path '{path}' does not exist."
+        if json_output:
+            _glossary_error(True, "invalid_path", message)
+            raise typer.Exit(2)
+        raise typer.BadParameter(message, param_hint="PATH")
     if path.is_file():
         _validate_single_file(path, json_output)
     elif path.is_dir():
         _validate_directory(path, json_output)
     else:
-        console.print(f"[red]Error: {path} is not a file or directory[/red]")
+        _glossary_error(json_output, "invalid_path", f"{path} is not a file or directory")
         raise typer.Exit(1)

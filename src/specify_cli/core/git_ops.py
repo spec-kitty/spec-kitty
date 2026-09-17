@@ -297,7 +297,7 @@ def exclude_from_git_index(repo_path: Path, patterns: list[str]) -> None:
 
     # Read existing exclusions
     try:
-        existing = set(exclude_file.read_text().splitlines())
+        existing = set(exclude_file.read_text(encoding="utf-8").splitlines())
     except OSError:
         existing = set()
 
@@ -305,7 +305,7 @@ def exclude_from_git_index(repo_path: Path, patterns: list[str]) -> None:
     new_patterns = [p for p in patterns if p not in existing]
     if new_patterns:
         try:
-            with exclude_file.open("a") as f:
+            with exclude_file.open("a", encoding="utf-8") as f:
                 marker = "# Added by spec-kitty (local exclusions)"
                 if marker not in existing:
                     f.write(f"\n{marker}\n")
