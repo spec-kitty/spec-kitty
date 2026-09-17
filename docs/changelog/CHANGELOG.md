@@ -13,12 +13,6 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Changed
-
-- **Built-in minutes agent is now `minutes-mahad` (chat-first, dual format).** The profile formerly shipped as `minutes-maker-mahad` is renamed to `minutes-mahad` / Minutes Mahad. It asks whether to produce decision minutes or discussion notes, posts one validated Markdown response in the originating chat, and treats wiki/knowledge-base publication as optional human-operated reuse of that Markdown. Companion doctrine: `ACTION_ITEM_ATTRIBUTION`, `MINUTES_STAND_ALONE`, paradigm `extract-then-publish-separation`, updated `meeting-minutes-pipeline` / `meeting-minutes-format`, and templates `meeting-minutes.md` plus `meeting-discussion-notes.md`. No Confluence, MCP, or vendor publisher is shipped in the built-in pack.
-
 ## [4.0.0rc3] - 2026-09-15
 
 Third public release candidate for the Team Kitty 4.x line, cut from `main` for
@@ -27,6 +21,7 @@ launch acceptance. Install explicitly with `uv tool install 'spec-kitty-cli==4.0
 
 ### Changed
 
+- **Built-in minutes agent is now `minutes-mahad` (chat-first, dual format).** The profile formerly shipped as `minutes-maker-mahad` is renamed to `minutes-mahad` / Minutes Mahad. It asks whether to produce decision minutes or discussion notes, posts one validated Markdown response in the originating chat, and treats wiki/knowledge-base publication as optional human-operated reuse of that Markdown. Companion doctrine: `ACTION_ITEM_ATTRIBUTION`, `MINUTES_STAND_ALONE`, paradigm `extract-then-publish-separation`, updated `meeting-minutes-pipeline` / `meeting-minutes-format`, and templates `meeting-minutes.md` plus `meeting-discussion-notes.md`. No Confluence, MCP, or vendor publisher is shipped in the built-in pack.
 - **The release runbook now opens the next development cycle right after every tag** (#4314). `RELEASE_CHECKLIST.md` gains Release Process step 8, "Open the Next Development Cycle", mirrored in the Release Process summary in `docs/development/contributing.md`. Branch-mode release validation requires `main`'s version to advance beyond the latest tag, so the scheduled Release Readiness Check went red after `v4.0.0rc1` and again after `v4.0.0rc2` until the next cycle opened (#4290, fixed for rc3 by #4313). The step lists the edits that open a cycle — the next version in `pyproject.toml`, the project entry in `uv.lock` and `.kittify/metadata.yaml`, and a new `## [Unreleased] - <next version>` heading — and a release test now pins it in both documents.
 
 - **A green test run no longer counts as a typecheck when a mission changes typed sources (`#4191`; DIRECTIVE_030).** **Before:** the quality gate treated the test runner as the whole story, so a work package whose Vitest/Jest/pytest suite passed could be handed off and accepted even though the project's compiler would have flagged unused locals/parameters or other diagnostics a runner never applies. **After:** DIRECTIVE_030, the implement/review/accept skills, the quality-gate-verification tactic, and the software-dev work-package template all state that when typed sources change the implementer runs the project's configured compiler typecheck (`npm run typecheck`, `tsc -b`, or `tsc --noEmit`, matching CI) and records its exit code, and a reviewer rejects a work package where that check was skipped, is red, or was masked by a fallback command. This is doctrine/prompt guidance only — no CLI behavior changes.
