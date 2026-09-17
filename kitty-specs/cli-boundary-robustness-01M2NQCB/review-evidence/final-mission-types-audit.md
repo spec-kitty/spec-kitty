@@ -1,0 +1,21 @@
+# WP04 merged mission-type boundary audit
+
+Independent bounded read-only audit by task_author, who did not implement WP04. Examined merged primary source after canonical merge-final.log completed; merged code commit7f11e28, subsequent merge bookkeeping HEAD recorded separately by orchestrator. No tests, code edits, commits or state commands run for this audit. Scope only WP04: FR002/003/010, alias binding and success preservation; this is not self-review of WP01/03/05/06.
+
+Disposition: no blocking WP04 defect found in inspected paths. Final execution gates remain orchestrator responsibility; source/test inspection is not a fresh test pass.
+
+## Source trace
+
+FR002/003: charter/mission_type.py:133 mission_type_error_boundary wraps required content loading in json_output_guard, catches CharterPackConfigError explicitly (it is not ValueError), plus ValueError and OSError, then renders shared json_error and Exit1. CharterPackConfigError uses `.body`, retaining named config path/decode reason instead of only terse code. pack_context.py:589–605 reads UTF8 and wraps decoding/YAML failures with `.kittify/config.yaml` named, rejects parsed nonmapping data. charter_mission_type_list:229 covers existing_mission_types, full layered roster and row construction inside the boundary. mission_type.py:1626 show path and doctrine.py:1160 roster path use the same boundary. Thus malformed required config cannot silently become empty successful data in these paths.
+
+FR010/default binding: mission.py reexports mission_type.app; cli/commands/__init__.py:322/324 registers it under both names. mission_type.py:1590 delegates with BOTH `json_output=json_output` and `include_inactive=False`, preventing the direct Python call from inheriting Typer's truthy OptionInfo object. Canonical charter list's registered `--include-inactive` option remains False by default; rows at charter/mission_type.py:152 retain activated order and append sorted inactive IDs only on explicit opt-in. The aliases intentionally do not add new flags; inactive types remain reachable via `charter mission-type list --include-inactive` and legacy doctrine list.
+
+Happy-path C6: activated canonical rows retain id/source_layer/display_name/action_sequence/activated. Empty activation remains bare[]/exit0. doctrine.py:1128 explicitly remains activation-blind: same resolve_layered_roster, row sorting at1172 and exact three keys id/source_layer/display_name at1176. It is not redirected through activated filtering. Boundary insertion affects only error translation, not successful membership/schema. `show` successful fields/rendering remain outside the shared failure boundary and retain existing resolved template mapping behavior. The pre-existing UnknownMissionTypeError fallback inside show remains unchanged, not newly broadened.
+
+Sibling audit: mission_type.py run:428 passes actual JSON bool into root helper and catches selector ambiguity before runtime start. reopen:1322 and follow-up:1463 retain real argument binding and controlled selector errors. `_emit_mission_error`/`_emit_selector_error`:1270–1286 route owned errors through canonical json_error while preserving human diagnostics, metadata and existing exit1. No new flags or product scope expansion found.
+
+## Existing evidence inspected, not rerun
+
+Dedicated test_cli_boundary_mission_types.py:52–65 drives real invalid-root YAML and bytesFFFE over the five surfaces (three activated aliases, show, doctrine), asserts human=JSON Exit1, named config/decode and structured error. :68–84 checks activated subset, explicit inactive discovery and doctrine exact success keys. :94 checks real empty activation. :135 checks malformed org roster file. :181 preserves real root registration/child binding while disabling unrelated root bootstrap; this establishes routing, not full root startup fidelity, which is outside this audit. Lifecycle/ambiguity cases retain real files and assert no mutation on rejection. This coverage directly matches the examined seam; global registration guards and final integrated reruns remain separate evidence.
+
+No blockers, no requested edits. Limitation: static bounded review of the ratified command family cannot prove every arbitrary filesystem race or unowned command error path; no universal convergence claim made.

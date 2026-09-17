@@ -1,0 +1,206 @@
+work_packages:
+- id: WP01
+  title: Keep startup and repair paths usable with corrupt configuration
+  dependencies: []
+  owned_files:
+  - src/specify_cli/bootstrap/env_file.py
+  - src/charter/activation/consistency_check.py
+  - src/specify_cli/runtime/doctor.py
+  - src/specify_cli/core/worktree.py
+  - src/specify_cli/core/vcs/git.py
+  - src/specify_cli/core/git_ops.py
+  - tests/specify_cli/bootstrap/test_cli_boundary_config_4600.py
+  - tests/charter/test_cli_boundary_config_mapping.py
+  - tests/runtime/test_cli_boundary_version_file.py
+  - tests/specify_cli/core/test_cli_boundary_git_encoding.py
+  requirement_refs:
+  - C-003
+  - C-004
+  - C-009
+  - FR-001
+  - FR-004
+  - FR-012
+  - NFR-002
+  - NFR-003
+  - NFR-005
+  - NFR-006
+  subtasks:
+  - T001
+  - T002
+  - T003
+  - T004
+  - T005
+  plan_concern_refs:
+  - IC-01
+  prompt_file: tasks/WP01-startup-config-robustness.md
+- id: WP02
+  title: Promote the canonical JSON error contract and project-root boundary
+  dependencies: []
+  owned_files:
+  - src/specify_cli/cli/json_contract.py
+  - src/specify_cli/cli/commands/_doctor_shared.py
+  - src/specify_cli/cli/helpers.py
+  - tests/specify_cli/cli/commands/test_cli_boundary_json_seam.py
+  - src/specify_cli/cli/commands/doctor.py
+  - src/specify_cli/cli/commands/_command_surface_doctor.py
+  - src/specify_cli/cli/commands/_coordination_doctor.py
+  - src/specify_cli/cli/commands/_env_file_doctor.py
+  - src/specify_cli/cli/commands/_provenance_doctor.py
+  requirement_refs:
+  - C-001
+  - C-003
+  - C-006
+  - FR-005
+  - FR-007
+  - FR-008
+  - NFR-004
+  - NFR-006
+  subtasks:
+  - T006
+  - T007
+  - T008
+  - T009
+  - T010
+  plan_concern_refs:
+  - IC-02
+  prompt_file: tasks/WP02-canonical-json-contract.md
+- id: WP03
+  title: Repair context defaults and adopt JSON error handling
+  dependencies:
+  - WP02
+  owned_files:
+  - src/specify_cli/cli/commands/context.py
+  - tests/specify_cli/cli/commands/test_cli_boundary_context.py
+  requirement_refs:
+  - C-001
+  - C-003
+  - C-005
+  - C-006
+  - FR-005
+  - FR-006
+  - FR-007
+  - FR-009
+  - FR-011
+  - FR-012
+  - NFR-002
+  - NFR-006
+  subtasks:
+  - T011
+  - T012
+  - T013
+  - T014
+  - T015
+  plan_concern_refs:
+  - IC-03
+  prompt_file: tasks/WP03-context-boundaries.md
+- id: WP04
+  title: Repair mission-type configuration failures, aliases and list defaults
+  dependencies:
+  - WP02
+  owned_files:
+  - src/specify_cli/cli/commands/mission_type.py
+  - src/specify_cli/cli/commands/charter/mission_type.py
+  - tests/specify_cli/cli/commands/test_cli_boundary_mission_types.py
+  - src/specify_cli/cli/commands/doctrine.py
+  requirement_refs:
+  - C-001
+  - C-003
+  - C-004
+  - C-005
+  - C-006
+  - FR-002
+  - FR-003
+  - FR-005
+  - FR-007
+  - FR-008
+  - FR-010
+  - FR-011
+  - FR-012
+  - NFR-002
+  - NFR-003
+  - NFR-006
+  subtasks:
+  - T016
+  - T017
+  - T018
+  - T019
+  - T020
+  - T021
+  plan_concern_refs:
+  - IC-04
+  prompt_file: tasks/WP04-mission-type-boundaries.md
+- id: WP05
+  title: Repair empty status and adopt remaining owned JSON commands
+  dependencies:
+  - WP02
+  owned_files:
+  - src/specify_cli/cli/commands/agent/tasks_status_cmd.py
+  - src/specify_cli/cli/commands/glossary.py
+  - src/specify_cli/agent_utils/status.py
+  - src/specify_cli/cli/commands/archive.py
+  - src/specify_cli/cli/commands/materialize.py
+  - src/specify_cli/cli/commands/verify.py
+  - src/specify_cli/cli/commands/validate_encoding.py
+  - src/specify_cli/cli/commands/research.py
+  - src/specify_cli/cli/commands/validate_tasks.py
+  - src/specify_cli/cli/commands/dashboard.py
+  - tests/specify_cli/cli/commands/test_cli_boundary_status_empty.py
+  - tests/specify_cli/cli/commands/test_cli_boundary_glossary.py
+  - tests/specify_cli/cli/commands/test_cli_boundary_remaining_callers.py
+  requirement_refs:
+  - C-001
+  - C-003
+  - C-006
+  - FR-005
+  - FR-006
+  - FR-007
+  - FR-008
+  - FR-012
+  - NFR-002
+  - NFR-003
+  - NFR-004
+  - NFR-006
+  subtasks:
+  - T022
+  - T023
+  - T024
+  - T025
+  - T026
+  - T027
+  plan_concern_refs:
+  - IC-05
+  prompt_file: tasks/WP05-remaining-json-adoption.md
+- id: WP06
+  title: Enforce discovered JSON contracts and behavioral placeholder guards
+  dependencies:
+  - WP03
+  - WP04
+  - WP05
+  owned_files:
+  - tests/architectural/test_json_contract_enumeration.py
+  - tests/architectural/test_cli_placeholder_output.py
+  requirement_refs:
+  - C-001
+  - C-003
+  - C-005
+  - C-006
+  - FR-005
+  - FR-006
+  - FR-007
+  - FR-008
+  - FR-011
+  - FR-012
+  - NFR-001
+  - NFR-002
+  - NFR-003
+  - NFR-004
+  - NFR-006
+  subtasks:
+  - T028
+  - T029
+  - T030
+  - T031
+  - T032
+  plan_concern_refs:
+  - IC-06
+  prompt_file: tasks/WP06-boundary-enumeration-guards.md

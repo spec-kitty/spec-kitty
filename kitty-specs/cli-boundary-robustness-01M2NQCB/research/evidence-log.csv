@@ -1,0 +1,5 @@
+timestamp,source_type,citation,key_finding,confidence,notes
+2026-09-16T19:28:18Z,web,"handover-research: research.md, Decision 1",Frozen #4242 error shape is ok=false with an object error and per-command exit fidelity.,high,Recorded handover research; implementation tests still pending.
+2026-09-16T19:28:18Z,web,"handover-research: research.md, Decision 3",Import-time config pointer reads fail soft; required content reads fail loud in the command layer.,high,"Research conclusion, not a newly executed reproduction."
+2026-09-16T19:28:18Z,web,"handover-post-spec-squad: research/post-spec-squad-findings.md, PLAN MUST items 5 and 6",Status data construction must not own stdout; inactive-list fix belongs at the delegating call site.,high,Recorded squad finding used to assign WP04/WP05.
+2026-09-16T19:28:18Z,web,"handover-plan: plan.md, Amendments A and B",Instance-2 needs independent red coverage; discovery triages existing non-parseable commands into explicit deferrals.,high,Later amendment bounds the earlier universal-parse wording.

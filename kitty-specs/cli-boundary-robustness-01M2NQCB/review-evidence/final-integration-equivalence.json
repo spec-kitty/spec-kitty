@@ -1,0 +1,435 @@
+{
+  "head": "ea5fc3678ebbf2d474fe55ecf1a2e02eba5c8c92",
+  "candidate": "5e561a4670ea2c60e39836b46fab00ff8b35f23b",
+  "base": "b17a81506331bc434b93a692f4f6261d008dc81e",
+  "lane_file_comparisons": [
+    {
+      "lane": "a",
+      "ref": "d8d9bd47c",
+      "path": "pyproject.toml",
+      "matches": true,
+      "expected_sha256": "75e3b19460917d025f3feaca276e460ad8d936edbae30a50c9e840a80e46b5d7",
+      "final_sha256": "75e3b19460917d025f3feaca276e460ad8d936edbae30a50c9e840a80e46b5d7"
+    },
+    {
+      "lane": "a",
+      "ref": "d8d9bd47c",
+      "path": "src/charter/activation/consistency_check.py",
+      "matches": true,
+      "expected_sha256": "5be4dd071e0b84b6337f07e47fa74e9ec27b7673735484515cfeb32a8ae0ce1f",
+      "final_sha256": "5be4dd071e0b84b6337f07e47fa74e9ec27b7673735484515cfeb32a8ae0ce1f"
+    },
+    {
+      "lane": "a",
+      "ref": "d8d9bd47c",
+      "path": "src/specify_cli/bootstrap/env_file.py",
+      "matches": true,
+      "expected_sha256": "9cdcb0b03cb03bc661e8ed3c4878c0f4b34467dd860bb5138d49cf8c86a06f8b",
+      "final_sha256": "9cdcb0b03cb03bc661e8ed3c4878c0f4b34467dd860bb5138d49cf8c86a06f8b"
+    },
+    {
+      "lane": "a",
+      "ref": "d8d9bd47c",
+      "path": "src/specify_cli/core/git_ops.py",
+      "matches": true,
+      "expected_sha256": "402b09817dc162737c40980237d14a9150b447d5835dc6a12f378651d8614d39",
+      "final_sha256": "402b09817dc162737c40980237d14a9150b447d5835dc6a12f378651d8614d39"
+    },
+    {
+      "lane": "a",
+      "ref": "d8d9bd47c",
+      "path": "src/specify_cli/core/vcs/git.py",
+      "matches": true,
+      "expected_sha256": "77ae6886caefdbbfa35381cb5f373607ce6e50b4f4d4d8b2015adb46f22943c0",
+      "final_sha256": "77ae6886caefdbbfa35381cb5f373607ce6e50b4f4d4d8b2015adb46f22943c0"
+    },
+    {
+      "lane": "a",
+      "ref": "d8d9bd47c",
+      "path": "src/specify_cli/core/worktree.py",
+      "matches": true,
+      "expected_sha256": "b8c9d83d6e4e94c98bcd56d42e25d19ba4332ee89c02284d14824e7b45ab4c40",
+      "final_sha256": "b8c9d83d6e4e94c98bcd56d42e25d19ba4332ee89c02284d14824e7b45ab4c40"
+    },
+    {
+      "lane": "a",
+      "ref": "d8d9bd47c",
+      "path": "src/specify_cli/runtime/doctor.py",
+      "matches": true,
+      "expected_sha256": "e17798fbbcb91aff45b691d59f20f8da76e2fa6c1e8b0956c97abbc7928e3506",
+      "final_sha256": "e17798fbbcb91aff45b691d59f20f8da76e2fa6c1e8b0956c97abbc7928e3506"
+    },
+    {
+      "lane": "a",
+      "ref": "d8d9bd47c",
+      "path": "tests/charter/test_cli_boundary_config_mapping.py",
+      "matches": true,
+      "expected_sha256": "a7517d607f7d665185632fcf3b94f5ad960d1097907b0bdd1d767de9c7816846",
+      "final_sha256": "a7517d607f7d665185632fcf3b94f5ad960d1097907b0bdd1d767de9c7816846"
+    },
+    {
+      "lane": "a",
+      "ref": "d8d9bd47c",
+      "path": "tests/runtime/test_cli_boundary_version_file.py",
+      "matches": true,
+      "expected_sha256": "4867e7d36c9e6d5e7015afb9de67d59cdd7f7a9a4bebe3a1d527f334415bc4c5",
+      "final_sha256": "4867e7d36c9e6d5e7015afb9de67d59cdd7f7a9a4bebe3a1d527f334415bc4c5"
+    },
+    {
+      "lane": "a",
+      "ref": "d8d9bd47c",
+      "path": "tests/specify_cli/bootstrap/test_cli_boundary_config_4600.py",
+      "matches": true,
+      "expected_sha256": "9008bea57b676885727135218de33560d6ae149da9b6560de3f79340e124c16c",
+      "final_sha256": "9008bea57b676885727135218de33560d6ae149da9b6560de3f79340e124c16c"
+    },
+    {
+      "lane": "a",
+      "ref": "d8d9bd47c",
+      "path": "tests/specify_cli/core/test_cli_boundary_git_encoding.py",
+      "matches": true,
+      "expected_sha256": "a53bc36d1ba2a51c0d83a5c5cc401d414c8f6fc8f445c5b28f11a87bf61e41fd",
+      "final_sha256": "a53bc36d1ba2a51c0d83a5c5cc401d414c8f6fc8f445c5b28f11a87bf61e41fd"
+    },
+    {
+      "lane": "b",
+      "ref": "105ef7167",
+      "path": "src/specify_cli/cli/commands/_command_surface_doctor.py",
+      "matches": true,
+      "expected_sha256": "2b45ced613ad3e93dde5d54d3dd98a726c170e52319924262b8c49cc2539768f",
+      "final_sha256": "2b45ced613ad3e93dde5d54d3dd98a726c170e52319924262b8c49cc2539768f"
+    },
+    {
+      "lane": "b",
+      "ref": "105ef7167",
+      "path": "src/specify_cli/cli/commands/_coordination_doctor.py",
+      "matches": true,
+      "expected_sha256": "682bcd5bff16a71ab12185389c0ae6abb86bee6585866a4c718fe6e69366b16a",
+      "final_sha256": "682bcd5bff16a71ab12185389c0ae6abb86bee6585866a4c718fe6e69366b16a"
+    },
+    {
+      "lane": "b",
+      "ref": "105ef7167",
+      "path": "src/specify_cli/cli/commands/_doctor_shared.py",
+      "matches": true,
+      "expected_sha256": "5054bdf589221624411be61bdfc40d5560a3335e0cfe5c86b66ee2870ad5945f",
+      "final_sha256": "5054bdf589221624411be61bdfc40d5560a3335e0cfe5c86b66ee2870ad5945f"
+    },
+    {
+      "lane": "b",
+      "ref": "105ef7167",
+      "path": "src/specify_cli/cli/commands/_env_file_doctor.py",
+      "matches": true,
+      "expected_sha256": "ba1abc365f081c86b73b3ebe3c3aff036e2a5e053593736e9dd5187752f8be17",
+      "final_sha256": "ba1abc365f081c86b73b3ebe3c3aff036e2a5e053593736e9dd5187752f8be17"
+    },
+    {
+      "lane": "b",
+      "ref": "105ef7167",
+      "path": "src/specify_cli/cli/commands/_provenance_doctor.py",
+      "matches": true,
+      "expected_sha256": "8744c766583bff82364446112b53e3e8f14e5c6d7c8022e88dacc5dd30206545",
+      "final_sha256": "8744c766583bff82364446112b53e3e8f14e5c6d7c8022e88dacc5dd30206545"
+    },
+    {
+      "lane": "b",
+      "ref": "105ef7167",
+      "path": "src/specify_cli/cli/commands/doctor.py",
+      "matches": true,
+      "expected_sha256": "7c5a61788afffe6cbf6eee234d28057c208c9cca114a9e8b7fea75c2874c5ad5",
+      "final_sha256": "7c5a61788afffe6cbf6eee234d28057c208c9cca114a9e8b7fea75c2874c5ad5"
+    },
+    {
+      "lane": "b",
+      "ref": "105ef7167",
+      "path": "src/specify_cli/cli/helpers.py",
+      "matches": true,
+      "expected_sha256": "ebdb36097c30a826972b9ad4244b279b1b3b04a1e75d4e2732aa4eafe487f9fe",
+      "final_sha256": "ebdb36097c30a826972b9ad4244b279b1b3b04a1e75d4e2732aa4eafe487f9fe"
+    },
+    {
+      "lane": "b",
+      "ref": "105ef7167",
+      "path": "src/specify_cli/cli/json_contract.py",
+      "matches": true,
+      "expected_sha256": "71f265fbef5d038c03e573e6d73eb740425eeaf2659a3bb63abea59fbab4dc24",
+      "final_sha256": "71f265fbef5d038c03e573e6d73eb740425eeaf2659a3bb63abea59fbab4dc24"
+    },
+    {
+      "lane": "b",
+      "ref": "105ef7167",
+      "path": "tests/specify_cli/cli/commands/test_cli_boundary_json_seam.py",
+      "matches": true,
+      "expected_sha256": "889950457561b4362ded76a73208cfe3e74209e1a2b1db7045c4d0a7a7cee8ae",
+      "final_sha256": "889950457561b4362ded76a73208cfe3e74209e1a2b1db7045c4d0a7a7cee8ae"
+    },
+    {
+      "lane": "b",
+      "ref": "105ef7167",
+      "path": "tests/specify_cli/cli/commands/test_coordination_doctor.py",
+      "matches": true,
+      "expected_sha256": "2751b00daba7b439870eaa0010e3a328a659780b1eb6de8e315b9887cbcdd568",
+      "final_sha256": "2751b00daba7b439870eaa0010e3a328a659780b1eb6de8e315b9887cbcdd568"
+    },
+    {
+      "lane": "b",
+      "ref": "105ef7167",
+      "path": "tests/specify_cli/cli/test_helpers.py",
+      "matches": true,
+      "expected_sha256": "197a292663587eae723d3b3a8b1eb004f6148c31d8de099cd3447c90b2163b18",
+      "final_sha256": "197a292663587eae723d3b3a8b1eb004f6148c31d8de099cd3447c90b2163b18"
+    },
+    {
+      "lane": "c",
+      "ref": "466c75b3d",
+      "path": "src/specify_cli/cli/commands/context.py",
+      "matches": true,
+      "expected_sha256": "68a3e3b4a793194228475060850aac3791b4fe63c993c1ddba30bf3f25f3afa6",
+      "final_sha256": "68a3e3b4a793194228475060850aac3791b4fe63c993c1ddba30bf3f25f3afa6"
+    },
+    {
+      "lane": "c",
+      "ref": "466c75b3d",
+      "path": "tests/specify_cli/cli/commands/test_cli_boundary_context.py",
+      "matches": true,
+      "expected_sha256": "1739b4a1289e8ceccca5378d3c44b374c89720e7234967fad1eb115948cd00ff",
+      "final_sha256": "1739b4a1289e8ceccca5378d3c44b374c89720e7234967fad1eb115948cd00ff"
+    },
+    {
+      "lane": "d",
+      "ref": "4ea7b2f9700f248f2f6c6e515e000a0d9b39f73c",
+      "path": "src/specify_cli/cli/commands/charter/mission_type.py",
+      "matches": true,
+      "expected_sha256": "8d0cfeba5eae05659aeda66414e92cf14fd4ef055a8692de20f52ff0be2698f8",
+      "final_sha256": "8d0cfeba5eae05659aeda66414e92cf14fd4ef055a8692de20f52ff0be2698f8"
+    },
+    {
+      "lane": "d",
+      "ref": "4ea7b2f9700f248f2f6c6e515e000a0d9b39f73c",
+      "path": "src/specify_cli/cli/commands/doctrine.py",
+      "matches": true,
+      "expected_sha256": "ec972e1df4f4fdcee8f424dffbb764de2aeb22dcdd6b0b4c11f21c1da023cf51",
+      "final_sha256": "ec972e1df4f4fdcee8f424dffbb764de2aeb22dcdd6b0b4c11f21c1da023cf51"
+    },
+    {
+      "lane": "d",
+      "ref": "4ea7b2f9700f248f2f6c6e515e000a0d9b39f73c",
+      "path": "src/specify_cli/cli/commands/mission_type.py",
+      "matches": true,
+      "expected_sha256": "97a02858f204292f3b91be4e5218c92c07098a513f54f4984cbca18a432f2670",
+      "final_sha256": "97a02858f204292f3b91be4e5218c92c07098a513f54f4984cbca18a432f2670"
+    },
+    {
+      "lane": "d",
+      "ref": "4ea7b2f9700f248f2f6c6e515e000a0d9b39f73c",
+      "path": "tests/specify_cli/cli/commands/test_cli_boundary_mission_types.py",
+      "matches": true,
+      "expected_sha256": "f26fddfc325a7012896fed33d24b17f36c516993a7e2c8f91130657ae831ee59",
+      "final_sha256": "f26fddfc325a7012896fed33d24b17f36c516993a7e2c8f91130657ae831ee59"
+    },
+    {
+      "lane": "d",
+      "ref": "4ea7b2f9700f248f2f6c6e515e000a0d9b39f73c",
+      "path": "tests/specify_cli/cli/commands/test_mission_follow_up.py",
+      "matches": true,
+      "expected_sha256": "40e3283a1ced2ccdcb9f400c31168d3414d08385a3a84f04b152277ad6e84855",
+      "final_sha256": "40e3283a1ced2ccdcb9f400c31168d3414d08385a3a84f04b152277ad6e84855"
+    },
+    {
+      "lane": "d",
+      "ref": "4ea7b2f9700f248f2f6c6e515e000a0d9b39f73c",
+      "path": "tests/specify_cli/cli/commands/test_mission_reopen.py",
+      "matches": true,
+      "expected_sha256": "bcedbeca8dd0059aef70a99a5bbbc6db219d41819bb887843a07737402333638",
+      "final_sha256": "bcedbeca8dd0059aef70a99a5bbbc6db219d41819bb887843a07737402333638"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "src/specify_cli/agent_utils/status.py",
+      "matches": true,
+      "expected_sha256": "72279bbf722576abc2be13124ecb833e56241ac88ffb7e19af04c8ad494743a6",
+      "final_sha256": "72279bbf722576abc2be13124ecb833e56241ac88ffb7e19af04c8ad494743a6"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "src/specify_cli/cli/commands/agent/tasks.py",
+      "matches": true,
+      "expected_sha256": "cc4bc0722a8c1e4fd130cbb0594248ee1eafec3783e782d0d12000054b62559c",
+      "final_sha256": "cc4bc0722a8c1e4fd130cbb0594248ee1eafec3783e782d0d12000054b62559c"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "src/specify_cli/cli/commands/agent/tasks_shared.py",
+      "matches": true,
+      "expected_sha256": "eb98cf4173dd3387fb5f315f375ed79e2daf89d5f9ce8b529599ffeae02003a3",
+      "final_sha256": "eb98cf4173dd3387fb5f315f375ed79e2daf89d5f9ce8b529599ffeae02003a3"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "src/specify_cli/cli/commands/agent/tasks_status_cmd.py",
+      "matches": true,
+      "expected_sha256": "ec0aae59c0333d0e5aec744c9480007bee7f1f004a8bfc1c667e99ef137f7a5f",
+      "final_sha256": "ec0aae59c0333d0e5aec744c9480007bee7f1f004a8bfc1c667e99ef137f7a5f"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "src/specify_cli/cli/commands/archive.py",
+      "matches": true,
+      "expected_sha256": "dfd23435f201ff94c24ecc580dcd4513249fbfaec49c3678679180cee969c473",
+      "final_sha256": "dfd23435f201ff94c24ecc580dcd4513249fbfaec49c3678679180cee969c473"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "src/specify_cli/cli/commands/dashboard.py",
+      "matches": true,
+      "expected_sha256": "957a6252ceb2785d5deb2b36bca61b7c6ed6f7ece6b518dcdb0dcd8e08e6b5aa",
+      "final_sha256": "957a6252ceb2785d5deb2b36bca61b7c6ed6f7ece6b518dcdb0dcd8e08e6b5aa"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "src/specify_cli/cli/commands/glossary.py",
+      "matches": true,
+      "expected_sha256": "e9a1a74afbaecda31afa9dfe3a53776a4cc68799d75d2e897eb562c35f804cf1",
+      "final_sha256": "e9a1a74afbaecda31afa9dfe3a53776a4cc68799d75d2e897eb562c35f804cf1"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "src/specify_cli/cli/commands/materialize.py",
+      "matches": true,
+      "expected_sha256": "7421be6dfd3ca680a9db61e6695147bf17cbdde1f7bcb67840a147b037253783",
+      "final_sha256": "7421be6dfd3ca680a9db61e6695147bf17cbdde1f7bcb67840a147b037253783"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "src/specify_cli/cli/commands/verify.py",
+      "matches": true,
+      "expected_sha256": "82bff1fa8438e21d2290a5b601fabdb49837394503b8d251f0968c2a0c4decb6",
+      "final_sha256": "82bff1fa8438e21d2290a5b601fabdb49837394503b8d251f0968c2a0c4decb6"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "tests/agent/test_mission_handle_json_errors.py",
+      "matches": true,
+      "expected_sha256": "3009997de6c09758fcfd3321181ccafe89dcbc868fbed9b2ea7fd49c13645878",
+      "final_sha256": "3009997de6c09758fcfd3321181ccafe89dcbc868fbed9b2ea7fd49c13645878"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/json/envelopes.json",
+      "matches": true,
+      "expected_sha256": "7760d8a1b82db8978539516926f7bb2640254f013c9a17a62646416f2d644834",
+      "final_sha256": "7760d8a1b82db8978539516926f7bb2640254f013c9a17a62646416f2d644834"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "tests/specify_cli/cli/commands/agent/test_json_selector_errors.py",
+      "matches": true,
+      "expected_sha256": "e659062e92f3add8df01bb9bf9740122f8fcae0695b66e2c867ae72ec9b94f1e",
+      "final_sha256": "e659062e92f3add8df01bb9bf9740122f8fcae0695b66e2c867ae72ec9b94f1e"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py",
+      "matches": true,
+      "expected_sha256": "4bf3db30edea14af3d2747b035520820608bb78eaa174618fa327d8a23fb8509",
+      "final_sha256": "4bf3db30edea14af3d2747b035520820608bb78eaa174618fa327d8a23fb8509"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "tests/specify_cli/cli/commands/agent/test_tasks_status_cmd_seam.py",
+      "matches": true,
+      "expected_sha256": "c0322bf7cfaf66f9839a7102f3513975d2aca1766c3feefb767ced36e9b0ac00",
+      "final_sha256": "c0322bf7cfaf66f9839a7102f3513975d2aca1766c3feefb767ced36e9b0ac00"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "tests/specify_cli/cli/commands/test_cli_boundary_glossary.py",
+      "matches": true,
+      "expected_sha256": "4d83d452153f694c0ea010fee4f0ec0af410732ad91f580f3f5083ae352cdbe1",
+      "final_sha256": "4d83d452153f694c0ea010fee4f0ec0af410732ad91f580f3f5083ae352cdbe1"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "tests/specify_cli/cli/commands/test_cli_boundary_remaining_callers.py",
+      "matches": true,
+      "expected_sha256": "23656e4647502215e181a39cff524700dcf62c4d312b456d3694244b74cbeebc",
+      "final_sha256": "23656e4647502215e181a39cff524700dcf62c4d312b456d3694244b74cbeebc"
+    },
+    {
+      "lane": "e",
+      "ref": "819e78c8b",
+      "path": "tests/specify_cli/cli/commands/test_cli_boundary_status_empty.py",
+      "matches": true,
+      "expected_sha256": "09ee56ba864aa9a1c9758aa5b84742a5355251359427bd06aafa55bf503a1df8",
+      "final_sha256": "09ee56ba864aa9a1c9758aa5b84742a5355251359427bd06aafa55bf503a1df8"
+    },
+    {
+      "lane": "f",
+      "ref": "36e945bd8",
+      "path": "tests/architectural/test_cli_placeholder_output.py",
+      "matches": true,
+      "expected_sha256": "c816a89f0a6ceac43110aead80d55dc20904469fdc55048a909300bea05fa12e",
+      "final_sha256": "c816a89f0a6ceac43110aead80d55dc20904469fdc55048a909300bea05fa12e"
+    },
+    {
+      "lane": "f",
+      "ref": "36e945bd8",
+      "path": "tests/architectural/test_json_contract_enumeration.py",
+      "matches": true,
+      "expected_sha256": "7f7afa3f87696568cc9d512358b99a593ea98306f5d9fed4bf1f0b601d894b51",
+      "final_sha256": "7f7afa3f87696568cc9d512358b99a593ea98306f5d9fed4bf1f0b601d894b51"
+    }
+  ],
+  "candidate_changed_product_paths": [
+    "src/specify_cli/cli/commands/context.py",
+    "tests/architectural/test_cli_placeholder_output.py",
+    "tests/architectural/test_json_contract_enumeration.py",
+    "tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/json/envelopes.json",
+    "tests/specify_cli/cli/commands/test_cli_boundary_context.py"
+  ],
+  "unexpected_candidate_paths": [],
+  "missing_expected_deltas": [],
+  "csv_comparison": [
+    {
+      "path": "kitty-specs/cli-boundary-robustness-01M2NQCB/research/evidence-log.csv",
+      "only_crlf_normalization": true,
+      "parsed_rows_equal": true,
+      "old_crlf": 5,
+      "new_crlf": 0
+    },
+    {
+      "path": "kitty-specs/cli-boundary-robustness-01M2NQCB/research/source-register.csv",
+      "only_crlf_normalization": true,
+      "parsed_rows_equal": true,
+      "old_crlf": 4,
+      "new_crlf": 0
+    }
+  ],
+  "diff_check": {
+    "whole": {
+      "exit": 0,
+      "output": ""
+    },
+    "product": {
+      "exit": 0,
+      "output": ""
+    }
+  },
+  "working_tree_status": ""
+}
