@@ -295,24 +295,25 @@ def _normalise_evidence(evidence: Any) -> Any:
 
 
 def _first_non_printable_attr(attrs: Mapping[str, str]) -> tuple[str, list[str]] | None:
-    """Find the first attr value the decode-seam control-character guard would reject.
+    """Find the first attr value a control-character guard would reject — the
+    codec's encode-side guard today, and every consumer's decode always.
 
     ``to_zeitgeist_attrs`` (spec-kitty-events, pinned 9.1.6) already rejects
     non-printable characters on *encode* — its own
-    ``_reject_control_characters`` pass over emitted attrs, using the same
+    ``_reject_control_characters`` guard over emitted attrs, using the same
     ``str.isprintable()`` predicate as here — and ``_broadcast_moment`` calls
     it first, inside the try. So on the current pin a non-printable attr is
-    caught there as a ``ZeitgeistAttrsControlCharacterError`` and this
-    producer-side pre-check never runs; it is kept as belt-and-braces so a
-    future pin that drops the encode-side guard cannot silently reopen the
-    gap. Only in that regressed case does this bridge's message (naming the
-    offending key and codepoints) take over from the codec's.
-    Free-text decision prose (``question``/``options`` on open,
-    ``final_answer``/``rationale`` on resolve) is what would carry control
-    characters — a pasted ANSI escape sequence is routine — that every
-    consumer's decode would reject. Using the same ``str.isprintable()``
-    predicate turns that otherwise-silent decode-side drop into a
-    producer-side warning.
+    caught there as a ``ZeitgeistAttrsControlCharacterError`` and this bridge's
+    own pre-check never runs; it is kept as belt-and-braces so a future pin
+    that drops the codec's encode-side guard cannot silently reopen the gap.
+    Only if such a pin ships does this bridge's message (naming the offending
+    key and codepoints) take over from the codec's.
+    The check earns its place because free-text decision prose
+    (``question``/``options`` on open, ``final_answer``/``rationale`` on
+    resolve) is what would carry control characters — a pasted ANSI escape
+    sequence is routine — that every consumer's decode would reject. Using the
+    same ``str.isprintable()`` predicate turns that otherwise-silent
+    decode-side drop into a producer-side warning.
     """
     for key, value in attrs.items():
         bad = sorted({f"U+{ord(ch):04X}" for ch in value if not ch.isprintable()})

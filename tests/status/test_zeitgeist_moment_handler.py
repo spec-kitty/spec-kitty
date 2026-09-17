@@ -1334,9 +1334,11 @@ def test_decision_prose_with_control_characters_is_dropped_not_broadcast(
     resolved_credential: list[Path],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A pasted ANSI escape in decision prose (#415): the codec's encode side
-    has no printability check, only its decode side does, so this must be
-    caught here or every consumer's decode silently drops the moment."""
+    """A pasted ANSI escape in decision prose (#415): on the pinned
+    spec-kitty-events (9.1.6) the codec rejects non-printable characters on
+    encode, so an over-bound moment is dropped before any offer — never
+    reaching a consumer whose decode would also reject it. The bridge's own
+    ``_first_non_printable_attr`` pre-check is belt-and-braces behind that."""
     recorder = OfferRecorder(outcome="sent").install(monkeypatch)
     entry = _decision_entry(
         "01AAAAAAAAAAAAAAAAAAAAAAAA",
