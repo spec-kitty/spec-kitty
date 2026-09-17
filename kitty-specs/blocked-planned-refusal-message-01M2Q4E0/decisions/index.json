@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-17T07:32:05.031959Z",
+      "decision_id": "01M2Q4F897ANB84HA6EHA9DG98",
+      "final_answer": "Reachability-based, message-only. Source lanes where planned is structurally unreachable (blocked, canceled, done) get a legal-targets refusal naming their real recovery (blocked -> resume via --to in_progress or cancel via --to canceled; canceled/done -> terminal, no targets). Review-family lanes where planned IS reachable (in_review, in_progress, approved, genesis) keep the existing review-feedback guidance. FSM allow/deny is untouched; the guard stays unconditional and force-proof. Operator confirmed blocked->in_progress is the intended one-hop resume and declined expanding scope to legalize blocked->planned.",
+      "input_key": "message_partition_breadth",
+      "mission_id": "01M2Q4E0YS3TP1K9H6KFPQWXB5",
+      "mission_slug": "blocked-planned-refusal-message-01M2Q4E0",
+      "opened_by": "cli",
+      "options": [
+        "reachability-based (blocked+canceled+done)",
+        "blocked-only (narrowest diff)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How broadly should the source-aware refusal message apply: only the blocked source lane, or every lane where planned is structurally unreachable?",
+      "rationale": null,
+      "resolved_at": "2026-09-17T08:21:28.806209Z",
+      "resolved_by": null,
+      "slot_key": "specify.message.partition-breadth",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M2Q4E0YS3TP1K9H6KFPQWXB5",
+  "version": 1
+}

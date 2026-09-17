@@ -1,0 +1,88 @@
+schema_version: 1
+mission_id: 01M2Q4E0YS3TP1K9H6KFPQWXB5
+mission_slug: blocked-planned-refusal-message-01M2Q4E0
+mission_number:
+friendly_name: Source-aware unblock refusal message
+mission_type: software-dev
+target_branch: issue-3937-blocked-planned-refusal-message
+created_at: '2026-09-17T09:20:18.094094+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-17T09:20:18.094094+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-002
+  category: doc
+  summary: analysis-report.md present with no recorded findings
+  evidence_refs:
+  - e-007
+  details: An analysis-report.md artifact is present and its frontmatter records zero findings with a resolved verdict —
+    the analysis raised nothing.
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-006
+not_helpful: []
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/blocked-planned-refusal-message-01M2Q4E0/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/blocked-planned-refusal-message-01M2Q4E0/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/blocked-planned-refusal-message-01M2Q4E0/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/blocked-planned-refusal-message-01M2Q4E0/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/blocked-planned-refusal-message-01M2Q4E0/tasks/WP01-source-aware-refusal.md
+- id: e-006
+  kind: file
+  path: kitty-specs/blocked-planned-refusal-message-01M2Q4E0/status.events.jsonl
+- id: e-007
+  kind: file
+  path: kitty-specs/blocked-planned-refusal-message-01M2Q4E0/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

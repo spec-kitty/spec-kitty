@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#1711": {
+      "evidence_ref": "Cause-tagged blocked->in_progress recovery driver deferred; tracked by #1711 itself (the follow-up handle). Out of F-51 scope per spec C-003 and maintainer note.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#3937": {
+      "evidence_ref": "F-51 fixed: source-aware _guard_planned_rollback refusal (commit fdc24a4b54); RED-first matrix green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4245": {
+      "evidence_ref": "F-50 (workspace-alloc failure leaves WP planned) shipped in #4245 f64650f2d0; out of scope for this mission, verified done",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "blocked-planned-refusal-message-01M2Q4E0",
+  "mission_id": "01M2Q4E0YS3TP1K9H6KFPQWXB5",
+  "mission_branch": "kitty/mission-blocked-planned-refusal-message-01M2Q4E0",
+  "target_branch": "issue-3937-blocked-planned-refusal-message",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_transition_core.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_transition_core.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-17T08:31:40.734415+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "41aa304319041e744a1eae852a7fd08689b3a1fd"
+}

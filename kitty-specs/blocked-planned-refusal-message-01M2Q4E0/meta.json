@@ -1,0 +1,35 @@
+{
+  "accept_commit": "f7816c5d08101fecf274cf370a94788f426e761b",
+  "acceptance_history": [
+    {
+      "accept_commit": "f7816c5d08101fecf274cf370a94788f426e761b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-17T09:16:52.475887+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "92c81db0177bd37e4b25cbc24fdf3310211623aa"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-17T09:16:52.475887+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "92c81db0177bd37e4b25cbc24fdf3310211623aa",
+  "baseline_merge_commit": "06c4b43577dc923d8a333ca153a8b431bd9b0c11",
+  "created_at": "2026-09-17T07:31:24.776380+00:00",
+  "flattened": true,
+  "friendly_name": "Source-aware unblock refusal message",
+  "merged_at": "2026-09-17T09:20:14.894103+00:00",
+  "merged_commit": "94fd988a35801eb92bbe9775cf31a555c387e265",
+  "mid8": "01M2Q4E0",
+  "mission_id": "01M2Q4E0YS3TP1K9H6KFPQWXB5",
+  "mission_number": null,
+  "mission_slug": "blocked-planned-refusal-message-01M2Q4E0",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When a work package is blocked, trying to move it back to planned currently fails with a source-agnostic 'requires review feedback' error, even though the honest recovery is to resume (in_progress) or cancel. This mission makes that refusal message source-aware without weakening the force-proof guard, closing P0 issue #3937 (F-51).",
+  "purpose_tldr": "Tell operators the real recovery path when a work package cannot move to planned, instead of a misleading demand for review feedback.",
+  "slug": "blocked-planned-refusal-message-01M2Q4E0",
+  "status_phase": "1",
+  "target_branch": "issue-3937-blocked-planned-refusal-message",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-17T08:35:40.476894+00:00"
+}

@@ -1,0 +1,36 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M2QAMH13QE2BNHNJFF57PX2M",
+  "materialized_at": "2026-09-17T09:19:49.283732+00:00",
+  "mission_number": "",
+  "mission_slug": "blocked-planned-refusal-message-01M2Q4E0",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2QAMH13QE2BNHNJFF57PX2M",
+      "last_transition_at": "2026-09-17T09:19:49.283732+00:00",
+      "review_result": {
+        "reference": "Approved by reviewer-renata: source-aware refusal, force-proof gate preserved (no source-scoped early return), state machine untouched, non-vacuous force×source matrix incl. done-flagless no-rewind tripwire, 121 tests green. Issue-matrix: #3937 fixed, #4245 already-shipped, #1711 deferred.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 3317472,
+      "shell_pid_created_at": "1789634128.17"
+    }
+  }
+}
