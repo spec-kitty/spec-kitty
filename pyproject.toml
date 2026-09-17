@@ -1961,7 +1961,6 @@ exclude = [
     "tests/reliability/fixtures/review_prompt.py",
     "tests/research/test_research_csv_schema_migration.py",
     "tests/research/test_research_deliverables_unit.py",
-    "tests/research/test_research_plan_missions_integration.py",
     "tests/research/test_research_workflow_integration.py",
     "tests/retrospective/test_canonical_discovery_2717.py",
     "tests/retrospective/test_canonical_read_surface_1735.py",
