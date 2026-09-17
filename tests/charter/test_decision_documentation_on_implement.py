@@ -190,6 +190,44 @@ def test_shipped_corpus_passes_the_gate(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# DRG<->doctrine-repository disagreement
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.doctrine
+def test_directive_unresolvable_in_directive_repository_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A DRG/doctrine-repository disagreement raises, not a silent skip.
+
+    ``implement``'s resolved bundle already gated membership via the DRG
+    (the directive URN here is a real ``scope`` edge target resolvable by
+    the graph), so a miss in the directive repository is a genuine "could
+    not verify" condition -- the two subsystems disagree on what exists --
+    never a legitimate "nothing to check" skip. Forces that disagreement
+    directly by stubbing ``_resolve_directives`` to an empty repository,
+    independent of DRG resolution.
+    """
+    graph = _make_graph(
+        nodes=[
+            DRGNode(urn=_IMPLEMENT_URN, kind=NodeKind.ACTION),
+            DRGNode(urn=_URN_003, kind=NodeKind.DIRECTIVE),
+        ],
+        edges=[
+            DRGEdge(source=_IMPLEMENT_URN, target=_URN_003, relation=Relation.SCOPE),
+        ],
+    )
+    monkeypatch.setattr(drg_helpers, "load_validated_graph", lambda repo_root: graph)
+    monkeypatch.setattr(consistency_check, "_resolve_directives", lambda repo_root, pack_context: {})
+
+    ctx = _ctx_with_config(
+        tmp_path,
+        f"activated_directives:\n  - {_STEM_003}\n",
+    )
+
+    with pytest.raises(RuntimeError, match="cannot resolve"):
+        scan_decision_documentation_scoped_on_implement(ctx)
+
+
+# ---------------------------------------------------------------------------
 # Fail-closed
 # ---------------------------------------------------------------------------
 

@@ -292,6 +292,48 @@ def test_shipped_corpus_passes_the_lattice_gate(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# DRG<->doctrine-repository disagreement
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.doctrine
+def test_reconciler_or_operand_unresolvable_in_directive_repository_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A DRG/doctrine-repository disagreement raises, not a silent skip.
+
+    ``active_urns`` already gates edge membership via the DRG (both
+    endpoints here are DRG nodes marked active), so a miss in the directive
+    repository is a genuine "could not verify" condition -- the two
+    subsystems disagree on what exists -- never a legitimate "nothing to
+    rank" skip. Forces that disagreement directly by stubbing
+    ``_resolve_directives`` to an empty repository, independent of DRG
+    activation resolution.
+    """
+    graph = _make_graph(
+        nodes=[
+            DRGNode(urn=_URN_ADVISORY, kind=NodeKind.DIRECTIVE),
+            DRGNode(urn=_URN_REQUIRED, kind=NodeKind.DIRECTIVE),
+        ],
+        edges=[
+            DRGEdge(
+                source=_URN_ADVISORY,
+                target=_URN_REQUIRED,
+                relation=Relation.RECONCILES_TENSION,
+            ),
+        ],
+    )
+    monkeypatch.setattr(drg_helpers, "load_validated_graph", lambda repo_root: graph)
+    monkeypatch.setattr(consistency_check, "_resolve_directives", lambda repo_root, pack_context: {})
+
+    ctx = _ctx_with_config(
+        tmp_path,
+        f"activated_directives:\n  - {_STEM_ADVISORY}\n  - {_STEM_REQUIRED}\nactivated_tactics: []\n",
+    )
+
+    with pytest.raises(RuntimeError, match="cannot resolve"):
+        scan_enforcement_lattice_violations(ctx)
+
+
+# ---------------------------------------------------------------------------
 # Fail-closed
 # ---------------------------------------------------------------------------
 

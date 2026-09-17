@@ -130,6 +130,8 @@ _TASKS_SHARED: tuple[str, ...] = (  # WP02 (wave2) — 20 symbols
 _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 23 symbols (#2816: +gated runtime seam, +reconstruct-reader row)
     "_default_status_ports",
     "_StatusState",
+    "_status_error",
+    "_status_selector_error",
     "_st_resolve_dirs",
     "_st_gated_runtime_fields",
     "_st_runtime_row",
@@ -578,4 +580,5 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     # low incremental regression-catch value over the identity-re-export guard
     # alone. Revisit whether this file's own hardcoded-count guard should be
     # relaxed or dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    assert len(SYMBOL_TO_MODULE) == 179
+    # CLI boundary WP05 adds the two status error renderers: 179 -> 181.
+    assert len(SYMBOL_TO_MODULE) == 181

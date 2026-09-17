@@ -128,11 +128,13 @@ def test_patched_resolution_seams_intercept_resolve_dirs(tmp_path: Path) -> None
     assert exc_info.value.exit_code == 1
     locate_mock.assert_called_once()
     slug_mock.assert_called_once_with(
-        explicit_mission="034-feature", json_output=True, repo_root=tmp_path
+        explicit_mission="034-feature", json_output=True, repo_root=tmp_path, error_handler=tasks_status_cmd._status_selector_error
     )
     branch_mock.assert_called_once_with(tmp_path, "034-feature", True)
     read_root_mock.assert_called_once_with(st.cwd)
-    assert "Mission directory not found" in console_mock.print.call_args.args[0]
+    payload = console_mock.emit_json.call_args.args[0]
+    assert payload["ok"] is False
+    assert "Mission directory not found" in payload["error"]["message"]
 
 
 def test_patched_workspace_resolver_intercepts_resolve_execution_mode(
@@ -154,18 +156,14 @@ def test_patched_workspace_resolver_intercepts_resolve_execution_mode(
 def test_patched_console_intercepts_load_work_packages_empty_leg(
     tmp_path: Path,
 ) -> None:
-    """``tasks.console`` bites through ``_st_load_work_packages``' no-WPs
-    warning leg (exit 0, the moved body prints via ``_tasks.console``)."""
+    """The data-loading phase permits empty status without rendering or exiting."""
     st = _make_state()
     st.feature_dir = tmp_path
     st.tasks_dir = tmp_path
-    with (
-        patch(f"{_TASKS}.console") as console_mock,
-        pytest.raises(typer.Exit) as exc_info,
-    ):
+    with patch(f"{_TASKS}.console") as console_mock:
         tasks_status_cmd._st_load_work_packages(st)
-    assert exc_info.value.exit_code == 0
-    assert "No work packages found" in console_mock.print.call_args.args[0]
+    assert st.work_packages == []
+    console_mock.print.assert_not_called()
 
 
 def test_patched_stall_threshold_intercepts_apply_review_flags(
@@ -298,14 +296,14 @@ def test_patched_sentinel_view_drives_render_human(tmp_path: Path) -> None:
 
 
 def test_patched_output_error_intercepts_do_status_exception_arm() -> None:
-    """``tasks._output_error`` bites through ``_do_status``' generic exception
+    """The shared JSON envelope renders ``_do_status``' generic exception
     arm (exit-1 translation). The failure is injected through the routed
     ``tasks.locate_project_root`` D7 seam — the orchestrator reaches its
     ``_st_*`` phase siblings by bare same-module name (the ratchet-closure
     invariant), so the phases themselves are deliberately NOT patch targets."""
     with (
         patch(f"{_TASKS}.locate_project_root", side_effect=RuntimeError("boom")),
-        patch(f"{_TASKS}._output_error") as error_mock,
+        patch(f"{_TASKS}.console.emit_json") as error_mock,
         pytest.raises(typer.Exit) as exc_info,
     ):
         tasks_status_cmd._do_status(
@@ -315,7 +313,7 @@ def test_patched_output_error_intercepts_do_status_exception_arm() -> None:
             ports=MagicMock(),
         )
     assert exc_info.value.exit_code == 1
-    error_mock.assert_called_once_with(True, "boom")
+    error_mock.assert_called_once_with({"ok": False, "error": {"code": "status_failed", "message": "boom"}})
 
 
 def test_default_ports_constructs_through_tasks_bindings() -> None:

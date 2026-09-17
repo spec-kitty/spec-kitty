@@ -97,7 +97,7 @@ def test_exit_git_resolution_failure_json_envelope(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """The --json render emits one parseable error envelope on stderr."""
+    """The --json render emits one canonical error envelope on stdout."""
     import json
 
     import typer
@@ -109,6 +109,9 @@ def test_exit_git_resolution_failure_json_envelope(
         exit_git_resolution_failure(NotInsideRepositoryError(tmp_path), tmp_path, json_output=True)
 
     assert excinfo.value.exit_code == 1
-    envelope = json.loads(capsys.readouterr().err)
-    assert envelope["error"] == "git_resolution_failed"
-    assert "git init" in envelope["message"]
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    envelope = json.loads(captured.out)
+    assert envelope["ok"] is False
+    assert envelope["error"]["code"] == "git_resolution_failed"
+    assert "git init" in envelope["error"]["message"]

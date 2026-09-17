@@ -209,7 +209,13 @@ def test_dashboard_command_persists_passed_advisory_warning(
         "a legacy charter.md-only bundle was detected; run "
         "`spec-kitty charter generate --no-from-interview`"
     )
-    monkeypatch.setattr(dashboard_mod, "get_project_root_or_exit", lambda: tmp_path)
+    json_modes: list[bool] = []
+
+    def fake_project_root(*, json_output: bool = False) -> Path:
+        json_modes.append(json_output)
+        return tmp_path
+
+    monkeypatch.setattr(dashboard_mod, "get_project_root_or_exit", fake_project_root)
     monkeypatch.setattr(
         dashboard_mod,
         "ensure_dashboard_running",
@@ -228,6 +234,7 @@ def test_dashboard_command_persists_passed_advisory_warning(
         emit_json=False,
     )
 
+    assert json_modes == [False]
     assert read_preflight_warning(tmp_path) == warning
 
 
@@ -356,7 +363,14 @@ def test_dashboard_command_non_git_project_exits_1_with_git_init_advice(
     recording_console = Console(file=buf, force_terminal=False, highlight=False)
     monkeypatch.setattr(dashboard_mod, "console", recording_console)
     monkeypatch.setattr(helpers_mod, "console", recording_console)
-    monkeypatch.setattr(dashboard_mod, "get_project_root_or_exit", lambda: tmp_path)
+
+    json_modes: list[bool] = []
+
+    def fake_project_root(*, json_output: bool = False) -> Path:
+        json_modes.append(json_output)
+        return tmp_path
+
+    monkeypatch.setattr(dashboard_mod, "get_project_root_or_exit", fake_project_root)
 
     def _raise_not_inside_repository(_root: Path) -> None:
         raise NotInsideRepositoryError(tmp_path)
@@ -377,6 +391,7 @@ def test_dashboard_command_non_git_project_exits_1_with_git_init_advice(
         )
 
     assert excinfo.value.exit_code == 1
+    assert json_modes == [False]
     output = buf.getvalue()
     assert "not inside a git repository" in output
     assert "git init" in output

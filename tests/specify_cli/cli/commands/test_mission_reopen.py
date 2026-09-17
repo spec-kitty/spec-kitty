@@ -456,9 +456,9 @@ def test_reopen_ambiguous_handle_emits_json_envelope(tmp_path: Path, monkeypatch
     result = _invoke(repo, "reopen", _MID8, "--reason", "x", "--json")
     assert result.exit_code != 0
     payload = json.loads(result.output)
-    assert set(payload) == {"success", "error_code", "error", "handle", "candidates"}
-    assert payload["success"] is False
-    assert payload["error_code"] == "MISSION_AMBIGUOUS_SELECTOR"
+    assert set(payload) == {"ok", "error", "handle", "candidates"}
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "MISSION_AMBIGUOUS_SELECTOR"
     assert payload["handle"] == _MID8
     assert sorted(payload["candidates"]) == [f"alpha-{_MID8}", f"beta-{_MID8}b"]
-    assert isinstance(payload["error"], str) and payload["error"]
+    assert isinstance(payload["error"]["message"], str) and payload["error"]["message"]

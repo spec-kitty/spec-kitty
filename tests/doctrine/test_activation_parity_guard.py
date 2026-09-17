@@ -428,6 +428,56 @@ def test_corrupt_references_yaml_fails_closed(tmp_path: Path) -> None:
     assert any("could not verify config<->references parity" in s.lower() for s in report.suggestions)
 
 
+@pytest.mark.parametrize(
+    ("yaml_text", "expected_fragment"),
+    [
+        pytest.param(
+            "- just\n- a\n- list\n",
+            "does not contain a YAML mapping",
+            id="non_mapping_document_root",
+        ),
+        pytest.param(
+            "schema_version: '2.0.0'\n",
+            "missing a valid 'catalog' mapping",
+            id="catalog_not_a_mapping",
+        ),
+        pytest.param(
+            "catalog:\n  mission: software-dev\n",
+            "missing a valid 'references' list",
+            id="references_not_a_list",
+        ),
+    ],
+)
+def test_references_yaml_malformed_schema_fails_closed(tmp_path: Path, yaml_text: str, expected_fragment: str) -> None:
+    """#2530: a parseable-but-wrong-shape charter.yaml must fail closed too.
+
+    Sibling of ``test_corrupt_references_yaml_fails_closed`` -- that test
+    covers the YAML *parse* failure (``_load_reference_ids_by_kind``'s
+    ``except Exception`` branch); these three parametrized cases cover the
+    three ``isinstance`` shape guards that run AFTER a successful parse
+    (document root not a mapping, ``catalog`` not a mapping, ``catalog.
+    references`` not a list). Each must surface a ``CharterYamlCorruptError``-driven
+    verification error and ``coherent=False``, never the "not yet
+    synthesized" clean-skip return value (``None``) that a genuinely absent
+    file gets.
+    """
+    kittify = _write_config(
+        tmp_path,
+        f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n",
+    )
+    charter_dir = kittify / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    (charter_dir / "charter.yaml").write_text(yaml_text, encoding="utf-8")
+
+    ctx = ProjectContext.from_repo(tmp_path)
+    report = run_consistency_check(ctx)
+
+    assert report.coherent is False
+    assert report.verification_errors, "a malformed-schema charter.yaml must be reported as 'could not verify', not silently treated as an empty, passing result"
+    assert any(expected_fragment in entry for entry in report.verification_errors)
+    assert any("could not verify config<->references parity" in s.lower() for s in report.suggestions)
+
+
 def test_references_yaml_absent_is_still_a_clean_skip(tmp_path: Path) -> None:
     """Sibling GREEN case: 'not yet synthesized' (file simply absent) stays a
     legitimate no-op skip, distinct from the corruption cases above (#2530)."""

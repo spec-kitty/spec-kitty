@@ -110,7 +110,7 @@ def test_coordination_identity_incomplete() -> None:
 
 
 def test_coordination_identity_complete() -> None:
-    meta = {"coordination_branch": "kitty/x", "mission_slug": "m", "mission_id": "01ABC"}
+    meta: dict[str, object] = {"coordination_branch": "kitty/x", "mission_slug": "m", "mission_id": "01ABC"}
     assert cd._coordination_identity(meta) == ("kitty/x", "m", "01ABC")
 
 
@@ -139,7 +139,7 @@ def test_coord_health_missing_worktree(
     from specify_cli.lanes import branch_naming
 
     monkeypatch.setattr(branch_naming, "resolve_mid8", lambda *a, **k: "01ABCDEF")
-    meta = {"coordination_branch": "kitty/x", "mission_slug": "m", "mission_id": "01ABCDEF"}
+    meta: dict[str, object] = {"coordination_branch": "kitty/x", "mission_slug": "m", "mission_id": "01ABCDEF"}
     out = cd._check_coordination_worktree_health(tmp_path, meta)
     assert out[0].error_code == "COORDINATION_WORKTREE_MISSING"
 
@@ -295,7 +295,7 @@ def test_coord_health_healthy(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     monkeypatch.setattr(branch_naming, "resolve_mid8", lambda *a, **k: "01ABCDEF")
     monkeypatch.setattr(cd, "_coord_worktree_head_finding", lambda *a: None)
     monkeypatch.setattr(cd, "_coord_worktree_dirty_finding", lambda *a: None)
-    meta = {"coordination_branch": "kitty/x", "mission_slug": "m", "mission_id": "01ABCDEF"}
+    meta: dict[str, object] = {"coordination_branch": "kitty/x", "mission_slug": "m", "mission_id": "01ABCDEF"}
     out = cd._check_coordination_worktree_health(tmp_path, meta)
     assert out[0].severity == "ok"
 
@@ -328,7 +328,7 @@ def test_check_lane_drift_no_worktrees_dir(
 
     monkeypatch.setattr(branch_naming, "resolve_mid8", lambda *a, **k: "01ABCDEF")
     monkeypatch.setattr(coord_mod, "lane_sparse_checkout_patterns", lambda *a: ["p"])
-    meta = {"coordination_branch": "kitty/x", "mission_slug": "m", "mission_id": "01ABCDEF"}
+    meta: dict[str, object] = {"coordination_branch": "kitty/x", "mission_slug": "m", "mission_id": "01ABCDEF"}
     # No .worktrees dir under tmp_path → returns [].
     assert cd._check_lane_sparse_checkout_drift(tmp_path, meta) == []
 
@@ -345,7 +345,7 @@ def test_check_lane_drift_all_clean(
     monkeypatch.setattr(coord_mod, "lane_sparse_checkout_patterns", lambda *a: ["p"])
     monkeypatch.setattr(subprocess, "check_output", lambda *a, **k: str(wt.resolve()) + "\n")
     monkeypatch.setattr(cd, "_scan_lane_sparse_drift", lambda *a: None)
-    meta = {"coordination_branch": "kitty/x", "mission_slug": "m", "mission_id": "01ABCDEF"}
+    meta: dict[str, object] = {"coordination_branch": "kitty/x", "mission_slug": "m", "mission_id": "01ABCDEF"}
     out = cd._check_lane_sparse_checkout_drift(tmp_path, meta)
     assert out[0].severity == "ok"
 
@@ -454,7 +454,7 @@ def test_fix_removes_coordination_branch_key(tmp_path: Path) -> None:
 
     mission_dir = tmp_path / "kitty-specs" / "my-mission-01AB"
     mission_dir.mkdir(parents=True)
-    meta = {"mission_slug": "my-mission-01AB", "coordination_branch": "kitty/mission-my-mission-01AB"}
+    meta: dict[str, object] = {"mission_slug": "my-mission-01AB", "coordination_branch": "kitty/mission-my-mission-01AB"}
     (mission_dir / "meta.json").write_text(json.dumps(meta))
 
     finding = cd.DoctorFinding(
@@ -539,7 +539,9 @@ def test_collect_injects_meta_path_for_never_created_findings(
     never_created = [f for f in findings if f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED"]
     assert never_created, "expected NEVER_CREATED finding from monkeypatched check"
     assert "meta_path" in never_created[0].extra
-    assert never_created[0].extra["meta_path"].endswith("meta.json")
+    meta_path = never_created[0].extra["meta_path"]
+    assert isinstance(meta_path, str)
+    assert meta_path.endswith("meta.json")
 
 
 # ---------------------------------------------------------------------------
@@ -770,7 +772,7 @@ def test_run_coordination_health_exits_0_for_stale_marker(
 
 def test_parse_reconcile_marker_rejects_empty_strand() -> None:
     """An empty strand is not a strand (data-model): the marker is unusable."""
-    base = {
+    base: dict[str, object] = {
         "coord_ref": "coord",
         "captured_sha": "deadbeef",
         "coord_worktree": "/sentinel/wt",
@@ -1378,7 +1380,9 @@ def test_run_coordination_health_mission_not_found_json_envelope(
         cd.run_coordination_health(json_output=True, mission="nope")
     assert exc.value.exit_code == 1
     payload = _json.loads(capsys.readouterr().out.strip())
-    assert payload["error"] == "MISSION_NOT_FOUND"
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "MISSION_NOT_FOUND"
+    assert payload["error"]["message"] == "Mission not found: 'nope'"
     assert payload["handle"] == "nope"
 
 

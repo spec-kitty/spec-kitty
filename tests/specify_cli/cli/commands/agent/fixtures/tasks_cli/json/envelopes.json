@@ -22,12 +22,14 @@
       "--mission",
       "no-such-mission"
     ],
-    "exit_code": 1,
+    "exit_code": 2,
     "json_shape": {
-      "error": "str",
-      "error_code": "str",
+      "error": {
+        "code": "str",
+        "message": "str"
+      },
       "handle": "str",
-      "success": "bool"
+      "ok": "bool"
     },
     "stream": "stdout"
   },

@@ -1137,6 +1137,33 @@ _CATEGORY_C_OPERATOR_CONFIG_PUBLIC_API: frozenset[SymbolKey] = frozenset(
 )
 
 
+# ---------- C. mission-type uncaught propagation surface (mission cli-boundary-robustness) ----------
+# ``MissionTypeEmptyActionSequenceError`` (WP06, FR-004) is raised twice
+# intra-module (``resolve_mission_type_context`` / the layered-roster
+# resolver) but, by design, is NEVER caught by name at any src/ call site --
+# ``charter/activation/mission_type_profiles.py::activate.py``'s
+# ``UnknownMissionTypeError`` handler explicitly narrows to that sibling
+# exception ONLY, letting this one propagate uncaught to the CLI boundary
+# (spec.md Edge Cases: "must surface that resolution failure rather than
+# silently treating 'cannot resolve' as 'no steps were removed'" -- see the
+# comment at ``charter/activate.py``'s ``except UnknownMissionTypeError:``
+# block). The gate's import-based caller detector has no way to see a
+# deliberately-uncaught ``raise`` as a reference, same fail-loud shape as
+# ``OperatorEnvFileUnreadableError`` above. Only test code names it (via
+# ``pytest.raises``). Wire-or-prune tracked under #4600 (FR-303).
+
+_CATEGORY_C_MISSION_TYPE_UNCAUGHT_PROPAGATION_SURFACE: frozenset[SymbolKey] = frozenset(
+    {
+        # charter.activation.mission_type_profiles::MissionTypeEmptyActionSequenceError
+        SymbolKey(
+            "MissionTypeEmptyActionSequenceError",
+            "2565e0c8bd07c667a3aa3bec9b8b768a99d1c4e7cc2c0e416e83e5eead3421fe",
+            source_module="charter.activation.mission_type_profiles",
+        ),
+    }
+)
+
+
 # ---------- C. doctor auto-discovery seam (mission operator-config-ergonomics) ----------
 # All six symbols are LIVE, not dead -- the gate only counts cross-file src/
 # ``__all__`` importers, and both reach-paths here are invisible to it:
@@ -1164,14 +1191,23 @@ _CATEGORY_C_DOCTOR_AUTO_DISCOVERY_SEAM: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "run_channel_report", "7b85d1bda9aae6c822e97bf6fdcf592fddc365a48710197d103e836fdfd71333", source_module="specify_cli.cli.commands._channel_doctor"
         ),
-        # specify_cli.cli.commands._env_file_doctor::register
-        SymbolKey("register", "f4c52c62e8b8ddfd63c5b1ff0860c75cc9deaceb6b463a7e8fed0416894193af", source_module="specify_cli.cli.commands._env_file_doctor"),
+        # specify_cli.cli.commands._env_file_doctor::register -- body_hash
+        # refreshed (cli-boundary-robustness #4600): the ``register`` shell's
+        # nested ``env_file`` command body changed under the boundary
+        # refactor, invalidating the prior content-tier key. Still reached
+        # only via doctor.py's dynamic ``getattr(module, "register")``
+        # auto-discovery, invisible to the gate's static import scan.
+        SymbolKey("register", "d2dde051e8ad116fa7498dc07207edca65b50b6d4b5bc698997ed8e3106494b2", source_module="specify_cli.cli.commands._env_file_doctor"),
         # specify_cli.cli.commands._env_file_doctor::run_env_file_health
         SymbolKey(
             "run_env_file_health", "a01d73dc1ffe6ecc2db7561a3707c98e425a77aee9b722a8687f0f9601f97fb9", source_module="specify_cli.cli.commands._env_file_doctor"
         ),
-        # specify_cli.cli.commands._provenance_doctor::register
-        SymbolKey("register", "dd9512fa1755c070c893c618c9cbd51d9709e7edf367a0f30653c45649cd6fe3", source_module="specify_cli.cli.commands._provenance_doctor"),
+        # specify_cli.cli.commands._provenance_doctor::register -- body_hash
+        # refreshed (cli-boundary-robustness #4600): the ``register`` shell's
+        # nested ``provenance`` command body changed under the boundary
+        # refactor, invalidating the prior content-tier key. Same
+        # dynamic-dispatch reach path as ``_env_file_doctor::register`` above.
+        SymbolKey("register", "5e4f0244801fa7826875fe6345c9917612a3753b6719ea6f4762130212f1f7eb", source_module="specify_cli.cli.commands._provenance_doctor"),
         # specify_cli.cli.commands._provenance_doctor::run_provenance_audit
         SymbolKey(
             "run_provenance_audit", "a657b0dbc7e8d2b82fc80e005592413230902a240d550c1b12be39cd4cd66b2e", source_module="specify_cli.cli.commands._provenance_doctor"
@@ -2100,6 +2136,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_UPSTREAM_SESSION_PRESENCE
     | _CATEGORY_C_QUALITY_DEBT_1928
     | _CATEGORY_C_OPERATOR_CONFIG_PUBLIC_API
+    | _CATEGORY_C_MISSION_TYPE_UNCAUGHT_PROPAGATION_SURFACE
     | _CATEGORY_C_DOCTOR_AUTO_DISCOVERY_SEAM
     | _CATEGORY_C_BRANCH_NAMING_FAILOVER_SEAM
     | _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT

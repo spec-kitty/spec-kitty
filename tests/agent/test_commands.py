@@ -87,12 +87,19 @@ def test_verify_setup_command_runs(monkeypatch, tmp_path: Path) -> None:
     """Test that verify-setup renders the tool-checking section."""
     monkeypatch.setattr(verify_module, "check_tool_for_tracker", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(verify_module, "find_repo_root", lambda: tmp_path)
-    monkeypatch.setattr(verify_module, "get_project_root_or_exit", lambda repo_root: repo_root)
+    json_modes: list[bool] = []
+
+    def fake_project_root(repo_root: Path, *, json_output: bool = False) -> Path:
+        json_modes.append(json_output)
+        return repo_root
+
+    monkeypatch.setattr(verify_module, "get_project_root_or_exit", fake_project_root)
     monkeypatch.setattr(verify_module, "run_enhanced_verify", lambda **_kwargs: {})
 
     result = runner.invoke(cli_app, ["verify-setup"])
 
     assert result.exit_code == 0
+    assert json_modes == [False]
     assert "Check Available Tools" in result.stdout or "Checking for installed tools" in result.stdout
 
 
@@ -151,7 +158,13 @@ def test_plan_and_tasks_delegate_to_agent_lifecycle(monkeypatch) -> None:
 
 def test_dashboard_kill_stops_instance(monkeypatch, tmp_path: Path) -> None:
     call_record: dict[str, Path] = {}
-    monkeypatch.setattr(dashboard_module, "get_project_root_or_exit", lambda: tmp_path)
+    json_modes: list[bool] = []
+
+    def fake_project_root(*, json_output: bool = False) -> Path:
+        json_modes.append(json_output)
+        return tmp_path
+
+    monkeypatch.setattr(dashboard_module, "get_project_root_or_exit", fake_project_root)
 
     def fake_stop(project_root: Path) -> tuple[bool, str]:
         call_record["root"] = project_root
@@ -161,6 +174,7 @@ def test_dashboard_kill_stops_instance(monkeypatch, tmp_path: Path) -> None:
 
     result = runner.invoke(cli_app, ["dashboard", "--kill"])
     assert result.exit_code == 0
+    assert json_modes == [False]
     assert call_record["root"] == tmp_path
     assert "Dashboard stopped" in result.stdout
 
@@ -479,7 +493,13 @@ def test_verify_setup_json_output(monkeypatch, tmp_path: Path) -> None:
     repo_root.mkdir()
 
     monkeypatch.setattr(verify_module, "find_repo_root", lambda: repo_root)
-    monkeypatch.setattr(verify_module, "get_project_root_or_exit", lambda _repo=None: repo_root)
+    json_modes: list[bool] = []
+
+    def fake_project_root(_repo: Path | None = None, *, json_output: bool = False) -> Path:
+        json_modes.append(json_output)
+        return repo_root
+
+    monkeypatch.setattr(verify_module, "get_project_root_or_exit", fake_project_root)
 
     def fake_verify(*_args, **_kwargs):
         return {
@@ -496,6 +516,7 @@ def test_verify_setup_json_output(monkeypatch, tmp_path: Path) -> None:
 
     result = runner.invoke(cli_app, ["verify-setup", "--json", "--mission", "001-demo-feature"])
     assert result.exit_code == 0
+    assert json_modes == [True]
     payload = _load_json_from_output(result.stdout)
     assert payload["status"] == "ok"
     assert payload["feature_detection"]["mission_slug"] == "001-demo-feature"

@@ -33,7 +33,8 @@ def test_agent_tasks_status_missing_mission_returns_json_error(
     assert result.exit_code == 1
     payload = json.loads(result.output)
     assert "error" in payload
-    assert "--mission <slug>" in payload["error"]
+    assert payload["ok"] is False
+    assert "--mission <slug>" in payload["error"]["message"]
 
 
 def test_agent_status_ambiguous_handle_maps_to_shared_json_envelope(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

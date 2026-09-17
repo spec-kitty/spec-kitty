@@ -195,9 +195,12 @@ def test_dashboard_json_cli_renders_three_distinct_rows(
 
     # Monkeypatch the project-root resolver the CLI uses internally so it
     # reads from our temp fixture.
+    def fake_project_root(*, json_output: bool = False) -> Path:
+        return colliding_080_repo
+
     monkeypatch.setattr(
         "specify_cli.cli.commands.dashboard.get_project_root_or_exit",
-        lambda: colliding_080_repo,
+        fake_project_root,
     )
     # ``--json`` is emitted through the console seam's ``emit_json`` (#2632),
     # which bypasses Rich rendering entirely — no width-wrapping or ANSI can
@@ -280,9 +283,12 @@ def test_rendered_json_contains_every_mid8(
 
     from specify_cli.cli.commands.dashboard import dashboard as dashboard_cmd
 
+    def fake_project_root(*, json_output: bool = False) -> Path:
+        return colliding_080_repo
+
     monkeypatch.setattr(
         "specify_cli.cli.commands.dashboard.get_project_root_or_exit",
-        lambda: colliding_080_repo,
+        fake_project_root,
     )
     # ``--json`` uses the seam's ``emit_json`` (#2632) — intrinsically plain and
     # unwrapped, so no width/no-color console monkeypatch is needed.
