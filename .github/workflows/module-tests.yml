@@ -193,16 +193,21 @@ jobs:
               print(f"::error::module-tests: no test directory found for module {module!r} (looked for tests/{module} or the registry's test_dirs)")
               sys.exit(64)
 
-          # Deselect the performance flow: `-m "not performance"` keeps the
-          # wall-clock/benchmark budget guards (which belong to ci-nightly's
-          # `-m performance` lane) out of the per-PR module slice. Each shard
-          # runs SERIALLY (parallelism is ACROSS shards via the matrix, not
-          # within a shard — the suite is not intra-shard xdist-safe: some
-          # tests, e.g. the tool_surface plugin-bundle builds, crash an xdist
-          # worker). The aggregate shards are kept inside the serial time budget
-          # by the de-duplicated, non-overlapping registry test_dirs instead.
+          # Deselect the performance AND stress flows: `-m "not performance and
+          # not stress"` keeps the wall-clock/benchmark budget guards and the
+          # concurrency/load stress suite (both of which belong to ci-nightly's
+          # dedicated `-m performance` / `-m stress` lanes) out of the module
+          # slice, in BOTH pr and full mode — the nightly full-module-matrix is
+          # not the home for either cadence. Each shard runs SERIALLY
+          # (parallelism is ACROSS shards via the matrix, not within a shard —
+          # the suite is not intra-shard xdist-safe: some tests, e.g. the
+          # tool_surface plugin-bundle builds, crash an xdist worker; the stress
+          # suite spawns its own threads and races coverage's per-thread trace
+          # installation when co-scheduled). The aggregate shards are kept inside
+          # the serial time budget by the de-duplicated, non-overlapping registry
+          # test_dirs instead.
           collected = subprocess.run(
-              [venv_python, "-m", "pytest", *test_dirs, "-m", "not performance", "--collect-only", "-q"],
+              [venv_python, "-m", "pytest", *test_dirs, "-m", "not performance and not stress", "--collect-only", "-q"],
               capture_output=True,
               text=True,
               check=True,
@@ -328,7 +333,7 @@ jobs:
 
           set +e
           "$venv_python" -m pytest "${shard_tests[@]}" \
-            -m "not performance" \
+            -m "not performance and not stress" \
             "${cov_args[@]}" --cov-report="xml:${coverage_xml}" \
             --junitxml="${xunit_xml}" \
             -q

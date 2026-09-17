@@ -201,6 +201,9 @@ FORBIDDEN_PR_PATH_TOKENS: tuple[str, ...] = (
     "-m e2e",
     "-m 'performance",
     '-m "performance',
+    "-m stress",
+    "-m 'stress",
+    '-m "stress',
     "interpreter-matrix",
 )
 

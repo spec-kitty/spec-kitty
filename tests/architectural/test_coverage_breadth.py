@@ -198,8 +198,10 @@ def derive_marker_mismatch_exception_set() -> list[str]:
     which ``ci-quality.yml``'s ``sonarcloud`` job ran via ``make test-fast`` until
     mission ``sonar-per-pr-coverage-reuse``, #4334) did not
     exclude the ``performance`` family; every matrix slice does
-    (``module-tests.yml``'s ``-m "not performance"``). Over the same directories,
-    the difference is exactly the declared exception to "no per-file regression".
+    (``module-tests.yml``'s ``-m "not performance and not stress"``). Over the
+    same directories, the difference is exactly the declared exception to "no
+    per-file regression" (``FAST_TIER_MARKERS`` also excludes ``stress``, so the
+    slice's added ``not stress`` does not widen this set).
 
     Derived on every run — never transcribed — so the set can be re-checked rather
     than re-read.

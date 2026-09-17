@@ -22,8 +22,12 @@ closes).
 Honest three-state split (re-derived live at implement, 2026-07-04, NFR-004;
 37 registered markers; `_gate_coverage.load_gates()` + `collect_universe()`):
 
-  ROUTED-BY-MARKER (11): architectural, contract, fast, git_repo, integration,
-      quarantine, regression, slow, timing, unit, windows_ci
+  ROUTED-BY-MARKER (12): architectural, contract, fast, git_repo, integration,
+      quarantine, regression, slow, stress, timing, unit, windows_ci
+      (`stress` is routed by the ci-nightly `-m "stress and not windows_ci"`
+      lane — the concurrency/load suite is deselected from the per-PR AND full
+      module-tests slices, so the nightly is its sole home, mirroring how
+      `performance`/`e2e` are nightly-only.)
       (`quarantine` is routed by the NON-BLOCKING `quarantine-visibility` gate —
       the spec's documented edge case: a job selects it, so it is ROUTED;
       blocking-ness is a separate axis. Its held-out population is governed by
@@ -37,12 +41,12 @@ Honest three-state split (re-derived live at implement, 2026-07-04, NFR-004;
       orphan carriers by path — e.g. `tests/delivery/` reaches no path gate —
       make an explicit `-m regression` job their required CI home rather than a
       silent CI_INVISIBLE entry.)
-  ROUTED-BY-PATH (13): adversarial, agent, asyncio, distribution, doctrine,
+  ROUTED-BY-PATH (12): adversarial, agent, asyncio, distribution, doctrine,
       e2e, no_git_tmp_path, no_readiness_stub, non_sandbox,
-      requires_symlinks, stress, timeout, upgrade
+      requires_symlinks, timeout, upgrade
       (each has >=1 collected carrier and ZERO orphan carriers — verified via
       the orphan model; NOT hand-asserted. The spec's illustrative
-      `non_sandbox`/`timeout`/`asyncio`/`stress` invisible-guesses were
+      `non_sandbox`/`timeout`/`asyncio` invisible-guesses were
       SUPERSEDED by this live derivation: their carriers all reach a path gate,
       so they are routed-by-path, not invisible — shrink-preferred, C-003.)
   CI_INVISIBLE (13): the ``CI_INVISIBLE`` ledger below — markers with ZERO

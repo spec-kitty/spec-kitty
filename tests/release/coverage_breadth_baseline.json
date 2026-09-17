@@ -28,7 +28,7 @@
     },
     "slice_selection": {
       "source": ".github/workflows/module-tests.yml, step id `pytest-run`",
-      "marker_expression": "not performance"
+      "marker_expression": "not performance and not stress"
     },
     "node_ids": [
       "tests/status/test_emit_durability.py::TestT015Responsiveness::test_verdict_recording_completes_under_two_seconds",

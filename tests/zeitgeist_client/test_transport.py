@@ -275,6 +275,7 @@ def test_empty_repo_and_branch_are_both_omitted_from_presence_args(team_kitty_do
 # --- R1: race — concurrent focus_heartbeat calls ----------------------------
 
 
+@pytest.mark.stress
 def test_r1_concurrent_heartbeats_produce_independent_request_ids(team_kitty_double):
     client = transport.ZeitgeistClient(_config(team_kitty_double.url))
     client.focus_start("mission-x")
