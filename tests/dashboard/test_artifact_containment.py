@@ -151,6 +151,31 @@ class TestArtifactRoutesHonourContainment:
         handler.send_response.assert_called_once_with(200)
         assert handler.wfile.getvalue() == b"# API contract\n"
 
+    def test_file_route_returns_404_not_500_on_a_symlink_loop(self, tmp_path: Path) -> None:
+        """A pre-guard ``.resolve()`` on the request path used to raise
+        ``RuntimeError`` (uncaught) for an on-disk symlink loop, turning a
+        clean 404 into a per-request 500. The guard already resolves inside
+        its own try/except, so the file-serve branch must hand it the
+        unresolved path rather than resolving before the guard runs."""
+        mission_dir = _mission_dir(tmp_path)
+        artifact_dir = mission_dir / "contracts"
+        artifact_dir.mkdir(parents=True)
+        first = artifact_dir / "loop-a"
+        second = artifact_dir / "loop-b"
+        first.symlink_to(second)
+        second.symlink_to(first)
+        handler = _handler(tmp_path)
+
+        with patch.object(features_module, "resolve_feature_planning_dir", return_value=mission_dir):
+            features_module.FeatureHandler._handle_artifact_directory(
+                handler,
+                "/api/contracts/001-test-mission/contracts%2Floop-a",
+                "contracts",
+            )
+
+        handler.send_response.assert_called_once_with(404)
+        assert handler.wfile.getvalue() == b""
+
 
 class TestResearchRouteHonoursContainment:
     """``handle_research`` confines both its listing and file-serve branches
@@ -217,6 +242,29 @@ class TestResearchRouteHonoursContainment:
             features_module.FeatureHandler.handle_research(
                 handler,
                 "/api/research/001-test-mission/spec.md",
+            )
+
+        handler.send_response.assert_called_once_with(404)
+        assert handler.wfile.getvalue() == b""
+
+    def test_file_route_returns_404_not_500_on_a_symlink_loop(self, tmp_path: Path) -> None:
+        """Same pre-guard-``.resolve()`` hazard as the artifact-directory
+        route's file-serve branch, exercised through ``handle_research``:
+        an on-disk symlink loop under ``research/`` must yield a clean 404,
+        not an uncaught ``RuntimeError``."""
+        mission_dir = _mission_dir(tmp_path)
+        research_dir = mission_dir / "research"
+        research_dir.mkdir(parents=True)
+        first = research_dir / "loop-a"
+        second = research_dir / "loop-b"
+        first.symlink_to(second)
+        second.symlink_to(first)
+        handler = _handler(tmp_path)
+
+        with patch.object(features_module, "resolve_feature_planning_dir", return_value=mission_dir):
+            features_module.FeatureHandler.handle_research(
+                handler,
+                "/api/research/001-test-mission/research%2Floop-a",
             )
 
         handler.send_response.assert_called_once_with(404)

@@ -289,8 +289,8 @@ class FeatureHandler(DashboardHandler):
         if len(parts) >= 5 and feature_dir:
             file_path_encoded = parts[4]
             file_path_str = urllib.parse.unquote(file_path_encoded)
-            artifact_file = (feature_dir / file_path_str).resolve()
-            research_dir = (feature_dir / "research").resolve()
+            artifact_file = feature_dir / file_path_str
+            research_dir = feature_dir / "research"
 
             if not _artifact_path_is_contained(artifact_file, feature_dir, research_dir):
                 self.send_response(404)
@@ -389,8 +389,8 @@ class FeatureHandler(DashboardHandler):
             # Serve specific file
             file_path_encoded = parts[4]
             file_path_str = urllib.parse.unquote(file_path_encoded)
-            artifact_file = (feature_dir / file_path_str).resolve()
-            artifact_dir = (feature_dir / directory_name).resolve()
+            artifact_file = feature_dir / file_path_str
+            artifact_dir = feature_dir / directory_name
 
             if not _artifact_path_is_contained(artifact_file, feature_dir, artifact_dir):
                 self.send_response(404)
