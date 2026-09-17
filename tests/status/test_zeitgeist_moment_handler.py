@@ -1502,3 +1502,167 @@ def test_lifecycle_started_and_completed_events_broadcast_through_the_shared_pat
     _op, args = recorder.moment_offers()[0]
     _assert_event_args(args)
     assert args["attrs"]["mission_slug"] == "demo-mission"
+
+
+# ---------------------------------------------------------------------------
+# #3954 (F-46): bound the legacy-prose ``review_ref`` at the wire projection.
+#
+# Seam-unit safety net (T5-T8) for ``bridge._bound_wire_review_ref`` per
+# contracts/review_ref_bound.md. The e2e regression coverage for the four
+# transition families (approval/completion/rejection/direct-emission) lives
+# in tests/specify_cli/cli/commands/agent/test_move_task_review_ref_broadcast.py.
+# ---------------------------------------------------------------------------
+
+
+def _reference_prose_truncate(value: str, max_bytes: int = 240) -> str:
+    """Golden oracle for the codec's own truncation, without importing its
+    private ``_truncate_utf8`` (contracts/review_ref_bound.md's byte-identity
+    pin, T6): same marker, same budget, same codepoint-safe decode."""
+    encoded = value.encode("utf-8")
+    if len(encoded) <= max_bytes:
+        return value
+    marker = "…"
+    budget = max_bytes - len(marker.encode("utf-8"))
+    return encoded[:budget].decode("utf-8", errors="ignore") + marker
+
+
+#: A filesystem path containing spaces, well over the 240-UTF-8-byte bound —
+#: classified a POINTER (has ``/``, no line break) per the contract's table.
+_OVERLONG_POINTER_PATH = "/var/reviews/" + ("wp-04-note-" * 18) + "with spaces in the filename too.md"
+
+#: A single-line PROSE note (under the KISS classifier) that happens to
+#: contain ``/`` — the ratified accepted-degradation edge (T5b, SHOULD-FIX
+#: S1): classified a pointer, so it is NOT truncated, and the codec's own
+#: 240-byte bound then drops it loudly.
+_OVERLONG_PROSE_WITH_SLASH = (
+    "Reviewed the diff at src/specify_cli/status/zeitgeist_bridge.py and confirmed the fix behaves as "
+    "expected across every hop of the transition, closing out the review with no outstanding concerns "
+    "after a careful pass through the full acceptance matrix for this change."
+)
+
+assert len(_OVERLONG_POINTER_PATH.encode("utf-8")) > 240
+assert len(_OVERLONG_PROSE_WITH_SLASH.encode("utf-8")) > 240
+assert "/" in _OVERLONG_PROSE_WITH_SLASH and "\n" not in _OVERLONG_PROSE_WITH_SLASH
+
+
+def test_bound_wire_review_ref_none_and_empty_are_unchanged() -> None:
+    assert bridge._bound_wire_review_ref(None) is None
+    assert bridge._bound_wire_review_ref("") == ""
+
+
+def test_bound_wire_review_ref_short_pointer_rides_verbatim() -> None:
+    assert bridge._bound_wire_review_ref("review:WP04") == "review:WP04"
+    assert bridge._bound_wire_review_ref("auto-approval:WP04:2026-09-17") == "auto-approval:WP04:2026-09-17"
+    assert bridge._bound_wire_review_ref("https://example.invalid/pr/42") == "https://example.invalid/pr/42"
+
+
+def test_bound_wire_review_ref_collapses_and_leaves_short_prose_unbounded() -> None:
+    assert bridge._bound_wire_review_ref("Looks good.\nShip it.") == "Looks good. Ship it."
+
+
+@pytest.mark.regression
+def test_over_bound_pointer_rides_verbatim_at_the_helper(caplog: pytest.LogCaptureFixture) -> None:
+    """#3954 T5: the helper itself never truncates a pointer, even over 240 bytes."""
+    assert bridge._bound_wire_review_ref(_OVERLONG_POINTER_PATH) == _OVERLONG_POINTER_PATH
+    assert "truncated" not in caplog.text
+
+
+@pytest.mark.regression
+def test_over_bound_pointer_fails_loud_at_the_codec_not_silently_corrupted(
+    monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path], caplog: pytest.LogCaptureFixture
+) -> None:
+    """#3954 T5: end-to-end, an over-bound pointer rides verbatim through the
+    bound helper and — because it is still over the codec's own 240-byte
+    bound — the whole moment is dropped LOUDLY (a logged warning naming
+    ``review_ref``), never silently truncated or corrupted."""
+    recorder = OfferRecorder().install(monkeypatch)
+
+    _fire_transition(metadata=_transition_metadata(review_ref=_OVERLONG_POINTER_PATH))
+
+    assert recorder.moment_offers() == []
+    assert "not broadcast" in caplog.text
+    assert "review_ref" in caplog.text
+
+
+@pytest.mark.regression
+def test_prose_with_slash_is_classified_pointer_and_drops_loud_not_corrupted(
+    monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path], caplog: pytest.LogCaptureFixture
+) -> None:
+    """#3954 T5b (accepted-degradation edge, SHOULD-FIX S1): a single-line PROSE
+    note over 240 bytes that contains ``/`` is (correctly, under the KISS
+    structural classifier) classified a pointer and therefore NOT truncated
+    -- the codec then drops it, loudly (a logged warning naming
+    ``review_ref``), never silently corrupted. This pins the "fail toward
+    loud pointer-drop" invariant and documents the classifier's one known
+    liability; #4319's regex-sentence-detector debate is not reopened here
+    (C-005 KISS)."""
+    assert bridge._bound_wire_review_ref(_OVERLONG_PROSE_WITH_SLASH) == _OVERLONG_PROSE_WITH_SLASH
+    recorder = OfferRecorder().install(monkeypatch)
+
+    _fire_transition(metadata=_transition_metadata(review_ref=_OVERLONG_PROSE_WITH_SLASH))
+
+    assert recorder.moment_offers() == []
+    assert "not broadcast" in caplog.text
+    assert "review_ref" in caplog.text
+
+
+@pytest.mark.regression
+def test_bound_wire_review_ref_never_splits_a_multibyte_codepoint_at_the_cut() -> None:
+    """#3954 T6: a multi-byte character sitting exactly on the 240-byte cut is never
+    split, and the output is byte-identical to the codec's own
+    ``_truncate_utf8`` (237-byte prefix, ``errors="ignore"``, plus the 3-byte
+    ellipsis marker)."""
+    prefix = "a" * 236
+    multibyte_char = "€"  # EURO SIGN, 3 UTF-8 bytes -- straddles the cut
+    tail = " more padding text to safely exceed the two hundred forty byte bound for this test case."
+    value = prefix + multibyte_char + tail
+    assert len(value.encode("utf-8")) > 240
+
+    result = bridge._bound_wire_review_ref(value)
+
+    assert result == _reference_prose_truncate(value)
+    assert len(result.encode("utf-8")) <= 240
+    assert result.endswith("…")
+    assert "�" not in result  # no replacement character: no split codepoint leaked through
+
+
+def test_bound_wire_review_ref_value_at_exactly_240_bytes_is_unchanged() -> None:
+    """Boundary case: exactly 240 bytes never trips truncation (``<=``, not ``<``)."""
+    value = "x" * 240
+    assert len(value.encode("utf-8")) == 240
+
+    assert bridge._bound_wire_review_ref(value) == value
+
+
+@pytest.mark.regression
+def test_short_review_ref_still_offers_exactly_once(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
+    """#3954 T7: an ordinary short review_ref is untouched by the bound and
+    still produces exactly one moment offer (single-hop) -- the fix adds no
+    second offer for the ordinary case."""
+    recorder = OfferRecorder().install(monkeypatch)
+
+    _fire_transition(metadata=_transition_metadata(review_ref="review:WP04"))
+
+    moments = recorder.moment_offers()
+    assert len(moments) == 1
+    assert moments[0][1]["attrs"]["review_ref"] == "review:WP04"
+
+
+@pytest.mark.regression
+def test_over_bound_non_review_ref_attr_is_untouched_by_the_bound(
+    monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path], caplog: pytest.LogCaptureFixture
+) -> None:
+    """#3954 T8: the scope guard -- an over-bound attr OTHER than ``review_ref``
+    (here ``wp_id``) is not rescued by this fix. A normal-length
+    ``review_ref`` riding alongside it changes nothing: the codec's existing
+    fail-closed behavior for every other attr is unchanged."""
+    recorder = OfferRecorder().install(monkeypatch)
+
+    _fire_transition(
+        wp_id="WP01" + "x" * 300,  # over the 240-byte attr bound, unrelated to review_ref
+        metadata=_transition_metadata(review_ref="review:WP04"),
+    )
+
+    assert recorder.offers == []
+    assert recorder.clients_built == 0
+    assert "not broadcast" in caplog.text

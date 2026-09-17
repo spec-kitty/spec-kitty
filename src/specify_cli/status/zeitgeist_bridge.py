@@ -141,6 +141,69 @@ def resolved_binding_moment_handler(**kwargs: Any) -> None:
     )
 
 
+#: The codec's own truncation marker and its fixed 3-UTF-8-byte cost — see
+#: ``spec_kitty_events.zeitgeist_attrs._truncate_utf8``, which this helper's
+#: prose path stays byte-identical to (same marker, same 237-byte budget,
+#: same ``errors="ignore"`` codepoint-safe decode).
+_REVIEW_REF_ELLIPSIS = "…"
+_REVIEW_REF_ELLIPSIS_BYTES = len(_REVIEW_REF_ELLIPSIS.encode("utf-8"))
+
+
+def _looks_like_review_ref_pointer(value: str) -> bool:
+    """Structural, pointer-biased classification — KISS, no sentence detection.
+
+    See ``contracts/review_ref_bound.md`` for the authoritative table. A
+    value is a **pointer** (rides verbatim) iff it is whitespace-free and
+    colon-shaped (``<verb>:<id>`` such as ``review:WP04``, or a URI scheme
+    such as ``https://…``), or it carries a path separator (``/``) with no
+    line break (a filesystem path, including one containing spaces).
+    Everything else is **prose**. Pointer-biased by design: a structurally
+    ambiguous value is treated as a pointer rather than risked through
+    prose truncation (ratified degradation, T5b — see the contract).
+    """
+    if "/" in value and "\n" not in value:
+        return True
+    return ":" in value and not any(ch.isspace() for ch in value)
+
+
+# SUNSET: remove when #4327 lands; refs #3954. Interim MVP bound ahead of the
+# structural fix (a dedicated `summary` attr + a pointer-only `review_ref`) —
+# see contracts/review_ref_bound.md.
+def _bound_wire_review_ref(value: str | None) -> str | None:
+    """Bound a wire-projected ``review_ref`` to the codec's 240-UTF-8-byte budget.
+
+    ``None``/empty values and pointer-shaped values (see
+    :func:`_looks_like_review_ref_pointer`) ride verbatim — never truncated;
+    a pointer that still overflows the codec's bound fails closed loudly
+    there (``_broadcast_moment``'s existing ``ZeitgeistAttrsError`` handling),
+    never silently corrupted. Prose is collapsed to one line FIRST — before
+    the byte check and before the codec's own control-character guard, since
+    an uncollapsed newline would otherwise trip that guard independently —
+    and, only when still over budget, truncated on a UTF-8 codepoint
+    boundary with a trailing ellipsis, byte-identical to
+    ``spec_kitty_events.zeitgeist_attrs``'s own ``_truncate_utf8`` (a 237-byte
+    prefix decoded with ``errors="ignore"``, plus the 3-byte marker). A
+    truncation is logged at INFO; only ``review_ref`` is ever touched — every
+    other attr still reaches the codec unbounded.
+    """
+    if not value:
+        return value
+    if _looks_like_review_ref_pointer(value):
+        return value
+    collapsed = " ".join(value.split())
+    encoded = collapsed.encode("utf-8")
+    if len(encoded) <= 240:
+        return collapsed
+    budget = 240 - _REVIEW_REF_ELLIPSIS_BYTES
+    bounded = encoded[:budget].decode("utf-8", errors="ignore") + _REVIEW_REF_ELLIPSIS
+    logger.info(
+        "Zeitgeist review_ref truncated to fit the 240-UTF-8-byte wire bound (%d -> %d bytes); the full note remains in status.events.jsonl",
+        len(encoded),
+        len(bounded.encode("utf-8")),
+    )
+    return bounded
+
+
 def _broadcast_status_transition(kwargs: Mapping[str, Any]) -> None:
     """Build the ``WPStatusChanged`` payload/envelope pair and offer it once.
 
@@ -166,7 +229,7 @@ def _broadcast_status_transition(kwargs: Mapping[str, Any]) -> None:
                 "force": bool(getattr(metadata, "force", False)),
                 "reason": getattr(metadata, "reason", None),
                 "execution_mode": getattr(metadata, "execution_mode", None),
-                "review_ref": getattr(metadata, "review_ref", None),
+                "review_ref": _bound_wire_review_ref(getattr(metadata, "review_ref", None)),
                 "evidence": evidence,
             }
         )
