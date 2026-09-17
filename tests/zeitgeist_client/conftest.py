@@ -354,6 +354,11 @@ class ManagedStreamDouble:
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(body)))
+                # Mirrors the real relay: zeitgeist/managed.py's managed_snapshot
+                # attaches the same X-Zeitgeist-Filter-Own ack header
+                # (_filter_headers(spec)) to its JSON response, not just to
+                # /managed/stream's SSE response.
+                self.send_header("X-Zeitgeist-Filter-Own", "true" if "filterOwn=true" in self.path else "false")
                 self.end_headers()
                 self.wfile.write(body)
 

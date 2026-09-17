@@ -207,6 +207,14 @@ class FilteredStream:
         req = urllib.request.Request(url, headers=self._headers(), method="GET")
         opener = budget.NoRedirects.build()
         with opener.open(req, timeout=timeout_s) as resp:
+            if self._config.own_sessions is not None:
+                # Same ack contract watch() enforces on /managed/stream: the
+                # relay attaches the same X-Zeitgeist-Filter-Own header to
+                # /managed/snapshot's response (zeitgeist/managed.py's
+                # managed_snapshot -> _filter_headers(spec)), so a relay that
+                # silently ignores filterOwn cannot hand back the caller's own
+                # sessions in a snapshot unnoticed either.
+                own_filter.require_ack(resp.headers)
             raw = resp.read(MAX_SNAPSHOT_BYTES + 1)
         if len(raw) > MAX_SNAPSHOT_BYTES:
             return False  # oversized body: refused whole, never half-applied

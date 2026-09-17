@@ -62,7 +62,9 @@ def test_status_end_to_end_answers_a_quiet_repo_from_the_relay_snapshot(state_ro
     """#4215 end to end: nothing is ever published on this relay, yet the CLI
     reports the teammate the relay has on record, says where that came from,
     and dates the observation."""
-    credentials.store(repo="github.com/acme/spec-kitty", relay_url=managed_stream_double.url, token="team-a-cred", token_kind="shared_team")
+    credentials.store(
+        repo="github.com/acme/spec-kitty", relay_url=managed_stream_double.url, token="team-a-cred", session_ref="issuer-reader", token_kind="shared_team"
+    )
     managed_stream_double.snapshot_document = {
         "schema_version": "1.0.0",
         "epoch": "epoch-1",
@@ -95,7 +97,9 @@ def test_status_end_to_end_says_a_quiet_listen_is_not_proof_nobody_is_working(st
     """The honesty half of the same acceptance criterion: on a relay with no
     snapshot route, an empty result is reported as "nothing was published",
     never as an empty team."""
-    credentials.store(repo="github.com/acme/spec-kitty", relay_url=managed_stream_double.url, token="team-a-cred", token_kind="shared_team")
+    credentials.store(
+        repo="github.com/acme/spec-kitty", relay_url=managed_stream_double.url, token="team-a-cred", session_ref="issuer-reader", token_kind="shared_team"
+    )
     managed_stream_double.close_stream()
 
     result = runner.invoke(app, ["status", "github.com/acme/spec-kitty", "--timeout", "1.0"])
