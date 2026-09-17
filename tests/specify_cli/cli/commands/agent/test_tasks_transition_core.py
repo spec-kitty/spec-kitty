@@ -55,7 +55,7 @@ from specify_cli.status.models import (
     StatusEvent,
     WPInnerStateDelta,
 )
-from specify_cli.status.store import append_annotations_atomic_verified, append_event
+from specify_cli.status.store import append_annotations_atomic_verified, append_event, read_event_stream
 from tests.mocked_env import setup_mocked_env
 
 pytestmark = pytest.mark.fast
@@ -500,6 +500,141 @@ def test_planned_with_valid_feedback_is_planned_rollback(tmp_path: Path) -> None
             feedback_exists=True,
             feedback_is_file=True,
             feedback_content="**Issue**: rework",
+        )
+    )
+    assert isinstance(outcome, Emit)
+    assert outcome.planned_rollback is True
+
+
+# ---------------------------------------------------------------------------
+# F-51 (#3937): source-aware ``--to planned`` refusal message.
+#
+# The guard stays UNCONDITIONAL: every ``--to planned`` move without valid,
+# non-empty review feedback is refused for every source lane, with and without
+# ``--force``. The source lane shapes only the MESSAGE (Arm A = review-feedback
+# text when ``planned`` is reachable; Arm B = "not reachable" + real recovery
+# targets when it is not). See contracts/planned-rollback-message.md.
+# ---------------------------------------------------------------------------
+
+_PLANNED_ROLLBACK_SOURCES = ("done", "canceled", "genesis", "blocked", "in_review")
+
+
+def _planned_rollback_no_feedback(source_lane: str, force: bool) -> Any:
+    return decide_transition(
+        _base_request(
+            target_lane="planned",
+            old_lane=source_lane,
+            force=force,
+            feedback_provided=False,
+        )
+    )
+
+
+@pytest.mark.parametrize("source_lane", _PLANNED_ROLLBACK_SOURCES)
+@pytest.mark.parametrize("force", [False, True])
+def test_planned_rollback_without_feedback_always_refuses(source_lane: str, force: bool) -> None:
+    """G-1: unconditional refusal across every source lane × force value.
+
+    The pure core returns a refusal (no ``Emit``) — the lane is unchanged and no
+    transition is produced. The source lane never decides *whether* to refuse.
+    """
+    outcome = _planned_rollback_no_feedback(source_lane, force)
+    assert isinstance(outcome, RefuseExit1)
+    assert not isinstance(outcome, Emit)
+
+
+@pytest.mark.parametrize("force", [False, True])
+def test_planned_rollback_from_blocked_names_resume_path(force: bool) -> None:
+    """Arm B (blocked): name ``--to in_progress`` as the resume path, and do NOT
+    tell the operator to fabricate review feedback (the F-51 misleading text)."""
+    outcome = _planned_rollback_no_feedback("blocked", force)
+    assert isinstance(outcome, RefuseExit1)
+    assert "--to in_progress" in outcome.error
+    assert "requires review feedback" not in outcome.error
+
+
+def test_blocked_resume_hint_is_fsm_gated_not_hardcoded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The ``blocked`` resume hint is derived from the FSM, not hardcoded.
+
+    Drift proof (paula-patterns, #4689 landing): if ``blocked``'s forward edge is
+    ever re-pointed away from ``in_progress``, the hint must vanish rather than keep
+    advertising an illegal target — F-51's own misleading-refusal class, one layer
+    down. Simulate an FSM where ``blocked`` only permits ``canceled`` and assert the
+    resume line is gone while the generic legal-targets line still renders from the
+    (simulated) adjacency.
+    """
+    import specify_cli.cli.commands.agent.tasks_transition_core as core
+
+    real_wp_state_for = core.wp_state_for
+
+    class _BlockedWithoutResume:
+        def allowed_targets(self) -> set[Lane]:
+            return {Lane.CANCELED}
+
+    def _fake_wp_state_for(source: Lane) -> Any:
+        return _BlockedWithoutResume() if source == Lane.BLOCKED else real_wp_state_for(source)
+
+    monkeypatch.setattr(core, "wp_state_for", _fake_wp_state_for)
+
+    message = core._planned_rollback_message("WP01", "blocked")
+    assert "--to in_progress" not in message
+    assert "Legal targets from 'blocked': --to canceled." in message
+
+
+@pytest.mark.parametrize("source_lane", ["canceled", "done"])
+@pytest.mark.parametrize("force", [False, True])
+def test_planned_rollback_from_terminal_reports_not_reachable(source_lane: str, force: bool) -> None:
+    """Arm B (terminal): ``planned`` is not reachable; the lane is terminal. The
+    review-feedback text must be absent."""
+    outcome = _planned_rollback_no_feedback(source_lane, force)
+    assert isinstance(outcome, RefuseExit1)
+    assert "requires review feedback" not in outcome.error
+    assert "not reachable" in outcome.error
+    assert "terminal" in outcome.error
+
+
+@pytest.mark.parametrize("source_lane", ["genesis", "in_review"])
+@pytest.mark.parametrize("force", [False, True])
+def test_planned_rollback_from_reachable_source_keeps_review_feedback_text(source_lane: str, force: bool) -> None:
+    """Arm A: when ``planned`` IS a legal rollback target, the honest recovery is
+    the review-feedback cycle, so the existing text is preserved verbatim."""
+    outcome = _planned_rollback_no_feedback(source_lane, force)
+    assert isinstance(outcome, RefuseExit1)
+    assert "requires review feedback" in outcome.error
+    assert "cannot be bypassed with --force" in outcome.error
+
+
+def test_planned_rollback_from_done_flagless_emits_no_forced_rewind() -> None:
+    """NFR-002 / FR-015 tripwire: a flagless ``done -> planned`` produces a pure
+    refusal — NOT an ``Emit`` and NOT a ``force=true`` rewind of a merged WP.
+
+    Because the guard refuses BEFORE ``build_transition_plan``, no source lane
+    reaches the FSM, so the backward auto-force-promotion that would supply
+    ``force=true`` flaglessly for ``done`` never runs. The absence of any
+    ``Emit`` (the ONLY carrier of a transition plan) is the proof.
+    """
+    outcome = _planned_rollback_no_feedback("done", force=False)
+    assert isinstance(outcome, RefuseExit1)
+    assert not isinstance(outcome, Emit)
+    # RefuseExit1 carries no transition plan at all — no lane hop, no force flag.
+    assert not hasattr(outcome, "plan")
+
+
+def test_planned_rollback_positive_control_valid_feedback_passes(tmp_path: Path) -> None:
+    """Positive control: with a valid, non-empty feedback file the guard PASSES
+    for a reachable source (``in_review``) — the move to ``planned`` proceeds.
+
+    Mirrors ``test_planned_with_valid_feedback_is_planned_rollback``; pins that
+    the source-aware message change did not disturb the allow path."""
+    outcome = decide_transition(
+        _base_request(
+            target_lane="planned",
+            old_lane="in_review",
+            feedback_provided=True,
+            feedback_source=str(tmp_path / "fb.md"),
+            feedback_exists=True,
+            feedback_is_file=True,
+            feedback_content="**Issue**: rework requested",
         )
     )
     assert isinstance(outcome, Emit)
@@ -1108,6 +1243,79 @@ def test_sentinel_skip_primary_drives_the_json_envelope(
     payload = json.loads(result.stdout)
     assert payload["wp_file_update"] == "skipped"
     assert payload["new_lane"] == "for_review"
+
+
+def _blocked_mission(root: Path, slug: str) -> Path:
+    """A real on-disk mission with WP01 seeded to ``blocked``.
+
+    Mirrors ``_sentinel_mission`` but the event chain ends at ``blocked`` so the
+    CLI-driven move under test observes ``old_lane == blocked``. Events are
+    appended directly (not validated), so the seed chain needs no legal edges.
+    """
+    feature_dir = root / "kitty-specs" / slug
+    (feature_dir / "tasks").mkdir(parents=True)
+    (root / ".kittify").mkdir(exist_ok=True)
+    (feature_dir / "tasks" / "WP01-fixture.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Fixture WP01\nexecution_mode: code_change\nagent: testbot\nsubtasks: []\n---\n\n# WP01\n\n## Activity Log\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks.md").write_text("# Work Packages\n\n## WP01 - fixture\n- [ ] T001 do a thing\n", encoding="utf-8")
+    (feature_dir / "spec.md").write_text("# Spec\n\nFR-001 do a thing.\n", encoding="utf-8")
+    hops = [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "blocked")]
+    for ordinal, (frm, to) in enumerate(hops, start=1):
+        append_event(
+            feature_dir,
+            StatusEvent(
+                event_id=f"{_MID8}BC00000000000000{ordinal:04d}",
+                mission_slug=slug,
+                wp_id="WP01",
+                from_lane=Lane(frm),
+                to_lane=Lane(to),
+                at=f"2026-01-01T00:00:{ordinal:02d}+00:00",
+                actor="test",
+                force=True,
+                execution_mode="worktree",
+            ),
+        )
+    return feature_dir
+
+
+def test_fabricated_feedback_cannot_launder_blocked_to_planned(tmp_path: Path) -> None:
+    """A review artifact cannot launder an illegal ``blocked -> planned`` move.
+
+    The message guard passes with valid, non-empty feedback, so this drives the
+    FULL CLI/decision path (not the pure core, which does not consult the FSM).
+    ``blocked`` has no ``planned`` edge and no ``--force``, so the FSM refuses:
+    the command exits non-zero and NO transition to ``planned`` is ever emitted
+    (the WP stays ``blocked``). Contract worked-case row 3.
+    """
+    fd = _blocked_mission(tmp_path, f"blocked-launder-{_MID8}")
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text("**Issue**: fabricated but non-empty.\n", encoding="utf-8")
+
+    transitions_before = len(read_event_stream(fd).transitions)
+
+    with setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS):
+        result = CliRunner().invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "planned",
+                "--mission",
+                fd.name,
+                "--review-feedback-file",
+                str(feedback),
+                "--no-auto-commit",
+            ],
+        )
+
+    assert result.exit_code != 0, result.output
+    stream = read_event_stream(fd)
+    # No new transition landed, and in particular none into ``planned``.
+    assert len(stream.transitions) == transitions_before, result.output
+    assert all(t.to_lane != Lane.PLANNED for t in stream.transitions)
 
 
 # ---------------------------------------------------------------------------

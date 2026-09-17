@@ -82,6 +82,7 @@ from specify_cli.status import (
     Lane,
     resolve_lane_alias,
     validate_transition,
+    wp_state_for,
 )
 
 # Terminal lanes that build approval evidence + run the rejected-verdict guard.
@@ -558,18 +559,56 @@ def _guard_feedback_file(req: MoveTaskRequest) -> RefuseExit1 | None:
     return None
 
 
+def _planned_rollback_message(task_id: str, old_lane: str) -> str:
+    """Source-aware refusal text for a ``--to planned`` move lacking feedback.
+
+    PURE and message-only (F-51 / #3937): it reads the source lane's FSM
+    adjacency solely to SHAPE the string; it never decides whether to refuse
+    (that is :func:`_guard_planned_rollback`'s unconditional job). ``planned``'s
+    reachability from ``old_lane`` selects the arm:
+
+    * **Arm A** — ``planned`` IS a legal rollback target (``in_review``,
+      ``in_progress``, ``approved``, ``genesis``): the honest recovery is the
+      review-feedback cycle, so the existing text is returned verbatim.
+    * **Arm B** — ``planned`` is NOT reachable (``blocked``, ``canceled``,
+      ``done``, ``uninitialized``): name the source lane's real legal targets
+      (or state it is terminal), and for ``blocked`` point at the resume edge
+      ``--to in_progress`` — never tell the operator to fabricate a review file.
+
+    The ``blocked`` resume hint is itself FSM-gated (it is emitted only while
+    ``in_progress`` is a legal target of ``blocked``), so it can never advertise
+    an illegal target if the state machine's edges change — the same
+    misleading-refusal class F-51 exists to prevent, one layer down.
+    """
+    source = Lane(resolve_lane_alias(old_lane))
+    state = wp_state_for(source)
+    if Lane.PLANNED in state.allowed_targets():
+        return (
+            f"❌ Moving {task_id} to 'planned' requires review feedback.\n\n"
+            "Please provide feedback:\n"
+            "  1. Create feedback file: echo '**Issue**: Description' > feedback.md\n"
+            f"  2. Run: spec-kitty agent tasks move-task {task_id} "
+            "--to planned --review-feedback-file feedback.md\n\n"
+            "This requirement cannot be bypassed with --force."
+        )
+    source_value = source.value
+    targets = sorted(target.value for target in state.allowed_targets())
+    lines = [f"❌ Cannot move {task_id} from '{source_value}' to 'planned': 'planned' is not reachable from '{source_value}'."]
+    if not targets:
+        lines.append(f"\n\n'{source_value}' is a terminal lane with no onward transitions.")
+    else:
+        legal = ", ".join(f"--to {target}" for target in targets)
+        lines.append(f"\n\nLegal targets from '{source_value}': {legal}.")
+        if source == Lane.BLOCKED and Lane.IN_PROGRESS in state.allowed_targets():
+            lines.append(f"\nTo resume this work package, run: spec-kitty agent tasks move-task {task_id} --to in_progress.")
+    return "".join(lines)
+
+
 def _guard_planned_rollback(req: MoveTaskRequest) -> RefuseExit1 | None:
     if req.target_lane != Lane.PLANNED:
         return None
     if not (req.feedback_provided and req.feedback_exists and req.feedback_is_file):
-        return RefuseExit1(
-            f"❌ Moving {req.task_id} to 'planned' requires review feedback.\n\n"
-            "Please provide feedback:\n"
-            "  1. Create feedback file: echo '**Issue**: Description' > feedback.md\n"
-            f"  2. Run: spec-kitty agent tasks move-task {req.task_id} "
-            "--to planned --review-feedback-file feedback.md\n\n"
-            "This requirement cannot be bypassed with --force."
-        )
+        return RefuseExit1(_planned_rollback_message(req.task_id, req.old_lane))
     if not (req.feedback_content or "").strip():
         return RefuseExit1(f"Review feedback file is empty: {req.feedback_source}")
     return None
