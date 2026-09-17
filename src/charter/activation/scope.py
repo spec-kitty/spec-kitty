@@ -42,6 +42,9 @@ from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from yaml import YAMLError
+
+from charter.activation.pack_context import CharterPackConfigError
 
 __all__ = [
     "CharterScope",
@@ -256,8 +259,10 @@ def _load_charter_scope_config(repo_root: Path) -> CharterScopeConfig | None:
     config_path = repo_root / ".kittify" / "config.yaml"
     if not config_path.exists():
         return None
-    raw_text = config_path.read_text()
-    parsed: Any = yaml.safe_load(raw_text) or {}
+    try:
+        parsed: Any = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    except (OSError, UnicodeDecodeError, YAMLError) as exc:
+        raise CharterPackConfigError(f"Cannot read configuration {config_path}: {exc}") from exc
     if not isinstance(parsed, dict):
         return CharterScopeConfig()
     # CharterScopeConfig ignores unrelated keys via ConfigDict(extra="ignore").
