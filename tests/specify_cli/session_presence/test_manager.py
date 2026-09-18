@@ -36,7 +36,6 @@ def test_wp07_real_dry_run_does_not_start_background_work(tmp_path: Path, monkey
 def _make_agent_config(available: list[str] | None = None) -> MagicMock:
     config = MagicMock()
     config.available = available or ["claude"]
-    config.project_slug = "test-project"
     return config
 
 
@@ -242,6 +241,27 @@ class TestUpdate:
 
 
 class TestBuildContent:
+    def test_project_slug_comes_from_identity_config(self, tmp_path: Path) -> None:
+        from specify_cli.compat import Decision
+        from specify_cli.core.agent_config import AgentConfig
+
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text("project:\n  slug: configured-project\n", encoding="utf-8")
+        manager = SessionPresenceManager(tmp_path, AgentConfig(available=[]))
+        mock_plan_result = MagicMock()
+        mock_plan_result.decision = Decision.ALLOW
+
+        with (
+            patch("specify_cli.session_presence.manager.UpgradeChecker") as checker_cls,
+            patch("importlib.metadata.version", return_value="3.2.0"),
+            patch("specify_cli.compat.plan", return_value=mock_plan_result),
+        ):
+            checker_cls.return_value.get_available_version.return_value = None
+            content = manager._build_content()
+
+        assert content.project_slug == "configured-project"
+
     def test_health_migration_required_when_compat_returns_block(self, tmp_path: Path) -> None:
         from specify_cli.compat import Decision
 

@@ -60,6 +60,12 @@ class SessionPresenceManager:
     project_root: Path
     agent_config: AgentConfig
 
+    def _project_slug(self) -> str:
+        """Read the canonical project identity, independent of agent settings."""
+        from specify_cli.identity.project import load_identity
+
+        return load_identity(self.project_root / ".kittify" / "config.yaml").project_slug or "unknown"
+
     def _build_content(self) -> SessionPresenceContent:
         """Build ``SessionPresenceContent`` from current version and upgrade cache.
 
@@ -74,7 +80,7 @@ class SessionPresenceManager:
         if avail is None:
             checker.check_in_background()
         current = version("spec-kitty-cli")
-        slug = getattr(self.agent_config, "project_slug", None) or "unknown"
+        slug = self._project_slug()
 
         health: Literal["healthy", "upgrade-available", "migration-required"]
         try:
@@ -148,7 +154,7 @@ class SessionPresenceManager:
         Returns:
             ``InstallResult`` with lists of changes (or would-be changes) and warnings.
         """
-        content = local_presence_content(self.project_root.name) if dry_run else self._build_content()
+        content = local_presence_content(self._project_slug()) if dry_run else self._build_content()
         target_agents = agents if agents is not None else set(getattr(self.agent_config, "available", []))
         changes: list[str] = []
         warnings: list[str] = []
