@@ -1,0 +1,96 @@
+{
+  "event_count": 45,
+  "last_event_id": "01M2TP5ME6YK89D6CCWDYPZ7V9",
+  "materialized_at": "2026-09-18T16:39:07.462069+00:00",
+  "mission_number": "",
+  "mission_slug": "cross-os-primitive-unification-01M2T1CM",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M2TP5HMRYGYTEHJ60BGZABSF",
+      "last_transition_at": "2026-09-18T16:39:04.600130+00:00",
+      "review_result": {
+        "reference": "reviewer-renata (opus) APPROVE",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1619178,
+      "shell_pid_created_at": "1789731404.93"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2TP5JCA5S94T08FWXNYAXRB",
+      "last_transition_at": "2026-09-18T16:39:05.354593+00:00",
+      "review_result": {
+        "reference": "reviewer-renata (opus) APPROVE",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1621795,
+      "shell_pid_created_at": "1789731456.56"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M2TP5K27C0SEE9GSA750AMMJ",
+      "last_transition_at": "2026-09-18T16:39:06.055742+00:00",
+      "review_result": {
+        "reference": "reviewer-renata (opus) + orchestrator arbiter APPROVE (cycle 2): rejection fix verified — resource->lock_path rename + truthful G1 docstring + contract aligned; behaviour unchanged (diff is rename/doc only); 49 passed, ruff/format/mypy --strict clean. G1 auto-derive omission ACCEPTED (G2 is the load-bearing #4703 property, structurally proven); mypy-narrowing exemption LEGIT. Gate non-vacuity empirically verified.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2233495,
+      "shell_pid_created_at": "1789740314.64"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M2TP5KR966BP896CG9CWV7CK",
+      "last_transition_at": "2026-09-18T16:39:06.761443+00:00",
+      "review_result": {
+        "reference": "reviewer-renata (opus) + orchestrator arbiter APPROVE (cycle 2): _ensure_dir hardening moved into kernel.locks (harden-only-created-dirs, atomic mkdir+FileExistsError); caller workaround + _MANAGED_DIRECTORY_MODE removed; A1 re-lock guard folded (destination.exists check, self-corrected from a buggy _HELD_LOCKS gate); shared-dir-mode-unchanged regression test added; 1376 passing, ruff/format/mypy clean. All prior findings (sidecar credentials, uniform sentinel, safe-delete S_ISLNK) verified in cycle 1.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2477409,
+      "shell_pid_created_at": "1789746426.1"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2TP5ME6YK89D6CCWDYPZ7V9",
+      "last_transition_at": "2026-09-18T16:39:07.462069+00:00",
+      "review_result": {
+        "reference": "reviewer-renata (opus) APPROVE: all 6 filelock sites migrated onto kernel.locks; lock-ban-wp05 empty; re-entrancy depth-counting verified correct; test-double/timeout preserved; cross-process parity genuine; fsync 2->3 legit. filelock->test-optional deviation ACCEPTED (NFR-001/SC-003 satisfied; zero runtime reverse-deps). Follow-up A1: file sub-issue for 4 test-infra filelock users.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2294323,
+      "shell_pid_created_at": "1789741326.89"
+    }
+  }
+}

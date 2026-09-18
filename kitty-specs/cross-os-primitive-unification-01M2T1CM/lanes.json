@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "mission_slug": "cross-os-primitive-unification-01M2T1CM",
+  "mission_id": "01M2T1CMYPE0METDS4P14EHBRP",
+  "mission_branch": "kitty/mission-cross-os-primitive-unification-01M2T1CM",
+  "target_branch": "feat/cross-os-primitive-unification",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/kernel/paths.py",
+        "src/specify_cli/auth/secure_storage/abstract.py",
+        "src/specify_cli/bytecode_heal.py",
+        "src/specify_cli/cli/commands/migrate_cmd.py",
+        "src/specify_cli/compat/_detect/runtime.py",
+        "src/specify_cli/compat/cache.py",
+        "src/specify_cli/compat/config.py",
+        "src/specify_cli/compat/history.py",
+        "src/specify_cli/configured_command.py",
+        "src/specify_cli/core/upgrade_notifier.py",
+        "src/specify_cli/core/worktree.py",
+        "src/specify_cli/encoding.py",
+        "src/specify_cli/manifest.py",
+        "src/specify_cli/migration/rewrite_shims.py",
+        "src/specify_cli/runtime/agent_commands.py",
+        "src/specify_cli/runtime/home.py",
+        "src/specify_cli/session_presence/upgrade_check.py",
+        "src/specify_cli/status/store.py",
+        "tests/architectural/test_os_detection_ban.py",
+        "tests/kernel/test_is_windows_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/safe_delete.py",
+        "src/specify_cli/runtime/agent_skills.py",
+        "src/specify_cli/skills/installer.py",
+        "tests/specify_cli/core/test_safe_delete.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "src/kernel/locks.py",
+        "src/specify_cli/auth/refresh_transaction.py",
+        "src/specify_cli/auth/token_manager.py",
+        "src/specify_cli/cli/commands/_auth_doctor.py",
+        "src/specify_cli/core/file_lock.py",
+        "src/specify_cli/lanes/auto_rebase.py",
+        "tests/architectural/conftest.py",
+        "tests/architectural/test_lock_primitive_ban.py",
+        "tests/kernel/test_lock_parity.py",
+        "tests/kernel/test_locks.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/paths/windows_migrate.py",
+        "src/specify_cli/review/pre_review_gate.py",
+        "src/specify_cli/runtime/asset_preparation.py",
+        "src/specify_cli/runtime/bootstrap.py",
+        "src/specify_cli/tracker/credentials.py",
+        "tests/runtime/test_asset_preparation_lock_migration.py",
+        "tests/runtime/test_bootstrap_lock_migration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/auth/secure_storage/file_fallback.py",
+        "src/specify_cli/core/checkout_file_lock.py",
+        "src/specify_cli/review/verdict_commit_queue.py",
+        "src/specify_cli/status/locking.py",
+        "src/specify_cli/zeitgeist_client/credentials.py",
+        "src/specify_cli/zeitgeist_client/outbox_approval.py",
+        "tests/specify_cli/core/test_checkout_file_lock_migration.py",
+        "tests/status/test_locking_reentrancy_migration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-18T11:26:52.928090+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "fb4085de124a5cdff82752b21c312eae9a162b59"
+}

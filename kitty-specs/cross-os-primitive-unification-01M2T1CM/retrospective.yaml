@@ -1,0 +1,205 @@
+schema_version: 1
+mission_id: 01M2T1CMYPE0METDS4P14EHBRP
+mission_slug: cross-os-primitive-unification-01M2T1CM
+mission_number: 202
+friendly_name: Cross-OS Primitive Unification
+mission_type: software-dev
+target_branch: feat/cross-os-primitive-unification
+created_at: '2026-09-18T16:39:36.923929+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-18T16:39:36.923929+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-003
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-010
+not_helpful:
+- id: n-008
+  category: doc
+  summary: analysis-report.md records 3 finding(s)
+  evidence_refs:
+  - e-020
+  details: The analysis-report.md artifact for this mission records 3 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-006
+  category: implementation
+  summary: WP03 needed 2 implementation cycles
+  evidence_refs:
+  - e-018
+  details: WP WP03 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-007
+  category: implementation
+  summary: WP04 needed 2 implementation cycles
+  evidence_refs:
+  - e-019
+  details: WP WP04 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-003
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-013
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP03 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-014
+  details: WP WP03 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP04 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-015
+  details: WP WP04 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-011
+  details: WP WP03 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-012
+  details: WP WP04 was sent back from review/approval to an earlier lane 1 time(s).
+gaps:
+- id: g-001
+  category: process
+  summary: Arbiter override needed for WP03 (1x)
+  evidence_refs:
+  - e-016
+  details: WP WP03 required 1 arbiter override(s). Arbiter overrides are an escape hatch.
+- id: g-002
+  category: process
+  summary: Arbiter override needed for WP04 (1x)
+  evidence_refs:
+  - e-017
+  details: WP WP04 required 1 arbiter override(s). Arbiter overrides are an escape hatch.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/tasks/WP01-os-detection-kernel-seam.md
+- id: e-006
+  kind: file
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/tasks/WP02-canonical-safe-delete-util.md
+- id: e-007
+  kind: file
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/tasks/WP03-kernel-lock-primitive-and-gate.md
+- id: e-008
+  kind: file
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/tasks/WP04-migrate-stdlib-lock-sites.md
+- id: e-009
+  kind: file
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/tasks/WP05-migrate-filelock-family-retire-filelock.md
+- id: e-010
+  kind: file
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/status.events.jsonl
+- id: e-011
+  kind: event_range
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/status.events.jsonl
+  range: 01M2TDAZHQMN3PT2SETSBQRDJC
+- id: e-012
+  kind: event_range
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/status.events.jsonl
+  range: 01M2TK6002KRZNXT83140Z86W0
+- id: e-013
+  kind: event_range
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/status.events.jsonl
+  range: 01M2T82CZY0XM8MEV1JDWFC6R3
+- id: e-014
+  kind: event_range
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/status.events.jsonl
+  range: 01M2TDAZHQMN3PT2SETSBQRDJC
+- id: e-015
+  kind: event_range
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/status.events.jsonl
+  range: 01M2TK6002KRZNXT83140Z86W0
+- id: e-016
+  kind: event_range
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/status.events.jsonl
+  range: 01M2TE2GPNWEVVWK6VDZ82X365
+- id: e-017
+  kind: event_range
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/status.events.jsonl
+  range: 01M2TNQZZZG72XAAJ07VPKADH2
+- id: e-018
+  kind: event_range
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/status.events.jsonl
+  range: implementation_cycles
+- id: e-019
+  kind: event_range
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/status.events.jsonl
+  range: implementation_cycles
+- id: e-020
+  kind: file
+  path: kitty-specs/cross-os-primitive-unification-01M2T1CM/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
