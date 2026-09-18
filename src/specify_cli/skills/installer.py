@@ -88,6 +88,14 @@ def _safe_unlink(path: Path) -> None:
         path.unlink()
 
 
+def _safe_rmdir(path: Path) -> None:
+    try:
+        path.rmdir()
+    except PermissionError:
+        _make_path_writable(path)
+        path.rmdir()
+
+
 def _safe_rmtree(path: Path) -> None:
     shutil.rmtree(path, onerror=_force_writable_and_retry)
 
@@ -203,7 +211,7 @@ def _archive_existing_path(dest: Path, project_path: Path, backup_root: Path | N
     if before.mtime_ns is not None:
         os.utime(backup_path, ns=(before.mtime_ns, before.mtime_ns), follow_symlinks=False)
     recheck_skill_paths(inputs)
-    dest.unlink()
+    _safe_unlink(dest)
     return backup_root
 
 
@@ -968,7 +976,7 @@ def _apply_project_skill_write(write: PreparedProjectSkillWrite) -> None:
     if current != effect.before:
         raise ValueError(f"Managed-skill destination changed during apply: {path}")
     if after.kind == "absent":
-        path.rmdir() if current.kind == "directory" else path.unlink()
+        _safe_rmdir(path) if current.kind == "directory" else _safe_unlink(path)
     elif after.kind == "directory":
         path.mkdir(mode=after.mode or 0o755)
         path.chmod(after.mode if after.mode is not None else 0o755)

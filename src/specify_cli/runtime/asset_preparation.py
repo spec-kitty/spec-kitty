@@ -7,7 +7,7 @@ format decisions stay in bootstrap, agent_commands and agent_skills.
 
 from __future__ import annotations
 
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, contextmanager, suppress
 from contextvars import ContextVar
 from collections.abc import Callable, Iterator
 from dataclasses import asdict, dataclass, replace
@@ -856,14 +856,47 @@ def apply_with_reassess(
         return apply_assets(reassessment, consent)
 
 
+def _force_writable(path: Path) -> None:
+    """Best-effort restore the owner write bit before removing a managed asset.
+
+    Managed content is materialized read-only (``0o444``, e.g. ``_write_asset``'s
+    ``or 0o444`` and agent-skill assets that strip ``0o222``). On Windows
+    ``DeleteFile``/``RemoveDirectory`` REFUSE a read-only target — the same
+    POSIX-ignores-the-mode-but-Windows-enforces-it divergence as #4703 — so a
+    delete/rmdir must clear the bit first. POSIX is unaffected (it ignores the
+    mode on unlink). Any chmod failure is swallowed; the delete retry surfaces
+    the real error. (#4703 cross-OS family)
+    """
+    with suppress(OSError):
+        path.chmod(stat.S_IMODE(path.lstat().st_mode) | stat.S_IWRITE)
+
+
+def _safe_unlink(path: Path) -> None:
+    """Remove a file, clearing a read-only bit first if Windows refuses it."""
+    try:
+        path.unlink()
+    except PermissionError:
+        _force_writable(path)
+        path.unlink()
+
+
+def _safe_rmdir(path: Path) -> None:
+    """Remove a directory, clearing a read-only bit first if Windows refuses it."""
+    try:
+        path.rmdir()
+    except PermissionError:
+        _force_writable(path)
+        path.rmdir()
+
+
 def _write_asset(write: AssetWrite) -> None:
     effect, content = write.effect, write.content
     path = effect.destination
     if effect.action == "delete":
         if effect.before.kind == "directory":
-            path.rmdir()
+            _safe_rmdir(path)
         else:
-            path.unlink()
+            _safe_unlink(path)
     elif effect.action == "chmod":
         path.chmod(effect.after.mode or 0o444)
     elif effect.after.kind == "directory":
@@ -877,7 +910,7 @@ def _write_asset(write: AssetWrite) -> None:
         if content is None:
             raise ValueError("Missing prepared file bytes")
         if effect.before.kind == "symlink":
-            path.unlink()
+            _safe_unlink(path)
         write_generated_file(path, content, read_only=False)
         path.chmod(effect.after.mode or 0o444)
 
