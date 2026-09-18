@@ -276,6 +276,33 @@ class TestBuildContent:
 
         local_content.assert_called_once_with("configured-project")
 
+    def test_health_uses_fresh_prerelease_cache(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        import json
+
+        from kernel.clock import now_utc_iso
+        from specify_cli.compat import Decision
+        import specify_cli.session_presence.upgrade_check as upgrade_check_module
+
+        cache_path = tmp_path / "last-cli-check.json"
+        cache_path.write_text(
+            json.dumps({"checked_at": now_utc_iso(), "latest_version": "4.0.0rc3", "prerelease": True}),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(upgrade_check_module, "CACHE_PATH", cache_path)
+        monkeypatch.setenv("SPEC_KITTY_PRERELEASE", "1")
+        manager = _make_manager(tmp_path)
+        mock_plan_result = MagicMock()
+        mock_plan_result.decision = Decision.ALLOW
+
+        with (
+            patch("importlib.metadata.version", return_value="3.2.7"),
+            patch("specify_cli.compat.plan", return_value=mock_plan_result),
+        ):
+            content = manager._build_content()
+
+        assert content.health == "upgrade-available"
+        assert content.available_version == "4.0.0rc3"
+
     def test_health_migration_required_when_compat_returns_block(self, tmp_path: Path) -> None:
         from specify_cli.compat import Decision
 

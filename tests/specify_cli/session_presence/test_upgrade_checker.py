@@ -25,6 +25,7 @@ def patched_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     cache_file = tmp_path / "last-cli-check.json"
     monkeypatch.setattr(upgrade_check_module, "CACHE_PATH", cache_file)
     monkeypatch.delenv(upgrade_check_module.OPT_OUT_ENV_VAR, raising=False)
+    monkeypatch.delenv("SPEC_KITTY_PRERELEASE", raising=False)
     # Also patch the attribute in the module namespace for class usage
     return cache_file
 
@@ -62,12 +63,18 @@ class TestGetAvailableVersion:
         mock_bg.assert_not_called()
 
     def test_cache_stale_returns_last_known(self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Cache stale (age > TTL): returns last known value."""
+        """A stale cache remains available while a background refresh starts."""
         _write_cache(patched_cache, "3.2.0", age_seconds=TTL_SECONDS + 100)
         checker = UpgradeChecker()
-        result = checker.get_available_version()
-        # Still returns the stale value
+        with patch.object(checker, "check_in_background") as mock_bg:
+            result = checker.get_available_version()
         assert result == "3.2.0"
+        mock_bg.assert_called_once_with()
+
+    def test_prerelease_channel_does_not_reuse_stable_cache(self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        _write_cache(patched_cache, "3.2.7")  # Legacy caches have no channel marker.
+        monkeypatch.setenv("SPEC_KITTY_PRERELEASE", "1")
+        assert UpgradeChecker().get_available_version() is None
 
     def test_cache_malformed_json_returns_none(self, patched_cache: Path) -> None:
         """Cache malformed JSON: returns None, no exception raised."""
@@ -146,6 +153,29 @@ class TestCheckInBackground:
 
 
 class TestRefreshCacheOnce:
+    def test_refresh_queries_active_prerelease_channel(self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from specify_cli.compat.provider import LatestVersionResult
+
+        seen: list[bool] = []
+
+        class RecordingProvider:
+            def get_latest(self, package: str, *, prerelease: bool = False) -> LatestVersionResult:
+                seen.append(prerelease)
+                return LatestVersionResult("4.0.0rc3" if prerelease else "3.2.7", "pypi", None)
+
+        monkeypatch.setenv("SPEC_KITTY_PRERELEASE", "1")
+        monkeypatch.setattr(
+            "specify_cli.distribution.upgrade_provider.resolve_upgrade_provider",
+            lambda: RecordingProvider(),
+        )
+        upgrade_check_module.refresh_cache_once()
+
+        data = json.loads(patched_cache.read_text(encoding="utf-8"))
+        assert seen == [True]
+        assert data["latest_version"] == "4.0.0rc3"
+        assert data["prerelease"] is True
+        assert UpgradeChecker().get_available_version() == "4.0.0rc3"
+
     def test_uses_resolved_provider_and_package_name(self, patched_cache: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.compat.provider import FakeLatestVersionProvider, LatestVersionResult
 

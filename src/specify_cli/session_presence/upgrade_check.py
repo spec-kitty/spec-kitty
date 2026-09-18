@@ -16,7 +16,7 @@ import json
 import os
 import subprocess
 import sys
-from kernel.clock import now_utc_iso, parse_iso
+from kernel.clock import now_utc, now_utc_iso, parse_iso, timedelta
 from pathlib import Path
 
 from specify_cli.core.env import is_truthy
@@ -52,12 +52,16 @@ def refresh_cache_once() -> None:
         return
 
     latest: str | None = None
+    prerelease = False
     try:
         from specify_cli.distribution.package_name import resolve_cli_package_name
         from specify_cli.distribution.upgrade_provider import resolve_upgrade_provider
+        from specify_cli.compat.planner import _call_provider_get_latest
+        from specify_cli.core.channel import prerelease_enabled
 
         package = resolve_cli_package_name()
-        result = resolve_upgrade_provider().get_latest(package)
+        prerelease = prerelease_enabled()
+        result = _call_provider_get_latest(resolve_upgrade_provider(), package, prerelease=prerelease)
         if isinstance(result.version, str) and result.version:
             latest = result.version
     except Exception:
@@ -71,6 +75,7 @@ def refresh_cache_once() -> None:
                 {
                     "checked_at": now_utc_iso(),
                     "latest_version": latest,
+                    "prerelease": prerelease,
                 }
             ),
             encoding="utf-8",
@@ -106,12 +111,21 @@ class UpgradeChecker:
         if not isinstance(latest_version, str):
             return None
 
+        from specify_cli.core.channel import prerelease_enabled
+
+        # An old cache without a channel marker was written for stable only.
+        if data.get("prerelease", False) != prerelease_enabled():
+            return None
+
         checked_at_raw = data.get("checked_at")
-        if isinstance(checked_at_raw, str):
-            try:
-                parse_iso(checked_at_raw)
-            except ValueError:
-                return None
+        if not isinstance(checked_at_raw, str):
+            return None
+        try:
+            checked_at = parse_iso(checked_at_raw)
+        except ValueError:
+            return None
+        if now_utc() - checked_at > timedelta(seconds=TTL_SECONDS):
+            self.check_in_background()
 
         return latest_version
 
