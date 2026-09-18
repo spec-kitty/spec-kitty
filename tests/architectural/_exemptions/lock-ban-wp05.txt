@@ -13,5 +13,7 @@
 # constructor call remains in src/ outside the canonical door. See
 # kitty-specs/cross-os-primitive-unification-01M2T1CM/tasks/
 # WP05-migrate-filelock-family-retire-filelock.md for the full migration
-# record, including the pyproject.toml disposition (filelock moved to the
-# `test` extra rather than removed outright -- see that file's own comment).
+# record, including the pyproject.toml disposition: `filelock` was removed
+# from spec-kitty's dependencies outright (no `test` extra, no group). It
+# still resolves in uv.lock only transitively, via the pip-audit dev tool's
+# `cachecontrol[filecache]` extra -- nothing in spec-kitty imports it.
