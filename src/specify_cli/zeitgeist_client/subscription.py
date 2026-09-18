@@ -111,11 +111,18 @@ from . import credentials, filtered_stream, grammar, own_filter
 from .live_frame import LiveFrame, MAX_TTL_S, TeamSnapshot
 
 # The relay's bare-identifier grammar for the composable subscription
-# filters (zeitgeist/managed.py's own `_SINCE_EPOCH_RE`/topic-ident class) —
-# duplicated cross-boundary like every other grammar copy in this package,
-# never imported: zeitgeist ships to no package index this client depends
-# on. ``person``/``project`` selectors (#4215) are validated against it so a
-# prose-shaped value fails at the door instead of silently matching nothing.
+# filters — duplicated cross-boundary like every other grammar copy in this
+# package, never imported: zeitgeist ships to no package index this client
+# depends on. ``person``/``project`` selectors (#4215) are validated against
+# it so a prose-shaped value fails at the door instead of silently matching
+# nothing. The pattern is cited verbatim from the relay's own
+# ``_SINCE_EPOCH_RE`` (``zeitgeist/managed.py:1857``,
+# ``re.compile(r"[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}")`` at the relay revision
+# this client's follow contract targets) — the ``{0,63}`` bound is the
+# relay's, deliberately NOT this package's ``grammar.IDENT_RE``, whose
+# ``{0,31}`` tightening (#170) is a client-side-only divergence from the
+# upstream twin: a selector grammar narrower than the relay's would reject
+# identifiers the relay itself admits.
 _SELECTOR_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}")
 
 # The same honest reported-live ceiling live_frame/filtered_stream enforce
@@ -199,7 +206,15 @@ def _validated_selector(value: str | None, name: str) -> str | None:
 def _frame_matches_person(frame: Mapping[str, Any], person: str) -> bool:
     """A frame is this person's activity when its actor's ``user`` names
     them. A frame with no ``user`` (some relays omit it) never matches —
-    "unattributed" is not "everyone"."""
+    "unattributed" is not "everyone".
+
+    The match is exact and case-sensitive (``==``) on the raw payload
+    ``user`` — an assumption, recorded here: this repo cannot verify the
+    relay's own user filtering, and if the relay ever casefolds where this
+    side does not, selector results would diverge from relay-filtered
+    results. The relay is understood not to casefold (its filters are the
+    same bare-identifier grammar ``_SELECTOR_RE`` cites); if that ever
+    changes, this comparison changes with it."""
     payload = frame.get("payload")
     actor = payload.get("actor") if isinstance(payload, Mapping) else None
     user = actor.get("user") if isinstance(actor, Mapping) else None
@@ -211,19 +226,18 @@ def _frame_matches_project(frame: Mapping[str, Any], project: str) -> bool:
     IS the slug or begins ``<slug>.`` — the exact shape
     ``transport.focus_start`` writes (``mission_slug`` / ``mission_slug.WPxx``)
     and the shape an event frame's free ``ref`` carries when a publisher
-    names its mission. Event refs are grammar-routed first (an untrusted
-    prose value never masquerades as a slug it merely resembles); a focus
-    frame's ``focus_ref`` is compared as received, since a value that is not
-    the slug simply does not match. Presence frames carry no mission
-    correlation and never match."""
+    names its mission. BOTH ref kinds are grammar-routed first (an untrusted
+    prose value never masquerades as a slug it merely resembles — the same
+    ``grammar.ident(…, REF_RE)`` routing ``live_frame._apply_focus`` applies
+    to ``focus_ref`` and the event path applies to ``ref``; a prose value
+    becomes grammar's opaque ``unknown-<digest>`` label and simply does not
+    match). Presence frames carry no mission correlation and never match."""
     frame_type = frame.get("frame_type")
     payload = frame.get("payload")
     if not isinstance(payload, Mapping):
         return False
-    if frame_type == "focus":
-        ref = payload.get("focus_ref")
-    elif frame_type == "event":
-        raw_ref = payload.get("ref")
+    if frame_type in {"focus", "event"}:
+        raw_ref = payload.get("focus_ref") if frame_type == "focus" else payload.get("ref")
         ref = grammar.ident(raw_ref, pattern=grammar.REF_RE) if isinstance(raw_ref, str) and raw_ref else None
     else:
         return False
@@ -237,8 +251,14 @@ def _selected_frames(
     counts: dict[str, int],
 ) -> Iterator[dict[str, Any]]:
     """One selector pass over the retained frames, counted as it filters —
-    the counts belong to the whole catch-up, not to any one page, so a
-    multi-page read reports one honest total."""
+    the counts are totals over the SCANNED window, not the whole retained
+    catch-up: this generator is lazy, and the delivery policy stops pulling
+    it at ``max_frames``, so a capped catch-up counts exactly the frames it
+    actually scanned (a truncated read is flagged by the ``coverage``
+    block's ``truncated``/``scan_limit_reached`` metadata, never by these
+    numbers silently claiming completeness). Within that window the counts
+    span every page, not just the last one, so a multi-page read still
+    reports one honest total."""
     for frame in frames:
         if person is not None and not _frame_matches_person(frame, person):
             counts["withheld"] += 1

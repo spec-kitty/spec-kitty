@@ -1601,12 +1601,12 @@
      "deprecated": false
     },
     "watch": {
-     "help": "Print live frames plus a final summary, bounded by whole-call\n``--timeout`` and ``--max-frames`` count.",
+     "help": "Print live frames plus a final summary, bounded by whole-call\n``--timeout`` and ``--max-frames`` count. ``--seed <seconds>`` first\nreplays that much retained history through the same policy, so nothing\npublished during startup is lost.",
      "hidden": false,
      "deprecated": false
     },
     "activity": {
-     "help": "Catch up on retained activity using the same policy as agent watch.",
+     "help": "Catch up on retained activity using the same policy as agent watch.\n``--person``/``--project`` narrow the catch-up client-side (the relay's\nretained-events route has no such filter) with matched/withheld counts\nin the result.",
      "hidden": false,
      "deprecated": false
     },

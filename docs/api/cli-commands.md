@@ -6505,7 +6505,15 @@ Usage: spec-kitty zeitgeist watch [OPTIONS] [REPO]
 │ --raw                                         Diagnostic stream: include own │
 │                                               session and bypass agent       │
 │                                               filters, receipts and rate     │
-│                                               limits.                        │
+│                                               limits. A --raw seeded watch   │
+│                                               surfaces no seed/coverage      │
+│                                               metadata (only the             │
+│                                               agent-filtered path attaches   │
+│                                               it), so a truncated backfill   │
+│                                               is invisible in this mode —    │
+│                                               acceptable for a diagnostic,   │
+│                                               worth knowing before relying   │
+│                                               on it.                         │
 │ --consumer            TEXT                    Delivery receipt context       │
 │                                               override; publisher identity   │
 │                                               still uses                     │

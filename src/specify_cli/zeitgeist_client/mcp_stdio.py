@@ -89,10 +89,10 @@ import sys
 
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any, cast
+from typing import Annotated, Any, cast
 
 from mcp.server.fastmcp import FastMCP
-from pydantic import StrictBool
+from pydantic import Field, StrictBool, StrictFloat
 
 from . import moments, subscription
 
@@ -229,7 +229,13 @@ def build_server(settings: moments.MomentSettings | None = None) -> FastMCP:
         consumer: str | None = None,
         acknowledge: str | None = None,
         filter_own: StrictBool = True,
-        seed_window_s: float = 0.0,
+        # Strict + ge=0 (squad pass on #4716): a lax float let pydantic
+        # coerce values the CLI cannot express (`true` -> 1.0, `"120"` ->
+        # 120.0) and passed a negative through to a later service ValueError
+        # instead of a schema rejection — the CLI's typer `min=0.0` rejects
+        # at the door, and the MCP schema now does too. StrictFloat still
+        # admits plain ints (`120`), exactly like the CLI does.
+        seed_window_s: Annotated[StrictFloat, Field(ge=0)] = 0.0,
     ) -> dict[str, Any]:
         from .agent_delivery import AgentDelivery
 

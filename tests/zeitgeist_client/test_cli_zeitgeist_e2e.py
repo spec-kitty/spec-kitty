@@ -482,7 +482,10 @@ def test_watch_seed_reports_a_relay_without_the_route_honestly(state_root: Path,
     result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--timeout", "1.0", "--seed", "60", "--json"])
 
     assert result.exit_code == 1
-    assert "could not reach the relay" in result.stdout
+    # Named for what actually happened (squad pass on #4716): the relay WAS
+    # reached — what is missing is the follow route, not connectivity.
+    assert "serves no snapshot/follow route" in result.stdout
+    assert "could not reach the relay" not in result.stdout
 
 
 @pytest.fixture()

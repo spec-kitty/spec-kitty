@@ -143,6 +143,36 @@ def _report_connection_fault(exc: BaseException) -> None:
     raise typer.Exit(1)
 
 
+def _report_watch_relay_fault(exc: urllib.error.HTTPError, *, seed: float) -> None:
+    """A watch HTTP fault, named for what actually happened (squad pass on
+    #4716): a seeded watch against a snapshot-less relay is a missing follow
+    ROUTE — the relay was reached and answered — not a connectivity fault,
+    and reporting it as one sends an operator debugging an older or
+    self_hosted relay build looking for a network problem that is not
+    there. Anything else stays a plain connection-fault report."""
+    if seed and exc.code == 404:
+        console.print(
+            "[red]Error:[/red] the relay was reached but serves no snapshot/follow route "
+            "(HTTP 404): a seeded watch needs a relay build with the follow handoff "
+            "(zeitgeist#296). Retry without --seed for a future-only stream."
+        )
+        raise typer.Exit(1)
+    _report_connection_fault(exc)
+
+
+def _watch_end_reason(*, count: int, max_frames: int, elapsed_s: float, effective_timeout: float) -> str:
+    """Why a finished watch stopped: the frame cap, the whole-call timeout
+    (with the same 50ms grace the summary's ``elapsed_s`` rounding allows),
+    or the relay closing the stream. Pure — extracted so the command body
+    stays inside the complexity ceiling and the decision is testable
+    directly."""
+    if count >= max_frames:
+        return "max_frames"
+    if elapsed_s >= max(0.0, effective_timeout - 0.05):
+        return "timeout"
+    return "stream_closed"
+
+
 def _entry_age_s(entry_observed_at: float, *, now: float, anchor: float | None, fetched_at: float | None) -> float:
     """One entry's age in seconds, skew-free when the snapshot path supplied
     the document's own ``observed_at`` anchor (#4335, folded): entry age at
@@ -265,7 +295,16 @@ def watch(
         help="Maximum delivered frames; agent mode scans within the timeout to count withheld frames.",
     ),
     as_json: bool = _JSON_OPTION,
-    raw: bool = typer.Option(False, "--raw", help="Diagnostic stream: include own session and bypass agent filters, receipts and rate limits."),
+    raw: bool = typer.Option(
+        False,
+        "--raw",
+        help=(
+            "Diagnostic stream: include own session and bypass agent filters, receipts and rate limits. "
+            "A --raw seeded watch surfaces no seed/coverage metadata (only the agent-filtered path "
+            "attaches it), so a truncated backfill is invisible in this mode — acceptable for a "
+            "diagnostic, worth knowing before relying on it."
+        ),
+    ),
     consumer: str | None = typer.Option(
         None, "--consumer", help="Delivery receipt context override; publisher identity still uses SPEC_KITTY_ZEITGEIST_SESSION_ID."
     ),
@@ -325,6 +364,8 @@ def watch(
         raise typer.Exit(1) from None
     except subscription.NotCheckedOut as exc:
         _report_not_checked_out(exc)
+    except urllib.error.HTTPError as exc:
+        _report_watch_relay_fault(exc, seed=seed)
     except (urllib.error.URLError, TimeoutError) as exc:
         _report_connection_fault(exc)
     except KeyboardInterrupt:
@@ -332,12 +373,7 @@ def watch(
     else:
         elapsed_s = time.monotonic() - started
         effective_timeout = min(timeout, float(subscription.MAX_TIMEOUT_S))
-        if count >= max_frames:
-            reason = "max_frames"
-        elif elapsed_s >= max(0.0, effective_timeout - 0.05):
-            reason = "timeout"
-        else:
-            reason = "stream_closed"
+        reason = _watch_end_reason(count=count, max_frames=max_frames, elapsed_s=elapsed_s, effective_timeout=effective_timeout)
         summary = {
             "type": "watch_summary",
             "repo": key,

@@ -734,3 +734,23 @@ async def test_watch_tool_seeds_from_the_follow_preface(state_root: Path, manage
     assert [f["seq"] for f in frames] == [1, 2, 3]
     assert result.structuredContent["seed"]["coverage"]["history_basis"] == "retained"
     assert any(managed_stream_double.requested_paths[0].startswith("/managed/snapshot?") for _ in [0]) and "follow=1" in managed_stream_double.requested_paths[0]
+
+
+async def test_watch_tool_rejects_values_the_cli_cannot_express_for_seed_window_s(state_root: Path, managed_stream_double) -> None:
+    """(squad pass on #4716) `seed_window_s` is StrictFloat + ge=0: a
+    negative or a coerced non-number (`true`, `"120"`) is a schema rejection
+    at the door — the same rejection the CLI's typer `min=0.0` applies —
+    never a value that slips through and seeds a window the caller never
+    asked for, and never a negative that only fails later inside the
+    service call."""
+    _checkout(managed_stream_double.url)
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        for bad in (-5.0, -5, True, "120"):
+            result = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0, "seed_window_s": bad})
+            assert result.isError, f"seed_window_s={bad!r} was not rejected at the schema"
+        # A plain int stays admissible, exactly like the CLI's float option.
+        managed_stream_double.push_frame(_frame(seq=1, frame=_presence(session_ref="a" * 12)))
+        managed_stream_double.close_stream()
+        good = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0, "seed_window_s": 0})
+        assert not good.isError

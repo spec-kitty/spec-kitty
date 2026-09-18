@@ -145,6 +145,13 @@ def test_status_with_no_repo_argument_and_no_checkout_exits_nonzero(monkeypatch:
 
 
 # --- watch: mocked-unit paths -------------------------------------------------
+#
+# (squad pass on #4716, recorded) These fakes mirror `subscription.watch`'s
+# signature (seed_window_s included) but prove only the CLI's plumbing —
+# flag parsing, exit codes, output framing. Real coverage of the seeded
+# watch's behaviour lives in tests/zeitgeist_client/test_cli_zeitgeist_e2e.py
+# (follow route, preface, dedup) and tests/zeitgeist_client/test_mcp_stdio.py
+# (schema), never here.
 
 
 def test_watch_json_emits_one_json_line_per_frame(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -187,6 +194,19 @@ def test_watch_not_checked_out_exits_nonzero(monkeypatch: pytest.MonkeyPatch) ->
 
 
 # --- #10: the human-readable watch branch renders events through the frame ---
+
+
+def test_watch_end_reason_covers_the_three_ways_a_watch_stops() -> None:
+    """(squad pass on #4716) The summary's ``reason`` decision, extracted to
+    keep the command inside the complexity ceiling — pinned directly so the
+    extraction has its own coverage: cap, whole-call timeout (with the
+    summary rounding's 50ms grace), or the relay closing the stream."""
+    from specify_cli.cli.commands.zeitgeist import _watch_end_reason
+
+    assert _watch_end_reason(count=10, max_frames=10, elapsed_s=0.1, effective_timeout=2.0) == "max_frames"
+    assert _watch_end_reason(count=3, max_frames=10, elapsed_s=2.0, effective_timeout=2.0) == "timeout"
+    # Inside the 50ms grace window the watch reads as closed, not timed out.
+    assert _watch_end_reason(count=3, max_frames=10, elapsed_s=1.9, effective_timeout=2.0) == "stream_closed"
 
 
 def test_watch_human_branch_frames_event_output(monkeypatch: pytest.MonkeyPatch) -> None:
