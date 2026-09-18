@@ -44,8 +44,17 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()  # noqa: TID251 -- raw asset integrity, not charter hashing
 
 
-def node_state(path: Path) -> FileState:
-    """Read one node without following its final link."""
+def node_state(path: Path, *, read_content: bool = True) -> FileState:
+    """Read one node without following its final link.
+
+    ``read_content=False`` records a regular file's ``lstat`` shape but skips the
+    byte read, standing in the empty-content digest. Used ONLY for owner lock
+    files (#4703): on Windows ``msvcrt.locking()`` is mandatory, so reading a
+    lock this process holds raises ``PermissionError`` — and a lock is a
+    self-managed, definitionally-empty artifact whose content is never verified
+    or used (only its kind: absent vs regular file), so the byte read is both
+    fatal and pointless there.
+    """
     try:
         info = path.lstat()
     except FileNotFoundError:
@@ -57,7 +66,8 @@ def node_state(path: Path) -> FileState:
         return FileState("directory", mode=mode, mtime_ns=info.st_mtime_ns)
     if not stat.S_ISREG(info.st_mode):
         raise ValueError(f"Unsupported asset node: {path}")
-    return FileState("file", sha256=digest(path.read_bytes()), mode=mode, mtime_ns=info.st_mtime_ns)
+    sha256 = digest(path.read_bytes()) if read_content else digest(b"")
+    return FileState("file", sha256=sha256, mode=mode, mtime_ns=info.st_mtime_ns)
 
 
 def _action(before: FileState, after: FileState) -> str | None:
@@ -190,7 +200,7 @@ class AssetPreparation:
         elif state.kind != "absent":
             raise ValueError(f"Global inventory is not a regular file: {self.inventory}")
 
-    def observe(self, path: Path, *, members: bool = False, role: ObservationRole = "source_read") -> FileState:
+    def observe(self, path: Path, *, members: bool = False, role: ObservationRole = "source_read", read_content: bool = True) -> FileState:
         """Observe ancestry before opening a node; reject escaping parents.
 
         ``role`` is tagged by the CALLER's call site (source read vs a probe of
@@ -199,6 +209,10 @@ class AssetPreparation:
         ``source_read`` even if later probed as a destination (source and
         destination trees can share the HOME prefix under test layouts) so
         genuine source drift is never over-narrowed away (FR-003/C-002).
+
+        ``read_content=False`` observes the node without reading its bytes — used
+        only for owner lock files, whose read under a held mandatory lock is
+        fatal on Windows and whose content is never verified (#4703).
         """
         for parent in reversed(path.parents):
             if parent != Path(parent.anchor):
@@ -213,7 +227,7 @@ class AssetPreparation:
                     self.observed[parent] = _observation(parent, state, role=role)
                 elif role == "source_read" and existing_parent.role != "source_read":
                     self.observed[parent] = replace(existing_parent, role="source_read")
-        state = node_state(path)
+        state = node_state(path, read_content=read_content)
         children = tuple(sorted(p.name for p in path.iterdir())) if members and state.kind == "directory" else None
         previous = self.observed.get(path)
         current = _observation(path, state, children if children is not None else previous.children if previous else None, role=role)
@@ -383,7 +397,11 @@ class AssetPreparation:
             self._effect(version_path, FileState("file", sha256=digest(data), mode=0o644), data, OwnershipProof("managed_path", f"{self.owner}:version-stamp"))
         if self.writes:
             self.parents(self.lock_path)
-            lock = self.observe(self.lock_path, role="destination_probe")
+            # #4703: observe the owner lock by lstat only. finish() runs inside
+            # apply_with_reassess's under-lock rebuild, so this process may hold
+            # this exact lock; reading its bytes would raise on Windows. Only its
+            # kind (absent vs regular file) is used, never its content.
+            lock = self.observe(self.lock_path, role="destination_probe", read_content=False)
             if lock.kind == "absent":
                 self._effect(
                     self.lock_path, FileState("file", sha256=digest(b""), mode=0o644), b"", OwnershipProof("managed_path", f"{self.owner}:persistent-lock")
@@ -669,9 +687,28 @@ def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
         writes_by_path = {write.effect.destination: write for write in prepared.writes}
         content_paths = tuple(path for path, write in writes_by_path.items() if write.effect.after.kind == "file" and not _is_bookkeeping_write(write))
         content_confirmed: bool | None = None  # computed lazily; a batch with no writes never needs it
+        lock_paths = set(prepared.lock_paths)
         # Ancestors precede child file reads, including parents outside the root.
         for observation in sorted(prepared.observations, key=lambda item: len(item.path.parts)):
-            current = _observation(observation.path, node_state(observation.path))
+            if observation.path in lock_paths:
+                # #4703: never read an owner lock file's own bytes during recheck.
+                # recheck_assets may hold this exact file under an exclusive lock,
+                # and on Windows msvcrt.locking() is MANDATORY -- the process's own
+                # read of its own held lock raises PermissionError errno 13 (POSIX
+                # flock is advisory, which is why CI never caught it). The lock is a
+                # self-managed empty artifact excluded from the content-proof set
+                # (persistent-lock is a bookkeeping suffix), and its existence is
+                # separately guaranteed by recheck_assets's open()+lock, so
+                # verifying its bytes protects nothing. The parent cache directory's
+                # membership is still verified via its own (directory) observation.
+                continue
+            try:
+                current = _observation(observation.path, node_state(observation.path))
+            except OSError as exc:
+                # #4703: name the unreadable asset. A bare str(exc) on a Windows
+                # PermissionError drops exc.filename (it is None), leaving only
+                # "[Errno 13] Permission denied" -- undiagnosable as shipped.
+                raise ValueError(f"Could not read global asset {observation.path}: {exc}") from exc
             if (current.state, current.identity) != (observation.state, observation.identity):
                 write = writes_by_path.get(observation.path) if observation.role == "destination_probe" else None
                 tolerated = write is not None and _content_equal(current.state, write.effect.after)
