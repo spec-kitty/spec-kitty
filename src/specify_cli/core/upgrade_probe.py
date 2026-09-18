@@ -176,9 +176,7 @@ def probe_pypi(
 
         from specify_cli.core.pypi_releases import installable_release_versions
 
-        channel_latest = _channel_latest(
-            latest, installable_release_versions(payload), prerelease=prerelease
-        )
+        channel_latest = _channel_latest(latest, installable_release_versions(payload), prerelease=prerelease)
         channel = _classify(cli_version, channel_latest, releases)
         return UpgradeProbeResult(
             installed_version=cli_version,

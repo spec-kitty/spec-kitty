@@ -13,7 +13,5 @@ def installable_release_versions(payload: object) -> tuple[str, ...]:
     return tuple(
         version
         for version, files in releases.items()
-        if isinstance(version, str)
-        and isinstance(files, list)
-        and any(isinstance(file, dict) and not file.get("yanked", False) for file in files)
+        if isinstance(version, str) and isinstance(files, list) and any(isinstance(file, dict) and not file.get("yanked", False) for file in files)
     )
