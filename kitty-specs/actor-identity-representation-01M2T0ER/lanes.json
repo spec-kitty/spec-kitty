@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "mission_slug": "actor-identity-representation-01M2T0ER",
+  "mission_id": "01M2T0ERAWD3DPJRV2CJV49WTR",
+  "mission_branch": "kitty/mission-actor-identity-representation-01M2T0ER",
+  "target_branch": "fix/actor-identity-representation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/cli/commands/agent/tasks_transition_core.py",
+        "src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py",
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/status/emit.py",
+        "src/specify_cli/status/work_package_lifecycle.py",
+        "tests/specify_cli/cli/commands/agent/test_fixmode_ownership_4673.py",
+        "tests/specify_cli/cli/commands/agent/test_implement_compact_identity_4665.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_agent_persistence_3029.py",
+        "tests/specify_cli/cli/commands/agent/test_verdict_attribution_4670.py",
+        "tests/status/test_actor_identity_reconciliation_4665.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-18T11:00:33.910621+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "08ff36cf06ba22fb7d654a26e5ddc0c445208abe",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP02",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/cli/commands/agent/workflow_executor.py' vs 'src/specify_cli/cli/commands/agent/workflow_executor.py'; WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/status/work_package_lifecycle.py' vs 'src/specify_cli/status/work_package_lifecycle.py'"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/cli/commands/agent/tasks_move_task.py' vs 'src/specify_cli/cli/commands/agent/tasks_move_task.py'"
+      }
+    ],
+    "total_merges": 3,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 3
+    }
+  }
+}

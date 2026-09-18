@@ -1,0 +1,49 @@
+{
+  "accept_commit": "f5dd76ea933e6f08869797156322652076f6e5f7",
+  "acceptance_history": [
+    {
+      "accept_commit": "c1c325352804db89ce48fe285cdd3ebb38ac0fe6",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-18T14:04:07.591978+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "b8f08559a23c8f3f8f94cc2f0aeb8b06d19390ab"
+    },
+    {
+      "accept_commit": "87cd22539a3ae4bb472082620c15bb34c7b85c78",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-18T14:04:25.844766+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "4a4474ccd6b65472b7f63baf116535c5b3d6a0ee"
+    },
+    {
+      "accept_commit": "f5dd76ea933e6f08869797156322652076f6e5f7",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-18T14:04:42.823134+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "63b59c82a4d7b3effbe07757aba2e521932005aa"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-18T14:04:42.823134+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "63b59c82a4d7b3effbe07757aba2e521932005aa",
+  "baseline_merge_commit": "c85c15c709b54926bd42f4cac01bb6236147e52c",
+  "created_at": "2026-09-18T10:19:37.705674+00:00",
+  "flattened": true,
+  "friendly_name": "Coord/lane actor-identity representation cluster",
+  "merged_at": "2026-09-18T14:06:01.762087+00:00",
+  "merged_commit": "db5878ae0a87506385d64dc7d7a3901bb1a5d294",
+  "mid8": "01M2T0ER",
+  "mission_id": "01M2T0ERAWD3DPJRV2CJV49WTR",
+  "mission_number": null,
+  "mission_slug": "actor-identity-representation-01M2T0ER",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The CLI records who owns a work package in several places using two different shapes of the same agent identity, and those shapes do not reconcile. This surfaces as an implement command rejecting its own fresh claim (#4665), an agent's review verdict being attributed to the git user (#4670), a fix-mode claim after rejection being blocked by stale reviewer ownership (#4673), and move-task --agent failing to persist the acting identity (#3029). This mission reconciles the identity representation on the claim, verdict, and ownership surfaces so these workflows behave honestly on the 4.0.0 candidate.",
+  "purpose_tldr": "Fix four defects where an agent's identity is represented inconsistently across claim, review, and ownership, so agents can claim, review, and hand off work without self-conflicts or misattributed verdicts.",
+  "slug": "actor-identity-representation-01M2T0ER",
+  "status_phase": "1",
+  "target_branch": "fix/actor-identity-representation",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-18T11:03:10.877841+00:00"
+}
