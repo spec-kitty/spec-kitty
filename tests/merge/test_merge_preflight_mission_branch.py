@@ -62,6 +62,11 @@ def _prepare_dry_run(
     monkeypatch.setattr(merge_mod, "find_repo_root", lambda: tmp_path)
     monkeypatch.setattr(merge_mod, "get_main_repo_root", lambda repo_root: repo_root)
     monkeypatch.setattr(merge_mod, "_enforce_git_preflight", lambda *_args, **_kwargs: None)
+    # WP04 (mission-handle-resolution FR-004/FR-005): the fresh not-found gate now
+    # probes the mission dir on disk. This dry-run harness mocks the mission's
+    # collaborators instead of materializing its ``kitty-specs/`` dir, so neutralize
+    # the existence probe alongside the other seams it stubs.
+    monkeypatch.setattr(merge_mod, "_resolved_mission_dir_exists", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(merge_mod, "_resolve_target_branch", lambda *_args, **_kwargs: ("main", "flag"))
     monkeypatch.setattr(merge_mod, "_validate_target_branch", lambda *_args, **_kwargs: None)
     # WP06 (#2057): the dry-run preview now runs in the ``forecast`` seam, so the

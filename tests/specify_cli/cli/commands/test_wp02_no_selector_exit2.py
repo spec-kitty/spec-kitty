@@ -6,6 +6,7 @@ mission_resolve_command, accept), verifies that:
 2. Omitting ``--mission`` exits with code 2 and a readable message.
 3. No uncaught TypeError escapes.
 """
+
 from __future__ import annotations
 import pathlib
 import pytest
@@ -23,17 +24,29 @@ class TestNextNoSelector:
         assert result.exit_code == 2, result.output
         assert "no such option" in result.output.lower()
 
-    def test_no_mission_raises_bad_parameter(self):
-        from specify_cli.cli.commands.next_cmd import _resolve_mission_slug
-        with pytest.raises(typer.BadParameter) as exc:
+    def test_no_mission_raises_discovery_not_bad_parameter(self):
+        # C5 (mission-handle-resolution WP05): a missing --mission is no longer
+        # a usage error. With no missions present (``/tmp`` has no kitty-specs)
+        # the resolver raises the typed discovery signal, NOT typer.BadParameter.
+        from specify_cli.cli.commands.next_cmd import (
+            MissingHandleDiscovery,
+            _resolve_mission_slug,
+        )
+
+        with pytest.raises(MissingHandleDiscovery) as exc:
             _resolve_mission_slug(None, pathlib.Path("/tmp"))
-        assert "--mission" in str(exc.value)
+        assert exc.value.listings == []
+        assert not isinstance(exc.value, typer.BadParameter)
 
     def test_no_mission_no_type_error(self):
-        from specify_cli.cli.commands.next_cmd import _resolve_mission_slug
+        from specify_cli.cli.commands.next_cmd import (
+            MissingHandleDiscovery,
+            _resolve_mission_slug,
+        )
+
         try:
             _resolve_mission_slug(None, pathlib.Path("/tmp"))
-        except typer.BadParameter:
+        except MissingHandleDiscovery:
             pass
         except TypeError as e:
             raise AssertionError(f"TypeError: {e}") from e
@@ -43,6 +56,7 @@ class TestResearchNoSelector:
     def test_feature_flag_rejected_exit2(self):
         app = typer.Typer()
         from specify_cli.cli.commands.research import research
+
         app.command()(research)
         result = runner.invoke(app, ["--feature", "some-slug"])
         assert result.exit_code == 2, result.output
@@ -51,6 +65,7 @@ class TestResearchNoSelector:
     def test_no_mission_exit2_readable_message(self):
         app = typer.Typer()
         from specify_cli.cli.commands.research import research
+
         app.command()(research)
         result = runner.invoke(app, [])
         assert result.exit_code == 2, result.output
@@ -59,6 +74,7 @@ class TestResearchNoSelector:
     def test_no_mission_no_type_error(self):
         app = typer.Typer()
         from specify_cli.cli.commands.research import research
+
         app.command()(research)
         result = runner.invoke(app, [])
         assert not isinstance(result.exception, TypeError)

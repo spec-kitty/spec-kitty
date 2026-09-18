@@ -40,6 +40,7 @@ from mission_runtime import MissionArtifactKind, placement_seam
 # graph paid on every ``next`` invocation (including a query that never uses
 # it). Type-only import here keeps mypy resolving the annotation below.
 if TYPE_CHECKING:
+    from specify_cli.context.mission_resolver import MissionListing
     from specify_cli.core.checkout_ownership import CheckoutOwnershipError
 
 from specify_cli.core.context_validation import require_main_repo
@@ -192,8 +193,14 @@ def next_step(
         StatusReadPathNotFound as _StatusReadPathNotFound,
     )
 
+    bare_selection = not (isinstance(mission, str) and mission.strip())
     try:
         mission_slug = _resolve_mission_slug(mission, repo_root, effective_root=effective_root)
+    except MissingHandleDiscovery as _exc:
+        # FR-006..FR-012 / C5: 0 -> specify nudge; >1 -> listing. Never a
+        # usage error; always a non-zero exit distinct from typer's exit 2.
+        _emit_missing_handle_discovery(_exc, json_output)
+        raise typer.Exit(1) from _exc
     except _StatusReadPathNotFound as _exc:
         # FR-001 / C-IC02: preserve the typed read-path error (code + checked
         # paths + read-path remediation) instead of collapsing to MISSION_NOT_FOUND.
@@ -215,6 +222,10 @@ def next_step(
     except ValueError as _exc:
         _emit_internal_resolution_error(_exc, json_output)
         raise typer.Exit(2) from _exc
+    if bare_selection:
+        # FR-010: a bare ``next`` that auto-selected a sole *legacy* mission
+        # (no ``mission_id``) still proceeds, with an advisory backfill nudge.
+        _maybe_emit_backfill_nudge(mission_slug, repo_root)
     _validate_result_and_answer(result, answer, json_output)
     answered_id = _maybe_handle_answer(
         agent,
@@ -444,6 +455,68 @@ def _run_charter_preflight_for_next(repo_root, *, advancing: bool, json_output: 
     emit_advisory_warnings(result, consumer="next", repo_root=repo_root)
 
 
+# ---------------------------------------------------------------------------
+# Missing-handle discovery (contract C5, FR-006..FR-012)
+# ---------------------------------------------------------------------------
+
+#: Hoisted so the human list and the ``migrate`` nudge share one spelling.
+_BACKFILL_REMEDIATION = "spec-kitty migrate backfill-identity"
+#: Placeholder rendered for a legacy mission that has no derivable ``mid8``.
+_UNMIGRATED_MID8_LABEL = "no mission_id"
+#: Ceiling on the human-readable listing so a huge repo does not flood stderr.
+_MAX_LISTED_MISSIONS = 10
+#: Shared re-run guidance for the ambiguous (>1) missing-handle outcome.
+_MISSING_HANDLE_RERUN_HINT = "Re-run with: spec-kitty next --mission <handle>"
+#: Human nudge for the zero-mission outcome.
+_NO_MISSIONS_NUDGE = "No missions found in this repository.\n  Next: run `spec-kitty specify` (or `/spec-kitty.specify`) to create one."
+#: Machine ``next_step`` for the zero-mission JSON envelope.
+_NO_MISSIONS_NEXT_STEP = "Run `spec-kitty specify` to create a mission."
+
+
+class MissingHandleDiscovery(Exception):
+    """Signal that ``next`` was invoked without ``--mission`` (FR-006..FR-012).
+
+    Raised by :func:`_resolve_mission_slug` for the *ambiguous* (more than one
+    mission) and *empty* (zero missions) populations so the CLI caller can emit
+    a listing / nudge and exit non-zero. It is deliberately NOT a
+    :class:`typer.BadParameter`: contract C5 forbids a usage error for the
+    missing-handle outcome. The sole-mission case never raises this — it is
+    auto-selected and returned instead.
+
+    Attributes:
+        listings: The discovered mission population (empty for the
+            zero-mission case; two or more entries for the ambiguous case),
+            legacy-tolerant via :func:`list_missions_for_selection`.
+    """
+
+    def __init__(self, listings: list[MissionListing]) -> None:
+        self.listings = listings
+        super().__init__("mission selection required")
+
+
+def _missing_handle_or_sole_slug(repo_root: Path) -> str:
+    """Return the sole mission's slug, or raise :class:`MissingHandleDiscovery`.
+
+    Sole-mission classification goes through WP01's dedicated
+    ``sole_mission_for_selection`` seam (the single shared FR-004 definition), and
+    the >1 / 0 case reuses ``list_missions_for_selection`` for the render payload.
+    Both share the same legacy-tolerant population rule plan/tasks use, so the
+    count never disagrees. List building and JSON formatting stay in the caller's
+    emitters — this helper only classifies (1 -> return, else -> raise) to keep
+    :func:`_resolve_mission_slug` under the complexity ceiling.
+    """
+    from specify_cli.context.mission_resolver import (
+        list_missions_for_selection,
+        sole_mission_for_selection,
+    )
+
+    main_repo = get_main_repo_root(repo_root)
+    sole = sole_mission_for_selection(main_repo)
+    if sole is not None:
+        return sole
+    raise MissingHandleDiscovery(list_missions_for_selection(main_repo))
+
+
 def _resolve_mission_slug(
     mission: str | None,
     repo_root: Path,
@@ -452,7 +525,10 @@ def _resolve_mission_slug(
 ) -> str:
     mission_norm = mission.strip() if isinstance(mission, str) else None
     if not mission_norm:
-        raise typer.BadParameter("--mission <slug> is required")
+        # FR-006..FR-012 / C5: a missing ``--mission`` is no longer a usage
+        # error. Auto-select the sole mission, or raise the discovery signal
+        # (0 / >1) for the caller to render + exit non-zero.
+        return _missing_handle_or_sole_slug(repo_root)
     mission_slug = mission_norm
 
     raw_handle = mission_slug
@@ -547,6 +623,85 @@ def _emit_mission_not_found_error(handle: str, json_output: bool, next_step: str
             file=sys.stderr,
         )
         print(f"  Next: {remediation}", file=sys.stderr)
+
+
+def _emit_missing_handle_discovery(exc: MissingHandleDiscovery, json_output: bool) -> None:
+    """Render the missing-``--mission`` outcome (contract C5): listing or nudge.
+
+    Mirrors :func:`_emit_mission_not_found_error`'s dual (human + JSON) shape.
+    The >1 case lists ``slug (mid8) — friendly_name`` (capped) and, in JSON,
+    carries ``available_missions``; the 0 case nudges toward ``specify``.
+    """
+    if exc.listings:
+        _emit_multiple_missions(exc.listings, json_output)
+    else:
+        _emit_no_missions(json_output)
+
+
+def _emit_multiple_missions(listings: list[MissionListing], json_output: bool) -> None:
+    """Emit the ambiguous (>1) missing-handle listing in the requested mode."""
+    unmigrated = sum(1 for m in listings if m.mid8 is None)
+    if json_output:
+        from specify_cli import __version__
+
+        payload: dict[str, object] = {
+            "result": "error",
+            "error_code": "MISSION_SELECTION_REQUIRED",
+            "available_missions": [
+                {
+                    "mission_slug": m.mission_slug,
+                    "mid8": m.mid8,
+                    "friendly_name": m.friendly_name,
+                }
+                for m in listings
+            ],
+            "next_step": _MISSING_HANDLE_RERUN_HINT,
+            "spec_kitty_version": __version__,
+        }
+        print(json.dumps(payload, indent=2))
+        return
+    print("Multiple missions found; pass --mission <handle> to select one:", file=sys.stderr)
+    shown = listings[:_MAX_LISTED_MISSIONS]
+    for m in shown:
+        mid8 = m.mid8 or _UNMIGRATED_MID8_LABEL
+        print(f"  {m.mission_slug} ({mid8}) — {m.friendly_name}", file=sys.stderr)
+    if len(listings) > len(shown):
+        print(f"  … and {len(listings) - len(shown)} more", file=sys.stderr)
+    print(_MISSING_HANDLE_RERUN_HINT, file=sys.stderr)
+    if unmigrated:
+        print(f"{unmigrated} mission(s) need `{_BACKFILL_REMEDIATION}`.", file=sys.stderr)
+
+
+def _emit_no_missions(json_output: bool) -> None:
+    """Emit the zero-mission nudge pointing at ``specify`` (non-zero exit)."""
+    if json_output:
+        from specify_cli import __version__
+
+        payload = {
+            "result": "error",
+            "error_code": "NO_MISSIONS_FOUND",
+            "next_step": _NO_MISSIONS_NEXT_STEP,
+            "spec_kitty_version": __version__,
+        }
+        print(json.dumps(payload, indent=2))
+        return
+    print(_NO_MISSIONS_NUDGE, file=sys.stderr)
+
+
+def _maybe_emit_backfill_nudge(mission_slug: str, repo_root: Path) -> None:
+    """Advisory (stderr) nudge when the auto-selected sole mission is legacy.
+
+    Kept off stdout so a ``--json`` query's machine payload stays a single
+    clean document. No-op when the resolved mission carries a ``mid8``.
+    """
+    from specify_cli.context.mission_resolver import list_missions_for_selection
+
+    listing = next(
+        (m for m in list_missions_for_selection(get_main_repo_root(repo_root)) if m.mission_slug == mission_slug),
+        None,
+    )
+    if listing is not None and listing.mid8 is None:
+        print(f"1 mission needs `{_BACKFILL_REMEDIATION}`.", file=sys.stderr)
 
 
 def _emit_unsafe_mission_slug_error(exc: UnsafePathSegmentError, json_output: bool) -> None:

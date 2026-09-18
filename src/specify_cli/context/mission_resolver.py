@@ -40,6 +40,7 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
@@ -48,6 +49,19 @@ from mission_runtime import MissionResolver
 from specify_cli.lanes.branch_naming import resolve_mid8, strip_numeric_prefix
 from specify_cli.mission_metadata import load_meta
 
+# NOTE: this module deliberately declares no ``__all__``. The dead-symbol gate
+# (``tests/architectural/test_no_dead_symbols.py``) treats an ``__all__`` member
+# with no cross-file ``src/`` caller as dead and — critically — never rescues an
+# ``__all__`` member via intra-module use. ``FakeMissionResolver`` is green today
+# ONLY because it is grandfathered as a *widened* (non-``__all__``) name in
+# ``_WIDENED_SCOPE_GRANDFATHERED_470``; promoting it into ``__all__`` would strip
+# that rescue and regress a pre-existing public symbol. The WP01 selection seam
+# below (``MissionListing`` / ``list_missions_for_selection`` /
+# ``MISSION_NOT_FOUND_MESSAGE``) stays green via the gate's intra-module rescue
+# for widened names. ``sole_mission_for_selection`` and
+# ``mission_not_found_message`` are forward-API consumed only by WP02–WP06; they
+# gain a real caller when those land (the gate then greens on its own).
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -55,6 +69,31 @@ from specify_cli.mission_metadata import load_meta
 _ULID_RE = re.compile(r"^[0-9A-Z]{26}$")
 _MID8_RE = re.compile(r"^[0-9A-Z]{8}$")
 _PREFIX_RE = re.compile(r"^(\d{3})-")
+
+# Canonical not-found message template (capital ``M``), matching the
+# ``materialize.py`` exemplar. This is the SINGLE source the four fixed commands
+# (plan, tasks, research, merge fresh/resume) adopt so a bad ``--mission`` handle
+# reads identically across them. It is deliberately NOT applied to:
+#   * :class:`MissionNotFoundError` -- keeps its FR-005 identity-aware
+#     ``spec-kitty migrate backfill-identity`` remediation; collapsing it would
+#     regress the identity model.
+#   * ``reconcile`` -- its "mission dossier not found" wording is semantically
+#     distinct (a dossier, not a mission directory).
+#   * ``next``'s explicit-handle path -- its ``_emit_mission_not_found_error``
+#     keeps a richer, *quoted* envelope (``Mission not found: '<handle>'`` plus a
+#     remediation line). ``next`` was not in the four-command unification scope;
+#     it consumes the shared *selection* helpers below, not this string constant.
+MISSION_NOT_FOUND_MESSAGE = "Mission not found: {handle}"
+
+
+def mission_not_found_message(handle: str) -> str:
+    """Render the canonical :data:`MISSION_NOT_FOUND_MESSAGE` for *handle*.
+
+    Thin wrapper over the template so callers never re-spell the format string
+    (Sonar S1192); the *handle* is inserted verbatim.
+    """
+    return MISSION_NOT_FOUND_MESSAGE.format(handle=handle)
+
 
 # ---------------------------------------------------------------------------
 # Public data types
@@ -76,6 +115,30 @@ class ResolvedMission:
     mission_slug: str
     feature_dir: Path
     mid8: str
+
+
+@dataclass(frozen=True)
+class MissionListing:
+    """One row per existing mission, for selection/discovery surfaces.
+
+    Distinct from :class:`ResolvedMission`: a listing is legacy-tolerant (it
+    counts missions that lack a ``mission_id`` and so cannot be resolved by
+    identity), and it carries the human ``friendly_name`` that
+    :class:`ResolvedMission` does not.
+
+    Attributes:
+        mission_slug: Directory name in ``kitty-specs/`` -- the copy-pasteable
+            handle.
+        mid8: First 8 characters of ``mission_id`` (short disambiguator), or
+            ``None`` for a legacy mission whose ``meta.json`` lacks a
+            ``mission_id``.
+        friendly_name: Human title from ``meta.json``; falls back to
+            ``mission_slug`` when absent so a listing never blanks.
+    """
+
+    mission_slug: str
+    mid8: str | None
+    friendly_name: str
 
 
 class AmbiguousHandleError(Exception):
@@ -106,7 +169,7 @@ class AmbiguousHandleError(Exception):
             lines.append(f"  spec-kitty <command> --mission {c.mission_slug}")
         lines.append("")
         lines.append("For JSON output of all candidates:")
-        lines.append(f'  spec-kitty doctor identity --mission {self.handle} --json')
+        lines.append(f"  spec-kitty doctor identity --mission {self.handle} --json")
         return "\n".join(lines)
 
     def to_dict(self) -> dict[str, object]:
@@ -155,6 +218,25 @@ class MissionNotFoundError(Exception):
 # ---------------------------------------------------------------------------
 
 
+def _iter_mission_dirs(repo_root: Path) -> Iterator[Path]:
+    """Yield each ``kitty-specs/`` child directory once, in slug order.
+
+    The SINGLE ``kitty-specs/`` enumeration primitive for this module: both the
+    identity index (:func:`_build_index`) and the legacy-tolerant selection
+    listing (:func:`list_missions_for_selection`) consume it, so there is no
+    second independent scan to drift (or to trip
+    ``tests/architectural/test_mission_resolver_walker_gate.py``). Non-directory
+    entries (e.g. a stray ``README.md``) are skipped; the population/identity
+    predicate is left to each caller.
+    """
+    specs_dir = repo_root / KITTY_SPECS_DIR
+    if not specs_dir.exists():
+        return
+    for entry in sorted(specs_dir.iterdir()):
+        if entry.is_dir():
+            yield entry
+
+
 def _build_index(repo_root: Path) -> list[ResolvedMission]:
     """Walk ``kitty-specs/`` and return a list of indexable missions.
 
@@ -165,14 +247,8 @@ def _build_index(repo_root: Path) -> list[ResolvedMission]:
     (``status.aggregate._read_meta``), which fails the *targeted* mission closed
     with ``MissionMetadataUnavailable``.
     """
-    specs_dir = repo_root / KITTY_SPECS_DIR
-    if not specs_dir.exists():
-        return []
-
     missions: list[ResolvedMission] = []
-    for entry in sorted(specs_dir.iterdir()):
-        if not entry.is_dir():
-            continue
+    for entry in _iter_mission_dirs(repo_root):
         data = load_meta(entry, on_malformed="none")
         if data is None:
             # Missing, malformed, or a non-object meta.json (e.g. a JSON array)
@@ -193,6 +269,67 @@ def _build_index(repo_root: Path) -> list[ResolvedMission]:
             )
         )
     return missions
+
+
+# ---------------------------------------------------------------------------
+# Public selection/discovery seam (mission-handle-resolution WP01, FR-006/012)
+# ---------------------------------------------------------------------------
+
+
+def list_missions_for_selection(main_repo: Path) -> list[MissionListing]:
+    """List every existing mission for selection/discovery, legacy included.
+
+    The population rule counts any ``kitty-specs/`` directory bearing
+    ``spec.md`` **or** ``meta.json`` — the SAME rule the agent-layer
+    ``_list_feature_spec_candidates`` uses — so ``next`` and plan/tasks never
+    disagree on the count. It deliberately includes legacy missions whose
+    ``meta.json`` lacks a ``mission_id`` (and missions with only a ``spec.md``),
+    which :meth:`FsMissionResolver.all_missions` silently drops.
+
+    ``mission_id`` / ``mid8`` / ``friendly_name`` are read best-effort via
+    :func:`load_meta` (tolerating a missing, malformed, or non-object
+    ``meta.json``); ``mid8`` is ``None`` when no ``mission_id`` can be
+    authoritatively derived, and ``friendly_name`` falls back to the slug so a
+    listing never blanks. Ordering is deterministic (by ``mission_slug``) via
+    :func:`_iter_mission_dirs`.
+
+    Args:
+        main_repo: Repository root containing the ``kitty-specs/`` tree.
+
+    Returns:
+        The mission listings in ``mission_slug`` order; empty when
+        ``kitty-specs/`` is absent or holds no spec/meta-bearing directory.
+    """
+    listings: list[MissionListing] = []
+    for entry in _iter_mission_dirs(main_repo):
+        if not (entry / "spec.md").exists() and not (entry / "meta.json").exists():
+            continue
+        data = load_meta(entry, on_malformed="none") or {}
+        # A syntactically valid meta.json can carry a non-string ``mission_id``
+        # (e.g. a JSON number); guard the type so ``resolve_mid8``'s ``len()``
+        # never crashes discovery for the whole repo over one odd file. This
+        # keeps the ``str | None`` annotation honest.
+        raw_mission_id = data.get("mission_id")
+        mission_id: str | None = raw_mission_id if isinstance(raw_mission_id, str) else None
+        mid8 = resolve_mid8(entry.name, mission_id=mission_id) or None
+        friendly_raw = data.get("friendly_name")
+        friendly_name = str(friendly_raw) if friendly_raw else entry.name
+        listings.append(MissionListing(mission_slug=entry.name, mid8=mid8, friendly_name=friendly_name))
+    return listings
+
+
+def sole_mission_for_selection(main_repo: Path) -> str | None:
+    """Return the sole mission's slug, or ``None`` for zero or more than one.
+
+    FR-004 convention: a command with a missing ``--mission`` may auto-select
+    when exactly one mission exists, but must NEVER silently pick among
+    several. Thin over :func:`list_missions_for_selection` so every consumer
+    (``next`` and the plan/tasks/merge gates) shares one population definition.
+    """
+    listings = list_missions_for_selection(main_repo)
+    if len(listings) == 1:
+        return listings[0].mission_slug
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -265,9 +402,7 @@ def _resolve_from_index(handle: str, missions: list[ResolvedMission]) -> Resolve
     # Priority 4: Human slug without numeric prefix (e.g. "foo-bar")
     # ------------------------------------------------------------------
     if not _is_numeric_prefix(handle):
-        human_matches = [
-            m for m in missions if strip_numeric_prefix(m.mission_slug) == handle
-        ]
+        human_matches = [m for m in missions if strip_numeric_prefix(m.mission_slug) == handle]
         if human_matches:
             return _resolve_or_raise(handle, human_matches)
 
@@ -276,8 +411,9 @@ def _resolve_from_index(handle: str, missions: list[ResolvedMission]) -> Resolve
     # ------------------------------------------------------------------
     if _is_numeric_prefix(handle):
         prefix_matches = [
-            m for m in missions if _PREFIX_RE.match(m.mission_slug) and
-            _PREFIX_RE.match(m.mission_slug).group(1) == handle  # type: ignore[union-attr]
+            m
+            for m in missions
+            if _PREFIX_RE.match(m.mission_slug) and _PREFIX_RE.match(m.mission_slug).group(1) == handle  # type: ignore[union-attr]
         ]
         return _resolve_or_raise(handle, prefix_matches)
 

@@ -27,8 +27,16 @@ from typing import Any
 
 from mission_runtime import ActionContextError, MissionArtifactKind
 from specify_cli import __version__ as SPEC_KITTY_VERSION
+from specify_cli.context.mission_resolver import mission_not_found_message
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import get_main_repo_root
+
+# WP03 (FR-002/FR-003): the marker prefix ``_find_feature_directory`` raises for
+# an explicit handle that resolves to no mission directory. Shared between the
+# raise site and ``_build_setup_plan_detection_error`` so the two never drift —
+# the builder keys its truthful not-found branch on this exact signal, rather
+# than mislabeling an unmatched explicit handle as a disambiguation prompt.
+_NOT_FOUND_HANDLE_MARKER = "Mission not found for handle"
 
 
 # write-surface-coherence WP02 (T007): the ``artifact_type`` string each caller
@@ -61,8 +69,7 @@ def _kind_for_artifact(artifact_type: str) -> MissionArtifactKind:
         return _ARTIFACT_TYPE_TO_KIND[artifact_type]
     except KeyError as exc:
         raise KeyError(
-            f"_commit_to_branch: no MissionArtifactKind mapped for artifact_type "
-            f"{artifact_type!r}; add it to _ARTIFACT_TYPE_TO_KIND (no silent default)."
+            f"_commit_to_branch: no MissionArtifactKind mapped for artifact_type {artifact_type!r}; add it to _ARTIFACT_TYPE_TO_KIND (no silent default)."
         ) from exc
 
 
@@ -143,9 +150,7 @@ def _safe_load_meta(repo_root: Path, mission_slug: str) -> dict[str, object] | N
     # directly — PRIMARY_METADATA, since the read is meta.json (FR-003 above).
     # WP08 (T036): the caller-side canonicalizer fold DROPPED — redundant with
     # the seam's own internal fold for a PRIMARY-partition kind.
-    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     try:
         meta = load_meta_fail_closed(feature_dir)
     except MissionMetaReadError:
@@ -206,14 +211,12 @@ def _find_feature_directory(
     except StatusReadPathNotFound as exc:
         raise ActionContextError(
             "FEATURE_CONTEXT_UNRESOLVED",
-            f"Mission not found for handle {raw_handle!r}; checked the coordination worktree and the primary checkout. {exc}",
+            f"{_NOT_FOUND_HANDLE_MARKER} {raw_handle!r}; checked the coordination worktree and the primary checkout. {exc}",
         ) from exc
     return feature_dir
 
 
-def _resolve_mission_dir_name_primary_anchored(
-    repo_root: Path, explicit_feature: str | None
-) -> str | None:
+def _resolve_mission_dir_name_primary_anchored(repo_root: Path, explicit_feature: str | None) -> str | None:
     """Resolve a mission handle to its on-disk dir name WITHOUT requiring coord.
 
     #11 / #1718 / #1692: ``finalize-tasks`` only needs the mission slug to anchor
@@ -283,9 +286,7 @@ def _resolve_mission_dir_name_primary_anchored(
     return None
 
 
-def _primary_anchored_feature_dir(
-    repo_root: Path, explicit_feature: str | None
-) -> Path | None:
+def _primary_anchored_feature_dir(repo_root: Path, explicit_feature: str | None) -> Path | None:
     """Resolve a mission handle to its PRIMARY-checkout feature dir, or ``None``.
 
     The planning-authoring surface companion to finalize-tasks' input read: both
@@ -386,7 +387,24 @@ def _build_setup_plan_detection_error(
     slugs only (no absolute paths), one example command, and a short
     remediation string so the agent can act without parsing kilobytes of
     redundant path data.
+
+    WP03 (FR-002/FR-003): when an explicit ``--mission`` handle was provided AND
+    the inbound resolution error is the not-found signal, the operator did NOT
+    fail to disambiguate — they named a mission that does not exist. Emit the
+    canonical ``Mission not found: <handle>`` and skip the disambiguate/no-missions
+    branch entirely. The no-handle auto-detect-failed cases (multi-mission
+    disambiguate, zero-mission) are left byte-unchanged below.
     """
+    explicit_handle = mission_flag.strip() if mission_flag else ""
+    if explicit_handle and _NOT_FOUND_HANDLE_MARKER in _base_error:
+        return {
+            "error_code": error_code,
+            "mission_flag": mission_flag,
+            "spec_kitty_version": SPEC_KITTY_VERSION,
+            "error": mission_not_found_message(explicit_handle),
+            "remediation": "Re-run with an existing --mission <slug>, or create it: spec-kitty agent mission create <name> --json",
+        }
+
     candidates = _list_feature_spec_candidates(repo_root)
     command_args = command_args if command_args is not None else ["--json"]
 

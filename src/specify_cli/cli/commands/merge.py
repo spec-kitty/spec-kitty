@@ -65,6 +65,7 @@ import typer
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import show_banner
+from specify_cli.context.mission_resolver import mission_not_found_message
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.paths import (
     MissionMetaReadError,
@@ -257,6 +258,37 @@ def _resolve_slug_or_exit(repo_root: Path, mission: str | None) -> str | None:
         raise typer.Exit(2) from exc
 
 
+def _resolved_mission_dir_exists(repo_root: Path, resolved_slug: str) -> bool:
+    """Return True when the resolved handle names an existing mission dir.
+
+    Mirrors the existence probe inside ``_resolve_mission_slug`` (which hands back
+    the RAW handle, unchanged, on a miss): a handle that resolves to no
+    PRIMARY-partition mission dir is a not-found. This is the predicate the
+    fresh/resume gates use to refuse an unknown ``--mission`` with the canonical
+    :func:`mission_not_found_message` instead of the misleading downstream errors
+    ("lanes.json is required …" / "No interrupted merge to resume").
+
+    Deliberately NOT folded into the shared ``_resolve_slug_or_exit`` helper:
+    ``merge --abort`` shares that helper and MUST stay tolerant of an
+    unresolvable handle (it cleans up a partial-state mission whose primary dir
+    may already be gone), so the gate lives at the two live callers only (FR-005).
+
+    ``StatusReadPathNotFound`` (the fail-closed coordination window) is treated as
+    "exists" so this probe never pre-empts that path; for ``PRIMARY_METADATA`` the
+    seam does not raise it today, but the defensive arm keeps the historical
+    downstream behaviour intact if that ever changes.
+    """
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+
+    try:
+        candidate = placement_seam(get_main_repo_root(repo_root), resolved_slug).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
+        )
+    except StatusReadPathNotFound:
+        return True
+    return candidate.exists()
+
+
 def _teardown_coordination_for_abort(
     repo_root: Path,
     resolved: str | None,
@@ -389,6 +421,14 @@ def _dispatch_resume(repo_root: Path, mission: str | None) -> str | None:
     """
     mission_slug_raw = (mission or "").strip() or None
     resolved = _resolve_slug_or_exit(repo_root, mission)
+    # FR-004/FR-005: an unknown ``--mission`` handle is refused with the canonical
+    # not-found BEFORE the no-state check, so a fat-fingered handle never masquerades
+    # as "No interrupted merge to resume". The gate is confined to this caller (and
+    # the fresh flow) — never the shared ``_resolve_slug_or_exit`` — so ``--abort``
+    # stays tolerant.
+    if resolved and not _resolved_mission_dir_exists(repo_root, resolved):
+        console.print(f"[red]Error:[/red] {mission_not_found_message(resolved)}")
+        raise typer.Exit(1)
     existing_state = _load_merge_state_for_mission(repo_root, resolved)
     if existing_state is None:
         console.print("[red]Error:[/red] No interrupted merge to resume.")
@@ -626,6 +666,18 @@ def merge(
     resolved_strategy: MergeStrategy = strategy or load_merge_config(repo_root).strategy or MergeStrategy.SQUASH
 
     resolved_mission = _resolve_slug_or_exit(repo_root, mission)
+
+    # FR-004/FR-005: refuse an unknown ``--mission`` handle with the canonical
+    # not-found BEFORE the lanes load (which would otherwise raise the misleading
+    # "lanes.json is required …" MissingLanesError). Confined to this fresh caller
+    # (and ``_dispatch_resume``) — never the shared ``_resolve_slug_or_exit`` — so
+    # ``merge --abort`` keeps tolerating a partial-state, dir-gone handle. Scoped to
+    # the fresh flow (``not resume``): the resume flow has its OWN gate in
+    # ``_dispatch_resume`` and, when it adopts a slug from active merge state, that
+    # mission is known-good — re-probing the dir here would wrongly reject it.
+    if not resume and resolved_mission and not _resolved_mission_dir_exists(repo_root, resolved_mission):
+        console.print(f"[red]Error:[/red] {mission_not_found_message(resolved_mission)}")
+        raise typer.Exit(1)
 
     # T004: Auto-detect existing state when running merge without --resume
     if not resume and resolved_mission:
