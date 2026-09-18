@@ -1888,6 +1888,70 @@ def _review_baseline_context_lines(*, main_repo_root: Path, mission_slug: str, w
     return lines
 
 
+def resolve_review_completion_reviewer(*, main_repo_root: Path, mission_slug: str, normalized_wp_id: str) -> str:
+    """Resolve the identity that claimed review (``for_review -> in_review``)
+    for the generated approval/rejection completion commands (#4670,
+    FR-004/FR-005).
+
+    Reads the canonical event log directly (the same ``for_review ->
+    in_review`` claim :func:`review_claim_transition` just recorded, or an
+    earlier one on a resumed review) rather than trusting the WP's
+    frontmatter-derived ``resolved_agent()`` -- that reflects the
+    *implementer*'s assignment, not who is reviewing right now. Falls back to
+    ``"user"`` -- the same default ``move-task``'s own event-log resolver
+    (``_mt_resolve_active_reviewer_identity``) falls back to -- so a printed
+    command's ``--agent`` value never diverges from what the CLI would
+    resolve on its own when no claim is on record.
+    """
+    from specify_cli.status import actor_identity_str
+    from specify_cli.status import read_events as _rrc_read_events
+
+    w = _wf()
+    feature_dir = w._canonical_status_feature_dir(main_repo_root, mission_slug)
+    for existing_event in reversed(_rrc_read_events(feature_dir)):
+        if existing_event.wp_id == normalized_wp_id and existing_event.to_lane == Lane.IN_REVIEW:
+            # Annotated local: the ``specify_cli.*`` narrow-file mypy override
+            # sets ``follow_imports = "skip"``, so this cross-module call
+            # surfaces as ``Any`` under a single-file strict check; pinning it
+            # re-establishes the known concrete return type without a
+            # suppression (mirrors ``tasks_move_task.py``'s
+            # ``_mt_resolve_pre_review_workspace``/``_mt_resolve_active_reviewer_identity``
+            # idiom).
+            identity: str = actor_identity_str(existing_event.actor).strip()
+            if identity:
+                return identity
+    return "user"
+
+
+def render_review_completion_commands(
+    *,
+    normalized_wp_id: str,
+    mission_slug: str,
+    review_feedback_path: Path,
+    reviewer_identity: str,
+    approve_note: str,
+) -> tuple[str, str]:
+    """THE single render seam for #4670's six completion-command sites (three
+    call sites x approve+reject -- ``build_review_prompt_lines``'s two
+    "WHEN YOU'RE DONE" / "REVIEW COMPLETE?" banners plus
+    ``_review_print_finalize_summary``'s closing stdout lines) so every
+    generated verdict command carries ``--agent <reviewer_identity>`` instead
+    of silently letting the operator's git user become the recorded verdict
+    actor (FR-004). There is no ``--to rejected`` lane in the 9-lane
+    vocabulary -- a rejection is ``--to planned --review-feedback-file``.
+    """
+    agent_suffix = f" --agent {reviewer_identity}"
+    approve_command = (
+        f"spec-kitty agent tasks move-task {normalized_wp_id} --to approved "
+        f'--mission {mission_slug}{agent_suffix} --note "{approve_note}"'
+    )
+    reject_command = (
+        f"spec-kitty agent tasks move-task {normalized_wp_id} --to planned "
+        f"--review-feedback-file {review_feedback_path} --mission {mission_slug}{agent_suffix}"
+    )
+    return approve_command, reject_command
+
+
 def build_review_prompt_lines(
     *,
     normalized_wp_id: str,
@@ -1953,18 +2017,26 @@ def build_review_prompt_lines(
     wp_slug = wp.path.stem
     lines.extend(_review_baseline_context_lines(main_repo_root=main_repo_root, mission_slug=mission_slug, wp_slug=wp_slug))
 
+    reviewer_identity = resolve_review_completion_reviewer(
+        main_repo_root=main_repo_root, mission_slug=mission_slug, normalized_wp_id=normalized_wp_id
+    )
+    approve_command, reject_command = render_review_completion_commands(
+        normalized_wp_id=normalized_wp_id,
+        mission_slug=mission_slug,
+        review_feedback_path=review_feedback_path,
+        reviewer_identity=reviewer_identity,
+        approve_note="Review passed",
+    )
     lines.append("=" * 80)
     lines.append("WHEN YOU'RE DONE:")
     lines.append("=" * 80)
     lines.append("✓ Review passed, no issues:")
-    lines.append(f'  spec-kitty agent tasks move-task {normalized_wp_id} --to approved --mission {mission_slug} --note "Review passed"')
+    lines.append(f"  {approve_command}")
     lines.append("")
     lines.append("⚠️  Changes requested:")
     lines.append("  1. Write feedback to (in-repo, committed with the project):")
     lines.append(f"     {review_feedback_path}")
-    lines.append(
-        f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}"
-    )
+    lines.append(f"  2. {reject_command}")
     lines.append("  3. move-task stores feedback reference in the event log and WP frontmatter")
     lines.append("=" * 80)
     lines.append("")
@@ -1999,8 +2071,15 @@ def build_review_prompt_lines(
     lines.append("🎯 REVIEW COMPLETE? RUN ONE OF THESE COMMANDS:")
     lines.append("=" * 80)
     lines.append("")
+    approve_command_summary, reject_command_summary = render_review_completion_commands(
+        normalized_wp_id=normalized_wp_id,
+        mission_slug=mission_slug,
+        review_feedback_path=review_feedback_path,
+        reviewer_identity=reviewer_identity,
+        approve_note="Review passed: <summary>",
+    )
     lines.append("✅ APPROVE (no issues found):")
-    lines.append(f'   spec-kitty agent tasks move-task {normalized_wp_id} --to approved --mission {mission_slug} --note "Review passed: <summary>"')
+    lines.append(f"   {approve_command_summary}")
     lines.append("")
     lines.append("❌ REQUEST CHANGES (issues found):")
     lines.append("   1. Write feedback to the in-repo path (committed with the project):")
@@ -2010,9 +2089,7 @@ def build_review_prompt_lines(
     lines.append("EOF")
     lines.append("")
     lines.append("   2. Move to planned with feedback:")
-    lines.append(
-        f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}"
-    )
+    lines.append(f"      {reject_command_summary}")
     lines.append("")
     lines.append("⚠️  NOTE: You MUST run one of these commands to complete the review!")
     lines.append("     The Python script handles all file updates automatically.")
@@ -2069,6 +2146,7 @@ def review_finalize_and_print(
 
     _review_print_finalize_summary(
         prompt_file=prompt_file,
+        main_repo_root=main_repo_root,
         mission_slug=mission_slug,
         normalized_wp_id=normalized_wp_id,
         workspace=workspace,
@@ -2083,6 +2161,7 @@ def review_finalize_and_print(
 def _review_print_finalize_summary(
     *,
     prompt_file: Path,
+    main_repo_root: Path,
     mission_slug: str,
     normalized_wp_id: str,
     workspace: ResolvedWorkspace,
@@ -2119,10 +2198,20 @@ def _review_print_finalize_summary(
     print()
     print("▶▶▶ NEXT STEP: Read the full prompt file now:")
     print(f"    cat {prompt_file}")
+    reviewer_identity = resolve_review_completion_reviewer(
+        main_repo_root=main_repo_root, mission_slug=mission_slug, normalized_wp_id=normalized_wp_id
+    )
+    approve_command, reject_command = render_review_completion_commands(
+        normalized_wp_id=normalized_wp_id,
+        mission_slug=mission_slug,
+        review_feedback_path=review_feedback_path,
+        reviewer_identity=reviewer_identity,
+        approve_note="Review passed",
+    )
     print()
     print("After review, run:")
-    print(f'  ✅ spec-kitty agent tasks move-task {normalized_wp_id} --to approved --mission {mission_slug} --note "Review passed"')
-    print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}")
+    print(f"  ✅ {approve_command}")
+    print(f"  ❌ {reject_command}")
 
 
 # ---------------------------------------------------------------------------

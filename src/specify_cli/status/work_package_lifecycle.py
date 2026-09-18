@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from specify_cli.status.emit import TransitionError
+from specify_cli.status.emit import TransitionError, parse_agent_boundary_string
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.review_claim_predicate import review_claim_decision
 from specify_cli.status.models import (
@@ -101,10 +101,36 @@ def _repo_root_for_lock(feature_dir: Path, repo_root: Path | None) -> Path:
 
 
 def _actor_key(actor: object | None) -> str | None:
+    """Project ANY actor representation to the impl-claim comparison key.
+
+    #4665/C-002/C-005: ``actor_identity_str`` (status/models.py, byte-identical
+    to the upstream ``spec-kitty-events`` reducer) projects a *dict*
+    resolved-binding actor to its bare ``tool``, but returns a compact
+    ``tool:model:profile:role`` *string* actor VERBATIM -- the two
+    representations of ONE agent then compare unequal and self-conflict
+    (#4665). The shared projection stays untouched (C-005); reconciliation
+    happens ONLY here, in the CLI-local comparison layer (C-002), by parsing
+    a compact-string actor down to its bare tool too, reusing the closed
+    #2861 parser (:func:`~specify_cli.status.emit.parse_agent_boundary_string`)
+    instead of inventing new parsing. The key stays a bare ``str`` (never a
+    tuple/struct, C-002) and role-blind by design -- reviewer-vs-implementer
+    distinctness lives on the SEPARATE review-claim role channel
+    (``review_claim_predicate.review_claim_decision``), not here. A bare-tool
+    string (e.g. ``"codex"`` or a generic placeholder like ``"unknown"``) has
+    no ``":"`` and round-trips through the parser unchanged, so the
+    ``GENERIC_IMPLEMENTATION_ACTORS`` membership test below is unaffected.
+    """
     if actor is None:
         return None
     typed_actor = cast(ActorField, actor) if isinstance(actor, (str, dict)) else str(actor)
-    value = actor_identity_str(typed_actor).strip()
+    projected = actor_identity_str(typed_actor)
+    if isinstance(typed_actor, str) and projected:
+        try:
+            tool, _model, _profile, _role = parse_agent_boundary_string(projected)
+        except ValueError:
+            tool = projected
+        projected = tool
+    value = projected.strip()
     return value or None
 
 
@@ -158,9 +184,7 @@ def start_implementation_status(
         current_actor = current.actor
 
         if current_lane == Lane.GENESIS:
-            raise WorkPackageStartRejected(
-                f"WP {wp_id} is not finalized; run `spec-kitty agent mission finalize-tasks`"
-            )
+            raise WorkPackageStartRejected(f"WP {wp_id} is not finalized; run `spec-kitty agent mission finalize-tasks`")
 
         if current_lane == Lane.PLANNED:
             events = emit_status_transition_batch_transactional(

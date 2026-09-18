@@ -822,7 +822,6 @@ exclude = [
     "src/specify_cli/status/validate.py",
     "src/specify_cli/status/verdict_vocab.py",
     "src/specify_cli/status/views.py",
-    "src/specify_cli/status/work_package_lifecycle.py",
     "src/specify_cli/status/wp_metadata.py",
     "src/specify_cli/status/wp_state.py",
     "src/specify_cli/status/wp_status_metadata.py",

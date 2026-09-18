@@ -888,10 +888,13 @@ def _persist_approved_review_cycle(
     # SC-006: the artifact carries at least a reproduction_command —
     # auto-derived from the decision already made (NFR-005), never a new
     # hand-filled field: the exact ``move-task`` invocation that reproduces
-    # this approval.
+    # this approval. #4670: carries the resolved ``reviewer_agent`` too
+    # (the same identity this write already attributes the approval to)
+    # so a replay of this exact command reproduces the SAME attribution
+    # instead of silently falling back to whoever re-runs it.
     reproduction_command = (
         f"spec-kitty agent tasks move-task {st.task_id} --to approved "
-        f"--mission {st.mission_slug}"
+        f"--mission {st.mission_slug} --agent {reviewer_agent}"
     )
     # M1 (adversarial squad, PR #3156): the approval body is synthesized
     # by THIS caller, not supplied by a reviewer — pass it via ``body=``

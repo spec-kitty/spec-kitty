@@ -84,6 +84,7 @@ from specify_cli.status import (
     validate_transition,
     wp_state_for,
 )
+from specify_cli.status import _actor_key
 
 # Terminal lanes that build approval evidence + run the rejected-verdict guard.
 _APPROVAL_LANES: tuple[str, ...] = (Lane.APPROVED, Lane.DONE)
@@ -437,14 +438,18 @@ def _guard_agent_ownership(req: MoveTaskRequest) -> RefuseExit1 | None:
     # forcing every caller to pass ``--force`` for a conflict that was never
     # real. Matching the SAME allowance here keeps the two ownership checks
     # consistent instead of one silently stricter than the other.
-    if req.current_agent in GENERIC_IMPLEMENTATION_ACTORS:
+    # #4673/T011: compare through the SAME tool-scoped ``_actor_key`` projection
+    # WP01 reconciled the impl-claim comparison with, instead of raw string
+    # equality. Two representations of ONE agent (a full compact
+    # ``tool:model:profile:role`` string vs. its dict-shaped equivalent) round-
+    # trip to the SAME key, so a dict-vs-compact submit no longer trips this
+    # gate even though WP01's reconciliation lives one layer down and never
+    # reached this raw comparison before.
+    current_key = _actor_key(req.current_agent)
+    requested_key = _actor_key(req.agent)
+    if current_key in GENERIC_IMPLEMENTATION_ACTORS:
         return None
-    if not (
-        req.current_agent
-        and req.agent
-        and req.current_agent != req.agent
-        and not req.force
-    ):
+    if not (current_key and requested_key and current_key != requested_key and not req.force):
         return None
     warning = (
         "",

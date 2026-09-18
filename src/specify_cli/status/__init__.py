@@ -311,6 +311,7 @@ from .work_package_lifecycle import (
     GENERIC_IMPLEMENTATION_ACTORS,
     WorkPackageClaimConflict,
     WorkPackageStartRejected,
+    _actor_key,
     start_implementation_status,
     start_review_status,
 )
@@ -391,6 +392,7 @@ __all__ = [
     "AgentAssignment",
     "CurrentWpState",
     "actor_identity_str",
+    "_actor_key",
     "ALLOWED_TRANSITIONS",
     "EventStream",
     "InnerStateChanged",

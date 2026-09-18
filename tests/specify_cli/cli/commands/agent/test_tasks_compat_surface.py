@@ -303,6 +303,11 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     # ReviewResult derivation is a native move-task seam def and therefore
     # joins the compat surface like every other one (77 -> 78).
     "_mt_resolve_reviewer_identity",
+    # #4670 (WP02, verdict-attribution): the event-log resolver that fills the
+    # active claimed reviewer identity for an agent-driven completion that
+    # omits --agent is a native move-task seam def and therefore joins the
+    # compat surface like every other one (78 -> 79).
+    "_mt_resolve_active_reviewer_identity",
 )
 
 _TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) core family + campsite/follow-up native defs
@@ -581,4 +586,6 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     # alone. Revisit whether this file's own hardcoded-count guard should be
     # relaxed or dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
     # CLI boundary WP05 adds the two status error renderers: 179 -> 181.
-    assert len(SYMBOL_TO_MODULE) == 181
+    # #4670 (WP02, verdict-attribution) adds the event-log active-reviewer
+    # resolver (tasks_move_task): 181 -> 182.
+    assert len(SYMBOL_TO_MODULE) == 182  # golden-count: cardinality-is-contract

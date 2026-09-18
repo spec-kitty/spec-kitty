@@ -157,10 +157,12 @@ from specify_cli.status import (
     TransitionError,
     TransitionRequest,
     WPInnerStateDelta,
+    actor_identity_str,
     emission_event_verdict,
     read_authored_wp_frontmatter,
     resolve_lane_alias,
 )
+from specify_cli.status import _actor_key
 from specify_cli.task_utils import (
     WorkPackage,
     ensure_lane,
@@ -2119,7 +2121,13 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
     st.emit_plan = decision.plan
     st.evidence_dict = decision.evidence_dict
     st.note_text = decision.note_text
-    st.actor = st.agent or "user"
+    # #4670/FR-005: an agent-driven completion that omits --agent no longer
+    # silently attributes the verdict to the git user -- it resolves the
+    # identity that actually claimed the review (for_review -> in_review)
+    # from the event log first. A WP with no recorded review claim (or a
+    # claim genuinely made by a human) falls through to "user" unchanged
+    # (FR-006: never fabricate an agent identity that was never asserted).
+    st.actor = st.agent or _mt_resolve_active_reviewer_identity(st) or "user"
     st.canonical_lane = decision.plan.canonical_lane
 
     if decision.planned_rollback and st.resolved_feedback_source is not None:
@@ -2204,6 +2212,44 @@ def _mt_resolve_reviewer_identity(st: _MoveTaskState) -> str:
     driving the CLI invocation).
     """
     return (st.reviewer or st.agent or st.actor or "unknown").strip() or "unknown"
+
+
+def _mt_resolve_active_reviewer_identity(st: _MoveTaskState) -> str | None:
+    """Resolve the identity that claimed review (``for_review -> in_review``)
+    from the event log, for an agent-driven completion that omits ``--agent``
+    (#4670, FR-005).
+
+    Reads the WP's transition events and returns the projected identity
+    (:func:`~specify_cli.status.actor_identity_str`) of the MOST RECENT
+    ``* -> in_review`` hop -- the review claim (``action review --agent
+    <identity>``, or its test-fixture equivalent) that is authoritative for
+    "who is reviewing this WP right now". Returns ``None`` when no such
+    event is on record (an unclaimed/force-bypassed WP), so every caller
+    falls through to its own pre-existing default instead of fabricating an
+    identity that was never asserted (FR-006).
+
+    Returns ``None`` without attempting a read when ``mission_slug`` is
+    unset (the ``_MoveTaskState`` dataclass default, ``""``) -- a state
+    built without ever resolving targets (e.g. a unit test driving a single
+    phase helper directly against a bare ``_make_state()``-style fixture)
+    has no real event log to consult.
+    """
+    if not st.mission_slug:
+        return None
+
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    events = _tasks.read_events_transactional(
+        feature_dir=st.feature_dir,
+        mission_slug=st.mission_slug,
+        repo_root=st.main_repo_root,
+        **({"effective_root": st.owned.root} if st.owned else {}),
+    )
+    for existing_event in reversed(events):
+        if existing_event.wp_id == st.task_id and existing_event.to_lane == Lane.IN_REVIEW:
+            identity = actor_identity_str(existing_event.actor).strip()
+            return identity or None
+    return None
 
 
 def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
@@ -2324,9 +2370,29 @@ def _mt_hop_review_result(
 
 
 def _mt_hop_actor(st: _MoveTaskState, event: StatusEvent | None, current_event_lane: str, target: str) -> str:
-    """Resolve the actor for one emit hop (impl handoff preserves the WP agent)."""
+    """Resolve the actor for one emit hop.
+
+    Impl handoff preserves the WP agent (``current_agent``, unchanged). #4670/
+    FR-004/FR-005 (the load-bearing site: this actor is what actually lands on
+    the emitted ``StatusEvent``): a hop LEAVING ``in_review`` with ``--agent``
+    omitted resolves the identity that claimed the review from the event log
+    (:func:`_mt_resolve_active_reviewer_identity`) instead of silently
+    defaulting to the git user -- covering both the approval
+    (``in_review -> approved/done``) and rejection (``in_review -> planned``)
+    verdict hops alike, since neither carries ``--to rejected`` (no such
+    lane). A WP with no recorded review claim keeps the pre-existing
+    ``"user"`` fallback (FR-006: never fabricate an unasserted identity).
+    """
     from_lane_for_hop = event.to_lane if event is not None else resolve_lane_alias(current_event_lane)
-    return st.agent or (st.current_agent if from_lane_for_hop == Lane.IN_PROGRESS and target == Lane.FOR_REVIEW else None) or "user"
+    if st.agent:
+        return st.agent
+    if from_lane_for_hop == Lane.IN_PROGRESS and target == Lane.FOR_REVIEW and st.current_agent:
+        return st.current_agent
+    if from_lane_for_hop == Lane.IN_REVIEW:
+        resolved_reviewer = _mt_resolve_active_reviewer_identity(st)
+        if resolved_reviewer:
+            return resolved_reviewer
+    return "user"
 
 
 def _mt_shell_pid_baseline(pid: int) -> str | None:
@@ -2496,6 +2562,26 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
                 binding=st.resolved_binding,
             )
             annotation_delta = st.resolved_binding.to_delta(role=binding_role)
+            if target == Lane.CLAIMED and st.agent:
+                # #4673/T012: thread the claim owner through the SAME
+                # annotation-delta channel ``role`` already rides here, not only
+                # the transition's ``policy_metadata`` sidecar. The shared
+                # spec-kitty-events reducer folds ALL transitions first, THEN
+                # ALL ``InnerStateChanged`` annotations in one dedicated
+                # post-pass (never interleaved by timestamp,
+                # ``diary.reduce_parsed`` steps 3-4) — so a stale
+                # ``release_runtime_claim`` annotation from an EARLIER
+                # rejection is replayed AFTER this claim's
+                # ``policy_metadata``-derived ``agent`` has already landed in
+                # the transition pass, clobbering it back to falsy
+                # (``_CLAIM_RELEASE_SLOTS``). Carrying ``agent`` on this
+                # transition's own ``annotation_delta`` puts a fresh,
+                # later-timestamped replacement value in the SAME post-pass
+                # the stale release runs in, so the latest-wins replace-slot
+                # rule (``_apply_annotation_delta``) lets it win regardless of
+                # the non-interleaved fold order — the identical immunity
+                # ``role`` already has (C-006 mechanism (b)).
+                annotation_delta = replace(annotation_delta, agent=st.agent)
         if target == Lane.CLAIMED and st.shell_pid:
             # FR-004: the claim triple rode this transition's policy_metadata —
             # do NOT re-emit it as an off-axis InnerStateChanged delta.
@@ -2750,7 +2836,26 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
 
     fields: dict[str, Any] = {}
     if not st.claim_emitted:
-        if st.agent:
+        # #4673/T011: a rollback to ``planned`` (rejection) ALSO carries
+        # ``release_runtime_claim=True`` in this SAME delta (added below via
+        # ``_build_claim_review_override``). The reducer applies that release
+        # clear BEFORE its replace-slot loop, so a concrete ``agent`` value
+        # present in the SAME delta overwrites the just-cleared slot — by
+        # design, for a genuine same-move re-plant (an explicit fresh claim
+        # on the rollback itself, ``test_rollback_with_explicit_agent_
+        # replants_claim``). But an ORDINARY rejection's ``st.agent`` is just
+        # the REVIEWER re-asserting their OWN already-current identity (the
+        # reviewer's own review-claim already stamped the runtime ``agent``
+        # slot to their identity before the rejection runs) — stamping it
+        # again here re-clobbers the release right back to the reviewer, so
+        # the slot never actually shows "released" (#4673's precise live
+        # root). The two cases are distinguished by whether ``st.agent`` is
+        # genuinely NEW relative to the prior owner (``st.current_agent``,
+        # resolved before this move): a same-identity restamp on a
+        # ``PLANNED`` target is suppressed (lets the release take effect); a
+        # DIFFERING identity on a ``PLANNED`` target is a real re-plant and
+        # still wins over the release, exactly as before.
+        if st.agent and not (st.target_lane == Lane.PLANNED and _actor_key(st.agent) == _actor_key(st.current_agent)):
             fields["agent"] = st.agent
             fields.update(_mt_reassignment_binding_fields(st))
         if st.shell_pid:
