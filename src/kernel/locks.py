@@ -356,10 +356,14 @@ def read_lock_record(lock_path: Path) -> LockRecord | None:
     - the file is empty or contains malformed JSON;
     - the JSON is missing required keys or has wrong types.
 
-    This reads the *sidecar record* only -- never a payload -- so it is
-    always safe to call regardless of whether another process currently
-    holds the OS lock. Used by ``auth doctor`` to surface whose process
-    holds the lock without interfering with an in-flight transaction.
+    This reads the *sidecar record* only -- never a payload -- so it never
+    interferes with an in-flight transaction. On POSIX (advisory locks) it
+    always returns the current holder's record whether or not the lock is
+    held. On Windows the record file carries a *mandatory* byte-range lock
+    while held, so a concurrent read is refused, caught, and reported as
+    ``None`` -- the holder is surfaced only once the lock releases. Used by
+    ``auth doctor`` to name the holding process, degrading gracefully to
+    "no holder shown" during the held window on Windows.
     """
     try:
         raw = lock_path.read_bytes()
