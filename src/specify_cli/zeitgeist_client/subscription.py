@@ -63,23 +63,19 @@ lossless field-for-field projection of the relay's documents into JSON-safe
 dicts — no derived priority, ranking, or workflow decision is computed from
 what a team is presently doing.
 
-spec-kitty#4215 (re-scoped 2026-09-14): this module also owns the ONE shared
-read surface over the relay's ``GET /managed/snapshot`` (zeitgeist#296's
-cached initial state + recent-window history). :func:`read_snapshot` is the
-bounded GET primitive; :func:`status` and :func:`activity` are the two
-adapter-facing projections of it the CLI and MCP adapters both call —
-``status`` answers "what is live RIGHT NOW" from the relay's retained,
-unexpired presence/focus registry state (no broadcast required, no listening
-window), and ``activity`` answers "what happened recently" from the SAME
-document's ring history, bounded to the relay's recent window with the
-coverage metadata passed through unchanged. Current state and history are
-distinct outputs by construction here: they are distinct fields of the one
-SnapshotDocument, and an expired historical presence can never appear in
-``status`` because the relay only lists unexpired entries and this side
-re-checks nothing it does not have to. Both are reads of the relay's recent
-window only — anything older is Git's, not this relay's, and the coverage
-metadata says so instead of letting an empty result read as "nothing ever
-happened".
+spec-kitty#4215 (narrowed 2026-09-17): this module also owns the person/
+project selectors on the retained-activity query (:func:`agent_activity`)
+and the seed-window threading on the live watch (:func:`watch`/
+:func:`agent_watch`) — the relay-side contracts are zeitgeist#296's
+``GET /managed/snapshot`` preface and the ``/managed/events`` retained
+history, consumed through ``filtered_stream.FilteredStream`` and
+``history.read_history`` respectively. Current state and history stay
+distinct outputs: ``status`` reads who is live NOW from the snapshot's
+registries, ``activity`` reads what happened recently from the ring, and an
+expired historical presence never appears as live. Both are reads of the
+relay's recent window only — anything older is Git's, not this relay's, and
+the coverage metadata says so instead of letting an empty result read as
+"nothing ever happened".
 
 #10 — ``event`` frames reach this surface too (E1's status moments; before
 #10 ``live_frame`` dropped them unread), and they carry the one payload this
