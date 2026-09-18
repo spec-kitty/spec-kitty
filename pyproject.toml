@@ -2773,7 +2773,6 @@ exclude = [
     "tests/upgrade/test_schema_version_recovery.py",
     "tests/upgrade/test_unified_bundle_migration.py",
     "tests/utils.py",
-    "tests/zeitgeist_client/conftest.py",
     "tests/zeitgeist_client/test_managed_relay_docker_local.py",
     "tests/zeitgeist_client/test_outbox_approval.py",
     "tests/zeitgeist_client/test_outbox_approval_human_gesture.py",
