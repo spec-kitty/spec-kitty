@@ -6029,9 +6029,12 @@ _Access to one team's live Zeitgeist presence/focus stream and status-moment eve
 ## spec-kitty zeitgeist activity
 
 ```
- Usage: spec-kitty zeitgeist activity [OPTIONS] [REPO]
+Usage: spec-kitty zeitgeist activity [OPTIONS] [REPO]
 
  Catch up on retained activity using the same policy as agent watch.
+ ``--person``/``--project`` narrow the catch-up client-side (the relay's
+ retained-events route has no such filter) with matched/withheld counts in the
+ result.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │   repo      [REPO]  Credential-store key this checkout's credential is       │
@@ -6050,10 +6053,27 @@ _Access to one team's live Zeitgeist presence/focus stream and status-moment eve
 │                                               activity.                      │
 │ --consumer            TEXT                    Stable logical agent ID shared │
 │                                               with watch/MCP.                │
+│ --raw                                         Diagnostic read: include own   │
+│                                               session (skip relay            │
+│                                               own-session suppression).      │
+│ --person              TEXT                    Only this teammate's activity  │
+│                                               (the actor's user name, a bare │
+│                                               identifier). Frames with no    │
+│                                               attributed user never match.   │
+│                                               Reported as `selector` in      │
+│                                               --json.                        │
+│ --project             TEXT                    Only this mission's activity:  │
+│                                               frames whose focus_ref or      │
+│                                               event ref is the mission slug  │
+│                                               or begins `<slug>.` (the       │
+│                                               `<mission>.WPxx` focus shape). │
+│                                               Presence frames carry no       │
+│                                               mission correlation.           │
 │ --json                                        Emit plain JSON instead of a   │
 │                                               human-readable summary.        │
 │ --help        -h                              Show this message and exit.    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
+
 ```
 
 ## spec-kitty zeitgeist inbox
@@ -6426,9 +6446,11 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 ## spec-kitty zeitgeist status
 
 ```
- Usage: spec-kitty zeitgeist status [OPTIONS] [REPO]
+Usage: spec-kitty zeitgeist status [OPTIONS] [REPO]
 
- One bounded snapshot of ``repo``'s live presence/focus state.
+ Who is live on ``repo``'s relay right now, answered immediately from the
+ relay's own presence/focus record; a relay without that route falls back to a
+ bounded listen.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │   repo      [REPO]  Credential-store key this checkout's credential is       │
@@ -6437,9 +6459,11 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 │                     current checkout's origin remote.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --timeout          FLOAT RANGE [x>=0.001]  Seconds to listen before          │
-│                                            reporting (clamped to <= 90s, the │
-│                                            honest reported-live ceiling).    │
+│ --timeout          FLOAT RANGE [x>=0.001]  Seconds to wait for the relay,    │
+│                                            and to listen for when it serves  │
+│                                            no snapshot (clamped to <= 90s,   │
+│                                            the honest reported-live          │
+│                                            ceiling).                         │
 │                                            [default: 2.0]                    │
 │ --json                                     Emit plain JSON instead of a      │
 │                                            human-readable summary.           │
@@ -6447,15 +6471,18 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 │                                            diagnostic snapshot.              │
 │ --help     -h                              Show this message and exit.       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
+
 ```
 
 ## spec-kitty zeitgeist watch
 
 ```
- Usage: spec-kitty zeitgeist watch [OPTIONS] [REPO]
+Usage: spec-kitty zeitgeist watch [OPTIONS] [REPO]
 
  Print live frames plus a final summary, bounded by whole-call ``--timeout``
- and ``--max-frames`` count.
+ and ``--max-frames`` count. ``--seed <seconds>`` first replays that much
+ retained history through the same policy, so nothing published during startup
+ is lost.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │   repo      [REPO]  Credential-store key this checkout's credential is       │
@@ -6483,8 +6510,21 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 │                                               override; publisher identity   │
 │                                               still uses                     │
 │                                               SPEC_KITTY_ZEITGEIST_SESSION_… │
+│ --seed                FLOAT RANGE [x>=0.0]    Seconds of retained history to │
+│                                               replay before going live       │
+│                                               (#4215): the relay's race-safe │
+│                                               snapshot/history-to-live       │
+│                                               handoff (follow=1),            │
+│                                               deduplicated by (epoch, seq).  │
+│                                               0 (the default) is             │
+│                                               future-only. A relay that      │
+│                                               serves no snapshot answers 404 │
+│                                               — an honest error, never a     │
+│                                               silent fall-back.              │
+│                                               [default: 0.0]                 │
 │ --help        -h                              Show this message and exit.    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
+
 ```
 
 ## Internal / hidden commands
