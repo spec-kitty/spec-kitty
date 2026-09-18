@@ -153,7 +153,7 @@ def test_watch_json_emits_one_json_line_per_frame(monkeypatch: pytest.MonkeyPatc
         {"schema_version": "1.0.0", "epoch": "e1", "seq": 2, "emitted_at": 2.0, "frame_type": "focus", "payload": {}},
     ]
 
-    def _fake_watch(repo: str, *, timeout_s: float = 5.0, max_frames: int = 500):
+    def _fake_watch(repo: str, *, timeout_s: float = 5.0, max_frames: int = 500, seed_window_s: float | None = None):
         yield from frames
 
     monkeypatch.setattr(subscription, "watch", _fake_watch)
@@ -167,7 +167,7 @@ def test_watch_json_emits_one_json_line_per_frame(monkeypatch: pytest.MonkeyPatc
 
 
 def test_watch_not_checked_out_exits_nonzero(monkeypatch: pytest.MonkeyPatch) -> None:
-    def _raise(repo: str, *, timeout_s: float = 5.0, max_frames: int = 500):
+    def _raise(repo: str, *, timeout_s: float = 5.0, max_frames: int = 500, seed_window_s: float | None = None):
         raise subscription.NotCheckedOut(repo)
         yield  # pragma: no cover - never reached, makes this a generator function
 
@@ -195,7 +195,7 @@ def test_watch_human_branch_frames_event_output(monkeypatch: pytest.MonkeyPatch)
     printed as this tool's own trusted output."""
     import re
 
-    def _fake_watch(repo: str, *, timeout_s: float = 5.0, max_frames: int = 500):
+    def _fake_watch(repo: str, *, timeout_s: float = 5.0, max_frames: int = 500, seed_window_s: float | None = None):
         yield {
             "schema_version": "1.0.0",
             "epoch": "epoch-1",
@@ -225,7 +225,7 @@ def test_watch_json_keeps_the_raw_payload_for_event_frames(monkeypatch: pytest.M
 
     payload = {"observed_at": 1.0, "kind": "mission.status.changed", "attrs": {"to_lane": "for_review"}}
 
-    def _fake_watch(repo: str, *, timeout_s: float = 5.0, max_frames: int = 500):
+    def _fake_watch(repo: str, *, timeout_s: float = 5.0, max_frames: int = 500, seed_window_s: float | None = None):
         yield {"schema_version": "1.0.0", "epoch": "e", "seq": 4, "emitted_at": 1.0, "frame_type": "event", "payload": payload}
 
     monkeypatch.setattr(subscription, "watch", _fake_watch)

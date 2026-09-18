@@ -120,9 +120,9 @@ def _validated_seed_window(seed_window_s: float | None) -> float | None:
     if seed_window_s is None:
         return None
     value = float(seed_window_s)
-    if not math.isfinite(value) or value <= 0:
-        raise ValueError("seed_window_s must be > 0 (or None/0 for future-only)")
-    return value
+    if not math.isfinite(value) or value < 0:
+        raise ValueError("seed_window_s must be >= 0 (or None for future-only)")
+    return value if value > 0 else None
 
 
 def _is_overlap(live_frame_obj: LiveFrame, overlap: set[tuple[str, int]] | None) -> bool:

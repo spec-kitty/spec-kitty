@@ -276,7 +276,13 @@ class ManagedStreamDouble:
     (spec-kitty#4215): ``snapshot_document`` is returned as JSON when set,
     ``snapshot_body`` overrides it with raw bytes for malformed-response
     cases, and otherwise the route answers ``snapshot_status`` (404 by
-    default — a relay that does not serve snapshots at all).
+    default — a relay that does not serve snapshots at all). A request
+    carrying ``follow=1`` (zeitgeist#296's race-safe handoff) is answered as
+    SSE instead: the document (or raw body) is written as the FIRST
+    ``data:`` event — exactly the preface the real relay's
+    ``ManagedStreamingResponse`` sends — and the connection then streams
+    from the same :attr:`outgoing` queue ``/managed/stream`` uses, so a test
+    can push live frames after the preface and reproduce overlap.
 
     Never a real Docker Zeitgeist container — same discipline as
     ``TeamKittyDouble``'s own docstring; this double never leaves
@@ -343,6 +349,10 @@ class ManagedStreamDouble:
                 self.wfile.flush()
 
             def _serve_snapshot(self) -> None:
+                query = self.path.split("?", 1)[1] if "?" in self.path else ""
+                if "follow=1" in query.split("&"):
+                    self._serve_follow_snapshot()
+                    return
                 body = double.snapshot_body
                 if body is None and double.snapshot_document is not None:
                     body = json.dumps(double.snapshot_document).encode()
@@ -361,6 +371,36 @@ class ManagedStreamDouble:
                 self.send_header("X-Zeitgeist-Filter-Own", "true" if "filterOwn=true" in self.path else "false")
                 self.end_headers()
                 self.wfile.write(body)
+
+            def _serve_follow_snapshot(self) -> None:
+                """zeitgeist#296's follow shape: the SnapshotDocument as the
+                first SSE ``data:`` event, then live frames from the same
+                queue the stream route serves — the reserve-before-snapshot
+                ordering the race-safety argument depends on, modeled as
+                preface-then-queue on one connection."""
+                body = double.snapshot_body
+                if body is None and double.snapshot_document is not None:
+                    body = json.dumps(double.snapshot_document).encode()
+                if body is None:
+                    self.send_response(double.snapshot_status)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                self.send_response(200)
+                self.send_header("X-Zeitgeist-Filter-Own", "true" if "filterOwn=true" in self.path else "false")
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Cache-Control", "no-cache")
+                self.send_header("Transfer-Encoding", "chunked")
+                self.end_headers()
+                with contextlib.suppress(BrokenPipeError, ConnectionResetError):
+                    self._write_chunk(b"data: " + body + b"\n\n")
+                    while True:
+                        item = double.outgoing.get()
+                        if item is None:
+                            break
+                        self._write_chunk(item)
+                    self.wfile.write(b"0\r\n\r\n")
+                    self.wfile.flush()
 
             def do_GET(self) -> None:  # noqa: N802
                 with double._lock:

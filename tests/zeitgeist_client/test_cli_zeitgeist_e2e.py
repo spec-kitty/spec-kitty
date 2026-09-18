@@ -379,3 +379,166 @@ def test_watch_end_to_end_delivers_a_status_moment_event_frame(state_root: Path,
     assert frame["payload"]["kind"] == "mission.status.changed"
     assert frame["payload"]["attrs"] == {"wp_id": "WP01", "to_lane": "for_review"}
     assert json.loads(lines[1])["type"] == "watch_summary"
+
+
+# --- spec-kitty#4215: seeded watch and person/project activity, end to end ---
+
+
+def _seed_document(events: list[dict[str, object]]) -> dict[str, object]:
+    seq = max((int(e["seq"]) for e in events), default=0)
+    return {
+        "schema_version": "1.0.0",
+        "epoch": "epoch-1",
+        "seq": seq,
+        "cursor": f"epoch-1:{seq}",
+        "observed_at": now_epoch(),
+        "presence": [],
+        "focus": [],
+        "events": events,
+        "coverage": {
+            "history_basis": "retained" if events else "empty",
+            "retained_frames": len(events),
+            "returned_frames": len(events),
+            "follow": True,
+        },
+    }
+
+
+def test_watch_seed_end_to_end_over_a_real_loopback_follow_double(state_root: Path, managed_stream_double) -> None:
+    """#4215 end to end: `watch --seed` replays the relay's retained history
+    first (the follow=1 preface), then continues live, deduplicating the
+    overlap the relay's reserve-before-snapshot order can produce — one CLI
+    invocation, one connection, no lost startup window."""
+    credentials.store(
+        repo="github.com/acme/spec-kitty", relay_url=managed_stream_double.url, token="team-a-cred", session_ref="issuer-reader", token_kind="shared_team"
+    )
+    retained = _frame(seq=1, frame=_presence(session_ref="a" * 12))
+    managed_stream_double.snapshot_document = _seed_document([retained])
+    # The same (epoch, seq) arrives live after the preface: overlap to drop.
+    managed_stream_double.push_frame(retained)
+    managed_stream_double.push_frame(_frame(seq=2, frame=_presence(session_ref="c" * 12)))
+    managed_stream_double.close_stream()
+
+    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--timeout", "2.0", "--seed", "120", "--json"])
+
+    assert result.exit_code == 0, result.stdout
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    frames = [json.loads(line) for line in lines[:-1]]
+    summary = json.loads(lines[-1])
+    assert [f["seq"] for f in frames] == [1, 2]  # history, then the NEW live frame; the overlap copy is deduplicated
+    assert summary["type"] == "watch_summary"
+    assert summary["seed"]["coverage"]["history_basis"] == "retained"
+    assert any(p.startswith("/managed/snapshot?") and "follow=1" in p for p in managed_stream_double.requested_paths)
+
+
+def test_watch_seed_reports_a_relay_without_the_route_honestly(state_root: Path, managed_stream_double) -> None:
+    """A requested seed against a snapshot-less relay is a clean, named
+    error — never a silent fall-back that looks like a future-only watch."""
+    credentials.store(
+        repo="github.com/acme/spec-kitty", relay_url=managed_stream_double.url, token="team-a-cred", session_ref="issuer-reader", token_kind="shared_team"
+    )
+    # snapshot_document unset + snapshot_status 404 is the double's default.
+
+    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--timeout", "1.0", "--seed", "60", "--json"])
+
+    assert result.exit_code == 1
+    assert "could not reach the relay" in result.stdout
+
+
+@pytest.fixture()
+def events_relay(monkeypatch: pytest.MonkeyPatch) -> object:
+    """A loopback double for ``GET /managed/events`` (the retained-history
+    route `activity` reads) — file-local, mirroring test_history.py's own
+    fixture for the same reason that file keeps its copy: pytest.ini keeps
+    ``.`` off pythonpath, so fixtures are not shared across directories."""
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+    from types import SimpleNamespace
+
+    from specify_cli.zeitgeist_client import history
+
+    state = SimpleNamespace(
+        body={"schema_version": "1.0", "epoch": "epoch-1", "seq": 3, "events": []}, requests=[]
+    )
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802
+            state.requests.append(self.path)
+            body = json.dumps(state.body).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            # The real relay confirms own-session filtering when asked.
+            self.send_header("X-Zeitgeist-Filter-Own", "true" if "filterOwn=true" in self.path else "false")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args: object) -> None:
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    monkeypatch.setattr(
+        history.credentials,
+        "load",
+        lambda **kwargs: SimpleNamespace(
+            relay_url=f"http://127.0.0.1:{server.server_port}",
+            token="outer",
+            capability_credential="inner",
+            session_ref="issuer-reader",
+            # Admission metadata AgentDelivery scopes receipts by (stable
+            # across renewal); the raw read never uses the token values.
+            team="acme",
+            host="github.com",
+            repo_slug="acme/spec-kitty",
+            focus_session_ref=None,
+            focus_capability_credential=None,
+        ),
+    )
+    try:
+        yield state
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+def _history_frame(seq: int, frame: dict[str, object]) -> dict[str, object]:
+    return {"schema_version": "1.0.0", "epoch": "epoch-1", "seq": seq, "emitted_at": now_epoch(), "frame": frame}
+
+
+def _focus_payload(focus_ref: str, user: str) -> dict[str, object]:
+    return {"type": "focus", "focus": {"actor": {"user": user, "session_ref": "b" * 12}, "focus_ref": focus_ref, "state": "active"}}
+
+
+def test_activity_person_and_project_end_to_end_over_a_real_events_double(
+    state_root: Path, events_relay
+) -> None:
+    """#4215 end to end: the CLI's `--person`/`--project` selectors run
+    against a real /managed/events response — the whole path (command →
+    agent_activity → history.read_history → HTTP) with nothing mocked, and
+    the selector's matched/withheld counts in the --json result."""
+    events_relay.body["events"] = [
+        _history_frame(1, _focus_payload("034-demo.WP01", "alice")),
+        _history_frame(2, _focus_payload("034-demo.WP02", "bob")),
+        _history_frame(3, _focus_payload("035-other", "alice")),
+    ]
+
+    result = runner.invoke(
+        app,
+        ["activity", "github.com/acme/spec-kitty", "--person", "alice", "--project", "034-demo", "--json", "--raw"],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    assert [f["seq"] for f in payload["frames"]] == [1]
+    assert payload["frames"][0]["payload"]["focus_ref"] == "034-demo.WP01"
+    assert payload["selector"] == {
+        "person": "alice",
+        "project": "034-demo",
+        "matched_frames": 1,
+        "withheld_frames": 2,
+    }
+    # The read went to the real retained-history route, unfiltered by the relay.
+    assert events_relay.requests[0].startswith("/managed/events?")
+    assert "filterOwn=false" in events_relay.requests[0]

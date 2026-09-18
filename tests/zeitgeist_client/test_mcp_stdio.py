@@ -671,3 +671,72 @@ async def test_send_tool_schema_takes_no_credential_and_optional_repo() -> None:
         assert "capability_credential" not in props
         assert "repo" not in (tools[name].inputSchema or {}).get("required", [])
     assert set((tools["zeitgeist_send"].inputSchema or {})["properties"]) >= {"kind", "body", "repo", "audience", "thread", "allow_truncate"}
+
+
+# --- spec-kitty#4215: CLI/MCP parity for the selectors and the seeded watch ---
+
+
+async def test_activity_tool_threads_the_selectors_through_the_shared_service(
+    state_root: Path, managed_stream_double, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The MCP tool and the CLI command call the SAME `agent_activity` with
+    the same `person`/`project` selectors — no second filtering
+    implementation on the agent surface."""
+    captured: dict[str, object] = {}
+
+    def _capture(repo, **kwargs):
+        captured.update(kwargs, repo=repo)
+        return {
+            "repo": repo,
+            "frames": [],
+            "withheld": {"filtered": 0, "duplicates": 0, "rate": 0, "budget": 0},
+            "receipt": None,
+            "selector": {"person": kwargs.get("person"), "project": kwargs.get("project"), "matched_frames": 0, "withheld_frames": 0},
+        }
+
+    monkeypatch.setattr(subscription, "agent_activity", _capture)
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool(
+            "zeitgeist_activity",
+            {"repo": "github.com/acme/spec-kitty", "person": "alice", "project": "034-demo"},
+        )
+    assert not result.isError
+    assert captured["repo"] == "github.com/acme/spec-kitty"
+    assert captured["person"] == "alice"
+    assert captured["project"] == "034-demo"
+    assert result.structuredContent["selector"]["person"] == "alice"
+
+
+async def test_watch_tool_seeds_from_the_follow_preface(state_root: Path, managed_stream_double) -> None:
+    """CLI/MCP parity for the race-safe handoff: `seed_window_s` replays the
+    preface's retained history first — through the same novelty policy, so
+    nothing published during startup is lost — and surfaces the preface's
+    coverage metadata as `seed`."""
+    _checkout(managed_stream_double.url)
+    managed_stream_double.snapshot_document = {
+        "schema_version": "1.0.0",
+        "epoch": "epoch-1",
+        "seq": 2,
+        "cursor": "epoch-1:2",
+        "observed_at": now_epoch(),
+        "presence": [],
+        "focus": [],
+        "events": [_frame(seq=1, frame=_presence(session_ref="a" * 12)), _frame(seq=2, frame=_event(session_ref="c" * 12))],
+        "coverage": {"history_basis": "retained", "retained_frames": 2, "returned_frames": 2, "follow": True},
+    }
+    managed_stream_double.push_frame(_frame(seq=3, frame=_presence(session_ref="c" * 12)))
+    managed_stream_double.close_stream()
+
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool(
+            "zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0, "seed_window_s": 120.0}
+        )
+    assert not result.isError
+    frames = result.structuredContent["frames"]
+    assert [f["seq"] for f in frames] == [1, 2, 3]
+    assert result.structuredContent["seed"]["coverage"]["history_basis"] == "retained"
+    assert any(
+        managed_stream_double.requested_paths[0].startswith("/managed/snapshot?") for _ in [0]
+    ) and "follow=1" in managed_stream_double.requested_paths[0]
