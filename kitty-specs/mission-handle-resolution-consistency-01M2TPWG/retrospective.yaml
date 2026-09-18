@@ -1,0 +1,150 @@
+schema_version: 1
+mission_id: 01M2TPWGYZ09QKTA148YWBXSDX
+mission_slug: mission-handle-resolution-consistency-01M2TPWG
+mission_number:
+friendly_name: Consistent Mission-Handle Resolution
+mission_type: software-dev
+target_branch: issue-4631-4682-mission-handle-resolution
+created_at: '2026-09-18T20:48:25.439340+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-18T20:48:25.439340+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-006
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-011
+not_helpful:
+- id: n-003
+  category: doc
+  summary: analysis-report.md records 4 finding(s)
+  evidence_refs:
+  - e-014
+  details: The analysis-report.md artifact for this mission records 4 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: process
+  summary: WP02 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-012
+  details: WP WP02 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: process
+  summary: WP05 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-013
+  details: WP WP05 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/mission-handle-resolution-consistency-01M2TPWG/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/mission-handle-resolution-consistency-01M2TPWG/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/mission-handle-resolution-consistency-01M2TPWG/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/mission-handle-resolution-consistency-01M2TPWG/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/mission-handle-resolution-consistency-01M2TPWG/tasks/WP01-shared-seam.md
+- id: e-006
+  kind: file
+  path: kitty-specs/mission-handle-resolution-consistency-01M2TPWG/tasks/WP02-research-gate.md
+- id: e-007
+  kind: file
+  path: kitty-specs/mission-handle-resolution-consistency-01M2TPWG/tasks/WP03-plan-tasks-notfound.md
+- id: e-008
+  kind: file
+  path: kitty-specs/mission-handle-resolution-consistency-01M2TPWG/tasks/WP04-merge-notfound.md
+- id: e-009
+  kind: file
+  path: kitty-specs/mission-handle-resolution-consistency-01M2TPWG/tasks/WP05-next-discovery.md
+- id: e-010
+  kind: file
+  path: kitty-specs/mission-handle-resolution-consistency-01M2TPWG/tasks/WP06-regression-net.md
+- id: e-011
+  kind: file
+  path: kitty-specs/mission-handle-resolution-consistency-01M2TPWG/status.events.jsonl
+- id: e-012
+  kind: event_range
+  path: kitty-specs/mission-handle-resolution-consistency-01M2TPWG/status.events.jsonl
+  range: 01M2TZCW5P3T6DWX0B216V939N
+- id: e-013
+  kind: event_range
+  path: kitty-specs/mission-handle-resolution-consistency-01M2TPWG/status.events.jsonl
+  range: 01M2TZQYJR034K3F9KJXH6MR6Y
+- id: e-014
+  kind: file
+  path: kitty-specs/mission-handle-resolution-consistency-01M2TPWG/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

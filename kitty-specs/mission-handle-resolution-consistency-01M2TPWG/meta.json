@@ -1,0 +1,35 @@
+{
+  "accept_commit": "50965818c238895f0aed123ecdb63690c0d7ba04",
+  "acceptance_history": [
+    {
+      "accept_commit": "50965818c238895f0aed123ecdb63690c0d7ba04",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-18T20:43:50.845271+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "247e2f17d3ab86d26210e89fab6958e3fe8794c4"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-18T20:43:50.845271+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "247e2f17d3ab86d26210e89fab6958e3fe8794c4",
+  "baseline_merge_commit": "9fdd59fff0f2c343bb75ff281c05f053e0416ae4",
+  "created_at": "2026-09-18T16:51:37.583518+00:00",
+  "flattened": true,
+  "friendly_name": "Consistent Mission-Handle Resolution",
+  "merged_at": "2026-09-18T20:48:11.384976+00:00",
+  "merged_commit": "ac1682fe0f0950eaec0e6b063aff9bbccf342e7c",
+  "mid8": "01M2TPWG",
+  "mission_id": "01M2TPWGYZ09QKTA148YWBXSDX",
+  "mission_number": null,
+  "mission_slug": "mission-handle-resolution-consistency-01M2TPWG",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "New and returning users hit inconsistent, confusing behavior when they mistype a mission handle or run a command without one: some commands help, others give wrong advice, and one silently scaffolds a junk mission directory. This mission makes handle resolution predictable across the CLI so people can recover from a typo and discover their available missions without reading source code. It closes GitHub issues #4631 and #4682 in the MVP-launch milestone.",
+  "purpose_tldr": "Make every CLI command respond to an unknown or missing mission handle the same clear way, instead of misleading errors or an accidental junk mission folder.",
+  "slug": "mission-handle-resolution-consistency-01M2TPWG",
+  "source_description": "Closes #4631 (nonexistent --mission diverges across plan/tasks/research/merge) and #4682 (bare `next` hard-errors instead of listing missions). Backed by two researcher-robbie root-cause briefs.",
+  "status_phase": "1",
+  "target_branch": "issue-4631-4682-mission-handle-resolution",
+  "vcs": "git"
+}

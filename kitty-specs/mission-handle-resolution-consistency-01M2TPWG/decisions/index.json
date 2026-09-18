@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-18T16:52:18.047459Z",
+      "decision_id": "01M2TPXRFZGTW6562ZFEZH0Z7Z",
+      "final_answer": "Auto-select and proceed: when next is run without --mission and exactly one mission exists, resolve to it and continue (adopt the FR-004 _sole_mission_slug_or_none convention). 0 missions -> structured no-missions error; >1 -> list handles and exit non-usage.",
+      "input_key": "next_single_mission_behavior",
+      "mission_id": "01M2TPWGYZ09QKTA148YWBXSDX",
+      "mission_slug": "mission-handle-resolution-consistency-01M2TPWG",
+      "opened_by": "cli",
+      "options": [
+        "Auto-select and proceed",
+        "List and require explicit selection",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When 'spec-kitty next' is run without --mission and exactly one mission exists, should it auto-select that mission and proceed, or list it and require an explicit --mission?",
+      "rationale": null,
+      "resolved_at": "2026-09-18T17:21:27.388409Z",
+      "resolved_by": null,
+      "slot_key": "specify.next.single-mission-behavior",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-18T16:52:26.508836Z",
+      "decision_id": "01M2TPY0RC30KYGC27EDJ77F7H",
+      "final_answer": "Listing entries show slug + mid8 + friendly_name (friendly_name read from meta.json), directly addressing the opaque-ULID legibility complaint.",
+      "input_key": "mission_listing_fields",
+      "mission_id": "01M2TPWGYZ09QKTA148YWBXSDX",
+      "mission_slug": "mission-handle-resolution-consistency-01M2TPWG",
+      "opened_by": "cli",
+      "options": [
+        "mission_slug only",
+        "slug + mid8 + friendly_name",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When a command lists available missions (bare next with >1 mission), what should each entry show?",
+      "rationale": null,
+      "resolved_at": "2026-09-18T17:21:35.672366Z",
+      "resolved_by": null,
+      "slot_key": "specify.listing.handle-legibility",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M2TPWGYZ09QKTA148YWBXSDX",
+  "version": 1
+}

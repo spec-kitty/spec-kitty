@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "mission_slug": "mission-handle-resolution-consistency-01M2TPWG",
+  "mission_id": "01M2TPWGYZ09QKTA148YWBXSDX",
+  "mission_branch": "kitty/mission-mission-handle-resolution-consistency-01M2TPWG",
+  "target_branch": "issue-4631-4682-mission-handle-resolution",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/context/mission_resolver.py",
+        "tests/specify_cli/context/test_mission_selection.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/research.py",
+        "tests/research/test_research_missing_mission.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_check_prerequisites.py",
+        "src/specify_cli/cli/commands/agent/mission_feature_resolution.py",
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_handle_not_found.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/merge.py",
+        "src/specify_cli/merge/resolve.py",
+        "tests/merge/test_merge_missing_mission.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "tests/next/test_next_missing_mission_discovery.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/specify_cli/cli/commands/test_handle_resolution_consistency.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-18T18:06:15.887957+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "60a759104a672f17639c1a0175f5f377d0e6d2e6"
+}
