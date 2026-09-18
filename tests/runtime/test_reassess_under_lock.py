@@ -392,4 +392,20 @@ class TestUpgradeDryRunPreviewInsulatedFromReassess:
         second = case.run("upgrade", "--dry-run", "--json", "--no-worktrees")
 
         assert first.returncode == second.returncode == 0, (first, second)
-        assert first.stdout == second.stdout, "dry-run preview must be byte-identical across repeats"
+        # #4704 made an explicit ``upgrade --dry-run --json`` query resolve the
+        # live latest version, so the preview now legitimately carries a real
+        # ``cli.fetched_at`` lookup timestamp that differs between two runs.
+        # Everything else must remain identical, so normalize that one volatile
+        # field out before asserting the preview is otherwise stable.
+        import json
+
+        def _without_fetch_timestamp(raw: str) -> object:
+            payload = json.loads(raw)
+            cli = payload.get("cli")
+            if isinstance(cli, dict):
+                cli["fetched_at"] = None
+            return payload
+
+        assert _without_fetch_timestamp(first.stdout) == _without_fetch_timestamp(second.stdout), (
+            "dry-run preview must be identical across repeats apart from the live fetch timestamp"
+        )
