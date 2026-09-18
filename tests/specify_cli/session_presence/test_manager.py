@@ -262,6 +262,20 @@ class TestBuildContent:
 
         assert content.project_slug == "configured-project"
 
+    def test_dry_run_slug_comes_from_identity_config(self, tmp_path: Path) -> None:
+        """Dry-run preview reads the same canonical slug source as a live write (#4712)."""
+        from specify_cli.core.agent_config import AgentConfig
+
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text("project:\n  slug: configured-project\n", encoding="utf-8")
+        manager = SessionPresenceManager(tmp_path, AgentConfig(available=[]))
+
+        with patch("specify_cli.session_presence.manager.local_presence_content") as local_content:
+            manager.update(dry_run=True)
+
+        local_content.assert_called_once_with("configured-project")
+
     def test_health_migration_required_when_compat_returns_block(self, tmp_path: Path) -> None:
         from specify_cli.compat import Decision
 
