@@ -143,26 +143,29 @@ def _report_connection_fault(exc: BaseException) -> None:
     raise typer.Exit(1)
 
 
-def _observation_age(entry: dict[str, Any], *, now: float, anchor: float | None = None, fetched_at: float | None = None) -> str:
-    """An ``observed 40s ago`` suffix for an entry the relay timestamped, and
-    an empty string otherwise — a "live now" line must never imply the
-    observation was made at read time (spec-kitty#4215).
-
-    Skew-free when the snapshot path supplies the document's own
-    ``observed_at`` anchor (#4335, folded): entry age at the document is
-    ``anchor − entry.observed_at`` (both on the relay's clock, so
-    relay/client skew cancels) plus the locally-measured seconds since
-    fetch. Without an anchor — the fallback listen path, whose entries
+def _entry_age_s(entry_observed_at: float, *, now: float, anchor: float | None, fetched_at: float | None) -> float:
+    """One entry's age in seconds, skew-free when the snapshot path supplied
+    the document's own ``observed_at`` anchor (#4335, folded): entry age at
+    the document is ``anchor − entry.observed_at`` (both on the relay's
+    clock, so relay/client skew cancels) plus the locally-measured seconds
+    since fetch. Without an anchor — the fallback listen path, whose entries
     carry only the relay's own frame timestamps — the age is the legacy
     local-clock difference, skew and all, because that is the only clock
     those timestamps can be read against."""
+    if anchor is not None and fetched_at is not None:
+        return (anchor - entry_observed_at) + max(0.0, now - fetched_at)
+    return now - entry_observed_at
+
+
+def _observation_age(entry: dict[str, Any], *, now: float, anchor: float | None = None, fetched_at: float | None = None) -> str:
+    """An ``observed 40s ago`` suffix for an entry the relay timestamped, and
+    an empty string otherwise — a "live now" line must never imply the
+    observation was made at read time (spec-kitty#4215). Age derivation (and
+    its skew-free/legacy split) lives in :func:`_entry_age_s`."""
     observed_at = entry.get("observed_at")
     if not isinstance(observed_at, (int, float)) or isinstance(observed_at, bool):
         return ""
-    if anchor is not None and fetched_at is not None:
-        age = (float(anchor) - float(observed_at)) + max(0.0, now - float(fetched_at))
-    else:
-        age = now - float(observed_at)
+    age = _entry_age_s(float(observed_at), now=now, anchor=anchor, fetched_at=fetched_at)
     return f"  observed {max(0, int(age))}s ago"
 
 
@@ -197,9 +200,11 @@ def _print_snapshot_summary(result: dict[str, Any]) -> None:
             console.print("  (nothing was published while this command listened — not the same as nobody working)")
         return
     for p in presence:
-        console.print(f"  presence  {p.get('session_ref')}  user={p.get('user')}  path={p.get('path')}{_observation_age(p, now=now, anchor=anchor, fetched_at=fetched_at)}")
+        age = _observation_age(p, now=now, anchor=anchor, fetched_at=fetched_at)
+        console.print(f"  presence  {p.get('session_ref')}  user={p.get('user')}  path={p.get('path')}{age}")
     for f in focus:
-        console.print(f"  focus     {f.get('session_ref')}  {f.get('focus_ref')}  state={f.get('state')}{_observation_age(f, now=now, anchor=anchor, fetched_at=fetched_at)}")
+        age = _observation_age(f, now=now, anchor=anchor, fetched_at=fetched_at)
+        console.print(f"  focus     {f.get('session_ref')}  {f.get('focus_ref')}  state={f.get('state')}{age}")
 
 
 @app.command()
