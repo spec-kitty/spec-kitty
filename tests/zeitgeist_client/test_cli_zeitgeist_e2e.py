@@ -93,6 +93,46 @@ def test_status_end_to_end_answers_a_quiet_repo_from_the_relay_snapshot(state_ro
     assert "observed 40s ago" in result.stdout
 
 
+def test_status_end_to_end_dates_entries_skew_free_from_the_document_anchor(state_root: Path, managed_stream_double) -> None:
+    """#4335 (folded here): the relay's clock is an HOUR ahead of this
+    machine's. Entry age is derived from the document's own ``observed_at``
+    anchor (both timestamps on the relay's clock) plus only the
+    locally-measured time since fetch — so the entry the relay observed 40
+    seconds before its anchor still prints ``observed 40s ago``. The legacy
+    local-clock subtraction would read ``now - (relay_clock - 40)`` as
+    strongly negative and clamp it to a lying ``observed 0s ago``."""
+    credentials.store(
+        repo="github.com/acme/spec-kitty", relay_url=managed_stream_double.url, token="team-a-cred", session_ref="issuer-reader", token_kind="shared_team"
+    )
+    relay_ahead_by_s = 3600.0
+    anchor = now_epoch() + relay_ahead_by_s
+    managed_stream_double.snapshot_document = {
+        "schema_version": "1.0.0",
+        "epoch": "epoch-1",
+        "seq": 4,
+        "cursor": "epoch-1:4",
+        "observed_at": anchor,
+        "presence": [
+            {
+                "observed_at": anchor - 40,
+                "ttl_s": 60,
+                "expires_in_s": 20.0,
+                "actor": {"session_ref": "d" * 12, "user": "alice"},
+                "path": "src/app.py",
+            }
+        ],
+        "focus": [],
+        "events": [],
+        "coverage": {"history_basis": "empty", "retained_frames": 0, "returned_frames": 0, "follow": False},
+    }
+
+    result = runner.invoke(app, ["status", "github.com/acme/spec-kitty", "--timeout", "2.0"])
+
+    assert result.exit_code == 0
+    assert "observed 40s ago" in result.stdout
+    assert "observed 0s ago" not in result.stdout
+
+
 def test_status_end_to_end_says_a_quiet_listen_is_not_proof_nobody_is_working(state_root: Path, managed_stream_double) -> None:
     """The honesty half of the same acceptance criterion: on a relay with no
     snapshot route, an empty result is reported as "nothing was published",

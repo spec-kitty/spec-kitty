@@ -125,6 +125,16 @@ def _validated_seed_window(seed_window_s: float | None) -> float | None:
     return value if value > 0 else None
 
 
+def _finite_number(value: Any) -> float | None:
+    """A real, finite float — the relay-clock anchor gate for ``observed_at``
+    (``Infinity``/``NaN``/bools/strings are not timestamps any honest reader
+    should date an entry against)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    number = float(value)
+    return number if math.isfinite(number) else None
+
+
 def _is_overlap(live_frame_obj: LiveFrame, overlap: set[tuple[str, int]] | None) -> bool:
     """Whether a LIVE frame's ``(epoch, seq)`` identity already appeared in
     a seeded history — the relay's follow contract delivers such a frame
@@ -177,6 +187,14 @@ class FilteredStream:
         # watch() seeded from (None until one does). One call's preface never
         # leaks into the next — watch() resets it at the top of every call.
         self._seed_coverage: dict[str, Any] | None = None
+        # spec-kitty#4335 (folded here): the last seeding SnapshotDocument's
+        # top-level ``observed_at`` — the relay's own receipt clock, the single
+        # anchor every entry ``observed_at`` in that document is measured
+        # against. A reader dating an entry skew-free needs it (entry age at
+        # the document is anchor − entry.observed_at, both relay-clock; only
+        # the time since fetch is measured locally). None when the last
+        # document carried none or nothing has seeded yet.
+        self._seed_anchor: float | None = None
 
     def _headers(self) -> dict[str, str]:
         """Two independent gates, each with its OWN credential — see the
@@ -250,7 +268,12 @@ class FilteredStream:
         except (json.JSONDecodeError, UnicodeDecodeError):
             return False
         with self._lock:
-            return self._state.seed_snapshot(doc)
+            applied = self._state.seed_snapshot(doc)
+            if applied:
+                # #4335: keep the document's own receipt-clock anchor so a
+                # reader can date entries skew-free (see seed_anchor).
+                self._seed_anchor = _finite_number(doc.get("observed_at")) if isinstance(doc, Mapping) else None
+            return applied
 
     def seed_coverage(self) -> Mapping[str, Any] | None:
         """The coverage metadata of the last follow-preface :meth:`watch`
@@ -258,6 +281,16 @@ class FilteredStream:
         watch has run). Read-only."""
         with self._lock:
             return dict(self._seed_coverage) if self._seed_coverage is not None else None
+
+    def seed_anchor(self) -> float | None:
+        """The last seeding document's top-level ``observed_at`` (the relay's
+        receipt clock), or ``None``. The skew-free anchor a reader dates
+        snapshot entries against (#4335): entry age at the document is
+        ``anchor − entry.observed_at`` on the relay's clock alone, so only
+        the locally-measured time since fetch carries clock skew at all.
+        Read-only."""
+        with self._lock:
+            return self._seed_anchor
 
     def _read_preface(self, resp: object) -> Mapping[str, Any]:
         """spec-kitty#4215: read the first SSE ``data:`` event off a
@@ -293,6 +326,7 @@ class FilteredStream:
             with self._lock:
                 if not self._state.seed_snapshot(doc):
                     raise ValueError("relay's snapshot preface was not a usable SnapshotDocument")
+                self._seed_anchor = _finite_number(doc.get("observed_at"))
             return cast(Mapping[str, Any], doc)
 
     def _seed_history(self, doc: Mapping[str, Any]) -> tuple[list[LiveFrame], set[tuple[str, int]]]:
@@ -374,6 +408,7 @@ class FilteredStream:
         seed = _validated_seed_window(seed_window_s)
         with self._lock:
             self._seed_coverage = None
+            self._seed_anchor = None  # a future-only watch seeds from no document
         req = urllib.request.Request(self._watch_url(seed), headers=self._headers(), method="GET")
         opener = budget.NoRedirects.build()
         deadline = None if idle_timeout_s is None else time.monotonic() + idle_timeout_s

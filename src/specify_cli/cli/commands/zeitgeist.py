@@ -143,14 +143,27 @@ def _report_connection_fault(exc: BaseException) -> None:
     raise typer.Exit(1)
 
 
-def _observation_age(entry: dict[str, Any], *, now: float) -> str:
+def _observation_age(entry: dict[str, Any], *, now: float, anchor: float | None = None, fetched_at: float | None = None) -> str:
     """An ``observed 40s ago`` suffix for an entry the relay timestamped, and
     an empty string otherwise — a "live now" line must never imply the
-    observation was made at read time (spec-kitty#4215)."""
+    observation was made at read time (spec-kitty#4215).
+
+    Skew-free when the snapshot path supplies the document's own
+    ``observed_at`` anchor (#4335, folded): entry age at the document is
+    ``anchor − entry.observed_at`` (both on the relay's clock, so
+    relay/client skew cancels) plus the locally-measured seconds since
+    fetch. Without an anchor — the fallback listen path, whose entries
+    carry only the relay's own frame timestamps — the age is the legacy
+    local-clock difference, skew and all, because that is the only clock
+    those timestamps can be read against."""
     observed_at = entry.get("observed_at")
     if not isinstance(observed_at, (int, float)) or isinstance(observed_at, bool):
         return ""
-    return f"  observed {max(0, int(now - float(observed_at)))}s ago"
+    if anchor is not None and fetched_at is not None:
+        age = (float(anchor) - float(observed_at)) + max(0.0, now - float(fetched_at))
+    else:
+        age = now - float(observed_at)
+    return f"  observed {max(0, int(age))}s ago"
 
 
 def _print_snapshot_summary(result: dict[str, Any]) -> None:
@@ -160,6 +173,16 @@ def _print_snapshot_summary(result: dict[str, Any]) -> None:
     # kernel.clock is the single door for wall-clock reads (FR-012(b));
     # `time.monotonic()` below is a duration, not a clock read, and stays.
     now = now_epoch()
+    # #4335 (folded): the snapshot path's result carries the document's own
+    # receipt-clock anchor and the local fetch time, so entry ages below are
+    # derived skew-free; the listen path carries neither and ages the legacy
+    # way (see _observation_age).
+    anchor = result.get("observed_at")
+    if not isinstance(anchor, (int, float)) or isinstance(anchor, bool):
+        anchor = None
+    fetched_at = result.get("fetched_at")
+    if not isinstance(fetched_at, (int, float)) or isinstance(fetched_at, bool):
+        fetched_at = None
     console.print(f"[bold]{result.get('repo')}[/bold]  epoch={result.get('epoch')}")
     if from_snapshot:
         console.print("  source: the relay's own record of who is live now")
@@ -174,9 +197,9 @@ def _print_snapshot_summary(result: dict[str, Any]) -> None:
             console.print("  (nothing was published while this command listened — not the same as nobody working)")
         return
     for p in presence:
-        console.print(f"  presence  {p.get('session_ref')}  user={p.get('user')}  path={p.get('path')}{_observation_age(p, now=now)}")
+        console.print(f"  presence  {p.get('session_ref')}  user={p.get('user')}  path={p.get('path')}{_observation_age(p, now=now, anchor=anchor, fetched_at=fetched_at)}")
     for f in focus:
-        console.print(f"  focus     {f.get('session_ref')}  {f.get('focus_ref')}  state={f.get('state')}{_observation_age(f, now=now)}")
+        console.print(f"  focus     {f.get('session_ref')}  {f.get('focus_ref')}  state={f.get('state')}{_observation_age(f, now=now, anchor=anchor, fetched_at=fetched_at)}")
 
 
 @app.command()

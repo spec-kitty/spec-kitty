@@ -217,7 +217,28 @@ def test_status_reports_a_quiet_team_from_the_relay_snapshot_without_listening(s
     assert result["epoch"] == "epoch-1"
     assert [p["session_ref"] for p in result["presence"]] == ["a" * 12]
     assert result["presence"][0]["observed_at"] == 1_760_000_100.0
+    # #4335 (folded): the document's own receipt-clock anchor and the local
+    # fetch time ride the result, so a reader can date each entry skew-free
+    # (anchor − entry.observed_at, both relay-clock, + time since fetch).
+    assert result["observed_at"] == 1_760_000_123.0
+    assert isinstance(result["fetched_at"], float)
     assert [path.split("?")[0] for path in managed_stream_double.requested_paths] == ["/managed/snapshot"]
+
+
+def test_status_snapshot_omits_the_anchor_when_the_document_carries_none(state_root: Path, managed_stream_double) -> None:
+    """A document without a usable top-level ``observed_at`` seeds state but
+    reports no anchor — a reader must fall back to the legacy (skewed) age
+    rather than date entries against an anchor that does not exist."""
+    _checkout(state_root, managed_stream_double.url)
+    doc = _snapshot_doc(presence=[_snapshot_presence()])
+    del doc["observed_at"]
+    managed_stream_double.snapshot_document = doc
+
+    result = subscription.status("github.com/acme/spec-kitty", timeout_s=2.0)
+
+    assert result["source"] == "relay_snapshot"
+    assert "observed_at" not in result
+    assert isinstance(result["fetched_at"], float)
 
 
 def test_status_snapshot_request_carries_both_credentials_and_no_history_window(state_root: Path, managed_stream_double) -> None:
@@ -291,7 +312,10 @@ def test_status_falls_back_to_listening_when_the_relay_serves_no_snapshot(state_
 
     assert result["source"] == "live_listen"
     assert result["fallback_reason"] == "snapshot_route_unavailable"
-    assert result["listened_s"] == 2.0
+    # #4335 (folded): the MEASURED listen time, never the configured bound —
+    # the double closes the stream immediately, so the CLI listened for far
+    # less than 2.0s and must not print that it listened for 2.0s.
+    assert 0.0 <= result["listened_s"] < 2.0
     assert [p["session_ref"] for p in result["presence"]] == ["c" * 12]
     assert [path.split("?")[0] for path in managed_stream_double.requested_paths] == ["/managed/snapshot", "/managed/stream"]
 

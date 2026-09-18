@@ -105,6 +105,8 @@ import urllib.error
 from collections.abc import Callable, Generator, Iterator, Mapping
 from typing import TYPE_CHECKING, Any, cast
 
+from kernel.clock import now_epoch
+
 from . import credentials, filtered_stream, grammar, own_filter
 from .live_frame import LiveFrame, MAX_TTL_S, TeamSnapshot
 
@@ -487,6 +489,9 @@ def status(repo: str, *, timeout_s: float = DEFAULT_STATUS_TIMEOUT_S, filter_own
     stream = resolve_stream(repo, filter_own=filter_own)
 
     fallback_reason: str | None = None
+    # Only ever reported alongside fallback_reason — the two are set on the
+    # same (non-seeded) path, the default is never observable.
+    listened_s: float = 0.0
     try:
         seeded = stream.seed_from_snapshot(timeout_s=timeout_s)
     except urllib.error.HTTPError as exc:
@@ -498,19 +503,35 @@ def status(repo: str, *, timeout_s: float = DEFAULT_STATUS_TIMEOUT_S, filter_own
         fallback_reason = "snapshot_document_unreadable"
 
     if not seeded:
+        # #4335 (folded): report the listen time actually spent, not the
+        # configured bound — a relay that closes the stream (or a window that
+        # fills early) means the CLI listened for less than ``timeout_s``,
+        # and printing the bound as the duration overstates it.
         gen = stream.watch(idle_timeout_s=timeout_s)
+        listen_started = time.monotonic()
         try:
             for _ in gen:
                 pass  # apply every frame that arrives inside the bounded window
         finally:
             _close(gen)
+            listened_s = round(time.monotonic() - listen_started, 3)
 
     result = _serialize_snapshot(stream.check())
     result["repo"] = repo
     result["source"] = "relay_snapshot" if seeded else "live_listen"
+    if seeded:
+        # #4335 (folded): the document's own receipt-clock anchor and the
+        # local clock at fetch, so a reader dates each entry skew-free —
+        # entry age at the document is ``observed_at − entry.observed_at``
+        # (both relay-clock), plus only the locally-measured time since
+        # fetch. Absent when the document carried no usable anchor.
+        anchor = stream.seed_anchor()
+        if anchor is not None:
+            result["observed_at"] = anchor
+        result["fetched_at"] = now_epoch()
     if fallback_reason is not None:
         result["fallback_reason"] = fallback_reason
-        result["listened_s"] = timeout_s
+        result["listened_s"] = listened_s
     return result
 
 
