@@ -241,9 +241,21 @@ def watch(
     consumer: str | None = typer.Option(
         None, "--consumer", help="Delivery receipt context override; publisher identity still uses SPEC_KITTY_ZEITGEIST_SESSION_ID."
     ),
+    seed: float = typer.Option(
+        0.0,
+        "--seed",
+        min=0.0,
+        help=(
+            "Seconds of retained history to replay before going live (#4215): the relay's race-safe "
+            "snapshot/history-to-live handoff (follow=1), deduplicated by (epoch, seq). 0 (the default) "
+            "is future-only. A relay that serves no snapshot answers 404 — an honest error, never a silent fall-back."
+        ),
+    ),
 ) -> None:
     """Print live frames plus a final summary, bounded by whole-call
-    ``--timeout`` and ``--max-frames`` count."""
+    ``--timeout`` and ``--max-frames`` count. ``--seed <seconds>`` first
+    replays that much retained history through the same policy, so nothing
+    published during startup is lost."""
     key = _resolve_store_key(repo)
     started = time.monotonic()
     count = 0
@@ -251,12 +263,14 @@ def watch(
     policy = None
     try:
         if raw:
-            frame_iter = subscription.watch(key, timeout_s=timeout, max_frames=max_frames)
+            frame_iter = subscription.watch(key, timeout_s=timeout, max_frames=max_frames, seed_window_s=seed or None)
         else:
             from specify_cli.zeitgeist_client.agent_delivery import AgentDelivery
 
             policy = AgentDelivery(key, consumer=consumer)
-            result = subscription.agent_watch(key, timeout_s=timeout, max_frames=max_frames, delivery=policy)
+            result = subscription.agent_watch(
+                key, timeout_s=timeout, max_frames=max_frames, delivery=policy, seed_window_s=seed or None
+            )
             frame_iter = iter(result["frames"])
         for frame in frame_iter:
             count += 1
@@ -325,9 +339,28 @@ def activity(
     replay: bool = typer.Option(False, "--replay", help="Intentionally include previously acknowledged activity."),
     consumer: str | None = typer.Option(None, "--consumer", help="Stable logical agent ID shared with watch/MCP."),
     raw: bool = typer.Option(False, "--raw", help="Diagnostic read: include own session (skip relay own-session suppression)."),
+    person: str | None = typer.Option(
+        None,
+        "--person",
+        help=(
+            "Only this teammate's activity (the actor's user name, a bare identifier). Frames with no "
+            "attributed user never match. Reported as `selector` in --json."
+        ),
+    ),
+    project: str | None = typer.Option(
+        None,
+        "--project",
+        help=(
+            "Only this mission's activity: frames whose focus_ref or event ref is the mission slug or "
+            "begins `<slug>.` (the `<mission>.WPxx` focus shape). Presence frames carry no mission correlation."
+        ),
+    ),
     as_json: bool = _JSON_OPTION,
 ) -> None:
-    """Catch up on retained activity using the same policy as agent watch."""
+    """Catch up on retained activity using the same policy as agent watch.
+    ``--person``/``--project`` narrow the catch-up client-side (the relay's
+    retained-events route has no such filter) with matched/withheld counts
+    in the result."""
     from specify_cli.zeitgeist_client.agent_delivery import AgentDelivery
 
     key = _resolve_store_key(repo)
@@ -338,7 +371,17 @@ def activity(
         # relay, or a session with no cached publisher identity, this is the
         # one CLI-side way to read retained activity unfiltered (finding #2,
         # PR #4224).
-        result = subscription.agent_activity(key, window_s=window, timeout_s=timeout, max_frames=max_frames, replay=replay, delivery=policy, filter_own=not raw)
+        result = subscription.agent_activity(
+            key,
+            window_s=window,
+            timeout_s=timeout,
+            max_frames=max_frames,
+            replay=replay,
+            delivery=policy,
+            filter_own=not raw,
+            person=person,
+            project=project,
+        )
         if as_json:
             console.emit_json(result)
         else:

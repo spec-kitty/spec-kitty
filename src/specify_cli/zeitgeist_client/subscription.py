@@ -59,9 +59,27 @@ snapshot to disk anywhere — the only state is the in-process
 persisted" criterion), released when the call returns.
 
 No workflow/scoring from presence: the serializers below are a structural,
-lossless field-for-field projection of ``TeamSnapshot``/``LiveFrame`` into
-JSON-safe dicts — no derived priority, ranking, or workflow decision is
-computed from what a team is presently doing.
+lossless field-for-field projection of the relay's documents into JSON-safe
+dicts — no derived priority, ranking, or workflow decision is computed from
+what a team is presently doing.
+
+spec-kitty#4215 (re-scoped 2026-09-14): this module also owns the ONE shared
+read surface over the relay's ``GET /managed/snapshot`` (zeitgeist#296's
+cached initial state + recent-window history). :func:`read_snapshot` is the
+bounded GET primitive; :func:`status` and :func:`activity` are the two
+adapter-facing projections of it the CLI and MCP adapters both call —
+``status`` answers "what is live RIGHT NOW" from the relay's retained,
+unexpired presence/focus registry state (no broadcast required, no listening
+window), and ``activity`` answers "what happened recently" from the SAME
+document's ring history, bounded to the relay's recent window with the
+coverage metadata passed through unchanged. Current state and history are
+distinct outputs by construction here: they are distinct fields of the one
+SnapshotDocument, and an expired historical presence can never appear in
+``status`` because the relay only lists unexpired entries and this side
+re-checks nothing it does not have to. Both are reads of the relay's recent
+window only — anything older is Git's, not this relay's, and the coverage
+metadata says so instead of letting an empty result read as "nothing ever
+happened".
 
 #10 — ``event`` frames reach this surface too (E1's status moments; before
 #10 ``live_frame`` dropped them unread), and they carry the one payload this
@@ -83,6 +101,7 @@ the same split upstream draws between its HTTP API and its MCP tools); every
 from __future__ import annotations
 
 import math
+import re
 import secrets
 import time
 import urllib.error
@@ -92,6 +111,14 @@ from typing import TYPE_CHECKING, Any, cast
 
 from . import credentials, filtered_stream, grammar, own_filter
 from .live_frame import LiveFrame, MAX_TTL_S, TeamSnapshot
+
+# The relay's bare-identifier grammar for the composable subscription
+# filters (zeitgeist/managed.py's own `_SINCE_EPOCH_RE`/topic-ident class) —
+# duplicated cross-boundary like every other grammar copy in this package,
+# never imported: zeitgeist ships to no package index this client depends
+# on. ``person``/``project`` selectors (#4215) are validated against it so a
+# prose-shaped value fails at the door instead of silently matching nothing.
+_SELECTOR_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}")
 
 # The same honest reported-live ceiling live_frame/filtered_stream enforce
 # client-side regardless of what a relay claims (live_frame.MAX_TTL_S).
@@ -149,6 +176,62 @@ def _require_positive_max_frames(max_frames: int) -> int:
     if max_frames < 1:
         raise ValueError("max_frames must be >= 1")
     return max_frames
+
+
+# --- spec-kitty#4215: person/project selectors for the activity query -------
+#
+# The relay's ``/managed/events`` route has no allow_user/project filter (only
+# the /managed/snapshot route composes one, and it is not the paging surface
+# history.py reads), so both selectors are CLIENT-side membership rules over
+# the already-bounded retained frames — applied BEFORE the delivery policy,
+# with their own matched/withheld counts reported separately, so the policy's
+# ``withheld`` numbers stay meaningful.
+
+
+def _validated_selector(value: str | None, name: str) -> str | None:
+    """A bare identifier (the relay's own subscription-filter grammar) or
+    ``None``. A prose-shaped selector is a hard :class:`ValueError`, never a
+    silently-matches-nothing filter — an empty-looking result is only honest
+    when the caller can tell "nobody matched" from "I typed garbage"."""
+    if value is None or _SELECTOR_RE.fullmatch(value):
+        return value
+    raise ValueError(
+        f"{name} must be a bare identifier (1..64 chars of letters, digits, '.', '_', '@', '+', '-'), got {value!r}"
+    )
+
+
+def _frame_matches_person(frame: Mapping[str, Any], person: str) -> bool:
+    """A frame is this person's activity when its actor's ``user`` names
+    them. A frame with no ``user`` (some relays omit it) never matches —
+    "unattributed" is not "everyone"."""
+    payload = frame.get("payload")
+    actor = payload.get("actor") if isinstance(payload, Mapping) else None
+    user = actor.get("user") if isinstance(actor, Mapping) else None
+    return user == person
+
+
+def _frame_matches_project(frame: Mapping[str, Any], project: str) -> bool:
+    """A frame belongs to this project (mission) when its correlation ref
+    IS the slug or begins ``<slug>.`` — the exact shape
+    ``transport.focus_start`` writes (``mission_slug`` / ``mission_slug.WPxx``)
+    and the shape an event frame's free ``ref`` carries when a publisher
+    names its mission. Event refs are grammar-routed first (an untrusted
+    prose value never masquerades as a slug it merely resembles); a focus
+    frame's ``focus_ref`` is compared as received, since a value that is not
+    the slug simply does not match. Presence frames carry no mission
+    correlation and never match."""
+    frame_type = frame.get("frame_type")
+    payload = frame.get("payload")
+    if not isinstance(payload, Mapping):
+        return False
+    if frame_type == "focus":
+        ref = payload.get("focus_ref")
+    elif frame_type == "event":
+        raw_ref = payload.get("ref")
+        ref = grammar.ident(raw_ref, pattern=grammar.REF_RE) if isinstance(raw_ref, str) and raw_ref else None
+    else:
+        return False
+    return isinstance(ref, str) and (ref == project or ref.startswith(f"{project}."))
 
 
 def resolve_stream(
@@ -423,6 +506,7 @@ def watch(
     timeout_s: float = DEFAULT_WATCH_TIMEOUT_S,
     max_frames: int = MAX_WATCH_FRAMES,
     frame_filter: Callable[[LiveFrame], bool] | None = None,
+    seed_window_s: float | None = None,
 ) -> Iterator[dict[str, Any]]:
     """Yield each accepted frame, serialized, until ``timeout_s`` (clamped
     to :data:`MAX_TIMEOUT_S`) across the whole call, ``max_frames`` frames, or the
@@ -432,11 +516,20 @@ def watch(
     ``frame_filter`` (#190) narrows what this watch carries — see
     :func:`resolve_stream`. Filtered-out frames never reach the counter, so
     they consume none of ``max_frames``' budget.
-    """
+
+    ``seed_window_s`` (#4215, zeitgeist#296) selects the relay's race-safe
+    snapshot-seeded handoff: the retained history inside that lookback
+    window is yielded first (deduplicated against the live frames that
+    follow by ``(epoch, seq)``), state starts from the snapshot's
+    presence/focus registries instead of empty, and a relay that cannot
+    serve it (404) or serves an unusable preface raises honestly rather
+    than silently degrading to a future-only stream. ``None``/``0`` — the
+    default — keeps today's future-only behaviour. Seeded history frames
+    count against ``max_frames`` like any other frame."""
     timeout_s = _clamp_timeout(timeout_s)
     max_frames = _require_positive_max_frames(max_frames)
     stream = resolve_stream(repo, frame_filter=frame_filter)
-    gen = stream.watch(idle_timeout_s=timeout_s)
+    gen = stream.watch(idle_timeout_s=timeout_s, seed_window_s=seed_window_s)
     count = 0
     try:
         for frame in gen:
@@ -456,8 +549,16 @@ def agent_watch(
     delivery: AgentDelivery | None = None,
     acknowledge: str | None = None,
     filter_own: bool = True,
+    seed_window_s: float | None = None,
 ) -> dict[str, Any]:
-    """Agent watch with shared filters, novelty and explicit delivery receipts."""
+    """Agent watch with shared filters, novelty and explicit delivery receipts.
+
+    ``seed_window_s`` (#4215) threads the relay's race-safe
+    snapshot/history-to-live handoff through: the retained history inside
+    the window is delivered first — through the SAME novelty/receipt policy,
+    so frames a previous call already acknowledged surface as duplicates,
+    never re-delivered — and the preface's coverage metadata rides the
+    result as ``seed`` so a truncated backfill is visible, never silent."""
     from .agent_delivery import AgentDelivery
     from . import moments
 
@@ -480,10 +581,15 @@ def agent_watch(
     timeout_s = _clamp_timeout(timeout_s)
     max_frames = min(_require_positive_max_frames(max_frames), MAX_WATCH_FRAMES)
     stream = resolve_stream(repo, filter_own=filter_own)
-    gen = stream.watch(idle_timeout_s=timeout_s)
+    gen = stream.watch(idle_timeout_s=timeout_s, seed_window_s=seed_window_s)
     try:
         result = policy.select((_serialize_frame(frame) for frame in gen), max_frames=max_frames)
         result["own_filter"] = "relay_verified" if filter_own else "disabled"
+        if seed_window_s is not None and seed_window_s > 0:
+            result["seed"] = {
+                "window_s": float(seed_window_s),
+                "coverage": stream.seed_coverage(),
+            }
         return result
     finally:
         _close(gen)
@@ -499,12 +605,27 @@ def agent_activity(
     delivery: AgentDelivery | None = None,
     acknowledge: str | None = None,
     filter_own: bool = True,
+    person: str | None = None,
+    project: str | None = None,
 ) -> dict[str, Any]:
-    """Bounded retained catch-up; replay intentionally retrieves seen frames."""
+    """Bounded retained catch-up; replay intentionally retrieves seen frames.
+
+    ``person``/``project`` (#4215's remaining selectors) are client-side
+    membership rules applied to each retained frame BEFORE the delivery
+    policy — ``person`` keeps only frames whose actor ``user`` names that
+    teammate, ``project`` keeps only frames whose mission correlation
+    (``focus_ref``, or an event frame's ``ref``) IS the slug or begins
+    ``<slug>.``. Both are reported in the result's ``selector`` block with
+    their own matched/withheld counts, so the policy's ``withheld`` numbers
+    (moments predicate, novelty, rate, budget) stay separately meaningful
+    and an empty result under a selector is never mistaken for an empty
+    relay."""
     from .agent_delivery import AgentDelivery
     from .history import MAX_HISTORY_PAGES, read_history
     from . import moments
 
+    person = _validated_selector(person, "person")
+    project = _validated_selector(project, "project")
     policy = delivery if delivery is not None else AgentDelivery(repo)
     # Acknowledge before the admission check, for the same reason as
     # agent_watch: a refused call must not drop the caller's receipt
@@ -525,6 +646,21 @@ def agent_activity(
     coverage: dict[str, Any] = {}
     gaps: list[dict[str, Any]] = []
     own_verified = False
+    selector_counts = {"matched": 0, "withheld": 0}
+
+    def _selected(frames: Iterator[dict[str, Any]]) -> Iterator[dict[str, Any]]:
+        """One selector pass over a retained page, counted as it filters —
+        the counts belong to the whole catch-up, not to any one page, so a
+        multi-page read reports one honest total."""
+        for frame in frames:
+            if person is not None and not _frame_matches_person(frame, person):
+                selector_counts["withheld"] += 1
+                continue
+            if project is not None and not _frame_matches_project(frame, project):
+                selector_counts["withheld"] += 1
+                continue
+            selector_counts["matched"] += 1
+            yield frame
 
     def merge_coverage(page_coverage: Mapping[str, Any]) -> None:
         """Fold one page's coverage into the catch-up whole. A multi-page
@@ -565,7 +701,7 @@ def agent_activity(
             page = read_history(repo, window_s=window_s, timeout_s=remaining, since=since, filter_own=filter_own)
             own_verified = filter_own
             merge_coverage(page["coverage"])
-            yield from page["frames"]
+            yield from _selected(iter(page["frames"]))
             continuation = coverage.get("continuation")
             if continuation is None:
                 return
@@ -577,4 +713,11 @@ def agent_activity(
     result = policy.select(retained_frames(), max_frames=max_frames, replay=replay)
     result["own_filter"] = "relay_verified" if own_verified else "not_read" if filter_own else "disabled"
     result["coverage"] = coverage
+    if person is not None or project is not None:
+        result["selector"] = {
+            "person": person,
+            "project": project,
+            "matched_frames": selector_counts["matched"],
+            "withheld_frames": selector_counts["withheld"],
+        }
     return result
