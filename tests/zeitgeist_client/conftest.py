@@ -251,7 +251,6 @@ def closed_port_url() -> str:
 # --- Z4-C: a streaming double for GET /managed/stream -----------------------
 
 
-@dataclass
 class _ManagedStreamHandlerBase(http.server.BaseHTTPRequestHandler):
     """The wire mechanics every :class:`ManagedStreamDouble` handler shares:
     chunked SSE writes, the ``/managed/snapshot`` JSON and follow=1 SSE
@@ -340,6 +339,7 @@ class _ManagedStreamHandlerBase(http.server.BaseHTTPRequestHandler):
         self._stream_outgoing()
 
 
+@dataclass
 class ManagedStreamDouble:
     """A minimal, in-process, loopback-only double for F3's
     ``GET /managed/stream`` SSE route (``zeitgeist/managed.py``).
