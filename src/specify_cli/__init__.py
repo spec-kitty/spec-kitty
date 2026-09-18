@@ -133,7 +133,8 @@ def main_callback(
 
     next_fast_path = _is_next_invocation(sys.argv)
     live_work_hook_path = _is_live_work_hook_invocation(sys.argv)
-    if not next_fast_path and not live_work_hook_path:
+    session_start_path = _is_session_start_invocation(sys.argv)
+    if not next_fast_path and not live_work_hook_path and not session_start_path:
         root_callback(ctx)
 
         # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
@@ -147,12 +148,14 @@ def main_callback(
         if not _is_doctor_skills_invocation(sys.argv):
             ensure_global_agent_commands()
 
-    if not live_work_hook_path:
-        # The hook is passive capture on the harness's per-tool-call path, not
-        # a project command: the schema gate may SystemExit on a stale project
-        # (breaking the hook's own always-exit-0 contract) and its import
+    if not live_work_hook_path and not session_start_path:
+        # The live-work hook is passive capture on the harness's per-tool-call
+        # path, not a project command: the schema gate may SystemExit on a stale
+        # project (breaking the hook's own always-exit-0 contract) and its import
         # chain alone outweighs the 4 s hook budget, so neither startup gate
-        # runs there (#4353 fix round).
+        # runs there (#4353 fix round). session-start shares that exit-0 contract
+        # (#4703): check_schema_version's SystemExit on a stale project would
+        # break the Claude Code SessionStart hook, so it skips the gates too.
         _run_startup_project_gates(ctx)
 
 
@@ -249,6 +252,25 @@ def _is_live_work_hook_invocation(argv: list[str]) -> bool:
     """
     args = [arg for arg in argv[1:] if not arg.startswith("-")]
     return len(args) >= 2 and args[0] == "live-work" and args[1] == "hook"
+
+
+def _is_session_start_invocation(argv: list[str]) -> bool:
+    """Return True for direct ``spec-kitty session-start`` invocations.
+
+    ``session-start`` is the Claude Code ``SessionStart`` lifecycle hook. Its
+    module contract is an unconditional exit 0 — it must NEVER cause a session to
+    fail, regardless of any error in the spec-kitty stack. ``ensure_runtime`` and
+    the startup project gates run in ``main_callback`` *before* dispatch, outside
+    ``session_start()``'s own ``except Exception: pass`` guard, so a global
+    runtime failure (e.g. #4703's Windows self-held-lock read) or the schema
+    gate's ``SystemExit`` on a stale project would abort the hook with exit 1.
+    Both must be skipped here — the same startup-fast-path posture as the
+    live-work hook — so ``session_start()`` alone owns the exit-0 guarantee.
+    ``session_start()`` does its own project-root resolution and reads only
+    project-local surfaces, so it needs no global ``~/.kittify`` asset repair.
+    """
+    args = [arg for arg in argv[1:] if not arg.startswith("-")]
+    return len(args) >= 1 and args[0] == "session-start"
 
 
 def _get_app() -> typer.Typer:
