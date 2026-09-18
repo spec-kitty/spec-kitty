@@ -20,7 +20,7 @@ import pytest
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands import _auth_doctor
 from specify_cli.cli.commands._auth_doctor import doctor_impl
-from specify_cli.core.file_lock import read_lock_record
+from kernel.locks import read_lock_record
 
 
 pytestmark = [pytest.mark.integration]

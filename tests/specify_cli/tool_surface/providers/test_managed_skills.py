@@ -408,7 +408,17 @@ def test_managed_provisioning_shared_update_preserves_unknown_and_unselected(
         results = provider.apply_installation(installation, consent)
     assert all(result.outcome == "applied" for result in results), results
     effects = installation.global_assets.effects + installation.project_skills.effects
-    assert {effect.destination for effect in effects} == {tmp_path / item.path for item in net_delta(before, snapshot({"sandbox": tmp_path}))}
+    # #4714: apply_installation now acquires the global-skills owner lock via
+    # kernel.locks.machine_file_lock, whose release truncates (never unlinks)
+    # its dedicated ``.agent-skills.lock`` sidecar (G3). A cold acquisition
+    # therefore leaves a net create/update on that path in the raw lstat
+    # oracle's before/after diff even though it is a coordination artifact,
+    # not a managed asset -- it never appears in (and must never be asserted
+    # against) the provider's own tracked effects. Excluded here, not in the
+    # shared net_delta helper: snapshot.py is a deliberately production-blind
+    # independent oracle (see its module docstring).
+    delta = {item for item in net_delta(before, snapshot({"sandbox": tmp_path})) if not item.path.endswith(".lock")}
+    assert {effect.destination for effect in effects} == {tmp_path / item.path for item in delta}
     assert backups[0].destination.read_bytes() == previous
     assert all(path.read_text() == "user authored, not canonical" for path in unknowns)
     manifest = load_manifest(root.path)

@@ -7,7 +7,7 @@ format decisions stay in bootstrap, agent_commands and agent_skills.
 
 from __future__ import annotations
 
-from contextlib import ExitStack, contextmanager, suppress
+from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar
 from collections.abc import Callable, Iterator
 from dataclasses import asdict, dataclass, replace
@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, Literal, TypeVar
 if TYPE_CHECKING:
     from specify_cli.runtime.agent_skills import GlobalSkillSelection
 
+from kernel.locks import machine_file_lock
+from specify_cli.core.safe_delete import safe_rmdir, safe_unlink
 from specify_cli.runtime.generated_writer import generated_temporary_path, write_generated_file
 from specify_cli.tool_surface.operations import (
     ApplyConsent,
@@ -654,10 +656,28 @@ def _membership_drift_tolerated(
     if missing or not extra:
         return False
     for name in extra:
-        write = writes_by_path.get(observation.path / name)
-        if write is None or not _content_equal(node_state(observation.path / name), write.effect.after):
+        child = observation.path / name
+        write = writes_by_path.get(child)
+        if write is None:
             return False
-    return all(_content_equal(node_state(p), writes_by_path[p].effect.after) for p in content_paths)
+        try:
+            # FR-011 defensive guard: a recorded self-held lock never reaches
+            # this branch (lock paths are excluded from check_assets's read
+            # loop before membership is ever inspected), but an "extra"
+            # child's bytes are still read here on the strength of that
+            # assumption alone. Treat a read failure (a vanished/oversized/
+            # permission-denied node -- e.g. a would-be #4703 self-held-lock
+            # read that reaches here despite the assumption) as untolerated
+            # rather than letting it propagate uncaught.
+            state = node_state(child)
+        except OSError:
+            return False
+        if not _content_equal(state, write.effect.after):
+            return False
+    try:
+        return all(_content_equal(node_state(p), writes_by_path[p].effect.after) for p in content_paths)
+    except OSError:
+        return False
 
 
 def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
@@ -738,27 +758,28 @@ def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
     return ()
 
 
-def _is_windows() -> bool:
-    """Whether owner-lock coordination must use Windows (mandatory-lock,
-    no-directory-flock) semantics. A single seam so the cold-install branch is
-    testable without faking ``os.name`` (which would flip ``pathlib`` to
-    ``WindowsPath``). (#4703 cross-OS family)"""
-    return os.name == "nt"
-
-
 def _cold_install_sentinel(anchor: Path) -> Path:
     """A machine-temp lock file that serializes concurrent COLD installers of the
-    same *anchor* on Windows.
+    same *anchor*.
 
-    The POSIX cold path flocks the anchor DIRECTORY (no artifact), but a
-    directory cannot be locked on Windows, so a cold Windows install had NO
-    cross-process serialization — the #4703 os.name-branch-with-silent-Windows-
-    fallthrough shape (a race, not a hard error). This sentinel is deliberately
-    kept OUT of the managed asset tree (under the machine temp dir, keyed by the
-    anchor path) so it never enters asset verification, while still contending
-    across processes installing the same anchor. (#4703 cross-OS family)
+    Directories cannot be locked through the canonical primitive (it opens,
+    OS-locks and truncates a dedicated REGULAR-file path -- kernel.locks
+    G1), so a cold install of any anchor -- POSIX or Windows alike --
+    serializes on this dedicated sentinel file instead of flocking the
+    anchor directory itself (the pre-WP04 POSIX shape). This sentinel is
+    deliberately kept OUT of the managed asset tree (under the machine temp
+    dir, keyed by the anchor path) so it never enters asset verification,
+    while still contending across processes installing the same anchor.
+    (#4703 cross-OS family)
+
+    FR-011: the anchor is normalized (case-folded, canonicalized) BEFORE
+    keying so two equivalent spellings of the same anchor path (differing
+    only by case on a case-insensitive filesystem, or by resolution of
+    ``.``/``..``/a trailing separator) key the SAME sentinel rather than
+    silently splitting into two unrelated locks.
     """
-    key = hashlib.sha256(str(anchor).encode()).hexdigest()[:16]  # noqa: TID251 -- path keying, not charter hashing
+    normalized = os.path.normcase(str(Path(anchor).resolve()))
+    key = hashlib.sha256(normalized.encode()).hexdigest()[:16]  # noqa: TID251 -- path keying, not charter hashing
     sentinel_dir = Path(tempfile.gettempdir()) / "spec-kitty-cold-install"
     sentinel_dir.mkdir(parents=True, exist_ok=True)
     return sentinel_dir / f"{key}.lock"
@@ -786,13 +807,20 @@ def recheck_assets(assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ..
     recheck below (or, when re-entrant, the ``_HELD_LOCKS`` short-circuit,
     whose own diagnostics were computed while this process already held the
     lock and so cannot be observing a live concurrent write) decide. By the
-    time the anchor flock is actually granted, a genuine concurrent peer
-    holding it while writing will have finished and the home will be fully
-    materialized -- a true SOURCE-read drift (never tolerated, FR-003/C-002)
-    still refuses once the under-lock recheck runs.
-    """
-    from specify_cli.runtime.bootstrap import _lock_exclusive
+    time the lock is actually granted, a genuine concurrent peer holding it
+    while writing will have finished and the home will be fully materialized
+    -- a true SOURCE-read drift (never tolerated, FR-003/C-002) still refuses
+    once the under-lock recheck runs.
 
+    WP04: both the cold-install serialization and the per-owner-lock
+    acquisition below route through ``kernel.locks.machine_file_lock`` (the
+    canonical primitive, G1-G7) rather than a raw ``msvcrt``/``fcntl`` call.
+    Neither this process's OS-lock acquisition NOR the cold-install
+    serialization branches on platform any more (the primitive absorbs that
+    internally) -- see ``_cold_install_sentinel``'s docstring for why the
+    former POSIX-directory-flock shape is retired in favour of one uniform
+    dedicated sentinel file for every platform.
+    """
     diagnostics = check_assets(assessment)
     prepared = assessment.prepared
     if not assessment.effects or not isinstance(prepared, PreparedAssets):
@@ -803,31 +831,17 @@ def recheck_assets(assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ..
         return
     with ExitStack() as stack:
         cold = any(not path.exists() for path in prepared.lock_paths)
-        if cold and not _is_windows():
-            # POSIX directories support flock without creating a lock artifact.
-            # Serialize cold installers on the stable reporting anchor until
-            # apply creates and acquires the existing owner-specific lock.
-            descriptor = os.open(prepared.anchor, os.O_RDONLY)
-            stack.callback(os.close, descriptor)
-            _lock_exclusive(descriptor)
-        elif cold:
-            # #4703 family: Windows cannot flock a directory, so a cold install
-            # had NO cross-process serialization here. Serialize on a machine-
-            # temp sentinel keyed to the anchor instead (kept out of the asset
-            # tree). apply's own open("x") on the owner lock remains the final
-            # arbiter; this only narrows the recheck→create race window.
-            stream = stack.enter_context(_cold_install_sentinel(prepared.anchor).open("a+"))
-            _lock_exclusive(stream)
+        if cold:
+            # A cold install has no owner lock file to acquire yet (apply's
+            # own exclusive create is the final arbiter); serialize cold
+            # installers of the SAME anchor on a dedicated machine-temp
+            # sentinel instead -- never the anchor directory itself, which
+            # the canonical primitive cannot lock (G1: a dedicated regular
+            # lock-only path).
+            stack.enter_context(machine_file_lock(_cold_install_sentinel(prepared.anchor), blocking=True))
         for path in prepared.lock_paths:
             if path.exists():
-                # #4703 family: lock via a READ+WRITE handle. POSIX fcntl.flock
-                # works on a read-only fd, but Windows msvcrt.locking() needs
-                # write access to lock the region — a read-only handle is
-                # fragile/raises there. The owner lock is 0o644 and already
-                # exists (guarded above), and apply locks its own write handle
-                # (open("x")), so "r+" aligns the recheck path with it.
-                stream = stack.enter_context(path.open("r+"))
-                _lock_exclusive(stream)
+                stack.enter_context(machine_file_lock(path, blocking=True))
         token = _HELD_LOCKS.set(_HELD_LOCKS.get() | set(prepared.lock_paths))
         try:
             yield check_assets(assessment)
@@ -898,47 +912,14 @@ def apply_with_reassess(
         return apply_assets(reassessment, consent)
 
 
-def _force_writable(path: Path) -> None:
-    """Best-effort restore the owner write bit before removing a managed asset.
-
-    Managed content is materialized read-only (``0o444``, e.g. ``_write_asset``'s
-    ``or 0o444`` and agent-skill assets that strip ``0o222``). On Windows
-    ``DeleteFile``/``RemoveDirectory`` REFUSE a read-only target — the same
-    POSIX-ignores-the-mode-but-Windows-enforces-it divergence as #4703 — so a
-    delete/rmdir must clear the bit first. POSIX is unaffected (it ignores the
-    mode on unlink). Any chmod failure is swallowed; the delete retry surfaces
-    the real error. (#4703 cross-OS family)
-    """
-    with suppress(OSError):
-        path.chmod(stat.S_IMODE(path.lstat().st_mode) | stat.S_IWRITE)
-
-
-def _safe_unlink(path: Path) -> None:
-    """Remove a file, clearing a read-only bit first if Windows refuses it."""
-    try:
-        path.unlink()
-    except PermissionError:
-        _force_writable(path)
-        path.unlink()
-
-
-def _safe_rmdir(path: Path) -> None:
-    """Remove a directory, clearing a read-only bit first if Windows refuses it."""
-    try:
-        path.rmdir()
-    except PermissionError:
-        _force_writable(path)
-        path.rmdir()
-
-
 def _write_asset(write: AssetWrite) -> None:
     effect, content = write.effect, write.content
     path = effect.destination
     if effect.action == "delete":
         if effect.before.kind == "directory":
-            _safe_rmdir(path)
+            safe_rmdir(path)
         else:
-            _safe_unlink(path)
+            safe_unlink(path)
     elif effect.action == "chmod":
         path.chmod(effect.after.mode or 0o444)
     elif effect.after.kind == "directory":
@@ -952,7 +933,7 @@ def _write_asset(write: AssetWrite) -> None:
         if content is None:
             raise ValueError("Missing prepared file bytes")
         if effect.before.kind == "symlink":
-            _safe_unlink(path)
+            safe_unlink(path)
         write_generated_file(path, content, read_only=False)
         path.chmod(effect.after.mode or 0o444)
 
@@ -1001,8 +982,6 @@ def _write_order(write: AssetWrite) -> tuple[int, int, str]:
 
 
 def _apply_retained_assets(assessment: OwnerAssessment) -> OwnerApplyResult:
-    from specify_cli.runtime.bootstrap import _lock_exclusive
-
     prepared = assessment.prepared
     if not isinstance(prepared, PreparedAssets):
         raise TypeError("Expected prepared global assets")
@@ -1014,9 +993,29 @@ def _apply_retained_assets(assessment: OwnerAssessment) -> OwnerApplyResult:
         for index, write in enumerate(ordered):
             try:
                 if write.effect.destination in prepared.lock_paths and write.effect.action == "create":
-                    stream = locks.enter_context(write.effect.destination.open("x"))
+                    # First materialization of the persistent owner lock.
+                    # Concurrent creation is already serialized by the cold-
+                    # install sentinel/owner-lock this call runs under (see
+                    # recheck_assets), so the canonical primitive's own
+                    # open+lock+truncate (kernel.locks G1/G3) is sufficient
+                    # here without needing an exclusive-create mode.
+                    #
+                    # A1 (#4714 WP04 review): a genuinely cold "create" write
+                    # means the destination did NOT exist when this plan was
+                    # built -- if it still does not exist now, this call must
+                    # do the real lock+create. But if a racing peer
+                    # materialized it between this stale plan's build and
+                    # this apply, ``recheck_assets`` already found it existing
+                    # and OS-locked it for real (its own per-path ``if
+                    # path.exists(): machine_file_lock(path, ...)`` loop) --
+                    # re-locking the SAME non-reentrant lock here would block
+                    # forever against ourselves. Existence at this point is
+                    # exactly that signal: nothing removes a lock file
+                    # between recheck and this apply, so "exists now" implies
+                    # "existed (and was locked) at recheck time."
+                    if not write.effect.destination.exists():
+                        locks.enter_context(machine_file_lock(write.effect.destination, blocking=True))
                     write.effect.destination.chmod(write.effect.after.mode or 0o644)
-                    _lock_exclusive(stream)
                 else:
                     _write_asset(write)
             except (OSError, ValueError, UnicodeError) as exc:

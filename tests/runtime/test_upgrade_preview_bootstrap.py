@@ -21,13 +21,39 @@ import pytest
 
 from specify_cli.runtime import agent_commands, agent_skills, bootstrap
 from specify_cli.skills.registry import SkillRegistry
-from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+from tests.upgrade.preview_support.snapshot import Snapshot, assert_unchanged, snapshot
 from tests.upgrade.preview_support.snapshot import net_delta
 from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
 from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment
 from specify_cli.upgrade.intent import parse_upgrade_intent
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
+def _assert_unchanged_tolerating_lock_holder_churn(before: Snapshot, after: Snapshot) -> None:
+    """Like ``assert_unchanged``, but tolerates the canonical lock
+    primitive's own holder-observability churn (WP04, cross-os-primitive-
+    unification): ``kernel.locks.machine_file_lock`` writes a ``LockRecord``
+    on every acquire and truncates back to empty on release (G2/G3) --
+    ``recheck_assets`` takes this lock even on a batch it is about to
+    REFUSE (the under-lock recheck is never skipped, see its own
+    docstring), so a ``*.lock`` path's own ``mtime_ns`` legitimately moves
+    even though nothing else about it, or any other path, changes. Content
+    (``sha256``) and ``mode`` must still match exactly for a ``.lock`` path;
+    every non-``.lock`` path is compared exactly, with no tolerance at all.
+    """
+    changed = [key for key in sorted(before.keys() | after.keys()) if before.get(key) != after.get(key)]
+    unexplained = [
+        key
+        for key in changed
+        if not (
+            key[1].endswith(".lock")
+            and (before_node := before.get(key)) is not None
+            and (after_node := after.get(key)) is not None
+            and replace(before_node, mtime_ns=None) == replace(after_node, mtime_ns=None)
+        )
+    ]
+    assert not unexplained, f"Filesystem changed: {unexplained}"
 
 
 @pytest.fixture
@@ -266,7 +292,7 @@ def test_whole_batch_precondition_refusal_before_writes(
         assert diagnostics and diagnostics[0].code == "precondition_changed"
     result = apply_assets(assessment, ApplyConsent(automatic=True))
     assert result.outcome == "precondition_changed" and not result.succeeded
-    assert_unchanged(before, snapshot({"home": owner_home, "source": skill_source}))
+    _assert_unchanged_tolerating_lock_holder_churn(before, snapshot({"home": owner_home, "source": skill_source}))
 
 
 def test_exact_retired_skill_cleanup_and_edited_sibling_preservation(
@@ -568,7 +594,7 @@ def test_inventory_change_refuses_whole_batch(owner_home: Path, skill_source: Pa
     before = snapshot({"home": owner_home})
     result = apply_assets(assessment, ApplyConsent(automatic=True))
     assert result.outcome == "precondition_changed" and not result.succeeded
-    assert_unchanged(before, snapshot({"home": owner_home}))
+    _assert_unchanged_tolerating_lock_holder_churn(before, snapshot({"home": owner_home}))
 
 
 def test_source_catalog_addition_refuses_whole_batch(owner_home: Path, skill_source: Path) -> None:

@@ -7,13 +7,14 @@ closed when POSIX shell syntax is detected.
 
 from __future__ import annotations
 
+import os
 import re
 import shlex
 import subprocess
-import sys
-import os
 from collections.abc import Mapping
 from pathlib import Path
+
+from kernel.paths import is_windows
 
 
 class ConfiguredCommandUnsupported(RuntimeError):
@@ -139,7 +140,7 @@ def _format_shell_template_with_env(
             elif in_double:
                 formatted.append(f"${{{env_name}}}")
             else:
-                formatted.append(f"\"${{{env_name}}}\"")
+                formatted.append(f'"${{{env_name}}}"')
             index += len(matched_placeholder)
             escaped = False
             continue
@@ -169,7 +170,7 @@ def run_configured_command(
     timeout: float | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run a user/config-authored command without ``shell=True``."""
-    if sys.platform == "win32":
+    if is_windows():
         requires_posix_shell = _has_unquoted_posix_shell_syntax(command)
         if requires_posix_shell or _uses_posix_single_quotes(command):
             raise ConfiguredCommandUnsupported(_unsupported_windows_message())
@@ -215,18 +216,15 @@ def build_shell_command_with_substitutions(
     ``sh`` to hand a self-contained argv to; callers there must fall back to
     :func:`run_configured_command_template`'s ``.format()`` shape instead.
     """
-    if sys.platform == "win32":
+    if is_windows():
         raise ConfiguredCommandUnsupported(
-            "build_shell_command_with_substitutions requires a POSIX shell (sh -c) "
-            "and has no Windows equivalent; use run_configured_command_template instead."
+            "build_shell_command_with_substitutions requires a POSIX shell (sh -c) and has no Windows equivalent; use run_configured_command_template instead."
         )
     # Only feed keys the template actually references to the scanner — a
     # substitution the template never uses (e.g. a plain command with no
     # {output_file} placeholder at all) must not grow an unused `export`
     # prefix onto every rendered command.
-    raw_substitutions = {
-        key: str(value) for key, value in substitutions.items() if f"{{{key}}}" in command_template
-    }
+    raw_substitutions = {key: str(value) for key, value in substitutions.items() if f"{{{key}}}" in command_template}
     if not raw_substitutions:
         return ["sh", "-c", command_template]
     shell_command, substitution_env = _format_shell_template_with_env(command_template, raw_substitutions)
@@ -247,7 +245,7 @@ def run_configured_command_template(
     """Run a configured command template with shell-safe placeholder handling."""
     raw_substitutions = {key: str(value) for key, value in substitutions.items()}
     env: Mapping[str, str] | None = None
-    if sys.platform == "win32":
+    if is_windows():
         requires_posix_shell = _has_unquoted_posix_shell_syntax(command_template)
         if requires_posix_shell or _uses_posix_single_quotes(command_template):
             raise ConfiguredCommandUnsupported(_unsupported_windows_message())

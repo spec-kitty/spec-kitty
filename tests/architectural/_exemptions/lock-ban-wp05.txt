@@ -1,0 +1,17 @@
+# Lock-primitive ban gate (FR-010) -- WP05 (migrate remaining filelock sites).
+#
+# Seeded fail-closed at WP03 landing (kernel/locks.py, the canonical door)
+# with every currently-detected raw filelock import/constructor-call outside
+# the door in a file WP05 owns (checkout_file_lock, status/locking,
+# verdict_commit_queue, auth file_fallback, zeitgeist_client credentials +
+# outbox_approval -- per the WP03 prompt's seeding list and R-04's contract
+# inventory). WP05 shrinks ONLY this file as it migrates each site onto
+# kernel.locks (sync facade / machine_file_lock factory).
+#
+# EMPTY as of WP05 landing (#4714): every seeded site above now constructs
+# kernel.locks.machine_file_lock exclusively -- no raw filelock import or
+# constructor call remains in src/ outside the canonical door. See
+# kitty-specs/cross-os-primitive-unification-01M2T1CM/tasks/
+# WP05-migrate-filelock-family-retire-filelock.md for the full migration
+# record, including the pyproject.toml disposition (filelock moved to the
+# `test` extra rather than removed outright -- see that file's own comment).

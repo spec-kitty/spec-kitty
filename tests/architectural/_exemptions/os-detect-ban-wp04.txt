@@ -1,0 +1,22 @@
+# OS-detection ban gate (FR-012) -- WP04 (migrate stdlib lock sites).
+#
+# Seeded fail-closed at WP01 landing with every not-yet-routed site in a file
+# WP04 owns (kitty-specs/cross-os-primitive-unification-01M2T1CM/tasks/
+# WP04-migrate-stdlib-lock-sites.md, T019).
+#
+# WP04 landing: every seeded site has been routed through kernel.paths.is_windows --
+# tracker/credentials.py's _tracker_root() platform branch (was :47) and its
+# now-deleted _locked_file helper's two branches (were :104/:111, removed
+# entirely along with the helper), review/pre_review_gate.py's advisory-skip
+# branch (was :263), and runtime/asset_preparation.py's own `_is_windows`
+# copy (was :746) -- deleted outright rather than routed, because the branch
+# it guarded (POSIX anchor-directory-flock vs Windows machine-temp sentinel)
+# was itself retired in favour of ONE uniform sentinel-file path for both
+# platforms (kernel.locks cannot lock a directory fd; see
+# _cold_install_sentinel's docstring) -- no OS check remains in that
+# function to route. This allowlist is intentionally empty of entries.
+#
+# NOTE: paths/windows_migrate.py's two `sys.platform != "win32"` guards were
+# left untouched -- the OS-detection gate's own over-fire boundary
+# (test_os_detection_ban.py) only bans the `==` form; `!=` was never seeded
+# here and routing it would only be churn, not a gate shrink.

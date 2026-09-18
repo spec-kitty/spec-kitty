@@ -27,8 +27,8 @@ from typing import Any
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
-from filelock import FileLock
 
+from kernel.locks import machine_file_lock
 from specify_cli.paths import get_runtime_root
 
 from ..errors import SecureStorageError, StorageDecryptionError
@@ -226,7 +226,7 @@ class FileFallbackStorage(SecureStorage):
 
     def read(self) -> StoredSession | None:
         self._ensure_dir()
-        with FileLock(str(self._lock_file), timeout=10):
+        with machine_file_lock(self._lock_file, blocking=True, timeout_s=10):
             if not self._cred_file.exists():
                 return None
             self._check_file_permissions(self._cred_file)
@@ -264,7 +264,7 @@ class FileFallbackStorage(SecureStorage):
 
     def write(self, session: StoredSession) -> None:
         self._ensure_dir()
-        with FileLock(str(self._lock_file), timeout=10):
+        with machine_file_lock(self._lock_file, blocking=True, timeout_s=10):
             self._write_locked(session)
 
     def _write_locked(self, session: StoredSession) -> None:
@@ -286,7 +286,7 @@ class FileFallbackStorage(SecureStorage):
 
     def delete(self) -> None:
         self._ensure_dir()
-        with FileLock(str(self._lock_file), timeout=10):
+        with machine_file_lock(self._lock_file, blocking=True, timeout_s=10):
             self._delete_locked()
 
     def _delete_locked(self) -> None:

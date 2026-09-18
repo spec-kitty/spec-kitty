@@ -142,9 +142,7 @@ def test_project_event_log_lock_distinct_from_any_mission_lock(
 # ---------------------------------------------------------------------------
 
 
-def test_k1_fsync_failure_leaves_original_untouched(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_k1_fsync_failure_leaves_original_untouched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = tmp_path / "status.events.jsonl"
     append_raw_rows_atomic(path, [{"event_type": "First", "n": 1}])
     original = path.read_text(encoding="utf-8")
@@ -161,9 +159,7 @@ def test_k1_fsync_failure_leaves_original_untouched(
     assert list(tmp_path.glob(".status.events.jsonl.*.tmp")) == []
 
 
-def test_k2_rehomed_lifecycle_writer_survives_replace_failure(
-    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_k2_rehomed_lifecycle_writer_survives_replace_failure(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Real-process-shape variant of K1 for the REHOMED writer specifically
     (extends test_store.py's existing replace-failure pattern, which only
     ever covered the pre-rehoming StatusEvent path)."""
@@ -200,9 +196,7 @@ def test_k2_rehomed_lifecycle_writer_survives_replace_failure(
 # ---------------------------------------------------------------------------
 
 
-def test_c1_fsync_os_error_during_rehomed_append_returns_none(
-    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_c1_fsync_os_error_during_rehomed_append_returns_none(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     log_path = mission_event_log_path(feature_dir)
 
     def _raise_fsync(_fd: int) -> None:
@@ -227,13 +221,15 @@ def test_c1_fsync_os_error_during_rehomed_append_returns_none(
 
 def _mp_emit_transition(feature_dir: str, mission_slug: str, wp_id: str, queue) -> None:
     try:
-        event = emit_status_transition(TransitionRequest(
-            feature_dir=Path(feature_dir),
-            mission_slug=mission_slug,
-            wp_id=wp_id,
-            to_lane="claimed",
-            actor="implementer",
-        ))
+        event = emit_status_transition(
+            TransitionRequest(
+                feature_dir=Path(feature_dir),
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                to_lane="claimed",
+                actor="implementer",
+            )
+        )
         queue.put(("transition_ok", event.event_id))
     except Exception as exc:  # noqa: BLE001 -- report, never crash silently
         queue.put(("transition_error", repr(exc)))
@@ -291,10 +287,7 @@ def test_co1_locked_and_rehomed_writers_never_lose_a_row(feature_dir: Path) -> N
 
     raw_rows = read_events_raw(feature_dir)
     lifecycle_rows = [r for r in raw_rows if is_non_lane_event(r) and r.get("event_type") == "WPCreated"]
-    assert len(lifecycle_rows) == 10, (
-        f"expected 10 surviving WPCreated rows (one per iteration), got "
-        f"{len(lifecycle_rows)} -- a lost write means the race is back"
-    )
+    assert len(lifecycle_rows) == 10, f"expected 10 surviving WPCreated rows (one per iteration), got {len(lifecycle_rows)} -- a lost write means the race is back"
 
 
 def test_co2_two_concurrent_wp_created_calls_both_survive(feature_dir: Path) -> None:
@@ -325,9 +318,7 @@ def test_co2_two_concurrent_wp_created_calls_both_survive(feature_dir: Path) -> 
         json.loads(line)  # each line must parse -- no interleaved partial writes
 
 
-def test_co3_project_and_mission_locks_do_not_mutually_block(
-    feature_dir: Path, repo: Path
-) -> None:
+def test_co3_project_and_mission_locks_do_not_mutually_block(feature_dir: Path, repo: Path) -> None:
     """Different lock sentinels (mission vs project) never contend."""
     # Must be able to take the project lock while the mission lock is held,
     # from the SAME thread even -- proves they are independent locks, not
@@ -366,12 +357,20 @@ def test_co4_reentrant_caller_can_invoke_rehomed_appender_without_deadlock(
 
 def test_ft1_rehomed_lifecycle_row_stays_non_lane(feature_dir: Path) -> None:
     _seed_planned(feature_dir, "WP01", slug=_MISSION_SLUG)
-    emit_status_transition(TransitionRequest(
-        feature_dir=feature_dir, mission_slug=_MISSION_SLUG, wp_id="WP01",
-        to_lane="claimed", actor="implementer",
-    ))
+    emit_status_transition(
+        TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug=_MISSION_SLUG,
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="implementer",
+        )
+    )
     emit_wp_created_local(
-        feature_dir, mission_slug=_MISSION_SLUG, wp_id="WP01", wp_title="T",
+        feature_dir,
+        mission_slug=_MISSION_SLUG,
+        wp_id="WP01",
+        wp_title="T",
     )
 
     raw_rows = read_events_raw(feature_dir)
@@ -390,9 +389,7 @@ def test_ft1_rehomed_lifecycle_row_stays_non_lane(feature_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_wal1_fsync_precedes_replace_for_rehomed_lifecycle_writer(
-    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_wal1_fsync_precedes_replace_for_rehomed_lifecycle_writer(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     call_order: list[str] = []
 
     real_fsync = status_store.os.fsync
@@ -410,13 +407,26 @@ def test_wal1_fsync_precedes_replace_for_rehomed_lifecycle_writer(
     monkeypatch.setattr(status_store.os, "replace", _tracking_replace)
 
     result = emit_wp_created_local(
-        feature_dir, mission_slug=_MISSION_SLUG, wp_id="WP01", wp_title="T",
+        feature_dir,
+        mission_slug=_MISSION_SLUG,
+        wp_id="WP01",
+        wp_title="T",
     )
     assert result is not None
 
-    # file fsync -> replace -> directory fsync, strictly in that order
+    # file fsync -> replace -> directory fsync, strictly in that order.
+    # Mission cross-os-primitive-unification WP05/#4714 migrated the status
+    # lock (specify_cli.status.locking) onto kernel.locks.machine_file_lock,
+    # which durably persists its own holder LockRecord with a real
+    # os.fsync(fd) on every acquire (unlike the pre-migration filelock, which
+    # never fsynced) -- this monkeypatches the GLOBAL os.fsync, so that one
+    # extra, legitimate fsync from acquiring the status lock around the
+    # replace step is observed here too, between the file fsync and the
+    # replace. The ordering invariants this test actually cares about (file
+    # fsync first, replace only after a fsync, directory fsync last) are
+    # unaffected.
     assert call_order[0] == "fsync"
     assert "replace" in call_order
     assert call_order.index("replace") > call_order.index("fsync")
     assert call_order[-1] == "fsync"
-    assert call_order.count("fsync") == 2
+    assert call_order.count("fsync") == 3

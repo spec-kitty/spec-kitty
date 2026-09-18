@@ -11,6 +11,7 @@ from abc import ABC, abstractmethod
 
 from ..session import StoredSession
 
+
 class SecureStorage(ABC):
     """Abstract storage backend for :class:`StoredSession`.
 
@@ -39,9 +40,9 @@ class SecureStorage(ABC):
     @classmethod
     def from_environment(cls) -> SecureStorage:
         """Return the canonical encrypted file-backed storage backend."""
-        import sys  # noqa: PLC0415 — deferred so callers can monkeypatch sys.platform
+        from kernel.paths import is_windows  # noqa: PLC0415 — deferred so callers can monkeypatch kernel.paths.is_windows
 
-        if sys.platform == "win32":
+        if is_windows():
             from .windows_storage import WindowsFileStorage  # noqa: PLC0415
 
             return WindowsFileStorage()

@@ -21,17 +21,17 @@ class TestGetKittifyHomeUnix:
 
     def test_unix_default_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
+        monkeypatch.setattr("specify_cli.runtime.home.is_windows", lambda: False)
         assert get_kittify_home() == Path.home() / ".kittify"
 
     def test_returns_path_object(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
+        monkeypatch.setattr("specify_cli.runtime.home.is_windows", lambda: False)
         assert isinstance(get_kittify_home(), Path)
 
     def test_returns_absolute_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
+        monkeypatch.setattr("specify_cli.runtime.home.is_windows", lambda: False)
         assert get_kittify_home().is_absolute()
 
 
@@ -43,7 +43,7 @@ class TestGetKittifyHomeWindows:
         import platformdirs
 
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: True)
+        monkeypatch.setattr("specify_cli.runtime.home.is_windows", lambda: True)
         monkeypatch.setattr(
             platformdirs,
             "user_data_dir",
@@ -67,7 +67,7 @@ class TestSpecKittyHomeEnvOverride:
     ) -> None:
         custom_path = str(tmp_path / "custom-kittify")
         monkeypatch.setenv("SPEC_KITTY_HOME", custom_path)
-        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: True)
+        monkeypatch.setattr("specify_cli.runtime.home.is_windows", lambda: True)
         assert get_kittify_home() == Path(custom_path)
 
     def test_env_override_returns_path(
@@ -80,7 +80,7 @@ class TestSpecKittyHomeEnvOverride:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("SPEC_KITTY_HOME", "")
-        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
+        monkeypatch.setattr("specify_cli.runtime.home.is_windows", lambda: False)
         assert get_kittify_home() == Path.home() / ".kittify"
 
 

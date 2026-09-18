@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-from filelock import FileLock
+from kernel.locks import machine_file_lock
 
 
 _BANNED_CALLS = {
@@ -112,7 +112,7 @@ def find_wall_clock_assertion_violations_cached(
     cache_root.mkdir(parents=True, exist_ok=True)
     result_path = cache_root / f"{digest}.json"
     lock_path = cache_root / "scan.lock"
-    with FileLock(str(lock_path), timeout=_SCAN_CACHE_LOCK_TIMEOUT_S):
+    with machine_file_lock(lock_path, blocking=True, timeout_s=_SCAN_CACHE_LOCK_TIMEOUT_S):
         authority_key = _load_or_create_wall_clock_scan_authority_key(cache_root)
         cached = _read_wall_clock_scan_cache(result_path, digest, authority_key)
         if cached is not None:

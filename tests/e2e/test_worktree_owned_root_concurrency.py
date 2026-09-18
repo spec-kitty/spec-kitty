@@ -316,21 +316,20 @@ def _mission_refs(primary: Path, mission_slug: str) -> set[str]:
 def _common_lock_files(primary: Path) -> list[Path]:
     """Return unexpected entries under the shared coordination lock root.
 
-    Filelock persistence semantics (HIC-M2-DISPOSITIONS-2026-08-22 item 1,
-    F2-T2): ``feature_status_lock`` / ``project_event_log_lock``
-    (``specify_cli.status.locking``) are backed by the third-party
-    ``filelock`` package. Each acquisition creates its ``*.status.lock``
-    marker via ``open(..., O_CREAT)`` -- filelock never writes any bytes into
-    that file, so the marker is always zero-length -- and flocks it; release
-    only drops the OS-level advisory lock. python-filelock does not
-    guarantee the marker is unlinked afterward (on Unix its fast path tries
-    to, but two processes genuinely contending for the *same* lock file --
-    exactly what this test drives, concurrent ``next`` on one mission from
-    the primary checkout and its owned worktree -- can race that unlink, and
-    the loser's still-open marker survives). A zero-byte ``*.status.lock``
-    file left behind under ``<git-common-dir>/spec-kitty-locks/`` after the
-    test is therefore expected residue of the lock mechanism itself, not a
-    defect, and asserting it never happens is not an assertable invariant.
+    Lock persistence semantics (HIC-M2-DISPOSITIONS-2026-08-22 item 1,
+    F2-T2; migrated onto the canonical primitive by mission
+    cross-os-primitive-unification WP05/#4714): ``feature_status_lock`` /
+    ``project_event_log_lock`` (``specify_cli.status.locking``) are backed by
+    ``kernel.locks.machine_file_lock``. Each acquisition writes a
+    ``LockRecord`` payload into its ``*.status.lock`` marker while held, and
+    release TRUNCATES that marker back to zero bytes rather than unlinking it
+    (G3 -- preserves inode identity so a contender's ``O_CREAT`` cannot mint a
+    rival inode and defeat mutual exclusion). So, unlike the pre-migration
+    ``filelock``-backed marker (which sometimes raced its own best-effort
+    unlink), a zero-byte ``*.status.lock`` file is now UNCONDITIONALLY left
+    behind after every clean release, by design -- expected residue of the
+    lock mechanism itself, not a defect, and asserting it never happens is
+    not an assertable invariant.
     A real defect -- mission content or runtime state (which belongs under
     ``kitty-specs/`` or ``.kittify/runtime/``) leaking into the shared lock
     directory instead -- would show up here as a non-empty file, or one

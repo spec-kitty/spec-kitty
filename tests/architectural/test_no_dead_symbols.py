@@ -456,8 +456,8 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.core.context_validation::set_context_env_vars
         SymbolKey("set_context_env_vars", "b766e1ecbde17cc1bb179f2fd9f2587caa50d9a5f7fd68c27b8588ef02137b53", source_module="specify_cli.core.context_validation"),
         SymbolKey(
-            "STALE_AFTER_S_DEFAULT", "4cc4fddf416cec3b9f30b60227a6ef49ccbb4e284b60157cbc63318f63c28452", source_module="specify_cli.core.file_lock"
-        ),  # specify_cli.core.file_lock::STALE_AFTER_S_DEFAULT
+            "STALE_AFTER_S_DEFAULT", "4cc4fddf416cec3b9f30b60227a6ef49ccbb4e284b60157cbc63318f63c28452", source_module="kernel.locks"
+        ),  # kernel.locks::STALE_AFTER_S_DEFAULT (relocated verbatim from specify_cli.core.file_lock, cross-os-primitive-unification WP03)
         SymbolKey(
             "BranchResolution", "8ff2750e1b6b4d57f15389814bd6a09313da7c83e1c97c832a08b599030251f5", source_module="specify_cli.core.git_ops"
         ),  # specify_cli.core.git_ops::BranchResolution
@@ -720,9 +720,10 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "detect_unfilled_plan", "a939602c9997240b49616668817fffbab7af31432e65813252b4afccbff57424", source_module="specify_cli.plan_validation"
         ),  # specify_cli.plan_validation::detect_unfilled_plan
-        SymbolKey(
-            "_is_windows", "e45defef9fec1c1c49c25645cb3f12af0773098ea15f2c5c34a44e6995409704", source_module="specify_cli.runtime.home"
-        ),  # specify_cli.runtime.home::_is_windows
+        # specify_cli.runtime.home::_is_windows deleted (cross-os-primitive-unification-01M2T1CM
+        # WP01): the private copy was removed and routed through the canonical
+        # kernel.paths.is_windows seam, so this allowlist entry is dropped rather
+        # than left dangling.
         # specify_cli.runtime.resolver::ResolutionResult (escalated: live collision)
         SymbolKey("ResolutionResult", "a49e0d4f6645139569e84bec5471e1f3cfa6ee507aa530454f76265290ddca58", module_path="specify_cli.runtime.resolver"),
         # specify_cli.runtime.resolver::ResolutionTier (escalated: live collision)
@@ -2114,6 +2115,28 @@ _CATEGORY_D_LIVE_WORK_AUTHORED_PUBLIC_SURFACE: frozenset[SymbolKey] = frozenset(
         ),
     }
 )
+
+
+# ---------- C. WP-in-flight cross-OS lock primitive unification (#4714) ----------
+# ``kernel.locks`` (cross-os-primitive-unification mission, WP03) lands the
+# canonical sync facade + test-double injection seam AHEAD of its planned
+# consumers: WP04 (migrate stdlib lock sites) and WP05 (migrate remaining
+# filelock sites) wire ``SyncMachineFileLock``/``machine_file_lock`` from
+# ``review/pre_review_gate.py``, ``status/locking.py``,
+# ``review/verdict_commit_queue.py``, etc. (see
+# ``tests/architectural/_exemptions/lock-ban-wp04.txt`` /
+# ``lock-ban-wp05.txt`` for the exact sites). ``LockNotAcquired`` is the new
+# non-blocking-contention exception the sync facade's ``blocking=False``
+# default raises. Each is exercised directly by
+# ``tests/kernel/test_locks.py`` today; the removal trigger is the first
+# WP04/WP05 ``src/`` caller landing.
+# _CATEGORY_C_WP_IN_FLIGHT_LOCK_PRIMITIVE_UNIFICATION was retired (#4714
+# post-consolidation cleanup): all three entries (LockNotAcquired,
+# SyncMachineFileLock, machine_file_lock) are now genuinely wired --
+# LockNotAcquired is raised/caught by real callers, and SyncMachineFileLock /
+# machine_file_lock are consumed via kernel.locks.__all__ across the
+# migrated call sites -- so the temporary WP-in-flight allowance is no
+# longer needed (FR-008 dangling-allowlist pruning).
 
 
 # Aggregate. The gate consults this; the per-category frozensets are

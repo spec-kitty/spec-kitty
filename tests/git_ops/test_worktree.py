@@ -299,11 +299,19 @@ class TestSetupFeatureDirectory:
         assert not worktree_memory.is_symlink()
         assert (worktree_memory / "charter.md").read_text() == "Charter content"
 
-    @patch("platform.system")
-    def test_uses_copy_on_windows(self, mock_system: Mock, tmp_path: Path) -> None:
-        """Should use file copy instead of symlinks on Windows."""
+    @patch("specify_cli.core.worktree.is_windows")
+    def test_uses_copy_on_windows(self, mock_is_windows: Mock, tmp_path: Path) -> None:
+        """Should use file copy instead of symlinks on Windows.
+
+        Patches ``specify_cli.core.worktree.is_windows`` (the canonical
+        ``kernel.paths.is_windows`` seam, routed here as a module-level
+        ``from kernel.paths import is_windows`` import) rather than
+        ``platform.system`` -- a from-imported name is overridden at the
+        CONSUMER's own bound attribute, not at the stdlib origin, since the
+        import copies the reference once at import time.
+        """
         # Setup
-        mock_system.return_value = "Windows"
+        mock_is_windows.return_value = True
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         worktree_path = tmp_path / ".worktrees" / "001-test"
         worktree_path.mkdir(parents=True)  # Create worktree directory

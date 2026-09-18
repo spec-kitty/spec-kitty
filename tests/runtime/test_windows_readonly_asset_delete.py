@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 import specify_cli.runtime.asset_preparation as ap
+from specify_cli.core import safe_delete
 from specify_cli.tool_surface.operations import FileState, OperationRoot, OwnershipProof, PhysicalEffect
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -115,14 +116,25 @@ class TestWriteAssetDeletesReadOnlyManagedAssets:
 
 
 class TestSafeDeleteHelpers:
-    """The helper mechanism, exercised directly for both owners."""
+    """The helper mechanism, exercised directly for both owners.
 
-    def test_asset_preparation_safe_unlink(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    WP04: ``asset_preparation`` no longer carries its own
+    ``_force_writable``/``_safe_unlink``/``_safe_rmdir`` copy -- it routes
+    onto the canonical ``specify_cli.core.safe_delete`` util (WP02), which
+    ``_write_asset`` (exercised above) now calls directly. This proves the
+    module-level names asset_preparation itself binds (``safe_unlink``)
+    resolve to that same canonical implementation.
+    """
+
+    def test_asset_preparation_uses_the_canonical_safe_unlink(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        assert ap.safe_unlink is safe_delete.safe_unlink
+        assert ap.safe_rmdir is safe_delete.safe_rmdir
+
         victim = tmp_path / "f"
         victim.write_text("x")
         victim.chmod(0o444)
         _install_windows_readonly_delete_sim(monkeypatch)
-        ap._safe_unlink(victim)
+        ap.safe_unlink(victim)
         assert not victim.exists()
 
     def test_installer_safe_unlink_and_rmdir(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

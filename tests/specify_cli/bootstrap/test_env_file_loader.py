@@ -375,7 +375,7 @@ class TestConfigEnvFilePointer:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, repo_dir: Path
     ) -> None:
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
         monkeypatch.setattr(Path, "home", classmethod(lambda _cls: tmp_path))
 
         resolved = env_file._resolve_home_tier_path(repo_dir, {})
@@ -471,7 +471,7 @@ class TestCrossPlatformStateRootHome:
         self, monkeypatch: pytest.MonkeyPatch, repo_dir: Path
     ) -> None:
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
 
         resolved = env_file._resolve_home_tier_path(repo_dir, {})
 
@@ -485,7 +485,7 @@ class TestCrossPlatformStateRootHome:
         import platformdirs
 
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: True)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: True)
         monkeypatch.setattr(
             platformdirs,
             "user_data_dir",

@@ -145,7 +145,11 @@ def test_pytest_lacking_sys_executable_still_yields_real_verdict_via_uv(
     _write_fake_uv(bin_dir)
 
     monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
-    monkeypatch.setattr(pre_review_gate.sys, "executable", str(broken_python))
+    # WP04: pre_review_gate no longer imports `sys` itself (its own `sys`
+    # usage was migrated onto kernel.locks/kernel.paths), so patch the real
+    # `sys` module directly -- `pre_review_gate.sys` was always just a proxy
+    # for this same module object, never a module-local copy.
+    monkeypatch.setattr(sys, "executable", str(broken_python))
 
     result = pre_review_gate.run_scoped_tests_at_head(["test_sample.py"], repo_root=project_dir)
 
@@ -196,15 +200,23 @@ def _run_lock_acquire_timeout_scenario(
     Returns ``(result, captured_timeouts, elapsed)`` so both the functional
     and the (nightly-only) timing-budget test can share one setup without
     duplicating the mocking (#4015 split).
+
+    WP04 (cross-os-primitive-unification): ``_scoped_run_lock`` no longer
+    calls ``fcntl.flock`` at all (migrated onto
+    ``kernel.locks.machine_file_lock``), so "permanent contention" is
+    simulated by genuinely holding the SAME lock path open from this test
+    process for the scenario's duration -- OS-level ``flock`` contends
+    across independent open file descriptions even within one process, so
+    this reproduces real contention rather than mocking an internal call.
     """
     monkeypatch.setattr(pre_review_gate, "_LOCK_ACQUIRE_TIMEOUT_DEFAULT", 0.05)
 
-    import fcntl
+    from kernel.locks import machine_file_lock
 
-    def _always_contended(_fd: int, _flags: int) -> None:
-        raise OSError("simulated permanent contention")
-
-    monkeypatch.setattr(fcntl, "flock", _always_contended)
+    lock_path = pre_review_gate.get_runtime_root().base / "gate-locks" / pre_review_gate._SCOPED_RUN_LOCK_FILENAME
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    contender = machine_file_lock(lock_path, blocking=True)
+    contender.__enter__()
 
     captured_command: list[str] = []
     captured_timeouts: list[float] = []
@@ -230,15 +242,18 @@ def _run_lock_acquire_timeout_scenario(
     monkeypatch.setattr(pre_review_gate, "_launch_scoped_process", _fake_launch)
     observation_clock = iter((100.0, 100.0))
 
-    start = time.monotonic()
-    result = pre_review_gate.run_scoped_tests_at_head(
-        ["tests/status"],
-        repo_root=tmp_path,
-        timeout=300,
-        monotonic=lambda: next(observation_clock),
-        wait=_fake_wait,
-    )
-    elapsed = time.monotonic() - start
+    try:
+        start = time.monotonic()
+        result = pre_review_gate.run_scoped_tests_at_head(
+            ["tests/status"],
+            repo_root=tmp_path,
+            timeout=300,
+            monotonic=lambda: next(observation_clock),
+            wait=_fake_wait,
+        )
+        elapsed = time.monotonic() - start
+    finally:
+        contender.__exit__(None, None, None)
 
     return result, captured_timeouts, elapsed
 

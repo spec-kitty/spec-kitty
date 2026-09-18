@@ -3,9 +3,11 @@
 ``<runtime_state_root>/zeitgeist-sessions/<logical_session_id>/zeitgeist-credentials`` — a sibling of, deliberately
 NOT sharing, ``tracker/credentials.py``'s ``<root>/credentials`` file
 (Z1.md decision 3: different trust domains, coupling them would make Z1-T1 a
-co-owner of an unrelated file format). TOML, ``filelock``-guarded (decision
-4: the existing declared-but-unused dependency, ``pyproject.toml:85``,
-rather than tracker's hand-rolled ``fcntl``/``msvcrt``).
+co-owner of an unrelated file format). TOML, lock-guarded via
+``kernel.locks.machine_file_lock`` (mission cross-os-primitive-unification
+WP05/#4714 migrated decision 4's original ``filelock`` dependency onto the
+repo's own canonical primitive, rather than tracker's hand-rolled
+``fcntl``/``msvcrt``).
 
 Keyed by the hosted identity :func:`resolution.store_key` derives from the
 checkout's origin remote — ``host/owner/repo``, e.g. ``github.com/acme/widget``
@@ -101,8 +103,8 @@ from kernel.clock import now_utc_iso
 
 import tomllib
 import tomli_w
-from filelock import FileLock
 
+from kernel.locks import SyncMachineFileLock, machine_file_lock
 from kernel.paths import get_runtime_state_root
 
 from .session_identity import logical_session_id
@@ -191,15 +193,17 @@ def _lock_path() -> Path:
     return credentials_path().with_suffix(credentials_path().suffix + _LOCK_SUFFIX)
 
 
-def _locked() -> FileLock:
+def _locked() -> SyncMachineFileLock:
     """The store's lock, taken only after the state root exists owner-only.
 
-    Everything in this module goes through one lock, and filelock creates
-    missing parent directories *itself* on acquire — at the ambient umask
-    (0o755 measured), which would otherwise always beat any mode passed to
-    ``_write_all``'s later ``mkdir``. Creating the root here first, at
-    0o700, is what actually makes the directory holding the tokens
-    owner-only.
+    Everything in this module goes through one lock, built via
+    :func:`kernel.locks.machine_file_lock` (the canonical primitive's G6
+    test-double injection seam) rather than constructed directly. The
+    primitive creates missing parent directories *itself* on acquire — at
+    the ambient umask (0o755 measured), which would otherwise always beat
+    any mode passed to ``_write_all``'s later ``mkdir``. Creating the root
+    here first, at 0o700, is what actually makes the directory holding the
+    tokens owner-only.
 
     ``mkdir``'s ``mode`` only applies at creation — ``exist_ok=True`` leaves
     an already-existing directory's mode untouched. A directory (or file)
@@ -220,7 +224,7 @@ def _locked() -> FileLock:
     path.parent.chmod(0o700)
     if path.is_file():
         path.chmod(0o600)
-    return FileLock(str(_lock_path()))
+    return machine_file_lock(_lock_path(), blocking=True, timeout_s=None)
 
 
 def _read_all() -> dict[str, dict[str, str]]:

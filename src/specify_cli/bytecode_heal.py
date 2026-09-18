@@ -21,11 +21,12 @@ installed package's bytecode, and retries the failed operation exactly once.
 from __future__ import annotations
 
 import importlib
-import sys
 from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
 from typing import TypeVar
+
+from kernel.paths import is_windows
 
 __all__ = ["invoke_with_bytecode_heal"]
 
@@ -209,7 +210,7 @@ def _names_package_path(exc: ImportError, root: Path) -> bool:
     path = getattr(exc, "path", None)
     if isinstance(path, (str, Path)):
         candidates.append(str(path))
-    if sys.platform == "win32":
+    if is_windows():
         root_text = str(root).casefold()
         return any(root_text in candidate.casefold() for candidate in candidates)
     root_text = str(root)

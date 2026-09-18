@@ -31,10 +31,10 @@ import asyncio
 import dataclasses
 import logging
 import os
-import sys
 import threading
 from pathlib import Path
 
+from kernel.paths import is_windows
 from specify_cli.paths import get_runtime_root
 
 from .errors import (
@@ -106,8 +106,17 @@ def _refresh_lock_path() -> Path:
     ``~/.spec-kitty/auth/refresh.lock`` on POSIX and the platformdirs base on
     Windows.
     """
-    if sys.platform == "win32":  # pragma: no cover - platform-specific
-        return get_runtime_root().auth_dir / "refresh.lock"
+    if is_windows():  # pragma: no cover - platform-specific
+        # ``specify_cli.*`` is type-checked with ``follow_imports = skip``, so the
+        # cross-package ``get_runtime_root()`` is seen as ``Any`` here; bind to a
+        # ``Path``-typed local to keep the declared return type honest. (Routing
+        # this check through ``is_windows()`` instead of a literal
+        # ``sys.platform == "win32"`` -- cross-os-primitive-unification WP03/T012 --
+        # means mypy no longer prunes this branch as unreachable on a non-Windows
+        # host, so it now actually type-checks the same way the POSIX branch
+        # below always did; this local was needed here all along.)
+        win_lock: Path = get_runtime_root().auth_dir / "refresh.lock"
+        return win_lock
     # ``specify_cli.*`` is type-checked with ``follow_imports = skip``, so the
     # cross-package ``get_runtime_root()`` is seen as ``Any`` here; bind to a
     # ``Path``-typed local to keep the declared return type honest.

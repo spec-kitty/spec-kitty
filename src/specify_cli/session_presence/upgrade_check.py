@@ -17,6 +17,7 @@ import os
 import subprocess
 import sys
 from kernel.clock import now_utc, now_utc_iso, parse_iso, timedelta
+from kernel.paths import is_windows
 from pathlib import Path
 
 from specify_cli.core.env import is_truthy
@@ -140,7 +141,7 @@ class UpgradeChecker:
         try:
             CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
             argv = [sys.executable, "-m", "specify_cli.session_presence.upgrade_check"]
-            if os.name == "nt":
+            if is_windows():
                 subprocess.Popen(
                     argv,
                     stdout=subprocess.DEVNULL,

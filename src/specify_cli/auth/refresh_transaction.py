@@ -45,7 +45,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ..core.file_lock import LockAcquireTimeout, MachineFileLock
+from kernel.locks import LockAcquireTimeout, MachineFileLock
 from .errors import RefreshReplayError, RefreshTokenExpiredError, SessionInvalidError
 from .secure_storage import SecureStorage
 from .session import StoredSession

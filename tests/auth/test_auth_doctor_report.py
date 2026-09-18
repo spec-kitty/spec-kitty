@@ -52,7 +52,7 @@ from specify_cli.cli.commands._auth_doctor import (
     render_report,
     render_report_json,
 )
-from specify_cli.core.file_lock import LockRecord
+from kernel.locks import LockRecord
 from tests._perf_helpers import assert_timing_budget
 
 pytestmark = pytest.mark.fast

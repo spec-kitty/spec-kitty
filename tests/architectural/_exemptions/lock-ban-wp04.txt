@@ -1,0 +1,22 @@
+# Lock-primitive ban gate (FR-010) -- WP04 (migrate stdlib lock sites).
+#
+# Seeded fail-closed at WP03 landing (kernel/locks.py, the canonical door)
+# with every currently-detected raw msvcrt/fcntl import or call outside the
+# door in a file WP04 owns (kitty-specs/cross-os-primitive-unification-
+# 01M2T1CM/tasks/WP04-migrate-stdlib-lock-sites.md).
+#
+# WP04 landing: every seeded site has been migrated onto kernel.locks
+# (paths/windows_migrate.py's _migration_lock, review/pre_review_gate.py's
+# _scoped_run_lock -- including its previously-"stays raw" import fcntl guard,
+# which became genuinely dead once the flock calls it existed for moved onto
+# the canonical primitive, so it was deleted rather than kept allowlisted --
+# runtime/bootstrap.py's _lock_exclusive, and tracker/credentials.py's
+# _locked_file). No raw msvcrt/fcntl import or call remains in any WP04-owned
+# file; this allowlist is intentionally empty of entries.
+#
+# NOTE: runtime/asset_preparation.py was never seeded here (a live AST scan
+# at WP03 landing found ZERO raw msvcrt/fcntl import or call in that file --
+# only #4703-context prose in comments/docstrings). Its own _HELD_LOCKS
+# cold-install/owner-lock coordination was migrated onto
+# kernel.locks.machine_file_lock in the same WP04 landing, without ever
+# having a raw call of its own to allowlist here.

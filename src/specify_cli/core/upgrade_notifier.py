@@ -36,6 +36,7 @@ from typing import Any
 from rich.console import Console
 
 from kernel.clock import Clock, DEFAULT_CLOCK, datetime, parse_iso, timedelta
+from kernel.paths import is_windows
 from specify_cli.core.env import is_truthy
 from specify_cli.core.upgrade_probe import (
     UpgradeChannel,
@@ -70,7 +71,7 @@ def _default_cache_path() -> Path:
 
     Both honour ``XDG_CACHE_HOME`` on POSIX when set.
     """
-    if os.name == "nt":
+    if is_windows():
         base = os.environ.get("LOCALAPPDATA")
         if base:
             return Path(base) / _CACHE_PARENT / _CACHE_FILENAME

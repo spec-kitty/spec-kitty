@@ -13,10 +13,8 @@ from __future__ import annotations
 
 import logging
 import shutil
-import sys
 import warnings
 from pathlib import Path
-from typing import IO
 
 import yaml
 
@@ -53,31 +51,6 @@ def _get_cli_version() -> str:
         )
         return fallback
     return _version
-
-
-def _lock_exclusive(fd: IO[str] | int) -> None:
-    """Acquire an exclusive file lock, blocking if another process holds it.
-
-    On Unix: uses ``fcntl.flock`` with a non-blocking attempt first.
-    If another process holds the lock, falls back to a blocking wait.
-
-    On Windows: uses ``msvcrt.locking`` with ``LK_LOCK`` (blocking).
-
-    Args:
-        fd: An open file object whose underlying descriptor will be locked.
-    """
-    if sys.platform == "win32":
-        import msvcrt
-
-        msvcrt.locking(fd if isinstance(fd, int) else fd.fileno(), msvcrt.LK_LOCK, 1)
-    else:
-        import fcntl
-
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            # Another process is updating -- wait for it
-            fcntl.flock(fd, fcntl.LOCK_EX)
 
 
 def populate_from_package(

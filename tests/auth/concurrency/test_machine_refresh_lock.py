@@ -9,7 +9,7 @@ The production path under test is:
 
 * :func:`specify_cli.auth.refresh_transaction.run_refresh_transaction` —
   the read-decide-refresh-reconcile body wrapped in a
-  :class:`specify_cli.core.file_lock.MachineFileLock`.
+  :class:`kernel.locks.MachineFileLock`.
 * :class:`specify_cli.auth.token_manager.TokenManager.refresh_if_needed` —
   the in-process ``asyncio.Lock`` plus delegation to the transaction.
 

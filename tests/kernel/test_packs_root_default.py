@@ -60,7 +60,7 @@ class TestGetRuntimeStateRoot:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
         assert get_runtime_state_root() == Path.home() / ".spec-kitty"
 
     def test_distinct_from_kittify_home_by_directory_name(
@@ -68,7 +68,7 @@ class TestGetRuntimeStateRoot:
     ) -> None:
         """The state root and the .kittify asset home are separate roots — never collapsed."""
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
         assert get_runtime_state_root().name == ".spec-kitty"
         assert get_kittify_home().name == ".kittify"
         assert get_runtime_state_root() != get_kittify_home()
@@ -79,7 +79,7 @@ class TestGetRuntimeStateRoot:
         import platformdirs
 
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: True)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: True)
         monkeypatch.setattr(
             platformdirs,
             "user_data_dir",

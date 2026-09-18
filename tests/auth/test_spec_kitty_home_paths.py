@@ -85,15 +85,19 @@ def test_refresh_lock_posix_default_when_env_unset(monkeypatch, tmp_path: Path):
 def test_refresh_lock_windows_branch_honors_spec_kitty_home(
     monkeypatch, tmp_path: Path
 ):
-    """Windows branch (sys.platform=win32): lock resolves under the env root.
+    """Windows branch (``kernel.paths.is_windows()`` forced True): lock resolves under the env root.
 
     Setting SPEC_KITTY_HOME makes get_runtime_root() env-driven regardless of
     platform, so the win32 branch lands beside the platform session file under
-    the resolved root.
+    the resolved root. ``_refresh_lock_path`` routes its OS check through the
+    canonical ``kernel.paths.is_windows`` seam (cross-os-primitive-unification,
+    WP03/T012) rather than an inline ``sys.platform`` comparison, so the
+    branch is forced via that seam -- faking ``sys.platform`` alone no longer
+    has any effect on it.
     """
     home = tmp_path / "sk-home"
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr("kernel.paths.is_windows", lambda: True)
     assert tm_module._refresh_lock_path() == home / "auth" / "refresh.lock"
 
 

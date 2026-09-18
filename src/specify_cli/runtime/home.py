@@ -17,11 +17,7 @@ import os
 from pathlib import Path
 
 import kernel.paths
-
-
-def _is_windows() -> bool:
-    """Return True when running on Windows."""
-    return os.name == "nt"
+from kernel.paths import is_windows
 
 
 def get_kittify_home() -> Path:
@@ -39,7 +35,7 @@ def get_kittify_home() -> Path:
     if env_home := os.environ.get("SPEC_KITTY_HOME"):
         return Path(env_home)
 
-    if _is_windows():
+    if is_windows():
         from specify_cli.paths import get_runtime_root  # noqa: PLC0415
 
         return get_runtime_root().base
@@ -61,4 +57,4 @@ def get_package_asset_root() -> Path:
     return kernel.paths.get_package_asset_root()
 
 
-__all__ = ["_is_windows", "get_kittify_home", "get_package_asset_root"]
+__all__ = ["get_kittify_home", "get_package_asset_root"]

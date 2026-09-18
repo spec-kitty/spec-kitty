@@ -22,7 +22,6 @@ import pytest
 from specify_cli.runtime.bootstrap import (
     _cleanup_orphaned_update_dirs,
     _get_cli_version,
-    _lock_exclusive,
     check_version_pin,
     ensure_runtime,
     populate_from_package,
@@ -95,19 +94,21 @@ class TestGetCliVersion:
 
 
 # ---------------------------------------------------------------------------
-# T010: _lock_exclusive() tests
+# WP04 (cross-os-primitive-unification): bootstrap._lock_exclusive() was
+# retired outright -- both its call sites (asset_preparation.py's
+# recheck_assets/_apply_retained_assets) now construct
+# kernel.locks.machine_file_lock directly. Its own cross-platform parity is
+# owned by tests/kernel/test_locks.py (WP03); the bootstrap-scoped migration
+# behaviour (blocking acquire + .update.lock no-self-read) is covered by
+# tests/runtime/test_bootstrap_lock_migration.py.
 # ---------------------------------------------------------------------------
 
 
-class TestLockExclusive:
-    """_lock_exclusive() acquires a file lock on Unix."""
+def test_lock_exclusive_no_longer_exists() -> None:
+    """FR-010: bootstrap.py carries no raw lock helper any more."""
+    import specify_cli.runtime.bootstrap as bootstrap_module
 
-    def test_lock_acquires_on_unix(self, tmp_path: Path) -> None:
-        """Lock can be acquired on a new file."""
-        lock_file = tmp_path / ".update.lock"
-        with open(lock_file, "w") as fd:
-            _lock_exclusive(fd)
-            # No exception means success
+    assert not hasattr(bootstrap_module, "_lock_exclusive")
 
 
 # ---------------------------------------------------------------------------
@@ -189,7 +190,7 @@ class TestEnsureRuntimeFastPath:
         (cache_dir / "version.lock").write_text(FAKE_VERSION)
 
         ensure_runtime()
-        with patch("specify_cli.runtime.bootstrap._lock_exclusive") as mock_lock:
+        with patch("specify_cli.runtime.asset_preparation.machine_file_lock") as mock_lock:
             ensure_runtime()
             mock_lock.assert_not_called()
 
@@ -281,23 +282,31 @@ class TestEnsureRuntimeSlowPath:
             lambda: FAKE_VERSION,
         )
 
-        # Simulate: version.lock doesn't exist before lock but does after
+        # Simulate: version.lock doesn't exist before lock but does after.
+        # WP04: injected via kernel.locks' own G6 test-double seam
+        # (SyncMachineFileLock looked up through kernel.locks' module
+        # namespace at call time) rather than the retired
+        # bootstrap._lock_exclusive -- firing the side effect on the FIRST
+        # lock actually acquired (the cold-install sentinel), mirroring the
+        # pre-migration test's interception of the anchor-flock acquisition.
+        import kernel.locks as kernel_locks
+
+        real_lock_cls = kernel_locks.SyncMachineFileLock
         call_count = 0
-        original_lock = _lock_exclusive
 
-        def lock_that_creates_version(fd: Any) -> None:
-            nonlocal call_count
-            original_lock(fd)
-            call_count += 1
-            # Simulate another process finishing while we waited
-            cache_dir = fake_home / "cache"
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            (cache_dir / "version.lock").write_text(FAKE_VERSION)
+        class _VersionMaterializingLock(real_lock_cls):  # type: ignore[misc]
+            def __enter__(self) -> Any:
+                nonlocal call_count
+                record = super().__enter__()
+                call_count += 1
+                if call_count == 1:
+                    # Simulate another process finishing while we waited.
+                    cache_dir = fake_home / "cache"
+                    cache_dir.mkdir(parents=True, exist_ok=True)
+                    (cache_dir / "version.lock").write_text(FAKE_VERSION)
+                return record
 
-        monkeypatch.setattr(
-            "specify_cli.runtime.bootstrap._lock_exclusive",
-            lock_that_creates_version,
-        )
+        monkeypatch.setattr(kernel_locks, "SyncMachineFileLock", _VersionMaterializingLock)
 
         with patch("specify_cli.runtime.bootstrap.populate_from_package") as mock_pop:
             with pytest.raises(RuntimeError, match="Global asset input changed"):

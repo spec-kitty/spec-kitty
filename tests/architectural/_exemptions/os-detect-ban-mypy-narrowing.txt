@@ -1,0 +1,38 @@
+# OS-detection ban gate (FR-012) -- PERMANENT mypy-narrowing sanctioned-raw allowlist.
+#
+# Distinct from os-detect-ban-sanctioned-raw.txt's module-scope IMPORT
+# guards: these are CALL-SITE dispatches (`msvcrt.locking(...)` vs.
+# `fcntl.flock(...)`) inside kernel/locks.py -- the canonical lock primitive
+# (cross-os-primitive-unification, WP03) -- that must stay on the raw
+# `sys.platform == "win32"` literal rather than `is_windows()`.
+#
+# Reason (verified during WP03/T010, not theoretical): mypy special-cases a
+# LITERAL `sys.platform`/`sys.version_info` comparison to statically prune
+# (skip-check) the branch that is unreachable on the platform mypy is
+# modelling -- so on a POSIX CI/dev host the `msvcrt.locking(...)` branch is
+# never even type-checked, and no error fires despite `msvcrt` not being a
+# real module there. Routing that SAME branch condition through the
+# `is_windows()` function call defeats this narrowing entirely: mypy then
+# tries to actually resolve `msvcrt.locking`/`LK_NBLCK`/`LK_UNLCK` against
+# whatever (empty/partial) stub is active for the host platform and reports
+# `attr-defined`/`name-defined` errors that have nothing to do with a real
+# bug. A `TYPE_CHECKING`-only re-import of `msvcrt` does NOT fix this either
+# (verified) -- typeshed's own `msvcrt.pyi` stub is itself internally gated
+# by `sys.platform`, so it resolves to the same platform-narrowed (mostly
+# empty) surface even under `TYPE_CHECKING`.
+#
+# `_is_contention_error` (the third `sys.platform` check this module
+# originally carried, at the pre-move file_lock.py's line 130) does NOT
+# appear here: it never references `msvcrt`/`fcntl` by name (only
+# `errno.EDEADLK`), so it genuinely routes through `is_windows()` cleanly and
+# is not exempted anywhere.
+#
+# PERMANENT for the same reason the import-guard file is permanent: as long
+# as `msvcrt`/`fcntl` stay platform-exclusive stdlib modules with
+# platform-gated stubs, these two call sites cannot be routed without
+# reintroducing the mypy regression above.
+# WP04 (cross-os-primitive-unification): line-number drift fix -- these two
+# entries had gone stale (:217/:229) after an unrelated upstream shift in
+# kernel/locks.py; corrected to the current lines.
+src/kernel/locks.py:221
+src/kernel/locks.py:233

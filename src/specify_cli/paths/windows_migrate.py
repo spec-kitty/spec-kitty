@@ -10,11 +10,15 @@ legacy tree is preserved by renaming to a timestamped *.bak-<ISO-UTC> name.
 This module is **pure** with respect to I/O side effects: it emits no CLI
 output and imports no rich/console modules.  CLI wiring lives in WP04.
 
-Platform guard: all migration logic is skipped on non-Windows platforms.
-The msvcrt import is guarded inside sys.platform == "win32" branches.
+Platform guard: all migration logic is skipped on non-Windows platforms
+(``sys.platform != "win32"`` -- the unbanned negative-comparison idiom;
+FR-012 only bans the ``==`` form). Locking routes through
+``kernel.locks.machine_file_lock`` (FR-010); no raw ``msvcrt``/``fcntl``
+call remains in this module.
 
 Spec IDs: FR-006, FR-007, FR-008, NFR-003, NFR-004, C-006, C-007
 """
+
 from __future__ import annotations
 
 import errno
@@ -22,9 +26,10 @@ import os
 import shutil
 import sys
 from collections.abc import Iterator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from dataclasses import dataclass
 from kernel.clock import now_utc_compact_stamp
+from kernel.locks import LockAcquireTimeout, machine_file_lock
 from pathlib import Path
 from typing import Literal
 
@@ -139,6 +144,7 @@ def _known_legacy_roots(root_base: Path, auth_dir: Path) -> list[LegacyWindowsRo
     # Windows users have on disk.  Include it as a migration source so upgrade moves
     # that tree to the unified %LOCALAPPDATA%\spec-kitty\ root per Q3=C.
     from platformdirs import user_data_dir  # noqa: PLC0415
+
     kittify_localappdata = Path(user_data_dir("kittify"))
     return [
         LegacyWindowsRoot(
@@ -171,11 +177,15 @@ def _known_legacy_roots(root_base: Path, auth_dir: Path) -> list[LegacyWindowsRo
 
 @contextmanager
 def _migration_lock(root_base: Path, timeout_s: float = 3.0) -> Iterator[None]:
-    """Serialize concurrent migration attempts via msvcrt.locking.
+    """Serialize concurrent migration attempts via the canonical lock primitive.
 
     On non-Windows platforms this is a no-op context manager that never
-    touches the filesystem.  The msvcrt import is guarded inside the
-    ``sys.platform == "win32"`` branch to avoid ImportError on POSIX.
+    touches the filesystem. The ``sys.platform != "win32"`` guard is the
+    unbanned negative-comparison idiom (tests/architectural/
+    test_os_detection_ban.py's own over-fire boundary only bans the ``==``
+    form; this WP does not additionally route it through ``is_windows()``,
+    since it was never seeded in os-detect-ban-wp04.txt and doing so would
+    only add churn without shrinking any gate).
 
     Raises
     ------
@@ -186,29 +196,13 @@ def _migration_lock(root_base: Path, timeout_s: float = 3.0) -> Iterator[None]:
         yield
         return
 
-    import msvcrt  # noqa: PLC0415  # Windows-only; intentionally late import
-    import time
-
     root_base.mkdir(parents=True, exist_ok=True)
     lock_path = root_base / ".migrate.lock"
-    with lock_path.open("a+b") as lock_file:  # noqa: WPS515
-        deadline = time.monotonic() + timeout_s
-        while True:
-            try:
-                msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
-                break
-            except OSError:
-                if time.monotonic() >= deadline:
-                    raise TimeoutError(
-                        "Another Spec Kitty CLI instance is migrating runtime state."
-                        " Please retry in a moment."
-                    ) from None
-                time.sleep(0.1)
-        try:
+    try:
+        with machine_file_lock(lock_path, blocking=True, timeout_s=timeout_s):
             yield
-        finally:
-            with suppress(OSError):
-                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+    except LockAcquireTimeout as exc:
+        raise TimeoutError("Another Spec Kitty CLI instance is migrating runtime state. Please retry in a moment.") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -299,9 +293,7 @@ def _migrate_one(
                 dest_path=dest_path_str,
                 quarantine_path=quarantine_path_str,
                 timestamp_utc=ts,
-                error=(
-                    f"Could not quarantine {root.path} → {quarantine}: {exc}"
-                ),
+                error=(f"Could not quarantine {root.path} → {quarantine}: {exc}"),
             )
 
         return MigrationOutcome(
@@ -343,9 +335,7 @@ def _migrate_one(
                     dest_path=dest_path_str,
                     quarantine_path=quarantine_path_str,
                     timestamp_utc=ts,
-                    error=(
-                        f"Cross-volume copy of {root.path} → {root.dest} failed: {inner_exc}"
-                    ),
+                    error=(f"Cross-volume copy of {root.path} → {root.dest} failed: {inner_exc}"),
                 )
             return MigrationOutcome(
                 legacy_id=root.id,

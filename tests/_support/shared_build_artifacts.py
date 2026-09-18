@@ -19,7 +19,7 @@ it automatically scoped to a single run:
 * two concurrent pytest processes get distinct basetemps, so their caches
   never meet (they merely each build, as before).
 
-A ``filelock`` lock serialises the first build; later workers validate what was
+A ``kernel.locks`` machine lock serialises the first build; later workers validate what was
 published and reuse it without building. Publication is atomic — the builder
 fills a staging directory, then renames it into place while holding the lock —
 and a crashed builder's staging directory is swept by the next claimant, so an
@@ -38,7 +38,8 @@ from pathlib import Path
 from typing import TypeVar
 
 import pytest
-from filelock import FileLock, Timeout as FileLockTimeout
+
+from kernel.locks import LockAcquireTimeout, machine_file_lock
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -287,7 +288,7 @@ def _publish_once(
     if published is not None:
         return published
     try:
-        with FileLock(str(run_root / (dir_name + ".lock")), timeout=lock_timeout_s):
+        with machine_file_lock(run_root / (dir_name + ".lock"), blocking=True, timeout_s=lock_timeout_s):
             published = inspect(shared_dir)
             if published is not None:
                 return published
@@ -311,7 +312,7 @@ def _publish_once(
                     if attempt == attempts - 1:
                         raise
                     time.sleep(retry_delay_s)
-    except FileLockTimeout as error:
+    except LockAcquireTimeout as error:
         # Queueing behind another worker's build is expected; a timed-out wait
         # must flow down the same path as any other build failure (skip), not
         # escape as a collection ERROR.

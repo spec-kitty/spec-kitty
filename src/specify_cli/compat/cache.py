@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Literal
 
 from kernel.clock import UTC, datetime, parse_iso
+from kernel.paths import is_windows
 
 _LOG = logging.getLogger(__name__)
 
@@ -134,10 +135,7 @@ class NagCacheRecord:
         latest_version = _optional_str(data, "latest_version")
         latest_source_raw = _require_str(data, "latest_source")
         if latest_source_raw not in _VALID_LATEST_SOURCES:
-            raise ValueError(
-                f"latest_source must be 'pypi', 'simple_index', or 'none', "
-                f"got {latest_source_raw!r}"
-            )
+            raise ValueError(f"latest_source must be 'pypi', 'simple_index', or 'none', got {latest_source_raw!r}")
         latest_source = _coerce_latest_source(latest_source_raw)
         fetched_at = _iso_to_dt(_require_str(data, "fetched_at"))
         last_shown_at_raw = _optional_str(data, "last_shown_at")
@@ -187,9 +185,7 @@ def _parse_snooze_step(raw_value: object) -> SnoozeStep | None:
     if raw_value is None:
         return None
     if raw_value not in _VALID_SNOOZE_STEPS:
-        raise ValueError(
-            f"snooze_step must be one of {sorted(_VALID_SNOOZE_STEPS)} or null, got {raw_value!r}"
-        )
+        raise ValueError(f"snooze_step must be one of {sorted(_VALID_SNOOZE_STEPS)} or null, got {raw_value!r}")
     if raw_value == "24h":
         return "24h"
     if raw_value == "48h":
@@ -378,7 +374,7 @@ class NagCache:
 
         payload = json.dumps(record.to_dict(), sort_keys=True, ensure_ascii=True)
 
-        if sys.platform == "win32":
+        if is_windows():
             _write_windows(path, payload)
         else:
             _write_posix(path, payload)
@@ -502,7 +498,7 @@ def _resolve_cache_dir() -> str:
     # Manual XDG / OS-specific fallback.
     if sys.platform == "darwin":
         return str(Path.home() / "Library" / "Caches" / "spec-kitty")
-    if sys.platform == "win32":
+    if is_windows():
         local_app_data = os.environ.get("LOCALAPPDATA", "")
         if local_app_data:
             return str(Path(local_app_data) / "spec-kitty" / "Cache")

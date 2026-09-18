@@ -7,9 +7,15 @@ NFR-001 / research.md D3. The POSIX-flat vs Windows-nested divergence
 (``_tracker_root()`` returns ``base`` on POSIX but ``base/tracker`` on Windows)
 is intentional and is asserted here.
 
-Every test pins both the platform (``sys.platform``, which drives both
-``_tracker_root()`` and ``get_runtime_root()``) and ``$HOME`` via monkeypatch, so
-the suite is deterministic on every OS.
+Every test pins both the platform and ``$HOME`` via monkeypatch, so the suite
+is deterministic on every OS. Platform pinning patches TWO independent seams
+(cross-os-primitive-unification WP04): ``sys.platform``, which still drives
+``get_runtime_root()``'s own (out-of-scope-for-WP04) platform detection, and
+``kernel.paths.is_windows``, the canonical FR-012 seam that
+``credentials._tracker_root()`` itself was migrated onto -- patching only
+``sys.platform`` would leave ``is_windows()`` (which reads ``os.name``, never
+faked here since that would flip ``pathlib`` to ``WindowsPath``) still
+reporting the REAL host platform.
 """
 
 from __future__ import annotations
@@ -57,10 +63,16 @@ def _resolved_db_path() -> Path:
 def _set_platform(monkeypatch: pytest.MonkeyPatch, platform: str) -> None:
     """Pin the platform seen by ``_tracker_root()`` and ``get_runtime_root()``.
 
-    Both read the global ``sys.platform``, so a single patch governs the
-    credentials branch *and* the unified-root platform detection.
+    ``get_runtime_root()`` reads the global ``sys.platform`` directly (out of
+    WP04's scope, untouched); ``credentials._tracker_root()`` was migrated
+    onto the canonical ``kernel.paths.is_windows()`` seam and binds that name
+    into its OWN module namespace at import time (``from kernel.paths import
+    is_windows``), so patching ``kernel.paths.is_windows`` would not reach
+    it -- patch ``credentials.is_windows`` directly instead. Both seams are
+    pinned together so a single ``platform`` value governs both.
     """
     monkeypatch.setattr(sys, "platform", platform)
+    monkeypatch.setattr(credentials, "is_windows", lambda: platform == "win32")
 
 
 def test_tracker_root_posix_flat_under_env_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

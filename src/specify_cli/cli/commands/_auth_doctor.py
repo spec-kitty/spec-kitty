@@ -81,7 +81,7 @@ from specify_cli.cli.commands._auth_status import (
     format_duration,
     format_storage_backend,
 )
-from specify_cli.core.file_lock import (
+from kernel.locks import (
     LockRecord,
     force_release,
     read_lock_record,

@@ -15,13 +15,14 @@ from __future__ import annotations
 
 import contextlib
 import logging
-import platform
 import re
 import shutil
 import subprocess
 import warnings
 from pathlib import Path
 from typing import Any
+
+from kernel.paths import is_windows
 
 from .constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
 from .git_preflight import GitPreflightError
@@ -546,8 +547,8 @@ spec-kitty agent tasks move-task WP01 --to doing
     worktree_agents = worktree_kittify / "AGENTS.md"
 
     # Detect if we're on Windows or symlinks are not supported
-    is_windows = platform.system() == "Windows"
-    use_copy = is_windows or not create_symlinks
+    on_windows = is_windows()
+    use_copy = on_windows or not create_symlinks
 
     # Setup memory/ symlink or copy
     if worktree_memory.is_symlink():

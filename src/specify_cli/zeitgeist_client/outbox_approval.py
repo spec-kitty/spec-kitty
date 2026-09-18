@@ -83,11 +83,13 @@ still be pulled back before whatever consumes it acts, via :func:`revoke`
 node criterion.
 
 Storage: one local JSON file, ``<runtime_state_root>/zeitgeist-outbox.json``
-(``kernel.paths.get_runtime_state_root()``), ``filelock``-guarded — a
-sibling of, deliberately not sharing, ``credentials.py``'s
-``zeitgeist-credentials`` file (same "own file, not shared" reasoning that
-module's docstring gives for not reusing ``tracker/credentials.py``). Local-
-first: no network call anywhere in this module.
+(``kernel.paths.get_runtime_state_root()``), lock-guarded via
+``kernel.locks.machine_file_lock`` (migrated off ``filelock`` by mission
+cross-os-primitive-unification WP05/#4714) — a sibling of, deliberately not
+sharing, ``credentials.py``'s ``zeitgeist-credentials`` file (same "own
+file, not shared" reasoning that module's docstring gives for not reusing
+``tracker/credentials.py``). Local-first: no network call anywhere in this
+module.
 """
 
 from __future__ import annotations
@@ -99,9 +101,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Protocol, cast
 
-from filelock import FileLock
-
 from kernel.clock import datetime, now_utc, parse_iso, timedelta
+from kernel.locks import machine_file_lock
 from kernel.paths import get_runtime_state_root
 
 OUTBOX_FILENAME = "zeitgeist-outbox.json"
@@ -145,10 +146,7 @@ class NotFound(OutboxError):
 
 class Expired(OutboxError):
     def __init__(self, item_id: str) -> None:
-        super().__init__(
-            f"item {item_id!r} expired before a human disposition arrived; "
-            "fails closed, never approvable after its TTL — default-deny"
-        )
+        super().__init__(f"item {item_id!r} expired before a human disposition arrived; fails closed, never approvable after its TTL — default-deny")
         self.item_id = item_id
 
 
@@ -350,7 +348,7 @@ def submit(
     item_id = _content_hash(repo=repo, audience=audience, content=content, context=ctx)
     bounded_ttl_s = min(float(ttl_s), MAX_TTL_S)
 
-    lock = FileLock(str(_lock_path()))
+    lock = machine_file_lock(_lock_path(), blocking=True, timeout_s=None)
     with lock:
         data = _read_all()
         _sweep_expired(data)
@@ -377,7 +375,7 @@ def list_pending(*, repo: str | None = None) -> list[PendingItem]:
     shows the exact content in a form meant for ambient stdout/log output —
     callers that render this list should use :func:`redacted_preview` on
     ``.content``, not print it verbatim (the CLI layer does exactly that)."""
-    lock = FileLock(str(_lock_path()))
+    lock = machine_file_lock(_lock_path(), blocking=True, timeout_s=None)
     with lock:
         data = _read_all()
         if _sweep_expired(data):
@@ -399,7 +397,7 @@ def status_counts(*, repo: str | None = None) -> dict[str, int]:
     :func:`list_pending`, so a signal built purely from aggregate counts can
     never carry even a redacted preview). Sweeps expired items first, same
     as :func:`list_pending`/:func:`show`, so the counts are current."""
-    lock = FileLock(str(_lock_path()))
+    lock = machine_file_lock(_lock_path(), blocking=True, timeout_s=None)
     with lock:
         data = _read_all()
         if _sweep_expired(data):
@@ -417,7 +415,7 @@ def show(item_id: str) -> PendingItem:
     """The exact full record for ``item_id``, in any status — an explicit,
     per-id inspect action the caller named by hash. This is one of the two
     places this module discloses exact content (see the module docstring)."""
-    lock = FileLock(str(_lock_path()))
+    lock = machine_file_lock(_lock_path(), blocking=True, timeout_s=None)
     with lock:
         data = _read_all()
         if _sweep_expired(data):
@@ -430,7 +428,7 @@ def show(item_id: str) -> PendingItem:
 
 def get_receipt(item_id: str) -> Receipt | None:
     """The receipt recording ``item_id``'s current decision, if any."""
-    lock = FileLock(str(_lock_path()))
+    lock = machine_file_lock(_lock_path(), blocking=True, timeout_s=None)
     with lock:
         data = _read_all()
         row = data["items"].get(item_id)
@@ -525,7 +523,7 @@ def _validate_transition(row: Mapping[str, Any], *, item_id: str, decision: str)
 def _decide(item_id: str, *, decision: str, actor: str) -> Receipt:
     if not actor:
         raise ValueError("actor must be non-empty")
-    lock = FileLock(str(_lock_path()))
+    lock = machine_file_lock(_lock_path(), blocking=True, timeout_s=None)
 
     with lock:
         data = _read_all()

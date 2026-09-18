@@ -40,7 +40,6 @@ import contextlib
 import os
 import signal
 import subprocess
-import sys
 import tempfile
 import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
@@ -49,7 +48,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Protocol
 
-from kernel.paths import to_posix
+from kernel.locks import LockAcquireTimeout, LockNotAcquired, machine_file_lock
+from kernel.paths import is_windows, to_posix
 from specify_cli.paths import get_runtime_root
 from specify_cli.review._interpreter import resolve_pytest_command
 from specify_cli.review.baseline import (
@@ -231,37 +231,34 @@ _SCOPED_RUN_LOCK_FILENAME = "pre-review-gate-run.lock"
 # site — a default argument value is frozen at function-definition time and
 # a monkeypatch of the constant afterwards would not be observed.
 _LOCK_ACQUIRE_TIMEOUT_DEFAULT: float = 5.0
-_LOCK_RETRY_SLEEP_S: float = 0.05
 
 
 @contextlib.contextmanager
 def _scoped_run_lock(*, acquire_timeout: float | None = None) -> Iterator[None]:
     """Advisory lock serializing concurrent scoped subprocess runs (#2493).
 
-    Uses a scoped ``fcntl.flock`` rather than the canonical
-    :class:`specify_cli.core.file_lock.MachineFileLock`: that helper is an
-    ``async`` context manager (built for the async OAuth-refresh call site),
-    while this call site is a single synchronous ``subprocess.run``. Bridging
-    one bounded, already-synchronous critical section through an event loop
-    for a single advisory lock is materially more machinery than the problem
-    needs — a scoped, function-local ``fcntl.flock`` (POSIX-only, imported
-    lazily so importing this module never breaks on Windows) is the simpler
-    sync-native fit and is self-contained to this one call site.
+    WP04: migrated onto the canonical sync facade,
+    :func:`kernel.locks.machine_file_lock` -- the "materially more machinery"
+    concern the pre-migration docstring raised was about bridging through the
+    ASYNC facade / an event loop for one bounded synchronous critical
+    section; the sync facade added by the cross-os-primitive-unification
+    mission's WP03 is exactly the sync-native fit this call site always
+    wanted, with no event loop involved.
 
-    Acquisition is a short, independently-timed, non-blocking retry loop
-    bounded by ``acquire_timeout`` (default :data:`_LOCK_ACQUIRE_TIMEOUT_DEFAULT`)
-    — never the caller's (much larger) subprocess run timeout. If the lock
+    Acquisition is a short, independently-timed retry loop bounded by
+    ``acquire_timeout`` (default :data:`_LOCK_ACQUIRE_TIMEOUT_DEFAULT`) --
+    never the caller's (much larger) subprocess run timeout. If the lock
     cannot be acquired within that bound, the caller proceeds WITHOUT it
     (fallback-to-run): losing the advisory serialization guarantee is
     preferable to a gate that blocks indefinitely or trips a false timeout.
-    On Windows (no ``fcntl``) this is a no-op — advisory contention
-    protection is a POSIX-only nicety here, not a correctness requirement.
+    On Windows this remains a no-op — advisory contention protection is a
+    POSIX-only nicety here, not a correctness requirement (unchanged; now
+    routed through the canonical ``is_windows()`` seam rather than an inline
+    ``sys.platform`` literal, per FR-012).
     """
-    if sys.platform == "win32":  # pragma: no cover - platform-specific, advisory-only nicety
+    if is_windows():  # pragma: no cover - platform-specific, advisory-only nicety
         yield
         return
-
-    import fcntl  # POSIX-only; local import keeps this module importable on Windows.
 
     timeout = _LOCK_ACQUIRE_TIMEOUT_DEFAULT if acquire_timeout is None else acquire_timeout
     # Lock lives under the canonical runtime root (FR-010: no hand-rolled
@@ -270,26 +267,13 @@ def _scoped_run_lock(*, acquire_timeout: float | None = None) -> Iterator[None]:
     # same machine serialize on it (a per-repo_root lock would not, since each
     # worktree has a distinct root).
     lock_path = get_runtime_root().base / "gate-locks" / _SCOPED_RUN_LOCK_FILENAME
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR)
-    acquired = False
     try:
-        deadline = time.monotonic() + timeout
-        while True:
-            try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                acquired = True
-                break
-            except OSError:
-                if time.monotonic() >= deadline:
-                    break
-                time.sleep(_LOCK_RETRY_SLEEP_S)
+        with machine_file_lock(lock_path, blocking=True, timeout_s=timeout):
+            yield
+    except (LockAcquireTimeout, LockNotAcquired):
+        # fallback-to-run: see docstring -- losing the advisory guarantee is
+        # preferable to blocking indefinitely or tripping a false timeout.
         yield
-    finally:
-        if acquired:
-            with contextlib.suppress(OSError):
-                fcntl.flock(fd, fcntl.LOCK_UN)
-        os.close(fd)
 
 
 _ProgressCallback = Callable[[float], None]

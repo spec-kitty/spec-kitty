@@ -17,9 +17,8 @@ from contextvars import ContextVar
 from math import isfinite
 from pathlib import Path
 
-from filelock import FileLock, Timeout
-
 from kernel.git_topology import git_common_dir
+from kernel.locks import LockAcquireTimeout, machine_file_lock
 from specify_cli.core.checkout_file_lock import LOCK_DIRECTORY, acquire_or_raise
 
 DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS = 10.0
@@ -100,11 +99,9 @@ def acquire_verdict_save_queue(
     if lock_path in held_paths:
         raise VerdictSaveReentrant(lock_path)
 
-    lock = FileLock(str(lock_path))
+    lock = machine_file_lock(lock_path, blocking=True, timeout_s=timeout_seconds)
     acquire_or_raise(
         lock,
-        lock_path,
-        timeout_seconds=timeout_seconds,
         build_timeout_error=lambda: VerdictSaveBusy(lock_path, timeout_seconds),
     )
 
@@ -113,17 +110,17 @@ def acquire_verdict_save_queue(
         yield lock_path
     finally:
         _HELD_QUEUE_PATHS.reset(token)
-        lock.release()
+        lock.__exit__(None, None, None)
 
 
 __all__ = [
     # Re-exported: the shared ``acquire_or_raise`` primitive (see
     # ``specify_cli.core.checkout_file_lock``) is the only place this module's
-    # own code catches ``filelock.Timeout`` now, but ``Timeout`` stays a public
-    # name here so callers (and this module's own test double for ``FileLock``)
-    # can still raise/reference the exact type this module's ``FileLock``
-    # construction site will produce on contention.
-    "Timeout",
+    # own code catches ``kernel.locks.LockAcquireTimeout`` now, but the name
+    # stays public here so callers (and this module's own test double for the
+    # ``kernel.locks`` injection seam, G6) can still raise/reference the exact
+    # type this module's lock construction site will produce on contention.
+    "LockAcquireTimeout",
     "VerdictSaveBusy",
     "acquire_verdict_save_queue",
 ]

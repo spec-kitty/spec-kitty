@@ -14,9 +14,10 @@ directories but were **not** freshly written are deleted as stale.
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from kernel.paths import is_windows
 
 logger = logging.getLogger(__name__)
 
@@ -52,11 +53,7 @@ def _get_command_templates_dir() -> Path | None:
 
         # Typed pin: ``charter.*`` is ``follow_imports = "skip"`` in pyproject, so the
         # facade re-export is ``Any`` to mypy; the runtime type is ``Path``.
-        doctrine_steps: Path = (
-            MissionTemplateRepository.default_missions_root()
-            / "mission-steps"
-            / _MISSION_NAME
-        )
+        doctrine_steps: Path = MissionTemplateRepository.default_missions_root() / "mission-steps" / _MISSION_NAME
         if doctrine_steps.is_dir():
             return doctrine_steps
     except (ImportError, MissionsRootNotFound):
@@ -83,7 +80,7 @@ def _get_command_templates_dir() -> Path | None:
 
 def _resolve_script_type() -> str:
     """Return the platform-appropriate script type."""
-    return "ps" if os.name == "nt" else _DEFAULT_SCRIPT_TYPE
+    return "ps" if is_windows() else _DEFAULT_SCRIPT_TYPE
 
 
 def _compute_output_filename(command: str, agent_key: str) -> str:
@@ -250,9 +247,7 @@ def rewrite_agent_shims(repo_root: Path) -> RewriteResult:
             # Preserve prompt files that weren't regenerated — they may
             # still be working templates from a prior successful run.
             if stale_file in expected_prompt_files:
-                logger.info(
-                    "Preserving %s (not regenerated this run)", stale_file
-                )
+                logger.info("Preserving %s (not regenerated this run)", stale_file)
                 continue
 
             try:

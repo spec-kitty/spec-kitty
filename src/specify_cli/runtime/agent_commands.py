@@ -27,7 +27,7 @@ from dataclasses import replace
 from importlib.util import find_spec
 from pathlib import Path
 
-from kernel.paths import MISSION_ASSETS_SIBLING_PATTERN
+from kernel.paths import MISSION_ASSETS_SIBLING_PATTERN, is_windows
 from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
 from specify_cli.core.config import DEFAULT_MISSION_KEY
 from specify_cli.runtime.bootstrap import _get_cli_version
@@ -85,7 +85,7 @@ def get_global_command_dir(agent_key: str) -> Path:
         if sys.platform == "darwin":
             return Path.home() / "Library" / "Preferences" / "llxprt-code" / "commands"
 
-        if os.name == "nt":
+        if is_windows():
             app_data = os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming"))
             return Path(app_data) / "llxprt-code" / "Config" / "commands"
 
@@ -198,7 +198,7 @@ def _get_command_templates_dir() -> Path:
 
 def _resolve_script_type() -> str:
     """Return the platform-appropriate script type string."""
-    return "ps" if os.name == "nt" else "sh"
+    return "ps" if is_windows() else "sh"
 
 
 def _compute_output_filename(command: str, agent_key: str) -> str:

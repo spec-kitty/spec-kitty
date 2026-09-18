@@ -4,22 +4,17 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import tomllib
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
-from collections.abc import Iterator
+
+from kernel.locks import machine_file_lock
+from kernel.paths import is_windows
 
 try:  # pragma: no cover - optional dependency
     import toml
 except Exception:  # pragma: no cover - optional dependency
     toml = None  # type: ignore[assignment]
-
-if sys.platform == "win32":
-    import msvcrt
-else:  # pragma: no cover - platform-specific
-    import fcntl
 
 
 class TrackerCredentialError(RuntimeError):
@@ -44,13 +39,25 @@ def _tracker_root() -> Path:
     root = get_runtime_root()
     # ``Path(...)`` re-narrows to ``Path`` because subdir mypy runs treat the
     # ``specify_cli.*`` lazy import as ``Any`` (``follow_imports = "skip"``).
-    if sys.platform == "win32":
+    if is_windows():
         return Path(root.tracker_dir)
     return Path(root.base)
 
 
 def _credentials_path() -> Path:
     return _tracker_root() / "credentials"
+
+
+def _credentials_lock_path(path: Path) -> Path:
+    """Return the dedicated SIDECAR lock path for the credentials payload.
+
+    The lock is a separate lock-only file (kernel.locks G1) so the payload
+    file itself is never opened under the OS lock -- reading/writing the
+    credentials file happens as an ordinary unlocked open while this
+    process holds the sidecar, structurally ruling out the #4703 "reading a
+    payload through a held mandatory lock" hazard.
+    """
+    return path.with_name(path.name + ".lock")
 
 
 def _toml_scalar(value: Any) -> str:
@@ -97,23 +104,6 @@ def _write_toml(payload: dict[str, Any]) -> str:
     return ("\n".join(lines).rstrip() + "\n") if lines else ""
 
 
-@contextmanager
-def _locked_file(path: Path, mode: str) -> Iterator[Any]:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, mode, encoding="utf-8") as handle:
-        if sys.platform == "win32":
-            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
-        else:  # pragma: no cover - platform-specific
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-        try:
-            yield handle
-        finally:
-            if sys.platform == "win32":
-                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
-            else:  # pragma: no cover - platform-specific
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-
-
 class TrackerCredentialStore:
     """Store tracker provider credentials under the platform runtime root."""
 
@@ -125,8 +115,8 @@ class TrackerCredentialStore:
             return {}
 
         try:
-            with _locked_file(self.path, "r") as handle:
-                raw = handle.read()
+            with machine_file_lock(_credentials_lock_path(self.path), blocking=True):
+                raw = self.path.read_text(encoding="utf-8")
             payload = tomllib.loads(raw) if raw.strip() else {}
         except Exception as exc:  # pragma: no cover - defensive
             raise TrackerCredentialError(f"Failed to load credentials: {exc}") from exc
@@ -135,9 +125,10 @@ class TrackerCredentialStore:
 
     def save(self, payload: dict[str, Any]) -> None:
         try:
-            with _locked_file(self.path, "w") as handle:
-                handle.write(_write_toml(payload))
-            if os.name != "nt":
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            with machine_file_lock(_credentials_lock_path(self.path), blocking=True):
+                self.path.write_text(_write_toml(payload), encoding="utf-8")
+            if not is_windows():
                 os.chmod(self.path, 0o600)
         except Exception as exc:  # pragma: no cover - defensive
             raise TrackerCredentialError(f"Failed to save credentials: {exc}") from exc
@@ -161,11 +152,7 @@ class TrackerCredentialStore:
             providers = {}
             tracker["providers"] = providers
 
-        providers[provider] = {
-            str(key): value
-            for key, value in values.items()
-            if str(key).strip() and value is not None and str(value).strip()
-        }
+        providers[provider] = {str(key): value for key, value in values.items() if str(key).strip() and value is not None and str(value).strip()}
         self.save(payload)
 
     def clear_provider(self, provider: str) -> None:

@@ -1,0 +1,26 @@
+# OS-detection ban gate (FR-012) -- PERMANENT sanctioned-raw allowlist.
+#
+# The module-scope Windows-only C-module import guards ONLY (the
+# `if <win-check>: import msvcrt else: import fcntl` idiom). These are not
+# expected to shrink to zero -- the gate's terminal state (contracts/
+# safe-delete-and-os-seam.md Sec C) is "OS allowlist: import-guards only".
+# Do NOT add a routable (non-import-guard) branch here -- see the
+# os-detect-ban-wp03.txt / os-detect-ban-wp04.txt sibling files for those.
+#
+# core/file_lock.py's entry relocated (WP03, cross-os-primitive-
+# unification): the module moved to kernel/locks.py, which keeps this exact
+# module-scope `if sys.platform == "win32": import msvcrt else: import
+# fcntl` guard verbatim. (The two CALL-SITE dispatches inside that same
+# module that also stayed raw for a related-but-distinct mypy reason --
+# `_os_lock`/`_os_unlock` -- are tracked separately in the sibling
+# os-detect-ban-mypy-narrowing.txt, since they are not import guards and
+# this file's own policy above says not to mix the two shapes here.)
+#
+# WP04 (cross-os-primitive-unification): line-number drift fix -- this entry
+# had gone stale at :91 after an unrelated upstream shift in kernel/locks.py;
+# corrected to the current line. Also, tracker/credentials.py's and
+# runtime/bootstrap.py's own module-scope import guards (formerly :19 and
+# :69) were REMOVED here, not routed: WP04 migrated both modules' locking
+# entirely onto kernel.locks.machine_file_lock, so neither module imports
+# msvcrt/fcntl at all any more -- there is no guard left to allowlist.
+src/kernel/locks.py:95

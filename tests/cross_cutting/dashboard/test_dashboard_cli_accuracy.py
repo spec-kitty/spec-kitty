@@ -32,7 +32,7 @@ import json
 
 import kernel.clock as clock_module
 from kernel.clock import FrozenClock, now_epoch
-from filelock import FileLock
+from kernel.locks import machine_file_lock
 from tests.test_isolation_helpers import get_venv_python
 
 pytestmark = pytest.mark.git_repo
@@ -222,7 +222,7 @@ def _dashboard_manifest_lock(manifest_path: Path | None = None) -> Iterator[None
     path = manifest_path or _dashboard_test_manifest_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     lock_path = path.with_name(f".{path.name}.lock")
-    with FileLock(str(lock_path)):
+    with machine_file_lock(lock_path, blocking=True, timeout_s=None):
         yield
 
 

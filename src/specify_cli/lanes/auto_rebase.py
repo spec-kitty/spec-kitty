@@ -12,7 +12,7 @@ Drives the auto-rebase pipeline described in
 4. For ``Auto`` classifications, splice the merged text back into the file
    and stage it. Run post-merge validation (TOML parse / AST parse).
 5. If ``uv.lock`` was conflicted, regenerate it under the cross-process
-   :class:`specify_cli.core.file_lock.MachineFileLock` to serialize across
+   :class:`kernel.locks.MachineFileLock` to serialize across
    lanes. Stage the regenerated file.
 6. If any ``__init__.py`` was modified, run ``ruff --fix --select I001 <file>``.
    Non-zero exit ⇒ revert to ``Manual``.
@@ -32,8 +32,8 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from kernel.locks import MachineFileLock
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.file_lock import MachineFileLock
 from specify_cli.lanes.merge import (
     _ensure_merge_driver_git_config,
     _make_merge_env,

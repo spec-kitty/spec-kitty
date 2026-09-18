@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 from specify_cli.runtime.agent_skills import ensure_global_agent_skills
@@ -154,8 +155,6 @@ def test_global_bootstrap_preserves_unproven_retired_skill_when_marker_is_curren
 
 
 def test_global_bootstrap_preserves_unproven_readonly_retired_skill_tree(tmp_path: Path, monkeypatch) -> None:
-    from specify_cli.runtime import agent_skills
-
     home = tmp_path / "home"
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
@@ -172,7 +171,7 @@ def test_global_bootstrap_preserves_unproven_readonly_retired_skill_tree(tmp_pat
     def forbidden_rmtree(*args: object, **kwargs: object) -> None:
         raise AssertionError("Unproven retired trees must never reach recursive deletion")
 
-    monkeypatch.setattr(agent_skills.shutil, "rmtree", forbidden_rmtree)
+    monkeypatch.setattr(shutil, "rmtree", forbidden_rmtree)
     monkeypatch.setattr(
         "specify_cli.runtime.agent_skills._discover_registry",
         lambda: registry,

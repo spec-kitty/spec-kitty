@@ -1,9 +1,10 @@
 """Z1-T1 §3.2 item 7 / §4 N10, N11: local checkout/auth credential storage.
 
-``<runtime_state_root>/zeitgeist-credentials``, TOML, ``filelock``-guarded
-(Z1.md decision 3/4 — own file, not shared with tracker/credentials.py; uses
-the existing declared-but-unused ``filelock`` dependency,
-``pyproject.toml:85``). Stores ``{relay_url, token, token_issued_at,
+``<runtime_state_root>/zeitgeist-credentials``, TOML, lock-guarded via
+``kernel.locks.machine_file_lock`` (Z1.md decision 3/4 — own file, not shared
+with tracker/credentials.py; migrated off ``filelock`` onto the repo's
+canonical lock primitive by mission cross-os-primitive-unification
+WP05/#4714). Stores ``{relay_url, token, token_issued_at,
 token_kind}`` keyed by the hosted identity (``host/owner/repo``,
 spec-kitty#129/#132), plus the optional FIX-M2-15 ``capability_credential``
 field (omitted from the stored TOML entry entirely, not written as an empty

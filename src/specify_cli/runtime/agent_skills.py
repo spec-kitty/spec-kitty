@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import logging
-import shutil
-import stat
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -57,31 +55,6 @@ class GlobalSkillSelection:
             raise ValueError("Unknown selected skill agent")
         object.__setattr__(self, "_sources", tuple(sorted(sources.values())))
         object.__setattr__(self, "agent_keys", agents)
-
-
-def _make_path_writable(path: str | Path) -> None:
-    path = Path(path)
-    try:
-        path.chmod(path.stat().st_mode | stat.S_IWRITE)
-    except OSError:
-        logger.debug("Could not make skill path writable: %s", path, exc_info=True)
-
-
-def _force_writable_and_retry(function: Callable[[str], object], path: str, _exc_info: object) -> None:
-    _make_path_writable(path)
-    function(path)
-
-
-def _safe_unlink(path: Path) -> None:
-    try:
-        path.unlink()
-    except PermissionError:
-        _make_path_writable(path)
-        path.unlink()
-
-
-def _safe_rmtree(path: Path) -> None:
-    shutil.rmtree(path, onerror=_force_writable_and_retry)
 
 
 def _discover_registry() -> SkillRegistry | None:

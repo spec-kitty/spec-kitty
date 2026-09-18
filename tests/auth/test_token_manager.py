@@ -42,8 +42,8 @@ from specify_cli.auth.session import StoredSession, Team
 from specify_cli.auth.session_hot_path import SessionHotPathSummary
 from specify_cli.auth import token_manager as tm_module
 from specify_cli.auth.token_manager import SessionAssessment, TokenManager
-from specify_cli.core import file_lock as file_lock_module
-from specify_cli.core.file_lock import LockAcquireTimeout
+import kernel.locks as file_lock_module
+from kernel.locks import LockAcquireTimeout
 
 
 # ---------------------------------------------------------------------------

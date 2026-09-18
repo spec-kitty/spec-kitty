@@ -16,6 +16,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
+from kernel.paths import is_windows
+
 if TYPE_CHECKING:
     from specify_cli.compat._detect.install_method import InstallMethod
 
@@ -29,12 +31,12 @@ class PackageSource(StrEnum):
     """Derived package provenance from the uv receipt requirements entry."""
 
     PYPI_SPECIFIER = "pypi-specifier"  # { name = "...", specifier = "..." }
-    GIT = "git"                         # { git = "..." }
-    URL = "url"                         # { url = "..." }
-    DIRECTORY = "directory"             # { directory = "..." }
-    EDITABLE = "editable"               # { editable = "..." }
-    PATH = "path"                       # { path = "..." }
-    UNKNOWN = "unknown"                 # receipt unavailable or no spec-kitty entry
+    GIT = "git"  # { git = "..." }
+    URL = "url"  # { url = "..." }
+    DIRECTORY = "directory"  # { directory = "..." }
+    EDITABLE = "editable"  # { editable = "..." }
+    PATH = "path"  # { path = "..." }
+    UNKNOWN = "unknown"  # receipt unavailable or no spec-kitty entry
 
 
 # ---------------------------------------------------------------------------
@@ -84,18 +86,18 @@ class InstalledCliRuntime:
     ``receipt_path`` is None.
     """
 
-    install_method: InstallMethod                 # from _detect/install_method.py
-    executable: str                               # sys.executable value
-    receipt_path: Path | None                     # absolute path to uv-receipt.toml, or None
-    tool_dir: Path | None                         # UV tool env parent dir, or None
-    bin_dir: Path | None                          # bin dir carrying the spec-kitty entrypoint, or None
-    is_default_tool_dir: bool | None              # None when not a uv-tool install
-    is_default_bin_dir: bool | None               # None when not a uv-tool install
-    python: str | None                            # python version override from receipt, or None
-    requirements: tuple[UvRequirement, ...]       # empty tuple when receipt unavailable
-    package_source: PackageSource                 # derived provenance enum
-    platform: Literal["posix", "windows"]         # platform at runtime
-    safe_for_auto_upgrade: bool                   # True iff install_method in _SAFE_AUTO_UPGRADE_METHODS
+    install_method: InstallMethod  # from _detect/install_method.py
+    executable: str  # sys.executable value
+    receipt_path: Path | None  # absolute path to uv-receipt.toml, or None
+    tool_dir: Path | None  # UV tool env parent dir, or None
+    bin_dir: Path | None  # bin dir carrying the spec-kitty entrypoint, or None
+    is_default_tool_dir: bool | None  # None when not a uv-tool install
+    is_default_bin_dir: bool | None  # None when not a uv-tool install
+    python: str | None  # python version override from receipt, or None
+    requirements: tuple[UvRequirement, ...]  # empty tuple when receipt unavailable
+    package_source: PackageSource  # derived provenance enum
+    platform: Literal["posix", "windows"]  # platform at runtime
+    safe_for_auto_upgrade: bool  # True iff install_method in _SAFE_AUTO_UPGRADE_METHODS
 
 
 # ---------------------------------------------------------------------------
@@ -123,7 +125,7 @@ def detect_runtime() -> InstalledCliRuntime:
 
         install_method = _detect_install_method()
         executable = sys.executable
-        platform: Literal["posix", "windows"] = "windows" if sys.platform == "win32" else "posix"
+        platform: Literal["posix", "windows"] = "windows" if is_windows() else "posix"
         safe_for_auto_upgrade = install_method in _SAFE_AUTO_UPGRADE_METHODS
 
         if install_method == _InstallMethod.UV_TOOL:
@@ -173,7 +175,6 @@ def detect_runtime() -> InstalledCliRuntime:
             python=None,
             requirements=(),
             package_source=PackageSource.UNKNOWN,
-            platform="windows" if sys.platform == "win32" else "posix",
+            platform="windows" if is_windows() else "posix",
             safe_for_auto_upgrade=False,
         )
-

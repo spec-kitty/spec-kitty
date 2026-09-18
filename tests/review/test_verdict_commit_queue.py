@@ -87,25 +87,34 @@ def repository(tmp_path: Path) -> Iterator[Path]:
         clear_caches()
 
 
-def test_default_timeout_is_forwarded_and_filelock_timeout_is_typed(
+def test_default_timeout_is_forwarded_and_lock_timeout_is_typed(
     repository: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The exact ten-second default reaches filelock without a retry loop."""
+    """The exact ten-second default reaches ``kernel.locks`` without a retry loop.
+
+    Migrated (mission cross-os-primitive-unification WP05/#4714) onto the
+    canonical primitive's G6 test-double injection seam: ``machine_file_lock``
+    resolves ``SyncMachineFileLock`` through ``kernel.locks``'s OWN namespace
+    at call time, so the double is installed there -- not as an attribute of
+    this module (there is no ``verdict_commit_queue.FileLock`` any more).
+    """
     captured: dict[str, object] = {}
 
     class RefusingLock:
-        def __init__(self, path: str) -> None:
+        def __init__(self, path: Path, *, blocking: bool, timeout_s: float | None, reentrant: bool = False) -> None:
+            del reentrant
             captured["path"] = path
+            captured["blocking"] = blocking
+            captured["timeout_s"] = timeout_s
 
-        def acquire(self, *, timeout: float) -> None:
-            captured["timeout"] = timeout
-            raise verdict_commit_queue.Timeout("synthetic timeout")
+        def __enter__(self) -> object:
+            raise verdict_commit_queue.LockAcquireTimeout(path=str(captured["path"]))
 
-        def release(self) -> None:
+        def __exit__(self, *exc: object) -> None:
             pytest.fail("an unacquired lock must not be released")
 
-    monkeypatch.setattr(verdict_commit_queue, "FileLock", RefusingLock)
+    monkeypatch.setattr("kernel.locks.SyncMachineFileLock", RefusingLock)
 
     assert DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS == 10.0
     with (
@@ -115,12 +124,13 @@ def test_default_timeout_is_forwarded_and_filelock_timeout_is_typed(
         pytest.fail("timed-out acquisition must not enter")
 
     assert captured == {
-        "path": str(verdict_save_queue_path(repository)),
-        "timeout": 10.0,
+        "path": verdict_save_queue_path(repository),
+        "blocking": True,
+        "timeout_s": 10.0,
     }
     assert raised.value.lock_path == verdict_save_queue_path(repository)
     assert raised.value.timeout_seconds == 10.0
-    assert isinstance(raised.value.__cause__, verdict_commit_queue.Timeout)
+    assert isinstance(raised.value.__cause__, verdict_commit_queue.LockAcquireTimeout)
 
 
 @pytest.mark.parametrize(
@@ -137,12 +147,12 @@ def test_queue_rejects_non_finite_or_non_positive_timeout_before_acquisition(
     lock_constructed = False
 
     class UnexpectedLock:
-        def __init__(self, path: str) -> None:
+        def __init__(self, path: Path, **_kwargs: object) -> None:
             del path
             nonlocal lock_constructed
             lock_constructed = True
 
-    monkeypatch.setattr(verdict_commit_queue, "FileLock", UnexpectedLock)
+    monkeypatch.setattr("kernel.locks.SyncMachineFileLock", UnexpectedLock)
 
     with (
         pytest.raises(ValueError, match="finite and positive"),
@@ -430,13 +440,16 @@ def test_module_has_no_daemon_or_status_event_dependencies() -> None:
         "collections.abc",
         "contextlib",
         "contextvars",
-        "filelock",
         "kernel.git_topology",
+        # WP05/#4714: migrated off filelock onto the canonical, stdlib-only
+        # kernel.locks primitive (see kernel.locks's own zero-third-party-dep
+        # module docstring).
+        "kernel.locks",
         "math",
         "pathlib",
-        # #3773 item 4: the mkdir/acquire/translate-Timeout sequence shared
-        # with specify_cli.status.locking now lives in one place. It carries
-        # no status/cli coupling of its own (see that module's docstring),
-        # so it does not violate the intent this allowlist guards.
+        # #3773 item 4: the enter/translate sequence shared with
+        # specify_cli.status.locking now lives in one place. It carries no
+        # status/cli coupling of its own (see that module's docstring), so it
+        # does not violate the intent this allowlist guards.
         "specify_cli.core.checkout_file_lock",
     }

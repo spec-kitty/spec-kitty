@@ -42,10 +42,14 @@ The interleave is forced deterministically (never a flaky sleep/repeat): the
 directory-only mid-write state is manufactured directly from the SAME stale,
 real cold-home assessment the test then feeds back into ``ensure_runtime()``,
 and the "peer finishes while we wait for the lock" event is injected at the
-exact point production code attempts to acquire that lock -- a monkeypatched
-``bootstrap._lock_exclusive`` that materializes the remaining content for
-real (via the module's own ``_write_asset``) before delegating to the real
-flock call.
+exact point production code attempts to acquire that lock -- WP04
+(cross-os-primitive-unification) migrated that acquisition off the retired
+``bootstrap._lock_exclusive`` onto ``kernel.locks.machine_file_lock``, so the
+injection now uses that primitive's own G6 test-double seam
+(``kernel.locks.SyncMachineFileLock``, looked up through the module's own
+namespace at call time): a subclass whose ``__enter__`` materializes the
+remaining content for real (via the module's own ``_write_asset``) before
+delegating to the real acquire.
 """
 
 from __future__ import annotations
@@ -146,19 +150,23 @@ class TestRecheckAssetsDirectoriesOnlyMidWriteInterleave:
         monkeypatch.setattr(bootstrap, "assess_runtime", _fake_assess_runtime)
 
         # --- Inject "the peer finishes while we wait for the lock" at the ---
-        # exact point production code attempts to acquire the anchor flock.
-        real_lock_exclusive = bootstrap._lock_exclusive
+        # exact point production code attempts to acquire the (now
+        # canonical) lock -- via kernel.locks' own G6 test-double seam.
+        import kernel.locks as kernel_locks
+
+        real_lock_cls = kernel_locks.SyncMachineFileLock
         lock_calls = {"n": 0}
 
-        def _completing_lock_exclusive(fd_or_stream: object) -> None:
-            lock_calls["n"] += 1
-            if lock_calls["n"] == 1:
-                for write in prepared.writes:
-                    if write.effect.after.kind != "directory":
-                        asset_preparation._write_asset(write)
-            real_lock_exclusive(fd_or_stream)  # type: ignore[arg-type]
+        class _CompletingLock(real_lock_cls):  # type: ignore[misc]
+            def __enter__(self) -> object:
+                lock_calls["n"] += 1
+                if lock_calls["n"] == 1:
+                    for write in prepared.writes:
+                        if write.effect.after.kind != "directory":
+                            asset_preparation._write_asset(write)
+                return super().__enter__()
 
-        monkeypatch.setattr(bootstrap, "_lock_exclusive", _completing_lock_exclusive)
+        monkeypatch.setattr(kernel_locks, "SyncMachineFileLock", _CompletingLock)
 
         with caplog.at_level("INFO", logger=bootstrap.logger.name):
             ensure_runtime()  # must NOT raise -- the loser converges to a no-op.

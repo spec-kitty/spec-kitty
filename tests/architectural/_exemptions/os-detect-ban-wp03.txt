@@ -1,0 +1,19 @@
+# OS-detection ban gate (FR-012) -- WP03 (kernel lock primitive and gate).
+#
+# Seeded fail-closed at WP01 landing with every not-yet-routed site in a file
+# WP03 owns (kitty-specs/cross-os-primitive-unification-01M2T1CM/tasks/
+# WP03-kernel-lock-primitive-and-gate.md). WP03 shrank this file to EMPTY:
+# core/file_lock.py was moved to kernel/locks.py (the old file was deleted
+# outright rather than left as a thin re-export shim, per canonical-source
+# discipline -- see the WP03 report for the tests/core/test_file_lock*.py
+# migration this entailed), and auth/token_manager.py:109 now routes through
+# `kernel.paths.is_windows` (T012).
+#
+# Of the module's own 3 original `sys.platform` checks, only ONE
+# (`_is_contention_error`, the pre-move file_lock.py's line 130) actually
+# routes through `is_windows()` -- it never names `msvcrt`/`fcntl`, so
+# nothing blocks it. The other two (`_os_lock`/`_os_unlock`, lines 141/149
+# pre-move) stay on the raw literal for a verified `mypy --strict`
+# type-narrowing reason and are tracked PERMANENTLY in the sibling
+# os-detect-ban-mypy-narrowing.txt instead -- not left un-gated, and not
+# smuggled back into this WP-owned, expected-to-reach-zero file.

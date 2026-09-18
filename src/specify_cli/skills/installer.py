@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import shutil
 import stat
 import hashlib
 import json
 import logging
 import os
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from threading import RLock
@@ -28,6 +27,8 @@ from specify_cli.core.config import (
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.agent_config import AgentConfigError, load_agent_config
 from specify_cli.core.no_follow import chmod_fd
+from specify_cli.core.safe_delete import safe_rmdir as _safe_rmdir
+from specify_cli.core.safe_delete import safe_unlink as _safe_unlink
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
@@ -65,39 +66,6 @@ logger = logging.getLogger(__name__)
 
 DELIVERY_COPY = "copy"
 DELIVERY_SYMLINK = "symlink"
-
-
-def _make_path_writable(path: str | Path) -> None:
-    """Clear Windows ReadOnly before deleting managed files."""
-    path = Path(path)
-    with suppress(OSError):
-        path.chmod(path.stat().st_mode | stat.S_IWRITE)
-
-
-def _force_writable_and_retry(function: Callable[[str], object], path: str, _exc_info: object) -> None:
-    """shutil.rmtree onerror handler: clear readonly and retry the failed operation."""
-    _make_path_writable(path)
-    function(path)
-
-
-def _safe_unlink(path: Path) -> None:
-    try:
-        path.unlink()
-    except PermissionError:
-        _make_path_writable(path)
-        path.unlink()
-
-
-def _safe_rmdir(path: Path) -> None:
-    try:
-        path.rmdir()
-    except PermissionError:
-        _make_path_writable(path)
-        path.rmdir()
-
-
-def _safe_rmtree(path: Path) -> None:
-    shutil.rmtree(path, onerror=_force_writable_and_retry)
 
 
 @dataclass(frozen=True)

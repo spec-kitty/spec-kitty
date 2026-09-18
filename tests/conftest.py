@@ -19,9 +19,9 @@ from collections.abc import Callable, Iterable, Iterator
 import psutil
 import pytest
 import yaml
-from filelock import FileLock, Timeout
 
 from kernel.clock import now_epoch
+from kernel.locks import LockAcquireTimeout, machine_file_lock
 from runtime.next._tmp_namespace import prompt_tmp_dir
 from tests._support.fixture_pollution import scrub_repo_mission_overrides
 from tests._support.quarantine import (
@@ -940,12 +940,12 @@ def _heartbeat_bootstrap_lease(
 ) -> None:
     while not stop.wait(interval):
         try:
-            with FileLock(str(lock_path), timeout=_STATE_LOCK_TIMEOUT_S):
+            with machine_file_lock(lock_path, blocking=True, timeout_s=_STATE_LOCK_TIMEOUT_S):
                 lease = _read_bootstrap_lease(state_path)
                 if not _lease_owned_by(lease, owner) or lease is None or lease.state != "BUILDING":
                     return
                 _write_bootstrap_lease(state_path, lease.with_state("BUILDING", heartbeat_at=now_epoch()))
-        except (OSError, RuntimeError, Timeout):
+        except (OSError, RuntimeError, LockAcquireTimeout):
             # A missed heartbeat is recoverable. Repeated misses eventually make
             # the lease stale, while the owning process remains independently
             # identifiable by its start token.
@@ -964,7 +964,7 @@ def _claim_bootstrap_lease(
     state_path = project_root / _VENV_STATE_PATH
     environment_hash = _test_venv_environment_hash(project_root, source_version)
     now = now_epoch()
-    with FileLock(str(lock_path), timeout=_STATE_LOCK_TIMEOUT_S):
+    with machine_file_lock(lock_path, blocking=True, timeout_s=_STATE_LOCK_TIMEOUT_S):
         if validate(final_path, source_version):
             return final_path, None, None
 
@@ -1006,7 +1006,7 @@ def _publish_bootstrap_lease(
     final_path = project_root / _VENV_CACHE_PATH
     lock_path = project_root / _VENV_LOCK_PATH
     state_path = project_root / _VENV_STATE_PATH
-    with FileLock(str(lock_path), timeout=_STATE_LOCK_TIMEOUT_S):
+    with machine_file_lock(lock_path, blocking=True, timeout_s=_STATE_LOCK_TIMEOUT_S):
         lease = _read_bootstrap_lease(state_path)
         if not _lease_owned_by(lease, owner) or lease is None or lease.state != "BUILDING":
             raise RuntimeError("Test-venv builder lost lease ownership before publication.")
@@ -1036,12 +1036,12 @@ def _cleanup_failed_bootstrap(project_root: Path, owner: _BootstrapLease) -> Non
     lock_path = project_root / _VENV_LOCK_PATH
     state_path = project_root / _VENV_STATE_PATH
     try:
-        with FileLock(str(lock_path), timeout=_STATE_LOCK_TIMEOUT_S):
+        with machine_file_lock(lock_path, blocking=True, timeout_s=_STATE_LOCK_TIMEOUT_S):
             lease = _read_bootstrap_lease(state_path)
             if _lease_owned_by(lease, owner):
                 _remove_recorded_temp(owner, project_root / _VENV_CACHE_PATH)
                 state_path.unlink(missing_ok=True)
-    except (OSError, RuntimeError, Timeout):
+    except (OSError, RuntimeError, LockAcquireTimeout):
         return
 
 
@@ -1072,7 +1072,7 @@ def _ensure_test_venv(
                 validate=validate,
                 lease_seconds=_lease_seconds,
             )
-        except Timeout:
+        except LockAcquireTimeout:
             time.sleep(_poll_interval)
             continue
         if ready is not None:

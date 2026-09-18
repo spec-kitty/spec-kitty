@@ -26,6 +26,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from kernel.paths import is_windows
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import (
     MissionMetaReadError,
@@ -204,8 +205,7 @@ class _SlugResolver:
             ensure_within_any(meta_path, roots=[root])
         except ValueError as exc:
             logger.warning(
-                "Refusing to resolve mission_slug %r: composed meta path escapes the "
-                "specs root (symlink/containment guard); mission_id will be None: %s",
+                "Refusing to resolve mission_slug %r: composed meta path escapes the specs root (symlink/containment guard); mission_id will be None: %s",
                 mission_slug,
                 exc,
             )
@@ -382,9 +382,7 @@ def append_raw_rows_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
     if existing and not existing.endswith("\n"):
         existing += "\n"
 
-    additions = "".join(
-        json.dumps(sanitize_event_for_log(row), sort_keys=True) + "\n" for row in rows
-    )
+    additions = "".join(json.dumps(sanitize_event_for_log(row), sort_keys=True) + "\n" for row in rows)
     fd, raw_tmp_path = tempfile.mkstemp(
         prefix=f".{path.name}.",
         suffix=".tmp",
@@ -420,7 +418,7 @@ def _append_serialized_atomic(feature_dir: Path, rows: list[dict[str, Any]]) -> 
 
 def _fsync_directory(directory: Path) -> None:
     """Persist an atomic rename's directory entry on supported platforms."""
-    if os.name == "nt":
+    if is_windows():
         return
     flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
     dir_fd = os.open(directory, flags)
@@ -441,9 +439,7 @@ def _read_text_without_following_symlinks(path: Path) -> str:
         return ""
     except OSError as exc:
         if path.is_symlink():
-            raise StoreError(
-                f"Refusing to read symbolic link event log: {path}"
-            ) from exc
+            raise StoreError(f"Refusing to read symbolic link event log: {path}") from exc
         raise
     with os.fdopen(fd, "r", encoding="utf-8") as fh:
         return fh.read()
@@ -482,9 +478,7 @@ def append_annotations_atomic_verified(
     persisted_ids = {a.event_id for a in read_event_stream(feature_dir).annotations}
     for annotation in annotations:
         if annotation.event_id not in persisted_ids:
-            raise StoreError(
-                f"annotation {annotation.event_id} missing after append (readback failed)"
-            )
+            raise StoreError(f"annotation {annotation.event_id} missing after append (readback failed)")
 
 
 def append_event_stream_atomic_verified(
@@ -515,16 +509,12 @@ def append_event_stream_atomic_verified(
         raise StoreError(f"event-stream append failed: {exc}") from exc
 
     stream = read_event_stream(feature_dir)
-    persisted_annotation_ids = {
-        annotation.event_id for annotation in stream.annotations
-    }
+    persisted_annotation_ids = {annotation.event_id for annotation in stream.annotations}
     for event in events:
         if isinstance(event, StatusEvent):
             verify_event_readback(feature_dir, event)
         elif event.event_id not in persisted_annotation_ids:
-            raise StoreError(
-                f"annotation {event.event_id} missing after mixed append (readback failed)"
-            )
+            raise StoreError(f"annotation {event.event_id} missing after mixed append (readback failed)")
 
 
 def append_events_atomic_verified(feature_dir: Path, events: list[StatusEvent]) -> None:
@@ -574,9 +564,7 @@ def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:
             except json.JSONDecodeError as exc:
                 raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
             if not isinstance(obj, dict):
-                raise StoreError(
-                    f"Invalid event structure on line {line_number}: expected JSON object"
-                )
+                raise StoreError(f"Invalid event structure on line {line_number}: expected JSON object")
             results.append(obj)
     return results
 
@@ -585,11 +573,13 @@ def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:
 # envelope shape MUST be added here, or both read_events and
 # `doctor mission-state --fix` will fail loudly on that mission with
 # "missing required to_lane" (the SNAPSHOT_DRIFT symptom from issue #1782).
-_RETROSPECTIVE_LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset({
-    "RetrospectiveCaptured",
-    "RetrospectiveCaptureFailed",
-    "RetrospectiveSkipped",
-})
+_RETROSPECTIVE_LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset(
+    {
+        "RetrospectiveCaptured",
+        "RetrospectiveCaptureFailed",
+        "RetrospectiveSkipped",
+    }
+)
 
 
 def is_retrospective_lifecycle_event(obj: Mapping[str, Any]) -> bool:
@@ -673,9 +663,7 @@ def _partition_event_stream_from_text(feature_dir: Path, content: str) -> EventS
         except json.JSONDecodeError as exc:
             raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
         if not isinstance(obj, dict):
-            raise StoreError(
-                f"Invalid event structure on line {line_number}: expected JSON object"
-            )
+            raise StoreError(f"Invalid event structure on line {line_number}: expected JSON object")
 
         kind = obj.get("kind")
         if kind is not None:
@@ -683,14 +671,10 @@ def _partition_event_stream_from_text(feature_dir: Path, content: str) -> EventS
                 try:
                     annotations.append(InnerStateChanged.from_dict(obj))
                 except (KeyError, ValueError, TypeError) as exc:
-                    raise StoreError(
-                        f"Invalid event structure on line {line_number}: {exc}"
-                    ) from exc
+                    raise StoreError(f"Invalid event structure on line {line_number}: {exc}") from exc
                 continue
             # An unknown kind is never silently skipped — fail loud.
-            raise StoreError(
-                f"Unknown event kind {kind!r} on line {line_number}"
-            )
+            raise StoreError(f"Unknown event kind {kind!r} on line {line_number}")
 
         if is_non_lane_event(obj):
             continue

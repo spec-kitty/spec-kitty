@@ -31,10 +31,9 @@ from pathlib import Path
 from collections.abc import Iterator
 from typing import Any
 
-from filelock import FileLock
-
 from kernel.clock import now_utc_iso
 from kernel.git_topology import GitTopologyError, git_common_dir
+from kernel.locks import machine_file_lock
 from specify_cli.core.checkout_file_lock import LOCK_DIRECTORY, acquire_or_raise
 from specify_cli.core.constants import KITTIFY_DIR
 
@@ -80,13 +79,35 @@ class FeatureStatusLockTimeoutError(RuntimeError):
         self.holder = holder
 
 
-def _get_thread_locks() -> dict[str, tuple[FileLock, int]]:
-    """Return per-thread lock bookkeeping for re-entrant acquisitions."""
-    locks = getattr(_thread_state, "locks", None)
-    if locks is None:
-        locks = {}
-        _thread_state.locks = locks
-    return locks
+def _get_thread_locks() -> dict[str, int]:
+    """Return per-thread re-entrant-depth bookkeeping, keyed by lock path.
+
+    Public-ish name preserved across the WP05 migration (mission
+    cross-os-primitive-unification, #4714): a wide cross-subsystem test
+    fleet (``tests/status/test_writer_serialization.py``,
+    ``tests/specify_cli/retrospective/``, ``tests/specify_cli/decisions/``,
+    ``tests/specify_cli/migration/``, ``tests/specify_cli/coordination/
+    test_phantom_fanout.py``, ``tests/review/test_cycle.py``, and others)
+    imports this exact name to assert lock-path membership via
+    ``set(_get_thread_locks())`` / ``key in _get_thread_locks()`` --
+    key-only checks that hold regardless of the mapping's value type. Only
+    the value shape changed here (a full ``(lock, depth)`` tuple before,
+    a bare ``depth`` now): the OS-level re-entrancy itself (one real
+    acquire per resolved path, only the outermost release actually drops
+    the OS lock) is owned by :func:`kernel.locks.machine_file_lock`'s own
+    ``reentrant=True`` mode (G5), so this module no longer needs to hold a
+    reference to the lock object itself -- only enough bookkeeping to
+    answer one narrower question: is THIS ``_named_status_lock`` call the
+    outermost (first) acquire for its lock path, so the holder sidecar
+    (:func:`_record_holder`/:func:`_clear_holder`) is written/cleared
+    exactly once per genuine acquire/release cycle rather than on every
+    nested enter/exit.
+    """
+    depths = getattr(_thread_state, "lock_depths", None)
+    if depths is None:
+        depths = {}
+        _thread_state.lock_depths = depths
+    return depths
 
 
 def _git_common_dir(repo_root: Path) -> Path:
@@ -148,9 +169,11 @@ _PROJECT_LOCK_SENTINEL = "__project__"
 def _holder_path(lock_path: Path) -> Path:
     """Sidecar recording the current holder of *lock_path*.
 
-    A sidecar rather than the lock file's own contents: ``filelock`` opens the
-    lock file with ``O_TRUNC`` on every acquire *attempt*, so a waiting
-    contender would wipe anything the holder wrote there.
+    A sidecar rather than the lock file's own contents: ``kernel.locks``
+    writes its own :class:`~kernel.locks.LockRecord` payload into the lock
+    file itself on every successful acquire and truncates it on release (G3),
+    so anything this module wrote directly into the lock file would be
+    overwritten by the primitive's own bookkeeping.
     """
     return lock_path.with_name(lock_path.name + _HOLDER_SUFFIX)
 
@@ -189,10 +212,7 @@ def _read_holder(lock_path: Path) -> dict[str, Any] | None:
 def _describe_holder(holder: dict[str, Any] | None) -> str:
     if holder is None:
         return "holder unknown (no holder record)"
-    return (
-        f"held by pid {holder.get('pid', '?')} "
-        f"(thread {holder.get('thread', '?')}) since {holder.get('acquired_at', '?')}"
-    )
+    return f"held by pid {holder.get('pid', '?')} (thread {holder.get('thread', '?')}) since {holder.get('acquired_at', '?')}"
 
 
 def _build_timeout_error(lock_path: Path, timeout: float) -> FeatureStatusLockTimeoutError:
@@ -207,44 +227,51 @@ def _build_timeout_error(lock_path: Path, timeout: float) -> FeatureStatusLockTi
 
 @contextmanager
 def _named_status_lock(lock_path: Path, *, timeout: float) -> Iterator[Path]:
-    """Shared re-entrant FileLock acquisition, parameterized by *lock_path*.
+    """Shared re-entrant lock acquisition, parameterized by *lock_path*.
 
     Both :func:`feature_status_lock` and :func:`project_event_log_lock`
-    delegate here so the re-entrancy bookkeeping (``_get_thread_locks``) and
-    the underlying ``FileLock`` mechanics exist in exactly one place (F2-T1:
-    a second independently-maintained locking implementation is the same
-    anti-pattern that produced the unlocked-writer race this lock family
+    delegate here so the underlying lock mechanics exist in exactly one place
+    (F2-T1: a second independently-maintained locking implementation is the
+    same anti-pattern that produced the unlocked-writer race this lock family
     exists to close).
-    """
-    held_locks = _get_thread_locks()
-    lock_key = str(lock_path)
-    held = held_locks.get(lock_key)
-    if held is not None:
-        lock, depth = held
-        held_locks[lock_key] = (lock, depth + 1)
-        try:
-            yield lock_path
-        finally:
-            lock, depth = held_locks[lock_key]
-            held_locks[lock_key] = (lock, depth - 1)
-        return
 
-    lock = FileLock(str(lock_path), timeout=timeout)
+    The OS-level re-entrancy (same thread re-entering the same resolved path
+    without re-attempting the OS lock) is delegated to
+    :func:`kernel.locks.machine_file_lock`'s own ``reentrant=True`` mode (G5)
+    -- a fresh lock object is constructed on every call, nested or not, and
+    the primitive's own thread-local state (keyed by resolved path) decides
+    whether this is a genuine acquire or a nested re-entry. The
+    :func:`_get_thread_locks` counter tracked here is narrower: it only
+    gates the holder sidecar so :func:`_record_holder`/:func:`_clear_holder`
+    fire exactly once per outermost acquire/release, matching the
+    pre-migration contract (a nested block's exit must never clear the
+    holder record while an enclosing block still holds the lock).
+    """
+    depths = _get_thread_locks()
+    lock_key = str(lock_path)
+    depth = depths.get(lock_key, 0)
+
+    timeout_s = None if timeout < 0 else timeout
+    lock = machine_file_lock(lock_path, blocking=True, timeout_s=timeout_s, reentrant=True)
     acquire_or_raise(
         lock,
-        lock_path,
-        timeout_seconds=timeout,
         build_timeout_error=lambda: _build_timeout_error(lock_path, timeout),
     )
-    _record_holder(lock_path)
 
-    held_locks[lock_key] = (lock, 1)
+    depths[lock_key] = depth + 1
+    if depth == 0:
+        _record_holder(lock_path)
+
     try:
         yield lock_path
     finally:
-        del held_locks[lock_key]
-        _clear_holder(lock_path)
-        lock.release()
+        lock.__exit__(None, None, None)
+        new_depth = depths[lock_key] - 1
+        if new_depth <= 0:
+            del depths[lock_key]
+            _clear_holder(lock_path)
+        else:
+            depths[lock_key] = new_depth
 
 
 @contextmanager
@@ -278,15 +305,13 @@ def project_event_log_lock(
 ) -> Iterator[Path]:
     """Acquire the project-level lock for ``.kittify/canonical-events.jsonl``.
 
-    Same ``FileLock``-over-git-common-dir mechanism as
+    Same lock-over-git-common-dir mechanism as
     :func:`feature_status_lock`, keyed by the fixed
     :data:`_PROJECT_LOCK_SENTINEL` instead of a mission directory name (that
     log has no mission to key on). Re-entrant per thread via the same shared
     bookkeeping. Serializes every writer of the project-level canonical event
     log, independently of any mission-level lock (F2-T1, F2.md section 3.3).
     """
-    lock_path = (
-        _git_common_dir(repo_root) / LOCK_DIRECTORY / f"{_PROJECT_LOCK_SENTINEL}.status.lock"
-    )
+    lock_path = _git_common_dir(repo_root) / LOCK_DIRECTORY / f"{_PROJECT_LOCK_SENTINEL}.status.lock"
     with _named_status_lock(lock_path, timeout=timeout) as held_path:
         yield held_path

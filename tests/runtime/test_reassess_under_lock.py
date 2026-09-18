@@ -32,6 +32,7 @@ from pathlib import Path
 
 import pytest
 
+import specify_cli.runtime.asset_preparation as ap
 import specify_cli.runtime.bootstrap as bootstrap
 from specify_cli.runtime.bootstrap import assess_runtime, ensure_runtime
 
@@ -288,20 +289,23 @@ class TestWarmPathUnaffectedByReassess:
             assess_calls["n"] += 1
             return real_assess_runtime(**kwargs)
 
-        real_lock_exclusive = bootstrap._lock_exclusive
+        # WP04: bootstrap._lock_exclusive is retired; the lock is now
+        # acquired via asset_preparation's own machine_file_lock name, so
+        # count calls to that factory instead of the retired raw helper.
         lock_calls = {"n": 0}
+        real_machine_file_lock = ap.machine_file_lock
 
-        def _counting_lock(fd: object) -> None:
+        def _counting_lock(*args: object, **kwargs: object) -> object:
             lock_calls["n"] += 1
-            real_lock_exclusive(fd)  # pragma: no cover -- must never be reached on warm
+            return real_machine_file_lock(*args, **kwargs)  # pragma: no cover -- must never be reached on warm
 
         monkeypatch.setattr(bootstrap, "assess_runtime", _counting_assess)
-        monkeypatch.setattr(bootstrap, "_lock_exclusive", _counting_lock)
+        monkeypatch.setattr(ap, "machine_file_lock", _counting_lock)
 
         ensure_runtime()
 
         assert assess_calls["n"] == 1, "warm ensure_runtime() must perform exactly one assess"
-        assert lock_calls["n"] == 0, "warm ensure_runtime() must never acquire the anchor flock"
+        assert lock_calls["n"] == 0, "warm ensure_runtime() must never acquire a lock"
 
     def test_warm_home_repeat_calls_stay_single_assess_no_lock(
         self,
@@ -313,19 +317,19 @@ class TestWarmPathUnaffectedByReassess:
         ensure_runtime()
 
         real_assess_runtime = bootstrap.assess_runtime
-        real_lock_exclusive = bootstrap._lock_exclusive
+        real_machine_file_lock = ap.machine_file_lock
         counts = {"assess": 0, "lock": 0}
 
         def _counting_assess(**kwargs: object) -> object:
             counts["assess"] += 1
             return real_assess_runtime(**kwargs)
 
-        def _counting_lock(fd: object) -> None:
+        def _counting_lock(*args: object, **kwargs: object) -> object:
             counts["lock"] += 1
-            real_lock_exclusive(fd)  # pragma: no cover
+            return real_machine_file_lock(*args, **kwargs)  # pragma: no cover
 
         monkeypatch.setattr(bootstrap, "assess_runtime", _counting_assess)
-        monkeypatch.setattr(bootstrap, "_lock_exclusive", _counting_lock)
+        monkeypatch.setattr(ap, "machine_file_lock", _counting_lock)
 
         for _ in range(3):
             ensure_runtime()

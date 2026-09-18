@@ -39,6 +39,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from kernel.paths import is_windows
 from specify_cli.core.env import is_truthy
 
 _LOG = logging.getLogger(__name__)
@@ -108,7 +109,7 @@ def _resolve_config_dir() -> str:
 
     if sys.platform == "darwin":
         return str(Path.home() / "Library" / "Application Support" / "spec-kitty")
-    if sys.platform == "win32":
+    if is_windows():
         app_data = os.environ.get("APPDATA", "")
         if app_data:
             return str(Path(app_data) / "spec-kitty")

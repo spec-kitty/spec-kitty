@@ -27,11 +27,20 @@ _SPEC_KITTY_AUTH_STORAGE = "specify_cli.auth.secure_storage"
 
 
 def test_from_environment_windows_returns_windows_file_storage(monkeypatch):
-    """On win32, from_environment() returns the Windows file-storage alias only."""
+    """On win32, from_environment() returns the Windows file-storage alias only.
+
+    Routed through the canonical ``kernel.paths.is_windows`` seam
+    (cross-os-primitive-unification-01M2T1CM WP01) rather than faking
+    ``sys.platform`` -- ``from_environment`` does a deferred
+    ``from kernel.paths import is_windows`` at call time, so patching the
+    module attribute here is honoured without ever touching ``os.name``
+    (C-003: faking ``os.name`` flips ``pathlib`` to ``WindowsPath`` and
+    crashes pytest).
+    """
     prefixes = (_SPEC_KITTY_AUTH_STORAGE,)
     snapshot = _snapshot_modules(*prefixes)
 
-    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr("kernel.paths.is_windows", lambda: True)
     for name in list(sys.modules):
         if name.startswith(_SPEC_KITTY_AUTH_STORAGE):
             del sys.modules[name]
@@ -64,11 +73,16 @@ def test_from_environment_windows_returns_windows_file_storage(monkeypatch):
 
 
 def test_from_environment_posix_returns_encrypted_file_storage(monkeypatch):
-    """On linux, from_environment() returns the encrypted file backend."""
+    """On linux, from_environment() returns the encrypted file backend.
+
+    Routed through the ``kernel.paths.is_windows`` seam -- see the docstring
+    on the sibling Windows test above for why this patches the seam instead
+    of ``sys.platform``.
+    """
     prefixes = (_SPEC_KITTY_AUTH_STORAGE,)
     snapshot = _snapshot_modules(*prefixes)
 
-    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
     for name in list(sys.modules):
         if name.startswith(_SPEC_KITTY_AUTH_STORAGE):
             del sys.modules[name]

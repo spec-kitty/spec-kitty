@@ -41,7 +41,6 @@ Usage examples::
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -50,6 +49,7 @@ from rich.console import Console
 from specify_cli.cli.console import console
 from specify_cli.cli.console import err_console
 
+from kernel.paths import is_windows
 from specify_cli.core.paths import locate_project_root
 from specify_cli.paths import get_runtime_root, render_runtime_path
 from specify_cli.paths.windows_migrate import MigrationOutcome
@@ -145,7 +145,7 @@ def migrate(  # noqa: C901
     # This ensures post-upgrade invocations pick up state from the correct root.
     # --dry-run is plumbed through: in preview mode the function computes outcomes
     # without performing any filesystem moves (FR-006, contracts/cli-migrate.md).
-    if sys.platform == "win32":
+    if is_windows():
         from specify_cli.paths.windows_migrate import migrate_windows_state  # noqa: PLC0415
 
         try:

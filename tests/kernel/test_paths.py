@@ -47,20 +47,20 @@ class TestGetKittifyHomeUnix:
     def test_unix_default_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """On Unix, default is ~/.kittify/."""
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
         result = get_kittify_home()
         assert result == Path.home() / ".kittify"
 
     def test_returns_path_object(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Return type is Path, not str."""
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
         assert isinstance(get_kittify_home(), Path)
 
     def test_returns_absolute_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Path is always absolute."""
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
         assert get_kittify_home().is_absolute()
 
 
@@ -76,7 +76,7 @@ class TestGetKittifyHomeWindows:
         import platformdirs
 
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: True)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: True)
         monkeypatch.setattr(
             platformdirs,
             "user_data_dir",
@@ -104,7 +104,7 @@ class TestSpecKittyHomeEnvOverride:
         """SPEC_KITTY_HOME takes precedence even on Windows."""
         custom = str(tmp_path / "custom-kittify")
         monkeypatch.setenv("SPEC_KITTY_HOME", custom)
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: True)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: True)
         assert get_kittify_home() == Path(custom)
 
     def test_env_override_returns_path(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -115,7 +115,7 @@ class TestSpecKittyHomeEnvOverride:
     def test_empty_env_var_uses_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Empty SPEC_KITTY_HOME falls through to platform default."""
         monkeypatch.setenv("SPEC_KITTY_HOME", "")
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
         # Empty string is falsy -> falls through
         assert get_kittify_home() == Path.home() / ".kittify"
 
@@ -509,24 +509,24 @@ class TestRenderRuntimePath:
     """User-facing rendering for runtime paths lives in kernel for shared use."""
 
     def test_windows_always_returns_absolute_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: True)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: True)
         rendered = render_runtime_path(Path("/nonexistent/spec-kitty/auth"))
         assert rendered == str(Path("/nonexistent/spec-kitty/auth").resolve(strict=False))
 
     def test_posix_tilde_compression_under_home(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
         monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
         rendered = render_runtime_path(tmp_path / ".kittify" / "auth")
         assert rendered == "~/.kittify/auth"
 
     def test_posix_outside_home_stays_absolute(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
         monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
         rendered = render_runtime_path(Path("/var/lib/spec-kitty"))
         assert rendered == str(Path("/var/lib/spec-kitty").resolve(strict=False))
 
     def test_for_user_false_disables_tilde_shortening(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
         monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
         rendered = render_runtime_path(tmp_path / ".kittify" / "auth", for_user=False)
         assert rendered == str((tmp_path / ".kittify" / "auth").resolve(strict=False))
@@ -553,7 +553,7 @@ class TestRenderRuntimePathMutantKills:
         for_user=False the function returns the absolute path, not the tilde
         form — so a call that omits the keyword must produce the tilde string.
         """
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
         monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
         rendered = render_runtime_path(tmp_path / ".kittify" / "auth")
         assert rendered == "~/.kittify/auth"
@@ -571,7 +571,7 @@ class TestRenderRuntimePathMutantKills:
         """
         fake_home = tmp_path / "no-such-home-directory"
         assert not fake_home.exists()
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
         monkeypatch.setattr(Path, "home", classmethod(lambda cls: fake_home))
         # Target path is beneath the (nonexistent) home root — should still
         # render as tilde form without raising FileNotFoundError.
@@ -589,7 +589,7 @@ class TestRenderRuntimePathMutantKills:
         observable invariant instead: the returned string contains forward
         slashes and no "XX" literal from a mangled replacement target/source.
         """
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
         monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
         rendered = render_runtime_path(tmp_path / "nested" / "dir" / "file.txt")
         assert rendered == "~/nested/dir/file.txt"
@@ -606,7 +606,7 @@ class TestRenderRuntimePathMutantKills:
         that mutant equivalent. This test anchors the contract even so: a
         nonexistent target under home is rendered in tilde form.
         """
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
         monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
         missing = tmp_path / ".kittify" / "never-created"
         assert not missing.exists()
@@ -646,7 +646,7 @@ class TestGetKittifyHomeWindowsPlatformdirsContract:
             return return_value
 
         monkeypatch.setattr(platformdirs, "user_data_dir", _spy)
-        monkeypatch.setattr("kernel.paths._is_windows", lambda: True)
+        monkeypatch.setattr("kernel.paths.is_windows", lambda: True)
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
         return calls
 

@@ -3,6 +3,7 @@ Manifest system for spec-kitty file verification.
 This module generates and checks expected files based on the mission context.
 """
 
+from kernel.paths import is_windows
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 from pathlib import Path, PurePosixPath
@@ -21,9 +22,7 @@ class FileManifest:
 
     def __init__(self, kittify_dir: Path, *, mission_type: str | None = None):
         self.kittify_dir = kittify_dir
-        self.mission_dir = (
-            kittify_dir / "missions" / mission_type if mission_type else None
-        )
+        self.mission_dir = kittify_dir / "missions" / mission_type if mission_type else None
 
     def get_expected_files(self) -> dict[str, list[str]]:
         """
@@ -35,12 +34,7 @@ class FileManifest:
         if not self.mission_dir or not self.mission_dir.exists():
             return {}
 
-        manifest = {
-            "commands": [],
-            "templates": [],
-            "scripts": [],
-            "mission_files": []
-        }
+        manifest = {"commands": [], "templates": [], "scripts": [], "mission_files": []}
 
         # Mission config file
         mission_yaml = self.mission_dir / "mission.yaml"
@@ -73,12 +67,7 @@ class FileManifest:
 
         relative_path = script_path.removeprefix(prefix)
         parsed_path = PurePosixPath(relative_path)
-        if (
-            not relative_path
-            or "\\" in relative_path
-            or parsed_path.is_absolute()
-            or any(part in {".", ".."} for part in parsed_path.parts)
-        ):
+        if not relative_path or "\\" in relative_path or parsed_path.is_absolute() or any(part in {".", ".."} for part in parsed_path.parts):
             return None
         return str(PurePosixPath("scripts") / parsed_path)
 
@@ -106,15 +95,13 @@ class FileManifest:
 
     def _get_referenced_scripts(self) -> list[str]:
         """Extract script references from command files, filtered by platform."""
-        import platform
-
         if not self.mission_dir:
             return []
         commands_dir = self.mission_dir / "command-templates"
         if not commands_dir.exists():
             return []
 
-        script_key = "ps:" if platform.system() == "Windows" else "sh:"
+        script_key = "ps:" if is_windows() else "sh:"
         scripts: set[str] = set()
         for cmd_file in commands_dir.glob("*.md"):
             scripts |= self._parse_frontmatter_scripts(cmd_file.read_text(encoding="utf-8-sig"), script_key)
@@ -128,12 +115,7 @@ class FileManifest:
             Dict with 'present', 'missing', and 'extra' keys
         """
         expected = self.get_expected_files()
-        result = {
-            "present": {},
-            "missing": {},
-            "modified": {},
-            "extra": []
-        }
+        result = {"present": {}, "missing": {}, "modified": {}, "extra": []}
 
         # Check each category
         for category, files in expected.items():
@@ -224,6 +206,7 @@ class WorktreeStatus:
         """Return True if the branch has been merged into the primary branch."""
         try:
             from specify_cli.core.git_ops import resolve_primary_branch
+
             primary = resolve_primary_branch(self.repo_root)
             result = subprocess.run(
                 ["git", "branch", "--merged", primary],
@@ -281,9 +264,7 @@ class WorktreeStatus:
         # ``PRIMARY_METADATA`` rather than the kind-blind resolver (NFR-001).
         from mission_runtime import MissionArtifactKind, placement_seam
 
-        main_artifacts_path = placement_seam(self.repo_root, feature).read_dir(
-            MissionArtifactKind.PRIMARY_METADATA
-        )
+        main_artifacts_path = placement_seam(self.repo_root, feature).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         if main_artifacts_path.exists():
             status["artifacts_in_main"] = [a.name for a in main_artifacts_path.glob("*.md")]
 
@@ -298,13 +279,7 @@ class WorktreeStatus:
     def get_worktree_summary(self) -> dict[str, int]:
         """Get summary counts of worktree states."""
         features = self.get_all_features()
-        summary = {
-            "total_features": len(features),
-            "active_worktrees": 0,
-            "merged_features": 0,
-            "in_development": 0,
-            "not_started": 0
-        }
+        summary = {"total_features": len(features), "active_worktrees": 0, "merged_features": 0, "in_development": 0, "not_started": 0}
 
         for feature in features:
             status = self.get_feature_status(feature)
