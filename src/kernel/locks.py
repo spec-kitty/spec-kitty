@@ -530,7 +530,7 @@ def _attempt_acquire(core: _LockCore) -> LockRecord | None:
 async def _async_acquire(core: _LockCore, *, blocking: bool, timeout_s: float | None) -> LockRecord:
     """Async waiting strategy over :func:`_attempt_acquire` (G4)."""
     _validate_wait_mode(blocking=blocking, timeout_s=timeout_s)
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     deadline = None if timeout_s is None else loop.time() + timeout_s
     while True:
         record = _attempt_acquire(core)
