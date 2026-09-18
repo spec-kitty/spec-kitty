@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-09-16'
+updated: '2026-09-18'
 ---
 # Changelog
 
@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _4.0.0rc4 candidate cycle. Entries land here until the release chore finalizes
 this section at publish._
+
+### Added
+
+- **`spec-kitty zeitgeist activity --person`/`--project` and `watch --seed` close #4215's remaining read-surface scope (the 2026-09-17 narrowing over the 2026-09-14 re-scope).** `activity`'s two missing selectors are client-side membership rules over the retained frames — `--person` keeps only frames whose actor `user` names that teammate (unattributed frames never match), `--project` keeps only frames whose mission correlation (`focus_ref`, or an event frame's `ref`) is the slug or begins `<slug>.`, with event refs grammar-routed so prose that merely contains a slug cannot attach itself to a mission. Both are reported with their own matched/withheld counts in a `selector` block, so an empty result under a selector never reads as an empty relay; the relay's `/managed/events` route has no such filter, so the narrowing happens on this side of the wire. `watch --seed <seconds>` (and the MCP `zeitgeist_watch` tool's `seed_window_s`) switches to the relay's race-safe `follow=1` handoff (zeitgeist#296): the preface `SnapshotDocument` seeds presence/focus state from the registries at the cut, its retained history is delivered first through the same novelty/receipt policy, and live frames that duplicate a history frame are dropped by `(epoch, seq)` — the overlap the relay's reserve-before-snapshot ordering makes correct. `0`/omitted stays future-only; a relay that serves no snapshot answers 404 and an unusable preface raises — a requested seed is never silently degraded. The preface's coverage metadata rides the result as `seed`, so a truncated backfill is visible. CLI and MCP call the same `subscription.agent_activity`/`agent_watch` service; `docs/api/cli-commands.md`'s `zeitgeist status`/`watch`/`activity` sections are regenerated to match. Deferred with evidence: credential renewal on an expired capability stays with auth epic #3892 (no renewal seam exists for readers to call yet; a denied read already fails legibly as a fault, never as an empty team). The same PR folds #4335's two squad MINORs on the slice-1 status surface: `status`'s fallback listen now reports the **measured** listen time instead of the configured bound (a relay that closes the stream early no longer prints "listened for 2.0s"), and snapshot entry ages are derived **skew-free** from the document's own `observed_at` anchor (anchor − entry `observed_at`, both on the relay's clock, plus only the locally-measured time since fetch) instead of subtracting a relay timestamp from the local wall clock — a relay an hour ahead of the client no longer clamps a 40-second-old observation to a lying `observed 0s ago`. The anchor and fetch time ride the JSON result as top-level `observed_at`/`fetched_at`; the listen path (no anchor exists there) keeps the legacy derivation and says so in `_observation_age`'s docstring.
 
 ### Fixed
 
