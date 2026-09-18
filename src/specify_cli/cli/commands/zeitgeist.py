@@ -268,9 +268,7 @@ def watch(
             from specify_cli.zeitgeist_client.agent_delivery import AgentDelivery
 
             policy = AgentDelivery(key, consumer=consumer)
-            result = subscription.agent_watch(
-                key, timeout_s=timeout, max_frames=max_frames, delivery=policy, seed_window_s=seed or None
-            )
+            result = subscription.agent_watch(key, timeout_s=timeout, max_frames=max_frames, delivery=policy, seed_window_s=seed or None)
             frame_iter = iter(result["frames"])
         for frame in frame_iter:
             count += 1

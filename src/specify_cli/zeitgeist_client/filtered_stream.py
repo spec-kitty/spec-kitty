@@ -76,7 +76,7 @@ import urllib.parse
 import urllib.request
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from . import budget, own_filter
 from .live_frame import FocusView, LiveFrame, StreamState, TeamSnapshot, parse_live_frame
@@ -288,10 +288,12 @@ class FilteredStream:
                 doc = json.loads(text)
             except json.JSONDecodeError as exc:
                 raise ValueError("relay's snapshot preface was not valid JSON") from exc
+            if not isinstance(doc, dict):
+                raise ValueError("relay's snapshot preface was not a usable SnapshotDocument")
             with self._lock:
                 if not self._state.seed_snapshot(doc):
                     raise ValueError("relay's snapshot preface was not a usable SnapshotDocument")
-            return doc
+            return cast(Mapping[str, Any], doc)
 
     def _seed_history(self, doc: Mapping[str, Any]) -> tuple[list[LiveFrame], set[tuple[str, int]]]:
         """Parse the preface's ``events`` history into the frames this watch
@@ -326,9 +328,18 @@ class FilteredStream:
             frames.append(live_frame_obj)
         return frames, seen
 
-    def watch(
-        self, *, idle_timeout_s: float | None = None, seed_window_s: float | None = None
-    ) -> Iterator[LiveFrame]:
+    def _watch_url(self, seed: float | None) -> str:
+        """The connection target for one watch: the plain future-only
+        stream, or — with a seed window — the relay's follow route. The
+        window is formatted as a plain decimal (the relay's own
+        ``_WINDOW_S_RE`` grammar) without a trailing ``.0`` so the query
+        reads exactly like every other client's."""
+        if seed is None:
+            return self._filter_own_url(_STREAM_PATH)
+        window = str(int(seed)) if seed.is_integer() else repr(seed)
+        return self._filter_own_url(_SNAPSHOT_PATH, {"window_s": window, "follow": "1"})
+
+    def watch(self, *, idle_timeout_s: float | None = None, seed_window_s: float | None = None) -> Iterator[LiveFrame]:
         """Yield each accepted ``LiveFrame`` as it arrives.
 
         ``seed_window_s`` (spec-kitty#4215, zeitgeist#296) selects the
@@ -363,15 +374,7 @@ class FilteredStream:
         seed = _validated_seed_window(seed_window_s)
         with self._lock:
             self._seed_coverage = None
-        if seed is None:
-            url = self._filter_own_url(_STREAM_PATH)
-        else:
-            # The relay's own window grammar (managed.py's _WINDOW_S_RE) is a
-            # plain decimal; format an integral window without a trailing
-            # ".0" so the query reads exactly like every other client's.
-            window = str(int(seed)) if seed.is_integer() else repr(seed)
-            url = self._filter_own_url(_SNAPSHOT_PATH, {"window_s": window, "follow": "1"})
-        req = urllib.request.Request(url, headers=self._headers(), method="GET")
+        req = urllib.request.Request(self._watch_url(seed), headers=self._headers(), method="GET")
         opener = budget.NoRedirects.build()
         deadline = None if idle_timeout_s is None else time.monotonic() + idle_timeout_s
         with opener.open(req, timeout=idle_timeout_s) as resp:
@@ -427,9 +430,7 @@ class FilteredStream:
                 resp.close()
                 reader.join(timeout=0.1)
 
-    def _read_frames(
-        self, resp: object, *, overlap: set[tuple[str, int]] | None = None
-    ) -> Iterator[LiveFrame]:
+    def _read_frames(self, resp: object, *, overlap: set[tuple[str, int]] | None = None) -> Iterator[LiveFrame]:
         """Unbounded read path used only when no deadline was requested."""
         while True:
             raw_line = resp.readline()  # type: ignore[attr-defined]

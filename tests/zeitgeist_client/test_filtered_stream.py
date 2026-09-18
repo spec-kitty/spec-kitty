@@ -805,9 +805,7 @@ def test_seeded_watch_uses_the_follow_route_and_yields_history_first(managed_str
     frame published just before the call is never lost to the future-only
     hole the plain stream leaves."""
     stream = filtered_stream.FilteredStream(_config(managed_stream_double.url))
-    managed_stream_double.snapshot_document = _snapshot_doc(
-        events=[_frame(seq=1, frame=_presence(session_ref="a" * 12)), _frame(seq=2, frame=_focus())]
-    )
+    managed_stream_double.snapshot_document = _snapshot_doc(events=[_frame(seq=1, frame=_presence(session_ref="a" * 12)), _frame(seq=2, frame=_focus())])
     managed_stream_double.push_frame(_frame(seq=3, frame=_focus(focus_ref="mission-live")))
     managed_stream_double.close_stream()
 
@@ -827,9 +825,7 @@ def test_seeded_watch_dedups_live_overlap_by_epoch_and_seq(managed_stream_double
     `(epoch, seq)`, never by a seq range."""
     stream = filtered_stream.FilteredStream(_config(managed_stream_double.url))
     overlap_frame = _frame(seq=2, frame=_focus(focus_ref="mission-overlap"))
-    managed_stream_double.snapshot_document = _snapshot_doc(
-        events=[_frame(seq=1, frame=_presence()), overlap_frame]
-    )
+    managed_stream_double.snapshot_document = _snapshot_doc(events=[_frame(seq=1, frame=_presence()), overlap_frame])
     # The same (epoch, seq) arrives live after the preface — overlap, not news.
     managed_stream_double.push_frame(overlap_frame)
     managed_stream_double.push_frame(_frame(seq=3, frame=_focus(focus_ref="mission-new")))
@@ -869,9 +865,7 @@ def test_seeded_watch_reports_the_preface_coverage(managed_stream_double) -> Non
     """`seed_coverage()` carries the preface's coverage metadata so a
     truncated backfill is visible to the caller, never silent."""
     stream = filtered_stream.FilteredStream(_config(managed_stream_double.url))
-    managed_stream_double.snapshot_document = _snapshot_doc(
-        events=[_frame(seq=1, frame=_presence())], history_basis="retained"
-    )
+    managed_stream_double.snapshot_document = _snapshot_doc(events=[_frame(seq=1, frame=_presence())], history_basis="retained")
     managed_stream_double.close_stream()
 
     _drain(stream.watch(idle_timeout_s=2.0, seed_window_s=60), 1)

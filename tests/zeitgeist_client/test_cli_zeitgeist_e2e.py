@@ -457,9 +457,7 @@ def events_relay(monkeypatch: pytest.MonkeyPatch) -> object:
 
     from specify_cli.zeitgeist_client import history
 
-    state = SimpleNamespace(
-        body={"schema_version": "1.0", "epoch": "epoch-1", "seq": 3, "events": []}, requests=[]
-    )
+    state = SimpleNamespace(body={"schema_version": "1.0", "epoch": "epoch-1", "seq": 3, "events": []}, requests=[])
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802
@@ -511,9 +509,7 @@ def _focus_payload(focus_ref: str, user: str) -> dict[str, object]:
     return {"type": "focus", "focus": {"actor": {"user": user, "session_ref": "b" * 12}, "focus_ref": focus_ref, "state": "active"}}
 
 
-def test_activity_person_and_project_end_to_end_over_a_real_events_double(
-    state_root: Path, events_relay
-) -> None:
+def test_activity_person_and_project_end_to_end_over_a_real_events_double(state_root: Path, events_relay) -> None:
     """#4215 end to end: the CLI's `--person`/`--project` selectors run
     against a real /managed/events response — the whole path (command →
     agent_activity → history.read_history → HTTP) with nothing mocked, and

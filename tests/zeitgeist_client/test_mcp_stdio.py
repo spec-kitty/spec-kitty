@@ -676,9 +676,7 @@ async def test_send_tool_schema_takes_no_credential_and_optional_repo() -> None:
 # --- spec-kitty#4215: CLI/MCP parity for the selectors and the seeded watch ---
 
 
-async def test_activity_tool_threads_the_selectors_through_the_shared_service(
-    state_root: Path, managed_stream_double, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_activity_tool_threads_the_selectors_through_the_shared_service(state_root: Path, managed_stream_double, monkeypatch: pytest.MonkeyPatch) -> None:
     """The MCP tool and the CLI command call the SAME `agent_activity` with
     the same `person`/`project` selectors — no second filtering
     implementation on the agent surface."""
@@ -730,13 +728,9 @@ async def test_watch_tool_seeds_from_the_follow_preface(state_root: Path, manage
 
     server = mcp_stdio.build_server()
     async with create_connected_server_and_client_session(server) as client:
-        result = await client.call_tool(
-            "zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0, "seed_window_s": 120.0}
-        )
+        result = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0, "seed_window_s": 120.0})
     assert not result.isError
     frames = result.structuredContent["frames"]
     assert [f["seq"] for f in frames] == [1, 2, 3]
     assert result.structuredContent["seed"]["coverage"]["history_basis"] == "retained"
-    assert any(
-        managed_stream_double.requested_paths[0].startswith("/managed/snapshot?") for _ in [0]
-    ) and "follow=1" in managed_stream_double.requested_paths[0]
+    assert any(managed_stream_double.requested_paths[0].startswith("/managed/snapshot?") for _ in [0]) and "follow=1" in managed_stream_double.requested_paths[0]

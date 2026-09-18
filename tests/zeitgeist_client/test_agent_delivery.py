@@ -638,9 +638,7 @@ def test_activity_project_selector_matches_focus_and_event_refs(policy, monkeypa
         "frame_type": "presence",
         "payload": {"actor": {"user": "same-human", "session_ref": "bbbbbbbbbbbb"}},
     }
-    monkeypatch.setattr(
-        history, "read_history", lambda *a, **kw: _page(mission_focus, wp_focus, other_focus, mission_event, presence_frame)
-    )
+    monkeypatch.setattr(history, "read_history", lambda *a, **kw: _page(mission_focus, wp_focus, other_focus, mission_event, presence_frame))
 
     result = subscription.agent_activity(policy.repo, delivery=policy, project="034-demo")
     assert result["frames"] == [mission_focus, wp_focus, mission_event]
@@ -675,9 +673,7 @@ def test_activity_selectors_compose_and_count_across_pages(policy, monkeypatch: 
     # The relay's continuation protocol pages by `since`; page 1 reports a
     # continuation so the catch-up reads page 2 as well.
     pages[0]["coverage"] = {"continuation": "e1:2"}
-    monkeypatch.setattr(
-        history, "read_history", lambda *a, **kw: pages[0] if kw.get("since") is None else pages[1]
-    )
+    monkeypatch.setattr(history, "read_history", lambda *a, **kw: pages[0] if kw.get("since") is None else pages[1])
 
     result = subscription.agent_activity(policy.repo, delivery=policy, person="alice", project="034-demo")
     assert result["frames"] == [alice_mission]

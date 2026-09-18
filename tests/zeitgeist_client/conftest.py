@@ -63,9 +63,7 @@ def instead_of_rewrite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
 
 
 @pytest.fixture()
-def no_git_ancestry_inside_tmp_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def no_git_ancestry_inside_tmp_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep an unrelated ancestor checkout's identity from leaking into
     tests that build a repo-less directory under ``tmp_path`` and expect
     resolution to fail closed with ``UnverifiedRepositoryIdentity``.
@@ -84,12 +82,8 @@ def no_git_ancestry_inside_tmp_path(
     fixtures) is unaffected.
     """
     boundary = os.path.abspath(str(tmp_path))
-    real_git_dir_from_filesystem: Callable[[str], str] = (
-        repo_identity._git_dir_from_filesystem
-    )
-    real_deadline_run: Callable[[repo_identity.Deadline, list[str], str], str] = (
-        repo_identity.Deadline.run
-    )
+    real_git_dir_from_filesystem: Callable[[str], str] = repo_identity._git_dir_from_filesystem
+    real_deadline_run: Callable[[repo_identity.Deadline, list[str], str], str] = repo_identity.Deadline.run
 
     def _inside_boundary(path: str) -> bool:
         candidate = os.path.abspath(path)
@@ -101,17 +95,13 @@ def no_git_ancestry_inside_tmp_path(
             return ""
         return git_dir
 
-    def _bounded_deadline_run(
-        self: repo_identity.Deadline, args: list[str], cwd: str
-    ) -> str:
+    def _bounded_deadline_run(self: repo_identity.Deadline, args: list[str], cwd: str) -> str:
         git_dir = real_git_dir_from_filesystem(os.path.realpath(cwd))
         if git_dir and not _inside_boundary(git_dir):
             return ""
         return real_deadline_run(self, args, cwd)
 
-    monkeypatch.setattr(
-        repo_identity, "_git_dir_from_filesystem", _bounded_git_dir_from_filesystem
-    )
+    monkeypatch.setattr(repo_identity, "_git_dir_from_filesystem", _bounded_git_dir_from_filesystem)
     monkeypatch.setattr(repo_identity.Deadline, "run", _bounded_deadline_run)
 
 
@@ -262,6 +252,94 @@ def closed_port_url() -> str:
 
 
 @dataclass
+class _ManagedStreamHandlerBase(http.server.BaseHTTPRequestHandler):
+    """The wire mechanics every :class:`ManagedStreamDouble` handler shares:
+    chunked SSE writes, the ``/managed/snapshot`` JSON and follow=1 SSE
+    responses, and the queue-draining stream tail. Module-level (not nested
+    in the double's ``_make_handler``) so each method's complexity is its
+    own, and reached through ``self.server.double`` — the
+    ThreadingHTTPServer instance carries the double it was built for (set in
+    :meth:`ManagedStreamDouble.start`), the same object the closure-based
+    routing above sees."""
+
+    protocol_version = "HTTP/1.1"
+
+    @property
+    def double(self) -> ManagedStreamDouble:
+        return self.server.double  # type: ignore[attr-defined,no-any-return]
+
+    def _write_chunk(self, data: bytes) -> None:
+        self.wfile.write(f"{len(data):x}\r\n".encode() + data + b"\r\n")
+        self.wfile.flush()
+
+    def _ack_filter_own(self) -> str:
+        """The relay's own-session filtering acknowledgement value, shared
+        by every route that echoes it."""
+        return "true" if "filterOwn=true" in self.path else "false"
+
+    def _snapshot_response_body(self) -> bytes | None:
+        body = self.double.snapshot_body
+        if body is None and self.double.snapshot_document is not None:
+            body = json.dumps(self.double.snapshot_document).encode()
+        return body
+
+    def _stream_outgoing(self) -> None:
+        """The SSE tail both stream routes share: chunked frames off the
+        double's queue until the close sentinel, then the final zero-length
+        chunk that ends the response."""
+        with contextlib.suppress(BrokenPipeError, ConnectionResetError):
+            while True:
+                item = self.double.outgoing.get()
+                if item is None:
+                    break
+                self._write_chunk(item)
+            self.wfile.write(b"0\r\n\r\n")
+            self.wfile.flush()
+
+    def _serve_snapshot(self) -> None:
+        query = self.path.partition("?")[2]
+        if "follow=1" in query.split("&"):
+            self._serve_follow_snapshot()
+            return
+        body = self._snapshot_response_body()
+        if body is None:
+            self.send_response(self.double.snapshot_status)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        # Mirrors the real relay: zeitgeist/managed.py's managed_snapshot
+        # attaches the same X-Zeitgeist-Filter-Own ack header
+        # (_filter_headers(spec)) to its JSON response, not just to
+        # /managed/stream's SSE response.
+        self.send_header("X-Zeitgeist-Filter-Own", self._ack_filter_own())
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _serve_follow_snapshot(self) -> None:
+        """zeitgeist#296's follow shape: the SnapshotDocument as the first
+        SSE ``data:`` event, then live frames from the same queue the stream
+        route serves — the reserve-before-snapshot ordering the race-safety
+        argument depends on, modeled as preface-then-queue on one
+        connection."""
+        body = self._snapshot_response_body()
+        if body is None:
+            self.send_response(self.double.snapshot_status)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        self.send_response(200)
+        self.send_header("X-Zeitgeist-Filter-Own", self._ack_filter_own())
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Transfer-Encoding", "chunked")
+        self.end_headers()
+        self._write_chunk(b"data: " + body + b"\n\n")
+        self._stream_outgoing()
+
+
 class ManagedStreamDouble:
     """A minimal, in-process, loopback-only double for F3's
     ``GET /managed/stream`` SSE route (``zeitgeist/managed.py``).
@@ -310,6 +388,7 @@ class ManagedStreamDouble:
     def start(self) -> None:
         handler_cls = self._make_handler()
         self._server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler_cls)
+        self._server.double = self  # type: ignore[attr-defined]  # the base handler's seam
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
         self._thread.start()
 
@@ -341,67 +420,11 @@ class ManagedStreamDouble:
     def _make_handler(self) -> type[http.server.BaseHTTPRequestHandler]:
         double = self
 
-        class _Handler(http.server.BaseHTTPRequestHandler):
-            protocol_version = "HTTP/1.1"
-
-            def _write_chunk(self, data: bytes) -> None:
-                self.wfile.write(f"{len(data):x}\r\n".encode() + data + b"\r\n")
-                self.wfile.flush()
-
-            def _serve_snapshot(self) -> None:
-                query = self.path.split("?", 1)[1] if "?" in self.path else ""
-                if "follow=1" in query.split("&"):
-                    self._serve_follow_snapshot()
-                    return
-                body = double.snapshot_body
-                if body is None and double.snapshot_document is not None:
-                    body = json.dumps(double.snapshot_document).encode()
-                if body is None:
-                    self.send_response(double.snapshot_status)
-                    self.send_header("Content-Length", "0")
-                    self.end_headers()
-                    return
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(body)))
-                # Mirrors the real relay: zeitgeist/managed.py's managed_snapshot
-                # attaches the same X-Zeitgeist-Filter-Own ack header
-                # (_filter_headers(spec)) to its JSON response, not just to
-                # /managed/stream's SSE response.
-                self.send_header("X-Zeitgeist-Filter-Own", "true" if "filterOwn=true" in self.path else "false")
-                self.end_headers()
-                self.wfile.write(body)
-
-            def _serve_follow_snapshot(self) -> None:
-                """zeitgeist#296's follow shape: the SnapshotDocument as the
-                first SSE ``data:`` event, then live frames from the same
-                queue the stream route serves — the reserve-before-snapshot
-                ordering the race-safety argument depends on, modeled as
-                preface-then-queue on one connection."""
-                body = double.snapshot_body
-                if body is None and double.snapshot_document is not None:
-                    body = json.dumps(double.snapshot_document).encode()
-                if body is None:
-                    self.send_response(double.snapshot_status)
-                    self.send_header("Content-Length", "0")
-                    self.end_headers()
-                    return
-                self.send_response(200)
-                self.send_header("X-Zeitgeist-Filter-Own", "true" if "filterOwn=true" in self.path else "false")
-                self.send_header("Content-Type", "text/event-stream")
-                self.send_header("Cache-Control", "no-cache")
-                self.send_header("Transfer-Encoding", "chunked")
-                self.end_headers()
-                with contextlib.suppress(BrokenPipeError, ConnectionResetError):
-                    self._write_chunk(b"data: " + body + b"\n\n")
-                    while True:
-                        item = double.outgoing.get()
-                        if item is None:
-                            break
-                        self._write_chunk(item)
-                    self.wfile.write(b"0\r\n\r\n")
-                    self.wfile.flush()
-
+        class _Handler(_ManagedStreamHandlerBase):
+            # Only the ROUTING lives here, closure-bound to this double; the
+            # wire mechanics (chunked writes, the snapshot/follow responses,
+            # the SSE tail) live on the module-level base class above, so
+            # this factory stays a small, readable dispatch.
             def do_GET(self) -> None:  # noqa: N802
                 with double._lock:
                     double.received_headers.append(dict(self.headers))
@@ -414,19 +437,12 @@ class ManagedStreamDouble:
                     self.send_header("Content-Length", "0")
                     self.end_headers()
                     return
-                self.send_header("X-Zeitgeist-Filter-Own", "true" if "filterOwn=true" in self.path else "false")
+                self.send_header("X-Zeitgeist-Filter-Own", self._ack_filter_own())
                 self.send_header("Content-Type", "text/event-stream")
                 self.send_header("Cache-Control", "no-cache")
                 self.send_header("Transfer-Encoding", "chunked")
                 self.end_headers()
-                with contextlib.suppress(BrokenPipeError, ConnectionResetError):
-                    while True:
-                        item = double.outgoing.get()
-                        if item is None:
-                            break
-                        self._write_chunk(item)
-                    self.wfile.write(b"0\r\n\r\n")
-                    self.wfile.flush()
+                self._stream_outgoing()
 
             def log_message(self, format: str, *args: object) -> None:  # noqa: A002
                 pass

@@ -195,9 +195,7 @@ def _validated_selector(value: str | None, name: str) -> str | None:
     when the caller can tell "nobody matched" from "I typed garbage"."""
     if value is None or _SELECTOR_RE.fullmatch(value):
         return value
-    raise ValueError(
-        f"{name} must be a bare identifier (1..64 chars of letters, digits, '.', '_', '@', '+', '-'), got {value!r}"
-    )
+    raise ValueError(f"{name} must be a bare identifier (1..64 chars of letters, digits, '.', '_', '@', '+', '-'), got {value!r}")
 
 
 def _frame_matches_person(frame: Mapping[str, Any], person: str) -> bool:
@@ -232,6 +230,26 @@ def _frame_matches_project(frame: Mapping[str, Any], project: str) -> bool:
     else:
         return False
     return isinstance(ref, str) and (ref == project or ref.startswith(f"{project}."))
+
+
+def _selected_frames(
+    frames: Iterator[dict[str, Any]],
+    person: str | None,
+    project: str | None,
+    counts: dict[str, int],
+) -> Iterator[dict[str, Any]]:
+    """One selector pass over the retained frames, counted as it filters —
+    the counts belong to the whole catch-up, not to any one page, so a
+    multi-page read reports one honest total."""
+    for frame in frames:
+        if person is not None and not _frame_matches_person(frame, person):
+            counts["withheld"] += 1
+            continue
+        if project is not None and not _frame_matches_project(frame, project):
+            counts["withheld"] += 1
+            continue
+        counts["matched"] += 1
+        yield frame
 
 
 def resolve_stream(
@@ -648,20 +666,6 @@ def agent_activity(
     own_verified = False
     selector_counts = {"matched": 0, "withheld": 0}
 
-    def _selected(frames: Iterator[dict[str, Any]]) -> Iterator[dict[str, Any]]:
-        """One selector pass over a retained page, counted as it filters —
-        the counts belong to the whole catch-up, not to any one page, so a
-        multi-page read reports one honest total."""
-        for frame in frames:
-            if person is not None and not _frame_matches_person(frame, person):
-                selector_counts["withheld"] += 1
-                continue
-            if project is not None and not _frame_matches_project(frame, project):
-                selector_counts["withheld"] += 1
-                continue
-            selector_counts["matched"] += 1
-            yield frame
-
     def merge_coverage(page_coverage: Mapping[str, Any]) -> None:
         """Fold one page's coverage into the catch-up whole. A multi-page
         catch-up must report the union, never just the last page: withheld
@@ -701,7 +705,7 @@ def agent_activity(
             page = read_history(repo, window_s=window_s, timeout_s=remaining, since=since, filter_own=filter_own)
             own_verified = filter_own
             merge_coverage(page["coverage"])
-            yield from _selected(iter(page["frames"]))
+            yield from _selected_frames(iter(page["frames"]), person, project, selector_counts)
             continuation = coverage.get("continuation")
             if continuation is None:
                 return
