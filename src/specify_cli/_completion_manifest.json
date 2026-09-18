@@ -278,7 +278,7 @@
      "deprecated": false,
      "commands": {
       "stale-check": {
-       "help": "Detect test assertions likely invalidated by source changes between two refs.\n\nCompares BASE..HEAD and reports assertions in the test suite that reference\nsymbols (functions, classes, string literals) that were renamed or removed in\nthe source diff.  Uses AST analysis only — no regex on test text, no test\nexecution.\n\nConfidence levels:\n  high   — identifier referenced directly inside Assert or assert* call\n  medium — identifier appears anywhere in an assertion node\n  low    — string literal matches a Constant in an assertion-bearing position",
+       "help": "Detect test assertions likely invalidated by source changes between two refs.\n\nCompares BASE..HEAD and reports assertions in the test suite that reference\nsymbols (functions, classes, string literals) that were renamed or removed in\nthe source diff.  Uses AST analysis only — no regex on test text, no test\nexecution.\n\nConfidence levels:\n  high   — identifier referenced directly inside Assert or assert* call\n  medium — identifier appears anywhere in an assertion node\n  low    — string literal matches a Constant in an assertion-bearing position\n  info   — message-content check (literal checked against captured\n           diagnostic text); skipped from CI noise, surfaced for manual\n           review (#3957)",
        "hidden": false,
        "deprecated": false
       }
@@ -582,7 +582,7 @@
    "deprecated": false,
    "commands": {
     "info": {
-     "help": "Show context information for current or specified workspace.\n\nExamples:\n    # Auto-detect from current directory (if inside worktree)\n    spec-kitty context info\n\n    # Explicit workspace\n    spec-kitty context info --workspace 010-feature-lane-a\n\n    # JSON output\n    spec-kitty context info --json",
+     "help": "Show context information for current or specified workspace.\n\nExamples:\n    # Auto-detect from current directory (if inside worktree)\n    spec-kitty context info\n\n    # Explicit workspace\n    spec-kitty context info --workspace 010-mission-lane-a\n\n    # JSON output\n    spec-kitty context info --json",
      "hidden": false,
      "deprecated": false
     },
@@ -597,7 +597,7 @@
      "deprecated": false
     },
     "mission-resolve": {
-     "help": "Resolve and persist a MissionContext token.\n\nCreates a new bound context for the given work package and feature,\nwrites it to .kittify/runtime/contexts/, and prints the token.\n\nThe token can be passed to other commands via --context <token>.\n\nExamples:\n    # Resolve and print token for piping\n    TOKEN=$(spec-kitty context mission-resolve --wp WP01 --mission 057-my-feature)\n\n    # Resolve and print full JSON\n    spec-kitty context mission-resolve --wp WP01 --mission 057-my-feature --json",
+     "help": "Resolve and persist a MissionContext token.\n\nCreates a new bound context for the given work package and mission,\nwrites it to .kittify/runtime/contexts/, and prints the token.\n\nThe token can be passed to other commands via --context <token>.\n\nExamples:\n    # Resolve and print token for piping\n    TOKEN=$(spec-kitty context mission-resolve --wp WP01 --mission 057-my-mission)\n\n    # Resolve and print full JSON\n    spec-kitty context mission-resolve --wp WP01 --mission 057-my-mission --json",
      "hidden": false,
      "deprecated": false
     },
@@ -1596,7 +1596,7 @@
    "deprecated": false,
    "commands": {
     "status": {
-     "help": "One bounded snapshot of ``repo``'s live presence/focus state.",
+     "help": "Who is live on ``repo``'s relay right now, answered immediately from\nthe relay's own presence/focus record; a relay without that route falls\nback to a bounded listen.",
      "hidden": false,
      "deprecated": false
     },
