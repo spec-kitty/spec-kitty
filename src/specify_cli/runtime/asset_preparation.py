@@ -500,7 +500,14 @@ class _GlobalAssetPreparation:
         # fresh probe when ``build()`` never had reason to observe the lock
         # (an empty batch, e.g. nothing to write).
         existing_lock_state = builder.observed.get(builder.lock_path)
-        lock_state = existing_lock_state.state if existing_lock_state is not None else builder.observe(builder.lock_path, role="destination_probe")
+        # #4703: the fallback probe (an empty batch never observed the lock in
+        # build()) must NOT read the lock's bytes either. include() runs inside
+        # apply_with_reassess's under-lock rebuild for the commands/skills batch
+        # owners, so this process may hold this lock; read_content=False takes an
+        # lstat only, and include() consumes only lock_state.kind below.
+        lock_state = (
+            existing_lock_state.state if existing_lock_state is not None else builder.observe(builder.lock_path, role="destination_probe", read_content=False)
+        )
         if lock_state.kind not in {"absent", "file"}:
             raise ValueError(f"Global family lock is not a regular file: {builder.lock_path}")
         self.locks.add(builder.lock_path)
@@ -698,9 +705,9 @@ def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
                 # flock is advisory, which is why CI never caught it). The lock is a
                 # self-managed empty artifact excluded from the content-proof set
                 # (persistent-lock is a bookkeeping suffix), and its existence is
-                # separately guaranteed by recheck_assets's open()+lock, so
-                # verifying its bytes protects nothing. The parent cache directory's
-                # membership is still verified via its own (directory) observation.
+                # separately guaranteed by recheck_assets's open()+lock (which
+                # fails first if the lock vanished) plus the lock's kind check at
+                # finish()-observe time, so verifying its bytes protects nothing.
                 continue
             try:
                 current = _observation(observation.path, node_state(observation.path))

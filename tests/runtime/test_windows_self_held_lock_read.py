@@ -28,7 +28,9 @@ import pytest
 
 import specify_cli.runtime.asset_preparation as ap
 import specify_cli.runtime.bootstrap as bootstrap
+from specify_cli.runtime.asset_preparation import AssetPreparation, _GlobalAssetPreparation
 from specify_cli.runtime.bootstrap import assess_runtime, ensure_runtime
+from specify_cli.tool_surface.operations import ApplyConsent, OperationRoot
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -213,3 +215,62 @@ class TestReadFailureDiagnosticNamesPath:
         diagnostics = ap.check_assets(assessment)
         assert diagnostics, "a read failure must produce a precondition_changed diagnostic"
         assert str(target) in diagnostics[0].message, f"diagnostic must name the failing path, got: {diagnostics[0].message!r}"
+
+
+class TestIncludeDoesNotReadOwnerLockUnderHold:
+    """FR-001/NFR-001 residual (pre-PR review SHOULD-FIX): the commands/skills
+    batch owner.
+
+    A CONVERGED family builder has no writes, so ``finish()`` never observed its
+    lock — ``_GlobalAssetPreparation.include()`` then falls back to probing it.
+    ``include()`` runs inside ``apply_with_reassess``'s under-lock rebuild
+    (``assess_global_assets``), so this process may hold that family lock; the
+    probe must be an ``lstat`` only, never a byte read, or the same #4703
+    Windows crash resurfaces on the ``commands``/``skills`` owners under a
+    concurrent-peer convergence race (``ensure_runtime`` itself is immune only
+    because its rebuild passes ``_batch=None`` and never reaches ``include()``).
+    """
+
+    def test_converged_family_include_never_reads_the_held_lock(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        consent = ApplyConsent()
+        cache = tmp_path / "cache"
+        cache.mkdir()
+        lock_path = cache / ".converged.lock"
+        lock_path.write_bytes(b"")  # the lock exists on disk (warm), always empty
+
+        # A converged builder: nothing observed, so include() takes the fallback
+        # probe of the lock path — the site the review flagged.
+        builder = AssetPreparation(
+            "converged_family",
+            OperationRoot("converged_family", "global", tmp_path),
+            cache,
+            ".converged.lock",
+            consent,
+        )
+        assert lock_path not in builder.observed
+
+        reads: list[Path] = []
+        real_node_state = ap.node_state
+
+        def fake_node_state(path: Path, *, read_content: bool = True) -> object:
+            if read_content and path in ap._HELD_LOCKS.get():
+                reads.append(path)
+                raise PermissionError(13, "Permission denied")
+            return real_node_state(path, read_content=read_content)
+
+        monkeypatch.setattr(ap, "node_state", fake_node_state)
+
+        # Simulate the under-lock rebuild: this process holds the family lock.
+        token = ap._HELD_LOCKS.set({lock_path})
+        try:
+            batch = _GlobalAssetPreparation(consent)
+            batch.include(builder, effects=())  # must not content-read the held lock
+        finally:
+            ap._HELD_LOCKS.reset(token)
+
+        assert lock_path in batch.locks, "the lock must still be tracked by the batch"
+        assert lock_path not in reads, "include() must never read the held owner lock's bytes"
