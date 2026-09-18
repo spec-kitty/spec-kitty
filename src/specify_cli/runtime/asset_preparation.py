@@ -15,6 +15,7 @@ import hashlib
 import json
 import logging
 import os
+import tempfile
 from pathlib import Path
 import stat
 import sys
@@ -737,6 +738,32 @@ def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
     return ()
 
 
+def _is_windows() -> bool:
+    """Whether owner-lock coordination must use Windows (mandatory-lock,
+    no-directory-flock) semantics. A single seam so the cold-install branch is
+    testable without faking ``os.name`` (which would flip ``pathlib`` to
+    ``WindowsPath``). (#4703 cross-OS family)"""
+    return os.name == "nt"
+
+
+def _cold_install_sentinel(anchor: Path) -> Path:
+    """A machine-temp lock file that serializes concurrent COLD installers of the
+    same *anchor* on Windows.
+
+    The POSIX cold path flocks the anchor DIRECTORY (no artifact), but a
+    directory cannot be locked on Windows, so a cold Windows install had NO
+    cross-process serialization — the #4703 os.name-branch-with-silent-Windows-
+    fallthrough shape (a race, not a hard error). This sentinel is deliberately
+    kept OUT of the managed asset tree (under the machine temp dir, keyed by the
+    anchor path) so it never enters asset verification, while still contending
+    across processes installing the same anchor. (#4703 cross-OS family)
+    """
+    key = hashlib.sha256(str(anchor).encode()).hexdigest()[:16]  # noqa: TID251 -- path keying, not charter hashing
+    sentinel_dir = Path(tempfile.gettempdir()) / "spec-kitty-cold-install"
+    sentinel_dir.mkdir(parents=True, exist_ok=True)
+    return sentinel_dir / f"{key}.lock"
+
+
 @contextmanager
 def recheck_assets(assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ...]]:
     """Hold an existing owner lock without truncation throughout recheck/apply.
@@ -775,16 +802,31 @@ def recheck_assets(assessment: OwnerAssessment) -> Iterator[tuple[Diagnostic, ..
         yield diagnostics
         return
     with ExitStack() as stack:
-        if any(not path.exists() for path in prepared.lock_paths) and os.name != "nt":
+        cold = any(not path.exists() for path in prepared.lock_paths)
+        if cold and not _is_windows():
             # POSIX directories support flock without creating a lock artifact.
             # Serialize cold installers on the stable reporting anchor until
             # apply creates and acquires the existing owner-specific lock.
             descriptor = os.open(prepared.anchor, os.O_RDONLY)
             stack.callback(os.close, descriptor)
             _lock_exclusive(descriptor)
+        elif cold:
+            # #4703 family: Windows cannot flock a directory, so a cold install
+            # had NO cross-process serialization here. Serialize on a machine-
+            # temp sentinel keyed to the anchor instead (kept out of the asset
+            # tree). apply's own open("x") on the owner lock remains the final
+            # arbiter; this only narrows the recheck→create race window.
+            stream = stack.enter_context(_cold_install_sentinel(prepared.anchor).open("a+"))
+            _lock_exclusive(stream)
         for path in prepared.lock_paths:
             if path.exists():
-                stream = stack.enter_context(path.open("r"))
+                # #4703 family: lock via a READ+WRITE handle. POSIX fcntl.flock
+                # works on a read-only fd, but Windows msvcrt.locking() needs
+                # write access to lock the region — a read-only handle is
+                # fragile/raises there. The owner lock is 0o644 and already
+                # exists (guarded above), and apply locks its own write handle
+                # (open("x")), so "r+" aligns the recheck path with it.
+                stream = stack.enter_context(path.open("r+"))
                 _lock_exclusive(stream)
         token = _HELD_LOCKS.set(_HELD_LOCKS.get() | set(prepared.lock_paths))
         try:

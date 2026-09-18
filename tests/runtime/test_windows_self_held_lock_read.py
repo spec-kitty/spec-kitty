@@ -274,3 +274,90 @@ class TestIncludeDoesNotReadOwnerLockUnderHold:
 
         assert lock_path in batch.locks, "the lock must still be tracked by the batch"
         assert lock_path not in reads, "include() must never read the held owner lock's bytes"
+
+
+class TestRecheckLocksViaWritableHandle:
+    """FR-B (#4703 cross-OS family): recheck_assets must acquire the owner lock
+    through a READ+WRITE handle.
+
+    POSIX ``fcntl.flock`` works on a read-only fd, but Windows
+    ``msvcrt.locking()`` needs write access to lock the byte region — a
+    read-only handle is fragile there. Because both modes work on POSIX, this
+    pins the open MODE directly rather than a pass/fail behaviour difference.
+    """
+
+    def test_owner_lock_opened_read_write_for_locking(
+        self,
+        fake_home: Path,
+        fake_assets: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        lock_path = _warm_home_with_pending_effects(fake_home, monkeypatch)
+
+        modes: dict[Path, str] = {}
+        real_open = Path.open
+
+        def spy_open(self: Path, mode: str = "r", *args: object, **kwargs: object):  # type: ignore[no-untyped-def]
+            if self == lock_path:
+                modes[self] = mode
+            return real_open(self, mode, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "open", spy_open)
+        ensure_runtime()
+
+        assert lock_path in modes, "recheck_assets must open the existing owner lock to acquire it"
+        opened = modes[lock_path]
+        assert any(flag in opened for flag in ("+", "w", "a")), f"owner lock must be opened writable for msvcrt.locking(), got mode {opened!r}"
+
+
+class TestColdInstallSerializationOnWindows:
+    """FR-C (#4703 cross-OS family): a COLD install must serialize concurrent
+    installers on Windows too.
+
+    The POSIX cold path flocks the anchor directory; Windows cannot flock a
+    directory, so a cold Windows install previously got NO cross-process
+    serialization (an ``os.name != "nt"`` branch with a silent Windows
+    fallthrough — the #4703 shape). The fix locks a machine-temp sentinel keyed
+    to the anchor instead.
+    """
+
+    def test_windows_cold_install_locks_a_temp_sentinel(
+        self,
+        fake_home: Path,
+        fake_assets: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(bootstrap, "_get_cli_version", lambda: FAKE_VERSION)
+        assessment = assess_runtime()  # cold: effects present, lock files absent
+        assert assessment.effects
+        prepared = assessment.prepared
+        assert all(not p.exists() for p in prepared.lock_paths), "setup guard: a cold install has no lock files yet"
+
+        sentinel = ap._cold_install_sentinel(prepared.anchor)
+        if sentinel.exists():
+            sentinel.unlink()
+
+        monkeypatch.setattr(ap, "_is_windows", lambda: True)  # force the Windows cold branch (never fake os.name)
+        with ap.recheck_assets(assessment):
+            assert sentinel.exists(), "a cold Windows install must create + lock a temp sentinel to serialize peers"
+
+    def test_posix_cold_install_uses_anchor_flock_not_a_sentinel(
+        self,
+        fake_home: Path,
+        fake_assets: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Control: on POSIX the cold path must NOT create the Windows sentinel
+        (it flocks the anchor directory instead)."""
+        monkeypatch.setattr(bootstrap, "_get_cli_version", lambda: FAKE_VERSION)
+        assessment = assess_runtime()
+        assert assessment.effects
+        prepared = assessment.prepared
+
+        sentinel = ap._cold_install_sentinel(prepared.anchor)
+        if sentinel.exists():
+            sentinel.unlink()
+
+        assert not ap._is_windows(), "this control assumes a POSIX test host"
+        with ap.recheck_assets(assessment):
+            assert not sentinel.exists(), "POSIX must serialize via the anchor flock, not the Windows sentinel"
