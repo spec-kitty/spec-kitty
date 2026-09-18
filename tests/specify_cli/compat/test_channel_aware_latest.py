@@ -40,7 +40,7 @@ _NOW = datetime(2026, 4, 27, 12, 0, 0, tzinfo=UTC)
 
 
 def _make_pypi_payload(latest: str, releases: list[str]) -> dict[str, Any]:
-    return {"info": {"version": latest}, "releases": {v: [] for v in releases}}
+    return {"info": {"version": latest}, "releases": {v: [{"yanked": False}] for v in releases}}
 
 
 # ---------------------------------------------------------------------------

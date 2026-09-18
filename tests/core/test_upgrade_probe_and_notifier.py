@@ -51,7 +51,7 @@ def _make_pypi_payload(latest: str, releases: list[str]) -> dict:
     """Build a minimal PyPI JSON metadata payload."""
     return {
         "info": {"version": latest},
-        "releases": {v: [] for v in releases},
+        "releases": {v: [{"yanked": False}] for v in releases},
     }
 
 

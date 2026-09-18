@@ -174,7 +174,11 @@ def probe_pypi(
             )
         releases = tuple(releases_dict.keys())
 
-        channel_latest = _channel_latest(latest, releases, prerelease=prerelease)
+        from specify_cli.core.pypi_releases import installable_release_versions
+
+        channel_latest = _channel_latest(
+            latest, installable_release_versions(payload), prerelease=prerelease
+        )
         channel = _classify(cli_version, channel_latest, releases)
         return UpgradeProbeResult(
             installed_version=cli_version,
@@ -194,7 +198,7 @@ def _channel_latest(stable_latest: str, releases: tuple[str, ...], *, prerelease
 
     Default (``prerelease=False``, C-CHN-1): *stable_latest* — PyPI's
     maintainer-designated ``info.version`` — unchanged. Opted in
-    (``prerelease=True``, C-CHN-2): the highest version across *releases*
+    (``prerelease=True``, C-CHN-2): the highest version across installable *releases*
     (pre-releases included), reusing ``simple_index._highest_version`` as the
     single source of truth so this module and ``compat.provider`` never
     drift on "highest version, rc's included" semantics.

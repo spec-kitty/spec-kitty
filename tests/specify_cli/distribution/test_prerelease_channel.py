@@ -91,10 +91,34 @@ class TestHighestVersionChannelGate:
 
 
 def _pypi_payload_with_releases(stable: str, releases: list[str]) -> bytes:
-    return json.dumps({"info": {"version": stable}, "releases": {v: [] for v in releases}}).encode()
+    return json.dumps({"info": {"version": stable}, "releases": {v: [{"yanked": False}] for v in releases}}).encode()
 
 
 class TestPyPIProviderChannelGate:
+    @pytest.mark.parametrize(
+        ("newer_files", "expected"),
+        [
+            ([{"yanked": True}, {"yanked": True}], "4.0.0rc3"),
+            ([], "4.0.0rc3"),
+            ([{"yanked": True}, {"yanked": False}], "4.2.0a1"),
+        ],
+    )
+    @respx.mock
+    def test_prerelease_requires_a_live_file(self, newer_files: list[dict[str, bool]], expected: str) -> None:
+        from specify_cli.core.upgrade_probe import probe_pypi
+
+        payload = {
+            "info": {"version": "3.2.7"},
+            "releases": {
+                "3.2.7": [{"yanked": False}],
+                "4.0.0rc3": [{"yanked": False}],
+                "4.2.0a1": newer_files,
+            },
+        }
+        respx.get(_PYPI_URL).mock(return_value=httpx.Response(200, json=payload))
+        assert PyPIProvider().get_latest("spec-kitty-cli", prerelease=True).version == expected
+        assert probe_pypi("3.2.7", prerelease=True).latest_pypi_version == expected
+
     @respx.mock
     def test_default_off_returns_stable_even_with_newer_rc_on_index(self) -> None:
         """C-CHN-1: the regression-critical stable-user guarantee.

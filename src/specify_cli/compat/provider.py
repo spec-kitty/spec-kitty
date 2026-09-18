@@ -132,23 +132,21 @@ class LatestVersionProvider(Protocol):
 
 
 def _highest_including_prerelease(stable_version: str, payload: object) -> str | None:
-    """Return the highest version across ``payload["releases"]``, rc's included.
+    """Return the highest installable version, rc's included.
 
-    T022 (C-CHN-2) helper: reuses ``simple_index._highest_version`` as the
-    single source of truth for "highest version, pre-releases included" so
-    the PyPI-JSON path and the PEP 503 simple-index path never drift.
+    Yanked and fileless releases are excluded before applying
+    ``simple_index._highest_version`` so the PyPI JSON and PEP 503 paths
+    agree on which builds are available.
     Deferred import — ``simple_index`` imports from this module at load time,
     so a module-level import here would be circular.
 
     Falls back to *stable_version* when ``releases`` is absent/malformed or
     nothing in it parses.
     """
+    from specify_cli.core.pypi_releases import installable_release_versions
     from specify_cli.distribution.simple_index import _highest_version
 
-    candidates = [stable_version]
-    releases = payload.get("releases") if isinstance(payload, dict) else None
-    if isinstance(releases, dict):
-        candidates.extend(v for v in releases if isinstance(v, str))
+    candidates = [stable_version, *installable_release_versions(payload)]
     highest = _highest_version(candidates, include_prerelease=True)
     return highest if highest is not None else stable_version
 
@@ -333,4 +331,3 @@ def __getattr__(name: str) -> object:
 
         return SimpleIndexProvider
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
