@@ -736,28 +736,38 @@ def test_dry_run_json_no_project_exits_0(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_cli_mode_ci_env_suppresses_network(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """CI=1 spec-kitty upgrade --cli must not make a network call (RISK-3 fix).
-
-    Verifies that when CI=1, the Invocation built in _run_cli_mode has env_ci=True,
-    which causes suppresses_network() to return True, which selects NoNetworkProvider.
-    """
-    import httpx
+def test_explicit_upgrade_queries_fetch_in_ci_without_cache_writes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Explicit text and JSON queries report the latest version when piped in CI."""
+    from specify_cli.compat.cache import NagCache
 
     monkeypatch.setenv("CI", "1")
+    cache_path = tmp_path / "nag.json"
+    monkeypatch.setattr(NagCache, "default", lambda: NagCache(cache_path))
+    provider_calls: list[bool] = []
 
-    network_calls: list[str] = []
+    def provider(*, network_suppressed: bool, profile: object) -> FakeLatestVersionProvider:
+        provider_calls.append(network_suppressed)
+        return FakeLatestVersionProvider("999.0.0")
 
-    def _blocking_request(self: object, *args: object, **kwargs: object) -> None:  # type: ignore[misc]
-        network_calls.append("network_call_made")
-        raise RuntimeError("network call made in CI mode")
+    monkeypatch.setattr("specify_cli.compat.planner._default_latest_provider", provider)
+    text_result = _invoke_upgrade(["--cli"], cwd=tmp_path)
+    assert text_result.exit_code == 0
+    assert "999.0.0" in text_result.output
 
-    monkeypatch.setattr(httpx.Client, "get", _blocking_request)
+    json_result = _invoke_upgrade(["--cli", "--json"], cwd=tmp_path)
+    assert json_result.exit_code == 0
+    payload = json.loads(json_result.output)
+    assert payload["cli"]["latest_version"] == "999.0.0"
+    assert payload["cli"]["is_outdated"] is True
 
-    result = _invoke_upgrade(["--cli"], cwd=tmp_path)
-    # Should exit 0 and not raise (network was not called)
-    assert result.exit_code == 0, f"Exit {result.exit_code}; output: {result.output}"
-    assert not network_calls, "No network calls should be made when CI=1"
+    _make_compatible_project(tmp_path)
+    preview = _invoke_upgrade(["--dry-run", "--json"], cwd=tmp_path)
+    assert preview.exit_code == 0
+    preview_payload = json.loads(preview.output)
+    assert preview_payload["cli"]["latest_version"] == "999.0.0"
+    assert preview_payload["cli"]["is_outdated"] is True
+    assert provider_calls == [False, False, False]
+    assert not cache_path.exists()
 
 
 def test_cli_mode_no_ci_env_does_not_suppress_network(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

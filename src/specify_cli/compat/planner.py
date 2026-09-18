@@ -330,9 +330,13 @@ class Invocation:
         Suppression conditions (any one is sufficient):
         - ``--no-nag`` flag is present.
         - ``CI`` environment variable is set.
-        - stdout is not a TTY.
+        - stdout is not a TTY for passive invocations.
         - ``--help`` or ``--version`` is present.
+
+        Explicit ``upgrade --cli`` guidance remains visible in pipes and CI.
         """
+        if "--cli" in self.raw_args:
+            return self.flag_no_nag or self.is_help or self.is_version
         return self.flag_no_nag or self.env_ci or (not self.stdout_is_tty) or self.is_help or self.is_version
 
     def suppresses_network(self) -> bool:
@@ -750,6 +754,7 @@ def plan(
     now: datetime | None = None,
     project_root_resolver: Callable[[Path], Path | None] | None = None,
     read_only: bool = False,
+    query_latest: bool = False,
     include_migrations: bool = True,
 ) -> Plan:
     """Build the compatibility plan for this invocation.
@@ -772,8 +777,11 @@ def plan(
         project_root_resolver: Override for the project root resolver.
             Defaults to ``locate_project_root`` from
             ``specify_cli.core.project_resolver``.
-        read_only: Read existing cache only; never resolve/call a latest provider
-            or persist data. Unsupported legacy cache sources become none.
+        read_only: Read existing cache only; never fetch or persist data unless
+            ``query_latest`` is set for an explicit upgrade query.
+        query_latest: Resolve the latest CLI version for a user-requested upgrade
+            query, including piped/CI output. With ``read_only``, the cache is
+            never written.
         include_migrations: False when the upgrade caller owns validated target
             selection, so invalid targets cannot trigger implicit discovery.
 
@@ -789,6 +797,7 @@ def plan(
             now=now,
             project_root_resolver=project_root_resolver,
             read_only=read_only,
+            query_latest=query_latest,
             include_migrations=include_migrations,
         )
     except Exception:  # noqa: BLE001 — fail-closed
@@ -911,6 +920,7 @@ def _resolve_latest_version(
     now: datetime,
     prerelease: bool = False,
     read_only: bool = False,
+    query_latest: bool = False,
 ) -> tuple[str | None, Literal["pypi", "simple_index", "none"], datetime | None]:
     """Return ``(latest_version, cli_source, fetched_at)`` for the CLI status.
 
@@ -930,7 +940,7 @@ def _resolve_latest_version(
             ``latest_version_provider.get_latest`` unchanged. Default False
             reproduces the pre-WP05 provider call byte-for-byte (C-CHN-1).
     """
-    if read_only:
+    if read_only and not query_latest:
         if cache_record is not None and cache_record.latest_source == "pypi":
             return cache_record.latest_version, "pypi", cache_record.fetched_at
         return None, "none", None
@@ -959,7 +969,7 @@ def _resolve_latest_version(
 
     # If we got a version from a cacheable source, update the cache
     # (preserve last_shown_at / user preferences).
-    if cacheable_source is not None and latest_version is not None:
+    if cacheable_source is not None and latest_version is not None and not read_only:
         _write_nag_cache_for_fetch(
             nag_cache=nag_cache,
             preference_record=preference_record,
@@ -1010,6 +1020,7 @@ def _plan_impl(
     now: datetime | None,
     project_root_resolver: Callable[[Path], Path | None] | None,
     read_only: bool = False,
+    query_latest: bool = False,
     include_migrations: bool = True,
 ) -> Plan:
     """Inner implementation of plan() — may raise; caller wraps in try/except."""
@@ -1041,9 +1052,9 @@ def _plan_impl(
 
     profile = resolve_distribution_profile()
 
-    if latest_version_provider is None and not read_only:
+    if latest_version_provider is None and (not read_only or query_latest):
         latest_version_provider = _default_latest_provider(
-            network_suppressed=invocation.suppresses_network(),
+            network_suppressed=invocation.suppresses_network() and not query_latest,
             profile=profile,
         )
 
@@ -1116,16 +1127,17 @@ def _plan_impl(
         now=now,
         prerelease=channel_prerelease,
         read_only=read_only,
+        query_latest=query_latest,
     )
 
     is_outdated = _version_is_outdated(installed_version, latest_version)
 
-    # Respect config.nag_enabled: if nag disabled globally, treat as not outdated
-    if not config.nag_enabled:
+    # Nag preferences cannot change the factual status of an explicit query.
+    if not config.nag_enabled and not query_latest:
         is_outdated = False
 
-    # Fresh cache means nag was recently shown — suppress.
-    if cache_is_fresh:
+    # A recent nag suppresses passive output, not an explicit query.
+    if cache_is_fresh and not query_latest:
         is_outdated = False
 
     cli_status = CliStatus(

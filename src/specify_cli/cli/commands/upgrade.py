@@ -124,8 +124,8 @@ def _run_cli_mode(
     if dry_run:
         raw_args = raw_args + ("--dry-run",)
 
-    # Read the real environment so that CI=1 spec-kitty upgrade --cli
-    # correctly suppresses the network call (RISK-3 fix).
+    # Keep the real environment for output policy; an explicit query can fetch
+    # the version even when stdout is piped or CI is set.
     invocation = Invocation(
         command_path=("upgrade",),
         raw_args=raw_args,
@@ -140,7 +140,7 @@ def _run_cli_mode(
     if latest_version_provider is not None:
         kwargs["latest_version_provider"] = latest_version_provider
 
-    result = plan(invocation, read_only=True, **kwargs)  # type: ignore[arg-type]
+    result = plan(invocation, read_only=True, query_latest=True, **kwargs)  # type: ignore[arg-type]
 
     if json_output:
         exit_code = 0 if dry_run else result.exit_code
@@ -1976,8 +1976,8 @@ def _run_planner_json(
     if dry_run:
         raw_args = raw_args + ("--dry-run",)
 
-    # Read the real environment so that CI=1 spec-kitty upgrade --json
-    # correctly suppresses the network call (RISK-3 fix).
+    # Keep the real environment for output policy; JSON preview still queries
+    # the version when stdout is piped or CI is set.
     invocation = Invocation(
         # Emit the compatibility plan for normal project-mutating commands.
         # ``upgrade`` itself is registered SAFE so users can remediate stale
@@ -2000,7 +2000,7 @@ def _run_planner_json(
 
     current_version = VersionDetector(project_path).detect_version()
     validation_error = validate_upgrade_target(current_version, target_version)
-    result = plan(invocation, read_only=True, include_migrations=False, **kwargs)  # type: ignore[arg-type]
+    result = plan(invocation, read_only=True, query_latest=True, include_migrations=False, **kwargs)  # type: ignore[arg-type]
 
     payload = dict(result.rendered_json)
     semantic_code = result.exit_code
