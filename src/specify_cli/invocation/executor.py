@@ -495,12 +495,8 @@ class ProfileInvocationExecutor:
         ctx_available = resolution.ctx_available
         bundle = resolution.bundle
 
-        catalog_candidate = (
-            recommendation.catalog_candidate if recommendation is not None else None
-        )
-        durable_model_id = (
-            catalog_candidate.model_id if catalog_candidate is not None else None
-        )
+        catalog_candidate = recommendation.catalog_candidate if recommendation is not None else None
+        durable_model_id = catalog_candidate.model_id if catalog_candidate is not None else None
 
         # 3. Write started record (raises InvocationWriteError on fs failure)
         started_at = now_utc_iso()
@@ -804,7 +800,25 @@ class ProfileInvocationExecutor:
         # Both recording paths share the closure spine as an idempotency
         # authority. Without this guard, an agent close can append to a
         # byte-frozen record after the doctor sweep already closed it there.
-        if invocation_id in closed_invocation_ids(self._repo_root):
+        #
+        # A doctor sweep closes many Ops through one executor; reading the
+        # ever-growing spine per Op is quadratic (#4424). The sweep therefore
+        # consults a per-executor snapshot read once here and extended after each
+        # append (``_close_on_spine``). The snapshot is point-in-time: a closure
+        # appended by another process mid-sweep is invisible to it, so a
+        # duplicate spine line can be appended for an already-closed Op. That is
+        # harmless — every closure consumer (``closed_invocation_ids``, this
+        # guard) uses set membership and the sweep commits the spine once, so a
+        # duplicate only inflates a *concurrent* sweep's reported ``swept`` count,
+        # never corrupts state (#4467). An agent close is a single close, so it
+        # reads the spine fresh.
+        if closed_by == "doctor_sweep":
+            if self._doctor_sweep_closed_ids is None:
+                self._doctor_sweep_closed_ids = closed_invocation_ids(self._repo_root)
+            already_closed = invocation_id in self._doctor_sweep_closed_ids
+        else:
+            already_closed = invocation_id in closed_invocation_ids(self._repo_root)
+        if already_closed:
             raise AlreadyClosedError(invocation_id)
 
         # Step 3: Append the completed event to its recording surface.
@@ -861,23 +875,18 @@ class ProfileInvocationExecutor:
         invocation_id = completed.invocation_id
         path = self._writer.invocation_path(invocation_id)
         try:
-            rows = [
-                _json_mod.loads(line)
-                for line in path.read_text(encoding="utf-8").splitlines()
-                if line.strip()
-            ]
+            rows = [_json_mod.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
         except (OSError, _json_mod.JSONDecodeError) as exc:
-            raise InvocationError(
-                f"Invocation record is unreadable: {invocation_id}"
-            ) from exc
+            raise InvocationError(f"Invocation record is unreadable: {invocation_id}") from exc
         if any(isinstance(row, dict) and row.get("event") == "completed" for row in rows):
             raise AlreadyClosedError(invocation_id)
-        if self._doctor_sweep_closed_ids is None:
-            self._doctor_sweep_closed_ids = closed_invocation_ids(self._repo_root)
-        if invocation_id in self._doctor_sweep_closed_ids:
-            raise AlreadyClosedError(invocation_id)
+        # The spine-membership idempotency check already ran once, snapshot-backed,
+        # in ``complete_invocation`` (the shared #4397 guard); re-reading the spine
+        # here would restore the per-Op quadratic cost this fix removes (#4424).
+        # Extend the snapshot so a later close in the same sweep sees this id.
         append_op_closure(self._repo_root, completed)
-        self._doctor_sweep_closed_ids.add(invocation_id)
+        if self._doctor_sweep_closed_ids is not None:
+            self._doctor_sweep_closed_ids.add(invocation_id)
 
     def _promote_evidence_if_requested(
         self,
@@ -987,9 +996,7 @@ class ProfileInvocationExecutor:
                 return branch
         return None
 
-    def _commit_op_record(
-        self, invocation_id: str, *, closed_by: Literal["agent", "doctor_sweep"]
-    ) -> OpCommitOutcome:
+    def _commit_op_record(self, invocation_id: str, *, closed_by: Literal["agent", "doctor_sweep"]) -> OpCommitOutcome:
         """Best-effort git commit for one completed Op record.
 
         Agent closes commit the per-record file; a doctor-sweep close commits
