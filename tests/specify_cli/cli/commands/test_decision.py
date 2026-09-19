@@ -1096,3 +1096,59 @@ def test_cancel_corrupt_index_exits_1_no_traceback(tmp_path: Path) -> None:
     )
 
     _assert_index_unreadable_response(result, index_file)
+
+
+# ---------------------------------------------------------------------------
+# #2899 landing squad (MAJOR) — a corrupt status.events.jsonl reached from
+# ``decision open``'s idempotent re-open repair path must present as a
+# structured diagnostic, NOT regress to the global hook's plain-text line.
+# WP07 changed ``_opened_event_exists`` to raise DecisionEventLogReadError
+# (not DecisionError); the orchestrator-api mirror's catchers were updated but
+# the CLI cmd_open catcher was not (whack-a-field, sibling to the corrupt-index
+# handling directly above).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.regression
+def test_open_corrupt_events_log_exits_1_structured_no_traceback(tmp_path: Path) -> None:
+    """#2899: ``decision open`` re-open with a corrupt status.events.jsonl.
+
+    First open mints the index entry (idempotent re-open then hits
+    ``_repair_missing_opened_event`` → ``_opened_event_exists``, which reads
+    status.events.jsonl). With that file corrupt, the read fails closed with
+    DecisionEventLogReadError; the CLI must present it as a structured
+    ``{code, error, details}`` diagnostic (parity with the corrupt-index
+    handler on the same command), never a plain ``Error:`` line or traceback.
+    """
+    mission_dir = _setup_mission(tmp_path)
+    _open_decision(tmp_path, input_key="team_size", step_id="step-1")
+
+    events_file = mission_dir / "status.events.jsonl"
+    events_file.write_bytes(_MALFORMED_JSON)
+
+    with patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1):
+        result = _invoke(
+            [
+                "decision",
+                "open",
+                "--mission",
+                MISSION_SLUG,
+                "--flow",
+                "charter",
+                "--step-id",
+                "step-1",
+                "--input-key",
+                "team_size",
+                "--question",
+                "How large is the team?",
+            ],
+            cwd=tmp_path,
+        )
+
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert "Traceback (most recent call last)" not in result.output
+    assert "Traceback (most recent call last)" not in result.stderr
+    payload = json.loads(result.stderr)
+    assert payload["code"] == "DESIGN_STATUS_EVENT_LOG_UNREADABLE"
+    assert payload["details"]["events_path"] == str(events_file)

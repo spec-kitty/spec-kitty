@@ -36,6 +36,7 @@ from specify_cli.decisions.models import (
 )
 from specify_cli.decisions.service import (
     DecisionError,
+    DecisionEventLogReadError,
     cancel_decision,
     defer_decision,
     open_decision,
@@ -236,6 +237,32 @@ def _handle_index_read_error(exc: DecisionIndexReadError) -> None:
     raise typer.Exit(1)
 
 
+def _handle_event_log_read_error(exc: DecisionEventLogReadError) -> None:
+    """Render a corrupt ``status.events.jsonl`` as a structured diagnostic.
+
+    #2899 landing squad (MAJOR): ``decision open``'s idempotent re-open repair
+    path (``_repair_missing_opened_event`` → ``_opened_event_exists``) reads
+    ``status.events.jsonl`` and, when it exists but is corrupt, fails closed
+    with :class:`DecisionEventLogReadError` (a ``RuntimeError``, NOT a
+    ``DecisionError``). WP07 introduced that type and the orchestrator-api
+    mirror caught it on all four write verbs, but this CLI catcher was not
+    updated — so it regressed to the global hook's plain ``Error:`` line. This
+    restores parity with the sibling :func:`_handle_index_read_error` on the
+    same command: a structured ``{code, error, details}`` payload to stderr,
+    then ``typer.Exit(1)``. Reuses the ``DESIGN_STATUS_EVENT_LOG_UNREADABLE``
+    envelope code the orchestrator handler and ``design-status`` already emit.
+    """
+    payload = {
+        "code": "DESIGN_STATUS_EVENT_LOG_UNREADABLE",
+        "error": str(exc),
+        "details": {
+            "events_path": exc.path,
+        },
+    }
+    typer.echo(json.dumps(payload, sort_keys=True), err=True)
+    raise typer.Exit(1)
+
+
 # ---------------------------------------------------------------------------
 # Subcommand: open
 # ---------------------------------------------------------------------------
@@ -316,6 +343,13 @@ def cmd_open(  # noqa: PLR0913
     except DecisionIndexReadError as exc:
         _handle_index_read_error(exc)
         return  # unreachable — _handle_index_read_error raises
+    except DecisionEventLogReadError as exc:
+        # #2899 landing squad: corrupt status.events.jsonl reached via the
+        # idempotent re-open repair path — only ``open`` reaches
+        # ``_opened_event_exists`` (resolve/defer/cancel cannot), so the catch
+        # lives here, not on the other verbs (catch the type the callee raises).
+        _handle_event_log_read_error(exc)
+        return  # unreachable — _handle_event_log_read_error raises
 
     typer.echo(
         json.dumps(
