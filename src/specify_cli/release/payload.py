@@ -12,6 +12,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from kernel.errors import GuardedReadError
+from kernel.guarded_read import read_guarded
+
 from .changelog import build_changelog_block
 from .version import ReleaseChannel, propose_version
 
@@ -59,20 +62,50 @@ class ReleasePrepPayload:
     structured_inputs: dict[str, str]
 
 
-def _read_current_version(repo_root: Path) -> str:
-    """Read ``version`` from ``pyproject.toml`` using stdlib ``tomllib``.
+class ReleasePyprojectError(GuardedReadError):
+    """``pyproject.toml`` cannot be read as a valid ``[project].version`` source.
 
-    Raises:
-        FileNotFoundError: if ``pyproject.toml`` does not exist.
-        KeyError: if the ``[project]`` table or ``version`` key is absent.
+    Raised by :func:`_read_current_version` via
+    :func:`kernel.guarded_read.read_guarded` (mission cli-error-surface-seam,
+    WP04/#4637) for any of three collapsed failure modes: the file is
+    missing, ``[project]``/``version`` is absent, or the TOML is malformed.
+    The global CLI error-presentation hook (WP01) renders this uniformly at
+    exit 1 -- see ``contracts/error-envelope.md``.
     """
-    pyproject_path = repo_root / "pyproject.toml"
-    with pyproject_path.open("rb") as fh:
-        data = tomllib.load(fh)
+
+
+def _parse_current_version(content: bytes | str) -> str:
+    """Extract ``[project].version`` from already-read TOML *content*.
+
+    Accepts ``bytes | str`` to match :func:`read_guarded`'s generic ``parse``
+    contract; ``read_guarded`` is called with ``mode="text"`` below, so
+    *content* is always ``str`` at runtime, but the narrower annotation would
+    not satisfy the primitive's declared callable type.
+    """
+    text = content.decode("utf-8") if isinstance(content, bytes) else content
+    data = tomllib.loads(text)
     version = data["project"]["version"]
     if not isinstance(version, str):
         raise TypeError(f"Expected version to be a string, got {type(version)!r}")
     return version
+
+
+def _read_current_version(repo_root: Path) -> str:
+    """Read ``version`` from ``pyproject.toml`` using stdlib ``tomllib``.
+
+    Raises:
+        ReleasePyprojectError: if ``pyproject.toml`` is missing, the TOML is
+            malformed, or the ``[project]`` table / ``version`` key is
+            absent. The global CLI error-presentation hook renders this
+            uniformly (never a raw traceback).
+    """
+    pyproject_path = repo_root / "pyproject.toml"
+    return read_guarded(
+        pyproject_path,
+        _parse_current_version,
+        errors=(tomllib.TOMLDecodeError, KeyError, TypeError),
+        error_cls=ReleasePyprojectError,
+    )
 
 
 def build_release_prep_payload(
