@@ -1,0 +1,20 @@
+{
+  "event_count": 0,
+  "last_event_id": null,
+  "materialized_at": "",
+  "mission_number": "",
+  "mission_slug": "",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {}
+}

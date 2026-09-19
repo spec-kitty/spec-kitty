@@ -1,0 +1,19 @@
+{
+  "coordination_branch": "kitty/mission-cli-error-surface-seam-01M2WJD2",
+  "created_at": "2026-09-19T10:11:45.824407+00:00",
+  "flattened": false,
+  "friendly_name": "Canonical guarded-read + CLI error-presentation seam",
+  "mid8": "01M2WJD2",
+  "mission_id": "01M2WJD2GMZJZVG3FYAAFT2NGG",
+  "mission_number": null,
+  "mission_slug": "cli-error-surface-seam-01M2WJD2",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty operators and automation repeatedly hit raw Python tracebacks when a command meets a malformed file, an invalid mission handle, or a non-UTF-8 stream. This mission builds one canonical guarded-read plus error-presentation seam so the whole class of crash-on-bad-input defects (umbrella #2899) is closed by construction, not one command at a time.",
+  "purpose_tldr": "Every CLI command turns bad input or corrupt state into a clean, actionable error instead of a Python crash.",
+  "slug": "cli-error-surface-seam-01M2WJD2",
+  "target_branch": "fix/cli-error-surface-seam",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-19T11:20:21.359031+00:00"
+}

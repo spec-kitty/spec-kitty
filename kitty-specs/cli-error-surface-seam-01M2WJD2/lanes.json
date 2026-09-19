@@ -1,0 +1,193 @@
+{
+  "version": 1,
+  "mission_slug": "cli-error-surface-seam-01M2WJD2",
+  "mission_id": "01M2WJD2GMZJZVG3FYAAFT2NGG",
+  "mission_branch": "kitty/mission-cli-error-surface-seam-01M2WJD2",
+  "target_branch": "fix/cli-error-surface-seam",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "pyproject.toml",
+        "src/kernel/errors.py",
+        "src/kernel/guarded_read.py",
+        "src/kernel/meta_decode.py",
+        "src/specify_cli/__init__.py",
+        "src/specify_cli/core/agent_config.py",
+        "src/specify_cli/core/paths.py",
+        "src/specify_cli/decisions/store.py",
+        "src/specify_cli/intake/errors.py",
+        "src/specify_cli/lanes/persistence.py",
+        "tests/kernel/test_guarded_read.py",
+        "tests/specify_cli/test_error_backcompat.py",
+        "tests/specify_cli/test_error_hook.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/runtime/next/_internal_runtime/workflow_registry.py",
+        "src/specify_cli/cli/commands/workflow.py",
+        "tests/specify_cli/cli/commands/test_workflow_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/accept.py",
+        "src/specify_cli/cli/commands/agent/status.py",
+        "src/specify_cli/cli/commands/mission_type.py",
+        "tests/specify_cli/cli/commands/test_accept_guard.py",
+        "tests/specify_cli/cli/commands/test_mission_close_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/release.py",
+        "src/specify_cli/release/payload.py",
+        "tests/release/test_release_prep_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/intake.py",
+        "src/specify_cli/intake/scanner.py",
+        "tests/specify_cli/cli/commands/test_intake_stdin_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/lifecycle.py",
+        "tests/specify_cli/cli/commands/test_specify_json_nonascii.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/specify_cli/core/wps_manifest.py",
+        "src/specify_cli/decisions/service.py",
+        "src/specify_cli/merge/state.py",
+        "src/specify_cli/review/artifacts.py",
+        "src/specify_cli/review/baseline.py",
+        "src/specify_cli/review/lock.py",
+        "src/specify_cli/status/validate.py",
+        "tests/specify_cli/test_audit_tail_readers.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/test_cli_error_surface_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-g"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-19T12:09:23.689425+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "53471a440d072de5cb3a49fc5c2c7a116e9da188"
+}

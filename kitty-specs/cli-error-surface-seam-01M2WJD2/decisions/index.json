@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-19T10:12:21.235208Z",
+      "decision_id": "01M2WJE53KMFBGEJX8JMFT71EE",
+      "final_answer": "Reject explicitly: fail closed with an actionable error naming the offending value; consistent JSON envelope under --json; no silent transliteration or character drop. Preserve the original name only for human display (friendly_name), never as a storage/slug identifier. Aligns with charter Identifier Safety Rules (ASCII allowlist, deterministic).",
+      "input_key": "non_ascii_name_policy",
+      "mission_id": "01M2WJD2GMZJZVG3FYAAFT2NGG",
+      "mission_slug": "cli-error-surface-seam-01M2WJD2",
+      "opened_by": "cli",
+      "options": [
+        "reject-explicitly",
+        "transliterate",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "For specify (#4720): when a mission/feature name contains non-ASCII characters (CJK, Cyrillic, accented Latin, emoji), should the CLI transliterate to ASCII, or reject explicitly with an actionable error?",
+      "rationale": null,
+      "resolved_at": "2026-09-19T10:20:47.930043Z",
+      "resolved_by": null,
+      "slot_key": "specify.name-validation.non-ascii-policy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M2WJD2GMZJZVG3FYAAFT2NGG",
+  "version": 1
+}
