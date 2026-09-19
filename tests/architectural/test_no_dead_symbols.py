@@ -913,6 +913,28 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY: frozenset[SymbolKey] = frozenset()
 
 
+# ---------- C. #2899 guarded-read re-parent collateral ----------
+# ``UnknownWorkflowError`` was re-parented ``Exception`` -> ``GuardedReadError``
+# so the global CLI error-presentation hook renders an unknown workflow id
+# cleanly instead of as a traceback (mission cli-error-surface-seam, #2899 /
+# #4746). It is a genuine PUBLIC exception -- declared in
+# ``workflow_registry.__all__``, raised by ``get_workflow``, and propagated per
+# FR-015 (no silent fallback) -- with no cross-module ``src/`` caller. On
+# ``main`` it passed via the ``(Exception)``-base T013 exception auto-exemption,
+# which the new ``GuardedReadError`` base no longer matches. Content-tier key;
+# burns down if the re-parenting is reconsidered or a cross-module caller is
+# added. Follow-up: #2899.
+_CATEGORY_C_GUARDED_READ_REPARENT_2899: frozenset[SymbolKey] = frozenset(
+    {
+        SymbolKey(
+            "UnknownWorkflowError",
+            "fb2d6d84226ae48968e9a4962921279e67993a957f615d38eb2e06a2fef1478c",
+            source_module="runtime.next._internal_runtime.workflow_registry",
+        ),
+    }
+)
+
+
 # ---------- C. Charter command split legacy patch surface ----------
 # Both entries rescued by detector (a) (module-attribute accesses).
 
@@ -1303,7 +1325,10 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
             "_extract_mission_slug", "834a3e235860c64046504604c6f21d21f5a8c2e8443ef33b8c4ad6ad07c2e934", source_module="specify_cli.merge.resolve"
         ),  # specify_cli.merge.resolve::_extract_mission_slug
         # specify_cli.merge.resolve::_iter_merge_states_for_slug
-        SymbolKey("_iter_merge_states_for_slug", "7685ecbbf713921090d3265d6df803e98839f0b4f2a75795f0903478009b10e7", source_module="specify_cli.merge.resolve"),
+        # Hash re-pinned (#2899 landing): the cross-mission slug-scan fix folded in
+        # this PR wrapped the loop's load_state in `except MergeStateReadError:
+        # continue`, changing the symbol body (content-tier key is body-hashed).
+        SymbolKey("_iter_merge_states_for_slug", "3abf7f0536db52f2d7db2502f2721c43ea5ee73398a5c363e3ce5cbe6d87d72a", source_module="specify_cli.merge.resolve"),
     }
 )
 
@@ -2150,6 +2175,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_B_T001_UNBLINDED
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE
     | _CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY
+    | _CATEGORY_C_GUARDED_READ_REPARENT_2899
     | _CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE
     | _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH
     | _CATEGORY_C_WP_IN_FLIGHT_TOPOLOGY_AUTHORITY
