@@ -19,34 +19,6 @@ principles:
   - "Views table columns are always aliased: ambiguous column names break at scale, not at authoring time."
 
 patterns:
-  - name: Constructor Dependency Injection
-    description: "Services arrive through the constructor and a static create() factory; never fetch them via \\Drupal:: inside a class."
-    bad_example: |
-      $nodes = \Drupal::entityTypeManager()->getStorage('node')->loadMultiple();
-    good_example: |
-      public function __construct(protected EntityTypeManagerInterface $entityTypeManager) {}
-      public static function create(ContainerInterface $container): static {
-        return new static($container->get('entity_type.manager'));
-      }
-      // ...
-      $nodes = $this->entityTypeManager->getStorage('node')->loadMultiple();
-  - name: Entity Query Over Raw SQL
-    description: "Prefer Entity Query over hand-written SQL. Explicit accessCheck() is mandatory — implicit access checking throws an error from Drupal 10.0.0. See drupal-security-performance for the full treatment."
-    bad_example: |
-      $nids = db_query('SELECT nid FROM {node} WHERE status = 1')->fetchCol();
-    good_example: |
-      $nids = $this->entityTypeManager->getStorage('node')->getQuery()
-        ->condition('status', 1)
-        ->accessCheck(TRUE)
-        ->execute();
-  - name: Config Versus State
-    description: "Config (configFactory()) is structured, exportable, and belongs in version control. State (\\Drupal::state()) is for ephemeral runtime data such as the last cron run."
-    bad_example: |
-      \Drupal::state()->set('site_tagline', 'Welcome to our site');
-    good_example: |
-      $this->configFactory->getEditable('my_module.settings')
-        ->set('site_tagline', 'Welcome to our site')
-        ->save();
   - name: Plugin With Annotation
     description: "Annotated plugin types (Block, field formatter, and similar) declare their contract via an annotation block and receive dependencies through create()."
     good_example: |
@@ -64,6 +36,7 @@ patterns:
           return new static($configuration, $plugin_id, $plugin_definition, $container->get('entity_type.manager'));
         }
       }
+
   - name: Settings Form On ConfigFormBase
     description: "Configuration forms extend ConfigFormBase and declare their editable config names; never write config the form did not declare."
     bad_example: |
@@ -77,6 +50,7 @@ patterns:
         $this->config('my_module.settings')->set('api_key', $form_state->getValue('api_key'))->save();
         parent::submitForm($form, $form_state);
       }
+
   - name: Route And Controller
     description: "Routes name a required permission explicitly; controllers receive dependencies through create(), never \\Drupal::."
     bad_example: |
@@ -88,6 +62,91 @@ patterns:
         path: "/my-module/{node}"
         defaults: { _controller: '\Drupal\my_module\Controller\MyController::content' }
         requirements: { _permission: "access content", node: \d+ }
+
+  - name: Twig Auto-Escaping
+    description: "Twig escapes all output by default; render untrusted markup through '#type' => 'processed_text' rather than disabling escaping. See drupal-security-performance for the |raw prohibition."
+    good_example: |
+      {# Auto-escaped: #}
+      <h2>{{ node.label }}</h2>
+      <?php
+      $build['body'] = ['#type' => 'processed_text', '#text' => $value, '#format' => 'restricted_html'];
+
+  - name: Library Declaration
+    description: "JS and CSS are declared in *.libraries.yml and attached via '#attached'; never inlined in a template."
+    bad_example: |
+      <script>console.log('inline script in a Twig template');</script>
+    good_example: |
+      # my_module.libraries.yml
+      my_module.behaviors:
+        js: { js/my-module.js: {} }
+        dependencies: [core/drupal, core/once]
+      <?php $build['#attached']['library'][] = 'my_module/my_module.behaviors';
+
+  - name: Drupal Behaviors
+    description: "Front-end JS attaches through Drupal.behaviors using the once() utility; a bare document.ready re-runs on every AJAX update instead of once per element."
+    bad_example: |
+      $(document).ready(function () {
+        $('.my-widget').each(function () { initWidget(this); });
+      });
+    good_example: |
+      Drupal.behaviors.myModule = {
+        attach(context) {
+          once('my-widget', '.my-widget', context).forEach((el) => initWidget(el));
+        },
+      };
+
+  - name: Preprocess Function
+    description: "Computed values are prepared in a template_preprocess_*() function and passed as variables; Twig templates stay declarative."
+    bad_example: |
+      {# node.html.twig #}
+      {% set label = node.label|upper|trim %}
+    good_example: |
+      function my_module_preprocess_node(array &$variables): void {
+        $variables['label'] = mb_strtoupper(trim($variables['node']->label()));
+      }
+
+  - name: Render Array Over Markup
+    description: "Build output as a structured render array so the render pipeline can cache, alter, and theme it; do not concatenate HTML strings."
+    bad_example: |
+      $build['#markup'] = '<div class="my-widget">' . $node->label() . '</div>';
+    good_example: |
+      $build['widget'] = [
+        '#theme' => 'my_widget',
+        '#label' => $node->label(),
+      ];
+
+anti_patterns:
+  - name: Constructor Dependency Injection
+    description: "Services arrive through the constructor and a static create() factory; never fetch them via \\Drupal:: inside a class."
+    bad_example: |
+      $nodes = \Drupal::entityTypeManager()->getStorage('node')->loadMultiple();
+    good_example: |
+      public function __construct(protected EntityTypeManagerInterface $entityTypeManager) {}
+      public static function create(ContainerInterface $container): static {
+        return new static($container->get('entity_type.manager'));
+      }
+      // ...
+      $nodes = $this->entityTypeManager->getStorage('node')->loadMultiple();
+
+  - name: Entity Query Over Raw SQL
+    description: "Prefer Entity Query over hand-written SQL. Explicit accessCheck() is mandatory — implicit access checking throws an error from Drupal 10.0.0. See drupal-security-performance for the full treatment."
+    bad_example: |
+      $nids = db_query('SELECT nid FROM {node} WHERE status = 1')->fetchCol();
+    good_example: |
+      $nids = $this->entityTypeManager->getStorage('node')->getQuery()
+        ->condition('status', 1)
+        ->accessCheck(TRUE)
+        ->execute();
+
+  - name: Config Versus State
+    description: "Config (configFactory()) is structured, exportable, and belongs in version control. State (\\Drupal::state()) is for ephemeral runtime data such as the last cron run."
+    bad_example: |
+      \Drupal::state()->set('site_tagline', 'Welcome to our site');
+    good_example: |
+      $this->configFactory->getEditable('my_module.settings')
+        ->set('site_tagline', 'Welcome to our site')
+        ->save();
+
   - name: Thin Module File
     description: "The .module file routes hooks to injected services; it never carries business logic itself."
     bad_example: |
@@ -100,6 +159,7 @@ patterns:
       function my_module_entity_presave(EntityInterface $entity): void {
         \Drupal::service('my_module.article_presave_handler')->handle($entity);
       }
+
   - name: Focused Form Alter
     description: "A complex hook_form_alter() delegates to a service with focused methods rather than growing a single branching switch."
     bad_example: |
@@ -112,6 +172,7 @@ patterns:
       function my_module_form_alter(&$form, FormStateInterface $form_state, $form_id): void {
         \Drupal::service('my_module.form_alterations')->apply($form, $form_state, $form_id);
       }
+
   - name: Views Data With Table Aliases
     description: "hook_views_data() always prefixes columns with an explicit alias to avoid SQL ambiguity across joined tables."
     bad_example: |
@@ -125,53 +186,7 @@ patterns:
         'real field' => 'status',
         'field' => ['id' => 'standard'],
       ];
-  - name: Twig Auto-Escaping
-    description: "Twig escapes all output by default; render untrusted markup through '#type' => 'processed_text' rather than disabling escaping. See drupal-security-performance for the |raw prohibition."
-    good_example: |
-      {# Auto-escaped: #}
-      <h2>{{ node.label }}</h2>
-      <?php
-      $build['body'] = ['#type' => 'processed_text', '#text' => $value, '#format' => 'restricted_html'];
-  - name: Library Declaration
-    description: "JS and CSS are declared in *.libraries.yml and attached via '#attached'; never inlined in a template."
-    bad_example: |
-      <script>console.log('inline script in a Twig template');</script>
-    good_example: |
-      # my_module.libraries.yml
-      my_module.behaviors:
-        js: { js/my-module.js: {} }
-        dependencies: [core/drupal, core/once]
-      <?php $build['#attached']['library'][] = 'my_module/my_module.behaviors';
-  - name: Drupal Behaviors
-    description: "Front-end JS attaches through Drupal.behaviors using the once() utility; a bare document.ready re-runs on every AJAX update instead of once per element."
-    bad_example: |
-      $(document).ready(function () {
-        $('.my-widget').each(function () { initWidget(this); });
-      });
-    good_example: |
-      Drupal.behaviors.myModule = {
-        attach(context) {
-          once('my-widget', '.my-widget', context).forEach((el) => initWidget(el));
-        },
-      };
-  - name: Preprocess Function
-    description: "Computed values are prepared in a template_preprocess_*() function and passed as variables; Twig templates stay declarative."
-    bad_example: |
-      {# node.html.twig #}
-      {% set label = node.label|upper|trim %}
-    good_example: |
-      function my_module_preprocess_node(array &$variables): void {
-        $variables['label'] = mb_strtoupper(trim($variables['node']->label()));
-      }
-  - name: Render Array Over Markup
-    description: "Build output as a structured render array so the render pipeline can cache, alter, and theme it; do not concatenate HTML strings."
-    bad_example: |
-      $build['#markup'] = '<div class="my-widget">' . $node->label() . '</div>';
-    good_example: |
-      $build['widget'] = [
-        '#theme' => 'my_widget',
-        '#label' => $node->label(),
-      ];
+
   - name: Avoid Hardcoded IDs And Paths
     description: "Entity IDs, user IDs, and paths shift between environments; resolve them dynamically instead of hardcoding."
     bad_example: |
@@ -181,12 +196,14 @@ patterns:
       $nodes = $this->entityTypeManager->getStorage('node')
         ->loadByProperties(['field_machine_name' => 'homepage']);
       $link = reset($nodes)->toUrl('edit-form')->toString();
+
   - name: Entity Type Manager Over Deprecated Loaders
     description: "node_load() was removed in Drupal 9.0.0, not merely deprecated -- on this profile's Drupal 10/11 baseline the function does not exist, so calling it is a fatal error, not a deprecation warning. Use the entity type manager instead."
     bad_example: |
       $node = node_load(123);
     good_example: |
       $node = $this->entityTypeManager->getStorage('node')->load(123);
+
   - name: Injected Request Over Superglobals
     description: "Superglobals bypass Symfony's request stack and make handlers untestable; inject the current Request instead."
     bad_example: |
@@ -206,5 +223,5 @@ references:
   - "amazee.io drupal-agents-md, Vanilla variant: https://github.com/amazeeio/drupal-agents-md/blob/main/Vanilla/AGENTS.md"
   - "Drupal coding standards: https://www.drupal.org/docs/develop/standards"
   - "See also, for the security- and performance-specific treatment: Drupal Security and Performance Styleguide."
-  - "packs/built-in/agent_profiles/drupalling-dries.agent.yaml"
+  - "packs/built-in/agent_profiles/drupal-dries.agent.yaml"
   - "packs/built-in/toolguides/drupal-review-checks.toolguide.yaml"

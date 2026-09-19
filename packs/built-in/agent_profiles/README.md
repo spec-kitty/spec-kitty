@@ -2,8 +2,10 @@
 
 Reference agent profiles included in the `doctrine` package distribution. These
 define the core roles with their specialization, collaboration contracts, directive
-references, and initialization declarations. Language-specialist profiles (prefixed
-with the language name) extend the base `implementer-ivan` role for polyglot projects.
+references, and initialization declarations. Stack-specialist profiles (prefixed
+with the language or framework name, e.g. `java-jenny`, `drupal-dries`) extend the base
+`implementer-ivan` role for polyglot projects. Framework specialists ship inactive and
+are opted into per project with `spec-kitty charter activate agent-profile <id>`.
 
 | File | Profile ID | Primary Role |
 |------|------------|------|
@@ -12,7 +14,7 @@ with the language name) extend the base `implementer-ivan` role for polyglot pro
 | `debugger-debbie.agent.yaml` | `debugger-debbie` | investigator |
 | `designer-dagmar.agent.yaml` | `designer-dagmar` | designer |
 | `doctrine-daphne.agent.yaml` | `doctrine-daphne` | curator / onboarding-guide |
-| `drupalling-dries.agent.yaml` | `drupalling-dries` | implementer (Drupal specialist) |
+| `drupal-dries.agent.yaml` | `drupal-dries` | implementer (Drupal specialist) |
 | `frontend-freddy.agent.yaml` | `frontend-freddy` | implementer |
 | `generic-agent.agent.yaml` | `generic-agent` | implementer |
 | `human-in-charge.agent.yaml` | `human-in-charge` | human-in-charge |

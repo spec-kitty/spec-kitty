@@ -18,6 +18,85 @@ principles:
   - "Long-running work belongs in Batch or Queue API, never a single request that can hit the execution-time limit."
 
 patterns:
+  - name: Cache Contexts For Personalized Output
+    description: "A cache context is not a performance knob -- it tells the render cache which audience a cached copy is valid for. User-specific content cached without a user context (`user`, `user.roles`, `user.permissions`) is a security leak, not merely a staleness bug: the first visitor's rendered output -- their name, their balance, their private data -- gets served verbatim to every later visitor who hits that cache entry."
+    bad_example: |
+      <?php
+      // Safe against Plain Text Over Markup: @name is a t() placeholder,
+      // which Html::escape()s the value even inside '#markup'.
+      $build = [
+        '#markup' => $this->t('Welcome back, @name', ['@name' => $account->getDisplayName()]),
+        '#cache' => ['tags' => ['user:' . $account->id()]],
+        // No context: user A's rendered markup is served to user B.
+      ];
+    good_example: |
+      <?php
+      // Safe against Plain Text Over Markup: @name is a t() placeholder,
+      // which Html::escape()s the value even inside '#markup'.
+      $build = [
+        '#markup' => $this->t('Welcome back, @name', ['@name' => $account->getDisplayName()]),
+        '#cache' => [
+          'tags' => ['user:' . $account->id()],
+          'contexts' => ['user'],
+        ],
+      ];
+
+  - name: Cache Tag Invalidation
+    description: "A cache tag only helps if something invalidates it. Tag a listing with the entities it lists (Drupal's entity system invalidates entity-based tags automatically on save) rather than relying on `max-age` alone to eventually catch up with edits."
+    bad_example: |
+      <?php
+      // A bare max-age serves outdated results for up to an hour after an
+      // editor publishes a new node -- nothing invalidates it sooner.
+      $build['#cache']['max-age'] = 3600;
+    good_example: |
+      <?php
+      // Invalidates the moment any listed node changes, independent of max-age.
+      $build['#cache']['tags'] = Cache::mergeTags(['node_list'], $listTags);
+      $build['#cache']['max-age'] = 3600;
+
+  - name: Query Efficiency
+    description: "Loading entities one at a time inside a loop issues one query per entity -- an N+1 pattern -- where a single `loadMultiple()` call issues one. Add an explicit `range()` to any query that does not need every matching result."
+    bad_example: |
+      <?php
+      $nodes = [];
+      foreach ($nids as $nid) {
+        $nodes[] = $this->entityTypeManager->getStorage('node')->load($nid);
+      }
+    good_example: |
+      <?php
+      $nodes = $this->entityTypeManager->getStorage('node')->loadMultiple($nids);
+      $nids = $this->entityTypeManager->getStorage('node')
+        ->getQuery()
+        ->condition('status', 1)
+        ->accessCheck(TRUE)
+        ->range(0, 50)
+        ->execute();
+
+  - name: Batch And Queue For Long Operations
+    description: "Work that iterates over thousands of entities inside one request risks the PHP execution-time limit and ties up a web worker for the duration. Batch API splits the work into request-sized steps with progress feedback; Queue API defers it to a worker process entirely. Neither belongs inline in a controller or form submit handler."
+    bad_example: |
+      <?php
+      public function submitForm(array &$form, FormStateInterface $form_state): void {
+        $nids = $this->entityTypeManager->getStorage('node')->getQuery()->accessCheck(TRUE)->execute();
+        foreach ($nids as $nid) {
+          $this->reindexNode($nid); // thousands of nodes, one HTTP request
+        }
+      }
+    good_example: |
+      <?php
+      public function submitForm(array &$form, FormStateInterface $form_state): void {
+        $nids = $this->entityTypeManager->getStorage('node')->getQuery()->accessCheck(TRUE)->execute();
+        $batch = [
+          'title' => $this->t('Reindexing content'),
+          'operations' => array_map(
+            fn (string $nid) => [[static::class, 'reindexNodeBatch'], [$nid]],
+            $nids
+          ),
+        ];
+        batch_set($batch);
+      }
+
+anti_patterns:
   - name: Twig Output Escaping
     description: "Twig auto-escapes all variable output by default. `|raw` disables that protection entirely and reopens cross-site scripting for anything derived from user input; for genuine HTML, render through a text format (`#type => 'processed_text'` in a render array, or `check_markup()` outside one -- see drupal-conventions' Twig Auto-Escaping entry for the render-array construct) instead of bypassing escaping."
     bad_example: |
@@ -83,42 +162,6 @@ patterns:
         ],
       ];
 
-  - name: Cache Contexts For Personalized Output
-    description: "A cache context is not a performance knob -- it tells the render cache which audience a cached copy is valid for. User-specific content cached without a user context (`user`, `user.roles`, `user.permissions`) is a security leak, not merely a staleness bug: the first visitor's rendered output -- their name, their balance, their private data -- gets served verbatim to every later visitor who hits that cache entry."
-    bad_example: |
-      <?php
-      // Safe against Plain Text Over Markup: @name is a t() placeholder,
-      // which Html::escape()s the value even inside '#markup'.
-      $build = [
-        '#markup' => $this->t('Welcome back, @name', ['@name' => $account->getDisplayName()]),
-        '#cache' => ['tags' => ['user:' . $account->id()]],
-        // No context: user A's rendered markup is served to user B.
-      ];
-    good_example: |
-      <?php
-      // Safe against Plain Text Over Markup: @name is a t() placeholder,
-      // which Html::escape()s the value even inside '#markup'.
-      $build = [
-        '#markup' => $this->t('Welcome back, @name', ['@name' => $account->getDisplayName()]),
-        '#cache' => [
-          'tags' => ['user:' . $account->id()],
-          'contexts' => ['user'],
-        ],
-      ];
-
-  - name: Cache Tag Invalidation
-    description: "A cache tag only helps if something invalidates it. Tag a listing with the entities it lists (Drupal's entity system invalidates entity-based tags automatically on save) rather than relying on `max-age` alone to eventually catch up with edits."
-    bad_example: |
-      <?php
-      // A bare max-age serves outdated results for up to an hour after an
-      // editor publishes a new node -- nothing invalidates it sooner.
-      $build['#cache']['max-age'] = 3600;
-    good_example: |
-      <?php
-      // Invalidates the moment any listed node changes, independent of max-age.
-      $build['#cache']['tags'] = Cache::mergeTags(['node_list'], $listTags);
-      $build['#cache']['max-age'] = 3600;
-
   - name: Credentials Out Of Version Control
     description: "A database password committed to `settings.php` is compromised the moment it lands in a commit, even in a private repository -- and deleting it in a later commit does not fix that, because git history retains every prior version of the file. Removal is cleanup, not remediation; the only remediation is rotating the credential. Keep secrets out of version control from the start."
     bad_example: |
@@ -142,48 +185,6 @@ patterns:
       // settings.local.php supplies real local values and is excluded via
       // .gitignore -- it is never committed.
 
-  - name: Query Efficiency
-    description: "Loading entities one at a time inside a loop issues one query per entity -- an N+1 pattern -- where a single `loadMultiple()` call issues one. Add an explicit `range()` to any query that does not need every matching result."
-    bad_example: |
-      <?php
-      $nodes = [];
-      foreach ($nids as $nid) {
-        $nodes[] = $this->entityTypeManager->getStorage('node')->load($nid);
-      }
-    good_example: |
-      <?php
-      $nodes = $this->entityTypeManager->getStorage('node')->loadMultiple($nids);
-      $nids = $this->entityTypeManager->getStorage('node')
-        ->getQuery()
-        ->condition('status', 1)
-        ->accessCheck(TRUE)
-        ->range(0, 50)
-        ->execute();
-
-  - name: Batch And Queue For Long Operations
-    description: "Work that iterates over thousands of entities inside one request risks the PHP execution-time limit and ties up a web worker for the duration. Batch API splits the work into request-sized steps with progress feedback; Queue API defers it to a worker process entirely. Neither belongs inline in a controller or form submit handler."
-    bad_example: |
-      <?php
-      public function submitForm(array &$form, FormStateInterface $form_state): void {
-        $nids = $this->entityTypeManager->getStorage('node')->getQuery()->accessCheck(TRUE)->execute();
-        foreach ($nids as $nid) {
-          $this->reindexNode($nid); // thousands of nodes, one HTTP request
-        }
-      }
-    good_example: |
-      <?php
-      public function submitForm(array &$form, FormStateInterface $form_state): void {
-        $nids = $this->entityTypeManager->getStorage('node')->getQuery()->accessCheck(TRUE)->execute();
-        $batch = [
-          'title' => $this->t('Reindexing content'),
-          'operations' => array_map(
-            fn (string $nid) => [[static::class, 'reindexNodeBatch'], [$nid]],
-            $nids
-          ),
-        ];
-        batch_set($batch);
-      }
-
 tooling:
   coding_standards: "phpcs --standard=Drupal,DrupalPractice"
   static_analysis: "phpstan analyse"
@@ -196,4 +197,4 @@ references:
   - "amazee.io drupal-agents-md (Vanilla variant), Security & Performance Guidelines / Caching Strategies / Anti-Patterns #3, #6, #7, #10, #11 -- https://github.com/amazeeio/drupal-agents-md/blob/main/Vanilla/AGENTS.md"
   - "Drupal.org: entity query access checking change record -- https://www.drupal.org/node/3201242 -- authoritative for the accessCheck entry above; the amazee.io source states this incorrectly at its line 701 (claims Drupal 10.2/warning-only/mandatory-in-12) and this file deliberately does not follow it -- deprecated in 9.2.0, error thrown from 10.0.0."
   - "See also, for the general coding-convention treatment this file cross-references: Drupal Conventions Styleguide."
-  - "packs/built-in/agent_profiles/drupalling-dries.agent.yaml"
+  - "packs/built-in/agent_profiles/drupal-dries.agent.yaml"

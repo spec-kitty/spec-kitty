@@ -26,9 +26,9 @@ nodes:
 - urn: agent_profile:doctrine-daphne
   kind: agent_profile
   label: Doctrine Daphne
-- urn: agent_profile:drupalling-dries
+- urn: agent_profile:drupal-dries
   kind: agent_profile
-  label: Drupalling Dries
+  label: Drupal Dries
 - urn: agent_profile:frontend-freddy
   kind: agent_profile
   label: Frontend Freddy
@@ -219,40 +219,40 @@ edges:
 - source: agent_profile:doctrine-daphne
   target: procedure:onboard-external-agent-to-pack
   relation: requires
-- source: agent_profile:drupalling-dries
+- source: agent_profile:drupal-dries
   target: agent_profile:implementer-ivan
   relation: specializes_from
-- source: agent_profile:drupalling-dries
+- source: agent_profile:drupal-dries
   target: directive:DIRECTIVE_010
   relation: requires
-- source: agent_profile:drupalling-dries
+- source: agent_profile:drupal-dries
   target: directive:DIRECTIVE_024
   relation: requires
-- source: agent_profile:drupalling-dries
+- source: agent_profile:drupal-dries
   target: directive:DIRECTIVE_025
   relation: requires
-- source: agent_profile:drupalling-dries
+- source: agent_profile:drupal-dries
   target: directive:DIRECTIVE_030
   relation: requires
-- source: agent_profile:drupalling-dries
+- source: agent_profile:drupal-dries
   target: directive:DIRECTIVE_034
   relation: requires
-- source: agent_profile:drupalling-dries
+- source: agent_profile:drupal-dries
   target: directive:DIRECTIVE_051
   relation: requires
-- source: agent_profile:drupalling-dries
+- source: agent_profile:drupal-dries
   target: tactic:bug-fixing-checklist
   relation: requires
   reason: Reproduce a Drupal defect with a failing kernel or functional test before applying the fix — never patch production code directly against a bug report
-- source: agent_profile:drupalling-dries
+- source: agent_profile:drupal-dries
   target: tactic:dependency-hygiene
   relation: requires
   reason: Pin Composer package versions in composer.json, restrict resolution to the packagist.org and drupal.org endpoints, and document any patch applied via composer-patches
-- source: agent_profile:drupalling-dries
+- source: agent_profile:drupal-dries
   target: tactic:supply-chain-install-safety
   relation: requires
   reason: Run the registry-authenticity and freshness checklist for both Composer (drupal/* packages) and npm (theming build dependencies) before accepting a new or changed dependency
-- source: agent_profile:drupalling-dries
+- source: agent_profile:drupal-dries
   target: tactic:tdd-red-green-refactor
   relation: requires
   reason: Drives module and plugin implementation through red-green-refactor at the kernel and unit test tiers before touching Drupal-native theming

@@ -1,0 +1,181 @@
+{
+  "mission_slug": "drupal-dries-profile-01M28X69",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "profile_load",
+      "evidence": "packs/built-in/agent_profiles/drupal-dries.agent.yaml (208 lines) loads via AgentProfileRepository; doctor doctrine reports 26/26 valid, 0 skipped; WP01 test_drupal_dries_profile.py 7 passed.",
+      "pass_fail": "pass",
+      "verified_by": "WP08 closeout verification (independent reviewer)",
+      "verified_at": "2026-09-12T00:00:00+00:00",
+      "notes": "See kitty-specs/drupal-dries-profile-01M28X69/verification-report.md"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "artifact_review",
+      "evidence": "Profile declares module structure, dependency injection, Entity API, plugins, hooks, Forms API, routing, configuration management and long-running-operation patterns; 10/10 sampled Drupal claims traced to official sources.",
+      "pass_fail": "pass",
+      "verified_by": "WP08 closeout verification (independent reviewer)",
+      "verified_at": "2026-09-12T00:00:00+00:00",
+      "notes": "See kitty-specs/drupal-dries-profile-01M28X69/verification-report.md"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "artifact_review",
+      "evidence": "Profile declares Twig, *.libraries.yml, Drupal.behaviors, render arrays and preprocess functions; drupal-conventions carries five theming patterns using the current once() API.",
+      "pass_fail": "pass",
+      "verified_by": "WP08 closeout verification (independent reviewer)",
+      "verified_at": "2026-09-12T00:00:00+00:00",
+      "notes": "See kitty-specs/drupal-dries-profile-01M28X69/verification-report.md"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "manual_audit",
+      "evidence": "Reciprocal boundary declared in both profiles. SC-004 ten-task assignment run twice (implementer and independent reviewer): 1/3/5/7/9 to Dries, 2/4/6/8/10 to Freddy, no ties.",
+      "pass_fail": "pass",
+      "verified_by": "WP08 closeout verification (independent reviewer)",
+      "verified_at": "2026-09-12T00:00:00+00:00",
+      "notes": "See kitty-specs/drupal-dries-profile-01M28X69/verification-report.md"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "specializes_from edge minted via _CURATED_ARTIFACT_EDGES; 6 directive + 4 tactic requires edges present; WP01 test_drupal_dries_lineage.py green; DAG acyclicity asserted.",
+      "pass_fail": "pass",
+      "verified_by": "WP08 closeout verification (independent reviewer)",
+      "verified_at": "2026-09-12T00:00:00+00:00",
+      "notes": "See kitty-specs/drupal-dries-profile-01M28X69/verification-report.md"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "artifact_review",
+      "evidence": "Two styleguides delivered (drupal-conventions 208 lines, drupal-security-performance 199 lines); C-S3 disjointness verified, intersection empty (17 vs 9 pattern names).",
+      "pass_fail": "pass",
+      "verified_by": "WP08 closeout verification (independent reviewer)",
+      "verified_at": "2026-09-12T00:00:00+00:00",
+      "notes": "See kitty-specs/drupal-dries-profile-01M28X69/verification-report.md"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "artifact_review",
+      "evidence": "DRUPAL_REVIEW_CHECKS.md plus descriptor; C-S4 body/descriptor agreement verified both directions; commands trace to the source's Code Quality Tools and Before Submitting Code sections.",
+      "pass_fail": "pass",
+      "verified_by": "WP08 closeout verification (independent reviewer)",
+      "verified_at": "2026-09-12T00:00:00+00:00",
+      "notes": "See kitty-specs/drupal-dries-profile-01M28X69/verification-report.md"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "manual_audit",
+      "evidence": "14 of 14 source anti-patterns present, zero omissions, verified against upstream AGENTS.md lines 689-715. Split 9 (conventions) / 5 (security-performance); all 16 entries carry paired bad/good examples.",
+      "pass_fail": "pass",
+      "verified_by": "WP08 closeout verification (independent reviewer)",
+      "verified_at": "2026-09-12T00:00:00+00:00",
+      "notes": "See kitty-specs/drupal-dries-profile-01M28X69/verification-report.md"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "artifact_review",
+      "evidence": "Ten-step self-review protocol declared; no invented PHPStan level, coverage percentage or mutation score (C-S6 grep clean; upstream's own 'Aim for >= 80% coverage' at source line 721 deliberately not carried).",
+      "pass_fail": "pass",
+      "verified_by": "WP08 closeout verification (independent reviewer)",
+      "verified_at": "2026-09-12T00:00:00+00:00",
+      "notes": "See kitty-specs/drupal-dries-profile-01M28X69/verification-report.md"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "manual_audit",
+      "evidence": "All five delivered artifacts credit amazee.io drupal-agents-md (Vanilla variant). Descriptor attribution gap (WP08 finding F1) fixed in commit 4d0958052.",
+      "pass_fail": "pass",
+      "verified_by": "WP08 closeout verification (independent reviewer)",
+      "verified_at": "2026-09-12T00:00:00+00:00",
+      "notes": "See kitty-specs/drupal-dries-profile-01M28X69/verification-report.md"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "artifact_review",
+      "evidence": "Drupal 10.x/11.x and PHP 8.3+ baseline stated in purpose and initialization-declaration.",
+      "pass_fail": "pass",
+      "verified_by": "WP08 closeout verification (independent reviewer)",
+      "verified_at": "2026-09-12T00:00:00+00:00",
+      "notes": "See kitty-specs/drupal-dries-profile-01M28X69/verification-report.md"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "manual_audit",
+      "evidence": "No activation record in .kittify/; profile ships inactive. Rendered governance context byte-identical across trees (md5 087fdede88bec3fb850eb3ceb1a0dc5f), 0 Drupal hits.",
+      "pass_fail": "pass",
+      "verified_by": "WP08 closeout verification (independent reviewer)",
+      "verified_at": "2026-09-12T00:00:00+00:00",
+      "notes": "See kitty-specs/drupal-dries-profile-01M28X69/verification-report.md"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Negative case uses a fixture: a malformed profile appears in skipped_profiles and the pack is not reported healthy. Mutation-tested by the WP01 reviewer - the assertion is load-bearing.",
+      "pass_fail": "pass",
+      "verified_by": "WP08 closeout verification (independent reviewer)",
+      "verified_at": "2026-09-12T00:00:00+00:00",
+      "notes": "See kitty-specs/drupal-dries-profile-01M28X69/verification-report.md"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "No new runtime dependency is introduced by this mission (C-006).",
+      "verification_method": "custom_command",
+      "verification_command": "git diff --stat main -- pyproject.toml uv.lock",
+      "result": "confirmed_absent",
+      "evidence": "Command output empty. Zero dependency changes in any ecosystem; the Composer/npm commands in the delivered artifacts are guidance describing consumer projects, never executed here."
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "No unsanctioned fifth node is added to the built-in pack (C-P5).",
+      "verification_method": "custom_command",
+      "verification_command": "uv run spec-kitty doctor doctrine --json",
+      "result": "confirmed_absent",
+      "evidence": "Exactly 4 new nodes: 1 agent_profile, 2 styleguide, 1 toolguide; zero removals. Corroborated three ways - graph fragments, pack-manifest.yaml constituents, and doctor doctrine 25 -> 26 profiles."
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "No field outside specialization.avoidance-boundary is modified in the one pre-existing profile touched (NFR-007).",
+      "verification_method": "custom_command",
+      "verification_command": "git show 93d224ad5 -- packs/built-in/agent_profiles/frontend-freddy.agent.yaml",
+      "result": "confirmed_absent",
+      "evidence": "5 insertions / 1 deletion, single hunk, every changed line inside avoidance-boundary. All sixteen other top-level fields verified byte-identical by the WP06 reviewer."
+    },
+    {
+      "invariant_id": "NI-004",
+      "description": "No verbatim reproduction of the upstream source survives in the delivered artifacts (C-003).",
+      "verification_method": "custom_command",
+      "verification_command": "8-word shared-prose-run scan against the fetched upstream AGENTS.md",
+      "result": "confirmed_absent",
+      "evidence": "Zero shared 8-word prose runs across all five artifacts against the 1492-line upstream. The only recurring runs are canonical Drupal code idioms inside examples."
+    },
+    {
+      "invariant_id": "NI-005",
+      "description": "No invented quality threshold (PHPStan level, coverage percentage, mutation score) appears in any artifact (NFR-006 / C-S6).",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -rniE \"level [0-9]|[0-9]{1,3}% coverage|mutation score|[0-9]{2}%\"",
+      "scope": "packs/built-in/agent_profiles/drupal-dries.agent.yaml packs/built-in/styleguides/drupal-conventions.styleguide.yaml packs/built-in/styleguides/drupal-security-performance.styleguide.yaml packs/built-in/toolguides/DRUPAL_REVIEW_CHECKS.md packs/built-in/toolguides/drupal-review-checks.toolguide.yaml",
+      "result": "confirmed_absent",
+      "evidence": "No matches. The upstream source states 'Aim for >= 80% code coverage' at its line 721; the implementers deliberately did not carry it."
+    }
+  ]
+}

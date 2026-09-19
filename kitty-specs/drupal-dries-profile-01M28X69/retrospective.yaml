@@ -1,0 +1,264 @@
+schema_version: 1
+mission_id: 01M28X69AVNQKDXK2HQ4MVSSD9
+mission_slug: drupal-dries-profile-01M28X69
+mission_number: 200
+friendly_name: Drupal Dries Agent Profile
+mission_type: software-dev
+target_branch: feat/drupal-dries-profile
+created_at: '2026-09-12T17:09:35.547881+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-12T17:09:35.547881+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-002
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-003
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-004
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-005
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-006
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-013
+not_helpful:
+- id: n-013
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-026
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented
+    issues and decisions.
+- id: n-011
+  category: implementation
+  summary: WP02 needed 2 implementation cycles
+  evidence_refs:
+  - e-024
+  details: WP WP02 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-012
+  category: implementation
+  summary: WP04 needed 2 implementation cycles
+  evidence_refs:
+  - e-025
+  details: WP WP04 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-003
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-016
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP02 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-017
+  details: WP WP02 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP03 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-018
+  details: WP WP03 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP04 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-019
+  details: WP WP04 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-007
+  category: process
+  summary: WP05 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-020
+  details: WP WP05 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-008
+  category: process
+  summary: WP06 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-021
+  details: WP WP06 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-009
+  category: process
+  summary: WP07 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-022
+  details: WP WP07 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-010
+  category: process
+  summary: WP08 required 4 --force override(s) during workflow
+  evidence_refs:
+  - e-023
+  details: WP WP08 required 4 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP02 was sent back from review to planning 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP04 was sent back from review to planning 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/drupal-dries-profile-01M28X69/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/drupal-dries-profile-01M28X69/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/drupal-dries-profile-01M28X69/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/drupal-dries-profile-01M28X69/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/drupal-dries-profile-01M28X69/tasks/WP01-baseline-and-failing-verification.md
+- id: e-006
+  kind: file
+  path: kitty-specs/drupal-dries-profile-01M28X69/tasks/WP02-drupal-dries-profile.md
+- id: e-007
+  kind: file
+  path: kitty-specs/drupal-dries-profile-01M28X69/tasks/WP03-drupal-conventions-styleguide.md
+- id: e-008
+  kind: file
+  path: kitty-specs/drupal-dries-profile-01M28X69/tasks/WP04-drupal-security-performance-styleguide.md
+- id: e-009
+  kind: file
+  path: kitty-specs/drupal-dries-profile-01M28X69/tasks/WP05-drupal-review-checks-toolguide.md
+- id: e-010
+  kind: file
+  path: kitty-specs/drupal-dries-profile-01M28X69/tasks/WP06-frontend-freddy-reciprocal-boundary.md
+- id: e-011
+  kind: file
+  path: kitty-specs/drupal-dries-profile-01M28X69/tasks/WP07-lineage-and-graph-regeneration.md
+- id: e-012
+  kind: file
+  path: kitty-specs/drupal-dries-profile-01M28X69/tasks/WP08-closeout-verification.md
+- id: e-013
+  kind: file
+  path: kitty-specs/drupal-dries-profile-01M28X69/status.events.jsonl
+- id: e-014
+  kind: event_range
+  path: kitty-specs/drupal-dries-profile-01M28X69/status.events.jsonl
+  range: 01M298DQQXX84FFD83NHXZWM66
+- id: e-015
+  kind: event_range
+  path: kitty-specs/drupal-dries-profile-01M28X69/status.events.jsonl
+  range: 01M294916C9GQGKERA01E2MNHS
+- id: e-016
+  kind: event_range
+  path: kitty-specs/drupal-dries-profile-01M28X69/status.events.jsonl
+  range: 01M292TH181QH93PEHMHZFWFRA
+- id: e-017
+  kind: event_range
+  path: kitty-specs/drupal-dries-profile-01M28X69/status.events.jsonl
+  range: 01M298DQQXX84FFD83NHXZWM66..01M2AB3TYH33K69Y5KWYESTFXT
+- id: e-018
+  kind: event_range
+  path: kitty-specs/drupal-dries-profile-01M28X69/status.events.jsonl
+  range: 01M2AATGYG8WHGDJ54JDJS7G77..01M2ABS4BZ8X7MJ5DCJY86TDSP
+- id: e-019
+  kind: event_range
+  path: kitty-specs/drupal-dries-profile-01M28X69/status.events.jsonl
+  range: 01M294916C9GQGKERA01E2MNHS..01M2AB2GC1MPA38YVVDZEEQ1E9
+- id: e-020
+  kind: event_range
+  path: kitty-specs/drupal-dries-profile-01M28X69/status.events.jsonl
+  range: 01M293SCH0QMF0MNF9GWR2ZHT5..01M29460W5E1HVMAWFEH83S6CM
+- id: e-021
+  kind: event_range
+  path: kitty-specs/drupal-dries-profile-01M28X69/status.events.jsonl
+  range: 01M2ABD1Y8SNNTG9HQGJQSHGS5..01M2ABN69V4MKEBKDHATYCRA4P
+- id: e-022
+  kind: event_range
+  path: kitty-specs/drupal-dries-profile-01M28X69/status.events.jsonl
+  range: 01M2AJABYGVZ3M0PB4PM0ZBKTW..01M2AM7BZ734DA91MBEFCYXE51
+- id: e-023
+  kind: event_range
+  path: kitty-specs/drupal-dries-profile-01M28X69/status.events.jsonl
+  range: 01M2B964KSV2A5AN742BY8ASMA..01M2B96V1X9YPV5WAK431R2BZC
+- id: e-024
+  kind: event_range
+  path: kitty-specs/drupal-dries-profile-01M28X69/status.events.jsonl
+  range: implementation_cycles
+- id: e-025
+  kind: event_range
+  path: kitty-specs/drupal-dries-profile-01M28X69/status.events.jsonl
+  range: implementation_cycles
+- id: e-026
+  kind: file
+  path: kitty-specs/drupal-dries-profile-01M28X69/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

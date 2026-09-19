@@ -41,7 +41,7 @@ the same `profile-id`; project profiles have final precedence.
 | `debugger-debbie` | Debugger Debbie | investigator |
 | `designer-dagmar` | Designer Dagmar | designer |
 | `doctrine-daphne` | Doctrine Daphne | curator / onboarding-guide |
-| `drupalling-dries` | Drupalling Dries | implementer |
+| `drupal-dries` | Drupal Dries | implementer |
 | `frontend-freddy` | Frontend Freddy | implementer |
 | `generic-agent` | Generic Agent | implementer |
 | `human-in-charge` | Human in Charge | human-in-charge |

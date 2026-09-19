@@ -137,13 +137,13 @@ edges:
   target: styleguide:publication-authority
   relation: suggests
 - source: styleguide:drupal-conventions
-  target: agent_profile:drupalling-dries
+  target: agent_profile:drupal-dries
   relation: suggests
 - source: styleguide:drupal-conventions
   target: toolguide:drupal-review-checks
   relation: suggests
 - source: styleguide:drupal-security-performance
-  target: agent_profile:drupalling-dries
+  target: agent_profile:drupal-dries
   relation: suggests
 - source: styleguide:java-conventions
   target: agent_profile:java-jenny

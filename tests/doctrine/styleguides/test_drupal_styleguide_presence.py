@@ -1,6 +1,6 @@
 """WP01/T006 — failing verification for the shipped Drupal doctrine inventory.
 
-Mission ``drupalling-dries-profile-01M28X69``. RED half of red-first
+Mission ``drupal-dries-profile-01M28X69``. RED half of red-first
 discipline: none of the four new artifacts exist yet, so the presence and
 ``suggests``-edge assertions below must fail for *absence*, never for an
 import or collection error.
@@ -36,7 +36,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 _YAML = YAML(typ="safe")
 
-_PROFILE_URN = "agent_profile:drupalling-dries"
+_PROFILE_URN = "agent_profile:drupal-dries"
 _CONVENTIONS_URN = "styleguide:drupal-conventions"
 _SECURITY_URN = "styleguide:drupal-security-performance"
 _TOOLGUIDE_URN = "toolguide:drupal-review-checks"
@@ -96,6 +96,25 @@ class TestFourNewArtifactsPresentAndLoad:
         assert repo.get("drupal-review-checks") is not None
 
 
+class TestAntiPatternsFiledInDedicatedField:
+    """The fourteen community anti-patterns must load as ``Styleguide.anti_patterns``
+    (the schema's dedicated field), not sit under ``patterns``."""
+
+    @pytest.mark.parametrize(
+        ("styleguide_id", "expected"),
+        [("drupal-conventions", 9), ("drupal-security-performance", 5)],
+    )
+    def test_anti_patterns_load_through_the_model(self, styleguide_id: str, expected: int) -> None:
+        # Arrange
+        repo = StyleguideRepository()
+        # Act
+        styleguide = repo.get(styleguide_id)
+        # Assert
+        assert styleguide is not None
+        assert len(styleguide.anti_patterns) == expected
+        assert styleguide.patterns, "positive patterns must remain in `patterns`"
+
+
 class TestFilesystemDerivedInventoryAgrees:
     """C-P5 / NFR-007 anti-tautology guard: filesystem and graph agree, and
     the new ids are exactly the four this mission sanctioned -- not a
@@ -106,7 +125,7 @@ class TestFilesystemDerivedInventoryAgrees:
         # Act
         profile_ids = _shipped_ids("agent_profile", "profile-id")
         # Assert
-        assert "drupalling-dries" in profile_ids
+        assert "drupal-dries" in profile_ids
 
     def test_new_styleguide_ids_are_shipped_on_disk(self) -> None:
         # Act

@@ -56,7 +56,7 @@ _PRE_MIGRATION_CS = _FIXTURES / "shipped_context_sources_pre_migration.json"
 #: styleguide relationship, while preserving the historical fixture unchanged.
 #:
 #: Ledger entry (22) (mission ``drupal-dries-profile-01M28X69``, WP07):
-#: the new ``agent_profile:drupalling-dries`` node mints its own
+#: the new ``agent_profile:drupal-dries`` node mints its own
 #: ``specializes_from`` lineage edge plus the ``requires`` edges minted from
 #: its ``directive-references``/``tactic-references`` — 11 edges in total, none
 #: of which touch any pre-existing profile's edge set.
@@ -73,17 +73,17 @@ _LEDGERED_ADDED: frozenset[tuple[str, str, str]] = frozenset(
         ("agent_profile:minutes-mahad", "directive:MINUTES_STAND_ALONE", "requires"),
         ("agent_profile:minutes-mahad", "procedure:meeting-minutes-pipeline", "requires"),
         ("agent_profile:minutes-mahad", "styleguide:meeting-minutes-format", "suggests"),
-        ("agent_profile:drupalling-dries", "agent_profile:implementer-ivan", "specializes_from"),
-        ("agent_profile:drupalling-dries", "directive:DIRECTIVE_010", "requires"),
-        ("agent_profile:drupalling-dries", "directive:DIRECTIVE_024", "requires"),
-        ("agent_profile:drupalling-dries", "directive:DIRECTIVE_025", "requires"),
-        ("agent_profile:drupalling-dries", "directive:DIRECTIVE_030", "requires"),
-        ("agent_profile:drupalling-dries", "directive:DIRECTIVE_034", "requires"),
-        ("agent_profile:drupalling-dries", "directive:DIRECTIVE_051", "requires"),
-        ("agent_profile:drupalling-dries", "tactic:bug-fixing-checklist", "requires"),
-        ("agent_profile:drupalling-dries", "tactic:dependency-hygiene", "requires"),
-        ("agent_profile:drupalling-dries", "tactic:supply-chain-install-safety", "requires"),
-        ("agent_profile:drupalling-dries", "tactic:tdd-red-green-refactor", "requires"),
+        ("agent_profile:drupal-dries", "agent_profile:implementer-ivan", "specializes_from"),
+        ("agent_profile:drupal-dries", "directive:DIRECTIVE_010", "requires"),
+        ("agent_profile:drupal-dries", "directive:DIRECTIVE_024", "requires"),
+        ("agent_profile:drupal-dries", "directive:DIRECTIVE_025", "requires"),
+        ("agent_profile:drupal-dries", "directive:DIRECTIVE_030", "requires"),
+        ("agent_profile:drupal-dries", "directive:DIRECTIVE_034", "requires"),
+        ("agent_profile:drupal-dries", "directive:DIRECTIVE_051", "requires"),
+        ("agent_profile:drupal-dries", "tactic:bug-fixing-checklist", "requires"),
+        ("agent_profile:drupal-dries", "tactic:dependency-hygiene", "requires"),
+        ("agent_profile:drupal-dries", "tactic:supply-chain-install-safety", "requires"),
+        ("agent_profile:drupal-dries", "tactic:tdd-red-green-refactor", "requires"),
     }
 )
 _LEDGERED_REMOVED: frozenset[tuple[str, str, str]] = frozenset(
