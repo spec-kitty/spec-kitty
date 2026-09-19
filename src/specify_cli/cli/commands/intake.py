@@ -305,7 +305,12 @@ def intake(
     cap = load_max_brief_bytes(repo_root)
     if path == "-":
         try:
-            content = read_stdin_capped(sys.stdin, cap=cap)
+            # Read the underlying byte stream, not the text-wrapped `sys.stdin`:
+            # a text stream's own `.read()` performs the UTF-8 decode inside
+            # Python's text-IO layer, outside any of `read_stdin_capped`'s
+            # guards (#4739). Bytes route decode failures through the
+            # already-guarded bytes branch, matching the file-path route.
+            content = read_stdin_capped(sys.stdin.buffer, cap=cap)
         except IntakeTooLargeError as exc:
             err_console.print(_format_too_large_message(exc))
             raise typer.Exit(1) from None
