@@ -222,3 +222,29 @@ def test_intake_file_unreadable_error_populates_guarded_read_path() -> None:
     exc = IntakeFileUnreadableError(path="candidate.txt", cause=cause)
 
     assert exc.path == "candidate.txt"
+
+
+# --- Envelope-completeness guard (#2899 landing squad, design-lens MINOR) --------
+# Root cause of the MissionMetaReadError/DecisionIndexReadError whack-a-field: a
+# GuardedReadError subclass with its OWN __init__ (i.e. NOT constructed through
+# kernel.guarded_read.read_guarded, which sets path=str(path)) must populate
+# ``self.path`` itself, or the --json envelope (contracts/error-envelope.md) emits
+# ``"path": null`` on a path-scoped failure. read_guarded-constructed subclasses
+# get ``path`` for free; the ones below build their own message and must not
+# forget it. ADD any new path-scoped, custom-__init__ subclass here.
+_PATH_SCOPED_CUSTOM_INIT_ERRORS: tuple[tuple[type[GuardedReadError], object], ...] = (
+    (MissionMetaReadError, ("kitty-specs/x/meta.json", ValueError("bad"))),
+    (DecisionIndexReadError, ("m/decisions/index.json", ValueError("bad"))),
+)
+
+
+@pytest.mark.parametrize("cls,args", _PATH_SCOPED_CUSTOM_INIT_ERRORS)
+def test_path_scoped_custom_init_error_populates_envelope_path(cls: type[GuardedReadError], args: tuple[object, ...]) -> None:
+    """Every path-scoped GuardedReadError subclass with its own __init__ must set
+    ``self.path`` so the machine ``--json`` envelope never emits ``"path": null``
+    on a path-scoped read failure (contracts/error-envelope.md). Closes the
+    whack-a-field surfaced by the landing squad by construction for the enumerated
+    set — a new sibling that forgets ``self.path`` reds this test."""
+    exc = cls(*args)  # type: ignore[call-arg]
+    assert exc.path is not None
+    assert isinstance(exc.path, str) and exc.path
