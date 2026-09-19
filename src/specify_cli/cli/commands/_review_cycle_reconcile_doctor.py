@@ -76,7 +76,6 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import typer
 
@@ -85,9 +84,6 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.mission_metadata import load_meta
 
 from ._doctor_shared import console
-
-if TYPE_CHECKING:
-    from specify_cli.context.mission_resolver import ResolvedMission
 
 #: ``MissionReconciliationReport`` and ``StrandedRecordFinding`` are this
 #: module's own internals (tests reach them by direct attribute access, the
@@ -394,10 +390,16 @@ def _mission_dirs_for(
         # Function-local (H2/I-6 precedent): resolves --mission via the
         # canonical handle resolver (mission_id / mid8 / slug), matching
         # every other doctor/migrate subcommand's --mission behaviour.
-        from specify_cli.cli.selector_resolution import resolve_mission_handle
+        # #4723: tries the shared bare-modern-slug primitive first, so a
+        # bare human slug matching >1 composed "<slug>-<mid8>" primary dir
+        # raises the structured ambiguity error instead of the identity
+        # resolver's misleading MISSION_NOT_FOUND (it has no fold for a
+        # composed dir name).
+        from specify_cli.cli.selector_resolution import (
+            resolve_mission_dir_with_bare_modern_fold,
+        )
 
-        resolved: ResolvedMission = resolve_mission_handle(mission, repo_root, json_mode=json_mode)
-        return [resolved.feature_dir]
+        return [resolve_mission_dir_with_bare_modern_fold(mission, repo_root, json_mode=json_mode)]
     specs_dir = repo_root / KITTY_SPECS_DIR
     if not specs_dir.exists():
         return []

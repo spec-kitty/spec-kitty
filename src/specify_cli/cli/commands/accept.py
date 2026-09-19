@@ -41,7 +41,7 @@ from specify_cli.merge.baseline import (
 )
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 from specify_cli.cli import StepTracker
-from specify_cli.cli.selector_resolution import resolve_mission_handle
+from specify_cli.cli.selector_resolution import resolve_mission_dir_with_bare_modern_fold
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import show_banner
 from specify_cli.task_utils import (
@@ -830,9 +830,13 @@ def accept(
         console.print()
         tracker.start("detect")
 
-    # Resolve mission handle — supports slug, numeric prefix, mid8, or full ULID.
-    # resolve_mission_handle() handles AmbiguousHandleError / MissionNotFoundError
-    # and calls sys.exit(2) on failure; no try/except needed.
+    # Resolve mission handle — supports slug, numeric prefix, mid8, full ULID,
+    # or a bare human slug naming a composed ``<slug>-<mid8>`` primary dir
+    # (#4723). resolve_mission_dir_with_bare_modern_fold() tries the shared
+    # bare-modern-slug primitive first (so an ambiguous bare slug raises the
+    # structured ambiguity error instead of a misleading MISSION_NOT_FOUND),
+    # then falls back to resolve_mission_handle() for every other form; both
+    # legs call sys.exit() on failure, so no try/except is needed here.
     raw_handle = mission
     if raw_handle is None:
         if json_output:
@@ -846,8 +850,8 @@ def accept(
     if owned is not None:
         mission_slug, mission_dir = owned.slug, owned.directory
     else:
-        resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
-        mission_slug, mission_dir = resolved.mission_slug, resolved.feature_dir
+        mission_dir = resolve_mission_dir_with_bare_modern_fold(raw_handle, repo_root, json_mode=json_output)
+        mission_slug = mission_dir.name
     scope = {"effective_root": owned.root} if owned is not None else {}
 
     # T020 (#3255): computed unconditionally so the SC-008 advisory reaches

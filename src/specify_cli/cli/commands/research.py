@@ -23,7 +23,8 @@ from mission_runtime import MissionArtifactKind, placement_seam
 
 
 def _read_mission_dir_or_exit(repo_root: Path, mission_slug: str, kind: MissionArtifactKind) -> Path:
-    """Resolve a mission artifact read dir, exiting cleanly on an unsafe slug.
+    """Resolve a mission artifact read dir, exiting cleanly on an unsafe or
+    ambiguous slug.
 
     #2878: a traversal-shaped ``--mission`` value trips the safe-path-segment
     guard (``assert_safe_path_segment``) inside the placement seam and raises
@@ -32,13 +33,25 @@ def _read_mission_dir_or_exit(repo_root: Path, mission_slug: str, kind: MissionA
     exemplar (cli/commands/merge.py): canonical diagnostic + ``exit 2``, never
     a traceback. The ``merge._constants`` import stays function-local so the
     happy path never pays the merge package's import graph.
+
+    #4723: a bare human slug matching >1 composed ``<slug>-<mid8>`` primary
+    dir raises ``MissionSelectorAmbiguous`` from the seam's bare-modern-slug
+    fold — previously uncaught here, producing the same kind of raw traceback
+    #2878 already fixed for ``UnsafePathSegmentError``. Rendered with the same
+    structured ``MISSION_AMBIGUOUS_SELECTOR`` shape other read-path-resolver
+    consumers (``verify.py``, ``materialize.py``, ``archive.py``) use.
     """
+    from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
+
     try:
         return placement_seam(repo_root, mission_slug).read_dir(kind)
     except UnsafePathSegmentError as exc:
         from specify_cli.merge._constants import _SAFE_PATH_SEGMENT_DIAGNOSTIC
 
         console.print(f"[red]Error:[/red] {_SAFE_PATH_SEGMENT_DIAGNOSTIC}: {exc}")
+        raise typer.Exit(2) from exc
+    except MissionSelectorAmbiguous as exc:
+        console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(2) from exc
 
 

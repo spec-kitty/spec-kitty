@@ -141,7 +141,11 @@ class TestNextFailClosedHumanMode:
         _, output = _invoke_next_query(
             "no-such-mission-xyz", json_output=False, monkeypatch=monkeypatch
         )
-        assert "spec-kitty mission list" in output, (
+        # #4723: 'spec-kitty mission list' enumerates mission TYPES, never
+        # real mission handles, so it cannot reveal a colliding pair of
+        # missions — the hint now points at 'spec-kitty doctor topology',
+        # which enumerates every mission's real handle.
+        assert "spec-kitty doctor topology" in output, (
             f"Expected remediation hint in output:\n{output}"
         )
 
@@ -198,7 +202,9 @@ class TestNextFailClosedJsonMode:
         )
         payload = json.loads(output)
         assert "remediation" in payload, f"Expected 'remediation' key; got: {payload}"
-        assert "spec-kitty mission list" in payload["remediation"]
+        # #4723: see the human-mode assertion above for why this points at
+        # 'doctor topology' now rather than 'mission list'.
+        assert "spec-kitty doctor topology" in payload["remediation"]
 
 
 # ---------------------------------------------------------------------------
@@ -232,3 +238,17 @@ class TestMissionNotFoundErrorClass:
 
         exc = MissionNotFoundError("x")
         assert isinstance(exc, Exception)
+
+    def test_default_next_step_points_at_doctor_topology_not_mission_list(
+        self,
+    ) -> None:
+        """#4723: 'spec-kitty mission list' enumerates mission TYPES
+        (software-dev, research, …), never real mission handles — following
+        it can never reveal a colliding pair of missions. 'spec-kitty doctor
+        topology' enumerates every mission's real handle from kitty-specs/."""
+        from runtime.next.runtime_bridge import MissionNotFoundError
+
+        exc = MissionNotFoundError("payment")
+
+        assert "spec-kitty doctor topology" in exc.next_step
+        assert "spec-kitty mission list" not in exc.next_step

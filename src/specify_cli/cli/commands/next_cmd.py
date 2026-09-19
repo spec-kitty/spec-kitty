@@ -604,7 +604,11 @@ def _emit_mission_not_found_error(handle: str, json_output: bool, next_step: str
     (#1911). It also remains under the legacy ``remediation`` key for
     backward compatibility.
     """
-    remediation = next_step or "Run 'spec-kitty mission list' to see available missions."
+    # #4723: 'spec-kitty mission list' enumerates mission TYPES (software-dev,
+    # research, …), never real mission handles — it cannot reveal a colliding
+    # pair of missions. 'spec-kitty doctor topology' enumerates every
+    # mission's real handle from kitty-specs/.
+    remediation = next_step or "Run 'spec-kitty doctor topology' to see available missions."
     if json_output:
         from specify_cli import __version__
 

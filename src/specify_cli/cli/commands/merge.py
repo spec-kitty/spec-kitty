@@ -248,13 +248,21 @@ def _resolve_slug_or_exit(repo_root: Path, mission: str | None) -> str | None:
     """Resolve the operator-supplied mission handle to a canonical slug.
 
     Shared by the abort/resume/main paths; raises ``typer.Exit(2)`` with the
-    canonical path-segment diagnostic when the handle is traversal-unsafe.
+    canonical path-segment diagnostic when the handle is traversal-unsafe, or
+    the structured ambiguity error (#4723) when a bare human slug names more
+    than one composed ``<slug>-<mid8>`` primary dir — previously uncaught
+    here, producing a raw traceback instead of a clean diagnostic.
     """
+    from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
+
     mission_slug_raw = (mission or "").strip() or None
     try:
         return _resolve_mission_slug(repo_root, mission_slug_raw)
     except UnsafePathSegmentError as exc:
         console.print(f"[red]Error:[/red] {_SAFE_PATH_SEGMENT_DIAGNOSTIC}: {exc}")
+        raise typer.Exit(2) from exc
+    except MissionSelectorAmbiguous as exc:
+        console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(2) from exc
 
 

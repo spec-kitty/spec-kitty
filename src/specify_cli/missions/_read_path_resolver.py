@@ -1547,10 +1547,20 @@ def resolve_bare_modern_mission_dir_name(
     this primitive bridges that gap by scanning ``kitty-specs/<slug>-*/meta.json``
     for the single directory whose name carries a valid mid8 tail.
 
-    Returns ``None`` when the handle already embeds a mid8 (not a bare slug), when
-    ``kitty-specs/`` is absent, or when zero / multiple composed dirs match (the
-    ambiguous case is deliberately declined here — a no-silent-pick contract; the
-    caller keeps its existing behaviour). Pure-path: no git, one ``glob``.
+    Returns ``None`` when the handle already embeds a mid8 (not a bare slug),
+    when ``kitty-specs/`` is absent, or when zero composed dirs match (a
+    genuinely unknown handle — the caller keeps its existing not-found
+    behaviour). Pure-path: no git, one ``glob``.
+
+    Raises:
+        MissionSelectorAmbiguous: When the bare slug matches MORE THAN ONE
+            composed ``<slug>-<mid8>`` directory (#4723 — C-CTX-4 / C-009). Before
+            this fix, the multi-match case shared the same ``return None`` as the
+            zero-match case, so an operator whose bare slug collided with two or
+            more missions was told ``MISSION_NOT_FOUND`` instead of being shown
+            the candidates to disambiguate between. ``candidates`` carries the
+            composed dir names (e.g. ``payment-01M2TM6J``), which are themselves
+            valid, unambiguous handles the operator can re-run with.
 
     Shared seam (NFR-004): both ``status.aggregate.MissionStatus._find_meta_path``
     and the ``agent status`` CLI helper consume this one definition rather than
@@ -1572,7 +1582,12 @@ def resolve_bare_modern_mission_dir_name(
         for meta_path in sorted(specs_dir.glob(f"{mission_slug}-*/meta.json"))
         if mid8_from_slug(meta_path.parent.name)
     ]
-    if len(matches) != 1:
+    if len(matches) > 1:
+        # #4723: never collapse >1 match onto the same ``None`` the 0-match case
+        # returns — that silent collapse is exactly the no-silent-fallback
+        # violation the ``MissionSelectorAmbiguous`` contract exists to forbid.
+        raise MissionSelectorAmbiguous(handle=mission_slug, candidates=sorted(matches))
+    if not matches:
         return None
     # ``Path.name`` is typed ``str``; the annotation above re-narrows the value
     # mypy widens to ``Any`` through the comprehension so this return is a plain

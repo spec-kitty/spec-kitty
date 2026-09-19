@@ -480,7 +480,12 @@ class MissionNotFoundError(Exception):
 
     def __init__(self, handle: str, next_step: str | None = None) -> None:
         self.handle = handle
-        self.next_step = next_step or (f"Run 'spec-kitty mission list' to see available missions, then re-run with a valid handle (attempted: '{handle}').")
+        # #4723: 'spec-kitty mission list' enumerates mission TYPES
+        # (software-dev, research, …), never real mission handles — it cannot
+        # reveal a colliding pair of missions, and following its own advice
+        # would not surface anything actionable. 'spec-kitty doctor topology'
+        # enumerates every mission's real handle from kitty-specs/.
+        self.next_step = next_step or (f"Run 'spec-kitty doctor topology' to see available missions, then re-run with a valid handle (attempted: '{handle}').")
         super().__init__(f"Mission not found: '{handle}'")
 
 

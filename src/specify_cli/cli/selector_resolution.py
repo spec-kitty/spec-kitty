@@ -255,3 +255,78 @@ def resolve_mission_handle(
                 f'[red]Error:[/red] No mission found for handle "{exc.handle}". Check that the handle is correct and that the mission exists in kitty-specs/.'
             )
         sys.exit(2)
+
+
+def resolve_mission_dir_with_bare_modern_fold(
+    handle: str,
+    repo_root: Path,
+    *,
+    json_mode: bool = False,
+) -> Path:
+    """Resolve ``--mission`` to a directory, folding a bare human slug onto its
+    composed ``<slug>-<mid8>`` primary dir FIRST (#4723).
+
+    ``resolve_mission_handle`` (above) delegates to the identity resolver
+    (:func:`~specify_cli.context.mission_resolver.resolve_mission`), which
+    keys strictly on the stored ``mission_slug`` / ``mission_id`` and has no
+    notion of the on-disk composed ``<slug>-<mid8>`` directory name a bare
+    human slug may name before any coord worktree is materialized (#2050
+    read mirror). For such a handle it falls through every priority rung to
+    ``MissionNotFoundError`` -- even when the bare slug is genuinely
+    AMBIGUOUS (matches more than one composed dir), which used to surface as
+    a misleading ``MISSION_NOT_FOUND`` instead of the structured ambiguity
+    error (#4723 / C-CTX-4 / C-009).
+
+    This wrapper tries the shared bare-modern-slug primitive
+    (:func:`~mission_runtime.placement_seam` -> the read-path resolver
+    family) FIRST -- the SAME seam ``agent status`` / ``agent tasks``
+    already consume (NFR-004) -- so an ambiguous bare slug raises
+    :class:`~specify_cli.missions._read_path_resolver.MissionSelectorAmbiguous`,
+    rendered here with the identical envelope shape ``resolve_mission_handle``
+    uses for ``AmbiguousHandleError`` (a caller cannot tell which resolver
+    caught the ambiguity from the output alone). Falls back to
+    ``resolve_mission_handle`` untouched for every handle the read-path leg
+    does not resolve to an existing directory (mid8 / ULID / numeric-prefix
+    forms, and genuinely unknown handles).
+
+    Args:
+        handle: Raw flag value from ``--mission``.
+        repo_root: Absolute path to the repository root.
+        json_mode: When ``True``, error payloads are emitted as JSON.
+
+    Returns:
+        The resolved mission directory.
+
+    Raises:
+        SystemExit: Exit 2 in human mode; exit 1 in JSON mode (matches
+            ``resolve_mission_handle``'s contract).
+    """
+    from mission_runtime import MissionArtifactKind, placement_seam
+    from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
+
+    try:
+        legacy_dir = placement_seam(repo_root, handle).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    except MissionSelectorAmbiguous as exc:
+        if json_mode:
+            print(
+                _json.dumps(
+                    {
+                        "success": False,
+                        "error_code": exc.error_code,
+                        "error": str(exc),
+                        "handle": exc.handle,
+                        "candidates": exc.candidates,
+                    }
+                )
+            )
+            sys.exit(1)
+        _err_console.print(f"[red]Error:[/red] {exc}")
+        sys.exit(2)
+    if legacy_dir.exists():
+        return legacy_dir
+    # Explicit ``Path`` annotation: under the project's ``follow_imports =
+    # "skip"`` mypy config, ``ResolvedMission.feature_dir`` (a same-package
+    # but separately-checked module) resolves as ``Any`` here; the
+    # annotation re-narrows it to the type it is actually declared as.
+    resolved_dir: Path = resolve_mission_handle(handle, repo_root, json_mode=json_mode).feature_dir
+    return resolved_dir

@@ -889,8 +889,12 @@ class TestMissionNotFoundNextStep:
 
         # Affordance restored: actionable, mentions how to list missions and
         # echoes the bad handle so the operator can self-correct.
+        # #4723: 'mission list' enumerates mission TYPES, never real mission
+        # handles, so it cannot reveal a colliding pair of missions — the
+        # hint now points at 'doctor topology', which enumerates every
+        # mission's real handle.
         assert err.next_step
-        assert "mission list" in err.next_step
+        assert "doctor topology" in err.next_step
         assert "069-missing" in err.next_step
         # #1910 contract preserved exactly.
         assert err.handle == "069-missing"
@@ -918,7 +922,9 @@ class TestMissionNotFoundNextStep:
         assert payload["error_code"] == "MISSION_NOT_FOUND"
         assert payload["handle"] == "069-missing"
         assert "next_step" in payload
-        assert "mission list" in payload["next_step"]
+        # #4723: see test_error_populates_next_step for why this points at
+        # 'doctor topology' now rather than 'mission list'.
+        assert "doctor topology" in payload["next_step"]
 
     def test_query_mode_human_prints_next_line(self, tmp_path: Path) -> None:
         """The human-readable query-mode path prints a 'Next:' remediation line."""
@@ -939,4 +945,6 @@ class TestMissionNotFoundNextStep:
 
         assert result.exit_code == 1
         assert "Next:" in result.output
-        assert "mission list" in result.output
+        # #4723: see test_error_populates_next_step for why this points at
+        # 'doctor topology' now rather than 'mission list'.
+        assert "doctor topology" in result.output
