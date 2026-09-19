@@ -56,6 +56,17 @@ this section at publish._
   sole mission, listing available handles (`slug (mid8) — name`, legacy missions
   included) when several exist, or pointing to `specify` when none do — instead
   of dead-ending on a `--mission is required` usage error.
+- **An ambiguous `--mission <handle>` now says so instead of "not found"** (#4723).
+  When a bare human slug matches more than one mission (e.g. two `payment-*`
+  missions, both typed as `--mission payment`), every command **before** reported
+  `Mission not found: payment` — telling you nothing matched when in fact several
+  did, and pointing at a recovery command that could not reveal the collision.
+  **After:** the commands surface the ambiguity (`Mission handle 'payment' matches
+  multiple missions: … — re-run with a more specific handle`) and name the
+  colliding handles, matching how an ambiguous `mid8`/numeric handle already
+  behaved. The misleading not-found hint also changed from `spec-kitty mission
+  list` (which lists mission *types*) to `spec-kitty doctor topology` (which lists
+  real mission handles).
 
 ## [4.0.0rc3] - 2026-09-15
 
