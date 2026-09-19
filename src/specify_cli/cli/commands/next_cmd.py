@@ -45,6 +45,7 @@ if TYPE_CHECKING:
 
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.paths import (
+    MissionMetaReadError,
     UnsafePathSegmentError,
     get_main_repo_root,
     locate_project_root,
@@ -240,15 +241,27 @@ def next_step(
     # Query mode: bare call without --result remains read-only and does not
     # require agent identity.
     if result is None:
-        _run_query_mode(
-            agent,
-            mission_slug,
-            repo_root,
-            json_output,
-            answered_id,
-            answer,
-            effective_root=effective_root,
-        )
+        try:
+            _run_query_mode(
+                agent,
+                mission_slug,
+                repo_root,
+                json_output,
+                answered_id,
+                answer,
+                effective_root=effective_root,
+            )
+        except MissionMetaReadError as _exc:
+            # #4642 / WP03: the corrupt-meta decode escapes THIS call
+            # (query_current_state -> runtime_bridge -> load_meta_fail_closed),
+            # not the slug-resolution try/except above -- MissionMetaReadError
+            # subclasses RuntimeError, not ValueError, so it never reaches the
+            # ``except ValueError`` arm at the top of this function either.
+            # Catch the exact type here (never broaden to RuntimeError -- that
+            # would swallow the unrelated owned-checkout RuntimeErrors raised
+            # at ~L314/324) and fail closed instead of crashing.
+            _emit_meta_read_error(_exc, json_output)
+            raise typer.Exit(1) from _exc
         return  # No event emitted, no DAG advancement
 
     if not agent:
@@ -260,7 +273,13 @@ def next_step(
     # pair is observable even if decide_next raises.
     _pair_previous_lifecycle_record(agent, mission_slug, result, repo_root, effective_root=effective_root)
 
-    decision = decide_next(agent, mission_slug, result, repo_root, effective_root=effective_root)
+    try:
+        decision = decide_next(agent, mission_slug, result, repo_root, effective_root=effective_root)
+    except MissionMetaReadError as _exc:
+        # #4642 / WP03: same escape site as the query-mode branch above, this
+        # time reached via the advancing (``--result``) path.
+        _emit_meta_read_error(_exc, json_output)
+        raise typer.Exit(1) from _exc
     _emit_mission_next_invoked(
         agent,
         result,
@@ -753,6 +772,35 @@ def _emit_internal_resolution_error(exc: ValueError, json_output: bool) -> None:
         print(json.dumps(payload, indent=2))
     else:
         print(f"Error: {message}", file=sys.stderr)
+
+
+def _emit_meta_read_error(exc: MissionMetaReadError, json_output: bool) -> None:
+    """Present a corrupt ``meta.json`` as a clean fail-closed error (#4642).
+
+    Mirrors ``_emit_internal_resolution_error``'s dual ``--json``/plain output
+    contract. ``MissionMetaReadError`` already carries a fully-formed
+    fail-closed message naming the offending file
+    (``exc.meta_path``); this adds the ``spec-kitty doctor`` remediation hint
+    so the operator -- or the agent control loop calling ``next`` repeatedly
+    -- gets an actionable next step instead of an uncaught traceback.
+    """
+    message = str(exc)
+    remediation = "run: spec-kitty doctor"
+    if json_output:
+        from specify_cli import __version__
+
+        payload: dict[str, object] = {
+            "result": "error",
+            "error_code": "MISSION_META_READ_ERROR",
+            "error": message,
+            "meta_path": str(exc.meta_path),
+            "next_step": remediation,
+            "spec_kitty_version": __version__,
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        print(f"Error: {message}", file=sys.stderr)
+        print(f"  Next: {remediation}", file=sys.stderr)
 
 
 def _read_path_signal(exc: Exception) -> tuple[str, list[str], str | None]:

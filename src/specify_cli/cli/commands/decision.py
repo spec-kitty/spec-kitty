@@ -25,6 +25,7 @@ import typer
 
 from mission_runtime import ActionContextError
 
+from specify_cli.decisions import DecisionIndexReadError
 from specify_cli.decisions.models import (
     DecisionErrorCode,
     DecisionOpenResponse,
@@ -209,6 +210,32 @@ def _handle_action_context_error(exc: ActionContextError) -> None:
     raise typer.Exit(1)
 
 
+def _handle_index_read_error(exc: DecisionIndexReadError) -> None:
+    """Render a corrupt ``decisions/index.json`` as a structured diagnostic.
+
+    FR-003/FR-004/FR-005 (#4642): every subcommand reaches
+    :func:`specify_cli.decisions.store.load_index` (directly, via the
+    verifier, or via the decisions service), which raises
+    :class:`DecisionIndexReadError` fail-closed when the index exists but is
+    corrupt (malformed JSON, non-UTF-8 bytes, or schema-invalid). That
+    exception MUST NOT escape as a raw traceback — mirrors
+    :func:`_handle_decision_error`: a structured ``{code, error, details}``
+    payload to stderr, then ``typer.Exit(1)``. ``str(exc)`` already carries
+    the fail-closed explanation and the ``run: spec-kitty doctor`` recovery
+    hint (see :class:`DecisionIndexReadError.__init__`).
+    """
+    payload = {
+        "code": "DECISION_INDEX_UNREADABLE",
+        "error": str(exc),
+        "details": {
+            "index_path": str(exc.index_path),
+            "cause": str(exc.cause),
+        },
+    }
+    typer.echo(json.dumps(payload, sort_keys=True), err=True)
+    raise typer.Exit(1)
+
+
 # ---------------------------------------------------------------------------
 # Subcommand: open
 # ---------------------------------------------------------------------------
@@ -286,6 +313,9 @@ def cmd_open(  # noqa: PLR0913
     except DecisionError as exc:
         _handle_decision_error(exc)
         return
+    except DecisionIndexReadError as exc:
+        _handle_index_read_error(exc)
+        return  # unreachable — _handle_index_read_error raises
 
     typer.echo(
         json.dumps(
@@ -341,6 +371,9 @@ def cmd_resolve(  # noqa: PLR0913
     except DecisionError as exc:
         _handle_decision_error(exc)
         return
+    except DecisionIndexReadError as exc:
+        _handle_index_read_error(exc)
+        return  # unreachable — _handle_index_read_error raises
 
     typer.echo(json.dumps(_terminal_response_to_dict(resp), sort_keys=True))
 
@@ -389,6 +422,9 @@ def cmd_defer(
     except DecisionError as exc:
         _handle_decision_error(exc)
         return
+    except DecisionIndexReadError as exc:
+        _handle_index_read_error(exc)
+        return  # unreachable — _handle_index_read_error raises
 
     typer.echo(json.dumps(_terminal_response_to_dict(resp), sort_keys=True))
 
@@ -437,6 +473,9 @@ def cmd_cancel(
     except DecisionError as exc:
         _handle_decision_error(exc)
         return
+    except DecisionIndexReadError as exc:
+        _handle_index_read_error(exc)
+        return  # unreachable — _handle_index_read_error raises
 
     typer.echo(json.dumps(_terminal_response_to_dict(resp), sort_keys=True))
 
@@ -494,7 +533,11 @@ def cmd_verify(
         )
         return  # unreachable — _handle_action_context_error raises
 
-    result = _verify_decisions(mission_dir, mission_slug)
+    try:
+        result = _verify_decisions(mission_dir, mission_slug)
+    except DecisionIndexReadError as exc:
+        _handle_index_read_error(exc)
+        return  # unreachable — _handle_index_read_error raises
 
     findings_list = [
         {
@@ -595,7 +638,12 @@ def cmd_list(
 
     from specify_cli.decisions.store import load_index
 
-    index = load_index(mission_dir)
+    try:
+        index = load_index(mission_dir)
+    except DecisionIndexReadError as exc:
+        _handle_index_read_error(exc)
+        return  # unreachable — _handle_index_read_error raises
+
     entries = sorted(index.entries, key=lambda e: (e.created_at, e.decision_id))
     if status_filter is not None:
         entries = [e for e in entries if e.status is status_filter]

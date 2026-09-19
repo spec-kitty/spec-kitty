@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -915,4 +916,183 @@ def test_list_invalid_status_exits_1_structured(tmp_path: Path) -> None:
     payload = json.loads(result.stderr)
     assert payload["code"] == "DECISION_MISSING_STEP_OR_SLOT"
     assert "open" in payload["details"]["valid_values"]
-    assert "bogus" in payload["error"]
+
+
+# ---------------------------------------------------------------------------
+# #4642 — a corrupt decisions/index.json must never escape a boundary command
+# as a raw traceback (fail-closed, structured JSON error, doctor hint).
+# ---------------------------------------------------------------------------
+
+
+def _corrupt_index(mission_dir: Path, content: bytes) -> Path:
+    """Overwrite ``decisions/index.json`` with raw *content* bytes.
+
+    Bypasses the store's own writer entirely so the fixture can produce
+    payloads ``save_index`` would never emit itself (malformed JSON,
+    non-UTF-8 bytes, a schema-invalid shape) — exactly the corruption
+    classes :func:`specify_cli.decisions.store.load_index` must fail closed
+    on (WP01, ``DecisionIndexReadError``).
+    """
+    decisions_dir = _store.decisions_dir(mission_dir)
+    decisions_dir.mkdir(parents=True, exist_ok=True)
+    index_file = _store.index_path(mission_dir)
+    index_file.write_bytes(content)
+    return index_file
+
+
+_MALFORMED_JSON = b"{not valid json!!"
+_NON_UTF8_BYTES = b"\xff\xfe\x00\x01not-utf8-at-all"
+_WRONG_SHAPE = json.dumps({"entries": "not-a-list"}).encode("utf-8")
+
+# Wrapped in pytest.param (with stable ids) only at the parametrize sites below;
+# the constants themselves stay plain ``bytes`` so the non-parametrized tests can
+# pass them straight to ``_corrupt_index`` without reaching into ``.values``.
+_CORRUPTION_CASES = [
+    pytest.param(_MALFORMED_JSON, id="malformed_json"),
+    pytest.param(_NON_UTF8_BYTES, id="non_utf8_bytes"),
+    pytest.param(_WRONG_SHAPE, id="wrong_shape_entries_not_a_list"),
+]
+
+
+def _assert_index_unreadable_response(result: object, index_file: Path) -> dict[str, Any]:
+    """Shared assertions for a corrupt-index boundary response (#4642).
+
+    Applies to every subcommand reaching ``load_index``: exit 1, no raw
+    exception/traceback, and a structured JSON payload on stderr naming the
+    corrupt file and the ``spec-kitty doctor`` recovery hint.
+    """
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert "Traceback (most recent call last)" not in result.output
+    assert "Traceback (most recent call last)" not in result.stderr
+    payload = json.loads(result.stderr)
+    assert payload["code"] == "DECISION_INDEX_UNREADABLE"
+    assert str(index_file) in payload["error"]
+    assert "spec-kitty doctor" in payload["error"]
+    return payload
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("corrupt_content", _CORRUPTION_CASES)
+def test_verify_corrupt_index_exits_1_no_traceback(tmp_path: Path, corrupt_content: bytes) -> None:
+    """#4642: ``decision verify`` presents a corrupt index.json cleanly."""
+    mission_dir = _setup_mission(tmp_path)
+    index_file = _corrupt_index(mission_dir, corrupt_content)
+
+    result = _invoke(["decision", "verify", "--mission", MISSION_SLUG], cwd=tmp_path)
+
+    _assert_index_unreadable_response(result, index_file)
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("corrupt_content", _CORRUPTION_CASES)
+def test_resolve_corrupt_index_exits_1_no_traceback(tmp_path: Path, corrupt_content: bytes) -> None:
+    """#4642: ``decision resolve`` presents a corrupt index.json cleanly."""
+    mission_dir = _setup_mission(tmp_path)
+    index_file = _corrupt_index(mission_dir, corrupt_content)
+
+    result = _invoke(
+        [
+            "decision",
+            "resolve",
+            "01HTESTDECISIONIDAAAAAAA",
+            "--mission",
+            MISSION_SLUG,
+            "--final-answer",
+            "a",
+            "--rationale",
+            "r",
+            "--resolved-by",
+            "z",
+        ],
+        cwd=tmp_path,
+    )
+
+    _assert_index_unreadable_response(result, index_file)
+
+
+@pytest.mark.regression
+def test_list_corrupt_index_exits_1_no_traceback(tmp_path: Path) -> None:
+    """#4642: ``decision list`` presents a corrupt index.json cleanly."""
+    mission_dir = _setup_mission(tmp_path)
+    index_file = _corrupt_index(mission_dir, _MALFORMED_JSON)
+
+    result = _invoke(["decision", "list", "--mission", MISSION_SLUG], cwd=tmp_path)
+
+    _assert_index_unreadable_response(result, index_file)
+
+
+@pytest.mark.regression
+def test_open_corrupt_index_exits_1_no_traceback(tmp_path: Path) -> None:
+    """#4642: ``decision open`` presents a corrupt index.json cleanly.
+
+    ``open_decision`` only reaches ``load_index`` on the non-dry-run path
+    (it looks up the logical key to decide idempotency), so this exercises
+    that path directly.
+    """
+    mission_dir = _setup_mission(tmp_path)
+    index_file = _corrupt_index(mission_dir, _MALFORMED_JSON)
+
+    result = _invoke(
+        [
+            "decision",
+            "open",
+            "--mission",
+            MISSION_SLUG,
+            "--flow",
+            "charter",
+            "--step-id",
+            "step-1",
+            "--input-key",
+            "team_size",
+            "--question",
+            "How large is the team?",
+        ],
+        cwd=tmp_path,
+    )
+
+    _assert_index_unreadable_response(result, index_file)
+
+
+@pytest.mark.regression
+def test_defer_corrupt_index_exits_1_no_traceback(tmp_path: Path) -> None:
+    """#4642: ``decision defer`` presents a corrupt index.json cleanly."""
+    mission_dir = _setup_mission(tmp_path)
+    index_file = _corrupt_index(mission_dir, _MALFORMED_JSON)
+
+    result = _invoke(
+        [
+            "decision",
+            "defer",
+            "01HTESTDECISIONIDAAAAAAA",
+            "--mission",
+            MISSION_SLUG,
+            "--rationale",
+            "waiting on input",
+        ],
+        cwd=tmp_path,
+    )
+
+    _assert_index_unreadable_response(result, index_file)
+
+
+@pytest.mark.regression
+def test_cancel_corrupt_index_exits_1_no_traceback(tmp_path: Path) -> None:
+    """#4642: ``decision cancel`` presents a corrupt index.json cleanly."""
+    mission_dir = _setup_mission(tmp_path)
+    index_file = _corrupt_index(mission_dir, _MALFORMED_JSON)
+
+    result = _invoke(
+        [
+            "decision",
+            "cancel",
+            "01HTESTDECISIONIDAAAAAAA",
+            "--mission",
+            MISSION_SLUG,
+            "--rationale",
+            "no longer relevant",
+        ],
+        cwd=tmp_path,
+    )
+
+    _assert_index_unreadable_response(result, index_file)

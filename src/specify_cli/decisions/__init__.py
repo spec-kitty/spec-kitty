@@ -18,6 +18,7 @@ from specify_cli.decisions.models import (
     logical_key,
 )
 from specify_cli.decisions.store import (
+    DecisionIndexReadError,
     append_entry,
     artifact_path,
     decisions_dir,
@@ -56,6 +57,7 @@ __all__ = [
     "update_entry",
     "write_artifact",
     "find_by_logical_key",
+    "DecisionIndexReadError",
     # verify
     "SENTINEL_RE",
     "VerifyFinding",

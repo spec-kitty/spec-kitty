@@ -529,7 +529,7 @@ def _read_ledger(mission_dir: Path, acting_root: Path) -> _LedgerRead:
 
     try:
         return _LedgerRead(index=store.load_index(mission_dir), unreadable=False)
-    except (OSError, json.JSONDecodeError, ValidationError):
+    except (OSError, json.JSONDecodeError, ValidationError, store.DecisionIndexReadError):
         # MALFORMED (bad JSON, or schema-invalid content), plus any residual read
         # failure between the probe and the parse. Ownership cannot be
         # established from this ledger, and unreadable ownership is not consent.

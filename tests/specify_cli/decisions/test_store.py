@@ -21,6 +21,7 @@ from specify_cli.decisions.models import (
     OriginFlow,
 )
 from specify_cli.decisions.store import (
+    DecisionIndexReadError,
     append_entry,
     artifact_path,
     decisions_dir,
@@ -160,6 +161,54 @@ class TestLoadSaveIndex:
         idx = DecisionIndex(mission_id=MISSION, entries=(_entry(),))
         save_index(tmp_path, idx)
         assert d.is_dir()
+
+
+# ---------------------------------------------------------------------------
+# load_index fail-closed on corrupt index.json (#4642)
+# ---------------------------------------------------------------------------
+
+
+class TestLoadIndexFailsClosed:
+    def test_malformed_json_raises_decision_index_read_error(self, tmp_path: Path) -> None:
+        decisions_dir(tmp_path).mkdir(parents=True)
+        index_path(tmp_path).write_text("{ not json", encoding="utf-8")
+
+        with pytest.raises(DecisionIndexReadError) as excinfo:
+            load_index(tmp_path)
+
+        assert excinfo.value.index_path == index_path(tmp_path)
+        assert "run: spec-kitty doctor" in str(excinfo.value)
+
+    def test_non_utf8_bytes_raises_decision_index_read_error(self, tmp_path: Path) -> None:
+        decisions_dir(tmp_path).mkdir(parents=True)
+        index_path(tmp_path).write_bytes(b"\xff\xfe\x00corrupt")
+
+        with pytest.raises(DecisionIndexReadError) as excinfo:
+            load_index(tmp_path)
+
+        assert "run: spec-kitty doctor" in str(excinfo.value)
+
+    def test_wrong_shape_raises_decision_index_read_error(self, tmp_path: Path) -> None:
+        decisions_dir(tmp_path).mkdir(parents=True)
+        index_path(tmp_path).write_text(json.dumps({"entries": "not-a-list"}), encoding="utf-8")
+
+        with pytest.raises(DecisionIndexReadError) as excinfo:
+            load_index(tmp_path)
+
+        assert "run: spec-kitty doctor" in str(excinfo.value)
+
+    def test_missing_file_still_returns_empty_index(self, tmp_path: Path) -> None:
+        """Regression guard: the preserved missing-file branch must not raise."""
+        idx = load_index(tmp_path)
+        assert idx.entries == ()
+
+    def test_valid_index_round_trips_after_fix(self, tmp_path: Path) -> None:
+        idx = DecisionIndex(mission_id=MISSION, entries=(_entry(),))
+        save_index(tmp_path, idx)
+        loaded = load_index(tmp_path)
+        assert loaded.mission_id == MISSION
+        assert len(loaded.entries) == 1
+        assert loaded.entries[0].decision_id == ULID_A
 
 
 # ---------------------------------------------------------------------------

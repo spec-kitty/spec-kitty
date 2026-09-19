@@ -657,7 +657,6 @@ exclude = [
     "src/specify_cli/dashboard/templates/__init__.py",
     "src/specify_cli/decisions/ownership.py",
     "src/specify_cli/decisions/service.py",
-    "src/specify_cli/decisions/store.py",
     "src/specify_cli/decisions/verify.py",
     "src/specify_cli/distribution/simple_index.py",
     "src/specify_cli/doc_analysis/gap_analysis.py",

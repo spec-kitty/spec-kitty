@@ -13,6 +13,9 @@ import os
 import tempfile
 from pathlib import Path
 
+from pydantic import ValidationError
+
+from kernel.meta_decode import MetaDecodeError, decode_meta
 from specify_cli.decisions.models import (
     DecisionIndex,
     IndexEntry,
@@ -30,7 +33,29 @@ __all__ = [
     "update_entry",
     "write_artifact",
     "find_by_logical_key",
+    "DecisionIndexReadError",
 ]
+
+
+class DecisionIndexReadError(RuntimeError):
+    """Raised when ``decisions/index.json`` exists but cannot be decoded.
+
+    Mirrors :class:`specify_cli.core.paths.MissionMetaReadError`: a
+    fail-closed signal distinguishing a genuine *read failure* (malformed
+    JSON, non-UTF-8 bytes, or a schema-invalid payload) from the benign
+    *missing-file* case, which ``load_index`` still resolves to an empty
+    :class:`~specify_cli.decisions.models.DecisionIndex`.
+
+    Attributes:
+        index_path: The path of the ``index.json`` that could not be decoded.
+        cause: The underlying exception (``MetaDecodeError``, ``OSError``, or
+            pydantic's ``ValidationError``).
+    """
+
+    def __init__(self, index_path: Path, cause: Exception) -> None:
+        self.index_path = index_path
+        self.cause = cause
+        super().__init__(f"Cannot read {index_path}: {cause} — fail-closed (index.json exists but is corrupt or unreadable); run: spec-kitty doctor")
 
 
 # ---------------------------------------------------------------------------
@@ -59,12 +84,37 @@ def artifact_path(mission_dir: Path, decision_id: str) -> Path:
 
 
 def load_index(mission_dir: Path) -> DecisionIndex:
-    """Load and parse ``index.json``, returning an empty index if missing."""
+    """Load and parse ``index.json``, returning an empty index if missing.
+
+    Raises:
+        DecisionIndexReadError: When ``index.json`` exists but is corrupt
+            (malformed JSON, non-UTF-8 bytes, or schema-invalid) — fail-closed
+            (FR-002/FR-004). Never raised for a missing file.
+    """
     path = index_path(mission_dir)
     if not path.exists():
         return DecisionIndex(mission_id="", entries=())
-    raw = json.loads(path.read_text(encoding="utf-8"))
-    return DecisionIndex.model_validate(raw)
+    return _decode_index(path)
+
+
+def _decode_index(path: Path) -> DecisionIndex:
+    """Decode *path* into a :class:`DecisionIndex`, fail-closed on corruption.
+
+    Reuses the canonical L1 kernel decoder (:func:`kernel.meta_decode.decode_meta`)
+    for the bytes-to-JSON layer — malformed JSON and non-UTF-8 bytes both surface
+    as :class:`~kernel.meta_decode.MetaDecodeError` there — and wraps pydantic's
+    schema validation separately, so both failure classes present identically as
+    :class:`DecisionIndexReadError`.
+    """
+    try:
+        raw = decode_meta(path.read_bytes(), on_malformed="raise")
+    except (MetaDecodeError, OSError) as exc:
+        raise DecisionIndexReadError(path, exc) from exc
+
+    try:
+        return DecisionIndex.model_validate(raw)
+    except ValidationError as exc:
+        raise DecisionIndexReadError(path, exc) from exc
 
 
 def save_index(mission_dir: Path, index: DecisionIndex) -> None:
@@ -87,10 +137,7 @@ def save_index(mission_dir: Path, index: DecisionIndex) -> None:
         entries=tuple(sorted_entries),
     )
 
-    payload = (
-        json.dumps(sorted_index.model_dump(mode="json"), sort_keys=True, indent=2)
-        + "\n"
-    )
+    payload = json.dumps(sorted_index.model_dump(mode="json"), sort_keys=True, indent=2) + "\n"
     _atomic_write(d_dir, index_path(mission_dir), payload.encode("utf-8"))
 
 
@@ -113,17 +160,12 @@ def update_entry(mission_dir: Path, decision_id: str, **updates: object) -> Deci
     Raises ``KeyError`` if *decision_id* is not found.
     """
     current = load_index(mission_dir)
-    matched = next(
-        (e for e in current.entries if e.decision_id == decision_id), None
-    )
+    matched = next((e for e in current.entries if e.decision_id == decision_id), None)
     if matched is None:
         raise KeyError(f"decision_id {decision_id!r} not found in index")
 
     replacement = matched.model_copy(update=updates)
-    new_entries = tuple(
-        replacement if e.decision_id == decision_id else e
-        for e in current.entries
-    )
+    new_entries = tuple(replacement if e.decision_id == decision_id else e for e in current.entries)
     new_index = DecisionIndex(
         version=current.version,
         mission_id=current.mission_id,
@@ -205,9 +247,7 @@ def _render_artifact(entry: IndexEntry) -> str:
     lines.append(f"- `{entry.created_at.isoformat()}` — opened")
     if entry.resolved_at is not None and entry.status.value in ("resolved", "deferred", "canceled"):
         if entry.final_answer is not None:
-            lines.append(
-                f'- `{entry.resolved_at.isoformat()}` — {entry.status.value} (final_answer="{entry.final_answer}")'
-            )
+            lines.append(f'- `{entry.resolved_at.isoformat()}` — {entry.status.value} (final_answer="{entry.final_answer}")')
         else:
             lines.append(f"- `{entry.resolved_at.isoformat()}` — {entry.status.value}")
 

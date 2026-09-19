@@ -3691,6 +3691,7 @@ def design_status(
 
     from pydantic import ValidationError
 
+    from specify_cli.decisions.store import DecisionIndexReadError
     from specify_cli.status import StoreError
 
     try:
@@ -3703,12 +3704,13 @@ def design_status(
             {"mission_slug": mission, "error": str(exc)},
         )
         return
-    except (json.JSONDecodeError, ValidationError) as exc:
+    except (json.JSONDecodeError, ValidationError, DecisionIndexReadError) as exc:
         # ``_open_decisions`` -> ``decisions.store.load_index`` reads
         # ``decisions/index.json`` inside the SAME reduction this ``try``
-        # guards -- a hand-corrupted index raises malformed-JSON
-        # (``json.JSONDecodeError``) or schema-invalid
-        # (pydantic ``ValidationError``), neither of which is a
+        # guards -- a hand-corrupted index (malformed JSON, non-UTF-8, or
+        # schema-invalid) now fails closed as the wrapping
+        # ``DecisionIndexReadError`` (#4642); the raw ``json.JSONDecodeError`` /
+        # pydantic ``ValidationError`` are retained defensively. None is a
         # ``StoreError``. Reuse the SAME typed STORE error envelope the
         # torn-``status.events.jsonl`` shapes above already produce, rather
         # than letting either exception escape un-enveloped.
