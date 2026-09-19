@@ -15,6 +15,7 @@ import os
 import tempfile
 from pathlib import Path
 
+from kernel.errors import GuardedReadError
 from specify_cli.lanes.models import LanesManifest
 
 LANES_FILENAME = "lanes.json"
@@ -31,12 +32,21 @@ def resolve_lanes_dir(feature_dir: Path) -> Path:
     return feature_dir / LANES_FILENAME
 
 
-class CorruptLanesError(Exception):
-    """Raised when lanes.json exists but cannot be parsed."""
+class CorruptLanesError(GuardedReadError):
+    """Raised when lanes.json exists but cannot be parsed.
+
+    Re-parented together with :class:`MissingLanesError` (mission
+    cli-error-surface-seam) — the caller census treats them as one coupled
+    unit since many callers tuple-catch both.
+    """
 
 
-class MissingLanesError(Exception):
-    """Raised when lanes.json is required but missing."""
+class MissingLanesError(GuardedReadError):
+    """Raised when lanes.json is required but missing.
+
+    Re-parented together with :class:`CorruptLanesError` (mission
+    cli-error-surface-seam) — see that class's docstring.
+    """
 
 
 def write_lanes_json(feature_dir: Path, manifest: LanesManifest) -> Path:

@@ -10,6 +10,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from kernel.errors import GuardedReadError
+
 
 # Stable string codes — these are what the contract document references.
 INTAKE_PATH_ESCAPE: str = "INTAKE_PATH_ESCAPE"
@@ -74,8 +76,16 @@ class IntakeFileMissingError(IntakeError):
         )
 
 
-class IntakeFileUnreadableError(IntakeError):
-    """Raised when an existing candidate cannot be read (permissions / IO / decode)."""
+class IntakeFileUnreadableError(IntakeError, GuardedReadError):
+    """Raised when an existing candidate cannot be read (permissions / IO / decode).
+
+    Also subclasses :class:`kernel.errors.GuardedReadError` (mission
+    cli-error-surface-seam) so the global CLI hook catches it too, without
+    disturbing the pre-existing :class:`IntakeError` ``code``/``detail``
+    contract other intake callers rely on — ``IntakeError`` is listed first so
+    its ``__init__`` keeps handling construction (it forwards to
+    ``GuardedReadError.__init__`` via ``super()`` in the MRO).
+    """
 
     code = INTAKE_FILE_UNREADABLE
 

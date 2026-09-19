@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from kernel.errors import GuardedReadError
+
 from .constants import KITTIFY_DIR, LINT_REPORT_FILENAME, WORKTREES_DIR
 
 logger = logging.getLogger(__name__)
@@ -39,8 +41,15 @@ _SAFE_PATH_SEGMENT_RE: re.Pattern[str] = re.compile(
 )
 
 
-class UnsafePathSegmentError(ValueError):
-    """Raised when a value is not a canonical safe path segment."""
+class UnsafePathSegmentError(GuardedReadError, ValueError):
+    """Raised when a value is not a canonical safe path segment.
+
+    Subclasses both :class:`kernel.errors.GuardedReadError` (mission
+    cli-error-surface-seam — the global CLI hook catches it) and
+    :class:`ValueError` (pre-existing contract — every ``except ValueError``
+    call site keeps matching). MRO:
+    ``[UnsafePathSegmentError, GuardedReadError, ValueError, Exception, ...]``.
+    """
 
 
 def assert_safe_path_segment(value: str) -> str:
@@ -541,7 +550,7 @@ class StatusReadUnsupported(RuntimeError):
     """
 
 
-class MissionMetaReadError(RuntimeError):
+class MissionMetaReadError(GuardedReadError, RuntimeError):
     """Raised when meta.json exists but cannot be decoded.
 
     Distinguishes a *read failure* (corrupt JSON or I/O error) from a

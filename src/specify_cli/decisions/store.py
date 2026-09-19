@@ -15,6 +15,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from kernel.errors import GuardedReadError
 from kernel.meta_decode import MetaDecodeError, decode_meta
 from specify_cli.decisions.models import (
     DecisionIndex,
@@ -37,7 +38,7 @@ __all__ = [
 ]
 
 
-class DecisionIndexReadError(RuntimeError):
+class DecisionIndexReadError(GuardedReadError, RuntimeError):
     """Raised when ``decisions/index.json`` exists but cannot be decoded.
 
     Mirrors :class:`specify_cli.core.paths.MissionMetaReadError`: a

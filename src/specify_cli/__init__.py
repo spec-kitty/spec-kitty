@@ -429,6 +429,44 @@ def _warn_bytecode_healed(removed: int) -> None:
     )
 
 
+def _guarded_read_error_json_payload(exc: Any) -> dict[str, Any]:
+    """Build the ``error``/``kind``/``path`` envelope (``contracts/error-envelope.md``)."""
+    return {"error": str(exc), "kind": type(exc).__name__, "path": exc.path}
+
+
+def _print_guarded_read_error(exc: Any, *, json_mode: bool) -> None:
+    """Render *exc* per the hook contract: one JSON object on stdout, or one
+    text line on stderr — never both (INV-1)."""
+    if json_mode:
+        import json
+
+        print(json.dumps(_guarded_read_error_json_payload(exc)))
+    else:
+        print(f"Error: {exc}", file=sys.stderr)
+
+
+def _run_app_with_error_hook(app: typer.Typer, *, json_mode: bool) -> None:
+    """Invoke *app*, presenting a ``GuardedReadError`` uniformly at exit 1.
+
+    The single global CLI error-presentation authority registered on the
+    top-level app (FR-002/D2, ``contracts/error-envelope.md``, INV-4): a
+    ``GuardedReadError`` (or subclass) raised by any command is rendered as a
+    clean text line (stderr, no ``--json``) or a JSON object (stdout,
+    ``--json``), then the process exits **1**. A Typer *usage* error (missing
+    arg, bad option) is a ``SystemExit(2)`` raised inside ``app()`` itself —
+    never a ``GuardedReadError`` — so it is never intercepted here (INV-2).
+    Any other exception re-raises untouched so a genuine bug still surfaces
+    as a traceback (INV-3).
+    """
+    from kernel.errors import GuardedReadError
+
+    try:
+        app()
+    except GuardedReadError as exc:
+        _print_guarded_read_error(exc, json_mode=json_mode)
+        raise SystemExit(1) from exc
+
+
 def _load_bytecode_heal_invoker() -> Callable[..., Any]:
     """Return ``invoke_with_bytecode_heal``, or a pass-through if unreachable.
 
@@ -472,7 +510,8 @@ def main() -> None:
     # would corrupt the JSON. Run the bootstrap in silent mode so a successful
     # ``--json`` run emits only the JSON object (errors are still emitted as JSON
     # on stdout by the commands themselves).
-    install_cli_logging_bootstrap(json_mode=_argv_requests_json_mode(sys.argv))
+    json_mode = _argv_requests_json_mode(sys.argv)
+    install_cli_logging_bootstrap(json_mode=json_mode)
 
     # Ensure UTF-8 encoding on Windows to handle Unicode characters in git output
     # Fixes: https://github.com/Priivacy-ai/spec-kitty/issues/66
@@ -506,7 +545,7 @@ def main() -> None:
     # here is side-effect free; the command invocation itself stays outside
     # the wrapper so a mid-command failure is never re-run.
     app = _load_bytecode_heal_invoker()(_assemble_app, on_healed=_warn_bytecode_healed)
-    app()
+    _run_app_with_error_hook(app, json_mode=json_mode)
 
 
 __all__ = ["main", "app", "__version__"]

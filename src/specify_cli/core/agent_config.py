@@ -15,12 +15,13 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
+from kernel.errors import GuardedReadError
 from specify_cli.core.config import AI_CHOICES
 
 logger = logging.getLogger(__name__)
 
 
-class AgentConfigError(RuntimeError):
+class AgentConfigError(GuardedReadError, RuntimeError):
     """Raised when .kittify/config.yaml cannot be parsed or validated."""
 
 
