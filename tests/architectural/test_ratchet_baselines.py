@@ -134,6 +134,7 @@ _REQUIRED_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
         "test_layer_rules",
         "test_runtime_charter_doctrine_boundary",
         "test_doctrine_census",
+        "test_cli_error_surface_seam",
     }
 )
 
@@ -446,6 +447,15 @@ def test_growing_an_allowlist_above_baseline_fails() -> None:
             "_KNOWN_UNGATED_FILES",
             data["test_egress_consent_boundary"]["known_ungated_files"],
         ),
+        # FR-011 (#4746/#2899) construction gate: the justified raw-read
+        # residuals allowlist is the surface an author would edit to silence
+        # the gate's Part (b) scan, so growing it must cost this same diff.
+        (
+            "test_cli_error_surface_seam",
+            "tests.architectural.test_cli_error_surface_seam",
+            "_JUSTIFIED_RESIDUALS",
+            data["test_cli_error_surface_seam"]["justified_raw_read_residuals"],
+        ),
     ]
     for label, module_dotted, attr_name, baseline in single_baselines:
         current = len(_import_module_attr(module_dotted, attr_name))
@@ -589,6 +599,16 @@ def test_growth_fails_shrinkage_warns(
             "tests.architectural.test_egress_consent_boundary",
             "_KNOWN_UNGATED_FILES",
             data["test_egress_consent_boundary"]["known_ungated_files"],
+        ),
+        # FR-011 (#4746/#2899) construction gate: participates in the
+        # shrinkage arm too — fixing one of the 7 justified residuals (e.g.
+        # routing it through read_guarded after all) should be locked in as
+        # a lower baseline, not silently tolerated.
+        (
+            "test_cli_error_surface_seam",
+            "tests.architectural.test_cli_error_surface_seam",
+            "_JUSTIFIED_RESIDUALS",
+            data["test_cli_error_surface_seam"]["justified_raw_read_residuals"],
         ),
     ]
     for label, module_dotted, attr_name, baseline in single_baselines:

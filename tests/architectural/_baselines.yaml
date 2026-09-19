@@ -387,3 +387,28 @@ test_egress_consent_boundary:
   # to fix the path, never to register it. E1/E2/E3 were the founding entries
   # (FR-028/029/030) and moved to egress_allowlist_files when they landed.
   known_ungated_files: 0
+
+# tests/architectural/test_cli_error_surface_seam.py — FR-011 (#4746/#2899),
+# mission cli-error-surface-seam-01M2WJD2 WP08. The gate's Part (b) AST scan
+# (tests/architectural/_gate_guarded_read_callshape.py) over the named
+# in-scope command/reader modules.
+test_cli_error_surface_seam:
+  # justification: 7 individually-named, individually-justified raw
+  # read/decode calls (see `_JUSTIFIED_RESIDUALS` in the gate test file for
+  # the per-entry rationale) that legitimately do not route through
+  # kernel.guarded_read.read_guarded on the hardened (post WP01-WP07) tree:
+  # 2 `.kittify/config.yaml` reads in intake/scanner.py that degrade to a
+  # safe default on any exception (read_guarded's contract is to RAISE, not
+  # degrade); 1 hand-rolled stat-capped read in intake/scanner.py::read_brief
+  # that predates this mission's primitive and already raises a
+  # GuardedReadError subclass on every failure mode read_guarded itself would
+  # catch; 1 subprocess-stdout JSON decode in
+  # cli/commands/lifecycle.py::_create_mission_for_specify_json (not a file
+  # read at all — read_guarded requires a Path); 2 more `.kittify/config.yaml`
+  # reads (review/baseline.py::_get_test_command,
+  # review/lock.py::_get_isolation_config) with the same safe-degrade shape as
+  # the intake pair; 1 defensive plan.md scan
+  # (core/wps_manifest.py::_plan_contains_implementation_concerns) that
+  # degrades to False on OSError. Scan-derived (not assumed zero) — see the
+  # gate test file's module docstring for the reproduction method.
+  justified_raw_read_residuals: 7
