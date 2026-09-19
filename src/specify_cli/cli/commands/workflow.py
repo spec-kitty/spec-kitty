@@ -6,8 +6,10 @@ from pathlib import Path
 
 import typer
 
+from kernel.guarded_read import read_guarded
 from specify_cli.core.atomic import atomic_write
 from runtime.next._internal_runtime.workflow_registry import (
+    WorkflowFileError,
     list_available_workflows,
     load_workflow_file,
     resolve_workflow_path,
@@ -50,7 +52,16 @@ def export_workflow(
 
 @app.command(name="import")
 def import_workflow(
-    source: Path = typer.Argument(..., help="Workflow YAML file to import."),
+    source: Path = typer.Argument(
+        ...,
+        help="Workflow YAML file to import.",
+        # readable=False: an unreadable/missing source is a domain error
+        # (FR-003/#4738), not a Typer usage error — Click's own default
+        # readable check would otherwise reject it at exit 2 *before*
+        # `load_workflow_file` ever runs, bypassing the guarded-read seam
+        # (mission cli-error-surface-seam-01M2WJD2, WP02).
+        readable=False,
+    ),
     project_root: Path = typer.Option(
         Path("."),
         "--project-root",
@@ -60,13 +71,7 @@ def import_workflow(
 ) -> None:
     """Import a workflow YAML into `.kittify/overrides/workflows`."""
     workflow = load_workflow_file(source)
-    destination = (
-        project_root.resolve()
-        / ".kittify"
-        / "overrides"
-        / "workflows"
-        / f"{workflow.workflow_id}.yaml"
-    )
+    destination = project_root.resolve() / ".kittify" / "overrides" / "workflows" / f"{workflow.workflow_id}.yaml"
     _copy_workflow(source, destination, force=force)
     typer.echo(str(destination))
 
@@ -82,4 +87,10 @@ def _destination_path(output: Path, *, workflow_id: str) -> Path:
 def _copy_workflow(source: Path, destination: Path, *, force: bool) -> None:
     if destination.exists() and not force:
         raise typer.BadParameter(f"Destination exists: {destination}")
-    atomic_write(destination, source.read_bytes(), mkdir=True)
+    # Guarded (not a bare `source.read_bytes()`) even though the caller
+    # already validated `source` via `load_workflow_file`: a concurrent
+    # delete/permission change between that validation and this copy would
+    # otherwise traceback (mission cli-error-surface-seam-01M2WJD2, WP02,
+    # binding squad amendment #2 — no unguarded read in this in-scope module).
+    content = read_guarded(source, lambda raw: raw, error_cls=WorkflowFileError, mode="bytes")
+    atomic_write(destination, content, mkdir=True)

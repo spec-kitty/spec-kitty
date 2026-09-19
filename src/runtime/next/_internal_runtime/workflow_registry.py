@@ -33,6 +33,7 @@ AND lists all currently available workflows.  Callers MUST NOT silently
 fall back to ``software-dev-default``; fall-back logic belongs in the
 caller (currently WP11's ``planner.plan_next``).
 """
+
 from __future__ import annotations
 
 import re
@@ -41,9 +42,14 @@ from pathlib import Path
 from pydantic import ValidationError
 import yaml
 
+from kernel.errors import GuardedReadError
+from kernel.guarded_read import read_guarded
+
 from .workflow_schema import WorkflowSequence
 
 __all__ = [
+    "UnknownWorkflowError",
+    "WorkflowFileError",
     "get_workflow",
     "list_available_workflows",
     "load_workflow_file",
@@ -51,7 +57,7 @@ __all__ = [
 ]
 
 
-class UnknownWorkflowError(Exception):
+class UnknownWorkflowError(GuardedReadError):
     """Raised when *workflow_id* cannot be resolved to a workflow YAML file.
 
     FR-015 binding: this exception MUST name the unknown id AND list the
@@ -62,7 +68,41 @@ class UnknownWorkflowError(Exception):
     cycle 1) when *workflow_id* does not match ``[a-z0-9][a-z0-9-]*``.
     In that case the message begins with "Invalid workflow_id" to distinguish
     validation rejection from a normal lookup miss.
+
+    Re-parented onto :class:`kernel.errors.GuardedReadError` (mission
+    ``cli-error-surface-seam-01M2WJD2``, WP02, binding squad amendment #1) so
+    the global CLI error-presentation hook renders it instead of letting it
+    traceback. Raise sites here pass a single positional message and leave
+    ``path``/``reason`` unset (``None``); the hook's fallback ``str(exc)``
+    reproduces the exact pre-existing wording, so this is presentation-only
+    churn, not a behavior change (spec.md Edge Cases).
     """
+
+
+class WorkflowFileError(GuardedReadError):
+    """A workflow YAML file could not be read or failed schema validation.
+
+    Raised by :func:`load_workflow_file` (via
+    :func:`kernel.guarded_read.read_guarded`) for an unreadable file, a
+    malformed-YAML file, or a file that fails :class:`WorkflowSequence`
+    validation (including a wrong top-level type, e.g. a YAML list instead of
+    a mapping — pydantic raises ``ValidationError`` for that shape too).
+    Co-located with :func:`load_workflow_file`, the function it guards
+    (mission ``cli-error-surface-seam-01M2WJD2``, WP02, C-002: single
+    canonical authority for this failure mode).
+
+    Overrides ``__str__`` to name the offending file (``contracts/
+    error-envelope.md``'s worked example: ``"workflow file 'bad.yaml' is not
+    valid: while parsing a block mapping ..."``) — ``read_guarded`` always
+    constructs this error with ``path``/``reason`` set from the collapsed
+    exception, so both the stderr line and the ``--json`` envelope's
+    ``error`` field (both render via ``str(exc)``) name the file.
+    """
+
+    def __str__(self) -> str:
+        if self.path is not None and self.reason is not None:
+            return f"workflow file {self.path!r} is not valid: {self.reason}"
+        return super().__str__()
 
 
 # Defense-in-depth validator (MEDIUM-4, post-merge remediation cycle 1,
@@ -131,9 +171,7 @@ def resolve_workflow_path(workflow_id: str, project_root: Path | None = None) ->
 
     available = list_available_workflows(project_root=project_root)
     raise UnknownWorkflowError(
-        f"Unknown workflow_id={workflow_id!r}. "
-        f"Available: {available}. "
-        f"Searched: {[str(p) for p in _candidate_paths(workflow_id, project_root)]}."
+        f"Unknown workflow_id={workflow_id!r}. Available: {available}. Searched: {[str(p) for p in _candidate_paths(workflow_id, project_root)]}."
     )
 
 
@@ -141,16 +179,48 @@ def load_workflow_file(
     path: Path,
     requested_workflow_id: str | None = None,
 ) -> WorkflowSequence:
-    """Load and validate a workflow YAML file."""
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    workflow = WorkflowSequence.model_validate(raw)
+    """Load and validate a workflow YAML file.
+
+    Raises
+    ------
+    WorkflowFileError
+        If *path* cannot be read (``OSError``), is not valid YAML
+        (``yaml.YAMLError``), or fails ``WorkflowSequence`` validation
+        (``pydantic.ValidationError`` — this also covers a wrong top-level
+        type, e.g. a YAML list instead of a mapping). Collapsed via
+        :func:`kernel.guarded_read.read_guarded` (mission
+        ``cli-error-surface-seam-01M2WJD2``, WP02) so the global CLI
+        error-presentation hook renders a clean message instead of a
+        traceback.
+    UnknownWorkflowError
+        If *workflow_id* fails the slug validator, or *requested_workflow_id*
+        is given and does not match the file's declared ``workflow_id``.
+    """
+    workflow = read_guarded(
+        path,
+        _parse_workflow,
+        errors=(yaml.YAMLError, ValidationError),
+        error_cls=WorkflowFileError,
+    )
     validate_workflow_id(workflow.workflow_id)
     if requested_workflow_id is not None and workflow.workflow_id != requested_workflow_id:
-        raise UnknownWorkflowError(
-            f"Workflow file {path} declares workflow_id={workflow.workflow_id!r} "
-            f"but was requested as {requested_workflow_id!r}."
-        )
+        raise UnknownWorkflowError(f"Workflow file {path} declares workflow_id={workflow.workflow_id!r} but was requested as {requested_workflow_id!r}.")
     return workflow
+
+
+def _parse_workflow(content: bytes | str) -> WorkflowSequence:
+    """Decode YAML *content* and validate it against ``WorkflowSequence``.
+
+    The ``parse`` callable :func:`load_workflow_file` hands to
+    :func:`kernel.guarded_read.read_guarded`; kept as a module-level function
+    (rather than a closure) so its two declared failure modes
+    (``yaml.YAMLError``, ``pydantic.ValidationError``) are easy to trace back
+    to this single call site. Typed ``bytes | str`` to match
+    :func:`read_guarded`'s ``parse`` signature even though ``load_workflow_file``
+    always calls it in ``mode="text"`` (``str``).
+    """
+    raw = yaml.safe_load(content)
+    return WorkflowSequence.model_validate(raw)
 
 
 def validate_workflow_id(workflow_id: str) -> None:
@@ -173,7 +243,15 @@ def list_available_workflows(project_root: Path | None = None) -> list[str]:
                 try:
                     validate_workflow_id(workflow_id)
                     load_workflow_file(p, requested_workflow_id=workflow_id)
-                except (OSError, UnknownWorkflowError, ValidationError, yaml.YAMLError):
+                except (WorkflowFileError, UnknownWorkflowError):
+                    # Swallow-to-skip (deliberate, distinct from the WP02
+                    # presentation guard): an unreadable/malformed/wrong-schema
+                    # file is simply "not listed", never a presentation error.
+                    # Since load_workflow_file (WP02) now collapses the raw
+                    # OSError/pydantic.ValidationError/yaml.YAMLError it used
+                    # to raise directly into WorkflowFileError, this tuple
+                    # names WorkflowFileError (a superset of the old trio) to
+                    # keep that swallow contract behaviorally unchanged.
                     continue
                 available.append(workflow_id)
     return sorted(set(available))
