@@ -10,9 +10,9 @@ Covers:
   ``models.py:82-91``) or the promoted YAML fails to load (brownfield risk
   this test guards against directly).
 - ``test_shipped_corpus_enforcement_histogram``: SC-005 -- the enforcement
-  histogram is exactly ``25/6/3 -> 27/7/2`` (required/lenient-adherence/
-  advisory); the two additional required directives are new minutes doctrine,
-  not promotions of existing directives.
+  histogram is exactly ``25/6/3 -> 27/7/3`` (required/lenient-adherence/
+  advisory); the two additional required directives are new minutes doctrine
+  and DIRECTIVE_052 adds one advisory, not promotions of existing directives.
 - ``test_only_the_reconciler_yaml_value_changed``: NFR-001 boundary --
   ``reconcile-change-scope-tensions`` is the only directive whose
   enforcement differs from the ``25/6/3`` baseline snapshot.
@@ -31,6 +31,13 @@ _RECONCILER_ID = "RECONCILE_CHANGE_SCOPE_TENSIONS"
 _ADDED_REQUIRED_DIRECTIVES = {
     "ACTION_ITEM_ATTRIBUTION",
     "MINUTES_STAND_ALONE",
+}
+# Advisory directives added to the shipped corpus after the SC-005 baseline
+# snapshot (post-FR-003). DIRECTIVE_052 "Prefer Durable Fixes" ships advisory
+# (#4784), so the corpus advisory count is baseline - 1 (the reconciler
+# promotion) + these additions.
+_ADDED_ADVISORY_DIRECTIVES = {
+    "DIRECTIVE_052",
 }
 
 # SC-005 baseline: {required, lenient-adherence, advisory} counts across the
@@ -63,7 +70,7 @@ def test_promoted_reconciler_loads() -> None:
 
 
 def test_shipped_corpus_enforcement_histogram() -> None:
-    """SC-005: histogram is 27/7/2; no existing directive is newly required."""
+    """SC-005: histogram is 27/7/3; no existing directive is newly required."""
     directives = _shipped_directives()
 
     histogram = dict.fromkeys(Enforcement, 0)
@@ -72,11 +79,13 @@ def test_shipped_corpus_enforcement_histogram() -> None:
 
     added_required = {directive.id for directive in directives if directive.id in _ADDED_REQUIRED_DIRECTIVES and directive.enforcement == Enforcement.REQUIRED}
     assert added_required == _ADDED_REQUIRED_DIRECTIVES
+    added_advisory = {directive.id for directive in directives if directive.id in _ADDED_ADVISORY_DIRECTIVES and directive.enforcement == Enforcement.ADVISORY}
+    assert added_advisory == _ADDED_ADVISORY_DIRECTIVES
     assert histogram[Enforcement.REQUIRED] == (_BASELINE_HISTOGRAM[Enforcement.REQUIRED] + len(_ADDED_REQUIRED_DIRECTIVES)), (
         "Only the two new minutes directives may increase the required count."
     )
     assert histogram[Enforcement.LENIENT_ADHERENCE] == (_BASELINE_HISTOGRAM[Enforcement.LENIENT_ADHERENCE] + 1)
-    assert histogram[Enforcement.ADVISORY] == _BASELINE_HISTOGRAM[Enforcement.ADVISORY] - 1
+    assert histogram[Enforcement.ADVISORY] == (_BASELINE_HISTOGRAM[Enforcement.ADVISORY] - 1 + len(_ADDED_ADVISORY_DIRECTIVES))
 
 
 def test_only_the_reconciler_yaml_value_changed() -> None:

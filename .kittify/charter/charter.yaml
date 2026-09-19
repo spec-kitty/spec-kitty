@@ -567,6 +567,12 @@ catalog:
     summary: Definition unavailable in bundled doctrine.
     source_path: ''
     local_path: _LIBRARY/directive-directive-050.md
+  - id: DIRECTIVE:DIRECTIVE_052
+    kind: directive
+    title: DIRECTIVE_052
+    summary: Diagnose every fix to its root cause first and, when the cause is systemic, prefer a structural remediation that closes the class over a point-fix; governs diagnosis depth, not change size.
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-052.md
   - id: DIRECTIVE:DISCIPLINED_REFACTORING
     kind: directive
     title: DISCIPLINED_REFACTORING
@@ -1785,6 +1791,8 @@ activated_directives:
 - 049-agent-declaration-and-self-introduction
 - 050-credential-handling-discipline
 - reconcile-change-scope-tensions
+- 052-prefer-durable-fixes
+- use-mutation-testing-to-validate-test-quality
 activated_tactics:
 - acceptance-test-first
 - adr-drafting-workflow
@@ -1898,6 +1906,7 @@ activated_tactics:
 - common-docs-write
 - writing-audience-catalog
 - dialectic-research
+- model-task-routing
 activated_styleguides:
 - aggregate-design-rules
 - deployable-skill-authoring

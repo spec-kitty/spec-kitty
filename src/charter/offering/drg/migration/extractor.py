@@ -496,6 +496,45 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "procedure:meeting-minutes-pipeline",
         Relation.REQUIRES,
     ),
+    # DIRECTIVE_052 (Prefer Durable Fixes). A NEW built-in directive carries NO
+    # inline ``references`` (relationships are edges, per the frozen-legacy
+    # references surface — the DISCIPLINED_REFACTORING / RECONCILE_CHANGE_SCOPE_
+    # TENSIONS precedent), so its outbound suggests edges are authored here as
+    # curated (pure) edges the extractor mints, not overlay content. It is a
+    # sibling of the change-scope-tension family: it governs the DEPTH OF
+    # DIAGNOSIS and points at the arbiter that sizes the resulting remediation.
+    # ``suggests`` throughout — all advisory pointers (DIRECTIVE_052 is
+    # ``enforcement: advisory``), each following an existing
+    # (directive -> {directive,styleguide}, suggests) pattern in the shipped
+    # graph. All five targets are already edge-incident, so no orphan set moves;
+    # the directive itself is de-orphaned by these five outbound edges. Ledgered
+    # as composition entry (22) in
+    # ``tests/doctrine/drg/migration/test_extractor_projection.py``.
+    (
+        "directive:DIRECTIVE_052",
+        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        Relation.SUGGESTS,
+    ),
+    (
+        "directive:DIRECTIVE_052",
+        "directive:DIRECTIVE_044",
+        Relation.SUGGESTS,
+    ),
+    (
+        "directive:DIRECTIVE_052",
+        "directive:DIRECTIVE_043",
+        Relation.SUGGESTS,
+    ),
+    (
+        "directive:DIRECTIVE_052",
+        "directive:DIRECTIVE_040",
+        Relation.SUGGESTS,
+    ),
+    (
+        "directive:DIRECTIVE_052",
+        "styleguide:adversarial-squad-cadence",
+        Relation.SUGGESTS,
+    ),
 )
 
 

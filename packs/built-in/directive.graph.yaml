@@ -95,6 +95,9 @@ nodes:
 - urn: directive:DIRECTIVE_051
   kind: directive
   label: Supply-Chain Install Safety
+- urn: directive:DIRECTIVE_052
+  kind: directive
+  label: Prefer Durable Fixes
 - urn: directive:DISCIPLINED_REFACTORING
   kind: directive
   label: Disciplined Refactoring
@@ -419,6 +422,21 @@ edges:
   relation: suggests
 - source: directive:DIRECTIVE_051
   target: tactic:supply-chain-install-safety
+  relation: suggests
+- source: directive:DIRECTIVE_052
+  target: directive:DIRECTIVE_040
+  relation: suggests
+- source: directive:DIRECTIVE_052
+  target: directive:DIRECTIVE_043
+  relation: suggests
+- source: directive:DIRECTIVE_052
+  target: directive:DIRECTIVE_044
+  relation: suggests
+- source: directive:DIRECTIVE_052
+  target: directive:RECONCILE_CHANGE_SCOPE_TENSIONS
+  relation: suggests
+- source: directive:DIRECTIVE_052
+  target: styleguide:adversarial-squad-cadence
   relation: suggests
 - source: directive:DISCIPLINED_REFACTORING
   target: tactic:refactoring-encapsulate-record

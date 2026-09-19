@@ -315,6 +315,11 @@ constituents:
   kind: directive
   path: directives/051-supply-chain-install-safety.directive.yaml
   provenance_path:
+- content_hash: ffe7b98e6498e242fc9119a608a1fb47894b410dd116b12c3e2c02ad8b13eb41
+  id: DIRECTIVE_052
+  kind: directive
+  path: directives/052-prefer-durable-fixes.directive.yaml
+  provenance_path:
 - content_hash: a5690a9024a46b48be8b95149de83eb34f608a5e8c80153bf7e6595ffad4ec9e
   id: DISCIPLINED_REFACTORING
   kind: directive
@@ -1375,7 +1380,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: fa911fa7f71d85db2160731f17e2ce900b22315b84ce032a828960025465575a
+manifest_hash: afa4091eba5a1b49a913bae2920b705d070785fc0644b548154a5d1b298b40a4
 schema_version: '1'
 source_type: built-in
 source_url:

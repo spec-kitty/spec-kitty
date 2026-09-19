@@ -1,0 +1,89 @@
+schema_version: "1.0"
+id: DIRECTIVE_052
+title: Prefer Durable Fixes
+intent: >
+  Do not stop a fix at the surface symptom. Diagnose every fix to its root
+  cause FIRST — an underdesigned or underspecified seam, the same problem
+  recurring in more than one place, a forgone opportunity to reuse existing
+  code or authority, a missing invariant — and, when the investigation reveals
+  a systemic cause, prefer a STRUCTURAL remediation that closes the whole class
+  over a narrow point-fix that leaves the class open. This directive governs the
+  DEPTH OF DIAGNOSIS (always root-cause-deep); it does NOT license unbounded
+  scope. The SIZE of the resulting remediation is a separate, explicit scope
+  decision reconciled through RECONCILE_CHANGE_SCOPE_TENSIONS, and deferring a
+  structural fix as a tracked follow-up (behind an umbrella issue) is an
+  acceptable outcome when folding it would exceed the mission.
+enforcement: advisory
+scope: >
+  Applies to every bug fix, defect remediation, or corrective change, at the
+  point a fix is scoped (pre-spec) and re-checked (post-spec / post-plan). It
+  governs the investigation that PRECEDES the fix and the fold-vs-defer scope
+  decision that follows it. It does not apply to greenfield feature work with
+  no defect under repair, and it does not, by itself, expand the diff — see the
+  reconciliation boundary below.
+procedures:
+  - "The investigation method is mandatory and comes FIRST, before authoring any
+    fix. Run these five steps (naturally executed as a profile-loaded
+    investigation squad at the pre-spec / post-spec point-cuts — see
+    styleguide:adversarial-squad-cadence and Standing Order #1)."
+  - "1. Dig for similar tickets. Search the WHOLE tracker (not only the current
+    milestone) for same-surface or same-root-cause issues. Identify an existing
+    umbrella/epic that the class belongs to, or propose one."
+  - "2. Code grounding. Trace the actual code path to the precise bypass or
+    defect site (file:line). Confirm the bug is still real on current main — not
+    already fixed, superseded, or an artifact of a stale base — before building
+    on it."
+  - "3. Architecture alignment. Map how many places implement the same concern
+    and find the ONE canonical seam/authority all of them should route through;
+    identify the duplication to consolidate. This is the diagnostic front-end
+    that FEEDS DIRECTIVE_044 (single canonical authority — chase unification,
+    not parity); it does not replace it."
+  - "4. Check ADRs. If architecture decision records exist for the surface, read
+    them and align the fix with the recorded decision — or explicitly amend the
+    ADR when the durable fix supersedes it."
+  - "5. If the investigation surfaces multiple occurrences, an underdesigned
+    seam, or a missing invariant: HIGHLIGHT them and PROPOSE a structural
+    remediation (a shared seam, a single canonical reader, or an enforced
+    invariant / construction gate per DIRECTIVE_043) rather than silently
+    shipping N point-fixes. Surface the fold-vs-defer decision to the operator
+    as a scope question BEFORE the spec, exactly like an adversarial point-cut."
+  - "When a defect class has recurred despite prior point-fixes, escalate to
+    DIRECTIVE_040 (recurring-bug structural-intervention discipline), which
+    mandates the five-paradigm parallel-debugging tactic — this directive is its
+    general-purpose diagnostic front-end, DIRECTIVE_040 is the specialized
+    escalation once recurrence is established."
+integrity_rules:
+  - "Shipping a point-fix for a symptom whose root-cause investigation was
+    skipped is non-compliant, even when the point-fix makes the reported symptom
+    disappear. The mandatory output is the diagnosis, not merely a green test."
+  - "This directive licenses a LARGER structural change than a point-fix and is
+    therefore in genuine tension with tactic:change-apply-smallest-viable-diff,
+    DIRECTIVE_024 (Locality of Change), and DIRECTIVE_025 (Boy Scout Rule). It
+    does NOT resolve that tension on its own authority and does NOT license
+    unbounded scope creep: the remediation SIZE is reconciled through
+    RECONCILE_CHANGE_SCOPE_TENSIONS, which already weighs those three rules
+    together, and the fold-vs-defer outcome is an explicit, recorded scope
+    decision — never a silent expansion."
+  - "Deferring a structural remediation is compliant ONLY when it is recorded as
+    a tracked follow-up behind an umbrella/epic issue with the root cause named.
+    A structural cause that is diagnosed and then silently dropped (neither
+    folded nor tracked) is non-compliant."
+  - "A structural remediation must not be invented where no systemic cause was
+    found. A genuinely isolated, one-off defect with no wider class is correctly
+    closed by a proportional point-fix; forcing structural rework onto it is
+    over-engineering, not durability."
+validation_criteria:
+  - "For a fix under this directive, the investigation record names: the
+    tracker search performed (and the umbrella/epic, if any), the grounded
+    defect site (file:line) confirmed live on main, the count of places
+    implementing the concern and the canonical seam they should route through,
+    and any relevant ADR."
+  - "When a systemic cause is found, the change either folds the structural
+    remediation (with the scope decision recorded and reconciled via
+    RECONCILE_CHANGE_SCOPE_TENSIONS) or defers it as a tracked follow-up behind
+    an umbrella issue — never leaves the class open with no record."
+  - "A structural remediation that closes a defect class is accompanied, where
+    applicable, by a non-vacuous construction gate (DIRECTIVE_043) so the class
+    cannot silently reopen."
+  - "Point-fixes are reserved for genuinely isolated defects; a reviewer can see
+    from the record why no wider class was implicated."
