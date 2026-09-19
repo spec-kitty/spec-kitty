@@ -396,175 +396,175 @@ catalog:
   - id: DIRECTIVE:DIRECTIVE_001
     kind: directive
     title: DIRECTIVE_001
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Keep clear separation of concerns and well-defined component boundaries so each part is independently understandable, testable, and replaceable without cascading changes."
     source_path: ''
     local_path: _LIBRARY/directive-directive-001.md
   - id: DIRECTIVE:DIRECTIVE_003
     kind: directive
     title: DIRECTIVE_003
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Capture material technical and governance decisions with enough context that future contributors understand why the path was chosen and what constraints must hold."
     source_path: ''
     local_path: _LIBRARY/directive-directive-003.md
   - id: DIRECTIVE:DIRECTIVE_010
     kind: directive
     title: DIRECTIVE_010
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Keep implemented behaviour and artifacts faithful to approved specifications; document and review any deviation before acceptance."
     source_path: ''
     local_path: _LIBRARY/directive-directive-010.md
   - id: DIRECTIVE:DIRECTIVE_018
     kind: directive
     title: DIRECTIVE_018
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Version doctrine artifacts with traceable change rationale so consumers understand compatibility and migration impact."
     source_path: ''
     local_path: _LIBRARY/directive-directive-018.md
   - id: DIRECTIVE:DIRECTIVE_024
     kind: directive
     title: DIRECTIVE_024
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Keep changes close to the problem being solved to reduce blast radius, simplify review, and lower regression risk."
     source_path: ''
     local_path: _LIBRARY/directive-directive-024.md
   - id: DIRECTIVE:DIRECTIVE_025
     kind: directive
     title: DIRECTIVE_025
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Leave touched areas better than you found them; fixing a pre-existing failure in code you are already changing is the default, deferred only with explicit rationale."
     source_path: ''
     local_path: _LIBRARY/directive-directive-025.md
   - id: DIRECTIVE:DIRECTIVE_028
     kind: directive
     title: DIRECTIVE_028
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Prefer efficient, low-noise local tooling so investigation, editing, validation, and repository operations stay fast and reproducible."
     source_path: ''
     local_path: _LIBRARY/directive-directive-028.md
   - id: DIRECTIVE:DIRECTIVE_029
     kind: directive
     title: DIRECTIVE_029
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Agent-authored commits avoid GPG/SSH signing in unattended workflows so automation does not fail on missing or unverifiable key material."
     source_path: ''
     local_path: _LIBRARY/directive-directive-029.md
   - id: DIRECTIVE:DIRECTIVE_030
     kind: directive
     title: DIRECTIVE_030
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Changes must pass the relevant automated tests and static checks before handoff so regressions and interface drift are caught early."
     source_path: ''
     local_path: _LIBRARY/directive-directive-030.md
   - id: DIRECTIVE:DIRECTIVE_031
     kind: directive
     title: DIRECTIVE_031
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Make every design decision aware of its bounded context and ubiquitous language; cross a context boundary only through an explicit translation layer."
     source_path: ''
     local_path: _LIBRARY/directive-directive-031.md
   - id: DIRECTIVE:DIRECTIVE_032
     kind: directive
     title: DIRECTIVE_032
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Never assume shared vocabulary means shared meaning; state and confirm your interpretation of ambiguous or overloaded terms before acting."
     source_path: ''
     local_path: _LIBRARY/directive-directive-032.md
   - id: DIRECTIVE:DIRECTIVE_033
     kind: directive
     title: DIRECTIVE_033
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Stage only the expected deliverables for the current work package; never blanket-stage changes that could pull in unrelated files, secrets, or artefacts."
     source_path: ''
     local_path: _LIBRARY/directive-directive-033.md
   - id: DIRECTIVE:DIRECTIVE_034
     kind: directive
     title: DIRECTIVE_034
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Write tests first across acceptance and implementation layers so tests define the contract before production code."
     source_path: ''
     local_path: _LIBRARY/directive-directive-034.md
   - id: DIRECTIVE:DIRECTIVE_035
     kind: directive
     title: DIRECTIVE_035
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Before a codebase-wide rename or bulk string change, classify occurrences by semantic context (code, imports, paths, keys, CLI, docs, tests) since each may have different rules."
     source_path: ''
     local_path: _LIBRARY/directive-directive-035.md
   - id: DIRECTIVE:DIRECTIVE_036
     kind: directive
     title: DIRECTIVE_036
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Exercise the system through its external interfaces only, deriving cases from specifications and asserting on observable outputs, independent of internal structure."
     source_path: ''
     local_path: _LIBRARY/directive-directive-036.md
   - id: DIRECTIVE:DIRECTIVE_037
     kind: directive
     title: DIRECTIVE_037
-    summary: Definition unavailable in bundled doctrine.
+    summary: "When observable behaviour changes, update its examples, acceptance checks, specs, docs, glossary, and architecture records in the same change so no reader is left with a stale picture."
     source_path: ''
     local_path: _LIBRARY/directive-directive-037.md
   - id: DIRECTIVE:DIRECTIVE_038
     kind: directive
     title: DIRECTIVE_038
-    summary: Definition unavailable in bundled doctrine.
+    summary: "When the SPDD/REASONS pack is active, keep implementation inside the approved canvas's Requirements, Operations, Norms, and Safeguards unless a deviation is explicitly recorded."
     source_path: ''
     local_path: _LIBRARY/directive-directive-038.md
   - id: DIRECTIVE:DIRECTIVE_039
     kind: directive
     title: DIRECTIVE_039
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Constrain agentic implementation toward test-first, strongly typed, modular, boring, reviewable code; select when bloated or over-clever agent output is a concern."
     source_path: ''
     local_path: _LIBRARY/directive-directive-039.md
   - id: DIRECTIVE:DIRECTIVE_040
     kind: directive
     title: DIRECTIVE_040
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Once a bug class recurs despite point-fixes, respond with a structural intervention that closes the class, using five-paradigm parallel debugging to find the root cause."
     source_path: ''
     local_path: _LIBRARY/directive-directive-040.md
   - id: DIRECTIVE:DIRECTIVE_041
     kind: directive
     title: DIRECTIVE_041
-    summary: Definition unavailable in bundled doctrine.
+    summary: "A test earns its place by failing exactly when the contract is violated; reject tests that pass for the wrong reason or fail on correct, behaviour-neutral changes."
     source_path: ''
     local_path: _LIBRARY/directive-directive-041.md
   - id: DIRECTIVE:DIRECTIVE_042
     kind: directive
     title: DIRECTIVE_042
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Documentation is governed single-source content: every file lives under the Common Docs root, declares lifecycle frontmatter, and is curated under a delete-stale policy."
     source_path: ''
     local_path: _LIBRARY/directive-directive-042.md
   - id: DIRECTIVE:DIRECTIVE_043
     kind: directive
     title: DIRECTIVE_043
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Answer a repeating defect class with a structural constraint (AST gate, type invariant, shrink-only ratchet) that eliminates the recurrence path, not another process rule."
     source_path: ''
     local_path: _LIBRARY/directive-directive-043.md
   - id: DIRECTIVE:DIRECTIVE_044
     kind: directive
     title: DIRECTIVE_044
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Use the canonical template, skill, or CLI rather than improvising or copying older artifacts; when a concept is split across surfaces, consolidate to one authority."
     source_path: ''
     local_path: _LIBRARY/directive-directive-044.md
   - id: DIRECTIVE:DIRECTIVE_045
     kind: directive
     title: DIRECTIVE_045
-    summary: Definition unavailable in bundled doctrine.
+    summary: "All remote-main changes go through PRs (never a direct push or unrequested merge), and the mission spec and context are read before any high-risk git operation."
     source_path: ''
     local_path: _LIBRARY/directive-directive-045.md
   - id: DIRECTIVE:DIRECTIVE_046
     kind: directive
     title: DIRECTIVE_046
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Every pull request is handed over linear (rebased, logically sliced), complete in scope, and independently reviewed with findings folded in while still a draft."
     source_path: ''
     local_path: _LIBRARY/directive-directive-046.md
   - id: DIRECTIVE:DIRECTIVE_047
     kind: directive
     title: DIRECTIVE_047
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Write every human-facing artifact for a named, identified audience (what they know and need), decided before drafting rather than after."
     source_path: ''
     local_path: _LIBRARY/directive-directive-047.md
   - id: DIRECTIVE:DIRECTIVE_048
     kind: directive
     title: DIRECTIVE_048
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Any operation that reads or reasons about a versioned artifact must use its current canonical version, never a cached or stale copy."
     source_path: ''
     local_path: _LIBRARY/directive-directive-048.md
   - id: DIRECTIVE:DIRECTIVE_049
     kind: directive
     title: DIRECTIVE_049
-    summary: Definition unavailable in bundled doctrine.
+    summary: "A specialist agent opens substantive work with a short declaration of who it is, what it will do, and any hard constraints."
     source_path: ''
     local_path: _LIBRARY/directive-directive-049.md
   - id: DIRECTIVE:DIRECTIVE_050
     kind: directive
     title: DIRECTIVE_050
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Never log, echo, or otherwise surface an authentication credential in output, errors, or artifacts when calling an external system."
     source_path: ''
     local_path: _LIBRARY/directive-directive-050.md
   - id: DIRECTIVE:DIRECTIVE_052
@@ -576,25 +576,25 @@ catalog:
   - id: DIRECTIVE:DISCIPLINED_REFACTORING
     kind: directive
     title: DISCIPLINED_REFACTORING
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Restructure behaviour-preservingly in small, individually reversible steps while a green test suite holds behaviour constant; never mix a refactor with a behaviour change."
     source_path: ''
     local_path: _LIBRARY/directive-disciplined-refactoring.md
   - id: DIRECTIVE:RECONCILE_CHANGE_SCOPE_TENSIONS
     kind: directive
     title: RECONCILE_CHANGE_SCOPE_TENSIONS
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Arbitrates the deliberate tension between Locality (024), the Boy Scout Rule (025), and smallest-viable-diff, sizing the fold-vs-defer decision and surfacing it to the operator."
     source_path: ''
     local_path: _LIBRARY/directive-reconcile-change-scope-tensions.md
   - id: DIRECTIVE:USE_C4_MODEL_TECHNIQUES
     kind: directive
     title: USE_C4_MODEL_TECHNIQUES
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Document and reason about architecture with the C4 model's progressive zoom (System Context, Container, Component, Code), one audience and detail level per diagram."
     source_path: ''
     local_path: _LIBRARY/directive-use-c4-model-techniques.md
   - id: DIRECTIVE:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
     kind: directive
     title: USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
-    summary: Definition unavailable in bundled doctrine.
+    summary: "Validate that tests would catch real faults by introducing deliberate mutants; coverage proves code ran, mutation testing proves the tests would notice it breaking."
     source_path: ''
     local_path: _LIBRARY/directive-use-mutation-testing-to-validate-test-quality.md
   - id: TACTIC:acceptance-test-first
