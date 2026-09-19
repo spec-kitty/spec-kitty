@@ -1168,15 +1168,22 @@ def test_research_lands_on_the_canonical_directory_across_handle_forms(
         )
 
 
-def test_research_unresolvable_slug_keeps_raw_form(
+def test_research_unresolvable_slug_refuses_and_writes_nothing(
     repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Unresolvable slugs keep their raw form — the historical scaffold-a-new
-    -mission-dir behaviour is unchanged (re-key is an identity re-read of the
-    composed directory name)."""
+    """Unresolvable slugs are refused, not scaffolded.
+
+    The historical behaviour (pre-#4631/#4736) silently scaffolded a phantom
+    ``kitty-specs/<raw-handle>/`` directory and exited 0 — the most-serious
+    bug #4631 identified in mission handle resolution. #4736 removed it:
+    ``research`` now refuses an unresolvable ``--mission`` handle BEFORE
+    writing anything, emitting the canonical ``Mission not found: <handle>``
+    (see ``tests/research/test_research_missing_mission.py``, added by the
+    same mission) and exiting non-zero, leaving ``kitty-specs/`` untouched.
+    """
     result = _invoke_research(repo, "999-brand-new-mission", monkeypatch)
-    assert result.exit_code == 0, result.output
+    assert result.exit_code != 0, result.output
+    assert "Mission not found: 999-brand-new-mission" in result.output
 
     feature_dir = repo / "kitty-specs" / "999-brand-new-mission"
-    assert feature_dir.is_dir()
-    assert (feature_dir / "research.md").is_file()
+    assert not feature_dir.exists()

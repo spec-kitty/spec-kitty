@@ -272,7 +272,7 @@ def test_feature_alias_is_rejected_by_the_parser(
 
 
 def test_json_without_dry_run_errors_and_exits_one(
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """``merge --json`` (no --dry-run) prints the exact gate error and exits 1.
 
@@ -281,12 +281,21 @@ def test_json_without_dry_run_errors_and_exits_one(
     does not exist locally, so the target-branch preflight would fire first and
     emit a different error. Stub it to a no-op so the test deterministically
     reaches the gate it is named for, regardless of whether ``main`` exists.
+
+    ``--mission`` must name a RESOLVABLE mission: the #4631 fix (mission
+    ``consistent-mission-handle-resolution-01KVXHDK``) makes an unresolvable
+    handle fail early with the canonical ``Mission not found: <handle>`` (T004
+    below pins that path), which would pre-empt this gate before it is ever
+    reached. Use a real fixture mission so resolution succeeds and the flow
+    reaches the ``--json``-without-``--dry-run`` check.
     """
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._validate_target_branch", lambda *a, **kw: None
-    )
+    mission = create_mission_fixture(tmp_path)
+    monkeypatch.chdir(mission.repo_root)
+    _patch_dry_run_git_boundaries(monkeypatch, mission)
     runner = CliRunner()
-    result = runner.invoke(_build_merge_app(), ["--json", "--mission", "no-such-mission"])
+    result = runner.invoke(
+        _build_merge_app(), ["--json", "--mission", mission.mission_slug]
+    )
     assert result.exit_code == 1
     payload = json.loads(result.stdout.strip().splitlines()[-1])
     assert payload == {
@@ -298,10 +307,25 @@ def test_json_without_dry_run_errors_and_exits_one(
 # --- Headline error / exit-code paths (T004) --------------------------------
 
 
-def test_resume_with_no_interrupted_merge_exits_one() -> None:
-    """``merge --resume`` with no state prints the no-op message and exits 1."""
+def test_resume_with_no_interrupted_merge_exits_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``merge --resume`` with no state prints the no-op message and exits 1.
+
+    ``--mission`` must name a RESOLVABLE mission: ``_dispatch_resume`` gates on
+    the canonical ``Mission not found: <handle>`` BEFORE the no-interrupted-merge
+    check (#4631), so an unresolvable handle would exit 1 on the not-found path
+    instead of the resume-specific one this test pins. Use a real fixture
+    mission (with no merge state written) so resolution succeeds and the flow
+    reaches the no-interrupted-merge check.
+    """
+    mission = create_mission_fixture(tmp_path)
+    monkeypatch.chdir(mission.repo_root)
+    _patch_dry_run_git_boundaries(monkeypatch, mission)
     runner = CliRunner()
-    result = runner.invoke(_build_merge_app(), ["--resume", "--mission", "no-such-mission"])
+    result = runner.invoke(
+        _build_merge_app(), ["--resume", "--mission", mission.mission_slug]
+    )
     assert result.exit_code == 1
     assert "No interrupted merge to resume." in result.stdout
 
