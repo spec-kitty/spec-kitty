@@ -360,7 +360,8 @@ def create_cmd(
     console.print(f"  [dim]{ticket.get('title', '')}[/dim]")
     console.print()
     console.print(
-        "Run [cyan]/spec-kitty.specify[/cyan] to create the mission from this ticket."
+        "Run [cyan]/spec-kitty.specify[/cyan] inside your coding agent (Claude Code, Codex, Cursor) "
+        "to create the mission from this ticket."
     )
     console.print(
         "The mission will be linked to "
@@ -1550,7 +1551,7 @@ def switch_cmd(
     console.print("Mission types are now selected [bold]per mission run[/bold] during [cyan]/spec-kitty.specify[/cyan].")
     console.print()
     console.print("[cyan]New workflow:[/cyan]")
-    console.print("  1. Run [bold]/spec-kitty.specify[/bold] to start a new feature")
+    console.print("  1. Run [bold]/spec-kitty.specify[/bold] inside your coding agent (Claude Code, Codex, Cursor) to start a new feature")
     console.print("  2. The system will infer and confirm the appropriate mission")
     console.print("  3. Mission is stored in the feature's [dim]meta.json[/dim]")
     console.print()

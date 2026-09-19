@@ -269,6 +269,11 @@ def test_generate_from_interview_fails_when_answers_missing(
 
     assert result.exit_code != 0
     assert "No charter interview answers found" in result.stdout
+    # The slash command is an agent-session command, not a shell one (#4624):
+    # the hint must say where it runs, alongside the shell alternative.
+    flat = " ".join(result.stdout.split())
+    assert "Run `/spec-kitty.charter` inside your coding agent (Claude Code, Codex, Cursor)" in flat
+    assert "run `spec-kitty charter interview --defaults` here" in flat
     assert not (tmp_path / ".kittify" / "charter" / "charter.md").exists()
 
 

@@ -976,7 +976,7 @@ def _require_current_analysis_report(feature_dir: Path, repo_root: Path, mission
         return
 
     # Header line is always emitted first, in every branch.
-    print("Error: analysis_report_required: /spec-kitty.analyze must be run before implementation.")
+    print("Error: analysis_report_required: /spec-kitty.analyze must be run inside your coding agent (Claude Code, Codex, Cursor) before implementation.")
 
     if analysis_freshness.reason == ANALYSIS_REPORT_REASON_CARRIER_FORMAT:
         print(

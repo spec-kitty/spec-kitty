@@ -92,7 +92,8 @@ def validate_plan_filled(
     error_msg = (
         f"plan.md{feature_display} appears to be unfilled (template form).\n"
         f"Found {len(markers)} template markers:\n  - {marker_list}{more_markers}\n\n"
-        f"Please complete the /spec-kitty.plan workflow before proceeding to research or tasks.\n"
+        f"Please complete the /spec-kitty.plan workflow inside your coding agent (Claude Code, Codex, Cursor) "
+        f"before proceeding to research or tasks.\n"
         f"The plan.md file must have technical details filled in, not just template placeholders."
     )
 

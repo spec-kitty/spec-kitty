@@ -97,7 +97,8 @@ UNLOCKED — it is decided WITH the operator in step 2, not asserted here.>
    `spec-kitty doctor`. Re-run this after ANY rebase — a stale install produces false
    reds on commands that shell out to `spec-kitty`.
 
-4. **Spec the mission.** Run `/spec-kitty.specify`. Answer the discovery interview
+4. **Spec the mission.** Run `/spec-kitty.specify` inside your coding agent session
+   (it is a slash command, not a shell command). Answer the discovery interview
    honestly (it refuses to proceed until the question set is answered). The spec lands
    in `kitty-specs/<mission>/`. Encode the operator's architecture decision as
    constraints/FRs. Seed the 3 mission tracer files.

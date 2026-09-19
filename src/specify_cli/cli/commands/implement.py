@@ -1102,7 +1102,7 @@ def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
     # unspecified mission (the exact masking the comment above warns about).
     if meta is None:
         console.print(f"[red]Error:[/red] meta.json not found in {feature_dir}")
-        console.print("Run /spec-kitty.specify first to create feature structure")
+        console.print("Run /spec-kitty.specify inside your coding agent (Claude Code, Codex, Cursor) first to create the feature structure")
         raise typer.Exit(1)
 
     if "vcs" not in meta:

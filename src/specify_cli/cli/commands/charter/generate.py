@@ -236,9 +236,11 @@ def _load_interview_for_generate(
         raise ValueError(
             "No charter interview answers found at "
             f"{rel_path}. "
-            "Run `/spec-kitty.charter` so the agent can capture guidance, "
-            "run `spec-kitty charter interview --defaults` for a canned bootstrap, "
-            "or pass `--no-from-interview` to generate from defaults explicitly."
+            "Run `/spec-kitty.charter` inside your coding agent (Claude Code, "
+            "Codex, Cursor) so it can capture guidance, run "
+            "`spec-kitty charter interview --defaults` here for a canned "
+            "bootstrap, or pass `--no-from-interview` to generate from defaults "
+            "explicitly."
         )
 
     if interview_data is None:
