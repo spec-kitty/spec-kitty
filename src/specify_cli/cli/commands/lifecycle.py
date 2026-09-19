@@ -12,6 +12,7 @@ import json
 import re
 
 import typer
+from kernel.errors import GuardedReadError
 from mission_runtime import MissionTopology
 from specify_cli.cli.console import console as _console
 
@@ -118,11 +119,48 @@ def _enforce_initialized(*, require_specs: bool = True, json_output: bool = Fals
         raise typer.Exit(code=1) from exc
 
 
+class NonAsciiNameError(GuardedReadError):
+    """Raised when a ``specify`` mission-name argument is empty or non-ASCII.
+
+    Decision 01M2WJE53KMFBGEJX8JMFT71EE (#4720): a name that is not usable
+    ASCII is rejected explicitly and named in the error -- never silently
+    stripped/truncated. Covers three named regression scenarios: an
+    all-non-Latin-script name (``日本語``, previously slugified to an empty
+    string), an accented-Latin name whose diacritics used to be silently
+    dropped (``Ünïcödé`` -> ``n-c-d``), and a mixed ASCII/non-Latin name
+    whose ASCII fragment used to silently survive (``auth日本`` -> ``auth``).
+    Raised directly (not via ``kernel.guarded_read.read_guarded`` -- this is
+    operator-input validation, not a file read) so the WP01 global hook
+    still renders it uniformly (JSON envelope under ``--json``, a clean
+    ``Error: <reason>`` line otherwise), replacing a ``typer.BadParameter``
+    that used to force a Typer usage-error exit (2) / stderr-only shape --
+    see ``_require_mission_or_exit``'s docstring for the same lesson applied
+    elsewhere in this module.
+    """
+
+
+def _reject_if_non_ascii(value: str) -> None:
+    """Raise :class:`NonAsciiNameError` when *value* has a non-ASCII code point."""
+    if not value.isascii():
+        raise NonAsciiNameError(path=value, reason=f"name {value!r} has no usable ASCII characters")
+
+
 def _slugify_feature_input(value: str) -> str:
-    """Normalize a free-form feature name to kebab-case slug text."""
-    slug = re.sub(r"[^a-z0-9]+", "-", value.strip().lower()).strip("-")
+    """Normalize a free-form feature name to kebab-case slug text.
+
+    Raises :class:`NonAsciiNameError` for two distinct, deliberately
+    differently worded failures (#4720): an empty/whitespace-only name
+    ("no name given") versus a name containing non-ASCII characters ("no
+    usable ASCII characters") -- never ``typer.BadParameter``, which
+    bypasses the WP01 global error hook.
+    """
+    stripped = value.strip()
+    if not stripped:
+        raise NonAsciiNameError(path=value, reason="no name given")
+    _reject_if_non_ascii(stripped)
+    slug = re.sub(r"[^a-z0-9]+", "-", stripped.lower()).strip("-")
     if not slug:
-        raise typer.BadParameter("Feature name cannot be empty.")
+        raise NonAsciiNameError(path=value, reason=f"name {value!r} has no usable ASCII characters")
     return slug
 
 
