@@ -227,6 +227,12 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/cli/commands/mission_type.py", "_read_mission_mid8"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/tracker.py", "_resolve_active_feature_slug"): (1, "silent-by-contract"),
     ("src/specify_cli/context/mission_resolver.py", "_build_index"): (1, "silent-by-contract"),
+    # #4736: the mission SELECTION/discovery listing must tolerate a corrupt
+    # meta.json — it lists the mission with `mid8=None` (best-effort
+    # `friendly_name`) rather than crashing the whole listing; a fail-closed
+    # read would break `next`/plan/tasks discovery for ALL missions because one
+    # mission has a malformed meta.
+    ("src/specify_cli/context/mission_resolver.py", "list_missions_for_selection"): (1, "silent-by-contract"),
     ("src/specify_cli/coordination/commit_router.py", "_resolve_mid8"): (1, "silent-by-contract"),
     ("src/specify_cli/coordination/legacy_resolution.py", "_load_mission_meta"): (1, "silent-by-contract"),
     # ``load_meta_fail_closed`` is the canonical fail-closed authority; it calls

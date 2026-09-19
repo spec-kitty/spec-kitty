@@ -101,6 +101,9 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/cli/commands/mission_type.py", "_read_mission_mid8"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/tracker.py", "_resolve_active_feature_slug"): (1, "silent-by-contract"),
     ("src/specify_cli/context/mission_resolver.py", "_build_index"): (1, "silent-by-contract"),
+    # #4736: selection/discovery listing tolerates a corrupt meta.json (lists with
+    # mid8=None) rather than crashing all discovery — mirror row (see source ledger).
+    ("src/specify_cli/context/mission_resolver.py", "list_missions_for_selection"): (1, "silent-by-contract"),
     ("src/specify_cli/coordination/commit_router.py", "_resolve_mid8"): (1, "silent-by-contract"),
     ("src/specify_cli/coordination/legacy_resolution.py", "_load_mission_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/core/paths.py", "load_meta_fail_closed"): (1, "authority"),
