@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "mission_slug": "corrupt-state-file-guards-01M2VZS0",
+  "mission_id": "01M2VZS0CCRB5WVCYYREGJ3718",
+  "mission_branch": "kitty/mission-corrupt-state-file-guards-01M2VZS0",
+  "target_branch": "fix/4642-corrupt-state-file-guards",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/decisions/__init__.py",
+        "src/specify_cli/decisions/store.py",
+        "tests/specify_cli/decisions/test_store.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "tests/specify_cli/next/test_next_meta_corruption.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/decision.py",
+        "tests/specify_cli/cli/commands/test_decision.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-19T04:59:14.261570+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "planning_commit_sha": "24d45ed1c2ee7c4dd45cb57370c06ecd194a1da7"
+}

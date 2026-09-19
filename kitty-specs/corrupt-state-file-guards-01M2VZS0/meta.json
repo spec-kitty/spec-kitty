@@ -1,0 +1,21 @@
+{
+  "baseline_merge_commit": "433cbbdda0b8341787b293c0cdcbd82a5ddcd536",
+  "created_at": "2026-09-19T04:46:13.914182+00:00",
+  "flattened": true,
+  "friendly_name": "Corrupt per-mission state files fail closed, not crash",
+  "merged_at": "2026-09-19T06:07:10.744050+00:00",
+  "merged_commit": "5377282ee37e9a1ead713b4c2ec9cee448f8d9df",
+  "mid8": "01M2VZS0",
+  "mission_id": "01M2VZS0CCRB5WVCYYREGJ3718",
+  "mission_number": 203,
+  "mission_slug": "corrupt-state-file-guards-01M2VZS0",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When a per-mission state file (meta.json, decisions/index.json) is left malformed by a partial write or merge conflict, core CLI commands currently crash with a raw Python traceback. This mission makes those commands fail closed with a single readable error so operators — and the agent control loop that calls next repeatedly — degrade gracefully instead of breaking on already-corrupt state.",
+  "purpose_tldr": "A corrupt mission state file yields a clean operator error and non-zero exit, never an uncaught traceback.",
+  "slug": "corrupt-state-file-guards-01M2VZS0",
+  "status_phase": "1",
+  "target_branch": "fix/4642-corrupt-state-file-guards",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-19T05:07:13.359941+00:00"
+}

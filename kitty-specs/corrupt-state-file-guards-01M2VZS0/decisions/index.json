@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-19T04:47:00.504443Z",
+      "decision_id": "01M2VZTDWRMQH5WY1FKV6WR2S3",
+      "final_answer": "Yes \u2014 unify on the doctor-hint shape for both; both corrupt-state errors read identically to operators (structured payload MAY carry code/details but MUST include the fail-closed + run: spec-kitty doctor guidance)",
+      "input_key": "error_presentation_shape",
+      "mission_id": "01M2VZS0CCRB5WVCYYREGJ3718",
+      "mission_slug": "corrupt-state-file-guards-01M2VZS0",
+      "opened_by": "cli",
+      "options": [
+        "Yes \u2014 unify on the doctor-hint shape for both",
+        "No \u2014 keep decisions structured {code,error,details} only, meta keeps its message",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should the new decisions/index.json error carry the same 'run: spec-kitty doctor' remediation hint that the meta.json (MissionMetaReadError) path emits, so both corrupt-state errors read identically to operators?",
+      "rationale": null,
+      "resolved_at": "2026-09-19T04:49:12.344370Z",
+      "resolved_by": null,
+      "slot_key": "specify.error_presentation.consistency",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M2VZS0CCRB5WVCYYREGJ3718",
+  "version": 1
+}
