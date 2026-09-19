@@ -89,7 +89,15 @@ Error codes used:
                                  not be read cleanly (a torn/truncated line --
                                  ledger SK-131) while deriving the tasks/-finalized
                                  signal; NEVER silently reported as "not finalized"
-                                 (WP06)
+                                 (WP06). ALSO emitted, verbatim, by open/resolve/
+                                 defer/cancel-decision when decisions/index.json
+                                 itself exists but is corrupt (malformed JSON,
+                                 non-UTF-8, or schema-invalid) -- the SAME
+                                 ``DecisionIndexReadError`` design-status already
+                                 fails closed on (#4642), reused here rather than
+                                 registering a second contract code for the
+                                 identical failure shape (see
+                                 ``_fail_decision_index_unreadable``).
   RESULT_REQUIRED              -- answer-decision: --result is required alongside
                                  --answer (WP08)
   INVALID_RESULT                -- answer-decision: --result is not one of the host
@@ -127,6 +135,7 @@ if TYPE_CHECKING:
     from specify_cli.core.paths import RetentionDecision
     from specify_cli.decisions.models import OriginFlow
     from specify_cli.decisions.service import DecisionError
+    from specify_cli.decisions.store import DecisionIndexReadError
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
     from specify_cli.status import StatusSnapshot
 
@@ -421,6 +430,29 @@ def _fail_from_decision_error(cmd: str, exc: DecisionError) -> NoReturn:
         _DECISION_UNREGISTERED_CODE_FALLBACK,
         str(exc),
         {**exc.details, "unregistered_error_code": code},
+    )
+
+
+def _fail_decision_index_unreadable(cmd: str, mission: str, exc: DecisionIndexReadError) -> NoReturn:
+    """Fail-closed on a corrupt ``decisions/index.json`` reached from a
+    decision WRITE verb (open/resolve/defer/cancel-decision).
+
+    Pre-fix (#4642 follow-up review finding), these four verbs caught ONLY
+    ``DecisionError`` -- ``DecisionIndexReadError`` is a ``RuntimeError``, not
+    a ``DecisionError``, so it escaped as a raw traceback with EMPTY stdout,
+    violating this file's JSON-first machine contract. Reuses the SAME
+    ``DESIGN_STATUS_EVENT_LOG_UNREADABLE`` envelope the ``design-status``
+    read verb already emits for this identical exception (:func:`design_status`)
+    -- that code is the one ``DecisionIndexReadError`` code already registered
+    in ``upstream_contract.json``'s ``allowed_error_codes`` for this file, so
+    reusing it keeps the write verbs' error surface consistent with the read
+    verb's without expanding the contract.
+    """
+    _fail(
+        cmd,
+        "DESIGN_STATUS_EVENT_LOG_UNREADABLE",
+        f"decisions/index.json could not be read cleanly for mission {mission!r}: {exc}",
+        {"mission_slug": mission, "error": str(exc)},
     )
 
 
@@ -3024,6 +3056,7 @@ def open_decision(  # noqa: PLR0913
 
     from specify_cli.decisions.service import DecisionError
     from specify_cli.decisions.service import open_decision as _svc_open_decision
+    from specify_cli.decisions.store import DecisionIndexReadError
 
     try:
         resp = _svc_open_decision(
@@ -3039,6 +3072,9 @@ def open_decision(  # noqa: PLR0913
         )
     except DecisionError as exc:
         _fail_from_decision_error(cmd, exc)
+        return
+    except DecisionIndexReadError as exc:
+        _fail_decision_index_unreadable(cmd, mission, exc)
         return
 
     data = {
@@ -3088,6 +3124,7 @@ def resolve_decision(  # noqa: PLR0913
 
     from specify_cli.decisions.service import DecisionError
     from specify_cli.decisions.service import resolve_decision as _svc_resolve_decision
+    from specify_cli.decisions.store import DecisionIndexReadError
 
     try:
         resp = _svc_resolve_decision(
@@ -3102,6 +3139,9 @@ def resolve_decision(  # noqa: PLR0913
         )
     except DecisionError as exc:
         _fail_from_decision_error(cmd, exc)
+        return
+    except DecisionIndexReadError as exc:
+        _fail_decision_index_unreadable(cmd, mission, exc)
         return
 
     data = {
@@ -3142,6 +3182,7 @@ def defer_decision(
 
     from specify_cli.decisions.service import DecisionError
     from specify_cli.decisions.service import defer_decision as _svc_defer_decision
+    from specify_cli.decisions.store import DecisionIndexReadError
 
     try:
         resp = _svc_defer_decision(
@@ -3154,6 +3195,9 @@ def defer_decision(
         )
     except DecisionError as exc:
         _fail_from_decision_error(cmd, exc)
+        return
+    except DecisionIndexReadError as exc:
+        _fail_decision_index_unreadable(cmd, mission, exc)
         return
 
     data = {
@@ -3194,6 +3238,7 @@ def cancel_decision(
 
     from specify_cli.decisions.service import DecisionError
     from specify_cli.decisions.service import cancel_decision as _svc_cancel_decision
+    from specify_cli.decisions.store import DecisionIndexReadError
 
     try:
         resp = _svc_cancel_decision(
@@ -3206,6 +3251,9 @@ def cancel_decision(
         )
     except DecisionError as exc:
         _fail_from_decision_error(cmd, exc)
+        return
+    except DecisionIndexReadError as exc:
+        _fail_decision_index_unreadable(cmd, mission, exc)
         return
 
     data = {

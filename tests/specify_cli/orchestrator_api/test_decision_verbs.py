@@ -832,3 +832,118 @@ def test_resolve_decision_on_already_resolved_with_different_answer_rejected(
     index = _read_index(feature_dir)
     entry = _entry_for(index, decision_id)
     assert entry["final_answer"] == "5"
+
+
+# ---------------------------------------------------------------------------
+# Fold-in review finding (#4642 follow-up): open/resolve/defer/cancel-decision
+# each caught ONLY ``DecisionError`` -- ``decisions/store.py``'s
+# ``DecisionIndexReadError`` is a ``RuntimeError``, NOT a ``DecisionError``,
+# so a hand-corrupted ``decisions/index.json`` escaped every one of these
+# four WRITE verbs as a raw, un-enveloped traceback with EMPTY stdout,
+# breaking this file's JSON-first machine contract (reproduced live pre-fix:
+# ``orchestrator-api resolve-decision`` against a corrupt index -> exit 1,
+# ``DecisionIndexReadError`` raised, empty stdout). The READ verb,
+# ``design-status``, already guards this exact exception (see
+# ``test_design_status.py::test_design_status_malformed_decisions_index_json_fails_closed``)
+# with the SAME ``DESIGN_STATUS_EVENT_LOG_UNREADABLE`` envelope this test
+# pins for all four write verbs (``_fail_decision_index_unreadable`` in
+# ``orchestrator_api/commands.py``).
+# ---------------------------------------------------------------------------
+
+
+def _write_verb_args(verb: str, mission_slug: str, decision_id: str) -> list[str]:
+    """Minimal valid CLI args for each of the 4 decision WRITE verbs."""
+    if verb == "open-decision":
+        return [
+            "open-decision",
+            "--mission",
+            mission_slug,
+            "--origin",
+            "specify",
+            "--input-key",
+            "unrelated_key",
+            "--question",
+            "An unrelated question?",
+            "--step-id",
+            "step-1",
+            "--actor",
+            "test-agent",
+            "--policy",
+            _POLICY,
+        ]
+    if verb == "resolve-decision":
+        return [
+            "resolve-decision",
+            "--mission",
+            mission_slug,
+            "--decision-id",
+            decision_id,
+            "--final-answer",
+            "5",
+            "--actor",
+            "test-agent",
+            "--policy",
+            _POLICY,
+        ]
+    if verb == "defer-decision":
+        return [
+            "defer-decision",
+            "--mission",
+            mission_slug,
+            "--decision-id",
+            decision_id,
+            "--rationale",
+            "deferred for later",
+            "--actor",
+            "test-agent",
+            "--policy",
+            _POLICY,
+        ]
+    if verb == "cancel-decision":
+        return [
+            "cancel-decision",
+            "--mission",
+            mission_slug,
+            "--decision-id",
+            decision_id,
+            "--rationale",
+            "no longer relevant",
+            "--actor",
+            "test-agent",
+            "--policy",
+            _POLICY,
+        ]
+    raise AssertionError(f"unhandled verb {verb!r}")
+
+
+@pytest.mark.parametrize(
+    "verb",
+    ["open-decision", "resolve-decision", "defer-decision", "cancel-decision"],
+)
+def test_write_verb_corrupt_decisions_index_fails_closed_not_bare_traceback(tmp_path: Path, verb: str) -> None:
+    """Each write verb fails closed with a structured JSON envelope -- never
+    a bare, un-enveloped ``DecisionIndexReadError`` traceback -- when
+    ``decisions/index.json`` exists but is corrupt.
+    """
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_mission(repo, f"wp-corrupt-{verb}")
+
+    opened = _open_decision(repo, mission_slug)
+    assert opened["success"] is True, opened
+    decision_id = opened["data"]["decision_id"]
+
+    index_path = feature_dir / "decisions" / "index.json"
+    assert index_path.exists()
+    index_path.write_text("{not valid json", encoding="utf-8")
+
+    result = _run(repo, _write_verb_args(verb, mission_slug, decision_id))
+    envelope = _envelope(result)
+
+    assert result.exit_code == 1, result.output
+    assert envelope["success"] is False, envelope
+    # Same structured code the read verb (design-status) already emits for
+    # this identical DecisionIndexReadError -- never a bare traceback, never
+    # a different/unregistered code.
+    assert envelope["error_code"] == "DESIGN_STATUS_EVENT_LOG_UNREADABLE", envelope
+    assert "message" in envelope["data"]
+    assert envelope["data"]["mission_slug"] == mission_slug
