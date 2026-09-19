@@ -241,33 +241,90 @@ def next_step(
     # Query mode: bare call without --result remains read-only and does not
     # require agent identity.
     if result is None:
-        try:
-            _run_query_mode(
-                agent,
-                mission_slug,
-                repo_root,
-                json_output,
-                answered_id,
-                answer,
-                effective_root=effective_root,
-            )
-        except MissionMetaReadError as _exc:
-            # #4642 / WP03: the corrupt-meta decode escapes THIS call
-            # (query_current_state -> runtime_bridge -> load_meta_fail_closed),
-            # not the slug-resolution try/except above -- MissionMetaReadError
-            # subclasses RuntimeError, not ValueError, so it never reaches the
-            # ``except ValueError`` arm at the top of this function either.
-            # Catch the exact type here (never broaden to RuntimeError -- that
-            # would swallow the unrelated owned-checkout RuntimeErrors raised
-            # at ~L314/324) and fail closed instead of crashing.
-            _emit_meta_read_error(_exc, json_output)
-            raise typer.Exit(1) from _exc
+        _dispatch_query_mode(
+            agent,
+            mission_slug,
+            repo_root,
+            json_output,
+            answered_id,
+            answer,
+            effective_root=effective_root,
+        )
         return  # No event emitted, no DAG advancement
 
     if not agent:
         print("Error: --agent is required when --result is provided", file=sys.stderr)
         raise typer.Exit(1)
 
+    _dispatch_advancing_mode(
+        agent,
+        mission_slug,
+        result,
+        repo_root,
+        json_output,
+        answered_id,
+        answer,
+        effective_root=effective_root,
+    )
+
+
+def _dispatch_query_mode(
+    agent: str | None,
+    mission_slug: str,
+    repo_root: object,
+    json_output: bool,
+    answered_id: str | None,
+    answer: str | None,
+    *,
+    effective_root: Path | None,
+) -> None:
+    """Run the read-only query-mode call, failing closed on corrupt meta.
+
+    Extracted from ``next_step`` (C901 regression fix, #4642 follow-up):
+    keeps the query-mode dispatch and its fail-closed catch in one place so
+    ``next_step`` stays a thin router between query and advancing mode.
+    """
+    try:
+        _run_query_mode(
+            agent,
+            mission_slug,
+            repo_root,
+            json_output,
+            answered_id,
+            answer,
+            effective_root=effective_root,
+        )
+    except MissionMetaReadError as _exc:
+        # #4642 / WP03: the corrupt-meta decode escapes THIS call
+        # (query_current_state -> runtime_bridge -> load_meta_fail_closed),
+        # not the slug-resolution try/except in next_step -- MissionMetaReadError
+        # subclasses RuntimeError, not ValueError, so it never reaches the
+        # ``except ValueError`` arm at the top of that function either.
+        # Catch the exact type here (never broaden to RuntimeError -- that
+        # would swallow the unrelated owned-checkout RuntimeErrors raised
+        # at ~L314/324) and fail closed instead of crashing.
+        _emit_meta_read_error(_exc, json_output)
+        raise typer.Exit(1) from _exc
+
+
+def _dispatch_advancing_mode(
+    agent: str,
+    mission_slug: str,
+    result: str,
+    repo_root: object,
+    json_output: bool,
+    answered_id: str | None,
+    answer: str | None,
+    *,
+    effective_root: Path | None,
+) -> None:
+    """Advance the runtime and emit the resulting decision.
+
+    Extracted from ``next_step`` (C901 regression fix, #4642 follow-up):
+    holds the ``--result``-provided path (lifecycle pairing, ``decide_next``
+    plus its fail-closed catch, lifecycle write, owned-checkout commit, and
+    decision printing) so ``next_step`` stays a thin router.
+    """
     # WP05 (#843): pair the previous issuance's `started` lifecycle record
     # BEFORE we advance the runtime. This must run before decide_next so the
     # pair is observable even if decide_next raises.
@@ -276,8 +333,8 @@ def next_step(
     try:
         decision = decide_next(agent, mission_slug, result, repo_root, effective_root=effective_root)
     except MissionMetaReadError as _exc:
-        # #4642 / WP03: same escape site as the query-mode branch above, this
-        # time reached via the advancing (``--result``) path.
+        # #4642 / WP03: same escape site as the query-mode dispatch above,
+        # this time reached via the advancing (``--result``) path.
         _emit_meta_read_error(_exc, json_output)
         raise typer.Exit(1) from _exc
     _emit_mission_next_invoked(
