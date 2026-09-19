@@ -1006,6 +1006,10 @@ def _invoke_merge_with_corrupt_target(tmp_path: Path, *extra_args: str) -> Any:
         patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
         patch("specify_cli.cli.commands.merge.load_merge_config", return_value=Mock(strategy=None)),
         patch("specify_cli.cli.commands.merge._resolve_slug_or_exit", return_value="corrupt-mission"),
+        # Newer flow gates on mission-dir existence (FR-004/FR-005) BEFORE the
+        # target-branch read; the real corrupt-meta case has an existing dir with
+        # a corrupt meta.json, so stub the dir check True to reach _resolve_target_branch.
+        patch("specify_cli.cli.commands.merge._resolved_mission_dir_exists", return_value=True),
         patch("specify_cli.cli.commands.merge.load_state", return_value=None),
         patch("specify_cli.cli.commands.merge._resolve_target_branch", side_effect=boom),
     ):
