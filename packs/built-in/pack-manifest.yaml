@@ -45,7 +45,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/drupal-dries.agent.yaml
   provenance_path:
-- content_hash: 67d4fe51f4a70e4253508d4deeb7e47b33289db97b728700bbeaff2eba0679c4
+- content_hash: 6ba3f319690688c7816c528db5c61093820df736bcd418e3f7d5315a5d45530d
   id: frontend-freddy
   kind: agent_profile
   path: agent_profiles/frontend-freddy.agent.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 27e703d5bf4c92ce7930bc82971470a19fba5fe40ee42d5cd17793450f534b1e
+manifest_hash: fa911fa7f71d85db2160731f17e2ce900b22315b84ce032a828960025465575a
 schema_version: '1'
 source_type: built-in
 source_url:
