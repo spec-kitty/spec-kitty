@@ -156,10 +156,10 @@ def research(
         console.print(f"[red]Error:[/red] {exc}")
         console.print()
         console.print("[yellow]Next steps:[/yellow]")
-        console.print("  1. Run [cyan]/spec-kitty.plan[/cyan] to fill in the technical architecture")
+        console.print("  1. Run [cyan]/spec-kitty.plan[/cyan] inside your coding agent (Claude Code, Codex, Cursor) to fill in the technical architecture")
         console.print("  2. Complete all [FEATURE], [DATE], and technical context placeholders")
         console.print("  3. Remove [REMOVE IF UNUSED] sections and choose your project structure")
-        console.print("  4. Then run [cyan]/spec-kitty.research[/cyan] again")
+        console.print("  4. Then run [cyan]/spec-kitty.research[/cyan] again in the agent")
         raise typer.Exit(1)
 
     created_paths: list[Path] = []

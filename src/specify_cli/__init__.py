@@ -90,7 +90,10 @@ def activate_mission(project_path: Path, mission_type: str, mission_display: str
     if mission_path.exists():
         return f"{mission_display} (per-feature selection)"
     else:
-        console.print(f"[yellow]Note:[/yellow] Mission [cyan]{mission_display}[/cyan] templates will be available when you run [cyan]/spec-kitty.specify[/cyan].")
+        console.print(
+            f"[yellow]Note:[/yellow] Mission [cyan]{mission_display}[/cyan] templates will be available "
+            "when you run [cyan]/spec-kitty.specify[/cyan] in your coding agent."
+        )
         return f"{mission_display} (templates pending)"
 
 

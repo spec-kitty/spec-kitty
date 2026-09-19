@@ -265,7 +265,7 @@ def _derive_next_action(meta_data: dict[str, Any], kanban_stats: dict[str, Any])
     except ValueError:
         return None
     if meta_data.get("baseline_merge_commit"):
-        return f"Run /spec-kitty.review, then: spec-kitty accept --mission {slug}"
+        return f"Run /spec-kitty.review in your coding agent, then: spec-kitty accept --mission {slug}"
     if not kanban_stats.get("error") and kanban_stats.get("total", 0) > 0:
         in_flight = kanban_stats.get("doing", 0) + kanban_stats.get("for_review", 0) + kanban_stats.get("approved", 0) + kanban_stats.get("planned", 0)
         if in_flight == 0 and kanban_stats.get("done", 0) > 0:
