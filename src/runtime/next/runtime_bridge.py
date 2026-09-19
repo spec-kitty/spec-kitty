@@ -979,6 +979,39 @@ def _log_requirement_extraction_warnings_safely(feature_dir: Path, spec_content:
         )
 
 
+def _load_wps_manifest_findings(feature_dir: Path) -> tuple[object | None, list[str] | None]:
+    """Load ``wps.yaml`` via :func:`load_wps_manifest`, translating a corrupt
+    manifest into a findings-list entry instead of a raw traceback.
+
+    Mission cli-error-surface-seam WP07/#4746 (T026): pre-fix, a corrupt
+    ``wps.yaml`` (or any of the three OTHER operations sharing
+    :func:`_check_requirement_mapping_ready`'s ``try`` block) collapsed into
+    the SAME indistinguishable generic string via that function's broad
+    ``except Exception``. Catching :class:`WpsManifestReadError` narrowly
+    here — before it can reach that broad catch — gives the corrupt-manifest
+    case its own typed, actionable message while leaving the broad catch's
+    fail-closed behavior for the other three operations completely
+    unchanged (see the companion assertion in
+    ``tests/specify_cli/test_audit_tail_readers.py``).
+
+    This is a gather-only internal preflight, not a CLI command boundary
+    (see :func:`_check_requirement_mapping_ready`'s docstring) — so a
+    corrupt manifest is reported as a finding string, never re-raised.
+
+    Returns:
+        ``(manifest, None)`` on success — ``manifest`` is ``None`` when
+        ``wps.yaml`` is legitimately absent (D5, the legacy-mission case
+        :func:`load_wps_manifest` itself resolves to ``None``). ``(None,
+        [finding])`` when ``wps.yaml`` exists but is corrupt.
+    """
+    from specify_cli.core.wps_manifest import WpsManifestReadError, load_wps_manifest
+
+    try:
+        return load_wps_manifest(feature_dir), None
+    except WpsManifestReadError as exc:
+        return None, [f"Requirement mapping preflight failed: wps.yaml is corrupt: {exc}"]
+
+
 def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
     """Validate requirement coverage before issuing the finalize-tasks prompt.
 
@@ -998,6 +1031,18 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
     diagnostic -- see :func:`_log_requirement_extraction_warnings_safely` for
     the full rationale, including why its computation is isolated from this
     function's own fail-closed ``except Exception`` below.
+
+    WP07/#4746 (T026): the ``load_wps_manifest`` call below is routed
+    through :func:`_load_wps_manifest_findings`, which catches the typed
+    ``WpsManifestReadError`` (mission cli-error-surface-seam WP01/WP07)
+    narrowly and returns its own findings entry -- so a corrupt manifest no
+    longer masquerades behind the SAME generic
+    "Requirement mapping preflight failed: {exc}" string this function's
+    broad ``except Exception`` below still produces, unchanged, for the
+    other three operations sharing this ``try`` block
+    (``spec_md.read_text``, ``parse_requirement_ids_from_spec_md``,
+    ``read_all_wp_requirement_refs``, and the ``tasks_md.read_text`` prose
+    fallback).
     """
     spec_md = feature_dir / SPEC_ARTIFACT
     if not spec_md.exists():
@@ -1008,7 +1053,6 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
         return []
 
     try:
-        from specify_cli.core.wps_manifest import load_wps_manifest
         from specify_cli.requirement_mapping import (
             parse_requirement_ids_from_spec_md,
             read_all_wp_requirement_refs,
@@ -1021,7 +1065,9 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
 
         _log_requirement_extraction_warnings_safely(feature_dir, spec_content)
 
-        wps_manifest = load_wps_manifest(feature_dir)
+        wps_manifest, manifest_findings = _load_wps_manifest_findings(feature_dir)
+        if manifest_findings is not None:
+            return manifest_findings
         wp_requirement_refs = read_all_wp_requirement_refs(tasks_dir)
 
         if wps_manifest is None:

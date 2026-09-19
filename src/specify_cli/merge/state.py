@@ -15,11 +15,14 @@ from pathlib import Path
 from typing import Any
 
 from kernel.clock import now_utc_iso
+from kernel.errors import GuardedReadError
+from kernel.guarded_read import read_guarded
 from specify_cli.merge.workspace import get_merge_runtime_dir
 
 __all__ = [
     "MergeAmbiguousStateError",
     "MergeLockError",
+    "MergeStateReadError",
     "MergeState",
     "save_state",
     "load_state",
@@ -51,6 +54,19 @@ class MergeAmbiguousStateError(Exception):
         super().__init__(
             f"Multiple active merge states found — pass --mission to disambiguate:\n  {ids_formatted}"
         )
+
+
+class MergeStateReadError(GuardedReadError, RuntimeError):
+    """Raised when a persisted merge ``state.json`` exists but cannot be decoded.
+
+    Mission cli-error-surface-seam WP07/#4746: pre-fix, ``_load_state_file``
+    silently collapsed ``(json.JSONDecodeError, TypeError, KeyError)`` into a
+    ``None`` return — indistinguishable from "no merge in progress". That is
+    a fail-open bug, not a benign presentation gap: a corrupt resumable-merge
+    state silently masquerading as "nothing to resume" can lose in-progress
+    merge bookkeeping. Never raised for a genuinely absent state file (D5) —
+    that branch stays outside the guard.
+    """
 
 
 class MergeLockError(Exception):
@@ -192,6 +208,10 @@ def load_state(repo_root: Path, mission_id: str | None = None) -> MergeState | N
     Raises:
         MergeAmbiguousStateError: When multiple active merge states exist and
             no ``mission_id`` was provided.
+        MergeStateReadError: When ``mission_id`` is given and that mission's
+            ``state.json`` exists but cannot be decoded (fail-closed; never
+            raised for a missing file). The no-``mission_id`` scan below
+            deliberately does NOT raise this — see its own note.
     """
     if mission_id is not None:
         return _load_state_file(get_state_path(repo_root, mission_id))
@@ -204,7 +224,15 @@ def load_state(repo_root: Path, mission_id: str | None = None) -> MergeState | N
     active_states: list[MergeState] = []
     for candidate in sorted(runtime_merge_dir.iterdir()):
         state_file = candidate / _STATE_FILE
-        state = _load_state_file(state_file)
+        # A corrupt state file for ONE mission must not block resolving an
+        # active merge for another (this scan enumerates every mission's
+        # runtime dir, unlike the single-mission path above) -- skip it
+        # rather than propagating MergeStateReadError. The caller passing an
+        # explicit mission_id (the fail-closed path) still sees the error.
+        try:
+            state = _load_state_file(state_file)
+        except MergeStateReadError:
+            continue
         if state is not None:
             active_states.append(state)
 
@@ -217,16 +245,32 @@ def load_state(repo_root: Path, mission_id: str | None = None) -> MergeState | N
     raise MergeAmbiguousStateError([s.mission_id for s in active_states])
 
 
+def _parse_merge_state(content: bytes | str) -> MergeState:
+    """Decode already-read *content* into a :class:`MergeState`."""
+    text = content.decode("utf-8") if isinstance(content, bytes) else content
+    data = json.loads(text)
+    return MergeState.from_dict(data)
+
+
 def _load_state_file(state_path: Path) -> MergeState | None:
-    """Load and parse a single state JSON file."""
+    """Load and parse a single state JSON file.
+
+    Returns:
+        ``None`` when *state_path* does not exist. Never ``None`` for a
+        present-but-corrupt file (D5) — that raises :class:`MergeStateReadError`.
+
+    Raises:
+        MergeStateReadError: when *state_path* exists but cannot be decoded
+            (non-UTF-8 bytes, malformed JSON, or a schema mismatch).
+    """
     if not state_path.exists():
         return None
-    try:
-        with open(state_path, encoding="utf-8") as f:
-            data = json.load(f)
-        return MergeState.from_dict(data)
-    except (json.JSONDecodeError, TypeError, KeyError):
-        return None
+    return read_guarded(
+        state_path,
+        _parse_merge_state,
+        errors=(json.JSONDecodeError, TypeError, KeyError),
+        error_cls=MergeStateReadError,
+    )
 
 
 def clear_state(repo_root: Path, mission_id: str | None = None) -> bool:
@@ -297,7 +341,13 @@ def iter_pending_coord_reconcile_markers(repo_root: Path) -> Iterable[MergeState
     if not runtime_merge_dir.exists():
         return
     for candidate in sorted(runtime_merge_dir.iterdir()):
-        state = _load_state_file(candidate / _STATE_FILE)
+        try:
+            state = _load_state_file(candidate / _STATE_FILE)
+        except MergeStateReadError:
+            # Documented "unparseable state files are skipped" contract
+            # (docstring above) -- a corrupt state for one mission must not
+            # abort the safety-net scan across every other mission.
+            continue
         if state is not None and state.pending_coord_reconcile is not None:
             yield state
 

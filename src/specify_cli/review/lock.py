@@ -26,6 +26,8 @@ from typing import Any
 
 from specify_cli.core.process_liveness import is_process_alive
 from kernel.clock import now_utc_iso
+from kernel.errors import GuardedReadError
+from kernel.guarded_read import read_guarded
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +37,21 @@ LOCK_FILE = "review-lock.json"
 
 class ReviewLockError(Exception):
     """Raised when a concurrent review lock prevents acquiring a new lock."""
+
+
+class ReviewLockReadError(GuardedReadError, RuntimeError):
+    """Raised when ``review-lock.json`` exists but cannot be decoded.
+
+    Mission cli-error-surface-seam WP07/#4746: pre-fix, :meth:`ReviewLock.load`
+    silently collapsed ``(json.JSONDecodeError, KeyError, TypeError)`` (and
+    left non-UTF-8 bytes fully unguarded) into a ``None`` return --
+    indistinguishable from "no active lock". A corrupt lock silently treated
+    as absent is a stale-lock safety gap: :meth:`ReviewLock.acquire` would
+    happily grant a second concurrent review despite a lock file it could not
+    actually verify, the exact collision this module exists to prevent.
+    Never raised when the lock file is simply absent (D5) -- ``load`` still
+    returns ``None`` for that case.
+    """
 
 
 @dataclass
@@ -99,16 +116,30 @@ class ReviewLock:
     def load(cls, worktree: Path) -> ReviewLock | None:
         """Load lock from disk.
 
-        Returns None if the lock file does not exist or is malformed.
+        Returns:
+            ``None`` only when the lock file does not exist.
+
+        Raises:
+            ReviewLockReadError: When the lock file exists but is corrupt
+                (non-UTF-8 bytes, malformed JSON, or missing/invalid
+                fields) -- fail-closed (FR-012/#4746): a corrupt lock must
+                not be silently treated as "no lock" (see
+                :class:`ReviewLockReadError`).
         """
         lock_path = worktree / LOCK_DIR / LOCK_FILE
         if not lock_path.exists():
             return None
-        try:
-            data = json.loads(lock_path.read_text())
-            return cls.from_dict(data)
-        except (json.JSONDecodeError, KeyError, TypeError):
-            return None
+
+        def _parse(content: bytes | str) -> ReviewLock:
+            text = content.decode("utf-8") if isinstance(content, bytes) else content
+            return cls.from_dict(json.loads(text))
+
+        return read_guarded(
+            lock_path,
+            _parse,
+            errors=(json.JSONDecodeError, KeyError, TypeError),
+            error_cls=ReviewLockReadError,
+        )
 
     # ------------------------------------------------------------------
     # Lifecycle

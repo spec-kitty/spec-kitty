@@ -228,6 +228,7 @@ from .lifecycle import (
     is_mission_merged,
 )
 from .validate import (
+    StatusValidationReadError,
     ValidationResult,
     validate_derived_views,
     validate_done_evidence,
@@ -582,6 +583,7 @@ __all__ = [
     "to_event_verdict",
     "is_changes_requested",
     "to_artifact_verdict",
+    "StatusValidationReadError",
     "validate_derived_views",
     "validate_done_evidence",
     "validate_event_schema",

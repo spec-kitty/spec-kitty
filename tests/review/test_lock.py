@@ -18,6 +18,7 @@ from specify_cli.review.lock import (
     LOCK_FILE,
     ReviewLock,
     ReviewLockError,
+    ReviewLockReadError,
     _apply_env_var_isolation,
     _get_isolation_config,
 )
@@ -170,13 +171,33 @@ def test_load_missing_file(tmp_path: Path) -> None:
 
 
 def test_load_malformed_json(tmp_path: Path) -> None:
-    """load() returns None when lock file contains invalid JSON."""
+    """load() fails closed with ReviewLockReadError on invalid JSON.
+
+    WP07/#4746 (cli-error-surface-seam): pre-fix, this silently returned
+    None -- indistinguishable from "no active lock" -- which is a
+    stale-lock safety gap (a corrupt lock must not be treated as absent).
+    """
     lock_dir = tmp_path / LOCK_DIR
     lock_dir.mkdir(parents=True)
     (lock_dir / LOCK_FILE).write_text("{not valid json")
 
-    result = ReviewLock.load(tmp_path)
-    assert result is None
+    with pytest.raises(ReviewLockReadError):
+        ReviewLock.load(tmp_path)
+
+
+def test_load_non_utf8_bytes(tmp_path: Path) -> None:
+    """load() fails closed with ReviewLockReadError on non-UTF-8 bytes.
+
+    WP07/#4746: pre-fix, this guard gap was fully unguarded (a raw
+    UnicodeDecodeError traceback), not even the pre-fix None-on-malformed
+    behavior of test_load_malformed_json.
+    """
+    lock_dir = tmp_path / LOCK_DIR
+    lock_dir.mkdir(parents=True)
+    (lock_dir / LOCK_FILE).write_bytes(b"\xff\xfe\x00not utf-8")
+
+    with pytest.raises(ReviewLockReadError):
+        ReviewLock.load(tmp_path)
 
 
 # ---------------------------------------------------------------------------
@@ -189,11 +210,7 @@ def test_isolation_config_env_var(tmp_path: Path) -> None:
     config_dir = tmp_path / ".kittify"
     config_dir.mkdir()
     (config_dir / "config.yaml").write_text(
-        "review:\n"
-        "  concurrent_isolation:\n"
-        "    strategy: env_var\n"
-        "    env_var: TEST_DB_SUFFIX\n"
-        "    template: '{agent}_{wp_id}'\n"
+        "review:\n  concurrent_isolation:\n    strategy: env_var\n    env_var: TEST_DB_SUFFIX\n    template: '{agent}_{wp_id}'\n"
     )
 
     result = _get_isolation_config(tmp_path)
@@ -297,13 +314,14 @@ def test_is_stale_os_error(tmp_path: Path) -> None:
 
 
 def test_load_missing_fields_returns_none(tmp_path: Path) -> None:
-    """load() returns None when JSON is valid but fields are missing."""
+    """load() fails closed with ReviewLockReadError when JSON is valid but
+    fields are missing (WP07/#4746 -- see test_load_malformed_json)."""
     lock_dir = tmp_path / LOCK_DIR
     lock_dir.mkdir(parents=True)
     (lock_dir / LOCK_FILE).write_text('{"wp_id": "WP01"}')  # Missing required fields
 
-    result = ReviewLock.load(tmp_path)
-    assert result is None
+    with pytest.raises(ReviewLockReadError):
+        ReviewLock.load(tmp_path)
 
 
 def test_isolation_config_no_review_section(tmp_path: Path) -> None:
@@ -320,11 +338,7 @@ def test_isolation_config_wrong_strategy(tmp_path: Path) -> None:
     """_get_isolation_config returns None when strategy is not env_var."""
     config_dir = tmp_path / ".kittify"
     config_dir.mkdir()
-    (config_dir / "config.yaml").write_text(
-        "review:\n"
-        "  concurrent_isolation:\n"
-        "    strategy: other\n"
-    )
+    (config_dir / "config.yaml").write_text("review:\n  concurrent_isolation:\n    strategy: other\n")
 
     result = _get_isolation_config(tmp_path)
     assert result is None

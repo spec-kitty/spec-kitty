@@ -21,10 +21,13 @@ from mission_runtime import MissionArtifactKind, placement_seam
 import json
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import ulid as _ulid_mod
 
 from kernel.clock import now_utc
+from kernel.errors import GuardedReadError
+from kernel.guarded_read import read_guarded
 from specify_cli.decisions import emit as _emit
 from specify_cli.decisions import store as _store
 from specify_cli.decisions.models import (
@@ -40,6 +43,7 @@ from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED
 
 __all__ = [
     "DecisionError",
+    "DecisionEventLogReadError",
     "open_decision",
     "resolve_decision",
     "defer_decision",
@@ -50,6 +54,26 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # Error class
 # ---------------------------------------------------------------------------
+
+
+class DecisionEventLogReadError(GuardedReadError, RuntimeError):
+    """Raised when ``status.events.jsonl`` exists but cannot be decoded while
+    checking whether a decision's opened event was already recorded.
+
+    Mirrors :class:`specify_cli.decisions.store.DecisionIndexReadError`
+    (mission cli-error-surface-seam, WP07/#4746): a fail-closed signal
+    distinguishing a genuine *read failure* (non-UTF-8 bytes or a malformed
+    JSON line) from the benign *missing-file* case, which
+    :func:`_opened_event_exists` still resolves to ``False`` (D5 — never
+    routed through the guard).
+
+    Not caught by ``cmd_open``'s existing ``except DecisionError`` /
+    ``except DecisionIndexReadError`` clauses (``decision.py``) — it
+    propagates to the global CLI error-presentation hook
+    (``contracts/error-envelope.md``) like every other
+    :class:`kernel.errors.GuardedReadError` subclass, rather than gaining a
+    bespoke per-command presentation.
+    """
 
 
 class DecisionError(Exception):
@@ -179,39 +203,49 @@ def _events_path(repo_root: Path, mission_slug: str) -> Path:
     return _mission_dir(repo_root, mission_slug) / "status.events.jsonl"
 
 
-def _opened_event_exists(repo_root: Path, mission_slug: str, decision_id: str) -> bool:
-    """Return True when the canonical opened event already exists."""
-    path = _events_path(repo_root, mission_slug)
-    if not path.exists():
-        return False
-    try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-    except OSError as exc:
-        raise DecisionError(
-            code=DecisionErrorCode.EVENT_REPAIR_FAILED,
-            details={"decision_id": decision_id, "events_path": str(path)},
-            message=f"Failed to read decision event log for {decision_id!r}: {exc}",
-        ) from exc
+def _parse_opened_events(content: bytes | str) -> list[dict[str, Any]]:
+    """Parse every non-blank line of *content* as a JSON event object.
 
-    for line_number, line in enumerate(lines, start=1):
+    A malformed line's :class:`json.JSONDecodeError` is re-raised carrying
+    the 1-based line number in its message, then collapsed by
+    :func:`kernel.guarded_read.read_guarded` into
+    :class:`DecisionEventLogReadError` (D5: called only after the caller has
+    confirmed the events file exists — never for the absent-file case).
+    """
+    events: list[dict[str, Any]] = []
+    text = content.decode("utf-8") if isinstance(content, bytes) else content
+    for line_number, line in enumerate(text.splitlines(), start=1):
         if not line.strip():
             continue
         try:
-            event = json.loads(line)
+            events.append(json.loads(line))
         except json.JSONDecodeError as exc:
-            raise DecisionError(
-                code=DecisionErrorCode.EVENT_REPAIR_FAILED,
-                details={
-                    "decision_id": decision_id,
-                    "events_path": str(path),
-                    "line": line_number,
-                    "parse_error": str(exc),
-                },
-                message=(
-                    f"Cannot verify opened event for {decision_id!r}: "
-                    f"malformed event log line {line_number}"
-                ),
+            raise json.JSONDecodeError(
+                f"malformed event log line {line_number}: {exc.msg}", exc.doc, exc.pos
             ) from exc
+    return events
+
+
+def _opened_event_exists(repo_root: Path, mission_slug: str, decision_id: str) -> bool:
+    """Return True when the canonical opened event already exists.
+
+    Raises:
+        DecisionEventLogReadError: when ``status.events.jsonl`` exists but
+            cannot be decoded (non-UTF-8 bytes or a malformed JSON line) —
+            fail-closed (FR-012). Never raised when the file is simply
+            absent (D5); that case returns ``False``.
+    """
+    path = _events_path(repo_root, mission_slug)
+    if not path.exists():
+        return False
+
+    events = read_guarded(
+        path,
+        _parse_opened_events,
+        errors=(json.JSONDecodeError,),
+        error_cls=DecisionEventLogReadError,
+    )
+    for event in events:
         payload = event.get("payload")
         if (
             event.get("event_type") == DECISION_POINT_OPENED

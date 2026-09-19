@@ -24,6 +24,8 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from kernel.clock import now_utc_stamp
+from kernel.errors import GuardedReadError
+from kernel.guarded_read import read_guarded
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +45,22 @@ logger = logging.getLogger(__name__)
 # by construction rather than by a hand-copied literal that could silently
 # diverge when one is retuned.
 CAPTURE_BASELINE_TIMEOUT_SECONDS = 300  # 5 minutes
+
+
+class ReviewBaselineReadError(GuardedReadError, ValueError):
+    """Raised when ``baseline-tests.json`` exists but cannot be decoded.
+
+    Mission cli-error-surface-seam WP07/#4746: subclasses ``ValueError`` (in
+    addition to :class:`kernel.errors.GuardedReadError`) so the pre-existing
+    ``pytest.raises(ValueError, match="Malformed baseline JSON")`` contract
+    (``tests/review/test_baseline.py``) keeps matching (D3 — subclass, never
+    flat-replace). Never raised when the artifact is simply absent (D5);
+    :meth:`BaselineTestResult.load` still returns ``None`` for that case.
+    """
+
+    def __init__(self, *, path: str | None = None, reason: str | None = None) -> None:
+        message = f"Malformed baseline JSON at {path}: {reason}"
+        super().__init__(path=path, reason=message)
 
 
 @dataclass(frozen=True)
@@ -123,14 +141,22 @@ class BaselineTestResult:
     def load(cls, path: Path) -> BaselineTestResult | None:
         """Load from JSON file.  Returns None if file doesn't exist.
 
-        Raises ValueError on malformed JSON.
+        Raises:
+            ReviewBaselineReadError: When *path* exists but is malformed
+                (non-UTF-8 bytes or invalid JSON) -- a
+                :class:`kernel.errors.GuardedReadError` subclass that is
+                also a ``ValueError`` (D3), so existing
+                ``except ValueError`` call sites keep matching. Never raised
+                for a missing file (D5).
         """
         if not path.exists():
             return None
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"Malformed baseline JSON at {path}: {exc}") from exc
+        data = read_guarded(
+            path,
+            json.loads,
+            errors=(json.JSONDecodeError,),
+            error_cls=ReviewBaselineReadError,
+        )
         return cls.from_dict(data)
 
     def save(self, path: Path) -> None:

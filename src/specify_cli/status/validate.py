@@ -15,11 +15,28 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from kernel.clock import parse_iso
+from kernel.errors import GuardedReadError
+from kernel.guarded_read import read_guarded
 from spec_kitty_events import normalize_event_id
 
 from .models import Lane
 from .transitions import CANONICAL_LANES, resolve_lane_alias
 from .wp_state import wp_state_for
+
+
+class StatusValidationReadError(GuardedReadError, RuntimeError):
+    """Raised when ``status.json`` exists but cannot be decoded while
+    checking materialization drift.
+
+    Mission cli-error-surface-seam WP07/#4746: pre-fix,
+    :func:`validate_materialization_drift`'s ``status_path.read_text()`` +
+    ``json.loads()`` pair was fully unguarded, so non-UTF-8 bytes or
+    malformed JSON surfaced as a raw traceback through
+    ``spec-kitty agent status validate``. Only reached once
+    :func:`_validate_materialization_files` has confirmed BOTH
+    ``status.json`` and ``status.events.jsonl`` exist (D5 -- the
+    missing-file findings above stay outside this guard).
+    """
 
 
 
@@ -246,7 +263,12 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
         return file_findings
 
     # Read on-disk snapshot
-    disk_data = json.loads(status_path.read_text(encoding="utf-8"))
+    disk_data = read_guarded(
+        status_path,
+        json.loads,
+        errors=(json.JSONDecodeError,),
+        error_cls=StatusValidationReadError,
+    )
 
     # Compute expected snapshot from all compatible event families.
     expected_snapshot = materialize_snapshot(feature_dir)

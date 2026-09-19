@@ -19,9 +19,25 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
+from kernel.errors import GuardedReadError
+from kernel.guarded_read import read_guarded
 from kernel.yaml_io import serialize_mapping
 
 TERMINAL_REVIEW_LANES = frozenset({"approved", "done"})
+
+
+class ReviewArtifactReadError(GuardedReadError, ValueError):
+    """Raised when a ``review-cycle-*.md`` artifact exists but cannot be parsed.
+
+    Mission cli-error-surface-seam WP07/#4746: subclasses ``ValueError`` (in
+    addition to :class:`kernel.errors.GuardedReadError`) so existing
+    ``except ValueError`` call sites keep matching (D3). Every structural
+    failure :meth:`ReviewCycleArtifact.from_file` used to raise directly
+    (missing/malformed frontmatter delimiters, invalid YAML, a non-mapping
+    payload, or a missing/invalid field) now collapses into this type via
+    :func:`kernel.guarded_read.read_guarded`, carrying the SAME message text
+    each of those direct raises produced.
+    """
 
 
 _REVIEW_CYCLE_NUMBER_RE = re.compile(r"review-cycle-(\d+)\.md$")
@@ -282,55 +298,66 @@ class ReviewCycleArtifact:
         """Parse a review-cycle artifact from a markdown file with YAML frontmatter.
 
         Raises:
-            ValueError: If the file cannot be parsed (missing delimiters, bad YAML, etc.)
+            ReviewArtifactReadError: If the file cannot be read or parsed
+                (unreadable/non-UTF-8, missing delimiters, bad YAML, a
+                non-mapping payload, or a missing/invalid field) -- a
+                :class:`kernel.errors.GuardedReadError` subclass that is
+                also a ``ValueError`` (D3), so existing
+                ``except ValueError`` call sites keep matching.
         """
-        try:
-            text = path.read_text(encoding="utf-8")
-        except OSError as exc:
-            raise ValueError(f"Cannot read review artifact file {path}: {exc}") from exc
 
-        # Split on --- delimiters.  The file must start with "---\n".
-        if not text.startswith("---"):
-            raise ValueError(
-                f"Review artifact file has no YAML frontmatter: {path}"
-            )
+        def _parse(content: bytes | str) -> ReviewCycleArtifact:
+            text = content.decode("utf-8") if isinstance(content, bytes) else content
 
-        # Find the closing --- delimiter
-        # text[3:] skips the opening ---
-        rest = text[3:]
-        # Skip optional newline after opening ---
-        if rest.startswith("\n"):
-            rest = rest[1:]
-        closing = rest.find("\n---")
-        if closing == -1:
-            raise ValueError(
-                f"Review artifact file has no closing '---' delimiter: {path}"
-            )
+            # Split on --- delimiters.  The file must start with "---\n".
+            if not text.startswith("---"):
+                raise ValueError(
+                    f"Review artifact file has no YAML frontmatter: {path}"
+                )
 
-        frontmatter_str = rest[:closing]
-        body_raw = rest[closing + 4:]  # skip \n---
-        # Strip leading newline from body
-        body = body_raw.lstrip("\n")
+            # Find the closing --- delimiter
+            # text[3:] skips the opening ---
+            rest = text[3:]
+            # Skip optional newline after opening ---
+            if rest.startswith("\n"):
+                rest = rest[1:]
+            closing = rest.find("\n---")
+            if closing == -1:
+                raise ValueError(
+                    f"Review artifact file has no closing '---' delimiter: {path}"
+                )
 
-        yaml = _make_yaml()
-        try:
-            data = yaml.load(frontmatter_str)
-        except Exception as exc:
-            raise ValueError(
-                f"Failed to parse YAML frontmatter in {path}: {exc}"
-            ) from exc
+            frontmatter_str = rest[:closing]
+            body_raw = rest[closing + 4:]  # skip \n---
+            # Strip leading newline from body
+            body = body_raw.lstrip("\n")
 
-        if not isinstance(data, dict):
-            raise ValueError(
-                f"YAML frontmatter in {path} is not a mapping"
-            )
+            yaml = _make_yaml()
+            try:
+                data = yaml.load(frontmatter_str)
+            except Exception as exc:
+                raise ValueError(
+                    f"Failed to parse YAML frontmatter in {path}: {exc}"
+                ) from exc
 
-        try:
-            return cls.from_dict(data, body=body)
-        except (KeyError, TypeError, ValueError) as exc:
-            raise ValueError(
-                f"Missing or invalid field in review artifact {path}: {exc}"
-            ) from exc
+            if not isinstance(data, dict):
+                raise ValueError(
+                    f"YAML frontmatter in {path} is not a mapping"
+                )
+
+            try:
+                return cls.from_dict(data, body=body)
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"Missing or invalid field in review artifact {path}: {exc}"
+                ) from exc
+
+        return read_guarded(
+            path,
+            _parse,
+            errors=(ValueError,),
+            error_cls=ReviewArtifactReadError,
+        )
 
     @staticmethod
     def latest(sub_artifact_dir: Path) -> ReviewCycleArtifact | None:

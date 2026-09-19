@@ -10,6 +10,37 @@ from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
+from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
+
+from kernel.errors import GuardedReadError
+from kernel.guarded_read import read_guarded
+
+
+class WpsManifestReadError(GuardedReadError, RuntimeError):
+    """Raised when ``wps.yaml`` exists but cannot be read or is malformed YAML.
+
+    Mission cli-error-surface-seam WP07/#4746: pre-fix,
+    :func:`load_wps_manifest` was fully unguarded for non-UTF-8 bytes and
+    malformed YAML syntax -- both surfaced as a raw traceback through every
+    reachable command (``finalize-tasks``, ``runtime.next.runtime_bridge``).
+    Never raised when ``wps.yaml`` is simply absent (D5) -- that case still
+    returns ``None`` (legacy mission, prose-based ``tasks.md`` fallback).
+
+    Deliberately NOT raised for a schema-invalid-but-syntactically-valid
+    manifest: that case still raises ``pydantic.ValidationError`` directly,
+    unchanged from the pre-WP07 contract (pinned by
+    ``tests/core/test_wps_manifest.py``'s
+    ``test_malformed_raises_validation_error_with_field_name`` and
+    siblings). ``pydantic.ValidationError`` is a ``pydantic-core``
+    (Rust) type that cannot be practically re-parented onto
+    :class:`kernel.errors.GuardedReadError` via multiple inheritance (its
+    ``__new__`` does not accept this hierarchy's ``path``/``reason``
+    keyword-only constructor contract) — so, per D3 ("subclass, never
+    flat-replace" the existing type), the read+YAML-syntax guard-gap is
+    closed here while the schema-validation surface is left exactly as
+    every other caller already found it.
+    """
 
 
 class WorkPackageEntry(BaseModel):
@@ -66,24 +97,17 @@ class WpsManifest(BaseModel):
     _concern_tracking_required: bool | None = PrivateAttr(default=None)
 
 
-def load_wps_manifest(feature_dir: Path) -> WpsManifest | None:
-    """Load wps.yaml from feature_dir if present.
+def _parse_wps_manifest(content: bytes | str, feature_dir: Path) -> WpsManifest:
+    """Decode already-read ``wps.yaml`` *content* into a validated :class:`WpsManifest`.
 
-    Returns None if wps.yaml does not exist (legacy mission — use prose parser).
-    Raises pydantic.ValidationError if the file exists but is malformed,
-    with the failing field name and value in the error message.
-
-    Args:
-        feature_dir: Path to the kitty-specs/<mission>/ directory.
+    Raises ``ruamel.yaml.YAMLError`` on malformed YAML or
+    ``pydantic.ValidationError`` on a schema-invalid manifest — both
+    collapsed by :func:`kernel.guarded_read.read_guarded` into
+    :class:`WpsManifestReadError`.
     """
-    wps_path = feature_dir / "wps.yaml"
-    if not wps_path.exists():
-        return None
-
-    from ruamel.yaml import YAML
-
+    text = content.decode("utf-8") if isinstance(content, bytes) else content
     yaml = YAML(typ="safe")
-    raw: dict[str, Any] = yaml.load(wps_path)
+    raw: dict[str, Any] = yaml.load(text)
 
     # Track explicit dependencies before Pydantic validation
     wps_raw: list[dict[str, Any]] = raw.get("work_packages", [])
@@ -114,6 +138,37 @@ def load_wps_manifest(feature_dir: Path) -> WpsManifest | None:
     )
 
     return manifest
+
+
+def load_wps_manifest(feature_dir: Path) -> WpsManifest | None:
+    """Load wps.yaml from feature_dir if present.
+
+    Returns None if wps.yaml does not exist (legacy mission — use prose parser).
+
+    Raises:
+        WpsManifestReadError: If the file exists but cannot be read (e.g.
+            non-UTF-8 bytes) or is malformed YAML syntax — a
+            :class:`kernel.errors.GuardedReadError` subclass (see
+            contracts/error-envelope.md).
+        pydantic.ValidationError: If the file is valid YAML but fails
+            schema validation, with the failing field name and value in the
+            error message — unchanged from the pre-WP07 contract (see
+            :class:`WpsManifestReadError`'s docstring for why this is not
+            also re-parented onto ``GuardedReadError``).
+
+    Args:
+        feature_dir: Path to the kitty-specs/<mission>/ directory.
+    """
+    wps_path = feature_dir / "wps.yaml"
+    if not wps_path.exists():
+        return None
+
+    return read_guarded(
+        wps_path,
+        lambda content: _parse_wps_manifest(content, feature_dir),
+        errors=(YAMLError, AttributeError),
+        error_cls=WpsManifestReadError,
+    )
 
 
 def dependencies_are_explicit(entry: WorkPackageEntry) -> bool:

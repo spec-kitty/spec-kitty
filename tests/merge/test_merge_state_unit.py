@@ -13,6 +13,7 @@ pytestmark = pytest.mark.fast
 
 from specify_cli.merge.state import (
     MergeState,
+    MergeStateReadError,
     acquire_merge_lock,
     clear_state,
     get_state_path,
@@ -235,9 +236,7 @@ class TestStatePersistence:
         )
         save_state(state, tmp_path)
 
-        expected_path = (
-            tmp_path / ".kittify" / "runtime" / "merge" / MISSION_ID / "state.json"
-        )
+        expected_path = tmp_path / ".kittify" / "runtime" / "merge" / MISSION_ID / "state.json"
         assert expected_path.exists(), f"State file not found at {expected_path}"
 
     def test_get_state_path_with_mission_id(self, tmp_path):
@@ -269,24 +268,28 @@ class TestStatePersistence:
         assert loaded.mission_id == MISSION_ID
 
     def test_load_state_invalid_json(self, tmp_path):
-        state_file = (
-            tmp_path / ".kittify" / "runtime" / "merge" / MISSION_ID / "state.json"
-        )
+        """WP07/#4746 (cli-error-surface-seam): a corrupt state.json for an
+        EXPLICITLY-named mission_id fails closed with a typed
+        ``MergeStateReadError`` rather than silently masquerading as "no
+        merge in progress" -- see ``_load_state_file``'s docstring.
+        """
+        state_file = tmp_path / ".kittify" / "runtime" / "merge" / MISSION_ID / "state.json"
         state_file.parent.mkdir(parents=True)
         state_file.write_text("not valid json{", encoding="utf-8")
 
-        result = load_state(tmp_path, MISSION_ID)
-        assert result is None
+        with pytest.raises(MergeStateReadError):
+            load_state(tmp_path, MISSION_ID)
 
     def test_load_state_missing_fields(self, tmp_path):
-        state_file = (
-            tmp_path / ".kittify" / "runtime" / "merge" / MISSION_ID / "state.json"
-        )
+        """WP07/#4746: schema-invalid (but syntactically valid) JSON for an
+        explicit mission_id also fails closed -- see test_load_state_invalid_json.
+        """
+        state_file = tmp_path / ".kittify" / "runtime" / "merge" / MISSION_ID / "state.json"
         state_file.parent.mkdir(parents=True)
         state_file.write_text('{"mission_id": "test"}', encoding="utf-8")
 
-        result = load_state(tmp_path, MISSION_ID)
-        assert result is None  # Missing required fields
+        with pytest.raises(MergeStateReadError):
+            load_state(tmp_path, MISSION_ID)  # Missing required fields
 
     def test_clear_state_with_mission_id(self, tmp_path):
         state = MergeState(
