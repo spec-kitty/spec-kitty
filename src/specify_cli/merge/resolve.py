@@ -177,6 +177,15 @@ def _load_merge_state_entry_for_mission(
         state = load_state(repo_root)
         return (None, state) if state is not None else None
 
+    # NOTE (#2899): this candidate-key loop deliberately has NO
+    # `except MergeStateReadError: continue` guard, unlike the scan-all loops in
+    # `_iter_merge_states_for_slug` (below) and `merge/state.py`. Those scan
+    # OTHER missions' state and must skip a sibling's corruption; here
+    # `_merge_state_key_candidates` yields only THIS mission's own variant keys
+    # (canonical mission_id + slug), so a corrupt candidate IS the target
+    # mission's own state — fail-closed (let it raise) is correct. Do NOT
+    # "harmonize" this into skip-on-corrupt; that would re-introduce the exact
+    # fail-open bug WP07 closed.
     for key in _merge_state_key_candidates(repo_root, mission_slug):
         state = load_state(repo_root, key)
         if state is not None:
