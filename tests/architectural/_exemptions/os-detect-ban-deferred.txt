@@ -2,8 +2,12 @@
 #
 # specify_cli/__init__.py: deferred with the argv-parsing work (NG-01,
 # version-bump coupling) -- allowlisted, not routed, per WP01's task file.
+# NOTE (#2899 landing): the second site moved 479 -> 518 when the global CLI
+# error-presentation hook (main()) was added above it; the deferred `sys.platform
+# == "win32"` UTF-8-reconfigure check (issue #66) itself is unchanged, still
+# routed nowhere. Line-keyed exemption, so the entry is re-pinned to the new line.
 src/specify_cli/__init__.py:350
-src/specify_cli/__init__.py:479
+src/specify_cli/__init__.py:518
 #
 # paths/windows_paths.py:128 (`sys.platform.startswith("win")` inside
 # `_current_platform()`): a CENSUS GAP discovered while landing WP01 -- this
