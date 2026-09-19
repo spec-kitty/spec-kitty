@@ -136,7 +136,7 @@ def _detect_current_feature(project_root: Path) -> str | None:
 
 @app.command("current")
 def current_cmd(
-    mission: Annotated[str | None, typer.Option("--mission", "-f", help="Mission slug")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
 ) -> None:
     """Show currently active mission for a mission (auto-detects mission from cwd)."""
     project_root = get_project_root_or_exit()
@@ -503,7 +503,7 @@ def _append_warning_lines(body: Text, warnings: Any) -> None:
 def close_cmd(
     mission: Annotated[
         str | None,
-        typer.Option("--mission", "-f", help="Mission slug (auto-detected from cwd if omitted)"),
+        typer.Option("--mission", help="Mission slug (auto-detected from cwd if omitted)"),
     ] = None,
     discard: Annotated[
         bool,

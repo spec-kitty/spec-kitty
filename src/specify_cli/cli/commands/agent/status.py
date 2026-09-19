@@ -847,7 +847,7 @@ def _print_rich_migrate_output(result: Any, *, dry_run: bool) -> None:
 def migrate(
     mission: Annotated[
         str | None,
-        typer.Option("--mission", "-f", help="Single mission slug to migrate"),
+        typer.Option("--mission", help="Single mission slug to migrate"),
     ] = None,
 
     _all_features: Annotated[
@@ -1049,7 +1049,7 @@ def validate(
 def reconcile(
     mission: Annotated[
         str | None,
-        typer.Option("--mission", "-f", help="Mission slug (required in multi-mission repos)"),
+        typer.Option("--mission", help="Mission slug (required in multi-mission repos)"),
     ] = None,
 
     _dry_run: Annotated[
