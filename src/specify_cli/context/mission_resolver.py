@@ -55,12 +55,12 @@ from specify_cli.mission_metadata import load_meta
 # ``__all__`` member via intra-module use. ``FakeMissionResolver`` is green today
 # ONLY because it is grandfathered as a *widened* (non-``__all__``) name in
 # ``_WIDENED_SCOPE_GRANDFATHERED_470``; promoting it into ``__all__`` would strip
-# that rescue and regress a pre-existing public symbol. The WP01 selection seam
-# below (``MissionListing`` / ``list_missions_for_selection`` /
-# ``MISSION_NOT_FOUND_MESSAGE``) stays green via the gate's intra-module rescue
-# for widened names. ``sole_mission_for_selection`` and
-# ``mission_not_found_message`` are forward-API consumed only by WP02–WP06; they
-# gain a real caller when those land (the gate then greens on its own).
+# that rescue and regress a pre-existing public symbol. The selection seam below
+# (``MissionListing`` / ``list_missions_for_selection`` /
+# ``sole_mission_for_selection`` / ``MISSION_NOT_FOUND_MESSAGE`` /
+# ``mission_not_found_message``) is green on its own real cross-file callers in
+# ``next_cmd.py`` / ``research.py`` / ``merge.py``; it stays out of ``__all__``
+# only to keep the widened-name posture consistent, not for lack of callers.
 
 # ---------------------------------------------------------------------------
 # Constants
