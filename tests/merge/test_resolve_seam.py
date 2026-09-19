@@ -11,6 +11,7 @@ slug) is locked.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -200,6 +201,49 @@ def test_cleanup_workspaces_dedups_keys(tmp_path: Path) -> None:
 
 
 # --- _resolve_target_branch -------------------------------------------------
+
+
+# --- _iter_merge_states_for_slug: cross-mission isolation (#2899) ----------
+
+
+def test_iter_merge_states_skips_corrupt_sibling_and_finds_target(tmp_path: Path) -> None:
+    """A sibling mission's corrupt ``state.json`` must not abort resolving
+    ANOTHER mission's merge state.
+
+    Pre-fix, ``_iter_merge_states_for_slug`` called ``load_state(repo_root,
+    candidate.name)`` with an explicit mission_id for every runtime-merge
+    directory — the fail-closed path that RAISES ``MergeStateReadError`` on a
+    corrupt ``state.json`` (WP07/#4746). One mission's corrupt state
+    therefore aborted the scan before the target mission (sorted after it)
+    was ever reached, violating the same cross-mission isolation invariant
+    ``state.py``'s own two scan-all loops (``load_state``'s no-mission_id
+    scan and the ``pending_coord_reconcile`` enumeration generator) already
+    preserve.
+    """
+    runtime_merge_dir = tmp_path / ".kittify" / "runtime" / "merge"
+
+    # Sorts before "target-mission" — corrupt sibling is hit FIRST.
+    corrupt_dir = runtime_merge_dir / "corrupt-mission"
+    corrupt_dir.mkdir(parents=True)
+    (corrupt_dir / "state.json").write_text("{not valid json", encoding="utf-8")
+
+    target_dir = runtime_merge_dir / "target-mission"
+    target_dir.mkdir(parents=True)
+    target_state = MergeState(
+        mission_id="target-mission",
+        mission_slug="target-slug",
+        target_branch="main",
+        wp_order=["WP01"],
+    )
+    (target_dir / "state.json").write_text(json.dumps(target_state.to_dict()), encoding="utf-8")
+
+    matches = resolve._iter_merge_states_for_slug(tmp_path, "target-slug")
+
+    assert [key for key, _state in matches] == ["target-mission"], (
+        "the corrupt sibling must be skipped, not raised, so the target "
+        f"mission's merge state is still found; matches={matches}"
+    )
+    assert matches[0][1].mission_slug == "target-slug"
 
 
 def test_resolve_target_branch_delegates() -> None:

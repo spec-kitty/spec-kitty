@@ -21,6 +21,7 @@ from specify_cli.core.paths import get_main_repo_root
 from specify_cli.merge._constants import logger
 from specify_cli.merge.state import (
     MergeState,
+    MergeStateReadError,
     clear_state,
     load_state,
     save_state,
@@ -138,7 +139,18 @@ def _iter_merge_states_for_slug(
     for candidate in sorted(runtime_merge_dir.iterdir()):
         if not candidate.is_dir():
             continue
-        state = load_state(repo_root, candidate.name)
+        # A corrupt state.json for ONE mission must not abort resolving
+        # ANOTHER mission's merge state (#2899 pre-PR squad) -- this scan
+        # enumerates every mission's runtime dir, unlike a single explicit
+        # ``load_state(repo_root, mission_id)`` call, which stays
+        # fail-closed. Mirrors the two scan-all loops in ``merge/state.py``
+        # (``load_state``'s own no-``mission_id`` scan and the
+        # ``pending_coord_reconcile`` enumeration generator) that already
+        # skip a sibling's unreadable state rather than propagating.
+        try:
+            state = load_state(repo_root, candidate.name)
+        except MergeStateReadError:
+            continue
         if state is not None and state.mission_slug == mission_slug:
             matches.append((candidate.name, state))
     return matches
