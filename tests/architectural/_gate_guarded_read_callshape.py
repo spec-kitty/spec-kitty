@@ -21,6 +21,25 @@ wrapper function, or a ``lambda content: helper(content, ...)``) as
 decoder to the content it read. A raw read/decode call reachable through
 that argument is therefore *covered* — it never touches the filesystem on
 its own, only the content ``read_guarded`` already fetched safely.
+
+Scope of the invariant (deliberately bounded — read as "read/decode CALL
+shapes are closed," not "all malformed-input errors are closed"):
+
+- **Enumerated call shapes only.** The walker matches ``module.attr`` decode
+  calls (``json.loads``, ``yaml.safe_load``, ``tomllib.load``) and the
+  ``open``/``read_text``/``read_bytes`` reads above. It does NOT recognise
+  ``from json import loads`` (bare-name after a from-import), aliased imports
+  (``import json as j``), or ``Path.open().read()``. None of the in-scope
+  modules use those shapes today, so the gate is not evaded now — but a future
+  from-import edit would slip past silently. If you add such a shape, extend
+  the detect sets below rather than relying on the current spelling.
+- **XML is out of the detect set.** ``review/baseline.py::_parse_junit_xml``
+  reads junit output with ``xml.etree.ElementTree.parse`` — the walker cannot
+  see ``ET.parse`` (not in the decode set), so a malformed junit XML surfaces
+  as a raw ``ET.ParseError``, not a ``GuardedReadError``. This is a known,
+  low-reachability residual (junit is machine-generated local test output),
+  named here for parity with the ``pydantic.ValidationError`` carve-out the
+  production gate documents, and tracked as a follow-up in PR #4774.
 """
 
 from __future__ import annotations
