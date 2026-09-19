@@ -83,19 +83,30 @@ class IntakeFileUnreadableError(IntakeError, GuardedReadError):
     cli-error-surface-seam) so the global CLI hook catches it too, without
     disturbing the pre-existing :class:`IntakeError` ``code``/``detail``
     contract other intake callers rely on — ``IntakeError`` is listed first so
-    its ``__init__`` keeps handling construction (it forwards to
-    ``GuardedReadError.__init__`` via ``super()`` in the MRO).
+    its ``__init__`` keeps handling construction. ``IntakeError.__init__``
+    forwards only the positional ``message`` to
+    ``super().__init__(message)``, so ``GuardedReadError.__init__`` never sees
+    a ``path``/``reason`` keyword through that forwarding alone; this
+    constructor sets ``self.path``/``self.reason`` explicitly afterward so the
+    CLI hook's ``--json`` envelope (``contracts/error-envelope.md``) carries
+    the real offending path instead of ``None`` (#2899 pre-PR squad).
     """
 
     code = INTAKE_FILE_UNREADABLE
 
     def __init__(self, *, path: Path | str, cause: BaseException) -> None:
+        message = f"{INTAKE_FILE_UNREADABLE}: {path} could not be read ({cause.__class__.__name__}: {cause})"
         super().__init__(
-            f"{INTAKE_FILE_UNREADABLE}: {path} could not be read ({cause.__class__.__name__}: {cause})",
+            message,
             path=str(path),
             cause=cause.__class__.__name__,
         )
         self.__cause__ = cause
+        # GuardedReadError attributes -- populated explicitly (see docstring
+        # above): the IntakeError->GuardedReadError super() forwarding chain
+        # only passes the positional message, never these keywords.
+        self.path = str(path)
+        self.reason = message
 
 
 class IntakeRootInconsistentError(IntakeError):

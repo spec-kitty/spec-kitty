@@ -169,3 +169,24 @@ def test_intake_file_unreadable_error_preserves_code_and_detail_contract() -> No
     assert exc.code == INTAKE_FILE_UNREADABLE
     assert exc.detail["path"] == "candidate.txt"
     assert exc.__cause__ is cause
+
+
+def test_intake_file_unreadable_error_populates_guarded_read_path() -> None:
+    """#2899 pre-PR squad (MED): ``GuardedReadError.path`` must carry the
+    offending path, not ``None``.
+
+    ``IntakeError.__init__`` forwards only the positional message to
+    ``super().__init__(message)`` -- for this MRO
+    (``IntakeFileUnreadableError`` -> ``IntakeError`` -> ``GuardedReadError``)
+    that lands in ``GuardedReadError.__init__`` with no ``path``/``reason``
+    keyword, so pre-fix both stayed ``None`` despite the real path living in
+    ``exc.detail["path"]``. If this type ever reaches the CLI hook's
+    ``--json`` envelope (``contracts/error-envelope.md``), the emitted
+    ``path`` field was null despite being a path-scoped read failure --
+    contradicting the class's own docstring, which claims it "forwards the
+    path to GuardedReadError".
+    """
+    cause = OSError("denied")
+    exc = IntakeFileUnreadableError(path="candidate.txt", cause=cause)
+
+    assert exc.path == "candidate.txt"
