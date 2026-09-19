@@ -25,10 +25,10 @@ mission_type_activations:
 - documentation
 - research
 - plan
-# Internal (maintainer-only) org-tier doctrine pack — catfooding the pack approach.
+# Internal (maintainer-only) org-tier charter pack — catfooding the pack approach.
 # Repo-local; loaded as an overlay on built-in. NOT shipped to consumers (the wheel
 # force-include is scoped to packs/built-in — see pyproject.toml).
-doctrine:
+charter_packs:
   org:
     packs:
     - name: internal
