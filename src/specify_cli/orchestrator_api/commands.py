@@ -134,7 +134,7 @@ if TYPE_CHECKING:
     from specify_cli.analysis_report import AnalysisReportResult
     from specify_cli.core.paths import RetentionDecision
     from specify_cli.decisions.models import OriginFlow
-    from specify_cli.decisions.service import DecisionError
+    from specify_cli.decisions.service import DecisionError, DecisionEventLogReadError
     from specify_cli.decisions.store import DecisionIndexReadError
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
     from specify_cli.status import StatusSnapshot
@@ -452,6 +452,31 @@ def _fail_decision_index_unreadable(cmd: str, mission: str, exc: DecisionIndexRe
         cmd,
         "DESIGN_STATUS_EVENT_LOG_UNREADABLE",
         f"decisions/index.json could not be read cleanly for mission {mission!r}: {exc}",
+        {"mission_slug": mission, "error": str(exc)},
+    )
+
+
+def _fail_decision_event_log_unreadable(cmd: str, mission: str, exc: DecisionEventLogReadError) -> NoReturn:
+    """Fail-closed on a corrupt ``status.events.jsonl`` reached from a
+    decision WRITE verb's idempotent re-open repair path (open/resolve/
+    defer/cancel-decision).
+
+    Mirrors :func:`_fail_decision_index_unreadable` (#2899 pre-PR squad
+    follow-up): ``DecisionEventLogReadError`` (``decisions/service.py``,
+    mission cli-error-surface-seam/WP07/#4746) is a ``RuntimeError``, not a
+    ``DecisionError`` -- pre-fix these four verbs caught only ``DecisionError``
+    and ``DecisionIndexReadError``, so this exception escaped as a raw
+    traceback with EMPTY stdout, violating this file's JSON-first machine
+    contract. Reuses the SAME ``DESIGN_STATUS_EVENT_LOG_UNREADABLE`` envelope
+    code the sibling ``DecisionIndexReadError`` handler and ``design-status``
+    already emit -- both are event-log/index read failures registered under
+    that one contract code, so reusing it keeps the write verbs' error
+    surface consistent without expanding the contract.
+    """
+    _fail(
+        cmd,
+        "DESIGN_STATUS_EVENT_LOG_UNREADABLE",
+        f"status.events.jsonl could not be read cleanly for mission {mission!r}: {exc}",
         {"mission_slug": mission, "error": str(exc)},
     )
 
@@ -3054,7 +3079,7 @@ def open_decision(  # noqa: PLR0913
     main_repo_root = _get_main_repo_root()
     mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
-    from specify_cli.decisions.service import DecisionError
+    from specify_cli.decisions.service import DecisionError, DecisionEventLogReadError
     from specify_cli.decisions.service import open_decision as _svc_open_decision
     from specify_cli.decisions.store import DecisionIndexReadError
 
@@ -3075,6 +3100,9 @@ def open_decision(  # noqa: PLR0913
         return
     except DecisionIndexReadError as exc:
         _fail_decision_index_unreadable(cmd, mission, exc)
+        return
+    except DecisionEventLogReadError as exc:
+        _fail_decision_event_log_unreadable(cmd, mission, exc)
         return
 
     data = {
@@ -3122,7 +3150,7 @@ def resolve_decision(  # noqa: PLR0913
     main_repo_root = _get_main_repo_root()
     mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
-    from specify_cli.decisions.service import DecisionError
+    from specify_cli.decisions.service import DecisionError, DecisionEventLogReadError
     from specify_cli.decisions.service import resolve_decision as _svc_resolve_decision
     from specify_cli.decisions.store import DecisionIndexReadError
 
@@ -3142,6 +3170,9 @@ def resolve_decision(  # noqa: PLR0913
         return
     except DecisionIndexReadError as exc:
         _fail_decision_index_unreadable(cmd, mission, exc)
+        return
+    except DecisionEventLogReadError as exc:
+        _fail_decision_event_log_unreadable(cmd, mission, exc)
         return
 
     data = {
@@ -3180,7 +3211,7 @@ def defer_decision(
     main_repo_root = _get_main_repo_root()
     mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
-    from specify_cli.decisions.service import DecisionError
+    from specify_cli.decisions.service import DecisionError, DecisionEventLogReadError
     from specify_cli.decisions.service import defer_decision as _svc_defer_decision
     from specify_cli.decisions.store import DecisionIndexReadError
 
@@ -3198,6 +3229,9 @@ def defer_decision(
         return
     except DecisionIndexReadError as exc:
         _fail_decision_index_unreadable(cmd, mission, exc)
+        return
+    except DecisionEventLogReadError as exc:
+        _fail_decision_event_log_unreadable(cmd, mission, exc)
         return
 
     data = {
@@ -3236,7 +3270,7 @@ def cancel_decision(
     main_repo_root = _get_main_repo_root()
     mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
-    from specify_cli.decisions.service import DecisionError
+    from specify_cli.decisions.service import DecisionError, DecisionEventLogReadError
     from specify_cli.decisions.service import cancel_decision as _svc_cancel_decision
     from specify_cli.decisions.store import DecisionIndexReadError
 
@@ -3254,6 +3288,9 @@ def cancel_decision(
         return
     except DecisionIndexReadError as exc:
         _fail_decision_index_unreadable(cmd, mission, exc)
+        return
+    except DecisionEventLogReadError as exc:
+        _fail_decision_event_log_unreadable(cmd, mission, exc)
         return
 
     data = {
