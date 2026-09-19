@@ -158,6 +158,38 @@ def test_mission_meta_read_error_preserves_its_own_attributes() -> None:
     assert "Cannot read meta.json" in str(exc)
 
 
+def test_mission_meta_read_error_populates_guarded_read_path() -> None:
+    """#2899 landing squad (MAJOR): ``GuardedReadError.path`` must carry the
+    offending path, not ``None``.
+
+    ``MissionMetaReadError.__init__`` builds its own message and passes it as a
+    single positional to ``super().__init__(...)``, so pre-fix ``self.path``
+    stayed ``None`` even though the real path lives in ``self.meta_path``. This
+    type is reachable at the CLI ``--json`` hook on a corrupt ``meta.json``
+    (``merge``/``lifecycle`` fail-closed paths); the emitted ``path`` field was
+    ``null`` despite being a path-scoped read failure, violating
+    ``contracts/error-envelope.md`` (``path`` = offending file). Sibling to the
+    already-fixed ``IntakeFileUnreadableError`` case (whack-a-field).
+    """
+    exc = MissionMetaReadError(Path("kitty-specs/x/meta.json"), ValueError("bad"))
+
+    assert exc.path == "kitty-specs/x/meta.json"
+
+
+def test_decision_index_read_error_populates_guarded_read_path() -> None:
+    """#2899 landing squad (MAJOR): sibling of the MissionMetaReadError case.
+
+    ``DecisionIndexReadError`` carries the offending path in ``index_path`` but
+    pre-fix never populated ``GuardedReadError.path``, so the decision write
+    verbs' ``--json`` error envelope emitted ``"path": null`` on a corrupt
+    ``decisions/index.json`` — a path-scoped failure per
+    ``contracts/error-envelope.md``.
+    """
+    exc = DecisionIndexReadError(Path("m/decisions/index.json"), ValueError("bad"))
+
+    assert exc.path == "m/decisions/index.json"
+
+
 def test_intake_file_unreadable_error_preserves_code_and_detail_contract() -> None:
     """Re-parenting must not disturb the ``IntakeError.code``/``detail`` contract."""
     from specify_cli.intake.errors import INTAKE_FILE_UNREADABLE, IntakeError

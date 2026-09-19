@@ -57,6 +57,9 @@ class DecisionIndexReadError(GuardedReadError, RuntimeError):
         self.index_path = index_path
         self.cause = cause
         super().__init__(f"Cannot read {index_path}: {cause} — fail-closed (index.json exists but is corrupt or unreadable); run: spec-kitty doctor")
+        # Populate the GuardedReadError envelope path (contracts/error-envelope.md).
+        # Set only ``path`` — ``reason`` would override the crafted __str__ message.
+        self.path = str(index_path)
 
 
 # ---------------------------------------------------------------------------

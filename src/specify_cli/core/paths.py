@@ -576,6 +576,9 @@ class MissionMetaReadError(GuardedReadError, RuntimeError):
             f"Cannot read {meta_path}: {cause}"
             " — fail-closed (meta.json exists but is corrupt or unreadable)"
         )
+        # Populate the GuardedReadError envelope path (contracts/error-envelope.md).
+        # Set only ``path`` — ``reason`` would override the crafted __str__ message.
+        self.path = str(meta_path)
 
 
 def _is_detached_worktree(start: Path | None = None) -> bool:
