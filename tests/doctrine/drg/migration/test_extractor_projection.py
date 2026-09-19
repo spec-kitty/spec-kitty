@@ -665,6 +665,43 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 #:     frozen orphan sets (they are reachability-set members only). The C-006
 #:     golden-diff -- "the per-``agent_profile:*`` edge-set diff is empty except
 #:     this ledgered delta" -- is pinned by ``test_context_sources_migration.py``.
+#: (22) Charter directive ``prefer-durable-fixes`` (mission
+#:     ``charter-prefer-durable-fixes-directive``): ONE new ``directive`` node
+#:     (``directive:DIRECTIVE_052``, ``directives/052-prefer-durable-fixes.
+#:     directive.yaml``), extractor-minted from its own file. It carries NO
+#:     inline ``references`` (relationships are edges, per the frozen-legacy
+#:     references surface — the ``DISCIPLINED_REFACTORING`` /
+#:     ``RECONCILE_CHANGE_SCOPE_TENSIONS`` precedent), so its relationships are
+#:     authored as FIVE curated (pure) ``suggests`` edges in
+#:     ``_CURATED_ARTIFACT_EDGES`` — NOT overlay content, so
+#:     ``HAND_AUTHORED_NODES``/``HAND_AUTHORED_EDGES`` are UNCHANGED. The five:
+#:     ``directive:DIRECTIVE_052 --suggests-->`` each of
+#:     ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS`` (the arbiter that sizes the
+#:     remediation), ``directive:DIRECTIVE_044`` (feeds canonical-source
+#:     unification), ``directive:DIRECTIVE_043`` (close the class by
+#:     construction), ``directive:DIRECTIVE_040`` (recurrence escalation), and
+#:     ``styleguide:adversarial-squad-cadence`` (the investigation-squad
+#:     mechanism). PURE golden counts move +1 NODE / +5 edges:
+#:     ``_EXPECTED_NODE_COUNT`` auto-tracks via ``pure_builtin_node_count()``
+#:     (the new file bumps the inventory glob and the graph in lockstep — no
+#:     frozen literal to hand-reconcile), ``_EXPECTED_EDGE_COUNT`` is not frozen
+#:     (edges >= nodes floor holds). Relation histogram ``suggests`` +5
+#:     (``requires``/``scope``/``in_tension_with``/``reconciles_tension``
+#:     UNCHANGED); ``suggests`` carries only a directional, test-unenforced prose
+#:     count in ``RELATION_DESCRIPTIONS`` / ``docs/architecture/doctrine-
+#:     relationships.md`` (left as-is per the ledger entry (19) precedent for a
+#:     small curated ``suggests`` add). ORPHAN SETS UNCHANGED: the new directive
+#:     is edge-incident via its five outbound curated edges (never a pure
+#:     orphan, so it enters NO ``_INTENTIONAL_ORPHANS`` bucket); all five targets
+#:     were already edge-incident, so none enters or leaves any orphan set.
+#:     ``_SHIPPED_ORPHANS`` UNCHANGED at 21. REACHABILITY: the directive is a new
+#:     action-unreachable node (nothing ``scope``s it), the same INERT shape as
+#:     ``DISCIPLINED_REFACTORING`` / ``USE_C4_MODEL_TECHNIQUES`` — it joins the
+#:     live action-unreachable ``dead`` partition in
+#:     ``tests/doctrine/drg/test_reachability.py``, which since PR #3342 asserts
+#:     only totality/disjointness (no frozen membership), so nothing there
+#:     moves. It is charter-activated in this repository's ``.kittify`` but not
+#:     in any pinned pack-default reachability universe.
 #: Node count DERIVED from the ``packs/built-in`` inventory (#3234), not frozen: a
 #: fresh ``generate_graph`` (pure, no overlay) must produce exactly one node per
 #: shipped source file across the file-backed kinds, plus the structurally-derived

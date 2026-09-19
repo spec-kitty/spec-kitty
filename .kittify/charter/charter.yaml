@@ -1785,6 +1785,8 @@ activated_directives:
 - 049-agent-declaration-and-self-introduction
 - 050-credential-handling-discipline
 - reconcile-change-scope-tensions
+- 052-prefer-durable-fixes
+- use-mutation-testing-to-validate-test-quality
 activated_tactics:
 - acceptance-test-first
 - adr-drafting-workflow
@@ -1898,6 +1900,7 @@ activated_tactics:
 - common-docs-write
 - writing-audience-catalog
 - dialectic-research
+- model-task-routing
 activated_styleguides:
 - aggregate-design-rules
 - deployable-skill-authoring
