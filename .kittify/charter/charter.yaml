@@ -393,202 +393,226 @@ catalog:
     summary: "Treat structured prompts and REASONS canvases as governed change-intent and decision-boundary artifacts. Code remains the source of truth for current behavior; canvases record approved intent, boundaries, and safeguards for a mission or work package. Applies to high-risk and multi-WP missions where change-boundary clarity reduces drift; not appropriate for tiny fixes, throwaway spikes, or purely visual exploration where canvas authoring is overhead.\n"
     source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/structured-prompt-driven-development.paradigm.yaml
     local_path: _LIBRARY/paradigm-structured-prompt-driven-development.md
+  - id: DIRECTIVE:ACTION_ITEM_ATTRIBUTION
+    kind: directive
+    title: ACTION_ITEM_ATTRIBUTION
+    summary: Definition unavailable in bundled doctrine.
+    source_path: ''
+    local_path: _LIBRARY/directive-action-item-attribution.md
   - id: DIRECTIVE:DIRECTIVE_001
     kind: directive
-    title: DIRECTIVE_001
-    summary: Definition unavailable in bundled doctrine.
+    title: Architectural Integrity Standard
+    summary: "System designs must maintain clear separation of concerns and well-defined component boundaries so that each part of the system is independently understandable, testable, and replaceable without cascading changes.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-001.md
   - id: DIRECTIVE:DIRECTIVE_003
     kind: directive
-    title: DIRECTIVE_003
-    summary: Definition unavailable in bundled doctrine.
+    title: Decision Documentation Requirement
+    summary: "Material technical and governance decisions must be captured with enough context that future contributors can understand why a path was chosen and what constraints must remain true.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-003.md
   - id: DIRECTIVE:DIRECTIVE_010
     kind: directive
-    title: DIRECTIVE_010
-    summary: Definition unavailable in bundled doctrine.
+    title: Specification Fidelity Requirement
+    summary: "Implemented behavior and produced artifacts must remain faithful to approved specifications, with any necessary deviations explicitly documented and reviewed before acceptance.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-010.md
   - id: DIRECTIVE:DIRECTIVE_018
     kind: directive
-    title: DIRECTIVE_018
-    summary: Definition unavailable in bundled doctrine.
+    title: Doctrine Versioning Requirement
+    summary: "Doctrine artifacts must be versioned with traceable change rationale so downstream consumers can understand compatibility and migration impact.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-018.md
   - id: DIRECTIVE:DIRECTIVE_024
     kind: directive
-    title: DIRECTIVE_024
-    summary: Definition unavailable in bundled doctrine.
+    title: Locality of Change
+    summary: "Changes should stay close to the problem being solved to reduce blast radius, simplify review, and lower regression risk.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-024.md
   - id: DIRECTIVE:DIRECTIVE_025
     kind: directive
-    title: DIRECTIVE_025
-    summary: Definition unavailable in bundled doctrine.
+    title: Boy Scout Rule
+    summary: "Leave touched areas in a better state by default. When an area already modified for the current task carries a failing test, lint, or type issue, fixing it is the default stance — not an optional nicety. Establishing whether a failure is pre-existing routinely costs more effort than simply fixing it, and litigating blame leaves the campground dirtier; so the default is to fix, and to defer only with an explicit rationale. At planning point-cuts (post-spec, post-plan, post-tasks), this rule extends to proactive domain-matched debt folding: if a foldable tech-debt item belongs to the current mission's primary domain, it may be incorporated into the current scope; items outside the domain boundary are filed as issues and deferred, never silently absorbed. See also DIRECTIVE_024 for locality-of-change discipline; DIRECTIVE_040 for structural intervention on recurring bugs.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-025.md
   - id: DIRECTIVE:DIRECTIVE_028
     kind: directive
-    title: DIRECTIVE_028
-    summary: Definition unavailable in bundled doctrine.
+    title: Efficient Local Tooling
+    summary: "Local work should prefer efficient, low-noise tooling so investigation, editing, validation, and repository operations stay fast and reproducible across development environments.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-028.md
   - id: DIRECTIVE:DIRECTIVE_029
     kind: directive
-    title: DIRECTIVE_029
-    summary: Definition unavailable in bundled doctrine.
+    title: Agent Commit Signing Policy
+    summary: "Agent-authored commits must avoid GPG or SSH signing in unattended workflows so automation does not fail on missing key material or unverifiable signatures.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-029.md
   - id: DIRECTIVE:DIRECTIVE_030
     kind: directive
-    title: DIRECTIVE_030
-    summary: Definition unavailable in bundled doctrine.
+    title: Test and Typecheck Quality Gate
+    summary: "Code changes must pass the relevant automated tests and static validation gates before handoff so regressions and interface drift are caught early.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-030.md
   - id: DIRECTIVE:DIRECTIVE_031
     kind: directive
-    title: DIRECTIVE_031
-    summary: Definition unavailable in bundled doctrine.
+    title: Context-Aware Design
+    summary: "Every design decision must be made with explicit awareness of the bounded context it belongs to. Code, terminology, and abstractions must align with the context's ubiquitous language. Crossing a context boundary requires an explicit translation layer; implicit coupling across boundaries is prohibited.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-031.md
   - id: DIRECTIVE:DIRECTIVE_032
     kind: directive
-    title: DIRECTIVE_032
-    summary: Definition unavailable in bundled doctrine.
+    title: Conceptual Alignment
+    summary: "Agents must never assume that shared vocabulary implies shared meaning. Before acting on any task that contains domain-specific, ambiguous, or overloaded terminology, the agent must explicitly state its interpretation of each key term and confirm that interpretation with the requester. Misaligned understanding discovered after implementation is far more costly than a brief clarification exchange before it begins.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-032.md
   - id: DIRECTIVE:DIRECTIVE_033
     kind: directive
-    title: DIRECTIVE_033
-    summary: Definition unavailable in bundled doctrine.
+    title: Targeted Staging Policy
+    summary: "Agent-authored commits must stage only the expected deliverables for the current work package. Blanket staging commands that could inadvertently include unrelated changes, secrets, or build artefacts are prohibited.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-033.md
   - id: DIRECTIVE:DIRECTIVE_034
     kind: directive
-    title: DIRECTIVE_034
-    summary: Definition unavailable in bundled doctrine.
+    title: Test-First Development
+    summary: "Require test-first behavior across acceptance and implementation layers, selecting tactics based on scope and risk. Tests define the contract before production code is written.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-034.md
   - id: DIRECTIVE:DIRECTIVE_035
     kind: directive
-    title: DIRECTIVE_035
-    summary: Definition unavailable in bundled doctrine.
+    title: Bulk Edit Occurrence Classification
+    summary: "Codebase-wide renames, terminology migrations, and bulk string changes must classify string occurrences by semantic context before edits begin. Different contexts (code symbols, imports, filesystem paths, serialized keys, CLI commands, docs, tests, logs) may have different change rules.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-035.md
   - id: DIRECTIVE:DIRECTIVE_036
     kind: directive
-    title: DIRECTIVE_036
-    summary: Definition unavailable in bundled doctrine.
+    title: Black-Box Integration Testing
+    summary: "Exercise the system under test through its external interfaces only, without reference to its internal code structure, implementation details, or internal paths. Test cases derive from specifications, requirements, and design parameters, and assertions are made on observable outputs returned through those external interfaces. \"Black-box\" refers to the technique (absence of structural knowledge) and is independent of test scope — the scope is selected separately by responsibility, not by default to end-to-end.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-036.md
   - id: DIRECTIVE:DIRECTIVE_037
     kind: directive
-    title: DIRECTIVE_037
-    summary: Definition unavailable in bundled doctrine.
+    title: Living Documentation Sync
+    summary: "Behavior-describing artifacts must evolve together. When observable behavior changes, the canonical examples, acceptance checks, narrative specifications, user documentation, glossary terms, code-level documentation, and architecture records must be updated in the same change so no reader is left with a stale picture of the system.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-037.md
   - id: DIRECTIVE:DIRECTIVE_038
     kind: directive
-    title: DIRECTIVE_038
-    summary: Definition unavailable in bundled doctrine.
+    title: Structured Prompt Change-Boundary
+    summary: "When the SPDD/REASONS doctrine pack is active, an implementation must remain inside the approved canvas's Requirements, Operations, Norms, and Safeguards unless a deviation is explicitly recorded. Applies to implement and review actions on projects whose charter selection includes the SPDD paradigm, either REASONS canvas tactic, or this directive.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-038.md
   - id: DIRECTIVE:DIRECTIVE_039
     kind: directive
-    title: DIRECTIVE_039
-    summary: Definition unavailable in bundled doctrine.
+    title: Lynn Cole Engineering Culture
+    summary: "Constrain agentic implementation work toward test-first, strongly typed, modular, boring, reviewable code. Select this directive when the user names Lynn Cole's rules or expresses concern that coding agents produce excessive, bloated, clever, over-abstracted, or hard-to-review code.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-039.md
   - id: DIRECTIVE:DIRECTIVE_040
     kind: directive
-    title: DIRECTIVE_040
-    summary: Definition unavailable in bundled doctrine.
+    title: Recurring-Bug Structural-Intervention Discipline
+    summary: "When a bug class has recurred and prior reactive point-fixes have not stopped the chain, the next response must be a structural intervention that closes the class — not another point fix. Use the five-paradigm parallel-debugging tactic to identify the structural root cause, enumerate dormant masks, and author one fix plan that closes the whole class.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-040.md
   - id: DIRECTIVE:DIRECTIVE_041
     kind: directive
-    title: DIRECTIVE_041
-    summary: Definition unavailable in bundled doctrine.
+    title: Tests as Scaffold, Not Friction
+    summary: "Tests must protect change, not obstruct it. A test earns its place by failing exactly when the contract is violated and passing otherwise. Tests that pass for the wrong reason (mocked-out behavior, tautological or wiring-only assertions) or fail on correct, behavior-neutral changes (implementation-coupled assertions, line-pinned ratchets) are friction: they hide regressions and pressure engineers to revert good changes.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-041.md
   - id: DIRECTIVE:DIRECTIVE_042
     kind: directive
-    title: DIRECTIVE_042
-    summary: Definition unavailable in bundled doctrine.
+    title: Common Docs Documentation Standard
+    summary: "Documentation is governed, single-source-of-truth content, not a wiki. Every documentation file lives under the single Common Docs root, declares its own lifecycle metadata in in-file frontmatter, and is curated under a delete-stale policy. This directive binds the conventions decided in the Common Docs reconciliation ADR (2026-06-27) so they are enforced by live checks rather than remembered by authors.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-042.md
   - id: DIRECTIVE:DIRECTIVE_043
     kind: directive
-    title: DIRECTIVE_043
-    summary: Definition unavailable in bundled doctrine.
+    title: Close Defect Classes by Construction
+    summary: "A repeating defect class signals a missing structural constraint. The correct response is to eliminate the recurrence path with a structural mechanism — an AST call-site gate, a type invariant, or a shrink-only ratchet — rather than adding another process rule or discipline reminder. Structural enforcement closes the class permanently; process rules merely defer the next occurrence.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-043.md
   - id: DIRECTIVE:DIRECTIVE_044
     kind: directive
-    title: DIRECTIVE_044
-    summary: Definition unavailable in bundled doctrine.
+    title: Canonical Sources and Unification
+    summary: "Agents and operators must use the canonical doctrine template, skill, or CLI command rather than improvising a substitute or copying from a prior mission artifact, because older artifacts drift from the canonical surface and copying them propagates the drift. When a concept is found to live in more than one location (a split-brain surface), the correct response is to consolidate to a single canonical authority — not to add the same behavior to every copy. A documented CLI command that is absent from the running tool is a gap to file upstream, not an invitation to hand-roll a workaround.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-044.md
   - id: DIRECTIVE:DIRECTIVE_045
     kind: directive
-    title: DIRECTIVE_045
-    summary: Definition unavailable in bundled doctrine.
+    title: PRs-Only and Read-Intent Before High-Risk Operations
+    summary: "All changes to the remote main branch go through pull requests — agents never push directly or merge without explicit operator instruction. Before executing any high-risk git operation (merge, rebase, deletion, force operations), agents must read the mission spec and current context first. Neither rule may be bypassed under time pressure or assumed from a task title alone.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-045.md
   - id: DIRECTIVE:DIRECTIVE_046
     kind: directive
-    title: DIRECTIVE_046
-    summary: Definition unavailable in bundled doctrine.
+    title: Readable and Consistent Pull Requests
+    summary: "Every mission branch and pull request an agent prepares must be readable, consistent, and independently reviewed before it is handed to the operator. Concretely, three properties are required and must not be traded away for speed: (1) LINEAR history — the branch is rebased onto the current upstream base and carries a small set of logically-sliced commits, never a tangle of merge and status commits (rebase over merge); (2) CONSISTENT and COMPLETE scope — the branch finishes the work it set out to do and does not defer genuinely small remaining items to a follow-up, deferring only work that is genuinely high-effort or mission-sized; (3) INDEPENDENTLY REVIEWED — the aggregate diff has had an independent review before, or in parallel to, opening the draft PR, with real findings folded in while the PR is still a draft. The adversarial review squad (adversarial-squad-deployment) is the RECOMMENDED review mechanism — not a mandated gate; it stays optional per its own doctrine.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-046.md
   - id: DIRECTIVE:DIRECTIVE_047
     kind: directive
-    title: DIRECTIVE_047
-    summary: Definition unavailable in bundled doctrine.
+    title: Audience-Oriented Writing
+    summary: "Any artifact intended for a human reader must be tailored to a named, identifiable audience rather than written for an undefined or generic reader. Identifying who the reader is, what they already know, and what they need from the artifact must happen before drafting, not after. Artifacts that skip this step tend to over-explain to experts, under-explain to newcomers, or bury the point the reader actually needs.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-047.md
   - id: DIRECTIVE:DIRECTIVE_048
     kind: directive
-    title: DIRECTIVE_048
-    summary: Definition unavailable in bundled doctrine.
+    title: Version Governance
+    summary: "Any agent operation that reads, cites, or reasons about a versioned artifact (a glossary, a specification, a doctrine element, a released document) must reference the current canonical version, not a cached or stale copy. Analysis performed against a stale version produces confidently wrong conclusions - it is not merely lower-quality, it is actively misleading because it looks complete.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-048.md
   - id: DIRECTIVE:DIRECTIVE_049
     kind: directive
-    title: DIRECTIVE_049
-    summary: Definition unavailable in bundled doctrine.
+    title: Agent Declaration and Self-Introduction
+    summary: "Before beginning substantive work, an agent with a defined specialist identity (as opposed to a generic assistant) should open with a short role/scope declaration - who it is, what it is about to do, and any hard constraint it operates under - so the human or the requesting agent can catch a mismatch (wrong agent invoked, wrong scope assumed) before work is wasted rather than after. This is advisory guidance, not a runtime gate: no mechanism blocks work when the declaration is absent.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-049.md
   - id: DIRECTIVE:DIRECTIVE_050
     kind: directive
-    title: DIRECTIVE_050
-    summary: Definition unavailable in bundled doctrine.
+    title: Credential Handling Discipline
+    summary: "Any agent operation that uses an authentication credential (token, key, password, session cookie) to call an external system must never log, echo, or otherwise surface that credential in output, error messages, or artifacts. The discipline is prevention-first: the credential must be kept out of any surface that could be logged or written in the first place, rather than surfaced and then scrubbed after the fact.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-050.md
+  - id: DIRECTIVE:DIRECTIVE_051
+    kind: directive
+    title: DIRECTIVE_051
+    summary: Definition unavailable in bundled doctrine.
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-051.md
+  - id: DIRECTIVE:DIRECTIVE_052
+    kind: directive
+    title: Prefer Durable Fixes
+    summary: "Do not stop a fix at the surface symptom. Diagnose every fix to its root cause FIRST — an underdesigned or underspecified seam, the same problem recurring in more than one place, a forgone opportunity to reuse existing code or authority, a missing invariant — and, when the investigation reveals a systemic cause, prefer a STRUCTURAL remediation that closes the whole class over a narrow point-fix that leaves the class open. This directive governs the DEPTH OF DIAGNOSIS (always root-cause-deep); it does NOT license unbounded scope. The SIZE of the resulting remediation is a separate, explicit scope decision reconciled through RECONCILE_CHANGE_SCOPE_TENSIONS, and deferring a structural fix as a tracked follow-up (behind an umbrella issue) is an acceptable outcome when folding it would exceed the mission.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-052.md
   - id: DIRECTIVE:DISCIPLINED_REFACTORING
     kind: directive
     title: DISCIPLINED_REFACTORING
     summary: Definition unavailable in bundled doctrine.
     source_path: ''
     local_path: _LIBRARY/directive-disciplined-refactoring.md
+  - id: DIRECTIVE:MINUTES_STAND_ALONE
+    kind: directive
+    title: MINUTES_STAND_ALONE
+    summary: Definition unavailable in bundled doctrine.
+    source_path: ''
+    local_path: _LIBRARY/directive-minutes-stand-alone.md
   - id: DIRECTIVE:RECONCILE_CHANGE_SCOPE_TENSIONS
     kind: directive
-    title: RECONCILE_CHANGE_SCOPE_TENSIONS
-    summary: Definition unavailable in bundled doctrine.
+    title: Reconciling Change-Scope Tensions
+    summary: "Locality of Change (DIRECTIVE_024), the Boy Scout Rule (DIRECTIVE_025), and the Change Apply Smallest Viable Diff tactic each bound the size of a change from a different angle, and by design they are not fully compatible: Locality of Change minimizes blast radius, Boy Scout Rule licenses opportunistic in-place improvement of touched areas, and smallest-viable-diff minimizes the diff itself. This directive gives an operator or agent a single place to weigh the three together on a given change, instead of applying each in isolation, so the default doctrine pack stays coherent even though the underlying tension between the three rules is real and intentionally left unresolved at the rule level.\n"
     source_path: ''
     local_path: _LIBRARY/directive-reconcile-change-scope-tensions.md
   - id: DIRECTIVE:USE_C4_MODEL_TECHNIQUES
     kind: directive
-    title: USE_C4_MODEL_TECHNIQUES
-    summary: Definition unavailable in bundled doctrine.
+    title: Use C4 Model Techniques
+    summary: "Document and reason about a system's architecture with the C4 model's progressive zoom — System Context, then Container, then Component, then Code — so every diagram serves one audience at one level of detail instead of a single all-in-one picture that serves nobody. Draw only the levels that earn their keep: a Context diagram is almost always worth it, Container diagrams for systems with more than one deployable unit, Component diagrams only for containers with non-obvious internal structure, and Code-level diagrams only when they can be generated cheaply. Keep every diagram in a text-based, version-controlled form (Mermaid or PlantUML diagram-as-code, not a binary export) so it diffs, reviews, and travels with the code it describes. This directive is an extensible HUB for architecture-documentation techniques: the C4 zoom-in workflow, the diagram review checklist, the diagram-as-code toolguides, the drill-down abstraction-level discipline, and code/documentation analysis for boundary discovery all hang off it, and further techniques are wired in as they are supplied. It governs HOW to document and reason about architecture at the right zoom level; the concrete techniques it recommends are the suggested members, each chosen for the specific documentation need it serves.\n"
     source_path: ''
     local_path: _LIBRARY/directive-use-c4-model-techniques.md
   - id: DIRECTIVE:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
     kind: directive
-    title: USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
-    summary: Definition unavailable in bundled doctrine.
+    title: Use Mutation Testing to Validate Test Quality
+    summary: "Line and branch coverage prove a test executed a piece of code; they do not prove a test would notice if that code were wrong. Mutation testing closes that gap: it introduces small, deliberate faults (mutants) into the code under test and asks whether the existing tests fail. A surviving mutant is a concrete, located piece of evidence that some assertion does not actually pin the behaviour it appears to cover — the tests run the line but do not constrain its outcome. Use mutation testing to find those hollow assertions and strengthen them until the mutant is killed. Treat the mutation score as a QUALITY SIGNAL that points at weak spots, never as a target to be gamed: a number driven up by suppressing awkward mutants, over-fitting tests to implementation detail, or asserting on incidental output teaches nothing and rots the suite. Because a full-suite mutation run is expensive, run it on the CHANGED SCOPE under review — the modules a work package touched — rather than the whole tree, so the signal is timely and the survivors it surfaces are the ones a reviewer can act on now. This directive is an extensible HUB for mutation-testing technique: the run/triage workflow, the mutation-aware test-design conventions, and the language-specific mutation toolguides all hang off it.\n"
     source_path: ''
     local_path: _LIBRARY/directive-use-mutation-testing-to-validate-test-quality.md
   - id: TACTIC:acceptance-test-first
@@ -828,7 +852,7 @@ catalog:
   - id: TACTIC:dependency-hygiene
     kind: tactic
     title: Dependency Hygiene
-    summary: "Keep a project's dependency tree free of known vulnerabilities and non-compliant licenses. Apply at project creation, when adding any dependency, and as part of regular pre-release maintenance. Apply when: starting a new project, adding or upgrading any dependency, a vulnerability scanner reports new CVEs, or preparing a release.\n"
+    summary: "Keep a project's dependency tree free of known vulnerabilities and non-compliant licenses. Apply at project creation, when adding any dependency, and as part of regular pre-release maintenance. Apply when: starting a new project, adding or upgrading any dependency, a vulnerability scanner reports new CVEs, or preparing a release. For JavaScript/TypeScript projects specifically, dependency hygiene also covers install-time supply-chain safety (registry authenticity, package freshness, lifecycle-script discipline, lockfile behavior, and Node runtime baseline) per the supply-chain-install-safety directive and tactic — see the JS/TS-specific steps below.\n"
     source_path: ''
     local_path: _LIBRARY/tactic-dependency-hygiene.md
   - id: TACTIC:development-bdd
@@ -947,8 +971,8 @@ catalog:
     local_path: _LIBRARY/tactic-locality-of-change.md
   - id: TACTIC:model-task-routing
     kind: tactic
-    title: model-task-routing
-    summary: Definition unavailable in bundled doctrine.
+    title: Model Task Routing
+    summary: "Match model strength to task difficulty: route hard-judgment work (sizing, fakeability, code-truth, review, architecture) to the strongest available model, and grounded or mechanical passes to a cheaper model. Advisory — the recommendation surfaces alongside the task, it never substitutes for the operator's or orchestrator's own judgment about who should run a step.\n"
     source_path: ''
     local_path: _LIBRARY/tactic-model-task-routing.md
   - id: TACTIC:mutation-testing-workflow
@@ -1191,6 +1215,12 @@ catalog:
     summary: "Classify each bounded context as Core Domain, Supporting Subdomain, or Generic Subdomain to guide investment, staffing, and build-vs-buy decisions. Core domains receive the deepest modelling effort because they are the source of competitive advantage. Supporting subdomains are necessary but not differentiating. Generic subdomains are commodity concerns best served by off-the-shelf solutions. Based on Eric Evans's strategic classification and the Bounded Context Canvas (section 3).\n"
     source_path: ''
     local_path: _LIBRARY/tactic-strategic-domain-classification.md
+  - id: TACTIC:supply-chain-install-safety
+    kind: tactic
+    title: supply-chain-install-safety
+    summary: Definition unavailable in bundled doctrine.
+    source_path: ''
+    local_path: _LIBRARY/tactic-supply-chain-install-safety.md
   - id: TACTIC:tdd-red-green-refactor
     kind: tactic
     title: Test Driven Development (TDD)
@@ -1335,6 +1365,12 @@ catalog:
     summary: 'Clear, not clever: definitions exist to help the reader understand, not to demonstrate expertise.'
     source_path: ''
     local_path: _LIBRARY/styleguide-kitty-glossary-writing.md
+  - id: STYLEGUIDE:meeting-minutes-format
+    kind: styleguide
+    title: meeting-minutes-format
+    summary: Definition unavailable in bundled doctrine.
+    source_path: ''
+    local_path: _LIBRARY/styleguide-meeting-minutes-format.md
   - id: STYLEGUIDE:mutation-aware-test-design
     kind: styleguide
     title: Mutation-Aware Test Design
@@ -1434,7 +1470,7 @@ catalog:
   - id: TOOLGUIDE:github-tracker
     kind: toolguide
     title: GitHub Issue-Tracker Operations (gh CLI + GraphQL)
-    summary: "Driving the GitHub issue tracker from the CLI — native sub-issues (parent/child), issue types, parent-chain walks, auth, and the rate-limit and node-id-vs-db-id gotchas that bite bulk tracker work.\n"
+    summary: "Driving the GitHub issue tracker from the CLI — native sub-issues (parent/child), issue types, parent-chain walks, auth, the rate-limit and node-id-vs-db-id gotchas that bite bulk tracker work, and the closing-keyword trap where \"Closes #A,#B\" links only the first issue.\n"
     source_path: ''
     local_path: _LIBRARY/toolguide-github-tracker.md
   - id: TOOLGUIDE:maven-review-checks
@@ -1557,6 +1593,12 @@ catalog:
     summary: "Convert an unfamiliar brownfield codebase into a defensible action plan by gathering version-control evidence, overlaying structural and complexity signals, optionally classifying domains, and bucketing the resulting findings into fix-this-week, fix-this-quarter, do-not-worry, and parallelisable work. The output is a triage document that anchors subsequent planning conversations and ADRs; it is not a replacement for deeper investigation, only a fast, evidence-backed first pass.\n"
     source_path: ''
     local_path: _LIBRARY/procedure-legacy-codebase-triage.md
+  - id: PROCEDURE:meeting-minutes-pipeline
+    kind: procedure
+    title: meeting-minutes-pipeline
+    summary: Definition unavailable in bundled doctrine.
+    source_path: ''
+    local_path: _LIBRARY/procedure-meeting-minutes-pipeline.md
   - id: PROCEDURE:migrate-project-guidance-to-spec-kitty-charter
     kind: procedure
     title: Migrate Project Guidance to Spec Kitty Charter
@@ -1599,6 +1641,12 @@ catalog:
     summary: "Establish a shared, documented understanding of the context, stakeholders, constraints, and problem structure before any solution is designed or selected. A situational assessment ensures that architectural decisions are grounded in operational reality rather than technology preference, and that the trade-off assessments that follow address the right problem.\n"
     source_path: ''
     local_path: _LIBRARY/procedure-situational-assessment.md
+  - id: PROCEDURE:spike-timebox-policy
+    kind: procedure
+    title: spike-timebox-policy
+    summary: Definition unavailable in bundled doctrine.
+    source_path: ''
+    local_path: _LIBRARY/procedure-spike-timebox-policy.md
   - id: PROCEDURE:test-first-bug-fixing
     kind: procedure
     title: Test-First Bug Fixing
@@ -1686,7 +1734,7 @@ catalog:
   - id: AGENT_PROFILE:minutes-mahad
     kind: agent_profile
     title: Minutes Mahad
-    summary: "Meeting minutes specialist who converts VTT transcripts from Teams or Zoom into structured, validated Markdown and posts that Markdown as the assistant response in the originating chat. Minutes Mahad first asks which of two formats to produce — decision minutes or discussion notes — then extracts with Scribe Sally identity and strict neutrality. The attribution rule is a hard gate. Wiki publication is optional and human-operated, reusing the same validated Markdown. Chat-only delivery requires no publish credentials.\n"
+    summary: "Meeting minutes specialist who converts VTT transcripts from Teams or Zoom into structured, validated Markdown and posts that Markdown as the assistant response in the originating chat. Minutes Mahad first asks which of two formats to produce — DECISION MINUTES (Attendance / Minutes table / Action Items) for decision- and action-oriented meetings, or DISCUSSION NOTES (Attendance / per-topic bullet summaries / optional Action Items) that stand alone as a briefing for someone who was not there. Extraction uses Scribe Sally identity and strict neutrality, then renders one stand-alone Markdown response using the template matching the selected format. The attribution rule (every action item present must have a named owner) is a hard gate: unresolved attribution gaps are asked about in the same chat before any final minutes are returned or handed off. In discussion notes the Action Items section is optional and may be omitted when nothing actionable arose. Executive brevity so minutes are readable in 1–2 minutes. Wiki/knowledge-base publication is optional and human-operated: the agent reuses the same validated Markdown and hands a rendered page to the human. Chat-only delivery requires no publish credentials. Minutes Mahad does not perform editorial interpretation, does not invent content not present in the transcript, and does not return minutes that have not passed the validation gate.\n"
     source_path: ''
     local_path: _LIBRARY/agent_profile-minutes-mahad.md
   - id: AGENT_PROFILE:node-norris
@@ -1747,11 +1795,11 @@ catalog:
     kind: template_set
     title: software-dev-default
     summary: Build high-quality software with structured workflows and test-driven development
-    source_path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/packs/built-in/missions/software-dev/mission.yaml
+    source_path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/.claude/worktrees/agent-a1fcd0cf1c39b0a93/packs/built-in/missions/software-dev/mission.yaml
     local_path: _LIBRARY/template-set-software-dev-default.md
 overrides: {}
 metadata:
-  generated_at: '2026-08-08T08:10:03Z'
+  generated_at: '2026-09-19T20:10:55Z'
   bundle_schema_version: 2
 activated_directives:
 - 001-architectural-integrity-standard
@@ -1785,6 +1833,8 @@ activated_directives:
 - 049-agent-declaration-and-self-introduction
 - 050-credential-handling-discipline
 - reconcile-change-scope-tensions
+- 052-prefer-durable-fixes
+- use-mutation-testing-to-validate-test-quality
 activated_tactics:
 - acceptance-test-first
 - adr-drafting-workflow
@@ -1898,6 +1948,7 @@ activated_tactics:
 - common-docs-write
 - writing-audience-catalog
 - dialectic-research
+- model-task-routing
 activated_styleguides:
 - aggregate-design-rules
 - deployable-skill-authoring
