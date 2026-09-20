@@ -1223,6 +1223,18 @@ def _mt_pre_review_gate_declared(scope_source_root: Path) -> bool:
     fallback: dispatch then surfaces the engine's visible
     ``no test command configured`` warn, which a broken declaration deserves
     — never a quiet skip.
+
+    Cost note (squad NOTE on #4803, folded): this probe builds its own
+    throwaway ``DeclaredCommandScopeSource``, and any ``test_command()`` call
+    that reaches command rendering evaluates that instance's ``_output_file``
+    cached_property — an immediate ``mkdtemp`` — so a DECLARED repo pays one
+    extra tempdir per ``for_review`` transition on top of the dispatch's own
+    instance. Deliberately accepted: the class already documents the tempdir
+    as a per-run leak rather than threading teardown through a frozen
+    dataclass, and avoiding the second instance would mean re-deriving
+    ``review.test_command`` config semantics outside the single FR-011
+    authority this probe exists to ask. Undeclared repos — the case #3821
+    exists for — return ``None`` before command rendering and pay nothing.
     """
     if _mt_resolve_scope_source(scope_source_root).test_command() is not None:
         return True

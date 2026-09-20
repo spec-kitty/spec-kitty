@@ -293,7 +293,12 @@ class DeclaredCommandScopeSource:
         if the run never writes into it) — a small, deliberately-accepted
         per-run leak rather than complicating this frozen dataclass with
         explicit teardown; the OS temp directory is reclaimed independently
-        of this process.
+        of this process. Known second caller: the #3821 declaration probe
+        (``tasks_move_task._mt_pre_review_gate_declared``) builds a throwaway
+        instance whose ``test_command()`` render pays this same cost once per
+        ``for_review`` transition in a declared repo — accepted explicitly in
+        that probe's docstring rather than re-deriving config semantics
+        outside the single FR-011 authority.
         """
         return Path(tempfile.mkdtemp(prefix="spec-kitty-declared-cmd-")) / "output.xml"
 
