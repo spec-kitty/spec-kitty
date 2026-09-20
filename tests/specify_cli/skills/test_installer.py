@@ -1614,3 +1614,55 @@ def test_apply_project_skill_write_windows_fchmod_fallback(tmp_path: Path, monke
     expected_mode = next(e.after.mode for e in assessment.effects if e.path == ".claude/skills/alpha/SKILL.md")
     assert expected_mode is not None
     assert stat.S_IMODE(written.stat().st_mode) == expected_mode
+
+
+def test_command_parent_receipts_host_aware_dir_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Twin-gate (#4776/NFR-003): installer._command_parent_receipts is host-aware.
+
+    A freshly-created shared parent whose only divergence from the plan is a
+    host-unrepresentable POSIX mode (Windows) is accepted so the doctrine apply
+    converges; on a POSIX host the same mode divergence is genuine drift and the
+    receipt check STILL refuses. Mirrors the managed_skills :179 relaxation via
+    the shared kernel.paths.is_windows()-gated helper.
+    """
+    from kernel import paths as kernel_paths
+    from specify_cli.skills import installer
+    from specify_cli.skills.paths import observe_skill_path
+    from specify_cli.tool_surface.operations import (
+        FileState,
+        OperationRoot,
+        OwnerAssessment,
+        OwnershipProof,
+        PhysicalEffect,
+    )
+
+    root = OperationRoot("project", "project", tmp_path)
+    parent = tmp_path / ".agents" / "skills"
+    parent.mkdir(parents=True)
+    parent.chmod(0o700)
+    receipt = observe_skill_path(parent)
+    assert receipt.state.kind == "directory" and receipt.state.mode == 0o700 and receipt.identity is not None
+    effect = PhysicalEffect(
+        "command_skills",
+        "surface_repair",
+        root,
+        ".agents/skills",
+        "create",
+        FileState("absent"),
+        FileState("directory", mode=0o755),
+        "create shared parent",
+        (OwnershipProof("managed_path", "parent:.agents/skills"),),
+        ("command_skills",),
+    )
+    assessment = OwnerAssessment("command_skills", root, (effect,))
+
+    # POSIX host: 0o700 vs planned 0o755 is real drift -> refuse (NFR-003).
+    monkeypatch.setattr(kernel_paths, "is_windows", lambda: False)
+    with installer._completed_command_parents(assessment, (receipt,)), pytest.raises(ValueError, match="Invalid command-created skill parent"):
+        installer._command_parent_receipts(assessment)
+
+    # Windows host: the same divergence is host-inherent -> accepted (FR-006).
+    monkeypatch.setattr(kernel_paths, "is_windows", lambda: True)
+    with installer._completed_command_parents(assessment, (receipt,)):
+        result = installer._command_parent_receipts(assessment)
+    assert set(result) == {parent}

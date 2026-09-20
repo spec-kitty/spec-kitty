@@ -60,6 +60,7 @@ from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as SUPPORTED_AGENT
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 from kernel.clock import now_utc_iso
 from specify_cli.shims.registry import CONSUMER_SKILLS
+from kernel import paths as kernel_paths
 from kernel.paths import to_posix
 
 if TYPE_CHECKING:
@@ -489,6 +490,57 @@ def _state(path: Path) -> FileState:
     raise InstallerError("unsafe_path", path=str(path), detail="Unsupported node kind")
 
 
+def _windows_dir_mode_only_divergence(observed: FileState, planned: FileState) -> bool:
+    """Return True when a directory diverges from the plan *only* by POSIX mode on Windows.
+
+    A freshly-created shared skills directory (e.g. ``.agents/skills``) carries a
+    POSIX ``mode`` of ``0o755`` in the plan, but Windows ``os.chmod`` cannot
+    represent those bits, so the observed directory mode can never match the plan.
+    Two gates compare that planned mode against the freshly-observed directory --
+    the completion re-check in the managed-skills provider AND the doctrine apply's
+    command-parent receipt check (``installer._command_parent_receipts``). Left
+    unhandled either makes ``upgrade`` unable to converge in one pass on Windows:
+    the re-check raises (#4776) or a ``chmod`` is re-planned forever (#4777), and
+    the doctrine skills never apply.
+
+    Treating that single, host-inherent divergence as satisfied lets ``upgrade``
+    converge in one pass with both command AND doctrine skills applied
+    (FR-005/006) and report zero dry-run repairs once converged (FR-007). The
+    relaxation is deliberately narrow: only directory-kind effects, only when the
+    *sole* remaining difference after equalizing ``mode`` is the mode itself, and
+    only on Windows -- the host check goes through the canonical patchable
+    ``kernel.paths.is_windows`` seam (module attribute at call time, so tests
+    monkeypatch ``kernel.paths.is_windows`` without faking ``os.name``), so POSIX
+    file- and directory-mode correctness is never weakened (NFR-003).
+    """
+    if not kernel_paths.is_windows():
+        return False
+    if observed.kind != "directory" or planned.kind != "directory":
+        return False
+    return bool(replace(observed, mode=planned.mode) == planned)
+
+
+def _manifest_change_bytes(manifest: manifest_store.SkillsManifest) -> bytes:
+    """Serialize a manifest with ``installed_at`` neutralized, for change detection only.
+
+    #4134: ``installed_at`` is a per-invocation wall-clock stamp (sampled once as
+    ``_CommandBatch.time`` and threaded into ``ManifestEntry.installed_at``).
+    Excluding it from the change-detection comparison -- mirroring the
+    doctrine-skill provider's ``_expected_entries``, which compares with
+    ``installed_at=""`` -- keeps a cross-invocation timestamp difference from
+    planning a phantom manifest rewrite (and from tripping the completion
+    re-check). Callers persist the manifest's *real* bytes; only the
+    "did the manifest meaningfully change?" decision runs through this seam, so
+    the preserved-timestamp contract stays intact.
+    """
+    neutralized = manifest_store.SkillsManifest(
+        schema_version=manifest.schema_version,
+        entries=[replace(entry, installed_at="") for entry in manifest.entries],
+    )
+    encoded: bytes = manifest_store.serialize(neutralized)
+    return encoded
+
+
 class _CommandBatch:
     """Collect command decisions and their physical supporting effects once."""
 
@@ -680,22 +732,26 @@ class _CommandBatch:
     def finish(self) -> OwnerAssessment:
         encoded = manifest_store.serialize(self.manifest)
         owners = tuple(sorted(set(self.agents) | {a for e in self.original_entries for a in e.agents}))
-        if self.manifest.entries != list(self.original_entries):
-            # Ordering is not an effect; retain original bytes when entries agree.
-            original = manifest_store.serialize(manifest_store.SkillsManifest(entries=list(self.original_entries)))
-            if encoded != original:
-                self.parents(_MANIFEST, owners)
-                before = self.observe_destination(_MANIFEST)
-                self.effect(
-                    _MANIFEST,
-                    FileState("file", sha256=manifest_store.fingerprint(encoded), mode=before.mode if before.kind == "file" else 0o644),
-                    owners,
-                    OwnershipProof("managed_path", _MANIFEST),
-                )
-                self.effects[_MANIFEST] = replace(
-                    self.effects[_MANIFEST], ownership=(self.effects[_MANIFEST].ownership + tuple(c.proof for c in self.commands if c.proof is not None))
-                )
-                self.atomic_artifact(_MANIFEST)
+        # Ordering is not an effect; retain original bytes when entries agree.
+        # #4134: change detection compares installed_at-neutralized content so a
+        # cross-invocation wall-clock ``installed_at`` never plans a phantom
+        # manifest rewrite (mirrors the doctrine provider's ``_expected_entries``
+        # installed_at=""). The STORED bytes below keep their real timestamp.
+        if self.manifest.entries != list(self.original_entries) and _manifest_change_bytes(self.manifest) != _manifest_change_bytes(
+            manifest_store.SkillsManifest(entries=list(self.original_entries))
+        ):
+            self.parents(_MANIFEST, owners)
+            before = self.observe_destination(_MANIFEST)
+            self.effect(
+                _MANIFEST,
+                FileState("file", sha256=manifest_store.fingerprint(encoded), mode=before.mode if before.kind == "file" else 0o644),
+                owners,
+                OwnershipProof("managed_path", _MANIFEST),
+            )
+            self.effects[_MANIFEST] = replace(
+                self.effects[_MANIFEST], ownership=(self.effects[_MANIFEST].ownership + tuple(c.proof for c in self.commands if c.proof is not None))
+            )
+            self.atomic_artifact(_MANIFEST)
         payload = PreparedCommands(
             tuple(self.commands),
             self.original_entries,
@@ -928,8 +984,9 @@ def _partial_manifest(assessment: OwnerAssessment, payload: PreparedCommands, su
         else:
             manifest.upsert(command.entry)
     encoded = manifest_store.serialize(manifest)
-    original = manifest_store.serialize(manifest_store.SkillsManifest(entries=list(payload.original_entries)))
-    if encoded != original:
+    # #4134: installed_at-neutralized change detection (see ``finish``); the
+    # persisted bytes below still carry the real timestamps.
+    if _manifest_change_bytes(manifest) != _manifest_change_bytes(manifest_store.SkillsManifest(entries=list(payload.original_entries))):
         manifest_effect = by_path.get(_MANIFEST)
         mode = manifest_effect.after.mode if manifest_effect is not None else None
         manifest_store.save_prepared(assessment.root.path, encoded, mode=mode if mode is not None else 0o644)

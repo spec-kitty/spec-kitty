@@ -46,6 +46,7 @@ from specify_cli.skills.paths import (
     recheck_skill_paths,
     skill_path_observations,
 )
+from specify_cli.skills.command_installer import _windows_dir_mode_only_divergence
 from specify_cli.tool_surface.operations import (
     ApplyConsent,
     AssessmentInputs,
@@ -495,7 +496,15 @@ def _command_parent_receipts(assessment: OwnerAssessment) -> dict[Path, SkillPat
     receipts = {item.path: item for item in admitted[1]}
     for path, item in receipts.items():
         matches = [e for e in assessment.effects if e.destination == path]
-        if len(matches) != 1 or matches[0].before.kind != "absent" or matches[0].after != item.state or item.identity is None or item.state.kind != "directory":
+        if len(matches) != 1:
+            raise ValueError(f"Invalid command-created skill parent: {path}")
+        effect = matches[0]
+        # #4776: on Windows a freshly-created shared parent cannot carry the
+        # planned POSIX 0o755, so accept a directory whose sole divergence from
+        # the plan is that host-unrepresentable mode (dir-scoped, host-gated via
+        # kernel.paths.is_windows). POSIX drift still refuses (NFR-003).
+        after_matches = effect.after == item.state or _windows_dir_mode_only_divergence(item.state, effect.after)
+        if effect.before.kind != "absent" or not after_matches or item.identity is None or item.state.kind != "directory":
             raise ValueError(f"Invalid command-created skill parent: {path}")
     recheck_skill_paths(tuple(receipts.values()))
     return receipts

@@ -39,8 +39,12 @@ WRITER_REGISTRY: dict[str, Writer] = {
     "copilot":  MarkdownRulesWriter("copilot",  ".github/copilot-instructions.md", append_mode=True,  check_dir=".github"),
     # "roo" removed — Roo Code shut down on 2026-05-15 (C-007)
     "kiro":     MarkdownRulesWriter("kiro",     ".kiro/steering/spec-kitty.md",    append_mode=False, check_dir=".kiro"),
-    "gemini":   MarkdownRulesWriter("gemini",   "GEMINI.md",                       append_mode=True,  check_dir=".gemini"),
-    "llxprt":   MarkdownRulesWriter("llxprt",   "LLXPRT.md",                       append_mode=True,  check_dir=".llxprt"),
+    # gemini/llxprt write a root-level context file (GEMINI.md / LLXPRT.md). No
+    # check_dir: can_write() falls back to the file's real parent (the repo
+    # root, always present), so a stale root block is repaired even when the
+    # harness command dir (.gemini/ / .llxprt/) is absent (matches AgentsMdWriter).
+    "gemini":   MarkdownRulesWriter("gemini",   "GEMINI.md",                       append_mode=True),
+    "llxprt":   MarkdownRulesWriter("llxprt",   "LLXPRT.md",                       append_mode=True),
     # Pattern C — AgentsMdWriter (AGENTS.md at project root; always writable)
     "codex":       AgentsMdWriter("codex"),
     "opencode":    AgentsMdWriter("opencode"),

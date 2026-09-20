@@ -45,6 +45,7 @@ from specify_cli.skills.manifest import (
 )
 from specify_cli.skills.paths import SkillPathObservation, get_primary_project_skill_root, observe_skill_path, recheck_skill_paths
 from specify_cli.skills.registry import SkillRegistry
+from specify_cli.skills.command_installer import _windows_dir_mode_only_divergence
 
 from ..enums import (
     ActivationMode,
@@ -176,7 +177,8 @@ def _recheck_command_completion(
         created_yaml = provisioning.write.recheck_applied()
     for effect in command_effects:
         state = observe_skill_path(effect.destination).state
-        if replace(state, mtime_ns=effect.after.mtime_ns) != effect.after:
+        normalized = replace(state, mtime_ns=effect.after.mtime_ns)
+        if normalized != effect.after and not _windows_dir_mode_only_divergence(normalized, effect.after):
             raise ValueError(f"Completed command output changed: {effect.destination}")
     for before in composition.parents:
         current = observe_skill_path(before.path, members=True)
