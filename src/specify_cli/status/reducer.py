@@ -47,7 +47,20 @@ CURRENT_SNAPSHOT_SCHEMA_VERSION = 2
 #: The implicit schema version of every snapshot with no ``schema_version``
 #: key at all -- every snapshot ever materialized before this concept
 #: existed, frozen archives included.
+#:
+#: NB: this ``schema_version`` is the *snapshot-materialization generation* of
+#: a single mission's ``status.json`` -- it enumerates snapshot output shapes
+#: and is deliberately NOT the same axis as the project-level migration schema
+#: gate (:func:`specify_cli.migration.gate.check_schema_version`) or the
+#: doctrine/pack ``schema_version`` strings. Do not wire them together.
 _LEGACY_SNAPSHOT_SCHEMA_VERSION = 1
+
+#: The snapshot generation at which each versioned read-root field was first
+#: emitted. Emission is gated on these (not on CURRENT) so replaying a snapshot
+#: at its own older generation reproduces exactly the fields it carried. Adding
+#: a future field = a new constant here + one gate line in
+#: :func:`materialize_snapshot`; the resolver never changes.
+_IMPLEMENTER_OF_RECORD_SCHEMA_VERSION = 2
 
 
 def _cancellation_reason_source(event: StatusEvent) -> str:
@@ -308,22 +321,34 @@ def _target_schema_version(feature_dir: Path) -> int:
     ``implementer_of_record`` projection from its very first snapshot.
 
     An EXISTING snapshot keys its replay off its OWN recorded
-    ``schema_version`` rather than off anything about the current code: a
-    snapshot already recorded at :data:`CURRENT_SNAPSHOT_SCHEMA_VERSION`
-    stays there; a snapshot with no ``schema_version`` key at all -- every
-    snapshot ever materialized before this concept existed, frozen archives
-    included -- replays at the legacy schema forever, so that a canonical
-    replay of a frozen archive
-    (``tests/architectural/test_archive_root_byte_identical.py``) stays
-    byte-identical to the committed file without weakening that freeze gate,
-    and without this reducer needing to know which missions are archived.
+    ``schema_version`` -- the exact generation it was written at, whatever
+    that is -- rather than off anything about the current code: a snapshot
+    recorded at generation N stays at N even after
+    :data:`CURRENT_SNAPSHOT_SCHEMA_VERSION` advances past N; a snapshot with
+    no ``schema_version`` key at all -- every snapshot ever materialized
+    before this concept existed, frozen archives included -- replays at the
+    legacy schema forever. A canonical replay of a frozen archive
+    (``tests/architectural/test_archive_root_byte_identical.py``) therefore
+    stays byte-identical to the committed file without weakening that freeze
+    gate, and without this reducer needing to know which missions are
+    archived. Per-field emission in :func:`materialize_snapshot` is gated on
+    each field's introduced-generation (see
+    :data:`_IMPLEMENTER_OF_RECORD_SCHEMA_VERSION`) so adding a future field
+    costs one gate line, not a change to this resolver.
     """
     status_path = feature_dir / SNAPSHOT_FILENAME
     if not status_path.exists():
         return CURRENT_SNAPSHOT_SCHEMA_VERSION
-    if _existing_schema_version(status_path) == CURRENT_SNAPSHOT_SCHEMA_VERSION:
-        return CURRENT_SNAPSHOT_SCHEMA_VERSION
-    return _LEGACY_SNAPSHOT_SCHEMA_VERSION
+    # Replay an existing snapshot at ITS OWN recorded generation, whatever that
+    # is -- not a binary "current-or-legacy". A snapshot recorded at v2 must
+    # keep replaying at v2 even after CURRENT advances to v3, or a canonical
+    # replay of that (now-frozen) v2 archive would drop the v3 code's newer
+    # fields and no longer byte-match its committed file. A snapshot with no
+    # schema_version key at all (every snapshot materialized before this
+    # concept existed, frozen archives included) reads back as None and replays
+    # at the legacy schema forever.
+    existing = _existing_schema_version(status_path)
+    return existing if existing is not None else _LEGACY_SNAPSHOT_SCHEMA_VERSION
 
 
 def materialize_to_json(snapshot: StatusSnapshot) -> str:
@@ -354,9 +379,18 @@ def materialize_snapshot(feature_dir: Path) -> StatusSnapshot:
     # this snapshot is targeting the current schema; a legacy-schema replay
     # (an existing on-disk snapshot with no schema_version key) stays exactly
     # as it was pre-#4786.
-    if _target_schema_version(feature_dir) >= CURRENT_SNAPSHOT_SCHEMA_VERSION:
+    target = _target_schema_version(feature_dir)
+    # Emit each versioned field gated on the generation it was INTRODUCED at,
+    # not on CURRENT, so a snapshot replayed at its own older generation
+    # reproduces exactly the fields that generation carried (byte-identity with
+    # the committed archive). implementer_of_record arrived at generation 2.
+    if target >= _IMPLEMENTER_OF_RECORD_SCHEMA_VERSION:
         _project_implementer_attribution(stream.transitions, snapshot)
-        snapshot.schema_version = CURRENT_SNAPSHOT_SCHEMA_VERSION
+    # Stamp the generation this snapshot was materialized at. The legacy
+    # (pre-concept) generation carries no key at all -- to_dict serializes
+    # schema_version only when set -- so a legacy replay stays byte-identical.
+    if target > _LEGACY_SNAPSHOT_SCHEMA_VERSION:
+        snapshot.schema_version = target
     identity = resolve_mission_identity(feature_dir)
     snapshot.mission_number = str(identity.mission_number) if identity.mission_number is not None else None
     snapshot.mission_type = identity.mission_type

@@ -271,6 +271,12 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
     )
 
     # Compute expected snapshot from all compatible event families.
+    # NB (load-bearing): this MUST stay `materialize_snapshot`, not `reduce`.
+    # `materialize_snapshot` gates the schema-versioned read-root fields
+    # (e.g. #4786 implementer_of_record) on the on-disk snapshot's own
+    # generation, so a legacy-schema disk file compares equal to its own
+    # replay. `reduce` projects those fields unconditionally and would report
+    # false drift on every pre-schema-version mission (cf. reducer.py).
     expected_snapshot = materialize_snapshot(feature_dir)
     expected_data = expected_snapshot.to_dict()
 
