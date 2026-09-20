@@ -2207,27 +2207,37 @@ def _preserve_or_capture_planning_commit_sha(
     not be captured; or a refresh was requested whose recorded SHA is not an
     ancestor of the tip.
     """
-    if not _execution_has_begun(repo_root, mission_slug, owned=owned):
+    execution_has_begun = _execution_has_begun(repo_root, mission_slug, owned=owned)
+    if not execution_has_begun:
         return PlanningCommitResolution(
             sha=_capture_target_branch_tip(repo_root, target_branch),
             action="captured",
         )
 
-    from specify_cli.lanes.persistence import read_lanes_json
+    from specify_cli.lanes.persistence import is_execution_wedged, read_lanes_json
 
     existing: LanesManifest | None = read_lanes_json(planning_dir)
-    if existing is None:
+    if is_execution_wedged(execution_has_begun=execution_has_begun, lanes_present=existing is not None):
         error_msg = (
             f"Cannot re-finalize mission {mission_slug!r}: execution has begun "
             "(a WP is past 'planned') but no lanes.json exists on disk to "
             "preserve planning provenance from. Refusing to write a new "
-            "lanes.json rather than guess a planning_commit_sha."
+            "lanes.json rather than guess a planning_commit_sha. Run "
+            "'spec-kitty doctor mission-state --fix --mission "
+            f"{mission_slug}' to rebuild lanes.json from the event log."
         )
         if json_output:
             _emit_json({"error": error_msg})
         else:
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
+    # Narrowing note (not a suppression): ``is_execution_wedged`` is opaque to
+    # mypy, so unlike the pre-WP01 inline ``if existing is None: raise`` it
+    # narrows nothing on its own. We are past the raise above with
+    # ``execution_has_begun`` True, so ``is_execution_wedged(...)`` being
+    # False here can only mean ``lanes_present`` was True, i.e. ``existing``
+    # is not None — assert makes that logical necessity visible to mypy.
+    assert existing is not None
     # Type note (not a suppression): this module's [[tool.mypy.overrides]]
     # sets ``follow_imports = "skip"`` for all ``specify_cli.*`` modules (to
     # avoid walking the CLI bootstrap graph), so a single-file mypy invocation
@@ -2315,7 +2325,20 @@ def _compute_and_write_lanes(
     owned: OwnedMission | None = None,
     refresh_planning_commit: bool = False,
 ) -> tuple[Path | None, LanesManifest | None, PlanningCommitResolution | None]:
-    """Phase: compute execution lanes + write lanes.json + risk report."""
+    """Phase: compute execution lanes + write lanes.json + risk report.
+
+    Thin CLI wrapper (WP01, #4758) around the pure
+    :func:`specify_cli.lanes.compute_and_persist.compute_and_write_lanes`
+    core: this function resolves the two CLI/status-partition inputs the
+    core needs already-resolved (``planning_commit_sha`` via the
+    still-local :func:`_preserve_or_capture_planning_commit_sha`, and
+    ``mission_id`` from ``meta.json``), calls the core, then reports the
+    outcome on the console / in ``--json`` and runs the (``policy``-backed)
+    parallelization-risk report -- none of which the pure core may import.
+    Behavior is unchanged for the healthy path (NFR-003-style
+    behavior-preservation): only the glob-revalidation-failure /
+    lane-computation bodies moved, verbatim, into the core.
+    """
     _raise_lane_computation_empty_input_if_needed(
         wp_manifests,
         wp_dependencies,
@@ -2323,33 +2346,10 @@ def _compute_and_write_lanes(
         all_canceled=all_canceled,
         json_output=json_output,
     )
-    from specify_cli.lanes.compute import compute_lanes
-    from specify_cli.lanes.persistence import write_lanes_json
-
-    create_intent = {wp_id: list(fm.create_intent) for wp_id, fm in wp_frontmatters.items() if fm.create_intent}
-    glob_result = validate_glob_matches(wp_manifests, repo_root, create_intent=create_intent)
-    if not glob_result.passed:
-        if not json_output:
-            lane_stderr = err_console
-            for err in glob_result.errors:
-                lane_stderr.print(f"[red]ERROR:[/red] Lane-compute re-validation: {err}")
-        error_msg = "Lane computation aborted: literal-path owned_files entries match zero files. Fix the paths before lanes.json is written."
-        if json_output:
-            _emit_json({"error": error_msg, "ownership_literal_path_errors": glob_result.errors})
-        else:
-            console.print(f"[red]Error:[/red] {error_msg}")
-        raise typer.Exit(1) from None
+    from specify_cli.lanes.compute_and_persist import LaneGlobValidationError, compute_and_write_lanes
 
     raw_mission_id = meta.get("mission_id") if meta else None
     mission_id = raw_mission_id if isinstance(raw_mission_id, str) else None
-    lanes_manifest = compute_lanes(
-        dependency_graph=wp_dependencies,
-        ownership_manifests=wp_manifests,
-        mission_slug=mission_slug,
-        target_branch=target_branch,
-        wp_bodies=wp_bodies,
-        mission_id=mission_id,
-    )
     # FR-009 / ADR 2026-07-29-1 (T002): freeze the recorded planning-artifact SHA
     # into the SAME write as the rest of lanes.json — no second commit, no
     # chicken-and-egg with this invocation's own finalize commit hash.
@@ -2369,9 +2369,33 @@ def _compute_and_write_lanes(
     # Tolerate a ``None`` resolution: the historical test seam in
     # ``test_mission_finalize_phases.py`` monkeypatches this helper to return
     # ``None``, the pre-#4141 shape's value the manifest was assigned verbatim.
-    lanes_manifest.planning_commit_sha = planning_sha.sha if planning_sha is not None else None
+    resolved_sha = planning_sha.sha if planning_sha is not None else None
+    try:
+        lanes_path, lanes_manifest = compute_and_write_lanes(
+            planning_dir,
+            repo_root,
+            mission_slug,
+            wp_manifests,
+            wp_dependencies,
+            wp_frontmatters,
+            wp_bodies,
+            target_branch,
+            planning_commit_sha=resolved_sha,
+            mission_id=mission_id,
+        )
+    except LaneGlobValidationError as exc:
+        glob_result = exc.result
+        if not json_output:
+            lane_stderr = err_console
+            for err in glob_result.errors:
+                lane_stderr.print(f"[red]ERROR:[/red] Lane-compute re-validation: {err}")
+        error_msg = "Lane computation aborted: literal-path owned_files entries match zero files. Fix the paths before lanes.json is written."
+        if json_output:
+            _emit_json({"error": error_msg, "ownership_literal_path_errors": glob_result.errors})
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
+        raise typer.Exit(1) from None
     _report_planning_sha_decision(target_branch, planning_sha, json_output=json_output)
-    lanes_path = write_lanes_json(planning_dir, lanes_manifest)
     if not json_output:
         console.print(f"[green]✓[/green] Computed {len(lanes_manifest.lanes)} execution lane(s)")
         if lanes_manifest.collapse_report and lanes_manifest.collapse_report.independent_wps_collapsed > 0:

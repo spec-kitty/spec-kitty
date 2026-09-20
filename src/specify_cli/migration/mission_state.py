@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import importlib.metadata
 import json
+import logging
 import os
 import re
 import subprocess
@@ -24,6 +25,8 @@ from urllib.parse import urlsplit
 
 if TYPE_CHECKING:
     from specify_cli.status.dup_key_repair import ArtifactRepairPlan, DuplicateKeyFinding
+    from specify_cli.status.models import StatusSnapshot
+    from specify_cli.status.wp_metadata import WPMetadata
 
 from packaging.version import Version
 from pydantic import BaseModel, ConfigDict
@@ -61,6 +64,8 @@ from specify_cli.status import (
     LIFECYCLE_EVENT_TYPES,
     is_retrospective_lifecycle_event,
 )
+
+logger = logging.getLogger(__name__)
 
 MIGRATION_SCHEMA_VERSION = "1.0.0"
 CANONICAL_ENVELOPE_SCHEMA_VERSION = "3.0.0"
@@ -1430,6 +1435,179 @@ def _count_jsonl_rows(path: Path) -> int:
         return 0
 
 
+# ---------------------------------------------------------------------------
+# Canonical-state RECOVERY: lanes.json rebuild (#4758, WP03)
+#
+# ``doctor mission-state --fix`` is the one documented recovery action for
+# the #4758 wedge (execution has begun but ``lanes.json`` is absent -- see
+# ``specify_cli.lanes.persistence.is_execution_wedged``, the single shared
+# predicate this repair reuses rather than re-deriving). ``agent mission
+# repair`` is NOT this home: its ``shas is None`` early return short-circuits
+# every non-coordinated topology, which is exactly where the wedge lives.
+# This block reuses WP01's pure ``compute_and_write_lanes`` core -- no
+# fourth authority (C-001/C-002) -- and never rewrites an existing
+# ``lanes.json`` (#3311).
+# ---------------------------------------------------------------------------
+
+LANES_REBUILT_ACTION = "lanes_rebuilt_from_event_log"
+LANES_REBUILD_SKIPPED_NO_WP_FILES_ACTION = "lanes_rebuild_skipped_no_wp_files"
+LANES_REBUILD_SKIPPED_NO_OWNED_FILES_ACTION = "lanes_rebuild_skipped_no_owned_files"
+
+
+def _execution_has_begun_in_snapshot(snapshot: StatusSnapshot) -> bool:
+    """True iff any WP's materialized lane is something other than ``planned``.
+
+    Mirrors ``mission_finalize._execution_has_begun``'s definition (any WP
+    past ``planned``), but reads the :class:`~specify_cli.status.models.StatusSnapshot`
+    this repair already materialized from the canonical event log instead of
+    re-resolving a coord-aware status surface: ``repair_repo`` always
+    operates on the already re-anchored primary mission directory (see
+    ``_anchor_repair_root``), so there is no separate coordination surface to
+    consult here, and a corrupt/unparseable event log never reaches this
+    point -- ``_repair_mission``'s row canonicalization fails closed first
+    (see the ``row_errors`` early return above).
+    """
+    return any(wp_state.get("lane") not in (None, "planned") for wp_state in snapshot.work_packages.values())
+
+
+def _gather_wp_frontmatter_for_lanes_rebuild(
+    tasks_dir: Path,
+) -> tuple[dict[str, WPMetadata], dict[str, str]]:
+    """Read every WP file's frontmatter + body from *tasks_dir* (#4758, WP03).
+
+    Mirrors ``tasks_finalize._gather_wp_frontmatter_and_bodies``'s WP
+    discovery (``tasks_dir.glob("WP*.md")``, unreadable files skipped) --
+    that helper is nested inside its own module's command-phase function
+    specifically so it stays outside the module's compat-surface census
+    (see that module's docstring) and cannot be imported from here.
+    """
+    from specify_cli.cli.commands.agent.tasks_finalize_validation import (
+        _is_wp_id,
+        _wp_id_from_file,
+    )
+    from specify_cli.status import WPMetadata as _WPMetadata
+    from specify_cli.status import read_wp_frontmatter
+
+    frontmatters: dict[str, _WPMetadata] = {}
+    bodies: dict[str, str] = {}
+    if not tasks_dir.is_dir():
+        return frontmatters, bodies
+    for wp_file in sorted(tasks_dir.glob("WP*.md")):
+        wp_id = _wp_id_from_file(wp_file)
+        if not _is_wp_id(wp_id):
+            continue
+        try:
+            meta, body = read_wp_frontmatter(wp_file)
+        except Exception as exc:  # noqa: BLE001 - degrade, don't block repair
+            logger.debug("Skipping unreadable WP frontmatter for lanes rebuild: %s (%s)", wp_file, exc)
+            continue
+        frontmatters[wp_id] = meta
+        bodies[wp_id] = body
+    return frontmatters, bodies
+
+
+def _rebuild_lanes_if_wedged(
+    repo_root: Path,
+    mission_dir: Path,
+    *,
+    mission_slug: str,
+    mission_id: str | None,
+    target_branch: str,
+    snapshot: StatusSnapshot,
+) -> str | None:
+    """Rebuild ``lanes.json`` from the event log when the #4758 wedge holds.
+
+    Three outcomes, mirroring ``tasks_finalize._finalize_lanes``'s own
+    three-outcome shape:
+
+    1. ``lanes.json`` already exists -- the #3311 guard: never rewrite
+       existing lanes. Silent no-op (returns ``None``).
+    2. ``lanes.json`` absent but the shared wedge predicate
+       (:func:`specify_cli.lanes.persistence.is_execution_wedged`) does
+       NOT hold (a fresh/never-finalized mission, or execution genuinely
+       has not begun) -- also nothing to repair here. Silent no-op.
+    3. ``lanes.json`` absent AND the mission is wedged -- rebuild it via
+       WP01's pure :func:`~specify_cli.lanes.compute_and_persist.compute_and_write_lanes`
+       core. ``planning_commit_sha`` is populated by capturing the current
+       ``target_branch`` tip (:func:`~specify_cli.cli.commands.agent.mission_finalize._capture_target_branch_tip`,
+       best-effort, ``None`` only on a git failure) -- the same "captured"
+       semantics ``tasks_finalize._finalize_lanes`` already uses for the
+       pre-execution branch. A recorded ``None`` is NOT universally
+       tolerated by downstream consumers: ``tasks_move_task.py``'s
+       ``_mt_resolve_owned_review_base`` hard-raises
+       ``OWNED_REVIEW_BASE_INVALID`` when ``lanes.json`` has no
+       ``planning_commit_sha``, which would otherwise strand a recovered
+       mission reviewed via ``--owned-checkout``. Recording the captured
+       tip here is what makes the recovered mission's rebuilt manifest
+       admit that review path too.
+
+       When no WP declares ownership (``owned_files``/``execution_mode``)
+       -- an ownerless mission -- there is nothing meaningful to
+       lane-compute; this is reported via a distinct skip action rather
+       than silently doing nothing, so an operator can tell "nothing to
+       rebuild" apart from "already healthy".
+
+    Raises:
+        MissionStateRepairError: the mission IS wedged and the rebuild
+            cannot proceed safely (a literal-path ``owned_files`` entry
+            matches zero files). No ``lanes.json`` is written -- this is
+            the fail-closed path: never a partial rebuild that masks a
+            corrupt/inconsistent WP ownership declaration.
+    """
+    from specify_cli.cli.commands.agent.mission_finalize import (
+        _capture_target_branch_tip,
+    )
+    from specify_cli.lanes.compute_and_persist import (
+        LaneGlobValidationError,
+        compute_and_write_lanes,
+    )
+    from specify_cli.lanes.persistence import is_execution_wedged, read_lanes_json
+    from specify_cli.ownership.frontmatter_source import (
+        InMemoryFrontmatterSource,
+        resolve_wp_manifests,
+    )
+
+    if read_lanes_json(mission_dir) is not None:
+        return None  # #3311 guard -- never rewrite existing lanes.
+
+    execution_has_begun = _execution_has_begun_in_snapshot(snapshot)
+    if not is_execution_wedged(execution_has_begun=execution_has_begun, lanes_present=False):
+        return None
+
+    wp_frontmatters, wp_bodies = _gather_wp_frontmatter_for_lanes_rebuild(mission_dir / "tasks")
+    if not wp_frontmatters:
+        return LANES_REBUILD_SKIPPED_NO_WP_FILES_ACTION
+
+    wp_manifests = resolve_wp_manifests(InMemoryFrontmatterSource(wp_frontmatters))
+    if not wp_manifests:
+        return LANES_REBUILD_SKIPPED_NO_OWNED_FILES_ACTION
+
+    wp_dependencies = {wp_id: list(fm.dependencies) for wp_id, fm in wp_frontmatters.items()}
+    planning_commit_sha = _capture_target_branch_tip(repo_root, target_branch)
+
+    try:
+        compute_and_write_lanes(
+            mission_dir,
+            repo_root,
+            mission_slug,
+            wp_manifests,
+            wp_dependencies,
+            wp_frontmatters,
+            wp_bodies,
+            target_branch,
+            planning_commit_sha=planning_commit_sha,
+            mission_id=mission_id,
+        )
+    except LaneGlobValidationError as exc:
+        raise MissionStateRepairError(
+            f"Cannot rebuild lanes.json for mission {mission_slug!r}: literal-path "
+            "owned_files entries match zero files in the repository "
+            f"({'; '.join(exc.result.errors)}). Fix the paths in the WP frontmatter, "
+            "then re-run 'spec-kitty doctor mission-state --fix'."
+        ) from exc
+    return LANES_REBUILT_ACTION
+
+
 def _repair_mission(
     repo_root: Path,
     mission_dir: Path,
@@ -1533,6 +1711,29 @@ def _repair_mission(
             after_status = _file_fingerprint(mission_dir / STATUS_FILENAME)
             if before_status != after_status:
                 file_changes.append(_file_change(repo_root, mission_dir / STATUS_FILENAME, before_status, after_status))
+
+            # #4758 WP03: canonical-state RECOVERY. Reached only once the event
+            # log has canonicalized cleanly above (a corrupt/partial log already
+            # raised out of ``_canonicalize_status_rows``/``_read_jsonl_rows``
+            # and returned an "error" result before this point -- fail-closed,
+            # never a partial lanes.json).
+            from specify_cli.lanes.persistence import LANES_FILENAME
+
+            lanes_path = mission_dir / LANES_FILENAME
+            before_lanes = _file_fingerprint(lanes_path)
+            lanes_action = _rebuild_lanes_if_wedged(
+                repo_root,
+                mission_dir,
+                mission_slug=mission_slug,
+                mission_id=mission_id or None,
+                target_branch=str(meta.get("target_branch") or "main"),
+                snapshot=snapshot,
+            )
+            after_lanes = _file_fingerprint(lanes_path)
+            if before_lanes != after_lanes:
+                file_changes.append(_file_change(repo_root, lanes_path, before_lanes, after_lanes))
+            if lanes_action is not None:
+                meta_actions = (*meta_actions, lanes_action)
 
         return MissionRepairResult(
             mission_slug=mission_slug,

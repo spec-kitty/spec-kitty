@@ -158,6 +158,12 @@ class MoveTaskRequest:
     # retired in WP10 once every writer emits the slot (C-001).
     feature_dir: Path | None = None
     repo_root: Path | None = None
+    # FR-006 (canonical-state-recovery WP02): threaded through so the
+    # protected-branch metadata refusal below can name a concrete repair
+    # command. ``None`` is tolerated (message degrades to a generic mention)
+    # so every pre-existing direct ``MoveTaskRequest(...)`` construction stays
+    # valid without updating every call site.
+    mission_slug: str | None = None
 
 
 @dataclass(frozen=True)
@@ -289,11 +295,7 @@ def build_transition_plan(
     emit_review_ref: str | None = None
     if target_lane == Lane.PLANNED and review_feedback_pointer:
         emit_review_ref = review_feedback_pointer
-    elif (
-        old_lane == Lane.FOR_REVIEW
-        and resolve_lane_alias(target_lane) in (Lane.IN_PROGRESS, Lane.PLANNED)
-        and force
-    ):
+    elif old_lane == Lane.FOR_REVIEW and resolve_lane_alias(target_lane) in (Lane.IN_PROGRESS, Lane.PLANNED) and force:
         emit_review_ref = "force-override"
 
     # Arbiter override reuses the rejection's review_ref when no base ref applies.
@@ -318,11 +320,7 @@ def build_transition_plan(
 
     emit_force = force
     if not emit_reason:
-        emit_reason = (
-            f"Force move to {target_lane}"
-            if force
-            else f"move-task: {old_lane} -> {target_lane}"
-        )
+        emit_reason = f"Force move to {target_lane}" if force else f"move-task: {old_lane} -> {target_lane}"
 
     if not force and _is_backward_transition(old_lane, canonical_lane):
         # FR-015: ask the FSM whether this backward edge is legal WITHOUT force,
@@ -336,24 +334,16 @@ def build_transition_plan(
             review_ref=emit_review_ref,
             review_result=review_result,
         )
-        legal_force_free, _ = validate_transition(
-            old_lane, canonical_lane, ctx_with_evidence
-        )
+        legal_force_free, _ = validate_transition(old_lane, canonical_lane, ctx_with_evidence)
         # #3307: stay force-free ONLY when the internal FSM *and* the shared
         # wire contract (the one the SaaS ingestion endpoint enforces) both
         # accept the edge force-free. When the wire contract requires force —
         # the review-rejection family does — emit ``force=True`` and carry the
         # structured rewind rationale below, rather than silently emitting a
         # contract-invalid ``force=False`` event.
-        wire_allows_force_free = _wire_contract_allows_force_free(
-            old_lane, canonical_lane, emit_reason, emit_review_ref
-        )
+        wire_allows_force_free = _wire_contract_allows_force_free(old_lane, canonical_lane, emit_reason, emit_review_ref)
         emit_force = not (legal_force_free and wire_allows_force_free)
-        original_reason = (
-            None
-            if emit_reason is None or emit_reason.startswith("move-task: ")
-            else emit_reason
-        )
+        original_reason = None if emit_reason is None or emit_reason.startswith("move-task: ") else emit_reason
         reason_parts = [f"backward rewind: {old_lane} -> {canonical_lane}"]
         if review_feedback_pointer and review_feedback_pointer != "force-override":
             reason_parts.append(review_feedback_pointer)
@@ -404,11 +394,14 @@ def _guard_unsupported_skip_metadata(req: MoveTaskRequest) -> RefuseExit1 | None
         unsupported.append("activity_log")
     if not unsupported:
         return None
+    mission_hint = f" --mission {req.mission_slug}" if req.mission_slug else " --mission <slug>"
     return RefuseExit1(
         "Cannot persist WP frontmatter/activity metadata on protected "
         f"branch '{req.target_branch}' while coordination topology is active: "
         f"{', '.join(unsupported)}. Rerun from an allowed "
-        "branch, omit those metadata flags, or use --no-auto-commit.",
+        "branch, omit those metadata flags, use --no-auto-commit, or run "
+        f"`spec-kitty doctor mission-state --fix{mission_hint}` if canonical "
+        "state also needs to be re-established.",
         diagnostic={
             "error": "WP_METADATA_UNSUPPORTED_ON_PROTECTED_COORD_BRANCH",
             "target_branch": req.target_branch,
@@ -461,10 +454,7 @@ def _guard_agent_ownership(req: MoveTaskRequest) -> RefuseExit1 | None:
         "   If not, you may be modifying the wrong WP!",
         "",
     )
-    error = (
-        f"Agent mismatch: {req.task_id} is assigned to '{req.current_agent}', "
-        f"not '{req.agent}'. Use --force to override."
-    )
+    error = f"Agent mismatch: {req.task_id} is assigned to '{req.current_agent}', not '{req.agent}'. Use --force to override."
     target_lane = resolve_lane_alias(req.target_lane)
     current_lane = resolve_lane_alias(req.old_lane)
     # The command is still attempting a rejection-verdict save when a
@@ -529,17 +519,10 @@ def _guard_rejected_verdict(req: MoveTaskRequest) -> RefuseExit1 | None:
         return None
     if req.review_verdict is None:
         return RefuseExit1(
-            f"{req.task_id} {req.review_artifact_name} has no parseable review verdict.\n"
-            "Repair the review artifact before approving or marking done."
+            f"{req.task_id} {req.review_artifact_name} has no parseable review verdict.\nRepair the review artifact before approving or marking done."
         )
-    if (
-        req.review_verdict == "rejected"
-        and req.skip_review_artifact_check
-        and not (req.note.strip() if isinstance(req.note, str) else "")
-    ):
-        return RefuseExit1(
-            "--skip-review-artifact-check requires --note so override evidence is durable."
-        )
+    if req.review_verdict == "rejected" and req.skip_review_artifact_check and not (req.note.strip() if isinstance(req.note, str) else ""):
+        return RefuseExit1("--skip-review-artifact-check requires --note so override evidence is durable.")
     return None
 
 
@@ -654,11 +637,7 @@ def _snapshot_unchecked_subtasks(req: MoveTaskRequest) -> tuple[str, ...] | None
     if wp_state is None:
         return None
     subtasks = wp_state.get("subtasks") or {}
-    return tuple(
-        str(sid)
-        for sid, status in subtasks.items()
-        if str(status) != str(Lane.DONE)
-    )
+    return tuple(str(sid) for sid, status in subtasks.items() if str(status) != str(Lane.DONE))
 
 
 def _guard_subtasks(req: MoveTaskRequest) -> RefuseExit1 | None:
@@ -667,11 +646,7 @@ def _guard_subtasks(req: MoveTaskRequest) -> RefuseExit1 | None:
     # FR-003 / T008: prefer the reduced-snapshot subtasks slot; fall back to the
     # legacy tasks.md-derived tuple during the migration window (C-001).
     snapshot_unchecked = _snapshot_unchecked_subtasks(req)
-    unchecked = (
-        snapshot_unchecked
-        if snapshot_unchecked is not None
-        else req.unchecked_subtasks
-    )
+    unchecked = snapshot_unchecked if snapshot_unchecked is not None else req.unchecked_subtasks
     if not unchecked:
         return None
     error = f"Cannot move {req.task_id} to {req.target_lane} - unchecked subtasks:\n"
@@ -797,11 +772,7 @@ def _effective_note_text(req: MoveTaskRequest) -> tuple[str | None, bool]:
     """
     user_note = req.note.strip() if isinstance(req.note, str) else req.note
     note_text = user_note
-    if (
-        req.target_lane == Lane.DONE
-        and req.done_execution_mode == "code_change"
-        and not req.done_merged
-    ):
+    if req.target_lane == Lane.DONE and req.done_execution_mode == "code_change" and not req.done_merged:
         override_reason = _done_override_reason(req)
         if override_reason:
             override_note = f"Done override: {override_reason}"

@@ -36,6 +36,37 @@ _ACTIVE_METADATA_LANES = frozenset({"doing", "in_progress", "for_review"})
 
 _PATH_CONVENTIONS_NOT_SATISFIED = "Path conventions not satisfied."
 
+#: Canonical-state repair command named by every refusal message this module
+#: still emits once a slot cannot be resolved through any read-side fallback
+#: (FR-006 / SC-003) — never a bare "missing X" with no next step.
+_MISSION_STATE_REPAIR_COMMAND = "spec-kitty doctor mission-state --fix --mission <slug>"
+
+
+def _runtime_metadata_field(
+    snapshot: Mapping[str, Any],
+    key: str,
+    *,
+    fallback_key: str | None = None,
+) -> str | None:
+    """Shared read-side accessor for the agent/assignee/shell_pid metadata family.
+
+    Reads *key* from the reduced snapshot; when absent/falsy and a
+    *fallback_key* is supplied, resolves through that derived read-root slot
+    instead. Only ``agent`` uses the fallback (-> the reducer's
+    ``implementer_of_record`` projection, WP04 #4786): the live claim slot is
+    correctly released on a review-rejection rollback (#4673), so this lets an
+    ordinary reject -> re-review -> approve cycle still report the durable
+    implementer of record instead of reading as unowned.
+    """
+    value = snapshot.get(key)
+    if value:
+        return str(value)
+    if fallback_key is not None:
+        fallback = snapshot.get(fallback_key)
+        if fallback:
+            return str(fallback)
+    return None
+
 
 @dataclass
 class WorkPackageState:
@@ -76,15 +107,15 @@ def build_work_package_state(
     bucket_lane = canonical_lane if canonical_lane is not None else "planned"
     metadata: dict[str, str | None] = {
         "lane": canonical_lane,
-        "agent": str(snapshot["agent"]) if snapshot.get("agent") is not None else None,
-        "assignee": str(snapshot["assignee"]) if snapshot.get("assignee") is not None else None,
-        "shell_pid": str(snapshot["shell_pid"]) if snapshot.get("shell_pid") is not None else None,
+        "agent": _runtime_metadata_field(snapshot, "agent", fallback_key="implementer_of_record"),
+        "assignee": _runtime_metadata_field(snapshot, "assignee"),
+        "shell_pid": _runtime_metadata_field(snapshot, "shell_pid"),
     }
 
     metadata_issues: list[str] = []
     if strict_metadata:
         if not metadata["agent"]:
-            metadata_issues.append(f"{wp_id}: missing agent in canonical runtime state")
+            metadata_issues.append(f"{wp_id}: missing agent in canonical runtime state (run `{_MISSION_STATE_REPAIR_COMMAND}` to repair)")
         # ``shell_pid`` identifies the live interactive shell that claimed a WP
         # in ``spec-kitty next`` — an artifact of the ACTIVE-work phase, and one
         # the orchestrator executor never stamps. Require it (and ``assignee``)

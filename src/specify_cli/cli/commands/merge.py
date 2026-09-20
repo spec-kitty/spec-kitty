@@ -85,6 +85,7 @@ from specify_cli.merge.baseline import (
     record_baseline_merge_commit as _record_baseline_merge_commit,
 )
 from specify_cli.merge.config import MergeStrategy, load_merge_config
+
 # WP02 (#2057): shared literals/type-aliases/logger live in the merge seam's
 # ``_constants`` module so later seams import them from one home (S1192-safe).
 # Re-imported here (and re-exported via ``__all__``) so the public surface and
@@ -100,6 +101,7 @@ from specify_cli.merge._constants import (
     _STATUS_FILENAME,
     logger,
 )
+
 # WP03 (#2057): low-level git probes/primitives live in the merge seam's
 # ``git_probes`` module. Re-imported here (and re-exported via ``__all__``) so
 # external consumers (doctor.py, agent/mission.py) and ~41 test files keep
@@ -118,6 +120,7 @@ from specify_cli.merge.git_probes import (
     _refresh_primary_checkout_after_merge,
     path_is_under_worktrees,
 )
+
 # WP06 (#2057): the merge --dry-run forecast (preview + payload build) lives in
 # the merge seam's ``forecast`` module; the command body delegates to it.
 from specify_cli.merge.forecast import run_dry_run_forecast
@@ -126,6 +129,7 @@ from specify_cli.merge.retention import (
     load_mission_retention,
     retention_cleanup_conflicts,
 )
+
 # WP08 (#2057): done/approved transition emission, the done asserts, resume
 # reconcile, and the per-WP recording loop live in the merge seam's
 # ``done_bookkeeping`` module. _mark_wp_merged_done + the asserts are re-exported
@@ -139,6 +143,7 @@ from specify_cli.merge.done_bookkeeping import (
     _reconcile_completed_wps_for_resume,
     _resolve_merge_actor,
 )
+
 # WP10 (#2057): the lane-based merge executor (the global-lock wrapper + the
 # decomposed CC-102 locked driver) lives in the merge seam's ``executor``
 # module. Re-imported here (and re-exported via __all__) so the command body +
@@ -149,6 +154,7 @@ from specify_cli.merge.executor import (
     _run_lane_based_merge,
     _run_lane_based_merge_locked,
 )
+
 # WP09 (#2057): status-surface trust + final-bookkeeping snapshot/restore +
 # coord->target projection live in the merge seam's ``bookkeeping_projection``
 # module. Re-imported here (and re-exported via __all__) so test-imported trust /
@@ -167,6 +173,7 @@ from specify_cli.merge.bookkeeping_projection import (
     _target_branch_still_at_baseline,
     _validate_mission_slug_path_segment,
 )
+
 # WP04 (#2057): slug / merge-state / target-branch resolution lives in the merge
 # seam's ``resolve`` module (consuming merge/state.py). Re-imported here (and
 # re-exported via ``__all__``) so test-imported resolvers keep importing from
@@ -181,6 +188,7 @@ from specify_cli.merge.resolve import (
     _resolve_mission_slug,
     _resolve_target_branch,
 )
+
 # WP07 (#2057): the mission-number bake cluster lives in the merge seam's
 # ``ordering`` module (next to assign_next_mission_number). Re-imported here so
 # the shim body + the test-imported ``_bake_mission_number_into_mission_branch``
@@ -189,6 +197,7 @@ from specify_cli.merge.resolve import (
 from specify_cli.merge.ordering import (
     _bake_mission_number_into_mission_branch,
 )
+
 # WP05 (#2057): git / target-branch / mission-branch / canonical-status /
 # review-artifact / hollow-review preflights live in the merge seam's
 # ``preflight`` module. Re-imported here (and re-exported via ``__all__``) so
@@ -206,6 +215,7 @@ from specify_cli.merge.preflight import (
     _warn_or_confirm_hollow_reviews,
     target_branch_sync_remediation,
 )
+
 # WP05 (#2057): the push/target-sync preflight + its diagnostic payloads live in
 # the publish-layer ``push_preflight`` module (domain ``preflight`` stays
 # network-free, issue #1706). Re-exported for the test-imported surface.
@@ -222,6 +232,7 @@ from specify_cli.merge.state import (
 from specify_cli.merge.workspace import get_merge_runtime_dir, get_merge_workspace_path
 from specify_cli.post_merge.retrospective_terminus import run_retrospective_postcondition
 from specify_cli.task_utils import TaskCliError, find_repo_root
+
 # WP05 (#2057): the git-ops primitive ``run_command`` and the git-preflight
 # entrypoint ``run_git_preflight`` / payload builder
 # ``build_git_preflight_failure_payload`` were relocated to ``core.git_ops`` /
@@ -245,6 +256,24 @@ if TYPE_CHECKING:
     from specify_cli.merge.state import MergeState
 
 
+def _clean_mission_option(mission: object) -> str | None:
+    """Guard a ``--mission`` value against an unresolved ``typer.Option`` default.
+
+    ``mission: str = typer.Option(None, "--mission", ...)`` on the ``merge``
+    Typer command resolves its default at CLI-runtime only. A caller that
+    invokes ``merge()`` (or a helper threaded its raw ``mission`` parameter)
+    directly as a plain Python function without supplying ``mission=`` gets
+    the *unresolved* ``OptionInfo`` sentinel back instead of ``None`` — a
+    truthy, non-``str`` object with no ``.strip()`` method. ``(mission or
+    "").strip()`` then raises ``AttributeError`` instead of falling through
+    to mission auto-detection / the clean "Use --mission" diagnostic.
+    Mirrors the same guard in ``cli/selector_resolution._normalize_selector``.
+    """
+    if not isinstance(mission, str):
+        return None
+    return mission
+
+
 def _resolve_slug_or_exit(repo_root: Path, mission: str | None) -> str | None:
     """Resolve the operator-supplied mission handle to a canonical slug.
 
@@ -256,7 +285,7 @@ def _resolve_slug_or_exit(repo_root: Path, mission: str | None) -> str | None:
     """
     from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 
-    mission_slug_raw = (mission or "").strip() or None
+    mission_slug_raw = (_clean_mission_option(mission) or "").strip() or None
     try:
         return _resolve_mission_slug(repo_root, mission_slug_raw)
     except UnsafePathSegmentError as exc:
@@ -290,9 +319,7 @@ def _resolved_mission_dir_exists(repo_root: Path, resolved_slug: str) -> bool:
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
     try:
-        candidate = placement_seam(get_main_repo_root(repo_root), resolved_slug).read_dir(
-            MissionArtifactKind.PRIMARY_METADATA
-        )
+        candidate = placement_seam(get_main_repo_root(repo_root), resolved_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     except StatusReadPathNotFound:
         return True
     return candidate.exists()
@@ -339,9 +366,7 @@ def _teardown_coordination_for_abort(
         # down — reading off the kind-blind resolver lands on the STATUS-only
         # ``-coord`` husk, whose ``meta.json`` is absent or carries a stale/sentinel
         # identity. Route by kind so the teardown anchors on the real PRIMARY meta.
-        feature_dir = placement_seam(main_for_abort, coord_slug).read_dir(
-            MissionArtifactKind.PRIMARY_METADATA
-        )
+        feature_dir = placement_seam(main_for_abort, coord_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         meta = _load_meta(feature_dir)
         mid8 = str(meta.get("mid8", "")).strip() if isinstance(meta, dict) else ""
         retention = resolve_merge_retention(
@@ -362,10 +387,7 @@ def _teardown_coordination_for_abort(
     if abort_teardown_args is None:
         return
     if retain_worktree:
-        console.print(
-            "[yellow]Notice:[/yellow] retention honored for worktrees "
-            "(source: meta.json) — coordination worktree kept during abort."
-        )
+        console.print("[yellow]Notice:[/yellow] retention honored for worktrees (source: meta.json) — coordination worktree kept during abort.")
         return
     # Persist-before-destroy runs OUTSIDE the resolution swallow.
     teardown_coordination_topology(*abort_teardown_args)
@@ -409,9 +431,7 @@ def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
             if source_key:
                 cleared = clear_state(repo_root, source_key) or cleared
             cleared = clear_state(repo_root, active_state.mission_id) or cleared
-        _cleanup_merge_workspaces_for_state(
-            repo_root, mission_slug=resolved, state_entry=state_entry
-        )
+        _cleanup_merge_workspaces_for_state(repo_root, mission_slug=resolved, state_entry=state_entry)
         _teardown_coordination_for_abort(repo_root, resolved, state_entry)
         if cleared:
             console.print(f"[green]Aborted[/green] merge for {resolved}. State and workspace cleaned up.")
@@ -453,7 +473,7 @@ def _dispatch_resume(repo_root: Path, mission: str | None) -> str | None:
     Returns the mission slug to thread into the main flow (the operator may have
     omitted ``--mission``, in which case the stored slug is adopted).
     """
-    mission_slug_raw = (mission or "").strip() or None
+    mission_slug_raw = (_clean_mission_option(mission) or "").strip() or None
     resolved = _resolve_slug_or_exit(repo_root, mission)
     # FR-004/FR-005: an unknown ``--mission`` handle is refused with the canonical
     # not-found BEFORE the no-state check, so a fat-fingered handle never masquerades
@@ -468,8 +488,7 @@ def _dispatch_resume(repo_root: Path, mission: str | None) -> str | None:
         console.print("[red]Error:[/red] No interrupted merge to resume.")
         raise typer.Exit(1)
     console.print(
-        f"[bold cyan]Resume requested[/bold cyan] for {existing_state.mission_slug} "
-        f"({len(existing_state.completed_wps)}/{len(existing_state.wp_order)} done)"
+        f"[bold cyan]Resume requested[/bold cyan] for {existing_state.mission_slug} ({len(existing_state.completed_wps)}/{len(existing_state.wp_order)} done)"
     )
     return existing_state.mission_slug if not mission_slug_raw else mission
 
@@ -508,9 +527,7 @@ def _enforce_retention_cleanup(
                         {
                             "diagnostic_code": MISSION_RETENTION_CLEANUP_CONFLICT,
                             "retained": list(conflicts),
-                            "constraint_id": retention.constraint_id
-                            if retention
-                            else None,
+                            "constraint_id": retention.constraint_id if retention else None,
                             "remediation": remediation,
                         }
                     ],
@@ -520,15 +537,9 @@ def _enforce_retention_cleanup(
         )
     else:
         console.print(
-            "[red]Error:[/red] Mission retention constraint "
-            f"{retention.constraint_id if retention else '<unknown>'} requires an "
-            "explicit cleanup decision."
+            f"[red]Error:[/red] Mission retention constraint {retention.constraint_id if retention else '<unknown>'} requires an explicit cleanup decision."
         )
-        console.print(
-            "Omitted cleanup flags default to deletion; retained fields: "
-            + ", ".join(conflicts)
-            + "."
-        )
+        console.print("Omitted cleanup flags default to deletion; retained fields: " + ", ".join(conflicts) + ".")
         console.print(f"  diagnostic_code: {MISSION_RETENTION_CLEANUP_CONFLICT}")
         for action in remediation:
             console.print(f"  - {action}")
@@ -586,8 +597,7 @@ def _run_real_merge(
 
     # -- Post-merge: suggest mission review + retrospective review/synthesis --
     console.print(
-        "\n[cyan]Next:[/cyan] Run [bold]/spec-kitty-mission-review[/bold] "
-        "to audit the merged mission for spec→code fidelity, drift, risks, and security."
+        "\n[cyan]Next:[/cyan] Run [bold]/spec-kitty-mission-review[/bold] to audit the merged mission for spec→code fidelity, drift, risks, and security."
     )
     console.print(
         "[cyan]Then, while context is fresh, review the retrospective that was"
@@ -637,11 +647,7 @@ def merge(
     allow_sparse_checkout: bool = typer.Option(
         False,
         "--allow-sparse-checkout",
-        help=(
-            "Proceed even if legacy sparse-checkout state is detected. "
-            "Use of this override is logged. Does not bypass the commit-time "
-            "data-loss backstop."
-        ),
+        help=("Proceed even if legacy sparse-checkout state is detected. Use of this override is logged. Does not bypass the commit-time data-loss backstop."),
     ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Proceed after merge warnings without prompts"),
     skip_review_artifact_check: bool = typer.Option(
@@ -679,18 +685,13 @@ def merge(
     # #2959 escape hatch — a skip is never silent: refuse it without a reason
     # BEFORE any merge work runs, so the evidence record always carries a note.
     if skip_review_artifact_check and not (note and note.strip()):
-        console.print(
-            "[red]Error:[/red] --skip-review-artifact-check requires --note "
-            "\"<reason>\" so the bypass is recorded as override evidence."
-        )
+        console.print('[red]Error:[/red] --skip-review-artifact-check requires --note "<reason>" so the bypass is recorded as override evidence.')
         raise typer.Exit(2)
     # --note only carries meaning as the reason for a skip; passed alone it is
     # inert. Warn rather than fail so a stray flag never blocks a merge (squad note).
     if note and note.strip() and not skip_review_artifact_check:
         console.print(
-            "[yellow]Note:[/yellow] --note has no effect without "
-            "--skip-review-artifact-check; it is only recorded when the "
-            "review-artifact gate is bypassed."
+            "[yellow]Note:[/yellow] --note has no effect without --skip-review-artifact-check; it is only recorded when the review-artifact gate is bypassed."
         )
 
     if not json_output:
@@ -755,10 +756,7 @@ def merge(
         # with a clean, visible error and non-zero exit — never a raw traceback,
         # and never a silent fall-through to the repo default branch. The error
         # is surfaced (corruption visible), not swallowed.
-        error_msg = (
-            f"Cannot resolve the merge target branch: {exc}. "
-            "meta.json exists but is corrupt or unreadable; fix it before merging."
-        )
+        error_msg = f"Cannot resolve the merge target branch: {exc}. meta.json exists but is corrupt or unreadable; fix it before merging."
         if json_output:
             print(json.dumps({"spec_kitty_version": SPEC_KITTY_VERSION, "error": error_msg}))
         else:

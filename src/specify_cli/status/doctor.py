@@ -223,6 +223,15 @@ def check_blanked_runtime_slots(snapshot: dict[str, Any]) -> list[Finding]:
 
     Terminal WPs (``done``/``canceled``) are skipped — a blank slot on finished
     work is not actionable.
+
+    #4786 read-root narrowing: a blank ``agent`` slot explained by the
+    reducer's ``implementer_of_record`` derived projection
+    (``status.reducer._project_implementer_attribution``) is a
+    legitimately-released, historically-owned WP (the live claim correctly
+    handed off / released per #4673) — not corrupt canonical state — so it is
+    no longer raised as a finding. Every other blank scalar (and an ``agent``
+    blank with no recoverable claim history at all) is still genuine on-disk
+    corruption and is flagged as before.
     """
     findings: list[Finding] = []
     work_packages = snapshot.get("work_packages", {})
@@ -231,21 +240,24 @@ def check_blanked_runtime_slots(snapshot: dict[str, Any]) -> list[Finding]:
             continue
         for slot in _BLANKABLE_RUNTIME_SLOTS:
             value = wp_state.get(slot)
-            if isinstance(value, str) and value == "":
-                findings.append(
-                    Finding(
-                        severity=Severity.ERROR,
-                        category=Category.BLANKED_RUNTIME_SLOT,
-                        wp_id=wp_id,
-                        message=(f"{wp_id} runtime slot '{slot}' is an empty string — recorded attribution was blanked (corrupt canonical state, #2960)."),
-                        recommended_action=(
-                            f"Re-record {wp_id}'s '{slot}' with a real value, or "
-                            f"drop the blanking annotation from the event log; the "
-                            f"reducer treats '' as a no-op so a fresh non-empty "
-                            f"annotation restores it."
-                        ),
-                    )
+            if not (isinstance(value, str) and value == ""):
+                continue
+            if slot == "agent" and wp_state.get("implementer_of_record"):
+                continue
+            findings.append(
+                Finding(
+                    severity=Severity.ERROR,
+                    category=Category.BLANKED_RUNTIME_SLOT,
+                    wp_id=wp_id,
+                    message=(f"{wp_id} runtime slot '{slot}' is an empty string — recorded attribution was blanked (corrupt canonical state, #2960)."),
+                    recommended_action=(
+                        f"Run `spec-kitty doctor mission-state --fix --mission <slug>` "
+                        f"to repair {wp_id}'s '{slot}' slot, or drop the blanking "
+                        f"annotation from the event log; the reducer treats '' as a "
+                        f"no-op so a fresh non-empty annotation restores it."
+                    ),
                 )
+            )
     return findings
 
 

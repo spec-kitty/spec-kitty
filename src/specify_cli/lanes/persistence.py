@@ -64,9 +64,7 @@ def write_lanes_json(feature_dir: Path, manifest: LanesManifest) -> Path:
     lanes_path = resolve_lanes_dir(feature_dir)
     content = json.dumps(manifest.to_dict(), indent=2, sort_keys=False) + "\n"
 
-    fd, tmp_path = tempfile.mkstemp(
-        dir=str(feature_dir), prefix=".lanes-", suffix=".tmp"
-    )
+    fd, tmp_path = tempfile.mkstemp(dir=str(feature_dir), prefix=".lanes-", suffix=".tmp")
     try:
         os.write(fd, content.encode("utf-8"))
         os.close(fd)
@@ -103,9 +101,7 @@ def read_lanes_json(feature_dir: Path) -> LanesManifest | None:
         data = json.loads(lanes_path.read_text(encoding="utf-8"))
         return LanesManifest.from_dict(data)
     except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
-        raise CorruptLanesError(
-            f"lanes.json at {lanes_path} is corrupt or malformed: {exc}"
-        ) from exc
+        raise CorruptLanesError(f"lanes.json at {lanes_path} is corrupt or malformed: {exc}") from exc
 
 
 def require_lanes_json(feature_dir: Path) -> LanesManifest:
@@ -114,6 +110,36 @@ def require_lanes_json(feature_dir: Path) -> LanesManifest:
     if manifest is None:
         raise MissingLanesError(
             f"lanes.json is required for {feature_dir}. "
-            "Run the task-finalization step to compute execution lanes."
+            "Run 'spec-kitty agent mission finalize-tasks' to compute execution "
+            "lanes, or if the mission has already begun executing, run "
+            "'spec-kitty doctor mission-state --fix --mission <slug>' to rebuild "
+            "lanes.json from the event log."
         )
     return manifest
+
+
+def is_execution_wedged(*, execution_has_begun: bool, lanes_present: bool) -> bool:
+    """The #4758 wedge predicate: execution has begun but lanes.json is absent.
+
+    A mission in this state can neither safely re-finalize (there is no
+    recorded ``planning_commit_sha`` to preserve, and blindly recapturing
+    the branch tip would clobber the planning provenance an already-claimed
+    lane worktree may carry a merge-base against, #3311) nor keep executing
+    (``lanes.json`` resolves worktrees, and callers like ``move-task``
+    refuse to advance a WP without it). It is only repairable by rebuilding
+    ``lanes.json`` from the event log.
+
+    Single named authority (DIRECTIVE_044 / C-001) shared by:
+
+    - ``mission_finalize._preserve_or_capture_planning_commit_sha``'s
+      re-finalize refusal (the historical ad hoc ``existing is None`` check
+      once execution has begun).
+    - WP03's ``doctor mission-state --fix`` recovery detector.
+
+    Deliberately pure (no I/O, no ``Path``): both callers resolve
+    ``execution_has_begun`` (a status-partition read) and ``lanes_present``
+    (a ``read_lanes_json`` call) themselves, in whatever way their own
+    layer allows, and combine them through this single predicate so the
+    combination itself is never duplicated or drifted.
+    """
+    return execution_has_begun and not lanes_present

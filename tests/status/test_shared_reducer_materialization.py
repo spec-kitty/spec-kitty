@@ -58,4 +58,9 @@ def test_written_snapshot_matches_shared_reducer(
         if wp_state["lane"] == "canceled":
             wp_state.pop("cancellation_reason", None)
             wp_state.pop("reason_source", None)
+        # WP04 (#4786): the read-root implementer-attribution projection
+        # (reducer._project_implementer_attribution) is another CLI-only
+        # extra layered atop the shared reducer's state — same pattern as
+        # the cancellation-provenance extras above.
+        wp_state.pop("implementer_of_record", None)
     assert written == shared_state

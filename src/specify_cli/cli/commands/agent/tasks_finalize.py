@@ -44,9 +44,11 @@ the parity contract).
 from __future__ import annotations
 
 import contextlib
+import logging
 import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -64,6 +66,11 @@ from specify_cli.cli.commands.agent.tasks_finalize_validation import (
 from specify_cli.cli.commands.agent.tasks_outline import TASKS_MD_FILENAME
 from specify_cli.status import BootstrapResult
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
+
+if TYPE_CHECKING:
+    from specify_cli.status import WPMetadata
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -99,6 +106,7 @@ class _FinalizeState:
 def _default_finalize_ports() -> TasksPorts:
     """Production port bundle for ``finalize_tasks`` (FsReader read authority)."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     return TasksPorts(
         fs=_tasks.RealFsReader(),
         coord=_tasks.RealCoordCommitRouter(),
@@ -120,6 +128,7 @@ def _ft_resolve_context(st: _FinalizeState, ports: TasksPorts) -> None:
     coord-aware resolver in phase C.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     repo_root = _tasks.locate_project_root()
     if repo_root is None:
         _tasks._output_error(st.json_output, "Could not locate project root")
@@ -127,16 +136,10 @@ def _ft_resolve_context(st: _FinalizeState, ports: TasksPorts) -> None:
     st.repo_root = repo_root
     # FR-010 / FR-019: one-shot sparse-checkout session warning.
     _tasks._emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks finalize-tasks")
-    st.mission_slug = _tasks._find_mission_slug(
-        explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root
-    )
-    st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(
-        repo_root, st.mission_slug, st.json_output
-    )
+    st.mission_slug = _tasks._find_mission_slug(explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root)
+    st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(repo_root, st.mission_slug, st.json_output)
     handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
-    st.primary_feature_dir = ports.fs.planning_read_dir(
-        handle, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-    )
+    st.primary_feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
     # Boundary guard — hard-reject pre-3.0 layout before any WP mutation (#1057)
     try:
         check_pre30_layout(st.primary_feature_dir)
@@ -241,9 +244,151 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
     The frontmatter updates are computed side-effect-free, then applied gating ALL
     writes on ``validate_only`` (T005/T006). Bootstrap reads the event log/meta.json
     via the topology-aware (STATUS-partition) resolver — it MUST stay coord-aware.
+
+    ``_gather_wp_frontmatter_and_bodies``/``_finalize_lanes`` below (WP01,
+    #4758) are nested rather than module-level: this module's compat surface
+    is tracked by an exhaustive census guard
+    (``tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py``)
+    that re-derives every natively-defined, module-scope callable from
+    source — nesting keeps these two helpers purely an implementation detail
+    of this phase without adding new entries to that unrelated inventory.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
     from specify_cli.frontmatter import write_frontmatter as _write_fm
+
+    def _gather_wp_frontmatter_and_bodies(
+        tasks_dir: Path,
+    ) -> tuple[dict[str, WPMetadata], dict[str, str]]:
+        """Read every WP file's frontmatter + body from ``tasks_dir`` (#4758).
+
+        Mirrors ``tasks_finalize_validation.read_existing_frontmatter``'s file
+        discovery (``tasks_dir.glob("WP*.md")``) but also keeps the body
+        text, since ``specify_cli.lanes.compute.compute_lanes`` uses WP
+        bodies for surface inference. Unreadable files are skipped outright
+        (unlike the conflict-detection reader, a WP whose frontmatter cannot
+        be parsed contributes nothing meaningful to lane computation).
+        """
+        from specify_cli.cli.commands.agent.tasks_finalize_validation import _is_wp_id, _wp_id_from_file
+        from specify_cli.status import read_wp_frontmatter
+
+        frontmatters: dict[str, WPMetadata] = {}
+        bodies: dict[str, str] = {}
+        for wp_file in tasks_dir.glob("WP*.md"):
+            wp_id = _wp_id_from_file(wp_file)
+            if not _is_wp_id(wp_id):
+                continue
+            try:
+                meta, body = read_wp_frontmatter(wp_file)
+            except Exception as exc:  # noqa: BLE001 — degrade, don't block finalize
+                logger.debug(
+                    "Skipping unreadable WP frontmatter for lane computation: %s (%s)",
+                    wp_file,
+                    exc,
+                )
+                continue
+            frontmatters[wp_id] = meta
+            bodies[wp_id] = body
+        return frontmatters, bodies
+
+    def _finalize_lanes() -> None:
+        """Co-locate the ``lanes.json`` write with the event-log bootstrap (#4758).
+
+        The historical bug: this legacy command bootstrapped canonical
+        status (seeding ``genesis -> planned`` events) but never wrote
+        ``lanes.json``, so ``move-task`` could walk a WP straight out of
+        ``planned`` with no lanes to resolve a worktree from. This phase
+        runs BEFORE the bootstrap call below so it never seeds events
+        without lanes (FR-001, SC-001).
+
+        Three outcomes:
+
+        1. ``lanes.json`` already exists -- #3311's guard: never rewrite
+           existing lanes. No-op.
+        2. ``lanes.json`` absent AND the shared wedge predicate
+           (``specify_cli.lanes.persistence.is_execution_wedged``) holds
+           (execution has begun with no lanes on disk) -- the mission is
+           already wedged by some earlier run; refuse rather than guess a
+           ``planning_commit_sha``, naming the ``doctor mission-state --fix``
+           repair path (mirrors ``mission_finalize``'s re-finalize refusal).
+        3. ``lanes.json`` absent AND execution has not begun (the ordinary,
+           first-ever finalize of this mission) -- compute and write it for
+           real via the WP01 pure core, capturing the current
+           ``target_branch`` tip as ``planning_commit_sha`` (the same
+           "captured" action ``_preserve_or_capture_planning_commit_sha``
+           uses pre-execution). When no WP declares ownership
+           (``owned_files``/``execution_mode``), there is nothing
+           meaningful to compute -- this legacy command predates
+           ``lanes.json`` and is also used purely for dependency injection
+           on ownerless WPs, so that degenerate case is a silent no-op
+           rather than a hard failure.
+        """
+        from specify_cli.cli.commands.agent.mission_finalize import (
+            _capture_target_branch_tip,
+            _execution_has_begun,
+        )
+        from specify_cli.lanes.compute_and_persist import (
+            LaneGlobValidationError,
+            compute_and_write_lanes,
+        )
+        from specify_cli.lanes.persistence import is_execution_wedged, read_lanes_json
+        from specify_cli.ownership.frontmatter_source import (
+            InMemoryFrontmatterSource,
+            resolve_wp_manifests,
+        )
+
+        if read_lanes_json(st.primary_feature_dir) is not None:
+            return  # #3311 guard: never rewrite existing lanes.
+
+        execution_has_begun = _execution_has_begun(st.main_repo_root, st.mission_slug)
+        if is_execution_wedged(execution_has_begun=execution_has_begun, lanes_present=False):
+            error_msg = (
+                f"Cannot finalize mission {st.mission_slug!r}: execution has "
+                "begun (a WP is past 'planned') but no lanes.json exists on "
+                "disk. Refusing to seed further canonical events without "
+                "lanes.json. Run 'spec-kitty doctor mission-state --fix "
+                f"--mission {st.mission_slug}' to rebuild lanes.json from "
+                "the event log."
+            )
+            _tasks._output_error(st.json_output, error_msg)
+            raise typer.Exit(1)
+
+        wp_frontmatters, wp_bodies = _gather_wp_frontmatter_and_bodies(st.tasks_dir)
+        wp_manifests = resolve_wp_manifests(InMemoryFrontmatterSource(wp_frontmatters))
+        if not wp_manifests:
+            return  # No WP declares ownership — nothing meaningful to lane-compute.
+
+        mission_id: str | None = None
+        meta_path = st.primary_feature_dir / "meta.json"
+        if meta_path.exists():
+            import json as _json
+
+            with contextlib.suppress(Exception):
+                raw_meta = _json.loads(meta_path.read_text(encoding="utf-8"))
+                raw_mission_id = raw_meta.get("mission_id") if isinstance(raw_meta, dict) else None
+                mission_id = raw_mission_id if isinstance(raw_mission_id, str) else None
+
+        planning_commit_sha = _capture_target_branch_tip(st.main_repo_root, st.target_branch)
+        try:
+            compute_and_write_lanes(
+                st.primary_feature_dir,
+                st.main_repo_root,
+                st.mission_slug,
+                wp_manifests,
+                st.dependencies_map,
+                wp_frontmatters,
+                wp_bodies,
+                st.target_branch,
+                planning_commit_sha=planning_commit_sha,
+                mission_id=mission_id,
+            )
+        except LaneGlobValidationError as exc:
+            error_msg = "Lane computation aborted: literal-path owned_files entries match zero files. Fix the paths before lanes.json is written."
+            _tasks._output_error(
+                st.json_output,
+                error_msg,
+                {"error": error_msg, "ownership_literal_path_errors": exc.result.errors},
+            )
+            raise typer.Exit(1) from None
 
     update_plan = compute_wp_frontmatter_updates(st.dependencies_map, st.tasks_dir)
     st.update_plan = update_plan
@@ -265,17 +410,21 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
     # ``_tasks.resolve_feature_dir_for_mission`` — the kind-blind resolver's
     # module re-export was retired in the same WP; ``STATUS_STATE`` resolves
     # the SAME coord-aware dir the kind-blind resolver produced for this read).
-    st.feature_dir = placement_seam(st.main_repo_root, st.mission_slug).read_dir(
-        MissionArtifactKind.STATUS_STATE
-    )
-    st.bootstrap_result = _tasks.bootstrap_canonical_state(
-        st.feature_dir, st.mission_slug, dry_run=st.validate_only
-    )
+    st.feature_dir = placement_seam(st.main_repo_root, st.mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
+    # #4758 (WP01): co-locate the lanes.json write with the event-log
+    # bootstrap below so this command never seeds genesis->planned events
+    # with no lanes.json for move-task to wedge against (FR-001, SC-001).
+    # --validate-only never mutates (NFR-002) — bootstrap itself already
+    # runs with dry_run=True in that mode, so lanes.json is left untouched.
+    if not st.validate_only:
+        _finalize_lanes()
+    st.bootstrap_result = _tasks.bootstrap_canonical_state(st.feature_dir, st.mission_slug, dry_run=st.validate_only)
 
 
 def _ft_output(st: _FinalizeState) -> None:
     """Phase D: build the validate-only / success envelope and emit it."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     assert st.update_plan is not None and st.bootstrap_result is not None
     update_plan = st.update_plan
     bootstrap_result = st.bootstrap_result
@@ -336,6 +485,7 @@ def _do_finalize_tasks(
     apply → output.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     ports = ports or _default_finalize_ports()
     st = _FinalizeState(mission=mission, json_output=json_output, validate_only=validate_only)
     try:

@@ -90,6 +90,63 @@ def _project_cancellation_provenance(
         state["reason_source"] = _cancellation_reason_source(event)
 
 
+#: Read-root derived slot exposing durable implementer-claim provenance
+#: (see :func:`_project_implementer_attribution`). Deliberately a NEW key —
+#: never one of ``WPInnerStateDelta._SCALAR_FIELDS`` — so it can never be
+#: folded, cleared, or blanked by the live-claim replace/release machinery
+#: (the fold/release path the projection is required to never touch).
+IMPLEMENTER_OF_RECORD_SLOT = "implementer_of_record"
+
+
+def _project_implementer_attribution(
+    events: Iterable[StatusEvent],
+    snapshot: StatusSnapshot,
+) -> None:
+    """Derive durable implementer-claim provenance from the raw event stream.
+
+    #4786's root cause: ``agent`` is a *live-claim* slot that legitimately
+    changes hands (implementer -> reviewer) and is correctly RELEASED on a
+    review-rejection rollback via the explicit ``release_runtime_claim``
+    annotation (#4673) — that release must not be undone. But nothing else
+    owned durable *implementer* provenance once the live claim was released,
+    so an ordinary reject -> re-review -> approve cycle (no fresh ``--agent``)
+    reached ``accept`` reporting no owner at all.
+
+    This is a sibling of :func:`_project_cancellation_provenance`: a narrow,
+    read-only, idempotent projection over the immutable raw stream. The ONLY
+    transition that ever writes the live ``agent`` runtime slot is a real
+    ``planned -> claimed`` hop (the claim exception in
+    ``spec_kitty_events.diary._wp_state_from_event`` — carrying the claimant
+    in its ``policy_metadata['agent']`` sidecar), so that same transition is
+    the durable implementer-of-record fact. The most recent such claim (by
+    ``(at, event_id)``) wins, mirroring re-claim-after-rollback. A WP with no
+    claim event yields NOTHING (no key written) — never a fabricated owner.
+
+    Exposed on :data:`IMPLEMENTER_OF_RECORD_SLOT`, a slot the fold/release
+    path never touches — the live ``agent`` claim keeps its existing
+    release semantics byte-for-byte (#4673).
+    """
+    seen_event_ids: set[str] = set()
+    unique_events: list[StatusEvent] = []
+    for event in sorted(events, key=lambda item: (item.at, item.event_id)):
+        if event.event_id in seen_event_ids:
+            continue
+        seen_event_ids.add(event.event_id)
+        unique_events.append(event)
+    for event in unique_events:
+        if not (event.from_lane == Lane.PLANNED and event.to_lane == Lane.CLAIMED):
+            continue
+        claimant = (event.policy_metadata or {}).get("agent")
+        if not claimant:
+            continue
+        state = snapshot.work_packages.get(event.wp_id)
+        if state is None:
+            continue
+        # Latest-wins: unique_events is sorted ascending, so a later claim
+        # (a genuine re-claim after rollback) overwrites an earlier one.
+        state[IMPLEMENTER_OF_RECORD_SLOT] = str(claimant)
+
+
 def reduce(
     events: list[StatusEvent],
     annotations: list[InnerStateChanged] | None = None,
@@ -97,6 +154,7 @@ def reduce(
     """Reduce typed CLI events through the shared diary reducer."""
     snapshot = _state_to_snapshot(reduce_parsed(events, annotations or []))
     _project_cancellation_provenance(events, snapshot)
+    _project_implementer_attribution(events, snapshot)
     return snapshot
 
 
@@ -146,11 +204,7 @@ def event_sourced_review_result(feature_dir: Path, wp_id: str) -> ReviewResultLo
 
 def _reduce_retrospective(raw_events: list[dict[str, Any]]) -> RetrospectiveSnapshot:
     """Reduce CLI retrospective lifecycle rows from the raw event diary."""
-    retro_events = [
-        event
-        for event in raw_events
-        if str(event.get("event_name", "")).startswith("retrospective.")
-    ]
+    retro_events = [event for event in raw_events if str(event.get("event_name", "")).startswith("retrospective.")]
     if not retro_events:
         return RetrospectiveSnapshot(status="absent")
 
@@ -159,11 +213,7 @@ def _reduce_retrospective(raw_events: list[dict[str, Any]]) -> RetrospectiveSnap
         key=lambda event: (str(event.get("at", "")), str(event.get("event_id", ""))),
     )
 
-    requested_events = [
-        event
-        for event in retro_events_sorted
-        if event.get("event_name") == "retrospective.requested"
-    ]
+    requested_events = [event for event in retro_events_sorted if event.get("event_name") == "retrospective.requested"]
     mode = None
     if requested_events:
         payload = requested_events[-1].get("payload") or {}
@@ -181,11 +231,7 @@ def _reduce_retrospective(raw_events: list[dict[str, Any]]) -> RetrospectiveSnap
         "retrospective.skipped",
         "retrospective.failed",
     }
-    terminal_events = [
-        event
-        for event in retro_events_sorted
-        if event.get("event_name") in terminal_names
-    ]
+    terminal_events = [event for event in retro_events_sorted if event.get("event_name") in terminal_names]
     if terminal_events:
         latest_terminal = terminal_events[-1]
         terminal_name = str(latest_terminal.get("event_name", ""))
@@ -197,28 +243,14 @@ def _reduce_retrospective(raw_events: list[dict[str, Any]]) -> RetrospectiveSnap
             retro_status = "failed"
         payload = latest_terminal.get("payload") or {}
         record_path_value = payload.get("record_path")
-        record_path = (
-            record_path_value if isinstance(record_path_value, str) else None
-        )
+        record_path = record_path_value if isinstance(record_path_value, str) else None
     else:
         retro_status = "pending"
         record_path = None
 
-    proposals_total = sum(
-        1
-        for event in retro_events
-        if event.get("event_name") == "retrospective.proposal.generated"
-    )
-    proposals_applied = sum(
-        1
-        for event in retro_events
-        if event.get("event_name") == "retrospective.proposal.applied"
-    )
-    proposals_rejected = sum(
-        1
-        for event in retro_events
-        if event.get("event_name") == "retrospective.proposal.rejected"
-    )
+    proposals_total = sum(1 for event in retro_events if event.get("event_name") == "retrospective.proposal.generated")
+    proposals_applied = sum(1 for event in retro_events if event.get("event_name") == "retrospective.proposal.applied")
+    proposals_rejected = sum(1 for event in retro_events if event.get("event_name") == "retrospective.proposal.rejected")
     proposals_pending = max(0, proposals_total - proposals_applied - proposals_rejected)
 
     return RetrospectiveSnapshot(
@@ -251,10 +283,9 @@ def materialize_snapshot(feature_dir: Path) -> StatusSnapshot:
     raw_events = read_events_raw(feature_dir)
     snapshot = _state_to_snapshot(reduce_shared_state(raw_events))
     _project_cancellation_provenance(stream.transitions, snapshot)
+    _project_implementer_attribution(stream.transitions, snapshot)
     identity = resolve_mission_identity(feature_dir)
-    snapshot.mission_number = (
-        str(identity.mission_number) if identity.mission_number is not None else None
-    )
+    snapshot.mission_number = str(identity.mission_number) if identity.mission_number is not None else None
     snapshot.mission_type = identity.mission_type
 
     retro_snapshot = _reduce_retrospective(raw_events)

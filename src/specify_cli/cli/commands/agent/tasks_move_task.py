@@ -176,6 +176,14 @@ from specify_cli.task_utils import (
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
 
+_LANES_MISSING_ON_PLANNED_EXIT_MESSAGE = (
+    "Cannot move {task_id} out of 'planned': lanes.json is absent for mission "
+    "'{mission_slug}'. Run `spec-kitty doctor mission-state --fix --mission "
+    "{mission_slug}` to rebuild execution lanes from the canonical event log, "
+    "then retry."
+)
+
+
 def _default_move_task_ports() -> TasksPorts:
     """Production port bundle for ``move_task`` (coord router bound to tasks.py)."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -402,6 +410,43 @@ def _mt_preflight_owned_request(st: _MoveTaskState) -> None:
         )
 
 
+def _mt_guard_planned_boundary_lanes(st: _MoveTaskState) -> None:
+    """Refuse a transition out of ``planned`` when ``lanes.json`` is absent.
+
+    #4758 defense-in-depth (FR-002/FR-006): even if the legacy
+    ``agent tasks finalize-tasks`` path regresses and seeds the event log
+    without computing ``lanes.json`` (WP01's co-located-write fix), a WP must
+    not be able to leave ``planned`` into a canonical-state shape every
+    downstream gate (``implement``, review, approval) refuses with no
+    documented repair. ``lanes.json`` is the PRIMARY-partition ``LANE_STATE``
+    artifact (see ``workspace/context.py``'s ``resolve_workspace_for_wp``) —
+    read through the same seam, not the coord husk ``mt_feature_dir``.
+
+    Scoped to the ordinary lane-topology path only: an ``--owned-checkout``
+    single-branch selection resolves its own review base separately
+    (``_mt_resolve_owned_review_base``, only for the ``for_review``/
+    ``approved`` hops) and never required ``lanes.json`` to leave ``planned``
+    -- widening this guard onto owned checkouts would refuse transitions that
+    were never gated by lane computation.
+    """
+    if st.owned is not None:
+        return
+    if st.old_lane != Lane.PLANNED or st.target_lane == Lane.PLANNED:
+        return
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    lanes_read_dir = placement_seam(st.main_repo_root, st.mission_slug).read_dir(MissionArtifactKind.LANE_STATE)
+    if read_lanes_json(lanes_read_dir) is not None:
+        return
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    _tasks._output_error(
+        st.json_output,
+        _LANES_MISSING_ON_PLANNED_EXIT_MESSAGE.format(task_id=st.task_id, mission_slug=st.mission_slug),
+    )
+    raise typer.Exit(1)
+
+
 def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Resolve roots/branch/feature-dir and load the WP + its canonical lane."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -538,6 +583,9 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
             "OWNED_TRANSITION_UNSUPPORTED",
             "Owned checkout does not support transitions from this lane.",
         )
+    # #4758 FR-002: refuse leaving ``planned`` with no ``lanes.json`` to rebuild
+    # from, before any mission write below.
+    _mt_guard_planned_boundary_lanes(st)
     # Event-store write leg — the SAME coord husk as ``mt_feature_dir``.
     st.feature_dir = st.mt_feature_dir
     if st.owned is not None and st.target_lane in (Lane.FOR_REVIEW, Lane.APPROVED):
@@ -619,6 +667,7 @@ def _mt_build_request(
         is_arbiter_override=False,
         effective_reviewer=None,
         effective_approval_ref=None,
+        mission_slug=st.mission_slug,
     )
 
 
