@@ -48,6 +48,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from specify_cli.core.owned_mission import effective_root_kwargs
+from specify_cli.tasks.issue_reference_discovery import (
+    GatingClass,
+    Occurrence,
+    classify_occurrences,
+    is_gating,
+)
 
 if TYPE_CHECKING:
     from specify_cli.coordination.write_seam import ProtectionPolicyLike, WriteSeamResult
@@ -61,6 +67,16 @@ ISSUE_MATRIX_SCHEMA_VERSION = 1
 _SCAFFOLD_VERDICT_PLACEHOLDER = "unknown"
 _SCAFFOLD_TITLE_PLACEHOLDER = "<fill at WP-implementation time>"
 _SCAFFOLD_EVIDENCE_PLACEHOLDER = "<link or commit>"
+
+# WP01 (#3469, FR-011/FR-013): a non-gating reference (``context_only`` /
+# ``pr_or_commit_ref``) still scaffolds a row -- kept as an audit trail
+# rather than silently dropped -- but pre-resolved as ``"not-applicable"``
+# rather than the ``"unknown"`` gating placeholder above, so it never blocks
+# approval. ``"not-applicable"`` is written as a plain string here (the
+# writer never validates against ``IssueMatrixVerdict``, per this module's
+# own free-form-string design); WP02 adds it to that closed-set enum.
+_SCAFFOLD_NON_GATING_VERDICT = "not-applicable"
+_SCAFFOLD_NON_GATING_EVIDENCE = "<auto-classified: no action required>"
 
 # Match ``#NNNN`` GH issue references with 2-6 digits, requiring a non-word
 # leading boundary (start-of-line, whitespace, ``(``, ``[``) and a non-word
@@ -141,11 +157,44 @@ class IssueReference(NamedTuple):
         source_file: Basename of the file the reference was discovered in
             (e.g. ``"spec.md"``, ``"WP01.md"``) -- provenance for FR-013
             (#1738).
+        occurrences: EVERY site the number was found at (WP01, #3469,
+            FR-015) -- the aggregate input :func:`classification` was
+            derived from. Defaults to ``()`` for backward-compatible
+            positional construction (see equality note below).
+        classification: The aggregate :class:`GatingClass` for this number
+            (WP01, #3469, FR-001/FR-011). Defaults to the fail-safe
+            ``IMPLEMENTATION_TARGET`` for backward-compatible positional
+            construction.
+
+    Equality note: ``__eq__``/``__hash__`` are overridden to compare only
+    ``(number, first_line_context, source_file)`` -- the pre-WP01 identity
+    fields every existing caller and test already relies on. ``occurrences``
+    and ``classification`` are additive gating metadata, consumed via
+    :func:`~specify_cli.tasks.issue_reference_discovery.is_gating` /
+    :func:`~specify_cli.tasks.issue_reference_discovery.gating_issue_numbers`
+    (attribute access), not equality -- this keeps every pre-existing
+    exact-tuple-equality test green while still letting a number's
+    aggregate occurrence set legitimately outgrow what a 3-positional-arg
+    construction alone could represent (FR-015 multi-file aggregation).
     """
 
     number: int
     first_line_context: str
     source_file: str
+    occurrences: tuple[Occurrence, ...] = ()
+    classification: GatingClass = GatingClass.IMPLEMENTATION_TARGET
+
+    def __eq__(self, other: object) -> bool:
+        # ``__ne__`` is deliberately NOT overridden -- Python's default
+        # ``object.__ne__`` already delegates to ``__eq__`` and inverts the
+        # result (propagating ``NotImplemented`` correctly), so redefining
+        # it here would only duplicate that logic.
+        if isinstance(other, IssueReference):
+            return self.number == other.number and self.first_line_context == other.first_line_context and self.source_file == other.source_file
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash((self.number, self.first_line_context, self.source_file))
 
 
 def detect_issue_references(spec_md_path: Path) -> list[IssueReference]:
@@ -155,6 +204,12 @@ def detect_issue_references(spec_md_path: Path) -> list[IssueReference]:
     (FR-012, #1738; see ``_GH_ISSUE_PATTERN``). Skips refs that look like
     markdown anchor links (``#section-name``) and cross-repo/prior-art
     issue URLs (never returned as a reference -- SC-008).
+
+    WP01 (#3469, FR-015): every line the number appears on within this file
+    is retained as an :class:`~specify_cli.tasks.issue_reference_discovery.
+    Occurrence` and folded into the returned reference's aggregate
+    ``classification`` -- not just the first line (which still wins
+    ``first_line_context``/display purposes, unchanged).
 
     Args:
         spec_md_path: Filesystem path to the mission artifact to scan (e.g.
@@ -168,15 +223,31 @@ def detect_issue_references(spec_md_path: Path) -> list[IssueReference]:
     """
     text = spec_md_path.read_text(encoding="utf-8")
     source_file = spec_md_path.name
-    seen: dict[int, str] = {}
+    first_seen: dict[int, str] = {}
+    occurrences_by_number: dict[int, list[Occurrence]] = {}
+    occurrence_keys_seen: set[tuple[int, str]] = set()
     for line in text.splitlines():
+        stripped = line.strip()
         for match in _GH_ISSUE_PATTERN.finditer(line):
             num = _matched_issue_number(match)
             if num is None:
                 continue  # cross-repo URL -- filtered, never a reference (FR-012)
-            if num not in seen:
-                seen[num] = line.strip()
-    return [IssueReference(num, ctx, source_file) for num, ctx in seen.items()]
+            if num not in first_seen:
+                first_seen[num] = stripped
+            key = (num, stripped)
+            if key not in occurrence_keys_seen:
+                occurrence_keys_seen.add(key)
+                occurrences_by_number.setdefault(num, []).append(Occurrence(source_file=source_file, line_text=stripped))
+    return [
+        IssueReference(
+            num,
+            ctx,
+            source_file,
+            occurrences=tuple(occurrences_by_number[num]),
+            classification=classify_occurrences(occurrences_by_number[num]),
+        )
+        for num, ctx in first_seen.items()
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -311,7 +382,32 @@ def write_issue_matrix(
 
 # ---------------------------------------------------------------------------
 # T021 (B3) -- finalize scaffold, COORD via write_target(ISSUE_MATRIX)
+# WP01 (#3469, T004) -- gating classification decides row-requirement (C4.1)
 # ---------------------------------------------------------------------------
+
+
+def _scaffold_entry_for(ref: IssueReference) -> IssueMatrixEntry:
+    """Build the scaffolded row for one discovered reference (T004).
+
+    ``implementation_target`` references scaffold a gating row exactly as
+    before (``"unknown"`` verdict placeholder). ``context_only`` /
+    ``pr_or_commit_ref`` references are NOT omitted -- the audit trail is
+    kept -- but are pre-resolved as ``"not-applicable"`` so they never block
+    approval (contract C4.1: classification governs row-requirement).
+    """
+    if is_gating(ref):
+        return IssueMatrixEntry(
+            verdict=_SCAFFOLD_VERDICT_PLACEHOLDER,
+            evidence_ref=_SCAFFOLD_EVIDENCE_PLACEHOLDER,
+            title=_SCAFFOLD_TITLE_PLACEHOLDER,
+            source_file=ref.source_file,
+        )
+    return IssueMatrixEntry(
+        verdict=_SCAFFOLD_NON_GATING_VERDICT,
+        evidence_ref=_SCAFFOLD_NON_GATING_EVIDENCE,
+        title=f"<auto-classified: {ref.classification.value}>",
+        source_file=ref.source_file,
+    )
 
 
 def scaffold_issue_matrix(
@@ -371,15 +467,7 @@ def scaffold_issue_matrix(
     if not refs:
         return None
 
-    rows = {
-        f"#{ref.number}": IssueMatrixEntry(
-            verdict=_SCAFFOLD_VERDICT_PLACEHOLDER,
-            evidence_ref=_SCAFFOLD_EVIDENCE_PLACEHOLDER,
-            title=_SCAFFOLD_TITLE_PLACEHOLDER,
-            source_file=ref.source_file,
-        )
-        for ref in refs
-    }
+    rows = {f"#{ref.number}": _scaffold_entry_for(ref) for ref in refs}
     result = write_issue_matrix(
         repo_root=repo_root,
         mission_slug=mission_slug,
