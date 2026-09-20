@@ -16,6 +16,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.auth import reset_token_manager
+from specify_cli.auth.errors import SessionFilePermissionsError
 from specify_cli.cli.commands.auth import app
 
 from tests.cli.commands.test_auth_status import (
@@ -84,6 +85,30 @@ class TestAuthWhoamiCommand:
         result = _invoke_with(None)
 
         assert result.exit_code == 1
+
+    def test_unsafe_permissions_refusal_names_cause_on_stderr(self):
+        """#4761: a storage refusal keeps the documented 0/1 exit contract and
+        an empty stdout (machine consumers), but names the real cause — the
+        storage layer's chmod remedy — on stderr instead of failing silently
+        like a plain logged-out state."""
+        mock_storage = _mock_storage_returning(None, backend="file")
+        mock_storage.read.side_effect = SessionFilePermissionsError(
+            "Session file /home/u/.spec-kitty/auth/session.json has unsafe "
+            "permissions (mode=0o644); expected 0600. Fix with: chmod 600 "
+            "/home/u/.spec-kitty/auth/session.json"
+        )
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["whoami"])
+
+        assert result.exit_code == 1
+        assert "alice@example.com" not in (result.output or "")
+        combined = (result.output or "") + (result.stderr or "")
+        assert "unsafe permissions" in combined
+        assert "chmod 600" in combined
 
     def test_split_brain_shows_both_values_not_a_traceback(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
         """#193: ``whoami`` shares ``_print_saas_target`` with ``status`` — a

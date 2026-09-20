@@ -39,6 +39,7 @@ from rich.console import Console
 
 from specify_cli.auth.server_target import OverrideMode, ResolvedServerTarget, SAAS_URL_ENV_VAR
 from specify_cli.auth.session import StoredSession, Team
+from specify_cli.auth.token_manager import SessionAssessment
 from specify_cli.cli.commands import _auth_doctor
 from specify_cli.cli.commands import auth as auth_commands
 from specify_cli.cli.commands._auth_doctor import (
@@ -102,9 +103,14 @@ class _FakeStorage:
 class _FakeTokenManager:
     """Test double for :class:`TokenManager` matching the public API used here."""
 
-    def __init__(self, session: StoredSession | None) -> None:
+    def __init__(
+        self,
+        session: StoredSession | None,
+        assessment: SessionAssessment | None = None,
+    ) -> None:
         self._session = session
         self._storage = _FakeStorage(session)
+        self.session_assessment = assessment
 
     def get_current_session(self) -> StoredSession | None:
         return self._session
@@ -116,12 +122,13 @@ def _patch_state(
     session: StoredSession | None,
     lock_record: LockRecord | None = None,
     auth_root: Path | None = None,
+    assessment: SessionAssessment | None = None,
 ) -> None:
     """Wire ``_auth_doctor``'s upstream calls to deterministic fakes."""
     monkeypatch.setattr(
         _auth_doctor,
         "get_token_manager",
-        lambda: _FakeTokenManager(session),
+        lambda: _FakeTokenManager(session, assessment),
     )
     monkeypatch.setattr(_auth_doctor, "read_lock_record", lambda _path: lock_record)
     if auth_root is None:
@@ -338,6 +345,51 @@ def test_renders_unauthenticated(monkeypatch: pytest.MonkeyPatch) -> None:
     rendered = _capture_render(report)
     assert "Not authenticated" in rendered
     assert "F-001" in rendered
+
+
+_PERMISSIONS_DETAIL = (
+    "Session file /home/u/.spec-kitty/auth/session.json has unsafe "
+    "permissions (mode=0o644); expected 0600. Fix with: chmod 600 "
+    "/home/u/.spec-kitty/auth/session.json"
+)
+
+
+def test_renders_storage_permission_refusal_not_no_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#4761: a storage refusal must not be misdiagnosed as "no session".
+
+    F-001 stays critical (action required) but its summary names the storage
+    layer's own chmod remedy, the identity section says storage refused, and
+    the auth-login remediation is withheld — a re-login would overwrite the
+    very file storage refused to read.
+    """
+    _patch_state(
+        monkeypatch,
+        session=None,
+        assessment=SessionAssessment(
+            completed=False,
+            usable_session=None,
+            reason="storage_permissions_unsafe",
+            detail=_PERMISSIONS_DETAIL,
+        ),
+    )
+
+    report = assemble_report()
+
+    assert report.session is None
+    f001 = next(f for f in report.findings if f.id == "F-001")
+    assert f001.severity == "critical"
+    assert "unsafe permissions" in f001.summary
+    assert "chmod 600" in f001.summary
+    assert f001.remediation_command is None
+    assert compute_exit_code(report.findings) == 1
+
+    rendered = _capture_render(report)
+    assert "session storage refused" in rendered
+    assert "chmod 600" in rendered
+    assert "(session unreadable — storage refused to load it)" in rendered
+    assert "spec-kitty auth login" not in rendered
 
 
 def test_renders_stuck_lock_finding(monkeypatch: pytest.MonkeyPatch) -> None:

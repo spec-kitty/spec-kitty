@@ -23,7 +23,11 @@ from pathlib import Path
 import pytest
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from specify_cli.auth.errors import SecureStorageError, StorageDecryptionError
+from specify_cli.auth.errors import (
+    SecureStorageError,
+    SessionFilePermissionsError,
+    StorageDecryptionError,
+)
 from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage, _get_uid
 from specify_cli.auth.session import StoredSession, Team
 
@@ -319,6 +323,21 @@ def test_read_rejects_world_readable_credentials(storage: FastFileFallback, tmp_
     os.chmod(cred_file, 0o644)
     with pytest.raises(SecureStorageError, match="unsafe permissions"):
         storage.read()
+
+
+@pytest.mark.skipif(not hasattr(os, "getuid"), reason="POSIX-only permission check")
+def test_read_permission_refusal_is_typed_and_preserves_file(storage: FastFileFallback, tmp_path: Path):
+    """#4761: the refusal is a typed ``SessionFilePermissionsError`` whose
+    message carries the chmod remedy — and, unlike a decryption failure
+    (which self-heals by deleting the unreadable file), read() must NOT
+    delete the loose file: the remedy is chmod, not overwrite-by-re-login."""
+    storage.write(_make_session())
+    cred_file = tmp_path / "session.json"
+    os.chmod(cred_file, 0o644)
+    with pytest.raises(SessionFilePermissionsError, match="chmod 600") as excinfo:
+        storage.read()
+    assert isinstance(excinfo.value, SecureStorageError)
+    assert cred_file.exists()
 
 
 def test_backend_name_is_file(storage: FastFileFallback):

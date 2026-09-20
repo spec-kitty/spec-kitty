@@ -13,6 +13,8 @@ prints it — both commands print it via the shared
 
 from __future__ import annotations
 
+import sys
+
 import typer
 
 from specify_cli.auth import get_token_manager
@@ -24,7 +26,20 @@ def whoami_impl() -> None:
     tm = get_token_manager()
     session = tm.get_current_session()
 
-    if session is None or session.is_refresh_token_expired():
+    if session is None:
+        # #4761: when storage failed closed (e.g. unsafe session-file
+        # permissions), say so on stderr so the cause is distinguishable from
+        # a plain logged-out state. stdout stays empty and the exit code stays
+        # 1 per the documented machine contract — the storage message itself
+        # carries the remedy (chmod 600), not "run auth login", which would
+        # overwrite the file storage refused to read.
+        assessment = getattr(tm, "session_assessment", None)
+        detail = getattr(assessment, "detail", None)
+        if detail:
+            print(f"spec-kitty auth whoami: {detail}", file=sys.stderr)
+        raise typer.Exit(1)
+
+    if session.is_refresh_token_expired():
         raise typer.Exit(1)
 
     # Bare print on purpose: the first non-empty line must stay a plain,

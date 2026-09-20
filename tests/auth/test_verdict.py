@@ -99,6 +99,40 @@ def test_decryption_failure_is_not_reported_as_absent_session() -> None:
     assert "removed" in v.evidence
 
 
+def test_unsafe_permissions_refusal_names_remedy_not_login() -> None:
+    """The #4761 fix: a permissions refusal is fail with the storage layer's
+    own remedy carried in ``detail`` — and the auth-login remediation is
+    deliberately withheld (a re-login would overwrite the loose file)."""
+    detail = (
+        "Session file /home/u/.spec-kitty/auth/session.json has unsafe "
+        "permissions (mode=0o644); expected 0600. Fix with: chmod 600 "
+        "/home/u/.spec-kitty/auth/session.json"
+    )
+    v = evaluate_auth_verdict(
+        None,
+        now_utc(),
+        session_assessment_reason="storage_permissions_unsafe",
+        session_assessment_detail=detail,
+    )
+    assert v.state == "fail"
+    assert "unsafe permissions" in v.evidence
+    assert v.detail == detail
+    assert "chmod 600" in (v.detail or "")
+    assert v.remediation is None
+
+
+def test_unsafe_permissions_refusal_without_detail_is_still_fail() -> None:
+    """A missing detail degrades to the plain fail verdict — never to ok."""
+    v = evaluate_auth_verdict(
+        None,
+        now_utc(),
+        session_assessment_reason="storage_permissions_unsafe",
+    )
+    assert v.state == "fail"
+    assert "unsafe permissions" in v.evidence
+    assert v.detail is None
+
+
 def test_healthy_access_is_ok_and_names_both_windows() -> None:
     v = evaluate_auth_verdict(
         _session(access_delta=timedelta(minutes=15), refresh_delta=timedelta(days=30)),

@@ -40,6 +40,7 @@ from specify_cli.paths import get_runtime_root
 from .errors import (
     NotAuthenticatedError,
     RefreshTokenExpiredError,
+    SessionFilePermissionsError,
     SessionInvalidError,
     StorageDecryptionError,
 )
@@ -79,11 +80,16 @@ class SessionAssessment:
     complete.  The value carries no session data or exception text and is not
     an authentication state machine; callers that need the historical Boolean
     contract should continue to use :attr:`TokenManager.is_authenticated`.
+
+    ``detail`` is optional exception text retained only where the storage
+    layer failed closed and its message is itself the remedy (the unsafe-
+    permissions refusal, #4761); it never carries secret material.
     """
 
     completed: bool
     usable_session: bool | None
     reason: str
+    detail: str | None = None
 
     def __post_init__(self) -> None:
         """Enforce completion/presence invariants at construction time."""
@@ -195,6 +201,21 @@ class TokenManager:
             self._hot_path_summary = None
             self._record_current_session_assessment()
             self._publish_hot_path_summary_if_possible()
+        except SessionFilePermissionsError as exc:
+            # #4761: the storage layer failed closed on unsafe permissions and
+            # its message carries the built-in chmod remedy — retain it so the
+            # auth status/whoami/doctor surfaces can render the real cause
+            # instead of "no active session" (and its auth-login remediation,
+            # which would silently overwrite the loose file).
+            log.warning("Session file has unsafe permissions; storage refused to read it: %s", exc)
+            self._session = None
+            self._hot_path_summary = None
+            self._session_assessment = SessionAssessment(
+                completed=False,
+                usable_session=None,
+                reason="storage_permissions_unsafe",
+                detail=str(exc),
+            )
         except StorageDecryptionError:
             log.warning("Stored session could not be decrypted and was removed; run `spec-kitty auth login` to create a new session.")
             self._session = None
@@ -334,6 +355,18 @@ class TokenManager:
             self._session = self._storage.read()
             self._record_current_session_assessment()
             self._publish_hot_path_summary_if_possible()
+        except SessionFilePermissionsError as exc:
+            # #4761 — mirrors the load_from_storage_sync handling: keep the
+            # storage layer's own remedy text instead of degrading to a bare
+            # "session_materialization_failed" reason.
+            log.warning("Session file has unsafe permissions; storage refused to read it: %s", exc)
+            self._session = None
+            self._session_assessment = SessionAssessment(
+                completed=False,
+                usable_session=None,
+                reason="storage_permissions_unsafe",
+                detail=str(exc),
+            )
         except StorageDecryptionError:
             log.warning("Stored session could not be decrypted and was removed; run `spec-kitty auth login` to create a new session.")
             self._session = None

@@ -103,3 +103,14 @@ class StorageBackendUnavailableError(SecureStorageError):
 
 class StorageDecryptionError(SecureStorageError):
     """Raised when an encrypted file cannot be decrypted (corruption, wrong key)."""
+
+
+class SessionFilePermissionsError(SecureStorageError):
+    """Raised when the session file has unsafe (non-owner-only) permissions.
+
+    The secure-storage layer fails closed on read (NFR-013) rather than
+    decrypting a file other local users could have read. The message always
+    carries the built-in remedy (``chmod 600 <path>``) so callers can surface
+    it instead of steering the user to ``auth login``, which would silently
+    overwrite the loose file (#4761).
+    """

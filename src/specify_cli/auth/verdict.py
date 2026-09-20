@@ -174,12 +174,17 @@ def evaluate_auth_verdict(
     *,
     server_probe: ServerProbe | None = None,
     session_assessment_reason: str | None = None,
+    session_assessment_detail: str | None = None,
 ) -> HealthVerdict:
     """Derive the one honest auth :class:`HealthVerdict` from a session + clock.
 
     Pure: no I/O; the clock and the optional server probe are injected. Decision
     ladder (the ONLY authority for this decision):
 
+    - storage refused on unsafe permissions -> ``fail``  (the #4761 fix — the
+      session file's own chmod remedy is carried in ``detail`` and the login
+      remediation is deliberately withheld: ``auth login`` would overwrite the
+      very file storage refused to read)
     - no session                         -> ``fail``    (no active session)
     - refresh token known-expired        -> ``fail``    (re-authenticate)
     - server probe ran and is inactive   -> ``fail``    (the #4607 fix — a failed
@@ -188,6 +193,13 @@ def evaluate_auth_verdict(
     - access expired, refresh valid, no probe    -> ``unknown``  (the #3723 fix)
     - access expired, refresh valid, probe live  -> ``ok``
     """
+    if session is None and session_assessment_reason == "storage_permissions_unsafe":
+        return HealthVerdict(
+            state="fail",
+            evidence="session file has unsafe permissions; secure storage refused to read it",
+            detail=session_assessment_detail,
+            remediation=None,
+        )
     if session is None and session_assessment_reason == "storage_decryption_failed":
         return HealthVerdict(
             state="fail",

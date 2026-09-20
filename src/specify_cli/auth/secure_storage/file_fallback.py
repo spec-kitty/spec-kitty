@@ -31,7 +31,7 @@ from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from kernel.locks import machine_file_lock
 from specify_cli.paths import get_runtime_root
 
-from ..errors import SecureStorageError, StorageDecryptionError
+from ..errors import SecureStorageError, SessionFilePermissionsError, StorageDecryptionError
 from ..session import StoredSession
 from ..session_hot_path import invalidate_session_hot_path, publish_session_hot_path
 from .abstract import SecureStorage
@@ -220,7 +220,7 @@ class FileFallbackStorage(SecureStorage):
             return  # Windows — no POSIX perms to verify
         mode = stat.S_IMODE(path.stat().st_mode)
         if mode & 0o077:
-            raise SecureStorageError(f"Session file {path} has unsafe permissions (mode={oct(mode)}); expected 0600. Fix with: chmod 600 {path}")
+            raise SessionFilePermissionsError(f"Session file {path} has unsafe permissions (mode={oct(mode)}); expected 0600. Fix with: chmod 600 {path}")
 
     # ---- public API ------------------------------------------------------
 

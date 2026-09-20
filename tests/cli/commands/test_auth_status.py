@@ -33,6 +33,7 @@ from rich.console import Console
 from typer.testing import CliRunner
 
 from specify_cli.auth import reset_token_manager
+from specify_cli.auth.errors import SessionFilePermissionsError
 from specify_cli.auth.server_target import (
     OverrideMode,
     ResolvedServerTarget,
@@ -309,6 +310,30 @@ class TestAuthStatusCommand:
         # #189: the endpoint line prints even with no session to compare against.
         assert "SaaS:" in result.stdout
         assert "https://saas.test" in result.stdout
+
+    def test_unsafe_permissions_refusal_renders_remedy_not_login(self):
+        """#4761: when storage fails closed on unsafe session-file
+        permissions, ``auth status`` renders the storage layer's own chmod
+        remedy — never the auth-login line, which would silently overwrite
+        the loose file storage just refused to read."""
+        mock_storage = _mock_storage_returning(None, backend="file")
+        mock_storage.read.side_effect = SessionFilePermissionsError(
+            "Session file /home/u/.spec-kitty/auth/session.json has unsafe "
+            "permissions (mode=0o644); expected 0600. Fix with: chmod 600 "
+            "/home/u/.spec-kitty/auth/session.json"
+        )
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "Not authenticated" in result.stdout
+        assert "unsafe permissions" in result.stdout
+        assert "chmod 600" in result.stdout
+        assert "spec-kitty auth login" not in result.stdout
 
     def test_authenticated_path_happy(self):
         """Authenticated session prints identity, teams, expiry, backend."""

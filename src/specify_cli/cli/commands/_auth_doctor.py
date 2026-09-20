@@ -301,17 +301,32 @@ def _compute_findings(
     """
     findings: list[Finding] = []
 
-    # F-001 — no session loaded.
+    # F-001 — no session loaded. When storage failed closed and its verdict
+    # carries the failure detail (#4761, e.g. unsafe session-file
+    # permissions), the finding names the real cause and the storage layer's
+    # own remedy — the auth-login remediation is withheld because a re-login
+    # would overwrite the very file storage refused to read.
     if session is None:
-        findings.append(
-            Finding(
-                id="F-001",
-                severity="critical",
-                summary="No active session",
-                remediation_command="spec-kitty auth login",
-                remediation_description=("Authenticate with the SaaS to establish a session."),
+        if auth_verdict.detail:
+            findings.append(
+                Finding(
+                    id="F-001",
+                    severity="critical",
+                    summary=f"No usable session — storage refused to load it: {auth_verdict.detail}",
+                    remediation_command=None,
+                    remediation_description=("Fix the storage problem named above (do NOT run spec-kitty auth login — it would overwrite the affected file)."),
+                )
             )
-        )
+        else:
+            findings.append(
+                Finding(
+                    id="F-001",
+                    severity="critical",
+                    summary="No active session",
+                    remediation_command="spec-kitty auth login",
+                    remediation_description=("Authenticate with the SaaS to establish a session."),
+                )
+            )
 
     # F-003 — refresh lock stuck (age past threshold).
     if refresh_lock.stuck and refresh_lock.age_s is not None:
@@ -466,6 +481,14 @@ async def _check_server_session() -> ServerSessionStatus:
     if mismatch is not None:
         return ServerSessionStatus(active=False, error=mismatch)
 
+    # #4761: a storage refusal is not a server verdict — report the storage
+    # layer's own message instead of attempting a refresh that would fail
+    # with a NotAuthenticatedError indistinguishable from a revoked session.
+    assessment = getattr(tm, "session_assessment", None)
+    storage_refusal = getattr(assessment, "detail", None)
+    if getattr(assessment, "reason", None) == "storage_permissions_unsafe" and storage_refusal:
+        return ServerSessionStatus(active=False, error=storage_refusal)
+
     try:
         access_token = await tm.get_access_token()
     except (NotAuthenticatedError, RefreshTokenExpiredError, SessionInvalidError):
@@ -533,6 +556,7 @@ def assemble_report(
         now,
         server_probe=server_probe,
         session_assessment_reason=getattr(assessment, "reason", None),
+        session_assessment_detail=getattr(assessment, "detail", None),
     )
     refresh_lock = _read_lock_summary(stuck_threshold_s)
 
@@ -571,8 +595,15 @@ def _render_identity_section(report: DoctorReport, console: Console) -> None:
     """Section 1 — Identity."""
     console.print("[bold]Identity[/bold]")
     if report.session is None:
-        console.print("  [red]X Not authenticated[/red]")
-        console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
+        if report.auth_verdict.detail:
+            # #4761: storage refused to load the session — render the cause
+            # and its remedy instead of the not-authenticated/login pair,
+            # which would misdiagnose a storage failure as "logged out".
+            console.print("  [red]X Not authenticated — session storage refused[/red]")
+            console.print(f"  {escape(sanitize_terminal_text(report.auth_verdict.detail))}")
+        else:
+            console.print("  [red]X Not authenticated[/red]")
+            console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
     else:
         user_email = report.session.user_email or UNKNOWN_DISPLAY
         session_id = report.session.session_id or UNKNOWN_DISPLAY
@@ -583,11 +614,23 @@ def _render_identity_section(report: DoctorReport, console: Console) -> None:
     console.print()
 
 
+def _no_session_note(report: DoctorReport) -> str:
+    """The Tokens/Storage placeholder line when no session is loaded.
+
+    Distinguishes "nothing is stored" from "something is stored but storage
+    refused to read it" (#4761) so neither section contributes to the
+    no-session misdiagnosis.
+    """
+    if report.auth_verdict.detail:
+        return "(session unreadable — storage refused to load it)"
+    return "(no session)"
+
+
 def _render_token_section(report: DoctorReport, console: Console) -> None:
     """Section 2 — Tokens."""
     console.print("[bold]Tokens[/bold]")
     if report.session is None:
-        console.print("  (no session)")
+        console.print(f"  {_no_session_note(report)}")
     else:
         access = report.session.access_token_remaining_s
         if access is not None:
@@ -603,7 +646,7 @@ def _render_storage_section(report: DoctorReport, console: Console) -> None:
     """Section 3 — Storage."""
     console.print("[bold]Storage[/bold]")
     if report.session is None or report.session.storage_backend is None:
-        console.print("  (no session)")
+        console.print(f"  {_no_session_note(report)}")
     else:
         console.print(f"  Backend:        {escape(sanitize_terminal_text(format_storage_backend(report.session.storage_backend)))}")
         if report.session.in_memory_drift:

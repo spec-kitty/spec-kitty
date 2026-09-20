@@ -30,6 +30,7 @@ from specify_cli.auth import refresh_transaction as rtx
 from specify_cli.auth.errors import (
     NotAuthenticatedError,
     RefreshTokenExpiredError,
+    SessionFilePermissionsError,
     SessionInvalidError,
     StorageDecryptionError,
 )
@@ -315,6 +316,87 @@ def test_hot_summary_materialization_failure_preserves_failed_assessment(
     )
     assert tm.is_authenticated is False
     assert "credential-shaped-secret-must-not-escape" not in caplog.text
+
+
+_UNSAFE_PERMS_MESSAGE = (
+    "Session file /synthetic/auth/session.json has unsafe permissions (mode=0o644); expected 0600. Fix with: chmod 600 /synthetic/auth/session.json"
+)
+
+
+def test_load_from_storage_sync_records_unsafe_permissions_reason():
+    """#4761: a permissions refusal keeps its own reason and remedy text.
+
+    Unlike the generic/decryption failures, the unsafe-permissions message is
+    authored entirely by our own storage layer (path + mode + chmod remedy,
+    no secret material), so retaining it in ``detail`` lets the auth
+    status/whoami/doctor surfaces render the real cause.
+    """
+
+    class UnsafePermsStorage(FakeStorage):
+        def read(self):
+            raise SessionFilePermissionsError(_UNSAFE_PERMS_MESSAGE)
+
+    tm = TokenManager(UnsafePermsStorage())
+    tm.load_from_storage_sync()  # must not raise
+
+    assert tm.get_current_session() is None
+    assert tm.is_authenticated is False
+    assert tm.session_assessment == SessionAssessment(
+        completed=False,
+        usable_session=None,
+        reason="storage_permissions_unsafe",
+        detail=_UNSAFE_PERMS_MESSAGE,
+    )
+
+
+def test_hot_summary_materialization_records_unsafe_permissions_reason(monkeypatch):
+    """#4761: the hot-path startup route must record the refusal too.
+
+    When a fresh hot-path summary short-circuits ``load_from_storage_sync``,
+    the refusal surfaces later, on the first session materialization — that
+    is exactly the path a fresh ``auth status`` process takes.
+    """
+
+    class UnsafePermsStorage(FakeStorage):
+        @property
+        def store_path(self):
+            return "/synthetic/auth"
+
+        def read(self):
+            raise SessionFilePermissionsError(_UNSAFE_PERMS_MESSAGE)
+
+    summary = SessionHotPathSummary(
+        refresh_token_expires_at=None,
+        not_after_monotonic=time.monotonic() + 30,
+    )
+    monkeypatch.setattr(tm_module, "load_session_hot_path", lambda _path: summary)
+    tm = TokenManager(UnsafePermsStorage())
+    tm.load_from_storage_sync()
+    # Startup took the hot-path branch; the first ``session_assessment``
+    # read materializes from storage and records the refusal.
+    assert tm.get_current_session() is None
+    assert tm.is_authenticated is False
+    assert tm.session_assessment == SessionAssessment(
+        completed=False,
+        usable_session=None,
+        reason="storage_permissions_unsafe",
+        detail=_UNSAFE_PERMS_MESSAGE,
+    )
+
+
+def test_decryption_failure_assessment_carries_no_detail():
+    """Secret hygiene: only the storage-authored permissions message is
+    retained in ``detail``; decryption exception text never escapes."""
+
+    class UndecryptableStorage(FakeStorage):
+        def read(self):
+            raise StorageDecryptionError("credential-shaped-secret-must-not-escape")
+
+    tm = TokenManager(UndecryptableStorage())
+    tm.load_from_storage_sync()
+
+    assert tm.session_assessment.reason == "storage_decryption_failed"
+    assert tm.session_assessment.detail is None
 
 
 def test_successful_set_and_clear_replace_prior_failed_assessment():

@@ -35,6 +35,7 @@ from .errors import (
     NotAuthenticatedError,
     RefreshTokenExpiredError,
     SecureStorageError,
+    SessionFilePermissionsError,
     SessionInvalidError,
     StateExpiredError,
     StorageBackendUnavailableError,
@@ -69,6 +70,7 @@ __all__ = [
     "DeviceFlowDenied",
     "DeviceFlowExpired",
     "SecureStorageError",
+    "SessionFilePermissionsError",
     "StorageBackendUnavailableError",
     "StorageDecryptionError",
 ]

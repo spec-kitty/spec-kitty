@@ -92,12 +92,20 @@ def status_impl() -> None:
         session,
         now_utc(),
         session_assessment_reason=getattr(assessment, "reason", None),
+        session_assessment_detail=getattr(assessment, "detail", None),
     )
     _print_banner(verdict)
 
     if session is None:
         print_saas_endpoint()
-        console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
+        if verdict.detail:
+            # Storage refused to load the session and its message carries the
+            # remedy (e.g. "Fix with: chmod 600 …"). Printing the auth-login
+            # line here would steer the user to overwrite the very file
+            # storage just refused to read (#4761).
+            console.print(f"  {escape(sanitize_terminal_text(verdict.detail))}")
+        else:
+            console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
         return
 
     if verdict.state == "fail":
