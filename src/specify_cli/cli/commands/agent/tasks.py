@@ -662,7 +662,18 @@ def move_task(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
     to: Annotated[str, typer.Option("--to", help="Target lane (planned/doing/for_review/approved/done)")],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
-    agent: Annotated[str | None, typer.Option("--agent", help="Agent name")] = None,
+    agent: Annotated[
+        str | None,
+        typer.Option(
+            "--agent",
+            "--actor",
+            help=(
+                "Agent name (alias: --actor, matching issue-verdict's vocabulary). "
+                "If both --agent and --actor are given, the one supplied LAST on "
+                "the command line wins."
+            ),
+        ),
+    ] = None,
     model: Annotated[
         str | None,
         typer.Option("--model", help="Dispatch-resolved model actual"),
@@ -675,9 +686,29 @@ def move_task(
         str | None,
         typer.Option("--invocation-id", help="Authoritative dispatch Op record id"),
     ] = None,
-    assignee: Annotated[str | None, typer.Option("--assignee", help="Assignee name (sets assignee when moving to doing)")] = None,
+    assignee: Annotated[
+        str | None,
+        typer.Option(
+            "--assignee",
+            help=(
+                "Assignee name, recorded on this transition regardless of the "
+                "target lane (not limited to --to doing)."
+            ),
+        ),
+    ] = None,
     shell_pid: Annotated[str | None, typer.Option("--shell-pid", help="Shell PID")] = None,
-    note: Annotated[str | None, typer.Option("--note", help="History note")] = None,
+    note: Annotated[
+        str | None,
+        typer.Option(
+            "--note",
+            "--reason",
+            help=(
+                "History note (alias: --reason, matching issue-verdict's vocabulary). "
+                "If both --note and --reason are given, the one supplied LAST on "
+                "the command line wins."
+            ),
+        ),
+    ] = None,
     review_feedback_file: Annotated[
         Path | None,
         typer.Option(
@@ -759,15 +790,27 @@ def move_task(
 
     Review-rejection edges (a backward move out of review — ``--to planned`` from
     in_progress/for_review/in_review/approved, or ``in_review → in_progress``) MUST
-    carry a rationale: pass ``--review-feedback-file`` (or ``--note``). That
-    rationale is emitted as the status event's ``review_ref``/reason and is
+    carry a rationale: pass ``--review-feedback-file`` (or ``--note``/``--reason``).
+    That rationale is emitted as the status event's ``review_ref``/reason and is
     required by the shared status contract; a rejection emitted without it is
     accepted locally but silently rejected by hosted sync, so it never propagates.
+
+    ``--actor``/``--reason`` are accepted as aliases of ``--agent``/``--note``
+    (matching ``issue-verdict``'s vocabulary, #3469) — use whichever spelling
+    reads naturally; both apply the same value.
+
+    Subtask completion is NOT tracked by ticking a checkbox in ``tasks.md`` —
+    that file is guidance/documentation only. Completion is event-sourced; mark
+    a subtask done with ``spec-kitty agent tasks mark-status T0NN --status done
+    --mission <handle>`` (#2816). Ticking a checkbox alone will not clear the
+    unchecked-subtasks gate on a ``--to for_review`` move.
 
     Examples:
         spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json
         spec-kitty agent tasks move-task WP02 --to for_review --agent claude --shell-pid $$
+        spec-kitty agent tasks move-task WP02 --to for_review --actor claude --shell-pid $$
         spec-kitty agent tasks move-task WP03 --to approved --note "Review passed"
+        spec-kitty agent tasks move-task WP03 --to approved --reason "Review passed"
         spec-kitty agent tasks move-task WP03 --to done --done-override-reason "Branch deleted after hotfix merge"
         spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedback.md
     """
