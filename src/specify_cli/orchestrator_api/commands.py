@@ -855,7 +855,11 @@ def _apply_lane_merge_cleanup(
     """Worktree removal + lane/mission branch deletion, gated on the RESOLVED
     retention decision (#3131 T010) — extracted from ``_execute_lane_merge``
     to stay under the complexity ceiling; not a passthrough (see there)."""
+    import functools
+
+    from specify_cli.coordination.coherence import is_toolchain_generated_churn
     from specify_cli.core.git_ops import run_command
+    from specify_cli.git.destructive_guard import guarded_worktree_remove
     from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path
     from specify_cli.lanes.compute import is_planning_lane
 
@@ -865,10 +869,20 @@ def _apply_lane_merge_cleanup(
             # reproduces the historical name byte-identically (FR-005).
             wt_path = worktree_path(main_repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id)
             if wt_path.exists():
-                run_command(
-                    ["git", "worktree", "remove", str(wt_path), "--force"],
-                    cwd=main_repo_root,
-                    check_return=False,
+                # #4753 C-003: ``retention.remove_worktree`` is the upstream
+                # decision of WHETHER to remove at all (already resolved
+                # above, and already honors the operator's
+                # --keep-worktree/retain_worktrees policy); the guard's own
+                # ``retain`` is a DIFFERENT axis (dirty-worktree handling) and
+                # always stays False here (review ADVISORY-3) so a dirty lane
+                # worktree refuses instead of being force-removed.
+                guarded_worktree_remove(
+                    wt_path,
+                    retain=False,
+                    is_residue=functools.partial(
+                        is_toolchain_generated_churn,
+                        mission_slug=mission_slug,
+                    ),
                 )
 
     # LANE branches stay keyed to the plain resolved ``delete_branch`` (no

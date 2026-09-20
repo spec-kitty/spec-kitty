@@ -31,11 +31,14 @@ real per-worktree gitdir path via
 
 from __future__ import annotations
 
+import functools
 import subprocess
 import threading
 from pathlib import Path
 
+from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.core.errors import StructuredError
+from specify_cli.git.destructive_guard import guarded_worktree_remove
 from specify_cli.lanes.branch_naming import (
     coord_dir_name as _seam_coord_dir_name,
     coord_mission_dir_name as _seam_coord_mission_dir_name,
@@ -182,6 +185,21 @@ def _has_stale_worktree_registration(repo_root: Path, path: Path) -> bool:
 
 
 def _remove_worktree_registration(repo_root: Path, path: Path) -> None:
+    """Prune a stale/prunable worktree registration. GUARD-EXEMPT (C-003/NFR-006).
+
+    Only ever called when ``path`` does NOT exist on disk (git already
+    reports the registration ``prunable``): there is no working tree left to
+    inspect, let alone user work to lose. The shared
+    :func:`~specify_cli.git.destructive_guard.guarded_worktree_remove` seam
+    cannot run here even in principle -- it resolves the repository root by
+    executing git *inside* ``worktree`` (``git -C <worktree> rev-parse
+    --git-common-dir``), which requires the directory to exist. This is
+    therefore an explicit, inline-rationalized exemption from the guard (per
+    the routing-invariant.md allowlist convention), not an unrouted/unexplained
+    raw force-remove: the removal target is git's own administrative
+    bookkeeping for an already-gone directory, never a live worktree that
+    could hold local state.
+    """
     subprocess.run(
         ["git", "-C", str(repo_root), _GIT_WORKTREE, "remove", "--force", str(path)],
         check=True,
@@ -289,16 +307,26 @@ class CoordinationWorkspace:
         Does NOT delete the coordination branch — branch deletion is the
         responsibility of ``spec-kitty merge`` (FR-016) once the merge
         has succeeded.
+
+        Routes the live force-remove through the shared
+        :func:`~specify_cli.git.destructive_guard.guarded_worktree_remove`
+        chokepoint (#4753, C-003): a dirty coordination worktree raises
+        :class:`~specify_cli.git.destructive_guard.DestructiveOpRefused`
+        instead of being force-removed. This method owns ONLY the worktree
+        leg of the coordination triple by design (it never deletes the
+        branch), so the raise happens before any mutation and the branch +
+        marker are left exactly as found -- FR-004's coupling holds because
+        nothing downstream of the raise runs.
         """
         path = cls.worktree_path(repo_root, mission_slug, mid8)
         if not path.exists():
             if _has_stale_worktree_registration(repo_root, path):
                 _remove_worktree_registration(repo_root, path)
             return
-        subprocess.run(
-            ["git", "-C", str(repo_root), _GIT_WORKTREE, "remove",
-             str(path), "--force"],
-            check=False,  # tolerate "already removed" races
+        guarded_worktree_remove(
+            path,
+            retain=False,
+            is_residue=functools.partial(is_toolchain_generated_churn, mission_slug=mission_slug),
         )
 
     @classmethod
