@@ -20,12 +20,12 @@ After this mission's normalization change, a legacy `change_mode` no longer appe
 ```
 Mission-state repair complete (updated=122, unchanged=2, errors=0).
 Normalized missions:
-  - <slug>: normalized_change_mode (dropped legacy 'regular')
+  - <slug>: normalized_change_mode:regular
 ```
 
 ## `--fix --json`
 
-`report.to_json()` MUST include a per-mission record for every mission (already does); this contract pins that errored/normalized missions carry `mission_slug`, `status`, `actions`, and `validation_errors`.
+`report.to_json()` MUST include a per-mission record for every mission (already does); this contract pins that errored/normalized missions carry `mission_slug`, `status`, `meta_actions`, and `validation_errors` (the healing actions applied, e.g. `normalized_change_mode:regular`, are on `meta_actions`).
 
 ## `--teamspace-dry-run` terminal output
 
@@ -39,7 +39,7 @@ TeamSpace dry-run: 20 validation issues.
 
 ## `--teamspace-dry-run --json`
 
-MUST emit a structured `errors[]` list (mission_slug, artifact_path, line, error, message) — shape-equivalent to the repair report's error records (parity).
+MUST emit a structured `errors[]` list (mission_slug, artifact_path, line_number, error, message) — shape-equivalent to the repair report's error records (parity).
 
 ## Invariants
 
