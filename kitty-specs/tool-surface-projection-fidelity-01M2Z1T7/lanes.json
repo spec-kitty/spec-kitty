@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "mission_slug": "tool-surface-projection-fidelity-01M2Z1T7",
+  "mission_id": "01M2Z1T7Y4F0VFGAH17BWQWYXM",
+  "mission_branch": "kitty/mission-tool-surface-projection-fidelity-01M2Z1T7",
+  "target_branch": "fix/tool-surface-projection-fidelity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/session_presence/writers/registry.py",
+        "tests/specify_cli/session_presence/test_registry_can_write.py",
+        "tests/specify_cli/tool_surface/providers/test_session_presence_root_context_repair.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/skills/command_installer.py",
+        "src/specify_cli/tool_surface/providers/managed_skills.py",
+        "tests/specify_cli/skills/test_command_manifest_determinism.py",
+        "tests/specify_cli/tool_surface/providers/test_managed_skills_host_aware.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "tests/specify_cli/tool_surface/integration/test_projection_honesty_e2e.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-20T09:58:26.326926+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "25728340d416670b4edd043d815358c6bca36cd6"
+}
