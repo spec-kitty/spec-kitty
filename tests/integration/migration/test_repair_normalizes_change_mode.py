@@ -7,9 +7,11 @@ raised ``ValueError``, so the mission was reported ``error`` and never healed.
 
 After WP01 the repair NORMALIZES such a value to ABSENT during canonicalization
 (before validation), counting the mission ``updated`` and recording
-``normalized_change_mode`` in the result's ``meta_actions`` — exit 0, no
-``ValueError`` (SC-001). Re-running yields no second diff (NFR-002, SC-005), and
-any non-canonical value — not just ``regular`` — is healed identically (FR-011).
+``normalized_change_mode:{old_value}`` in the result's ``meta_actions`` — exit 0,
+no ``ValueError`` (SC-001). The dropped value is captured in the action tag
+itself (fidelity, #4780), mirroring ``removed_meta_key:{key}``. Re-running
+yields no second diff (NFR-002, SC-005), and any non-canonical value — not just
+``regular`` — is healed identically (FR-011).
 
 Tactic references:
 - ``acceptance-test-first`` / ``atdd-adversarial-acceptance``: the failing
@@ -85,7 +87,7 @@ def test_repair_normalizes_regular_change_mode(tmp_path: Path) -> None:
         f"expected the legacy change_mode mission to be repaired, got {result.status!r} with validation_errors={result.validation_errors!r}"
     )
     assert result.validation_errors == []
-    assert "normalized_change_mode" in result.meta_actions
+    assert "normalized_change_mode:regular" in result.meta_actions
 
     persisted = json.loads((mission / "meta.json").read_text(encoding="utf-8"))
     assert "change_mode" not in persisted
@@ -137,7 +139,7 @@ def test_repair_normalizes_any_non_canonical_change_mode(tmp_path: Path, change_
 
     result = next(m for m in report.missions if m.mission_slug == _SLUG)
     assert result.status == "updated"
-    assert "normalized_change_mode" in result.meta_actions
+    assert f"normalized_change_mode:{change_mode}" in result.meta_actions
     persisted = json.loads((mission / "meta.json").read_text(encoding="utf-8"))
     assert "change_mode" not in persisted
 
@@ -149,7 +151,7 @@ def test_repair_preserves_bulk_edit_change_mode(tmp_path: Path) -> None:
     report = repair_repo(primary)
 
     result = next(m for m in report.missions if m.mission_slug == _SLUG)
-    assert "normalized_change_mode" not in result.meta_actions
+    assert not any(action.startswith("normalized_change_mode") for action in result.meta_actions)
     persisted = json.loads((mission / "meta.json").read_text(encoding="utf-8"))
     assert persisted["change_mode"] == "bulk_edit"
 
@@ -207,6 +209,6 @@ def test_error_after_meta_write_still_reports_normalized_action(tmp_path: Path, 
     assert result.status == "error"
     assert any("injected failure" in e for e in result.validation_errors)
     # The persisted normalization must still be reported, not silently dropped.
-    assert "normalized_change_mode" in result.meta_actions
+    assert "normalized_change_mode:regular" in result.meta_actions
     persisted = json.loads((mission / "meta.json").read_text(encoding="utf-8"))
     assert "change_mode" not in persisted

@@ -494,7 +494,7 @@ def validate_meta(meta: dict[str, Any]) -> list[str]:
     return errors
 
 
-def _normalize_change_mode(meta: dict[str, Any]) -> bool:
+def _normalize_change_mode(meta: dict[str, Any]) -> str | None:
     """Drop a non-canonical ``change_mode`` from *meta* in place.
 
     The only canonical ``change_mode`` is ``"bulk_edit"`` (:data:`VALID_CHANGE_MODES`);
@@ -514,15 +514,20 @@ def _normalize_change_mode(meta: dict[str, Any]) -> bool:
             when present and not exactly ``"bulk_edit"``.
 
     Returns:
-        ``True`` when the field was present and removed (so callers can record
-        the repair); ``False`` when there was nothing to normalize.
+        The stringified dropped value (via ``str()``, so e.g. ``42`` -> ``"42"``
+        and ``None`` -> ``"None"``) when the field was present and removed --
+        so callers can record fidelity detail about exactly what was healed
+        (mirrors the ``removed_meta_key:{key}`` convention in
+        ``migration/mission_state.py``'s ``_canonicalize_meta``); ``None`` when
+        there was nothing to normalize.
     """
     if "change_mode" not in meta:
-        return False
+        return None
     if meta["change_mode"] == "bulk_edit":
-        return False
+        return None
+    dropped = str(meta["change_mode"])
     del meta["change_mode"]
-    return True
+    return dropped
 
 
 def validate_purpose_summary(

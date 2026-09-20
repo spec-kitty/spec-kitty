@@ -58,9 +58,7 @@ def _make_clean_mission(parent: Path, slug: str = "test-mission") -> Path:
 class TestModeValidationErrors:
     """Characterize error paths that exit 2 before any dispatch occurs."""
 
-    def test_no_mode_flag_exits_0_with_help_hint(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_no_mode_flag_exits_0_with_help_hint(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Without --audit, --fix, or --teamspace-dry-run: exit 0, suggests flags.
 
         Arrange: minimal project root.
@@ -72,9 +70,7 @@ class TestModeValidationErrors:
         assert result.exit_code == 0
         assert "--audit" in result.output
 
-    def test_conflicting_audit_and_fix_exits_2(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_conflicting_audit_and_fix_exits_2(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--audit and --fix together must exit 2 with an error message.
 
         Arrange: project root monkeypatched.
@@ -87,9 +83,7 @@ class TestModeValidationErrors:
         combined = (result.output or "") + (result.stderr or "")
         assert "exactly one" in combined.lower() or "choose" in combined.lower()
 
-    def test_conflicting_audit_and_teamspace_dry_run_exits_2(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_conflicting_audit_and_teamspace_dry_run_exits_2(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--audit and --teamspace-dry-run together must exit 2.
 
         Arrange: project root monkeypatched.
@@ -97,14 +91,10 @@ class TestModeValidationErrors:
         Assert: exit_code == 2.
         """
         monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
-        result = runner.invoke(
-            app, ["mission-state", "--audit", "--teamspace-dry-run"]
-        )
+        result = runner.invoke(app, ["mission-state", "--audit", "--teamspace-dry-run"])
         assert result.exit_code == 2
 
-    def test_conflicting_fix_and_teamspace_dry_run_exits_2(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_conflicting_fix_and_teamspace_dry_run_exits_2(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--fix and --teamspace-dry-run together must exit 2.
 
         Arrange: project root monkeypatched.
@@ -112,14 +102,10 @@ class TestModeValidationErrors:
         Assert: exit_code == 2.
         """
         monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
-        result = runner.invoke(
-            app, ["mission-state", "--fix", "--teamspace-dry-run"]
-        )
+        result = runner.invoke(app, ["mission-state", "--fix", "--teamspace-dry-run"])
         assert result.exit_code == 2
 
-    def test_invalid_fail_on_value_exits_2(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_invalid_fail_on_value_exits_2(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """An unrecognized --fail-on value exits 2 with the valid values listed.
 
         Arrange: project root monkeypatched.
@@ -142,9 +128,7 @@ class TestModeValidationErrors:
         combined = (result.output or "") + (result.stderr or "")
         assert "teamspace-blocker" in combined
 
-    def test_include_fixtures_and_fixture_dir_mutually_exclusive(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_include_fixtures_and_fixture_dir_mutually_exclusive(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--include-fixtures and --fixture-dir are mutually exclusive (exit 2).
 
         Arrange: project root monkeypatched, fixture dir present.
@@ -197,9 +181,7 @@ class TestAuditModeCharacterization:
     comprehensively; this class focuses on the dispatch arm's entry/exit shape.
     """
 
-    def test_audit_clean_fixture_exits_0(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_audit_clean_fixture_exits_0(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--audit on a clean mission exits 0.
 
         Arrange: one clean mission directory in fixture_dir.
@@ -209,14 +191,10 @@ class TestAuditModeCharacterization:
         fixture_dir = tmp_path / "fixtures"
         _make_clean_mission(fixture_dir)
         monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
-        result = runner.invoke(
-            app, ["mission-state", "--audit", "--fixture-dir", str(fixture_dir)]
-        )
+        result = runner.invoke(app, ["mission-state", "--audit", "--fixture-dir", str(fixture_dir)])
         assert result.exit_code == 0
 
-    def test_audit_json_output_has_missions_key(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_audit_json_output_has_missions_key(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--audit --json output is valid JSON with 'missions' key.
 
         Arrange: one clean mission directory.
@@ -258,7 +236,7 @@ class TestFixModeCharacterization:
         normalized.status = "updated"
         normalized.mission_slug = "normalized-mission"
         normalized.validation_errors = []
-        normalized.meta_actions = ["normalized_change_mode"]
+        normalized.meta_actions = ["normalized_change_mode:regular"]
 
         missions = [normalized]
         missions_json: list[dict[str, object]] = [
@@ -266,7 +244,7 @@ class TestFixModeCharacterization:
                 "mission_slug": "normalized-mission",
                 "status": "updated",
                 "validation_errors": [],
-                "meta_actions": ["normalized_change_mode"],
+                "meta_actions": ["normalized_change_mode:regular"],
             }
         ]
         error_count = 0
@@ -305,9 +283,7 @@ class TestFixModeCharacterization:
         report.manifest_path = ".kittify/migrations/mission-state/test-run.json"
         return report
 
-    def test_fix_mode_json_output_exits_0_on_success(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fix_mode_json_output_exits_0_on_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--fix --json exits 0 when repair_repo succeeds with no errors.
 
         Arrange: mocked repair_repo returning a successful RepairReport.
@@ -331,9 +307,7 @@ class TestFixModeCharacterization:
         data = json.loads(result.output)
         assert "run_id" in data or "missions" in data or "summary" in data
 
-    def test_fix_mode_pretty_output_shows_summary(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fix_mode_pretty_output_shows_summary(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--fix (no --json) shows summary AND per-mission normalized detail.
 
         Arrange: mocked repair_repo returning a report with a normalized
@@ -359,15 +333,13 @@ class TestFixModeCharacterization:
         assert "repair" in combined.lower() or "updated" in combined.lower()
         # Per-mission detail, not just the summary counts.
         assert "normalized-mission" in combined
-        assert "normalized_change_mode" in combined
+        assert "normalized_change_mode:regular" in combined
 
-    def test_fix_mode_pretty_output_shows_per_mission_detail(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fix_mode_pretty_output_shows_per_mission_detail(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--fix terminal names each errored AND normalized mission + reason.
 
         Arrange: mocked repair_repo returning a report with an errored mission
-        AND a normalized mission (``meta_actions=['normalized_change_mode']``).
+        AND a normalized mission (``meta_actions=['normalized_change_mode:regular']``).
         Act: invoke mission-state --fix (no --json).
         Assert: exit_code == 1 (errored mission present) and the terminal
         renders each mission's slug + reason/actions, not just counts
@@ -392,11 +364,9 @@ class TestFixModeCharacterization:
         assert "Invalid canonical meta.json" in combined
         # Normalized mission: slug + recorded action.
         assert "normalized-mission" in combined
-        assert "normalized_change_mode" in combined
+        assert "normalized_change_mode:regular" in combined
 
-    def test_fix_mode_json_carries_per_mission_meta_actions(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fix_mode_json_carries_per_mission_meta_actions(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--fix --json carries a per-mission record incl. meta_actions.
 
         Arrange: mocked repair_repo returning a normalized + errored report.
@@ -421,19 +391,13 @@ class TestFixModeCharacterization:
         slugs = {m["mission_slug"] for m in data["missions"]}
         assert {"normalized-mission", "errored-mission"} <= slugs
         by_slug = {m["mission_slug"]: m for m in data["missions"]}
-        assert by_slug["normalized-mission"]["meta_actions"] == [
-            "normalized_change_mode"
-        ]
-        assert by_slug["errored-mission"]["validation_errors"] == [
-            "Invalid canonical meta.json"
-        ]
+        assert by_slug["normalized-mission"]["meta_actions"] == ["normalized_change_mode:regular"]
+        assert by_slug["errored-mission"]["validation_errors"] == ["Invalid canonical meta.json"]
         # NFR-003: triage detail lives in the payload, not only in the sidecar.
-        assert "normalized_change_mode" in result.output
+        assert "normalized_change_mode:regular" in result.output
         assert "Invalid canonical meta.json" in result.output
 
-    def test_fix_mode_exits_1_on_repair_error(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fix_mode_exits_1_on_repair_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--fix exits 1 when repair_repo raises MissionStateRepairError.
 
         Arrange: mocked repair_repo raising MissionStateRepairError.
@@ -457,9 +421,7 @@ class TestFixModeCharacterization:
         combined = (result.output or "") + (result.stderr or "")
         assert "MISSION_STATE_REPAIR_FAILED" in combined or "error" in combined.lower()
 
-    def test_fix_mode_exits_1_when_missions_have_errors(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fix_mode_exits_1_when_missions_have_errors(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--fix exits 1 when any MissionRepairResult.status == 'error'.
 
         Arrange: mocked repair_repo returning a report with one error result.
@@ -539,9 +501,7 @@ class TestTeamspaceDryRunModeCharacterization:
         report.events_package_version = "0.1.0"
         return report
 
-    def test_teamspace_dry_run_json_exits_0_on_success(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_teamspace_dry_run_json_exits_0_on_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--teamspace-dry-run --json exits 0 when validation passes.
 
         Arrange: mocked teamspace_dry_run returning a valid report.
@@ -564,9 +524,7 @@ class TestTeamspaceDryRunModeCharacterization:
         data = json.loads(result.output)
         assert "valid" in data
 
-    def test_teamspace_dry_run_pretty_shows_valid_message(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_teamspace_dry_run_pretty_shows_valid_message(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--teamspace-dry-run (no --json) shows 'valid' when validation passes.
 
         Arrange: mocked teamspace_dry_run returning a valid report.
@@ -589,9 +547,7 @@ class TestTeamspaceDryRunModeCharacterization:
         combined = (result.output or "") + (result.stderr or "")
         assert "valid" in combined.lower()
 
-    def test_teamspace_dry_run_exits_1_on_validation_failure(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_teamspace_dry_run_exits_1_on_validation_failure(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--teamspace-dry-run exits 1 AND renders per-mission detail on failure.
 
         Arrange: mocked teamspace_dry_run returning an invalid report with a
@@ -618,9 +574,7 @@ class TestTeamspaceDryRunModeCharacterization:
         assert "blocked-mission" in combined
         assert "STATUS_ROW_NOT_REPAIRED" in combined
 
-    def test_teamspace_dry_run_pretty_shows_per_mission_detail(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_teamspace_dry_run_pretty_shows_per_mission_detail(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--teamspace-dry-run terminal names each affected mission + reason.
 
         Arrange: mocked teamspace_dry_run returning an invalid report whose
@@ -644,9 +598,7 @@ class TestTeamspaceDryRunModeCharacterization:
         report_mock.envelope_count = 0
         report_mock.errors = errors
         report_mock.events_package_version = "0.1.0"
-        report_mock.to_json.return_value = json.dumps(
-            {"valid": False, "errors": errors}
-        )
+        report_mock.to_json.return_value = json.dumps({"valid": False, "errors": errors})
 
         with patch(
             "specify_cli.migration.mission_state.teamspace_dry_run",
@@ -663,9 +615,7 @@ class TestTeamspaceDryRunModeCharacterization:
         assert "STATUS_ROW_NOT_REPAIRED" in combined
         assert "row remains; run --fix" in combined
 
-    def test_teamspace_dry_run_json_carries_per_mission_errors(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_teamspace_dry_run_json_carries_per_mission_errors(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--teamspace-dry-run --json emits structured per-mission errors[].
 
         Arrange: mocked teamspace_dry_run returning an invalid report.
@@ -694,9 +644,7 @@ class TestTeamspaceDryRunModeCharacterization:
         assert entry["error"] == "STATUS_ROW_NOT_REPAIRED"
         assert "message" in entry and "artifact_path" in entry
 
-    def test_teamspace_dry_run_exits_1_on_error(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_teamspace_dry_run_exits_1_on_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """--teamspace-dry-run exits 1 when teamspace_dry_run raises.
 
         Arrange: mocked teamspace_dry_run raising MissionStateDryRunError.

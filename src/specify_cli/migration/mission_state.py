@@ -1601,9 +1601,12 @@ def _canonicalize_meta(
     # FR-001/002/003, FR-011: heal a legacy/malformed ``change_mode`` (anything
     # other than ``"bulk_edit"``) to ABSENT before validation, so ``--fix``
     # repairs the mission instead of aborting on it. Recorded conditionally —
-    # mirroring ``removed_meta_key:*`` — so a re-run is a no-op (NFR-002).
-    if _normalize_change_mode(meta):
-        actions.append("normalized_change_mode")
+    # mirroring ``removed_meta_key:{key}`` -- so a re-run is a no-op (NFR-002).
+    # The dropped value is captured in the action tag itself (fidelity, #4780),
+    # the same way ``removed_meta_key:{key}`` names the specific key it dropped.
+    dropped_change_mode = _normalize_change_mode(meta)
+    if dropped_change_mode is not None:
+        actions.append(f"normalized_change_mode:{dropped_change_mode}")
 
     errors = validate_meta(meta)
     if errors:

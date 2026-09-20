@@ -1290,7 +1290,6 @@ exclude = [
     "tests/cli/commands/test_charter_io.py",
     "tests/cli/commands/test_charter_orchestration.py",
     "tests/cli/commands/test_charter_rendering.py",
-    "tests/cli/commands/test_doctor_mission_state.py",
     "tests/cli/commands/test_doctor_topology.py",
     "tests/cli/commands/test_implement_base_flag.py",
     "tests/cli/commands/test_intake.py",

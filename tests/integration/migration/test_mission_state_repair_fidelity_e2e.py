@@ -19,8 +19,9 @@ The seeded repo carries two missions:
 The suite asserts, against the real objects:
 
 * SC-001 — ``--fix`` repairs (a): status ``updated``, stored ``change_mode``
-  gone, ``meta_actions`` records ``normalized_change_mode``, no ``ValueError``,
-  no validation error (the pre-fix behavior aborted the mission).
+  gone, ``meta_actions`` records ``normalized_change_mode:regular`` (the
+  dropped value, fidelity #4780), no ``ValueError``, no validation error (the
+  pre-fix behavior aborted the mission).
 * SC-002/003 — the real ``RepairReport.to_json()`` and
   ``TeamspaceDryRunReport.to_json()`` carry per-mission records, so triage is
   possible from the command's own output WITHOUT reading the git-ignored
@@ -140,7 +141,7 @@ def test_fix_repairs_legacy_change_mode_e2e(tmp_path: Path) -> None:
     assert legacy.status == "updated", f"legacy change_mode mission should repair, got {legacy.status!r} with validation_errors={legacy.validation_errors!r}"
     # "exit 0 / not fatal" for the legacy mission: no validation error recorded.
     assert legacy.validation_errors == []
-    assert "normalized_change_mode" in legacy.meta_actions
+    assert "normalized_change_mode:regular" in legacy.meta_actions
 
     persisted = json.loads((primary / "kitty-specs" / LEGACY_SLUG / "meta.json").read_text(encoding="utf-8"))
     assert "change_mode" not in persisted
@@ -170,7 +171,7 @@ def test_repair_report_json_carries_per_mission_records_e2e(tmp_path: Path) -> N
     assert LEGACY_SLUG in by_slug
     legacy_record = by_slug[LEGACY_SLUG]
     assert legacy_record["status"] == "updated"
-    assert legacy_record["meta_actions"] == ["normalized_change_mode"]
+    assert legacy_record["meta_actions"] == ["normalized_change_mode:regular"]
     assert legacy_record["validation_errors"] == []
 
     # (b) is surfaced per-mission with its own reason — not a bare count.
@@ -181,7 +182,7 @@ def test_repair_report_json_carries_per_mission_records_e2e(tmp_path: Path) -> N
 
     # NFR-003: the triage detail lives in the serialized report itself.
     serialized = report.to_json()
-    assert "normalized_change_mode" in serialized
+    assert "normalized_change_mode:regular" in serialized
     assert LEGACY_SLUG in serialized and BLOCKED_SLUG in serialized
 
 

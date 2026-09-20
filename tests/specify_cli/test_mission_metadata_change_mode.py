@@ -156,8 +156,8 @@ def test_change_mode_preserved_through_write_meta(tmp_path):
 def test_normalize_change_mode_absent_is_noop():
     """No ``change_mode`` key → nothing to normalize, meta unchanged."""
     meta = _minimal_meta()
-    changed = _normalize_change_mode(meta)
-    assert changed is False
+    dropped = _normalize_change_mode(meta)
+    assert dropped is None
     assert "change_mode" not in meta
 
 
@@ -165,30 +165,31 @@ def test_normalize_change_mode_preserves_bulk_edit():
     """The canonical ``bulk_edit`` value is preserved (never widened away)."""
     meta = _minimal_meta()
     meta["change_mode"] = "bulk_edit"
-    changed = _normalize_change_mode(meta)
-    assert changed is False
+    dropped = _normalize_change_mode(meta)
+    assert dropped is None
     assert meta["change_mode"] == "bulk_edit"
 
 
 @pytest.mark.parametrize(
-    "value",
+    ("value", "expected_dropped"),
     [
-        "regular",  # the specific retired legacy value (FR-001)
-        "yolo",  # any unknown string (FR-011)
-        "",  # empty string
-        "BULK_EDIT",  # case variant is NOT canonical
-        42,  # non-string / malformed (FR-011)
-        None,  # present-but-null
-        ["bulk_edit"],  # wrapped/malformed structure
-        {"mode": "bulk_edit"},
+        ("regular", "regular"),  # the specific retired legacy value (FR-001)
+        ("yolo", "yolo"),  # any unknown string (FR-011)
+        ("", ""),  # empty string
+        ("BULK_EDIT", "BULK_EDIT"),  # case variant is NOT canonical
+        (42, "42"),  # non-string / malformed (FR-011)
+        (None, "None"),  # present-but-null
+        (["bulk_edit"], "['bulk_edit']"),  # wrapped/malformed structure
+        ({"mode": "bulk_edit"}, "{'mode': 'bulk_edit'}"),
     ],
 )
-def test_normalize_change_mode_drops_non_canonical(value):
-    """Every non-``bulk_edit`` value is normalized to ABSENT and reported changed."""
+def test_normalize_change_mode_drops_non_canonical(value, expected_dropped):
+    """Every non-``bulk_edit`` value is normalized to ABSENT and the stringified
+    dropped value is faithfully returned (fidelity, #4780)."""
     meta = _minimal_meta()
     meta["change_mode"] = value
-    changed = _normalize_change_mode(meta)
-    assert changed is True
+    dropped = _normalize_change_mode(meta)
+    assert dropped == expected_dropped
     assert "change_mode" not in meta
 
 
@@ -196,8 +197,8 @@ def test_normalize_change_mode_is_idempotent():
     """A second call after healing reports no change (NFR-002)."""
     meta = _minimal_meta()
     meta["change_mode"] = "regular"
-    assert _normalize_change_mode(meta) is True
-    assert _normalize_change_mode(meta) is False
+    assert _normalize_change_mode(meta) == "regular"
+    assert _normalize_change_mode(meta) is None
 
 
 def test_normalize_change_mode_does_not_touch_other_fields():
