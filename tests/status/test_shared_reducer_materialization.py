@@ -54,6 +54,11 @@ def test_written_snapshot_matches_shared_reducer(
 
     assert shared_state == json.loads(golden_text)
     written.pop("retrospective", None)
+    # #4786 archive-freeze fix: a brand-new mission (this fixture's tmp_path
+    # feature_dir has no pre-existing status.json) always materializes at the
+    # current schema, which stamps this CLI-only marker -- same pattern as
+    # the other CLI-only extras popped below/above.
+    written.pop("schema_version", None)
     for wp_state in written["work_packages"].values():
         if wp_state["lane"] == "canceled":
             wp_state.pop("cancellation_reason", None)

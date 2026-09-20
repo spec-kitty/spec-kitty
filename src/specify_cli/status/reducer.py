@@ -37,6 +37,18 @@ _SYNTHETIC_REASON_PREFIXES: tuple[str, ...] = ("Force move to ", "move-task: ")
 #: Derived snapshot written beside the authoritative event diary.
 SNAPSHOT_FILENAME = "status.json"
 
+#: The materialized-snapshot schema version a brand-new mission (and any
+#: mission already recorded at this version) materializes at. Bumped when a
+#: new derived read-root field is added to the snapshot -- #4786's
+#: ``implementer_of_record`` is the field that motivated introducing this
+#: concept at all (see :func:`_target_schema_version`).
+CURRENT_SNAPSHOT_SCHEMA_VERSION = 2
+
+#: The implicit schema version of every snapshot with no ``schema_version``
+#: key at all -- every snapshot ever materialized before this concept
+#: existed, frozen archives included.
+_LEGACY_SNAPSHOT_SCHEMA_VERSION = 1
+
 
 def _cancellation_reason_source(event: StatusEvent) -> str:
     """Classify a canceled event's provenance as ``operator`` or ``synthetic``."""
@@ -264,6 +276,56 @@ def _reduce_retrospective(raw_events: list[dict[str, Any]]) -> RetrospectiveSnap
     )
 
 
+def _existing_schema_version(status_path: Path) -> int | None:
+    """Return the ``schema_version`` recorded in an existing on-disk snapshot.
+
+    ``None`` covers every case that must NOT be treated as "already on the
+    current schema": the file does not exist, is unreadable, is not valid
+    JSON, is not a JSON object, has no ``schema_version`` key, or the key's
+    value is not an int. Every snapshot materialized before this concept
+    existed (frozen archives included) falls into "no key at all" and reads
+    back as ``None`` here.
+    """
+    try:
+        raw = status_path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    value = data.get("schema_version")
+    return value if isinstance(value, int) else None
+
+
+def _target_schema_version(feature_dir: Path) -> int:
+    """Resolve the schema version THIS ``materialize_snapshot`` call emits at.
+
+    A brand-new mission (no ``status.json`` on disk yet) always materializes
+    at :data:`CURRENT_SNAPSHOT_SCHEMA_VERSION` -- carrying the #4786
+    ``implementer_of_record`` projection from its very first snapshot.
+
+    An EXISTING snapshot keys its replay off its OWN recorded
+    ``schema_version`` rather than off anything about the current code: a
+    snapshot already recorded at :data:`CURRENT_SNAPSHOT_SCHEMA_VERSION`
+    stays there; a snapshot with no ``schema_version`` key at all -- every
+    snapshot ever materialized before this concept existed, frozen archives
+    included -- replays at the legacy schema forever, so that a canonical
+    replay of a frozen archive
+    (``tests/architectural/test_archive_root_byte_identical.py``) stays
+    byte-identical to the committed file without weakening that freeze gate,
+    and without this reducer needing to know which missions are archived.
+    """
+    status_path = feature_dir / SNAPSHOT_FILENAME
+    if not status_path.exists():
+        return CURRENT_SNAPSHOT_SCHEMA_VERSION
+    if _existing_schema_version(status_path) == CURRENT_SNAPSHOT_SCHEMA_VERSION:
+        return CURRENT_SNAPSHOT_SCHEMA_VERSION
+    return _LEGACY_SNAPSHOT_SCHEMA_VERSION
+
+
 def materialize_to_json(snapshot: StatusSnapshot) -> str:
     """Serialize a snapshot to deterministic, human-readable JSON."""
     return (
@@ -283,7 +345,18 @@ def materialize_snapshot(feature_dir: Path) -> StatusSnapshot:
     raw_events = read_events_raw(feature_dir)
     snapshot = _state_to_snapshot(reduce_shared_state(raw_events))
     _project_cancellation_provenance(stream.transitions, snapshot)
-    _project_implementer_attribution(stream.transitions, snapshot)
+    # #4786 archive-freeze fix: the implementer-of-record projection is a NEW
+    # derived field. Injecting it unconditionally would mean a canonical
+    # replay of a pre-#4786 (frozen/archived) snapshot no longer reproduces
+    # that snapshot's committed bytes
+    # (tests/architectural/test_archive_root_byte_identical.py). Only emit it
+    # -- and the schema_version marker that records having done so -- when
+    # this snapshot is targeting the current schema; a legacy-schema replay
+    # (an existing on-disk snapshot with no schema_version key) stays exactly
+    # as it was pre-#4786.
+    if _target_schema_version(feature_dir) >= CURRENT_SNAPSHOT_SCHEMA_VERSION:
+        _project_implementer_attribution(stream.transitions, snapshot)
+        snapshot.schema_version = CURRENT_SNAPSHOT_SCHEMA_VERSION
     identity = resolve_mission_identity(feature_dir)
     snapshot.mission_number = str(identity.mission_number) if identity.mission_number is not None else None
     snapshot.mission_type = identity.mission_type

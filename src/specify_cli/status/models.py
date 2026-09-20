@@ -772,6 +772,15 @@ class StatusSnapshot:
     # Additive WP03 field: retrospective state derived from retrospective.* events.
     # Default None → backwards-compatible; existing snapshot consumers see no change.
     retrospective: RetrospectiveSnapshot | None = None
+    # #4786 archive-freeze fix: the materialized-snapshot schema version. ``None``
+    # (the default here, and the ONLY value every snapshot ever written before
+    # this field existed carries) means "no schema_version key at all" — never
+    # serialized. A snapshot materialized at the current schema (see
+    # ``specify_cli.status.reducer.CURRENT_SNAPSHOT_SCHEMA_VERSION``) sets this
+    # explicitly, which is also what gates whether the reducer's
+    # ``implementer_of_record`` projection (#4786) may land on this snapshot:
+    # see ``reducer.materialize_snapshot`` / ``reducer._target_schema_version``.
+    schema_version: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -788,6 +797,8 @@ class StatusSnapshot:
         }
         if self.retrospective is not None:
             d["retrospective"] = self.retrospective.model_dump(mode="json")
+        if self.schema_version is not None:
+            d["schema_version"] = self.schema_version
         result: dict[str, Any] = with_tracked_mission_slug_aliases(d)
         return result
 
@@ -800,6 +811,7 @@ class StatusSnapshot:
         retro: RetrospectiveSnapshot | None = None
         if retro_data is not None:
             retro = RetrospectiveSnapshot.model_validate(retro_data)
+        raw_schema_version = data.get("schema_version")
         return cls(
             mission_slug=feature_slug,
             materialized_at=data["materialized_at"],
@@ -810,6 +822,7 @@ class StatusSnapshot:
             mission_number=data.get("mission_number"),
             mission_type=data.get("mission_type"),
             retrospective=retro,
+            schema_version=raw_schema_version if isinstance(raw_schema_version, int) else None,
         )
 
 
