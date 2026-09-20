@@ -5803,6 +5803,9 @@ _Tracker synchronization commands_
    ``--yes``/``-y``  Non-interactive confirmation (alias for ``--force``).
                      Does NOT bypass schema-incompatibility blocks
  (CHK037/A-006).
+                     Fully non-interactive (FR-017): also opts into the
+                     mission-state repair sub-gate (NFR-003), which
+                     otherwise has its own separate consent.
    ``--no-nag``  Suppress upgrade-nag banner even when a CLI update exists.
 
  Mutual exclusion: ``--cli`` and ``--project`` together exit 2.
