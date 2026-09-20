@@ -300,6 +300,10 @@ class TestForwardControl:
         feature_dir, _wp_file = _build_feature_in_lane(
             tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="planned"
         )
+        # lanes.json is now a required precondition to leave 'planned' (#4758,
+        # _mt_guard_planned_boundary_lanes) -- fixture update, not a behavior
+        # change: this test exercises the no-auto-promote force/reason shape.
+        _seed_lanes_json(feature_dir, mission_slug, wp_id)
 
         result = _invoke_move(
             tmp_path=tmp_path,

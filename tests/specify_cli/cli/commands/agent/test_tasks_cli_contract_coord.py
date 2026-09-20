@@ -256,6 +256,40 @@ def _seed_chain(feature_dir: Path, lanes: list[tuple[str, str]]) -> None:
         _seed_event(feature_dir, from_lane, to_lane, ordinal)
 
 
+def _seed_lanes_json_for_wp01(feature_dir: Path, mission_slug: str) -> None:
+    """Write a minimal ``lanes.json`` covering ``WP01``.
+
+    #4758's ``_mt_guard_planned_boundary_lanes`` now refuses any hop OUT of
+    ``planned`` when ``lanes.json`` is absent (a required precondition, not a
+    behavior change under test here) -- so any fixture that lands WP01 back
+    in ``planned`` (a rejection) and then retries forward needs lanes.json
+    seeded first.
+    """
+    write_lanes_json(
+        feature_dir,
+        LanesManifest(
+            version=1,
+            mission_slug=mission_slug,
+            mission_id=None,
+            mission_branch=f"kitty/mission-{mission_slug}",
+            target_branch="main",
+            lanes=[
+                ExecutionLane(
+                    lane_id="lane-a",
+                    wp_ids=("WP01",),
+                    write_scope=("src/wp01/**",),
+                    predicted_surfaces=(),
+                    depends_on_lanes=(),
+                    parallel_group=0,
+                )
+            ],
+            computed_at="2026-01-01T00:00:00+00:00",
+            computed_from="dependency_graph+ownership",
+            planning_commit_sha="a" * 40,
+        ),
+    )
+
+
 def _write_review_cycle_at(wp_dir: Path, cycle: int, verdict: str) -> Path:
     """Write a ``review-cycle-N.md`` artifact directly under *wp_dir*.
 
@@ -376,6 +410,8 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
     fd = _simple_mission(mkdir(), f"arbiter-{_MID8}")
     _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review")])
     _seed_event(fd, "for_review", "planned", 4, review_ref="feedback://arbiter/WP01/review-cycle-1.md")
+    # lanes.json is now a required precondition to leave 'planned' (#4758).
+    _seed_lanes_json_for_wp01(fd, fd.name)
     with setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS):
         code, text, _ = _invoke([
             "move-task", "WP01", "--to", "for_review", "--mission", fd.name, "--force",
@@ -408,6 +444,8 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
     _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review")])
     _write_review_cycle(fd, 1, "rejected")
     _seed_event(fd, "for_review", "planned", 4, review_ref="feedback://arbiter/WP01/review-cycle-1.md")
+    # lanes.json is now a required precondition to leave 'planned' (#4758).
+    _seed_lanes_json_for_wp01(fd, fd.name)
     with (
         patch("specify_cli.cli.commands.agent.tasks.commit_for_mission") as mock_commit,
         setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS),
@@ -1022,29 +1060,7 @@ def _arbiter_fixture_ready_for_override(root_mkdir: Any, slug: str) -> Path:
     # change: the retry move below (--to for_review, --force) hops WP01 back
     # OUT of the 'planned' rejection landing and would otherwise hit the
     # guard before ever reaching the arbiter-persist code path under test.
-    write_lanes_json(
-        fd,
-        LanesManifest(
-            version=1,
-            mission_slug=slug,
-            mission_id=None,
-            mission_branch=f"kitty/mission-{slug}",
-            target_branch="main",
-            lanes=[
-                ExecutionLane(
-                    lane_id="lane-a",
-                    wp_ids=("WP01",),
-                    write_scope=("src/wp01/**",),
-                    predicted_surfaces=(),
-                    depends_on_lanes=(),
-                    parallel_group=0,
-                )
-            ],
-            computed_at="2026-01-01T00:00:00+00:00",
-            computed_from="dependency_graph+ownership",
-            planning_commit_sha="a" * 40,
-        ),
-    )
+    _seed_lanes_json_for_wp01(fd, slug)
     return fd
 
 

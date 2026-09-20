@@ -44,6 +44,8 @@ from specify_cli.agent_tasks_ports import (
 )
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.protection_policy import ProtectionPolicy
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status import TransitionRequest
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
@@ -166,6 +168,38 @@ def _seed_rejection_result_event(feature_dir: Path, wp_id: str) -> None:
     )
 
 
+def _seed_lanes_json(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
+    """Write a minimal ``lanes.json`` covering *wp_id*.
+
+    #4758's ``_mt_guard_planned_boundary_lanes`` now refuses any hop OUT of
+    ``planned`` when ``lanes.json`` is absent (a required precondition, not a
+    behavior change under test here).
+    """
+    write_lanes_json(
+        feature_dir,
+        LanesManifest(
+            version=1,
+            mission_slug=mission_slug,
+            mission_id=_MISSION_ID,
+            mission_branch=f"kitty/mission-{mission_slug}",
+            target_branch="wip-lane",
+            lanes=[
+                ExecutionLane(
+                    lane_id="lane-a",
+                    wp_ids=(wp_id,),
+                    write_scope=(f"src/{wp_id.lower()}/**",),
+                    predicted_surfaces=(),
+                    depends_on_lanes=(),
+                    parallel_group=0,
+                )
+            ],
+            computed_at="2026-01-01T00:00:00+00:00",
+            computed_from="dependency_graph+ownership",
+            planning_commit_sha="a" * 40,
+        ),
+    )
+
+
 def _fake_ports(feature_dir: Path) -> TasksPorts:
     coord = _RealArtifactFixtureRouter(feature_dir)
     return TasksPorts(
@@ -277,6 +311,11 @@ def test_reject_approve_reject_approve_with_identical_note_succeeds(
     )
     ports = _fake_ports(feature_dir)
     wp_dir = feature_dir / "tasks" / wp_file.stem
+    # lanes.json is now a required precondition to leave 'planned' (#4758,
+    # _mt_guard_planned_boundary_lanes) -- fixture update, not a behavior
+    # change: this test exercises the approval-body content-identity
+    # collision, not the lanes.json guard.
+    _seed_lanes_json(feature_dir, _MISSION, _WP_ID)
 
     # Cycle 1: reject.
     _seed_wp_event(feature_dir, _WP_ID, "in_review")

@@ -18,6 +18,8 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.store import append_event
 from specify_cli.status.models import StatusEvent, Lane
 from tests.mocked_env import setup_mocked_env
@@ -48,6 +50,38 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
         execution_mode="worktree",
     )
     append_event(feature_dir, event)
+
+
+def _seed_lanes_json(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
+    """Write a minimal ``lanes.json`` covering *wp_id*.
+
+    #4758's ``_mt_guard_planned_boundary_lanes`` now refuses any hop OUT of
+    ``planned`` when ``lanes.json`` is absent (a required precondition, not a
+    behavior change under test here).
+    """
+    write_lanes_json(
+        feature_dir,
+        LanesManifest(
+            version=1,
+            mission_slug=mission_slug,
+            mission_id=None,
+            mission_branch=f"kitty/mission-{mission_slug}",
+            target_branch="main",
+            lanes=[
+                ExecutionLane(
+                    lane_id="lane-a",
+                    wp_ids=(wp_id,),
+                    write_scope=(f"src/{wp_id.lower()}/**",),
+                    predicted_surfaces=(),
+                    depends_on_lanes=(),
+                    parallel_group=0,
+                )
+            ],
+            computed_at="2026-01-01T00:00:00+00:00",
+            computed_from="dependency_graph+ownership",
+            planning_commit_sha="a" * 40,
+        ),
+    )
 
 
 def _build_minimal_feature(tmp_path: Path, mission_slug: str = "060-test") -> Path:
@@ -507,6 +541,10 @@ class TestMoveTaskHardFail:
 
         # Seed canonical state
         _seed_wp_lane(feature_dir, "WP01", "planned")
+        # lanes.json is now a required precondition to leave 'planned' (#4758,
+        # _mt_guard_planned_boundary_lanes) -- fixture update, not a behavior
+        # change: this test exercises the canonical-event success path.
+        _seed_lanes_json(feature_dir, mission_slug, "WP01")
 
         # Return real events from the seeded store
         from specify_cli.status.store import read_events as real_read_events
