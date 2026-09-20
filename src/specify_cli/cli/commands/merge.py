@@ -388,7 +388,7 @@ def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
         # scoped to that mission's own merge workspace
         # (.kittify/runtime/merge/<mission_id>/workspace/) -- NEVER
         # repo_root. The merge pipeline runs `git merge` exclusively inside
-        # spec-kitty-owned worktrees (the ephemeral lane-merge tmp worktree,
+        # spec-kitty-owned worktrees (the ephemeral lane-consolidation tmp worktree,
         # unconditionally cleaned up on exit, and the persisted
         # conflict-resolution workspace); a MERGE_HEAD in repo_root is
         # always the operator's OWN in-progress merge and must never be

@@ -464,7 +464,7 @@ def abort_git_merge(repo_root: Path) -> bool:
     #4754: callers MUST NOT invoke this with the operator's own repository
     root unless they have already confirmed active spec-kitty merge state
     exists for that root. The merge pipeline runs ``git merge`` exclusively
-    inside spec-kitty-owned worktrees (an ephemeral lane-merge tmp worktree
+    inside spec-kitty-owned worktrees (an ephemeral lane-consolidation tmp worktree
     and the persisted per-mission merge workspace at
     ``.kittify/runtime/merge/<mission_id>/workspace/``) -- never directly
     against a repository's primary checkout. A ``MERGE_HEAD`` found in an
