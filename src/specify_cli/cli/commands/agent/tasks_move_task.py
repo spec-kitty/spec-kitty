@@ -1248,7 +1248,11 @@ def _mt_pre_review_gate_env_disable_reason() -> str | None:
     no longer the sync-disable vocabulary: disarming sync must not silently
     skip a review gate. See ``core.env.pre_review_gate_skip_reason``.
     """
-    return pre_review_gate_skip_reason()
+    # ``pre_review_gate_skip_reason`` surfaces as ``Any`` under this quarantined
+    # module's ``follow_imports = "skip"``; pin the known concrete return type via
+    # an annotated local rather than a suppression (mirrors the workspace resolver).
+    reason: str | None = pre_review_gate_skip_reason()
+    return reason
 
 
 def _mt_pre_review_gate_skip_reason(st: _MoveTaskState) -> str | None:
@@ -1300,7 +1304,11 @@ def _mt_resolve_pre_review_workspace(st: _MoveTaskState) -> Path | None:
     from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError
 
     if st.owned is not None:
-        return st.owned.root
+        # ``st.owned.root`` surfaces as ``Any`` under this quarantined module's
+        # ``follow_imports = "skip"``; pin it to the concrete ``Path`` via an
+        # annotated local (same idiom as the ``workspace.worktree_path`` return).
+        owned_root: Path = st.owned.root
+        return owned_root
     try:
         workspace = _tasks.resolve_workspace_for_wp(st.main_repo_root, st.mission_slug, st.task_id)
     except (ValueError, FileNotFoundError, MissingLanesError, CorruptLanesError):
