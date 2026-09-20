@@ -1185,6 +1185,15 @@ def test_pre_review_gate_declared_reads_the_resolved_source(tmp_path: Path) -> N
     assert DeclaredCommandScopeSource(repo_root=tmp_path).test_command() is None
     assert tasks_move_task._mt_pre_review_gate_declared(tmp_path) is True
 
+    # Declared-but-empty: the key is PRESENT (the operator started to configure
+    # the gate) but the value is empty. That is "declared, unconfigured", not
+    # "never declared" — it must count as declared so the engine surfaces its
+    # visible no-coverage warn, never the quiet undeclared-repo skip. The probe
+    # keys on config-key PRESENCE, not truthiness.
+    (tmp_path / ".kittify" / "config.yaml").write_text('review:\n  test_command: ""\n', encoding="utf-8")
+    assert DeclaredCommandScopeSource(repo_root=tmp_path).test_command() is None
+    assert tasks_move_task._mt_pre_review_gate_declared(tmp_path) is True
+
 
 # ---------------------------------------------------------------------------
 # DoD — existing move-task behavior intact (no regression)

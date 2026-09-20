@@ -1218,11 +1218,14 @@ def _mt_pre_review_gate_declared(scope_source_root: Path) -> bool:
     on that very contract, so every consumer repo activates it (#3821); the
     source's own command is the one signal the join cannot fake.
 
-    A configured-but-malformed ``review.test_command`` (truthy in config but
-    the source refuses to render it) still counts as declared via the config
-    fallback: dispatch then surfaces the engine's visible
-    ``no test command configured`` warn, which a broken declaration deserves
-    — never a quiet skip.
+    A repo that declares the ``review.test_command`` key at all — even
+    present-but-empty, or a malformed template the source refuses to render —
+    still counts as declared, via a config-key **presence** fallback (NOT the
+    FR-011 authority: a raw config read, so a started-but-unconfigured gate is
+    not collapsed into "never declared"). Dispatch then surfaces the engine's
+    visible ``no test command configured`` warn, which a broken or empty
+    declaration deserves — never a quiet skip. Only a truly-absent key (the
+    ``spec-kitty init`` consumer default) is undeclared.
 
     Cost note (squad NOTE on #4803, folded): this probe builds its own
     throwaway ``DeclaredCommandScopeSource``, and any ``test_command()`` call
@@ -1238,7 +1241,7 @@ def _mt_pre_review_gate_declared(scope_source_root: Path) -> bool:
     """
     if _mt_resolve_scope_source(scope_source_root).test_command() is not None:
         return True
-    return bool(_mt_review_config_section(scope_source_root).get(_PRE_REVIEW_CONFIG_KEY_TEST_COMMAND_REPLACEMENT))
+    return _PRE_REVIEW_CONFIG_KEY_TEST_COMMAND_REPLACEMENT in _mt_review_config_section(scope_source_root)
 
 
 def _mt_pre_review_gate_env_disable_reason() -> str | None:
