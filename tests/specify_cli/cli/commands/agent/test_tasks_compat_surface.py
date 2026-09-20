@@ -586,8 +586,9 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     the activation-selected ``ScopeSource`` whether the repo declares a gate
     to run) and ``_mt_not_declared_skip_verdict`` (the calm ``SKIPPED``
     verdict builder) — a native move-task seam def pair (tasks_move_task
-    96 -> 98, counted against the live tuple — the prose totals above are
-    stale; golden count 179 -> 181)."""
+    97 -> 99 counted against the live tuple after main's #4670 resolver
+    landed; the prose totals above are stale; golden count 182 -> 184 after
+    main's WP05 status-renderer pair and #4670 resolver)."""
     # TODO(under-investigation, operator-flagged): the operator doubts this
     # consolidated compat guard earns its ROI. Every seam-local symbol addition
     # costs a three-part edit — register in the per-seam tuple, add an identity
