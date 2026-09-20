@@ -170,10 +170,35 @@ if it trips any of:
   accept / commit a mission; a deadlock or hang with no escape hatch.
 - **Blocks release** directly, or a **security** exposure (credentials/secrets).
 
+**The escalation test — irreversibility × silence × false-success.** The four
+triggers above share one shape: a defect is P0 when it can **destroy or lie
+without telling the operator**. Weigh three aggravating axes — is the damage
+*irreversible* (data/state loss, wedged mission with no escape), does it happen
+*silently* (no error surfaced), and does the tool *claim success anyway* (exit 0,
+"done", a fabricated record). A fault that scores on these axes is P0 even when it
+feels borderline; a fault that is bounded, loud, and recoverable is not.
+
 Downgrade below P0 when a clear workaround exists, the fault is edge-case-only,
-cosmetic/UX, or confined to a dev-assist command. **Do not inflate P0** —
-crying wolf devalues the red-mainline signal; and **do not under-call** a genuine
-corruption or hang. Escalation to P0 is an operator decision.
+cosmetic/UX, confined to a dev-assist command, or the exposure is bounded and
+sophistication-gated (a narrow race window, an attack needing privileged local
+position). **Do not inflate P0** — crying wolf devalues the red-mainline signal.
+But **do not under-call** a genuine corruption, hang, or false-success:
+**when a real destructive/silent/false-success defect is borderline, escalate.
+Red main is the safety net, not the failure** (ADR 2026-07-17-1) — an honestly
+red mainline on a genuine P0 is the system working, not breaking. Escalation to
+P0 is an operator decision.
+
+**The operator-betrayal class is the archetypal P0.** The most damning defects
+this project ships are the ones where *Spec Kitty fights its own operator* — the
+tool reports success while skipping, losing, or fabricating work: a `--fix` that
+exits 0 repairing nothing, a `merge` that prints "cleaned up" while every delete
+was refused, a `close` that commits a fabricated completion record, an `init`
+that silently deletes user-authored missions, a `finalize` that wedges the
+mission with no escape. These are almost always surfaced by *running Spec Kitty on
+Spec Kitty* (label them `catfooding`), and under the honesty ADR they are
+release-blocking by default: a tool the operator cannot trust to tell the truth
+about its own actions is not shippable. Treat operator-betrayal defects as P0
+unless a concrete argument downgrades them.
 
 Priority on a **non-bug** means something else: a `priority:P0` `Feature`/`Task`
 is the priority of *planned work*, not a release-blocking defect — it does not
@@ -212,8 +237,12 @@ then covers the rest.
 Two orthogonal axes carry the load and are documented above: the **native type**
 (`Bug` / `Feature` / `Task` — the sole kind carrier) and **priority**
 (`priority:P0`…`priority:P3`). Labels never encode kind — the retired `bug`
-label must not return. Beyond type and priority, labels fall into the families
-below. Apply as many as genuinely apply; a `catfooding` `reliability` `Bug` at
+label must not return, and neither may the **`type:*` label family**
+(`type:bug` / `type:feature` / `type:chore` / `type:fix`). These duplicated the
+native issue type as a parallel, drift-prone kind carrier and are **retired**:
+the native GitHub type is the single canonical authority for kind. Strip any
+`type:*` label you encounter during triage; never add one. Beyond type and
+priority, labels fall into the families below. Apply as many as genuinely apply; a `catfooding` `reliability` `Bug` at
 `priority:P2` is a normal, well-triaged issue.
 
 ### Classification labels — what *kind of work* it is
@@ -323,6 +352,11 @@ working state, not a permanent property.
 - `triage:stale` — Reproduce and close if no longer valid.
 - `triage:repro-needed` — Reported against behavior that may already be fixed;
   needs live re-reproduction before implementing.
+- `triage:needs-investigation` — Root cause is not yet adjudicated. The defect is
+  real (often a confirmed red), but which layer owns it is unknown — e.g. a red
+  test that could be a stale fixture/seed *or* a genuine product bug. Blocks final
+  homing (parent/priority) until an investigation or debugger pass resolves the
+  root-cause axis; remove it once the cause is known.
 
 ### PR-workflow labels — for pull requests, not issues
 
