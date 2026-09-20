@@ -383,7 +383,9 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
                 mission_id=mission_id,
             )
         except LaneGlobValidationError as exc:
-            error_msg = "Lane computation aborted: literal-path owned_files entries match zero files. Fix the paths before lanes.json is written."
+            # Single-source the abort message through the exception the pure core
+            # raises rather than re-hardcoding the identical literal (SSOT — squad MINOR).
+            error_msg = str(exc)
             _tasks._output_error(
                 st.json_output,
                 error_msg,

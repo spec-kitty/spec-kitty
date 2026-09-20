@@ -2389,7 +2389,10 @@ def _compute_and_write_lanes(
             lane_stderr = err_console
             for err in glob_result.errors:
                 lane_stderr.print(f"[red]ERROR:[/red] Lane-compute re-validation: {err}")
-        error_msg = "Lane computation aborted: literal-path owned_files entries match zero files. Fix the paths before lanes.json is written."
+        # Single-source the abort message through the exception the pure core
+        # raises (lanes.compute_and_persist.LaneGlobValidationError) rather than
+        # re-hardcoding the identical literal here (SSOT — squad MINOR).
+        error_msg = str(exc)
         if json_output:
             _emit_json({"error": error_msg, "ownership_literal_path_errors": glob_result.errors})
         else:
