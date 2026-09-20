@@ -2,13 +2,9 @@
   "event_count": 67,
   "last_event_id": "01M2B9G3B0N7N325EMT18TC8ST",
   "materialized_at": "2026-09-12T17:09:02.432884+00:00",
-<<<<<<< HEAD
-  "mission_number": "",
-=======
   "mission_number": "200",
->>>>>>> kitty/mission-drupal-dries-profile-01M28X69
   "mission_slug": "drupal-dries-profile-01M28X69",
-  "mission_type": "",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -24,36 +20,44 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01M2B9FWBB26NTTT7QNCSPR6RJ",
       "last_transition_at": "2026-09-12T17:08:55.275801+00:00",
-<<<<<<< HEAD
-=======
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: 3 failing test files, environment + graph baseline recorded",
         "Review passed. Independently re-ran all four implementer claims; none taken on trust. (1) 27 new assertions fail for ABSENCE -- clean AssertionError ('profile drupal-dries not found', empty edge sets), zero collection/import errors. (2) Full tests/doctrine/ = 27 failed, 3149 passed, 10 skipped; all 27 failures are this WP's tests, nothing else red. (3) regenerate-graph --check exits 0 and prints the LANE WORKTREE's own packs/built-in, not a pipx path (R-003 trap avoided). (4) doctor doctrine --json profile_health = 25 discovered / 25 valid / 0 skipped / healthy=true. ruff check, ruff format --check and mypy all clean on the three files and on tests/doctrine/ as a whole. T004 negative case (FR-013) uses a tmp_path fixture, never the shipped pack, is mutation-verified sensitive (drop the malformed file and skipped==[], so len(skipped)==1 is load-bearing), and consumes the real production seam build_pack_health_by_layer. T005 asserts endpoint form <kind>:<id> explicitly via a regex that genuinely rejects urn:profile:... plus a NodeKind-member comparison, and uses a real 3-color DFS cycle detector rather than a single-hop shortcut. T006 carries no frozen literal: it reuses _builtin_inventory PACK_ROOT/FILE_BACKED_NODE_GLOBS and its glob-derived helper is proven correct by the fs-vs-graph equality test passing today. Scope clean: exactly the 3 owned_files, zero src/ or packs/ changes, shipped pack unmutated. --force used because the lane-hygiene gate fires on pre-existing tool-authored kitty-specs divergence (lane cut from a base predating the tasks commit; all such commits are spec-kitty status/scaffold/merge bookkeeping, none from the implementer). Non-blocking follow-ups: (a) C-P5's '+4 exactly' delta is not asserted -- the fs-vs-graph equality catches drops and drift but not an unsanctioned 5th artifact, and the class docstring overstates this; verify the delta in WP08 closeout. (b) test_doctor_doctrine_reports_zero_skipped_profiles never invokes the CLI, only repo.skipped_profiles(). (c) the negative case covers a YAML parse failure but not a schema-invalid profile. (d) _shipped_ids duplicates _builtin_inventory.builtin_profile_ids -- fold upstream once that file is in scope."
       ],
       "provider": "__resolved_provider_absent__",
->>>>>>> kitty/mission-drupal-dries-profile-01M28X69
       "review_result": {
         "reference": "Review passed. Independently re-ran all four implementer claims; none taken on trust. (1) 27 new assertions fail for ABSENCE -- clean AssertionError ('profile drupal-dries not found', empty edge sets), zero collection/import errors. (2) Full tests/doctrine/ = 27 failed, 3149 passed, 10 skipped; all 27 failures are this WP's tests, nothing else red. (3) regenerate-graph --check exits 0 and prints the LANE WORKTREE's own packs/built-in, not a pipx path (R-003 trap avoided). (4) doctor doctrine --json profile_health = 25 discovered / 25 valid / 0 skipped / healthy=true. ruff check, ruff format --check and mypy all clean on the three files and on tests/doctrine/ as a whole. T004 negative case (FR-013) uses a tmp_path fixture, never the shipped pack, is mutation-verified sensitive (drop the malformed file and skipped==[], so len(skipped)==1 is load-bearing), and consumes the real production seam build_pack_health_by_layer. T005 asserts endpoint form <kind>:<id> explicitly via a regex that genuinely rejects urn:profile:... plus a NodeKind-member comparison, and uses a real 3-color DFS cycle detector rather than a single-hop shortcut. T006 carries no frozen literal: it reuses _builtin_inventory PACK_ROOT/FILE_BACKED_NODE_GLOBS and its glob-derived helper is proven correct by the fs-vs-graph equality test passing today. Scope clean: exactly the 3 owned_files, zero src/ or packs/ changes, shipped pack unmutated. --force used because the lane-hygiene gate fires on pre-existing tool-authored kitty-specs divergence (lane cut from a base predating the tasks commit; all such commits are spec-kitty status/scaffold/merge bookkeeping, none from the implementer). Non-blocking follow-ups: (a) C-P5's '+4 exactly' delta is not asserted -- the fs-vs-graph equality catches drops and drift but not an unsanctioned 5th artifact, and the class docstring overstates this; verify the delta in WP08 closeout. (b) test_doctor_doctrine_reports_zero_skipped_profiles never invokes the CLI, only repo.skipped_profiles(). (c) the negative case covers a YAML parse failure but not a schema-invalid profile. (d) _shipped_ids duplicates _builtin_inventory.builtin_profile_ids -- fold upstream once that file is in scope.",
         "reviewer": "spec-kitty auto-rebase",
         "verdict": "approved"
       },
-      "shell_pid": 6733,
-      "shell_pid_created_at": "1789155989.632961"
+      "role": "reviewer",
+      "shell_pid": 9043,
+      "shell_pid_created_at": "1789157714.937844",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01M2B9FXBR211FM9Z6WQXKNA3N",
       "last_transition_at": "2026-09-12T17:08:56.312618+00:00",
-<<<<<<< HEAD
-=======
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: Drupal Dries profile authored",
@@ -62,48 +66,65 @@
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
->>>>>>> kitty/mission-drupal-dries-profile-01M28X69
       "review_result": {
         "reference": "Cycle 1 fix verified: README registration added",
         "reviewer": "spec-kitty auto-rebase",
         "verdict": "approved"
       },
-      "shell_pid": 28490,
-      "shell_pid_created_at": "1789164815.873549"
+      "role": "reviewer",
+      "shell_pid": 30155,
+      "shell_pid_created_at": "1789164942.131401",
+      "subtasks": {
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned",
+        "T010": "planned",
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned"
+      }
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01M2B9FYBXPJY6PH9W6R5TTG5B",
       "last_transition_at": "2026-09-12T17:08:57.341442+00:00",
-<<<<<<< HEAD
-=======
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: Drupal conventions styleguide authored",
         "Review passed: accessCheck fix verified vs node/3201242; C-S3 overlap set(); 9/9 anti-patterns mapped+paired; once() current. Minor example defects noted for follow-up."
       ],
       "provider": "__resolved_provider_absent__",
->>>>>>> kitty/mission-drupal-dries-profile-01M28X69
       "review_result": {
         "reference": "Review passed: accessCheck fix verified vs node/3201242; C-S3 overlap set(); 9/9 anti-patterns mapped+paired; once() current. Minor example defects noted for follow-up.",
         "reviewer": "spec-kitty auto-rebase",
         "verdict": "approved"
       },
-      "shell_pid": 10883,
-      "shell_pid_created_at": "1789158923.564506"
+      "role": "reviewer",
+      "shell_pid": 37756,
+      "shell_pid_created_at": "1789201073.359055",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01M2B9FZD2BKG84J3A4XDWNPNY",
       "last_transition_at": "2026-09-12T17:08:58.402942+00:00",
-<<<<<<< HEAD
-=======
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: Drupal security and performance styleguide authored",
@@ -112,95 +133,116 @@
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
->>>>>>> kitty/mission-drupal-dries-profile-01M28X69
       "review_result": {
         "reference": "Cycle 1 fix verified: accessCheck facts correct",
         "reviewer": "spec-kitty auto-rebase",
         "verdict": "approved"
       },
-      "shell_pid": 21135,
-      "shell_pid_created_at": "1789160569.314961"
+      "role": "reviewer",
+      "shell_pid": 23769,
+      "shell_pid_created_at": "1789160723.271326",
+      "subtasks": {
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned",
+        "T024": "planned",
+        "T025": "planned"
+      }
     },
     "WP05": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01M2B9G0DD88J32DAGT1FK96HJ",
       "last_transition_at": "2026-09-12T17:08:59.437746+00:00",
-<<<<<<< HEAD
-=======
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: Drupal review-checks toolguide. Lane-hygiene gate forced: every kitty-specs/ change on lane-e originates from spec-kitty's own merge commits (planning-artifact, dependency-lane lane-a, coord), not from WP05's diff, which is exactly 2 toolguide files / 156 insertions at 7582d3795. git restore declined — it would discard planning artifacts this lane requires.",
         "Review passed (independent reviewer). Verified by running, not reading: T030 agreement script green in BOTH directions (guide_path exists: True; all 9 descriptor commands present VERBATIM in body, missing=[]; every body-fenced command either in the descriptor or a flag variant of vendor/bin/phpunit, matching the maven peer precedent 'mvn verify' vs 'mvn verify -Pcoverage'). C-S6: grep for '%', for a digit adjacent to 'level', and for coverage/mutation/threshold returns ZERO hits on both files; the only digits in the body are 'a11y' and 'DIRECTIVE_051'. Confirmed against the upstream source (amazeeio/drupal-agents-md Vanilla/AGENTS.md) that it names NO PHPStan level and DOES say 'Aim for >= 80% code coverage' - the implementer correctly declined to carry that threshold, and the substitute phrasing ('clean at the project's configured level ... this guide does not assert one', phpstan.neon) is honest, not weasel. C-S5: exactly one Environment note (single '## Environment' section); no command dual-listed. R-006: JS caveat states plainly that npm run test / test:a11y verify the Drupal-native theming JavaScript (Drupal.behaviors, *.libraries.yml assets) the implementer authored and that generic browser-component authorship remains Frontend Freddy's; no-package.json case handled. PHPUnit tiers teach SELECTION, not just invocation, with the canonical heavily-mocked-unit-test failure mode named explicitly. Drupal correctness spot-checked against upstream sources: DrupalPractice sniff tree fetched live from git.drupalcode.org confirms the Drupal-vs-DrupalPractice split AND the specific 'missing access checks' claim (RoutingAccessSniff, AccessAdminPagesSniff, AccessHookMenuSniff) and the \\Drupal:: claim (GlobalDrupalSniff/GlobalClassSniff); drupal-check confirmed as the deprecation scanner; the three tier capabilities confirmed against drupal.org 'Types of tests'. All 9 commands trace to the source's Code Quality Tools / Before Submitting Code / Testing sections. Tests: tests/doctrine/styleguides/test_drupal_styleguide_presence.py -k toolguide -> 2 passed (test_drupal_review_checks_toolguide_loads, test_new_toolguide_id_is_shipped_on_disk); tests/doctrine/toolguides/ -> 23 passed; artifact_compliance + builtin_manifest + counts_derivation + schema_validation + pack_manifest_schema -> 59 passed, 3 skipped. spec-kitty doctrine validate on the descriptor -> OK. Scope: commit 7582d3795 touches exactly the two owned files (156 insertions); no *.graph.yaml, no pack-manifest.yaml, no regeneration; no DRUPAL_MUTATION_TOOLS.md exists. Classified and NOT attributed to WP05: test_drupal_conventions_suggests_the_toolguide (styleguide:drupal-conventions edge -> WP03/WP04 + WP07), regenerate-graph --check STALE (WP07 owns regeneration), test_packaging_parity 3 setup ERRORs (python -m build absent from .venv - baseline category 4, stale-venv). One non-blocking nit recorded, not a rejection: the Environment note says 'Every command above' but sits at line 100, ahead of the Supply Chain and Before Submitting commands - 'above' is imprecise though the note itself uses 'ddev composer audit' as an example, so coverage is not actually lost. --force used solely for the pre-existing lane-hygiene condition: kitty-specs/ and tests/doctrine/ deltas on lane-e originate from spec-kitty's own merge commits (3e0348baf, a724f85ce, dbd1bd99f, 8d74d4e79) and WP01's 90c5aa261, verified by git log; WP05's own commit touched neither."
       ],
       "provider": "__resolved_provider_absent__",
->>>>>>> kitty/mission-drupal-dries-profile-01M28X69
       "review_result": {
         "reference": "Review passed (independent reviewer). Verified by running, not reading: T030 agreement script green in BOTH directions (guide_path exists: True; all 9 descriptor commands present VERBATIM in body, missing=[]; every body-fenced command either in the descriptor or a flag variant of vendor/bin/phpunit, matching the maven peer precedent 'mvn verify' vs 'mvn verify -Pcoverage'). C-S6: grep for '%', for a digit adjacent to 'level', and for coverage/mutation/threshold returns ZERO hits on both files; the only digits in the body are 'a11y' and 'DIRECTIVE_051'. Confirmed against the upstream source (amazeeio/drupal-agents-md Vanilla/AGENTS.md) that it names NO PHPStan level and DOES say 'Aim for >= 80% code coverage' - the implementer correctly declined to carry that threshold, and the substitute phrasing ('clean at the project's configured level ... this guide does not assert one', phpstan.neon) is honest, not weasel. C-S5: exactly one Environment note (single '## Environment' section); no command dual-listed. R-006: JS caveat states plainly that npm run test / test:a11y verify the Drupal-native theming JavaScript (Drupal.behaviors, *.libraries.yml assets) the implementer authored and that generic browser-component authorship remains Frontend Freddy's; no-package.json case handled. PHPUnit tiers teach SELECTION, not just invocation, with the canonical heavily-mocked-unit-test failure mode named explicitly. Drupal correctness spot-checked against upstream sources: DrupalPractice sniff tree fetched live from git.drupalcode.org confirms the Drupal-vs-DrupalPractice split AND the specific 'missing access checks' claim (RoutingAccessSniff, AccessAdminPagesSniff, AccessHookMenuSniff) and the \\Drupal:: claim (GlobalDrupalSniff/GlobalClassSniff); drupal-check confirmed as the deprecation scanner; the three tier capabilities confirmed against drupal.org 'Types of tests'. All 9 commands trace to the source's Code Quality Tools / Before Submitting Code / Testing sections. Tests: tests/doctrine/styleguides/test_drupal_styleguide_presence.py -k toolguide -> 2 passed (test_drupal_review_checks_toolguide_loads, test_new_toolguide_id_is_shipped_on_disk); tests/doctrine/toolguides/ -> 23 passed; artifact_compliance + builtin_manifest + counts_derivation + schema_validation + pack_manifest_schema -> 59 passed, 3 skipped. spec-kitty doctrine validate on the descriptor -> OK. Scope: commit 7582d3795 touches exactly the two owned files (156 insertions); no *.graph.yaml, no pack-manifest.yaml, no regeneration; no DRUPAL_MUTATION_TOOLS.md exists. Classified and NOT attributed to WP05: test_drupal_conventions_suggests_the_toolguide (styleguide:drupal-conventions edge -> WP03/WP04 + WP07), regenerate-graph --check STALE (WP07 owns regeneration), test_packaging_parity 3 setup ERRORs (python -m build absent from .venv - baseline category 4, stale-venv). One non-blocking nit recorded, not a rejection: the Environment note says 'Every command above' but sits at line 100, ahead of the Supply Chain and Before Submitting commands - 'above' is imprecise though the note itself uses 'ddev composer audit' as an example, so coverage is not actually lost. --force used solely for the pre-existing lane-hygiene condition: kitty-specs/ and tests/doctrine/ deltas on lane-e originate from spec-kitty's own merge commits (3e0348baf, a724f85ce, dbd1bd99f, 8d74d4e79) and WP01's 90c5aa261, verified by git log; WP05's own commit touched neither.",
         "reviewer": "spec-kitty auto-rebase",
         "verdict": "approved"
       },
-      "shell_pid": 10883,
-      "shell_pid_created_at": "1789158923.564506"
+      "role": "reviewer",
+      "shell_pid": 16843,
+      "shell_pid_created_at": "1789159851.736129",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01M2B9G1CS7Z1170PCWG4V7GJ2",
       "last_transition_at": "2026-09-12T17:09:00.441128+00:00",
-<<<<<<< HEAD
-=======
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: reciprocal boundary clause added",
         "Review passed: diff wholly inside avoidance-boundary; reciprocity consistent with Dries; independent 10-task audit gave 1/3/5/7/9 Dries, 2/4/6/8/10 Freddy, no ties; 159 tests pass"
       ],
       "provider": "__resolved_provider_absent__",
->>>>>>> kitty/mission-drupal-dries-profile-01M28X69
       "review_result": {
         "reference": "Review passed: diff wholly inside avoidance-boundary; reciprocity consistent with Dries; independent 10-task audit gave 1/3/5/7/9 Dries, 2/4/6/8/10 Freddy, no ties; 159 tests pass",
         "reviewer": "spec-kitty auto-rebase",
         "verdict": "approved"
       },
-      "shell_pid": 38795,
-      "shell_pid_created_at": "1789201130.591626"
+      "role": "reviewer",
+      "shell_pid": 40357,
+      "shell_pid_created_at": "1789201411.723745",
+      "subtasks": {
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01M2B9G2BVW4FZG42BSEP8YJHT",
       "last_transition_at": "2026-09-12T17:09:01.435343+00:00",
-<<<<<<< HEAD
-=======
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: lineage minted, fragments regenerated",
         "Review passed: lineage entry + deterministic regen verified (--check exit 0, in-worktree path, zero re-run diff); out-of-map styleguide fix justified; ledger edits exact; 792 tests green"
       ],
       "provider": "__resolved_provider_absent__",
->>>>>>> kitty/mission-drupal-dries-profile-01M28X69
       "review_result": {
         "reference": "Review passed: lineage entry + deterministic regen verified (--check exit 0, in-worktree path, zero re-run diff); out-of-map styleguide fix justified; ledger edits exact; 792 tests green",
         "reviewer": "spec-kitty auto-rebase",
         "verdict": "approved"
       },
-      "shell_pid": 42510,
-      "shell_pid_created_at": "1789202845.577597"
+      "role": "reviewer",
+      "shell_pid": 66151,
+      "shell_pid_created_at": "1789208685.374599",
+      "subtasks": {
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done"
+      }
     },
     "WP08": {
       "actor": "merge",
-<<<<<<< HEAD
-      "force_count": 6,
-      "lane": "done",
-      "last_event_id": "01M2B9G3B0N7N325EMT18TC8ST",
-      "last_transition_at": "2026-09-12T17:09:02.432884+00:00"
-=======
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 6,
@@ -224,7 +266,6 @@
         "T042": "done",
         "T043": "done"
       }
->>>>>>> kitty/mission-drupal-dries-profile-01M28X69
     }
   }
 }
