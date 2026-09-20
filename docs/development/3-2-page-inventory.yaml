@@ -2324,6 +2324,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/reference/ci-gate-mechanics.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/reference/coverage-signals.md
   tag: current
   divio_type: explanation

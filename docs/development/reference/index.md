@@ -22,6 +22,7 @@ kept honest.
 - [Read-side placement-seam classification ledger](read-side-seam-classification.md) — per-site verdicts for every production call site that bypasses `PlacementSeam.read_dir(kind)`.
 - [Red main and release readiness](red-main-and-release-readiness.md) — what a red `main` means and why CI status is the release authority.
 - [Terminology guard exemption policy](terminology-exemptions.md) — surfaces exempted from the terminology drift guards.
+- [CI and architectural gate mechanics](ci-gate-mechanics.md) — what trips each CI/arch gate (testing & marker gates, the arch battery, docs-freshness registration, accept-to-merge close-out) with symptom and local repro.
 
 ## Docs site publication source
 

@@ -4350,6 +4350,8 @@ pages:
     - {slug: "content-hash-semantics", text: "Content-hash semantics", level: 2}
     - {slug: "gitignore-policy-must-include-not-exclusive", text: "Gitignore policy: MUST-INCLUDE, not exclusive", level: 2}
     - {slug: "schema-versioning-policy", text: "Schema versioning policy", level: 2}
+    - {slug: "charter-yaml-precedence-over-charter-md", text: "charter.yaml precedence over charter.md", level: 2}
+    - {slug: "the-charter-path-literal-authority-gate", text: "The charter path-literal authority gate", level: 2}
     - {slug: "related-contracts", text: "Related contracts", level: 2}
   - path: "docs/architecture/ARCHITECTURE_DOCS_GUIDE.md"
     title: "Architecture Documentation Guide"
@@ -4713,6 +4715,7 @@ pages:
     - {slug: "canonical-authoring-example", text: "Canonical authoring example", level: 3}
     - {slug: "why-edges-not-fields", text: "Why edges, not fields", level: 2}
     - {slug: "living-documentation", text: "Living documentation", level: 2}
+    - {slug: "drg-edges-are-the-canonical-relationship-authority", text: "DRG edges are the canonical relationship authority", level: 2}
   - path: "docs/architecture/documentation-mission.md"
     title: "Documentation Mission Guide"
     divio_type: "none"
@@ -7221,6 +7224,7 @@ pages:
     - {slug: "11-hand-off-the-operator-merges", text: "11. Hand-off — the operator merges", level: 2}
     - {slug: "12-follow-up-hygiene", text: "12. Follow-up hygiene", level: 2}
     - {slug: "gotchas", text: "Gotchas", level: 2}
+    - {slug: "pr-body-contract-program-md-5", text: "PR-body contract (PROGRAM.md §5)", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/how-to/review-gates.md"
     title: "Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Merge Gate"
@@ -7258,6 +7262,31 @@ pages:
     - {slug: "what-a-baselines-yaml-a-baseline-gives-you", text: "What a `_baselines.yaml` §(a) baseline gives you", level: 2}
     - {slug: "why-the-existing-controls-are-strictly-stronger", text: "Why the existing controls are strictly stronger", level: 2}
     - {slug: "consequence-re-evaluation-trigger", text: "Consequence / re-evaluation trigger", level: 2}
+  - path: "docs/development/reference/ci-gate-mechanics.md"
+    title: "CI and Architectural Gate Mechanics"
+    divio_type: "reference"
+    abstract: "What trips each spec-kitty CI gate — testing and marker gates, the architectural battery, docs-freshness registration, and accept-to-merge close-out — with symptom and repro."
+    anchors:
+    - {slug: "how-ci-is-wired-so-a-local-run-can-mirror-it", text: "How CI is wired (so a local run can mirror it)", level: 2}
+    - {slug: "testing-and-marker-gates", text: "Testing and marker gates", level: 2}
+    - {slug: "a-test-with-the-wrong-marker-contributes-zero-ci-coverage", text: "A test with the wrong marker contributes zero CI coverage", level: 3}
+    - {slug: "a-file-with-two-markers-can-fall-between-two-shards", text: "A file with two markers can fall between two shards", level: 3}
+    - {slug: "a-new-test-file-must-declare-a-marker", text: "A new test file must declare a marker", level: 3}
+    - {slug: "moving-a-slow-stress-quarantine-test-can-red-the-marker-baseline", text: "Moving a slow / stress / quarantine test can red the marker baseline", level: 3}
+    - {slug: "new-contracts-md-yaml-blocks-need-a-round-trip-skip-marker", text: "New `contracts/*.md` YAML blocks need a round-trip skip marker", level: 3}
+    - {slug: "the-pre-review-gate-can-run-the-full-suite-and-hang", text: "The pre-review gate can run the full suite and hang", level: 3}
+    - {slug: "the-architectural-gate-battery", text: "The architectural gate battery", level: 2}
+    - {slug: "renaming-a-symbol-whose-body-is-allowlisted", text: "Renaming a symbol whose body is allowlisted", level: 3}
+    - {slug: "the-ruff-format-exclude-ratchet-has-a-twin", text: "The `ruff format` exclude ratchet has a twin", level: 3}
+    - {slug: "router-path-filters-are-the-tail-of-a-guarded-ssot-chain", text: "Router path filters are the tail of a guarded SSOT chain", level: 3}
+    - {slug: "docs-freshness-and-registration-gates", text: "Docs-freshness and registration gates", level: 2}
+    - {slug: "a-new-docs-page-needs-triple-registration-plus-a-description-band", text: "A new docs page needs triple registration plus a description band", level: 3}
+    - {slug: "touching-any-docs-path-can-surface-a-pre-existing-docs-test-flake", text: "Touching any docs path can surface a pre-existing docs-test flake", level: 3}
+    - {slug: "the-github-pages-docsite-build-needs-pythonpath", text: "The GitHub Pages docsite build needs `PYTHONPATH`", level: 3}
+    - {slug: "accept-to-merge-consolidation-gates", text: "Accept-to-merge consolidation gates", level: 2}
+    - {slug: "the-issue-matrix-verdict-gate-fires-on-every-wp-approval", text: "The issue-matrix verdict gate fires on every WP approval", level: 3}
+    - {slug: "the-other-close-out-gates", text: "The other close-out gates", level: 3}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/reference/coverage-signals.md"
     title: "Coverage signals — reconciling the three \"coverage\" numbers"
     divio_type: "explanation"

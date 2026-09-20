@@ -176,6 +176,37 @@ upgrade migration that folds the legacy `governance.yaml` /
 `config.yaml`'s `activated_*` keys) into `charter.yaml` and mints the
 `charter:` pointer is the v1.0.0 → v2.0.0 migration path.
 
+## charter.yaml precedence over charter.md
+
+The charter has two surfaces with a strict precedence (operator decision, 2026-08-02):
+
+- **`.kittify/charter/charter.yaml`** is the deterministic, schema-guarded **resolution
+  authority** — it takes precedence for any resolving decision (governance policy,
+  presence gates, activated sets).
+- **`.kittify/charter/charter.md`** is a **secondary** read point that carries rationale
+  and prose. It stays human-readable but **never overrides** `charter.yaml` and is never
+  the authoritative resolving source.
+
+When a surface must decide "does a charter exist / what does it say", resolve from
+`charter.yaml` first and treat `charter.md` only as secondary rationale. Route reads
+through the charter-layer authority (`charter.bundle` constants + the charter-yaml IO),
+not re-derived path joins.
+
+## The charter path-literal authority gate
+
+`tests/architectural/test_charter_path_literal_authority.py` is an AST census gate: it
+finds every hardcoded charter-path literal (`"charter.yaml"` / `"charter.md"` in a
+`Path`-construction context) across `src/` and asserts the live-site count equals the
+allowlist (plus a census ceiling). Adding one new `repo_root / "charter.yaml"`-style
+literal reds it.
+
+The correct fix is the **drain procedure, not an allowlist add**: route the path through
+the canonical repo-root-relative `charter.bundle.CHARTER_YAML` / `CHARTER_MD` so no new
+literal exists (e.g. `if not (repo_root / CHARTER_YAML).exists():`). The allowlist
+reserves entries only for sites that genuinely cannot use the repo-root Path — for
+example a bundle *writer* materializing into a caller-supplied `output_dir`. This gate
+runs only in the full architectural battery, so a per-WP subset run will not surface it.
+
 ## Related contracts
 
 - [`charter-yaml-schema.md`](../../kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/charter-yaml-schema.md) — the `charter.yaml` structured shape (v2.0.0).

@@ -297,6 +297,36 @@ If a critical issue is discovered after release:
 
 ## Common Gotchas
 
+### The three version sources must agree (check-readiness gate)
+
+The `check-readiness` CI job (`scripts/release/validate_release.py`, via
+`.github/workflows/release-readiness.yml`) fires on **any PR that touches a version
+source** (`pyproject.toml` / `uv.lock`) and reds a bump unless all of these agree:
+
+1. **Three version sources in lockstep** — `pyproject.toml` `[project].version`, the
+   `uv.lock` `spec-kitty-cli` editable entry (update via `uv lock`, never a hand-edit),
+   and `.kittify/metadata.yaml` `spec_kitty.version`. The metadata.yaml one is the easy
+   miss — it does not look like a "version file".
+2. **A populated CHANGELOG section whose version matches** `pyproject`. In `docs/changelog/CHANGELOG.md`
+   the first populated section must match; branch mode tolerates a version-carrying
+   `## [Unreleased] - X.Y.Z` heading, tag mode requires a finalized `## [X] - DATE`
+   section. A bare `## [Unreleased]` with the version only in prose FAILS.
+3. **The bumped version advances beyond the latest git tag** (e.g. `rc2` > tag `v…rc1`).
+
+Changing the `[Unreleased]` heading text changes its anchor slug, so also regenerate the
+docs retrieval index (`scripts/docs/docs_index.py --write`) or DOCS-INDEX-DRIFT reds
+freshness. To open a dev cycle, follow the canonical precedent (`#4017`): bump all three
+sources, put the version on the `## [Unreleased] - X.Y.Z` heading, regen the index. Verify
+before pushing:
+
+```bash
+PYTHONPATH=. uv run --frozen python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"
+```
+
+README install pins and historical version strings in comments/tests are **not** version
+sources — leave them.
+
+
 - **Validation fails with "Version does not advance beyond latest tag"**:
   bump `pyproject.toml` to a higher semantic version. On `main` right after a tag
   this is expected until the next cycle is open; see step 8 of the Release Process.
@@ -312,4 +342,4 @@ If a critical issue is discovered after release:
 
 ---
 
-**Last Updated**: 2026-09-14
+**Last Updated**: 2026-09-20

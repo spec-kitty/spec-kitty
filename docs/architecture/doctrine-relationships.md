@@ -294,3 +294,25 @@ fails red, naming the relation, on any drift. There is no remaining subset of
 relations excluded from this parity check: the doc-parity restructure
 (mission `drg-relation-parity-activation-gate-01KY48PD`) is the follow-up that
 closed the gap left by the original 3-relation scope.
+
+## DRG edges are the canonical relationship authority
+
+The artifact schemas under `src/charter/offering/` and the `assets/` layout predate
+the DRG canonical system. Inline `references: [{type, id}]` blocks in artifact YAML are
+**pre-DRG residue** to be migrated to DRG edges — not a parallel authority (ADR
+[`2026-07-26-1-drg-edges-are-the-canonical-relationship-authority`](../adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md)).
+The per-kind `*.graph.yaml` fragments are `generated_by: drg-migration-v1` — the
+migration extractor *derives* edges from the inline blocks, so the canonical graph is
+largely a build output of the surface it replaces.
+
+Consequences for authors:
+
+- **New artefact relationships are authored as edges, never inline references.** A new
+  artefact should land with zero inline `references:`.
+- A kind that cannot be named in a `<kind>_reference.type` enum
+  (`directive` / `paradigm` / `procedure` / `tactic`) is **correct behaviour, not a
+  bug** — never widen those enums to admit a kind. The recurring "asset support is not
+  end-to-end" finding is this trap; fix the tooling to serve intent rather than
+  relabelling the artefact.
+- Relation vocabulary is defined once, in `charter.offering.drg.models.Relation` — read
+  it there rather than re-deriving the set.

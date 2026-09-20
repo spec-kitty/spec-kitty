@@ -605,6 +605,29 @@ been fixed, the end-state is stated instead of the trap.
   worktree rebuilds the virtualenv (~40 s + disk). Budget for it; do not
   debug it.
 
+## PR-body contract (PROGRAM.md §5)
+
+Spec Kitty PRs use a fixed body shape; an ad-hoc body (Summary/Changes/Why/…) draws a
+squad **MAJOR** and blocks merge even when the diff is perfect. The fleet squad validates
+the body with `bin/validate-pr-body.py`. Exactly five sections, in order:
+
+- `## Issue` — must carry a `closes #<n>` link. If no tracking issue exists, **file/claim
+  one first** (a docs-gap issue counts), name the branch `issue-<n>-<slug>` (not a bare
+  `docs/<slug>`), and align the PR title to the `[#<n>] …` form.
+- `## Change` — what changed and why.
+- `## Tests run` — must contain a nested `Self-review:` block, and every recorded command
+  must be **runnable verbatim** (full `tests/…` / `docs/…` paths; invoke doc scripts as
+  `uv run python -m scripts.docs.<x>`, never the bare `scripts/docs/<x>.py` path, which
+  fails `ModuleNotFoundError: scripts`).
+- `## Blast radius` — a `Discovery:` line (the git-grep command) plus `Files:` (paths
+  re-derived from a fresh run of it).
+- `## Deferred` — anything intentionally left for follow-up.
+
+Validate locally before opening: `bin/validate-pr-body.py` must exit 0 (also with
+`--verify-discovery --expected-head <sha>`). Note the description-length SEO gate
+(50–180 chars) is **CI-only** — run `scripts/docs/description_length_check.py` (or the
+docs SEO tests) as part of any docs blast radius.
+
 ## See also
 
 - [Review gates: pre-PR / pre-review checklist](review-gates.md) — the
