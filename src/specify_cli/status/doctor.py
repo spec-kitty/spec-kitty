@@ -382,7 +382,7 @@ def check_reviewer_self_approval(feature_dir: Path) -> list[Finding]:
 
 
 def check_issue_matrix(feature_dir: Path, *, issue_matrix_dir: Path | None = None) -> list[Finding]:
-    """Flag missions with issue references whose issue-matrix verdicts are missing.
+    """Flag missions with GATING issue references whose issue-matrix verdicts are missing.
 
     ``issue_matrix_dir`` (coord-commit-integrity SURFACE A #1c): the COORD-partition
     read surface for the issue-matrix artifact — the coordination worktree under
@@ -396,9 +396,21 @@ def check_issue_matrix(feature_dir: Path, *, issue_matrix_dir: Path | None = Non
     ``spec.md`` alone (write-side-seam-matrix-tracer-01KYP3MH WP08 T029,
     FR-004). All of those are PRIMARY-partition kinds, so discovery ALWAYS
     reads ``feature_dir`` — never ``issue_matrix_dir``.
+
+    move-task-approval-ergonomics-01M302R0 WP03 (#3469, FR-012, NFR-006):
+    only references the WP01 classifier
+    (:mod:`specify_cli.tasks.issue_reference_discovery`) calls
+    ``implementation_target`` are enforced here — the SAME
+    :func:`~specify_cli.tasks.issue_reference_discovery.is_gating` predicate
+    the approval blocker and ``merge_gates`` consume (contract C2.1/C2.2). A
+    ``context_only``/``pr_or_commit_ref`` reference, or one recorded
+    ``not-applicable`` on an existing row, never reports dirty here.
     """
     try:
-        from specify_cli.tasks.issue_reference_discovery import discover_issue_references
+        from specify_cli.tasks.issue_reference_discovery import (
+            discover_issue_references,
+            is_gating,
+        )
 
         refs = discover_issue_references(feature_dir)
     except Exception as exc:
@@ -413,7 +425,8 @@ def check_issue_matrix(feature_dir: Path, *, issue_matrix_dir: Path | None = Non
             )
         ]
 
-    if not refs:
+    gating_refs = [ref for ref in refs if is_gating(ref)]
+    if not gating_refs:
         return []
 
     # T043 (C-008 / B-1 fix): presence is a dir-based check
@@ -429,7 +442,7 @@ def check_issue_matrix(feature_dir: Path, *, issue_matrix_dir: Path | None = Non
 
     matrix_dir = issue_matrix_dir or feature_dir
     if not issue_matrix_artifact_present(matrix_dir):
-        issue_list = ", ".join(f"#{ref.number}" for ref in refs)
+        issue_list = ", ".join(f"#{ref.number}" for ref in gating_refs)
         return [
             Finding(
                 severity=Severity.WARNING,
@@ -442,7 +455,7 @@ def check_issue_matrix(feature_dir: Path, *, issue_matrix_dir: Path | None = Non
 
     result = validate_issue_matrix(matrix_dir / ISSUE_MATRIX_MD_FILENAME)
     findings: list[Finding] = []
-    referenced_issues = {f"#{ref.number}" for ref in refs}
+    referenced_issues = {f"#{ref.number}" for ref in gating_refs}
     matrix_issues = {row.issue for row in result.rows}
     for diagnostic in result.diagnostics:
         match = re.search(r"Row for issue '([^']+)'", diagnostic.get("message", ""))

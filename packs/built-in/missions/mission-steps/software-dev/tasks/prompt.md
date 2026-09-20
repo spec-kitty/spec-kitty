@@ -329,6 +329,15 @@ The response includes a coverage summary showing which FRs are still unmapped. K
 until `unmapped_functional` is empty. Default mode unions new refs with existing ones in
 frontmatter. Use `--replace` to overwrite a WP's refs (e.g., to correct a bad mapping).
 
+## Issue-Matrix Approval Heads-Up (non-gating, #3469)
+
+If a WP prompt cites a GitHub issue number (`#NNNN`), a bare/unmarked reference will
+later require an issue-matrix row before that work package can be approved. A
+context-only citation (e.g. `Follow-up:`, `see #`, `parent`, `epic`) or a PR/commit
+reference (`PR #NNNN`, a `/pull/NNNN` URL) is non-gating and needs no row; if an issue
+genuinely owes the mission no work, it can later be recorded with the `not-applicable`
+verdict. This is informational only — it does not gate `/spec-kitty.tasks`.
+
 ## Work Package Sizing Guidelines (CRITICAL)
 
 ### Ideal WP Size

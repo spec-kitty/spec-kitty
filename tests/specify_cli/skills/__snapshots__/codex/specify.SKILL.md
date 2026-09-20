@@ -282,6 +282,15 @@ Reference: `kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/specify-pla
 - Do not write non-functional requirements without measurable thresholds.
 - Do not proceed to planning with unresolved requirement quality checklist failures.
 
+## Issue-Matrix Approval Heads-Up (non-gating, #3469)
+
+If the spec cites a GitHub issue number (`#NNNN`), a bare/unmarked reference will later
+require an issue-matrix row before its owning work package can be approved. A
+context-only citation (e.g. `Follow-up:`, `see #`, `parent`, `epic`) or a PR/commit
+reference (`PR #NNNN`, a `/pull/NNNN` URL) is non-gating and needs no row; if an issue
+genuinely owes the mission no work, it can later be recorded with the `not-applicable`
+verdict. This is informational only — it does not gate `/spec-kitty.specify`.
+
 ## Charter Context Bootstrap (required)
 
 Before discovery questions, load charter context for this action:

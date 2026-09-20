@@ -360,37 +360,47 @@ def _evaluate_dependency_gate(
 def _evaluate_issue_matrix_completeness_gate(
     feature_dir: Path, is_blocking: bool,
 ) -> GateResult:
-    """Check that every discovered issue reference has an issue-matrix row.
+    """Check that every GATING discovered issue reference has an issue-matrix row.
 
     T030 (WP08, FR-004, #1738): a net-new reader for ``merge_gates`` — this
     module is not a WP05 migration target, it gains its first issue-matrix
-    read here. Uses the SAME two canonical definitions the finalization/
-    approval path uses (no third/fourth definition): WP08's multi-file
-    :func:`~specify_cli.tasks.issue_reference_discovery.
-    discover_issue_references` for "what is referenced", and WP05's
-    dir-based :func:`~specify_cli.tasks.issue_matrix_migration.
-    load_issue_matrix` for "what the matrix says".
+    read here, JSON-first by construction. Uses the SAME canonical definitions
+    the finalization/approval path uses (no third/fourth definition): WP08's
+    multi-file
+    :func:`~specify_cli.tasks.issue_reference_discovery.discover_issue_references`
+    for "what is referenced", WP01's
+    :func:`~specify_cli.tasks.issue_reference_discovery.is_gating` (FR-012,
+    contract C2.1) for "does it require a row", and WP05's dir-based
+    :func:`~specify_cli.tasks.issue_matrix_migration.load_issue_matrix` for
+    "what the matrix says".
 
-    Fail-closed only when references exist: zero discovered references is a
-    PASS (nothing to enforce). WP09 owns the formal ``not_applicable``
-    Gate-4 verdict for the post-merge review surface; this merge gate's
-    zero-reference branch is intentionally the simpler "nothing to check"
-    case, not a re-definition of ``not_applicable``.
+    Fail-closed only when GATING references exist (move-task-approval-
+    ergonomics-01M302R0 WP03, #3469): a reference the WP01 classifier calls
+    ``context_only``/``pr_or_commit_ref`` never requires a row, so zero
+    *gating* references — whether none were discovered at all, or every
+    discovered reference was non-gating — is a PASS (nothing to enforce).
+    This supersedes the never-implemented "WP09 Gate-4 ``not_applicable``"
+    intent this docstring previously described: the ONE ``not_applicable``-
+    shaped verdict is ``IssueMatrixVerdict.NOT_APPLICABLE`` (see
+    ``docs/adr/3.x/2026-09-20-1-issue-matrix-not-applicable-verdict.md``);
+    this gate does not define a second one — it consumes the same classifier
+    predicate every other enforcement site does. This gate checks row PRESENCE
+    only; verdict validity is enforced at the ``approved`` transition, so by
+    merge time every row carries a valid verdict.
     """
     try:
         from specify_cli.tasks.issue_matrix_migration import load_issue_matrix
-        from specify_cli.tasks.issue_reference_discovery import discover_issue_references
+        from specify_cli.tasks.issue_reference_discovery import gating_issue_numbers
 
-        refs = discover_issue_references(feature_dir)
-        if not refs:
+        referenced_issues = gating_issue_numbers(feature_dir)
+        if not referenced_issues:
             return GateResult(
                 gate_name="issue_matrix_completeness",
                 verdict=GateVerdict.PASS,
-                details="No issue references discovered — nothing to enforce",
+                details="No gating issue references discovered — nothing to enforce",
                 blocking=False,
             )
 
-        referenced_issues = {f"#{ref.number}" for ref in refs}
         matrix_issues = {row.issue for row in load_issue_matrix(feature_dir)}
         missing_issues = sorted(referenced_issues - matrix_issues)
 

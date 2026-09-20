@@ -92,6 +92,16 @@ auto-committed and `phase_complete` will report `true`.
 
 Reference: `kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/specify-plan-commit-boundary.md`.
 
+## Issue-Matrix Approval Heads-Up (non-gating, #3469)
+
+If `plan.md`/`research.md` cite a GitHub issue number (`#NNNN`), a bare/unmarked
+reference will later require an issue-matrix row before its owning work package can be
+approved. A context-only citation (e.g. `Follow-up:`, `see #`, `parent`, `epic`) or a
+PR/commit reference (`PR #NNNN`, a `/pull/NNNN` URL) is non-gating and needs no row; if
+an issue genuinely owes the mission no work, it can later be recorded with the
+`not-applicable` verdict. This is informational only — it does not gate
+`/spec-kitty.plan`.
+
 ## Branch Strategy Confirmation (MANDATORY)
 
 Before asking planning questions or generating artifacts, you must make the branch contract explicit.

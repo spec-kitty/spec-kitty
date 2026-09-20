@@ -21,6 +21,14 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 **Charter Authority**: The project charter (`.kittify/charter/charter.md`) is **non-negotiable** within this analysis scope. Charter conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit charter update outside `/analyze`.
 
+**Issue-Matrix Approval Heads-Up (non-gating, #3469)**: if any artifact cites a GitHub
+issue number (`#NNNN`), a bare/unmarked reference will later require an issue-matrix row
+before its owning work package can be approved. A context-only citation (e.g.
+`Follow-up:`, `see #`, `parent`, `epic`) or a PR/commit reference (`PR #NNNN`, a
+`/pull/NNNN` URL) is non-gating and needs no row; if an issue genuinely owes the mission
+no work, it can later be recorded with the `not-applicable` verdict. This is
+informational only — it does not gate `/spec-kitty.analyze`.
+
 ## Execution Steps
 
 ### 1. Initialize Analysis Context
