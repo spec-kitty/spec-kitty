@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "mission_slug": "move-task-approval-ergonomics-01M302R0",
+  "mission_id": "01M302R0KPFMH6KQS632DKNSNE",
+  "mission_branch": "kitty/mission-move-task-approval-ergonomics-01M302R0",
+  "target_branch": "fix/move-task-approval-ergonomics",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/tasks/issue_matrix.py",
+        "src/specify_cli/tasks/issue_reference_discovery.py",
+        "tests/tasks/test_issue_reference_classification.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "tests/specify_cli/cli/commands/test_move_task_flag_aliases.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-09-20-1-issue-matrix-not-applicable-verdict.md",
+        "src/specify_cli/cli/commands/agent/issue_verdict.py",
+        "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py",
+        "src/specify_cli/cli/commands/review/_issue_matrix.py",
+        "tests/specify_cli/cli/commands/test_issue_matrix_not_applicable.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md",
+        "packs/built-in/missions/mission-steps/software-dev/plan/prompt.md",
+        "packs/built-in/missions/mission-steps/software-dev/specify/prompt.md",
+        "packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md",
+        "src/specify_cli/policy/merge_gates.py",
+        "src/specify_cli/status/doctor.py",
+        "tests/policy/test_issue_matrix_cross_site_consistency.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/3-2-docs-retrieval-index.yaml",
+        "docs/development/3-2-page-inventory.yaml",
+        "docs/development/reference/issue-matrix-verdicts.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-09-20T19:34:48.820932+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP05"
+  ],
+  "planning_commit_sha": "934c78ebfb385881439f511edb635c4aac3a9206"
+}

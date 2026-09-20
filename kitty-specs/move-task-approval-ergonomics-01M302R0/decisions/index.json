@@ -1,0 +1,78 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-20T18:55:48.866214Z",
+      "decision_id": "01M302SBM26BGHEX36GC8YFJME",
+      "final_answer": "not-applicable",
+      "input_key": "verdict_context_only_value",
+      "mission_id": "01M302R0KPFMH6KQS632DKNSNE",
+      "mission_slug": "move-task-approval-ergonomics-01M302R0",
+      "opened_by": "cli",
+      "options": [
+        "not-applicable",
+        "context-only",
+        "reference",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "What should the new non-gating issue-matrix verdict value be named (for a #NNNN cited only as context / a PR reference the mission owes no work)?",
+      "rationale": null,
+      "resolved_at": "2026-09-20T19:00:18.441986Z",
+      "resolved_by": null,
+      "slot_key": "specify.verdict.context-only-value",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-20T19:00:41.057684Z",
+      "decision_id": "01M30328Z1NNV90KJ75VPXSHSS",
+      "final_answer": "both-levers-plus-adr: narrow the reference discovery/classification AND add the not-applicable verdict value; lightweight ADR for the governance-artifact contract change (operator-confirmed)",
+      "input_key": "gate_fix_scope",
+      "mission_id": "01M302R0KPFMH6KQS632DKNSNE",
+      "mission_slug": "move-task-approval-ergonomics-01M302R0",
+      "opened_by": "cli",
+      "options": [
+        "both-levers-plus-adr",
+        "classification-only",
+        "enum-only"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How far should the mission go on the issue-matrix gate defect?",
+      "rationale": null,
+      "resolved_at": "2026-09-20T19:00:47.866526Z",
+      "resolved_by": null,
+      "slot_key": "specify.gate.fix-scope",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-20T19:00:54.708190Z",
+      "decision_id": "01M3032P9MYATMQZPTBHFK7FN0",
+      "final_answer": "all-three: (1) move-task --actor/--reason aliases reconciled with issue-verdict; (2) document evidence-token rule in issue-verdict --help + non-gating early warning at specify/plan/tasks/analyze; (3) inert-checkbox guidance to mark-status (no #2816 regression) + fix stale --assignee docstring at tasks.py:675 (operator-confirmed)",
+      "input_key": "ergonomics_scope",
+      "mission_id": "01M302R0KPFMH6KQS632DKNSNE",
+      "mission_slug": "move-task-approval-ergonomics-01M302R0",
+      "opened_by": "cli",
+      "options": [
+        "all-three",
+        "gate-only"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should the lighter ergonomics items ride along in this mission?",
+      "rationale": null,
+      "resolved_at": "2026-09-20T19:01:01.545382Z",
+      "resolved_by": null,
+      "slot_key": "specify.ergonomics.include-lighter-items",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M302R0KPFMH6KQS632DKNSNE",
+  "version": 1
+}
