@@ -66,6 +66,8 @@ from specify_cli.cli.commands.agent import tasks_transition_core as tasks_transi
 from specify_cli.cli.commands.agent.tasks import (
     app,
 )
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.review.arbiter import (
     ArbiterDecision,
     create_arbiter_decision,
@@ -1015,6 +1017,34 @@ def _arbiter_fixture_ready_for_override(root_mkdir: Any, slug: str) -> Path:
     fd = _simple_mission(root_mkdir(), slug)
     _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review")])
     _seed_event(fd, "for_review", "planned", 4, review_ref="feedback://arbiter/WP01/review-cycle-1.md")
+    # lanes.json is now a required precondition to leave 'planned' (#4758,
+    # _mt_guard_planned_boundary_lanes) -- fixture update, not a behavior
+    # change: the retry move below (--to for_review, --force) hops WP01 back
+    # OUT of the 'planned' rejection landing and would otherwise hit the
+    # guard before ever reaching the arbiter-persist code path under test.
+    write_lanes_json(
+        fd,
+        LanesManifest(
+            version=1,
+            mission_slug=slug,
+            mission_id=None,
+            mission_branch=f"kitty/mission-{slug}",
+            target_branch="main",
+            lanes=[
+                ExecutionLane(
+                    lane_id="lane-a",
+                    wp_ids=("WP01",),
+                    write_scope=("src/wp01/**",),
+                    predicted_surfaces=(),
+                    depends_on_lanes=(),
+                    parallel_group=0,
+                )
+            ],
+            computed_at="2026-01-01T00:00:00+00:00",
+            computed_from="dependency_graph+ownership",
+            planning_commit_sha="a" * 40,
+        ),
+    )
     return fd
 
 

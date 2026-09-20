@@ -42,6 +42,8 @@ if TYPE_CHECKING:
     from spec_kitty_events.conformance import FixtureCase
 
 from specify_cli.cli.commands.agent.tasks import app
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event, read_events
 from tests.mocked_env import setup_mocked_env
@@ -123,6 +125,39 @@ def _build_feature_in_lane(
         )
         append_event(feature_dir, seed)
     return feature_dir, wp_file
+
+
+def _seed_lanes_json(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
+    """Write a minimal ``lanes.json`` covering *wp_id*.
+
+    #4758's ``_mt_guard_planned_boundary_lanes`` now refuses any hop OUT of
+    ``planned`` when ``lanes.json`` is absent (a required precondition, not a
+    behavior change under test here) -- so a synthetic fixture that starts a
+    WP in ``planned`` and moves it forward needs lanes.json seeded first.
+    """
+    write_lanes_json(
+        feature_dir,
+        LanesManifest(
+            version=1,
+            mission_slug=mission_slug,
+            mission_id=None,
+            mission_branch=f"kitty/mission-{mission_slug}",
+            target_branch="main",
+            lanes=[
+                ExecutionLane(
+                    lane_id="lane-a",
+                    wp_ids=(wp_id,),
+                    write_scope=(f"src/{wp_id.lower()}/**",),
+                    predicted_surfaces=(),
+                    depends_on_lanes=(),
+                    parallel_group=0,
+                )
+            ],
+            computed_at="2026-01-01T00:00:00+00:00",
+            computed_from="dependency_graph+ownership",
+            planning_commit_sha="a" * 40,
+        ),
+    )
 
 
 def _write_feedback_file(tmp_path: Path) -> Path:
@@ -311,6 +346,11 @@ class TestForwardSkipAheadExpansion:
         feature_dir, _wp_file = _build_feature_in_lane(
             tmp_path, mission_slug=mission_slug, wp_id=wp_id, lane="planned"
         )
+        # lanes.json is now a required precondition to leave 'planned' (#4758,
+        # _mt_guard_planned_boundary_lanes) -- fixture update, not a behavior
+        # change: this test exercises forward skip-ahead expansion, not the
+        # lanes.json guard.
+        _seed_lanes_json(feature_dir, mission_slug, wp_id)
 
         events_before = len(_read_latest_events_for_wp(feature_dir, wp_id))
 
