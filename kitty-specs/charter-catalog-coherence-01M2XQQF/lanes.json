@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "mission_slug": "charter-catalog-coherence-01M2XQQF",
+  "mission_id": "01M2XQQF3S0JYHNCE5AWK2PA7W",
+  "mission_branch": "kitty/mission-charter-catalog-coherence-01M2XQQF",
+  "target_branch": "issue-4785-charter-catalog-coherence",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/compiler.py",
+        "tests/charter/test_catalog_completeness_4785.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/_charter_write_root.py",
+        "tests/specify_cli/cli/commands/charter/test_charter_write_root_4785.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/activation/consistency_check.py",
+        "src/specify_cli/cli/commands/charter/activate.py",
+        "src/specify_cli/cli/commands/charter/deactivate.py",
+        "tests/specify_cli/cli/commands/charter/test_activate_recompile_4785.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/_synthesis.py",
+        "src/specify_cli/cli/commands/charter/generate.py",
+        "src/specify_cli/cli/commands/charter/resynthesize.py",
+        "src/specify_cli/cli/commands/charter/synthesize.py",
+        "tests/specify_cli/cli/commands/charter/test_synthesize_freshgate_4785.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-19T21:27:09.383393+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "8ca0fd876b24a9af818874af33df5546cc2fbdf1"
+}

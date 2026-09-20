@@ -1,0 +1,21 @@
+{
+  "baseline_merge_commit": "46d8b5e0608de96bbd065b375c3e20e68d26b683",
+  "created_at": "2026-09-19T21:04:03.720455+00:00",
+  "flattened": true,
+  "friendly_name": "Charter activation catalog coherence",
+  "merged_at": "2026-09-20T00:21:55.535115+00:00",
+  "merged_commit": "627a6065e27c29e2cb520fabef3295ef1a078dc2",
+  "mid8": "01M2XQQF",
+  "mission_id": "01M2XQQF3S0JYHNCE5AWK2PA7W",
+  "mission_number": null,
+  "mission_slug": "charter-catalog-coherence-01M2XQQF",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When a maintainer activates a single built-in charter directive, the compiled reference catalog silently drifts and the coherence guard reds; the tool's own suggested repair cannot recompile the catalog; running from a linked worktree silently writes into the primary checkout; and the only working repair over-rewrites the whole catalog while still leaving placeholder-summary gaps. This mission closes those four tooling gaps so charter activation is coherent, worktree-safe, and complete by construction (issue #4785).",
+  "purpose_tldr": "Make activating a charter directive keep the compiled reference catalog coherent — without writing to the wrong checkout or over-rewriting the catalog.",
+  "slug": "charter-catalog-coherence-01M2XQQF",
+  "status_phase": "1",
+  "target_branch": "issue-4785-charter-catalog-coherence",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-19T21:43:46.385078+00:00"
+}
