@@ -54,7 +54,17 @@ REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})
 #: artifact pointers -- a reader must skip them instead of resolving them (and
 #: then reporting a bogus "artifact is missing" against a WP that was approved,
 #: never rejected). Prefix-matched because they embed the WP id.
-SYNTHETIC_REVIEW_REF_PREFIXES = ("review:", "approval:", "auto-approval:")
+#:
+#: These three prefix constants are the SINGLE SOURCE OF TRUTH for the
+#: synthetic ``review_ref`` grammar: ``SYNTHETIC_REVIEW_REF_PREFIXES`` (the
+#: classifier's input) and the ``synthetic_*_ref`` mint formatters below are
+#: both built from them, so a prefix rename here flows to mint and classify
+#: together instead of drifting silently.
+_REVIEW_PREFIX = "review:"
+_APPROVAL_PREFIX = "approval:"
+_AUTO_APPROVAL_PREFIX = "auto-approval:"
+
+SYNTHETIC_REVIEW_REF_PREFIXES = (_REVIEW_PREFIX, _APPROVAL_PREFIX, _AUTO_APPROVAL_PREFIX)
 
 
 def is_synthetic_review_ref(value: str) -> bool:
@@ -67,6 +77,45 @@ def is_synthetic_review_ref(value: str) -> bool:
     """
     stripped = value.strip()
     return any(stripped.startswith(prefix) and len(stripped) > len(prefix) for prefix in SYNTHETIC_REVIEW_REF_PREFIXES)
+
+
+def synthetic_review_ref(wp_id: str) -> str:
+    """Mint the synthetic rejection ``review_ref`` token for *wp_id* (#4327).
+
+    Used when a rejection has no real review-feedback pointer to record.
+    """
+    return f"{_REVIEW_PREFIX}{wp_id}"
+
+
+def synthetic_approval_ref(wp_id: str) -> str:
+    """Mint the synthetic approval ``review_ref`` token for *wp_id* (#4327).
+
+    Used when an approval has no ``--approval-ref`` and no real pointer.
+    """
+    return f"{_APPROVAL_PREFIX}{wp_id}"
+
+
+def synthetic_auto_approval_ref(wp_id: str, date: str) -> str:
+    """Mint the synthetic auto-approval ``review_ref`` token for *wp_id* on
+    *date* (#4327). *date* is caller-formatted (``format_stamp(now_utc(), '%Y%m%d')``
+    at the current call sites) -- this formatter does not touch the clock.
+    """
+    return f"{_AUTO_APPROVAL_PREFIX}{wp_id}:{date}"
+
+
+def is_non_resolvable_review_ref(value: str) -> bool:
+    """Whether *value* is a ``review_ref`` a reader must skip rather than
+    resolve to a review-feedback artifact (#4327).
+
+    Folds both non-artifact-pointer families a review-feedback reader needs
+    to skip: the exact-value operational sentinels (``REVIEW_FEEDBACK_SENTINELS``,
+    e.g. ``action-review-claim``) and the synthetic approval/rejection marker
+    tokens (:func:`is_synthetic_review_ref`). Kept alongside both source sets
+    so a reader has one predicate instead of re-deriving the two-rule check
+    at each call site.
+    """
+    return value in REVIEW_FEEDBACK_SENTINELS or is_synthetic_review_ref(value)
+
 
 #: T042 (FR-002/mechanism shared with WP11): the commit call's own retry-on-
 #: contention bound. Small and fixed -- a lock-contention window measured in

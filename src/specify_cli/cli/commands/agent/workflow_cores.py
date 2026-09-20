@@ -31,8 +31,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from specify_cli.review.cycle import REVIEW_FEEDBACK_SENTINELS as _REVIEW_FEEDBACK_SENTINELS
-from specify_cli.review.cycle import is_synthetic_review_ref as _is_synthetic_review_ref
+from specify_cli.review.cycle import is_non_resolvable_review_ref as _is_non_resolvable_review_ref
 from specify_cli.status import AgentAssignment, Lane
 
 if TYPE_CHECKING:
@@ -332,7 +331,7 @@ def latest_review_feedback_reference(
         if event.review_ref is None:
             continue
         review_ref = event.review_ref.strip()
-        if not review_ref or review_ref in _REVIEW_FEEDBACK_SENTINELS or _is_synthetic_review_ref(review_ref):
+        if not review_ref or _is_non_resolvable_review_ref(review_ref):
             continue
         return review_ref, resolve_review_feedback_pointer(feedback_root, review_ref), index
     return None, None, None

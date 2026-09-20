@@ -87,6 +87,7 @@ from specify_cli.review.cycle import (
     VerdictPersistenceOutcome,
     _review_cycle_wp_dir,
     create_rejected_review_cycle,
+    synthetic_approval_ref,
 )
 from specify_cli.review.verdict_commit_queue import (
     VerdictSaveBusy,
@@ -885,7 +886,7 @@ def _persist_approved_review_cycle(
     # #4327: pointer-only -- ``--approval-ref`` or the synthetic ``approval:<WP>``
     # token, never the operator's ``--note`` prose (the note stays whole in the
     # emitted event's ``reason``).
-    approval_reference = (st.approval_ref or f"approval:{st.task_id}").strip() or f"approval:{st.task_id}"
+    approval_reference = (st.approval_ref or synthetic_approval_ref(st.task_id)).strip() or synthetic_approval_ref(st.task_id)
     # SC-006: the artifact carries at least a reproduction_command —
     # auto-derived from the decision already made (NFR-005), never a new
     # hand-filled field: the exact ``move-task`` invocation that reproduces

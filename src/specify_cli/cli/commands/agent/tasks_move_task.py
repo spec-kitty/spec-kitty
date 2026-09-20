@@ -129,6 +129,11 @@ from specify_cli.core.vcs.git import git_merge_base, merge_base_changed_files
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineTestResult
+from specify_cli.review.cycle import (
+    synthetic_approval_ref,
+    synthetic_auto_approval_ref,
+    synthetic_review_ref,
+)
 from specify_cli.review.gate_bindings import (
     GateBindingResolution,
     resolve_gate_bindings_for_transition,
@@ -1047,7 +1052,7 @@ def _mt_approval_facts(st: _MoveTaskState) -> tuple[str | None, str | None]:
     if st.target_lane not in (Lane.APPROVED, Lane.DONE):
         return None, None
     effective_reviewer = st.reviewer or _tasks._detect_reviewer_name()
-    effective_approval_ref = st.approval_ref or f"auto-approval:{st.task_id}:{format_stamp(now_utc(), '%Y%m%d')}"
+    effective_approval_ref = st.approval_ref or synthetic_auto_approval_ref(st.task_id, format_stamp(now_utc(), "%Y%m%d"))
     return effective_reviewer, effective_approval_ref
 
 
@@ -2404,13 +2409,13 @@ def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
         # (the emission-scoped "approved" artifact verdict), so its event
         # verdict is derived the same way any other approval is.
         verdict = emission_event_verdict(APPROVED)
-        reference = (st.approval_ref or f"approval:{st.task_id}").strip() or (f"approval:{st.task_id}")
+        reference = (st.approval_ref or synthetic_approval_ref(st.task_id)).strip() or synthetic_approval_ref(st.task_id)
     else:
         verdict = emission_event_verdict(REJECTED)
         # #4327: pointer-only — the review-feedback pointer or the synthetic
         # ``review:<WP>`` token, never the operator's ``--note`` prose (which
         # stays whole in ``reason``).
-        reference = (st.review_feedback_pointer or f"review:{st.task_id}").strip() or f"review:{st.task_id}"
+        reference = (st.review_feedback_pointer or synthetic_review_ref(st.task_id)).strip() or synthetic_review_ref(st.task_id)
     return ReviewResult(reviewer=reviewer, verdict=verdict, reference=reference)
 
 
