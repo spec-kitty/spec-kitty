@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#3131": {
+      "evidence_ref": "WP01 delivers the shared refuse-before-destroy guard enabler; live-site rerouting/retention land in WP02-WP04",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#4752": {
+      "evidence_ref": "WP01 delivers the shared refuse-before-destroy guard enabler; live-site rerouting/retention land in WP02-WP04",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#4753": {
+      "evidence_ref": "WP02 lands coord+orchestrator legs of #4753 (guarded_worktree_remove seam @193c9352c7); full fix completes when WP03 merge-preflight leg lands",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    },
+    "#4754": {
+      "evidence_ref": "commit 77ea1da8e1; tests/integration/test_merge_abort_scope.py 3/3 green in lane-d venv; operator MERGE_HEAD in repo_root proven preserved",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    }
+  },
+  "schema_version": 1
+}

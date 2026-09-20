@@ -1,0 +1,52 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-19T21:00:12.286500Z",
+      "decision_id": "01M2XQGD3YXMYXE0ZB194RM0KE",
+      "final_answer": "Unify a shared refuse-before-destroy guard primitive (modeled on git/ref_advance._dirty_entries + a typed RefAdvance-style refusal), routed through the destructive sites. Grounding squad found ~9 forked dirty-check predicates with no canonical owner (file-lock-authority-gap-shaped); patch-3 would mint a 10th and guarantee the next whack-a-field. Operator-delegated answer from grounding findings.",
+      "input_key": "guard_strategy",
+      "mission_id": "01M2XQF8H4V4M7FRD0R3TH4KVV",
+      "mission_slug": "merge-destructive-op-safety-01M2XQF8",
+      "opened_by": "cli",
+      "options": [
+        "Unify a shared guard primitive",
+        "Patch each of the three sites independently"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should the three destructive-op bugs be fixed by unifying one refuse-before-destroy guard primitive, or by patching each site independently?",
+      "rationale": null,
+      "resolved_at": "2026-09-19T21:00:18.769332Z",
+      "resolved_by": null,
+      "slot_key": "specify.approach.guard-strategy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-19T21:00:36.853526Z",
+      "decision_id": "01M2XQH53ND3D6QH32D9WYMXM1",
+      "final_answer": null,
+      "input_key": "adjacent_surface_scope",
+      "mission_id": "01M2XQF8H4V4M7FRD0R3TH4KVV",
+      "mission_slug": "merge-destructive-op-safety-01M2XQF8",
+      "opened_by": "cli",
+      "options": [
+        "Fold coupled coord-teardown + orchestrator-api worktree-remove mirror through the guarded seam; defer branch -D",
+        "Only the three named sites"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Beyond the three named sites, which adjacent destructive-op surfaces are in scope?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": "specify.scope.adjacent-surfaces",
+      "status": "open",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M2XQF8H4V4M7FRD0R3TH4KVV",
+  "version": 1
+}

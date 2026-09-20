@@ -1,0 +1,79 @@
+{
+  "mission_slug": "merge-destructive-op-safety-01M2XQF8",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 b8c4caf8a3: test_merge_primary_checkout_safety.py off-target refuse (red-first proven)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-09-19T23:50:45.533462+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 b8c4caf8a3: test_merge_primary_checkout_safety.py on-target-dirty refuse (PRIMARY_DIRTY)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-09-19T23:50:52.782032+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 193c9352c7 + WP03 b8c4caf8a3: dirty lane worktree preserved (preflight fail-closed + guarded removal)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-09-19T23:51:00.098365+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 193c9352c7 + WP03 b8c4caf8a3: coord-triple coupled retention on refusal (test_coord_teardown_guard.py)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-09-19T23:51:07.466443+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 77ea1da8e1: test_merge_abort_scope.py user MERGE_HEAD preserved",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-09-19T23:51:14.754169+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 77ea1da8e1 + WP02: honest exit, no contradictory success line",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-09-19T23:51:22.169596+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 ed4ab776e2 + WP05 aefb4f8820: unified guard + non-vacuous routing gate (test_destructive_op_routing.py)",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-09-19T23:51:29.537104+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

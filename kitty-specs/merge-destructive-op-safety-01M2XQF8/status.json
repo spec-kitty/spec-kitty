@@ -1,0 +1,96 @@
+{
+  "event_count": 35,
+  "last_event_id": "01M2Y1CKZSVWSJ0FDP6JT1KK86",
+  "materialized_at": "2026-09-19T23:52:54.009302+00:00",
+  "mission_number": "",
+  "mission_slug": "merge-destructive-op-safety-01M2XQF8",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2Y1CGV8V1MR801TKRP6B47C",
+      "last_transition_at": "2026-09-19T23:52:50.792168+00:00",
+      "review_result": {
+        "reference": "APPROVED (reviewer-renata): guard primitive pure+correct; 14/14 tests green in lane venv; ruff/format/mypy/complexity(<=15) clean; zero suppressions; C-001 (_dirty_entries delegation, no new dirty predicate), C-002 (DestructiveOpRefused distinct from SafeCommitHeadMismatch), C-005 (is_residue injected, zero specify_cli/coordination imports, purity test real) all honored; frozen signatures complete for WP02-WP04. Advisory: MERGE_UNSAFE_PRIMARY_DIRTY defined-but-never-emitted (assert_worktree_clean always emits WORKTREE_DIRTY incl. primary) — flag for owner before WP02 branches.",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "shell_pid": 754311,
+      "shell_pid_created_at": "1789854310.75"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M2Y1CJDJV76A5D8JJ59J9HY3",
+      "last_transition_at": "2026-09-19T23:52:52.402855+00:00",
+      "review_result": {
+        "reference": "APPROVED. Both live destroy legs routed through WP01 guarded_worktree_remove(retain=False): coord teardown (worktree-leg only, branch/marker held back on refusal, FR-004) + orchestrator _apply_lane_merge_cleanup (retain axis independent of retention.remove_worktree, ADVISORY-3). _remove_worktree_registration exemption SOUND: both call sites gated by 'not path.exists()' + git-prunable, guard structurally cannot apply. Red-first genuine (DID NOT RAISE pre-fix). tests green: 2 guard files (6), tests/coordination (181), orchestrator_api (3), merge executor+orchestrator target (56). ruff clean; WP02 new code mypy-clean (3 pre-existing no-any-return only); surgical diff; 4 owned files only. #4753 in-mission (WP03 leg pending).",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 845082,
+      "shell_pid_created_at": "1789856142.05"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M2Y1CK6PT74Y5CC17ATK4W2H",
+      "last_transition_at": "2026-09-19T23:52:53.206978+00:00",
+      "review_result": {
+        "reference": "APPROVED (reviewer-renata). NFR-001 verified: preflight sits after read-only preconditions (all rev-parse/ref/scan; fetch only on push, benign) and before acquire_merge_lock + the locked phase list — refusal is byte-identical to pre-invocation. Coord gating on teardown_coordination (delete_branch AND remove_worktree) matches _cleanup_mission_branch_and_coordination's real gate exactly; both topology detectors read the same PRIMARY_METADATA meta.json (cannot disagree). Blast-radius fix in test_executor_coverage.py preserves+strengthens intent (asserts guarded chokepoint call, wt path, retain=False, no raw remove). Red-first proven: reverting source to base makes the #4752 refusal tests fail (merge advances ref, destroys edit) while parity passes. All green: integration 8/8, tests/merge 747/747, mypy only 3 pre-existing no-any-return, ruff clean.",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "shell_pid": 980019,
+      "shell_pid_created_at": "1789857862.58"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M2Y1CHMH7KZA801KZBZ2WR1T",
+      "last_transition_at": "2026-09-19T23:52:51.601045+00:00",
+      "review_result": {
+        "reference": "77ea1da8e1",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 785881,
+      "shell_pid_created_at": "1789855153.65"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M2Y1CKZSVWSJ0FDP6JT1KK86",
+      "last_transition_at": "2026-09-19T23:52:54.009302+00:00",
+      "review_result": {
+        "reference": "APPROVED (reviewer-renata). Non-vacuity PROVEN: planted unrouted 'git worktree remove --force' + planted 'reset --hard' + planted new porcelain dirty-predicate each turned the PRIMARY gates RED, reverted to green. Census EXACT: 20 live AST-scanned destructive literals = 20 allowlist entries (reset_hard=4, worktree_remove_force=10, merge_abort=6); independent greps found no shell-string/f-string/dynamic-argv destructive site the AST scan misses. Positive routing proven: executor.py/coordination/workspace.py/orchestrator_api/commands.py all call guarded_worktree_remove(. Allowlist rationales verified: core/vcs/git.py:222 remove_workspace has zero callers (dead adapter confirmed); coordination/workspace.py:204 _remove_worktree_registration only runs when path absent (both callers gated). 11 passed; ruff check/format + mypy clean, no noqa/type-ignore. in-mission evidence for #4752/#4753/#4754 (closing-by-construction guard).",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "shell_pid": 1106399,
+      "shell_pid_created_at": "1789860316.3"
+    }
+  }
+}
