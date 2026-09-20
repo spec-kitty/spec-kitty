@@ -2,6 +2,7 @@
 
 > Created: 2026-01-27
 > Version: 1.4.0
+> Updated: 2026-09-20 — documented the doctrine pack-tier boundary (`built-in` consumer vs `internal` in-house) under Architecture: Shared Package Boundaries (ADR 2026-08-16-3)
 > Updated: 2026-08-08 — activated the writing-comms & diagramming doctrine set (see "Writing, Communication & Diagramming Doctrine"; rehome-writing-comms-doctrine / PR #2918)
 > Updated: 2026-07-01 — interactive charter intake (doctrine-catfooding-2196-01KWE16N)
 >
@@ -307,6 +308,31 @@ Mission runtime behavior is CLI-owned implementation code, not an external share
 - The CLI must not require the standalone `spec-kitty-runtime` PyPI package at runtime.
 - Do not add release gates that require publishing `spec-kitty-runtime` before the CLI can ship.
 - If SaaS needs analogous mission execution behavior, establish an explicit SaaS-owned boundary or a new shared contract through a reviewed issue before reintroducing a shared runtime package.
+
+### Doctrine Pack Tiers: `built-in` (consumer) vs `internal` (in-house)
+
+Doctrine packs are tiered by audience, and the boundary is binding (ADR
+[`2026-08-16-3`](../../docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md);
+explainer `packs/internal/README.md`):
+
+- **`packs/built-in/` is public product doctrine** shipped to every consumer in
+  the PyPI wheel (single-rooted, resolved by a kernel ancestor-walk). Only
+  doctrine that should govern *every downstream Spec Kitty user* belongs here.
+- **`packs/internal/` is the org-tier maintainer pack** — how *we* (the Spec
+  Kitty core team) land PRs, triage the tracker, calibrate P0/escalation, keep
+  main honest, run our own glossary. It is loaded as an org pack
+  (`.kittify/config.yaml` → `doctrine.org.packs`) and **must never ship**:
+  `pyproject.toml` narrows the wheel/sdist `packs` include to `packs/built-in/`,
+  guarded by `tests/cross_cutting/packaging/test_packaging_safety.py`.
+
+**Rule of placement.** Before adding doctrine to a pack, ask *"does this govern
+consumers, or only how the core team works?"* Product behavior → `built-in`;
+in-house / maintainer / dogfooding guidance → `internal`. Do **not** put
+maintainer-only doctrine in `built-in` — it would be force-shipped to every
+consumer. The two packs also differ in shape: `internal/` uses a single
+`drg/fragment.yaml` (not sharded `*.graph.yaml`) plus an `org-charter.yaml`.
+Editing either pack trips the pack-manifest regen gate — run
+`spec-kitty doctrine regenerate-graph` after the edit.
 
 ### Development Workflow Requirements
 

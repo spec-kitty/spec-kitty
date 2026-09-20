@@ -37,6 +37,19 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 
 ---
 
+## ⚠️ CRITICAL: Pack Tiers — `built-in` (consumer) vs `internal` (in-house)
+
+**`packs/built-in/` SHIPS TO CONSUMERS; `packs/internal/` NEVER DOES.** Put doctrine in the right tier.
+
+| Pack | Audience | Ships? | Put here |
+|------|----------|--------|----------|
+| `packs/built-in/` | every downstream Spec Kitty user | ✅ in the PyPI wheel | product doctrine that should govern **all consumers** |
+| `packs/internal/` | the Spec Kitty core team | ❌ excluded from wheel/sdist | **in-house / maintainer / dogfooding** doctrine (how *we* land PRs, triage the tracker, calibrate P0, keep main honest) |
+
+**Before adding doctrine, ask: "does this govern consumers, or only how the core team works?"** In-house guidance placed in `built-in` gets force-shipped to everyone — a real defect. The wheel include is narrowed to `packs/built-in/` and guarded by `tests/cross_cutting/packaging/test_packaging_safety.py`. Internal-pack shape differs: a single `drg/fragment.yaml` (not sharded `*.graph.yaml`) + `org-charter.yaml`, loaded via `.kittify/config.yaml` → `doctrine.org.packs`. Editing either pack trips the pack-manifest regen gate — run `spec-kitty doctrine regenerate-graph` after. See ADR `docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md` and `packs/internal/README.md`.
+
+---
+
 ## ⚠️ CRITICAL: Use Canonical Sources, Never Improvise
 
 **Always use the canonical templates, skills, commands, and code surfaces rather than improvising or using older artefacts as examples.**
