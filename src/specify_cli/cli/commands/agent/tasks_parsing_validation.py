@@ -126,7 +126,10 @@ def _issue_matrix_evaluation(
         IssueMatrixVerdict,
         validate_issue_matrix,
     )
-    from specify_cli.tasks.issue_reference_discovery import discover_issue_references
+    from specify_cli.tasks.issue_reference_discovery import (
+        discover_issue_references,
+        is_gating,
+    )
 
     # WP08 T029/FR-004: discovery scans every PRIMARY-partition mission
     # artifact (spec.md, plan.md, research.md, analysis-report.md,
@@ -134,7 +137,12 @@ def _issue_matrix_evaluation(
     # spec.md alone.
     refs = discover_issue_references(spec_feature_dir or feature_dir)
     result = validate_issue_matrix(feature_dir / "issue-matrix.md")
-    referenced_issues = {f"#{ref.number}" for ref in refs}
+    # FR-012/FR-013 (move-task-approval-ergonomics-01M302R0 WP02, #3469):
+    # classification decides row-REQUIREMENT -- only the WP01 classifier's
+    # ``implementation_target`` references ever require an issue-matrix row.
+    # ``context_only``/``pr_or_commit_ref`` references are cited but owed no
+    # work, so they never contribute to "missing" or "unresolved in-mission".
+    referenced_issues = {f"#{ref.number}" for ref in refs if is_gating(ref)}
     matrix_issues = _issue_matrix_row_issues(result)
     unresolved_in_mission = _issue_matrix_in_mission_rows(
         result,
@@ -209,7 +217,19 @@ def _issue_matrix_approval_blocker(
     so a dependency chain is not blocked on its own downstream work. At ``done``
     (mission merge/acceptance) ``in-mission`` is rejected: every issue must have
     reached a terminal verdict (``fixed`` / ``verified-already-fixed`` /
-    ``deferred-with-followup``) before the mission lands.
+    ``deferred-with-followup`` / ``not-applicable``) before the mission lands.
+
+    Lever SSOT (FR-013, move-task-approval-ergonomics-01M302R0 WP02, #3469):
+    classification decides whether a row is REQUIRED, verdict decides whether
+    an existing row is RESOLVED. Only a reference the WP01 classifier
+    (:mod:`specify_cli.tasks.issue_reference_discovery`) calls
+    ``implementation_target`` ever requires a row at all — a mission that
+    references only ``context_only``/``pr_or_commit_ref`` issues needs no
+    issue-matrix artifact, let alone a row, and is never blocked here. Once a
+    row exists, ``not-applicable`` is the mirror image of ``in-mission``: it
+    is non-gating at ``approved`` (nothing special needed — it simply is not
+    added to ``unresolved_in_mission``) AND terminal at ``done`` (unlike
+    ``in-mission``, it never re-blocks at merge).
 
     Placement (coord-commit-integrity SURFACE A #1c): ``issue-matrix.md`` is a
     COORD-partition kind, so the matrix is read from ``feature_dir`` — the
@@ -229,7 +249,10 @@ def _issue_matrix_approval_blocker(
     )
 
     try:
-        from specify_cli.tasks.issue_reference_discovery import discover_issue_references
+        from specify_cli.tasks.issue_reference_discovery import (
+            discover_issue_references,
+            is_gating,
+        )
 
         refs = discover_issue_references(spec_feature_dir)
     except Exception as exc:  # noqa: BLE001 -- approval guard must fail closed
@@ -240,7 +263,13 @@ def _issue_matrix_approval_blocker(
             f"Fix the issue-matrix check {_FILL_VERDICTS_HINT}."
         )
 
-    if not refs:
+    # FR-013 lever SSOT (move-task-approval-ergonomics-01M302R0 WP02, #3469):
+    # classification decides row-REQUIREMENT -- only a reference the WP01
+    # classifier calls ``implementation_target`` ever requires an
+    # issue-matrix row or artifact. A mission that references ONLY
+    # ``context_only``/``pr_or_commit_ref`` issues needs no matrix at all.
+    gating_refs = [ref for ref in refs if is_gating(ref)]
+    if not gating_refs:
         return None
 
     # T043 (C-008 / B-1 fix): presence is a dir-based check
@@ -253,7 +282,7 @@ def _issue_matrix_approval_blocker(
     from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
 
     if not issue_matrix_artifact_present(feature_dir):
-        issue_list = ", ".join(f"#{ref.number}" for ref in refs)
+        issue_list = ", ".join(f"#{ref.number}" for ref in gating_refs)
         return (
             f"{_issue_matrix_error_prefix(feature_dir)} is required before approval.\n"
             f"Referenced issues: {issue_list}\n"

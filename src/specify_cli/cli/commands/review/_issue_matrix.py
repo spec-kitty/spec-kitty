@@ -59,6 +59,21 @@ class IssueMatrixVerdict(StrEnum):
     ``done``/merge — the approval blocker rejects any ``in-mission`` row on a
     ``done`` transition, forcing resolution to a terminal verdict first.
 
+    ``not-applicable`` (move-task-approval-ergonomics-01M302R0 WP02, #3469) is
+    the mirror-image case: the reference is cited for context or is a PR/
+    commit reference, and the mission owes it no work at all. Unlike
+    ``in-mission`` it is **terminal** — it passes the ``done``/merge
+    completeness gate unchanged, because there is no future state in which
+    this mission will "resolve" a reference it never owed work on. It is also
+    **non-gating** at ``approved``: the approval blocker never requires a row
+    at all for a reference the WP01 classifier
+    (:mod:`specify_cli.tasks.issue_reference_discovery`) demotes to
+    ``context_only``/``pr_or_commit_ref``, but an operator may still record
+    ``not-applicable`` explicitly (including on a row the classifier would
+    otherwise gate) per the lever SSOT: classification decides whether a row
+    is *required*; verdict decides whether an existing row is *resolved*. See
+    ``docs/adr/3.x/2026-09-20-1-issue-matrix-not-applicable-verdict.md``.
+
     See: src/specify_cli/cli/commands/review/ERROR_CODES.md
     """
 
@@ -66,6 +81,7 @@ class IssueMatrixVerdict(StrEnum):
     VERIFIED_ALREADY_FIXED = "verified-already-fixed"
     DEFERRED_WITH_FOLLOWUP = "deferred-with-followup"
     IN_MISSION = "in-mission"
+    NOT_APPLICABLE = "not-applicable"
 
 
 # ---------------------------------------------------------------------------

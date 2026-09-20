@@ -16,11 +16,11 @@ back to the one canonical writer.
 are keyed by ``issue_ref`` and carry ``verdict``/``evidence_ref`` over the
 closed-set :class:`~specify_cli.cli.commands.review._issue_matrix
 .IssueMatrixVerdict` (``fixed`` | ``verified-already-fixed`` |
-``deferred-with-followup`` | ``in-mission``) -- NOT the earlier
-``status: open|addressed|not_applicable|verified`` sketch still shown in the
-now-stale ``contracts/commands.md`` example. ``--verdict`` accepts only a
-genuine :class:`IssueMatrixVerdict` member so the approve gate's ``is``
-identity check (``tasks_parsing_validation.py:116``) actually matches.
+``deferred-with-followup`` | ``in-mission`` | ``not-applicable``) -- NOT the
+earlier ``status: open|addressed|not_applicable|verified`` sketch still shown
+in the now-stale ``contracts/commands.md`` example. ``--verdict`` accepts
+only a genuine :class:`IssueMatrixVerdict` member so the approve gate's
+``is`` identity check (``tasks_parsing_validation.py:116``) actually matches.
 
 **Migrate-on-write** (FR-013): when neither ``issue-matrix.json`` nor
 ``issue-matrix.md`` resolves on the coord-aware read surface, the row is
@@ -294,13 +294,26 @@ def issue_verdict_command(
         str,
         typer.Option(
             "--verdict",
-            help="fixed | verified-already-fixed | deferred-with-followup | in-mission",
+            help=(
+                "fixed | verified-already-fixed | deferred-with-followup | in-mission | "
+                "not-applicable (non-gating: cited for context or a PR/commit reference, "
+                "no work owed; unlike in-mission it is terminal -- it also passes the "
+                "done/merge completeness gate unchanged)"
+            ),
         ),
     ],
     actor: Annotated[str, typer.Option("--actor", help="Identity of the acting agent.")],
     wp: Annotated[str | None, typer.Option("--wp", help="Owning work-package id (e.g. WP01).")] = None,
     evidence_ref: Annotated[
-        str | None, typer.Option("--evidence-ref", help="Evidence text or link for the verdict.")
+        str | None,
+        typer.Option(
+            "--evidence-ref",
+            help=(
+                "Evidence text or link for the verdict. Required when --verdict is "
+                "deferred-with-followup: the value must contain a follow-up handle "
+                "('#NNN' or a 'Follow-up:' substring), or the row fails validation."
+            ),
+        ),
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format.")] = False,
 ) -> None:
