@@ -1,0 +1,126 @@
+schema_version: "1.0"
+id: memory-curation-and-escalation
+name: Agent-Memory Curation and Knowledge Escalation
+purpose: >
+  The maintainer workflow for keeping local agent-memory a durable asset rather
+  than a landfill, and for routing each learned fact to its correct home. Local
+  agent-memory (Claude Code's per-project `~/.claude/projects/.../memory/` store)
+  accumulates fast and drifts: mission/PR-status notes pile up, the same lesson
+  is written many times, and the always-loaded index silently truncates once it
+  exceeds its load budget. This procedure classifies every memory into one of
+  four dispositions — drop a duplicate, prune a stale status note, keep a durable
+  gotcha, or escalate a repo-invariant fact into the repository — and applies the
+  placement discipline that keeps each kind where it belongs. It is
+  operator-guided: the maintainer sets the boundaries and nothing is destroyed
+  unilaterally. It complements, and enforces at scale, the two standing rules in
+  the memory-curation-retention-policy (mission-status never enters always-loaded
+  memory; project memories age out at merge).
+entry_condition: >
+  A maintainer is curating a local agent-memory store — because its index has
+  approached or exceeded its load budget, because memories have been stranded by
+  deleted clones or scattered across per-path stores, or as a periodic hygiene
+  pass. The store's index and files are readable, and a reversible archive
+  location can be created.
+exit_condition: >
+  Every memory examined has a disposition applied: duplicates and stale
+  status-notes archived (never hard-deleted), durable gotchas retained under the
+  index budget, and repo-invariant facts escalated into the repository. The
+  always-loaded index is under its load budget, the operator has ruled on every
+  boundary that required judgement, and an archive holds everything removed so
+  the pass is reversible.
+steps:
+  - title: Inventory the store and measure the index against its budget
+    description: >
+      Before touching anything, count the files by type, measure the
+      always-loaded index (MEMORY.md) against its load budget, and locate any
+      stranded stores — per-path memory directories whose working clone no longer
+      exists, whose knowledge no live session will ever load again. Name the
+      drift explicitly (index over budget, N stranded stores, mission-status
+      dominating the file count) so the pass has a fixed scope. A store using a
+      second, descriptive naming convention alongside the legacy prefixed one is
+      normal after a harvest; do not let a naming mismatch hide real content.
+    actor: agent
+    on_failure: >
+      If a memory directory cannot be read, record it as an un-inventoried store
+      and surface it rather than proceeding as if the store were empty.
+
+  - title: Classify every memory into one of four dispositions
+    description: >
+      Sort each memory into exactly one bucket. DROP-dup — the durable lesson is
+      already covered by a curated entry; name the twin. PRUNE-stale — a
+      mission/PR-status note (a specific PR#/mission-id, "MERGED/in-flight/
+      landed", a one-time landing log) that the tracker and git already own.
+      MERGE — a durable, reusable gotcha or pattern not adequately captured yet.
+      ESCALATE — a repo-invariant fact (CI/gate/build/release mechanics) that
+      belongs in the repository's own docs, not in personal memory. The test for
+      keeping something: would it still be true and useful after the mission that
+      surfaced it merges? A "gotcha" that is really about one shipped PR is
+      PRUNE-stale even when phrased generally.
+    actor: agent
+
+  - title: For a large store, fan out profile-loaded classification squads
+    description: >
+      When the store is too large to classify by hand, partition it and dispatch
+      parallel curator-carla subagents, each opened as a governed dispatch Op,
+      each reading the curated index as its duplicate-reference and returning a
+      compact per-memory manifest (disposition plus a one-line reason or
+      dup-target). Aggregate the manifests into one before any decision. The
+      squad produces the manifest; it does not mutate the store.
+    actor: agent
+
+  - title: Take the disposition boundaries to the operator — never mass-delete unilaterally
+    description: >
+      Present the aggregate shape — the four bucket counts, the MERGE and
+      ESCALATE lists, and any clusters worth consolidating — and let the operator
+      set the boundaries: which buckets to archive, where the MERGE set lives
+      (see the placement step), and whether to escalate now or as a tracked
+      follow-up. Bulk removal is irreversible-feeling even when archived, so it is
+      an operator decision, taken in rounds, not a unilateral sweep.
+    actor: agent
+    on_failure: >
+      If the operator is unavailable, archive only the unambiguous DROP-dup and
+      PRUNE-stale items to a reversible location and leave every judgement call
+      staged with a written recommendation rather than guessing.
+
+  - title: Apply placement discipline by kind
+    description: >
+      Keep each kind where it belongs. Durable feedback/reference/user memories
+      stay in the store; when the MERGE set is larger than the always-loaded
+      index budget allows, promote the highest-value handful into the main index
+      and route the rest to a second-tier index the main index points at
+      (reachable on demand, budget preserved). Consolidate overlap clusters into
+      one entry rather than carrying several near-duplicates. Mission-status is
+      archived, not indexed. Repo-invariant facts escalate to docs. And observe
+      the consumer-vs-in-house split when a fact lands in the repo: product
+      doctrine goes to the public pack, maintainer/dogfooding doctrine to the
+      org-tier internal pack.
+    actor: agent
+
+  - title: Escalate repo-invariant facts into the repository
+    description: >
+      For each ESCALATE item, write the fact into the repo's own documentation so
+      every contributor and agent finds it — appending to an existing doc where
+      one fits, since a brand-new page trips the docs-freshness registration
+      gates. When a new page is unavoidable, register it fully (curated index,
+      page-inventory, retrieval-index) and keep its description within the
+      enforced length band. Correct point-in-time paths and retired vocabulary to
+      the current tree as you transcribe; never carry a dead citation into the
+      docs. This is the self-documenting-repo move: knowledge that governs the
+      repo lives in the repo, not in one maintainer's memory.
+    actor: agent
+    on_failure: >
+      If a citation cannot be verified against the current tree, describe the
+      mechanic without the brittle filename rather than asserting a path that may
+      no longer exist.
+
+  - title: Archive reversibly, then verify the store is healthy
+    description: >
+      Move everything removed to a timestamped archive directory rather than
+      hard-deleting, so the whole pass is reversible and the operator can delete
+      the archive once satisfied. Then verify: the always-loaded index is under
+      its load budget, the second-tier index (if used) is reachable from it, the
+      escalated docs pass their freshness and description gates, and the archive
+      holds the expected count. Record the final shape (index size and entry
+      count, files retained, files archived) so the next pass starts from a known
+      baseline.
+    actor: agent

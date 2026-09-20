@@ -2,5 +2,6 @@ org_name: spec-kitty-internal
 required_procedures:
   - landing-contributor-prs
   - project-evolution-postmortem
+  - memory-curation-and-escalation
 required_glossary_packs:
   - spk-internal-glossary

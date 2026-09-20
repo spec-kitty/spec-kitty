@@ -37,6 +37,10 @@ nodes:
     kind: procedures
     title: "Project-Evolution Postmortem (research squads + branded report)"
     body_path: procedures/project-evolution-postmortem.procedure.yaml
+  - id: memory-curation-and-escalation
+    kind: procedures
+    title: "Agent-Memory Curation and Knowledge Escalation (classify, place, escalate)"
+    body_path: procedures/memory-curation-and-escalation.procedure.yaml
 edges:
   # Reference-not-duplicate: the landing runbook refines built-in doctrine that
   # already ships publicly, rather than re-authoring it. Targets are
