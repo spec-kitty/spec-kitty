@@ -31,10 +31,8 @@ mode/filters/rate are preference state, never auth state.
 
 from __future__ import annotations
 
-import time
 import tomllib
 
-from collections import deque
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import asdict, dataclass
 from enum import StrEnum
@@ -73,8 +71,6 @@ REPO_CONFIG_DIRNAME = ".kittify"
 
 #: The TOML table every aspect lives under, in both config files.
 CONFIG_SECTION = "moments"
-
-_WINDOW_S = 60.0
 
 
 class MomentsDisabled(Exception):
@@ -579,58 +575,3 @@ def allows_repo(settings: MomentSettings, store_key: str) -> bool:
     if "repos" in settings.invalid_filters | settings.blocked_filters:
         return False
     return not settings.repos or store_key in settings.repos
-
-
-class MomentRateGate:
-    """#190 item 4: at most ``limit_per_minute`` moments surfaced to an agent
-    in any rolling 60-second window; everything beyond the cap is counted so
-    the caller can summarise it as "+k more".
-
-    One gate belongs to one agent session (one stdio server instance), not to
-    one call — a client polling every two seconds must not earn a fresh quota
-    each poll. The clock is injected so tests advance time instead of
-    sleeping; ``time.monotonic`` is the production default (elapsed-time
-    measurement, matching ``budget.py``'s idiom — never wall-clock datetimes).
-    """
-
-    def __init__(
-        self,
-        limit_per_minute: int,
-        *,
-        clock: Callable[[], float] = time.monotonic,
-    ) -> None:
-        self._limit = limit_per_minute
-        self._clock = clock
-        self._window: deque[float] = deque()
-        self._suppressed_since_read = 0
-
-    def admit(self) -> bool:
-        """Whether one more moment may surface right now. Rejected moments
-        are counted, never queued — they are summarised, not delayed (#190:
-        "the rest summarised")."""
-        now = self._clock()
-        while self._window and self._window[0] <= now - _WINDOW_S:
-            self._window.popleft()
-        if len(self._window) >= self._limit:
-            self._suppressed_since_read += 1
-            return False
-        self._window.append(now)
-        return True
-
-    @property
-    def limit(self) -> int:
-        return self._limit
-
-    @property
-    def suppressed(self) -> int:
-        """Moments rejected since the last :meth:`take_summary`."""
-        return self._suppressed_since_read
-
-    def take_summary(self) -> str | None:
-        """The "+k more" line for everything suppressed so far, or ``None``
-        when nothing was; reading resets the counter so one watch call's
-        report says what THAT call withheld, not the session's lifetime total."""
-        count, self._suppressed_since_read = self._suppressed_since_read, 0
-        if not count:
-            return None
-        return f"+{count} more moment{'s' if count != 1 else ''} withheld (agent rate cap: {self._limit}/min)"

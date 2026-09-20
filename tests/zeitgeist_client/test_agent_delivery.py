@@ -52,7 +52,7 @@ def test_unfamiliar_and_missionless_peers_share_human_account(policy) -> None:
     result = policy.select(frames, max_frames=10)
     assert result["frames"] == frames
     assert result["settings"]["agents"] == "team"
-    assert result["consumer_continuity"] == "stable"
+    assert "consumer_continuity" not in result  # dead surface dropped with the process_only path (#4569)
     assert result["own_filter"] == "not_requested"
 
 
@@ -391,8 +391,8 @@ def test_receipt_consumer_override_is_explicit(monkeypatch):
     from specify_cli.zeitgeist_client.agent_delivery import consumer_identity
 
     monkeypatch.setenv("SPEC_KITTY_ZEITGEIST_SESSION_ID", "publisher-session")
-    assert consumer_identity() == ("publisher-session", True)
-    assert consumer_identity("explicit-consumer") == ("explicit-consumer", True)
+    assert consumer_identity() == "publisher-session"
+    assert consumer_identity("explicit-consumer") == "explicit-consumer"
     with pytest.raises(ValueError, match="consumer"):
         consumer_identity("")
 

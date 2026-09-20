@@ -28,13 +28,17 @@ from .receipts import ReceiptStore
 MAX_SCAN_FRAMES: int = history.MAX_HISTORY_PAGES * history.MAX_HISTORY_FRAMES
 
 
-def consumer_identity(consumer: str | None = None) -> tuple[str, bool]:
-    """Resolve a logical consumer across processes; never use a human identity."""
+def consumer_identity(consumer: str | None = None) -> str:
+    """Resolve a logical consumer across processes; never use a human identity.
+
+    The resolved identity is always cross-process stable — an explicit
+    ``consumer`` by construction, the logical session id by design (#4217) —
+    so there is no process-only continuity branch to report."""
     if consumer is not None:
         if not consumer.strip() or len(consumer) > 256:
             raise ValueError("consumer must contain 1..256 characters")
-        return consumer, True
-    return session_identity.logical_session_id(), True
+        return consumer
+    return session_identity.logical_session_id()
 
 
 def _digest(value: Any) -> str:
@@ -77,7 +81,7 @@ class AgentDelivery:
         self.settings = settings if settings is not None else moments.load_settings(project_root=project_root)
         if self.settings.agents is moments.MomentsMode.OFF:
             raise moments.MomentsDisabled(self.settings)
-        self.consumer, self.stable_consumer = consumer_identity(consumer)
+        self.consumer = consumer_identity(consumer)
         root = project_root if project_root is not None else moments.locate_repo_root()
         self.local_missions = moments.local_missions(root) if self.settings.agents is moments.MomentsMode.MINE else ()
         self.predicate = moments.frame_predicate(self.settings, local_missions=self.local_missions)
@@ -165,7 +169,6 @@ class AgentDelivery:
             "withheld": counts,
             "scan_limit_reached": scan_limit_reached,
             "settings": self.settings.as_dict(),
-            "consumer_continuity": "stable" if self.stable_consumer else "process_only",
             "own_filter": "not_requested",
             "replay": replay,
             "catch_up": {"operation": "activity", "within_retention_only": True},

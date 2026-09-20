@@ -3713,7 +3713,6 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.zeitgeist_client.filtered_stream::FilteredStream",
         "specify_cli.zeitgeist_client.grammar::ident",
         "specify_cli.zeitgeist_client.mcp_stdio::run_stdio",
-        "specify_cli.zeitgeist_client.moments::MomentRateGate",
         "specify_cli.zeitgeist_client.moments::MomentsDisabled",
         "specify_cli.zeitgeist_client.moments::allows_repo",
         "specify_cli.zeitgeist_client.moments::frame_predicate",

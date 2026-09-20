@@ -4,10 +4,11 @@ predicate that applies them, and the agent rate cap.
 Covers the whole decision matrix the setting promises: mode resolution across
 the two config files (both may narrow the default), fail-closed reading of
 a broken value, the four allowlist filters, ``mine``'s cheap local-mission
-basis, repo admission, and every branch of :class:`moments.MomentRateGate`.
-The wire-level consequences (what an MCP tool actually delivers) are covered
-in ``test_mcp_stdio.py``; what ``FilteredStream`` does with a predicate in
-``test_filtered_stream.py``.
+basis, and repo admission. The rate cap itself is enforced by
+``AgentDelivery.select`` in ``agent_delivery.py`` (its tests live in
+``test_agent_delivery.py``); the wire-level consequences (what an MCP tool
+actually delivers) are covered in ``test_mcp_stdio.py``; what
+``FilteredStream`` does with a predicate in ``test_filtered_stream.py``.
 """
 
 from __future__ import annotations
@@ -517,67 +518,6 @@ class TestAllowsRepo:
         settings = _settings(invalid_filters=frozenset({"repos"}))
         assert settings.repos == ()
         assert moments.allows_repo(settings, "github.com/acme/widget") is False
-
-
-# --- the rate cap ------------------------------------------------------------
-
-
-class FakeClock:
-    def __init__(self) -> None:
-        self.now = 1000.0
-
-    def __call__(self) -> float:
-        return self.now
-
-    def advance(self, seconds: float) -> None:
-        self.now += seconds
-
-
-class TestMomentRateGate:
-    def test_up_to_the_limit_is_admitted_inside_one_window(self) -> None:
-        clock = FakeClock()
-        gate = moments.MomentRateGate(3, clock=clock)
-        assert [gate.admit() for _ in range(3)] == [True, True, True]
-
-    def test_beyond_the_limit_is_suppressed_within_the_window(self) -> None:
-        clock = FakeClock()
-        gate = moments.MomentRateGate(2, clock=clock)
-        gate.admit()
-        gate.admit()
-        assert gate.admit() is False
-        assert gate.suppressed == 1
-
-    def test_window_slides_so_old_moments_stop_counting(self) -> None:
-        clock = FakeClock()
-        gate = moments.MomentRateGate(1, clock=clock)
-        assert gate.admit() is True
-        clock.advance(59)
-        assert gate.admit() is False  # 59s in: still inside the rolling minute
-        clock.advance(2)
-        assert gate.admit() is True  # 61s in: the first moment left the window
-
-    def test_zero_limit_surfaces_nothing(self) -> None:
-        gate = moments.MomentRateGate(0, clock=FakeClock())
-        assert gate.admit() is False
-
-    def test_take_summary_reports_then_resets(self) -> None:
-        clock = FakeClock()
-        gate = moments.MomentRateGate(1, clock=clock)
-        gate.admit()
-        gate.admit()
-        gate.admit()
-        assert gate.take_summary() == "+2 more moments withheld (agent rate cap: 1/min)"
-        assert gate.suppressed == 0
-        assert gate.take_summary() is None
-
-    def test_take_summary_singularises_one_moment(self) -> None:
-        gate = moments.MomentRateGate(1, clock=FakeClock())
-        gate.admit()
-        gate.admit()
-        assert gate.take_summary() == "+1 more moment withheld (agent rate cap: 1/min)"
-
-    def test_limit_exposed_for_reporting(self) -> None:
-        assert moments.MomentRateGate(7, clock=FakeClock()).limit == 7
 
 
 # --- the disabled fault -------------------------------------------------------
