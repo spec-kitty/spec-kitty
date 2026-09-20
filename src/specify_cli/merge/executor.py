@@ -21,6 +21,7 @@ never imports the command shim.
 
 from __future__ import annotations
 
+import functools
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -63,6 +64,13 @@ from specify_cli.git.bookkeeping_commit import (
     commit_merge_bookkeeping,
 )
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
+from specify_cli.git.destructive_guard import (
+    MERGE_UNSAFE_PRIMARY_DIRTY,
+    DestructiveOpRefused,
+    assert_checkout_on_target,
+    assert_worktree_clean,
+    guarded_worktree_remove,
+)
 from specify_cli.merge.git_probes import _paths_have_status_changes
 from specify_cli.git.sparse_checkout import require_no_sparse_checkout
 from specify_cli.lanes.persistence import require_lanes_json
@@ -917,7 +925,10 @@ def _phase_mission_to_target(run: _MergeRunState) -> None:
 def _phase_capture_and_baseline(run: _MergeRunState) -> None:
     """Refresh checkout, capture final snapshots, plan mission_number, RECORD #1827 baseline."""
     # -- WP05/T006 FR-013: Post-merge working-tree refresh --
-    _refresh_primary_checkout_after_merge(run.main_repo)
+    # WP03/T011 (#4752): pass the target branch so the refresh's own
+    # defense-in-depth guard can refuse a ``reset --hard`` against an
+    # off-target checkout even if the earlier preflight were ever bypassed.
+    _refresh_primary_checkout_after_merge(run.main_repo, run.lanes_manifest.target_branch)
 
     assert run.canonical_events_path is not None
     assert run.canonical_status_path is not None
@@ -1593,8 +1604,21 @@ def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
 
     lanes_manifest = run.lanes_manifest
     # -- T005: Worktree removal with retry tolerance and macOS FSEvents delay --
+    # T012 (#4753, C-003): routed through the shared ``guarded_worktree_remove``
+    # chokepoint instead of a raw ``git worktree remove --force``. The T010
+    # preflight has already fail-closed on any dirty lane worktree BEFORE any
+    # ref advance, so every worktree reaching this loop is known-clean; the
+    # guard call here is defense-in-depth against a race between preflight and
+    # cleanup, not the primary safety mechanism. ``retain=False`` because this
+    # loop only runs when ``run.remove_worktree`` is True (removal requested) —
+    # ``--keep-worktree`` already makes ``run.remove_worktree`` False and skips
+    # the loop entirely (ADVISORY-3: do not map the operator retain flag onto
+    # the guard's ``retain`` parameter here).
     if run.remove_worktree:
         delay = _worktree_removal_delay()
+        is_residue = functools.partial(
+            is_toolchain_generated_churn, mission_slug=run.mission_slug
+        )
         for idx, lane in enumerate(lanes_manifest.lanes):
             wt_path = worktree_path(
                 run.main_repo,
@@ -1603,11 +1627,7 @@ def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
                 lane_id=lane.lane_id,
             )
             if wt_path.exists():
-                run_command(
-                    ["git", "worktree", "remove", str(wt_path), "--force"],
-                    cwd=run.main_repo,
-                    check_return=False,
-                )
+                guarded_worktree_remove(wt_path, retain=False, is_residue=is_residue)
                 console.print(f"  Removed worktree: {wt_path.name}")
                 if delay > 0 and idx < len(lanes_manifest.lanes) - 1:
                     time.sleep(delay)
@@ -1707,6 +1727,115 @@ def _render_stale_findings(stale_report: StaleAssertionReport | None) -> None:
         console.print(
             f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}"
         )
+
+
+def _resolve_coord_worktree_for_preflight(
+    main_repo: Path, mission_slug: str, primary_meta_dir: Path,
+) -> Path | None:
+    """Resolve the coordination worktree path for the T010 preflight, purely.
+
+    Mirrors ``_is_coord_topology_mission``'s ``coordination_branch``-presence
+    signal (rather than inventing a second coord-topology detector) so
+    preflight and cleanup never disagree about whether a coordination
+    worktree is in play (INV-2). Returns ``None`` for a non-coord-topology
+    mission, or a coord mission with no recorded ``mid8`` (legacy/never
+    created) — in either case there is no coordination worktree to guard.
+    """
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+    from specify_cli.core.paths import load_meta_fail_closed
+
+    meta = load_meta_fail_closed(primary_meta_dir) or {}
+    if "coordination_branch" not in meta:
+        return None
+    mid8 = str(meta.get("mid8", "")).strip()
+    if not mid8:
+        return None
+    # ``coordination.workspace`` sits behind a repo-wide ``follow_imports =
+    # "skip"`` mypy override (pyproject.toml), so the imported staticmethod's
+    # declared ``Path`` return type is erased to ``Any`` at this call site.
+    # Re-wrapping in ``Path(...)`` (a real, idempotent no-op on the already-
+    # ``Path`` runtime value) restores a concrete static type instead of
+    # suppressing the check.
+    return Path(CoordinationWorkspace.worktree_path(main_repo, mission_slug, mid8))
+
+
+def _pre_mutation_safety_preflight(
+    main_repo: Path,
+    mission_slug: str,
+    target_branch: str,
+    lanes_manifest: LanesManifest,
+    canonical_mission_id: str | None,
+    primary_meta_dir: Path,
+    *,
+    remove_worktree: bool,
+    teardown_coordination: bool,
+) -> None:
+    """Refuse-before-destroy preflight for #4752/#4753 (WP03/T010).
+
+    Called from the OUTER :func:`_run_lane_based_merge`, BEFORE
+    :func:`_run_lane_based_merge_locked` runs its phase list — in particular
+    before ``_phase_merge_lanes`` (which git-merges lanes into the mission
+    branch) and ``_phase_bake_and_pre_target_done`` (which commits a
+    done-event on the coord branch). This is the only placement where a
+    refusal is byte-identical to pre-invocation (NFR-001): nothing in the
+    locked flow has mutated anything yet. Because both a fresh merge and a
+    ``--resume`` merge route through the same outer function, ``--resume``
+    honors this preflight identically (US1 AC4) with no separate wiring.
+
+    Checks, in order:
+
+    1. The primary checkout is on ``target_branch`` and clean
+       (``MERGE_UNSAFE_PRIMARY_OFF_TARGET`` / ``MERGE_UNSAFE_PRIMARY_DIRTY`` —
+       FR-001/FR-002/US1 AC1-2).
+    2. Every lane worktree is clean (FR-003/US2 AC1) — unless
+       ``remove_worktree`` is False (worktree retention in effect), in which
+       case a dirty lane worktree is the existing retention path's concern
+       (kept, never force-removed) rather than a preflight refusal (US2 AC2).
+       This mirrors exactly the gate ``_phase_cleanup_worktrees_and_branches``
+       already applies to its own removal loop.
+    3. The coordination worktree, when the mission is coord-topology AND the
+       coupled coord teardown is actually going to run (``teardown_coordination``
+       — ``delete_branch AND remove_worktree``, #3131 INV-2), is clean
+       (FR-004/US2 AC4). Gating on ``teardown_coordination`` rather than
+       ``remove_worktree`` alone matches ``_cleanup_mission_branch_and_coordination``'s
+       real gate for a coord mission, so a partial-retention merge that will
+       never touch the coord triple is never refused for a dirty coord
+       worktree it was never going to disturb (NFR-002 no-regression).
+
+    Any :class:`~specify_cli.git.destructive_guard.DestructiveOpRefused` raised
+    here propagates to the caller, which aborts the merge fail-closed before
+    the lock is acquired and before any mutation.
+    """
+    from specify_cli.lanes.branch_naming import worktree_path
+
+    is_residue = functools.partial(is_toolchain_generated_churn, mission_slug=mission_slug)
+
+    assert_checkout_on_target(main_repo, target_branch)
+    assert_worktree_clean(
+        main_repo, is_residue=is_residue, error_code=MERGE_UNSAFE_PRIMARY_DIRTY,
+    )
+
+    if not remove_worktree:
+        return
+
+    for lane in lanes_manifest.lanes:
+        wt_path = worktree_path(
+            main_repo,
+            mission_slug,
+            mission_id=canonical_mission_id,
+            lane_id=lane.lane_id,
+        )
+        if wt_path.exists():
+            assert_worktree_clean(wt_path, is_residue=is_residue)
+
+    if not teardown_coordination:
+        return
+
+    coord_worktree = _resolve_coord_worktree_for_preflight(
+        main_repo, mission_slug, primary_meta_dir
+    )
+    if coord_worktree is not None and coord_worktree.exists():
+        assert_worktree_clean(coord_worktree, is_residue=is_residue)
 
 
 def _run_lane_based_merge_locked(
@@ -1980,6 +2109,35 @@ def _run_lane_based_merge(
                 f"Run: {branch_blocker['remediation']}"
             )
             raise typer.Exit(1)
+
+    # -- WP03/T010 (#4752/#4753): pre-mutation refuse-before-destroy preflight.
+    # Placed after the existing CLI-precondition preflights above (push-sync,
+    # mission-branch existence) so their own remediation still surfaces first
+    # for the conditions THEY own, but still well BEFORE the global merge lock
+    # is acquired and BEFORE ``_run_lane_based_merge_locked``'s phase list runs
+    # — none of the checks above ever mutate the repository, so a refusal here
+    # is still byte-identical to pre-invocation (NFR-001). Both a fresh merge
+    # and ``--resume`` route through this same outer function, so ``--resume``
+    # honors the guard identically (US1 AC4).
+    try:
+        _pre_mutation_safety_preflight(
+            main_repo,
+            mission_slug,
+            lanes_manifest.target_branch,
+            lanes_manifest,
+            canonical_mission_id,
+            primary_meta_dir,
+            remove_worktree=retention.remove_worktree,
+            teardown_coordination=retention.teardown_coordination,
+        )
+    except DestructiveOpRefused as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        console.print(
+            "[yellow]Merge aborted before any state change.[/yellow] "
+            "Resolve the reported condition, then re-run "
+            "[bold]spec-kitty merge[/bold]."
+        )
+        raise typer.Exit(1) from exc
 
     # -- Acquire global merge lock to serialize concurrent merges --
     if not acquire_merge_lock(_GLOBAL_MERGE_LOCK_ID, main_repo):

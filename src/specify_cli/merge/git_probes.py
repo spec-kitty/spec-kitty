@@ -21,6 +21,10 @@ from specify_cli.cli.console import console
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 from specify_cli.core.constants import KITTIFY_DIR
 from specify_cli.core.git_ops import run_command
+from specify_cli.git.destructive_guard import (
+    DestructiveOpRefused,
+    assert_checkout_on_target,
+)
 from specify_cli.merge._constants import LINEAR_HISTORY_REJECTION_TOKENS, logger
 
 
@@ -200,7 +204,9 @@ def _emit_remediation_hint(hint_console: Console) -> None:
     )
 
 
-def _refresh_primary_checkout_after_merge(repo_root: Path) -> None:
+def _refresh_primary_checkout_after_merge(
+    repo_root: Path, expected_branch: str | None = None
+) -> None:
     """Force the primary checkout's tracked files to match HEAD.
 
     The target ref is advanced from a detached merge worktree, so the primary
@@ -208,7 +214,27 @@ def _refresh_primary_checkout_after_merge(repo_root: Path) -> None:
     not remove rename sources in sparse-checkout repos; hard reset does.
     Merge preflight requires a clean tracked worktree before this point, so this
     must only discard stale tracked state created by the ref update.
+
+    ``expected_branch`` (WP03/T011, #4752 defense-in-depth): when supplied,
+    this refuses to run ``reset --hard`` unless ``repo_root`` is currently
+    checked out on ``expected_branch``. The merge preflight
+    (``_pre_mutation_safety_preflight``) already asserts this before any
+    mutation runs, so on the normal path this check always passes and behavior
+    is unchanged; it exists so that even a bypassed/skipped preflight cannot
+    reach this ``reset --hard`` against an off-target checkout. ``None`` (the
+    default — used by call sites that exercise this helper directly, e.g.
+    targeted unit tests) preserves the pre-guard behavior exactly.
     """
+    if expected_branch is not None:
+        try:
+            assert_checkout_on_target(repo_root, expected_branch)
+        except DestructiveOpRefused:
+            console.print(
+                "[yellow]Warning:[/yellow] skipping post-merge working-tree "
+                f"refresh: {repo_root} is not checked out on {expected_branch!r}."
+            )
+            return
+
     ret_reset, out_reset, err_reset = run_command(
         ["git", "reset", "--hard", "HEAD"],
         capture=True,

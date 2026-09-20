@@ -612,6 +612,14 @@ def test_phase_push_failure_with_linear_history_hint_exits(tmp_path: Path) -> No
 
 
 def test_phase_cleanup_removes_worktrees_and_branches(tmp_path: Path) -> None:
+    """WP03/T012 (#4753): lane-worktree removal now routes through the shared
+    ``guarded_worktree_remove`` chokepoint (``specify_cli.git.destructive_guard``)
+    instead of a raw ``git worktree remove --force`` issued via ``run_command``.
+    That chokepoint shells out for real (it is git-plumbing-pure and does not
+    accept an injected command runner), so it is spied on directly here rather
+    than through the ``run_command`` fake used for the other git calls in this
+    phase.
+    """
     run = _make_run(tmp_path, remove_worktree=True, delete_branch=True)
     wt = tmp_path / ".worktrees" / "m-lane-a"
     wt.mkdir(parents=True)
@@ -628,6 +636,7 @@ def test_phase_cleanup_removes_worktrees_and_branches(tmp_path: Path) -> None:
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
         patch.object(ex, "_worktree_removal_delay", return_value=0),
         patch.object(ex, "run_command", side_effect=_fake_cmd),
+        patch.object(ex, "guarded_worktree_remove") as guarded_remove_mock,
         patch("specify_cli.mission_metadata.load_meta", return_value={"mid8": "deadbeef"}),
         # WP04 (#2119): coordination teardown now routes through the shared
         # ``teardown_coordination_topology`` seam. Patch the seam's real destroy
@@ -636,8 +645,13 @@ def test_phase_cleanup_removes_worktrees_and_branches(tmp_path: Path) -> None:
         patch("specify_cli.coordination.workspace.CoordinationWorkspace") as cw_mock,
     ):
         ex._phase_cleanup_worktrees_and_branches(run)
-    # The worktree removal command ran.
-    assert any(c[:3] == ["git", "worktree", "remove"] for c in calls)
+    # T012: the guarded chokepoint removed the (known-clean) lane worktree,
+    # never a raw ``git worktree remove --force``.
+    guarded_remove_mock.assert_called_once()
+    guard_call = guarded_remove_mock.call_args
+    assert guard_call.args[0] == wt
+    assert guard_call.kwargs["retain"] is False
+    assert not any(c[:3] == ["git", "worktree", "remove"] for c in calls)
     # A branch deletion ran (branch existed).
     assert any(c[:3] == ["git", "branch", "-D"] for c in calls)
     cw_mock.teardown.assert_called_once()
