@@ -247,7 +247,7 @@ _ALLOWLIST: dict[str, str] = {
         "before this reset runs whenever expected_branch is supplied; the "
         "live merge preflight always supplies it."
     ),
-    "src/specify_cli/git/ref_advance.py:393:reset_hard": (
+    "src/specify_cli/git/ref_advance.py:415:reset_hard": (
         "the reused guard primitive's OWN resync implementation -- this "
         "module defines _dirty_entries (the residue-aware dirty check every "
         "other guard call reuses) and only resets after that check already "
@@ -279,7 +279,7 @@ _ALLOWLIST: dict[str, str] = {
     "src/specify_cli/cli/commands/mission_type.py:1116:worktree_remove_force": (
         "reached only via `--discard` (_discard_mission): an operator-requested, intentional mission abandonment -- not an implicit/accidental destroy."
     ),
-    "src/specify_cli/git/destructive_guard.py:220:worktree_remove_force": (
+    "src/specify_cli/git/destructive_guard.py:229:worktree_remove_force": (
         "the chokepoint's OWN inline implementation (_remove_worktree_force, called only from guarded_worktree_remove) -- this IS the guard, not a bypass of it."
     ),
     "src/specify_cli/lanes/merge.py:772:worktree_remove_force": ("ephemeral lane-merge tmp worktree, unconditionally cleaned up via ExitStack on exit."),

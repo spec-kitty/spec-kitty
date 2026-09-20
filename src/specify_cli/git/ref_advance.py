@@ -244,6 +244,7 @@ def _dirty_entries(
     new_sha: str,
     target_paths: set[str],
     is_residue: Callable[[str], bool] | None = None,
+    treat_untracked_as_dirty: bool = False,
 ) -> list[str]:
     """Return porcelain entries that a ``reset --hard`` would destroy.
 
@@ -251,6 +252,20 @@ def _dirty_entries(
     untracked or ignored path that obstructs a tracked path in ``new_sha`` is
     overwritten by git during the reset. Treat those obstructions as local
     state and refuse before moving the ref (NFR-002).
+
+    ``treat_untracked_as_dirty`` (#4753 Finding A): the obstruction-only rule
+    above is correct for ``advance_branch_ref``'s ``reset --hard`` semantics
+    (an untracked file that does NOT obstruct the target tree survives the
+    reset unharmed), but it is WRONG for a ``git worktree remove --force``
+    caller — that command deletes the entire worktree directory tree,
+    obstruction or not, so an untracked-only operator file is destroyed even
+    though this predicate's default reading called it safe. When True, every
+    untracked (``??``) entry not exempted by ``is_residue`` counts as dirty,
+    regardless of obstruction. Ignored (``!!``) entries are unaffected — they
+    remain obstruction-gated, since an ignored path (build output, ``.venv``,
+    caches) is expected disposable debris in either a reset or a removal.
+    Defaults to ``False`` so every existing caller (``advance_branch_ref``) is
+    byte-unchanged.
 
     Everything staged or unstaged against tracked paths is also unique local
     state and blocks the resync -- UNLESS ``is_residue`` recognizes it (see
@@ -285,7 +300,14 @@ def _dirty_entries(
         path = _porcelain_path(line)
         if is_residue is not None and is_residue(path):
             continue
-        if line.startswith(("??", "!!")):
+        if line.startswith("??"):
+            if treat_untracked_as_dirty:
+                dirty.append(f"{line} (untracked local file would be discarded by worktree removal)")
+                continue
+            if _path_obstructs_target_tree(path, target_paths):
+                dirty.append(f"{line} (would be overwritten by reset --hard to {new_sha[:12]})")
+            continue
+        if line.startswith("!!"):
             if _path_obstructs_target_tree(path, target_paths):
                 dirty.append(f"{line} (would be overwritten by reset --hard to {new_sha[:12]})")
             continue

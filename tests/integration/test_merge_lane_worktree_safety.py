@@ -239,6 +239,30 @@ class TestLaneWorktreeSafety:
         assert (wt_path / "scratch.txt").read_text() == "implementer's in-progress notes\n"
         assert _git(tmp_path, "ls-tree", "--name-only", "-r", "main", "--", "src/foo.py").stdout.strip() == ""
 
+    def test_untracked_only_lane_worktree_refuses_fail_closed_before_removal(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """#4753 Finding A: an UNTRACKED-ONLY operator file (no tracked edit)
+        in a lane worktree must also refuse -- the untracked-only data-loss
+        hole this fold closes. Pre-fix, only a tracked edit was detected;
+        this scenario uses exclusively an untracked file to prove the gap is
+        closed, not merely re-exercise the tracked-edit case above."""
+        slug = "test-lane-worktree-untracked-only"
+        _bootstrap_mission(tmp_path, slug)
+        lane_branch = lane_branch_name(slug, "lane-a")
+        wt_path = _add_lane_worktree(tmp_path, slug, lane_branch)
+
+        (wt_path / "scratch.txt").write_text("implementer's in-progress notes\n")
+
+        with pytest.raises(typer.Exit) as excinfo:
+            _invoke_merge(tmp_path, slug, remove_worktree=True, delete_branch=False)
+
+        assert excinfo.value.exit_code == 1
+        captured = capsys.readouterr()
+        assert MERGE_UNSAFE_WORKTREE_DIRTY in captured.out
+
+        # NFR-001: the worktree and its untracked file survive, untouched.
+        assert wt_path.exists()
+        assert (wt_path / "scratch.txt").read_text() == "implementer's in-progress notes\n"
+
     def test_clean_lane_worktree_removed_as_today(self, tmp_path: Path) -> None:
         """US2 AC3/NFR-002: a clean lane worktree is removed exactly as before."""
         slug = "test-lane-worktree-clean-parity"

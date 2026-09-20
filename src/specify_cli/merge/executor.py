@@ -1826,7 +1826,12 @@ def _pre_mutation_safety_preflight(
             lane_id=lane.lane_id,
         )
         if wt_path.exists():
-            assert_worktree_clean(wt_path, is_residue=is_residue)
+            # #4753 Finding A: this worktree is removal-destined, so an
+            # untracked-only operator file must block just as a tracked edit
+            # does — the obstruction-only default is correct for a
+            # ``reset --hard`` (``advance_branch_ref``), not a
+            # ``git worktree remove --force``.
+            assert_worktree_clean(wt_path, is_residue=is_residue, treat_untracked_as_dirty=True)
 
     if not teardown_coordination:
         return
@@ -1835,7 +1840,7 @@ def _pre_mutation_safety_preflight(
         main_repo, mission_slug, primary_meta_dir
     )
     if coord_worktree is not None and coord_worktree.exists():
-        assert_worktree_clean(coord_worktree, is_residue=is_residue)
+        assert_worktree_clean(coord_worktree, is_residue=is_residue, treat_untracked_as_dirty=True)
 
 
 def _run_lane_based_merge_locked(

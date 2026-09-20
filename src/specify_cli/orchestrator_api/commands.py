@@ -145,6 +145,7 @@ from mission_runtime import CommitTarget, MissionTopology
 from runtime.next.decision import VALID_RESULT_VALUES
 from specify_cli.core.contract_gate import is_allowed_error_code, validate_outbound_payload
 from specify_cli.core.errors import PlacementResolutionRequired
+from specify_cli.git.destructive_guard import DestructiveOpRefused
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
@@ -431,6 +432,50 @@ def _fail_from_decision_error(cmd: str, exc: DecisionError) -> NoReturn:
         str(exc),
         {**exc.details, "unregistered_error_code": code},
     )
+
+
+#: Fallback code for a :class:`DestructiveOpRefused` whose real
+#: ``error_code`` (``MERGE_UNSAFE_PRIMARY_OFF_TARGET`` /
+#: ``MERGE_UNSAFE_PRIMARY_DIRTY`` / ``MERGE_UNSAFE_WORKTREE_DIRTY``) is not
+#: (yet) registered in ``upstream_contract.json``'s ``allowed_error_codes`` --
+#: that file is a derived artifact of the upstream ``spec-kitty-events`` /
+#: ``spec-kitty-saas`` contract (client-repo inversion) and is not this
+#: mission's to extend. Reuses the already-registered code this same command
+#: emits for every OTHER merge preflight refusal, so the envelope shape stays
+#: within contract while the real code survives as diagnostic ``data``
+#: (mirrors ``_fail_from_decision_error``'s ``_DECISION_UNREGISTERED_CODE_FALLBACK``
+#: pattern -- never a silently-dropped, never a leaked-unregistered code).
+_DESTRUCTIVE_OP_REFUSED_FALLBACK = "PREFLIGHT_FAILED"
+
+
+def _fail_from_destructive_op_refused(cmd: str, mission_dir: Path, target_branch: str, exc: DestructiveOpRefused) -> NoReturn:
+    """Envelope a :class:`DestructiveOpRefused` refusal instead of letting it
+    escape as a raw traceback (#4753 finding B).
+
+    ``merge_mission`` previously caught ONLY ``RuntimeError`` around
+    ``_execute_lane_merge`` -- but the pre-mutation safety preflight
+    (``guarded_worktree_remove`` / ``assert_worktree_clean``, reached through
+    ``_apply_lane_merge_cleanup``) raises ``DestructiveOpRefused``, a plain
+    ``Exception`` subclass (C-002: deliberately NOT a ``RuntimeError``, so it
+    is never conflated with ``SafeCommitHeadMismatch``). That refusal is
+    exactly the module's own destructive-op safety mechanism doing its job --
+    it must reach the external orchestrator as a structured failure envelope,
+    not a broken JSON-first contract.
+    """
+    real_code = exc.error_code
+    envelope_code = real_code if is_allowed_error_code("orchestrator_api", real_code) else _DESTRUCTIVE_OP_REFUSED_FALLBACK
+    data: dict[str, object] = {
+        **_mission_identity_payload(mission_dir),
+        "target_branch": target_branch,
+        "errors": [str(exc)],
+        "destructive_op_error_code": real_code,
+        "remediation": exc.remediation,
+    }
+    if exc.worktree_path is not None:
+        data["worktree_path"] = str(exc.worktree_path)
+    if exc.dirty_entries:
+        data["dirty_entries"] = list(exc.dirty_entries)
+    _fail(cmd, envelope_code, "Merge refused: destructive operation safety check failed", data)
 
 
 def _fail_decision_index_unreadable(cmd: str, mission: str, exc: DecisionIndexReadError) -> NoReturn:
@@ -2129,6 +2174,11 @@ def merge_mission(
             delete_branch=None,
             remove_worktree=None,
         )
+    except DestructiveOpRefused as exc:
+        # #4753 finding B: DestructiveOpRefused is NOT a RuntimeError
+        # (C-002) -- the except clause below never sees it, so this must be
+        # caught first or it escapes as a raw traceback.
+        _fail_from_destructive_op_refused(cmd, mission_dir, preflight.target_branch, exc)
     except RuntimeError as exc:
         _fail(
             cmd,

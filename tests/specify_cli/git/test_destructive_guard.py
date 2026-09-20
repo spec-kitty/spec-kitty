@@ -219,6 +219,35 @@ def test_untracked_obstruction_raises(tmp_path: Path) -> None:
     assert any("generated" in entry for entry in exc.dirty_entries)
 
 
+def test_untracked_only_passes_by_default(tmp_path: Path) -> None:
+    """Parity/control: WITHOUT ``treat_untracked_as_dirty``, a non-obstructing
+    untracked file does not block (unchanged default reading -- correct for a
+    ``reset --hard`` caller)."""
+    root = tmp_path / "repo"
+    _init_repo(root)
+    (root / "README.md").write_text("seed\n", encoding="utf-8")
+    _commit_all(root, "seed")
+    (root / "scratch.txt").write_text("untracked, non-obstructing\n", encoding="utf-8")
+
+    assert assert_worktree_clean(root, is_residue=_never_residue) is None
+
+
+def test_untracked_only_raises_when_treat_untracked_as_dirty(tmp_path: Path) -> None:
+    """#4753 Finding A: ``treat_untracked_as_dirty=True`` flags a
+    non-obstructing untracked file that the default reading lets through --
+    the removal-destined-worktree case."""
+    root = tmp_path / "repo"
+    _init_repo(root)
+    (root / "README.md").write_text("seed\n", encoding="utf-8")
+    _commit_all(root, "seed")
+    (root / "scratch.txt").write_text("untracked local work\n", encoding="utf-8")
+
+    with pytest.raises(DestructiveOpRefused) as excinfo:
+        assert_worktree_clean(root, is_residue=_never_residue, treat_untracked_as_dirty=True)
+
+    assert any("scratch.txt" in entry for entry in excinfo.value.dirty_entries)
+
+
 def test_residue_only_meta_json_change_passes(tmp_path: Path) -> None:
     """NFR-003: a meta.json diff the injected classifier recognizes as
     toolchain-generated churn never triggers a refusal, even though the file
@@ -317,6 +346,73 @@ def test_guarded_worktree_remove_retain_dirty_keeps(tmp_path: Path) -> None:
     assert result.worktree_path == worktree
     assert worktree.exists()
     assert (worktree / "tracked.txt").read_text(encoding="utf-8") == "local edit, uncommitted\n"
+
+
+def test_guarded_worktree_remove_untracked_only_no_retain_raises(tmp_path: Path) -> None:
+    """#4753 Finding A (red-first): an untracked-ONLY file (no tracked edit)
+    in a worktree must still block ``guarded_worktree_remove(retain=False)``.
+
+    Pre-fix, ``assert_worktree_clean`` -> ``_dirty_entries`` only flagged an
+    untracked entry when it obstructed a path in the (here-absent) target
+    tree, so a genuinely untracked operator file never surfaced as dirty and
+    ``git worktree remove --force`` silently deleted it -- the exact
+    untracked-only data-loss hole #4753 identifies."""
+    root = tmp_path / "repo"
+    _init_repo(root)
+    (root / "README.md").write_text("seed\n", encoding="utf-8")
+    _commit_all(root, "seed")
+
+    worktree = tmp_path / "wt-untracked-only"
+    _add_worktree(root, worktree, "lane-untracked-only")
+    (worktree / "scratch.txt").write_text("implementer's in-progress notes\n", encoding="utf-8")
+
+    with pytest.raises(DestructiveOpRefused) as excinfo:
+        guarded_worktree_remove(worktree, retain=False, is_residue=_never_residue)
+
+    assert excinfo.value.error_code == "MERGE_UNSAFE_WORKTREE_DIRTY"
+    assert any("scratch.txt" in entry for entry in excinfo.value.dirty_entries)
+    # Fail-closed: the worktree and its untracked file survive the refusal.
+    assert worktree.exists()
+    assert (worktree / "scratch.txt").read_text(encoding="utf-8") == "implementer's in-progress notes\n"
+
+
+def test_guarded_worktree_remove_untracked_only_retain_retains(tmp_path: Path) -> None:
+    """The ``retain=True`` sibling of the case above: an untracked-only
+    worktree is RETAINED (not silently removed) instead of raising."""
+    root = tmp_path / "repo"
+    _init_repo(root)
+    (root / "README.md").write_text("seed\n", encoding="utf-8")
+    _commit_all(root, "seed")
+
+    worktree = tmp_path / "wt-untracked-only-retain"
+    _add_worktree(root, worktree, "lane-untracked-only-retain")
+    (worktree / "scratch.txt").write_text("in-progress notes\n", encoding="utf-8")
+
+    result = guarded_worktree_remove(worktree, retain=True, is_residue=_never_residue)
+
+    assert result.outcome is RemoveOutcome.RETAINED_DIRTY
+    assert worktree.exists()
+    assert (worktree / "scratch.txt").read_text(encoding="utf-8") == "in-progress notes\n"
+
+
+def test_guarded_worktree_remove_residue_untracked_still_exempt(tmp_path: Path) -> None:
+    """An untracked path the injected classifier recognizes as toolchain
+    churn stays exempt even under ``treat_untracked_as_dirty`` (routed
+    through ``guarded_worktree_remove``'s removal path) -- the exemption
+    applies uniformly, not only to tracked entries."""
+    root = tmp_path / "repo"
+    _init_repo(root)
+    (root / "README.md").write_text("seed\n", encoding="utf-8")
+    _commit_all(root, "seed")
+
+    worktree = tmp_path / "wt-residue-untracked"
+    _add_worktree(root, worktree, "lane-residue-untracked")
+    (worktree / "meta.json").write_text('{"slug": "residue"}\n', encoding="utf-8")
+
+    result = guarded_worktree_remove(worktree, retain=False, is_residue=_residue_for_meta_json)
+
+    assert result.outcome is RemoveOutcome.REMOVED
+    assert not worktree.exists()
 
 
 def test_guarded_worktree_remove_retain_clean_still_removes(tmp_path: Path) -> None:

@@ -159,6 +159,7 @@ def assert_worktree_clean(
     is_residue: Callable[[str], bool],
     env: dict[str, str] | None = None,
     error_code: str = MERGE_UNSAFE_WORKTREE_DIRTY,
+    treat_untracked_as_dirty: bool = False,
 ) -> None:
     """Raise :class:`DestructiveOpRefused` when ``worktree`` holds local state.
 
@@ -177,6 +178,13 @@ def assert_worktree_clean(
     merge preflight passes ``MERGE_UNSAFE_PRIMARY_DIRTY`` when guarding the
     primary checkout (US1 AC2 / FR-002). The refusal semantics are identical;
     only the operator-facing code differs.
+
+    ``treat_untracked_as_dirty`` (#4753 Finding A): forwarded to
+    :func:`ref_advance._dirty_entries` unchanged — see that function's
+    docstring. Pass ``True`` for a worktree this call is guarding ahead of a
+    ``git worktree remove --force`` (an untracked-only operator file there is
+    destroyed by the removal, unlike a ``reset --hard``'s obstruction-only
+    exposure). Defaults to ``False``.
     """
     target_paths: set[str] = ref_advance._target_tree_paths(worktree, new_sha, env) if new_sha else set()
     dirty = ref_advance._dirty_entries(
@@ -185,6 +193,7 @@ def assert_worktree_clean(
         new_sha=new_sha or "HEAD",
         target_paths=target_paths,
         is_residue=is_residue,
+        treat_untracked_as_dirty=treat_untracked_as_dirty,
     )
     if not dirty:
         return
@@ -239,9 +248,20 @@ def guarded_worktree_remove(
     (no removal) and reports ``retained_dirty`` instead of raising. This is
     NOT ``core/vcs/git.py``'s ``remove_workspace`` (dead code, zero
     production callers) — it is the new single authority.
+
+    Both dirty scans pass ``treat_untracked_as_dirty=True`` (#4753 Finding A):
+    a removal — either branch — deletes the whole worktree directory tree, so
+    an untracked-only operator file (never flagged by the obstruction-only
+    default, which is correct only for a ``reset --hard``) must still be
+    detected before it is destroyed.
     """
     if not retain:
-        assert_worktree_clean(worktree, is_residue=is_residue, env=env)
+        assert_worktree_clean(
+            worktree,
+            is_residue=is_residue,
+            env=env,
+            treat_untracked_as_dirty=True,
+        )
         _remove_worktree_force(worktree, env)
         return RemoveResult(outcome=RemoveOutcome.REMOVED, worktree_path=worktree)
 
@@ -251,6 +271,7 @@ def guarded_worktree_remove(
         new_sha="HEAD",
         target_paths=set(),
         is_residue=is_residue,
+        treat_untracked_as_dirty=True,
     )
     if dirty:
         return RemoveResult(outcome=RemoveOutcome.RETAINED_DIRTY, worktree_path=worktree)
