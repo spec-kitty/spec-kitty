@@ -41,6 +41,7 @@ from specify_cli.core.paths import (
     resolve_canonical_root,
 )
 from specify_cli.mission_metadata import (
+    _normalize_change_mode,
     load_meta_or_empty,
     mission_number_from_slug,
     validate_meta,
@@ -82,9 +83,7 @@ _POLICY_TRACKED: tuple[str, ...] = (
     ".kittify/migrations/mission-state/*.json",
 )
 # Patterns the repair will repair only when present (no-op when absent).
-_POLICY_OPTIONAL: tuple[str, ...] = (
-    "kitty-specs/*/status.json",
-)
+_POLICY_OPTIONAL: tuple[str, ...] = ("kitty-specs/*/status.json",)
 # Patterns the repair never touches.
 _POLICY_IGNORED: tuple[str, ...] = (
     ".git/",
@@ -147,9 +146,7 @@ _BEARER_RE = re.compile(r"^Bearer\s+\S{16,}$", re.IGNORECASE)
 # PASSWORD / PASSPHRASE). Matches e.g. ``SPEC_KITTY_TOKEN=foo``,
 # ``GITHUB_TOKEN=bar``, ``OPENAI_API_KEY=...``. The name is preserved
 # so reviewers know what was passed; only the value is redacted.
-_ENV_VAR_SECRET_RE = re.compile(
-    r"^(?P<name>[A-Z][A-Z0-9_]*(?:TOKEN|SECRET|KEY|PASSWORD|PASSPHRASE))=(?P<value>.+)$"
-)
+_ENV_VAR_SECRET_RE = re.compile(r"^(?P<name>[A-Z][A-Z0-9_]*(?:TOKEN|SECRET|KEY|PASSWORD|PASSPHRASE))=(?P<value>.+)$")
 
 _REDACTED = "<redacted>"
 
@@ -168,11 +165,7 @@ def _looks_like_slack_token(value: str) -> bool:
 def _looks_like_authorization_header(value: str) -> bool:
     """Return True for ``Authorization: <value>`` headers in argv."""
     name, sep, remainder = value.partition(":")
-    return (
-        sep == ":"
-        and name.strip().lower() == "authorization"
-        and bool(remainder.strip())
-    )
+    return sep == ":" and name.strip().lower() == "authorization" and bool(remainder.strip())
 
 
 def _is_standalone_secret_item(value: str) -> bool:
@@ -221,11 +214,7 @@ def _scrub_secret_args(argv: Sequence[str]) -> list[str]:
                 i += 1
                 continue
         # --flag VALUE form (consumes the next argv slot)
-        if (
-            item.startswith("--")
-            and item.lower() in _SECRET_FLAG_NAMES
-            and i + 1 < len(argv)
-        ):
+        if item.startswith("--") and item.lower() in _SECRET_FLAG_NAMES and i + 1 < len(argv):
             result.append(item)
             result.append(_REDACTED)
             i += 2
@@ -252,6 +241,7 @@ def _resolve_cli_version() -> str:
         return importlib.metadata.version("spec-kitty-cli")
     except importlib.metadata.PackageNotFoundError:
         return "unknown"
+
 
 FORBIDDEN_LEGACY_KEYS = frozenset(
     {
@@ -343,6 +333,7 @@ class MissionRepairResult:
     row_transformations: list[RowTransformation] = field(default_factory=list)
     quarantined_rows: int = 0
     validation_errors: list[str] = field(default_factory=list)
+    meta_actions: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -353,6 +344,7 @@ class MissionRepairResult:
             "row_transformations": [row.to_dict() for row in self.row_transformations],
             "quarantined_rows": self.quarantined_rows,
             "validation_errors": list(self.validation_errors),
+            "meta_actions": list(self.meta_actions),
         }
 
 
@@ -472,9 +464,7 @@ class _CanonicalRowResult:
     error: str | None = None
 
     @classmethod
-    def from_pipeline(
-        cls, result: CanonicalPipelineResult[dict[str, Any]]
-    ) -> _CanonicalRowResult:
+    def from_pipeline(cls, result: CanonicalPipelineResult[dict[str, Any]]) -> _CanonicalRowResult:
         """Adapt a generic pipeline result to the existing _CanonicalRowResult shape."""
         return cls(
             row=result.state if result.error is None else None,
@@ -636,9 +626,7 @@ def _artifact_sha256(path: Path) -> str | None:
     return hashlib.sha256(data).hexdigest()  # noqa: TID251 - content-identity checksum only
 
 
-def _compare_checkout_mission_state(
-    invoking_root: Path, primary_root: Path, *, mission: str | None
-) -> list[CheckoutDisagreement]:
+def _compare_checkout_mission_state(invoking_root: Path, primary_root: Path, *, mission: str | None) -> list[CheckoutDisagreement]:
     """Return the honest per-artifact mismatches between two checkouts.
 
     Compares ``kitty-specs/<slug>/status.json`` and ``status.events.jsonl`` in
@@ -671,9 +659,7 @@ def _compare_checkout_mission_state(
     return disagreements
 
 
-def audit_invocation_disagreement(
-    cwd: Path, resolved_root: Path, *, mission: str | None = None
-) -> list[CheckoutDisagreement]:
+def audit_invocation_disagreement(cwd: Path, resolved_root: Path, *, mission: str | None = None) -> list[CheckoutDisagreement]:
     """Report the invoking-checkout-vs-primary disagreement for ``--audit``.
 
     The false-green this removes: from a foreign lane the audit root is
@@ -693,9 +679,7 @@ def audit_invocation_disagreement(
         return []
     if identity.canonical_target != resolved_root:
         return []
-    return _compare_checkout_mission_state(
-        identity.invoking_root, resolved_root, mission=mission
-    )
+    return _compare_checkout_mission_state(identity.invoking_root, resolved_root, mission=mission)
 
 
 def repair_repo(
@@ -833,9 +817,7 @@ def _compute_dup_key_run_id(repo_root: Path, plans: Sequence[ArtifactRepairPlan]
     return _sha256_text(payload)[:16]
 
 
-def _write_duplicate_key_plans(
-    repo_root: Path, plans: Sequence[ArtifactRepairPlan]
-) -> list[FileChange]:
+def _write_duplicate_key_plans(repo_root: Path, plans: Sequence[ArtifactRepairPlan]) -> list[FileChange]:
     """Write every validated plan atomically, returning digest evidence."""
     changes: list[FileChange] = []
     for plan in plans:
@@ -918,14 +900,10 @@ def repair_duplicate_key_artifacts(
     manifest_abs = _resolve_repo_relative(resolved_repo_root, manifest_rel)
 
     rel_paths = [_repo_relpath(resolved_repo_root, plan.path) for plan in plans]
-    _assert_git_safe(
-        resolved_repo_root, [*rel_paths, str(MANIFEST_ROOT)], allow_dirty=allow_dirty
-    )
+    _assert_git_safe(resolved_repo_root, [*rel_paths, str(MANIFEST_ROOT)], allow_dirty=allow_dirty)
     with _git_lock(resolved_repo_root):
         file_changes = _write_duplicate_key_plans(resolved_repo_root, plans)
-        report = _build_dup_key_report(
-            resolved_repo_root, scan_dir, run_id, plans, file_changes, manifest_abs
-        )
+        report = _build_dup_key_report(resolved_repo_root, scan_dir, run_id, plans, file_changes, manifest_abs)
         if file_changes:
             atomic_write(manifest_abs, report.to_json(), mkdir=True)
         return report
@@ -949,11 +927,7 @@ def teamspace_dry_run(
             envelope_count=0,
             valid=False,
             errors=tuple(audit_errors),
-            side_logs=tuple(
-                side_log
-                for mission_dir in mission_dirs
-                for side_log in _classify_side_logs(repo_root.resolve(), mission_dir)
-            ),
+            side_logs=tuple(side_log for mission_dir in mission_dirs for side_log in _classify_side_logs(repo_root.resolve(), mission_dir)),
         )
     project_uuid = uuid.uuid5(
         uuid.NAMESPACE_URL,
@@ -1114,10 +1088,7 @@ def _is_out_of_scope_side_log_path(artifact_path: str) -> bool:
 
 
 def _is_nonfatal_side_log_record(record: Mapping[str, object]) -> bool:
-    return (
-        record.get("reason") == "out_of_scope_for_launch_import"
-        and str(record.get("disposition", "")).startswith("skipped_")
-    )
+    return record.get("reason") == "out_of_scope_for_launch_import" and str(record.get("disposition", "")).startswith("skipped_")
 
 
 def _teamspace_context_warnings(repo_root: Path, project_uuid: uuid.UUID) -> list[dict[str, object]]:
@@ -1133,10 +1104,7 @@ def _teamspace_context_warnings(repo_root: Path, project_uuid: uuid.UUID) -> lis
         warnings.append(
             {
                 "code": "TEAMSPACE_PROJECT_CONTEXT_MISSING",
-                "message": (
-                    "No persisted project.uuid was found; dry-run used a deterministic "
-                    "offline project_uuid for schema validation only."
-                ),
+                "message": ("No persisted project.uuid was found; dry-run used a deterministic offline project_uuid for schema validation only."),
                 "dry_run_project_uuid": str(project_uuid),
             }
         )
@@ -1174,10 +1142,7 @@ def _load_events_contract() -> tuple[type[Any], Any, str]:
 
     package_version = Version(spec_kitty_events.__version__)
     if package_version < REQUIRED_EVENTS_PACKAGE:
-        raise MissionStateDryRunError(
-            "TeamSpace dry-run requires spec-kitty-events >= "
-            f"{REQUIRED_EVENTS_PACKAGE}; installed {package_version}."
-        )
+        raise MissionStateDryRunError(f"TeamSpace dry-run requires spec-kitty-events >= {REQUIRED_EVENTS_PACKAGE}; installed {package_version}.")
     return Event, validate_event, str(package_version)
 
 
@@ -1318,9 +1283,7 @@ def _status_event_to_teamspace_envelope(
         project_uuid=str(project_uuid),
         project_slug=project_slug,
         repo_slug=repo_slug,
-        correlation_id=deterministic_ulid(
-            f"teamspace-dry-run:{status_event.mission_slug}:{status_event.event_id}"
-        ),
+        correlation_id=deterministic_ulid(f"teamspace-dry-run:{status_event.mission_slug}:{status_event.event_id}"),
     ).model_dump()
 
 
@@ -1343,8 +1306,7 @@ def _historical_teamspace_evidence(
         resolved["review"] = {
             "reviewer": status_event.actor or "historical-mission-state-repair",
             "verdict": "approved",
-            "reference": status_event.review_ref
-            or f"historical-mission-state-repair:{status_event.mission_slug}:{status_event.wp_id}:{status_event.event_id}",
+            "reference": status_event.review_ref or f"historical-mission-state-repair:{status_event.mission_slug}:{status_event.wp_id}:{status_event.event_id}",
         }
     if not resolved.get("repos"):
         resolved["repos"] = [
@@ -1487,12 +1449,15 @@ def _repair_mission(
     row_changes: list[RowTransformation] = []
     validation_errors: list[str] = []
     quarantined_rows = 0
+    # Bind before the try so the except path can still report canonicalizer
+    # actions (e.g. normalized_change_mode) that were applied and persisted
+    # before a later step raised — an error result must not silently drop the
+    # record of what repair already changed on disk (report-fidelity, #4780).
+    meta_actions: tuple[str, ...] = ()
 
     try:
         raw_rows = _read_jsonl_rows(mission_dir / EVENTS_FILENAME)
-        meta, meta_actions = _canonicalize_meta(
-            mission_dir, raw_rows, generated_ids=generated_ids
-        )
+        meta, meta_actions = _canonicalize_meta(mission_dir, raw_rows, generated_ids=generated_ids)
         mission_slug = str(meta.get("mission_slug") or mission_slug)
         mission_id = str(meta.get("mission_id") or "")
         before_meta = _file_fingerprint(mission_dir / META_FILENAME)
@@ -1523,6 +1488,7 @@ def _repair_mission(
                     row_transformations=row_changes,
                     quarantined_rows=len(quarantine_lines),
                     validation_errors=validation_errors,
+                    meta_actions=list(meta_actions),
                 )
             before_events = _file_fingerprint(status_path)
             status_text = "".join(json.dumps(row, sort_keys=True) + "\n" for row in canonical_rows)
@@ -1551,22 +1517,13 @@ def _repair_mission(
                 # FR-001: mission_slug may originate from untrusted meta.json content
                 # (meta.get("mission_slug")); validate before joining into the quarantine path.
                 _safe_mission_slug = assert_safe_path_segment(mission_slug)
-                quarantine_path = (
-                    repo_root
-                    / MANIFEST_ROOT
-                    / "quarantine"
-                    / run_id
-                    / _safe_mission_slug
-                    / EVENTS_FILENAME
-                )
+                quarantine_path = repo_root / MANIFEST_ROOT / "quarantine" / run_id / _safe_mission_slug / EVENTS_FILENAME
                 before_quarantine = _file_fingerprint(quarantine_path)
                 quarantine_text = "".join(line.rstrip("\n") + "\n" for line in quarantine_lines)
                 atomic_write(quarantine_path, quarantine_text, mkdir=True)
                 after_quarantine = _file_fingerprint(quarantine_path)
                 if before_quarantine != after_quarantine:
-                    file_changes.append(
-                        _file_change(repo_root, quarantine_path, before_quarantine, after_quarantine)
-                    )
+                    file_changes.append(_file_change(repo_root, quarantine_path, before_quarantine, after_quarantine))
 
             before_status = _file_fingerprint(mission_dir / STATUS_FILENAME)
             snapshot = materialize_snapshot(mission_dir)
@@ -1585,6 +1542,7 @@ def _repair_mission(
             row_transformations=row_changes,
             quarantined_rows=quarantined_rows,
             validation_errors=validation_errors,
+            meta_actions=list(meta_actions),
         )
     except Exception as exc:
         validation_errors.append(str(exc))
@@ -1596,6 +1554,7 @@ def _repair_mission(
             row_transformations=row_changes,
             quarantined_rows=quarantined_rows,
             validation_errors=validation_errors,
+            meta_actions=list(meta_actions),
         )
 
 
@@ -1608,12 +1567,7 @@ def _canonicalize_meta(
     loaded = load_meta_fail_closed(mission_dir)
     meta = dict(loaded or {})
     actions: list[str] = []
-    mission_slug = str(
-        meta.get("mission_slug")
-        or meta.get("slug")
-        or meta.get("feature_slug")
-        or mission_dir.name
-    )
+    mission_slug = str(meta.get("mission_slug") or meta.get("slug") or meta.get("feature_slug") or mission_dir.name)
     meta["mission_slug"] = mission_slug
     meta.setdefault("slug", mission_slug)
     meta.setdefault("friendly_name", mission_slug)
@@ -1643,6 +1597,13 @@ def _canonicalize_meta(
         if key in meta:
             meta.pop(key, None)
             actions.append(f"removed_meta_key:{key}")
+
+    # FR-001/002/003, FR-011: heal a legacy/malformed ``change_mode`` (anything
+    # other than ``"bulk_edit"``) to ABSENT before validation, so ``--fix``
+    # repairs the mission instead of aborting on it. Recorded conditionally —
+    # mirroring ``removed_meta_key:*`` — so a re-run is a no-op (NFR-002).
+    if _normalize_change_mode(meta):
+        actions.append("normalized_change_mode")
 
     errors = validate_meta(meta)
     if errors:
@@ -1805,10 +1766,7 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
     event_name = row.get("event_name")
     if isinstance(event_name, str) and event_name.startswith("retrospective."):
         return True
-    return (
-        is_retrospective_lifecycle_event(row)
-        or row.get("event_type") in LIFECYCLE_EVENT_TYPES
-    )
+    return is_retrospective_lifecycle_event(row) or row.get("event_type") in LIFECYCLE_EVENT_TYPES
 
 
 _LEGACY_TYPED_LANE_EVENT_TYPE = "WPStatusChanged"
@@ -1844,9 +1802,7 @@ def _is_legacy_typed_lane_transition(row: Mapping[str, Any]) -> bool:
     return all(field in row for field in _LEGACY_TYPED_LANE_FIELDS)
 
 
-def _rule_reject_non_status_event(
-    row: _Row, _ctx: MigrationContext
-) -> CanonicalStepResult[_Row]:
+def _rule_reject_non_status_event(row: _Row, _ctx: MigrationContext) -> CanonicalStepResult[_Row]:
     """Rule 1: route non-lane rows that share status.events.jsonl.
 
     - Legacy typed lane transitions (:func:`_is_legacy_typed_lane_transition`:
@@ -1881,9 +1837,7 @@ def _rule_reject_non_status_event(
     return CanonicalStepResult.passthrough(row)
 
 
-def _rule_apply_aliases(
-    row: _Row, _ctx: MigrationContext
-) -> CanonicalStepResult[_Row]:
+def _rule_apply_aliases(row: _Row, _ctx: MigrationContext) -> CanonicalStepResult[_Row]:
     """Rule 2: rename legacy STATUS_ROW_ALIASES keys to their canonical names."""
     new_row = dict(row)
     new_actions: list[str] = []
@@ -1898,9 +1852,7 @@ def _rule_apply_aliases(
     return CanonicalStepResult(state=new_row, actions=tuple(new_actions))
 
 
-def _rule_strip_legacy_keys(
-    row: _Row, _ctx: MigrationContext
-) -> CanonicalStepResult[_Row]:
+def _rule_strip_legacy_keys(row: _Row, _ctx: MigrationContext) -> CanonicalStepResult[_Row]:
     """Rule 3: remove FORBIDDEN_LEGACY_KEYS (except feature_slug, handled by aliases)."""
     new_row = dict(row)
     new_actions: list[str] = []
@@ -1913,9 +1865,7 @@ def _rule_strip_legacy_keys(
     return CanonicalStepResult(state=new_row, actions=tuple(new_actions))
 
 
-def _rule_stamp_identity(
-    row: _Row, ctx: MigrationContext
-) -> CanonicalStepResult[_Row]:
+def _rule_stamp_identity(row: _Row, ctx: MigrationContext) -> CanonicalStepResult[_Row]:
     """Rule 4: stamp mission_slug and mission_id onto the row."""
     new_row = dict(row)
     new_row["mission_slug"] = str(new_row.get("mission_slug") or ctx.mission_slug)
@@ -1923,16 +1873,12 @@ def _rule_stamp_identity(
     return CanonicalStepResult(state=new_row, actions=())
 
 
-def _rule_mint_event_id(
-    row: _Row, ctx: MigrationContext
-) -> CanonicalStepResult[_Row]:
+def _rule_mint_event_id(row: _Row, ctx: MigrationContext) -> CanonicalStepResult[_Row]:
     """Rule 5: mint a deterministic event_id when missing or invalid."""
     if _valid_event_id(row.get("event_id")):
         return CanonicalStepResult.passthrough(row)
     new_row = dict(row)
-    minted = deterministic_ulid(
-        json.dumps(new_row, sort_keys=True, default=str) + f":line:{ctx.line_number}"
-    )
+    minted = deterministic_ulid(json.dumps(new_row, sort_keys=True, default=str) + f":line:{ctx.line_number}")
     new_row["event_id"] = minted
     if ctx.generated_ids is not None:
         ctx.generated_ids.append(minted)
@@ -1942,9 +1888,7 @@ def _rule_mint_event_id(
     )
 
 
-def _rule_default_at(
-    row: _Row, _ctx: MigrationContext
-) -> CanonicalStepResult[_Row]:
+def _rule_default_at(row: _Row, _ctx: MigrationContext) -> CanonicalStepResult[_Row]:
     """Rule 6: default 'at' to the UNIX epoch when missing or empty."""
     if row.get("at"):
         return CanonicalStepResult.passthrough(row)
@@ -1953,9 +1897,7 @@ def _rule_default_at(
     return CanonicalStepResult(state=new_row, actions=("at_defaulted",))
 
 
-def _rule_default_from_lane(
-    row: _Row, _ctx: MigrationContext
-) -> CanonicalStepResult[_Row]:
+def _rule_default_from_lane(row: _Row, _ctx: MigrationContext) -> CanonicalStepResult[_Row]:
     """Rule 7: default 'from_lane' to 'planned' when absent (None)."""
     if row.get("from_lane") is not None:
         return CanonicalStepResult.passthrough(row)
@@ -1964,27 +1906,21 @@ def _rule_default_from_lane(
     return CanonicalStepResult(state=new_row, actions=("from_lane_defaulted",))
 
 
-def _rule_require_to_lane(
-    row: _Row, _ctx: MigrationContext
-) -> CanonicalStepResult[_Row]:
+def _rule_require_to_lane(row: _Row, _ctx: MigrationContext) -> CanonicalStepResult[_Row]:
     """Rule 8: short-circuit with error when 'to_lane' is missing."""
     if row.get("to_lane"):
         return CanonicalStepResult.passthrough(row)
     return CanonicalStepResult(state=row, actions=(), error="missing required to_lane")
 
 
-def _rule_require_wp_id(
-    row: _Row, _ctx: MigrationContext
-) -> CanonicalStepResult[_Row]:
+def _rule_require_wp_id(row: _Row, _ctx: MigrationContext) -> CanonicalStepResult[_Row]:
     """Rule 9: short-circuit with error when 'wp_id' is missing."""
     if row.get("wp_id"):
         return CanonicalStepResult.passthrough(row)
     return CanonicalStepResult(state=row, actions=(), error="missing required wp_id")
 
 
-def _normalize_lane_keys(
-    new_row: _Row, new_actions: list[str]
-) -> str | None:
+def _normalize_lane_keys(new_row: _Row, new_actions: list[str]) -> str | None:
     """Apply LANE_ALIASES to from_lane/to_lane. Returns error message or None."""
     for key in ("from_lane", "to_lane"):
         lane = str(new_row[key])
@@ -2055,9 +1991,7 @@ def _build_canonical_row(new_row: _Row, mission_id: str) -> _Row:
     }
 
 
-def _rule_normalize_lanes(
-    row: _Row, ctx: MigrationContext
-) -> CanonicalStepResult[_Row]:
+def _rule_normalize_lanes(row: _Row, ctx: MigrationContext) -> CanonicalStepResult[_Row]:
     """Rule 10: normalize and validate lane values; also normalizes actor, force, execution_mode, builds canonical shape.
 
     Applies LANE_ALIASES and validates both from_lane and to_lane against VALID_LANES.
@@ -2069,9 +2003,7 @@ def _rule_normalize_lanes(
 
     lane_error = _normalize_lane_keys(new_row, new_actions)
     if lane_error is not None:
-        return CanonicalStepResult(
-            state=new_row, actions=tuple(new_actions), error=lane_error
-        )
+        return CanonicalStepResult(state=new_row, actions=tuple(new_actions), error=lane_error)
 
     _normalize_actor_field(new_row, new_actions)
     _default_force_and_mode(new_row, new_actions)
@@ -2086,9 +2018,7 @@ def _rule_normalize_lanes(
     try:
         StatusEvent.from_dict(canonical)
     except Exception as exc:
-        return CanonicalStepResult(
-            state=new_row, actions=tuple(new_actions), error=str(exc)
-        )
+        return CanonicalStepResult(state=new_row, actions=tuple(new_actions), error=str(exc))
     return CanonicalStepResult(state=canonical, actions=tuple(new_actions))
 
 
@@ -2366,8 +2296,7 @@ def _assert_git_safe(repo_root: Path, rel_paths: Sequence[str], *, allow_dirty: 
             dirty.append(f"{worktree}: {result.stdout.strip()}")
     if dirty:
         raise MissionStateRepairError(
-            "Refusing mission-state repair with dirty relevant paths. "
-            "Commit/stash them first or pass --allow-dirty.\n" + "\n".join(dirty)
+            "Refusing mission-state repair with dirty relevant paths. Commit/stash them first or pass --allow-dirty.\n" + "\n".join(dirty)
         )
 
 
@@ -2407,9 +2336,7 @@ class _git_lock:
             self._fd = os.open(str(self._path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             os.write(self._fd, str(os.getpid()).encode("ascii"))
         except FileExistsError as exc:
-            raise MissionStateRepairError(
-                f"Another mission-state repair appears to be running: {self._path}"
-            ) from exc
+            raise MissionStateRepairError(f"Another mission-state repair appears to be running: {self._path}") from exc
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
         if self._fd is not None:

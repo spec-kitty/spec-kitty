@@ -89,7 +89,10 @@ class TestGatePassesNonBulkEdit:
         _write_meta(tmp_path, {"slug": "my-feature", "mission_slug": "my-feature", "friendly_name": "Test", "mission_type": "software-dev", "target_branch": "main", "created_at": "2026-01-01", "change_mode": "standard"})
         result = ensure_occurrence_classification_ready(tmp_path)
         assert result.passed is True
-        assert result.change_mode == "standard"
+        # FR-012 alignment: a non-bulk_edit (legacy) value collapses to None so the
+        # invariant GateResult.change_mode in {"bulk_edit", None} holds and every
+        # reader treats legacy value == absent. Not a behavior regression.
+        assert result.change_mode is None
 
 
 class TestGatePassesNoMeta:

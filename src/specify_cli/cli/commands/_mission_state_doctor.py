@@ -266,7 +266,7 @@ def _run_mission_repair(
     json_output: bool,
 ) -> None:
     """Execute the --fix dispatch arm: repair repo and emit the manifest."""
-    from specify_cli.migration.mission_state import MissionStateRepairError, repair_repo
+    from specify_cli.migration.mission_state import MissionStateRepairError, RepairReport, repair_repo
 
     # FR-008: heal legacy dual-key artifacts before mission-state canonicalization.
     _heal_duplicate_key_artifacts(repo_root, fixture_dir, allow_dirty, json_output)
@@ -288,7 +288,8 @@ def _run_mission_repair(
         raise typer.Exit(1) from exc
 
     def _pretty_repair(r: object) -> None:
-        summary = r.to_dict()["summary"]  # type: ignore[attr-defined]
+        report = cast(RepairReport, r)
+        summary = report.to_dict()["summary"]
         assert isinstance(summary, dict)
         console.print(
             "[green]Mission-state repair complete[/green] "
@@ -296,7 +297,22 @@ def _run_mission_repair(
             f"unchanged={summary['missions_unchanged']}, "
             f"errors={summary['missions_error']})."
         )
-        console.print(f"Manifest: {r.manifest_path}")  # type: ignore[attr-defined]
+        # FR-005/OUT-1: name each errored/normalized mission + reason so triage
+        # needs no gitignored manifest read (NFR-003). Reuse the already
+        # collected ``report.missions`` — no second scan (NFR-004).
+        errored = [m for m in report.missions if m.status == "error"]
+        if errored:
+            console.print("Errored missions:")
+            for mission_result in errored:
+                reason = "; ".join(mission_result.validation_errors) or "<no detail recorded>"
+                console.print(f"  - {mission_result.mission_slug}: {reason}", soft_wrap=True)
+        normalized = [m for m in report.missions if m.meta_actions]
+        if normalized:
+            console.print("Normalized missions:")
+            for mission_result in normalized:
+                actions = ", ".join(mission_result.meta_actions)
+                console.print(f"  - {mission_result.mission_slug}: {actions}", soft_wrap=True)
+        console.print(f"Manifest: {report.manifest_path}")
 
     _emit_mission_state(report, json_output=json_output, pretty_renderer=_pretty_repair)
     if any(result.status == "error" for result in report.missions):
@@ -342,14 +358,37 @@ def _run_teamspace_dry_run_mode(
                 f"spec-kitty-events {report.events_package_version})."
             )
         else:
+            # ADDITIVE (FR-007/OUT-2): keep the count header, then name each
+            # affected mission + reason so triage needs no gitignored read
+            # (NFR-003). Does NOT touch the ``report.valid`` gate or the Exit(1)
+            # refusal below (C-006 / ADR 2026-05-10-1).
             console.print(
                 "[red]TeamSpace dry-run failed[/red] "
-                f"({len(report.errors)} validation errors)."
+                f"({len(report.errors)} validation issues)."
             )
+            for entry in report.errors:
+                console.print(_format_dry_run_error(entry), soft_wrap=True)
 
     _emit_mission_state(dry_run_report, json_output=json_output, pretty_renderer=_pretty_dry_run)
     if not dry_run_report.valid:
         raise typer.Exit(1)
+
+
+def _format_dry_run_error(entry: dict[str, object]) -> str:
+    """Render one dry-run error record as a per-mission terminal line.
+
+    Reuses the already-collected per-error dict (NFR-004, no second scan). The
+    location tolerates both ``line_number`` (real dry-run records) and ``line``
+    (contract sample) so either shape renders. Missing keys degrade to
+    placeholders rather than raising.
+    """
+    slug = entry.get("mission_slug", "<unknown>")
+    artifact = entry.get("artifact_path", "")
+    line = entry.get("line_number", entry.get("line"))
+    code = entry.get("error", entry.get("finding_code", ""))
+    message = entry.get("message", "")
+    location = f"{artifact}:{line}" if line is not None else str(artifact)
+    return f"  - {slug} ({location}): {code} — {message}"
 
 
 def _emit_json_error(error_code: str, **extra: object) -> None:

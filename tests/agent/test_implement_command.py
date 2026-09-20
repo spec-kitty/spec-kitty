@@ -450,8 +450,13 @@ class TestImplementCommand:
                 return_value=MagicMock(status_changed=False),
             ),
             patch(
+                # FR-012 alignment: a non-bulk_edit mission's gate now yields
+                # change_mode=None (legacy values collapse; invariant is
+                # {"bulk_edit", None}). change_mode != "bulk_edit" runs the
+                # inference scan, which no-ops here (no bulk-edit spec.md). Not a
+                # behavior regression.
                 "specify_cli.bulk_edit.gate.ensure_occurrence_classification_ready",
-                return_value=MagicMock(passed=True, change_mode="code_change"),
+                return_value=MagicMock(passed=True, change_mode=None),
             ),
         ):
             mock_ensure_vcs.return_value = MagicMock(value="git")
@@ -675,6 +680,10 @@ class TestImplementPrimaryTopologyLanesJson:
 
         mock_gate = MagicMock()
         mock_gate.passed = True
+        # FR-012 alignment: change_mode=None (a non-bulk_edit mission) means
+        # change_mode != "bulk_edit", so the inference scan runs — it no-ops here
+        # (no bulk-edit spec.md) and the flow proceeds to the workspace-create
+        # sentinel below. Not a behavior regression.
         mock_gate.change_mode = None
 
         with (

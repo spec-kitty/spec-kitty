@@ -244,31 +244,64 @@ class TestAuditModeCharacterization:
 class TestFixModeCharacterization:
     """Characterize the --fix dispatch arm using a mocked repair_repo."""
 
-    def _build_repair_report(self) -> MagicMock:
-        """Build a minimal RepairReport mock with the expected shape."""
-        result_mock = MagicMock()
-        result_mock.status = "updated"
+    def _build_repair_report(self, *, with_error: bool = False) -> MagicMock:
+        """Build a RepairReport mock carrying realistic per-mission detail.
 
+        Always includes a *normalized* mission (``status='updated'`` with a
+        non-empty ``meta_actions``) so the per-mission rendering path is
+        exercised without forcing a non-zero exit. When ``with_error`` is set an
+        additional *errored* mission (``status='error'`` with
+        ``validation_errors``) is appended — its presence flips the command exit
+        to 1 (WP02 T008: errored + normalized rendered together).
+        """
+        normalized = MagicMock()
+        normalized.status = "updated"
+        normalized.mission_slug = "normalized-mission"
+        normalized.validation_errors = []
+        normalized.meta_actions = ["normalized_change_mode"]
+
+        missions = [normalized]
+        missions_json: list[dict[str, object]] = [
+            {
+                "mission_slug": "normalized-mission",
+                "status": "updated",
+                "validation_errors": [],
+                "meta_actions": ["normalized_change_mode"],
+            }
+        ]
+        error_count = 0
+        if with_error:
+            errored = MagicMock()
+            errored.status = "error"
+            errored.mission_slug = "errored-mission"
+            errored.validation_errors = ["Invalid canonical meta.json"]
+            errored.meta_actions = []
+            missions.append(errored)
+            missions_json.append(
+                {
+                    "mission_slug": "errored-mission",
+                    "status": "error",
+                    "validation_errors": ["Invalid canonical meta.json"],
+                    "meta_actions": [],
+                }
+            )
+            error_count = 1
+
+        summary = {
+            "missions_updated": 1,
+            "missions_unchanged": 0,
+            "missions_error": error_count,
+        }
         report = MagicMock()
         report.to_json.return_value = json.dumps(
             {
                 "run_id": "test-run",
-                "missions": [{"status": "updated"}],
-                "summary": {
-                    "missions_updated": 1,
-                    "missions_unchanged": 0,
-                    "missions_error": 0,
-                },
+                "missions": missions_json,
+                "summary": summary,
             }
         )
-        report.to_dict.return_value = {
-            "summary": {
-                "missions_updated": 1,
-                "missions_unchanged": 0,
-                "missions_error": 0,
-            }
-        }
-        report.missions = [result_mock]
+        report.to_dict.return_value = {"summary": summary}
+        report.missions = missions
         report.manifest_path = ".kittify/migrations/mission-state/test-run.json"
         return report
 
@@ -301,11 +334,13 @@ class TestFixModeCharacterization:
     def test_fix_mode_pretty_output_shows_summary(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """--fix (no --json) shows a human-readable repair summary.
+        """--fix (no --json) shows summary AND per-mission normalized detail.
 
-        Arrange: mocked repair_repo returning a successful RepairReport.
+        Arrange: mocked repair_repo returning a report with a normalized
+        mission (``meta_actions``).
         Act: invoke mission-state --fix.
-        Assert: exit_code == 0, 'repair' or 'updated' in output.
+        Assert: exit_code == 0, summary line present, and the normalized
+        mission's slug + action rendered per-mission (WP02 T013, FR-005).
         """
         monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
         report_mock = self._build_repair_report()
@@ -322,6 +357,79 @@ class TestFixModeCharacterization:
         assert result.exit_code == 0, result.output
         combined = (result.output or "") + (result.stderr or "")
         assert "repair" in combined.lower() or "updated" in combined.lower()
+        # Per-mission detail, not just the summary counts.
+        assert "normalized-mission" in combined
+        assert "normalized_change_mode" in combined
+
+    def test_fix_mode_pretty_output_shows_per_mission_detail(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """--fix terminal names each errored AND normalized mission + reason.
+
+        Arrange: mocked repair_repo returning a report with an errored mission
+        AND a normalized mission (``meta_actions=['normalized_change_mode']``).
+        Act: invoke mission-state --fix (no --json).
+        Assert: exit_code == 1 (errored mission present) and the terminal
+        renders each mission's slug + reason/actions, not just counts
+        (WP02 T008, FR-005).
+        """
+        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        report_mock = self._build_repair_report(with_error=True)
+
+        with patch(
+            "specify_cli.migration.mission_state.repair_repo",
+            return_value=report_mock,
+        ):
+            result = runner.invoke(
+                app,
+                ["mission-state", "--fix", "--allow-dirty"],
+            )
+
+        assert result.exit_code == 1, result.output
+        combined = (result.output or "") + (result.stderr or "")
+        # Errored mission: slug + validation reason.
+        assert "errored-mission" in combined
+        assert "Invalid canonical meta.json" in combined
+        # Normalized mission: slug + recorded action.
+        assert "normalized-mission" in combined
+        assert "normalized_change_mode" in combined
+
+    def test_fix_mode_json_carries_per_mission_meta_actions(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """--fix --json carries a per-mission record incl. meta_actions.
+
+        Arrange: mocked repair_repo returning a normalized + errored report.
+        Act: invoke mission-state --fix --json.
+        Assert: JSON missions[] carry mission_slug, validation_errors, and
+        meta_actions — full triage detail obtainable from stdout with no
+        gitignored `.kittify/migrations/` read (WP02 T012, FR-006/NFR-003).
+        """
+        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        report_mock = self._build_repair_report(with_error=True)
+
+        with patch(
+            "specify_cli.migration.mission_state.repair_repo",
+            return_value=report_mock,
+        ):
+            result = runner.invoke(
+                app,
+                ["mission-state", "--fix", "--json", "--allow-dirty"],
+            )
+
+        data = json.loads(result.output)
+        slugs = {m["mission_slug"] for m in data["missions"]}
+        assert {"normalized-mission", "errored-mission"} <= slugs
+        by_slug = {m["mission_slug"]: m for m in data["missions"]}
+        assert by_slug["normalized-mission"]["meta_actions"] == [
+            "normalized_change_mode"
+        ]
+        assert by_slug["errored-mission"]["validation_errors"] == [
+            "Invalid canonical meta.json"
+        ]
+        # NFR-003: triage detail lives in the payload, not only in the sidecar.
+        assert "normalized_change_mode" in result.output
+        assert "Invalid canonical meta.json" in result.output
 
     def test_fix_mode_exits_1_on_repair_error(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -396,19 +504,38 @@ class TestTeamspaceDryRunModeCharacterization:
     """Characterize the --teamspace-dry-run dispatch arm using a mocked runner."""
 
     def _build_dry_run_report(self, *, valid: bool = True) -> MagicMock:
-        """Build a minimal TeamspaceDryRunReport mock."""
+        """Build a TeamspaceDryRunReport mock with realistic per-error records.
+
+        The invalid report carries a structured ``errors[]`` list shaped like
+        the real dry-run blockers (``mission_slug``/``artifact_path``/
+        ``line_number``/``error``/``message``) so the per-mission rendering and
+        JSON parity paths are exercised (WP02 T013).
+        """
+        errors: list[dict[str, object]] = (
+            []
+            if valid
+            else [
+                {
+                    "mission_slug": "blocked-mission",
+                    "artifact_path": "kitty-specs/blocked-mission/status.events.jsonl",
+                    "line_number": 7,
+                    "error": "STATUS_ROW_NOT_REPAIRED",
+                    "message": "row remains; run --fix",
+                }
+            ]
+        )
         report = MagicMock()
         report.to_json.return_value = json.dumps(
             {
                 "valid": valid,
                 "envelope_count": 3 if valid else 0,
-                "errors": [] if valid else [{"message": "validation failed"}],
+                "errors": errors,
                 "events_package_version": "0.1.0",
             }
         )
         report.valid = valid
         report.envelope_count = 3 if valid else 0
-        report.errors = [] if valid else [{"message": "validation failed"}]
+        report.errors = errors
         report.events_package_version = "0.1.0"
         return report
 
@@ -465,11 +592,14 @@ class TestTeamspaceDryRunModeCharacterization:
     def test_teamspace_dry_run_exits_1_on_validation_failure(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """--teamspace-dry-run exits 1 when validation fails.
+        """--teamspace-dry-run exits 1 AND renders per-mission detail on failure.
 
-        Arrange: mocked teamspace_dry_run returning an invalid report.
+        Arrange: mocked teamspace_dry_run returning an invalid report with a
+        structured per-error record.
         Act: invoke mission-state --teamspace-dry-run.
-        Assert: exit_code == 1, failure indicated in output.
+        Assert: exit_code stays 1 (refusal semantics untouched, C-006) and the
+        terminal names the affected mission + reason, not just the count
+        (WP02 T013, FR-007).
         """
         monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
         report_mock = self._build_dry_run_report(valid=False)
@@ -484,6 +614,85 @@ class TestTeamspaceDryRunModeCharacterization:
             )
 
         assert result.exit_code == 1
+        combined = (result.output or "") + (result.stderr or "")
+        assert "blocked-mission" in combined
+        assert "STATUS_ROW_NOT_REPAIRED" in combined
+
+    def test_teamspace_dry_run_pretty_shows_per_mission_detail(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """--teamspace-dry-run terminal names each affected mission + reason.
+
+        Arrange: mocked teamspace_dry_run returning an invalid report whose
+        ``errors[]`` use the ``line`` key variant.
+        Act: invoke mission-state --teamspace-dry-run.
+        Assert: each per-mission line (slug / error code / message) renders,
+        not only the count header (WP02 T010, FR-007).
+        """
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
+        errors = [
+            {
+                "mission_slug": "blocked-mission",
+                "artifact_path": "kitty-specs/blocked-mission/status.events.jsonl",
+                "line": 7,
+                "error": "STATUS_ROW_NOT_REPAIRED",
+                "message": "row remains; run --fix",
+            },
+        ]
+        report_mock = MagicMock()
+        report_mock.valid = False
+        report_mock.envelope_count = 0
+        report_mock.errors = errors
+        report_mock.events_package_version = "0.1.0"
+        report_mock.to_json.return_value = json.dumps(
+            {"valid": False, "errors": errors}
+        )
+
+        with patch(
+            "specify_cli.migration.mission_state.teamspace_dry_run",
+            return_value=report_mock,
+        ):
+            result = runner.invoke(
+                app,
+                ["mission-state", "--teamspace-dry-run"],
+            )
+
+        assert result.exit_code == 1
+        combined = (result.output or "") + (result.stderr or "")
+        assert "blocked-mission" in combined
+        assert "STATUS_ROW_NOT_REPAIRED" in combined
+        assert "row remains; run --fix" in combined
+
+    def test_teamspace_dry_run_json_carries_per_mission_errors(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """--teamspace-dry-run --json emits structured per-mission errors[].
+
+        Arrange: mocked teamspace_dry_run returning an invalid report.
+        Act: invoke mission-state --teamspace-dry-run --json.
+        Assert: errors[] carry mission_slug/artifact_path/error/message —
+        shape-equivalent to the repair report's records (WP02 T012, FR-008
+        parity); triage detail is obtainable from stdout (NFR-003).
+        """
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
+        report_mock = self._build_dry_run_report(valid=False)
+
+        with patch(
+            "specify_cli.migration.mission_state.teamspace_dry_run",
+            return_value=report_mock,
+        ):
+            result = runner.invoke(
+                app,
+                ["mission-state", "--teamspace-dry-run", "--json"],
+            )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert data["errors"], "per-mission errors[] must be present in --json"
+        entry = data["errors"][0]
+        assert entry["mission_slug"] == "blocked-mission"
+        assert entry["error"] == "STATUS_ROW_NOT_REPAIRED"
+        assert "message" in entry and "artifact_path" in entry
 
     def test_teamspace_dry_run_exits_1_on_error(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

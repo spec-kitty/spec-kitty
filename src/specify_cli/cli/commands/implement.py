@@ -1337,7 +1337,11 @@ def _run_bulk_edit_gate_and_inference(feature_dir: Path, wp_file: Path, mission_
         render_gate_failure(gate_result, console)
         raise typer.Exit(1)
 
-    if gate_result.change_mode is not None:
+    # FR-012 / NFR-001: key on the ONE canonical check (``== "bulk_edit"``), not
+    # implicit presence. A legacy ``change_mode`` value must behave identically to
+    # absence — both fall through to the inference scan below — so normalizing a
+    # legacy value to absent stays behavior-preserving.
+    if gate_result.change_mode == "bulk_edit":
         return
 
     from specify_cli.bulk_edit.inference import (

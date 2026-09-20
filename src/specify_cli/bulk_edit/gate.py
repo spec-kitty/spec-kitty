@@ -90,9 +90,12 @@ def ensure_occurrence_classification_ready(feature_dir: Path) -> GateResult:
     if meta is None:
         return GateResult(passed=True, change_mode=None)
 
-    change_mode = meta.get("change_mode")
     if not _is_bulk_edit_mission(feature_dir):
-        return GateResult(passed=True, change_mode=change_mode)
+        # FR-012 / NFR-001: never propagate a raw legacy value. The invariant is
+        # ``GateResult.change_mode in {"bulk_edit", None}`` — a non-bulk-edit
+        # mission collapses to ``None`` so downstream readers keying on the ONE
+        # canonical ``== "bulk_edit"`` check treat legacy value and absence alike.
+        return GateResult(passed=True, change_mode=None)
 
     # Load and validate occurrence map
     omap = load_occurrence_map(feature_dir)

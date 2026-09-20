@@ -168,9 +168,7 @@ def _coerce_mission_number(raw: object) -> int | None:
         return None
     if isinstance(raw, bool):
         # bool is a subclass of int, but a bool mission_number is a bug
-        raise TypeError(
-            f"meta.json mission_number must be int or null, got bool {raw!r}."
-        )
+        raise TypeError(f"meta.json mission_number must be int or null, got bool {raw!r}.")
     if isinstance(raw, int):
         return raw
     if isinstance(raw, str):
@@ -178,21 +176,13 @@ def _coerce_mission_number(raw: object) -> int | None:
             # empty or whitespace-only string → None
             return None
         if raw.strip() in _SENTINEL_STRINGS:
-            raise ValueError(
-                f"meta.json mission_number must be int or null, got {raw!r}. "
-                "Run `spec-kitty migrate backfill-identity` to migrate."
-            )
+            raise ValueError(f"meta.json mission_number must be int or null, got {raw!r}. Run `spec-kitty migrate backfill-identity` to migrate.")
         try:
             stripped = raw.strip().lstrip("0")
             return int(stripped) if stripped else 0
         except ValueError:
-            raise ValueError(
-                f"meta.json mission_number must be int or null, got {raw!r}. "
-                "Run `spec-kitty migrate backfill-identity` to migrate."
-            ) from None
-    raise TypeError(
-        f"meta.json mission_number must be int, str, or null, got {type(raw).__name__!r}."
-    )
+            raise ValueError(f"meta.json mission_number must be int or null, got {raw!r}. Run `spec-kitty migrate backfill-identity` to migrate.") from None
+    raise TypeError(f"meta.json mission_number must be int, str, or null, got {type(raw).__name__!r}.")
 
 
 def mission_identity_fields(
@@ -500,11 +490,39 @@ def validate_meta(meta: dict[str, Any]) -> list[str]:
             elif not " ".join(value.split()):
                 errors.append(f"Field {field} must not be empty when present")
     if "change_mode" in meta and meta["change_mode"] not in VALID_CHANGE_MODES:
-        errors.append(
-            f"Invalid change_mode {meta['change_mode']!r}; "
-            f"valid values: {sorted(VALID_CHANGE_MODES)}"
-        )
+        errors.append(f"Invalid change_mode {meta['change_mode']!r}; valid values: {sorted(VALID_CHANGE_MODES)}")
     return errors
+
+
+def _normalize_change_mode(meta: dict[str, Any]) -> bool:
+    """Drop a non-canonical ``change_mode`` from *meta* in place.
+
+    The only canonical ``change_mode`` is ``"bulk_edit"`` (:data:`VALID_CHANGE_MODES`);
+    its *absence* denotes an ordinary mission (ADR 2026-04-14-1). A legacy or
+    malformed value — the retired ``"regular"``, any unknown string, or a
+    non-string — is therefore normalized to ABSENT rather than widened into the
+    vocabulary. This is the deterministic-repair default of ADR 2026-05-10-1
+    (invalid → deterministic default; run-twice yields no second diff), so it is
+    safe to call before :func:`validate_meta` during canonicalization.
+
+    The write-guard :func:`set_change_mode` and :data:`VALID_CHANGE_MODES` are
+    intentionally left untouched — this helper only heals already-persisted meta
+    on the repair path, it does not relax what may be written going forward.
+
+    Args:
+        meta: A mutable meta dict; the ``change_mode`` key is removed in place
+            when present and not exactly ``"bulk_edit"``.
+
+    Returns:
+        ``True`` when the field was present and removed (so callers can record
+        the repair); ``False`` when there was nothing to normalize.
+    """
+    if "change_mode" not in meta:
+        return False
+    if meta["change_mode"] == "bulk_edit":
+        return False
+    del meta["change_mode"]
+    return True
 
 
 def validate_purpose_summary(
@@ -822,9 +840,7 @@ def set_change_mode(
         FileNotFoundError: If meta.json does not exist in *feature_dir*.
     """
     if mode not in VALID_CHANGE_MODES:
-        raise ValueError(
-            f"Invalid change_mode {mode!r}; valid values: {sorted(VALID_CHANGE_MODES)}"
-        )
+        raise ValueError(f"Invalid change_mode {mode!r}; valid values: {sorted(VALID_CHANGE_MODES)}")
     feature_dir = Path(feature_dir)
     meta = _require_meta(feature_dir)
 

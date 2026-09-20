@@ -82,6 +82,12 @@ this section at publish._
   behaved. The misleading not-found hint also changed from `spec-kitty mission
   list` (which lists mission *types*) to `spec-kitty doctor topology` (which lists
   real mission handles).
+- **`spec-kitty doctor mission-state` now repairs a legacy `change_mode` instead
+  of aborting, normalizing it to absent**; `--fix` and `--teamspace-dry-run`
+  report per-mission detail in the terminal and `--json` (dry-run parity), so
+  triage no longer requires reading a gitignored manifest; aligned the
+  bulk-edit-gate reader so normalization is behavior-preserving (#4778, #4780,
+  #4779).
 
 ## [4.0.0rc3] - 2026-09-15
 

@@ -8,6 +8,7 @@ import pytest
 
 from specify_cli.mission_metadata import (
     VALID_CHANGE_MODES,
+    _normalize_change_mode,
     get_change_mode,
     load_meta,
     set_change_mode,
@@ -17,6 +18,7 @@ from specify_cli.mission_metadata import (
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 def _minimal_meta() -> dict:
     """Return a minimal valid meta dict with all required fields."""
@@ -146,3 +148,75 @@ def test_change_mode_preserved_through_write_meta(tmp_path):
     final = load_meta(tmp_path)
     assert final["change_mode"] == "bulk_edit"
     assert final["target_branch"] == "develop"
+
+
+# ── _normalize_change_mode (WP01 repair helper) ──────────────────────────────
+
+
+def test_normalize_change_mode_absent_is_noop():
+    """No ``change_mode`` key → nothing to normalize, meta unchanged."""
+    meta = _minimal_meta()
+    changed = _normalize_change_mode(meta)
+    assert changed is False
+    assert "change_mode" not in meta
+
+
+def test_normalize_change_mode_preserves_bulk_edit():
+    """The canonical ``bulk_edit`` value is preserved (never widened away)."""
+    meta = _minimal_meta()
+    meta["change_mode"] = "bulk_edit"
+    changed = _normalize_change_mode(meta)
+    assert changed is False
+    assert meta["change_mode"] == "bulk_edit"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "regular",  # the specific retired legacy value (FR-001)
+        "yolo",  # any unknown string (FR-011)
+        "",  # empty string
+        "BULK_EDIT",  # case variant is NOT canonical
+        42,  # non-string / malformed (FR-011)
+        None,  # present-but-null
+        ["bulk_edit"],  # wrapped/malformed structure
+        {"mode": "bulk_edit"},
+    ],
+)
+def test_normalize_change_mode_drops_non_canonical(value):
+    """Every non-``bulk_edit`` value is normalized to ABSENT and reported changed."""
+    meta = _minimal_meta()
+    meta["change_mode"] = value
+    changed = _normalize_change_mode(meta)
+    assert changed is True
+    assert "change_mode" not in meta
+
+
+def test_normalize_change_mode_is_idempotent():
+    """A second call after healing reports no change (NFR-002)."""
+    meta = _minimal_meta()
+    meta["change_mode"] = "regular"
+    assert _normalize_change_mode(meta) is True
+    assert _normalize_change_mode(meta) is False
+
+
+def test_normalize_change_mode_does_not_touch_other_fields():
+    """Only ``change_mode`` is affected; sibling keys are left intact."""
+    meta = _minimal_meta()
+    meta["change_mode"] = "regular"
+    _normalize_change_mode(meta)
+    assert meta["mission_slug"] == "test-feature"
+    assert meta["target_branch"] == "main"
+
+
+def test_normalize_change_mode_does_not_widen_vocabulary(tmp_path):
+    """Repair heals reads, but the write-guard/vocabulary stay locked to bulk_edit.
+
+    The normalize helper is a *read-path* repair; it must not relax what
+    ``set_change_mode`` will persist. ``VALID_CHANGE_MODES`` is unchanged and the
+    write-guard still rejects the very value repair silently drops (FR-004/C-001).
+    """
+    assert set(VALID_CHANGE_MODES) == {"bulk_edit"}
+    _write_minimal_meta(tmp_path)
+    with pytest.raises(ValueError, match="Invalid change_mode"):
+        set_change_mode(tmp_path, "regular")
