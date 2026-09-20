@@ -189,6 +189,7 @@ def _patched_lane_based_merge_dependencies(
         stack.enter_context(patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path))
         stack.enter_context(patch("specify_cli.merge.executor._enforce_target_branch_sync_preflight"))
         stack.enter_context(patch("specify_cli.merge.executor._check_mission_branch", return_value=(True, None)))
+        stack.enter_context(patch("specify_cli.merge.executor._pre_mutation_safety_preflight"))
         stack.enter_context(patch("specify_cli.status.get_wp_lane", return_value="done"))
         mock_lane_merge = stack.enter_context(
             patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result)

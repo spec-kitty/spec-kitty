@@ -72,17 +72,18 @@ def _residue_for_meta_json(path: str) -> bool:
 # --- DestructiveOpRefused -----------------------------------------------------
 
 
-def test_destructive_op_refused_carries_all_fields() -> None:
+def test_destructive_op_refused_carries_all_fields(tmp_path: Path) -> None:
+    worktree_path = tmp_path / "example"
     exc = DestructiveOpRefused(
         error_code="MERGE_UNSAFE_WORKTREE_DIRTY",
-        worktree_path=Path("/tmp/example"),
+        worktree_path=worktree_path,
         current_branch="main",
         expected_branch="fix/x",
         dirty_entries=[" M some/file.py"],
         remediation="Commit or stash, then retry.",
     )
     assert exc.error_code == "MERGE_UNSAFE_WORKTREE_DIRTY"
-    assert exc.worktree_path == Path("/tmp/example")
+    assert exc.worktree_path == worktree_path
     assert exc.current_branch == "main"
     assert exc.expected_branch == "fix/x"
     assert exc.dirty_entries == [" M some/file.py"]

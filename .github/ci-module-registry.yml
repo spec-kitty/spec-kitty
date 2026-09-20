@@ -585,6 +585,19 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/widen
 
 - reason: >-
+    Root-level mirror of the rootless tests/specify_cli/orchestrator_api tree (already
+    recorded above in this same out_of_matrix_test_dirs block). Added by the
+    merge-destructive-op-safety mission (#4752/#4753/#4754) to hold destructive-op-guard
+    regression coverage for the orchestrator-api surface
+    (test_merge_mission_destructive_refusal.py, test_worktree_cleanup_guard.py) alongside
+    its sibling tree rather than nesting it under specify_cli/. Secondary coverage: the
+    primary #4752/#4753 guard behavior is matrixed via tests/merge, tests/coordination,
+    and tests/integration; this mirror is exercised by the full/nightly run
+    (make test-full / ci-nightly.yml), not per-PR.
+  dirs:
+  - tests/orchestrator_api
+
+- reason: >-
     Sharpen-reason (spec-kitty#4374 disposition ledger, WP01 PC3): already claimed by
     special_tiers.integration_tests_next (roots tests/integration/**, tests/next/**; job
     integration-tests-next, ~69min measured, -n auto). Its disposition reconciles with

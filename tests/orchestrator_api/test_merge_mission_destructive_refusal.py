@@ -31,18 +31,19 @@ from specify_cli.orchestrator_api.commands import _MergePreflightResult, merge_m
 pytestmark = pytest.mark.git_repo
 
 
-def _refusal() -> DestructiveOpRefused:
+def _refusal(worktree_path: Path) -> DestructiveOpRefused:
     return DestructiveOpRefused(
         error_code="MERGE_UNSAFE_WORKTREE_DIRTY",
-        worktree_path=Path("/tmp/example-lane-worktree"),
+        worktree_path=worktree_path,
         dirty_entries=["?? scratch.txt (untracked local file would be discarded by worktree removal)"],
-        remediation="Commit, stash, or revert the local changes in /tmp/example-lane-worktree, then resume the operation (e.g. `spec-kitty merge --resume`).",
+        remediation=f"Commit, stash, or revert the local changes in {worktree_path}, then resume the operation (e.g. `spec-kitty merge --resume`).",
     )
 
 
 def test_merge_mission_envelopes_destructive_op_refused(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     mission_dir = tmp_path / "kitty-specs" / "some-mission"
     mission_dir.mkdir(parents=True)
+    worktree_path = tmp_path / "example-lane-worktree"
 
     with (
         patch("specify_cli.orchestrator_api.commands._get_main_repo_root", return_value=tmp_path),
@@ -51,7 +52,7 @@ def test_merge_mission_envelopes_destructive_op_refused(tmp_path: Path, capsys: 
             "specify_cli.orchestrator_api.commands._build_merge_preflight",
             return_value=_MergePreflightResult(target_branch="main", errors=[]),
         ),
-        patch("specify_cli.orchestrator_api.commands._execute_lane_merge", side_effect=_refusal()),
+        patch("specify_cli.orchestrator_api.commands._execute_lane_merge", side_effect=_refusal(worktree_path)),
         patch(
             "specify_cli.orchestrator_api.commands._mission_identity_payload",
             return_value={
@@ -88,4 +89,4 @@ def test_merge_mission_destructive_refusal_is_not_a_runtime_error_leak(tmp_path:
     ``except DestructiveOpRefused`` clause in ``merge_mission`` would become
     unreachable dead code and this whole regression pin would silently stop
     testing what it claims to."""
-    assert not isinstance(_refusal(), RuntimeError)
+    assert not isinstance(_refusal(tmp_path / "example-lane-worktree"), RuntimeError)
