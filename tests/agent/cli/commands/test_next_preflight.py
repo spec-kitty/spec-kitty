@@ -12,6 +12,7 @@ and don't spawn ``git status`` subprocesses.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pytest
@@ -365,3 +366,30 @@ def test_next_query_preserves_advisory_on_stderr(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert f"Warning: {warning}" in captured.err
+
+
+def test_next_query_failed_preflight_is_labelled_with_the_next_consumer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """#4731: query mode must not label its own failure as the dashboard's."""
+    from specify_cli.cli.commands import next_cmd
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
+
+    monkeypatch.setattr(
+        hook_mod,
+        "run_charter_preflight",
+        lambda **_: _fail_result("synthesized_drg missing; run: spec-kitty charter synthesize"),
+    )
+
+    with caplog.at_level(logging.WARNING, logger=hook_mod.__name__):
+        next_cmd._run_charter_preflight_for_next(
+            tmp_path,
+            advancing=False,
+            json_output=False,
+        )
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert any("consumer=next" in message for message in messages)
+    assert not any("consumer=dashboard" in message for message in messages)

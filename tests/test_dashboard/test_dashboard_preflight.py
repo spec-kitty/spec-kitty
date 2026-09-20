@@ -125,6 +125,26 @@ def test_dashboard_hook_persists_warning_on_failure(
     assert read_preflight_warning(tmp_path) == result.blocked_reason
 
 
+def test_dashboard_hook_keeps_its_own_consumer_label_by_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """#4731: the consumer label is parameterised, but dashboard keeps its own."""
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
+
+    monkeypatch.setattr(
+        hook_mod,
+        "run_charter_preflight",
+        lambda **_: _fail_result("synthesized DRG missing; run: spec-kitty charter synthesize"),
+    )
+
+    with caplog.at_level(logging.WARNING, logger=hook_mod.__name__):
+        hook_mod.run_preflight_for_dashboard(tmp_path)
+
+    assert any("consumer=dashboard" in record.getMessage() for record in caplog.records)
+
+
 def test_dashboard_hook_clears_warning_on_success(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

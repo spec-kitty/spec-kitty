@@ -523,10 +523,12 @@ def _run_charter_preflight_for_next(repo_root, *, advancing: bool, json_output: 
         run_preflight_for_dashboard,
     )
 
-    # Query mode is read-only: warn-and-continue, like dashboard.
+    # Query mode is read-only: warn-and-continue, like dashboard. #4731: the
+    # shared helper is told which consumer is running it, so a failed preflight
+    # is logged as next's, not the dashboard's.
     stdout_redirect = contextlib.redirect_stdout(sys.stderr) if json_output else contextlib.nullcontext()
     with stdout_redirect:
-        result = run_preflight_for_dashboard(repo_root)
+        result = run_preflight_for_dashboard(repo_root, consumer="next")
     # #3971: scope the single surfaced ambient warning to this consumer.
     emit_advisory_warnings(result, consumer="next", repo_root=repo_root)
 

@@ -143,7 +143,11 @@ def run_preflight_or_abort(
     raise typer.Exit(1)
 
 
-def run_preflight_for_dashboard(repo_root: Path) -> CharterPreflightResult:
+def run_preflight_for_dashboard(
+    repo_root: Path,
+    *,
+    consumer: str = "dashboard",
+) -> CharterPreflightResult:
     """Run charter preflight without aborting; dashboard always starts.
 
     Implements the dashboard side of the caller contract (T025): the
@@ -151,8 +155,16 @@ def run_preflight_for_dashboard(repo_root: Path) -> CharterPreflightResult:
     ``blocked_reason`` MUST be surfaced to the SPA so the operator sees a
     critical banner instead of silently consuming stale doctrine.
 
+    ``spec-kitty next`` in query mode (no ``--result``) is read-only and
+    reuses this warn-and-continue path. #4731: it passes its own
+    ``consumer`` so the surfaced log line names the command the operator
+    actually ran, instead of hardcoding ``dashboard``.
+
     Args:
         repo_root: Repository root used to load the config flag.
+        consumer: Human-readable consumer name for log lines. Used only
+            for observability; it does not change the warn-and-continue
+            behaviour.
 
     Returns:
         The :class:`CharterPreflightResult`. Callers inspect
@@ -160,7 +172,7 @@ def run_preflight_for_dashboard(repo_root: Path) -> CharterPreflightResult:
     """
     cfg = load_preflight_config(repo_root)
     if not cfg.enabled:
-        _logger.info("charter preflight disabled by project config (consumer=dashboard)")
+        _logger.info("charter preflight disabled by project config (consumer=%s)", consumer)
         return CharterPreflightResult(passed=True, checks=[])
 
     result = run_charter_preflight(
@@ -170,10 +182,11 @@ def run_preflight_for_dashboard(repo_root: Path) -> CharterPreflightResult:
         strict=False,
     )
     if result.passed:
-        _logger.info("charter preflight passed (consumer=dashboard)")
+        _logger.info("charter preflight passed (consumer=%s)", consumer)
     else:
         _logger.warning(
-            "charter preflight failed (consumer=dashboard): %s",
+            "charter preflight failed (consumer=%s): %s",
+            consumer,
             result.blocked_reason,
         )
     return result
