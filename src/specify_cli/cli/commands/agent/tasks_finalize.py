@@ -331,6 +331,7 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
             compute_and_write_lanes,
         )
         from specify_cli.lanes.persistence import is_execution_wedged, read_lanes_json
+        from specify_cli.mission_metadata import load_meta_or_empty
         from specify_cli.ownership.frontmatter_source import (
             InMemoryFrontmatterSource,
             resolve_wp_manifests,
@@ -357,15 +358,15 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
         if not wp_manifests:
             return  # No WP declares ownership — nothing meaningful to lane-compute.
 
-        mission_id: str | None = None
-        meta_path = st.primary_feature_dir / "meta.json"
-        if meta_path.exists():
-            import json as _json
-
-            with contextlib.suppress(Exception):
-                raw_meta = _json.loads(meta_path.read_text(encoding="utf-8"))
-                raw_mission_id = raw_meta.get("mission_id") if isinstance(raw_meta, dict) else None
-                mission_id = raw_mission_id if isinstance(raw_mission_id, str) else None
+        # Canonical reader (#4758 rebase fix): route through
+        # ``mission_metadata.load_meta_or_empty`` instead of an inline
+        # ``json.loads``/``read_text`` decode (test_inline_meta_read_gate.py).
+        # ``load_meta_or_empty`` already absorbs a missing OR malformed
+        # meta.json to ``{}`` -- the same silent-degrade contract the old
+        # ``contextlib.suppress(Exception)`` block implemented by hand.
+        raw_meta = load_meta_or_empty(st.primary_feature_dir)
+        raw_mission_id = raw_meta.get("mission_id")
+        mission_id: str | None = raw_mission_id if isinstance(raw_mission_id, str) else None
 
         planning_commit_sha = _capture_target_branch_tip(st.main_repo_root, st.target_branch)
         try:
