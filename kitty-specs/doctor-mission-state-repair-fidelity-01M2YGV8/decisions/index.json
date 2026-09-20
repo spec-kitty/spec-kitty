@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-20T04:23:35.537025Z",
+      "decision_id": "01M2YGW8VHSCGKGP2X593MAC0K",
+      "final_answer": "Confirm as stated: full-seam scope (#4778 normalize legacy change_mode + #4780 per-mission terminal/JSON detail + dry-run parity + #4779 non-gitignored evidence surface + audit/fix reconciliation). Out of scope: #2720 scanner unification.",
+      "input_key": "intent_confirmed",
+      "mission_id": "01M2YGV8CCQ52ESVXDNXVY849J",
+      "mission_slug": "doctor-mission-state-repair-fidelity-01M2YGV8",
+      "opened_by": "cli",
+      "options": [
+        "Confirm as stated",
+        "Adjust scope/intent",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm the Intent Summary and full-seam scope (4778+4780+4779+audit/fix reconciliation) for the doctor mission-state repair+fidelity mission?",
+      "rationale": null,
+      "resolved_at": "2026-09-20T04:24:51.200257Z",
+      "resolved_by": null,
+      "slot_key": "specify.intent.summary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M2YGV8CCQ52ESVXDNXVY849J",
+  "version": 1
+}

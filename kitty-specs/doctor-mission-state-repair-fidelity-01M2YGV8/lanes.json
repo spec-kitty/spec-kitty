@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "mission_slug": "doctor-mission-state-repair-fidelity-01M2YGV8",
+  "mission_id": "01M2YGV8CCQ52ESVXDNXVY849J",
+  "mission_branch": "kitty/mission-doctor-mission-state-repair-fidelity-01M2YGV8",
+  "target_branch": "fix/doctor-mission-state-repair-fidelity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/mission_state.py",
+        "src/specify_cli/mission_metadata.py",
+        "tests/integration/migration/test_repair_normalizes_change_mode.py",
+        "tests/specify_cli/test_mission_metadata_change_mode.py",
+        "tests/unit/migration/test_change_mode_normalization.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/bulk_edit/gate.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "tests/agent/test_implement_command.py",
+        "tests/specify_cli/bulk_edit/test_gate.py",
+        "tests/specify_cli/test_change_mode_read_boundaries.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_mission_state_doctor.py",
+        "tests/cli/commands/test_doctor_mission_state.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "tests/integration/migration/test_mission_state_repair_fidelity_e2e.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-20T05:06:28.941896+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a1a5d14bc6f10e6eba7e2511cd91e3a68bd79815"
+}

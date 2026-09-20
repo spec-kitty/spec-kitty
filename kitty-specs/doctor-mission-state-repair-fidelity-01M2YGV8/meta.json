@@ -1,0 +1,35 @@
+{
+  "accept_commit": "20232978dc702a0da7c4a94b40a0a1d835f05c46",
+  "acceptance_history": [
+    {
+      "accept_commit": "20232978dc702a0da7c4a94b40a0a1d835f05c46",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-20T07:39:14.991777+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "19268812fb15d6b068bc3b3277066c6050b85352"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-20T07:39:14.991777+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "19268812fb15d6b068bc3b3277066c6050b85352",
+  "baseline_merge_commit": "ca3bcc46e8ba6bb062d550d3e379330ad582fc14",
+  "created_at": "2026-09-20T04:23:02.300428+00:00",
+  "flattened": true,
+  "friendly_name": "Doctor mission-state legacy repair & report fidelity",
+  "merged_at": "2026-09-20T07:41:25.967259+00:00",
+  "merged_commit": "1460c14cfbc0b31018889f59604feea977e37bc8",
+  "mid8": "01M2YGV8",
+  "mission_id": "01M2YGV8CCQ52ESVXDNXVY849J",
+  "mission_number": null,
+  "mission_slug": "doctor-mission-state-repair-fidelity-01M2YGV8",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Operators run 'spec-kitty doctor mission-state' to heal mission bookkeeping before acting. Today it hard-fails on older missions carrying a legacy field value and reports only bare error counts, hiding which missions failed and why in a file git never tracks. This mission makes the repair tolerate and normalize legacy values, and makes the command honestly show per-mission outcomes so operators can trust and act on the result.",
+  "purpose_tldr": "Make 'spec-kitty doctor mission-state' repair legacy missions instead of aborting, and show operators what it changed or would change.",
+  "slug": "doctor-mission-state-repair-fidelity-01M2YGV8",
+  "status_phase": "1",
+  "target_branch": "fix/doctor-mission-state-repair-fidelity",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-20T05:22:57.305968+00:00"
+}

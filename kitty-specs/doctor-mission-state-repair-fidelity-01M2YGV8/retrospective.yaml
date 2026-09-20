@@ -1,0 +1,119 @@
+schema_version: 1
+mission_id: 01M2YGV8CCQ52ESVXDNXVY849J
+mission_slug: doctor-mission-state-repair-fidelity-01M2YGV8
+mission_number:
+friendly_name: Doctor mission-state legacy repair & report fidelity
+mission_type: software-dev
+target_branch: fix/doctor-mission-state-repair-fidelity
+created_at: '2026-09-20T07:41:37.264419+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-20T07:41:37.264419+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-009
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-009
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-009
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-009
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md records 1 finding(s)
+  evidence_refs:
+  - e-010
+  details: The analysis-report.md artifact for this mission records 1 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+gaps:
+- id: g-001
+  category: doc
+  summary: research.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md is present but research.md is missing. Research artifacts help future maintainers understand design
+    decisions.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/doctor-mission-state-repair-fidelity-01M2YGV8/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/doctor-mission-state-repair-fidelity-01M2YGV8/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/doctor-mission-state-repair-fidelity-01M2YGV8/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/doctor-mission-state-repair-fidelity-01M2YGV8/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/doctor-mission-state-repair-fidelity-01M2YGV8/tasks/WP01-repair-normalization.md
+- id: e-006
+  kind: file
+  path: kitty-specs/doctor-mission-state-repair-fidelity-01M2YGV8/tasks/WP02-reporting-fidelity.md
+- id: e-007
+  kind: file
+  path: kitty-specs/doctor-mission-state-repair-fidelity-01M2YGV8/tasks/WP03-reader-alignment.md
+- id: e-008
+  kind: file
+  path: kitty-specs/doctor-mission-state-repair-fidelity-01M2YGV8/tasks/WP04-integration-changelog.md
+- id: e-009
+  kind: file
+  path: kitty-specs/doctor-mission-state-repair-fidelity-01M2YGV8/status.events.jsonl
+- id: e-010
+  kind: file
+  path: kitty-specs/doctor-mission-state-repair-fidelity-01M2YGV8/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
