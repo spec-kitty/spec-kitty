@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from typing import Any
 
 CANONICAL_LANES: tuple[str, ...] = (
@@ -84,3 +84,58 @@ def has_operator_provenance(wp_snapshot: Mapping[str, Any] | None) -> bool:
     if wp_snapshot is None:
         return False
     return wp_snapshot.get("reason_source") == OPERATOR_REASON_SOURCE
+
+
+def mission_terminal_acceptability(
+    work_packages: Mapping[str, Mapping[str, Any]],
+    *,
+    expected_wp_ids: Collection[str] | None = None,
+) -> tuple[bool, list[str]]:
+    """Return whether every WP in ``work_packages`` has reached an acceptable ending.
+
+    The single mission-level, provenance-aware readiness aggregate (FR-009,
+    contract ``C-SHARED-AUTHORITY``), consumed by ``merge`` and ``mission
+    close`` so neither re-inlines its own acceptable-ending loop (C-001).
+    ``accept``'s lane-bucket views (``gates_core``/``summary_core``) are
+    deliberately provenance-blind and are NOT rerouted onto this aggregate —
+    see the WP01 scope note in ``terminus-safety-invariant-01M2XFT7``.
+
+    ``work_packages`` is a mapping of WP id to a reduced snapshot dict in the
+    shape ``StatusSnapshot.work_packages`` already uses (at least a ``lane``
+    key, and — for a ``canceled`` WP — the optional ``reason_source``
+    provenance slot). For each WP the per-lane authority
+    :func:`is_acceptable_ending` is consulted with provenance resolved via
+    :func:`has_operator_provenance`; the acceptable-ending rule is never
+    re-derived here.
+
+    ``expected_wp_ids``, when given, is the full set of WP ids the mission
+    DECLARES (e.g. ``run.all_wp_ids``). Any id in ``expected_wp_ids`` that is
+    ABSENT from ``work_packages`` (no status event on the read surface at
+    all) is folded into ``missing`` too — never silently dropped. A gate
+    meant to be fail-CLOSED cannot fail-open on a WP the reducer has no
+    record of; a missing snapshot entry is strictly less evidence of
+    readiness than an ``in_progress`` one, so it must refuse, not pass. This
+    is the SINGLE shared home for that absent-WP fail-closed rule (previously
+    duplicated in ``merge.executor._assert_mission_terminal_ready`` and
+    re-inlined, undocumented, by ``policy.merge_gates``'s evidence gate).
+    Default ``None`` preserves the exact prior behavior (only WPs actually
+    present in ``work_packages`` are considered).
+
+    Returns ``(True, [])`` when every WP is at an acceptable ending —
+    including the vacuous case of no WPs at all, and the boundary case where
+    every WP is a provenance-cancelled ``canceled``. Otherwise returns
+    ``(False, missing)`` where ``missing`` is the sorted list of WP ids not
+    yet at an acceptable ending. Pure: no I/O.
+    """
+    missing = [
+        wp_id
+        for wp_id, snapshot in work_packages.items()
+        if not is_acceptable_ending(
+            str(snapshot.get("lane", "")),
+            has_provenance=has_operator_provenance(snapshot),
+        )
+    ]
+    if expected_wp_ids is not None:
+        missing.extend(wp_id for wp_id in expected_wp_ids if wp_id not in work_packages)
+    missing = sorted(set(missing))
+    return (not missing, missing)

@@ -81,16 +81,28 @@ def _make_manifest(slug: str, lane_count: int = 10) -> MagicMock:
 
 
 def _write_done_events(feature_dir: Path, wp_ids: list[str]) -> None:
+    _write_status_events(feature_dir, dict.fromkeys(wp_ids, "done"))
+
+
+def _write_status_events(feature_dir: Path, wp_to_lane: dict[str, str]) -> None:
+    """Seed each ``wp_id`` at ``to_lane`` on the real event log (#4764/T007).
+
+    ``_assert_mission_terminal_ready`` reads ``status.events.jsonl`` directly
+    and refuses the merge before any mutation when a WP is not at
+    ``approved``/``done`` (or absent from the log entirely). These tests
+    exercise the resume/idempotence bookkeeping, not readiness, so every WP
+    the fixture references must be seeded acceptable.
+    """
     events = []
-    for wp_id in wp_ids:
+    for wp_id, to_lane in wp_to_lane.items():
         events.append(
             json.dumps(
                 {
                     "event_id": f"01TEST{wp_id}",
                     "mission_slug": feature_dir.name,
                     "wp_id": wp_id,
-                    "from_lane": "approved",
-                    "to_lane": "done",
+                    "from_lane": "in_review" if to_lane == "approved" else "approved",
+                    "to_lane": to_lane,
                     "at": "2026-04-06T12:00:00+00:00",
                     "actor": "merge",
                     "force": False,
@@ -281,7 +293,11 @@ class TestMergeResumeAfterInterruption:
         write_mission_meta(feature_dir)
 
         manifest = _make_manifest(slug, lane_count=3)
-        _write_done_events(feature_dir, ["WP01"])
+        # WP01 already done; WP02/WP03 approved (real pre-merge shape) so the
+        # merge-ready precondition (#4764/T007) lets the resume proceed.
+        _write_status_events(
+            feature_dir, {"WP01": "done", "WP02": "approved", "WP03": "approved"}
+        )
         # WP01 completed; WP02 and WP03 remaining.
         existing = MergeState(
             mission_id=slug,
@@ -364,6 +380,9 @@ def _run_bounded_merge_fixture(tmp_path: Path) -> tuple[float, list[str], list[s
 
     manifest = _make_manifest(slug, lane_count=10)
     wp_ids = [f"WP{i+1:02d}" for i in range(10)]
+    # #4764/T007: seed every WP approved so the merge-ready precondition
+    # lets this full-resume fixture proceed to the code under test.
+    _write_status_events(feature_dir, dict.fromkeys(wp_ids, "approved"))
 
     existing = MergeState(
         mission_id=slug,

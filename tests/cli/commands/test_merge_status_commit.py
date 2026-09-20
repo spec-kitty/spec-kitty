@@ -317,6 +317,15 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
         feature_dir.mkdir(parents=True)
         _write_meta(feature_dir, mission_slug, baseline_merge_commit=None)
         _seed_mission_branch(tmp_path, mission_slug)
+        # #4764/T007: _assert_mission_terminal_ready now hard-refuses a mission
+        # with an unapproved WP before any mutation. This test's intent is the
+        # baseline_merge_commit metadata write, not readiness, so seed WP01 as
+        # done (mirrors test_safe_commit_is_called_with_correct_files above)
+        # so the merge proceeds far enough to exercise the code under test.
+        _seed_status_event(feature_dir, mission_slug, "WP01", "done")
+        from specify_cli.status.reducer import materialize as _materialize
+
+        _materialize(feature_dir)
 
         manifest = MagicMock()
         manifest.target_branch = "main"
@@ -432,6 +441,13 @@ class TestMergeDoneTransitions:
         feature_dir.mkdir(parents=True)
         _write_meta(feature_dir, mission_slug, mission_id=None)
         _seed_mission_branch(tmp_path, mission_slug)
+        # #4764/T007: seed WP01 as done so _assert_mission_terminal_ready lets
+        # the merge proceed far enough to exercise the safe_commit/worktree
+        # ordering under test (this test's actual intent, per FR-019).
+        _seed_status_event(feature_dir, mission_slug, "WP01", "done")
+        from specify_cli.status.reducer import materialize as _materialize
+
+        _materialize(feature_dir)
 
         call_order: list[str] = []
 

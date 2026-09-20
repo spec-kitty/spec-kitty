@@ -62,10 +62,43 @@ def _make_manifest(slug: str) -> MagicMock:
     return manifest
 
 
+def _seed_wp01_done(feature_dir: Path, mission_slug: str) -> None:
+    """Seed WP01 as ``done`` on the real event log (#4764/T007).
+
+    ``_assert_mission_terminal_ready`` reads ``status.events.jsonl`` directly
+    and now refuses the merge before any mutation when WP01 is absent from
+    the log. This module's tests exercise the post-merge index-refresh
+    ordering, not readiness, so seed WP01 to let the merge proceed.
+    """
+    import json
+
+    event = {
+        "actor": "test",
+        "at": "2026-04-06T12:00:00+00:00",
+        "event_id": "01TESTWP01REFRESH",
+        "evidence": None,
+        "execution_mode": "worktree",
+        "feature_slug": mission_slug,
+        "force": True,
+        "from_lane": "approved",
+        "reason": "test seed",
+        "review_ref": None,
+        "to_lane": "done",
+        "wp_id": "WP01",
+    }
+    (feature_dir / "status.events.jsonl").write_text(
+        json.dumps(event, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    from specify_cli.status.reducer import materialize
+
+    materialize(feature_dir)
+
+
 def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
     manifest = _make_manifest(slug)
     feature_dir = tmp_path / "kitty-specs" / slug
     feature_dir.mkdir(parents=True, exist_ok=True)
+    _seed_wp01_done(feature_dir, slug)
 
     lane_result = MagicMock()
     lane_result.success = True

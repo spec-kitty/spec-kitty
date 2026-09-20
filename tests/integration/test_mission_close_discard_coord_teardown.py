@@ -204,8 +204,25 @@ def test_close_without_discard_tears_down_coord_worktree(
 ) -> None:
     """The non-discard `close` (re-anchored too) must tear down the coordination
     worktree on a coord mission — pre-fix it silently no-op'd as well — while
-    leaving the branches intact (no --discard)."""
+    leaving the branches intact (no --discard).
+
+    terminus-safety-invariant WP06 (#4765, FR-004/FR-005) amendment: a
+    non-discard close now fail-closes on `is_mission_merged` BEFORE teardown
+    — an unmerged mission (this fixture's default) refuses instead of
+    fabricating completion. This test's own intent has always been to prove
+    the *teardown routing* for a coord mission on the non-discard path (the
+    `--mission` re-anchor above), not to assert merge-status-agnostic
+    behaviour, so the fixture is stamped merged here to keep exercising that
+    routing under the new precondition. The unmerged-refusal case itself is
+    covered by `tests/integration/test_issue_4765_close_guard.py`.
+    """
     repo = coord_mission
+    meta_path = repo / "kitty-specs" / SLUG / "meta.json"
+    meta = json.loads(meta_path.read_text())
+    meta["merged_at"] = "2026-09-20T08:00:00+00:00"
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "mark mission merged for teardown-routing test")
     monkeypatch.chdir(repo)
 
     result = runner.invoke(

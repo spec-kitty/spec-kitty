@@ -332,6 +332,165 @@ def _compute_next_mission_number_or_none(
         )
 
 
+def _surface_unbaked_mission_number(
+    mission_slug: str,
+    mission_branch: str,
+    next_number: int,
+    *,
+    reason: str,
+) -> None:
+    """#4474 / FR-011: make an unbaked ``mission_number`` OBSERVABLE.
+
+    A logger-only warning is not queryable by an operator scanning merge
+    output. This prints a merge-summary line (the operator-visible transcript
+    every merge run already emits progress through) in addition to an
+    elevated logger record, so the genuinely-unreachable fallback never
+    degrades to the historical silent ``return False``.
+    """
+    console.print(
+        f"[red]Warning:[/red] mission_number={next_number} for mission "
+        f"{mission_slug!r} could NOT be baked ({reason}). Re-run "
+        "[bold]spec-kitty merge --resume[/bold] once the primary meta.json "
+        "becomes reachable, or assign mission_number manually."
+    )
+    _merge_logger.warning(
+        "mission_number=%d NOT baked for %s (mission_branch=%s): %s",
+        next_number,
+        mission_slug,
+        mission_branch,
+        reason,
+    )
+
+
+def _bake_mission_number_on_primary_tree(
+    main_repo: Path,
+    mission_slug: str,
+    mission_branch: str,
+    next_number: int,
+    merge_state: MergeState | None,
+) -> bool:
+    """#4474 / FR-011 topology-aware fallback: write directly to the PRIMARY tree.
+
+    Invoked only when the mission-branch (coordination, for a coord-topology
+    "083+ layout" mission) detached worktree does not carry ``meta.json`` --
+    on that topology it is a lifecycle-only branch and never will. The
+    mission's ``meta.json`` is a PRIMARY-partition artifact and instead lives
+    directly on ``main_repo``'s own on-disk checkout (the "primary checkout";
+    see ``mission_runtime.resolution.read_dir_for``). This composes the SAME
+    ``compose_meta_json_path`` helper used for the mission-branch write, but
+    applied to ``main_repo`` itself -- never a detached worktree, and never
+    resolving into ``.worktrees/`` (the ``path_is_under_worktrees`` guard is
+    preserved here exactly as on the mission-branch write path).
+
+    Returns:
+        ``True`` when a fresh number was written and committed directly on
+        ``main_repo``'s current checkout (PERSISTED -- the preferred
+        outcome). ``False`` when the value was already present (idempotency
+        hit -- still marks the baked flag) or when the primary tree is
+        genuinely unreachable/unwritable, in which case the unbaked field is
+        surfaced via :func:`_surface_unbaked_mission_number` instead of a
+        silent skip.
+    """
+    import subprocess as _subprocess
+
+    from specify_cli.missions._read_path_resolver import compose_meta_json_path as _compose_meta
+
+    primary_meta_path = _compose_meta(main_repo, mission_slug)
+    if path_is_under_worktrees(primary_meta_path):
+        _surface_unbaked_mission_number(
+            mission_slug,
+            mission_branch,
+            next_number,
+            reason=f"resolved primary meta path is under {WORKTREES_DIR} ({primary_meta_path})",
+        )
+        return False
+
+    if not primary_meta_path.exists():
+        _surface_unbaked_mission_number(
+            mission_slug,
+            mission_branch,
+            next_number,
+            reason=(f"meta.json is unreachable on both the mission branch {mission_branch!r} and the primary checkout ({primary_meta_path})"),
+        )
+        return False
+
+    # Canonical reader (FR-005/WP12): on_malformed="none" absorbs a JSON-syntax
+    # error or non-dict top level to None, mirroring the mission-branch write's
+    # own tolerance for a corrupt/foreign meta.json (merge-time best-effort,
+    # not a #2091 identity guard site).
+    meta_data = load_meta(primary_meta_path.parent, on_malformed="none")
+    if not isinstance(meta_data, dict):
+        _surface_unbaked_mission_number(
+            mission_slug,
+            mission_branch,
+            next_number,
+            reason=f"primary meta.json at {primary_meta_path} is not a JSON object",
+        )
+        return False
+
+    existing_on_primary = meta_data.get("mission_number")
+    if _is_assigned_mission_number(existing_on_primary) and existing_on_primary == next_number:
+        _merge_logger.info(
+            "mission_number=%d already present on primary meta.json for %s; skipping write (idempotency check)",
+            next_number,
+            mission_slug,
+        )
+        _mark_mission_number_baked(merge_state, main_repo)
+        return False
+
+    meta_data["mission_number"] = next_number
+    write_meta(primary_meta_path.parent, meta_data, validate=False)
+
+    rel_meta = primary_meta_path.relative_to(main_repo)
+    if path_is_under_worktrees(rel_meta):
+        # FR-035: never stage a path under .worktrees/ (defense in depth).
+        _surface_unbaked_mission_number(
+            mission_slug,
+            mission_branch,
+            next_number,
+            reason=f"refusing to stage {rel_meta}: path is under {WORKTREES_DIR}",
+        )
+        return False
+
+    add_result = _subprocess.run(
+        ["git", "add", str(rel_meta)],
+        cwd=str(main_repo),
+        capture_output=True,
+        text=True,
+    )
+    if add_result.returncode != 0:
+        _surface_unbaked_mission_number(
+            mission_slug,
+            mission_branch,
+            next_number,
+            reason=f"git add failed on the primary checkout: {add_result.stderr.strip()}",
+        )
+        return False
+
+    commit_msg = f"chore({mission_slug}): assign mission_number={next_number} (primary tree)"
+    commit_result = _subprocess.run(
+        ["git", "-c", "commit.gpgsign=false", "commit", "-m", commit_msg],
+        cwd=str(main_repo),
+        capture_output=True,
+        text=True,
+    )
+    if commit_result.returncode != 0:
+        _surface_unbaked_mission_number(
+            mission_slug,
+            mission_branch,
+            next_number,
+            reason=f"git commit failed on the primary checkout: {commit_result.stderr.strip()}",
+        )
+        return False
+
+    _merge_logger.info(
+        "Assigned mission_number=%d to mission %s via primary-tree write-back (coord-topology fallback, #4474/FR-011)",
+        next_number,
+        mission_slug,
+    )
+    return True
+
+
 def _write_mission_number_to_branch(
     main_repo: Path,
     mission_branch: str,
@@ -406,12 +565,26 @@ def _write_mission_number_to_branch(
             )
             return False
         if not meta_path.exists():
-            _merge_logger.warning(
-                "meta.json missing on mission branch %s for %s; cannot bake mission_number",
-                mission_branch,
+            # #4474 / FR-011: the mission-branch tree lacks meta.json -- on a
+            # coord-topology mission (the "083+ layout" where
+            # ``mission_branch == coordination_branch``, see
+            # ``merge/executor.py``'s ``_capture_pre_mutation_coord_checkpoint``
+            # docstring) that branch carries only lifecycle surfaces
+            # (status/notes/trace); meta.json is a PRIMARY-partition artifact
+            # that instead lives on the PRIMARY checkout (``main_repo``'s own
+            # on-disk tree -- see ``mission_runtime.resolution.read_dir_for``'s
+            # "repo_root: Absolute repository root (primary checkout)"
+            # contract). Pre-fix this branch silently ``return False``d here,
+            # losing the number forever. Make the write-back topology-aware:
+            # fall through to the primary-tree fallback instead of failing
+            # open.
+            return _bake_mission_number_on_primary_tree(
+                main_repo,
                 mission_slug,
+                mission_branch,
+                next_number,
+                merge_state,
             )
-            return False
 
         # Canonical reader (FR-005/WP12): on_malformed="none" absorbs BOTH a
         # JSON-syntax error AND a non-dict top level to None, so a corrupt

@@ -65,6 +65,40 @@ def _make_manifest(slug: str) -> MagicMock:
     return manifest
 
 
+def _seed_wp01_done(feature_dir: Path, mission_slug: str) -> None:
+    """Seed WP01 as ``done`` on the real event log (#4764/T007).
+
+    ``_assert_mission_terminal_ready`` reads ``status.events.jsonl`` directly
+    and now refuses the merge before any mutation when WP01 is absent from
+    the log. This module's tests exercise the untracked/tracked-porcelain
+    tolerance, not readiness (one currently asserts a ``typer.Exit`` too, so
+    without this seed it would pass vacuously for the wrong reason), so seed
+    WP01 to let the merge proceed to the invariant under test.
+    """
+    import json
+
+    event = {
+        "actor": "test",
+        "at": "2026-04-06T12:00:00+00:00",
+        "event_id": "01TESTWP01UNTRACKED",
+        "evidence": None,
+        "execution_mode": "worktree",
+        "feature_slug": mission_slug,
+        "force": True,
+        "from_lane": "approved",
+        "reason": "test seed",
+        "review_ref": None,
+        "to_lane": "done",
+        "wp_id": "WP01",
+    }
+    (feature_dir / "status.events.jsonl").write_text(
+        json.dumps(event, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    from specify_cli.status.reducer import materialize
+
+    materialize(feature_dir)
+
+
 class TestClassifyPorcelainLines:
     """Pin the contract on the helper directly."""
 
@@ -124,6 +158,7 @@ class TestMergeToleratesUntrackedFiles:
         _init_git_repo(tmp_path)
         feature_dir = tmp_path / "kitty-specs" / slug
         feature_dir.mkdir(parents=True)
+        _seed_wp01_done(feature_dir, slug)
 
         manifest = _make_manifest(slug)
 
@@ -210,6 +245,7 @@ class TestMergeToleratesUntrackedFiles:
         _init_git_repo(tmp_path)
         feature_dir = tmp_path / "kitty-specs" / slug
         feature_dir.mkdir(parents=True)
+        _seed_wp01_done(feature_dir, slug)
 
         manifest = _make_manifest(slug)
 

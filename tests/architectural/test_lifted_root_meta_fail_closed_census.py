@@ -113,6 +113,10 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/git/sparse_checkout.py", "_load_managed_lane_policies"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/recovery.py", "_mission_id_from_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/worktree_allocator.py", "_read_coordination_branch"): (1, "silent-by-contract"),
+    # #4764/#4474 primary-tree fallback: mirrors the mission-branch write's
+    # on_malformed="none" absorption -- a corrupt/non-dict meta.json degrades
+    # to the same "cannot bake mission_number" skip, never an uncaught raise.
+    ("src/specify_cli/merge/ordering.py", "_bake_mission_number_on_primary_tree"): (1, "silent-by-contract"),
     ("src/specify_cli/merge/ordering.py", "_compute_next_mission_number_or_none"): (1, "silent-by-contract"),
     ("src/specify_cli/merge/ordering.py", "_write_mission_number_to_branch"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/backfill_runtime_state.py", "_mission_id"): (1, "silent-by-contract"),

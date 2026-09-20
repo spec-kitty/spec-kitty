@@ -267,7 +267,7 @@ _ALLOWLIST: dict[str, str] = {
     "src/specify_cli/merge/ordering.py:329:worktree_remove_force": (
         "ephemeral detached scan worktree, torn down in the same function's own finally block; never operator-visible state."
     ),
-    "src/specify_cli/merge/ordering.py:494:worktree_remove_force": (
+    "src/specify_cli/merge/ordering.py:667:worktree_remove_force": (
         "ephemeral detached scan worktree (mission-number bake), same class as the sibling ordering.py:329 site."
     ),
     "src/specify_cli/merge/workspace.py:113:worktree_remove_force": (
@@ -276,7 +276,7 @@ _ALLOWLIST: dict[str, str] = {
     "src/specify_cli/review/baseline.py:294:worktree_remove_force": (
         "detached temp baseline-comparison worktree, torn down in the same context manager that created it."
     ),
-    "src/specify_cli/cli/commands/mission_type.py:1117:worktree_remove_force": (
+    "src/specify_cli/cli/commands/mission_type.py:1181:worktree_remove_force": (
         "reached only via `--discard` (_discard_mission): an operator-requested, intentional mission abandonment -- not an implicit/accidental destroy."
     ),
     "src/specify_cli/git/destructive_guard.py:229:worktree_remove_force": (
@@ -297,7 +297,7 @@ _ALLOWLIST: dict[str, str] = {
         "own docstring, not an unrouted/unexplained raw force-remove."
     ),
     # --- merge --abort (6) --------------------------------------------------
-    "src/specify_cli/merge/state.py:482:merge_abort": (
+    "src/specify_cli/merge/state.py:493:merge_abort": (
         "abort_git_merge's own generic primitive; its one live caller "
         "(cli.commands.merge._dispatch_abort, WP04/#4754) passes only the "
         "scoped merge-workspace path, never repo_root (INV-5)."

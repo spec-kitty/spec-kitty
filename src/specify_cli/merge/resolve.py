@@ -204,8 +204,16 @@ def _load_or_create_merge_state(
     target_branch: str,
     wp_order: list[str],
     push_requested: bool,
+    skip_lanes: bool = False,
 ) -> tuple[MergeState, bool]:
-    """Load canonical/legacy merge state, migrating legacy state to canonical."""
+    """Load canonical/legacy merge state, migrating legacy state to canonical.
+
+    FOLD-F2 (terminus-safety-invariant-01M2XFT7, T021/FR-012): ``skip_lanes``
+    is persisted only on a FRESH state (this run's own choice becomes the
+    durable record for a genuinely-lanes.json-absent mission). A loaded
+    (existing) state's own persisted value is never overwritten here --
+    that survives resume exactly as recorded on the run that created it.
+    """
     canonical_state = load_state(main_repo, canonical_id)
     if canonical_state is not None:
         return canonical_state, True
@@ -227,6 +235,7 @@ def _load_or_create_merge_state(
         target_branch=target_branch,
         wp_order=wp_order,
         push_requested=push_requested,
+        skip_lanes=skip_lanes,
     )
     save_state(state, main_repo)
     return state, False

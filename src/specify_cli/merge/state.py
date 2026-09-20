@@ -110,6 +110,17 @@ class MergeState:
     # ``coord_ref``, ``captured_sha``, ``coord_worktree``, ``stranded_wp_ids``,
     # ``revert_error``, ``detected_at``.
     pending_coord_reconcile: dict[str, Any] | None = None
+    # terminus-safety-invariant-01M2XFT7 FOLD-F2 (T021, FR-012): mirrors the
+    # executor's transient ``_MergeRunState.skip_lanes`` (merge/executor.py)
+    # so a genuinely-lanes.json-absent direct-on-target mission's
+    # ``--skip-lanes``/``--no-lanes`` choice survives a ``merge --resume``.
+    # Pre-fix a resume re-derives ``skip_lanes=False`` from CLI defaults and
+    # ``require_lanes_json`` raises ``MissingLanesError`` mid-resume, which
+    # reads as a regression on a mission that was never going to have a lanes
+    # manifest. Round-trips through ``from_dict``'s known-fields filter
+    # exactly like ``mission_number_baked`` — back-compat for state files
+    # written before this field existed (absent key -> default ``False``).
+    skip_lanes: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""

@@ -35,7 +35,7 @@ from rich.text import Text
 
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import get_project_root_or_exit
-from specify_cli.cli.json_contract import json_error
+from specify_cli.cli.json_contract import json_error, json_output_guard
 from specify_cli.mission import (
     Mission,
     MissionError,
@@ -523,17 +523,27 @@ def close_cmd(
             help="Skip the confirmation prompt when --discard is set.",
         ),
     ] = False,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a JSON envelope instead of a rich panel."),
+    ] = False,
 ) -> None:
     """Close a mission. Wraps FR-016 lifecycle teardown.
 
-    Without ``--discard``: run the merge-completion teardown — persist the
-    mission retrospective to its durable home and tear down the coordination
-    worktree. Idempotent after a successful ``spec-kitty merge`` (which already
-    ran the same teardown); useful when the teardown was skipped (e.g. the legacy
-    plain-git/GitHub merge path) or interrupted. NOTE: on a mission that was
-    merged without a retrospective, this generates one
+    Without ``--discard``: fail-closed precondition (FR-004/FR-005, #4765) —
+    refuses (non-zero exit, no writes) unless the mission has a recorded merge
+    baseline (``is_mission_merged``). An all-terminal-but-unmerged mission
+    (e.g. every work package cancelled) still refuses here; use ``--discard``
+    to abandon it. Once merged: runs the merge-completion teardown — persists
+    the mission retrospective to its durable home and tears down the
+    coordination worktree. Idempotent after a successful ``spec-kitty merge``
+    (which already ran the same teardown); useful when the teardown was
+    skipped (e.g. the legacy plain-git/GitHub merge path) or interrupted.
+    NOTE: on a merged mission without a retrospective, this generates one
     (``kitty-specs/<slug>/retrospective.yaml``) plus a ``RetrospectiveCaptured``
-    event and commits both — it is not a pure no-op in that case.
+    event and commits both — it is not a pure no-op in that case. Tolerates a
+    mission left with an orphaned ``coordination_branch`` marker (FR-013,
+    #2745) — no traceback, the mission slug is rendered once.
 
     With ``--discard``: abandon the mission mid-flight. Deletes the
     coordination branch and every lane branch named in
@@ -546,15 +556,17 @@ def close_cmd(
     Implements FR-016 from
     ``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.
     """
-    project_root = get_project_root_or_exit()
+    project_root = get_project_root_or_exit(json_output=json_output)
     repo_root = _resolve_primary_repo_root(project_root)
 
     # Resolve mission slug.
     mission_slug = mission or _detect_current_feature(project_root)
     if not mission_slug:
-        console.print(
+        _emit_mission_error(
             "[red]Error:[/red] No mission specified and no active mission "
-            "detected. Use [cyan]--mission <slug>[/cyan]."
+            "detected. Use [cyan]--mission <slug>[/cyan].",
+            code="mission_not_specified",
+            json_output=json_output,
         )
         raise typer.Exit(1)
 
@@ -571,7 +583,11 @@ def close_cmd(
     # contract, so this keeps calling the richer resolver directly.
     feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
     if not feature_dir.exists():
-        console.print(f"[red]Mission not found:[/red] {mission_slug}")
+        _emit_mission_error(
+            f"[red]Mission not found:[/red] {mission_slug}",
+            code="mission_not_found",
+            json_output=json_output,
+        )
         raise typer.Exit(1)
 
     # F-001: re-key to the canonical directory name. `--mission` accepts
@@ -609,41 +625,81 @@ def close_cmd(
     meta_path = feature_dir / "meta.json"
     mid8_value = _read_mission_mid8(meta_path)
 
-    if discard:
-        _discard_mission(
-            repo_root=repo_root,
-            feature_dir=feature_dir,
-            mission_slug=mission_slug,
-            mid8_value=mid8_value,
-            meta_path=meta_path,
-            force=force,
-        )
-        # Fail closed (#2120): a destructive discard must not report success
-        # while leaving worktrees/branches behind. Verify BEFORE flattening so the
-        # legacy-branch check can still read coordination_branch from meta.json.
-        _verify_discard_complete(
-            repo_root, mission_slug, mid8_value, feature_dir, meta_path
-        )
-        # Flatten: drop the now-dangling coordination_branch marker so subsequent
-        # commands for this mission don't trip CoordinationBranchDeleted (#2120).
-        _flatten_discarded_mission(feature_dir)
-        # #704: the spec directory deliberately survives a discard (the
-        # retrospective lives there), so mark the mission instead of deleting it
-        # and let the dashboard filter on the marker. Written before the commit
-        # leg below so it lands in the same bookkeeping commit as the flatten.
-        _mark_mission_discarded(feature_dir)
-        # #3716: the flatten is the LAST mutating write on the discard path and
-        # previously had no commit leg, leaving ``meta.json`` modified-uncommitted
-        # after a discard that reported success. Commit it to the PRIMARY surface.
-        _commit_flattened_meta(repo_root, feature_dir, mission_slug)
-        console.print(f"[green]✓[/green] Mission {mission_slug} discarded.")
-    else:
-        # Teardown the coordination worktree. Routes through the shared
-        # ``coordination/teardown.py`` seam (persist-before-destroy), the same
-        # seam the ``spec-kitty merge`` cleanup + ``--abort`` paths use.
-        # Idempotent: no-ops on legacy missions / when already torn down.
-        _teardown_coordination_worktree(repo_root, mission_slug, mid8_value)
-        console.print(f"[green]✓[/green] Mission {mission_slug} closed.")
+    # FR-013 (#2745 facet 3): suppress incidental logging noise (e.g. the
+    # placement-seam ZERO_EVIDENCE degrade warning fired by an orphaned
+    # ``coordination_branch`` marker, #1848) while emitting a JSON envelope so
+    # ``--json`` output stays parseable machine output, not mixed human text.
+    with json_output_guard(json_output):
+        if discard:
+            _discard_mission(
+                repo_root=repo_root,
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                mid8_value=mid8_value,
+                meta_path=meta_path,
+                force=force,
+            )
+            # Fail closed (#2120): a destructive discard must not report success
+            # while leaving worktrees/branches behind. Verify BEFORE flattening so the
+            # legacy-branch check can still read coordination_branch from meta.json.
+            _verify_discard_complete(
+                repo_root, mission_slug, mid8_value, feature_dir, meta_path
+            )
+            # Flatten: drop the now-dangling coordination_branch marker so subsequent
+            # commands for this mission don't trip CoordinationBranchDeleted (#2120).
+            _flatten_discarded_mission(feature_dir)
+            # #704: the spec directory deliberately survives a discard (the
+            # retrospective lives there), so mark the mission instead of deleting it
+            # and let the dashboard filter on the marker. Written before the commit
+            # leg below so it lands in the same bookkeeping commit as the flatten.
+            _mark_mission_discarded(feature_dir)
+            # #3716: the flatten is the LAST mutating write on the discard path and
+            # previously had no commit leg, leaving ``meta.json`` modified-uncommitted
+            # after a discard that reported success. Commit it to the PRIMARY surface.
+            _commit_flattened_meta(repo_root, feature_dir, mission_slug)
+            if json_output:
+                console.emit_json({"ok": True, "result": "discarded", "mission_slug": mission_slug})
+            else:
+                console.print(f"[green]✓[/green] Mission {mission_slug} discarded.")
+        else:
+            # Fail-closed precondition (FR-004/FR-005, #4765): a non-discard
+            # close must never fabricate a completion record (retrospective +
+            # teardown) for a mission that was never merged. Checked BEFORE any
+            # write/teardown so a refused close leaves the mission untouched —
+            # writes/commits/emits NOTHING and the coordination worktree stays
+            # intact. D4: keyed on `is_mission_merged` (the explicit `merged_at`
+            # marker), NOT `is_mission_completed` — an all-terminal-but-unmerged
+            # mission (e.g. every work package cancelled) must still go via
+            # `--discard`, not be treated as completed. Mirrors the existing
+            # `reopen_cmd` guard (#1926).
+            from specify_cli.status import is_mission_merged  # noqa: PLC0415 — facade import (C-002)
+
+            if not is_mission_merged(feature_dir):
+                _emit_mission_error(
+                    "[red]Error:[/red] cannot close: mission "
+                    f"[bold]{mission_slug}[/bold] has not been merged.\n"
+                    "[dim]Remediation: this mission has no recorded merge "
+                    "baseline. Use `--discard` to abandon it mid-flight, or "
+                    "merge it first (`spec-kitty merge`) before closing.[/dim]",
+                    code="mission_not_merged",
+                    json_output=json_output,
+                )
+                raise typer.Exit(1)
+
+            # Teardown the coordination worktree. Routes through the shared
+            # ``coordination/teardown.py`` seam (persist-before-destroy), the same
+            # seam the ``spec-kitty merge`` cleanup + ``--abort`` paths use.
+            # Idempotent: no-ops on legacy missions / when already torn down.
+            # Tolerates an orphaned ``coordination_branch`` marker (FR-013):
+            # the seam's destroy leg is itself idempotent on a missing
+            # worktree/branch, so no traceback surfaces here.
+            _teardown_coordination_worktree(
+                repo_root, mission_slug, mid8_value, quiet=json_output
+            )
+            if json_output:
+                console.emit_json({"ok": True, "result": "closed", "mission_slug": mission_slug})
+            else:
+                console.print(f"[green]✓[/green] Mission {mission_slug} closed.")
 
 
 def _read_mission_mid8(meta_path: Path) -> str:
@@ -1017,6 +1073,7 @@ def _teardown_coordination_worktree(
     mid8_value: str,
     *,
     provenance_kind: ProvenanceKind = "runtime_post_completion",
+    quiet: bool = False,
 ) -> None:
     if not mid8_value:
         return
@@ -1027,7 +1084,10 @@ def _teardown_coordination_worktree(
     # ``is_present`` truth so the operator sees whether manual cleanup is needed.
     # ``provenance_kind`` stamps the captured retrospective — the discard leg
     # passes ``"runtime_abandoned"`` (#3716) so an abandoned mission is not tagged
-    # with completion provenance.
+    # with completion provenance. An orphaned ``coordination_branch`` marker
+    # (FR-013, #2745) — declared in meta.json but absent from git — degrades
+    # gracefully here: the seam's destroy leg is idempotent on a missing
+    # worktree/branch, so this never raises.
     from specify_cli.coordination.teardown import teardown_coordination_topology
     from specify_cli.coordination.workspace import CoordinationWorkspace
     from specify_cli.lanes.branch_naming import coord_mission_dir_name
@@ -1035,6 +1095,10 @@ def _teardown_coordination_worktree(
     teardown_coordination_topology(
         repo_root, mission_slug, mid8_value, provenance_kind=provenance_kind
     )
+    if quiet:
+        # ``--json`` mode (FR-013): the caller emits a single structured
+        # envelope instead — these are the human-readable rich lines.
+        return
     if CoordinationWorkspace.is_present(repo_root, mission_slug, mid8_value):
         console.print(
             "[yellow]Warning:[/yellow] coordination worktree still "

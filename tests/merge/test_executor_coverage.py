@@ -105,6 +105,34 @@ def test_phase_gates_exits_when_gates_fail(tmp_path: Path) -> None:
 def test_phase_gates_passes_and_prints_resume_banner(tmp_path: Path) -> None:
     run = _make_run(tmp_path, is_resume=True)
     run.state.completed_wps = []
+    # terminus-safety-invariant-01M2XFT7 FOLD-F3: ``_phase_gates_and_state``
+    # now runs the UNCONDITIONAL ``_assert_mission_terminal_ready``
+    # precondition first (T007) — a WP absent from the reduced snapshot
+    # refuses (FOLD-F3's fail-closed fix), so this fixture must seed a real
+    # acceptable-ending event for WP01 to reach the gate-eval/history/hollow
+    # wiring this test actually targets.
+    run.feature_dir.mkdir(parents=True, exist_ok=True)
+    (run.feature_dir / "status.events.jsonl").write_text(
+        json.dumps(
+            {
+                "actor": "reviewer-renata",
+                "at": "2026-09-19T00:00:00+00:00",
+                "event_id": "01HXYZEXEC0000000000000001",
+                "evidence": None,
+                "execution_mode": "worktree",
+                "feature_slug": "m",
+                "force": False,
+                "from_lane": "in_review",
+                "reason": None,
+                "review_ref": "review-WP01",
+                "to_lane": "approved",
+                "wp_id": "WP01",
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     gate = SimpleNamespace(verdict="pass", blocking=False, gate_name="g", details="ok")
     gate_eval = SimpleNamespace(gates=[gate], overall_pass=True)
     with (

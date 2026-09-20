@@ -16,16 +16,12 @@ from pathlib import Path
 from typing import Any
 
 from kernel.clock import now_utc, parse_iso
+from specify_cli.status_lanes import TERMINAL_LANES
 from .models import Lane, WPInnerStateDelta
 from .reducer import SNAPSHOT_FILENAME, reduce
 from .store import read_events
 
 logger = logging.getLogger(__name__)
-
-#: Lanes for which a WP is finished — a blanked runtime slot on one of these is
-#: not actionable (the work is over), so ``check_blanked_runtime_slots`` skips
-#: them. Mirrors ``check_orphan_workspaces``' terminal set.
-_TERMINAL_LANES: frozenset[Lane] = frozenset({Lane.DONE, Lane.CANCELED})
 
 #: The string-scalar runtime slots a ``WPInnerStateDelta`` can fold into a WP
 #: snapshot. Derived from the single canonical field list (C-005: no second
@@ -231,7 +227,7 @@ def check_blanked_runtime_slots(snapshot: dict[str, Any]) -> list[Finding]:
     findings: list[Finding] = []
     work_packages = snapshot.get("work_packages", {})
     for wp_id, wp_state in work_packages.items():
-        if wp_state.get("lane") in _TERMINAL_LANES:
+        if wp_state.get("lane") in TERMINAL_LANES:
             continue
         for slot in _BLANKABLE_RUNTIME_SLOTS:
             value = wp_state.get(slot)
@@ -266,8 +262,7 @@ def check_orphan_workspaces(
     if not work_packages:
         return findings
 
-    terminal_lanes = {Lane.DONE, Lane.CANCELED}
-    all_terminal = all(wp.get("lane") in terminal_lanes for wp in work_packages.values())
+    all_terminal = all(wp.get("lane") in TERMINAL_LANES for wp in work_packages.values())
 
     if not all_terminal:
         return findings  # Feature still has active WPs, worktrees are legitimate
@@ -290,7 +285,7 @@ def check_orphan_workspaces(
                     message=(
                         f"Worktree '{orphan_dir.name}' exists but all WPs in "
                         f"'{mission_slug}' are terminal "
-                        f"({', '.join(sorted(terminal_lanes))}). "
+                        f"({', '.join(sorted(TERMINAL_LANES))}). "
                         f"Path: {orphan_dir}"
                     ),
                     recommended_action=(f"Remove the orphan worktree: git worktree remove {orphan_dir.name}"),

@@ -203,6 +203,32 @@ class TestMergeStateDataclass:
         assert state.current_wp == "WP02"
         assert state.has_pending_conflicts is True
 
+    def test_from_dict_legacy_state_without_skip_lanes_defaults_false(self):
+        """terminus-safety-invariant-01M2XFT7 FOLD-F2: a state file written
+        before ``skip_lanes`` existed round-trips to the safe default
+        (``False``) via the known-fields filter — mirrors the pre-existing
+        ``mission_number_baked`` back-compat contract."""
+        data = {
+            "mission_id": MISSION_ID,
+            "mission_slug": "test-feature",
+            "target_branch": "main",
+            "wp_order": ["WP01"],
+        }
+        state = MergeState.from_dict(data)
+        assert state.skip_lanes is False
+
+    def test_skip_lanes_round_trips_through_from_dict(self):
+        """FOLD-F2: ``skip_lanes=True`` survives ``to_dict``/``from_dict``."""
+        state = MergeState(
+            mission_id=MISSION_ID,
+            mission_slug="test-feature",
+            target_branch="main",
+            wp_order=["WP01"],
+            skip_lanes=True,
+        )
+        rehydrated = MergeState.from_dict(state.to_dict())
+        assert rehydrated.skip_lanes is True
+
 
 class TestStatePersistence:
     """Tests for save_state, load_state, and clear_state at canonical location."""
@@ -225,6 +251,26 @@ class TestStatePersistence:
         assert loaded.wp_order == ["WP01", "WP02", "WP03"]
         assert loaded.completed_wps == ["WP01"]
         assert loaded.current_wp == "WP02"
+
+    def test_save_and_load_state_persists_skip_lanes(self, tmp_path):
+        """terminus-safety-invariant-01M2XFT7 FOLD-F2 (T021/FR-012): a
+        genuinely-lanes.json-absent direct-on-target mission's
+        ``--skip-lanes``/``--no-lanes`` choice must round-trip through a real
+        save_state/load_state cycle (not just to_dict/from_dict in memory),
+        so ``merge --resume`` can recover it without the operator re-passing
+        the flag."""
+        state = MergeState(
+            mission_id=MISSION_ID,
+            mission_slug="test-feature",
+            target_branch="main",
+            wp_order=["WP01"],
+            skip_lanes=True,
+        )
+        save_state(state, tmp_path)
+
+        loaded = load_state(tmp_path, MISSION_ID)
+        assert loaded is not None
+        assert loaded.skip_lanes is True
 
     def test_state_written_to_canonical_location(self, tmp_path):
         """State file must be at .kittify/runtime/merge/<mission_id>/state.json."""

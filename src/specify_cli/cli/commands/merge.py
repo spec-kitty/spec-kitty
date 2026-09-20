@@ -548,6 +548,7 @@ def _run_real_merge(
     yes: bool,
     skip_review_artifact_check: bool = False,
     skip_note: str | None = None,
+    skip_lanes: bool = False,
 ) -> None:
     """Run the real lane-based merge + post-merge retrospective / next-step hints."""
     try:
@@ -563,6 +564,7 @@ def _run_real_merge(
             assume_yes=yes,
             skip_review_artifact_check=skip_review_artifact_check,
             skip_note=skip_note,
+            skip_lanes=skip_lanes,
         )
     except SparseCheckoutPreflightError as exc:
         # WP05/T020: surface sparse-checkout preflight as a user-facing error and
@@ -656,6 +658,20 @@ def merge(
         "--note",
         help="Reason recorded as override evidence when using --skip-review-artifact-check (required with it).",
     ),
+    skip_lanes: bool = typer.Option(
+        False,
+        "--skip-lanes",
+        "--no-lanes",
+        help=(
+            "Complete a merge-ready direct-on-target mission that has no lane "
+            "branch (#2745, FR-012): when lanes.json is genuinely absent, "
+            "synthesize a no-lane manifest instead of hard-failing with the "
+            "missing-lanes error. A mission that has real lanes is unaffected "
+            "-- an existing lanes.json is always honored as-is. Does NOT "
+            "bypass the merge-ready precondition: a not-merge-ready mission "
+            "still refuses before any mutation."
+        ),
+    ),
 ) -> None:
     """Merge a lane-based mission into its target branch."""
     del context_token, keep_workspace
@@ -693,6 +709,15 @@ def merge(
     if resume:
         mission = _dispatch_resume(repo_root, mission)
         # Fall through to the normal merge flow which will detect the state.
+        # FOLD-F2 (terminus-safety-invariant-01M2XFT7, T021/FR-012): a
+        # genuinely-lanes.json-absent direct-on-target mission's
+        # --skip-lanes/--no-lanes choice must survive --resume without the
+        # operator re-passing the flag -- the lanes-manifest decision below
+        # runs BEFORE MergeState is loaded inside the executor, so recover
+        # the persisted choice here and OR it into this invocation's flag.
+        resumed_state = _load_merge_state_for_mission(repo_root, mission)
+        if resumed_state is not None and resumed_state.skip_lanes:
+            skip_lanes = True
 
     _enforce_git_preflight(repo_root, json_output=json_output)
 
@@ -807,6 +832,7 @@ def merge(
         yes=yes,
         skip_review_artifact_check=skip_review_artifact_check,
         skip_note=note,
+        skip_lanes=skip_lanes,
     )
 
 

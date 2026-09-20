@@ -147,38 +147,57 @@ def evaluate_merge_gates(
 def _evaluate_evidence_gate(
     feature_dir: Path, wp_ids: list[str], is_blocking: bool,
 ) -> GateResult:
-    """Check that every WP is at an acceptable mission ending in the event log.
+    """Report (informationally) whether every WP is at an acceptable mission ending.
 
-    FR-009 merge face: routed through the single acceptable-ending authority
-    (:func:`~specify_cli.status_lanes.is_acceptable_ending`) over the reduced
-    per-WP snapshot lane — ``approved``/``done`` are evidence-complete
-    unconditionally, and a ``canceled`` WP carrying operator-authored provenance
-    (read via :func:`~specify_cli.status_lanes.has_operator_provenance`) is an
-    acceptable ending too, so a legitimately-canceled WP is not reported as
-    missing approval. A synthetic (non-provenance) cancellation still fails here.
+    FR-009 merge face: routed through the single shared aggregate
+    :func:`~specify_cli.status_lanes.mission_terminal_acceptability` (dedup
+    fold, #4764 — this gate previously re-inlined its own per-WP
+    acceptable-ending loop despite this very docstring already claiming to
+    use "the same shared aggregate"; it now genuinely does). That aggregate
+    itself consults :func:`~specify_cli.status_lanes.is_acceptable_ending`
+    and :func:`~specify_cli.status_lanes.has_operator_provenance` — a
+    ``canceled`` WP carrying operator-authored provenance is an acceptable
+    ending, so a legitimately-canceled WP is not reported as missing
+    approval; a synthetic (non-provenance) cancellation, an active lane, or a
+    WP declared in ``wp_ids`` but absent from the snapshot entirely (the
+    aggregate's ``expected_wp_ids`` fail-closed rule) still fails here.
+
+    T006 (terminus-safety-invariant, FR-002/FR-003, #4764): this "missing
+    approval" finding is NEVER blocking, regardless of ``policy.merge_gates.mode``
+    — the terminal-lane invariant this used to gate (softened to a warning under
+    ``mode: warn``, the #4764 fail-open) is now enforced UNCONDITIONALLY, before
+    any mutation, by ``merge.executor._assert_mission_terminal_ready`` (built on
+    the same shared aggregate, ``status_lanes.mission_terminal_acceptability``).
+    This gate stays purely informational so the operator still sees which WPs
+    are missing review approval in the printed gate summary; a ``mode: block``
+    config no longer needs this gate to enforce the invariant since the
+    executor precondition already refuses unconditionally. Only genuine
+    evidence-QUALITY concerns (review verdict / risk / hollow-review) remain
+    mode-softened (FR-003) — this de-conflates the terminal-lane invariant out
+    of that softenable path.
     """
     try:
         from specify_cli.status import read_events, reduce
+        from specify_cli.status_lanes import mission_terminal_acceptability
 
         snapshot = reduce(read_events(feature_dir))
         work_packages = snapshot.work_packages if hasattr(snapshot, "work_packages") else {}
+        relevant = {wp_id: work_packages[wp_id] for wp_id in wp_ids if wp_id in work_packages}
 
-        missing: list[str] = []
-        for wp_id in wp_ids:
-            wp_snapshot = work_packages.get(wp_id)
-            lane = str(wp_snapshot.get("lane", "")) if isinstance(wp_snapshot, dict) else ""
-            provenance = has_operator_provenance(
-                wp_snapshot if isinstance(wp_snapshot, dict) else None
-            )
-            if not is_acceptable_ending(lane, has_provenance=provenance):
-                missing.append(wp_id)
-        missing.sort()
+        _ok, missing = mission_terminal_acceptability(relevant, expected_wp_ids=wp_ids)
         if missing:
             return GateResult(
                 gate_name="evidence",
                 verdict=GateVerdict.FAIL,
-                details=f"WPs missing review approval: {', '.join(missing)}",
-                blocking=is_blocking,
+                details=(
+                    f"WPs missing review approval: {', '.join(missing)} "
+                    "(informational — the terminal-lane invariant is enforced "
+                    "unconditionally before any mutation, regardless of gate "
+                    "mode; see merge.executor._assert_mission_terminal_ready)"
+                ),
+                # T006: never blocking here — see the docstring above. The
+                # unconditional executor precondition owns the hard refuse.
+                blocking=False,
             )
         return GateResult(
             gate_name="evidence",

@@ -1892,7 +1892,6 @@ exclude = [
     "tests/policy/test_config.py",
     "tests/policy/test_hook_installer_execution.py",
     "tests/policy/test_hook_installer_rendering.py",
-    "tests/policy/test_merge_gates.py",
     "tests/policy/test_risk_scorer.py",
     "tests/post_merge/test_2684_review_override_recognition.py",
     "tests/post_merge/test_review_artifact_consistency.py",

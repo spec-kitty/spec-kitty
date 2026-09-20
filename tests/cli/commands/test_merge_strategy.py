@@ -174,6 +174,39 @@ def _write_meta(feature_dir: Path, mission_slug: str) -> None:
     )
 
 
+def _seed_wp_done_events(feature_dir: Path, mission_slug: str, wp_ids: list[str]) -> None:
+    """Seed every ``wp_ids`` entry as ``done`` on the real event log (#4764/T007).
+
+    ``_assert_mission_terminal_ready`` reads ``status.events.jsonl`` directly
+    (via ``read_events``/``reduce``), not through the ``get_wp_lane`` mock
+    these fixtures already patch elsewhere -- so a mission with no real event
+    log is reported as having every WP missing review approval and the merge
+    now refuses before mutation. These tests exercise strategy wiring, not
+    readiness, so seed every WP as done to let the merge proceed.
+    """
+    jsonl_path = feature_dir / "status.events.jsonl"
+    with jsonl_path.open("a", encoding="utf-8") as handle:
+        for index, wp_id in enumerate(wp_ids):
+            event = {
+                "actor": "test",
+                "at": "2026-04-07T00:00:00+00:00",
+                "event_id": f"TESTSTRAT{wp_id}{index:03d}",
+                "evidence": None,
+                "execution_mode": "direct_repo",
+                "feature_slug": mission_slug,
+                "force": True,
+                "from_lane": "planned",
+                "reason": "test seed",
+                "review_ref": None,
+                "to_lane": "done",
+                "wp_id": wp_id,
+            }
+            handle.write(json.dumps(event, sort_keys=True) + "\n")
+    from specify_cli.status.reducer import materialize
+
+    materialize(feature_dir)
+
+
 @contextmanager
 def _patched_lane_based_merge_dependencies(
     tmp_path: Path,
@@ -233,6 +266,7 @@ class TestStrategyFlagFlowsThrough:
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
         _write_meta(feature_dir, mission_slug)
+        _seed_wp_done_events(feature_dir, mission_slug, ["WP01", "WP02"])
 
         manifest = _make_mock_lanes_manifest(mission_slug)
 
@@ -268,6 +302,7 @@ class TestStrategyFlagFlowsThrough:
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
         _write_meta(feature_dir, mission_slug)
+        _seed_wp_done_events(feature_dir, mission_slug, ["WP01", "WP02"])
 
         manifest = _make_mock_lanes_manifest(mission_slug)
 
@@ -311,6 +346,7 @@ class TestLaneToMissionUsesMergeCommit:
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
         _write_meta(feature_dir, mission_slug)
+        _seed_wp_done_events(feature_dir, mission_slug, ["WP01", "WP02"])
 
         manifest = _make_mock_lanes_manifest(mission_slug)
 

@@ -86,6 +86,40 @@ def _make_manifest_with_planning_and_code(slug: str) -> MagicMock:
     return manifest
 
 
+def _seed_wp_done_raw(feature_dir: Path, mission_slug: str, wp_ids: list[str]) -> None:
+    """Seed every ``wp_ids`` entry as ``done`` directly on the event log (#4764/T007).
+
+    ``_assert_mission_terminal_ready`` reads ``status.events.jsonl``/``reduce``
+    directly, so a mission with no real event log now refuses before any
+    mutation. This bookkeeping-layer test mocks the merge internals wholesale
+    and never writes WP prompt files, so the lighter raw-event seed (rather
+    than the real emit-pipeline walk ``_seed_wp_approved`` performs) is
+    sufficient and keeps this layer's fast-feedback intent.
+    """
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    jsonl_path = feature_dir / "status.events.jsonl"
+    with jsonl_path.open("a", encoding="utf-8") as handle:
+        for index, wp_id in enumerate(wp_ids):
+            event = {
+                "actor": "test",
+                "at": "2026-04-07T00:00:00+00:00",
+                "event_id": f"TESTPLANWPORD{wp_id}{index:03d}",
+                "evidence": None,
+                "execution_mode": "direct_repo",
+                "feature_slug": mission_slug,
+                "force": True,
+                "from_lane": "planned",
+                "reason": "test seed",
+                "review_ref": None,
+                "to_lane": "done",
+                "wp_id": wp_id,
+            }
+            handle.write(json.dumps(event, sort_keys=True) + "\n")
+    from specify_cli.status.reducer import materialize
+
+    materialize(feature_dir)
+
+
 # ---------------------------------------------------------------------------
 # Layer 1 — bookkeeping (mocked merge functions)
 # ---------------------------------------------------------------------------
@@ -105,6 +139,7 @@ class TestMergeIncludesPlanningLane:
         _init_git_repo(tmp_path)
         feature_dir = tmp_path / "kitty-specs" / slug
         feature_dir.mkdir(parents=True)
+        _seed_wp_done_raw(feature_dir, slug, ["WP01", "WP02", "WP03", "WP04"])
 
         manifest = _make_manifest_with_planning_and_code(slug)
 
@@ -489,6 +524,14 @@ def _bootstrap_legacy_planning_only_mission(
         code_wp_ids=[],
         planning_wp_ids=["WP01"],
     )
+    # #4764/T007: _assert_mission_terminal_ready now hard-refuses a mission
+    # with a non-approved WP before any mutation, so every test built on this
+    # shared bootstrap needs WP01 seeded approved -- otherwise the merge
+    # refuses before ever reaching the post-merge invariant these tests
+    # actually exercise (and a test that merely asserts `pytest.raises(typer.Exit)`
+    # would start passing vacuously, for the wrong reason).
+    _write_wp_file(feature_dir, "WP01")
+    _seed_wp_approved(feature_dir, slug, "WP01")
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({slug}): bootstrap legacy planning mission")
 
@@ -1000,6 +1043,14 @@ class TestPlanningArtifactReachesTarget:
             code_wp_ids=["WP01"],
             planning_wp_ids=["WP02"],
         )
+        # #4764/T007: _assert_mission_terminal_ready now hard-refuses a
+        # mission with a non-approved WP before any mutation. This test's
+        # intent is the planning-artifact data-loss check, not readiness, so
+        # seed both WPs approved via the real status-emit pipeline (mirrors
+        # the sibling real-merge tests below) to let the merge proceed.
+        for wp_id in ("WP01", "WP02"):
+            _write_wp_file(feature_dir, wp_id)
+            _seed_wp_approved(feature_dir, slug, wp_id)
         _git(tmp_path, "add", ".")
         _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap mission fixture")
 
@@ -1272,6 +1323,12 @@ class TestPlanningArtifactReachesTarget:
             code_wp_ids=["WP01"],
             planning_wp_ids=["WP02"],
         )
+        # #4764/T007: seed both WPs approved so the merge-ready precondition
+        # lets the merge proceed far enough to exercise the phantom-branch
+        # design-boundary check under test.
+        for wp_id in ("WP01", "WP02"):
+            _write_wp_file(feature_dir, wp_id)
+            _seed_wp_approved(feature_dir, slug, wp_id)
         _git(tmp_path, "add", ".")
         _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap mission fixture")
 
@@ -1429,6 +1486,10 @@ class TestRetentionConstraintSurvivesCleanup:
             planning_wp_ids=[],
             mission_branch=_RETENTION_MISSION_BRANCH,
         )
+        # #4764/T007: seed WP01 approved so the merge-ready precondition lets
+        # the merge proceed to the branch/worktree-retention behavior under test.
+        _write_wp_file(feature_dir, "WP01")
+        _seed_wp_approved(feature_dir, slug, "WP01")
         _git(tmp_path, "add", ".")
         _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap coord retaining mission")
 
@@ -1545,6 +1606,10 @@ class TestRetentionConstraintSurvivesCleanup:
             planning_wp_ids=[],
             mission_branch=mission_branch,
         )
+        # #4764/T007: seed WP01 approved so the merge-ready precondition lets
+        # the merge proceed to the explicit-override behavior under test.
+        _write_wp_file(feature_dir, "WP01")
+        _seed_wp_approved(feature_dir, slug, "WP01")
         _git(tmp_path, "add", ".")
         _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap coord retaining mission")
 
@@ -1640,6 +1705,10 @@ class TestRetentionConstraintSurvivesCleanup:
             planning_wp_ids=[],
             mission_branch=mission_branch,
         )
+        # #4764/T007: seed WP01 approved so the merge-ready precondition lets
+        # the merge proceed to the malformed-retention-value behavior under test.
+        _write_wp_file(feature_dir, "WP01")
+        _seed_wp_approved(feature_dir, slug, "WP01")
         _git(tmp_path, "add", ".")
         _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap malformed-retention mission")
 

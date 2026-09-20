@@ -76,6 +76,10 @@ EXPECTED_PARSER_LONG_FLAGS = frozenset(
         "--yes",
         "--skip-review-artifact-check",
         "--note",
+        # #2745 (WP05): the direct-on-target completion affordance — completes a
+        # merge-ready mission that has no lane branch. ``--no-lanes`` is the alias.
+        "--skip-lanes",
+        "--no-lanes",
     }
 )
 
