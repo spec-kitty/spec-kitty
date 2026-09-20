@@ -16,7 +16,6 @@ from __future__ import annotations
 import sys
 
 import typer
-from rich.markup import escape
 
 from specify_cli.auth import get_token_manager
 from specify_cli.cli.commands._auth_saas_target import print_saas_target
@@ -38,12 +37,17 @@ def whoami_impl() -> None:
         assessment = getattr(tm, "session_assessment", None)
         detail = getattr(assessment, "detail", None)
         # stderr is a human-facing surface, so the detail goes through the
-        # same terminal-hygiene rule as the ``auth status``/``auth doctor``
-        # renders (#4761 squad NOTE): control sequences stripped, Rich
-        # markup escaped. stdout stays bare by the machine contract above.
+        # terminal-hygiene rule's control-sequence half (#4761 squad NOTE):
+        # a plain ``print`` bypasses ``CliConsole.render_str``'s
+        # sanitisation, so ``sanitize_terminal_text`` is load-bearing here.
+        # ``escape`` is deliberately NOT applied — this sink is a plain
+        # print, not a Rich console, so nothing ever parses the markup and
+        # the escape would only leak a literal backslash into the path
+        # (#4761 squad pass 2 MINOR). stdout stays bare by the machine
+        # contract above.
         if detail:
             print(
-                f"spec-kitty auth whoami: {escape(sanitize_terminal_text(detail))}",
+                f"spec-kitty auth whoami: {sanitize_terminal_text(detail)}",
                 file=sys.stderr,
             )
         raise typer.Exit(1)

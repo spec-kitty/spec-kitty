@@ -392,6 +392,41 @@ def test_renders_storage_permission_refusal_not_no_session(
     assert "spec-kitty auth login" not in rendered
 
 
+def test_present_unknown_session_is_not_rendered_as_storage_refusal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#4761 squad pass 2 MINOR fold: ``auth_verdict.detail`` truthiness alone
+    must not gate the "session unreadable" placeholder.
+
+    A *present, readable* session in the common ``unknown`` state (access
+    expired, refresh valid, no ``--server``) carries the probe-advice detail
+    — the only other detail-carrying verdict — and a foreign-written session
+    can have ``storage_backend=None``, which routes the Storage section
+    through the placeholder. That placeholder must fall back to the
+    pre-#4761 "(no session)" line for the backend-unknown case, never claim
+    a storage refusal for a session that loaded fine.
+    """
+    session = replace(
+        _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30)),
+        storage_backend=None,
+        access_token_expires_at=now_utc() - timedelta(minutes=5),
+    )
+    _patch_state(monkeypatch, session=session)
+
+    report = assemble_report()
+
+    # The bug's preconditions: a present session with an unknown backend and
+    # a detail-carrying (non-refusal) verdict.
+    assert report.session is not None
+    assert report.session.storage_backend is None
+    assert report.auth_verdict.state == "unknown"
+    assert report.auth_verdict.detail
+
+    rendered = _capture_render(report)
+    assert "(no session)" in rendered
+    assert "session unreadable" not in rendered
+
+
 def test_renders_stuck_lock_finding(monkeypatch: pytest.MonkeyPatch) -> None:
     """Lock record 120 s old ⇒ F-003 critical; exit 1."""
     session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))

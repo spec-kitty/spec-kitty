@@ -619,9 +619,17 @@ def _no_session_note(report: DoctorReport) -> str:
 
     Distinguishes "nothing is stored" from "something is stored but storage
     refused to read it" (#4761) so neither section contributes to the
-    no-session misdiagnosis.
+    no-session misdiagnosis. The unreadable flavour is gated on the session
+    actually being absent, not on ``auth_verdict.detail`` truthiness alone:
+    the ``unknown`` verdict — a *present, readable* session whose refresh
+    chain is unproven offline — also carries a detail line, and a
+    detail-truthiness gate made the Storage section claim a refusal for a
+    session that loaded fine (#4761 squad pass 2 MINOR). With ``session is
+    None``, a truthy ``detail`` can only come from the storage-refusal
+    verdict rung — every other detail-carrying verdict requires a live
+    session.
     """
-    if report.auth_verdict.detail:
+    if report.session is None and report.auth_verdict.detail:
         return "(session unreadable — storage refused to load it)"
     return "(no session)"
 

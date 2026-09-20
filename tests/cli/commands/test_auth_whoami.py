@@ -111,15 +111,20 @@ class TestAuthWhoamiCommand:
         assert "chmod 600" in combined
 
     def test_unsafe_permissions_detail_is_sanitized_on_stderr(self):
-        """#4761 squad NOTE fold: the stderr detail goes through the same
-        terminal-hygiene rule as the ``auth status``/``auth doctor`` renders —
-        hostile control sequences in the storage-authored message are
-        stripped, and Rich markup is escaped, before the line is printed."""
+        """#4761 squad NOTE fold + pass-2 MINOR fold: the stderr detail goes
+        through the terminal-hygiene rule's control-sequence half — hostile
+        control sequences in the storage-authored message are stripped
+        before the line is printed (a plain ``print`` bypasses
+        ``CliConsole.render_str``'s sanitisation). Rich markup is NOT
+        escaped: stderr is a plain print sink, nothing parses markup there,
+        and ``rich.markup.escape`` would only leak a literal backslash into
+        the path — so a Rich-tag-shaped path segment must pass through
+        raw."""
         hostile_suffix = "\x1b[2J\x1b]0;x\x07\x1b"
-        safe_text = "Session file /home/u/.spec-kitty/auth/session.json has unsafe permissions"
+        safe_text = "Session file /home/u/[red]kitty/auth/session.json has unsafe permissions"
         mock_storage = _mock_storage_returning(None, backend="file")
         mock_storage.read.side_effect = SessionFilePermissionsError(
-            f"{safe_text}{hostile_suffix} (mode=0o644); expected 0600. Fix with: chmod 600 /home/u/.spec-kitty/auth/session.json"
+            f"{safe_text}{hostile_suffix} (mode=0o644); expected 0600. Fix with: chmod 600 /home/u/[red]kitty/auth/session.json"
         )
         with patch(
             "specify_cli.auth.secure_storage.SecureStorage.from_environment",
@@ -136,6 +141,10 @@ class TestAuthWhoamiCommand:
         assert b"\x1b" not in emitted
         assert b"[2J" not in emitted
         assert b"]0;x" not in emitted
+        # no Rich escape on this sink: the tag-shaped segment stays raw
+        # (an escaped render would print a literal backslash before the tag).
+        assert "\\[red]" not in stderr
+        assert "[red]" in stderr
 
     def test_split_brain_shows_both_values_not_a_traceback(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
         """#193: ``whoami`` shares ``_print_saas_target`` with ``status`` — a
