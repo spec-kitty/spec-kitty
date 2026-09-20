@@ -882,9 +882,10 @@ def _persist_approved_review_cycle(
     # fallback chain) — never the literal "unknown" for a genuine
     # approval.
     reviewer_agent = (st.reviewer or st.agent or st.actor or "unknown").strip() or "unknown"
-    approval_reference = (
-        st.approval_ref or st.note_text or f"approval:{st.task_id}"
-    ).strip() or f"approval:{st.task_id}"
+    # #4327: pointer-only -- ``--approval-ref`` or the synthetic ``approval:<WP>``
+    # token, never the operator's ``--note`` prose (the note stays whole in the
+    # emitted event's ``reason``).
+    approval_reference = (st.approval_ref or f"approval:{st.task_id}").strip() or f"approval:{st.task_id}"
     # SC-006: the artifact carries at least a reproduction_command —
     # auto-derived from the decision already made (NFR-005), never a new
     # hand-filled field: the exact ``move-task`` invocation that reproduces

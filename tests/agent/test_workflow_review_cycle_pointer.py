@@ -131,6 +131,91 @@ def test_fix_context_skips_action_review_claim_sentinel(
     assert path is not None
 
 
+def test_fix_context_skips_synthetic_approval_token(
+    review_pointer_repo: tuple[Path, Path, str],
+) -> None:
+    """#4327 field-evidence regression (2026-09-19): an APPROVED work package
+    whose newest ``review_ref`` is the synthetic ``auto-approval:<WP>:<date>``
+    token must resolve to "no feedback present" -- the token is a verdict
+    marker, not a path. Before the fix the token (or, earlier, the operator's
+    ``--note`` prose that used to fill the slot) was resolved as a pointer,
+    found no artifact, and made ``agent action implement`` refuse to re-claim
+    the approved WP with a bogus "review feedback artifact is missing" error."""
+    repo, feature_dir, mission_slug = review_pointer_repo
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id="seed-approve",
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            from_lane=Lane.IN_REVIEW,
+            to_lane=Lane.APPROVED,
+            at="2026-01-01T00:00:00+00:00",
+            actor="reviewer",
+            force=False,
+            execution_mode="worktree",
+            review_ref="auto-approval:WP01:20260920",
+            reason="Codex APPROVE after 3 review cycles: all findings closed; 41 tests; suite green.",
+        ),
+    )
+
+    has_feedback, ref, path, source = workflow._resolve_review_feedback_context(
+        feature_dir,
+        "WP01",
+        "",
+    )
+
+    assert has_feedback is False
+    assert ref is None
+    assert path is None
+    assert source is None
+
+
+def test_fix_context_skips_synthetic_rejection_token_and_falls_back_to_real_pointer(
+    review_pointer_repo: tuple[Path, Path, str],
+) -> None:
+    """A synthetic ``review:<WP>`` token (a rejection that left no feedback
+    artifact) is skipped like a sentinel; an OLDER real pointer still wins the
+    scan, exactly as it does for ``action-review-claim``."""
+    repo, feature_dir, mission_slug = review_pointer_repo
+    pointer = f"review-cycle://{mission_slug}/WP01-core/review-cycle-2.md"
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id="seed-reject",
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            from_lane=Lane.IN_REVIEW,
+            to_lane=Lane.PLANNED,
+            at="2026-01-01T00:00:00+00:00",
+            actor="reviewer",
+            force=False,
+            execution_mode="worktree",
+            review_ref=pointer,
+        ),
+    )
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id="seed-reject-no-artifact",
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            from_lane=Lane.IN_REVIEW,
+            to_lane=Lane.IN_PROGRESS,
+            at="2026-01-01T00:00:01+00:00",
+            actor="reviewer",
+            force=False,
+            execution_mode="worktree",
+            review_ref="review:WP01",
+        ),
+    )
+
+    ref, path, _ = workflow._latest_review_feedback_reference(feature_dir, "WP01")
+
+    assert ref == pointer
+    assert path is not None
+
+
 def test_legacy_feedback_pointer_remains_readable_with_deprecated_kind(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()

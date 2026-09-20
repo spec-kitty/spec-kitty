@@ -1035,14 +1035,19 @@ def _mt_issue_matrix_facts(st: _MoveTaskState) -> str | None:
 
 
 def _mt_approval_facts(st: _MoveTaskState) -> tuple[str | None, str | None]:
-    """Late fact: auto-detected reviewer + defaulted approval reference."""
+    """Late fact: auto-detected reviewer + defaulted approval reference.
+
+    #4327: ``--note`` never fills the approval reference — the ref slot is
+    pointer-only, so it takes ``--approval-ref`` or the synthetic
+    ``auto-approval:<WP>:<date>`` token, and the operator's prose stays in
+    ``reason`` (the durable local slot the codec keeps off the wire).
+    """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
     if st.target_lane not in (Lane.APPROVED, Lane.DONE):
         return None, None
     effective_reviewer = st.reviewer or _tasks._detect_reviewer_name()
-    user_note = st.note.strip() if isinstance(st.note, str) else st.note
-    effective_approval_ref = st.approval_ref or (user_note if user_note else None) or f"auto-approval:{st.task_id}:{format_stamp(now_utc(), '%Y%m%d')}"
+    effective_approval_ref = st.approval_ref or f"auto-approval:{st.task_id}:{format_stamp(now_utc(), '%Y%m%d')}"
     return effective_reviewer, effective_approval_ref
 
 
@@ -2289,7 +2294,8 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
         # ``_mt_hop_review_result`` are NOT always the same object: on a
         # non-durably-persisted write (``--no-auto-commit`` / local-only),
         # ``_mt_hop_review_result`` falls back to ``st.evidence_dict["review"]``
-        # (built from ``effective_approval_ref``, which considers ``--note``)
+        # (built from ``effective_approval_ref``, the pointer-only
+        # ``--approval-ref`` / synthetic-token value, #4327)
         # while ``_mt_plan_review_result``'s non-durable fallback does not —
         # two independently-computed reference strings that can diverge,
         # tripping ``_check_review_result_consistency``'s "review_ref must
@@ -2401,7 +2407,10 @@ def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
         reference = (st.approval_ref or f"approval:{st.task_id}").strip() or (f"approval:{st.task_id}")
     else:
         verdict = emission_event_verdict(REJECTED)
-        reference = (st.review_feedback_pointer or st.note_text or f"review:{st.task_id}").strip() or f"review:{st.task_id}"
+        # #4327: pointer-only — the review-feedback pointer or the synthetic
+        # ``review:<WP>`` token, never the operator's ``--note`` prose (which
+        # stays whole in ``reason``).
+        reference = (st.review_feedback_pointer or f"review:{st.task_id}").strip() or f"review:{st.task_id}"
     return ReviewResult(reviewer=reviewer, verdict=verdict, reference=reference)
 
 

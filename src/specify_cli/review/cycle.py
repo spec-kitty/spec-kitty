@@ -48,6 +48,26 @@ logger = logging.getLogger(__name__)
 # are untouched (package remediation is WP13c's job).
 REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})
 
+#: #4327: synthetic approval/rejection tokens ``move-task`` mints when no real
+#: pointer exists (``review:<WP>``, ``approval:<WP>``, ``auto-approval:<WP>:<date>``).
+#: Like the exact-value sentinels above they are markers, not review-feedback
+#: artifact pointers -- a reader must skip them instead of resolving them (and
+#: then reporting a bogus "artifact is missing" against a WP that was approved,
+#: never rejected). Prefix-matched because they embed the WP id.
+SYNTHETIC_REVIEW_REF_PREFIXES = ("review:", "approval:", "auto-approval:")
+
+
+def is_synthetic_review_ref(value: str) -> bool:
+    """Whether *value* is a synthetic ``review_ref`` marker token (#4327).
+
+    True only for a non-empty token carrying one of the synthetic prefixes --
+    a bare prefix with nothing after it is not a token, and the real pointer
+    families (``review-cycle://...``, ``feedback://...``) never match: they
+    start with ``review-cycle:``/``feedback:``, not ``review:``/``approval:``.
+    """
+    stripped = value.strip()
+    return any(stripped.startswith(prefix) and len(stripped) > len(prefix) for prefix in SYNTHETIC_REVIEW_REF_PREFIXES)
+
 #: T042 (FR-002/mechanism shared with WP11): the commit call's own retry-on-
 #: contention bound. Small and fixed -- a lock-contention window measured in
 #: milliseconds, not a long-running outage -- per plan.md's Risks section

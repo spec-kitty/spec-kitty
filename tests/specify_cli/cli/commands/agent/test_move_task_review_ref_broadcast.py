@@ -1,25 +1,28 @@
-"""RED-first e2e regression tests for #3954 (F-46): bound legacy-prose
-``review_ref`` at the WPStatusChanged wire projection.
+"""RED-first e2e regression tests for #4327: ``review_ref`` is pointer-only.
 
 Drives the REAL ``move-task`` CLI entry point (Typer ``CliRunner``) and the
 REAL ``emit_status_transition`` seam across the four transition families the
-plan names -- approval, completion (multi-hop), rejection/rework, and direct
+issue names -- approval, completion (multi-hop), rejection/rework, and direct
 emission -- and observes the offered Zeitgeist moment through the shared
 ``OfferRecorder`` (tests/status/test_zeitgeist_moment_handler.py).
 
-Before the fix, a ``review_ref`` over 240 UTF-8 bytes made the pinned events
-codec (``spec_kitty_events.zeitgeist_attrs``) raise
-``ZeitgeistAttrsOverflowError``, and ``zeitgeist_bridge._broadcast_moment``
-turned that into a whole-moment drop (0 offers) -- silent data loss on the
-wire, even though the canonical local ``status.events.jsonl`` always kept the
-full note. These tests assert the bounded broadcast instead: a wire
-``review_ref`` collapsed to one line and truncated to <=240 UTF-8 bytes, the
-moment offered exactly once, and the full local note preserved byte-for-byte.
+Before the fix, ``move-task`` fell back to the operator's ``--note`` prose
+when filling the approval/rejection reference, so a >240-byte note landed in
+the wire ``review_ref`` attr and the #3954 interim had to truncate it at the
+bridge. Now the fallbacks are gone: the reference slot takes the real
+pointer (``--approval-ref``, the review-cycle pointer) or a synthetic marker
+token (``auto-approval:<WP>:<date>`` / ``approval:<WP>`` / ``review:<WP>``),
+the operator's prose stays whole in the durable local ``reason`` (which the
+codec keeps off the wire), and the moment broadcasts without any bridge-side
+bounding -- the maintainer acceptance bar for this issue: "a long review note
+still broadcasts (no >240-byte moment drop, per #3954) while ``review_ref``
+carries only a pointer."
 """
 
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -44,19 +47,24 @@ runner = CliRunner()
 
 _MISSION = "review-ref-bound-3954"
 
-#: >240 UTF-8 bytes, single record, genuine multi-line prose review_ref
-#: content. T1 proves the collapse-before-truncate ordering: a raw newline
-#: would otherwise trip the codec's own control-character guard
-#: independently of the byte bound.
+#: >240 UTF-8 bytes, single record, genuine multi-line prose review-note
+#: content. With #4327's pointer-only ``review_ref`` this prose never reaches
+#: the wire attr at all -- it stays whole in the durable local ``reason``.
 _LONG_PROSE_NOTE = (
     "Reviewed the WP03 implementation against every acceptance criterion in the plan and confirmed the "
-    "bounded review_ref helper collapses whitespace before truncation, matches the codec byte budget, and "
-    "never splits a multi-byte codepoint at the 240-byte boundary.\n"
-    "Second line: this note deliberately carries a genuine newline character so the collapse-before-truncate "
-    "ordering is exercised end to end, and the persisted local copy must still read back byte for byte."
+    "pointer-only review_ref fix removes the note fallback at every producer, keeps the codec's own "
+    "240-UTF-8-byte attr bound as the single wire authority, and preserves the operator prose whole.\n"
+    "Second line: this note deliberately carries a genuine newline character so the prose-preserved-in-"
+    "reason guarantee is exercised end to end, and the persisted local copy must still read back byte "
+    "for byte."
 )
 assert len(_LONG_PROSE_NOTE.encode("utf-8")) > 240
 assert "\n" in _LONG_PROSE_NOTE
+
+#: The synthetic marker tokens ``move-task`` mints when no real pointer
+#: exists (#4327): ``auto-approval:<WP>:<date>`` (approval facts),
+#: ``approval:<WP>`` (durable approval cycle) and ``review:<WP>`` (rejection).
+_POINTER_SHAPED_RE = re.compile(r"^((auto-)?approval:WP\d+(:\d{8})?|review:WP\d+)$")
 
 
 def _build_wp_file(tmp_path: Path, mission_slug: str, wp_id: str) -> Path:
@@ -138,15 +146,15 @@ def offer_recorder(monkeypatch: pytest.MonkeyPatch) -> OfferRecorder:
 
 
 @pytest.mark.regression
-def test_approval_with_overlong_prose_broadcasts_bounded_and_persists_full_note(
+def test_approval_with_overlong_prose_broadcasts_pointer_ref_and_persists_full_note(
     tmp_path: Path, offer_recorder: OfferRecorder, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """#3954 T1: an approval carrying a >240-byte multi-line prose
-    ``review_ref`` (F-46) broadcasts bounded instead of being dropped whole.
-    The wire value is single-line, <=240 UTF-8 bytes, and ends with the
-    ellipsis marker; an INFO log names the truncation, but the log is NOT the
-    proof -- the full multi-line note must still read back byte-for-byte off
-    the canonical ``status.events.jsonl``."""
+    """#4327 T1: an approval carrying a >240-byte multi-line prose ``--note``
+    broadcasts with a POINTER-SHAPED ``review_ref`` (the ``--approval-ref``
+    value or a synthetic ``approval:<WP>``/``auto-approval:<WP>:<date>``
+    token -- never the note), the moment is offered exactly once with no
+    bridge-side truncation, and the full multi-line note is preserved
+    byte-for-byte in the durable local ``reason``."""
     caplog.set_level(logging.INFO, logger="specify_cli.status.zeitgeist_bridge")
     feature_dir = _seed_wp_in_lane(tmp_path, mission_slug=_MISSION, wp_id="WP01", lane="in_review")
 
@@ -171,30 +179,35 @@ def test_approval_with_overlong_prose_broadcasts_bounded_and_persists_full_note(
     moments = offer_recorder.moment_offers()
     assert len(moments) == 1, f"expected exactly one moment offer, got {len(moments)}: {moments}"
     wire_review_ref = moments[0][1]["attrs"]["review_ref"]
+    assert _POINTER_SHAPED_RE.match(wire_review_ref), f"wire review_ref must be a pointer or synthetic token, got: {wire_review_ref!r}"
+    assert _LONG_PROSE_NOTE not in wire_review_ref
     assert len(wire_review_ref.encode("utf-8")) <= 240
     assert "\n" not in wire_review_ref
-    assert wire_review_ref.endswith("…")
 
-    # The INFO log is an ADDITIONAL assertion, never the pass condition on its own.
-    assert "review_ref" in caplog.text
-    assert "truncated" in caplog.text.lower()
+    # The interim's bridge-side truncation is gone: nothing logs a truncation.
+    assert "truncated" not in caplog.text.lower()
 
     persisted = _persisted_events(feature_dir, "WP01")
     assert persisted, "no persisted events for WP01"
-    full_note_events = [e for e in persisted if e.review_ref == _LONG_PROSE_NOTE]
-    assert full_note_events, (
-        f"expected the full multi-line note preserved byte-for-byte in the canonical local log; persisted review_refs were: {[e.review_ref for e in persisted]}"
+    note_reason_events = [e for e in persisted if e.reason == _LONG_PROSE_NOTE]
+    assert note_reason_events, (
+        f"expected the full multi-line note preserved byte-for-byte in the canonical local reason; persisted reasons were: {[e.reason for e in persisted]}"
+    )
+    # Pointer-only on the durable record too: no persisted event carries the
+    # prose in its review_ref slot.
+    assert not [e for e in persisted if e.review_ref == _LONG_PROSE_NOTE], (
+        f"note prose must never fill a persisted review_ref; persisted review_refs were: {[e.review_ref for e in persisted]}"
     )
 
 
 @pytest.mark.regression
 def test_multihop_transition_offers_exactly_once_per_emitted_event(tmp_path: Path, offer_recorder: OfferRecorder) -> None:
-    """#3954 T2: a genuine multi-hop ``move-task`` call (walking several lane
+    """#4327 T2: a genuine multi-hop ``move-task`` call (walking several lane
     hops in one invocation) offers exactly one moment PER emitted status
     event -- not exactly one overall. Before the fix, the hop whose
     review_ref carried the operator's overlong prose note silently dropped
     while the other hops offered fine, so offers fell short of the event
-    count."""
+    count; with pointer-only refs every hop offers."""
     feature_dir = _seed_wp_in_lane(tmp_path, mission_slug=_MISSION, wp_id="WP01", lane="in_progress")
 
     result = _invoke(
@@ -224,12 +237,12 @@ def test_multihop_transition_offers_exactly_once_per_emitted_event(tmp_path: Pat
 
 
 @pytest.mark.regression
-def test_rejection_from_in_review_with_overlong_note_broadcasts_bounded(tmp_path: Path, offer_recorder: OfferRecorder) -> None:
-    """#3954 T3: the ``in_review -> in_progress`` review-rejection edge
-    threads the operator's ``--note`` into the wire ``review_ref`` (the
-    shared wire contract requires one on this edge); an over-240-byte note
-    must not drop the moment."""
-    _seed_wp_in_lane(tmp_path, mission_slug=_MISSION, wp_id="WP01", lane="in_review")
+def test_rejection_from_in_review_with_overlong_note_broadcasts_pointer_ref(tmp_path: Path, offer_recorder: OfferRecorder) -> None:
+    """#4327 T3: the ``in_review -> in_progress`` review-rejection edge
+    requires a ``review_ref`` on the wire; with a >240-byte ``--note`` and no
+    review-feedback pointer, the slot takes the synthetic ``review:<WP>``
+    token (never the note) and the moment still broadcasts."""
+    feature_dir = _seed_wp_in_lane(tmp_path, mission_slug=_MISSION, wp_id="WP01", lane="in_review")
 
     result = _invoke(
         tmp_path,
@@ -252,14 +265,30 @@ def test_rejection_from_in_review_with_overlong_note_broadcasts_bounded(tmp_path
     moments = offer_recorder.moment_offers()
     assert len(moments) == 1, f"expected exactly one moment offer, got {len(moments)}: {moments}"
     wire_review_ref = moments[0][1]["attrs"]["review_ref"]
-    assert len(wire_review_ref.encode("utf-8")) <= 240
+    assert _POINTER_SHAPED_RE.match(wire_review_ref), f"wire review_ref must be the review pointer or synthetic review:<WP> token, got: {wire_review_ref!r}"
+    assert _LONG_PROSE_NOTE not in wire_review_ref
+
+    persisted = _persisted_events(feature_dir, "WP01")
+    # Pre-existing behavior (unchanged by #4327): the backward hop prefixes the
+    # reason with "backward rewind: in_review -> in_progress: " -- the note is
+    # preserved whole after that prefix.
+    assert [e for e in persisted if e.reason and e.reason.endswith(_LONG_PROSE_NOTE)], (
+        f"expected the full note preserved in reason; persisted reasons were: {[e.reason for e in persisted]}"
+    )
 
 
 @pytest.mark.regression
-def test_direct_emission_with_overlong_prose_broadcasts_bounded(tmp_path: Path, offer_recorder: OfferRecorder) -> None:
-    """#3954 T4: calling ``emit_status_transition`` directly (bypassing the
-    ``move-task`` CLI's guard chain entirely, with a clock-derived occurrence
-    time) still bounds an over-long prose ``review_ref`` before the wire."""
+def test_direct_emission_with_overlong_prose_review_ref_fails_loud_not_silent(
+    tmp_path: Path, offer_recorder: OfferRecorder, caplog: pytest.LogCaptureFixture
+) -> None:
+    """#4327 T4 / no-silent-drop gate: calling ``emit_status_transition``
+    directly with an explicit over-240-byte PROSE ``review_ref`` (the one
+    remaining way prose can reach the slot -- the operator typed it into the
+    pointer slot themselves) rides verbatim to the codec, which drops the
+    moment LOUDLY: a logged WARNING naming ``review_ref``, never a silent
+    drop and never a bridge-side truncation. The canonical local log keeps
+    the value exactly as written."""
+    caplog.set_level(logging.WARNING, logger="specify_cli.status.zeitgeist_bridge")
     feature_dir = _seed_wp_in_lane(tmp_path, mission_slug=_MISSION, wp_id="WP01", lane="planned")
 
     emit_status_transition(
@@ -272,7 +301,9 @@ def test_direct_emission_with_overlong_prose_broadcasts_bounded(tmp_path: Path, 
     )
 
     moments = offer_recorder.moment_offers()
-    assert len(moments) == 1, f"expected exactly one moment offer, got {len(moments)}: {moments}"
-    wire_review_ref = moments[0][1]["attrs"]["review_ref"]
-    assert len(wire_review_ref.encode("utf-8")) <= 240
-    assert "\n" not in wire_review_ref
+    assert moments == [], f"an over-bound review_ref must not broadcast, got: {moments}"
+    assert "not broadcast" in caplog.text
+    assert "review_ref" in caplog.text
+
+    persisted = _persisted_events(feature_dir, "WP01")
+    assert [e for e in persisted if e.review_ref == _LONG_PROSE_NOTE], "the canonical local log keeps the explicitly-written review_ref verbatim"

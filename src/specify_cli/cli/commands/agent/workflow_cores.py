@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from specify_cli.review.cycle import REVIEW_FEEDBACK_SENTINELS as _REVIEW_FEEDBACK_SENTINELS
+from specify_cli.review.cycle import is_synthetic_review_ref as _is_synthetic_review_ref
 from specify_cli.status import AgentAssignment, Lane
 
 if TYPE_CHECKING:
@@ -316,7 +317,11 @@ def latest_review_feedback_reference(
 
     Operational sentinels like ``action-review-claim`` are intentionally
     skipped so implement/fix handoff uses the persisted review artifact
-    instead of the transient reviewer claim marker.
+    instead of the transient reviewer claim marker. #4327: the synthetic
+    approval/rejection tokens (``review:<WP>``, ``approval:<WP>``,
+    ``auto-approval:<WP>:<date>``) are skipped the same way -- they are markers
+    for a verdict that left no feedback artifact (an approved WP was never
+    rejected), not paths to resolve and then misreport as "missing".
     """
     # Review feedback artifacts are committed under kitty-specs/ inside
     # whichever tree feature_dir lives in (coord worktree or main repo).
@@ -327,7 +332,7 @@ def latest_review_feedback_reference(
         if event.review_ref is None:
             continue
         review_ref = event.review_ref.strip()
-        if not review_ref or review_ref in _REVIEW_FEEDBACK_SENTINELS:
+        if not review_ref or review_ref in _REVIEW_FEEDBACK_SENTINELS or _is_synthetic_review_ref(review_ref):
             continue
         return review_ref, resolve_review_feedback_pointer(feedback_root, review_ref), index
     return None, None, None

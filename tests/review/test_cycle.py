@@ -23,6 +23,7 @@ from specify_cli.review.cycle import (
     VerdictPersistenceOutcome,
     build_review_cycle_pointer,
     create_rejected_review_cycle,
+    is_synthetic_review_ref,
     next_review_feedback_source_path,
     resolve_review_cycle_pointer,
     review_feedback_source_path,
@@ -162,6 +163,29 @@ def test_sentinel_pointer_is_not_feedback_artifact(tmp_path: Path) -> None:
 
     assert resolved.kind == "sentinel"
     assert resolved.path is None
+
+
+def test_synthetic_review_ref_tokens_are_recognized() -> None:
+    """#4327: the synthetic marker tokens ``move-task`` mints when no real
+    pointer exists are markers, not artifact pointers."""
+    assert is_synthetic_review_ref("review:WP01")
+    assert is_synthetic_review_ref("approval:WP01")
+    assert is_synthetic_review_ref("auto-approval:WP01:20260920")
+    assert is_synthetic_review_ref("  review:WP01  ")  # tolerated whitespace
+
+
+def test_synthetic_review_ref_recognizer_never_matches_real_pointers_or_prose() -> None:
+    """The recognizer must not eat a real pointer family or a sentinel."""
+    assert not is_synthetic_review_ref("review-cycle://mission/WP01-core/review-cycle-2.md")
+    assert not is_synthetic_review_ref("feedback://mission/WP01/feedback.md")
+    assert not is_synthetic_review_ref("action-review-claim")
+    assert not is_synthetic_review_ref("force-override")
+    assert not is_synthetic_review_ref("https://example.invalid/pr/42")
+    assert not is_synthetic_review_ref("Reviewed the diff and it looks good.")
+    # A bare prefix with nothing after it is not a token.
+    assert not is_synthetic_review_ref("review:")
+    assert not is_synthetic_review_ref("")
+    assert not is_synthetic_review_ref("   ")
 
 
 MISSION_SLUG = "annoying-bugs-sweep-01KYHQ9F"
