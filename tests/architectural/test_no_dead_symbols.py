@@ -407,9 +407,11 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # client_credentials — is visible in doctor diagnostics)
         # specify_cli.cli.commands._auth_doctor::assemble_report (hash refreshed
         # #1060: report now carries the token manager's safe persisted-session
-        # decryption-failure assessment into the auth verdict)
+        # decryption-failure assessment into the auth verdict; refreshed again
+        # #4761: the verdict now also carries the assessment's storage-authored
+        # detail so a permissions refusal renders its chmod remedy)
         SymbolKey(
-            "assemble_report", "0151dc1711c6c0c8abb84fe441e55357be72af0c8e238005c48390646c92f051", source_module="specify_cli.cli.commands._auth_doctor"
+            "assemble_report", "6385e7c46c7e10350fbab83801ebafc4dd1a3e6a6fa178db7afe664e94abc786", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::assemble_report
         # specify_cli.cli.commands._auth_doctor::compute_exit_code
         SymbolKey("compute_exit_code", "060144b6c7b405770cc41179f7c74273e8618e6271027c42794a87f567516179", source_module="specify_cli.cli.commands._auth_doctor"),
