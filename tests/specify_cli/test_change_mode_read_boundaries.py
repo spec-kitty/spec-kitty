@@ -1,19 +1,33 @@
-"""Behavior-preservation enumeration for every ``change_mode`` reader (FR-012 / NFR-001).
+"""Behavior-preservation enumeration for every bulk-edit-gating ``change_mode`` reader (FR-012 / NFR-001).
 
 The durable fix (WP03) makes normalizing a legacy ``change_mode`` value to
 *absent* genuinely behavior-preserving. That only holds if **every** production
-reader of ``change_mode`` treats a legacy value (any string that is not
-``"bulk_edit"``) identically to the field being absent (``None``). The single
-canonical check is ``change_mode == "bulk_edit"``; any reader that instead keys
-on implicit *presence* (``is not None``) silently forks behavior between a
-legacy value and absence, which is exactly the ``implement.py:1340`` defect this
-work package closes.
+reader that *gates behavior on bulk-edit-vs-not* treats a legacy value (any
+string that is not ``"bulk_edit"``) identically to the field being absent
+(``None``). The single canonical check is ``change_mode == "bulk_edit"``; any
+reader that instead keys on implicit *presence* (``is not None``) silently forks
+behavior between a legacy value and absence, which is exactly the
+``implement.py:1340`` defect this work package closes.
 
-This module enumerates each reader and asserts ``observe(legacy) == observe(absent)``
-at each one. Before the WP03 fix the ``implement._run_bulk_edit_gate_and_inference``
-probe is RED (a legacy value short-circuits before the inference scan, while an
-absent value runs it and can ``typer.Exit(1)``); after the fix every probe is
-GREEN.
+This module enumerates each such reader and asserts ``observe(legacy) ==
+observe(absent)`` at each one. Before the WP03 fix the
+``implement._run_bulk_edit_gate_and_inference`` probe is RED (a legacy value
+short-circuits before the inference scan, while an absent value runs it and can
+``typer.Exit(1)``); after the fix every probe is GREEN.
+
+Two readers of ``change_mode`` are **intentionally excluded** because they do
+not gate bulk-edit behavior, and normalizing legacy→absent is safe past both:
+
+* ``mission_metadata.validate_meta`` *does* distinguish a legacy value (error)
+  from absence (ok) — but it is the *heal target*, not a behavior gate: the
+  repair canonicalizer calls ``_normalize_change_mode`` immediately before it,
+  so a legacy value is already gone by the time it validates.
+* ``mission_metadata.get_change_mode`` returns the raw value, but has **no
+  production caller** (only tests + the ``test_no_dead_symbols`` allowlist), so
+  it forks nothing live.
+
+A future reader added on an ``is not None`` / presence pattern would be a new
+behavior gate and belongs in the enumeration below.
 """
 
 from __future__ import annotations
