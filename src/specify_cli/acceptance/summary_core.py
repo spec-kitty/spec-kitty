@@ -36,11 +36,6 @@ _ACTIVE_METADATA_LANES = frozenset({"doing", "in_progress", "for_review"})
 
 _PATH_CONVENTIONS_NOT_SATISFIED = "Path conventions not satisfied."
 
-#: Canonical-state repair command named by every refusal message this module
-#: still emits once a slot cannot be resolved through any read-side fallback
-#: (FR-006 / SC-003) — never a bare "missing X" with no next step.
-_MISSION_STATE_REPAIR_COMMAND = "spec-kitty doctor mission-state --fix --mission <slug>"
-
 
 def _runtime_metadata_field(
     snapshot: Mapping[str, Any],
@@ -115,7 +110,19 @@ def build_work_package_state(
     metadata_issues: list[str] = []
     if strict_metadata:
         if not metadata["agent"]:
-            metadata_issues.append(f"{wp_id}: missing agent in canonical runtime state (run `{_MISSION_STATE_REPAIR_COMMAND}` to repair)")
+            # Reaching here means BOTH the live ``agent`` slot AND the derived
+            # ``implementer_of_record`` fallback are empty — i.e. the WP carries
+            # no ``planned -> claimed`` event, so it was genuinely never claimed.
+            # ``doctor mission-state --fix`` rebuilds ``lanes.json`` from the
+            # event log; it does NOT synthesise a claim, so it cannot repair this
+            # slot. The repair is to (re-)plant the implementer via a same-lane
+            # ``move-task --agent`` (the #3029 remedy) — FR-006/SC-003, name the
+            # repair that actually re-establishes the field this gate reads.
+            metadata_issues.append(
+                f"{wp_id}: missing agent in canonical runtime state "
+                f"(never claimed; run `spec-kitty agent tasks move-task {wp_id} "
+                f"--to {bucket_lane} --agent <name>` to repair)"
+            )
         # ``shell_pid`` identifies the live interactive shell that claimed a WP
         # in ``spec-kitty next`` — an artifact of the ACTIVE-work phase, and one
         # the orchestrator executor never stamps. Require it (and ``assignee``)

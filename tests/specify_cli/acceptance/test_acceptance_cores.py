@@ -97,7 +97,9 @@ class TestBuildWorkPackageState:
         )
 
         assert issues == [
-            "WP01: missing agent in canonical runtime state",
+            "WP01: missing agent in canonical runtime state "
+            "(never claimed; run `spec-kitty agent tasks move-task WP01 "
+            "--to in_progress --agent <name>` to repair)",
             "WP01: missing assignee in canonical runtime state",
             "WP01: missing shell_pid in canonical runtime state",
         ]
@@ -128,7 +130,11 @@ class TestBuildWorkPackageState:
             wp, "WP01", {"lane": "approved"}, repo_root=tmp_path, strict_metadata=True
         )
 
-        assert issues == ["WP01: missing agent in canonical runtime state"]
+        assert issues == [
+            "WP01: missing agent in canonical runtime state "
+            "(never claimed; run `spec-kitty agent tasks move-task WP01 "
+            "--to approved --agent <name>` to repair)"
+        ]
 
     def test_non_strict_metadata_suppresses_all_issues(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent=None, assignee=None, shell_pid=None)

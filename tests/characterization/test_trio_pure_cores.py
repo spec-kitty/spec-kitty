@@ -982,7 +982,7 @@ class TestCollectFeatureSummaryWiring:
 
         summary = collect_feature_summary(tmp_path, "trio-mission", strict_metadata=True, mutate_matrix=False)
 
-        assert "WP01: missing agent in canonical runtime state" in summary.metadata_issues
+        assert any(i.startswith("WP01: missing agent in canonical runtime state") for i in summary.metadata_issues)
         assert "WP01: missing assignee in canonical runtime state" in summary.metadata_issues
         assert "WP01: missing shell_pid in canonical runtime state" in summary.metadata_issues
 

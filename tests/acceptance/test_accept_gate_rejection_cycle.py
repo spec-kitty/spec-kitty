@@ -47,7 +47,11 @@ if TYPE_CHECKING:
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _WP_ID = "WP01"
-_REPAIR_HINT = "spec-kitty doctor mission-state --fix --mission"
+# A never-claimed WP has no `planned -> claimed` event, so `doctor
+# mission-state --fix` (which rebuilds lanes.json, not claims) cannot repair the
+# missing-agent slot. The refusal names the repair that actually re-establishes
+# it: a same-lane `move-task --agent` re-plant (#3029 remedy).
+_REPAIR_HINT = "spec-kitty agent tasks move-task"
 
 
 def _missing_agent_issues(issues: list[str]) -> list[str]:
