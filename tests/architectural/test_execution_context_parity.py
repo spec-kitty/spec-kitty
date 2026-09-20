@@ -186,6 +186,9 @@ from collections.abc import Generator
 
 import pytest
 
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.persistence import write_lanes_json
+
 pytestmark = [
     pytest.mark.architectural,
     pytest.mark.git_repo,
@@ -352,6 +355,35 @@ def _build_mission_dir(repo_root: Path, slug: str) -> Path:
     # in Phase 2 but must exist to satisfy directory-level checks).
     (feature_dir / "status.json").write_text(
         json.dumps({"event_count": 0, "work_packages": {}}), encoding="utf-8"
+    )
+
+    # lanes.json is now a required precondition to leave 'planned' (#4758
+    # _mt_guard_planned_boundary_lanes). This fixture hand-builds the mission
+    # instead of running finalize-tasks (see module docstring), so it must seed
+    # lanes.json itself -- otherwise every move-task out of 'planned' below hits
+    # the wedge guard before reaching the CWD/lane-parity behavior under test.
+    write_lanes_json(
+        feature_dir,
+        LanesManifest(
+            version=1,
+            mission_slug=slug,
+            mission_id=None,
+            mission_branch=f"kitty/mission-{slug}",
+            target_branch="main",
+            lanes=[
+                ExecutionLane(
+                    lane_id="lane-a",
+                    wp_ids=("WP01", "WP02"),
+                    write_scope=("src/wp01/**", "src/wp02/**"),
+                    predicted_surfaces=(),
+                    depends_on_lanes=(),
+                    parallel_group=0,
+                )
+            ],
+            computed_at="2026-06-03T10:00:00+00:00",
+            computed_from="dependency_graph+ownership",
+            planning_commit_sha="a" * 40,
+        ),
     )
 
     return feature_dir
