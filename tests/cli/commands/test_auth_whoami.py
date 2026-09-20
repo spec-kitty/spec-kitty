@@ -110,6 +110,33 @@ class TestAuthWhoamiCommand:
         assert "unsafe permissions" in combined
         assert "chmod 600" in combined
 
+    def test_unsafe_permissions_detail_is_sanitized_on_stderr(self):
+        """#4761 squad NOTE fold: the stderr detail goes through the same
+        terminal-hygiene rule as the ``auth status``/``auth doctor`` renders —
+        hostile control sequences in the storage-authored message are
+        stripped, and Rich markup is escaped, before the line is printed."""
+        hostile_suffix = "\x1b[2J\x1b]0;x\x07\x1b"
+        safe_text = "Session file /home/u/.spec-kitty/auth/session.json has unsafe permissions"
+        mock_storage = _mock_storage_returning(None, backend="file")
+        mock_storage.read.side_effect = SessionFilePermissionsError(
+            f"{safe_text}{hostile_suffix} (mode=0o644); expected 0600. Fix with: chmod 600 /home/u/.spec-kitty/auth/session.json"
+        )
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["whoami"])
+
+        assert result.exit_code == 1
+        stderr = result.stderr or ""
+        emitted = stderr.encode("utf-8")
+        assert safe_text in stderr
+        assert "chmod 600" in stderr
+        assert b"\x1b" not in emitted
+        assert b"[2J" not in emitted
+        assert b"]0;x" not in emitted
+
     def test_split_brain_shows_both_values_not_a_traceback(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
         """#193: ``whoami`` shares ``_print_saas_target`` with ``status`` — a
         genuine config.toml/env disagreement must render as a friendly line
