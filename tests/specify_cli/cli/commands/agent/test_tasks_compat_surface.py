@@ -312,6 +312,10 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     # omits --agent is a native move-task seam def and therefore joins the
     # compat surface like every other one (78 -> 79).
     "_mt_resolve_active_reviewer_identity",
+    # #4758 (WP02, FR-002/FR-006): the planned-boundary lanes.json guard is a
+    # native move-task seam def and therefore joins the compat surface like
+    # every other one (79 -> 80).
+    "_mt_guard_planned_boundary_lanes",
 )
 
 _TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) core family + campsite/follow-up native defs
@@ -588,7 +592,10 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     verdict builder) — a native move-task seam def pair (tasks_move_task
     97 -> 99 counted against the live tuple after main's #4670 resolver
     landed; the prose totals above are stale; golden count 182 -> 184 after
-    main's WP05 status-renderer pair and #4670 resolver)."""
+    main's WP05 status-renderer pair and #4670 resolver). #4758 (WP02,
+    FR-002/FR-006) then added the planned-boundary lanes.json guard,
+    ``_mt_guard_planned_boundary_lanes``, as a native move-task seam def —
+    golden count 184 -> 185."""
     # TODO(under-investigation, operator-flagged): the operator doubts this
     # consolidated compat guard earns its ROI. Every seam-local symbol addition
     # costs a three-part edit — register in the per-seam tuple, add an identity
@@ -596,4 +603,4 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     # low incremental regression-catch value over the identity-re-export guard
     # alone. Revisit whether this file's own hardcoded-count guard should be
     # relaxed or dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    assert len(SYMBOL_TO_MODULE) == 184  # golden-count: cardinality-is-contract
+    assert len(SYMBOL_TO_MODULE) == 185  # golden-count: cardinality-is-contract

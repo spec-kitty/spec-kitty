@@ -440,6 +440,9 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_fire_override_persist as _mt_fire_override_persist,
     _mt_gather_late_facts as _mt_gather_late_facts,
     _mt_gather_review_facts as _mt_gather_review_facts,
+    # #4758 (WP02, FR-002/FR-006): the planned-boundary lanes.json guard joins
+    # the family surface like every other native move-task def.
+    _mt_guard_planned_boundary_lanes as _mt_guard_planned_boundary_lanes,
     _mt_hop_actor as _mt_hop_actor,
     _mt_hop_reason_source as _mt_hop_reason_source,
     _mt_hop_review_result as _mt_hop_review_result,
