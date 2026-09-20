@@ -46,9 +46,11 @@ from specify_cli.cli.commands.charter._cascade_shared import (
     render_kind_filtered_line,
 )
 from specify_cli.cli.commands.charter.activate import (
+    NO_COMPILE_HELP,
     RESYNTHESIZE_HELP,
+    recompile_or_notify,
     render_pack_config_error,
-    run_full_synthesize,
+    resolve_write_root_or_exit,
     validate_pack_config,
 )
 from specify_cli.cli.commands.charter._layer_roots import (
@@ -253,6 +255,11 @@ def deactivate_cmd(
         "--resynthesize/--no-resynthesize",
         help=RESYNTHESIZE_HELP,
     ),
+    compile_catalog: bool = typer.Option(
+        True,
+        "--compile/--no-compile",
+        help=NO_COMPILE_HELP,
+    ),
     repo_root: Path = typer.Option(Path("."), hidden=True),
 ) -> None:
     """Deactivate a doctrine artifact by kind and ID (FR-005), with optional cascade."""
@@ -264,6 +271,12 @@ def deactivate_cmd(
     if kind not in YAML_KEY_MAP:
         console.print(f"[red]Error:[/red] Unknown kind '{kind}'. Valid kinds: {', '.join(sorted(YAML_KEY_MAP))}.")
         raise typer.Exit(1)
+
+    # FR-006/Contract C3: fail closed from a linked git worktree before any
+    # mutation, and resolve the ONE checkout root every downstream call in
+    # this command shares from here on (symmetric with activate_cmd; issue
+    # #4785 Finding 3).
+    repo_root = resolve_write_root_or_exit(repo_root)
 
     # FR-015/016: parse the scope value object — never collapsed to a bool (C3.3).
     try:
@@ -323,7 +336,9 @@ def deactivate_cmd(
                 manager, ctx_project, target_urn, scope, repo_root, layer_roots
             )
 
-    # FR-007: opt-in eager refresh, symmetric with activate_cmd -- run AFTER
-    # cascade so it reconciles the complete post-deactivation config state.
-    if resynthesize:
-        run_full_synthesize(repo_root)
+    # FR-002/FR-003/FR-007: default catalog recompile keeps deactivation
+    # coherent-by-construction too (symmetric with activate_cmd; issue #4785
+    # Finding 1), run AFTER cascade so it reconciles the complete
+    # post-deactivation config state. See `recompile_or_notify` for the
+    # resynthesize/compile/no-compile precedence.
+    recompile_or_notify(repo_root, resynthesize=resynthesize, compile_catalog=compile_catalog)

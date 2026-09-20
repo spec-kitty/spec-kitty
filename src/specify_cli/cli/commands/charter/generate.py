@@ -1,4 +1,5 @@
 """``spec-kitty charter generate`` command + git-auto-track helpers (WP06 split)."""
+
 from __future__ import annotations
 
 import json
@@ -11,6 +12,10 @@ import typer
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
+from specify_cli.cli.commands.charter._charter_write_root import (
+    CharterWriteRootError,
+    resolve_charter_write_root,
+)
 from specify_cli.cli.commands.charter._common import _emit_error, _interview_path
 
 # Test-patch shim: see ``synthesize.py`` for the rationale. ``find_repo_root``
@@ -99,10 +104,7 @@ def _stage_charter_files(repo_root: Path, files: list[Path]) -> None:
         )
         if result.returncode != 0:
             detail = (result.stderr or result.stdout or "").strip()
-            raise RuntimeError(
-                f"Failed to stage charter file {rel}. "
-                f"{detail or 'git add returned a non-zero exit code.'}"
-            )
+            raise RuntimeError(f"Failed to stage charter file {rel}. {detail or 'git add returned a non-zero exit code.'}")
 
 
 def _ensure_gitignore_entries(repo_root: Path, required: list[str]) -> None:
@@ -261,9 +263,7 @@ def generate(
         "--template-set",
         help="Override doctrine template set (must exist in packaged doctrine missions)",
     ),
-    from_interview: bool = typer.Option(
-        True, "--from-interview/--no-from-interview", help="Load interview answers if present"
-    ),
+    from_interview: bool = typer.Option(True, "--from-interview/--no-from-interview", help="Load interview answers if present"),
     profile: str = typer.Option("minimal", "--profile", help="Default profile when no interview is available"),
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing charter bundle"),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
@@ -293,6 +293,15 @@ def generate(
     from charter.activation.pack_context import PackContext
 
     try:
+        # #4785 Finding 3 / FR-006 / NFR-004: fail closed BEFORE any root
+        # resolution when invoked from a linked git worktree. Probed against
+        # the raw invocation cwd, NOT the already-resolved
+        # ``find_repo_root()`` result below -- that helper follows a linked
+        # worktree's ``.git`` pointer back to the PRIMARY checkout by
+        # contract (C-002, not changed here), which would silently mask the
+        # very condition this guard exists to catch.
+        resolve_charter_write_root(Path.cwd())
+
         repo_root = _charter_pkg.find_repo_root()
 
         # T030 (#841 fail-fast): verify we are inside a git working tree
@@ -316,10 +325,7 @@ def generate(
             _emit_error(
                 console,
                 json_output=json_output,
-                message=(
-                    f"Refusing to overwrite symlinked charter at {charter_path}. "
-                    "Remove the symlink or update the symlink target directly."
-                ),
+                message=(f"Refusing to overwrite symlinked charter at {charter_path}. Remove the symlink or update the symlink target directly."),
             )
             raise typer.Exit(code=1)
 
@@ -411,9 +417,7 @@ def generate(
         # references.yaml entry is added; that file is retired (T012/T013).
         from charter.bundle import CANONICAL_MANIFEST
 
-        _ensure_gitignore_entries(
-            repo_root, list(CANONICAL_MANIFEST.gitignore_required_entries)
-        )
+        _ensure_gitignore_entries(repo_root, list(CANONICAL_MANIFEST.gitignore_required_entries))
         commit_input_files = [
             *list(CANONICAL_MANIFEST.tracked_files),
             Path(".gitignore"),
@@ -421,11 +425,7 @@ def generate(
         _stage_charter_files(repo_root, commit_input_files)
 
         if json_output:
-            local_support_files = [
-                reference.source_path
-                for reference in compiled.references
-                if reference.kind == "local_support"
-            ]
+            local_support_files = [reference.source_path for reference in compiled.references if reference.kind == "local_support"]
             print(
                 json.dumps(
                     {
@@ -464,6 +464,12 @@ def generate(
         # Pass-through: caller already emitted an actionable message
         # (e.g. T030 fail-fast for non-git environments).
         raise
+    except CharterWriteRootError as e:
+        # #4785 Finding 3 / FR-006: the write-root guard already fails
+        # closed with the exact, actionable remedy text. Catch the BASE class
+        # so any write-root failure mode fails closed identically.
+        _emit_error(console, json_output=json_output, message=str(e))
+        raise typer.Exit(code=1) from e
     except (FileExistsError, TaskCliError, ValueError, RuntimeError) as e:
         _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e

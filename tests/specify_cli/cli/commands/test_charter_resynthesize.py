@@ -18,22 +18,35 @@ pytestmark = pytest.mark.fast
 runner = CliRunner()
 
 
+@pytest.fixture(autouse=True)
+def _isolate_cwd_from_worktree_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#4785 Finding 3 / WP04 reconciliation: ``resynthesize.py`` now fails
+    closed via the WP02 write-root guard (``resolve_charter_write_root``),
+    probed against the REAL process cwd -- deliberately NOT patchable
+    through this suite's ``find_repo_root`` mocks, since the guard exists
+    precisely to catch cwd/``find_repo_root`` divergence. Without isolating
+    cwd here, every test below would spuriously trip the guard whenever the
+    test process happens to run from inside a real linked git worktree
+    (e.g. a spec-kitty lane worktree) -- unrelated to anything this suite
+    exercises. ``tmp_path`` is a plain (non-git) directory, so chdir'ing
+    into it makes the guard's kernel ``git_topology`` probe degrade safely
+    (not-a-repo -> not-a-linked-worktree, no raise).
+    """
+    monkeypatch.chdir(tmp_path)
+
+
 @dataclass
 class _EvidenceResult:
     bundle: object
     warnings: list[str]
 
 
-def test_resynthesize_list_topics_checks_bundle_compatibility(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_resynthesize_list_topics_checks_bundle_compatibility(tmp_path: Path, monkeypatch) -> None:
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     # consolidate-charter-bundle (#2773): the compat gate keys off charter.yaml
     # (the authoritative v2 bundle), NOT the retired metadata.yaml.
-    (charter_dir / "charter.yaml").write_text(
-        "metadata:\n  bundle_schema_version: 2\n", encoding="utf-8"
-    )
+    (charter_dir / "charter.yaml").write_text("metadata:\n  bundle_schema_version: 2\n", encoding="utf-8")
 
     compatibility_calls: list[Path] = []
 
@@ -65,16 +78,12 @@ def test_resynthesize_list_topics_checks_bundle_compatibility(
     assert '"directive:PROJECT_001"' in result.output
 
 
-def test_status_list_checks_bundle_compatibility(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_status_list_checks_bundle_compatibility(tmp_path: Path, monkeypatch) -> None:
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     # consolidate-charter-bundle (#2773): the compat gate keys off charter.yaml
     # (the authoritative v2 bundle), NOT the retired metadata.yaml.
-    (charter_dir / "charter.yaml").write_text(
-        "metadata:\n  bundle_schema_version: 2\n", encoding="utf-8"
-    )
+    (charter_dir / "charter.yaml").write_text("metadata:\n  bundle_schema_version: 2\n", encoding="utf-8")
 
     compatibility_calls: list[Path] = []
 
@@ -101,9 +110,7 @@ def test_status_list_checks_bundle_compatibility(
     assert compatibility_calls == [charter_dir]
 
 
-def test_status_compat_gate_ignores_retired_metadata_yaml(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_status_compat_gate_ignores_retired_metadata_yaml(tmp_path: Path, monkeypatch) -> None:
     """#2773 regression: metadata.yaml alone must NOT trigger the compat gate.
 
     The fold migration deletes ``metadata.yaml``; if the gate keyed off it, a
@@ -113,14 +120,10 @@ def test_status_compat_gate_ignores_retired_metadata_yaml(
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     # Only the retired metadata.yaml present; no charter.yaml.
-    (charter_dir / "metadata.yaml").write_text(
-        "bundle_schema_version: 2\n", encoding="utf-8"
-    )
+    (charter_dir / "metadata.yaml").write_text("bundle_schema_version: 2\n", encoding="utf-8")
 
     compatibility_calls: list[Path] = []
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.charter.find_repo_root", lambda: tmp_path
-    )
+    monkeypatch.setattr("specify_cli.cli.commands.charter.find_repo_root", lambda: tmp_path)
     monkeypatch.setattr(
         "specify_cli.cli.commands.charter._assert_bundle_compatible",
         lambda path: compatibility_calls.append(path),
@@ -138,14 +141,11 @@ def test_status_compat_gate_ignores_retired_metadata_yaml(
 
     assert result.exit_code == 0, result.output
     assert compatibility_calls == [], (
-        "retired metadata.yaml must not trigger the compat gate; it must key "
-        "off charter.yaml (else v2 bundles silently skip the check)"
+        "retired metadata.yaml must not trigger the compat gate; it must key off charter.yaml (else v2 bundles silently skip the check)"
     )
 
 
-def test_collect_charter_sync_status_passes_metadata_path_to_stale_check(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_collect_charter_sync_status_passes_metadata_path_to_stale_check(tmp_path: Path, monkeypatch) -> None:
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")

@@ -111,6 +111,13 @@ from specify_cli.cli.commands.charter._widen import (  # noqa: F401
     _schedule_inactivity_reminder,
 )
 
+# Activate command's full-synthesize seam. Re-exported at the package level so
+# ``run_full_synthesize`` (a live public symbol -- the activate/deactivate
+# ``--resynthesize`` full generate+synthesize pipeline, invoked in-module via
+# ``recompile_or_notify``) has a cross-module consumer, matching how the rest
+# of the charter command surface is re-exported here for downstream imports.
+from specify_cli.cli.commands.charter.activate import run_full_synthesize  # noqa: F401
+
 # Linter banner helper (kept here for symmetry; tests do not reach for it
 # directly today but it is part of the legacy public surface).
 from specify_cli.cli.commands.charter.lint import _print_charter_lint_banner  # noqa: F401
@@ -206,4 +213,6 @@ __all__ = [
     "_WIDEN_PREREQS_ABSENT_CACHE",
     # Lint helper
     "_print_charter_lint_banner",
+    # Activate full-synthesize seam
+    "run_full_synthesize",
 ]

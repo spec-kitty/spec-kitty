@@ -3,6 +3,7 @@
 Lifted from the legacy ``charter.py`` during the WP06 MS-1 split. Module is
 behaviour-preserving; only import paths changed.
 """
+
 from __future__ import annotations
 
 import json
@@ -68,10 +69,7 @@ def _build_synthesis_request(
     answers_path = _charter_pkg._interview_path(repo_root)
     interview_data = read_interview_answers(answers_path)
     if interview_data is None:
-        raise TaskCliError(
-            "No interview answers found. "
-            "Run 'spec-kitty charter interview' first."
-        )
+        raise TaskCliError("No interview answers found. Run 'spec-kitty charter interview' first.")
 
     # FR-001/FR-002 (WP02): the project-graph derivation reads
     # ``config.activated_*``, not ``answers.selected_*`` -- ``answers.yaml``
@@ -100,9 +98,7 @@ def _build_synthesis_request(
     # pre-#2526 behavior where this field was sourced from
     # `answers.selected_directives` and defaulted to `[]` on a fresh interview.
     pack_context = PackContext.from_config(repo_root)
-    directives_for_synthesis: list[str] = (
-        [] if pack_context.activated_directives is None else config_roots.directives
-    )
+    directives_for_synthesis: list[str] = [] if pack_context.activated_directives is None else config_roots.directives
 
     # Build a minimal interview snapshot, config-activated selections + answers
     interview_snapshot: dict[str, Any] = {
@@ -130,10 +126,12 @@ def _build_synthesis_request(
         # ``DRGGraph`` downstream. An ``id`` key rode along here for a while --
         # redundant with the URN suffix, read by nothing, and silently dropped
         # at validation until WP04 made ``DRGNode`` forbid extras (FR-004).
-        drg_nodes.append({
-            "urn": f"directive:{directive_id}",
-            "kind": "directive",
-        })
+        drg_nodes.append(
+            {
+                "urn": f"directive:{directive_id}",
+                "kind": "directive",
+            }
+        )
     drg_snapshot: dict[str, Any] = {
         "nodes": drg_nodes,
         "edges": [],
@@ -584,12 +582,170 @@ def _has_generated_artifacts(repo_root: Path) -> bool:
     return False
 
 
+# ---------------------------------------------------------------------------
+# #4785 Finding 2-core: the fresh-project predicate must key on whether this
+# store has actually been activated/synthesized for real, not merely on
+# whether ``.kittify/charter/generated/`` currently has agent-authored YAML.
+# A store that was compiled long ago, has real ``activated_*`` selections, or
+# already completed one real (non-seed) synthesis run is ESTABLISHED even if
+# its ``generated/`` directory happens to be empty right now (e.g. cleaned up
+# after a prior harness session) -- reclassifying it as "fresh" would wipe
+# its real state back down to the minimal built-in-only seed (the exact bug
+# #4785 reproduced, see research.md Finding 2).
+# ---------------------------------------------------------------------------
+
+#: The ``activated_*`` root fields ``charter.yaml`` can carry (charter
+#: contract G3 / ``schemas.py::CharterYaml``). ``mission_type_activations``
+#: is DELIBERATELY excluded: ``charter generate``'s own provisioning step
+#: (``provision_mission_type_activations``) unconditionally populates it on
+#: EVERY run -- including a genuinely fresh, never-activated project -- so
+#: treating it as an "established" signal would misclassify every
+#: fresh-project fixture (confirmed empirically: a bare ``generate
+#: --from-interview`` run with empty ``selected_*`` answers already writes a
+#: non-empty ``mission_type_activations`` list, while every OTHER
+#: ``activated_*`` field stays absent).
+_ACTIVATION_SIGNAL_KEYS: tuple[str, ...] = (
+    "activated_kinds",
+    "activated_directives",
+    "activated_tactics",
+    "activated_styleguides",
+    "activated_toolguides",
+    "activated_paradigms",
+    "activated_procedures",
+    "activated_agent_profiles",
+    "activated_mission_step_contracts",
+)
+
+
+def _has_real_prior_synthesis(repo_root: Path) -> bool:
+    """Return True iff a REAL (non-seed) synthesis has already run.
+
+    Reads ``.kittify/charter/synthesis-manifest.yaml`` directly (no full
+    ``SynthesisManifest`` validation -- this is a cheap presence/flag probe,
+    not a consumer of the manifest's content). The fresh-project seed path
+    itself (``_materialize_fresh_doctrine``) writes this same file with
+    ``built_in_only: true`` -- that is NOT evidence of a real synthesis (it
+    is the seed's own marker, and re-running the seed on top of it must stay
+    idempotent -- see ``tests/integration/test_charter_synthesize_fresh.py::
+    test_synthesize_is_idempotent``). Only ``built_in_only: false`` --
+    written exclusively by a real synthesis run (the production ``generated``
+    adapter path, or the registered-direct-project-artifact path in
+    ``_synthesize_project_doctrine``) -- counts as "already established".
+
+    A present-but-unparseable manifest is treated conservatively as
+    established (returns True): the fresh-project short-circuit must never
+    fire on top of a manifest this code cannot positively prove is just the
+    seed's own marker.
+    """
+    from charter.activation.charter_yaml_io import load_charter_yaml
+
+    manifest_path = repo_root / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    if not manifest_path.is_file():
+        return False
+    try:
+        data = load_charter_yaml(manifest_path)
+    except Exception:  # noqa: BLE001 -- conservative fail-closed, see docstring.
+        return True
+    if not isinstance(data, dict):
+        return True
+    return data.get("built_in_only") is False
+
+
+def _interview_answers_present(repo_root: Path) -> bool:
+    """Return True iff readable ``charter interview`` answers exist on disk.
+
+    A REAL ``charter synthesize`` run consumes the interview answers at
+    ``.kittify/charter/interview/answers.yaml`` (see
+    :func:`_build_synthesis_request`, which reads them and fails closed when
+    they are absent). Their presence is therefore the on-disk footprint a
+    genuine prior synthesis necessarily left behind -- used by
+    :func:`_catalog_is_established` to tell a real established store apart
+    from an orphan/incomplete one carrying only a ``built_in_only: false``
+    manifest marker (#4785 Regression 3).
+
+    Reads through :func:`~charter.activation.interview.read_interview_answers`
+    (returns ``None`` for a missing or empty file) so an empty answers file is
+    correctly treated as absent, and degrades to ``False`` on any read error
+    rather than raising -- the caller's establishment probe must never crash
+    ``charter synthesize``.
+    """
+    from charter.activation.interview import read_interview_answers  # noqa: PLC0415
+
+    import specify_cli.cli.commands.charter as _charter_pkg  # noqa: PLC0415
+
+    try:
+        answers_path = _charter_pkg._interview_path(repo_root)
+        return read_interview_answers(answers_path) is not None
+    except Exception:  # noqa: BLE001 -- defensive presence probe, never fatal.
+        return False
+
+
+def _catalog_is_established(repo_root: Path, charter_yaml_path: Path) -> bool:
+    """Return True iff ``charter_yaml_path`` shows evidence of a real, prior
+    charter-store activation/synthesis -- the positive "not fresh" signal
+    (#4785 Finding 2-core) that replaces the old ``generated/`` absence
+    check.
+
+    Two independent signals, either of which is sufficient:
+
+    1. Any ``activated_*`` root field (see ``_ACTIVATION_SIGNAL_KEYS``) is an
+       explicit, non-empty list -- i.e. an operator has really activated at
+       least one artifact via ``charter activate`` (charter contract G3's
+       three-state semantics: ``None`` == never touched, ``[]`` == explicit
+       fail-closed empty, non-empty == real activation).
+    2. ``.kittify/charter/synthesis-manifest.yaml`` already records a REAL
+       (non-seed) synthesis (:func:`_has_real_prior_synthesis`) **AND** the
+       interview answers a real synthesis run consumes are still on disk
+       (:func:`_interview_answers_present`).
+
+    The interview-answers conjunct on signal 2 (#4785 Regression 3) is the
+    narrowing that distinguishes a genuinely established store from an
+    orphan/incomplete one: a ``built_in_only: false`` manifest with no
+    ``answers.yaml`` (and no ``activated_*`` selection, no ``generated/``
+    content, no registered project artifacts) could not have been produced by
+    a real synthesis run -- it is an incomplete marker the fresh-project seed
+    legitimately repairs, not real state the seed would destroy. The
+    Finding-2 protection stays intact: the store that finding targets (a real
+    synthesis whose ``generated/`` dir was merely cleaned up) still has its
+    ``activated_*`` selections and/or its ``answers.yaml``, so it is still
+    classified established and never re-seeded (pinned by
+    ``tests/specify_cli/cli/commands/charter/test_synthesize_freshgate_4785.py``).
+
+    Read directly off the round-tripped YAML mapping (``load_charter_yaml``)
+    rather than through the full ``CharterYaml`` pydantic model: this is a
+    narrow, defensive presence probe, not a schema-validating consumer. An
+    unreadable ``charter.yaml`` yields no positive ``activated_*`` signal but
+    still falls through to the answers-gated manifest check -- so an
+    unreadable-but-genuinely-established store (real manifest + answers)
+    stays established, while an unreadable, orphan-manifest, no-answers store
+    is correctly seed-repairable.
+
+    ``catalog.references`` itself is deliberately NOT used as a signal here,
+    despite being the intuitive "compiled catalog" field: ``compile_charter``
+    resolves an ABSENT ``activated_*`` config key to "every built-in artifact
+    of that kind" (the #2577 default-pack fallback), so ``catalog.references``
+    already carries ~250+ entries on a project's VERY FIRST ``charter
+    generate`` run, before any real activation or synthesis has happened.
+    Gating on non-empty ``catalog.references`` would misclassify every
+    genuinely fresh project as established.
+    """
+    try:
+        from charter.activation.charter_yaml_io import load_charter_yaml
+
+        data: Any = load_charter_yaml(charter_yaml_path)
+    except Exception:  # noqa: BLE001 -- unreadable: no activated_* signal, fall through.
+        data = None
+    if isinstance(data, dict):
+        for key in _ACTIVATION_SIGNAL_KEYS:
+            value = data.get(key)
+            if isinstance(value, list) and value:
+                return True
+    return _has_real_prior_synthesis(repo_root) and _interview_answers_present(repo_root)
+
+
 def _print_synthesis_commit_reminder() -> None:
     console.print("[yellow]Synthesis artifacts written; commit provenance before continuing:[/yellow]")
-    console.print(
-        "  git add .kittify/charter/synthesis-manifest.yaml "
-        ".kittify/charter/provenance/ .kittify/doctrine/"
-    )
+    console.print("  git add .kittify/charter/synthesis-manifest.yaml .kittify/charter/provenance/ .kittify/doctrine/")
     console.print("  git commit -m 'chore: charter synthesis artifacts'")
 
 
@@ -766,24 +922,30 @@ def _emit_dry_run_report(
     conflict_dicts = [_conflict_to_dict(c) for c in delta.conflicts]
 
     if json_output:
-        print(json.dumps({
-            # Contracted fields (FR-002):
-            "result": "dry_run",
-            "adapter": {
-                "id": getattr(syn_adapter, "id", adapter_name),
-                "version": getattr(syn_adapter, "version", "unknown"),
-            },
-            "written_artifacts": written_artifacts_dr,
-            "warnings": warnings_collected,
-            # Legacy compatibility fields (data-model.md §E-1):
-            "staged_artifacts": staged_files,
-            "artifact_count": len(staged_files),
-            "validated": True,
-            # FR-010: reconciliation delta preview -- what --prune would
-            # remove; empty when there is no divergence.
-            "planned_deletes": planned_deletes,
-            "conflicts": conflict_dicts,
-        }, indent=2, sort_keys=True))
+        print(
+            json.dumps(
+                {
+                    # Contracted fields (FR-002):
+                    "result": "dry_run",
+                    "adapter": {
+                        "id": getattr(syn_adapter, "id", adapter_name),
+                        "version": getattr(syn_adapter, "version", "unknown"),
+                    },
+                    "written_artifacts": written_artifacts_dr,
+                    "warnings": warnings_collected,
+                    # Legacy compatibility fields (data-model.md §E-1):
+                    "staged_artifacts": staged_files,
+                    "artifact_count": len(staged_files),
+                    "validated": True,
+                    # FR-010: reconciliation delta preview -- what --prune would
+                    # remove; empty when there is no divergence.
+                    "planned_deletes": planned_deletes,
+                    "conflicts": conflict_dicts,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
         mark_invocation_succeeded()
         return
 
@@ -822,22 +984,25 @@ def _emit_orphan_refusal(
     lines = [_orphan_ref_to_line(ref) for ref in orphaned]
 
     if json_output:
-        print(json.dumps({
-            "result": "failure",
-            "adapter": {"id": adapter_name, "version": "unknown"},
-            "written_artifacts": [],
-            "warnings": warnings_collected + lines,
-        }, indent=2, sort_keys=True))
+        print(
+            json.dumps(
+                {
+                    "result": "failure",
+                    "adapter": {"id": adapter_name, "version": "unknown"},
+                    "written_artifacts": [],
+                    "warnings": warnings_collected + lines,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
     else:
         err_console.print(
-            "[red]Refused:[/red] this run preserved orphaned content instead of dropping it; "
-            "the following references are dangling (backing artifact deleted):"
+            "[red]Refused:[/red] this run preserved orphaned content instead of dropping it; the following references are dangling (backing artifact deleted):"
         )
         for line in lines:
             err_console.print(line)
-        err_console.print(
-            "[yellow]Re-run with `--prune` to remove it, or restore the backing artifact.[/yellow]"
-        )
+        err_console.print("[yellow]Re-run with `--prune` to remove it, or restore the backing artifact.[/yellow]")
     raise typer.Exit(code=1)
 
 
@@ -931,6 +1096,7 @@ __all__ = [
     "_MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE",
     "_build_synthesis_request",
     "_build_synthesis_validation_callback",
+    "_catalog_is_established",
     "_collect_evidence_result",
     "_emit_dry_run_report",
     "_emit_orphan_refusal",

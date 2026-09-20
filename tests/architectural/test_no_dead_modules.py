@@ -430,6 +430,12 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # identity/counts unit suites exercise them meanwhile.
         "specify_cli.doctrine.pack_descriptor",
         "specify_cli.doctrine.pack_lineage",
+        # specify_cli.cli.commands.charter._charter_write_root removed
+        # (#4785 WP03+WP04): activate.py/deactivate.py (WP03) and
+        # generate.py/synthesize.py/resynthesize.py (WP04) now wire
+        # resolve_charter_write_root as real src/ callers (resolve_write_root_or_exit),
+        # reaching the WP-in-flight trigger WP02's comment named. Category count
+        # decremented 3->2 in tests/architectural/_baselines.yaml.
     }
 )
 

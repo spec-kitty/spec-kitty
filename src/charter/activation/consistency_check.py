@@ -709,9 +709,10 @@ def _check_reference_id_parity(
         verification_errors.append(f"charter.yaml: {exc}")
         suggestions.append(
             f"charter.yaml: Could not verify config<->references parity "
-            f"({exc}). Run 'spec-kitty charter synthesize' (or "
-            f"resynthesize) to regenerate .kittify/charter/charter.yaml's "
-            f"catalog, or restore it from version control."
+            f"({exc}). Run 'spec-kitty charter generate' (or 'charter "
+            f"activate --resynthesize') to regenerate "
+            f".kittify/charter/charter.yaml's catalog, or restore it from "
+            f"version control."
         )
         return
     if references_by_kind is None:
@@ -774,8 +775,8 @@ def _check_reference_id_forward_parity(
                 suggestions.append(
                     f"{cli_kind}/{stem}: Activated in config.yaml but does not "
                     f"resolve in .kittify/charter/charter.yaml's catalog. Run "
-                    f"'spec-kitty charter synthesize' (or resynthesize) to "
-                    f"regenerate the compiled reference set."
+                    f"'spec-kitty charter generate' (or 'charter activate "
+                    f"--resynthesize') to regenerate the compiled reference set."
                 )
 
 

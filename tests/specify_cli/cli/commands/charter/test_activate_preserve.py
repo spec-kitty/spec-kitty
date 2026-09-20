@@ -398,8 +398,22 @@ def test_renamed_function_is_the_live_symbol() -> None:
     assert not hasattr(activate_mod, "run_resynthesize_pipeline"), (
         "the mis-named symbol must be gone, not aliased"
     )
-    assert activate_mod.run_full_synthesize is deactivate_mod.run_full_synthesize, (
-        "deactivate.py must import the SAME renamed symbol activate.py defines"
+    # C-006 reconciliation (#4785 WP03): deactivate.py no longer imports
+    # run_full_synthesize directly -- it imports the shared
+    # recompile_or_notify tail activate.py defines (T012/T013 campsite),
+    # which is what now calls run_full_synthesize under --resynthesize. The
+    # invariant this test protects (deactivate calls the SAME full-synthesize
+    # pipeline activate does, never a re-implementation) still holds -- it is
+    # now witnessed one level up, at the shared seam both commands route
+    # through, rather than as a direct attribute on deactivate_mod.
+    assert not hasattr(deactivate_mod, "run_full_synthesize"), (
+        "deactivate.py should route through the shared recompile_or_notify "
+        "seam, not re-import run_full_synthesize directly"
+    )
+    assert activate_mod.recompile_or_notify is deactivate_mod.recompile_or_notify, (
+        "deactivate.py must import the SAME shared tail activate.py defines "
+        "(recompile_or_notify) -- the single call site that invokes "
+        "run_full_synthesize under --resynthesize for both commands"
     )
     docstring = activate_mod.run_full_synthesize.__doc__ or ""
     assert "full" in docstring.lower() and "synthesize" in docstring.lower(), (

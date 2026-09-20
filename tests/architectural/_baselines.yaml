@@ -76,7 +76,13 @@ test_no_dead_modules:
   # (#3500-#3503, ADR 2026-08-16-1); production wiring is the deferred integration WP
   # tracked in #3518. Grown 0->2 for PR #3507 (charter.extractor previously drained
   # this category to 0).
-  category_5_wp_in_flight_adapters: 2
+  # 3 -> 2 (charter-catalog-coherence-01M2XQQF, #4785): WP02 added
+  # specify_cli.cli.commands.charter._charter_write_root as a WP-in-flight
+  # foundation-forward API with no src/ caller yet; WP03 (activate.py/deactivate.py
+  # via resolve_write_root_or_exit) and WP04 (generate.py/synthesize.py/resynthesize.py)
+  # wired the real caller, so the allowlist entry is removed and this baseline
+  # shrinks back -- the bidirectional-ratchet other half of WP02's justification above.
+  category_5_wp_in_flight_adapters: 2  # justification: WP03+WP04 (charter-catalog-coherence-01M2XQQF, #4785) wired the real caller for _charter_write_root; the WP02 allowlist entry is removed, shrinking this category 3->2.
   # justification: 3 frozen-contract internal re-exports under
   # next/_internal_runtime/ frozen by shared-package-boundary-cutover.
   category_6_frozen_runtime_reexports: 3

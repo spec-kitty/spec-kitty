@@ -38,6 +38,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -174,9 +175,7 @@ def _inject_backed_legacy_content(tmp_path: Path) -> None:
     doctrine_dir = tmp_path / ".kittify" / "doctrine"
     graph_path = _graph_path(tmp_path)
     graph = _load_graph(graph_path)
-    graph["nodes"].append(
-        {"urn": _LEGACY_URN, "kind": "tactic", "label": "Legacy Preference Order Tactic (3270)"}
-    )
+    graph["nodes"].append({"urn": _LEGACY_URN, "kind": "tactic", "label": "Legacy Preference Order Tactic (3270)"})
     graph.setdefault("edges", []).append(
         {
             "source": _LEGACY_URN,
@@ -210,9 +209,7 @@ def _inject_backed_legacy_content(tmp_path: Path) -> None:
         content_hash=content_hash,
     )
     updated_manifest = finalize_manifest(manifest.model_copy(update={"artifacts": [*manifest.artifacts, new_entry]}))
-    manifest_path.write_text(
-        canonical_yaml(updated_manifest.model_dump(mode="python")).decode("utf-8"), encoding="utf-8"
-    )
+    manifest_path.write_text(canonical_yaml(updated_manifest.model_dump(mode="python")).decode("utf-8"), encoding="utf-8")
 
     existing_prov_path = tmp_path / ".kittify" / "charter" / "provenance" / "tactic-how-we-apply-directive-003.yaml"
     existing_prov_entry = load_provenance(existing_prov_path)
@@ -262,23 +259,42 @@ def _invoke_synthesize(
     ``tests/agent/cli/commands/test_charter_synthesize_cli.py`` already use
     -- so every WP03-owned reconciliation/reporting code path in
     ``synthesize.py``/``_synthesis.py`` runs for real against *tmp_path*.
+
+    #4785 Finding 3 / WP04 reconciliation: ``synthesize.py`` now also fails
+    closed via the WP02 write-root guard (``resolve_charter_write_root``),
+    which is probed against the REAL process cwd -- deliberately NOT
+    patchable through the ``find_repo_root`` mock above, since the whole
+    point of the guard is to catch the case where a real invocation's cwd
+    diverges from whatever ``find_repo_root`` resolves to. Without isolating
+    cwd here, this helper would spuriously trip the guard whenever the test
+    process happens to be running from inside an actual linked git worktree
+    (e.g. a spec-kitty lane worktree) -- unrelated to anything this test
+    suite exercises. ``tmp_path`` is a plain (non-git) directory, so
+    chdir'ing into it makes the guard's kernel ``git_topology`` probe
+    degrade safely (not-a-repo -> not-a-linked-worktree, no raise) exactly
+    like a real, ordinary checkout would.
     """
-    with (
-        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
-        patch(
-            "specify_cli.cli.commands.charter._collect_evidence_result",
-            return_value=SimpleNamespace(warnings=[], bundle=SimpleNamespace()),
-        ),
-        patch(
-            "specify_cli.cli.commands.charter._build_synthesis_request",
-            return_value=(request, syn_adapter),
-        ),
-    ):
-        return runner.invoke(
-            charter_app,
-            ["synthesize", "--adapter", "fixture", "--json", *extra_args],
-            catch_exceptions=False,
-        )
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        with (
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
+            patch(
+                "specify_cli.cli.commands.charter._collect_evidence_result",
+                return_value=SimpleNamespace(warnings=[], bundle=SimpleNamespace()),
+            ),
+            patch(
+                "specify_cli.cli.commands.charter._build_synthesis_request",
+                return_value=(request, syn_adapter),
+            ),
+        ):
+            return runner.invoke(
+                charter_app,
+                ["synthesize", "--adapter", "fixture", "--json", *extra_args],
+                catch_exceptions=False,
+            )
+    finally:
+        os.chdir(old_cwd)
 
 
 # ---------------------------------------------------------------------------
@@ -306,9 +322,7 @@ def test_prune_removes_divergent_content_and_lists_each_deletion(tmp_path: Path)
     graph = _load_graph(_graph_path(tmp_path))
     node_urns = {n["urn"] for n in graph["nodes"]}
     assert _LEGACY_URN not in node_urns, "--prune must excise the divergent node"
-    assert all(e["source"] != _LEGACY_URN for e in graph.get("edges", [])), (
-        "amendment #1: --prune must drop the node's edges TOGETHER with the node"
-    )
+    assert all(e["source"] != _LEGACY_URN for e in graph.get("edges", [])), "amendment #1: --prune must drop the node's edges TOGETHER with the node"
 
 
 # ---------------------------------------------------------------------------
@@ -404,9 +418,7 @@ def test_orphaned_removal_without_prune_refuses_with_remediation(tmp_path: Path)
     graph = _load_graph(_graph_path(tmp_path))
     node_urns = {n["urn"] for n in graph["nodes"]}
     assert _ORPHAN_URN in node_urns
-    assert any(e["source"] == _ORPHAN_URN for e in graph.get("edges", [])), (
-        "the orphan node's edge must still be present alongside the node"
-    )
+    assert any(e["source"] == _ORPHAN_URN for e in graph.get("edges", [])), "the orphan node's edge must still be present alongside the node"
 
 
 # ---------------------------------------------------------------------------
@@ -420,9 +432,7 @@ def test_corrupt_overlay_refuses_with_actionable_message_and_no_write(tmp_path: 
     _seed_complete_bundle(tmp_path)
 
     manifest_before = (tmp_path / MANIFEST_PATH).read_bytes()
-    _graph_path(tmp_path).write_text(
-        "schema_version: '1.0'\nnodes: [\n  {urn: broken\n", encoding="utf-8"
-    )
+    _graph_path(tmp_path).write_text("schema_version: '1.0'\nnodes: [\n  {urn: broken\n", encoding="utf-8")
 
     result = _invoke_synthesize(tmp_path, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, [])
 
@@ -433,9 +443,7 @@ def test_corrupt_overlay_refuses_with_actionable_message_and_no_write(tmp_path: 
     assert "Refused" in warnings
     assert "No write was made" in warnings
 
-    assert (tmp_path / MANIFEST_PATH).read_bytes() == manifest_before, (
-        "a corrupt-overlay refusal must not rewrite the manifest"
-    )
+    assert (tmp_path / MANIFEST_PATH).read_bytes() == manifest_before, "a corrupt-overlay refusal must not rewrite the manifest"
 
 
 # ---------------------------------------------------------------------------

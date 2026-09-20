@@ -12,17 +12,20 @@ import re
 from typing import TYPE_CHECKING, Any
 
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from charter.activation._io import load_charter_file
 from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
 from charter.activation.charter_yaml_io import (
     PreparedYamlWrite,
     apply_yaml_write,
+    load_charter_yaml,
     observe_yaml_input,
     _YamlInput,
     prepare_yaml_write,
     save_charter_yaml,
     update_charter_yaml_section,
+    yaml_documents_equal,
 )
 from kernel.clock import now_utc_stamp
 from charter.activation.interview import (
@@ -536,12 +539,14 @@ def write_compiled_charter(
 
     charter_yaml_path = output_dir / "charter.yaml"
     catalog = _build_catalog_dict(compiled)
-    metadata = _build_metadata_dict()
 
     if charter_yaml_path.exists():
+        preserved_generated_at = _preserved_generated_at(charter_yaml_path, catalog)
+        metadata = _build_metadata_dict(preserved_generated_at=preserved_generated_at)
         update_charter_yaml_section(charter_yaml_path, "catalog", catalog)
         update_charter_yaml_section(charter_yaml_path, "metadata", metadata)
     else:
+        metadata = _build_metadata_dict()
         _bootstrap_charter_yaml(charter_yaml_path, catalog=catalog, metadata=metadata, repo_root=repo_root)
 
     # WP04 (charter-activation-authority): the generated charter is the SOLE
@@ -652,6 +657,13 @@ def _build_catalog_dict(compiled: CompiledCharter) -> dict[str, Any]:
     per-reference keys, byte-equivalent content. Validated through
     :class:`~charter.activation.schemas.CharterCatalog` so a schema drift fails loud
     here rather than silently writing an invalid document.
+
+    NFR-005: ``references`` is sorted by ``id`` here (canonical, deterministic
+    order) rather than emitted in ``compiled.references``'s build order, which
+    interleaves dict/set/graph-walk iteration order across paradigm, DRG-
+    backed-kind, template, and local-support reference batches. A stable sort
+    key on the one field every reference carries keeps a second, unchanged
+    recompile a zero-line diff of this section (contract C4).
     """
     references = [
         CharterCatalogReference(
@@ -662,7 +674,7 @@ def _build_catalog_dict(compiled: CompiledCharter) -> dict[str, Any]:
             source_path=reference.source_path,
             local_path=reference.local_path,
         )
-        for reference in compiled.references
+        for reference in sorted(compiled.references, key=lambda reference: reference.id)
     ]
     catalog = CharterCatalog(
         mission=compiled.mission,
@@ -680,10 +692,41 @@ def _build_catalog_dict(compiled: CompiledCharter) -> dict[str, Any]:
     return dumped
 
 
-def _build_metadata_dict() -> dict[str, Any]:
-    """Build the charter.yaml ``metadata`` section (refresh timestamp)."""
+def _preserved_generated_at(charter_yaml_path: Path, catalog: dict[str, Any]) -> str | None:
+    """Return the on-disk ``metadata.generated_at`` when *catalog* is byte-unchanged.
+
+    FR-008/NFR-002 (contract C4): a recompile that produces the identical
+    ``catalog`` content must not restamp ``generated_at`` -- otherwise a true
+    no-op recompile still shows a ``metadata`` diff. Returns ``None`` (fresh
+    stamp) when the existing document cannot be read, has no comparable
+    ``catalog``/``metadata.generated_at``, or the catalog content differs.
+    """
+    try:
+        document = load_charter_yaml(charter_yaml_path)
+    except (OSError, YAMLError, ValueError):
+        return None
+    if not isinstance(document, dict):
+        return None
+    existing_catalog = document.get("catalog")
+    if existing_catalog is None or not yaml_documents_equal(existing_catalog, catalog):
+        return None
+    existing_metadata = document.get("metadata")
+    if not isinstance(existing_metadata, dict):
+        return None
+    generated_at = existing_metadata.get("generated_at")
+    return generated_at if isinstance(generated_at, str) else None
+
+
+def _build_metadata_dict(*, preserved_generated_at: str | None = None) -> dict[str, Any]:
+    """Build the charter.yaml ``metadata`` section (refresh timestamp).
+
+    *preserved_generated_at*, when supplied by a caller that found the
+    catalog content byte-unchanged from what is on disk (see
+    :func:`_preserved_generated_at`), is used in place of a fresh stamp so a
+    pure no-op recompile does not restamp ``generated_at`` (FR-008/NFR-002).
+    """
     metadata = CharterYamlMetadata(
-        generated_at=now_utc_stamp(),
+        generated_at=preserved_generated_at or now_utc_stamp(),
         bundle_schema_version=2,
     )
     dumped: dict[str, Any] = metadata.model_dump(mode="json")
@@ -1027,68 +1070,27 @@ def _build_references(
     return references
 
 
-def _build_references_from_yaml(
-    *,
-    mission: str,
-    template_set: str,
-    interview: CharterInterview,
-    paradigms: list[str],
-    directives: list[str],
-) -> list[CharterReference]:
-    """Load references by scanning YAML files directly (fallback path).
+def _raw_kind_repository(doctrine_service: DoctrineService, kind: str) -> Any:
+    """Return the RAW, unfiltered repository for *kind* from *doctrine_service*.
 
-    Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
-    (FR-005) retired this function's former ``doctrine_root`` parameter: its
-    last read (the template-set reference) now resolves through
-    ``_template_reference``'s own promoted authority instead of a
-    caller-supplied root, and the styleguide read below already routes
-    through ``built_in_dir`` (relocate-builtin-doctrine-packs), leaving no
-    remaining use.
+    ``compile_charter`` accepts two concrete ``doctrine_service`` shapes in
+    practice (only the first is the type its annotation names, but callers --
+    including in-repo tests, e.g. ``tests/charter/test_activate_resolves_no_answers_edit.py``
+    -- pass the second directly too):
+
+    - the activation-aware wrapper (``charter.activation.resolver.DoctrineService``),
+      whose nine gated properties (``.directives`` et al.) return an
+      ACTIVATION-FILTERED dict -- so its dedicated ``raw_repository(kind)``
+      accessor is used instead (#4785 Finding 4b: a DRG-transitively-reached
+      id can legitimately fall outside that filtered subset);
+    - a raw, unwrapped ``charter.offering.service.DoctrineService``, whose
+      same-named properties are ALREADY the unfiltered repository object (no
+      ``raw_repository`` method exists on it, nor is one needed).
     """
-    references: list[CharterReference] = []
-
-    paradigm_sources = _index_yaml_assets(built_in_dir(ArtifactKind.PARADIGM), "*.paradigm.yaml")
-    directive_sources = _index_yaml_assets(built_in_dir(ArtifactKind.DIRECTIVE), "*.directive.yaml")
-
-    for paradigm in paradigms:
-        references.append(
-            _doctrine_yaml_reference(
-                kind="paradigm",
-                raw_id=paradigm,
-                source=paradigm_sources.get(paradigm.casefold()),
-            )
-        )
-
-    for directive in directives:
-        references.append(
-            _doctrine_yaml_reference(
-                kind="directive",
-                raw_id=directive,
-                source=directive_sources.get(directive.casefold()),
-            )
-        )
-
-    references.append(_template_reference(mission=mission, template_set=template_set))
-
-    language_hints = interview.answers.get("languages_frameworks", "").lower()
-    if "python" in language_hints:
-        # Built-in styleguides were flattened out of the doctrine package's own
-        # ``styleguides/`` into ``packs/built-in/styleguides`` (relocation
-        # mission); resolve through the shared ``built_in_dir`` seam, matching
-        # the paradigm/directive reads above. The file is currently absent,
-        # but repointing the root keeps this ``.exists()``-guarded read
-        # correct if/when it ships again.
-        styleguide_path = built_in_dir(ArtifactKind.STYLEGUIDE) / "python-implementation.styleguide.yaml"
-        if styleguide_path.exists():
-            references.append(
-                _doctrine_yaml_reference(
-                    kind="styleguide",
-                    raw_id="python-implementation",
-                    source=_load_yaml_asset(styleguide_path),
-                )
-            )
-
-    return references
+    raw_repository = getattr(doctrine_service, "raw_repository", None)
+    if callable(raw_repository):
+        return raw_repository(kind)
+    return getattr(doctrine_service, kind)
 
 
 def _render_kind_references(
@@ -1099,14 +1101,28 @@ def _render_kind_references(
     id_of: Callable[[Any], str],
     title_of: Callable[[Any], str],
     summary_of: Callable[[Any], str],
-    project_root: Path | None = None,
+    diagnostics: list[str],
 ) -> list[CharterReference]:
     """Render one :class:`CharterReference` per id, via a typed repository lookup.
 
     Shared by every DRG-backed kind in :func:`_build_references_from_service`
     (directive, tactic, styleguide, toolguide, procedure, agent profile) so
-    the five near-identical "look up, else fall back to a bare YAML
-    reference" loops collapse to one call site per kind.
+    the six near-identical "look up, else record unresolved" loops collapse
+    to one call site per kind.
+
+    *repository* must be the RAW, unfiltered repository for *kind*
+    (:func:`_raw_kind_repository`), not one of
+    ``charter.activation.resolver.DoctrineService``'s nine activation-filtered
+    properties. *ids* is the DRG transitive-closure result (``graph.<kind>``),
+    which legitimately reaches ids beyond direct config activation (#4785
+    Finding 4b) -- looking those up against the activation-filtered view
+    produced false "no bundled definition" misses for ids that resolve fine
+    against the raw repository. A miss against the raw repository IS a
+    genuine unresolved reference: it is recorded into *diagnostics* using the
+    same ``"Unresolved reference: <kind>/<id>"`` format
+    :func:`_build_references_from_service`'s own ``graph.unresolved`` loop
+    uses, rather than a silent placeholder ``CharterReference`` row (contract
+    C4).
     """
     references: list[CharterReference] = []
     for raw_id in ids:
@@ -1121,7 +1137,7 @@ def _render_kind_references(
                 )
             )
         else:
-            references.append(_doctrine_yaml_reference(kind=kind, raw_id=raw_id, source=None, project_root=project_root))
+            diagnostics.append(f"Unresolved reference: {kind}/{raw_id}")
     return references
 
 
@@ -1167,66 +1183,66 @@ def _build_references_from_service(
         _render_kind_references(
             graph.directives,
             kind="directive",
-            repository=doctrine_service.directives,
+            repository=_raw_kind_repository(doctrine_service, "directives"),
             id_of=lambda d: str(d.id),
             title_of=lambda d: str(d.title),
             summary_of=lambda d: str(d.intent),
-            project_root=repo_root,
+            diagnostics=diagnostics,
         )
     )
     references.extend(
         _render_kind_references(
             graph.tactics,
             kind="tactic",
-            repository=doctrine_service.tactics,
+            repository=_raw_kind_repository(doctrine_service, "tactics"),
             id_of=lambda t: str(t.id),
             title_of=lambda t: str(t.name),
             summary_of=lambda t: str(t.purpose or f"Tactic: {t.name}"),
-            project_root=repo_root,
+            diagnostics=diagnostics,
         )
     )
     references.extend(
         _render_kind_references(
             graph.styleguides,
             kind="styleguide",
-            repository=doctrine_service.styleguides,
+            repository=_raw_kind_repository(doctrine_service, "styleguides"),
             id_of=lambda sg: str(sg.id),
             title_of=lambda sg: str(sg.title),
             summary_of=lambda sg: str(sg.principles[0] if sg.principles else f"Styleguide: {sg.title}"),
-            project_root=repo_root,
+            diagnostics=diagnostics,
         )
     )
     references.extend(
         _render_kind_references(
             graph.toolguides,
             kind="toolguide",
-            repository=doctrine_service.toolguides,
+            repository=_raw_kind_repository(doctrine_service, "toolguides"),
             id_of=lambda tg: str(tg.id),
             title_of=lambda tg: str(tg.title),
             summary_of=lambda tg: str(tg.summary),
-            project_root=repo_root,
+            diagnostics=diagnostics,
         )
     )
     references.extend(
         _render_kind_references(
             graph.procedures,
             kind="procedure",
-            repository=doctrine_service.procedures,
+            repository=_raw_kind_repository(doctrine_service, "procedures"),
             id_of=lambda proc: str(proc.id),
             title_of=lambda proc: str(proc.name),
             summary_of=lambda proc: str(proc.purpose),
-            project_root=repo_root,
+            diagnostics=diagnostics,
         )
     )
     references.extend(
         _render_kind_references(
             graph.agent_profiles,
             kind="agent_profile",
-            repository=doctrine_service.agent_profiles,
+            repository=_raw_kind_repository(doctrine_service, "agent_profiles"),
             id_of=lambda ap: str(ap.profile_id),
             title_of=lambda ap: str(ap.name),
             summary_of=lambda ap: str(ap.description or f"Agent profile: {ap.name}"),
-            project_root=repo_root,
+            diagnostics=diagnostics,
         )
     )
 

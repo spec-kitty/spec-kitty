@@ -57,6 +57,10 @@ from specify_cli.cli.commands.charter._cascade_shared import (
     drg_urn_to_config_id,
     render_kind_filtered_line,
 )
+from specify_cli.cli.commands.charter._charter_write_root import (
+    CharterWriteRootError,
+    resolve_charter_write_root,
+)
 from specify_cli.cli.commands.charter._layer_roots import (
     resolve_layer_roots,
     resolve_org_root_chain,
@@ -65,11 +69,21 @@ from specify_cli.cli.commands.charter._layer_roots import (
 __all__ = ["activate_cmd", "run_full_synthesize"]
 
 RESYNTHESIZE_HELP = (
-    "Eagerly refresh the derived bundle/DRG after this activation via the "
-    "EXISTING synthesize pipeline (the same one `charter generate` + "
-    "`charter synthesize` use) -- reconciles the freshness signal to fresh "
-    "immediately. Default: off -- activation stays a fast config-only write "
-    "and the signal reports stale until a later reconcile (NFR-001)."
+    "Eagerly refresh the FULL derived bundle/DRG (bundle content hash + "
+    "project DRG layer, not just the compiled catalog) after this "
+    "activation via the EXISTING synthesize pipeline (the same one "
+    "`charter generate` + `charter synthesize` use). Default activation "
+    "already recompiles `catalog.references` on its own via `charter "
+    "generate`'s own compile seam (see --no-compile to opt out of that "
+    "lightweight recompile); --resynthesize goes further and reconciles "
+    "the freshness signal to fresh immediately (NFR-001)."
+)
+
+NO_COMPILE_HELP = (
+    "Skip the default post-activation catalog recompile (FR-003): the fast "
+    "config-only write from before issue #4785's fix. `catalog.references` "
+    "is left as-is and may go stale until a later `charter generate` or "
+    "`charter activate --resynthesize`."
 )
 
 #: FR-004 -- the explicit zero-activatable-targets message. Printed once,
@@ -475,6 +489,90 @@ def _render_no_cascade_warning(
             render_kind_filtered_line(kind_token, config_id)
 
 
+def recompile_catalog(repo_root: Path) -> list[str]:
+    """Recompile the derived charter catalog via the single compiler authority (T012/T013).
+
+    Issue #4785 Finding 1: `activate`/`deactivate` used to be config-only
+    writes, leaving `catalog.references` stale (the #2524 dangler class)
+    until an operator remembered to run a separate recompile by hand. This
+    is the coherent-by-construction fix, called by default from both
+    `activate_cmd` and `deactivate_cmd` (FR-001/FR-002) unless `--no-compile`
+    is passed.
+
+    Modeled EXACTLY on `pack.py`'s `_compile_bundle_after_merge` (the
+    `charter pack apply --compile` seam) -- the same
+    `_load_interview_for_generate(..., from_interview=False, ...)` ->
+    `compile_charter` -> `write_compiled_charter` call chain `charter
+    generate --no-from-interview` itself uses (single compiler authority,
+    C-001/C-004: no second, minimal catalog writer). `profile="minimal"`
+    matches the established default-profile convention this same module
+    already uses for a recompile with no interview answers (see
+    `run_full_synthesize` below and `_resynthesis_preflight.py`).
+
+    Unlike `pack.py`'s bridge, this does NOT gate on
+    `_is_inside_git_worktree` -- that check exists there because `charter
+    generate`'s own git-auto-track contract requires a git working tree
+    (the produced `charter.md` must be trackable). `activate`/`deactivate`
+    have no such auto-track step, and forcing git here would break every
+    existing config-only-style test fixture (bare `tmp_path`, no `.git`).
+    Worktree SAFETY (never landing in the wrong checkout) is a separate
+    concern, already handled by `resolve_charter_write_root` before this is
+    ever called (Contract C3, FR-006).
+
+    Imports are function-local for the same reason `pack.py` documents:
+    avoids a module-load-time circular import between this package's
+    `_app.py` and `generate.py`.
+    """
+    from charter.activation.compiler import compile_charter, write_compiled_charter  # noqa: PLC0415
+    from charter.activation.pack_context import PackContext  # noqa: PLC0415
+    from charter.bundle import CHARTER_YAML  # noqa: PLC0415
+
+    from specify_cli.cli.commands.charter._common import _interview_path  # noqa: PLC0415
+    from specify_cli.cli.commands.charter.generate import (  # noqa: PLC0415
+        _build_doctrine_service_with_org_layer,
+        _load_interview_for_generate,
+    )
+
+    # #4785 Regression-2 fix: only REFRESH an ALREADY-established compiled
+    # catalog. On a config.yaml-only project (no compiled ``charter.yaml``
+    # yet) there is no ``catalog.references`` to keep fresh, and bootstrapping
+    # one here would mint the ``config.yaml`` ``charter:`` pointer as an
+    # incidental side effect -- silently migrating the activation write-target
+    # off ``config.yaml`` onto ``charter.yaml`` mid-activate. A later
+    # ``deactivate`` then updates ``charter.yaml`` while ``config.yaml`` keeps
+    # a stale activation shadow (the C-001 single-authority split-brain that
+    # left ``activated_glossary_packs`` un-removed and the deactivate test
+    # red). The coherence guard itself no-ops on an absent ``charter.yaml``
+    # ("not yet synthesized" -- see ``tests/doctrine/
+    # test_activation_parity_guard.py`` and ``test_activate_recompile_4785``'s
+    # ``_write_established_catalog`` precondition), so skipping here keeps the
+    # F1 coherence gain intact for established stores while never migrating a
+    # config-only project as an incidental side effect of activate/deactivate.
+    charter_dir = repo_root / ".kittify" / "charter"
+    # Route the existence check through the canonical repo-root-relative
+    # ``charter.bundle.CHARTER_YAML`` rather than a hardcoded "charter.yaml"
+    # literal (charter-path-literal authority gate / DRAIN PROCEDURE).
+    if not (repo_root / CHARTER_YAML).exists():
+        return []
+
+    interview_data, _source, resolved_mission = _load_interview_for_generate(
+        repo_root=repo_root,
+        answers_path=_interview_path(repo_root),
+        from_interview=False,
+        resolved_mission_type=None,
+        profile="minimal",
+    )
+    compiled = compile_charter(
+        mission=resolved_mission,
+        interview=interview_data,
+        repo_root=repo_root,
+        doctrine_service=_build_doctrine_service_with_org_layer(repo_root),
+        pack_context=PackContext.from_config(repo_root),
+    )
+    bundle_result = write_compiled_charter(charter_dir, compiled, repo_root=repo_root)
+    return list(bundle_result.files_written)
+
+
 def run_full_synthesize(repo_root: Path) -> None:
     """Eagerly refresh the derived bundle/DRG via the EXISTING full-synthesize pipeline (FR-007).
 
@@ -514,6 +612,21 @@ def run_full_synthesize(repo_root: Path) -> None:
     Imports are deliberately local: this whole call graph (evidence
     collection, doctrine service construction, git staging) is expensive and
     must stay off the default (no-flag) activation hot path (NFR-001).
+
+    Split-brain fix (issue #4785 Finding 3, WP03): ``_generate``/``_synthesize``
+    resolve their own root via ``find_repo_root()`` (cwd-based), which
+    follows a linked worktree's ``.git`` pointer back to the PRIMARY
+    checkout. Before WP03, the caller's un-resolved ``repo_root``
+    (``Path(".")`` from a worktree) landed the activation-flag write in the
+    worktree while this ``chdir`` + ``find_repo_root()`` combination landed
+    the recompile in PRIMARY -- two different checkouts for one logical
+    activation. Both callers now resolve *repo_root* through
+    :func:`specify_cli.cli.commands.charter._charter_write_root.resolve_charter_write_root`
+    BEFORE calling anything in this module (which fails closed on a linked
+    worktree rather than silently redirecting to PRIMARY), so by the time
+    this function's ``chdir(repo_root)`` runs, *repo_root* is already the
+    one safe checkout -- ``find_repo_root()`` inside that ``chdir`` resolves
+    right back to the same directory, never a different one.
     """
     from specify_cli.cli.commands.charter.generate import generate as _generate
     from specify_cli.cli.commands.charter.synthesize import (
@@ -541,6 +654,99 @@ def run_full_synthesize(repo_root: Path) -> None:
         )
 
 
+def resolve_write_root_or_exit(repo_root: Path) -> Path:
+    """Resolve the WP02-safe charter-write root, or exit(1) (FR-006, Contract C3).
+
+    Shared by ``activate_cmd``/``deactivate_cmd`` (T014 campsite): both
+    otherwise carry an identical try/except around
+    :func:`resolve_charter_write_root` -- extracting it keeps each command
+    body under the complexity ceiling (Sonar S3776 / ruff C901).
+    """
+    try:
+        return resolve_charter_write_root(repo_root)
+    except CharterWriteRootError as exc:
+        # Catch the BASE class (not just LinkedWorktreeCharterWriteError): the
+        # only subclass raised today is the linked-worktree case, so this is
+        # behaviourally identical, and any future write-root failure mode fails
+        # closed here the same way rather than escaping as an uncaught traceback.
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+
+def _recompile_catalog_best_effort(repo_root: Path) -> None:
+    """Run :func:`recompile_catalog`, degrading to a warning on two narrow,
+    environmental preconditions instead of crashing the command.
+
+    (1) ``recompile_catalog``'s bootstrap branch (``charter.yaml`` absent)
+    resolves the canonical repo root via git
+    (:func:`charter.resolution.resolve_canonical_repo_root`, reached through
+    ``compiler._bootstrap_charter_yaml`` ->
+    ``sync.load_governance_config``/``load_directives_config``) -- a
+    precondition ``activate``/``deactivate`` themselves have never required:
+    plenty of established, config-only projects (and a large share of this
+    repo's own existing test fixtures) have no ``.git`` at all.
+
+    (2) ``compile_charter`` resolves EVERY currently-activated stem across
+    the WHOLE catalog (not just the one this command just
+    activated/deactivated -- that one is already validated by
+    ``manager.activate``/``manager.deactivate`` before recompile ever runs)
+    via its own :func:`~charter.activation.kind_vocabulary.resolve_artifact_urn`
+    call, and raises :class:`~charter.activation.kind_vocabulary.UnknownArtifactIdError`
+    the moment ANY of them cannot be resolved -- a pre-existing dangler
+    (the #2524 class this whole mission targets) or a doctrine-layout
+    mismatch unrelated to the artifact this command touched. Catching it
+    here does not mask THIS activation being wrong (it already passed
+    ``manager.activate``'s own validation); it stops an unrelated,
+    pre-existing resolution gap elsewhere in the activation set from
+    crashing an otherwise-successful, unrelated activate/deactivate call.
+
+    Both are environmental/pre-existing-state preconditions, not a failure
+    of the recompile itself on an otherwise-healthy, established store --
+    letting either crash the whole command over an opportunistic recompile
+    that a successful config write does not need would be a real
+    regression, not coherence-by-construction. The mutation itself already
+    succeeded by the time this runs; only the recompile is skipped, exactly
+    like the explicit ``--no-compile`` notice above (an established store
+    with git and no pre-existing danglers, the overwhelming common case, is
+    unaffected by either branch).
+    """
+    from charter.activation.kind_vocabulary import UnknownArtifactIdError  # noqa: PLC0415
+    from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError  # noqa: PLC0415
+
+    try:
+        recompile_catalog(repo_root)
+    except (NotInsideRepositoryError, GitCommonDirUnavailableError, UnknownArtifactIdError) as exc:
+        console.print(
+            f"[yellow]Catalog not recompiled[/yellow]: {exc} catalog.references "
+            "may go stale until the next `charter generate` (from a git "
+            "repository, with a clean activation set) or `charter activate "
+            "--resynthesize`."
+        )
+
+
+def recompile_or_notify(repo_root: Path, *, resynthesize: bool, compile_catalog: bool) -> None:
+    """Run the post-mutation catalog refresh: full pipeline, lightweight
+    recompile, or an explicit skip notice (FR-001/FR-002/FR-003/FR-007).
+
+    Shared tail for ``activate_cmd``/``deactivate_cmd`` (T012/T013
+    campsite): extracting the three-way branch keeps each command body
+    under the complexity ceiling. Precedence is ``--resynthesize`` (the
+    heavier, opt-in full pipeline, which already recompiles the catalog as
+    part of its own work) over the default lightweight ``--compile`` over
+    the explicit ``--no-compile`` skip notice.
+    """
+    if resynthesize:
+        run_full_synthesize(repo_root)
+    elif compile_catalog:
+        _recompile_catalog_best_effort(repo_root)
+    else:
+        console.print(
+            "[yellow]Catalog not recompiled[/yellow] (--no-compile): "
+            "catalog.references may go stale until the next `charter "
+            "generate` or `charter activate --resynthesize`."
+        )
+
+
 def activate_cmd(
     ctx: typer.Context,
     kind: str | None = typer.Argument(None, help="Activation kind (e.g. directive, agent-profile)."),
@@ -559,6 +765,11 @@ def activate_cmd(
         "--resynthesize/--no-resynthesize",
         help=RESYNTHESIZE_HELP,
     ),
+    compile_catalog: bool = typer.Option(
+        True,
+        "--compile/--no-compile",
+        help=NO_COMPILE_HELP,
+    ),
     repo_root: Path = typer.Option(Path("."), hidden=True),
 ) -> None:
     """Activate a doctrine artifact by kind and ID (FR-004), with optional cascade."""
@@ -570,6 +781,14 @@ def activate_cmd(
     if kind not in YAML_KEY_MAP:
         console.print(f"[red]Error:[/red] Unknown kind '{kind}'. Valid kinds: {', '.join(sorted(YAML_KEY_MAP))}.")
         raise typer.Exit(1)
+
+    # FR-006/Contract C3: fail closed from a linked git worktree before any
+    # mutation, and resolve the ONE checkout root every downstream call in
+    # this command (ctx_project, cascade rendering, the catalog recompile,
+    # and run_full_synthesize's chdir) shares from here on -- closing the
+    # split-brain where the activation flag landed in one checkout and the
+    # recompile landed in another (issue #4785 Finding 3).
+    repo_root = resolve_write_root_or_exit(repo_root)
 
     # FR-013/014: parse the scope value object — never collapsed to a bool
     # (Contract C3.3). A bad kind token raises a structured ValueError.
@@ -661,7 +880,9 @@ def activate_cmd(
                 manager, ctx_project, source_urn, scope, repo_root, layer_roots
             )
 
-    # FR-007: opt-in eager refresh, run AFTER cascade so it reconciles the
-    # complete post-activation config state -- not just the direct target.
-    if resynthesize:
-        run_full_synthesize(repo_root)
+    # FR-001/FR-003/FR-007: default catalog recompile keeps activation
+    # coherent-by-construction (issue #4785 Finding 1) -- runs AFTER cascade
+    # so it reconciles the complete post-activation config state, not just
+    # the direct target. See `recompile_or_notify` for the
+    # resynthesize/compile/no-compile precedence.
+    recompile_or_notify(repo_root, resynthesize=resynthesize, compile_catalog=compile_catalog)
