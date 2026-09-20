@@ -490,7 +490,7 @@ def _state(path: Path) -> FileState:
     raise InstallerError("unsafe_path", path=str(path), detail="Unsupported node kind")
 
 
-def _windows_dir_mode_only_divergence(observed: FileState, planned: FileState) -> bool:
+def windows_dir_mode_only_divergence(observed: FileState, planned: FileState) -> bool:
     """Return True when a directory diverges from the plan *only* by POSIX mode on Windows.
 
     A freshly-created shared skills directory (e.g. ``.agents/skills``) carries a

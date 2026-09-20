@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 from kernel import paths as kernel_paths
-from specify_cli.skills.command_installer import _windows_dir_mode_only_divergence
+from specify_cli.skills.command_installer import windows_dir_mode_only_divergence
 from specify_cli.tool_surface.operations import FileState, OwnerApplyResult
 from specify_cli.tool_surface.providers.managed_skills import ManagedSkillsProvider
 
@@ -144,7 +144,7 @@ def test_helper_is_dir_scoped_and_host_gated() -> None:
     dir_700 = FileState("directory", mode=0o700)
 
     # On POSIX (the real test host, is_windows False) nothing is ever excused.
-    assert _windows_dir_mode_only_divergence(dir_700, dir_755) is False
+    assert windows_dir_mode_only_divergence(dir_700, dir_755) is False
 
 
 def test_helper_windows_only_dir_mode(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -156,13 +156,13 @@ def test_helper_windows_only_dir_mode(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(kernel_paths, "is_windows", lambda: True)
     # Directory diverging only by mode: excused.
-    assert _windows_dir_mode_only_divergence(dir_700, dir_755) is True
+    assert windows_dir_mode_only_divergence(dir_700, dir_755) is True
     # File modes are never relaxed, even on Windows.
-    assert _windows_dir_mode_only_divergence(file_600, file_644) is False
+    assert windows_dir_mode_only_divergence(file_600, file_644) is False
     # A kind mismatch (dir vs file) is not a mode-only divergence.
-    assert _windows_dir_mode_only_divergence(dir_700, file_644) is False
+    assert windows_dir_mode_only_divergence(dir_700, file_644) is False
     # A directory that also diverges by content-kind is not mode-only.
-    assert _windows_dir_mode_only_divergence(dir_755, FileState("absent")) is False
+    assert windows_dir_mode_only_divergence(dir_755, FileState("absent")) is False
 
 
 def test_helper_calls_is_windows_through_module_attribute(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -175,9 +175,9 @@ def test_helper_calls_is_windows_through_module_attribute(monkeypatch: pytest.Mo
     dir_755 = FileState("directory", mode=0o755)
 
     monkeypatch.setattr(kernel_paths, "is_windows", lambda: False)
-    assert _windows_dir_mode_only_divergence(dir_700, dir_755) is False
+    assert windows_dir_mode_only_divergence(dir_700, dir_755) is False
     monkeypatch.setattr(kernel_paths, "is_windows", lambda: True)
-    assert _windows_dir_mode_only_divergence(dir_700, dir_755) is True
+    assert windows_dir_mode_only_divergence(dir_700, dir_755) is True
 
     # Guard: no test in this module fakes os.name (that flips pathlib on Windows).
     assert os.name in {"posix", "nt"}
