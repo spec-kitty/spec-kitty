@@ -94,6 +94,38 @@ this section at publish._
   triage no longer requires reading a gitignored manifest; aligned the
   bulk-edit-gate reader so normalization is behavior-preserving (#4778, #4780,
   #4779).
+- **The issue-matrix approval gate no longer forces a false work-outcome verdict
+  on issues cited only for context or as PR references, and `move-task` now
+  accepts the natural `--actor`/`--reason` flag names** (#3469). **Before:**
+  every discovered `#NNNN` reference — including parent-epic citations, `see
+  #NNNN` context markers, and `PR #NNNN` links — scaffolded a **gating** row in
+  `issue-matrix.json`, and the four-value verdict vocabulary (`fixed`,
+  `verified-already-fixed`, `deferred-with-followup`, `in-mission`) had no
+  truthful value for "cited, no work owed" — forcing an operator to either
+  stall the mission or record a false verdict into the audit artifact;
+  separately, `move-task` accepted only `--agent`/`--note`, rejecting the
+  `--actor`/`--reason` names its sibling `issue-verdict` already uses, and its
+  `--assignee` help text still described a stale `doing`-only restriction.
+  **After:** a single shared classification function — consumed identically by
+  the approval blocker, `merge_gates`, and `status/doctor` (one gating
+  decision, never two) — demotes a reference to non-gating only on an explicit
+  signal (a `PR `/`pull` token, a cross-repo URL, or a context marker such as
+  `Follow-up:`, `baseline-red`, `see #`, `parent`, `epic`) and defaults every
+  unmarked bare `#NNNN` to gating (fail-safe preserved; classification
+  aggregates over all occurrences, so a reference cited once as context and
+  once as an implementation target still gates); a new **`not-applicable`**
+  verdict value (additive, zero migration for existing `issue-matrix.json`
+  files) records the truth for a non-gating row and is terminal — it passes
+  the `done`/merge boundary unchanged, unlike `in-mission`, which is still
+  rejected there; `move-task` now accepts `--actor` (alias of `--agent`) and
+  `--reason` (alias of `--note` — the last-given spelling wins when both are
+  passed), and its `--assignee` help text now describes the actual any-lane
+  behavior; `issue-verdict --help` documents both `not-applicable` and the
+  `deferred-with-followup` evidence-token rule (`#NNN` or a literal
+  `Follow-up:` token); and the specify/plan/tasks/analyze prompts now carry a
+  non-gating heads-up that approvals require issue-matrix verdicts for
+  referenced implementation issues. See the [issue-matrix verdict
+  reference](../development/reference/issue-matrix-verdicts.md).
 
 ## [4.0.0rc3] - 2026-09-15
 

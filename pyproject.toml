@@ -794,7 +794,6 @@ exclude = [
     "src/specify_cli/task_metadata_validation.py",
     "src/specify_cli/task_utils/support.py",
     "src/specify_cli/tasks/issue_matrix_migration.py",
-    "src/specify_cli/tasks/issue_reference_discovery.py",
     "src/specify_cli/template/asset_generator.py",
     "src/specify_cli/template/manager.py",
     "src/specify_cli/template/renderer.py",

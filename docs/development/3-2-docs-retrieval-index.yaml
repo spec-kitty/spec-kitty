@@ -3110,6 +3110,22 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/3.x/2026-09-20-1-issue-matrix-not-applicable-verdict.md"
+    title: "ADR: `not-applicable` issue-matrix verdict — non-gating, terminal, classifier-narrowed approval gate"
+    divio_type: "none"
+    abstract: "Adds a non-gating, terminal not-applicable verdict and narrows the approval blocker to gate only implementation_target references, superseding the never-shipped WP09 Gate-4 intent."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "a-previously-documented-never-implemented-alternative", text: "A previously-documented, never-implemented alternative", level: 3}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "d1-add-issuematrixverdict-not-applicable-not-applicable-additive", text: "D1 — Add `IssueMatrixVerdict.NOT_APPLICABLE = \"not-applicable\"` (additive)", level: 3}
+    - {slug: "d2-not-applicable-is-non-gating-at-approved-and-terminal-at-done-merge", text: "D2 — `not-applicable` is non-gating at `approved` and terminal at `done`/merge", level: 3}
+    - {slug: "d3-the-approval-blocker-gates-only-wp01-classified-implementation-target-references", text: "D3 — The approval blocker gates only WP01-classified `implementation_target` references", level: 3}
+    - {slug: "d4-lever-ssot-classification-governs-requirement-verdict-governs-resolution-fr-013", text: "D4 — Lever SSOT: classification governs requirement, verdict governs resolution (FR-013)", level: 3}
+    - {slug: "d5-cli-surface-verdict-and-evidence-ref-document-both-new-existing-rules", text: "D5 — CLI surface: `--verdict` and `--evidence-ref` document both new/existing rules", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -7324,6 +7340,19 @@ pages:
     abstract: "Reference material for maintainers — friction inventories, coverage-signal reconciliation, seam ledgers, standing orders, red-main policy, and terminology exemptions."
     anchors:
     - {slug: "docs-site-publication-source", text: "Docs site publication source", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/reference/issue-matrix-verdicts.md"
+    title: "Issue-Matrix Verdict Reference"
+    divio_type: "reference"
+    abstract: "The five issue-matrix verdict values, which transitions each one gates, the reference-classification model that decides whether a row is required, and the evidence-token rule."
+    anchors:
+    - {slug: "the-two-levers", text: "The two levers", level: 2}
+    - {slug: "verdict-values", text: "Verdict values", level: 2}
+    - {slug: "reference-classification-which-citations-become-gating-rows", text: "Reference classification: which citations become gating rows", level: 2}
+    - {slug: "default-gating-fail-safe", text: "Default-gating fail-safe", level: 3}
+    - {slug: "multi-occurrence-aggregation-implementation-target-wins", text: "Multi-occurrence aggregation: implementation-target wins", level: 3}
+    - {slug: "the-evidence-token-rule-deferred-with-followup", text: "The evidence-token rule (`deferred-with-followup`)", level: 2}
+    - {slug: "early-discoverability", text: "Early discoverability", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/reference/known-friction-points.md"
     title: "Known Current Friction Points"

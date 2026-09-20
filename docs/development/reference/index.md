@@ -2,7 +2,7 @@
 title: Reference (contributor policy & ledgers)
 description: Reference material for maintainers — friction inventories, coverage-signal reconciliation, seam ledgers, standing orders, red-main policy, and terminology exemptions.
 doc_status: active
-updated: '2026-08-31'
+updated: '2026-09-20'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/development/index.md
@@ -23,6 +23,7 @@ kept honest.
 - [Red main and release readiness](red-main-and-release-readiness.md) — what a red `main` means and why CI status is the release authority.
 - [Terminology guard exemption policy](terminology-exemptions.md) — surfaces exempted from the terminology drift guards.
 - [CI and architectural gate mechanics](ci-gate-mechanics.md) — what trips each CI/arch gate (testing & marker gates, the arch battery, docs-freshness registration, accept-to-merge close-out) with symptom and local repro.
+- [Issue-matrix verdict reference](issue-matrix-verdicts.md) — the five verdict values, which transitions each gates, the reference-classification model, and the evidence-token rule.
 
 ## Docs site publication source
 

@@ -1800,16 +1800,31 @@ _Task workflow commands for AI agents_
  Review-rejection edges (a backward move out of review — ``--to planned`` from
  in_progress/for_review/in_review/approved, or ``in_review → in_progress``)
  MUST
- carry a rationale: pass ``--review-feedback-file`` (or ``--note``). That
- rationale is emitted as the status event's ``review_ref``/reason and is
+ carry a rationale: pass ``--review-feedback-file`` (or
+ ``--note``/``--reason``).
+ That rationale is emitted as the status event's ``review_ref``/reason and is
  required by the shared status contract; a rejection emitted without it is
  accepted locally but silently rejected by hosted sync, so it never propagates.
+
+ ``--actor``/``--reason`` are accepted as aliases of ``--agent``/``--note``
+ (matching ``issue-verdict``'s vocabulary, #3469) — use whichever spelling
+ reads naturally; both apply the same value.
+
+ Subtask completion is NOT tracked by ticking a checkbox in ``tasks.md`` —
+ that file is guidance/documentation only. Completion is event-sourced; mark
+ a subtask done with ``spec-kitty agent tasks mark-status T0NN --status done
+ --mission <handle>`` (#2816). Ticking a checkbox alone will not clear the
+ unchecked-subtasks gate on a ``--to for_review`` move.
 
  Examples:
      spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json
      spec-kitty agent tasks move-task WP02 --to for_review --agent claude
  --shell-pid $$
+     spec-kitty agent tasks move-task WP02 --to for_review --actor claude
+ --shell-pid $$
      spec-kitty agent tasks move-task WP03 --to approved --note "Review passed"
+     spec-kitty agent tasks move-task WP03 --to approved --reason "Review
+ passed"
      spec-kitty agent tasks move-task WP03 --to done --done-override-reason
  "Branch deleted after hotfix merge"
      spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file
@@ -1823,18 +1838,35 @@ _Task workflow commands for AI agents_
 │                                                        (planned/doing/for_r… │
 │                                                        [required]            │
 │    --mission                                     TEXT  Mission slug          │
-│    --agent                                       TEXT  Agent name            │
+│    --agent,--actor                               TEXT  Agent name (alias:    │
+│                                                        --actor, matching     │
+│                                                        issue-verdict's       │
+│                                                        vocabulary). If both  │
+│                                                        --agent and --actor   │
+│                                                        are given, the one    │
+│                                                        supplied LAST on the  │
+│                                                        command line wins.    │
 │    --model                                       TEXT  Dispatch-resolved     │
 │                                                        model actual          │
 │    --profile                                     TEXT  Dispatch-resolved     │
 │                                                        agent profile actual  │
 │    --invocation-id                               TEXT  Authoritative         │
 │                                                        dispatch Op record id │
-│    --assignee                                    TEXT  Assignee name (sets   │
-│                                                        assignee when moving  │
-│                                                        to doing)             │
+│    --assignee                                    TEXT  Assignee name,        │
+│                                                        recorded on this      │
+│                                                        transition regardless │
+│                                                        of the target lane    │
+│                                                        (not limited to --to  │
+│                                                        doing).               │
 │    --shell-pid                                   TEXT  Shell PID             │
-│    --note                                        TEXT  History note          │
+│    --note,--reason                               TEXT  History note (alias:  │
+│                                                        --reason, matching    │
+│                                                        issue-verdict's       │
+│                                                        vocabulary). If both  │
+│                                                        --note and --reason   │
+│                                                        are given, the one    │
+│                                                        supplied LAST on the  │
+│                                                        command line wins.    │
 │    --review-feedback-f…                          PATH  Path to review        │
 │                                                        feedback file.        │
 │                                                        Required for          │

@@ -1070,6 +1070,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-09-20-1-issue-matrix-not-applicable-verdict.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -2345,6 +2351,12 @@
 - path: docs/development/reference/index.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/reference/issue-matrix-verdicts.md
+  tag: current
+  divio_type: reference
   owning_workstream: none
   current_target: true
   notes: null
