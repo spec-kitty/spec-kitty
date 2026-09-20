@@ -1,0 +1,81 @@
+{
+  "event_count": 28,
+  "last_event_id": "01M2ZP8EHT80F1H59WAX2YKS52",
+  "materialized_at": "2026-09-20T15:16:51.898801+00:00",
+  "mission_number": "",
+  "mission_slug": "canonical-state-recovery-01M2ZE3D",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2ZP8B7XC7CPK59NVM2S5ZBK",
+      "last_transition_at": "2026-09-20T15:16:48.509789+00:00",
+      "review_result": {
+        "reference": "review-approve-ae3dfe7150",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 2673738,
+      "shell_pid_created_at": "1789911024.53"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2ZP8CBEH0BD8T3E0FCW46GE",
+      "last_transition_at": "2026-09-20T15:16:49.646351+00:00",
+      "review_result": {
+        "reference": "review-approve-5d408ea299",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 2675592,
+      "shell_pid_created_at": "1789911079.37"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2ZP8EHT80F1H59WAX2YKS52",
+      "last_transition_at": "2026-09-20T15:16:51.898801+00:00",
+      "review_result": {
+        "reference": "review-approve-288a3f6fd7",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 2760850,
+      "shell_pid_created_at": "1789913964.71"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M2ZP8DEQQFQ0D0JSNB4XQHFV",
+      "last_transition_at": "2026-09-20T15:16:50.775034+00:00",
+      "review_result": {
+        "reference": "review-approve-eeba78a386",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 2752641,
+      "shell_pid_created_at": "1789913700.62"
+    }
+  }
+}

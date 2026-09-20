@@ -1,0 +1,35 @@
+{
+  "accept_commit": "ee987d4e4c85b021bd8e4053ad0b15db1d3fed04",
+  "acceptance_history": [
+    {
+      "accept_commit": "ee987d4e4c85b021bd8e4053ad0b15db1d3fed04",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-20T15:14:17.534540+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "74e79df8f8211d556851a1120a1928c9771f0967"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-20T15:14:17.534540+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "74e79df8f8211d556851a1120a1928c9771f0967",
+  "baseline_merge_commit": "856400f1a4a4672a245a83ec86b3cd461a1e9643",
+  "created_at": "2026-09-20T12:54:18.322438+00:00",
+  "flattened": true,
+  "friendly_name": "Canonical-State Integrity & Recovery",
+  "merged_at": "2026-09-20T15:17:02.764090+00:00",
+  "merged_commit": "8d282261e45ba72ffe56c57bb971a7975be2f660",
+  "mid8": "01M2ZE3D",
+  "mission_id": "01M2ZE3DE478017TKW0Z3BWJBM",
+  "mission_number": null,
+  "mission_slug": "canonical-state-recovery-01M2ZE3D",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Two P0 defects (#4758, #4786) share one shape: a documented CLI path drives the mission's canonical runtime state into a form every downstream gate refuses, with no operator command to repair it. This mission makes canonical state self-healing and every refusal recoverable, so operators are never stranded mid-mission.",
+  "purpose_tldr": "No legitimate CLI path can wedge a mission's canonical state, and every gate that refuses names a repair.",
+  "slug": "canonical-state-recovery-01M2ZE3D",
+  "status_phase": "1",
+  "target_branch": "fix/canonical-state-recovery",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-20T13:26:02.990029+00:00"
+}

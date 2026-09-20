@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "mission_slug": "canonical-state-recovery-01M2ZE3D",
+  "mission_id": "01M2ZE3DE478017TKW0Z3BWJBM",
+  "mission_branch": "kitty/mission-canonical-state-recovery-01M2ZE3D",
+  "target_branch": "fix/canonical-state-recovery",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/tasks_finalize.py",
+        "src/specify_cli/lanes/compute_and_persist.py",
+        "src/specify_cli/lanes/persistence.py",
+        "tests/cli/test_tasks_finalize_lanes_minting.py",
+        "tests/status/test_compute_and_persist_core.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/cli/commands/agent/tasks_transition_core.py",
+        "tests/cli/test_move_task_planned_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/acceptance/summary_core.py",
+        "src/specify_cli/cli/commands/merge.py",
+        "src/specify_cli/status/doctor.py",
+        "src/specify_cli/status/reducer.py",
+        "tests/acceptance/test_accept_gate_rejection_cycle.py",
+        "tests/status/test_implementer_attribution_projection.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_mission_state_doctor.py",
+        "src/specify_cli/migration/mission_state.py",
+        "tests/unit/migration/test_mission_state_lanes_rebuild.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-20T13:30:12.427306+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "8e32d4488cc9d0ab944a88b268b974d3a2f87ffc"
+}

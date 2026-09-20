@@ -1,0 +1,89 @@
+{
+  "mission_slug": "canonical-state-recovery-01M2ZE3D",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 ae3dfe7150; tests/cli/test_tasks_finalize_lanes_minting.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T15:11:45.310319+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 5d408ea299; tests/cli/test_move_task_planned_guard.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T15:11:52.318172+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 288a3f6fd7; tests/unit/migration/test_mission_state_lanes_rebuild.py + test_wp03_advance_to_approval.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T15:11:59.379047+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 eeba78a386; tests/status/test_implementer_attribution_projection.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T15:12:06.578645+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 eeba78a386; tests/acceptance/test_accept_gate_rejection_cycle.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T15:12:13.654056+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01/WP02/WP04 refusal messages name doctor mission-state --fix",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T15:12:20.813736+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 shared accessor + narrowed detector; test_implementer_attribution_projection.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T15:12:28.431336+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 merge OptionInfo guard",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T15:12:52.841143+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
