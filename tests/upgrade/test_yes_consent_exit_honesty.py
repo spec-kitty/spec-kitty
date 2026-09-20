@@ -36,6 +36,7 @@ from rich.console import Console
 
 import specify_cli.cli.commands.upgrade as upgrade_cmd
 from specify_cli.cli.commands import _teamspace_mission_state_gate as gate
+from specify_cli.cli.commands._confirm import safe_confirm
 from specify_cli.upgrade.outcome import RepairOutcome, UpgradeOutcome
 from specify_cli.upgrade.runner import UpgradeResult
 
@@ -49,7 +50,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_safe_confirm_returns_true_when_confirmed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(typer, "confirm", lambda *_a, **_kw: True)
-    assert gate.safe_confirm("Proceed?", default=False) is True
+    assert safe_confirm("Proceed?", default=False) is True
 
 
 def test_safe_confirm_declines_on_typer_abort(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -62,7 +63,7 @@ def test_safe_confirm_declines_on_typer_abort(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(typer, "confirm", _raise_abort)
     # Even with default=True, an aborted prompt must decline, not "succeed
     # via the default" — a caller could not answer at all.
-    assert gate.safe_confirm("Proceed?", default=True) is False
+    assert safe_confirm("Proceed?", default=True) is False
 
 
 def test_safe_confirm_declines_on_eof_error(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -70,7 +71,7 @@ def test_safe_confirm_declines_on_eof_error(monkeypatch: pytest.MonkeyPatch) -> 
         raise EOFError
 
     monkeypatch.setattr(typer, "confirm", _raise_eof)
-    assert gate.safe_confirm("Proceed?", default=True) is False
+    assert safe_confirm("Proceed?", default=True) is False
 
 
 def test_safe_confirm_does_not_swallow_other_exceptions(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -82,7 +83,7 @@ def test_safe_confirm_does_not_swallow_other_exceptions(monkeypatch: pytest.Monk
 
     monkeypatch.setattr(typer, "confirm", _raise_value_error)
     with pytest.raises(ValueError, match="boom"):
-        gate.safe_confirm("Proceed?", default=False)
+        safe_confirm("Proceed?", default=False)
 
 
 def test_safe_confirm_passes_prompt_and_default_through(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -94,7 +95,7 @@ def test_safe_confirm_passes_prompt_and_default_through(monkeypatch: pytest.Monk
         return True
 
     monkeypatch.setattr(typer, "confirm", _fake_confirm)
-    gate.safe_confirm("Run the thing?", default=True)
+    safe_confirm("Run the thing?", default=True)
     assert captured == {"prompt": "Run the thing?", "default": True}
 
 

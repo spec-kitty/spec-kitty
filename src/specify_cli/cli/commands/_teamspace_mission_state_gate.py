@@ -7,10 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 import sys
 
-import typer
 from rich.console import Console
 from rich.panel import Panel
+import typer
 
+from specify_cli.cli.commands._confirm import safe_confirm
 from specify_cli.upgrade.outcome import RepairOutcome
 
 
@@ -138,25 +139,6 @@ def enforce_teamspace_mission_state_ready(*, console: Console, command_name: str
     )
     console.print(f"[red]Blocked:[/red] `{command_name}` will not connect until this migration is complete.")
     raise typer.Exit(1)
-
-
-def safe_confirm(prompt: str, *, default: bool) -> bool:
-    """Prompt for confirmation, declining safely on abort or EOF (NFR-005).
-
-    Wraps ``typer.confirm`` and explicitly catches ``typer.Abort`` (typer's
-    public surface for the exception ``typer.confirm`` raises on Ctrl-C or
-    when reading hits EOF — do not reference ``click.exceptions.Abort``
-    directly; TID251 bans it because it is a distinct class from typer's own
-    in typer>=0.26) and ``EOFError`` itself, folding either into a plain
-    decline (``False``) rather than letting the exception crash an
-    otherwise-successful upgrade run. Deliberately NOT a bare
-    ``except Exception``: any other exception raised while prompting is a
-    real bug and must propagate, not be silently swallowed as "declined".
-    """
-    try:
-        return typer.confirm(prompt, default=default)
-    except (typer.Abort, EOFError):
-        return False
 
 
 def _should_run_repair(*, repair_opt_in: bool) -> bool:

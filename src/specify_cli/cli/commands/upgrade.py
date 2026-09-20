@@ -63,9 +63,9 @@ from rich.table import Table
 
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import show_banner
+from specify_cli.cli.commands._confirm import safe_confirm
 from specify_cli.cli.commands._teamspace_mission_state_gate import (
     offer_teamspace_mission_state_migration,
-    safe_confirm,
 )
 from specify_cli.core.env import is_truthy
 from specify_cli.core.version_compare import is_version_newer
