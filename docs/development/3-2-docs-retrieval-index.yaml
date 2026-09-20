@@ -3092,6 +3092,24 @@ pages:
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 2}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/3.x/2026-09-19-1-terminus-safety-invariant.md"
+    title: "ADR: Terminus-Safety Invariant — gate-then-mutate-with-rollback across merge, accept, and mission close"
+    divio_type: "none"
+    abstract: "Terminus-safety invariant: completion commands gate-then-mutate with rollback on failure, enforced by one shared terminal-readiness authority."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "d1-scope-one-cross-cutting-invariant-operator", text: "D1 — Scope: one cross-cutting invariant (operator)", level: 3}
+    - {slug: "d2-warn-softens-evidence-quality-only-operator", text: "D2 — `warn` softens evidence-quality only (operator)", level: 3}
+    - {slug: "d3-parent-under-epic-3897-operator", text: "D3 — Parent under epic #3897 (operator)", level: 3}
+    - {slug: "d4-per-command-predicates-through-one-shared-authority-agent-flagged-for-veto", text: "D4 — Per-command predicates through one shared authority (agent; flagged for veto)", level: 3}
+    - {slug: "d5-direct-on-target-rollback-scoping-agent-flagged-for-veto", text: "D5 — Direct-on-target rollback scoping (agent; flagged for veto)", level: 3}
+    - {slug: "d6-fold-2745-s-completion-affordances-operator-post-spec", text: "D6 — Fold #2745's completion affordances (operator, post-spec)", level: 3}
+    - {slug: "d7-4474-gets-a-delivering-requirement-agent-post-spec-repair", text: "D7 — #4474 gets a delivering requirement (agent, post-spec repair)", level: 3}
+    - {slug: "transactional-rollback-unify-don-t-fork", text: "Transactional rollback: unify, don't fork", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"

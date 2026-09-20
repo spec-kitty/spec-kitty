@@ -1,0 +1,17 @@
+{
+  "coordination_branch": "kitty/mission-terminus-safety-invariant-01M2XFT7",
+  "created_at": "2026-09-19T18:45:45.269021+00:00",
+  "flattened": false,
+  "friendly_name": "Terminus-Safety Invariant",
+  "mid8": "01M2XFT7",
+  "mission_id": "01M2XFT756GZDJR08HS1QZ1XJY",
+  "mission_number": null,
+  "mission_slug": "terminus-safety-invariant-01M2XFT7",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Today a merge run under the default warn gate mode, or a mission close on an unmerged mission, proceeds past a precondition it never hard-enforced and then fails or fabricates a completion record with no rollback — wedging in-flight missions and, worse, letting unreviewed code reach the mainline. This mission establishes one terminus-safety invariant across the completion surface so a single mis-timed command can no longer corrupt mission state, protecting the launch walkthrough from unrecoverable dead-ends.",
+  "purpose_tldr": "Completion commands (merge, accept, mission close) must refuse before they mutate, and roll back if a later step fails — never leaving a mission wedged, split-brain, or falsely completed.",
+  "slug": "terminus-safety-invariant-01M2XFT7",
+  "target_branch": "issue-4764-terminus-safety-invariant",
+  "topology": "coord"
+}

@@ -196,3 +196,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-09-06 | [RuntimeEventEmitter Seam Disposition — Rewire-Ready Consolidation, Not Retirement](2026-09-06-2-runtime-event-emitter-disposition.md) |
 | 2026-09-14 | [Census-Floor Ratchets — Per-Ratchet Adjudication (Tripwire, Retire, Retire, Keep-Property)](2026-09-14-1-census-floor-ratchet-adjudication.md) |
 | 2026-09-15 | [Main-Tip Verdict Topology — Adjudicating the #4347/#4371/#4360-A/#4430 Coupled Cluster](2026-09-15-1-ci-main-verdict-topology.md) |
+| 2026-09-19 | [Terminus-Safety Invariant — gate-then-mutate-with-rollback across merge, accept, and mission close](2026-09-19-1-terminus-safety-invariant.md) |

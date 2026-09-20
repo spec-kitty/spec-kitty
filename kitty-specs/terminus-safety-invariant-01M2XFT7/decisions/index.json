@@ -1,0 +1,53 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-19T18:46:36.904441Z",
+      "decision_id": "01M2XFVSK8JCCXMXCJNTBB0X5V",
+      "final_answer": "Full terminus-safety invariant: gate-then-mutate-with-rollback across merge + accept + mission-close, folding #4764 + #4765 + #4474 + #2745, parented under epic #3897.",
+      "input_key": "mission_boundary",
+      "mission_id": "01M2XFT756GZDJR08HS1QZ1XJY",
+      "mission_slug": "terminus-safety-invariant-01M2XFT7",
+      "opened_by": "cli",
+      "options": [
+        "full-terminus-safety-invariant",
+        "anchors-only",
+        "point-fixes"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Scope: two point fixes for #4764/#4765, or a full cross-cutting terminus-safety invariant folding #4474 and #2745?",
+      "rationale": null,
+      "resolved_at": "2026-09-19T18:46:44.905222Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.mission-boundary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-19T18:46:53.032020Z",
+      "decision_id": "01M2XFW9B71WKJ4XPCDCH8VYCQ",
+      "final_answer": "warn softens evidence-QUALITY gates only (review verdict/risk/hollow-review). The 'all non-cancelled WPs approved/done' terminal-lane invariant is enforced HARD regardless of mode => merge gets an unconditional merge-ready precondition, not a rollback-only fix.",
+      "input_key": "warn_gate_semantics",
+      "mission_id": "01M2XFT756GZDJR08HS1QZ1XJY",
+      "mission_slug": "terminus-safety-invariant-01M2XFT7",
+      "opened_by": "cli",
+      "options": [
+        "evidence-quality-only",
+        "everything"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "What does policy.merge_gates.mode=warn soften \u2014 everything, or evidence-quality only while the terminal-lane invariant stays hard?",
+      "rationale": null,
+      "resolved_at": "2026-09-19T18:47:01.179040Z",
+      "resolved_by": null,
+      "slot_key": "specify.policy.warn-gate-semantics",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M2XFT756GZDJR08HS1QZ1XJY",
+  "version": 1
+}
