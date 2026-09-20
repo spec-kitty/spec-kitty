@@ -398,10 +398,17 @@ def test_metadata_only_restoration_cannot_hide_missing_dossier(
         gate._check_recovery(gate._index())
 
 
-def test_real_upgrade_yes_preserves_history_until_separate_tty_consent(tmp_path: Path) -> None:
-    """Actual successful human upgrade, then actual TTY-owned repair approval."""
-    import pty
+def test_real_upgrade_yes_opts_into_mission_state_repair(tmp_path: Path) -> None:
+    """FR-017 (#4775): ``upgrade --yes`` is fully non-interactive AND carries
+    the mission-state repair consent, so a damaged historical corpus is
+    repaired in one non-interactive run — no separate TTY consent required.
 
+    This supersedes the pre-#4775 "preserve history until a separate TTY
+    consent" contract (operator ruling, 2026-09-20): ``--yes`` now carries the
+    repair sub-gate's consent, reconciling FR-017's "fully non-interactive"
+    promise. A run that reaches the damaged-corpus gate under ``--yes`` repairs
+    it rather than deferring to a second, TTY-owned approval.
+    """
     repo = tmp_path / "upgrade-project"
     repo.mkdir()
     env = isolated_env(tmp_path / "upgrade-home")
@@ -430,24 +437,13 @@ def test_real_upgrade_yes_preserves_history_until_separate_tty_consent(tmp_path:
     git(repo, "commit", "-m", "Real damaged historical corpus")
     before = inventory(repo)
     command = [executable, "upgrade", "--yes", "--no-worktrees"]
-    denied = subprocess.run(command, cwd=repo, env=env, stdin=subprocess.DEVNULL, capture_output=True, timeout=180)
-    (tmp_path / "upgrade-denied.stdout").write_bytes(denied.stdout)
-    (tmp_path / "upgrade-denied.stderr").write_bytes(denied.stderr)
-    assert denied.returncode == 0, denied.stdout.decode(errors="replace") + denied.stderr.decode(errors="replace")
-    assert inventory(repo) == before, "upgrade --yes changed historical state without separate consent"
-    assert b"mission-state" in denied.stdout, "successful human finalizer did not reach the damaged-corpus gate"
-    master, slave = pty.openpty()
-    try:
-        with subprocess.Popen(command, cwd=repo, env=env, stdin=slave, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as child:
-            os.write(master, b"y\n")
-            stdout, stderr = child.communicate(timeout=180)
-        assert child.returncode == 0, stdout.decode(errors="replace") + stderr.decode(errors="replace")
-    finally:
-        os.close(master)
-        os.close(slave)
-    (tmp_path / "upgrade-approved.stdout").write_bytes(stdout)
-    (tmp_path / "upgrade-approved.stderr").write_bytes(stderr)
-    assert b"--fix" in stdout, "independent TTY consent prompt was not reached"
-    assert inventory(repo) != before, "separate consent never reached the repair owner"
+    approved = subprocess.run(command, cwd=repo, env=env, stdin=subprocess.DEVNULL, capture_output=True, timeout=180)
+    (tmp_path / "upgrade-approved.stdout").write_bytes(approved.stdout)
+    (tmp_path / "upgrade-approved.stderr").write_bytes(approved.stderr)
+    assert approved.returncode == 0, approved.stdout.decode(errors="replace") + approved.stderr.decode(errors="replace")
+    assert b"mission-state" in approved.stdout, "successful human finalizer did not reach the damaged-corpus gate"
+    # FR-017: --yes carries the repair consent, so the damaged corpus IS
+    # repaired in this single non-interactive run (no separate TTY approval).
+    assert inventory(repo) != before, "upgrade --yes did not opt into the mission-state repair (FR-017)"
     snapshot = repo / gate.SNAPSHOTS[0]
     assert snapshot.read_bytes() == materialize_to_json(materialize_snapshot(snapshot.parent)).encode()

@@ -87,10 +87,7 @@ def _guidance_lines(readiness: TeamspaceMissionStateReadiness) -> list[str]:
     codes = ", ".join(readiness.blocker_codes) if readiness.blocker_codes else "unknown"
     return [
         "TeamSpace mission-state migration is required before connecting.",
-        (
-            f"Found {readiness.blocker_count} TeamSpace blocker(s) "
-            f"across {readiness.missions_with_blockers} mission(s)."
-        ),
+        (f"Found {readiness.blocker_count} TeamSpace blocker(s) across {readiness.missions_with_blockers} mission(s)."),
         f"Finding codes: {codes}",
         "",
         "Recommended sequence:",
@@ -143,22 +140,46 @@ def enforce_teamspace_mission_state_ready(*, console: Console, command_name: str
     raise typer.Exit(1)
 
 
+def safe_confirm(prompt: str, *, default: bool) -> bool:
+    """Prompt for confirmation, declining safely on abort or EOF (NFR-005).
+
+    Wraps ``typer.confirm`` and explicitly catches ``typer.Abort`` (typer's
+    public surface for the exception ``typer.confirm`` raises on Ctrl-C or
+    when reading hits EOF — do not reference ``click.exceptions.Abort``
+    directly; TID251 bans it because it is a distinct class from typer's own
+    in typer>=0.26) and ``EOFError`` itself, folding either into a plain
+    decline (``False``) rather than letting the exception crash an
+    otherwise-successful upgrade run. Deliberately NOT a bare
+    ``except Exception``: any other exception raised while prompting is a
+    real bug and must propagate, not be silently swallowed as "declined".
+    """
+    try:
+        return typer.confirm(prompt, default=default)
+    except (typer.Abort, EOFError):
+        return False
+
+
 def _should_run_repair(*, repair_opt_in: bool) -> bool:
     """Decide whether to run the mission-state repair (its own consent scope).
 
     NFR-003/FR-005/FR-006: this decision reads its OWN explicit opt-in — it
     is never derived from the unrelated migration-apply consent
-    (``--yes``/``--force``) a caller may hold. An explicit opt-in
-    short-circuits the prompt. A non-interactive session (no TTY) with no
-    opt-in denies WITHOUT aborting: ``typer.confirm`` raises ``typer.Abort``
-    when there is no TTY, which would otherwise sink an unrelated,
+    (``--yes``/``--force``) a caller may hold; a caller is free to choose to
+    pass the SAME value for both (as the ``upgrade.py`` call site now does,
+    reconciling FR-017's "``--yes`` is fully non-interactive" promise with
+    this decision's own consent requirement), but this function itself has
+    no such parameter and structurally cannot read that unrelated flag.
+    An explicit opt-in short-circuits the prompt. A non-interactive
+    session (no TTY) with no opt-in denies WITHOUT aborting: ``safe_confirm``
+    declines instead of letting ``typer.confirm``'s ``typer.Abort`` (raised
+    when there is no TTY / stdin hits EOF) sink an unrelated,
     already-successful upgrade run.
     """
     if repair_opt_in:
         return True
     if not sys.stdin.isatty():
         return False
-    return typer.confirm(
+    return safe_confirm(
         "Run `spec-kitty doctor mission-state --fix` now?",
         default=False,
     )
@@ -182,9 +203,20 @@ def offer_teamspace_mission_state_migration(
 
     ``assume_yes`` is the caller's migration-apply consent flag
     (``--yes``/``--force``). It is accepted here only so existing call sites
-    keep working; it is deliberately NEVER read to decide whether to run the
-    repair (NFR-003/FR-005/FR-006) — that decision has its OWN explicit
-    opt-in, ``repair_opt_in``. See :func:`_should_run_repair`.
+    keep working; it is deliberately NEVER read BY THIS FUNCTION (nor by
+    :func:`_should_run_repair`) to decide whether to run the repair
+    (NFR-003/FR-005/FR-006) — that decision has its OWN explicit opt-in,
+    ``repair_opt_in``.
+
+    Reconciling FR-017 ("``--yes``/``--force`` is fully non-interactive")
+    with NFR-003 ("the repair sub-gate has its own consent"): a CALLER may
+    choose to pass the same value for both ``assume_yes`` and
+    ``repair_opt_in`` — the ``upgrade.py`` finalizer now does exactly this,
+    wiring ``repair_opt_in=confirm`` alongside ``assume_yes=confirm`` — so
+    that ``--yes`` also opts into the repair sub-gate end to end. That is a
+    call-site decision, not a derivation performed here: this function still
+    never inspects ``assume_yes`` to make the repair decision itself. See
+    :func:`_should_run_repair`.
     """
     _ = assume_yes  # intentionally unread — see docstring (NFR-003)
     readiness = check_teamspace_mission_state_readiness(project_path)
