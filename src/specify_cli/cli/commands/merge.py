@@ -216,9 +216,10 @@ from specify_cli.merge.push_preflight import (
 from specify_cli.merge.state import (
     abort_git_merge,
     clear_state,
+    has_active_merge,
     load_state,
 )
-from specify_cli.merge.workspace import get_merge_runtime_dir
+from specify_cli.merge.workspace import get_merge_runtime_dir, get_merge_workspace_path
 from specify_cli.post_merge.retrospective_terminus import run_retrospective_postcondition
 from specify_cli.task_utils import TaskCliError, find_repo_root
 # WP05 (#2057): the git-ops primitive ``run_command`` and the git-preflight
@@ -382,6 +383,26 @@ def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
         resolved = state_entry[1].mission_slug
 
     if resolved or state_entry is not None:
+        # T015/#4754: a git-level merge abort is only ever legitimate when
+        # active spec-kitty merge state exists for THIS mission, and only
+        # scoped to that mission's own merge workspace
+        # (.kittify/runtime/merge/<mission_id>/workspace/) -- NEVER
+        # repo_root. The merge pipeline runs `git merge` exclusively inside
+        # spec-kitty-owned worktrees (the ephemeral lane-merge tmp worktree,
+        # unconditionally cleaned up on exit, and the persisted
+        # conflict-resolution workspace); a MERGE_HEAD in repo_root is
+        # always the operator's OWN in-progress merge and must never be
+        # touched. Detected/aborted BEFORE workspace cleanup below so the
+        # message reflects what actually happened (FR-006) rather than
+        # racing the force-removal that follows.
+        git_merge_aborted = False
+        if state_entry is not None:
+            _, active_state = state_entry
+            if has_active_merge(repo_root, active_state.mission_id):
+                workspace_path = get_merge_workspace_path(active_state.mission_id, repo_root)
+                if workspace_path.exists():
+                    git_merge_aborted = abort_git_merge(workspace_path)
+
         cleared = _clear_merge_state_for_mission(repo_root, resolved)
         if state_entry is not None:
             source_key, active_state = state_entry
@@ -396,6 +417,8 @@ def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
             console.print(f"[green]Aborted[/green] merge for {resolved}. State and workspace cleaned up.")
         else:
             console.print(f"[yellow]No active merge state found for {resolved}.[/yellow] Workspace cleaned up.")
+        if git_merge_aborted:
+            console.print("[green]Aborted[/green] in-progress git merge in the merge workspace.")
     else:
         cleared = clear_state(repo_root)
         if cleared:
@@ -416,9 +439,12 @@ def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
         _legacy_state_path.unlink()
         console.print("[green]Removed legacy merge-state.[/green]")
 
-    # T004: If git itself is mid-merge (MERGE_HEAD present), abort that too.
-    if abort_git_merge(repo_root):
-        console.print("[green]Aborted in-progress git merge.[/green]")
+    # T004 (#4754): the unconditional `abort_git_merge(repo_root)` call that
+    # used to live here is REMOVED -- spec-kitty never runs `git merge`
+    # against repo_root, so a MERGE_HEAD found there is always the
+    # operator's own in-progress merge. The only legitimate git-level abort
+    # (scoped to the spec-kitty merge workspace, gated on active state) now
+    # runs above, before workspace cleanup.
 
 
 def _dispatch_resume(repo_root: Path, mission: str | None) -> str | None:

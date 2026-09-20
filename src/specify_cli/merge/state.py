@@ -453,7 +453,24 @@ def detect_git_merge_state(repo_root: Path) -> bool:
 
 
 def abort_git_merge(repo_root: Path) -> bool:
-    """Abort an in-progress git merge.
+    """Abort an in-progress git merge at *repo_root*.
+
+    Despite the parameter name (kept for backward compatibility with existing
+    call sites and test monkeypatches), this is a generic "abort whatever git
+    merge is in progress at this working tree path" primitive -- it does NOT
+    know or care whether the path is the caller's repository root or a
+    scoped worktree.
+
+    #4754: callers MUST NOT invoke this with the operator's own repository
+    root unless they have already confirmed active spec-kitty merge state
+    exists for that root. The merge pipeline runs ``git merge`` exclusively
+    inside spec-kitty-owned worktrees (an ephemeral lane-merge tmp worktree
+    and the persisted per-mission merge workspace at
+    ``.kittify/runtime/merge/<mission_id>/workspace/``) -- never directly
+    against a repository's primary checkout. A ``MERGE_HEAD`` found in an
+    operator's primary checkout is always THEIR OWN in-progress merge and
+    must never be touched. See ``cli.commands.merge._dispatch_abort`` for the
+    gated, workspace-scoped call site.
 
     Returns:
         True if merge was aborted, False if no merge was in progress
