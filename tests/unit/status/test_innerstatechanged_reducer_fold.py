@@ -270,8 +270,11 @@ def test_annotation_fold_does_not_rescan_transitions_ie_o_events() -> None:
 
     # The transition list is scanned a fixed number of times regardless of M.
     assert few == many
-    # And it is a small constant (a single dedup walk), not per-annotation.
-    assert few <= 2
+    # And it is a small constant (a single dedup walk plus one implementer-of-
+    # record attribution pass, #4786), not per-annotation. The invariant this
+    # test protects — scan count INDEPENDENT of annotation count M — is the
+    # `few == many` assertion above; this bound is the constant-factor ceiling.
+    assert few <= 3
 
 
 @pytest.mark.parametrize("stream_order", ["file_order", "reversed"])
