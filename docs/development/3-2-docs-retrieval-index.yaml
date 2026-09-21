@@ -10842,6 +10842,20 @@ pages:
     - {slug: "caught-at-closeout-the-loop-working-expensively", text: "Caught at closeout (the loop working, expensively)", level: 2}
     - {slug: "recommendation-a-post-tasks-contract-step-ownership-lint", text: "Recommendation: a post-tasks contract-step-ownership lint", level: 2}
     - {slug: "takeaway", text: "Takeaway", level: 2}
+  - path: "docs/plans/engineering-notes/2026-09-21-full-mission-driving-tactical-workarounds-field-report.md"
+    title: "Field report: tactical workarounds for driving a full governed mission end-to-end"
+    divio_type: "none"
+    abstract: "Six maintainer workarounds surfaced driving a governed mission (mission-type-canonical-source, PR #4821) end-to-end; lane-bound, several superseded by execution-context epic #1619 or already fixed."
+    anchors:
+    - {slug: "scope-and-status-of-this-note", text: "Scope and status of this note", level: 2}
+    - {slug: "the-learnings", text: "The learnings", level: 2}
+    - {slug: "l1-lane-worktree-mid-mission-rebase-collision-l1-lane-worktree-rebase-collision", text: "L1 — Lane-worktree ↔ mid-mission-rebase collision {#l1-lane-worktree-rebase-collision}", level: 3}
+    - {slug: "l2-mission-branch-direct-implementation-l2-mission-branch-direct-implementation", text: "L2 — Mission-branch-direct implementation {#l2-mission-branch-direct-implementation}", level: 3}
+    - {slug: "l3-full-mission-gate-mechanics-sequence-non-obvious-hit-in-this-order-l3-gate-mechanics-sequence", text: "L3 — Full-mission gate-mechanics sequence (non-obvious, hit in this order) {#l3-gate-mechanics-sequence}", level: 3}
+    - {slug: "l4-xfail-strict-for-red-first-repros-in-a-separate-wp-from-the-fix-l4-xfail-strict-red-first", text: "L4 — `xfail(strict)` for red-first repros in a separate WP from the fix {#l4-xfail-strict-red-first}", level: 3}
+    - {slug: "l5-worktree-aware-testing-charter-write-worktree-escape-l5-worktree-aware-testing-and-charter-write-escape", text: "L5 — Worktree-aware testing + charter-write worktree-escape {#l5-worktree-aware-testing-and-charter-write-escape}", level: 3}
+    - {slug: "l6-clean-history-consolidation-via-soft-reset-l6-clean-history-soft-reset", text: "L6 — Clean-history consolidation via soft-reset {#l6-clean-history-soft-reset}", level: 3}
+    - {slug: "related-tickets-validated-2026-09-21", text: "Related tickets (validated 2026-09-21)", level: 2}
   - path: "docs/plans/engineering-notes/2173-infra-logic-separation/00-SYNTHESIS.md"
     title: "Infra-to-logic separation (#2173) — investigation synthesis"
     divio_type: "none"

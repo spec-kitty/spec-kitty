@@ -3650,6 +3650,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/engineering-notes/2026-09-21-full-mission-driving-tactical-workarounds-field-report.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/engineering-notes/2173-infra-logic-separation/00-SYNTHESIS.md
   tag: current
   divio_type: none
