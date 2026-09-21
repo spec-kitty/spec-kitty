@@ -467,7 +467,7 @@ def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
     # runs above, before workspace cleanup.
 
 
-def _dispatch_resume(repo_root: Path, mission: str | None) -> str | None:
+def _dispatch_resume(repo_root: Path, mission: str | None, *, json_output: bool = False) -> str | None:
     """Handle ``merge --resume``: require interrupted state; return the mission slug.
 
     Returns the mission slug to thread into the main flow (the operator may have
@@ -481,7 +481,11 @@ def _dispatch_resume(repo_root: Path, mission: str | None) -> str | None:
     # the fresh flow) — never the shared ``_resolve_slug_or_exit`` — so ``--abort``
     # stays tolerant.
     if resolved and not _resolved_mission_dir_exists(repo_root, resolved):
-        console.print(f"[red]Error:[/red] {mission_not_found_message(resolved)}")
+        error_msg = mission_not_found_message(resolved)
+        if json_output:
+            print(json.dumps({"spec_kitty_version": SPEC_KITTY_VERSION, "error": error_msg}))
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
     existing_state = _load_merge_state_for_mission(repo_root, resolved)
     if existing_state is None:
@@ -708,7 +712,7 @@ def merge(
         return
 
     if resume:
-        mission = _dispatch_resume(repo_root, mission)
+        mission = _dispatch_resume(repo_root, mission, json_output=json_output)
         # Fall through to the normal merge flow which will detect the state.
         # FOLD-F2 (terminus-safety-invariant-01M2XFT7, T021/FR-012): a
         # genuinely-lanes.json-absent direct-on-target mission's
@@ -736,7 +740,11 @@ def merge(
     # ``_dispatch_resume`` and, when it adopts a slug from active merge state, that
     # mission is known-good — re-probing the dir here would wrongly reject it.
     if not resume and resolved_mission and not _resolved_mission_dir_exists(repo_root, resolved_mission):
-        console.print(f"[red]Error:[/red] {mission_not_found_message(resolved_mission)}")
+        error_msg = mission_not_found_message(resolved_mission)
+        if json_output:
+            print(json.dumps({"spec_kitty_version": SPEC_KITTY_VERSION, "error": error_msg}))
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
 
     # T004: Auto-detect existing state when running merge without --resume

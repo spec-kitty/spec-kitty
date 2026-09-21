@@ -338,6 +338,13 @@ def test_merge_json_dry_run_requires_lane_manifest(monkeypatch, tmp_path: Path) 
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     (repo_root / ".git").mkdir()
+    # Mission dir MUST exist (without a lane manifest) so the flow reaches the
+    # forecast's MissingLanesError JSON path instead of tripping the earlier
+    # mission-not-found gate (#4855: the not-found gate now emits JSON too, so
+    # a missing mission dir here would wrongly satisfy this test's assertion
+    # for the wrong reason).
+    feature_dir = repo_root / "kitty-specs" / "010-test-feature"
+    feature_dir.mkdir(parents=True)
 
     def fake_run_command(cmd, capture=False, **_kwargs):
         if cmd[:4] == ["git", "rev-parse", "--verify", "refs/heads/main"]:
@@ -361,6 +368,41 @@ def test_merge_json_dry_run_requires_lane_manifest(monkeypatch, tmp_path: Path) 
     assert result.exit_code == 1
     payload = json.loads(result.stdout.strip())
     assert "lanes.json is required" in payload["error"]
+
+
+def test_merge_json_not_found_mission_emits_json_error(monkeypatch, tmp_path: Path) -> None:
+    """#4855: an unknown ``--mission`` handle under ``--json`` must emit JSON,
+    not human ``console.print`` text, so a ``json.loads(stdout)`` consumer
+    never crashes on the not-found gate.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / ".git").mkdir()
+    # Deliberately NO kitty-specs/010-test-feature dir -- the handle is unknown.
+
+    def fake_run_command(cmd, capture=False, **_kwargs):
+        if cmd[:4] == ["git", "rev-parse", "--verify", "refs/heads/main"]:
+            return 0, "main", ""
+        return 0, "", ""
+
+    monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
+    monkeypatch.setattr(merge_module, "_enforce_git_preflight", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        merge_module,
+        "_enforce_target_branch_sync_preflight",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(merge_module, "run_command", fake_run_command)
+    monkeypatch.setattr(merge_preflight_module, "run_command", fake_run_command)
+
+    result = runner.invoke(
+        cli_app,
+        ["merge", "--json", "--mission", "010-test-feature", "--target", "main"],
+    )
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout.strip())
+    assert "not found" in payload["error"].lower()
+    assert payload["spec_kitty_version"]
 
 
 def test_merge_git_preflight_json_payload_includes_cli_version(
