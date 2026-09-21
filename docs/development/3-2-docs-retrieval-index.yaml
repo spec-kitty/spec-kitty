@@ -3138,6 +3138,22 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/3.x/2026-09-21-1-kebab-canonical-doctrine-artifact-slug.md"
+    title: "ADR: kebab-case canonical doctrine artifact slug — id/slug decoupling, single slug authority, manifest-driven bundle validation"
+    divio_type: "none"
+    abstract: "Kebab-case canonical slug for project doctrine artifacts, set by one slug_for authority and a manifest-driven bundle validator; id/slug decoupled, filename migration dropped."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "d1-kebab-case-is-the-canonical-slug-id-is-preserved-and-formally-decoupled-from-slug", text: "D1 — Kebab-case is the canonical slug; `id` is preserved and formally decoupled from slug", level: 3}
+    - {slug: "d2-single-slug-for-kind-id-authority-preserving-the-engine-s-url-encoding", text: "D2 — Single `slug_for(kind, id)` authority, preserving the engine's URL-encoding", level: 3}
+    - {slug: "d3-recognised-kind-set-derives-from-one-importable-direct-write-kinds-constant", text: "D3 — Recognised-kind set derives from one importable `DIRECT_WRITE_KINDS` constant", level: 3}
+    - {slug: "d4-hybrid-manifest-driven-bundle-validation", text: "D4 — Hybrid manifest-driven bundle validation", level: 3}
+    - {slug: "d5-migration-dropped-go-forward-only", text: "D5 — Migration dropped: go-forward-only", level: 3}
+    - {slug: "d6-4834-kept-as-an-independent-correctness-fix", text: "D6 — `#4834` kept as an independent correctness fix", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"

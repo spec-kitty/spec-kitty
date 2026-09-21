@@ -199,3 +199,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-09-19 | [Terminus-Safety Invariant — gate-then-mutate-with-rollback across merge, accept, and mission close](2026-09-19-1-terminus-safety-invariant.md) |
 | 2026-09-20 | [`not-applicable` issue-matrix verdict — non-gating, terminal, classifier-narrowed approval gate](2026-09-20-1-issue-matrix-not-applicable-verdict.md) |
 | 2026-09-20 | [Org-aware mission-type loader + path_conventions doctrine slot (full charter convergence deferred to #2652)](2026-09-20-1-canonical-mission-type-source.md) |
+| 2026-09-21 | [kebab-case canonical doctrine artifact slug — id/slug decoupling, single slug authority, manifest-driven bundle validation](2026-09-21-1-kebab-canonical-doctrine-artifact-slug.md) |
