@@ -31,6 +31,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from click.testing import Result
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import charter_app
@@ -134,7 +135,7 @@ def _config(project_root: Path) -> dict:
     return yaml.safe_load(raw) or {}
 
 
-def _activate(project_root: Path, *args: str, catch_exceptions: bool = False) -> object:
+def _activate(project_root: Path, *args: str, catch_exceptions: bool = False) -> Result:
     return runner.invoke(
         charter_app,
         ["activate", "--repo-root", str(project_root), *args],
@@ -142,7 +143,7 @@ def _activate(project_root: Path, *args: str, catch_exceptions: bool = False) ->
     )
 
 
-def _deactivate(project_root: Path, *args: str) -> object:
+def _deactivate(project_root: Path, *args: str) -> Result:
     return runner.invoke(
         charter_app,
         ["deactivate", "--repo-root", str(project_root), *args],
@@ -322,18 +323,27 @@ class TestIdMappingWideningNonVacuous:
         )
         assert result.exit_code == 0, result.output
 
-        data = _config(project_root)
-        activated = data.get("activated_directives") or []
-        assert "c-directive" not in activated, (
+        # Post-#4253 (`fix(charter): preserve the whole org chain ...`), an
+        # absent ``activated_directives`` key is the UNRESTRICTED state, so the
+        # first directive activation materializes EVERY effective directive
+        # (org-pack ``c-directive`` included) into the list to avoid silently
+        # deactivating anything in force -- independent of cascade. Membership
+        # in ``activated_directives`` is therefore no longer a faithful proxy
+        # for "was cascade-activated"; the cascade OUTCOME is observable only on
+        # the console. The reverted ID mapping must make the pack-2 target FAIL
+        # to cascade-activate: NO ``Cascade-activated`` line is emitted (the
+        # positive two-pack test prints ``Cascade-activated: directive/
+        # c-directive`` here). If this assertion fails, the two-pack test above
+        # is vacuous w.r.t. the ID-mapping widening.
+        assert "Cascade-activated" not in result.output, (
             "expected the pack-2 target to FAIL to cascade-activate once ID "
-            "mapping is reverted to pre-T008 (layer_roots-only) behaviour -- "
-            "if this assertion fails, the two-pack test above is vacuous "
-            "with respect to the ID-mapping widening.\n"
+            "mapping is reverted to pre-T008 (layer_roots-only) behaviour;\n"
             f"output:\n{result.output}"
         )
         # The DRG-visibility half (T009) is still intact -- the cascade
         # engine still reached pack 2 and tried (and failed) to map its raw
         # DRG id back, surfaced as a cascade warning naming the raw id.
+        assert "could not cascade-activate" in result.output, result.output
         assert "DIRECTIVE_C" in result.output, (
             "expected the raw DRG id to surface in a cascade warning, proving "
             f"the DRG walk (T009) still reached pack 2 on its own; output:\n{result.output}"
@@ -494,7 +504,15 @@ class TestNoCascadeWarningNamesOrgPackArtifacts:
 
         data = _config(project_root)
         assert "a-directive" in (data.get("activated_directives") or [])
-        assert "b-directive" not in (data.get("activated_directives") or [])
+        # Post-#4253, the first directive activation seeds the UNRESTRICTED set
+        # from every effective directive (org-pack ``b-directive`` included) so
+        # nothing in force is silently deactivated -- so ``b-directive``'s
+        # presence in ``activated_directives`` is expected and is NOT the signal
+        # that it was cascade-activated. Without ``--cascade`` no cascade
+        # activation happens at all: the target is only *reported* by its
+        # config-stem ID in the no-cascade warning, never activated by cascade
+        # (no ``Cascade-activated`` line is emitted).
+        assert "Cascade-activated" not in result.output, result.output
         assert "b-directive" in result.output, (
             f"no-cascade warning did not name the org-pack requires target "
             f"by its config-stem ID; output:\n{result.output}"
