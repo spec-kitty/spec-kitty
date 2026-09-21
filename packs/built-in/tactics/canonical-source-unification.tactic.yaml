@@ -26,6 +26,26 @@ steps:
     examples:
       - "grep -r 'planning_read_dir' src/ tests/ to find all readers; compare to the
         canonical resolver output to identify divergent paths."
+  - title: Verify the canonical surface carries equivalent data, not just a compatible interface
+    description: >
+      Before routing traffic to the canonical surface, confirm it actually carries the same
+      data and semantics as the copy it replaces — do NOT assume it is a faithful superset.
+      Two surfaces that look interchangeable can encode DIFFERENT CONCERNS: same-named fields
+      may mean different things and their values may diverge. When they do, the consolidation
+      is a data-model MERGE (with reconciliation and often authoring the canonical data), not
+      a drop-in rewire — plan and scope it as such. If implementation reveals the equivalence
+      premise is false, escalate and re-scope rather than forcing the plan or silently
+      changing behaviour. This check belongs at planning time — a post-plan review must
+      confirm data-equivalence, not merely that the call-sites line up.
+    examples:
+      - "A loader assumed a governance manifest's `expected_artifacts` was a superset of a
+        legacy template's flat `artifacts.required/.optional`; they encoded different concerns
+        (runtime step-gate completeness vs template selection) with divergent token sets, so
+        'read everything from the canonical source' would have silently changed built-in
+        behaviour — the convergence was re-scoped to a separately-tracked data-model merge."
+      - "Before deleting a duplicate config root, diff the two roots' actual VALUES (not just
+        their keys); a silent value drift means routing through 'the canonical one' changes
+        behaviour for existing consumers."
   - title: Route all traffic through the canonical surface
     description: >
       Update every non-canonical call site to go through the canonical surface. Remove or
@@ -58,6 +78,11 @@ failure_modes:
     in a future change without a CI failure."
   - "Wrong canonical surface: choosing the surface based on recency or size rather than
     what the framework resolver actually routes through."
+  - "Assumed-superset canonical: treating the canonical surface as a faithful superset of the
+    non-canonical copy without verifying the data and semantics actually converge. Two
+    surfaces can encode different concerns with divergent values, so routing through the
+    'canonical' one silently changes behaviour. Verify data-equivalence before routing; when
+    the premise is false the work is a data-model merge to scope separately, not a rewire."
   - "Seam-bypass via stale comment: a 'can't reuse the seam' (or 'the existing resolver
     doesn't support this case') comment justifying a new non-canonical copy is a red flag,
     not a fact — verify the seam's real, current signature before accepting it. The

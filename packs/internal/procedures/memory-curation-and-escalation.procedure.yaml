@@ -64,8 +64,13 @@ steps:
       parallel curator-carla subagents, each opened as a governed dispatch Op,
       each reading the curated index as its duplicate-reference and returning a
       compact per-memory manifest (disposition plus a one-line reason or
-      dup-target). Aggregate the manifests into one before any decision. The
-      squad produces the manifest; it does not mutate the store.
+      dup-target). Aggregate the manifests into one before any decision, and
+      normalize the keep-always-loaded vs demote-to-second-tier bar across them
+      yourself: independent subagents calibrate that line inconsistently — the
+      same kind of content gets marked keep-high by one partition and situational
+      by another — so the aggregation step, not the subagents, owns the single
+      consistent promote/demote bar. The squad produces the manifest; it does not
+      mutate the store.
     actor: agent
 
   - title: Take the disposition boundaries to the operator — never mass-delete unilaterally

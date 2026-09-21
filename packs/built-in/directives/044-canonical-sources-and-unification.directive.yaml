@@ -24,8 +24,12 @@ procedures:
   - "Rule 2 — Unification not parity: when a split-brain surface is found — the same
     concept implemented or stored in more than one location — consolidate to one canonical
     surface authority. Do NOT add the same behavior to every copy (parity); parity preserves
-    the split-brain. Exception: do not drop a load-bearing invariant without a migration
-    path proven safe by tests."
+    the split-brain. Before consolidating, verify the canonical surface carries equivalent
+    DATA and semantics, not merely a compatible interface — two surfaces may encode different
+    concerns with divergent values; when they do, unification is a data-model merge (plan and
+    scope it as such), and if implementation invalidates the equivalence premise, escalate and
+    re-scope rather than force the consolidation. Exception: do not drop a load-bearing
+    invariant without a migration path proven safe by tests."
   - "Rule 3 — Missing command is a gap: when a CLI command is documented in canonical
     sources but absent from the running tool, trace its source and file an upstream gap
     issue. Do not silently hand-roll a substitute. The gap record and escalation to the
