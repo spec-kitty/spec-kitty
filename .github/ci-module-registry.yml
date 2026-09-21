@@ -234,6 +234,7 @@ modules:
   - tests/specify_cli/core
   - tests/coordination
   - tests/specify_cli/coordination
+  - tests/decisions
   - tests/doctrine_synthesizer
   - tests/specify_cli/tool_surface
   - tests/zeitgeist_client
