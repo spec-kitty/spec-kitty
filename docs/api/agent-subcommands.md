@@ -985,7 +985,12 @@ _Mission lifecycle commands for AI agents_
  amended
  planning state instead of a stale snapshot (#4141). It is refused when the
  recorded
- SHA is not an ancestor of the tip (a history rewrite, not an amendment).
+ SHA is not an ancestor of the tip (a history rewrite, not an amendment) --
+ unless
+ that non-ancestor SHA is a proven ORPHAN (present, just unreachable -- a
+ mid-mission
+ rebase), in which case add --allow-orphaned to re-point to the live tip
+ (#4827).
 
  Bootstrap Mutation Surface (FR-003 / SC-002)
  =============================================
@@ -1008,6 +1013,8 @@ _Mission lifecycle commands for AI agents_
  --validate-only --json
      spec-kitty agent mission finalize-tasks --mission 020-my-feature
  --refresh-planning-commit
+     spec-kitty agent mission finalize-tasks --mission 020-my-feature
+ --refresh-planning-commit --allow-orphaned
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission                          TEXT  Mission slug (e.g.,                 │
@@ -1043,7 +1050,28 @@ _Mission lifecycle commands for AI agents_
 │                                          snapshot. Refused when the recorded │
 │                                          SHA is not an ancestor of the tip   │
 │                                          (a history rewrite, not an          │
-│                                          amendment).                         │
+│                                          amendment) -- if that's because of  │
+│                                          a deliberate mid-mission rebase     │
+│                                          rather than a divergence, add       │
+│                                          --allow-orphaned to re-point anyway │
+│                                          (#4827).                            │
+│ --allow-orphaned                         Only meaningful with                │
+│                                          --refresh-planning-commit (#4827).  │
+│                                          Permits the re-pin to re-point a    │
+│                                          recorded planning_commit_sha that   │
+│                                          is ORPHANED -- present in the       │
+│                                          repository but no longer an         │
+│                                          ancestor of the target-branch tip,  │
+│                                          the mid-mission-rebase shape.       │
+│                                          Without it, an orphaned pin is      │
+│                                          refused (a bare                     │
+│                                          --refresh-planning-commit stays     │
+│                                          advance-only; a plain finalize      │
+│                                          fails closed before writing         │
+│                                          lanes.json). Still refused          │
+│                                          regardless for a FOREIGN (absent)   │
+│                                          object -- investigate that          │
+│                                          divergence manually.                │
 │ --help                     -h            Show this message and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
