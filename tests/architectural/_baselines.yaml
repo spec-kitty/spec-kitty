@@ -275,7 +275,7 @@ test_example_round_trip:
 # and `MAX_UNASSIGNED_ENTRIES` in `_inert_slots.py` is lowered to match.
 # Counts are measured (`len(BASELINE_SLOTS)`), not derived.
 test_no_inert_schema_slots:
-  baseline_entries: 37  # justification: the 14-row orchestration family deleted by dead-port-disposition-01M1TZVN T014b (see comment above).
+  baseline_entries: 38  # justification: the 14-row orchestration family deleted by dead-port-disposition-01M1TZVN T014b (see comment above). 37 -> 38 (#3831/#4088): +1 path_conventions — a forward-declared charter MissionType slot whose producers are downstream consumer org packs + the deferred #2652 built-in wiring (baseline row owned by mission-type-canonical-source-01M302V9; disposition wire-the-producer).
   # The shrink-only cap on `unassigned` owners. `unassigned` is the one owner the
   # anti-weasel test can never fire for, so this is the gate's only escape hatch;
   # registering it here subjects widening it to the same `# justification:` policy
