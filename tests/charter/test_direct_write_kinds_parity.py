@@ -58,3 +58,33 @@ def test_synthesize_pipeline_literal_matches_direct_write_kinds() -> None:
     annotation = ProvenanceEntry.model_fields["artifact_kind"].annotation
     literal_args = set(typing.get_args(annotation))
     assert literal_args == set(DIRECT_WRITE_KINDS)
+
+
+def test_direct_write_kinds_order_is_paired_with_scanner_schemas() -> None:
+    """Order guard (landing fold, #4852 second-opinion squad).
+
+    ``project_scan`` pairs ``DIRECT_WRITE_KINDS`` positionally with a local
+    ``schemas`` tuple via ``zip(..., strict=True)`` — but ``strict=True`` only
+    checks equal length, and every other parity guard above compares by ``set``
+    (order-blind). So a reorder of ``DIRECT_WRITE_KINDS`` that did NOT mirror the
+    ``schemas`` tuple would silently validate each kind against the wrong Pydantic
+    model (e.g. ``procedure`` against ``AgentProfile``) and pass every existing
+    test. Pin the canonical order and its intended kind→schema pairing so such a
+    reorder fails loud here and forces the mirror update the scanner docstring
+    already demands.
+    """
+    from charter.offering.agent_profiles.profile import AgentProfile
+    from charter.offering.directives.models import Directive
+    from charter.offering.procedures.models import Procedure
+    from charter.offering.styleguides.models import Styleguide
+    from charter.offering.tactics.models import Tactic
+
+    # Mirror of ``project_scan``'s positional ``(kinds, schemas)`` pairing.
+    expected_pairing = (
+        ("directive", Directive),
+        ("tactic", Tactic),
+        ("styleguide", Styleguide),
+        ("procedure", Procedure),
+        ("agent_profile", AgentProfile),
+    )
+    assert tuple(kind for kind, _ in expected_pairing) == DIRECT_WRITE_KINDS
