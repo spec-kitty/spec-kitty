@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "mission_slug": "token-target-issuer-guard-01M319HS",
+  "mission_id": "01M319HSN3ZVHE3QPGZDH3J8ST",
+  "mission_branch": "kitty/mission-token-target-issuer-guard-01M319HS",
+  "target_branch": "issue-4755-token-target-issuer-guard",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/auth/errors.py",
+        "src/specify_cli/auth/server_target.py",
+        "tests/auth/test_issuer_target_helper.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/auth/flows/refresh.py",
+        "src/specify_cli/auth/http/me_fetch.py",
+        "src/specify_cli/auth/token_manager.py",
+        "src/specify_cli/saas_client/auth.py",
+        "tests/auth/test_refresh_issuer_target.py",
+        "tests/auth/test_rehydrate_issuer_target.py",
+        "tests/saas_client/test_held_token_non_demotion.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/auth/flows/revoke.py",
+        "src/specify_cli/cli/commands/_auth_logout.py",
+        "tests/auth/test_revoke_issuer_mismatch.py",
+        "tests/cli/test_auth_logout_mismatch.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/auth/websocket/token_provisioning.py",
+        "tests/auth/test_ws_provisioning_issuer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/auth/config.py",
+        "src/specify_cli/cli/commands/_auth_login.py",
+        "src/specify_cli/cli/commands/_auth_saas_target.py",
+        "tests/architectural/test_egress_consent_boundary.py",
+        "tests/cli/test_auth_login_mismatch_exit.py",
+        "tests/cli/test_auth_saas_target_cleanup.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-21T06:38:05.311563+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "109eb48417db65a749953b5eebe03892f109fb87"
+}

@@ -1,0 +1,21 @@
+{
+  "baseline_merge_commit": "0f3c9923086f94a8d5f7c7517590409c14fea6d2",
+  "created_at": "2026-09-21T06:13:15.568993+00:00",
+  "flattened": true,
+  "friendly_name": "Auth token-target issuer guard",
+  "merged_at": "2026-09-21T08:34:50.259986+00:00",
+  "merged_commit": "c2d5cf4f2bea7043c7be5a2abffe6696eaeb96ce",
+  "mid8": "01M319HS",
+  "mission_id": "01M319HSN3ZVHE3QPGZDH3J8ST",
+  "mission_number": null,
+  "mission_slug": "token-target-issuer-guard-01M319HS",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A P0 credential-exposure fix: four token-bearing auth flows (refresh, logout/revoke, membership rehydrate, websocket token provisioning) currently ignore the configured server and the session's own issuer, so self-hosted users leak tokens to the public host and a hostile checkout can exfiltrate a refresh token. This mission routes every token-bearing call to the session's issuer, refuses on mismatch, and fences the unsafe accessor so the class cannot recur.",
+  "purpose_tldr": "Stop the CLI from POSTing refresh/access tokens to the wrong server.",
+  "slug": "token-target-issuer-guard-01M319HS",
+  "status_phase": "1",
+  "target_branch": "issue-4755-token-target-issuer-guard",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-21T06:47:15.786088+00:00"
+}

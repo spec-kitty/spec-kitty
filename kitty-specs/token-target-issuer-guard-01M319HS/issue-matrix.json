@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#234": {
+      "evidence_ref": "prior migration: saas_client issuer guard already landed; this mission extends it to token-send paths",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#2941": {
+      "evidence_ref": "Follow-up: #2941 stays open \u2014 Widen plaintext saas-auth.json, distinct surface, kept separate per grounding squad",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3279": {
+      "evidence_ref": "Follow-up: #3279 stays open \u2014 device-auth 401, different root cause, already claimed, kept separate",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3406": {
+      "evidence_ref": "prior migration: auth login resolver adoption already landed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4053": {
+      "evidence_ref": "campsite fold: dead except branch removed in _auth_saas_target.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP05"
+    },
+    "#4259": {
+      "evidence_ref": "prior migration: explicit-env-override issuer handling already landed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4265": {
+      "evidence_ref": "campsite fold: auth login mismatch exit code + canonical-URL compare",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP05"
+    },
+    "#4755": {
+      "evidence_ref": "primary target; token-send paths rewired to issuer across WP01-05",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#4760": {
+      "evidence_ref": "Follow-up: #4760 stays open \u2014 world-readable tracker creds, distinct surface, kept separate",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
