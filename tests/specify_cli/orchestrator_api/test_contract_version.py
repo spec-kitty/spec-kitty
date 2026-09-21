@@ -1,9 +1,11 @@
 """WP07 (design-phase-orchestrator-api-01M1HE6M) -- CONTRACT_VERSION bump to
 1.4.0.
 
-(Superseded: the pin below now reads ``1.5.0`` after the additive ``tasks``
-pass-through ``planning_commit`` object, #4141; the 1.4.0 narrative is kept
-as the WP's historical record.)
+(Superseded: the pin below now reads ``1.6.0`` after the additive
+``planning_commit.action`` vocabulary gaining ``"repinned"`` (#4827, WP02 of
+finalize-repin-orphaned-planning-commit-01M31TAT); the 1.4.0 narrative is
+kept as the WP's historical record. It was previously superseded to
+``1.5.0`` by the ``tasks`` pass-through ``planning_commit`` object, #4141.)
 
 ``CONTRACT_VERSION`` is currently ``"1.3.0"`` (envelope.py:28), so this test
 is authentically RED before this WP's change: it pins the new value AND that
@@ -57,13 +59,13 @@ _NEW_VERBS = (
 )
 
 
-def test_contract_version_response_reports_1_5_0() -> None:
+def test_contract_version_response_reports_1_6_0() -> None:
     result = runner.invoke(app, ["contract-version"])
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is True
-    assert envelope["data"]["api_version"] == "1.5.0"
-    assert envelope["contract_version"] == "1.5.0"
+    assert envelope["data"]["api_version"] == "1.6.0"
+    assert envelope["contract_version"] == "1.6.0"
 
 
 def test_min_provider_version_unchanged() -> None:
@@ -78,7 +80,7 @@ def test_changelog_comment_names_all_eleven_new_verbs() -> None:
     Guidance, WP07 task file)."""
     source = inspect.getsource(envelope_module)
     changelog_start = source.index("# 1.1.0:")
-    changelog_end = source.index('CONTRACT_VERSION = "1.5.0"')
+    changelog_end = source.index('CONTRACT_VERSION = "1.6.0"')
     changelog_block = source[changelog_start:changelog_end]
 
     missing = [verb for verb in _NEW_VERBS if verb not in changelog_block]

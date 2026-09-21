@@ -716,7 +716,6 @@ exclude = [
     "src/specify_cli/missions/_substantive.py",
     "src/specify_cli/missions/plan/plan_interview.py",
     "src/specify_cli/missions/plan/specify_interview.py",
-    "src/specify_cli/orchestrator_api/envelope.py",
     "src/specify_cli/ownership/audit_targets.py",
     "src/specify_cli/ownership/validation.py",
     "src/specify_cli/policy/commit_guard.py",

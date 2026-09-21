@@ -34,7 +34,12 @@ from kernel.clock import now_utc_iso
 # object (action / previous_sha / branch_tip / resolved sha) from the delegate
 # finalize-tasks ``--json`` payload (#4141 -- the --refresh-planning-commit
 # re-point affordance). Purely additive.
-CONTRACT_VERSION = "1.5.0"
+# 1.6.0: the ``planning_commit.action`` vocabulary gains ``"repinned"`` --
+# finalize-tasks's new ``--refresh-planning-commit --allow-orphaned`` re-pins
+# an ORPHANED (mid-mission-rebase) recorded SHA to the target-branch tip
+# (#4827). Purely additive; no consumer contract test pins the action
+# vocabulary (contracts/finalize-repin-contract.md).
+CONTRACT_VERSION = "1.6.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose
@@ -175,10 +180,7 @@ def parse_and_validate_policy(raw_json: str) -> PolicyMetadata:
         if not isinstance(flag, str):
             raise ValueError("--policy.dangerous_flags entries must be strings")
         if flag in BANNED_FLAGS:
-            raise ValueError(
-                f"--policy.dangerous_flags contains a banned flag: {flag!r}. "
-                "Banned flags must never appear in orchestrator policy payloads."
-            )
+            raise ValueError(f"--policy.dangerous_flags contains a banned flag: {flag!r}. Banned flags must never appear in orchestrator policy payloads.")
 
     tool_restrictions = data.get("tool_restrictions")
     if tool_restrictions is not None and not isinstance(tool_restrictions, str):
