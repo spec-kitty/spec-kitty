@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-04-11T15:03:47.000000+00:00",
+  "flattened": false,
+  "friendly_name": "Feature relying on the legacy mission override",
+  "mid8": "01GZXW4T",
+  "mission_id": "01GZXW4T7YAC7AHC0R99F5AZDM",
+  "mission_number": 7,
+  "mission_slug": "legacy-override-feature-01GZXW4T",
+  "mission_type": "software-dev",
+  "purpose_context": "This feature expects the project's .kittify/overrides/missions/software-dev/ override to win over the packaged software-dev mission.",
+  "purpose_tldr": "Prove the legacy project mission override is honoured.",
+  "slug": "001-legacy-override-feature",
+  "target_branch": "main",
+  "topology": "single_branch"
+}

@@ -1,0 +1,9 @@
+# Fixture: consumer project carrying a pre-migration, project-level mission
+# override at the LEGACY `.kittify/overrides/missions/<type>/` home
+# (mission-type-canonical-source-01M302V9, WP01/T002+T004 -- SC-002 / #4088).
+#
+# No org packs are involved here -- this fixture isolates the
+# project-override-vs-packaged-default precedence question from the
+# org-activation question already covered by ../../org_activated_custom_type/.
+mission_type_activations:
+  - software-dev

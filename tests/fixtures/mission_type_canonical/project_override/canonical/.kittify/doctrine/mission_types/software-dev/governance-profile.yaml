@@ -1,0 +1,10 @@
+# Canonical project-level mission-type-profile override home. Shape mined
+# from tests/charter/test_mission_type_profile_override.py (_write_profile /
+# TestOverrideRidesResolverEndToEnd) --
+# `.kittify/doctrine/mission_types/<type>/governance-profile.yaml`, resolved
+# by charter.activation.mission_type_profiles via
+# resolve_mission_type_context (project > org > builtin, DoctrineLayerCollisionWarning
+# on override).
+id: software-dev
+mission_type: software-dev
+template_set: project-canonical-override

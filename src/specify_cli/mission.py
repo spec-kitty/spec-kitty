@@ -14,7 +14,7 @@ import os
 import re
 import warnings
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Tuple
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -23,6 +23,12 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 # in ``charter`` so ``specify_cli`` may consume it without crossing the layer rule.
 from charter.activation.mission_type_key import read_mission_type
 from specify_cli.mission_metadata import load_meta_or_empty
+
+if TYPE_CHECKING:
+    # Type-only: the charter import is otherwise kept lazy/local (T020/T021)
+    # so this module's runtime import graph is unchanged for callers that
+    # never hit the org-aware fallback path.
+    from charter.offering.missions.models import MissionType
 
 
 class MissionError(Exception):
@@ -219,21 +225,34 @@ def _format_validation_error(config_path: Path, error: ValidationError) -> str:
 class Mission:
     """Represents a Spec Kitty mission with its configuration and resources."""
 
-    def __init__(self, mission_path: Path):
-        """Initialize a mission from a directory path.
+    def __init__(self, mission_path: Path, config: MissionConfig | None = None):
+        """Initialize a mission from a directory path, or from a pre-built config.
 
         Args:
-            mission_path: Path to the mission directory containing mission.yaml
+            mission_path: Path to the mission directory containing mission.yaml.
+                When *config* is supplied this is a descriptive marker path
+                only (T021, #3831) -- it need not exist on disk.
+            config: A pre-validated :class:`MissionConfig` to use verbatim,
+                bypassing the on-disk ``mission.yaml`` load. Used to build a
+                neutral, in-memory identity for a registered org mission
+                type that has no ``mission.yaml`` at any resolver tier
+                (:func:`_build_neutral_org_mission`). ``None`` (default)
+                preserves the original on-disk-load behavior unchanged.
 
         Raises:
-            MissionNotFoundError: If mission directory or config doesn't exist
+            MissionNotFoundError: If *config* is ``None`` and the mission
+                directory or its ``mission.yaml`` doesn't exist.
         """
         self.path = mission_path.resolve()
+
+        if config is not None:
+            self.config = config
+            return
 
         if not self.path.exists():
             raise MissionNotFoundError(f"Mission directory not found: {self.path}")
 
-        self.config: MissionConfig = self._load_and_validate_config()
+        self.config = self._load_and_validate_config()
 
     def _load_and_validate_config(self) -> MissionConfig:
         """Load and validate mission configuration from mission.yaml.
@@ -516,8 +535,118 @@ def list_available_missions(kittify_dir: Path | None = None) -> list[str]:
     return sorted(missions)
 
 
+def _registered_org_mission_type(mission_name: str, project_dir: Path) -> "MissionType | None":
+    """Return the activated org/project ``MissionType`` for *mission_name*, or ``None``.
+
+    T021 (#3831): a project may register a mission type via a sparse
+    ``mission_types/<type>.yaml`` (id/display_name/action_sequence) with no
+    corresponding ``mission.yaml`` at any resolver tier. This probes the
+    charter FR-006 activation gate first (``existing_mission_types`` -- an
+    id that is not activated is treated as unregistered and never inspected
+    further), then loads the full layered roster (built-in -> org ->
+    project precedence, ``charter.missions.resolve_layered_mission_types``)
+    the same way ``spec-kitty charter mission-type list`` does, and looks
+    *mission_name* up in it.
+
+    Returns ``None`` both when the type is not activated at all and when it
+    is activated but no layer has a loadable ``MissionType`` file for it --
+    the caller (:func:`get_mission_by_name`) treats both as "no org type
+    either" and raises its own ``MissionNotFoundError`` (T022); this helper
+    does not need to distinguish the two.
+    """
+    from charter.activation.mission_type_profiles import existing_mission_types  # noqa: PLC0415
+    from charter.activation.pack_context import PackContext  # noqa: PLC0415
+    from charter.missions import MissionTemplateRepository, resolve_layered_mission_types  # noqa: PLC0415
+
+    if mission_name not in existing_mission_types(project_dir):
+        return None
+
+    pack_context = PackContext.from_config(project_dir)
+    mission_types_dirs = (MissionTemplateRepository.default_missions_root() / "mission_types",)
+    roster = resolve_layered_mission_types(mission_types_dirs, pack_context)
+    return roster.get(mission_name)
+
+
+def _neutral_workflow_from_action_sequence(action_sequence: list[str] | None) -> WorkflowConfig:
+    """Derive a minimal, always-valid ``WorkflowConfig`` for a sparse org type.
+
+    ``WorkflowConfig.phases`` requires at least one entry (``min_length=1``);
+    a sparse org registration (T021) carries no software-dev-shaped phase
+    list at all. When the type declares an ``action_sequence`` this renders
+    it as a single descriptive phase (never software-dev's own multi-phase
+    workflow); when it declares none (``docs-audit``'s fixture case, where
+    ``action_sequence`` is ``None``) a single generic phase is used instead,
+    so the schema's non-empty invariant is satisfied without inventing
+    per-step phases the type never declared.
+    """
+    if action_sequence:
+        description = "Derived from the mission type's action_sequence: " + " -> ".join(action_sequence)
+    else:
+        description = "Org mission type declares no action_sequence; no workflow phases are implied."
+    return WorkflowConfig(phases=[PhaseConfig(name="org-mission-type", description=description)])
+
+
+def _build_neutral_org_mission(mission_name: str, project_dir: Path, kittify_dir: Path) -> Mission | None:
+    """Build a neutral, in-memory ``Mission`` for a registered, sparse org type.
+
+    T021 (#3831): no resolver tier has a ``mission.yaml`` for *mission_name*,
+    but the project has activated it as an org mission type via a bare
+    ``mission_types/<type>.yaml`` (id/display_name/action_sequence -- no
+    software-dev-shaped path/artifact conventions). The resulting
+    :class:`Mission` carries the org type's own identity (``name`` =
+    ``display_name``) and neutral conventions: ``paths`` projects the type's
+    own ``path_conventions`` slot (WP02) when declared, else stays empty
+    (path-convention checks then no-op rather than applying software-dev's
+    ``src/``/``tests/``, SC-004); ``artifacts`` stays empty; and the
+    workflow is a minimal single phase derived from the type's
+    ``action_sequence`` (see :func:`_neutral_workflow_from_action_sequence`).
+
+    Returns ``None`` when *mission_name* is not a registered org type
+    either, so the caller can raise its own ``MissionNotFoundError`` (T022)
+    instead of silently substituting software-dev.
+    """
+    mission_type = _registered_org_mission_type(mission_name, project_dir)
+    if mission_type is None:
+        return None
+
+    config = MissionConfig(
+        name=mission_type.display_name,
+        description=(
+            f"Org-registered mission type '{mission_type.id}' -- no mission.yaml "
+            "exists for it at any resolver tier, so this identity is built from its "
+            "sparse mission_types/ registration with neutral conventions (no "
+            "software-dev path/artifact assumptions apply)."
+        ),
+        version="0.0.0",
+        domain="other",
+        workflow=_neutral_workflow_from_action_sequence(mission_type.action_sequence),
+        artifacts=ArtifactsConfig(),
+        # WP02's path_conventions slot lets an org type declare its own
+        # conventions; a type that declares none (``None``, e.g. the
+        # docs-audit fixture) yields the neutral empty mapping -- the
+        # path-convention check no-ops rather than applying software-dev's
+        # src/tests shape (SC-004).
+        paths=dict(mission_type.path_conventions or {}),
+    )
+    # No mission.yaml exists on disk for this synthetic identity -- this is a
+    # descriptive marker path only (mirrors the project-tier layout); Mission
+    # skips the on-disk existence check whenever a pre-built config is given.
+    mission_path = kittify_dir / "missions" / mission_name
+    return Mission(mission_path, config=config)
+
+
 def get_mission_by_name(mission_name: str, kittify_dir: Path | None = None) -> Mission:
     """Get a mission by name.
+
+    Resolves *mission_name* through the org-aware precedence chain
+    (:func:`specify_cli.runtime.resolver.resolve_mission`: override -> legacy
+    -> org -> global-mission -> package) instead of the legacy, org-blind
+    two-tier lookup that only ever checked ``kittify_dir/missions/`` and the
+    packaged missions directory (T020, #3831/#4088). When no tier has a
+    ``mission.yaml`` but *mission_name* is a registered org/project mission
+    type with only a sparse ``mission_types/<type>.yaml`` registration, a
+    neutral in-memory ``Mission`` is built from that registration instead
+    (T021) -- never a silent software-dev substitution.
 
     Args:
         mission_name: Name of the mission (e.g., 'software-dev', 'research')
@@ -527,18 +656,41 @@ def get_mission_by_name(mission_name: str, kittify_dir: Path | None = None) -> M
         Mission object
 
     Raises:
-        MissionNotFoundError: If mission doesn't exist
+        MissionNotFoundError: If *mission_name* resolves to no
+            ``mission.yaml`` at any resolver tier AND is not a registered
+            org/project mission type.
     """
     if kittify_dir is None:
         kittify_dir = Path.cwd() / ".kittify"
 
-    mission_path = _mission_path_by_name(mission_name, kittify_dir)
+    project_dir = kittify_dir.parent
 
-    if mission_path is None:
-        available = list_available_missions(kittify_dir)
-        raise MissionNotFoundError(f"Mission '{mission_name}' not found.\nAvailable missions: {', '.join(available) if available else 'none'}")
+    from specify_cli.runtime.resolver import ResolutionTier, resolve_mission  # noqa: PLC0415
 
-    return Mission(mission_path)
+    try:
+        result = resolve_mission(mission_name, project_dir)
+    except FileNotFoundError:
+        pass
+    else:
+        if result.tier is ResolutionTier.PACKAGE_DEFAULT:
+            # Keep built-in (package-tier) missions on the historical
+            # ``specify_cli/missions/`` source rather than the resolver's
+            # ``packs/built-in/missions/`` package tier. This holds built-in
+            # behaviour byte-unchanged (NFR-001) and avoids a split-brain with
+            # ``discover_missions``/``list_available_missions``/
+            # ``get_active_mission``, which read ``_packaged_missions_dir()``.
+            # Unifying the two package roots (and deleting the ``specify_cli``
+            # copy) is the #2652 convergence, not this targeted slice.
+            legacy_pkg = _mission_dir_if_valid(_packaged_missions_dir() / mission_name)
+            return Mission(legacy_pkg if legacy_pkg is not None else result.path.parent)
+        return Mission(result.path.parent)
+
+    neutral_mission = _build_neutral_org_mission(mission_name, project_dir, kittify_dir)
+    if neutral_mission is not None:
+        return neutral_mission
+
+    available = list_available_missions(kittify_dir)
+    raise MissionNotFoundError(f"Mission '{mission_name}' not found.\nAvailable missions: {', '.join(available) if available else 'none'}")
 
 
 # =============================================================================
@@ -760,8 +912,25 @@ def get_mission_for_feature(feature_dir: Path, project_root: Path | None = None)
     """Get the mission for a specific feature.
 
     Reads the mission key from the feature's meta.json and loads the
-    corresponding mission. If the mission field is missing or the specified
-    mission doesn't exist, falls back to software-dev for backward compatibility.
+    corresponding mission through the org-aware loader
+    (:func:`get_mission_by_name`, T020/T021).
+
+    T022 (FR-007/SC-003) -- the two cases are handled identically here, but
+    resolve to two different, deliberate outcomes:
+
+    * **Typeless** (``meta.json`` has no ``mission_type``): a
+      TEMPLATE-FILE-SELECTION path (it returns a ``Mission`` template
+      object), not a governance read. Per C-006/FR-003a the ``software-dev``
+      *template* default is preserved -- ``get_mission_type`` yields the
+      neutral empty key, coalesced to ``software-dev`` below -- and it
+      always resolves (built-in), so no warning is ever emitted.
+    * **Typed but unresolvable** (a real ``mission_type`` that matches no
+      ``mission.yaml`` at any resolver tier AND no registered org mission
+      type): :func:`get_mission_by_name` raises ``MissionNotFoundError``,
+      which now propagates to the caller unchanged -- a visible, diagnosable
+      failure. The former warn-and-substitute-to-software-dev fallback (the
+      #3831 defect for this path) has been removed; there is no silent
+      software-dev substitution for a typed value.
 
     Args:
         feature_dir: Path to the feature directory (kitty-specs/<feature>/)
@@ -771,15 +940,10 @@ def get_mission_for_feature(feature_dir: Path, project_root: Path | None = None)
         Mission object for the feature
 
     Raises:
-        MissionNotFoundError: If feature meta.json not found and no default available
+        MissionNotFoundError: If feature meta.json not found and no default
+            available, or (T022) a typed ``mission_type`` resolves to
+            neither a ``mission.yaml`` nor a registered org mission type.
     """
-    # Get the mission key from meta.json. This is a TEMPLATE-FILE-SELECTION path
-    # (it returns a ``Mission`` template object), not a governance read: per C-006
-    # the ``software-dev`` template default is deliberately preserved here (the
-    # same policy as the ``kittify_dir/missions/software-dev`` fallback above).
-    # A typeless mission yields the neutral empty key from ``get_mission_type``
-    # (FR-003a) which we coalesce to the software-dev *template* so legacy,
-    # pre-mission-type features load without a spurious "not found" warning.
     mission_type = get_mission_type(feature_dir) or MISSION_TYPE_SOFTWARE_DEV
 
     # Find project root if not provided
@@ -797,13 +961,7 @@ def get_mission_for_feature(feature_dir: Path, project_root: Path | None = None)
 
     kittify_dir = project_root / ".kittify"
 
-    # Try to load the specified mission
-    try:
-        return get_mission_by_name(mission_type, kittify_dir)
-    except MissionNotFoundError:
-        # Fall back to software-dev with warning
-        warnings.warn(f"Mission '{mission_type}' not found for feature {feature_dir.name}, using software-dev as default", stacklevel=2)
-        return get_mission_by_name("software-dev", kittify_dir)
+    return get_mission_by_name(mission_type, kittify_dir)
 
 
 def discover_missions(project_root: Path | None = None) -> dict[str, tuple[Mission, str]]:

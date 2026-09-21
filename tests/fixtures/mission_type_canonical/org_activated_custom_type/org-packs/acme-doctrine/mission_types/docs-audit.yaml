@@ -1,0 +1,9 @@
+# Org pack mission-type descriptor. Shape mined from
+# `charter.offering.missions.models.MissionType` (schema_version/id/display_name)
+# and `packs/built-in/missions/mission_types/*.yaml` (e.g. research.yaml).
+#
+# The filename stem ("docs-audit") must match `id` -- enforced by
+# MissionTypeRepository / _load_layered_mission_type_file.
+schema_version: 1
+id: docs-audit
+display_name: "Docs Audit Kitty"

@@ -264,11 +264,15 @@ class TestGetMissionForFeature:
         assert mission.name == "Deep Research Kitty"
         assert mission.domain == "research"
 
-    def test_falls_back_on_invalid_mission(self, feature_with_invalid_mission: Path, sample_kittify_dir: Path) -> None:
-        """Should fall back to software-dev when mission doesn't exist."""
-        with pytest.warns(UserWarning, match="not found"):
-            mission = get_mission_for_feature(feature_with_invalid_mission, sample_kittify_dir.parent)
-        assert mission.domain == "software"
+    def test_typed_unknown_mission_raises(self, feature_with_invalid_mission: Path, sample_kittify_dir: Path) -> None:
+        """A typed-but-unknown mission type surfaces a visible error (#3831/#4088,
+        FR-007/SC-003) instead of the old silent warn-and-substitute to software-dev.
+
+        The org-aware loader resolves a typed value through the resolver chain and,
+        if it is neither a resolvable mission.yaml nor a registered org type, raises
+        rather than falling back."""
+        with pytest.raises(MissionNotFoundError):
+            get_mission_for_feature(feature_with_invalid_mission, sample_kittify_dir.parent)
 
     def test_raises_when_no_kittify_dir(self, tmp_path: Path) -> None:
         """Should raise MissionNotFoundError when .kittify not found."""
@@ -290,16 +294,26 @@ class TestGetMissionForFeatureLegacy:
         assert mission.domain == "software"
         assert "software" in mission.name.lower()
 
-    def test_legacy_feature_no_warning(self, legacy_feature: Path, sample_kittify_dir: Path) -> None:
-        """Legacy features should not produce warning (default is intentional)."""
+    def test_legacy_feature_no_type_fallback_warning(self, legacy_feature: Path, sample_kittify_dir: Path) -> None:
+        """A typeless feature defaults to the software-dev template with no
+        'mission not found / using software-dev as default' warning — that
+        warn-and-substitute path was removed in the org-aware loader.
+
+        The separate legacy-tier ('.kittify/missions/') 'run spec-kitty migrate'
+        deprecation nudge (emitted by the shared resolver, consistent with how
+        command-templates already resolve) is expected here and is not what this
+        test guards."""
         import warnings as w
 
         with w.catch_warnings(record=True) as caught:
             w.simplefilter("always")
             get_mission_for_feature(legacy_feature, sample_kittify_dir.parent)
-            # Should not warn since software-dev exists and is the default
-            mission_warnings = [c for c in caught if "mission" in str(c.message).lower()]
-            assert len(mission_warnings) == 0
+            fallback_warnings = [
+                c
+                for c in caught
+                if "not found" in str(c.message).lower() or "using software-dev as default" in str(c.message).lower()
+            ]
+            assert fallback_warnings == []
 
 
 class TestDiscoverMissions:

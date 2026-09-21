@@ -1,0 +1,11 @@
+# Fixture: consumer project carrying the same project-level mission-type
+# override intent as ../legacy/, but authored at the CANONICAL
+# `.kittify/doctrine/mission_types/<type>/` home (the migration target of
+# plan.md WP05: ".kittify/overrides/missions/ -> .kittify/doctrine/mission_types/").
+#
+# Not exercised by a red repro in WP01 (no canonical-source loader consumes
+# this shape yet) -- it exists so WP05's migration/doctor tests have a
+# ready-made "already migrated" fixture to assert against, alongside
+# ../legacy/ as the "not yet migrated" counterpart.
+mission_type_activations:
+  - software-dev

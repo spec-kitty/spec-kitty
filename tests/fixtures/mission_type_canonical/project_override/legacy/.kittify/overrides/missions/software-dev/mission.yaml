@@ -1,0 +1,22 @@
+# Legacy project-level mission override (pre-migration home). Per
+# `specify_cli/runtime/resolver.py::resolve_mission()`, this tier ("Tier 1 --
+# override") is supposed to take precedence over the packaged `software-dev`
+# mission -- but `specify_cli.mission.get_mission_for_feature()` /
+# `_mission_path_by_name()` never consult this directory at all (#4088), so
+# this override is silently ignored by that entry point today.
+#
+# Schema mirrors src/specify_cli/missions/software-dev/mission.yaml
+# (MissionConfig), trimmed to the fields required for validation.
+name: "Override Kitty"
+description: "Project-level override of the packaged software-dev mission, used to prove the .kittify/overrides/missions/<type>/ tier is honoured (#4088)."
+version: "1.0.0"
+domain: "software"
+
+workflow:
+  phases:
+    - name: "override-phase"
+      description: "A single phase that only exists in the project override, proving this file (not the packaged one) was loaded."
+
+artifacts:
+  required: []
+  optional: []

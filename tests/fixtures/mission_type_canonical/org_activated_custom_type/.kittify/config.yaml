@@ -1,0 +1,18 @@
+# Fixture: consumer project with an org-activated CUSTOM mission type and
+# no `.kittify/missions/` directory at all (mission-type-canonical-source-01M302V9,
+# WP01/T001 -- SC-001 / #3831).
+#
+# `charter_packs.org.packs` is the canonical org-pack declaration block
+# (org_pack_config.py CR-04; the older `doctrine.org.packs` spelling is a
+# retired/legacy alias that still resolves but emits a deprecation warning).
+charter_packs:
+  org:
+    packs:
+      - name: acme-doctrine
+        local_path: org-packs/acme-doctrine
+# The "docs-audit" custom type is activated in the project charter -- this is
+# what a real `spec-kitty` project looks like after `charter activate
+# mission-type docs-audit`. No `software-dev`/`research`/etc. built-ins are
+# listed: this fixture is deliberately narrow to the custom-type scenario.
+mission_type_activations:
+  - docs-audit
