@@ -1,12 +1,15 @@
-"""Cross-site consistency: approval blocker, merge_gates, doctor (#3469, WP03).
+"""Cross-site consistency: approval blocker, merge_gates, doctor, mission-review
+Gate 4 (#3469, WP03; extended for the #4820 landing fold).
 
 Pinned ATDD regression for the move-task-approval-ergonomics-01M302R0 mission,
 contract C2 (``contracts/classification-and-verdict-contract.md``): the
 approval blocker (``tasks_parsing_validation.py``, WP02), ``merge_gates``
-(``src/specify_cli/policy/merge_gates.py``), and ``status/doctor`` (``src/
-specify_cli/status/doctor.py``) must all derive "referenced-but-missing" from
-the SAME WP01 classifier (:mod:`specify_cli.tasks.issue_reference_discovery`)
-rather than recomputing ``referenced - matrix`` independently at each site.
+(``src/specify_cli/policy/merge_gates.py``), ``status/doctor`` (``src/
+specify_cli/status/doctor.py``), and post-merge mission-review Gate 4
+(``_evaluate_issue_matrix`` in ``src/specify_cli/cli/commands/review/
+__init__.py``) must all derive "referenced-but-missing" from the SAME WP01
+classifier (:mod:`specify_cli.tasks.issue_reference_discovery`) rather than
+recomputing ``referenced - matrix`` independently at each site.
 
 RED on pre-WP03 ``main``: before this WP, ``merge_gates`` and ``doctor``
 computed ``referenced_issues = {f"#{ref.number}" for ref in refs}`` over
@@ -17,10 +20,17 @@ also collapsed a row with an invalid verdict into "missing" (it read
 from doctor/blocker which both recover that row's issue number from the
 validator's diagnostics.
 
-Anchored on END-STATE per-site OUTCOME, not "all three identical" (which is
-vacuously true on unpatched main whenever all three independently over-gate
+RED on pre-#4820-fold ``main``: mission-review Gate 4 was a FOURTH,
+unconverged consumer that short-circuited on RAW reference presence
+(:func:`~specify_cli.tasks.issue_reference_discovery.discover_issue_references`)
+rather than the shared gating subset -- so a non-gating-only mission passed
+the other three sites cleanly but hard-failed Gate 4 post-merge with
+``ISSUE_MATRIX_MISSING``. The fourth-site assertions below pin the fix.
+
+Anchored on END-STATE per-site OUTCOME, not "all four identical" (which is
+vacuously true on unpatched main whenever all sites independently over-gate
 in lockstep -- see the FAIL-OPEN GUARD case below, which is the one place all
-three DO already agree, pre- and post-fix).
+sites DO already agree, pre- and post-fix).
 """
 
 from __future__ import annotations
@@ -33,12 +43,36 @@ from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _issue_matrix_approval_blocker,
     _issue_matrix_evaluation,
 )
+from specify_cli.cli.commands.review import MissionReviewMode
+from specify_cli.cli.commands.review import _evaluate_issue_matrix as _gate4_evaluate_issue_matrix
 from specify_cli.policy.merge_gates import GateVerdict, _evaluate_issue_matrix_completeness_gate
 from specify_cli.status.doctor import check_issue_matrix
 from specify_cli.status.models import Lane
 from specify_cli.tasks.issue_reference_discovery import gating_issue_numbers
 
 pytestmark = [pytest.mark.regression, pytest.mark.fast]
+
+
+class _RecordingConsole:
+    """Minimal console double for Gate 4: records printed lines only."""
+
+    def __init__(self) -> None:
+        self.lines: list[str] = []
+
+    def print(self, message: str = "") -> None:
+        self.lines.append(str(message))
+
+
+def _run_gate4(feature_dir: Path) -> tuple[bool | str, list[dict[str, str]]]:
+    """Run mission-review Gate 4 in POST_MERGE mode, the fourth consumer site."""
+    findings: list[dict[str, str]] = []
+    result = _gate4_evaluate_issue_matrix(
+        feature_dir=feature_dir,
+        review_mode=MissionReviewMode.POST_MERGE,
+        console=_RecordingConsole(),
+        findings=findings,
+    )
+    return result, findings
 
 
 def _feature_dir(tmp_path: Path, slug: str = "demo") -> Path:
@@ -69,7 +103,8 @@ def _write_matrix(feature_dir: Path, issue: str, verdict: str, evidence_ref: str
 def test_context_only_and_pr_ref_are_non_gating_at_all_three_sites(tmp_path: Path) -> None:
     """C2.1/C2.2 (#3469): a context-only citation and a PR ref never require
     a row -- non-gating at ``approved``, non-gating at merge, clean in
-    doctor. No issue-matrix artifact is present at all.
+    doctor, and ``not_applicable`` at post-merge mission-review Gate 4
+    (#4820 landing fold). No issue-matrix artifact is present at all.
     """
     feature_dir = _feature_dir(tmp_path)
     (feature_dir / "spec.md").write_text(
@@ -89,18 +124,22 @@ def test_context_only_and_pr_ref_are_non_gating_at_all_three_sites(tmp_path: Pat
     blocker_msg = _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.APPROVED)
     gate = _evaluate_issue_matrix_completeness_gate(feature_dir, is_blocking=True)
     doctor_findings = check_issue_matrix(feature_dir)
+    gate4_result, gate4_findings = _run_gate4(feature_dir)
 
     assert blocker_msg is None
     assert gate.verdict == GateVerdict.PASS
     assert gate.blocking is False
     assert doctor_findings == []
+    assert gate4_result == "not_applicable"
+    assert gate4_findings == []
 
-    # Secondary "all three agree" check.
-    assert [blocker_msg is None, gate.verdict == GateVerdict.PASS, doctor_findings == []] == [
-        True,
-        True,
-        True,
-    ]
+    # Secondary "all four agree" check.
+    assert [
+        blocker_msg is None,
+        gate.verdict == GateVerdict.PASS,
+        doctor_findings == [],
+        gate4_result == "not_applicable",
+    ] == [True, True, True, True]
 
 
 # ---------------------------------------------------------------------------
@@ -112,7 +151,13 @@ def test_context_only_and_pr_ref_are_non_gating_at_all_three_sites(tmp_path: Pat
 
 
 def test_bare_unmarked_reference_still_gates_at_all_three_sites(tmp_path: Path) -> None:
-    """FR-011 fail-safe default preserved: no issue-matrix artifact present."""
+    """FR-011 fail-safe default preserved: no issue-matrix artifact present.
+
+    Extended (#4820 landing fold) to also pin the fourth site: post-merge
+    mission-review Gate 4 must hard-fail with ISSUE_MATRIX_MISSING, not
+    silently pass as ``not_applicable``, when a gating reference has no
+    matrix row.
+    """
     feature_dir = _feature_dir(tmp_path)
     (feature_dir / "spec.md").write_text("This mission directly fixes #2003.\n", encoding="utf-8")
 
@@ -121,6 +166,7 @@ def test_bare_unmarked_reference_still_gates_at_all_three_sites(tmp_path: Path) 
     blocker_msg = _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.APPROVED)
     gate = _evaluate_issue_matrix_completeness_gate(feature_dir, is_blocking=True)
     doctor_findings = check_issue_matrix(feature_dir)
+    gate4_result, gate4_findings = _run_gate4(feature_dir)
 
     assert blocker_msg is not None
     assert "#2003" in blocker_msg
@@ -129,13 +175,17 @@ def test_bare_unmarked_reference_still_gates_at_all_three_sites(tmp_path: Path) 
     assert "#2003" in gate.details
     assert doctor_findings != []
     assert any("#2003" in finding.message for finding in doctor_findings)
+    assert gate4_result is False
+    assert len(gate4_findings) == 1
+    assert gate4_findings[0]["type"] == "issue_matrix_violation"
 
-    # Secondary "all three agree" check -- all three gate identically here.
+    # Secondary "all four agree" check -- all four gate identically here.
     assert [
         blocker_msg is not None,
         gate.verdict == GateVerdict.FAIL,
         doctor_findings != [],
-    ] == [True, True, True]
+        gate4_result is False,
+    ] == [True, True, True, True]
 
 
 # ---------------------------------------------------------------------------

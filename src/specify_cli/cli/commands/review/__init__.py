@@ -41,7 +41,7 @@ from specify_cli.compat.remediation import RemediationCommand, plan_remediation,
 from specify_cli.cli.selector_resolution import resolve_mission_handle  # noqa: F401
 from specify_cli.task_utils import TaskCliError, find_repo_root  # noqa: F401
 from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
-from specify_cli.tasks.issue_reference_discovery import discover_issue_references
+from specify_cli.tasks.issue_reference_discovery import gating_issue_numbers
 from specify_cli.version_utils import get_version  # noqa: F401
 
 from ._ble001_audit import (  # noqa: F401
@@ -280,13 +280,17 @@ def _evaluate_issue_matrix(
     """Gate 4: issue-matrix enforcement.
 
     FR-005 / #3035: ``not_applicable`` is a first-class Gate-4 verdict, not a
-    fabricated matrix or a hard fail. A mission that declares ZERO canonical
-    issue references (per WP08's :func:`discover_issue_references` -- the
-    SAME multi-file completeness definition finalization/merge-gates use, not
-    a local re-scan) has nothing for an issue-matrix to enforce, so this
-    returns ``not_applicable`` rather than failing on a matrix the mission
-    never needed. When references DO exist, fail-closed behaviour is
-    retained: a mission with no rows the reader can load is a hard failure.
+    fabricated matrix or a hard fail. A mission that declares ZERO GATING
+    issue references (per :func:`~specify_cli.tasks.issue_reference_discovery.
+    gating_issue_numbers` -- the SAME shared gating authority the approval
+    blocker, ``merge_gates``, and ``status/doctor`` consume, #3469) has
+    nothing for an issue-matrix to enforce, so this returns
+    ``not_applicable`` rather than failing on a matrix the mission never
+    needed. A mission may still carry non-gating references (``context_only``
+    / ``pr_or_commit_ref`` -- e.g. "See #123 for background") with no matrix
+    row required; only gating (implementation-target) references require one.
+    When gating references DO exist, fail-closed behaviour is retained: a
+    mission with no rows the reader can load is a hard failure.
 
     C-008 / B-1 (#3035, T044): presence is checked via WP05's dir-based
     :func:`~specify_cli.tasks.issue_matrix_migration.
@@ -302,9 +306,9 @@ def _evaluate_issue_matrix(
     if review_mode is not MissionReviewMode.POST_MERGE:
         return "not_applicable"
 
-    if not discover_issue_references(feature_dir):
+    if not gating_issue_numbers(feature_dir):
         console.print(  # type: ignore[attr-defined]
-            "  [green]✓[/green]  Issue matrix: not_applicable (mission declares zero canonical issue references)"
+            "  [green]✓[/green]  Issue matrix: not_applicable (mission declares zero gating issue references)"
         )
         return "not_applicable"
 
