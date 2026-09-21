@@ -477,8 +477,121 @@ def test_repair_reads_index_fresh_inside_lock(tmp_path: Path) -> None:
     decision_ids = _seed_diverged_corpus(tmp_path)
     mission_dir = _mission_dir(tmp_path)
 
-    lossy_ids = _repair(mission_dir)
+    lossy_ids, malformed_ids = _repair(mission_dir)
 
     assert lossy_ids == []
+    assert malformed_ids == []
     healed = _store.load_index(mission_dir)
     assert {e.decision_id for e in healed.entries} == set(decision_ids)
+
+
+# ---------------------------------------------------------------------------
+# Fold C (#470 dead-symbol gate + robustness) — a malformed event-log group
+# must not crash the whole reconciler run
+# ---------------------------------------------------------------------------
+
+
+def test_repair_reports_malformed_fold_instead_of_crashing(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A decision_id whose grouped events violate ``fold_events``'s
+    invariants (here: a duplicated ``DecisionPointOpened`` envelope for one
+    decision_id, mirroring ``test_fold_events_rejects_duplicate_opened_events``
+    -- the ``_read_decision_events`` grouper only filters by event *type*,
+    not by cardinality, so a duplicate-OPENED corruption reaches
+    ``fold_events`` intact and raises there) must not raise an uncaught
+    ``FoldError`` out of ``--repair`` and crash the whole run.
+    ``_rebuild_index_from_log`` catches it, keeps the decision's pre-repair
+    on-disk entry unchanged, reports the decision_id via
+    ``malformed_folds``, and still heals every OTHER diverged decision in
+    the same run."""
+    import typer
+
+    from specify_cli.cli.commands._decisions_doctor import run_decisions_reconciliation
+
+    _setup_meta(tmp_path)
+    bad_resp = open_decision(
+        tmp_path,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        step_id="malformed-step",
+        input_key="malformed-key",
+        question="Q?",
+        actor="alice",
+    )
+    other_ids = [bad_resp.decision_id]
+    for i in range(3):
+        resp = open_decision(
+            tmp_path,
+            MISSION_SLUG,
+            origin_flow=OriginFlow.CHARTER,
+            step_id=f"clean-step-{i}",
+            input_key=f"clean-key-{i}",
+            question=f"Q{i}?",
+            actor="alice",
+        )
+        other_ids.append(resp.decision_id)
+
+    mission_dir = _mission_dir(tmp_path)
+    events_path = mission_dir / "status.events.jsonl"
+    lines = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    duplicated_opened = [
+        event for event in lines if event.get("payload", {}).get("decision_point_id") == bad_resp.decision_id and event.get("event_type") == "DecisionPointOpened"
+    ]
+    assert len(duplicated_opened) == 1, "test setup: expected exactly one DecisionPointOpened event to duplicate"
+    lines.append(dict(duplicated_opened[0]))
+    events_path.write_text("\n".join(json.dumps(e) for e in lines) + "\n", encoding="utf-8")
+
+    original_bad_entry = next(e for e in _store.load_index(mission_dir).entries if e.decision_id == bad_resp.decision_id)
+
+    # Diverge the index (drop one clean decision) so `--repair` fires.
+    index = _store.load_index(mission_dir)
+    dropped_id = other_ids[1]
+    truncated_entries = tuple(e for e in index.entries if e.decision_id != dropped_id)
+    _store.save_index(mission_dir, index.model_copy(update={"entries": truncated_entries}))
+
+    with pytest.raises(typer.Exit):
+        run_decisions_reconciliation(tmp_path, MISSION_SLUG, json_output=False, repair=True)
+
+    healed = _store.load_index(mission_dir)
+    healed_ids = {e.decision_id for e in healed.entries}
+    # The dropped clean decision was healed as usual.
+    assert dropped_id in healed_ids
+    # The malformed decision's PRE-repair entry survived, unchanged.
+    healed_bad_entry = next(e for e in healed.entries if e.decision_id == bad_resp.decision_id)
+    assert healed_bad_entry == original_bad_entry
+
+    captured = capsys.readouterr()
+    assert bad_resp.decision_id in captured.out
+    assert "could not fold" in captured.out.lower()
+
+
+def test_rebuild_index_from_log_omits_malformed_decision_with_no_prior_entry(tmp_path: Path) -> None:
+    """When a malformed decision_id has NO pre-repair on-disk entry to fall
+    back to, ``_rebuild_index_from_log`` omits it from the rebuilt index
+    (rather than fabricating one) and still reports it as malformed."""
+    from specify_cli.cli.commands._decisions_doctor import _rebuild_index_from_log
+    from specify_cli.decisions.models import DecisionIndex
+
+    _setup_meta(tmp_path)
+    resp = open_decision(
+        tmp_path,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        step_id="no-prior-step",
+        input_key="no-prior-key",
+        question="Q?",
+        actor="alice",
+    )
+    events = _events_for_decision(tmp_path, resp.decision_id)
+    bogus = dict(events[0])
+    bogus["event_type"] = "SomeOtherEvent"
+    grouped = {resp.decision_id: [bogus]}
+
+    empty_current = DecisionIndex(mission_id=MISSION_ID, entries=())
+    rebuilt, lossy_ids, malformed_ids = _rebuild_index_from_log(empty_current, grouped)
+
+    assert lossy_ids == []
+    assert malformed_ids == [resp.decision_id]
+    assert rebuilt.entries == ()

@@ -37,6 +37,23 @@ otherwise-approved substance above.
   ``_diagnose``'s pre-lock snapshot — closing the window in which a
   concurrent open/resolve landing between the diagnose read and the lock
   acquisition would be silently dropped.
+
+- **Fold C** (#470 dead-symbol gate + robustness) — :func:`fold_events`
+  (:mod:`specify_cli.decisions.index_fold`) raises
+  :class:`~specify_cli.decisions.index_fold.FoldError` when a decision's
+  grouped event envelopes violate the fold's invariants (no
+  ``DecisionPointOpened``, more than one ``DecisionPointOpened``/
+  ``DecisionPointResolved``, or an unrecognized event type) — a malformed
+  on-disk event log, not a programmer error. Before this fold-in nothing in
+  this module caught it, so one malformed decision_id's event group crashed
+  the WHOLE ``--repair``/diagnose run with an uncaught exception, including
+  every OTHER decision that was folding cleanly. :func:`_rebuild_index_from_log`
+  now catches ``FoldError`` per decision_id (mirroring Fold A's
+  keep-pre-repair-entry-unchanged shape): it keeps the PRE-repair on-disk
+  entry unchanged if one exists, drops the decision_id from the rebuilt
+  index if it does not, and records the decision_id in the returned
+  malformed-fold list either way so the caller can report the condition
+  cleanly instead of the doctor crashing.
 """
 
 from __future__ import annotations
@@ -88,6 +105,12 @@ class DecisionsReconciliationReport:
     #: -- the wire cannot faithfully reconstruct that distinction (see
     #: ``_rebuild_index_from_log``). Empty on every non-repair run.
     lossy_attribution: list[str] = field(default_factory=list)
+    #: Fold C (#470 dead-symbol gate + robustness): decision_ids whose
+    #: grouped event envelopes raised ``index_fold.FoldError`` -- a
+    #: malformed event-log group, not a programmer error -- during
+    #: ``--repair``. Empty on every non-repair run and on a run with no
+    #: malformed groups.
+    malformed_folds: list[str] = field(default_factory=list)
 
     @property
     def clean(self) -> bool:
@@ -158,7 +181,7 @@ def _is_unrecoverable_slot_key_origin(entry: IndexEntry) -> bool:
 def _rebuild_index_from_log(
     current: DecisionIndex,
     grouped: dict[str, list[dict]],  # type: ignore[type-arg]
-) -> tuple[DecisionIndex, list[str]]:
+) -> tuple[DecisionIndex, list[str], list[str]]:
     """Rebuild the FULL index from the log via the T008 canonical fold.
 
     Fold A (review-feedback-2, cycle 2): for each decision_id, if *current*
@@ -173,6 +196,17 @@ def _rebuild_index_from_log(
     way (the same undetectable case the module docstring documents) and
     folds from the log as before.
 
+    Fold C (#470 dead-symbol gate + robustness): if folding a decision_id's
+    event group instead raises ``index_fold.FoldError`` (a malformed group
+    -- see the module docstring), that one decision_id is isolated from the
+    rest of the run: its PRE-repair on-disk entry is kept unchanged if one
+    exists (same shape as Fold A), or it is simply omitted from the rebuilt
+    index if there is no pre-repair copy to fall back to. Either way the
+    decision_id is recorded in the returned malformed-list so the caller can
+    report the condition cleanly -- a malformed group for ONE decision must
+    never crash the fold for every other, cleanly-folding decision in the
+    same run.
+
     ``mission_id`` is taken from the rebuilt entries themselves (every
     opened event carries it) rather than re-reading ``meta.json`` — the log
     alone is authoritative here. Falls back to *current*'s ``mission_id``
@@ -180,6 +214,7 @@ def _rebuild_index_from_log(
     """
     current_by_id = {e.decision_id: e for e in current.entries}
     lossy_ids: list[str] = []
+    malformed_ids: list[str] = []
     rebuilt_entries: list[IndexEntry] = []
     for decision_id, events in sorted(grouped.items()):
         existing = current_by_id.get(decision_id)
@@ -187,9 +222,14 @@ def _rebuild_index_from_log(
             rebuilt_entries.append(existing)
             lossy_ids.append(decision_id)
             continue
-        rebuilt_entries.append(_index_fold.fold_events(events))
+        try:
+            rebuilt_entries.append(_index_fold.fold_events(events))
+        except _index_fold.FoldError:
+            malformed_ids.append(decision_id)
+            if existing is not None:
+                rebuilt_entries.append(existing)
     mission_id = rebuilt_entries[0].mission_id if rebuilt_entries else current.mission_id
-    return DecisionIndex(mission_id=mission_id, entries=tuple(rebuilt_entries)), lossy_ids
+    return DecisionIndex(mission_id=mission_id, entries=tuple(rebuilt_entries)), lossy_ids, malformed_ids
 
 
 def _diagnose(mission_dir: Path, mission_slug: str) -> tuple[DecisionsReconciliationReport, dict[str, list[dict]]]:  # type: ignore[type-arg]
@@ -207,7 +247,7 @@ def _diagnose(mission_dir: Path, mission_slug: str) -> tuple[DecisionsReconcilia
     return report, grouped
 
 
-def _repair(mission_dir: Path) -> list[str]:
+def _repair(mission_dir: Path) -> tuple[list[str], list[str]]:
     """Rebuild ``index.json`` from a FRESH in-lock read of the event log,
     under the sidecar lock (I8: the SAME lock the write path uses, T010) — a
     concurrent open/resolve cannot race a repair, and a repair cannot race a
@@ -221,16 +261,18 @@ def _repair(mission_dir: Path) -> list[str]:
     therefore re-reads BOTH the event log and the current index itself,
     INSIDE the lock, rather than accepting either as a pre-lock argument.
 
-    Returns the decision_ids :func:`_rebuild_index_from_log` refused to
-    rewrite (Fold A) so the caller can warn loudly.
+    Returns ``(lossy_ids, malformed_ids)``: the decision_ids
+    :func:`_rebuild_index_from_log` refused to rewrite (Fold A) and the
+    decision_ids whose event group raised ``FoldError`` (Fold C), so the
+    caller can report both conditions loudly instead of crashing.
     """
     lock_path = _decisions_lock_path(mission_dir)
     with machine_file_lock(lock_path, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S):
         grouped = _read_decision_events(_events_path(mission_dir))
         current = _store.load_index(mission_dir)
-        rebuilt, lossy_ids = _rebuild_index_from_log(current, grouped)
+        rebuilt, lossy_ids, malformed_ids = _rebuild_index_from_log(current, grouped)
         _store.save_index(mission_dir, rebuilt)
-        return lossy_ids
+        return lossy_ids, malformed_ids
 
 
 def _emit_lossy_attribution_warning(report: DecisionsReconciliationReport) -> None:
@@ -247,6 +289,19 @@ def _emit_lossy_attribution_warning(report: DecisionsReconciliationReport) -> No
     )
 
 
+def _emit_malformed_fold_warning(report: DecisionsReconciliationReport) -> None:
+    """Fold C (#470 dead-symbol gate + robustness): report -- rather than
+    crash on -- a decision_id whose event group could not be folded."""
+    if not report.malformed_folds:
+        return
+    console.print(
+        f"  [red]could not fold[/red] ({len(report.malformed_folds)}) decision(s) from a malformed event-log group -- "
+        "the DecisionPointOpened/Resolved envelopes for these decision_ids do not satisfy the canonical fold's "
+        "invariants (index_fold.FoldError); kept the pre-repair index entry unchanged where one existed, otherwise "
+        f"omitted the decision_id from the rebuilt index: {', '.join(report.malformed_folds)}"
+    )
+
+
 def _emit_human(report: DecisionsReconciliationReport) -> None:
     if report.clean:
         suffix = " (repaired)" if report.repaired else ""
@@ -258,6 +313,7 @@ def _emit_human(report: DecisionsReconciliationReport) -> None:
         if report.orphaned_in_index:
             console.print(f"  orphaned in index, no backing event ({len(report.orphaned_in_index)}): {', '.join(report.orphaned_in_index)}")
     _emit_lossy_attribution_warning(report)
+    _emit_malformed_fold_warning(report)
 
 
 def _emit_json(report: DecisionsReconciliationReport) -> None:
@@ -270,6 +326,7 @@ def _emit_json(report: DecisionsReconciliationReport) -> None:
         "orphaned_in_index": report.orphaned_in_index,
         "repaired": report.repaired,
         "lossy_attribution": report.lossy_attribution,
+        "malformed_folds": report.malformed_folds,
     }
     console.print_json(json.dumps(payload, indent=2))
 
@@ -308,10 +365,11 @@ def run_decisions_reconciliation(
     report, _grouped = _diagnose(mission_dir, mission_slug)
 
     if repair and not report.clean:
-        lossy_ids = _repair(mission_dir)
+        lossy_ids, malformed_ids = _repair(mission_dir)
         report, _grouped = _diagnose(mission_dir, mission_slug)
         report.repaired = True
         report.lossy_attribution = sorted(lossy_ids)
+        report.malformed_folds = sorted(malformed_ids)
 
     if json_output:
         _emit_json(report)
