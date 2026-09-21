@@ -41,11 +41,19 @@ def is_prose_only(base_src: str | None, head_src: str | None) -> bool:
    other exception ⇒ return False. Every pass is inside the fail-closed guard so an
    error on either side yields False, never an escape. Never raise.
 
-**Scope (squad HIGH-1 / R9)**: the classifier decides `.py` *content* only. It does
-NOT decide whether a *path* is doc/corpus/mapped/unmapped — that stays in the
-wiring, which reuses `gate_selection`. **Non-requirements**: the classifier does
-NOT fetch blobs, read the router YAML, import `yaml`/`fnmatch`, or know about lanes.
-It is a two-string predicate (NFR-001).
+**Scope (squad HIGH-1 / R9)**: the per-file predicate (`is_prose_only` /
+`prose_only_reason`) decides `.py` *content* only. It does NOT decide whether a
+*path* is doc/corpus/mapped/unmapped. **Non-requirements**: the per-file
+predicate does NOT fetch blobs, read the router YAML, import `yaml`, or know
+about lanes — it never imports `fnmatch` either, and is a two-string predicate
+(NFR-001).
+
+`fnmatch` is imported exactly once in this module, inside the PR-level
+`prose_only_pr_verdict` aggregate below (architect MINOR-2) — that function
+still fetches no blobs and reads no router YAML itself; both the glob tuple
+and the blob content are injected by the caller, so the module as a whole
+stays IO-free even though it is no longer strictly a "two-string predicate"
+module.
 
 **Known residual — `__doc__`-as-runtime-data (intended boundary, not a bug)**: a
 docstring-only edit is classified prose-only, but spec-kitty is a `typer` CLI whose
@@ -62,20 +70,30 @@ classifier defect. (Hardening this — a guard that any `tests/architectural`/pr
 reading test lives in an always-on lane — is a tracked follow-up, not part of this
 mission.)
 
-## Aggregate contract — reduction + verdict (WIRING-side, reuses `gate_selection`)
+## Aggregate contract — reduction + verdict
 
-The aggregate is **not** pure and lives in the workflow step (which already imports
-`gate_selection`), never in `prose_only.py` (squad HIGH-1 / R9):
+**Updated (architect MINOR-2)**: the PR-level verdict aggregate was originally
+re-implemented inline in the `prose-scan` job's heredoc (squad HIGH-1 / R9's
+original ruling kept it out of `prose_only.py`), which left it covered only by
+workflow string-assertions and never executed as a unit. It is now a second
+pure, unit-tested function in `prose_only.py` — still not "the wiring": it
+still takes its `doc_globs` and `blob_getter` as injected arguments, does no
+git/yaml IO of its own, and `gate_selection`/router-YAML loading still happens
+only in the workflow step (which passes in the already-resolved glob tuple):
 
 - `reduced_paths(changed, blob_getter)` — a `prose_only.py` helper operating over
   the changed set: drop each `.py` for which `is_prose_only(base, head)` is True;
   keep every non-`.py` path and every non-prose `.py` unchanged. Pure (takes a
   `blob_getter`), classifies only `.py`.
-- **PR verdict `prose_only`** — computed by the wiring: True iff every changed path
-  is either (a) a `.py` proven prose-only, or (b) a path `gate_selection` classifies
-  as a non-code data group (docs/corpus) — AND at least one changed `.py` was
-  prose-only. A changed path that is neither (config/packaging/unmapped-src/non-doc)
-  ⇒ `prose_only=false` (fail-closed; squad HIGH-1).
+- `prose_only_pr_verdict(paths, blob_getter, doc_globs)` — a `prose_only.py`
+  function computing the PR verdict: True iff every changed path is either
+  (a) a `.py` proven prose-only, or (b) a path matching one of the injected
+  `doc_globs` (via `fnmatch`; the wiring resolves these from `gate_selection`'s
+  `docs`/`corpus` filter groups) — AND at least one changed `.py` was
+  prose-only. A changed path that is neither (config/packaging/unmapped-src/
+  non-doc) ⇒ `False` (fail-closed; squad HIGH-1). The `prose-scan` job in
+  `ci-router.yml` calls this function directly instead of re-implementing the
+  aggregate inline.
 
 **Invariant (corrected, R2)**: safety is structural in the wiring, not the
 classifier — every down-routable `if:` keeps its existing gate ANDed with
@@ -147,6 +165,12 @@ NOT assumed to imply "no unmapped src"; the wiring simply cannot widen.
 | new file (no base) | `base_src=None` | False (`no_base`) |
 | mixed docstring + code | one file docstring-only, another code | aggregate False |
 | prose `.py` + config file | docstring edit + `pyproject.toml` change | aggregate False (non-doc non-`.py`, HIGH-1) |
+
+Same file also unit-tests `prose_only_pr_verdict` directly (architect MINOR-2):
+all-prose-`.py` set → True; a mixed prose+code `.py` set → False; a non-doc
+non-`.py` path (e.g. `pyproject.toml`) → False; a doc-only set with no proven
+prose `.py` → False (the "at least one" requirement); a `blob_getter` that
+raises or returns `None` → False (fail-closed); an empty `paths` → False.
 
 `tests/ci/test_ci_module_wiring.py` (extend):
 - reduced-path list drops a proven prose-only `.py` and `select_modules` returns

@@ -25,9 +25,16 @@ Two cases are the load-bearing regressions the contract calls out explicitly:
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import pytest
 
-from scripts.ci.prose_only import is_prose_only, prose_only_reason, reduced_paths
+from scripts.ci.prose_only import (
+    is_prose_only,
+    prose_only_pr_verdict,
+    prose_only_reason,
+    reduced_paths,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -366,3 +373,74 @@ def test_reduced_paths_empty_input_returns_empty_list(
         raise AssertionError("blob_getter must not be called")
 
     assert reduced_paths(changed, blob_getter) == []
+
+
+# ---------------------------------------------------------------------------
+# prose_only_pr_verdict aggregate (architect MINOR-2 extraction: the
+# PR-level verdict previously re-implemented inline in the `prose-scan` job
+# heredoc in `.github/workflows/ci-router.yml`, now a unit-tested pure
+# function here).
+# ---------------------------------------------------------------------------
+
+_DOC_GLOBS = ("docs/**", "*.md", "packs/**")
+
+
+def _sided_blob_getter(blobs: dict[str, tuple[str | None, str | None]]) -> Callable[[str, str], str | None]:
+    def blob_getter(path: str, side: str) -> str | None:
+        base_src, head_src = blobs[path]
+        return base_src if side == "base" else head_src
+
+    return blob_getter
+
+
+def test_pr_verdict_all_prose_only_py_is_true() -> None:
+    paths = ["scripts/ci/foo.py", "scripts/ci/bar.py"]
+    blobs = {
+        "scripts/ci/foo.py": (_PROSE_BASE, _PROSE_HEAD),
+        "scripts/ci/bar.py": (_PROSE_BASE, _PROSE_HEAD),
+    }
+    assert prose_only_pr_verdict(paths, _sided_blob_getter(blobs), _DOC_GLOBS) is True
+
+
+def test_pr_verdict_a_real_code_py_is_false() -> None:
+    paths = ["scripts/ci/foo.py", "scripts/ci/code.py"]
+    blobs = {
+        "scripts/ci/foo.py": (_PROSE_BASE, _PROSE_HEAD),
+        "scripts/ci/code.py": (_CODE_BASE, _CODE_HEAD),
+    }
+    assert prose_only_pr_verdict(paths, _sided_blob_getter(blobs), _DOC_GLOBS) is False
+
+
+def test_pr_verdict_non_doc_non_py_path_is_false() -> None:
+    paths = ["scripts/ci/foo.py", "pyproject.toml"]
+    blobs = {"scripts/ci/foo.py": (_PROSE_BASE, _PROSE_HEAD)}
+    assert prose_only_pr_verdict(paths, _sided_blob_getter(blobs), _DOC_GLOBS) is False
+
+
+def test_pr_verdict_doc_only_with_no_prose_py_is_false() -> None:
+    # All-doc diffs already run the always-on docs lane unconditionally;
+    # prose_only requires at least one proven-prose `.py`.
+    paths = ["docs/guide.md", "README.md"]
+    assert prose_only_pr_verdict(paths, _sided_blob_getter({}), ("docs/**", "README.md")) is False
+
+
+def test_pr_verdict_blob_getter_exception_is_fail_closed() -> None:
+    def blob_getter(path: str, side: str) -> str | None:
+        raise RuntimeError("git show failed")
+
+    assert prose_only_pr_verdict(["scripts/ci/foo.py"], blob_getter, _DOC_GLOBS) is False
+
+
+def test_pr_verdict_blob_getter_returning_none_is_fail_closed() -> None:
+    def blob_getter(path: str, side: str) -> str | None:
+        return None
+
+    assert prose_only_pr_verdict(["scripts/ci/foo.py"], blob_getter, _DOC_GLOBS) is False
+
+
+@pytest.mark.parametrize("paths", [[], ()])
+def test_pr_verdict_empty_paths_is_false(paths: list[str] | tuple[str, ...]) -> None:
+    def blob_getter(path: str, side: str) -> str | None:
+        raise AssertionError("blob_getter must not be called")
+
+    assert prose_only_pr_verdict(paths, blob_getter, _DOC_GLOBS) is False

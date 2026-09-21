@@ -253,18 +253,23 @@ jobs:
   # `prose_only` is a pure SUBTRACTIVE aggregate (research R2): it is true
   # only when every changed path is either a proven prose-only `.py`
   # (`scripts/ci/prose_only.is_prose_only`, content-aware) or an existing
-  # doc/corpus path (classified via the SAME single gate-selection authority,
-  # `scripts/ci/gate_selection.load_router`), AND at least one changed `.py`
-  # was prose-only. Safety does NOT rest on any claim that an unmapped `src/**`
-  # path can't be prose-only (it can -- a docstring-only edit to an unmapped
-  # src file IS proven prose; research R2 retracted that reasoning). It rests
-  # on the WIRING being strictly SUBTRACTIVE: every code lane keeps its own
-  # gate ANDed with `prose_only != 'true'`, so `prose_only` can only ever
-  # *remove* an already-selected code lane and never defeat the FR-004
-  # `unmatched` catch-all; it only ever *adds* the docs lane (see the
-  # `tests-docs.if` guard below). This job MAY import both `prose_only.py` and `gate_selection.py`;
-  # `prose_only.py` itself stays a pure two-string predicate (NFR-001) and
-  # never imports `gate_selection`.
+  # doc/corpus path (classified against the SAME glob set the single
+  # gate-selection authority resolves, `scripts/ci/gate_selection.load_router`),
+  # AND at least one changed `.py` was prose-only. Safety does NOT rest on any
+  # claim that an unmapped `src/**` path can't be prose-only (it can -- a
+  # docstring-only edit to an unmapped src file IS proven prose; research R2
+  # retracted that reasoning). It rests on the WIRING being strictly
+  # SUBTRACTIVE: every code lane keeps its own gate ANDed with
+  # `prose_only != 'true'`, so `prose_only` can only ever *remove* an
+  # already-selected code lane and never defeat the FR-004 `unmatched`
+  # catch-all; it only ever *adds* the docs lane (see the `tests-docs.if`
+  # guard below). This step (a) loads `gate_selection.load_router()` itself
+  # to resolve the doc/corpus globs and does its own `git show` blob fetch,
+  # then (b) hands both, plus the changed-path list, to the pure, unit-tested
+  # `scripts/ci/prose_only.prose_only_pr_verdict` aggregate (architect
+  # MINOR-2), which is IO-free (NFR-001): it never imports `gate_selection`,
+  # shells out, or reads the router YAML itself -- both inputs are injected
+  # by this step's own IO.
   # ---------------------------------------------------------------------------
   prose-scan:
     name: prose-only PR scan
@@ -318,14 +323,13 @@ jobs:
               # heredoc below), so a concurrent stdin pipe would never reach
               # the script's own input reads.
               prose_only="$(SCAN_BASE_SHA="$base" SCAN_HEAD_SHA="$HEAD_SHA" SCAN_DIFF_PATHS="$diff_output" python3 - <<'PY'
-          import fnmatch
           import os
           import subprocess
           import sys
 
           sys.path.insert(0, os.environ.get("PYTHONPATH", "."))
           from scripts.ci.gate_selection import load_router
-          from scripts.ci.prose_only import is_prose_only
+          from scripts.ci.prose_only import prose_only_pr_verdict
 
           _base_sha = os.environ["SCAN_BASE_SHA"]
           _head_sha = os.environ["SCAN_HEAD_SHA"]
@@ -342,44 +346,19 @@ jobs:
               return result.stdout
 
 
-          def _blob_getter(path: str) -> tuple[str | None, str | None]:
-              return _show(_base_sha, path), _show(_head_sha, path)
+          def _blob_getter(path: str, side: str) -> str | None:
+              sha = _base_sha if side == "base" else _head_sha
+              return _show(sha, path)
 
 
           _paths = [line for line in _raw_paths.splitlines() if line]
-          if not _paths:
-              print("false")
-              raise SystemExit(0)
 
           _router = load_router()
           _doc_globs = tuple(_router.filters.get("docs", ())) + tuple(_router.filters.get("corpus", ()))
 
+          _verdict = prose_only_pr_verdict(_paths, _blob_getter, _doc_globs)
 
-          def _is_doc_or_corpus(path: str) -> bool:
-              return any(fnmatch.fnmatch(path, pattern) for pattern in _doc_globs)
-
-
-          _any_prose_py = False
-          _verdict = True
-          for _path in _paths:
-              if _path.endswith(".py"):
-                  try:
-                      _base_src, _head_src = _blob_getter(_path)
-                  except Exception:
-                      _verdict = False
-                      break
-                  if is_prose_only(_base_src, _head_src):
-                      _any_prose_py = True
-                      continue
-                  _verdict = False
-                  break
-              elif _is_doc_or_corpus(_path):
-                  continue
-              else:
-                  _verdict = False
-                  break
-
-          print("true" if (_verdict and _any_prose_py) else "false")
+          print("true" if _verdict else "false")
           PY
               )"
             fi

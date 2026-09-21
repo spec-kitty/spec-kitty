@@ -43,14 +43,16 @@ any other exception resolves to ``False`` — this predicate never raises.
 from __future__ import annotations
 
 import ast
+import fnmatch
 import io
 import re
 import tokenize
 from collections import Counter
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 
 __all__ = [
     "is_prose_only",
+    "prose_only_pr_verdict",
     "prose_only_reason",
     "reduced_paths",
 ]
@@ -127,6 +129,62 @@ def reduced_paths(
                 continue
         kept.append(path)
     return kept
+
+
+def prose_only_pr_verdict(
+    paths: Sequence[str],
+    blob_getter: Callable[[str, str], str | None],
+    doc_globs: Sequence[str],
+) -> bool:
+    """The PR-level "proven prose-only" verdict (mission
+    ``ci-prose-only-downroute-01M31T5S``, architect MINOR-2 extraction).
+
+    True iff every path in ``paths`` is either (a) a doc/corpus path —
+    matched against ``doc_globs`` via ``fnmatch`` — or (b) a ``.py`` file
+    proven prose-only by :func:`is_prose_only`, AND at least one path was a
+    proven-prose ``.py`` (an all-doc, zero-``.py`` diff is NOT prose-only —
+    it never needed this down-route in the first place).
+
+    ``blob_getter(path, side)`` returns the source text for ``path`` on
+    ``"base"`` or ``"head"`` (or raises/returns ``None`` if unavailable).
+    The caller closes over the actual base/head refs (e.g. git SHAs) and
+    performs the blob fetch itself, so this function stays IO-free
+    (NFR-001): it never shells out, reads git, or reads the router YAML —
+    ``doc_globs`` is the already-resolved glob tuple, injected by the
+    caller (``scripts.ci.gate_selection.load_router().filters``).
+
+    Matcher-equivalence assumption (architect MINOR-3a): ``doc_globs`` is
+    matched here with stdlib ``fnmatch``, while the ``changes`` job in
+    ``ci-router.yml`` matches the SAME glob strings against changed paths
+    via ``dorny/paths-filter`` (picomatch under the hood). The two matchers
+    are assumed equivalent for the live doc/corpus glob set (plain
+    ``*``/``**``/literal-segment globs); this assumption would need
+    re-checking if a future doc/corpus glob relies on a picomatch-only or
+    fnmatch-only construct (e.g. brace expansion).
+
+    Fail-closed, mirroring the aggregate this replaces (previously inlined
+    in the ``prose-scan`` job's heredoc in ``.github/workflows/ci-router.yml``):
+    a ``blob_getter`` exception, a non-prose-only ``.py``, a path that is
+    neither doc/corpus nor ``.py``, or no proven-prose ``.py`` at all
+    (including empty ``paths``) all resolve to ``False``. Never raises.
+    """
+    any_prose_py = False
+    for path in paths:
+        if path.endswith(".py"):
+            try:
+                base_src = blob_getter(path, "base")
+                head_src = blob_getter(path, "head")
+            except Exception:
+                return False
+            if is_prose_only(base_src, head_src):
+                any_prose_py = True
+                continue
+            return False
+        elif any(fnmatch.fnmatch(path, pattern) for pattern in doc_globs):
+            continue
+        else:
+            return False
+    return any_prose_py
 
 
 def _evaluate(base_src: str | None, head_src: str | None) -> tuple[bool, str]:
