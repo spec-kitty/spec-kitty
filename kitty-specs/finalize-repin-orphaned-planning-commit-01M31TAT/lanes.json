@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "mission_slug": "finalize-repin-orphaned-planning-commit-01M31TAT",
+  "mission_id": "01M31TAT65CFADCCBFV75TKJFY",
+  "mission_branch": "kitty/mission-finalize-repin-orphaned-planning-commit-01M31TAT",
+  "target_branch": "fix/finalize-repin-orphaned-planning-commit",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/planning_commit_classify.py",
+        "tests/lanes/test_planning_commit_classify.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/agent-subcommands.md",
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/orchestrator_api/envelope.py",
+        "tests/specify_cli/cli/commands/agent/test_issue_4827_repin_orphaned_planning_commit.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_cli_golden_contract.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/lanes/implement_support.py",
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "tests/lanes/test_issue_4827_allocator_orphan_pin.py",
+        "tests/lanes/test_lane_base_common_ancestor.py",
+        "tests/lanes/test_worktree_allocator_atomicity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-21T11:33:17.922209+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "planning_commit_sha": "55d12204a59b695be4ae9ab875ea5c060d506f1e"
+}
