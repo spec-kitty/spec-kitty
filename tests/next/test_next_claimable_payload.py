@@ -13,10 +13,12 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 
-from runtime.next.decision import DecisionKind
+from runtime.next.decision import DecisionKind, _state_to_action
 from runtime.next.discovery import ClaimablePreview, preview_claimable_wp
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
@@ -46,9 +48,7 @@ def _scaffold(
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(
-        json.dumps(
-            {"mission_type": "software-dev", "mission_id": "01KRKTT58XC5KR0HF523333R9S"}
-        ),
+        json.dumps({"mission_type": "software-dev", "mission_id": "01KRKTT58XC5KR0HF523333R9S"}),
         encoding="utf-8",
     )
     (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
@@ -58,12 +58,7 @@ def _scaffold(
     for wp_id, lane in wps.items():
         deps = dependencies.get(wp_id, []) if dependencies else []
         (tasks_dir / f"{wp_id}.md").write_text(
-            "---\n"
-            f"work_package_id: {wp_id}\n"
-            f"dependencies: {json.dumps(deps)}\n"
-            f"title: {wp_id}\n"
-            "---\n"
-            f"# {wp_id}\n",
+            f"---\nwork_package_id: {wp_id}\ndependencies: {json.dumps(deps)}\ntitle: {wp_id}\n---\n# {wp_id}\n",
             encoding="utf-8",
         )
         reason_source = reason_sources.get(wp_id) if reason_sources else None
@@ -293,6 +288,77 @@ def test_preview_claimable_wp_preserves_independent_fanout(tmp_path: Path) -> No
     assert preview.wp_id == "WP02"
     assert preview.selection_reason is None
     assert preview.candidates == ("WP01", "WP02")
+
+
+def _advancing_implement_wp(feature_dir: Path, mission_slug: str, repo: Path) -> str | None:
+    """Return the WP selected by advancing ``next``'s state-to-action path."""
+    fake_workspace = SimpleNamespace(worktree_path=repo / ".worktrees" / "selected")
+    with patch(
+        "runtime.next.decision.resolve_workspace_for_wp",
+        return_value=fake_workspace,
+    ):
+        action, wp_id, _ = _state_to_action(
+            "implement",
+            mission_slug,
+            feature_dir,
+            repo,
+            "software-dev",
+        )
+    assert action == "implement"
+    return wp_id
+
+
+def test_advancing_next_skips_lower_numbered_dependency_blocked_wp(
+    tmp_path: Path,
+) -> None:
+    """#4860: advancing selection agrees with query/action claimability."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    feature_dir, mission_slug = _scaffold(
+        repo,
+        {"WP01": Lane.PLANNED, "WP02": Lane.PLANNED},
+        dependencies={"WP01": ["WP02"]},
+    )
+
+    preview = preview_claimable_wp(feature_dir)
+
+    assert preview.wp_id == "WP02"
+    assert _advancing_implement_wp(feature_dir, mission_slug, repo) == preview.wp_id
+
+
+def test_advancing_next_rechecks_dependency_that_was_reopened(tmp_path: Path) -> None:
+    """A formerly satisfied dependency cannot be cached by filename order."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    feature_dir, mission_slug = _scaffold(
+        repo,
+        {"WP01": Lane.PLANNED, "WP02": Lane.DONE},
+        dependencies={"WP01": ["WP02"]},
+    )
+
+    assert preview_claimable_wp(feature_dir).wp_id == "WP01"
+    assert _advancing_implement_wp(feature_dir, mission_slug, repo) == "WP01"
+
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id="reopen-WP02-to-planned",
+            mission_slug=mission_slug,
+            wp_id="WP02",
+            from_lane=Lane.DONE,
+            to_lane=Lane.PLANNED,
+            at="2026-05-15T12:00:00+00:00",
+            actor="operator",
+            force=True,
+            execution_mode="worktree",
+            reason="follow-up work required",
+            reason_source=OPERATOR_REASON_SOURCE,
+        ),
+    )
+
+    preview = preview_claimable_wp(feature_dir)
+    assert preview.wp_id == "WP02"
+    assert _advancing_implement_wp(feature_dir, mission_slug, repo) == preview.wp_id
 
 
 def test_next_json_payload_serializes_claimable_wp_id(tmp_path: Path) -> None:
