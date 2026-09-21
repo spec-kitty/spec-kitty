@@ -239,6 +239,153 @@ jobs:
             echo "unmatched=false" >> "$GITHUB_OUTPUT"
           fi
 
+  # ---------------------------------------------------------------------------
+  # prose-scan: the PR-level "proven prose-only" verdict (mission
+  # ci-prose-only-downroute-01M31T5S). A SEPARATE job from `changes`, NOT a
+  # step inside it: `scripts/ci/gate_selection.py`'s single parsed authority
+  # (`_GROUP_REF`) matches ONLY `needs\.changes\.outputs\.<name>` references
+  # in a job's `if:` -- an output named `prose_only` living under `changes`
+  # would be silently mis-parsed by that regex as a routing GROUP the moment
+  # any job's `if:` referenced `needs.changes.outputs.prose_only`, corrupting
+  # the src-backed-group / code-shard model the WP17 completeness oracle and
+  # WP18 local parity both rely on. Keeping this output under
+  # `needs.prose-scan.outputs.prose_only` means the regex never sees it.
+  # `prose_only` is a pure SUBTRACTIVE aggregate (research R2): it is true
+  # only when every changed path is either a proven prose-only `.py`
+  # (`scripts/ci/prose_only.is_prose_only`, content-aware) or an existing
+  # doc/corpus path (classified via the SAME single gate-selection authority,
+  # `scripts/ci/gate_selection.load_router`), AND at least one changed `.py`
+  # was prose-only. Safety does NOT rest on any claim that an unmapped `src/**`
+  # path can't be prose-only (it can -- a docstring-only edit to an unmapped
+  # src file IS proven prose; research R2 retracted that reasoning). It rests
+  # on the WIRING being strictly SUBTRACTIVE: every code lane keeps its own
+  # gate ANDed with `prose_only != 'true'`, so `prose_only` can only ever
+  # *remove* an already-selected code lane and never defeat the FR-004
+  # `unmatched` catch-all; it only ever *adds* the docs lane (see the
+  # `tests-docs.if` guard below). This job MAY import both `prose_only.py` and `gate_selection.py`;
+  # `prose_only.py` itself stays a pure two-string predicate (NFR-001) and
+  # never imports `gate_selection`.
+  # ---------------------------------------------------------------------------
+  prose-scan:
+    name: prose-only PR scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      prose_only: ${{ steps.scan.outputs.prose_only }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          # Full history: this step does its own `git diff` against the PR
+          # base / pre-push SHA, mirroring ci-modules.yml's generate-matrix
+          # job -- a shallow clone would not contain the base commit.
+          fetch-depth: 0
+      # No setup-uv here (unlike the test-shard jobs): this job runs a plain
+      # `python3` heredoc, so it uses the runner's default python + pip. Adding
+      # setup-uv desynced `pip` from `python3` and the PyYAML install landed in
+      # a different interpreter (ModuleNotFoundError: yaml). Mirror
+      # ci-modules.yml's generate-matrix job exactly: checkout, pip install
+      # PyYAML into the SAME python via `python3 -m pip`, then run `python3`.
+      - name: Install PyYAML (verdict imports gate_selection, no editable install needed)
+        shell: bash
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check --only-binary=:all: "pyyaml==6.0.2"
+      - name: Compute the PR-level prose-only verdict
+        id: scan
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -uo pipefail
+          base=""
+          case "$EVENT_NAME" in
+            pull_request) base="$BASE_SHA" ;;
+            push) base="$PUSH_BEFORE" ;;
+          esac
+
+          # Degenerate/null base (missing PR base SHA, or a push whose
+          # pre-push SHA is the null SHA -- first push / force push) means no
+          # trustworthy diff can be computed: fail-closed to prose_only=false,
+          # mirroring ci-modules.yml's own selection-forced-full handling.
+          prose_only="false"
+          if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ]; then
+            if diff_output="$(git diff --name-only "$base" "$HEAD_SHA" 2>/dev/null)"; then
+              # The raw diff is threaded through an env var, NOT piped to
+              # stdin: `python3 -` reads its OWN script text from stdin (the
+              # heredoc below), so a concurrent stdin pipe would never reach
+              # the script's own input reads.
+              prose_only="$(SCAN_BASE_SHA="$base" SCAN_HEAD_SHA="$HEAD_SHA" SCAN_DIFF_PATHS="$diff_output" python3 - <<'PY'
+          import fnmatch
+          import os
+          import subprocess
+          import sys
+
+          sys.path.insert(0, os.environ.get("PYTHONPATH", "."))
+          from scripts.ci.gate_selection import load_router
+          from scripts.ci.prose_only import is_prose_only
+
+          _base_sha = os.environ["SCAN_BASE_SHA"]
+          _head_sha = os.environ["SCAN_HEAD_SHA"]
+          _raw_paths = os.environ.get("SCAN_DIFF_PATHS", "")
+
+
+          def _show(sha: str, path: str) -> str | None:
+              result = subprocess.run(
+                  ["git", "show", f"{sha}:{path}"],
+                  capture_output=True,
+                  text=True,
+                  check=True,
+              )
+              return result.stdout
+
+
+          def _blob_getter(path: str) -> tuple[str | None, str | None]:
+              return _show(_base_sha, path), _show(_head_sha, path)
+
+
+          _paths = [line for line in _raw_paths.splitlines() if line]
+          if not _paths:
+              print("false")
+              raise SystemExit(0)
+
+          _router = load_router()
+          _doc_globs = tuple(_router.filters.get("docs", ())) + tuple(_router.filters.get("corpus", ()))
+
+
+          def _is_doc_or_corpus(path: str) -> bool:
+              return any(fnmatch.fnmatch(path, pattern) for pattern in _doc_globs)
+
+
+          _any_prose_py = False
+          _verdict = True
+          for _path in _paths:
+              if _path.endswith(".py"):
+                  try:
+                      _base_src, _head_src = _blob_getter(_path)
+                  except Exception:
+                      _verdict = False
+                      break
+                  if is_prose_only(_base_src, _head_src):
+                      _any_prose_py = True
+                      continue
+                  _verdict = False
+                  break
+              elif _is_doc_or_corpus(_path):
+                  continue
+              else:
+                  _verdict = False
+                  break
+
+          print("true" if (_verdict and _any_prose_py) else "false")
+          PY
+              )"
+            fi
+          fi
+          echo "prose_only=$prose_only" >> "$GITHUB_OUTPUT"
+
   # ===========================================================================
   # Shift-left front (FR-005): the cheapest static / lint / regen gates. Every
   # one is ALWAYS-ON (no filter group) and carries NO `needs:` between the
@@ -385,9 +532,9 @@ jobs:
     name: architectural battery (heavy, code-scoped)
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [changes]
+    needs: [changes, prose-scan]
     if: >-
-      needs.changes.outputs.merge == 'true' ||
+      (needs.changes.outputs.merge == 'true' ||
       needs.changes.outputs.auth == 'true' ||
       needs.changes.outputs.missions == 'true' ||
       needs.changes.outputs.post_merge == 'true' ||
@@ -406,7 +553,8 @@ jobs:
       needs.changes.outputs.execution_context == 'true' ||
       needs.changes.outputs.core_misc == 'true' ||
       needs.changes.outputs.unit == 'true' ||
-      needs.changes.outputs.specify_cli_runtime == 'true'
+      needs.changes.outputs.specify_cli_runtime == 'true') &&
+      needs.prose-scan.outputs.prose_only != 'true'
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
@@ -440,8 +588,8 @@ jobs:
     name: tests (merge)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [changes]
-    if: ${{ needs.changes.outputs.merge == 'true' }}
+    needs: [changes, prose-scan]
+    if: ${{ needs.changes.outputs.merge == 'true' && needs.prose-scan.outputs.prose_only != 'true' }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
@@ -455,8 +603,8 @@ jobs:
     name: tests (status)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [changes]
-    if: ${{ needs.changes.outputs.status == 'true' }}
+    needs: [changes, prose-scan]
+    if: ${{ needs.changes.outputs.status == 'true' && needs.prose-scan.outputs.prose_only != 'true' }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
@@ -473,8 +621,8 @@ jobs:
     # ceiling for four days (a coin flip that finally tripped on 2026-09-10).
     # 25m covers the observed ceiling plus headroom.
     timeout-minutes: 25
-    needs: [changes]
-    if: ${{ needs.changes.outputs.cli == 'true' }}
+    needs: [changes, prose-scan]
+    if: ${{ needs.changes.outputs.cli == 'true' && needs.prose-scan.outputs.prose_only != 'true' }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
@@ -493,8 +641,8 @@ jobs:
     name: tests (docs)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [changes]
-    if: ${{ needs.changes.outputs.docs == 'true' }}
+    needs: [changes, prose-scan]
+    if: ${{ needs.changes.outputs.docs == 'true' || needs.prose-scan.outputs.prose_only == 'true' }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
@@ -571,6 +719,7 @@ jobs:
       actions: read
     needs:
       - changes
+      - prose-scan
       - ruff
       - commit-msg
       - markdownlint

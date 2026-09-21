@@ -149,6 +149,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           set -uo pipefail
           base=""
@@ -161,7 +162,50 @@ jobs:
           outcome="failure"
           if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ]; then
             if diff_output="$(git diff --name-only "$base" "$HEAD_SHA" 2>/dev/null)"; then
-              files_json="$(printf '%s\n' "$diff_output" | python3 -c "import json, sys; print(json.dumps([line for line in sys.stdin.read().splitlines() if line]))")"
+              # Reduce the raw diff list through the WP01 prose-only classifier
+              # (scripts/ci/prose_only.reduced_paths, mission
+              # ci-prose-only-downroute-01M31T5S) before it reaches
+              # select_modules: a proven prose-only .py is dropped, every other
+              # path is kept. A `git show` failure for a path (e.g. a new file
+              # with no base blob) is caught by `reduced_paths` and the path is
+              # KEPT -- fail-closed, never dropped on uncertainty.
+              # select_modules / gate_selection.py are never touched (FR-007).
+              # The raw diff is threaded through an env var, NOT piped to
+              # stdin: `python3 -` reads its OWN script text from stdin (the
+              # heredoc below), so a concurrent stdin pipe would never reach
+              # the script's own input reads.
+              files_json="$(REDUCE_BASE_SHA="$base" REDUCE_HEAD_SHA="$HEAD_SHA" REDUCE_DIFF_PATHS="$diff_output" python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          sys.path.insert(0, os.environ.get("PYTHONPATH", "."))
+          from scripts.ci.prose_only import reduced_paths
+
+          _base_sha = os.environ["REDUCE_BASE_SHA"]
+          _head_sha = os.environ["REDUCE_HEAD_SHA"]
+          _raw_paths = os.environ.get("REDUCE_DIFF_PATHS", "")
+
+
+          def _show(sha: str, path: str) -> str | None:
+              result = subprocess.run(
+                  ["git", "show", f"{sha}:{path}"],
+                  capture_output=True,
+                  text=True,
+                  check=True,
+              )
+              return result.stdout
+
+
+          def _blob_getter(path: str) -> tuple[str | None, str | None]:
+              return _show(_base_sha, path), _show(_head_sha, path)
+
+
+          _paths = [line for line in _raw_paths.splitlines() if line]
+          print(json.dumps(reduced_paths(_paths, _blob_getter)))
+          PY
+              )"
               outcome="success"
             fi
           fi

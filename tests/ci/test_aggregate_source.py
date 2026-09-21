@@ -20,30 +20,24 @@ def git(cwd: Path, *args: str) -> str:
     return subprocess.check_output(["git", "-C", str(cwd), *args], text=True).strip()
 
 
-def source_fixture(tmp_path: Path) -> tuple[Path, dict, str]:
-    repo = tmp_path / "repo"
+def _init_repo(repo: Path) -> None:
+    """Scaffold an empty repo with the minimal registry the preparer reads."""
     repo.mkdir()
     git(repo, "init", "-q")
     git(repo, "config", "user.email", "test@example.invalid")
     git(repo, "config", "user.name", "Test")
     (repo / ".github").mkdir()
     (repo / ".github/ci-module-registry.yml").write_text("modules: []\n")
-    (repo / "src/kernel").mkdir(parents=True)
-    (repo / "src/kernel/example.py").write_text("value = 1\n")
-    git(repo, "add", ".")
-    git(repo, "commit", "-qm", "base")
-    base = git(repo, "rev-parse", "HEAD")
-    (repo / "src/kernel/example.py").write_text("value = 1\nnew_value = 2\n")
-    (repo / ".github/ci-module-registry.yml").write_text("modules: [{module: kernel, tier: standard, shard_count: 1}]\n")
-    git(repo, "add", ".")
-    git(repo, "commit", "-qm", "source")
-    head = git(repo, "rev-parse", "HEAD")
+
+
+def _finalize_fixture(repo: Path, base: str, head: str) -> dict:
+    """Bind ``base``/``head`` as a synthetic PR merge and build the run projection."""
     tree = git(repo, "rev-parse", "HEAD^{tree}")
     merge = git(repo, "commit-tree", tree, "-p", base, "-p", head, "-m", "synthetic PR merge")
     git(repo, "update-ref", "refs/pull/7/merge", merge)
     git(repo, "checkout", "-q", base)
     git(repo, "remote", "add", "origin", str(repo))
-    run = {
+    return {
         "id": 42,
         "run_attempt": 1,
         "status": "completed",
@@ -54,6 +48,71 @@ def source_fixture(tmp_path: Path) -> tuple[Path, dict, str]:
         "referenced_workflows": [{"path": f"spec-kitty/spec-kitty/.github/workflows/module-tests.yml@{merge}", "sha": merge, "ref": "refs/pull/7/merge"}],
         "pull_requests": [{"number": 7, "head": {"sha": head}, "base": {"sha": base, "repo": {"full_name": "spec-kitty/spec-kitty"}}}],
     }
+
+
+def source_fixture(tmp_path: Path) -> tuple[Path, dict, str]:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    (repo / "src/kernel").mkdir(parents=True)
+    (repo / "src/kernel/example.py").write_text("value = 1\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "base")
+    base = git(repo, "rev-parse", "HEAD")
+    (repo / "src/kernel/example.py").write_text("value = 1\nnew_value = 2\n")
+    (repo / ".github/ci-module-registry.yml").write_text("modules: [{module: kernel, tier: standard, shard_count: 1}]\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "source")
+    head = git(repo, "rev-parse", "HEAD")
+    run = _finalize_fixture(repo, base, head)
+    return repo, run, base
+
+
+def prose_and_code_fixture(tmp_path: Path) -> tuple[Path, dict, str]:
+    """A critical-path docstring-only edit alongside a critical-path code edit.
+
+    ``src/specify_cli/status/prose_target.py`` only has its module docstring
+    reworded between base and head; ``src/kernel/example.py`` gets a genuine
+    new statement. Both paths match ``CRITICAL_PATHS`` globs.
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    status_dir = repo / "src/specify_cli/status"
+    status_dir.mkdir(parents=True)
+    (status_dir / "prose_target.py").write_text('"""Old docstring."""\n\nvalue = 1\n')
+    kernel_dir = repo / "src/kernel"
+    kernel_dir.mkdir(parents=True)
+    (kernel_dir / "example.py").write_text("value = 1\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "base")
+    base = git(repo, "rev-parse", "HEAD")
+    (status_dir / "prose_target.py").write_text('"""New docstring."""\n\nvalue = 1\n')
+    (kernel_dir / "example.py").write_text("value = 1\nnew_value = 2\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "source")
+    head = git(repo, "rev-parse", "HEAD")
+    run = _finalize_fixture(repo, base, head)
+    return repo, run, base
+
+
+def prose_only_new_file_fixture(tmp_path: Path) -> tuple[Path, dict, str]:
+    """A brand-new critical-path file containing only a module docstring.
+
+    No base blob exists for it, so the classifier must fail-closed (``no_base``)
+    and the file must stay in ``critical.diff.patch`` even though its only
+    content is prose.
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    (repo / "src/kernel").mkdir(parents=True)
+    (repo / "src/kernel/example.py").write_text("value = 1\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "base")
+    base = git(repo, "rev-parse", "HEAD")
+    (repo / "src/kernel/new_module.py").write_text('"""Just a docstring, nothing else."""\n')
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "source")
+    head = git(repo, "rev-parse", "HEAD")
+    run = _finalize_fixture(repo, base, head)
     return repo, run, base
 
 
@@ -78,6 +137,39 @@ def test_source_registry_and_diff_are_from_pr_while_checkout_stays_trusted(tmp_p
     assert yaml.safe_load((out / "ci-module-registry.yml").read_text())["modules"][0]["module"] == "kernel"
     assert json.loads((out / "source.json").read_text())["head_sha"] == run["head_sha"]
     assert git(repo, "rev-parse", "HEAD") == trusted
+
+
+def test_prose_only_critical_change_excluded_from_diff_while_real_change_remains(tmp_path: Path) -> None:
+    """T011 (red-first, WP03): a docstring-only critical-path file must not
+    appear in ``critical.diff.patch`` — there is no coverable changed line to
+    false-fail the diff-cover gate on (squad Paula F1) — while a real code
+    change on another critical-path file in the SAME PR is untouched (T013:
+    a mixed PR still scores the real code)."""
+    repo, run, _ = prose_and_code_fixture(tmp_path)
+    result = run_source(repo, run)
+    assert result.returncode == 0, result.stderr
+    critical_patch = (repo / "out/aggregate/source/critical.diff.patch").read_text()
+    assert "src/specify_cli/status/prose_target.py" not in critical_patch
+    assert "New docstring" not in critical_patch
+    assert "src/kernel/example.py" in critical_patch
+    assert "new_value = 2" in critical_patch
+    # The full (non-critical-scoped) diff still records both changes: the
+    # exclusion is scoped to the diff-cover-scored patch only (T012).
+    full_diff = (repo / "out/aggregate/source/diff.patch").read_text()
+    assert "New docstring" in full_diff
+    assert "new_value = 2" in full_diff
+
+
+def test_prose_only_new_critical_file_stays_in_diff_fail_closed(tmp_path: Path) -> None:
+    """A brand-new critical-path file has no base blob to prove prose-only
+    against, so the classifier fails closed (``no_base``) and the file must
+    remain scored, even though its only content is a docstring."""
+    repo, run, _ = prose_only_new_file_fixture(tmp_path)
+    result = run_source(repo, run)
+    assert result.returncode == 0, result.stderr
+    critical_patch = (repo / "out/aggregate/source/critical.diff.patch").read_text()
+    assert "src/kernel/new_module.py" in critical_patch
+    assert "Just a docstring, nothing else." in critical_patch
 
 
 @pytest.mark.parametrize(

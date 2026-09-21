@@ -10,6 +10,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from prose_only import is_prose_only
+
 
 # Ordinary Git pathspecs match descendants without consulting the checkout.
 # Keep the existing critical-path policy here, not in diff-cover's filesystem glob.
@@ -24,6 +26,46 @@ CRITICAL_PATHS = (
     "src/runtime/next/*",
     "src/mission_runtime/*",
 )
+
+
+def _fetch_base_source(base: str, path: str) -> str | None:
+    """The base-ref blob text for ``path``, or ``None`` if it cannot be proven.
+
+    A new file (absent at ``base``) or a non-UTF-8 blob resolves to ``None``,
+    which makes :func:`is_prose_only` fail-closed (reason ``no_base``) rather
+    than raise — this function never raises for a missing/undecodable blob.
+    """
+    try:
+        raw = subprocess.check_output(["git", "show", f"{base}:{path}"], stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        return None
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+def _prose_only_critical_paths(base: str, py_paths: list[str], sources: dict[str, str]) -> list[str]:
+    """Critical-path ``.py`` files whose base->head diff is proven prose-only.
+
+    Reuses the WP01 classifier (:func:`is_prose_only`) as the single source of
+    truth, so this exclusion set can never disagree with WP02's ci-modules
+    reduction (contract: "the exclusion set is computed from the SAME
+    classifier"). Fail-closed: a head blob that cannot be decoded as UTF-8, or
+    a base blob that cannot be fetched/decoded, leaves that file OUT of this
+    list, so it stays in ``critical.diff.patch`` and is scored exactly as
+    today (FR-006).
+    """
+    prose_only_paths: list[str] = []
+    for path in py_paths:
+        try:
+            head_src = base64.b64decode(sources[path]).decode("utf-8")
+        except (KeyError, UnicodeDecodeError, ValueError):
+            continue
+        base_src = _fetch_base_source(base, path)
+        if is_prose_only(base_src, head_src):
+            prose_only_paths.append(path)
+    return prose_only_paths
 
 
 def prepare_source(run: dict[str, Any], repository: str, run_id: int, attempt: int) -> None:
@@ -68,9 +110,23 @@ def prepare_source(run: dict[str, Any], repository: str, run_id: int, attempt: i
         base = parents[0]
     registry = subprocess.check_output(["git", "show", f"{tested}:.github/ci-module-registry.yml"])
     diff = subprocess.check_output(["git", "diff", "--no-ext-diff", "--no-textconv", base, tested, "--"])
-    critical = subprocess.check_output(["git", "diff", "--no-ext-diff", "--no-textconv", base, tested, "--", *CRITICAL_PATHS])
     paths = subprocess.check_output(["git", "diff", "--name-only", "-z", "--diff-filter=ACMRT", base, tested, "--", *CRITICAL_PATHS]).decode("utf-8").split("\0")
-    sources = {path: base64.b64encode(subprocess.check_output(["git", "show", f"{tested}:{path}"])).decode("ascii") for path in paths if path.endswith(".py")}
+    py_paths = [path for path in paths if path.endswith(".py")]
+    sources = {path: base64.b64encode(subprocess.check_output(["git", "show", f"{tested}:{path}"])).decode("ascii") for path in py_paths}
+    prose_only_paths = _prose_only_critical_paths(base, py_paths, sources)
+    critical = subprocess.check_output(
+        [
+            "git",
+            "diff",
+            "--no-ext-diff",
+            "--no-textconv",
+            base,
+            tested,
+            "--",
+            *CRITICAL_PATHS,
+            *(f":(exclude,literal){path}" for path in prose_only_paths),
+        ]
+    )
     out = Path("out/aggregate/source")
     out.mkdir(parents=True, exist_ok=True)
     (out / "ci-module-registry.yml").write_bytes(registry)
