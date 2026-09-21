@@ -183,6 +183,12 @@ def test_research_creates_artifacts(monkeypatch, tmp_path: Path) -> None:
     project_root = tmp_path / "project"
     (project_root / ".kittify" / "missions" / "software-dev" / "templates").mkdir(parents=True)
     feature_dir = project_root / "kitty-specs" / "001-demo-feature"
+    # FR-001 (#4631/#4682): research operates on an EXISTING mission — the
+    # not-found gate refuses a nonexistent dir BEFORE any scaffold, so --force
+    # scaffolds the research artifacts into the existing mission dir rather than
+    # phantom-creating a missing one. Materialize it (the pre-gate test relied on
+    # research scaffolding a non-existent mission, which the gate now refuses).
+    feature_dir.mkdir(parents=True)
 
     monkeypatch.setattr(research_module, "find_repo_root", lambda: project_root)
     monkeypatch.setattr(research_module, "get_mission_type", lambda *_args, **_kwargs: "software-dev")
