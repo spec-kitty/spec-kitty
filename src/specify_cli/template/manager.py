@@ -5,11 +5,11 @@ from __future__ import annotations
 import os
 import shutil
 from collections.abc import Sequence
-from datetime import UTC, datetime
 from importlib.resources.abc import Traversable
 from importlib.resources import files
 from pathlib import Path
 
+from kernel.clock import now_utc_compact_stamp
 from rich.console import Console
 
 console = Console()
@@ -29,10 +29,13 @@ def _resource_exists(resource: Traversable) -> bool:
 def _utc_backup_timestamp() -> str:
     """Return the current UTC timestamp in a filesystem-safe, sortable form.
 
-    A separate seam (rather than inlining ``datetime.now`` at the call site)
-    so tests can force a same-second collision deterministically.
+    A separate seam (rather than inlining the clock read at the call site)
+    so tests can force a same-second collision deterministically. Routes
+    through the canonical ``kernel.clock`` door (FR-012) rather than a raw
+    ``datetime.now`` read; the compact stamp is byte-identical
+    (``%Y%m%dT%H%M%SZ``).
     """
-    return datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    return now_utc_compact_stamp()
 
 
 def _allocate_backup_dir(parent: Path) -> Path:
