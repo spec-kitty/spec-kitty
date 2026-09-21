@@ -1070,6 +1070,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-09-20-1-canonical-mission-type-source.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/2026-09-20-1-issue-matrix-not-applicable-verdict.md
   tag: current
   divio_type: none

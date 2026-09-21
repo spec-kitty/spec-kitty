@@ -3110,6 +3110,18 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/3.x/2026-09-20-1-canonical-mission-type-source.md"
+    title: "ADR: Org-aware mission-type loader + `path_conventions` doctrine slot (full charter convergence deferred to #2652)"
+    divio_type: "none"
+    abstract: "The mission-type loader is made org-aware — it routes through the shared org-aware resolver and builds a neutral Mission for sparse org-registered types — so org/override custom types resolve as themselves instead of software-dev; `path_conventions` is a new charter doctrine slot with a canonical `VALID_PATH_KEYS` home. Full convergence onto charter `ResolvedMissionType` (retiring the legacy resolver) is deferred to #2652 because the legacy and charter sources encode different concerns."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "re-scope-discovery-2026-09-21-the-two-sources-encode-different-concerns", text: "Re-scope discovery (2026-09-21): the two sources encode different concerns", level: 3}
+    - {slug: "the-mission-name-collision", text: "The `Mission` name collision", level: 3}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/2026-09-20-1-issue-matrix-not-applicable-verdict.md"
     title: "ADR: `not-applicable` issue-matrix verdict — non-gating, terminal, classifier-narrowed approval gate"
     divio_type: "none"

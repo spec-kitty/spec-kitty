@@ -33,7 +33,7 @@ different mission types are independent entities.
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -43,13 +43,25 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 IDENTIFIER_PATTERN = r"^[a-z][a-z0-9-]*$"
 _IDENTIFIER_RE = re.compile(IDENTIFIER_PATTERN)
 
+#: Canonical path-convention keys (C-005, Directive 044 single-canonical-authority).
+#:
+#: This is the **canonical home** as of mission
+#: ``mission-type-canonical-source-01M302V9`` (WP02). The historical copy at
+#: ``specify_cli.mission.VALID_PATH_KEYS`` still exists (transient dual-home,
+#: intentionally not deleted here — WP04 removes it and repoints importers).
+#: Both copies currently carry the identical literal value; if they are ever
+#: edited independently before WP04 lands, THIS module wins.
+VALID_PATH_KEYS: frozenset[str] = frozenset({"workspace", "tests", "deliverables", "documentation", "data"})
+
 __all__ = [
     "IDENTIFIER_PATTERN",
+    "VALID_PATH_KEYS",
     "MissionStep",
     "MissionStepTemplateRef",
     "Mission",
     "MissionType",
     "validate_action_sequence",
+    "validate_path_conventions",
 ]
 
 
@@ -188,6 +200,32 @@ def validate_action_sequence(action_sequence: Sequence[str]) -> None:
         raise ValueError("action_sequence must contain unique step IDs")
 
 
+def validate_path_conventions(path_conventions: Mapping[str, str] | None) -> None:
+    """Assert the ``path_conventions`` invariant: every declared key is a member of
+    :data:`VALID_PATH_KEYS`.
+
+    Absence-tolerant, mirroring :func:`validate_action_sequence`'s shape (S-B): ``None``
+    means "this mission type declares no path conventions at all" and is a pure no-op for
+    downstream consumers (FR-004) — it is not an error. An empty mapping (``{}``) is
+    likewise accepted as "declares zero conventions".
+
+    Parameters
+    ----------
+    path_conventions:
+        The raw, YAML-authored mapping of convention key -> directory path, or ``None``.
+
+    Raises
+    ------
+    ValueError
+        If any key in *path_conventions* is not a member of :data:`VALID_PATH_KEYS`.
+    """
+    if not path_conventions:
+        return
+    unknown = sorted(set(path_conventions) - VALID_PATH_KEYS)
+    if unknown:
+        raise ValueError(f"Unknown path-convention keys: {unknown}. Valid keys: {sorted(VALID_PATH_KEYS)}")
+
+
 class MissionType(BaseModel):
     """Governed descriptor for a built-in or extension mission type.
 
@@ -213,6 +251,18 @@ class MissionType(BaseModel):
         ``sequence_index`` and the projection seam (WP02+) derives the
         sequence instead (S-B cutover, WP07). While present, it must be
         non-empty and contain no duplicates (:func:`validate_action_sequence`).
+    path_conventions:
+        Optional mapping of path-convention key (a member of
+        :data:`VALID_PATH_KEYS`) to the directory that key resolves to for
+        this mission type (e.g. ``{"workspace": "src/"}``). ``None`` (the
+        default) means this mission type declares no path conventions at
+        all, which downstream consumers (e.g. accept-path validation) treat
+        as a pure no-op rather than falling back to another type's shape
+        (FR-004). Declared keys are validated against
+        :data:`VALID_PATH_KEYS` by :func:`validate_path_conventions`; an
+        unknown key raises ``ValueError`` at load time (fail-closed, not a
+        warning — see mission
+        ``mission-type-canonical-source-01M302V9`` WP02).
 
     The former ``template_set`` field (a persisted, YAML-authorable mapping
     duplicating the step authority) was retired in the S-C atomic cutover
@@ -230,15 +280,13 @@ class MissionType(BaseModel):
     display_name: str
     extends: str | None = None
     action_sequence: list[str] | None = None
+    path_conventions: dict[str, str] | None = None
 
     @field_validator("id")
     @classmethod
     def _validate_id(cls, v: str) -> str:
         if not _IDENTIFIER_RE.match(v):
-            raise ValueError(
-                f"MissionType id {v!r} does not match IDENTIFIER_PATTERN "
-                f"{IDENTIFIER_PATTERN!r}"
-            )
+            raise ValueError(f"MissionType id {v!r} does not match IDENTIFIER_PATTERN {IDENTIFIER_PATTERN!r}")
         return v
 
     @model_validator(mode="after")
@@ -251,4 +299,9 @@ class MissionType(BaseModel):
         # continues to apply to the raw value.
         if self.action_sequence is not None:
             validate_action_sequence(self.action_sequence)
+        return self
+
+    @model_validator(mode="after")
+    def _validate_path_conventions(self) -> MissionType:
+        validate_path_conventions(self.path_conventions)
         return self
