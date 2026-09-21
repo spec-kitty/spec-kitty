@@ -82,7 +82,7 @@ _FILL_VERDICTS_HINT = "before approving"
 _ISSUE_VERDICT_REMEDY = (
     "Record a verdict per row with: spec-kitty agent issue-verdict --mission "
     "<handle> --issue <#NNN> --verdict "
-    "<fixed|verified-already-fixed|deferred-with-followup|in-mission> "
+    "<fixed|verified-already-fixed|deferred-with-followup|in-mission|not-applicable> "
     "--actor <actor> [--wp <WPnn>] [--evidence-ref <evidence>]"
 )
 
