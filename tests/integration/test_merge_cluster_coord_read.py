@@ -50,6 +50,7 @@ from typing import Any, NoReturn
 import pytest
 
 from specify_cli.merge.config import MergeStrategy
+from specify_cli.merge.state import MergeState
 from tests.integration.coord_topology_fixture import (
     SENTINEL_HUSK_MISSION_ID,
     CoordTopologyContext,
@@ -361,7 +362,13 @@ def test_abort_teardown_reads_primary_meta_not_husk_sentinel(
         lambda *args, **kwargs: None,
     )
 
-    _teardown_coordination_for_abort(ctx.repo, ctx.slug, None)
+    state = MergeState(
+        mission_id=ctx.mission_id,
+        mission_slug=ctx.slug,
+        target_branch="main",
+        wp_order=[],
+    )
+    _teardown_coordination_for_abort(ctx.repo, ctx.slug, (ctx.mission_id, state))
 
     assert _PRIMARY_MISSION_ID in seen_ids, (
         "the --abort teardown must read the PRIMARY meta.json identity.\n"

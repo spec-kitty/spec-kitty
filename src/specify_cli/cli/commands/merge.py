@@ -332,11 +332,12 @@ def _teardown_coordination_for_abort(
 ) -> None:
     """Coordination-topology teardown during ``--abort`` (FR-016).
 
-    Idempotent; a no-op for legacy missions without coordination state. The
-    slug/meta RESOLUTION stays best-effort (a partial-state abort may have no
-    resolvable slug), but the actual teardown routes through the shared
-    ``teardown_coordination_topology`` seam (FR-004) OUTSIDE that swallow so the
-    persist-before-destroy leg (FR-005) is not masked as "best-effort cleanup".
+    Idempotent; a no-op without active merge state and for legacy missions
+    without coordination state. The slug/meta RESOLUTION stays best-effort (a
+    partial-state abort may have no resolvable slug), but the actual teardown
+    routes through the shared ``teardown_coordination_topology`` seam (FR-004)
+    outside that swallow. Abort explicitly disables the seam's completion
+    persistence because recovery is not successful mission completion (#4863).
 
     #3131 FR-012/T009: an ``--abort`` has no ``--keep-worktree`` flag of its
     own, so the mission's ``meta.json`` retention policy is the ONLY signal —
@@ -348,6 +349,12 @@ def _teardown_coordination_for_abort(
     the practical effect is fail-closed anyway — an unresolved policy means the
     destroy leg is skipped, never that it proceeds.
     """
+    if state_entry is None:
+        # #4863: resolving a mission proves only that the mission exists.  It
+        # does not prove that a merge is active, so it cannot authorize the
+        # destructive coordination-teardown path.
+        return
+
     from specify_cli.coordination.teardown import teardown_coordination_topology
     from specify_cli.core.paths import load_meta_fail_closed as _load_meta
 
@@ -389,8 +396,9 @@ def _teardown_coordination_for_abort(
     if retain_worktree:
         console.print("[yellow]Notice:[/yellow] retention honored for worktrees (source: meta.json) — coordination worktree kept during abort.")
         return
-    # Persist-before-destroy runs OUTSIDE the resolution swallow.
-    teardown_coordination_topology(*abort_teardown_args)
+    # Aborting a merge is recovery, not successful mission completion.  Keep
+    # the existing topology cleanup while bypassing the completion terminus.
+    teardown_coordination_topology(*abort_teardown_args, persist=False)
 
 
 def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
@@ -404,7 +412,7 @@ def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
     if state_entry is not None and resolved is None:
         resolved = state_entry[1].mission_slug
 
-    if resolved or state_entry is not None:
+    if state_entry is not None:
         # T015/#4754: a git-level merge abort is only ever legitimate when
         # active spec-kitty merge state exists for THIS mission, and only
         # scoped to that mission's own merge workspace
@@ -418,19 +426,17 @@ def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
         # message reflects what actually happened (FR-006) rather than
         # racing the force-removal that follows.
         git_merge_aborted = False
-        if state_entry is not None:
-            _, active_state = state_entry
-            if has_active_merge(repo_root, active_state.mission_id):
-                workspace_path = get_merge_workspace_path(active_state.mission_id, repo_root)
-                if workspace_path.exists():
-                    git_merge_aborted = abort_git_merge(workspace_path)
+        _, active_state = state_entry
+        if has_active_merge(repo_root, active_state.mission_id):
+            workspace_path = get_merge_workspace_path(active_state.mission_id, repo_root)
+            if workspace_path.exists():
+                git_merge_aborted = abort_git_merge(workspace_path)
 
         cleared = _clear_merge_state_for_mission(repo_root, resolved)
-        if state_entry is not None:
-            source_key, active_state = state_entry
-            if source_key:
-                cleared = clear_state(repo_root, source_key) or cleared
-            cleared = clear_state(repo_root, active_state.mission_id) or cleared
+        source_key, active_state = state_entry
+        if source_key:
+            cleared = clear_state(repo_root, source_key) or cleared
+        cleared = clear_state(repo_root, active_state.mission_id) or cleared
         _cleanup_merge_workspaces_for_state(repo_root, mission_slug=resolved, state_entry=state_entry)
         _teardown_coordination_for_abort(repo_root, resolved, state_entry)
         if cleared:
@@ -439,6 +445,11 @@ def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
             console.print(f"[yellow]No active merge state found for {resolved}.[/yellow] Workspace cleaned up.")
         if git_merge_aborted:
             console.print("[green]Aborted[/green] in-progress git merge in the merge workspace.")
+    elif resolved:
+        # Runtime scratch without state is orphaned and may be cleaned, but an
+        # active mission's coordination topology is not merge-runtime scratch.
+        _cleanup_merge_workspaces_for_state(repo_root, mission_slug=resolved, state_entry=None)
+        console.print(f"[yellow]No active merge state found for {resolved}.[/yellow] Coordination workspace left unchanged.")
     else:
         cleared = clear_state(repo_root)
         if cleared:
