@@ -275,7 +275,7 @@ constituents:
   kind: directive
   path: directives/043-close-defect-class-by-construction.directive.yaml
   provenance_path:
-- content_hash: 6a7c419978d85ea8bad5296252aa6c5b8cf330aed0d05255d1a639052e23f742
+- content_hash: 6f5b9e24fe9c0ac6b8c29caae8a3ec7245f9ecd8fd804540b123000445fa7b14
   id: DIRECTIVE_044
   kind: directive
   path: directives/044-canonical-sources-and-unification.directive.yaml
@@ -770,7 +770,7 @@ constituents:
   kind: tactic
   path: tactics/architecture/c4-zoom-in-architecture-documentation.tactic.yaml
   provenance_path:
-- content_hash: 17025b8596911b7741451733ddd8e86c0324d0463fb58651d124e68217b0b9c7
+- content_hash: 424dd4473095dbacd0f70d568387e3c93b9a38bd82816c46286f15ff3be126dd
   id: canonical-source-unification
   kind: tactic
   path: tactics/canonical-source-unification.tactic.yaml
@@ -1380,7 +1380,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: afa4091eba5a1b49a913bae2920b705d070785fc0644b548154a5d1b298b40a4
+manifest_hash: 8917f9c754cbf6446b1543faf9c859b5d8603c4b0e343e8eb46202c8f28bade2
 schema_version: '1'
 source_type: built-in
 source_url:
