@@ -101,13 +101,35 @@ def _cold_install_exclusions(
     return frozenset(ignored), frozenset(mtime_only)
 
 
+def _is_sentinel_parent_materialization(before_node: Node | None, after_node: Node | None) -> bool:
+    """Did a sentinel-parent key spring into existence purely to hold the sentinel?
+
+    A cold-anchor recheck acquires the cold-install serialization lock via
+    ``mkdir(parents=True)``, which materializes not only the sentinel
+    directory (already in ``ignored``) but, when its parent did not yet
+    exist, that parent too -- an ``absent -> bare directory`` transition on
+    the sentinel's immediate parent. That container carries no asset content
+    (any real child is its own, still-compared key), so it is the same
+    coordination side effect the mtime-only tolerance already covers for a
+    pre-existing parent -- just one layer deeper, where the parent itself is
+    newly created. Tolerate ONLY absent -> directory; a file, a symlink, or a
+    real mode change on a pre-existing directory is still caught.
+    """
+    before_absent = before_node is None or before_node.kind == "absent"
+    return before_absent and after_node is not None and after_node.kind == "directory"
+
+
 def assert_unchanged(before: Snapshot, after: Snapshot) -> None:
     """Enforce exact within-fixture purity, including parent mtimes.
 
     The one deliberate exception is the cold-install sentinel (see
     :func:`_cold_install_exclusions`): a serialization lock a cold-anchor
     recheck can leave behind even on a path that refuses without writing
-    any asset is not the kind of drift this oracle exists to catch.
+    any asset is not the kind of drift this oracle exists to catch. That
+    tolerance extends to the sentinel's immediate parent -- its mtime when
+    it pre-exists, and its bare ``absent -> directory`` materialization when
+    the sentinel's own ``mkdir(parents=True)`` created it (see
+    :func:`_is_sentinel_parent_materialization`).
     """
     all_keys = before.keys() | after.keys()
     ignored, mtime_only = _cold_install_exclusions(all_keys)
@@ -116,9 +138,12 @@ def assert_unchanged(before: Snapshot, after: Snapshot) -> None:
         if key in ignored:
             continue
         before_node, after_node = before.get(key), after.get(key)
-        if key in mtime_only and before_node is not None and after_node is not None:
-            before_node = replace(before_node, mtime_ns=None)
-            after_node = replace(after_node, mtime_ns=None)
+        if key in mtime_only:
+            if _is_sentinel_parent_materialization(before_node, after_node):
+                continue
+            if before_node is not None and after_node is not None:
+                before_node = replace(before_node, mtime_ns=None)
+                after_node = replace(after_node, mtime_ns=None)
         if before_node != after_node:
             changed.append(key)
     assert not changed, f"Filesystem changed: {changed}"
@@ -158,9 +183,14 @@ def net_delta(before: Snapshot, after: Snapshot) -> tuple[Effect, ...]:
     Git internals remain present; callers must report their changes separately.
     No cross-copy content or timestamp-field normalization is performed here.
 
-    The cold-install sentinel (see :func:`_cold_install_exclusions`) is
-    excluded here too: its appearance is process-coordination infrastructure,
-    never an owner-effect this oracle should report as a "create".
+    The cold-install sentinel directory itself (see
+    :func:`_cold_install_exclusions`) is excluded here too: its appearance is
+    process-coordination infrastructure, never an owner-effect this oracle
+    should report as a "create". The sentinel's *parent* is NOT excluded here,
+    unlike in :func:`assert_unchanged`: when a real ``apply`` legitimately
+    provisions into a cold home, creating that home root is a genuine planned
+    owner-effect the caller's expected-effect set accounts for, so net_delta
+    must report it faithfully.
     """
     all_keys = before.keys() | after.keys()
     ignored, _mtime_only = _cold_install_exclusions(all_keys)

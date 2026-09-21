@@ -12,7 +12,7 @@ import pytest
 from tests.upgrade.preview_support.process import child_environment, run_process
 from tests.upgrade.preview_support.fixtures import copy_case, prepare_case
 from tests.upgrade.preview_support.provenance import identify_source
-from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, snapshot
+from tests.upgrade.preview_support.snapshot import Node, assert_unchanged, net_delta, snapshot
 
 pytestmark = pytest.mark.integration
 LANE = Path(__file__).resolve().parents[2]
@@ -230,6 +230,46 @@ def test_canonical_setup_leaves_cold_home_untouched(tmp_path: Path) -> None:
     (case.project / "link").symlink_to("only-original")
     with pytest.raises(AssertionError, match="explicit symlink mapping"):
         copy_case(case, tmp_path / "refused")
+
+
+def test_sentinel_parent_materialization_tolerated_but_narrow() -> None:
+    """A cold-anchor recheck whose sentinel mkdir also creates the observed home
+    root (absent -> bare directory) is coordination side effect, not drift, so
+    the purity assertion tolerates it -- but any REAL content that materializes
+    alongside it is still caught.
+
+    Regression for the local-write-safety landing: the WP02 fold tolerated the
+    sentinel's parent mtime only when the parent pre-existed; a cold-home
+    fixture where the parent itself springs into existence (e.g.
+    test_upgrade_assessment's cold-home) went uncovered and red-mained the
+    upgrade shard with ``Filesystem changed: [('home', '.')]``.
+    """
+    directory = Node("directory", mode=0o775, mtime_ns=222)
+    empty_lock = Node("file", sha256="0" * 64, mode=0o600, mtime_ns=222)
+    before = {("home", "."): Node("absent")}
+    after = {
+        ("home", "."): directory,  # materialized purely to hold the sentinel
+        ("home", ".spec-kitty-cold-install"): directory,
+        ("home", ".spec-kitty-cold-install/anchor.lock"): empty_lock,
+    }
+    # Purity assertion: tolerated -- nothing but the sentinel and its
+    # self-materialized parent changed.
+    assert_unchanged(before, after)
+
+    # Narrow: a real owner-effect landing beside the sentinel is still caught
+    # by the purity assertion, even though its parent's materialization is
+    # tolerated.
+    real_file = Node("file", sha256="a" * 64, mode=0o644, mtime_ns=333)
+    after_with_content = {**after, ("home", ".spec-kitty/credentials.toml"): real_file}
+    with pytest.raises(AssertionError, match="Filesystem changed"):
+        assert_unchanged(before, after_with_content)
+
+    # Deliberate asymmetry: net_delta still reports the parent's create (a real
+    # `apply` into a cold home is a genuine planned owner-effect the caller's
+    # expected set accounts for) -- only the sentinel dir + its .lock are
+    # excluded there. The real file is reported alongside it.
+    delta = {(e.root, e.path, e.action) for e in net_delta(before, after_with_content)}
+    assert delta == {("home", ".", "create"), ("home", ".spec-kitty/credentials.toml", "create")}
 
 
 def test_non_ci_real_tty_remains_available(tmp_path: Path) -> None:
