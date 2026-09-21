@@ -107,11 +107,15 @@ this section at publish._
   `--actor`/`--reason` names its sibling `issue-verdict` already uses, and its
   `--assignee` help text still described a stale `doing`-only restriction.
   **After:** a single shared classification function — consumed identically by
-  the approval blocker, `merge_gates`, and `status/doctor` (one gating
-  decision, never two) — demotes a reference to non-gating only on an explicit
-  signal (a `PR `/`pull` token, a cross-repo URL, or a context marker such as
-  `Follow-up:`, `baseline-red`, `see #`, `parent`, `epic`) and defaults every
-  unmarked bare `#NNNN` to gating (fail-safe preserved; classification
+  the approval blocker, `merge_gates`, `status/doctor`, and the post-merge
+  mission-review gate (one gating decision across every site, never re-derived
+  per-site) — demotes a reference to non-gating only on an explicit signal (a
+  `PR `/`pull` token, a cross-repo URL, or a context-label marker: `Follow-up:`,
+  `baseline-red`, a leading `see #`, or `parent`/`epic` used as a citation label
+  immediately before the reference) and defaults every
+  unmarked bare `#NNNN` to gating (fail-safe preserved; a line that merely
+  contains the ordinary word "parent"/"epic"/"see" around a real work target
+  still gates; classification
   aggregates over all occurrences, so a reference cited once as context and
   once as an implementation target still gates); a new **`not-applicable`**
   verdict value (additive, zero migration for existing `issue-matrix.json`
