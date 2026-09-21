@@ -10,6 +10,7 @@
   "purpose_context": "This mission advances Single canonical mission-type source (#3831 #4088) on fix/mission-type-canonical-source-3831 so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "Converge mission-type resolution onto the charter ResolvedMissionType source; retire the org-blind specify_cli/mission.py resolver so org-tier custom mission types stop being silently replaced by software-dev.",
   "slug": "mission-type-canonical-source-01M302V9",
+  "status_phase": "1",
   "target_branch": "fix/mission-type-canonical-source-3831",
   "topology": "single_branch",
   "vcs": "git",
