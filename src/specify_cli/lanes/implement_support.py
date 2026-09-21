@@ -19,8 +19,11 @@ from specify_cli.lanes.lane_env import lane_test_env
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.branch_naming import lane_branch_name, worktree_dir_name as _worktree_dir_name
 from specify_cli.lanes._git import branch_exists
+from specify_cli.lanes.merge import _rev_parse as _rev_parse_or_none
 from specify_cli.lanes.persistence import read_lanes_json
+from specify_cli.lanes.planning_commit_classify import PinClass, classify_recorded_pin
 from specify_cli.lanes.worktree_allocator import (
+    ORPHANED_PIN_RECOVERY_HINT,
     _read_coordination_branch,
     allocate_lane_worktree,
     predict_lane_worktree,
@@ -349,7 +352,12 @@ def reenter_lane_self_heal(
         workspace_path, _branch = predict_lane_worktree(main_repo_root, mission_slug, lane.lane_id)
     if not workspace_path.exists():
         return None
-    _merge_recorded_planning_commit(main_repo_root, workspace_path, lane.lane_id, manifest.planning_commit_sha)
+    # #4827/WP03/T014: thread the target-branch tip through the shared merge
+    # helper here too, mirroring the allocator's own C-006 capture -- this is
+    # the SECOND call site D5 centralizes detection through (the allocator's
+    # reuse/crash-recovery/fresh-path calls are the other three).
+    target_tip = _rev_parse_or_none(main_repo_root, manifest.target_branch)
+    _merge_recorded_planning_commit(main_repo_root, workspace_path, lane.lane_id, manifest.planning_commit_sha, target_tip)
     _merge_dependency_lane_tips(main_repo_root, workspace_path, mission_slug, lane, manifest)
     return workspace_path
 
@@ -453,6 +461,34 @@ def _approved_dependency_lane_refs(
     return refs
 
 
+def _planning_commit_missing_diagnostic(main_repo_root: Path, manifest: LanesManifest) -> str:
+    """Diagnostic string for a recorded planning commit absent from HEAD's ancestry.
+
+    #4827/WP03/T014: only called once the ordinary ``_is_git_ancestor`` check
+    has already failed (never changes whether the gate fires, only what it
+    says). Distinguishes an ``ORPHANED`` pin -- a stale mission-wide record
+    only ``finalize-tasks --refresh-planning-commit --allow-orphaned`` can
+    fix -- from a merely-not-yet-merged but still reachable pin, using the
+    SAME :func:`classify_recorded_pin` classification the allocator's merge
+    helper and ``tasks_move_task._mt_resolve_owned_review_base`` use
+    (research.md D5), so an orphan never surfaces as three differently
+    worded, unreconciled diagnostics.
+
+    ``FOREIGN`` (the object never existed / was GC'd) deliberately falls
+    through to the ORIGINAL bare wording, never the orphan recovery hint:
+    D3 refuses a foreign object even with ``--allow-orphaned``, so pointing
+    at that flag here would name a recovery that cannot actually work.
+    """
+    assert manifest.planning_commit_sha is not None
+    target_tip = _rev_parse_or_none(main_repo_root, manifest.target_branch)
+    pin_class = classify_recorded_pin(main_repo_root, manifest.planning_commit_sha, target_tip)
+    if pin_class is PinClass.ORPHANED:
+        return (
+            f"recorded planning commit {manifest.planning_commit_sha} is orphaned against the target-branch tip; run {ORPHANED_PIN_RECOVERY_HINT!r} to re-point it"
+        )
+    return f"recorded planning commit {manifest.planning_commit_sha}"
+
+
 def check_claim_ancestry(
     main_repo_root: Path,
     mission_slug: str,
@@ -495,7 +531,7 @@ def check_claim_ancestry(
 
     missing: list[str] = []
     if manifest.planning_commit_sha and not _is_git_ancestor(workspace_path, manifest.planning_commit_sha, head):
-        missing.append(f"recorded planning commit {manifest.planning_commit_sha}")
+        missing.append(_planning_commit_missing_diagnostic(main_repo_root, manifest))
     for dep_id, branch in _approved_dependency_lane_refs(main_repo_root, mission_slug, mission_dir, lane, manifest):
         if not _is_git_ancestor(workspace_path, branch, head):
             missing.append(f"approved dependency lane {dep_id} ({branch})")

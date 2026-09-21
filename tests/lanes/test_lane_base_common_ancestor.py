@@ -284,6 +284,18 @@ class TestMergeRecordedPlanningCommit:
     def test_conflicting_merge_fails_closed_and_leaves_worktree_clean(
         self, tmp_path: Path
     ) -> None:
+        """#4827/WP03 T016 GREEN-WASH GATE: this is the ONE test in
+        ``tests/lanes/`` that must keep exercising the GENERIC conflict with
+        a pin REACHABLE from the target tip. ``other_sha`` is passed as
+        BOTH the recorded pin AND (via ``target_tip=other_sha``) the tip it
+        is classified against, so it is trivially ``ADVANCED`` (an ancestor
+        of itself) -- the orphan check does not fire, and the pre-existing
+        genuine-content-conflict path (untouched by #4827) still raises the
+        generic :class:`PlanningCommitMergeConflictError`. Do not flip this
+        test to expect :class:`OrphanedPlanningCommitError` -- see
+        ``test_worktree_allocator_atomicity.py`` for the sibling test that
+        WAS an orphan-shaped fixture and was corrected the other way.
+        """
         repo = tmp_path / "repo"
         _init_repo(repo)
         # Diverge: same file, different content on two branches.
@@ -300,7 +312,7 @@ class TestMergeRecordedPlanningCommit:
         head_before = _git(repo, "rev-parse", "HEAD")
 
         with pytest.raises(PlanningCommitMergeConflictError) as exc_info:
-            _merge_recorded_planning_commit(repo, repo, "lane-a", other_sha)
+            _merge_recorded_planning_commit(repo, repo, "lane-a", other_sha, other_sha)
 
         assert exc_info.value.lane_id == "lane-a"
         assert exc_info.value.planning_commit_sha == other_sha

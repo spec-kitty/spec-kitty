@@ -40,6 +40,7 @@ from specify_cli.lanes.implement_support import (
     check_claim_ancestry,
     resolve_claim_ancestry_gate,
 )
+from specify_cli.lanes.worktree_allocator import ORPHANED_PIN_RECOVERY_HINT
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
@@ -131,6 +132,55 @@ def _write_meta_and_lanes(repo: Path) -> None:
     (feature_dir / "lanes.json").write_text(json.dumps(lanes_payload, indent=2), encoding="utf-8")
     _git(repo, "add", "kitty-specs")
     _git(repo, "commit", "-q", "-m", "chore: planning artifacts")
+
+
+def _write_meta_and_lanes_with_pin(repo: Path, planning_commit_sha: str | None) -> None:
+    """Same fixture shape as :func:`_write_meta_and_lanes`, but with a
+    caller-supplied ``planning_commit_sha`` on the manifest -- used to drive
+    the orphaned-pin diagnostic path in
+    ``implement_support._planning_commit_missing_diagnostic``.
+    """
+    feature_dir = _feature_dir(repo)
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": _MISSION_ID,
+                "mission_slug": _MISSION_SLUG,
+                "mid8": _MISSION_ID[:8].lower(),
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-08-26T00:00:00+00:00",
+                "friendly_name": "ancestry gate test",
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    lanes_payload = {
+        "version": 1,
+        "mission_slug": _MISSION_SLUG,
+        "mission_id": _MISSION_ID,
+        "mission_branch": f"kitty/mission-{_MISSION_SLUG}",
+        "target_branch": "main",
+        "lanes": [
+            {
+                "lane_id": "lane-a",
+                "wp_ids": [_WP_DEP],
+                "write_scope": ["src/**"],
+                "predicted_surfaces": ["core"],
+                "depends_on_lanes": [],
+                "parallel_group": 0,
+            },
+        ],
+        "computed_at": "2026-08-26T00:00:00+00:00",
+        "computed_from": "test",
+        "planning_artifact_wps": [],
+        "planning_commit_sha": planning_commit_sha,
+    }
+    (feature_dir / "lanes.json").write_text(json.dumps(lanes_payload, indent=2), encoding="utf-8")
+    _git(repo, "add", "kitty-specs")
+    _git(repo, "commit", "-q", "-m", "chore: planning artifacts (orphan-pin fixture)")
 
 
 def _seed_wp_lane(repo: Path, wp_id: str, lane: Lane) -> None:
@@ -277,3 +327,64 @@ def test_legacy_non_lane_wp_is_a_no_op(tmp_path: Path) -> None:
 
     assert result.ok is True
     assert result.missing_refs == ()
+
+
+def test_orphaned_planning_commit_produces_orphan_diagnostic(tmp_path: Path) -> None:
+    """#4827 pre-PR squad finding [MEDIUM]: no test asserted
+    ``implement_support._planning_commit_missing_diagnostic``'s
+    orphan-specific wording, reached only through
+    ``check_claim_ancestry`` when ``classify_recorded_pin`` returns
+    ``PinClass.ORPHANED`` for the recorded ``planning_commit_sha``.
+
+    A recorded pin whose commit OBJECT is still present but is no longer an
+    ancestor of the target-branch tip (the mid-mission rebase/rewrite shape)
+    must produce the "is orphaned against the target-branch tip; run ... to
+    re-point it" recovery wording -- distinct from the bare
+    "recorded planning commit <sha>" wording a merely-not-yet-merged
+    (still-reachable) pin gets.
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    # Orphaned pin: commit object present in the object store, but no longer
+    # reachable from main's tip. Committed on a throwaway branch, its sha
+    # captured, then the branch deleted -- the loose object survives (no gc
+    # runs in this fixture), so `git cat-file -e` still finds it while
+    # `git merge-base --is-ancestor` correctly reports "not an ancestor".
+    _git(repo, "checkout", "-q", "-b", "throwaway")
+    (repo / "orphan.txt").write_text("orphan\n", encoding="utf-8")
+    _git(repo, "add", "orphan.txt")
+    _git(repo, "commit", "-q", "-m", "orphan candidate")
+    orphaned_sha = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", "main")
+    _git(repo, "branch", "-D", "throwaway")
+
+    _write_meta_and_lanes_with_pin(repo, orphaned_sha)
+
+    branch = lane_branch_name(_MISSION_SLUG, "lane-a")
+    worktree = repo / ".worktrees" / f"{_MISSION_SLUG}-lane-a"
+    worktree.parent.mkdir(parents=True, exist_ok=True)
+    _git(repo, "worktree", "add", "-b", branch, str(worktree), "main")
+
+    status_dir = _feature_dir(repo)
+    result = check_claim_ancestry(repo, _MISSION_SLUG, status_dir, _WP_DEP, worktree)
+
+    assert result.ok is False
+    assert len(result.missing_refs) == 1, result.missing_refs
+    diagnostic = result.missing_refs[0]
+    assert orphaned_sha in diagnostic
+    assert "is orphaned against the target-branch tip" in diagnostic
+    assert ORPHANED_PIN_RECOVERY_HINT in diagnostic
+
+    # Contrast: a healthy (still-reachable) pin never gets this wording --
+    # locks the "distinct from the healthy/dep-lane paths" contract.
+    healthy_sha = _git(repo, "rev-parse", "main")
+    lanes_path = _feature_dir(repo) / "lanes.json"
+    payload = json.loads(lanes_path.read_text(encoding="utf-8"))
+    payload["planning_commit_sha"] = healthy_sha
+    lanes_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    _git(repo, "add", "kitty-specs")
+    _git(repo, "commit", "-q", "-m", "chore: healthy pin")
+
+    healthy_result = check_claim_ancestry(repo, _MISSION_SLUG, status_dir, _WP_DEP, worktree)
+    assert healthy_result.ok is True, healthy_result.missing_refs

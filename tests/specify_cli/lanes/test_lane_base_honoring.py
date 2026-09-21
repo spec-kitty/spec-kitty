@@ -382,6 +382,14 @@ def test_nfr003_base_composes_with_recorded_planning_commit(tmp_path: Path) -> N
     _git(repo, "commit", "-q", "-m", "planning commit")
     planning_sha = _git_out(repo, "rev-parse", "HEAD")
     _git(repo, "checkout", "-q", "main")
+    # #4827: merge the planning commit into "main" (target_branch) BEFORE
+    # discarding "planning-tmp" -- in real usage the recorded
+    # planning_commit_sha is always initially reachable from target_branch
+    # (finalize-tasks commits it there directly); leaving it an orphaned
+    # island branch here would misclassify it under the #4827 orphan
+    # detector this fixture predates, defeating this test's actual base +
+    # planning-commit composition assertions.
+    _git(repo, "merge", "-q", "--no-ff", "--no-edit", "planning-tmp")
     _git(repo, "branch", "-D", "planning-tmp")
 
     manifest = _make_manifest(
@@ -439,6 +447,14 @@ def test_fr011_fresh_divergent_base_lane_with_planning_commit_is_not_reuse(
     _git(repo, "commit", "-q", "-m", "planning commit")
     planning_sha = _git_out(repo, "rev-parse", "HEAD")
     _git(repo, "checkout", "-q", "main")
+    # #4827: merge the planning commit into "main" (target_branch) BEFORE
+    # discarding "planning-tmp" -- in real usage the recorded
+    # planning_commit_sha is always initially reachable from target_branch
+    # (finalize-tasks commits it there directly); leaving it an orphaned
+    # island branch here would misclassify it under the #4827 orphan
+    # detector this fixture predates, defeating this test's actual base +
+    # planning-commit composition assertions.
+    _git(repo, "merge", "-q", "--no-ff", "--no-edit", "planning-tmp")
     _git(repo, "branch", "-D", "planning-tmp")
 
     manifest = _make_manifest(
@@ -524,6 +540,14 @@ def test_fr010_detached_base_fails_loud_pre_create_no_residual(tmp_path: Path) -
     _git(repo, "commit", "-q", "-m", "planning commit")
     planning_sha = _git_out(repo, "rev-parse", "HEAD")
     _git(repo, "checkout", "-q", "main")
+    # #4827: merge the planning commit into "main" (target_branch) BEFORE
+    # discarding "planning-tmp" -- in real usage the recorded
+    # planning_commit_sha is always initially reachable from target_branch
+    # (finalize-tasks commits it there directly); leaving it an orphaned
+    # island branch here would misclassify it under the #4827 orphan
+    # detector this fixture predates, defeating this test's actual base +
+    # planning-commit composition assertions.
+    _git(repo, "merge", "-q", "--no-ff", "--no-edit", "planning-tmp")
     _git(repo, "branch", "-D", "planning-tmp")
 
     manifest = _make_manifest(

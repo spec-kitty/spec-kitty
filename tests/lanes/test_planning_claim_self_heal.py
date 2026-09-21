@@ -159,6 +159,19 @@ def test_recorded_planning_commit_heals_without_pulling_unapproved_code(tmp_path
     lanes_path = _feature_dir(repo) / "lanes.json"
     payload = json.loads(lanes_path.read_text())
     payload["planning_commit_sha"] = recorded
+    # #4827: this fixture's ``target_branch`` (inherited "main" from
+    # `_write_meta_and_lanes`) never advances past the initial "chore:
+    # planning artifacts" commit in this scenario -- the whole test operates
+    # on "feat/planning" / "recorded-planning" instead. `recorded` is a
+    # SIBLING of "feat/planning"'s own further commits (both branched off
+    # "approved dependency"), so it is not reachable from either "main" or
+    # "feat/planning" -- under the #4827 orphan classifier that reads as
+    # ORPHANED, not the "genuinely recorded but not yet self-healed into
+    # THIS workspace" shape this test means to exercise. Point
+    # ``target_branch`` at "recorded-planning" itself (trivially an ancestor
+    # of its own tip) so the pin classifies ADVANCED and the self-heal MERGE
+    # mechanics this test locks are what actually runs.
+    payload["target_branch"] = "recorded-planning"
     lanes_path.write_text(json.dumps(payload))
     _seed_wp_lane(repo, _WP_DEP, Lane.IN_PROGRESS)
     _git(repo, "add", ".")

@@ -27,8 +27,10 @@ from specify_cli.cli.commands import implement as implement_mod
 from specify_cli.cli.commands.implement import implement
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+from specify_cli.lanes.planning_commit_classify import PinClass
 from specify_cli.lanes.worktree_allocator import (
     DependencyLaneMergeConflictError,
+    OrphanedPlanningCommitError,
     PlanningCommitMergeConflictError,
 )
 from specify_cli.status.reducer import wp_snapshot_state
@@ -203,16 +205,22 @@ def _printed_text(mock_print: MagicMock) -> str:
             "011-planning-commit-conflict-fixture",
             PlanningCommitMergeConflictError("lane-a", "deadbeefcafef00d"),
         ),
+        (
+            "013-orphaned-planning-commit-fixture",
+            OrphanedPlanningCommitError("lane-a", "deadbeefcafef00d", PinClass.ORPHANED),
+        ),
     ],
 )
 def test_alloc_conflict_leaves_wp_planned_and_prints_next_step(
     tmp_path: Path,
     feature_slug: str,
-    exc: DependencyLaneMergeConflictError | PlanningCommitMergeConflictError,
+    exc: DependencyLaneMergeConflictError | PlanningCommitMergeConflictError | OrphanedPlanningCommitError,
 ) -> None:
-    """F-50 (C1): a conflicting allocation leaves the WP ``planned``, emits NO
-    ``planned -> blocked`` event, and prints the exception's actionable
-    ``next_step`` (not a generic 're-run')."""
+    """F-50 (C1): a conflicting (or orphaned-pin) allocation failure leaves the
+    WP ``planned``, emits NO ``planned -> blocked`` event, and prints the
+    exception's actionable ``next_step`` (not a generic 're-run'). Covers
+    ``OrphanedPlanningCommitError`` (#4827 pre-PR finding: it carries a
+    ``next_step`` too but was missing from the printed-affordance tuple)."""
     feature_dir, events_log = _build_fixture(tmp_path, feature_slug)
     alloc = MagicMock(side_effect=exc)
 
@@ -239,6 +247,16 @@ def test_alloc_conflict_leaves_wp_planned_and_prints_next_step(
     # Observable STATE 3: the actionable next_step is surfaced verbatim.
     assert exc.next_step
     assert exc.next_step in _printed_text(mock_print)
+
+    # Observable STATE 4: the next_step is surfaced through the PROMINENT
+    # "[yellow]Next step:[/yellow]" affordance specifically -- not merely
+    # incidentally present because the generic "Workspace allocation failed:
+    # {exc}" line above it also embeds next_step in str(exc). Without this,
+    # STATE 3 alone cannot distinguish a genuinely-wired affordance from an
+    # exception type the isinstance() tuple silently omitted (the exact
+    # #4827 pre-PR finding for ``OrphanedPlanningCommitError``).
+    next_step_line = f"[yellow]Next step:[/yellow] {exc.next_step}"
+    assert any(call.args == (next_step_line,) for call in mock_print.call_args_list), _printed_text(mock_print)
 
 
 def test_rerun_after_resolution_acquires_no_review_cycle_pointer(

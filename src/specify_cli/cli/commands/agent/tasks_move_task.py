@@ -689,7 +689,10 @@ def _lane_deliverable_paths(worktree_path: Path, porcelain: str) -> tuple[Path, 
 def _mt_resolve_owned_review_base(st: _MoveTaskState) -> str:
     """Resolve one immutable, suitable review base for an owned checkout."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+    from specify_cli.lanes.merge import _rev_parse as _rev_parse_or_none
     from specify_cli.lanes.persistence import require_lanes_json
+    from specify_cli.lanes.planning_commit_classify import PinClass, classify_recorded_pin
+    from specify_cli.lanes.worktree_allocator import ORPHANED_PIN_RECOVERY_HINT
 
     assert st.owned is not None
     owned = st.owned
@@ -699,6 +702,33 @@ def _mt_resolve_owned_review_base(st: _MoveTaskState) -> str:
         raise ActionContextError(
             "OWNED_REVIEW_BASE_INVALID",
             "Owned review requires lanes.json planning_commit_sha.",
+        )
+
+    # #4827/WP03/T015: `rev-parse --verify` below only proves the object is
+    # PRESENT -- it succeeds identically for a healthy pin and for an
+    # ORPHANED one (rewritten out of the target branch's history but not
+    # garbage-collected), so a bare presence check would silently compute the
+    # review diff against a DEAD base (invariant-lens Finding 2). Classify
+    # against the TARGET-BRANCH tip -- captured from `st.main_repo_root`
+    # (== `owned.primary`), NOT `owned.root` (the selected, possibly-stale
+    # checkout being reviewed) -- and fail closed before any diff is
+    # computed. Reconciled to the same classification the allocator's merge
+    # helper and `check_claim_ancestry` use (research.md D5).
+    #
+    # ``FOREIGN`` (the object never existed at all) is deliberately left to
+    # the pre-existing `resolve_commit`/`OWNED_REVIEW_BASE_INVALID` path
+    # below rather than folded in here: D3 refuses a foreign object even
+    # with `--allow-orphaned`, so naming that recovery for a foreign SHA
+    # would point at a fix that cannot work -- the existing "must resolve to
+    # commits" refusal is already the correct, unrecoverable-data diagnosis.
+    target_tip = _rev_parse_or_none(st.main_repo_root, st.target_branch)
+    pin_class = classify_recorded_pin(owned.root, declared, target_tip)
+    if pin_class is PinClass.ORPHANED:
+        raise ActionContextError(
+            "OWNED_REVIEW_BASE_ORPHANED",
+            f"Recorded planning commit {declared} is orphaned against the "
+            f"target-branch tip -- the owned-review base would be computed against a "
+            f"dead ancestor. Run {ORPHANED_PIN_RECOVERY_HINT!r} to re-point it, then retry.",
         )
 
     def resolve_commit(ref: str) -> str | None:

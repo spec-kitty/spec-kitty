@@ -30,9 +30,18 @@ from specify_cli.lanes.branch_naming import lane_branch_name, resolve_mid8, work
 from specify_cli.lanes.merge import (
     _ephemeral_merge_driver_activation,
     _make_merge_env,
+    _rev_parse,
 )
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.planning_commit_classify import PinClass, classify_recorded_pin
 from specify_cli.mission_metadata import load_meta
+
+# Issue #4827 / research.md D5: the single recovery command every orphaned-pin
+# consumer (the merge helper here, `implement_support.check_claim_ancestry`,
+# and `tasks_move_task._mt_resolve_owned_review_base`) names in its
+# operator-facing message. Hoisted once so the three call sites cannot drift
+# on the literal text (Sonar S1192).
+ORPHANED_PIN_RECOVERY_HINT = "spec-kitty agent mission finalize-tasks --refresh-planning-commit --allow-orphaned"
 
 
 class LaneTopology(Enum):
@@ -178,6 +187,65 @@ class PlanningCommitMergeConflictError(StructuredError):
         payload = super().to_dict()
         payload["lane_id"] = self.lane_id
         payload["planning_commit_sha"] = self.planning_commit_sha
+        payload["next_step"] = self.next_step
+        return payload
+
+
+class OrphanedPlanningCommitError(StructuredError):
+    """Raised when the recorded ``planning_commit_sha`` is orphaned or foreign.
+
+    Issue #4827 / research.md D5/D6: :func:`classify_recorded_pin` (WP01)
+    classifies the RECORDED pin against the planning target-branch tip
+    (never a lane worktree's HEAD -- C-006). ``ORPHANED`` means the commit
+    object still exists but is no longer reachable from that tip (the
+    mid-mission rebase shape); ``FOREIGN`` means the object is absent
+    entirely. Either way, merging the pin would build on a dead base --
+    a problem no amount of manual conflict resolution can fix, unlike a
+    genuine :class:`PlanningCommitMergeConflictError` on a still-reachable
+    (``ADVANCED``) pin. Only ``finalize-tasks --refresh-planning-commit
+    --allow-orphaned`` can re-point the mission-wide record, so this is
+    raised as a DISTINCT, sibling exception (never a subclass of
+    :class:`PlanningCommitMergeConflictError`) so the fresh-path
+    ``except PlanningCommitMergeConflictError`` in
+    :func:`allocate_lane_worktree` does not catch it and loop the operator
+    through a remove-and-recreate cycle that only helps a transient
+    conflict, never a stale mission-wide pin.
+    """
+
+    error_code: str = "ORPHANED_PLANNING_COMMIT"
+
+    def __init__(self, lane_id: str, planning_commit_sha: str, pin_class: PinClass) -> None:
+        self.lane_id = lane_id
+        self.planning_commit_sha = planning_commit_sha
+        self.pin_class = pin_class
+        if pin_class is PinClass.FOREIGN:
+            # A FOREIGN pin's object is absent from this repository, so a
+            # re-pin cannot recover it and ``--allow-orphaned`` would be
+            # refused by finalize (FR-004). Point at investigation, not the
+            # recovery flag, so the operator is not sent on a two-hop path
+            # that ends in a refusal (#4827 review LOW / DD-10).
+            self.next_step = (
+                f"the recorded planning commit {planning_commit_sha!r} is foreign "
+                f"(its commit object is absent from this repository, not merely unreachable); "
+                f"a re-pin cannot recover an absent object -- investigate how this SHA was "
+                f"recorded and repair the mission's planning provenance before retrying this WP."
+            )
+        else:
+            self.next_step = (
+                f"the recorded planning commit {planning_commit_sha!r} is orphaned "
+                f"(no longer reachable from the mission's target-branch tip); run "
+                f"{ORPHANED_PIN_RECOVERY_HINT!r} to re-point it, then retry this WP."
+            )
+        super().__init__(
+            f"cannot merge the recorded planning commit {planning_commit_sha!r} into lane "
+            f"{lane_id!r}: it is {pin_class.value} against the target-branch tip. {self.next_step}"
+        )
+
+    def to_dict(self) -> dict[str, object]:
+        payload = super().to_dict()
+        payload["lane_id"] = self.lane_id
+        payload["planning_commit_sha"] = self.planning_commit_sha
+        payload["pin_class"] = self.pin_class.value
         payload["next_step"] = self.next_step
         return payload
 
@@ -397,6 +465,17 @@ def allocate_lane_worktree(
     if lane is None:
         raise LaneNotFoundError(f"{wp_id} is not assigned to any execution lane in lanes.json")
 
+    # C-006 (#4827/WP03): capture the TARGET-BRANCH tip ONCE, for every
+    # _merge_recorded_planning_commit call below to classify the recorded pin
+    # against -- NEVER a lane worktree's own HEAD (that is a different
+    # question, the pre-existing "is this lane already merged?" no-op gate;
+    # see classify_recorded_pin's own C-006 docstring note and #2993). Reuses
+    # the lanes-layer `_rev_parse` (returns `None` on failure, never the
+    # "unknown" sentinel `implement_support._rev_parse` uses for frontmatter
+    # display) so an unresolvable target branch degrades the classifier to
+    # `INDETERMINATE` -- the pre-#4827 behaviour -- rather than misclassifying.
+    target_tip = _rev_parse(repo_root, lanes_manifest.target_branch)
+
     # Placement (path + branch) comes from the single predict seam — the write
     # authority and the read-only mirrors must never diverge on this decision.
     worktree_path, branch = predict_lane_worktree(repo_root, mission_slug, lane.lane_id)
@@ -416,7 +495,7 @@ def allocate_lane_worktree(
         # FR-009 (#2993) reuse-path self-heal: a lane created before this fix
         # (or before a later finalize-tasks re-run recorded a newer SHA) picks
         # up the recorded planning commit here. Idempotent no-op once merged.
-        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha)
+        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha, target_tip)
         # #1684 reuse-path catch-up: a dependency lane may have been approved
         # *after* this worktree was created. Merge any newly-approved dep tips
         # so the dependent lane sees them. Idempotent: already-merged tips are
@@ -479,7 +558,7 @@ def allocate_lane_worktree(
         )
         # FR-009 (#2993) crash-recovery self-heal: mirrors the reuse-path call
         # below — a re-attached lane picks up the recorded planning commit too.
-        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha)
+        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha, target_tip)
         _merge_dependency_lane_tips(repo_root, worktree_path, mission_slug, lane, lanes_manifest)
         return worktree_path, branch
 
@@ -558,8 +637,14 @@ def allocate_lane_worktree(
     # the CRASH-RECOVERY route instead, which re-attaches and re-runs the
     # same idempotent self-heal, so the operator's manual fix (per the
     # error's own ``next_step``) is picked up on the next attempt.
+    # #4827/WP03: deliberately narrow to the GENERIC conflict only.
+    # `OrphanedPlanningCommitError` is a sibling, not a subclass (see its
+    # docstring), so it is NOT caught here -- an orphaned/foreign pin leaves
+    # the just-created worktree registered rather than being removed and
+    # re-tried forever via crash-recovery, which would just re-classify
+    # `orphaned` again on every attempt until an operator re-pins.
     try:
-        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha)
+        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha, target_tip)
     except PlanningCommitMergeConflictError:
         # Only the WORKTREE is removed, not the branch: a retry then resolves
         # via the crash-recovery path above (branch exists, worktree dir
@@ -581,6 +666,7 @@ def _merge_recorded_planning_commit(
     worktree_path: Path,
     lane_id: str,
     planning_commit_sha: str | None,
+    target_tip: str | None = None,
 ) -> None:
     """Merge the recorded finalize-tasks planning commit into a lane worktree.
 
@@ -599,6 +685,25 @@ def _merge_recorded_planning_commit(
     fix (backward compatibility) — a no-op in that case, reproducing pre-WP01
     behaviour exactly.
 
+    #4827/WP03 (D5/D6, C-006): ``target_tip`` MUST be the planning
+    target-branch tip (e.g. captured via ``_rev_parse(repo_root,
+    lanes_manifest.target_branch)``), never a lane worktree's ``HEAD`` --
+    passing a lane HEAD here would misfire on every healthy fresh coord lane
+    (#2993). BEFORE the pre-existing lane-HEAD no-op gate below, the recorded
+    pin is classified against that tip via
+    :func:`~specify_cli.lanes.planning_commit_classify.classify_recorded_pin`;
+    an ``ORPHANED``/``FOREIGN`` classification raises
+    :class:`OrphanedPlanningCommitError` unconditionally -- even when the pin
+    already happens to be an ancestor of this worktree's own HEAD (D6: the
+    stale-pin error fires for as long as the mission-wide record stays
+    orphaned; only a ``finalize-tasks --refresh-planning-commit
+    --allow-orphaned`` re-pin clears it). ``target_tip=None`` (an
+    unresolvable target branch, or a caller that predates this parameter)
+    degrades the classifier to ``INDETERMINATE``, which is a no-op here --
+    byte-identical to the pre-#4827 behaviour. An ``ADVANCED`` (reachable)
+    pin also falls through unchanged: the lane-HEAD no-op gate and the
+    genuine-content-conflict merge path below are untouched by this WP.
+
     Idempotent: a SHA already an ancestor of ``HEAD`` is skipped (no-op),
     which is what makes it safe to call from the worktree-reuse and
     crash-recovery paths as well as fresh creation — an existing lane
@@ -606,11 +711,17 @@ def _merge_recorded_planning_commit(
     ``finalize-tasks`` re-run picks up a newer recorded value.
 
     Raises:
-        PlanningCommitMergeConflictError: if the merge conflicts (fail closed;
-            the half-merge is aborted before this is raised).
+        OrphanedPlanningCommitError: if the recorded pin is orphaned or
+            foreign against ``target_tip`` (#4827).
+        PlanningCommitMergeConflictError: if the merge of a still-reachable
+            pin conflicts (fail closed; the half-merge is aborted before this
+            is raised).
     """
     if planning_commit_sha is None:
         return
+    pin_class = classify_recorded_pin(repo_root, planning_commit_sha, target_tip)
+    if pin_class in (PinClass.ORPHANED, PinClass.FOREIGN):
+        raise OrphanedPlanningCommitError(lane_id, planning_commit_sha, pin_class)
     is_ancestor = subprocess.run(
         ["git", "merge-base", "--is-ancestor", planning_commit_sha, "HEAD"],
         cwd=str(worktree_path),

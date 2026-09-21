@@ -242,7 +242,17 @@ def test_owned_review_base_refuses_on_none_and_succeeds_on_captured_sha(tmp_path
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "implement WP01")
 
-    st = SimpleNamespace(owned=SimpleNamespace(root=repo), feature_dir=feature_dir)
+    # #4827/WP03/T015: `_mt_resolve_owned_review_base` now also classifies
+    # the recorded pin against the TARGET-BRANCH tip, captured from
+    # `st.main_repo_root` (mirroring `owned.primary`), never `owned.root`
+    # (see that function's docstring). This single-checkout fixture has no
+    # separate primary/owned split, so `repo` stands in for both.
+    st = SimpleNamespace(
+        owned=SimpleNamespace(root=repo),
+        feature_dir=feature_dir,
+        main_repo_root=repo,
+        target_branch="main",
+    )
 
     # Post-fix: a captured sha resolves cleanly -- no refusal.
     base = _mt_resolve_owned_review_base(st)
@@ -256,3 +266,88 @@ def test_owned_review_base_refuses_on_none_and_succeeds_on_captured_sha(tmp_path
     with pytest.raises(ActionContextError) as excinfo:
         _mt_resolve_owned_review_base(st)
     assert excinfo.value.code == "OWNED_REVIEW_BASE_INVALID"
+
+
+# ---------------------------------------------------------------------------
+# #4827 pre-PR squad finding [MEDIUM]: no test asserted the ORPHANED branch of
+# ``_mt_resolve_owned_review_base`` (the ``OWNED_REVIEW_BASE_ORPHANED`` raise
+# at ~L726-732) -- only the pre-existing ``None``/``OWNED_REVIEW_BASE_INVALID``
+# shape above was covered. This closes that gap: a recorded pin whose commit
+# OBJECT is still present but is no longer an ancestor of the target-branch
+# tip (the mid-mission rebase/rewrite shape ``classify_recorded_pin`` calls
+# ``PinClass.ORPHANED``) must refuse BEFORE any diff is computed against it,
+# never silently resolve a dead base.
+# ---------------------------------------------------------------------------
+
+
+def _rev_parse(repo: Path, ref: str) -> str:
+    return subprocess.run(
+        ["git", "rev-parse", ref],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+def test_owned_review_base_refuses_on_orphaned_pin(tmp_path: Path) -> None:
+    """``_mt_resolve_owned_review_base`` raises ``OWNED_REVIEW_BASE_ORPHANED``
+    for a recorded pin that is present-but-unreachable from the target-branch
+    tip, and never reaches the ``resolve_commit``/merge-base diff logic below
+    that check (a dead base is never computed).
+    """
+    from types import SimpleNamespace
+
+    from mission_runtime import ActionContextError
+
+    from specify_cli.cli.commands.agent.tasks_move_task import (
+        _mt_resolve_owned_review_base,
+    )
+    from specify_cli.lanes.persistence import write_lanes_json
+
+    repo, feature_dir = _build_wedged_repo(tmp_path)
+    report = repair_repo(repo, mission=_MISSION_SLUG)
+    result = next(m for m in report.missions if m.mission_slug == _MISSION_SLUG)
+    assert result.status != "error", result.validation_errors
+
+    lanes = read_lanes_json(feature_dir)
+    assert lanes is not None
+
+    # Produce a commit object that still exists in the object store but is
+    # NOT an ancestor of main's tip: commit on a throwaway branch, capture
+    # its sha, then delete the branch. The loose object survives (no gc
+    # runs in this fixture), so `git cat-file -e` still finds it while
+    # `git merge-base --is-ancestor` correctly reports "not an ancestor" --
+    # exactly the ORPHANED shape (present, unreachable).
+    _git(repo, "checkout", "-qb", "throwaway")
+    (repo / "orphan.txt").write_text("orphaned content\n", encoding="utf-8")
+    _git(repo, "add", "orphan.txt")
+    _git(repo, "commit", "-qm", "orphaned planning commit candidate")
+    orphaned_sha = _rev_parse(repo, "HEAD")
+    _git(repo, "checkout", "-q", "main")
+    _git(repo, "branch", "-D", "throwaway")
+
+    # A real implementation commit ahead of HEAD, so a healthy pin would
+    # otherwise have something to diff -- proves the refusal is about
+    # classification, not merely "nothing to diff".
+    (repo / "src" / "wp01" / "mod.py").write_text("x = 2\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "implement WP01")
+
+    lanes.planning_commit_sha = orphaned_sha
+    write_lanes_json(feature_dir, lanes)
+
+    st = SimpleNamespace(
+        owned=SimpleNamespace(root=repo),
+        feature_dir=feature_dir,
+        main_repo_root=repo,
+        target_branch="main",
+    )
+
+    with pytest.raises(ActionContextError) as excinfo:
+        _mt_resolve_owned_review_base(st)
+    assert excinfo.value.code == "OWNED_REVIEW_BASE_ORPHANED"
+    assert orphaned_sha in str(excinfo.value)
+    assert "orphaned" in str(excinfo.value)
+    # The recovery hint -- not a generic re-run -- must be present.
+    assert "finalize-tasks --refresh-planning-commit --allow-orphaned" in str(excinfo.value)

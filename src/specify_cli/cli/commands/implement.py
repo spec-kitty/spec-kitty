@@ -49,6 +49,7 @@ from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.lanes.worktree_allocator import (
     DependencyLaneMergeConflictError,
+    OrphanedPlanningCommitError,
     PlanningCommitMergeConflictError,
 )
 from specify_cli.status import TransitionError
@@ -1954,10 +1955,13 @@ def implement(
         # an unrecoverable state (``blocked -> planned`` is illegal). Leaving the
         # WP ``planned`` is recoverable and reentrant — at parity with the
         # orchestrator-api path, which never emits ``blocked``. Surface the
-        # exception's actionable ``next_step`` for the conflict types that carry
-        # one, so the operator gets the concrete resolution rather than a
-        # generic "re-run".
-        if isinstance(exc, (DependencyLaneMergeConflictError, PlanningCommitMergeConflictError)):
+        # exception's actionable ``next_step`` for the conflict/orphan types
+        # that carry one, so the operator gets the concrete resolution rather
+        # than a generic "re-run".
+        if isinstance(
+            exc,
+            (DependencyLaneMergeConflictError, PlanningCommitMergeConflictError, OrphanedPlanningCommitError),
+        ):
             console.print(f"[yellow]Next step:[/yellow] {exc.next_step}")
         raise typer.Exit(1) from exc
 
