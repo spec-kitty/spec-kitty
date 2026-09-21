@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, TypedDict
@@ -864,6 +865,16 @@ _MERGE_FIELDS: tuple[str, ...] = (
 )
 
 
+def snapshot_merge_metadata(meta: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the canonical ``merged_*`` fields present in *meta*.
+
+    This is the single field-membership authority shared by the re-open
+    command's audit payload and :func:`clear_merge_metadata`, so the event
+    cannot claim a different snapshot from the fields the mutation removes.
+    """
+    return {field: meta[field] for field in _MERGE_FIELDS if field in meta}
+
+
 def clear_merge_metadata(feature_dir: Path) -> dict[str, Any]:
     """Remove the ``merged_*`` fields from ``meta.json`` and return a snapshot.
 
@@ -884,10 +895,9 @@ def clear_merge_metadata(feature_dir: Path) -> dict[str, Any]:
     """
     meta = _require_meta(feature_dir)
 
-    cleared: dict[str, Any] = {}
-    for field in _MERGE_FIELDS:
-        if field in meta:
-            cleared[field] = meta.pop(field)
+    cleared = snapshot_merge_metadata(meta)
+    for field in cleared:
+        meta.pop(field)
 
     if cleared:
         write_meta(feature_dir, meta, validate=False)

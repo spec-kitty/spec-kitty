@@ -1381,7 +1381,10 @@ def reopen_cmd(
     from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
         MissionSelectorAmbiguous,
     )
-    from specify_cli.mission_metadata import clear_merge_metadata
+    from specify_cli.mission_metadata import (
+        clear_merge_metadata,
+        snapshot_merge_metadata,
+    )
     from specify_cli.status import emit_mission_reopened, is_mission_completed
 
     project_root = get_project_root_or_exit(json_output=json_output)
@@ -1435,8 +1438,12 @@ def reopen_cmd(
         )
         raise typer.Exit(1)
 
-    # Recoverable: clear merge markers, then emit the authority event.
-    cleared = clear_merge_metadata(resolved.feature_dir)
+    # Persist the replacement audit fact while the completion proof is still
+    # present. Clearing first made marker-only missions fail the producer's
+    # canonical completion guard after their sole proof had already been
+    # durably removed (#4870). The event-first order has no proofless gap: if
+    # emission refuses or fails, meta.json remains byte-for-byte untouched.
+    cleared = snapshot_merge_metadata(meta)
     event = emit_mission_reopened(
         resolved.feature_dir,
         mission_id=resolved.mission_id,
@@ -1445,6 +1452,7 @@ def reopen_cmd(
         reopened_by=_detect_actor(),
         cleared_merge=cleared or None,
     )
+    clear_merge_metadata(resolved.feature_dir)
 
     if json_output:
         print(

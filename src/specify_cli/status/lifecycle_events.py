@@ -973,9 +973,11 @@ def emit_mission_reopened(
     the mission actionable again (FR-002). Attribution is via ``mission_id``
     (ULID, NFR-004) — never a slug-derived guess.
 
-    ``cleared_merge`` is an optional snapshot of the ``merged_*`` fields removed
-    from ``meta.json`` by the IC-02 re-open command, retained for audit /
-    reversibility.
+    ``cleared_merge`` is an optional snapshot of the ``merged_*`` fields selected
+    for removal from ``meta.json`` by the IC-02 re-open command, retained for
+    audit / reversibility. The command persists this replacement audit fact
+    before clearing those fields, so marker-only completion remains provable
+    while this canonical producer enforces its completion guard (#4870).
 
     This is a LOCAL-ONLY event (see ``MISSION_REOPENED`` registration note): it
     is intentionally kept off the SaaS strict-validation model map.
