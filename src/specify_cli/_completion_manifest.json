@@ -749,6 +749,11 @@
      "help": "Find review-cycle / arbiter-override records stranded under a retired\nresolver path, ahead of WP13's consumer-unification (FR-008).\n\nEvery retired resolver comes from WP08's reviewed retirement set, not a\nguessed set. Reports two DISTINCT stranded classes per finding: a\ndeleted-coordination-branch mission (absorbed to PRIMARY, the measured\n45-mission corpus) and a live-coordination-branch mission still carrying a\npre-ADR PRIMARY record. Never a bare count — every finding names its\nmission, WP, retired resolver, and resolved directory.\n\nInformational only: always exits 0. No ``--fix`` — a stranded record may\nhave a legitimate divergent sibling, and this command does not pick a\nwinner.\n\nExamples:\n    spec-kitty doctor review-cycle-reconcile\n    spec-kitty doctor review-cycle-reconcile --mission my-mission-01ABCD\n    spec-kitty doctor review-cycle-reconcile --json",
      "hidden": false,
      "deprecated": false
+    },
+    "decisions": {
+     "help": "Diagnose or repair divergence between ``decisions/index.json`` and the\nauthoritative ``DecisionPointOpened``/``DecisionPointResolved`` event log\n(FR-004/FR-005).\n\nDiagnose (default): read-only; reports decisions present in the event\nlog but missing from the index, and index entries with no backing event.\n\n``--repair``: rebuilds ``index.json`` from the log via the single\ncanonical ``event -> IndexEntry`` fold\n(:mod:`specify_cli.decisions.index_fold`) under the same sidecar lock the\nwrite path uses — never invents an entry absent from the log, never\ndrops a log-backed entry. A no-op (no write) when the log and index\nalready agree.\n\nInformational only: always exits 0.\n\nExamples:\n    spec-kitty doctor decisions --mission my-mission-01ABCD\n    spec-kitty doctor decisions --mission my-mission-01ABCD --repair\n    spec-kitty doctor decisions --mission my-mission-01ABCD --json",
+     "hidden": false,
+     "deprecated": false
     }
    }
   },
