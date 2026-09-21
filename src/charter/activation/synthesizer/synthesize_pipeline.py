@@ -56,6 +56,14 @@ __all__ = [
     "run_all",
 ]
 
+# The five registration-writing kinds, declared once in
+# ``charter.offering.artifact_kinds.DIRECT_WRITE_KINDS``. A ``Literal`` cannot
+# consume a runtime tuple, so this module's copy is kept aligned by test
+# (``tests/charter/test_direct_write_kinds_parity.py``) rather than by
+# construction — the single spelling here (reused by the field annotation and
+# both ``cast`` sites below) is the by-test SSOT for this module.
+_ArtifactKind = Literal["directive", "tactic", "styleguide", "procedure", "agent_profile"]
+
 
 
 def _get_synthesizer_version() -> str:
@@ -98,7 +106,7 @@ class ProvenanceEntry(BaseModel):
 
     schema_version: Literal["2"] = "2"
     artifact_urn: str
-    artifact_kind: Literal["directive", "tactic", "styleguide", "procedure", "agent_profile"]
+    artifact_kind: _ArtifactKind
     artifact_slug: str
     artifact_content_hash: str
     """blake3-256 hex (or SHA-256 hex) over ``canonical_yaml(body)`` bytes."""
@@ -441,7 +449,7 @@ def run(
 
         provenance = ProvenanceEntry(
             artifact_urn=_artifact_urn_for_target(target),
-            artifact_kind=cast(Literal["directive", "tactic", "styleguide", "procedure", "agent_profile"], target.kind),
+            artifact_kind=cast(_ArtifactKind, target.kind),
             artifact_slug=target.slug,
             artifact_content_hash=content_hash,
             inputs_hash=inputs_hash,
@@ -576,7 +584,7 @@ def run_all(
 
         provenance = ProvenanceEntry(
             artifact_urn=_artifact_urn_for_target(target),
-            artifact_kind=cast(Literal["directive", "tactic", "styleguide", "procedure", "agent_profile"], target.kind),
+            artifact_kind=cast(_ArtifactKind, target.kind),
             artifact_slug=target.slug,
             artifact_content_hash=content_hash,
             inputs_hash=inputs_hash,

@@ -49,6 +49,9 @@ class ManifestArtifactEntry(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
+    # Kept aligned with ``charter.offering.artifact_kinds.DIRECT_WRITE_KINDS`` by
+    # test (``tests/charter/test_direct_write_kinds_parity.py``): a ``Literal``
+    # cannot consume a runtime tuple, so alignment is by-test, not by-construction.
     kind: Literal["directive", "tactic", "styleguide", "procedure", "agent_profile"]
     slug: str
     path: str

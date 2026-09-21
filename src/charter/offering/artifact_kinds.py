@@ -35,6 +35,7 @@ may be re-declared elsewhere.
 from __future__ import annotations
 
 from enum import StrEnum
+from urllib.parse import quote
 
 
 class MissionTypeNotAnArtifactKind(ValueError):
@@ -349,13 +350,70 @@ CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR: dict[str, str] = {
     for singular, plural in CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL.items()
 }
 
+#: **Canonical registration-writing (direct-write) kind set** (WP01 / NFR-002).
+#:
+#: The five artifact kinds that are authored directly into a project's
+#: ``.kittify/doctrine/<dir>/`` overlay and flow through the project scanner and
+#: the synthesis manifest. This is the single source of truth the DRG project
+#: scanner (``charter.offering.drg.project_scan``) reads instead of re-declaring
+#: its own five-kind tuple; the synthesis manifest's
+#: ``ManifestArtifactEntry.kind`` ``Literal`` is kept aligned by-test
+#: (``tests/charter/test_direct_write_kinds_parity.py``) because a ``Literal``
+#: cannot consume a runtime tuple.
+#:
+#: Order is load-bearing: the scanner pairs this tuple positionally with a
+#: parallel ``schemas`` tuple (``directive`` → ``Directive`` …), so a reorder
+#: here must be mirrored there.
+DIRECT_WRITE_KINDS: tuple[str, ...] = (
+    "directive",
+    "tactic",
+    "styleguide",
+    "procedure",
+    "agent_profile",
+)
+
+
+def slug_for(kind: str, identifier: str) -> str:
+    """Return the canonical, filesystem-safe slug for an artifact identity.
+
+    This is the **single producer-side slug derivation** (the anti-drift
+    authority for WP03's convergence invariant). It is pure: deterministic, no
+    IO, no global state — the same ``(kind, identifier)`` always yields the same
+    slug. Extracted verbatim from the pre-refactor inline expression in
+    ``charter.activation.project_registration`` so the extraction is provably
+    byte-identical::
+
+        quote(id.lower().replace("_", "-") if kind == "directive" else id, safe="")
+
+    ``kind == "directive"`` ids are case-folded and underscore→hyphen normalized
+    (``LOVE_THY_ENEMY`` → ``love-thy-enemy``); every other kind's identifier is
+    preserved as-authored.
+
+    ``quote(..., safe="")`` is **load-bearing, not decoration**: it collapses a
+    slash-bearing URN identity (e.g. ``agent_profile:team/ops-responder`` →
+    ``team%2Fops-responder``) into a single safe path component so a downstream
+    ``provenance_path_for`` cannot escape ``.kittify/charter/provenance/``.
+
+    Id-grammar precondition: directive ids match ``^[A-Z][A-Z0-9_-]*$``;
+    non-directive ids are lowercase-kebab and URN-safe. Under this grammar
+    ``quote`` is a no-op for well-formed ids, but it is retained as
+    defense-in-depth. Because a directive id always has a leading letter, the
+    result never begins with a pure-digit segment, so an optional downstream
+    ``NNN-`` prefix strip cannot truncate it.
+    """
+    normalized = identifier.lower().replace("_", "-") if kind == "directive" else identifier
+    return quote(normalized, safe="")
+
+
 __all__ = [
     "ArtifactKind",
     "CHARTER_ACTIVATABLE_KINDS",
     "CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR",
     "CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL",
     "CHARTER_KIND_TOKENS",
+    "DIRECT_WRITE_KINDS",
     "MISSION_TYPE_TOKEN",
     "PROJECT_KIND_DIRS",
     "MissionTypeNotAnArtifactKind",
+    "slug_for",
 ]

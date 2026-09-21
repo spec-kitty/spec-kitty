@@ -30,7 +30,7 @@ from typing import Any
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from charter.offering.artifact_kinds import ArtifactKind, PROJECT_KIND_DIRS
+from charter.offering.artifact_kinds import DIRECT_WRITE_KINDS, ArtifactKind, PROJECT_KIND_DIRS
 from charter.offering.drg.migration.id_normalizer import artifact_to_urn
 from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation, is_valid_urn
 
@@ -189,8 +189,10 @@ def scan_project_artifacts(
     from charter.offering.styleguides.models import Styleguide
     from charter.offering.tactics.models import Tactic
 
+    # ``schemas`` is paired positionally with the canonical DIRECT_WRITE_KINDS
+    # tuple (directive → Directive, …); the ordering must stay aligned.
     schemas = (Directive, Tactic, Styleguide, Procedure, AgentProfile)
-    kinds = ("directive", "tactic", "styleguide", "procedure", "agent_profile")
+    kinds = DIRECT_WRITE_KINDS
     artifacts: list[ProjectArtifact] = []
     seen: dict[str, Path] = {}
     for kind_name, schema in zip(kinds, schemas, strict=True):
