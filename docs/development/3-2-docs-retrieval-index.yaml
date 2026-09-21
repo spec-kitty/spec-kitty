@@ -10845,7 +10845,7 @@ pages:
   - path: "docs/plans/engineering-notes/2026-09-21-full-mission-driving-tactical-workarounds-field-report.md"
     title: "Field report: tactical workarounds for driving a full governed mission end-to-end"
     divio_type: "none"
-    abstract: "Six maintainer workarounds surfaced driving a governed mission (mission-type-canonical-source, PR #4821) end-to-end; lane-bound, several superseded by execution-context epic #1619 or already fixed."
+    abstract: "Six maintainer workarounds surfaced driving a governed mission (mission-type-canonical-source, PR #4821) end-to-end; lane-bound, several superseded by epic #1619 or already fixed."
     anchors:
     - {slug: "scope-and-status-of-this-note", text: "Scope and status of this note", level: 2}
     - {slug: "the-learnings", text: "The learnings", level: 2}
