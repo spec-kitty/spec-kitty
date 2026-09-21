@@ -32,6 +32,7 @@ module.exports = {
       "always",
       [
         "build",
+        "charter",
         "chore",
         "ci",
         "docs",
