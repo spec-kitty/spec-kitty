@@ -734,7 +734,10 @@ class TestAuthLoginIssuerBoundary:
 
             result = runner.invoke(app, ["login"])
 
-        assert result.exit_code == 0, result.stdout
+        # #4265 (folded by WP05, #4755): a refusal is not success -- exit 1
+        # so `spec-kitty auth login && ...` chains cannot read this as a
+        # completed login.
+        assert result.exit_code == 1, result.stdout
         flat = _flat(result.stdout)
         assert "Session is for https://app.spec-kitty.ai" in flat
         assert "SPEC_KITTY_SAAS_URL now points at https://saas.test" in flat

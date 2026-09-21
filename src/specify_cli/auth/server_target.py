@@ -26,10 +26,15 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 import toml
 
 from specify_cli.auth.config import DEFAULT_HOSTED_SAAS_URL, get_saas_url_env_override
+from specify_cli.auth.errors import IssuerTargetMismatchError
+
+if TYPE_CHECKING:
+    from specify_cli.auth.session import StoredSession
 
 _LOG = logging.getLogger(__name__)
 
@@ -132,7 +137,11 @@ def _read_env_server_url() -> str | None:
     the packaged default, so a configured ``config.toml`` target wins without
     a split-brain.
     """
-    return get_saas_url_env_override()
+    # ``specify_cli.*`` is type-checked with ``follow_imports = skip``, so the
+    # cross-module ``get_saas_url_env_override()`` is seen as ``Any`` here; bind to a
+    # ``str | None``-typed local to keep the declared return type honest (campsite, #4755).
+    env_override: str | None = get_saas_url_env_override()
+    return env_override
 
 
 def _classify_override(
@@ -206,8 +215,7 @@ def _warn_process_override(
     """
     if override_mode is OverrideMode.PROCESS_OVERRIDE and configured_server_url is not None:
         _LOG.warning(
-            "%s=%r overrides configured [sync].server_url=%r for this process; "
-            "bearer-token-bearing traffic now targets %r instead of the configured host.",
+            "%s=%r overrides configured [sync].server_url=%r for this process; bearer-token-bearing traffic now targets %r instead of the configured host.",
             SAAS_URL_ENV_VAR,
             resolved_server_url,
             configured_server_url,
@@ -244,3 +252,82 @@ def resolve_server_target(*, process_wide_override: bool = True) -> ResolvedServ
         override_mode=override_mode,
         resolved_server_url=resolved_server_url,
     )
+
+
+def _source_name_for_target(target: ResolvedServerTarget) -> str:
+    """Name the configuration source ``target.resolved_server_url`` came from.
+
+    Mirrors ``specify_cli.saas_client.auth._saas_source_name`` (#300, #423):
+    each consumer keeps its own local copy of this small naming rule instead
+    of importing another module's private helper, so this reference doesn't
+    go stale as those copies move independently.
+    """
+    if target.env_server_url is not None:
+        return SAAS_URL_ENV_VAR
+    if target.configured_server_url is not None:
+        return "config.toml [sync].server_url"
+    return "the default endpoint"
+
+
+def _issuer_target_decision(
+    session: StoredSession | None,
+) -> tuple[str, IssuerTargetMismatchError | None]:
+    """Decide the token endpoint and, when applicable, the mismatch verdict.
+
+    Pure decision, separated from the raise-based reaction in
+    :func:`resolve_token_endpoint`, so a display-only consumer (e.g. a future
+    ``auth status`` surface) can render the verdict without raising.
+
+    Per ``contracts/issuer-target-helper.md``: the ONE ``_normalize_url`` is
+    reused for both the comparison and the returned endpoint (NFR-002) —
+    never a second, divergent normalizer.
+
+    Raises:
+        ServerTargetSplitBrainError: Propagated unchanged from
+            ``resolve_server_target`` on an ambiguous env/config
+            disagreement; callers map it themselves.
+    """
+    target = resolve_server_target(process_wide_override=False)
+    resolved_endpoint = _normalize_url(target.resolved_server_url)
+    if session is None or session.issuer_url is None:
+        # Legacy/no-compare: never falls back to get_saas_base_url().
+        return resolved_endpoint, None
+    issuer_endpoint = _normalize_url(session.issuer_url)
+    if issuer_endpoint == resolved_endpoint:
+        return resolved_endpoint, None
+    mismatch = IssuerTargetMismatchError(
+        issuer_url=issuer_endpoint,
+        resolved_url=resolved_endpoint,
+        source_name=_source_name_for_target(target),
+    )
+    return resolved_endpoint, mismatch
+
+
+def resolve_token_endpoint(session: StoredSession | None) -> str:
+    """Resolve the single canonical endpoint a session's tokens may be sent to.
+
+    This is the shared issuer-target authority every token-bearing flow
+    (refresh, websocket provisioning, the SaaS client OAuth-session bridge)
+    must consume instead of growing its own copy of the compare-and-refuse
+    rule. See ``contracts/issuer-target-helper.md`` for the full contract.
+
+    Args:
+        session: The current :class:`StoredSession`, or ``None`` when no
+            session is available. ``None`` follows the legacy/no-compare
+            branch — it is never itself a mismatch.
+
+    Returns:
+        The normalized resolved server target a token-bearing call should
+        use.
+
+    Raises:
+        IssuerTargetMismatchError: When ``session.issuer_url`` is set and
+            disagrees with the resolved target.
+        ServerTargetSplitBrainError: Propagated unchanged from
+            ``resolve_server_target`` on an ambiguous env/config
+            disagreement.
+    """
+    endpoint, mismatch = _issuer_target_decision(session)
+    if mismatch is not None:
+        raise mismatch
+    return endpoint

@@ -1,4 +1,5 @@
 """RevokeFlow — RFC 7009 token revocation for spec-kitty auth logout."""
+
 from __future__ import annotations
 
 import logging
@@ -6,7 +7,8 @@ from enum import StrEnum
 
 import httpx
 
-from ..config import get_saas_base_url
+from ..errors import IssuerTargetMismatchError
+from ..server_target import ServerTargetSplitBrainError, resolve_token_endpoint
 from ..session import StoredSession
 
 log = logging.getLogger(__name__)
@@ -27,6 +29,11 @@ class RevokeOutcome(StrEnum):
     NO_REFRESH_TOKEN = "no_refresh_token"
     """Session has no refresh token; revocation not attempted."""
 
+    ISSUER_MISMATCH = "issuer_mismatch"
+    """Refused — the resolved token target does not match the session's
+    issuer (or the target is ambiguous, a split-brain). No POST is issued;
+    the caller must not fold this into SERVER_FAILURE."""
+
 
 class RevokeFlow:
     """RFC 7009-compliant token revocation."""
@@ -40,8 +47,16 @@ class RevokeFlow:
         if not session.refresh_token:
             return RevokeOutcome.NO_REFRESH_TOKEN
 
-        saas_url = get_saas_base_url()
-        url = f"{saas_url}/oauth/revoke"
+        # Resolved BEFORE the try/except below so a mismatch or split-brain
+        # refusal is never folded into SERVER_FAILURE by the bare
+        # `except Exception` guarding the HTTP call.
+        try:
+            endpoint = resolve_token_endpoint(session)
+        except (IssuerTargetMismatchError, ServerTargetSplitBrainError) as exc:
+            log.warning("Revoke refused: %s", type(exc).__name__)
+            return RevokeOutcome.ISSUER_MISMATCH
+
+        url = f"{endpoint}/oauth/revoke"
         data = {
             "token": session.refresh_token,
             "token_type_hint": "refresh_token",

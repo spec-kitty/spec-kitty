@@ -1825,3 +1825,280 @@ def test_sender_aliases_resolve_transitively(tmp_path: Path) -> None:
     )
     sites = _scan_project_sinks(source_root=tmp_path)
     assert [(site.qualname, site.callee) for site in sites] == [("alias_chain", "client.post")]
+
+
+# ---------------------------------------------------------------------------
+# Issuer-target fence (WP05, #4755): get_saas_base_url() forbidden on
+# token-send paths
+# ---------------------------------------------------------------------------
+#
+# Extends the E18 "token traffic, no project data" allowances above
+# (auth/flows/refresh.py, auth/flows/revoke.py, auth/token_manager.py,
+# auth/websocket/token_provisioning.py, auth/http/transport.py already carry
+# a NOT_PROJECT_DATA row in `_EGRESS_ALLOWLIST` for the *sink* scanner) with a
+# second, narrower boundary on one specific accessor rather than a duplicate
+# gate: `get_saas_base_url()` knows nothing about a session's issuer, so a
+# token-send flow that calls it can silently send a held bearer token to the
+# wrong host on a stale/mismatched session
+# (contracts/issuer-target-helper.md). The four flows above must instead
+# resolve their endpoint through
+# `specify_cli.auth.server_target.resolve_token_endpoint`, which compares the
+# session's issuer against the resolved target and refuses on a mismatch.
+#
+# AST-based, not text-matching, and this distinction is load-bearing here:
+# three of the four forbidden modules carry a *comment* naming
+# `get_saas_base_url()` to explain that they no longer call it
+# (auth/flows/refresh.py:98/105, auth/token_manager.py:162/439) -- a grep
+# would false-positive on exactly the modules this fence exists to protect.
+# `ast.parse` never sees a comment or a docstring in the first place, so the
+# detector below is blind to them by construction, not by a hand-written
+# comment-skip rule that could itself be wrong.
+
+_ISSUER_TARGET_SYMBOL = "get_saas_base_url"
+
+#: The four token-send modules `get_saas_base_url()` must never reach.
+_FORBIDDEN_TOKEN_SEND_MODULES: frozenset[str] = frozenset(
+    {
+        "specify_cli/auth/flows/refresh.py",
+        "specify_cli/auth/flows/revoke.py",
+        "specify_cli/auth/token_manager.py",
+        "specify_cli/auth/websocket/token_provisioning.py",
+    }
+)
+
+#: The explicit allowlist floor (contracts/issuer-target-helper.md): every
+#: file permitted to reference `get_saas_base_url()`. Minting flows have no
+#: session/issuer to compare against; `auth/http/transport.py` resolves a
+#: host with no session in play; the display/doctor surfaces render
+#: `resolve_server_target`'s verdict, never a token-bearing comparison.
+_ISSUER_TARGET_ALLOWLIST_FLOOR: frozenset[str] = frozenset(
+    {
+        "specify_cli/auth/config.py",
+        "specify_cli/auth/flows/device_code.py",
+        "specify_cli/auth/flows/authorization_code.py",
+        "specify_cli/auth/flows/client_credentials.py",
+        "specify_cli/auth/http/transport.py",
+        "specify_cli/cli/commands/_auth_login.py",
+        "specify_cli/cli/commands/_auth_doctor.py",
+        "specify_cli/cli/commands/_auth_saas_target.py",
+    }
+)
+
+#: SC-003 positive membership: the compare+normalize+remedy decision lives in
+#: exactly one module (`server_target.py`); a consumer "imports/consumes it"
+#: by pulling one of these names from it.
+_SERVER_TARGET_DECISION_SYMBOLS: frozenset[str] = frozenset(
+    {
+        "resolve_token_endpoint",
+        "_normalize_url",
+        "_issuer_target_decision",
+    }
+)
+
+#: The six consumers SC-003 names: the four token-send flows,
+#: `saas_client.auth._guard_session_issuer`, and
+#: `_auth_saas_target.format_saas_mismatch_warning`.
+_ISSUER_TARGET_DECISION_CONSUMERS: frozenset[str] = frozenset(
+    {
+        "specify_cli/auth/flows/refresh.py",
+        "specify_cli/auth/flows/revoke.py",
+        "specify_cli/auth/token_manager.py",
+        "specify_cli/auth/websocket/token_provisioning.py",
+        "specify_cli/saas_client/auth.py",
+        "specify_cli/cli/commands/_auth_saas_target.py",
+    }
+)
+
+
+def _references_symbol(path: Path, symbol: str) -> bool:
+    """True when *path* holds a real AST reference to *symbol*.
+
+    A "real reference" is a bare name, an attribute access, or an import
+    alias -- never a comment or a docstring, both of which `ast.parse`
+    discards before this ever walks the tree. This is what makes the fence
+    immune to the explanatory comments the forbidden modules carry (see the
+    module-level note above); a text-matching gate would not be.
+    """
+    try:
+        source = path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    try:
+        tree = ast.parse(source, filename=str(path))
+    except SyntaxError:  # pragma: no cover - a louder problem than this rule
+        return False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id == symbol:
+            return True
+        if isinstance(node, ast.Attribute) and node.attr == symbol:
+            return True
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                if alias.name == symbol or alias.asname == symbol:
+                    return True
+    return False
+
+
+def _imports_issuer_target_decision(path: Path) -> bool:
+    """True when *path* imports one of :data:`_SERVER_TARGET_DECISION_SYMBOLS`
+    from `server_target`, at module level or from inside a function.
+    `saas_client/auth.py` imports lazily to avoid a cycle (``# noqa:
+    PLC0415``), so this walks the whole tree rather than only top-level
+    statements.
+    """
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    except (OSError, SyntaxError):  # pragma: no cover - a louder problem than this rule
+        return False
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom) or node.module is None:
+            continue
+        if node.module.split(".")[-1] != "server_target":
+            continue
+        if any(alias.name in _SERVER_TARGET_DECISION_SYMBOLS for alias in node.names):
+            return True
+    return False
+
+
+def _issuer_target_fence_violations(
+    *,
+    forbidden: frozenset[str],
+    allowlist: frozenset[str],
+    root: Path = _SRC,
+) -> list[str]:
+    """The real gate: every reason the issuer-target fence would red.
+
+    Two independent directions (NFR-003's non-vacuity requirement), both
+    computed from the same *forbidden*/*allowlist* arguments so a test can
+    drive either one through this single function -- never a copied literal:
+
+    1. A forbidden module holds a real reference to `get_saas_base_url` (the
+       leak this fence exists to catch).
+    2. A forbidden module has been added to the allowlist (the vacuous-
+       whitelist evasion: widen the allowlist instead of fixing the leak).
+    """
+    violations: list[str] = []
+    overlap = sorted(forbidden & allowlist)
+    if overlap:
+        violations.append(f"issuer-target fence: allowlist vacuously includes forbidden token-send module(s), which would silence a real leak: {overlap}")
+    for relpath in sorted(forbidden):
+        if _references_symbol(root / relpath, _ISSUER_TARGET_SYMBOL):
+            violations.append(
+                f"issuer-target fence: {relpath} references {_ISSUER_TARGET_SYMBOL}() "
+                "from a token-send path -- route it through "
+                "specify_cli.auth.server_target.resolve_token_endpoint instead "
+                "(contracts/issuer-target-helper.md)"
+            )
+    return violations
+
+
+class TestIssuerTargetFence:
+    """WP05 (#4755): `get_saas_base_url()` is forbidden on every token-send path.
+
+    Extends the E18 allowances above with a narrower, symbol-keyed boundary
+    on one specific accessor. Does not duplicate the sink scanner: that gate
+    keys on a transmit *call shape*; this one keys on a reference to one
+    named accessor, which the sink scanner's vocabulary does not (and should
+    not) model.
+    """
+
+    def test_forbidden_modules_carry_no_reference_today(self) -> None:
+        """T018: the four token-send modules are clean on the real tree."""
+        violations = _issuer_target_fence_violations(
+            forbidden=_FORBIDDEN_TOKEN_SEND_MODULES,
+            allowlist=_ISSUER_TARGET_ALLOWLIST_FLOOR,
+        )
+        assert violations == [], "\n".join(violations)
+
+    def test_allowlist_floor_is_disjoint_from_forbidden_modules(self) -> None:
+        """T019: the allowlist provably excludes the four token-send modules
+        (no vacuous whitelist)."""
+        overlap = _FORBIDDEN_TOKEN_SEND_MODULES & _ISSUER_TARGET_ALLOWLIST_FLOOR
+        assert overlap == set(), f"vacuous allowlist: {sorted(overlap)}"
+
+    def test_gate_reds_when_a_forbidden_module_regains_the_call(self, tmp_path: Path) -> None:
+        """T018/T023(a) self-mutation, wired to the real gate function.
+
+        Because WP05 lands after WP02-WP04 rewired every flow, the fence is
+        never observed red against the *original* leak on the real tree;
+        this reproduces that leak in an isolated copy and calls the
+        production detector on it, so the non-vacuity claim is demonstrated
+        rather than merely asserted.
+        """
+        mutated_root = tmp_path / "src"
+        relpath = "specify_cli/auth/flows/refresh.py"
+        mutated_file = mutated_root / relpath
+        mutated_file.parent.mkdir(parents=True)
+        mutated_file.write_text(
+            "from ..config import get_saas_base_url\n\n\ndef leak() -> str:\n    return get_saas_base_url()\n",
+            encoding="utf-8",
+        )
+        violations = _issuer_target_fence_violations(
+            forbidden=frozenset({relpath}),
+            allowlist=frozenset(),
+            root=mutated_root,
+        )
+        assert any(relpath in v for v in violations), violations
+
+    def test_gate_passes_when_the_mutation_is_reverted(self, tmp_path: Path) -> None:
+        """The control half of the self-mutation test: an unmutated copy of
+        the same file, scanned by the same real function, must NOT red --
+        proving the previous test's red comes from the mutation and not from
+        a detector that always fires.
+        """
+        mutated_root = tmp_path / "src"
+        relpath = "specify_cli/auth/flows/refresh.py"
+        clean_file = mutated_root / relpath
+        clean_file.parent.mkdir(parents=True)
+        clean_file.write_text((_SRC / relpath).read_text(encoding="utf-8"), encoding="utf-8")
+        violations = _issuer_target_fence_violations(
+            forbidden=frozenset({relpath}),
+            allowlist=frozenset(),
+            root=mutated_root,
+        )
+        assert violations == []
+
+    def test_gate_reds_when_a_forbidden_module_is_added_to_the_allowlist(self) -> None:
+        """T019/T023(b): the second vacuity direction, wired to the real gate
+        function -- widening the allowlist to cover a forbidden module must
+        itself red, never silently pass.
+        """
+        poisoned_allowlist = _ISSUER_TARGET_ALLOWLIST_FLOOR | {"specify_cli/auth/flows/refresh.py"}
+        violations = _issuer_target_fence_violations(
+            forbidden=_FORBIDDEN_TOKEN_SEND_MODULES,
+            allowlist=poisoned_allowlist,
+        )
+        assert any("vacuously includes" in v for v in violations), violations
+
+    def test_gate_passes_for_allowlisted_non_token_callers(self) -> None:
+        """T023(c): the detector genuinely fires on a real reference (proving
+        it is not just always False) yet the allowed floor files pass the
+        fence, because they are not in the forbidden set.
+        """
+        floor_callers_with_a_real_reference = {
+            "specify_cli/auth/flows/device_code.py",
+            "specify_cli/auth/flows/authorization_code.py",
+            "specify_cli/auth/http/transport.py",
+        }
+        for relpath in floor_callers_with_a_real_reference:
+            assert _references_symbol(_SRC / relpath, _ISSUER_TARGET_SYMBOL), (
+                f"{relpath} was expected to hold a real reference to "
+                f"{_ISSUER_TARGET_SYMBOL} -- if it no longer does, this test's "
+                "non-vacuity witness (proof the detector can fire) needs a "
+                "different file"
+            )
+        violations = _issuer_target_fence_violations(
+            forbidden=_FORBIDDEN_TOKEN_SEND_MODULES,
+            allowlist=_ISSUER_TARGET_ALLOWLIST_FLOOR,
+        )
+        assert violations == []
+
+    def test_six_consumers_import_the_shared_issuer_target_decision(self) -> None:
+        """SC-003 positive membership: the compare+normalize+remedy decision
+        lives in exactly one module (`server_target.py`); every one of the
+        six consumers (four flows + `saas_client._guard_session_issuer` +
+        `_auth_saas_target.format_saas_mismatch_warning`) imports/consumes
+        it. Positive membership, not a "no copies" grep.
+        """
+        missing = sorted(relpath for relpath in _ISSUER_TARGET_DECISION_CONSUMERS if not _imports_issuer_target_decision(_SRC / relpath))
+        assert missing == [], f"consumer(s) do not import the shared server_target decision ({sorted(_SERVER_TARGET_DECISION_SYMBOLS)}): {missing}"

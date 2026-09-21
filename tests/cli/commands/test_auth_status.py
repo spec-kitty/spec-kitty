@@ -35,8 +35,8 @@ from typer.testing import CliRunner
 from specify_cli.auth import reset_token_manager
 from specify_cli.auth.errors import SessionFilePermissionsError
 from specify_cli.auth.server_target import (
-    OverrideMode,
     ResolvedServerTarget,
+    _classify_override,
 )
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands._auth_saas_target import (
@@ -614,12 +614,27 @@ def _target(
     env_server_url: str | None,
     configured_server_url: str | None,
 ) -> ResolvedServerTarget:
-    # Hand-built target for the pure formatters.
-    resolved = env_server_url or configured_server_url or "https://handbuilt.test"
+    """Hand-built target for the pure formatters.
+
+    ``override_mode`` is derived from the real :func:`_classify_override`
+    (``process_wide_override=True``, matching ``auth login``'s default
+    resolution) rather than hardcoded, because #4053 moved
+    ``saas_source_name``/``format_saas_provenance`` from a raw
+    ``env_server_url is not None`` presence check onto ``override_mode`` as
+    the single source of truth — a hand-built target whose mode disagrees
+    with its own env/configured pair would exercise a combination
+    :func:`specify_cli.auth.server_target.resolve_server_target` can never
+    actually produce.
+    """
+    override_mode, resolved = _classify_override(
+        configured_server_url,
+        env_server_url,
+        process_wide_override=True,
+    )
     return ResolvedServerTarget(
         configured_server_url=configured_server_url,
         env_server_url=env_server_url,
-        override_mode=OverrideMode.NONE,
+        override_mode=override_mode,
         resolved_server_url=resolved,
     )
 

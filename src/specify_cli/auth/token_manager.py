@@ -38,6 +38,7 @@ from kernel.paths import is_windows
 from specify_cli.paths import get_runtime_root
 
 from .errors import (
+    IssuerTargetMismatchError,
     NotAuthenticatedError,
     RefreshTokenExpiredError,
     SessionFilePermissionsError,
@@ -51,6 +52,7 @@ from .refresh_transaction import (
     run_refresh_transaction,
 )
 from .secure_storage import SecureStorage
+from .server_target import ServerTargetSplitBrainError, resolve_token_endpoint
 from .session import (
     StoredSession,
     Team,
@@ -157,7 +159,8 @@ class TokenManager:
         # queue.py / emitter.py) so a thundering herd produces exactly one
         # /api/v1/me GET. The negative cache is process-scoped only — never
         # persisted to disk. ``_saas_base_url`` is optional at construction
-        # time; when ``None`` we resolve it lazily via ``get_saas_base_url()``
+        # time; when ``None`` we resolve it lazily via
+        # ``resolve_token_endpoint(session)`` (the issuer-target guard, #4755)
         # so existing call sites that pass only ``storage`` keep working.
         self._saas_base_url: str | None = saas_base_url
         self._membership_negative_cache: bool = False
@@ -423,19 +426,34 @@ class TokenManager:
 
     # ---- membership rehydrate (WP02) ------------------------------------
 
-    def _resolve_saas_base_url(self) -> str:
-        """Return the SaaS base URL, resolving lazily from config if unset.
+    def _resolve_saas_base_url(self, session: StoredSession) -> str:
+        """Return the SaaS base URL for *session*, resolving from config if unset.
 
         Lazy resolution lets existing call sites that pass only ``storage`` to
         ``TokenManager(...)`` continue to work; the URL is needed only on the
-        rehydrate code path.
+        rehydrate code path. An explicit constructor override
+        (``saas_base_url=``) still wins unconditionally — it is a deliberate
+        pin (tests, DI), not the issuer-guarded default path.
+
+        When no override is set, this consumes the shared issuer/target
+        decision (:func:`specify_cli.auth.server_target.resolve_token_endpoint`)
+        instead of the fenced-off ``get_saas_base_url()`` accessor, so a
+        rehydrate GET can never target a server the session was not minted
+        against.
+
+        Raises:
+            IssuerTargetMismatchError: *session* has an ``issuer_url`` that
+                disagrees with the resolved target.
+            ServerTargetSplitBrainError: env and config disagree without a
+                clean whole-process override.
         """
         if self._saas_base_url is not None:
             return self._saas_base_url
-        from .config import get_saas_base_url  # noqa: PLC0415
-
-        url: str = get_saas_base_url()
-        return url
+        # ``specify_cli.*`` is type-checked with ``follow_imports = skip``, so the
+        # cross-package ``resolve_token_endpoint()`` is seen as ``Any`` here; bind
+        # to a ``str``-typed local to keep the declared return type honest.
+        endpoint: str = resolve_token_endpoint(session)
+        return endpoint
 
     def rehydrate_membership_if_needed(self, *, force: bool = False) -> bool:
         """Sync one-shot ``/api/v1/me`` rehydrate.
@@ -476,8 +494,22 @@ class TokenManager:
             from .http.me_fetch import fetch_me_payload  # noqa: PLC0415
 
             try:
+                target_url = self._resolve_saas_base_url(session)
+            except (IssuerTargetMismatchError, ServerTargetSplitBrainError) as exc:
+                # Fail-closed no-op (D-4): never upgraded to a hard raise —
+                # that would break an otherwise-working session — but the
+                # warning names the issuer host, resolved host, and remedy
+                # (both exception messages are token-free by construction,
+                # NFR-006) instead of the generic fetch-failure text below.
+                log.warning(
+                    "rehydrate_membership_if_needed: issuer/target mismatch, skipping /api/v1/me fetch: %s",
+                    exc,
+                )
+                return False
+
+            try:
                 payload = fetch_me_payload(
-                    self._resolve_saas_base_url(),
+                    target_url,
                     session.access_token,
                 )
             except Exception as exc:  # noqa: BLE001 — explicit log-and-skip boundary
@@ -551,6 +583,14 @@ class TokenManager:
                 **current** persisted session (FR-005). Local session is cleared.
             RefreshLockTimeoutError: Could not acquire the machine-wide lock
                 within the bounded wait and persisted material is unusable.
+            IssuerTargetMismatchError: The session's ``issuer_url`` disagrees
+                with the resolved server target. Raised at this boundary,
+                BEFORE ``run_refresh_transaction`` acquires the machine-wide
+                lock (D-3), so the error never enters the in-lock refresh
+                contract and the lock is never held across the raise.
+            ServerTargetSplitBrainError: env and config disagree without a
+                clean whole-process override. Propagated unchanged, same
+                boundary as above.
         """
         if self._session is None and self._hot_path_summary is not None:
             self._materialize_session_from_storage_sync()
@@ -569,7 +609,19 @@ class TokenManager:
             # imports from specify_cli.auth (session/errors/config).
             from .flows.refresh import TokenRefreshFlow  # noqa: PLC0415
 
+            # TokenManager boundary guard (D-3): resolve + compare BEFORE
+            # entering run_refresh_transaction / the machine-wide lock, so
+            # IssuerTargetMismatchError / ServerTargetSplitBrainError never
+            # enter the in-lock flow's error contract. ``resolve_token_endpoint``
+            # raises on its own; propagating it here (uncaught) refuses the
+            # send instead of routing the refresh token cross-target.
+            resolved_base_url = resolve_token_endpoint(self._session)
+
             flow = TokenRefreshFlow()
+            # Hand the boundary-resolved, issuer-checked endpoint to the flow
+            # via a plain attribute rather than a constructor/``.refresh()``
+            # argument — see the rationale on ``TokenRefreshFlow.__init__``.
+            flow.base_url = resolved_base_url
             current_session = self._session
             result = await run_refresh_transaction(
                 storage=self._storage,

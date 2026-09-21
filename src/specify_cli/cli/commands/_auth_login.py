@@ -63,6 +63,7 @@ from specify_cli.auth import (
 )
 from specify_cli.auth.config import (
     DEFAULT_HOSTED_SAAS_URL,
+    is_canonical_hosted_url,
     is_noncanonical_first_party_url,
     is_retired_first_party_url,
 )
@@ -142,7 +143,9 @@ async def login_impl(*, headless: bool, force: bool, machine: bool = False) -> N
                 "Credentials minted for one endpoint are never reused against "
                 "another; fresh authentication is required."
             )
-            return
+            # #4265: a refusal is not success — without this, `spec-kitty auth
+            # login && ...` chains read the mismatch refusal as exit 0.
+            raise typer.Exit(1)
         console.print(
             f"[green]+ Already logged in as {escape(session.email)}[/green]"
         )
@@ -203,7 +206,7 @@ def _print_login_target(target: ResolvedServerTarget) -> None:
         )
         console.print(f"[yellow]! {escape(sanitize_terminal_text(message))}[/yellow]")
         return
-    if url != DEFAULT_HOSTED_SAAS_URL:
+    if not is_canonical_hosted_url(url):
         console.print(
             f"[dim]Custom endpoint (not the canonical {escape(DEFAULT_HOSTED_SAAS_URL)}); "
             "self-hosted targets are supported and left unchanged.[/dim]"

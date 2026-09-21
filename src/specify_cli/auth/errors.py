@@ -41,15 +41,49 @@ class RefreshReplayError(TokenRefreshError):
     """
 
     def __init__(self, retry_after: int = 0) -> None:
-        super().__init__(
-            f"Refresh token was just rotated by another process "
-            f"(retry_after={retry_after}s)."
-        )
+        super().__init__(f"Refresh token was just rotated by another process (retry_after={retry_after}s).")
         self.retry_after: int = retry_after
 
 
 class NetworkError(AuthenticationError):
     """Raised on network-level failures (timeouts, DNS, connection refused)."""
+
+
+#: Stable remedy identifier surfaced by :class:`IssuerTargetMismatchError`.
+#: Kept as a module constant so every raiser and every message quotes the
+#: same recovery command (Sonar S1192) — see
+#: ``kitty-specs/token-target-issuer-guard-01M319HS/contracts/issuer-target-helper.md``.
+ISSUER_MISMATCH_REMEDY: str = "auth login --force"
+
+
+class IssuerTargetMismatchError(AuthenticationError):
+    """Raised when a stored session's issuer does not match the resolved server target.
+
+    A session's ``issuer_url`` records the hosted server it was minted
+    against (recorded at login). When the process now resolves a *different*
+    server target (env var or ``config.toml`` changed since login), pairing
+    the session's bearer tokens with that new target would send them
+    somewhere they were never authenticated for. This error refuses that
+    pairing instead of silently sending the token cross-target.
+
+    The message names the issuer host, the resolved host, the configuration
+    source the resolved target came from, and the stable remedy — and
+    contains **zero token material** (NFR-006): callers must never
+    interpolate an access or refresh token into this message.
+    """
+
+    def __init__(
+        self,
+        *,
+        issuer_url: str,
+        resolved_url: str,
+        source_name: str,
+        remedy: str = ISSUER_MISMATCH_REMEDY,
+    ) -> None:
+        super().__init__(f"Session is for {issuer_url}; {source_name} now points at {resolved_url} — run `spec-kitty {remedy}`.")
+        self.issuer_url = issuer_url
+        self.resolved_url = resolved_url
+        self.remedy = remedy
 
 
 # ----- Loopback / browser flow errors -----

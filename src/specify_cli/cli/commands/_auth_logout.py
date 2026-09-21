@@ -28,10 +28,14 @@ from __future__ import annotations
 import logging
 
 import typer
-from specify_cli.cli.console import console
+from rich.markup import escape
+from specify_cli.cli.console import console, sanitize_terminal_text
 
 from specify_cli.auth import get_token_manager
+from specify_cli.auth.errors import IssuerTargetMismatchError
 from specify_cli.auth.flows.revoke import RevokeFlow, RevokeOutcome
+from specify_cli.auth.server_target import ServerTargetSplitBrainError, resolve_token_endpoint
+from specify_cli.auth.session import StoredSession
 
 log = logging.getLogger(__name__)
 
@@ -66,7 +70,7 @@ async def logout_impl(*, force: bool) -> None:
         # default), so the former "no URL configured → local logout only"
         # branch is gone; a transport failure is reported by the outcome.
         outcome = await RevokeFlow().revoke(session)
-        _print_revoke_outcome(outcome)
+        _print_revoke_outcome(outcome, session)
 
     # FR-004: local cleanup is unconditional. This runs regardless of the
     # server-call outcome — 200, 4xx/5xx, network error, config error, or
@@ -74,34 +78,49 @@ async def logout_impl(*, force: bool) -> None:
     try:
         tm.clear_session()
     except Exception as exc:  # noqa: BLE001 - logout must report any local credential deletion failure
-        console.print(
-            f"[red]✗ Local credentials could not be deleted: {type(exc).__name__}. "
-            f"You may need to delete them manually.[/red]"
-        )
+        console.print(f"[red]✗ Local credentials could not be deleted: {type(exc).__name__}. You may need to delete them manually.[/red]")
         raise typer.Exit(code=1)
 
     console.print("[green]+ Logged out.[/green]")
 
 
-def _print_revoke_outcome(outcome: RevokeOutcome) -> None:
+def _print_revoke_outcome(outcome: RevokeOutcome, session: StoredSession) -> None:
     """Print the appropriate console message for the given revoke outcome."""
     if outcome is RevokeOutcome.REVOKED:
         console.print("[green]✓ Server revocation confirmed.[/green]")
     elif outcome is RevokeOutcome.NO_REFRESH_TOKEN:
-        console.print(
-            "[yellow]! Server revocation could not be attempted "
-            "(no refresh token). Local credentials will still be deleted.[/yellow]"
-        )
+        console.print("[yellow]! Server revocation could not be attempted (no refresh token). Local credentials will still be deleted.[/yellow]")
     elif outcome is RevokeOutcome.NETWORK_ERROR:
-        console.print(
-            "[yellow]! Server revocation not confirmed (network error). "
-            "Local credentials will still be deleted.[/yellow]"
-        )
+        console.print("[yellow]! Server revocation not confirmed (network error). Local credentials will still be deleted.[/yellow]")
+    elif outcome is RevokeOutcome.ISSUER_MISMATCH:
+        _print_issuer_mismatch_warning(session)
     else:  # SERVER_FAILURE
-        console.print(
-            "[yellow]! Server revocation not confirmed (server error). "
-            "Local credentials will still be deleted.[/yellow]"
-        )
+        console.print("[yellow]! Server revocation not confirmed (server error). Local credentials will still be deleted.[/yellow]")
+
+
+def _print_issuer_mismatch_warning(session: StoredSession) -> None:
+    """Warn that server-side revocation was refused/skipped over an issuer mismatch.
+
+    ``RevokeFlow.revoke`` collapses both a mismatch and a split-brain
+    ambiguity into ``RevokeOutcome.ISSUER_MISMATCH`` (no payload), so the
+    specific, actionable detail (issuer host, resolved host, remedy) is
+    re-derived here via :func:`resolve_token_endpoint` — a pure, network-free
+    recomputation of the same decision ``revoke()`` already made, not a
+    second network attempt. NFR-006: the resulting message never contains
+    token material, only host names and the remedy command.
+    """
+    try:
+        resolve_token_endpoint(session)
+    except IssuerTargetMismatchError as exc:
+        detail = escape(sanitize_terminal_text(str(exc)))
+        console.print(f"[yellow]! Server-side revocation skipped: {detail} Local credentials will still be deleted.[/yellow]")
+    except ServerTargetSplitBrainError as exc:
+        detail = escape(sanitize_terminal_text(str(exc)))
+        console.print(f"[yellow]! Server-side revocation skipped (server target is ambiguous): {detail} Local credentials will still be deleted.[/yellow]")
+    else:
+        # The target now resolves cleanly (e.g. reconfigured mid-run) —
+        # nothing specific left to report beyond the generic skip.
+        console.print("[yellow]! Server-side revocation skipped due to a target mismatch. Local credentials will still be deleted.[/yellow]")
 
 
 __all__ = ["logout_impl"]

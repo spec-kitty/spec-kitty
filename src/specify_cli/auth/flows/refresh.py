@@ -33,7 +33,6 @@ from typing import Any
 
 from kernel.clock import datetime, now_utc, parse_iso, timedelta
 
-from ..config import get_saas_base_url
 from ..errors import (
     NetworkError,
     RefreshReplayError,
@@ -42,6 +41,7 @@ from ..errors import (
     TokenRefreshError,
 )
 from ..http import PublicHttpClient
+from ..server_target import resolve_token_endpoint
 from ..session import StoredSession
 
 log = logging.getLogger(__name__)
@@ -55,6 +55,22 @@ class TokenRefreshFlow:
 
     def __init__(self, client_id: str = _DEFAULT_CLIENT_ID) -> None:
         self._client_id = client_id
+        #: Issuer-checked endpoint, set by
+        #: :meth:`TokenManager.refresh_if_needed` (WP02,
+        #: ``token-target-issuer-guard``) via a plain public attribute rather
+        #: than a constructor argument or a new ``.refresh()`` parameter:
+        #: ``run_refresh_transaction`` (auth/refresh_transaction.py, not
+        #: owned by this WP) calls ``refresh_flow.refresh(persisted)`` with
+        #: no extra argument, and several existing test doubles
+        #: (``FakeRefreshFlow`` in tests/auth/test_token_manager.py)
+        #: construct this class with zero arguments. Threading the resolved
+        #: endpoint through a post-construction attribute keeps both call
+        #: sites intact while still letting the TokenManager boundary guard
+        #: (D-3) hand this flow the issuer-checked endpoint before the
+        #: machine lock is ever entered. ``None`` preserves the pre-guard
+        #: legacy resolution (see :meth:`refresh`) for any caller that never
+        #: sets it.
+        self.base_url: str | None = None
 
     async def refresh(self, session: StoredSession) -> StoredSession:
         """POST ``/oauth/token`` with ``grant_type=refresh_token``.
@@ -77,12 +93,17 @@ class TokenRefreshFlow:
             NetworkError: Transport-level failure (DNS, connect, timeout).
         """
         if not isinstance(session.refresh_token, str) or not session.refresh_token.strip():
-            raise TokenRefreshError(
-                "No usable refresh credential is stored. "
-                "Run `spec-kitty auth login` again."
-            )
+            raise TokenRefreshError("No usable refresh credential is stored. Run `spec-kitty auth login` again.")
 
-        saas_url = get_saas_base_url()
+        # This flow never calls ``get_saas_base_url()`` (issuer-target-guard
+        # contract, ``contracts/issuer-target-helper.md``): the issuer-aware
+        # endpoint is resolved and guarded at the TokenManager boundary
+        # (D-3) and handed in via ``self.base_url``. A caller that never
+        # sets it (e.g. a direct unit test of this class) falls back to the
+        # legacy/no-compare resolution — ``resolve_token_endpoint(None)``
+        # never itself raises on a session mismatch, matching the historical
+        # ``get_saas_base_url()`` behavior for that case.
+        saas_url = self.base_url if self.base_url is not None else resolve_token_endpoint(None)
         url = f"{saas_url}/oauth/token"
         data = {
             "grant_type": "refresh_token",
@@ -100,9 +121,7 @@ class TokenRefreshFlow:
             try:
                 tokens = response.json()
             except ValueError as exc:
-                raise TokenRefreshError(
-                    f"Refresh response was not JSON: {exc}"
-                ) from exc
+                raise TokenRefreshError(f"Refresh response was not JSON: {exc}") from exc
             return self._update_session(session, tokens)
 
         if response.status_code == 409:
@@ -111,21 +130,14 @@ class TokenRefreshFlow:
             except ValueError:
                 body = {}
             if isinstance(body, dict) and body.get("error") == "refresh_replay_benign_retry":
-                raise RefreshReplayError(
-                    retry_after=_parse_retry_after(body.get("retry_after"))
-                )
+                raise RefreshReplayError(retry_after=_parse_retry_after(body.get("retry_after")))
             # Non-replay 409 (unexpected) — fall through to generic TokenRefreshError below
 
         self._raise_known_auth_error(response)
 
-        raise TokenRefreshError(
-            f"Token refresh failed: HTTP {response.status_code}. "
-            "Retry later; if this persists, contact your Team Kitty administrator."
-        )
+        raise TokenRefreshError(f"Token refresh failed: HTTP {response.status_code}. Retry later; if this persists, contact your Team Kitty administrator.")
 
-    def _update_session(
-        self, session: StoredSession, tokens: dict[str, Any]
-    ) -> StoredSession:
+    def _update_session(self, session: StoredSession, tokens: dict[str, Any]) -> StoredSession:
         """Build an updated session from a refresh response.
 
         Per C-012 (LANDED 2026-04-09), ``refresh_token_expires_at`` is read
@@ -143,9 +155,7 @@ class TokenRefreshFlow:
         try:
             new_access = tokens["access_token"]
         except KeyError as exc:
-            raise TokenRefreshError(
-                "Refresh response missing 'access_token'"
-            ) from exc
+            raise TokenRefreshError("Refresh response missing 'access_token'") from exc
 
         # Refresh token may rotate; keep the old one if the server doesn't rotate.
         new_refresh = tokens.get("refresh_token", session.refresh_token)
@@ -153,9 +163,7 @@ class TokenRefreshFlow:
         try:
             expires_in = int(tokens.get("expires_in", 3600))
         except (TypeError, ValueError) as exc:
-            raise TokenRefreshError(
-                f"Refresh response has invalid 'expires_in': {exc}"
-            ) from exc
+            raise TokenRefreshError(f"Refresh response has invalid 'expires_in': {exc}") from exc
 
         refresh_token_expires_at = self._resolve_refresh_expiry(tokens, now, session)
 
@@ -202,14 +210,15 @@ class TokenRefreshFlow:
             try:
                 return now + timedelta(seconds=int(relative))
             except (TypeError, ValueError):
-                log.warning(
-                    "refresh_token_expires_in was not an int: %r", relative
-                )
+                log.warning("refresh_token_expires_in was not an int: %r", relative)
 
         # Last-resort fallback: preserve the previous session's expiry so
         # we never produce a session with an indeterminate refresh expiry
-        # when we previously had one.
-        return session.refresh_token_expires_at
+        # when we previously had one. Bound to a typed local because
+        # ``StoredSession`` is seen as ``Any`` under ``follow_imports = skip``
+        # (campsite, #4755).
+        prior_expiry: datetime | None = session.refresh_token_expires_at
+        return prior_expiry
 
     @staticmethod
     def _raise_known_auth_error(response: Any) -> None:
@@ -234,15 +243,9 @@ class TokenRefreshFlow:
                 "contact your administrator to verify the CLI client configuration."
             )
         if error == "invalid_grant":
-            raise RefreshTokenExpiredError(
-                "Refresh token is invalid or expired. "
-                "Run `spec-kitty auth login` again."
-            )
+            raise RefreshTokenExpiredError("Refresh token is invalid or expired. Run `spec-kitty auth login` again.")
         if error == "session_invalid":
-            raise SessionInvalidError(
-                "Session has been invalidated server-side. "
-                "Run `spec-kitty auth login` again."
-            )
+            raise SessionInvalidError("Session has been invalidated server-side. Run `spec-kitty auth login` again.")
 
 
 def _parse_retry_after(value: Any) -> int:
@@ -266,9 +269,7 @@ def _parse_retry_after(value: Any) -> int:
     try:
         return max(0, int(value))
     except (TypeError, ValueError, OverflowError):
-        log.warning(
-            "refresh_replay_benign_retry carried a non-int retry_after: %r", value
-        )
+        log.warning("refresh_replay_benign_retry carried a non-int retry_after: %r", value)
         return 0
 
 

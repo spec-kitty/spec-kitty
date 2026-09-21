@@ -89,6 +89,21 @@ def is_noncanonical_first_party_url(url: str) -> bool:
     return host == "spec-kitty.ai" or host.endswith(".spec-kitty.ai")
 
 
+def is_canonical_hosted_url(url: str) -> bool:
+    """True when ``url``'s host is the packaged default's host (#4265).
+
+    Hostname-exact against :data:`DEFAULT_HOSTED_SAAS_URL`'s host, scheme and
+    port ignored — the same shape :func:`is_retired_first_party_url` and
+    :func:`is_noncanonical_first_party_url` already use. A raw ``url !=
+    DEFAULT_HOSTED_SAAS_URL`` string comparison (the pre-#4265 shape in
+    ``auth login``) mislabels a canonical host carrying an explicit default
+    port (``https://team.spec-kitty.ai:443``) as a "custom endpoint"; this
+    compares the parsed host instead so an equivalent URL is recognized as
+    canonical regardless of an explicit default port or scheme casing.
+    """
+    return _hostname_of(url) == _hostname_of(DEFAULT_HOSTED_SAAS_URL)
+
+
 def get_saas_url_env_override() -> str | None:
     """Return the ``SPEC_KITTY_SAAS_URL`` override (normalized), or ``None``.
 
@@ -113,6 +128,17 @@ def get_saas_base_url() -> str:
     packaged default"; callers that need ``config.toml`` precedence must read
     ``resolve_server_target().resolved_server_url``
     (:func:`specify_cli.auth.server_target.resolve_server_target`) instead.
+
+    Fenced off every token-send path (#4755, ``contracts/issuer-target-helper.md``):
+    ``auth/flows/refresh.py``, ``auth/flows/revoke.py``, ``auth/token_manager.py``,
+    and ``auth/websocket/token_provisioning.py`` must never call this accessor,
+    because it knows nothing about a session's issuer and would silently send
+    a bearer token to the wrong host on a stale/mismatched session. Those flows
+    resolve their endpoint through
+    :func:`specify_cli.auth.server_target.resolve_token_endpoint` instead, which
+    compares the session's issuer against the resolved target and refuses on a
+    mismatch. ``tests/architectural/test_egress_consent_boundary.py``'s
+    issuer-target fence enforces this non-vacuously in both directions.
 
     Returns:
         The hosted base URL with any trailing slashes stripped.

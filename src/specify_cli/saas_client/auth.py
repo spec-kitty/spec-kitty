@@ -212,6 +212,7 @@ def _oauth_session_context() -> AuthContext | None:
     ``SaasAuthError`` naming the remedy, not silence. The token is only ever
     read from the store, never written anywhere.
     """
+    from specify_cli.auth.errors import IssuerTargetMismatchError  # noqa: PLC0415
     from specify_cli.auth.server_target import ServerTargetSplitBrainError  # noqa: PLC0415
 
     try:
@@ -230,8 +231,14 @@ def _oauth_session_context() -> AuthContext | None:
     # Deliberately outside the guard above: a dead stored session, or one
     # minted for a server other than the one resolved_server_url now names,
     # is a refusal that must reach interactive callers, not a silent "not
-    # available" (#234).
-    _guard_session_issuer(session, target)
+    # available" (#234). ``_guard_session_issuer`` raises the shared
+    # ``IssuerTargetMismatchError`` (WP01); the ``SaasAuthError`` translation
+    # stays here so the bridge's public contract (raise ``SaasAuthError``)
+    # is unchanged.
+    try:
+        _guard_session_issuer(session, target)
+    except IssuerTargetMismatchError as exc:
+        raise _issuer_mismatch_to_saas_auth_error(exc, target) from exc
 
     return AuthContext(
         saas_url=target.resolved_server_url,
@@ -248,16 +255,44 @@ def _guard_session_issuer(session: Any, target: Any) -> None:
     it never authenticated against. Sessions minted before #176 carry
     ``issuer_url=None``: nothing was recorded to compare, so they keep
     working unchanged.
+
+    Consumes the shared issuer/target decision (WP01,
+    ``specify_cli.auth.server_target``): the canonical ``_normalize_url``
+    for the comparison (no local duplicate normalizer participates in a
+    token-bearing comparison, NFR-002) and the canonical
+    :class:`~specify_cli.auth.errors.IssuerTargetMismatchError` carrying the
+    shared remedy id — rather than reimplementing the compare/normalize/
+    remedy logic locally. Raises the raw error; :func:`_oauth_session_context`
+    (this function's only caller) translates it to ``SaasAuthError``.
     """
+    from specify_cli.auth.errors import IssuerTargetMismatchError  # noqa: PLC0415
+    from specify_cli.auth.server_target import _normalize_url  # noqa: PLC0415
+
     issuer_url: str | None = session.issuer_url
     if issuer_url is None:
         return
-    if _normalize_endpoint(issuer_url) == _normalize_endpoint(target.resolved_server_url):
+    normalized_issuer = _normalize_url(issuer_url)
+    normalized_target = _normalize_url(target.resolved_server_url)
+    if normalized_issuer == normalized_target:
         return
-    raise SaasAuthError(
-        f"Session is for {_normalize_endpoint(issuer_url)}; {_saas_source_name(target)} now points at "
-        f"{target.resolved_server_url} — run spec-kitty auth login --force"
+    raise IssuerTargetMismatchError(
+        issuer_url=normalized_issuer,
+        resolved_url=normalized_target,
+        source_name=_saas_source_name(target),
     )
+
+
+def _issuer_mismatch_to_saas_auth_error(exc: Any, target: Any) -> SaasAuthError:
+    """Build the ``SaasAuthError`` this module raises for an issuer mismatch.
+
+    Reconstructs the pre-existing wording (no backticks, no trailing period —
+    the format ``spec-kitty auth status``/#300 users already see) from
+    ``IssuerTargetMismatchError``'s structured fields rather than using its
+    own ``str()`` (which carries backticks + a period). Shared by
+    :func:`_oauth_session_context` and :func:`_usable_access_token` so the
+    two call sites do not duplicate the f-string.
+    """
+    return SaasAuthError(f"Session is for {exc.issuer_url}; {_saas_source_name(target)} now points at {exc.resolved_url} — run spec-kitty {exc.remedy}")
 
 
 def _saas_source_name(target: Any) -> str:
@@ -265,8 +300,8 @@ def _saas_source_name(target: Any) -> str:
 
     Mirrors ``specify_cli.cli.commands._auth_status.saas_source_name``
     (#300) so this refusal names the same override source ``spec-kitty auth
-    status`` would — duplicated locally, like ``_normalize_endpoint`` above,
-    so this module does not reach into a CLI-presentation module's helper.
+    status`` would — duplicated locally so this module does not reach into
+    a CLI-presentation module's helper.
     """
     from specify_cli.auth.server_target import SAAS_URL_ENV_VAR  # noqa: PLC0415
 
@@ -275,18 +310,6 @@ def _saas_source_name(target: Any) -> str:
     if target.configured_server_url is not None:
         return "config.toml [sync].server_url"
     return "the default endpoint"
-
-
-def _normalize_endpoint(url: str) -> str:
-    """Normalize a URL for endpoint comparison.
-
-    Same semantics as ``server_target._normalize_url`` (strip surrounding
-    whitespace, drop one trailing slash); kept local so the comparison does
-    not reach into another module's private helper. Other modules keep their
-    own local copy with the same semantics rather than being named here, so
-    this reference doesn't go stale as those copies move (#423).
-    """
-    return url.strip().rstrip("/")
 
 
 def _token_manager() -> Any:
@@ -334,7 +357,10 @@ def _server_target_url() -> str:
     not configured" refusal already says what to do.
     """
     try:
-        return _resolved_server_target().resolved_server_url
+        # Bound to a typed local because ``resolve_server_target``'s result is
+        # seen as ``Any`` under ``follow_imports = skip`` (campsite, #4755).
+        resolved: str = _resolved_server_target().resolved_server_url
+        return resolved
     except Exception as exc:  # noqa: BLE001 — any resolution trouble means "no url from this source"
         logger.debug("Server target resolution unavailable for env-token pairing (%s)", exc)
         return ""
@@ -343,14 +369,27 @@ def _server_target_url() -> str:
 def _dead_session_errors() -> tuple[type[Exception], ...]:
     """Refresh failures that mean *this session is finished* — as opposed to
     transient transport/lock trouble, which must not log the user out of the
-    bridge (Team Kitty will answer 401 to a truly dead held token anyway)."""
+    bridge (Team Kitty will answer 401 to a truly dead held token anyway).
+
+    ``IssuerTargetMismatchError`` (WP01) is a member so
+    :func:`_usable_access_token`'s first ``except`` below catches it as a
+    hard refusal — it must never fall through to the bare
+    ``except Exception`` branch that keeps the held token (FR-008, the
+    held-token re-leak trap: a refresh refusal for the wrong reason must not
+    be mistaken for transient trouble)."""
     from specify_cli.auth.errors import (  # noqa: PLC0415
+        IssuerTargetMismatchError,
         NotAuthenticatedError,
         RefreshTokenExpiredError,
         SessionInvalidError,
     )
 
-    return (NotAuthenticatedError, RefreshTokenExpiredError, SessionInvalidError)
+    return (
+        IssuerTargetMismatchError,
+        NotAuthenticatedError,
+        RefreshTokenExpiredError,
+        SessionInvalidError,
+    )
 
 
 def _usable_access_token(manager: Any, session: Any) -> str:
@@ -361,7 +400,29 @@ def _usable_access_token(manager: Any, session: Any) -> str:
     tell the human to log in again. Transient refresh trouble (network down,
     lock contention) keeps the held token: the gateway call will surface the
     real fault, and resolution caches nothing behind a 401.
+
+    Guards the SEND, not only the refresh (FR-008, D-2 adversarial finding):
+    a still-valid *held* access token must also be blocked when the session's
+    issuer disagrees with the resolved target, independent of whether a
+    caller already ran ``_guard_session_issuer`` upstream — this function is
+    exercised directly (in isolation) by
+    ``tests/saas_client/test_held_token_non_demotion.py``. Resolves the
+    target via this module's own :func:`_resolved_server_target` (the same
+    seam :func:`_oauth_session_context` uses) rather than a second,
+    independent live resolution, so both guards always agree on one
+    decision for a given call.
     """
+    from specify_cli.auth.errors import IssuerTargetMismatchError  # noqa: PLC0415
+    from specify_cli.auth.server_target import ServerTargetSplitBrainError  # noqa: PLC0415
+
+    try:
+        target = _resolved_server_target()
+        _guard_session_issuer(session, target)
+    except ServerTargetSplitBrainError as exc:
+        raise SaasAuthError(str(exc)) from exc
+    except IssuerTargetMismatchError as exc:
+        raise _issuer_mismatch_to_saas_auth_error(exc, target) from exc
+
     # ``specify_cli.*`` is type-checked with ``follow_imports = skip``, so the
     # cross-package session attributes are seen as ``Any``; bind to a
     # ``str``-typed local to keep the declared return type honest.
