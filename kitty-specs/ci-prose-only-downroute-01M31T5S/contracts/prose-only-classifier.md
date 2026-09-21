@@ -47,6 +47,21 @@ wiring, which reuses `gate_selection`. **Non-requirements**: the classifier does
 NOT fetch blobs, read the router YAML, import `yaml`/`fnmatch`, or know about lanes.
 It is a two-string predicate (NFR-001).
 
+**Known residual — `__doc__`-as-runtime-data (intended boundary, not a bug)**: a
+docstring-only edit is classified prose-only, but spec-kitty is a `typer` CLI whose
+command `--help` text is *derived from the command's docstring*, so a docstring edit
+is a real user-facing-output change that this classifier still routes off the code
+matrix. This is deliberate — the classifier decides *content*, not *consumption*. The
+help-text-drift subclass is covered elsewhere, not per-PR code shards: the always-on
+docs lane runs `tests/docs/test_module_docstring_doc_refs.py` (#4849, the `docs/*.md`
+doc-pointer subclass) and the doctest guard (R4) covers executable doctests; a plain
+help-*wording* assertion (e.g. `tests/cli/**` asserting a command's `--help` string)
+is caught by the nightly full run, not the down-routed matrix. A future agent seeing
+a nightly-only help-text red should treat it as this documented boundary, not a
+classifier defect. (Hardening this — a guard that any `tests/architectural`/prose-
+reading test lives in an always-on lane — is a tracked follow-up, not part of this
+mission.)
+
 ## Aggregate contract — reduction + verdict (WIRING-side, reuses `gate_selection`)
 
 The aggregate is **not** pure and lives in the workflow step (which already imports
