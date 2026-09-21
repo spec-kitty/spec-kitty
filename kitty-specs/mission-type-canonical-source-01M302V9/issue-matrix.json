@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#2652": {
+      "evidence_ref": "Follow-up: #2652 parent EPIC remains open; this mission is the single-canonical-source convergence slice.",
+      "fr": null,
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "epic-advanced",
+      "source_file": "spec.md",
+      "title": "EPIC: specify_cli/missions retirement \u2014 single canonical mission-type source",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2660": {
+      "evidence_ref": "Sequenced follow-up (#2652-F): remove the typeless->software-dev coalesce/except-fallback. Deliberately NOT in scope \u2014 lands after this mission + blockers #2658/#2659 + backfill migration. C-001.",
+      "fr": null,
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "sequenced-followup",
+      "source_file": "spec.md",
+      "title": "Remove software-dev template-selection fallback in mission.py",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2661": {
+      "evidence_ref": "Sequenced follow-up (#2652-D): delete the legacy resolver + tree. Lands last, after #2660. Out of scope here (C-001).",
+      "fr": null,
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "sequenced-followup",
+      "source_file": "spec.md",
+      "title": "specify_cli/missions retirement \u2014 terminal delete slice",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3831": {
+      "evidence_ref": "Converged onto charter ResolvedMissionType; org-tier custom types resolve as themselves. Repro test_org_mission_type_resolution.py::test_org_custom_type_resolves_to_its_own_identity (flips green at WP04).",
+      "fr": "FR-001",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": "SC-001",
+      "scope": "mission-target",
+      "source_file": "spec.md",
+      "title": "Org-tier custom mission type invisible to loader; silent software-dev swap",
+      "verdict": "in-mission",
+      "wp": "WP04"
+    },
+    "#3836": {
+      "evidence_ref": "Merged PR #3836 landed the visible-signal half of #3831 (CLI-visible warn) and fully closed #3830/#3832; this mission completes the deferred org-tier convergence.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4088": {
+      "evidence_ref": "Override tier migrated to canonical .kittify/doctrine/mission_types/ (WP05). Repro test_legacy_override_directory_is_honoured (flips green at WP05).",
+      "fr": "FR-002",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": "SC-002",
+      "scope": "mission-target",
+      "source_file": "spec.md",
+      "title": "Project override tier .kittify/overrides/missions/ never consulted",
+      "verdict": "in-mission",
+      "wp": "WP05"
+    }
+  },
+  "schema_version": 1
+}
