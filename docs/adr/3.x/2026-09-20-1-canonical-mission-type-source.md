@@ -1,6 +1,6 @@
 ---
 title: 'ADR: Org-aware mission-type loader + `path_conventions` doctrine slot (full charter convergence deferred to #2652)'
-description: 'The mission-type loader is made org-aware — it routes through the shared org-aware resolver and builds a neutral Mission for sparse org-registered types — so org/override custom types resolve as themselves instead of software-dev; `path_conventions` is a new charter doctrine slot with a canonical `VALID_PATH_KEYS` home. Full convergence onto charter `ResolvedMissionType` (retiring the legacy resolver) is deferred to #2652 because the legacy and charter sources encode different concerns.'
+description: 'Makes the mission-type loader org-aware and adds an additive `path_conventions` charter doctrine slot; full convergence onto charter mission types is deferred to #2652.'
 status: Accepted
 date: '2026-09-20'
 ---
