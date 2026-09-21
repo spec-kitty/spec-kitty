@@ -34,6 +34,7 @@ from specify_cli.status.lifecycle_events import (
     mission_event_log_path,
     read_lifecycle_events,
 )
+from specify_cli.status.lifecycle import is_mission_completed
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -91,9 +92,7 @@ def _make_merged_mission(
         "merged_strategy": "merge",
         "merged_commit": "deadbeef",
     }
-    (feature_dir / "meta.json").write_text(
-        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     # A terminal WP chain in the event log so the classifier sees a completed
     # mission (no active WPs) — re-open actionability must come from the event,
     # not from clearing merged_* (D-A2). Each line is a reducer-valid StatusEvent.
@@ -138,9 +137,21 @@ def _invoke(repo: Path, *args: str):
     return runner.invoke(mission_type.app, list(args), env={"PWD": str(repo)})
 
 
-def test_reopen_clears_merged_and_emits_event_and_is_actionable(
-    tmp_path: Path, monkeypatch
-) -> None:
+def _select_completion_alternative(feature_dir: Path, mode: str) -> None:
+    """Leave exactly one of the two documented completion proofs present."""
+    if mode == "marker_only":
+        mission_event_log_path(feature_dir).unlink()
+        return
+    if mode == "terminal_wps_only":
+        meta_path = feature_dir / "meta.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        meta = {key: value for key, value in meta.items() if not key.startswith("merged_")}
+        meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        return
+    raise AssertionError(f"unknown completion mode: {mode}")
+
+
+def test_reopen_clears_merged_and_emits_event_and_is_actionable(tmp_path: Path, monkeypatch) -> None:
     repo = _init_repo(tmp_path)
     feature_dir = _make_merged_mission(repo)
     monkeypatch.chdir(repo)
@@ -166,6 +177,41 @@ def test_reopen_clears_merged_and_emits_event_and_is_actionable(
     lifecycle = derive_mission_lifecycle(feature_dir, now=datetime(2026, 3, 1, tzinfo=UTC))
     assert lifecycle.state == "reopened"
     assert lifecycle.surface_state == "reopened"
+
+
+@pytest.mark.parametrize("completion_mode", ["marker_only", "terminal_wps_only"])
+def test_reopen_supports_each_completion_alternative_without_losing_proof(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, completion_mode: str) -> None:
+    """#4870: either documented proof must survive until its reopen audit fact exists."""
+    repo = _init_repo(tmp_path)
+    feature_dir = _make_merged_mission(repo)
+    _select_completion_alternative(feature_dir, completion_mode)
+    before_meta = (feature_dir / "meta.json").read_bytes()
+    before = json.loads(before_meta)
+    monkeypatch.chdir(repo)
+
+    assert is_mission_completed(feature_dir) is True
+
+    result = _invoke(
+        repo,
+        "reopen",
+        _MID8,
+        "--reason",
+        f"exercise {completion_mode}",
+        "--json",
+    )
+
+    assert result.exit_code == 0, result.output
+    response = json.loads(result.output)
+    assert response["result"] == "reopened"
+
+    events = read_lifecycle_events(mission_event_log_path(feature_dir))
+    reopened = [event for event in events if event.get("event_type") == MISSION_REOPENED]
+    assert len(reopened) == 1
+    assert reopened[0]["payload"]["cleared_merge"] == ({key: value for key, value in before.items() if key.startswith("merged_")} or None)
+
+    after = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert not [key for key in after if key.startswith("merged_")]
+    assert derive_mission_lifecycle(feature_dir).state == "reopened"
 
 
 def test_reopen_requires_reason(tmp_path: Path, monkeypatch) -> None:
@@ -206,9 +252,7 @@ def test_reopen_fail_closed_when_meta_missing(tmp_path: Path, monkeypatch) -> No
     assert not [e for e in events if e.get("event_type") == MISSION_REOPENED]
 
 
-def test_reopen_fail_closed_when_branch_in_neither_local_nor_remote(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_reopen_fail_closed_when_branch_in_neither_local_nor_remote(tmp_path: Path, monkeypatch) -> None:
     repo = _init_repo(tmp_path)
     feature_dir = _make_merged_mission(repo, create_branch=False)
     # No branch exists locally, and there is no configured remote.
@@ -224,9 +268,7 @@ def test_reopen_fail_closed_when_branch_in_neither_local_nor_remote(
     assert meta.get("merged_at") == "2026-02-01T00:00:00+00:00"
 
 
-def test_reopen_recoverable_when_only_worktree_missing(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_reopen_recoverable_when_only_worktree_missing(tmp_path: Path, monkeypatch) -> None:
     # Missing worktree dir ALONE is recoverable (branch present) — NOT fail-closed.
     repo = _init_repo(tmp_path)
     feature_dir = _make_merged_mission(repo, create_branch=True)
@@ -259,9 +301,7 @@ def _make_uncompleted_mission(repo: Path) -> Path:
         "mid8": _MID8,
         "mission_branch": branch,
     }
-    (feature_dir / "meta.json").write_text(
-        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     # A WP still in progress — not terminal — so the mission is not completed.
     log = feature_dir / "status.events.jsonl"
     chain = [("genesis", "planned"), ("planned", "claimed"), ("claimed", "in_progress")]
@@ -404,9 +444,7 @@ def test_format_post_mission_events_renders_reopen_and_follow_up(
     assert format_post_mission_events([]) == []
 
 
-def test_reopen_ambiguous_handle_emits_structured_error(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_reopen_ambiguous_handle_emits_structured_error(tmp_path: Path, monkeypatch) -> None:
     repo = _init_repo(tmp_path)
     # Two missions whose mission_id shares the same mid8 prefix → ambiguous handle.
     _make_merged_mission(repo, slug="alpha", mission_id=_MID8 + "AAAAAAAAAAAAAAAAAA")
@@ -422,9 +460,7 @@ def test_reopen_ambiguous_handle_emits_structured_error(
         "mission_id": _MID8 + "BBBBBBBBBBBBBBBBBB",
         "mid8": _MID8,
     }
-    (second / "meta.json").write_text(
-        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    (second / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     monkeypatch.chdir(repo)
 
     result = _invoke(repo, "reopen", _MID8, "--reason", "x")
@@ -448,9 +484,7 @@ def test_reopen_ambiguous_handle_emits_json_envelope(tmp_path: Path, monkeypatch
         "mission_id": _MID8 + "BBBBBBBBBBBBBBBBBB",
         "mid8": _MID8,
     }
-    (second / "meta.json").write_text(
-        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    (second / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     monkeypatch.chdir(repo)
 
     result = _invoke(repo, "reopen", _MID8, "--reason", "x", "--json")

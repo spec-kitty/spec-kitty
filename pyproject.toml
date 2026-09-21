@@ -2191,7 +2191,6 @@ exclude = [
     "tests/specify_cli/cli/commands/test_migrate_backfill_mission_type.py",
     "tests/specify_cli/cli/commands/test_mission_close_discard_pops_topology.py",
     "tests/specify_cli/cli/commands/test_mission_follow_up.py",
-    "tests/specify_cli/cli/commands/test_mission_reopen.py",
     "tests/specify_cli/cli/commands/test_mission_repair.py",
     "tests/specify_cli/cli/commands/test_mission_state_doctor.py",
     "tests/specify_cli/cli/commands/test_mission_type_rendering.py",
