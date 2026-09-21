@@ -475,9 +475,12 @@ class TestB2RealExemptionSet:
 
         # Occurrences (SC-011's own units) — see the docstring. 224 -> 92 after
         # the context-sources removal, then 92 -> 94 for minutes-mahad's two
-        # additional directive references.
-        assert len(gov) == 94
-        assert len(raw) == 14
+        # additional directive references, then the drupal doctrine pack
+        # (drupal-dries profile + drupal-conventions/drupal-security-performance
+        # styleguides + drupal-review-checks toolguide) moved GOVERNANCE 94 -> 100
+        # and RAW_MATERIAL 14 -> 21.
+        assert len(gov) == 100
+        assert len(raw) == 21
         # Files (the inexpressibility argument's actual unit — plan.md IC-02 /
         # this WP's context section; SC-011's wording conflates the two).
         assert gov_files == {
@@ -491,6 +494,7 @@ class TestB2RealExemptionSet:
                 "designer-dagmar",
                 "diagram-daisy",
                 "doctrine-daphne",
+                "drupal-dries",
                 "frontend-freddy",
                 "generic-agent",
                 "implementer-ivan",
@@ -508,19 +512,23 @@ class TestB2RealExemptionSet:
                 "scribe-sally",
                 "synthesizer-sam",
             )
-        }, "the GOVERNANCE file set moved — the 24 built-in agent profiles (SC-011's original 17 plus the 7 writing/comms profiles re-homed by #3234)"
+        }, "the GOVERNANCE file set moved — 25 built-in agent profiles (17 original + 7 writing/comms via #3234 + drupal-dries from the drupal pack)"
         assert raw_files == {
             f"styleguides/{name}.styleguide.yaml"
             for name in (
                 "deployable-skill-authoring",
                 "divio-type-discipline",
+                "drupal-conventions",
+                "drupal-security-performance",
                 "plain-language",
                 "planning-and-tracking",
                 "python-conventions",
                 "test-desiderata-and-boundaries",
                 "writing/kitty-glossary-writing",
             )
-        }, "the RAW_MATERIAL file set moved — SC-011's 7 files are built-in styleguides"
+        } | {
+            "toolguides/drupal-review-checks.toolguide.yaml",
+        }, "the RAW_MATERIAL file set moved — SC-011's built-in styleguides plus the drupal doctrine pack (2 styleguides + 1 toolguide)"
         # Post-consolidation (mission doctrine-drg-silent-drop-boundary): the
         # retired ``context-sources.directives`` used to add a MIGRATE entry to
         # EVERY governed profile, so the original "every GOVERNANCE file also
@@ -531,12 +539,14 @@ class TestB2RealExemptionSet:
         # argument still targets and are named here — and 12 now carry ONLY the
         # GOVERNANCE field (a file-level exclusion suffices for those). Naming
         # the overlap by file pins the drift a bare subset check would miss.
+        # (drupal-dries, from the drupal doctrine pack, carries both -> 13.)
         assert gov_files & migrate_files == {
             f"agent_profiles/{name}.agent.yaml"
             for name in (
                 "architect-alphonso",
                 "comms-cleo",
                 "debugger-debbie",
+                "drupal-dries",
                 "frontend-freddy",
                 "implementer-ivan",
                 "java-jenny",
@@ -548,12 +558,15 @@ class TestB2RealExemptionSet:
                 "reviewer-renata",
             )
         }, "the GOVERNANCE/MIGRATE overlap (profiles carrying both a governed and a migrated field) moved"
-        # The overlap is the harder half of the same argument: these five files
+        # The overlap is the harder half of the same argument: these seven files
         # need per-field disposition, so name them rather than count them.
+        # (drupal-conventions + drupal-security-performance from the drupal pack.)
         assert raw_files & migrate_files == {
             f"styleguides/{name}.styleguide.yaml"
             for name in (
                 "divio-type-discipline",
+                "drupal-conventions",
+                "drupal-security-performance",
                 "plain-language",
                 "planning-and-tracking",
                 "python-conventions",
