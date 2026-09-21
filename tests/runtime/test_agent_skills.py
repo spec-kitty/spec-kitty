@@ -185,6 +185,18 @@ def test_global_bootstrap_preserves_unproven_readonly_retired_skill_tree(tmp_pat
 
 def test_global_bootstrap_adds_frontmatter_to_plain_skill(tmp_path: Path, monkeypatch) -> None:
     home = tmp_path / "home"
+    # #4756 WP02: pre-create HOME itself (matching the OS guarantee this
+    # env override otherwise breaks -- every other test in this module
+    # already creates something under `home` before its own cold
+    # ensure_global_agent_skills() call, which has the same effect). The
+    # cold-install sentinel now resolves as a sibling of the per-user
+    # runtime state root rather than under machine-temp; when HOME is
+    # freshly monkeypatched to a directory that has never been created,
+    # acquiring that sentinel's lock materializes HOME itself as an
+    # incidental side effect, which assess_runtime's own drift tracking
+    # (which always folds Path.home() into its ancestor chain) then reports
+    # as unexplained input drift.
+    home.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
 

@@ -105,7 +105,10 @@ import tomllib
 import tomli_w
 
 from kernel.locks import SyncMachineFileLock, machine_file_lock
+from kernel.no_follow import open_no_follow
 from kernel.paths import get_runtime_state_root
+
+from specify_cli.paths import ensure_runtime_root
 
 from .session_identity import logical_session_id
 
@@ -201,9 +204,22 @@ def _locked() -> SyncMachineFileLock:
     test-double injection seam) rather than constructed directly. The
     primitive creates missing parent directories *itself* on acquire — at
     the ambient umask (0o755 measured), which would otherwise always beat
-    any mode passed to ``_write_all``'s later ``mkdir``. Creating the root
-    here first, at 0o700, is what actually makes the directory holding the
-    tokens owner-only.
+    any mode passed to ``_write_all``'s later ``mkdir``. Establishing the
+    shared root owner-only first is what actually makes the directory
+    holding the tokens owner-only.
+
+    Mission ``local-write-safety-01M2ZPZD`` WP06 (#4812/#4760, D7): the
+    root-level ``0o700`` used to be hand-rolled here (a 3-level
+    ``mkdir``+``chmod`` ladder covering the root itself, plus this module's
+    own ``zeitgeist-sessions`` and per-session subdirectories) — a second,
+    independent owner of ``~/.spec-kitty``'s mode alongside
+    ``tracker/credentials.py``'s own (previously absent) establishment,
+    which raced on whoever wrote first (FR-011 split-brain). The shared
+    root is now established through the single canonical door
+    :func:`specify_cli.paths.ensure_runtime_root`; this function keeps
+    owning only the two directory levels below the root that are specific
+    to this module's own layout (``zeitgeist-sessions/`` and the
+    per-session directory), which no other writer shares.
 
     ``mkdir``'s ``mode`` only applies at creation — ``exist_ok=True`` leaves
     an already-existing directory's mode untouched. A directory (or file)
@@ -215,9 +231,7 @@ def _locked() -> SyncMachineFileLock:
     Priivacy-ai/spec-kitty#37) — cheap and idempotent once already tight.
     """
     path = credentials_path()
-    root = get_runtime_state_root()
-    root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    root.chmod(0o700)
+    ensure_runtime_root()
     path.parent.parent.mkdir(exist_ok=True, mode=0o700)
     path.parent.parent.chmod(0o700)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -254,17 +268,38 @@ def _write_all(data: dict[str, dict[str, str]]) -> None:
     Every write also prunes pre-#132 bare-name entries (spec-kitty#137):
     they can no longer be written, and none can be read back, but dropping
     them here means a live-shaped bearer left under an abandoned name does
-    not outlive the next legitimate write."""
+    not outlive the next legitimate write.
+
+    Mission ``local-write-safety-01M2ZPZD`` WP06 (#4812): the temp file is
+    created via ``O_CREAT|O_EXCL|O_WRONLY`` at mode ``0o600`` through
+    :func:`kernel.no_follow.open_no_follow` (WP01's canonical primitive) —
+    owner-only *at creation*, with no trailing ``os.chmod`` re-assertion
+    (the previous ``O_TRUNC`` + post-hoc ``chmod(0o600)`` pattern this
+    replaces relied on narrowing a mode the open() call itself had already
+    left ambient-umask-derived for one instant). ``O_EXCL`` also means a
+    symlink planted at the temp path is refused outright (the open raises)
+    rather than written through. The one legitimate case where the temp
+    path already exists — a stale leftover from an earlier crash
+    mid-write — is handled explicitly: a *regular* leftover file is safe to
+    reclaim (``unlink`` removes the directory entry itself, it never opens
+    or follows whatever it points to) and the create is retried once; a
+    symlink is never silently reclaimed, so a still-planted attacker link
+    propagates the failure instead of being followed.
+    """
     for stale in [key for key in data if _is_legacy_name_key(key)]:
         del data[stale]
     path = credentials_path()
     tmp_path = path.with_suffix(path.suffix + ".tmp")
-    fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    try:
+        fd = open_no_follow(tmp_path, flags, 0o600)
+    except FileExistsError:
+        if tmp_path.is_symlink():
+            raise
+        tmp_path.unlink()
+        fd = open_no_follow(tmp_path, flags, 0o600)
     with os.fdopen(fd, "wb") as fh:
         tomli_w.dump(data, fh)
-    # os.open's mode only applies at creation: re-assert in case a looser
-    # temp file survived an earlier crash mid-write.
-    os.chmod(tmp_path, 0o600)
     tmp_path.replace(path)  # atomic on POSIX and Windows (same volume)
 
 

@@ -15,7 +15,6 @@ import hashlib
 import json
 import logging
 import os
-import tempfile
 from pathlib import Path
 import stat
 import sys
@@ -25,6 +24,7 @@ if TYPE_CHECKING:
     from specify_cli.runtime.agent_skills import GlobalSkillSelection
 
 from kernel.locks import machine_file_lock
+from kernel.paths import get_runtime_state_root
 from specify_cli.core.safe_delete import safe_rmdir, safe_unlink
 from specify_cli.runtime.generated_writer import generated_temporary_path, write_generated_file
 from specify_cli.tool_surface.operations import (
@@ -680,6 +680,36 @@ def _membership_drift_tolerated(
         return False
 
 
+def _cold_install_sentinel_ancestor_paths(prepared: PreparedAssets) -> frozenset[Path]:
+    """Ancestor paths whose absent-to-directory transition is legitimately
+    THIS SAME recheck's own cold-install sentinel acquisition (#4756 WP02),
+    never unrelated drift -- mirrors the ``lock_paths`` skip in
+    :func:`check_assets` (#4703) for the identical reason: a side effect
+    this exact call is responsible for is not "someone else changed my
+    assets". The sentinel now resolves as a sibling of the per-user runtime
+    state root (see :func:`_cold_install_sentinel`'s docstring), which can
+    require creating that root's own parent directory (e.g. the user's
+    home) when it does not yet exist -- a genuinely cold machine, not a
+    concurrent peer or an attacker. Naturally bounded: an ancestor that
+    already existed (the common case on a warm machine, and every
+    filesystem-root-level ancestor) never shows an absent-to-directory
+    transition in the first place, so including it here is harmless.
+    """
+    sentinel = _cold_install_sentinel(prepared.anchor)
+    return frozenset({sentinel, *sentinel.parents})
+
+
+def _is_cold_install_sentinel_materialization(
+    observation: AssetObservation,
+    current: AssetObservation,
+    sentinel_ancestors: frozenset[Path],
+) -> bool:
+    """True when *observation*'s only "drift" is this recheck's own
+    cold-install sentinel springing its ancestor chain from absent to an
+    ordinary, otherwise-untouched directory."""
+    return observation.path in sentinel_ancestors and observation.state.kind == "absent" and current.state.kind == "directory"
+
+
 def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
     """Compare the entire batch before opening any write-capable handle.
 
@@ -716,6 +746,7 @@ def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
         content_paths = tuple(path for path, write in writes_by_path.items() if write.effect.after.kind == "file" and not _is_bookkeeping_write(write))
         content_confirmed: bool | None = None  # computed lazily; a batch with no writes never needs it
         lock_paths = set(prepared.lock_paths)
+        sentinel_ancestors = _cold_install_sentinel_ancestor_paths(prepared)
         # Ancestors precede child file reads, including parents outside the root.
         for observation in sorted(prepared.observations, key=lambda item: len(item.path.parts)):
             if observation.path in lock_paths:
@@ -737,7 +768,8 @@ def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
                 # PermissionError drops exc.filename (it is None), leaving only
                 # "[Errno 13] Permission denied" -- undiagnosable as shipped.
                 raise ValueError(f"Could not read global asset {observation.path}: {exc}") from exc
-            if (current.state, current.identity) != (observation.state, observation.identity):
+            drifted = (current.state, current.identity) != (observation.state, observation.identity)
+            if drifted and not _is_cold_install_sentinel_materialization(observation, current, sentinel_ancestors):
                 write = writes_by_path.get(observation.path) if observation.role == "destination_probe" else None
                 tolerated = write is not None and _content_equal(current.state, write.effect.after)
                 if tolerated and write is not None and (write.effect.after.kind != "file" or _is_bookkeeping_write(write)):
@@ -759,7 +791,7 @@ def check_assets(assessment: OwnerAssessment) -> tuple[Diagnostic, ...]:
 
 
 def _cold_install_sentinel(anchor: Path) -> Path:
-    """A machine-temp lock file that serializes concurrent COLD installers of the
+    """A per-user lock file that serializes concurrent COLD installers of the
     same *anchor*.
 
     Directories cannot be locked through the canonical primitive (it opens,
@@ -767,10 +799,40 @@ def _cold_install_sentinel(anchor: Path) -> Path:
     G1), so a cold install of any anchor -- POSIX or Windows alike --
     serializes on this dedicated sentinel file instead of flocking the
     anchor directory itself (the pre-WP04 POSIX shape). This sentinel is
-    deliberately kept OUT of the managed asset tree (under the machine temp
-    dir, keyed by the anchor path) so it never enters asset verification,
-    while still contending across processes installing the same anchor.
-    (#4703 cross-OS family)
+    deliberately kept OUT of the managed asset tree (a sibling of the
+    per-user runtime state root, keyed by the anchor path) so it never
+    enters asset verification, while still contending across processes
+    installing the same anchor. (#4703 cross-OS family)
+
+    #4756 WP02: the sentinel used to live under the WORLD-SHARED
+    ``tempfile.gettempdir()`` -- a machine-global location any other local
+    user can read/traverse, keyed by a filename fully predictable from the
+    (machine-global) *anchor*. It now resolves as a SIBLING of
+    :func:`kernel.paths.get_runtime_state_root` (``~/.spec-kitty-cold-
+    install``, next to ``~/.spec-kitty``) instead of a child of it, which
+    another local user cannot write into either way -- closing that
+    pre-plant window -- but, critically, keeps this sentinel's own ancestor
+    chain structurally DISJOINT from ``kernel.paths.get_kittify_home()``'s.
+    ``AssetPreparation.observe`` records EVERY ancestor of every observed
+    destination (including the bare runtime-state-home directory itself,
+    not just its managed subdirectories) so a later drift recheck can catch
+    a parent swapped out from under it; a sentinel nested INSIDE that same
+    home root would make its own out-of-band ``mkdir(parents=True)``
+    (``kernel.locks``' ``_ensure_dir``) silently materialize the
+    previously-absent home directory between the plan snapshot and the
+    locked recheck, which a genuinely cold install (home not yet created)
+    then reports as unexplained drift ("Global asset input changed") --
+    self-inflicted, not a real concurrent-peer race. A sibling path shares
+    ``get_runtime_state_root()``'s parent (already guaranteed to exist --
+    the real ``$HOME``, or the caller-supplied ``SPEC_KITTY_HOME``'s own
+    parent) without ever nesting under the home root itself, so it cannot
+    trip that check. This function is PURE (no I/O): directory creation and
+    mode hardening are the sole responsibility of the caller's
+    ``kernel.locks.machine_file_lock`` acquisition below, whose
+    ``_ensure_dir`` hardens a freshly-created parent to ``0o700`` -- a bare
+    ``mkdir(exist_ok=True)`` here would pre-create that parent and make
+    ``_ensure_dir`` see it as already existing, permanently skipping the
+    chmod (the exact bug this WP fixes).
 
     FR-011: the anchor is normalized (case-folded, canonicalized) BEFORE
     keying so two equivalent spellings of the same anchor path (differing
@@ -780,8 +842,8 @@ def _cold_install_sentinel(anchor: Path) -> Path:
     """
     normalized = os.path.normcase(str(Path(anchor).resolve()))
     key = hashlib.sha256(normalized.encode()).hexdigest()[:16]  # noqa: TID251 -- path keying, not charter hashing
-    sentinel_dir = Path(tempfile.gettempdir()) / "spec-kitty-cold-install"
-    sentinel_dir.mkdir(parents=True, exist_ok=True)
+    runtime_root = get_runtime_state_root()
+    sentinel_dir = runtime_root.parent / f"{runtime_root.name}-cold-install"
     return sentinel_dir / f"{key}.lock"
 
 
@@ -923,7 +985,22 @@ def _write_asset(write: AssetWrite) -> None:
     elif effect.action == "chmod":
         path.chmod(effect.after.mode or 0o444)
     elif effect.after.kind == "directory":
-        path.mkdir(mode=effect.after.mode or 0o755)
+        try:
+            path.mkdir(mode=effect.after.mode or 0o755)
+        except FileExistsError:
+            # #4756 WP02: a cold install's own sentinel lock (a sibling of
+            # the per-user runtime state root) can materialize an ancestor
+            # directory -- e.g. the home root itself -- as a side effect of
+            # its own kernel.locks acquisition, moments before this SAME
+            # plan's "create" action for that identical path runs (a
+            # caller that applies directly, without the #4017 re-assess-
+            # under-lock seam, never gets a second look at that fact).
+            # check_assets's own precondition gate already ran immediately
+            # before this write; tolerate ONLY an already-materialized
+            # ordinary directory here (never a symlink standing in for
+            # one) rather than raising on this specific, benign race.
+            if path.is_symlink() or not path.is_dir():
+                raise
         path.chmod(effect.after.mode or 0o755)
     elif effect.after.kind == "symlink":
         if effect.after.target is None:

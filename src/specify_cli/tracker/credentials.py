@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import tomllib
@@ -9,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from kernel.locks import machine_file_lock
+from kernel.no_follow import open_no_follow
 from kernel.paths import is_windows
 
 try:  # pragma: no cover - optional dependency
@@ -104,6 +106,40 @@ def _write_toml(payload: dict[str, Any]) -> str:
     return ("\n".join(lines).rstrip() + "\n") if lines else ""
 
 
+def _write_credentials_file(path: Path, content: str) -> None:
+    """Write *content* to *path*, owner-only from the moment it exists.
+
+    Mission ``local-write-safety-01M2ZPZD`` WP06 / #4760: the previous
+    ``Path.write_text`` + trailing ``os.chmod(0o600)`` left a window where
+    the file briefly existed at whatever mode the process umask granted
+    (measured ``0o644``) before the ``chmod`` narrowed it. A fresh,
+    uniquely-named temp file is created here via ``O_CREAT|O_EXCL|O_WRONLY``
+    at mode ``0o600`` through :func:`kernel.no_follow.open_no_follow` (WP01's
+    canonical no-follow primitive) -- the mode applies atomically at
+    creation, so there is no window and no trailing ``chmod`` call at all.
+    ``Path.replace`` then swaps it onto *path* atomically; ``rename(2)``
+    never dereferences a symlink at the destination, it replaces the
+    directory entry itself, so a symlink planted at *path* is never written
+    through.
+
+    The temp name is unique per call (pid + random suffix, mirroring
+    ``kernel.yaml_io.write_mapping_atomic``'s pattern) so ``O_EXCL`` never
+    collides with a concurrent writer's own temp file or a leftover from an
+    earlier crash.
+    """
+    tmp_path = path.with_name(f"{path.name}.tmp.{os.getpid()}.{os.urandom(4).hex()}")
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+    fd = open_no_follow(tmp_path, flags, 0o600)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            tmp_path.unlink()
+        raise
+    tmp_path.replace(path)
+
+
 class TrackerCredentialStore:
     """Store tracker provider credentials under the platform runtime root."""
 
@@ -125,11 +161,19 @@ class TrackerCredentialStore:
 
     def save(self, payload: dict[str, Any]) -> None:
         try:
+            if self.path == _credentials_path():
+                # Only the default (production) location shares the
+                # ``~/.spec-kitty``-rooted directory ``ensure_runtime_root``
+                # owns -- an explicitly injected ``path`` (test isolation,
+                # or any other caller-chosen location) is a directory this
+                # store does not own and must not chmod/mkdir on its behalf.
+                from specify_cli.paths import ensure_runtime_root  # noqa: PLC0415
+
+                ensure_runtime_root()
             self.path.parent.mkdir(parents=True, exist_ok=True)
+            content = _write_toml(payload)
             with machine_file_lock(_credentials_lock_path(self.path), blocking=True):
-                self.path.write_text(_write_toml(payload), encoding="utf-8")
-            if not is_windows():
-                os.chmod(self.path, 0o600)
+                _write_credentials_file(self.path, content)
         except Exception as exc:  # pragma: no cover - defensive
             raise TrackerCredentialError(f"Failed to save credentials: {exc}") from exc
 

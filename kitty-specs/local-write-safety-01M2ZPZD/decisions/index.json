@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-20T15:30:32.670100Z",
+      "decision_id": "01M2ZQ1G2Y61KECT5BZ51V69XS",
+      "final_answer": "Back up, then proceed: when init re-runs on a populated .kittify/ that is missing config.yaml, move existing operator-authored content (custom missions, memory notes) into a timestamped .kittify/.backup-<UTC-timestamp>/ before copying scaffold, and report the backup path to the user. Never rmtree operator-owned content.",
+      "input_key": "init_destructive_policy",
+      "mission_id": "01M2ZPZD9GTXFCDAJN06P8P35S",
+      "mission_slug": "local-write-safety-01M2ZPZD",
+      "opened_by": "cli",
+      "options": [
+        "Refuse with guidance",
+        "Back up then proceed",
+        "Merge (never delete user content)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When spec-kitty init finds user-authored .kittify/missions or memory but no config.yaml, what should it do?",
+      "rationale": null,
+      "resolved_at": "2026-09-20T15:33:31.420957Z",
+      "resolved_by": null,
+      "slot_key": "specify.init-safety.destructive-policy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M2ZPZD9GTXFCDAJN06P8P35S",
+  "version": 1
+}

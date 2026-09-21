@@ -74,6 +74,7 @@ from types import TracebackType
 from typing import Any
 
 from kernel.clock import UTC, datetime, now_utc, parse_iso
+from kernel.no_follow import open_no_follow
 from kernel.paths import is_windows
 
 # NOTE: this module-scope import guard deliberately keeps the raw
@@ -388,7 +389,14 @@ def force_release(lock_path: Path, *, only_if_age_s: float = STALE_AFTER_S_DEFAU
     if record.age_s <= only_if_age_s:
         return False
     try:
-        fd = os.open(str(lock_path), os.O_RDWR)
+        # Same no-follow routing as ``_LockCore.open_fd`` above: a planted
+        # symlink at ``lock_path`` must raise ``NoFollowPathError`` rather
+        # than being followed and truncated. This intentionally propagates
+        # past the surrounding ``except OSError`` (``NoFollowPathError`` is a
+        # ``RuntimeError``, not an ``OSError``) -- a symlinked lock path is a
+        # security signal the caller must see, not a routine "lock missing/
+        # unreadable" outcome silently folded into a ``False`` return.
+        fd = open_no_follow(lock_path, os.O_RDWR | getattr(os, "O_NOFOLLOW", 0))
     except OSError:
         return False
     try:
@@ -445,9 +453,17 @@ class _LockCore:
 
     def open_fd(self) -> int:
         _ensure_dir(self.lock_path)
-        flags = os.O_RDWR | os.O_CREAT
+        flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
         # ``0o600`` keeps the lock file readable only by the owner on POSIX.
-        return os.open(str(self.lock_path), flags, 0o600)
+        # Routed through ``open_no_follow`` (rather than a second raw
+        # ``os.open``) so there is exactly one no-follow implementation
+        # (#4756, FR-001): a planted symlink at ``lock_path`` raises
+        # ``NoFollowPathError`` instead of being followed and later
+        # truncated/overwritten by ``commit_record``/``release``. No
+        # ``O_EXCL`` -- lock files are re-opened by every later acquirer
+        # (release truncates, never unlinks, per G3); ``O_EXCL`` would make
+        # every re-acquisition after the first fail (C-003).
+        return open_no_follow(self.lock_path, flags, 0o600)
 
     def try_lock_once(self, fd: int) -> bool:
         """Attempt one non-blocking OS-level lock. ``True``=acquired, ``False``=contended."""

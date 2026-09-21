@@ -39,6 +39,7 @@ from specify_cli.core.agent_config import (
 )
 from .init_help import INIT_COMMAND_DOC
 from specify_cli.template import (
+    back_up_operator_subtrees,
     copy_specify_base_from_local,
     copy_specify_base_from_package,
     get_local_repo_root,
@@ -404,6 +405,51 @@ def _prepare_project_minimal(project_path: Path) -> None:
     kittify.mkdir(parents=True, exist_ok=True)
     (kittify / "memory").mkdir(exist_ok=True)
     _logger.debug("Minimal project skeleton created at %s", kittify)
+
+
+_OPERATOR_AUTHORED_SUBTREES = ("missions", "memory")
+
+
+def _has_operator_authored_content(project_path: Path) -> bool:
+    """Detect operator-authored ``.kittify`` content beyond ``config.yaml`` (FR-007).
+
+    A previous ``spec-kitty init`` (or a hand-authored project) can leave
+    ``.kittify/missions/`` or ``.kittify/memory/`` populated even when
+    ``config.yaml`` itself is absent -- deleted to reset configuration, a
+    prior init that failed after copying assets, or a legacy layout. The
+    "already initialized" predicate must not treat that state as blank: a
+    populated ``.kittify`` without ``config.yaml`` is still operator-authored
+    content, not a fresh project (#4759). An empty subtree (e.g. a bare
+    ``mkdir missions``) is not itself content, so it does not count.
+    """
+    kittify = project_path / ".kittify"
+    return any((kittify / subtree_name).is_dir() and any((kittify / subtree_name).rglob("*")) for subtree_name in _OPERATOR_AUTHORED_SUBTREES)
+
+
+def _discard_failed_project_scaffold(project_path: Path, *, here: bool) -> None:
+    """Roll back a failed init for a project directory this run created.
+
+    Only fires for ``not here`` (a positional project name was given): the
+    upfront directory-conflict check refuses to run at all when such a
+    directory already existed, so under the CLI's own guard this path only
+    ever removes a scaffold this same run produced. It still routes through
+    the single canonical backup helper (FR-006/D6) rather than an
+    unconditional ``shutil.rmtree`` -- the invariant is "never rmtree
+    operator-owned content" regardless of whether today's reachable paths
+    happen to make that impossible; a future change to the upstream guard
+    must not silently reintroduce the #4759 class. Any operator-authored
+    ``missions/``/``memory/`` found is preserved in a sibling backup
+    directory (outside ``project_path``, which is about to be removed
+    wholesale) before the removal proceeds.
+    """
+    if here or not project_path.exists():
+        return
+    back_up_operator_subtrees(
+        project_path / ".kittify",
+        list(_OPERATOR_AUTHORED_SUBTREES),
+        backup_parent=project_path.parent,
+    )
+    shutil.rmtree(project_path)
 
 
 def _ensure_event_log_merge_attributes(project_path: Path) -> bool:
@@ -881,6 +927,23 @@ def init(  # noqa: C901
         )
         raise typer.Exit(0)
 
+    # FR-007: config.yaml alone is a correlated sentinel, not the cause --
+    # a .kittify/ that is missing only config.yaml (deleted to reset
+    # configuration, a prior init that failed mid-copy, or a legacy layout)
+    # still carries operator-authored missions/memory and must not be
+    # treated as blank. Operator decision (governed DM 01M2ZQ1G...):
+    # back-up-then-proceed, not refuse -- there is nothing to "resume" from
+    # without config.yaml, so this surfaces the finding and falls through to
+    # the full scaffold below, which is now backup-safe at every destructive
+    # site (T013/T014, #4759).
+    if _has_operator_authored_content(project_path):
+        _console.print(
+            "[yellow]Existing operator-authored .kittify/ content found (missions/ or "
+            "memory/) without config.yaml.[/yellow]\n"
+            "[dim]Rebuilding scaffolding; existing content will be preserved in a "
+            "timestamped .kittify/.backup-<ts>/ directory.[/dim]"
+        )
+
     current_dir = Path.cwd()
 
     setup_lines = [
@@ -1185,8 +1248,7 @@ def init(  # noqa: C901
         except Exception as e:
             tracker.error("final", str(e))
             _console.print(Panel(f"Initialization failed: {e}", title="Failure", border_style="red"))
-            if not here and project_path.exists():
-                shutil.rmtree(project_path)
+            _discard_failed_project_scaffold(project_path, here=here)
             raise typer.Exit(1) from e
         finally:
             # Force final render

@@ -1,7 +1,7 @@
 """Global owner regressions; public startup wiring is separately owned by WP10."""
 
 from pathlib import Path
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import replace
 import shutil
 import ast
@@ -21,13 +21,61 @@ import pytest
 
 from specify_cli.runtime import agent_commands, agent_skills, bootstrap
 from specify_cli.skills.registry import SkillRegistry
-from tests.upgrade.preview_support.snapshot import Snapshot, assert_unchanged, snapshot
+from tests.upgrade.preview_support.snapshot import Snapshot, assert_unchanged
 from tests.upgrade.preview_support.snapshot import net_delta
+from tests.upgrade.preview_support.snapshot import snapshot as _raw_snapshot
 from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
 from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment
 from specify_cli.upgrade.intent import parse_upgrade_intent
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+_COLD_INSTALL_SENTINEL_DIR_SUFFIX = "-cold-install"
+
+
+def _is_cold_install_sentinel_path(relative: str) -> bool:
+    """#4756 WP02: the cold-install lock sentinel now resolves as a SIBLING
+    of the per-user runtime state root (e.g. ``.kittify-cold-install/
+    <hash>.lock``, next to ``.kittify``) instead of a machine-temp file --
+    see ``asset_preparation._cold_install_sentinel``'s docstring for why it
+    must live there rather than nested inside the managed home tree. It is
+    deliberately kept OUT of every owner's OWN declared assessment effects
+    (never asset-verified), so this module's dozens of exact, home-rooted
+    filesystem snapshots would otherwise see it as unexplained drift on any
+    COLD install exercised inside their before/after window. Filtered out
+    ONCE here (via the local ``snapshot`` wrapper below) rather than at
+    each call site.
+    """
+    return any(part.endswith(_COLD_INSTALL_SENTINEL_DIR_SUFFIX) for part in relative.split("/"))
+
+
+def snapshot(roots: Mapping[str, Path]) -> Snapshot:
+    """Local wrapper: the independent lstat oracle, minus cold-install sentinel noise.
+
+    ``tests/upgrade/preview_support/snapshot.py`` is a deliberately naive,
+    production-import-free oracle (see its own module docstring) -- it must
+    not learn this module's specific path scheme. Shadowing the imported
+    name here, once, keeps every existing ``snapshot(...)`` call site in
+    this file unchanged while filtering consistently.
+
+    Also neutralizes ``mtime_ns`` on each root's OWN entry (relative path
+    ``"."``) only -- creating (or releasing/truncating) the sibling
+    cold-install sentinel touches the root directory's mtime as an ordinary
+    POSIX side effect of gaining a new sibling one level up, even on a
+    batch this module's own precondition check goes on to REFUSE (the
+    cold-install lock is attempted before that refusal is known, by
+    design). Production's own ``AssetPreparation._observation`` already
+    discards mtime for every directory node for the identical reason (a
+    child's create moves its parent's mtime without being a "real" drift
+    signal); this narrows the same reasoning to just the root entry so
+    every deeper path in this module's dozens of exactness assertions
+    keeps its full, unweakened mtime strictness.
+    """
+    return {
+        key: (replace(node, mtime_ns=None) if key[1] == "." and node.kind == "directory" else node)
+        for key, node in _raw_snapshot(roots).items()
+        if not _is_cold_install_sentinel_path(key[1])
+    }
 
 
 def _assert_unchanged_tolerating_lock_holder_churn(before: Snapshot, after: Snapshot) -> None:

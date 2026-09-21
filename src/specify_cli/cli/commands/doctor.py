@@ -181,6 +181,17 @@ from ._cutover_doctor import run_cutover_audit  # noqa: E402
 # WP13's consumer-unification narrowing the fan-out that used to find them.
 from ._review_cycle_reconcile_doctor import run_review_cycle_reconciliation  # noqa: E402
 
+# mission local-write-safety-01M2ZPZD WP03 (T012, FR-004/FR-005): the
+# decisions-index/event-log reconciler was extracted to a standalone
+# ``_decisions_doctor`` from the start (new subcommand, mirroring WP08's
+# ``_review_cycle_reconcile_doctor`` precedent — #4813 soft-gated shape). The
+# ``decisions`` @app.command shell delegates to
+# ``run_decisions_reconciliation``; it diagnoses (and, with ``--repair``,
+# heals) divergence between ``decisions/index.json`` and the authoritative
+# DecisionPointOpened/Resolved event log via the single canonical fold
+# (``specify_cli.decisions.index_fold``).
+from ._decisions_doctor import run_decisions_reconciliation  # noqa: E402
+
 logger = logging.getLogger(__name__)
 
 
@@ -316,7 +327,6 @@ def tool_surfaces(
     run_tool_surfaces_audit(kind, tool, fix, json_output)
 
 
-
 def _print_state_roots_table(report: object) -> None:
     """Print the resolved state-roots existence table (human output)."""
     console.print("\n[bold]State Roots[/bold]")
@@ -377,9 +387,7 @@ def _print_state_warnings(report: object) -> None:
         for w in report.warnings:  # type: ignore[attr-defined]
             console.print(f"  [yellow]![/yellow] {w}")
     else:
-        console.print(
-            "[green]No warnings -- all runtime surfaces are properly covered.[/green]"
-        )
+        console.print("[green]No warnings -- all runtime surfaces are properly covered.[/green]")
     console.print()
 
 
@@ -462,10 +470,7 @@ def identity(
         str | None,
         typer.Option(
             "--fail-on",
-            help=(
-                "Exit non-zero if any mission is in the given state(s). "
-                "Comma-separated list of: assigned, pending, legacy, orphan."
-            ),
+            help=("Exit non-zero if any mission is in the given state(s). Comma-separated list of: assigned, pending, legacy, orphan."),
         ),
     ] = None,
 ) -> None:
@@ -596,24 +601,14 @@ def _print_overdue_details(report: ShimRegistryReport, console: Console) -> None
     console.print("[bold red]Overdue shims must be resolved before release:[/bold red]")
     for e in report.entries:
         if e.status.value == "overdue":
-            canonical = (
-                ", ".join(e.entry.canonical_import)
-                if isinstance(e.entry.canonical_import, list)
-                else e.entry.canonical_import
-            )
+            canonical = ", ".join(e.entry.canonical_import) if isinstance(e.entry.canonical_import, list) else e.entry.canonical_import
             console.print(f"\n  [red]{e.entry.legacy_path}[/red]")
             console.print(f"    Canonical import : {canonical}")
             console.print(f"    Removal target   : {e.entry.removal_target_release}")
             console.print(f"    Tracker          : {e.entry.tracker_issue}")
             console.print("    Remediation:")
-            console.print(
-                f"      Option A: Delete src/specify_cli/{e.entry.legacy_path.replace('.', '/')}.py"
-                " (or __init__.py)"
-            )
-            console.print(
-                "      Option B: Extend removal_target_release in"
-                " docs/migrations/shim-registry.yaml with extension_rationale"
-            )
+            console.print(f"      Option A: Delete src/specify_cli/{e.entry.legacy_path.replace('.', '/')}.py (or __init__.py)")
+            console.print("      Option B: Extend removal_target_release in docs/migrations/shim-registry.yaml with extension_rationale")
 
 
 @app.command(name="shim-registry")
@@ -689,10 +684,7 @@ def shim_registry(
         console.print("[green]Shim Registry[/green]: registry is empty — no shims to check.")
         raise typer.Exit(0)
 
-    console.print(
-        f"\n[bold]Shim Registry[/bold] — {len(report.entries)} entry/entries"
-        f" (project version: {report.project_version})\n"
-    )
+    console.print(f"\n[bold]Shim Registry[/bold] — {len(report.entries)} entry/entries (project version: {report.project_version})\n")
 
     table = Table(box=None, padding=(0, 2), show_edge=False)
     table.add_column("Legacy Path", style="cyan", min_width=24)
@@ -708,11 +700,7 @@ def shim_registry(
     }
 
     for e in report.entries:
-        canonical = (
-            ", ".join(e.entry.canonical_import)
-            if isinstance(e.entry.canonical_import, list)
-            else e.entry.canonical_import
-        )
+        canonical = ", ".join(e.entry.canonical_import) if isinstance(e.entry.canonical_import, list) else e.entry.canonical_import
         table.add_row(
             e.entry.legacy_path,
             canonical,
@@ -800,15 +788,10 @@ def contracts(
         raise typer.Exit(0)
 
     if not report.records:
-        console.print(
-            "[green]Contract Registry[/green]: registry is empty — nothing to validate."
-        )
+        console.print("[green]Contract Registry[/green]: registry is empty — nothing to validate.")
         raise typer.Exit(0)
 
-    console.print(
-        f"\n[bold]Contract Registry[/bold] — {report.record_count} record(s)"
-        f" ({report.advisory_count} advisory, {report.enforcing_count} enforcing)\n"
-    )
+    console.print(f"\n[bold]Contract Registry[/bold] — {report.record_count} record(s) ({report.advisory_count} advisory, {report.enforcing_count} enforcing)\n")
 
     table = Table(box=None, padding=(0, 2), show_edge=False)
     table.add_column("ID", style="cyan", min_width=24)
@@ -860,26 +843,17 @@ def invocation_pairing(
     total_groups_raw = report.get("total_groups", 0)
     total_groups = total_groups_raw if isinstance(total_groups_raw, int) else 0
     orphans_raw = report.get("orphans", [])
-    orphans_list: list[dict[str, object]] = (
-        [o for o in orphans_raw if isinstance(o, dict)] if isinstance(orphans_raw, list) else []
-    )
+    orphans_list: list[dict[str, object]] = [o for o in orphans_raw if isinstance(o, dict)] if isinstance(orphans_raw, list) else []
 
     if json_output:
         console.print_json(json.dumps(report, indent=2, sort_keys=True))
         raise typer.Exit(1 if orphan_count else 0)
 
     if orphan_count == 0:
-        console.print(
-            "[green]Invocation Pairing[/green]: no orphan started records "
-            f"(pairing rate: {pairing_rate:.0%}, "
-            f"groups: {total_groups})."
-        )
+        console.print(f"[green]Invocation Pairing[/green]: no orphan started records (pairing rate: {pairing_rate:.0%}, groups: {total_groups}).")
         raise typer.Exit(0)
 
-    console.print(
-        f"\n[bold]Invocation Pairing[/bold] — {orphan_count} orphan "
-        f"started record(s)\n"
-    )
+    console.print(f"\n[bold]Invocation Pairing[/bold] — {orphan_count} orphan started record(s)\n")
     table = Table(box=None, padding=(0, 2), show_edge=False)
     table.add_column("Canonical Action ID", style="cyan", min_width=24)
     table.add_column("Agent", min_width=10)
@@ -895,10 +869,7 @@ def invocation_pairing(
             str(entry.get("started_at", "")),
         )
     console.print(table)
-    console.print(
-        f"\nPairing rate: {pairing_rate:.0%} "
-        f"across {total_groups} group(s)."
-    )
+    console.print(f"\nPairing rate: {pairing_rate:.0%} across {total_groups} group(s).")
     console.print()
     raise typer.Exit(1)
 
@@ -921,10 +892,7 @@ def _run_ops_sweep(repo_root: Path, *, threshold_hours: float, json_output: bool
         console.print_json(json.dumps(report.to_dict(), indent=2))
         raise typer.Exit(exit_code)
 
-    console.print(
-        f"\n[bold]Ops sweep[/bold] — threshold {report.threshold_hours}h: "
-        f"{report.swept} closed as abandoned, {report.skipped_fresh} fresh (skipped)\n"
-    )
+    console.print(f"\n[bold]Ops sweep[/bold] — threshold {report.threshold_hours}h: {report.swept} closed as abandoned, {report.skipped_fresh} fresh (skipped)\n")
     if report.open_ops:
         table = Table(box=None, padding=(0, 2), show_edge=False)
         table.add_column("Invocation ID", style="cyan", min_width=26)
@@ -966,10 +934,7 @@ def _run_ops_sweep(repo_root: Path, *, threshold_hours: float, json_output: bool
                 "branches that carry that commit."
             )
     if report.skipped_fresh:
-        console.print(
-            "\nFresh open Ops remain — close them with "
-            "spec-kitty profile-invocation complete, or re-run with --threshold 0."
-        )
+        console.print("\nFresh open Ops remain — close them with spec-kitty profile-invocation complete, or re-run with --threshold 0.")
     console.print()
     raise typer.Exit(exit_code)
 
@@ -1026,10 +991,7 @@ def ops(
     for path in orphans:
         table.add_row(str(path.relative_to(repo_root)))
     console.print(table)
-    console.print(
-        "\nThese op records were started but never completed. "
-        "Run spec-kitty doctor ops --json for machine-readable output."
-    )
+    console.print("\nThese op records were started but never completed. Run spec-kitty doctor ops --json for machine-readable output.")
     console.print()
     raise typer.Exit(1)
 
@@ -1063,10 +1025,7 @@ def mission_state(
         str | None,
         typer.Option(
             "--fail-on",
-            help=(
-                "Exit 1 if findings meet a gate "
-                "(error|warning|info|teamspace-blocker)"
-            ),
+            help=("Exit 1 if findings meet a gate (error|warning|info|teamspace-blocker)"),
         ),
     ] = None,
     fixture_dir: Annotated[
@@ -1092,9 +1051,7 @@ def mission_state(
     """Audit, repair, or TeamSpace-validate mission-state shapes."""
     # The runner owns mode/fixture validation before rejecting a missing root.
     # A resolver exception remains an immediate failure, even with fixtures.
-    resolved_root = _doctor_shared.resolve_project_root_or_exit(
-        locate_project_root, json_output, allow_none=True
-    )
+    resolved_root = _doctor_shared.resolve_project_root_or_exit(locate_project_root, json_output, allow_none=True)
     run_mission_state(
         audit=audit,
         fix=fix,
@@ -1117,9 +1074,7 @@ def mission_state(
 
 @app.command(name="doctrine")
 def doctrine_check(
-    json_output: Annotated[
-        bool, typer.Option("--json", help="Machine-readable JSON output")
-    ] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
 ) -> None:
     """Check org doctrine snapshot status and list installed pack artifacts.
 
@@ -1230,25 +1185,13 @@ def _render_unsanctioned_override_findings(report: DoctrineHealthReport) -> None
     findings = org_drg.get("unsanctioned_overrides") if isinstance(org_drg, dict) else None
     if not isinstance(findings, list) or not findings:
         return
-    console.print(
-        f"\n[bold red]Unsanctioned built-in override(s)[/bold red] — "
-        f"{len(findings)} not allowlisted\n"
-    )
+    console.print(f"\n[bold red]Unsanctioned built-in override(s)[/bold red] — {len(findings)} not allowlisted\n")
     for finding in findings:
         if not isinstance(finding, dict):
             continue
-        console.print(
-            f"  • [red]{finding.get('urn')}[/red] "
-            f"({finding.get('kind')}): {finding.get('why')}"
-        )
-    console.print(
-        "  [dim]Add the URN to .kittify/doctrine/replaceable-builtins.yaml "
-        "(with a reason for directives) or remove the org override.[/dim]"
-    )
-    console.print(
-        "  [dim]Only org-tier overrides are adjudicated; project-tier "
-        "(.kittify/doctrine/) overrides are intentionally ungoverned (FR-012).[/dim]"
-    )
+        console.print(f"  • [red]{finding.get('urn')}[/red] ({finding.get('kind')}): {finding.get('why')}")
+    console.print("  [dim]Add the URN to .kittify/doctrine/replaceable-builtins.yaml (with a reason for directives) or remove the org override.[/dim]")
+    console.print("  [dim]Only org-tier overrides are adjudicated; project-tier (.kittify/doctrine/) overrides are intentionally ungoverned (FR-012).[/dim]")
 
 
 def _render_cross_grain_findings(report: DoctrineHealthReport) -> None:
@@ -1263,22 +1206,14 @@ def _render_cross_grain_findings(report: DoctrineHealthReport) -> None:
     findings = org_drg.get("cross_grain_collisions") if isinstance(org_drg, dict) else None
     if not isinstance(findings, list) or not findings:
         return
-    console.print(
-        f"\n[bold red]Cross-grain doctrine-integrity violation(s)[/bold red] — "
-        f"{len(findings)} artifact(s) declared in both grains (FR-013)\n"
-    )
+    console.print(f"\n[bold red]Cross-grain doctrine-integrity violation(s)[/bold red] — {len(findings)} artifact(s) declared in both grains (FR-013)\n")
     for finding in findings:
         if not isinstance(finding, dict):
             continue
         console.print(
-            f"  • [red]{finding.get('artifact')}[/red] "
-            f"({finding.get('kind')}): declared in both the type grain and "
-            "an action grain for a shipped mission type."
+            f"  • [red]{finding.get('artifact')}[/red] ({finding.get('kind')}): declared in both the type grain and an action grain for a shipped mission type."
         )
-    console.print(
-        "  [dim]Remove the duplicate declaration — an artifact may appear in "
-        "at most one grain.[/dim]"
-    )
+    console.print("  [dim]Remove the duplicate declaration — an artifact may appear in at most one grain.[/dim]")
 
 
 # ---------------------------------------------------------------------------
@@ -1300,7 +1235,8 @@ def coordination_health(
         ),
     ] = False,
     json_output: Annotated[
-        bool, typer.Option("--json", help="Machine-readable JSON output"),
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
     ] = False,
     check_staleness: Annotated[
         bool,
@@ -1317,10 +1253,7 @@ def coordination_health(
         str | None,
         typer.Option(
             "--mission",
-            help=(
-                "Scope the checks to a single mission handle (mission_id / mid8 "
-                "/ slug), resolved via the same resolver as `doctor mission-state`."
-            ),
+            help=("Scope the checks to a single mission handle (mission_id / mid8 / slug), resolved via the same resolver as `doctor mission-state`."),
         ),
     ] = None,
 ) -> None:
@@ -1427,3 +1360,48 @@ def review_cycle_reconcile(
     """
     repo_root = _resolve_project_root_or_exit(json_output, exit_code=1)
     run_review_cycle_reconciliation(repo_root, json_output=json_output, mission=mission)
+
+
+# ---------------------------------------------------------------------------
+# mission local-write-safety-01M2ZPZD WP03 T012: ``doctor decisions``
+# ---------------------------------------------------------------------------
+
+
+@app.command(name="decisions")
+def decisions_reconcile(
+    mission: Annotated[
+        str,
+        typer.Option("--mission", help="Mission handle (mission_id / mid8 / slug)"),
+    ],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+    repair: Annotated[
+        bool,
+        typer.Option("--repair", help="Rebuild decisions/index.json from the event log"),
+    ] = False,
+) -> None:
+    """Diagnose or repair divergence between ``decisions/index.json`` and the
+    authoritative ``DecisionPointOpened``/``DecisionPointResolved`` event log
+    (FR-004/FR-005).
+
+    Diagnose (default): read-only; reports decisions present in the event
+    log but missing from the index, and index entries with no backing event.
+
+    ``--repair``: rebuilds ``index.json`` from the log via the single
+    canonical ``event -> IndexEntry`` fold
+    (:mod:`specify_cli.decisions.index_fold`) under the same sidecar lock the
+    write path uses — never invents an entry absent from the log, never
+    drops a log-backed entry. A no-op (no write) when the log and index
+    already agree.
+
+    Informational only: always exits 0.
+
+    Examples:
+        spec-kitty doctor decisions --mission my-mission-01ABCD
+        spec-kitty doctor decisions --mission my-mission-01ABCD --repair
+        spec-kitty doctor decisions --mission my-mission-01ABCD --json
+    """
+    repo_root = _resolve_project_root_or_exit(json_output, exit_code=1)
+    run_decisions_reconciliation(repo_root, mission, json_output=json_output, repair=repair)

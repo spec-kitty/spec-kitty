@@ -3,6 +3,7 @@
 This module is a leaf — it must not import from specify_cli.auth,
 specify_cli.tracker, or any kernel subpackage.
 """
+
 from __future__ import annotations
 
 import os
@@ -80,9 +81,7 @@ def get_runtime_root() -> RuntimeRoot:
         base = Path(env_home)
     elif platform == "win32":
         try:
-            base = Path(
-                platformdirs.user_data_dir("spec-kitty", appauthor=False, roaming=False)
-            )
+            base = Path(platformdirs.user_data_dir("spec-kitty", appauthor=False, roaming=False))
         except Exception:
             # Keep import-time Windows simulations and constrained runtimes from
             # crashing before callers can patch or inspect the module.
@@ -90,6 +89,35 @@ def get_runtime_root() -> RuntimeRoot:
     else:
         base = Path.home() / ".spec-kitty"
     return RuntimeRoot(platform=platform, base=base)
+
+
+def ensure_runtime_root() -> Path:
+    """Create (or re-harden) the shared runtime-state root at ``0o700``.
+
+    :func:`get_runtime_root` itself stays a **pure** resolver (pinned by
+    ``tests/paths/test_runtime_root_spec_kitty_home.py`` T-RR-4/T005/
+    NFR-002: "resolution creates no directories") and the kernel-floor
+    mirror :func:`kernel.paths.get_runtime_state_root` carries the identical
+    contract -- so the actual mkdir/chmod side effect cannot live inside
+    either of those functions without breaking a test that binds this
+    module's public contract. This sibling function is the single door any
+    writer calls instead: co-located with :func:`get_runtime_root` in this
+    module per mission ``local-write-safety-01M2ZPZD`` WP06 (#4812/#4760),
+    which retires the hand-rolled ``chmod(0o700)`` ladder
+    ``zeitgeist_client/credentials.py`` used to run on every credential
+    write, and the equivalent implicit gap in ``tracker/credentials.py``
+    (which never hardened the root at all, only relying on whichever writer
+    happened to create it first) -- closing the FR-011 split-brain where two
+    independent writers raced to be "the" owner of ``~/.spec-kitty``'s mode.
+
+    Idempotent and safe to call on every write: an already-existing
+    directory is re-chmod'd to ``0o700`` rather than trusted at whatever
+    mode a pre-fix write left it (ambient umask, typically ``0o755``).
+    """
+    root = get_runtime_root()
+    root.base.mkdir(parents=True, exist_ok=True, mode=0o700)
+    root.base.chmod(0o700)
+    return root.base
 
 
 def render_runtime_path(path: Path, *, for_user: bool = True) -> str:

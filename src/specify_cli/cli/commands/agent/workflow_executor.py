@@ -509,13 +509,10 @@ def write_prompt_to_file(
     sharing a WP id (e.g. two missions both with ``WP01``) do not collide on the
     same ``/tmp`` path and overwrite each other's prompt (#1831).
     """
-    from runtime.next._tmp_namespace import prompt_tmp_dir
+    from runtime.next._tmp_namespace import prompt_tmp_dir, write_prompt_file
 
-    prompt_file = (
-        prompt_tmp_dir(repo_root)
-        / f"spec-kitty-{command_type}-{mission_slug}-{wp_id}.md"
-    )
-    prompt_file.write_text(content, encoding="utf-8")
+    prompt_file = prompt_tmp_dir(repo_root) / f"spec-kitty-{command_type}-{mission_slug}-{wp_id}.md"
+    write_prompt_file(prompt_file, content)
     return prompt_file
 
 

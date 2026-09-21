@@ -11,13 +11,11 @@ import hashlib
 import importlib.metadata
 import json
 import logging
-import os
 import re
 import subprocess
 import sys
 import uuid
 from collections.abc import Mapping, Sequence
-from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -31,6 +29,7 @@ if TYPE_CHECKING:
 from packaging.version import Version
 from pydantic import BaseModel, ConfigDict
 
+from kernel.locks import LockNotAcquired, SyncMachineFileLock, machine_file_lock
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.checkout_identity import (
     FailClosedRefusal,
@@ -2520,10 +2519,44 @@ def _git_worktrees(repo_root: Path) -> list[Path]:
 
 
 class _git_lock:
+    """Guard mission-state repair mutual exclusion via ``kernel.locks`` (#4811).
+
+    Retired the hand-rolled ``os.open(O_CREAT | O_EXCL | O_WRONLY)`` primitive
+    (a latent FR-010 lock-primitive-ban violation) in favour of the canonical
+    :func:`kernel.locks.machine_file_lock`, which inherits WP01's
+    ``O_NOFOLLOW`` symlink-safety (a planted symlink at the lock path raises
+    ``NoFollowPathError`` instead of being followed and truncated).
+
+    **Behavior-preservation note (semantic-change risk, T017):** the
+    hand-rolled lock was *exclusive-create* -- a second concurrent acquirer
+    failed because the lock file already existed, and a leftover file from a
+    crashed holder blocked every future acquire forever (no process actually
+    held it, yet it looked identical to real contention). ``machine_file_lock``
+    is *truncate-and-reuse with an advisory OS lock*: presence of the file is
+    not contention, only another process actively holding the OS-level lock
+    is. The two effective properties this call site relies on are preserved
+    exactly:
+
+    - **Single non-blocking attempt** (``blocking=False``, the default) --
+      a concurrent repair already holding the lock is refused immediately,
+      never waited out, matching the predecessor's synchronous "fail fast"
+      contract. :class:`~kernel.locks.LockNotAcquired` on contention is
+      translated to the same :class:`MissionStateRepairError` every caller
+      already catches, with the same message shape.
+    - **Scope-bound, non-re-entrant** -- the OS lock is held only for the
+      ``with`` block's duration and released (truncated, never unlinked) on
+      exit, so a second *sequential* (non-nested) acquisition on the same
+      path after the first releases succeeds, exactly as the predecessor's
+      create-then-unlink cycle did.
+
+    A no-op when ``repo_root`` is not (or not yet discoverable as) a git
+    repository, matching the predecessor's silent skip.
+    """
+
     def __init__(self, repo_root: Path) -> None:
         self._repo_root = repo_root
         self._path: Path | None = None
-        self._fd: int | None = None
+        self._lock: SyncMachineFileLock | None = None
 
     def __enter__(self) -> None:
         if not _is_git_repo(self._repo_root):
@@ -2536,18 +2569,17 @@ class _git_lock:
             common = self._repo_root / common
         common.mkdir(parents=True, exist_ok=True)
         self._path = common / "spec-kitty-mission-state.lock"
+        lock = machine_file_lock(self._path, blocking=False)
         try:
-            self._fd = os.open(str(self._path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(self._fd, str(os.getpid()).encode("ascii"))
-        except FileExistsError as exc:
+            lock.__enter__()
+        except LockNotAcquired as exc:
             raise MissionStateRepairError(f"Another mission-state repair appears to be running: {self._path}") from exc
+        self._lock = lock
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
-        if self._fd is not None:
-            os.close(self._fd)
-        if self._path is not None:
-            with suppress(FileNotFoundError):
-                self._path.unlink()
+        if self._lock is not None:
+            self._lock.__exit__(None, None, None)
+            self._lock = None
 
 
 def _git(repo_root: Path, *args: str, check: bool) -> subprocess.CompletedProcess[str]:

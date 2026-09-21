@@ -21,6 +21,7 @@ from specify_cli.migration.mission_state import (
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
+
 def _has_events_5() -> bool:
     import spec_kitty_events
 
@@ -87,11 +88,7 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
         "payload": {"mission_slug": "042-historical-shape"},
     }
     (mission / "status.events.jsonl").write_text(
-        "\n".join(
-            json.dumps(row, sort_keys=True)
-            for row in (status_row, duplicate_row, typed_row, retrospective_row)
-        )
-        + "\n",
+        "\n".join(json.dumps(row, sort_keys=True) for row in (status_row, duplicate_row, typed_row, retrospective_row)) + "\n",
         encoding="utf-8",
     )
     (mission / "mission-events.jsonl").write_text(
@@ -133,11 +130,7 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     assert "feature_number" not in meta
     assert "mission" not in meta
 
-    rows = [
-        json.loads(line)
-        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    rows = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(rows) == 2
     row = rows[0]
     assert row["mission_slug"] == "042-historical-shape"
@@ -187,10 +180,7 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     assert mapping["aggregate_id"] == "WP01"
     assert isinstance(mapping["row_sha256"], str)
     assert isinstance(mapping["envelope_sha256"], str)
-    assert {
-        warning["code"]
-        for warning in dry_run.context_warnings
-    } == {
+    assert {warning["code"] for warning in dry_run.context_warnings} == {
         "TEAMSPACE_PROJECT_CONTEXT_MISSING",
         "TEAMSPACE_TEAM_CONTEXT_NOT_VALIDATED",
     }
@@ -306,11 +296,7 @@ def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
 
     # The legacy typed lane row survived, canonicalized to a flat lane event; the
     # preserved retrospective row is kept untouched.
-    rows = [
-        json.loads(line)
-        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    rows = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
     lane_rows = [row for row in rows if row.get("wp_id") == "WP01"]
     assert len(lane_rows) == 1
     canonical = lane_rows[0]
@@ -323,21 +309,8 @@ def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
     # Only the TeamSpace envelope and the DecisionPoint mirror stay quarantined;
     # the canonical-writer WPStatusChanged shape does NOT.
     assert result.quarantined_rows == 2
-    quarantine = (
-        repo
-        / ".kittify"
-        / "migrations"
-        / "mission-state"
-        / "quarantine"
-        / report.run_id
-        / "042-legacy-typed"
-        / "status.events.jsonl"
-    )
-    quarantine_rows = [
-        json.loads(line)
-        for line in quarantine.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    quarantine = repo / ".kittify" / "migrations" / "mission-state" / "quarantine" / report.run_id / "042-legacy-typed" / "status.events.jsonl"
+    quarantine_rows = [json.loads(line) for line in quarantine.read_text(encoding="utf-8").splitlines() if line.strip()]
     quarantined_event_ids = {row["event_id"] for row in quarantine_rows}
     assert quarantined_event_ids == {
         "01KQHRB8GCFJAX7HM4ZY52AQGS",  # TeamSpace envelope
@@ -643,6 +616,21 @@ def test_repo_slug_preserves_https_remote_colon(monkeypatch: pytest.MonkeyPatch,
 
 
 def test_repair_refuses_when_common_git_lock_is_held(tmp_path: Path) -> None:
+    """A second repair attempt is refused while the canonical lock is genuinely held.
+
+    #4811 (T017): the lock now routes through ``kernel.locks.machine_file_lock``,
+    which is advisory truncate-and-reuse rather than exclusive-create. A bare
+    lock-path *file* with no live OS-level lock behind it (the pre-#4811
+    shape this test used to plant) is no longer "held" -- that is exactly the
+    stale-lock footgun advisory reuse fixes (an orphaned file from a crashed
+    holder no longer blocks every future repair forever). Real contention --
+    a genuine concurrent holder with the OS lock actively held -- is still
+    refused immediately via a single non-blocking attempt, which is what this
+    test now proves by holding the lock for real before invoking
+    ``repair_repo``.
+    """
+    from kernel.locks import machine_file_lock
+
     repo = tmp_path
     mission = repo / "kitty-specs" / "001-modern"
     mission.mkdir(parents=True)
@@ -660,11 +648,14 @@ def test_repair_refuses_when_common_git_lock_is_held(tmp_path: Path) -> None:
         },
     )
     _init_git_repo(repo)
-    lock = repo / ".git" / "spec-kitty-mission-state.lock"
-    lock.write_text("held", encoding="ascii")
-
-    with pytest.raises(Exception, match="Another mission-state repair appears to be running"):
-        repair_repo(repo)
+    lock_path = repo / ".git" / "spec-kitty-mission-state.lock"
+    holder = machine_file_lock(lock_path, blocking=False)
+    holder.__enter__()
+    try:
+        with pytest.raises(Exception, match="Another mission-state repair appears to be running"):
+            repair_repo(repo)
+    finally:
+        holder.__exit__(None, None, None)
 
 
 def test_repair_checks_dirty_relevant_paths_in_linked_worktrees(tmp_path: Path) -> None:
@@ -757,11 +748,7 @@ class TestScrubSecretArgs:
         assert self._scrub(token) == ["<redacted>"]
 
     def test_jwt_shape_redacted(self) -> None:
-        jwt = (
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
-            ".eyJzdWIiOiIxMjM0NTY3ODkwIn0"
-            ".SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-        )
+        jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
         assert self._scrub(jwt) == ["<redacted>"]
 
     def test_bare_bearer_redacted(self) -> None:
@@ -1058,8 +1045,7 @@ def test_repair_rejects_traversal_mission_slug_from_meta(tmp_path: Path) -> None
         "payload": {"decision_point_id": "DP01"},
     }
     (mission_dir / "status.events.jsonl").write_text(
-        json.dumps(status_row, sort_keys=True) + "\n" +
-        json.dumps(typed_row, sort_keys=True) + "\n",
+        json.dumps(status_row, sort_keys=True) + "\n" + json.dumps(typed_row, sort_keys=True) + "\n",
         encoding="utf-8",
     )
     _init_git_repo(repo)
@@ -1074,9 +1060,7 @@ def test_repair_rejects_traversal_mission_slug_from_meta(tmp_path: Path) -> None
 
     assert len(result.missions) == 1, "Expected exactly one mission result"
     mission_result = result.missions[0]
-    assert mission_result.status == "error", (
-        f"Expected error status when traversal slug fires guard, got: {mission_result.status!r}"
-    )
+    assert mission_result.status == "error", f"Expected error status when traversal slug fires guard, got: {mission_result.status!r}"
     # The validation_errors list must contain the slug-validation message
     assert any("safe path segment" in e or "traversal" in e for e in mission_result.validation_errors), (
         f"Expected traversal-guard error in validation_errors, got: {mission_result.validation_errors}"
@@ -1086,9 +1070,7 @@ def test_repair_rejects_traversal_mission_slug_from_meta(tmp_path: Path) -> None
     quarantine_root = repo / ".kittify" / "migrations" / "mission-state" / "quarantine"
     if quarantine_root.exists():
         for path in quarantine_root.rglob("*"):
-            assert ".." not in str(path.relative_to(repo)), (
-                f"Escaped path found: {path}"
-            )
+            assert ".." not in str(path.relative_to(repo)), f"Escaped path found: {path}"
 
 
 def test_repair_preserves_review_result_on_in_review_transitions(tmp_path: Path) -> None:
@@ -1148,11 +1130,7 @@ def test_repair_preserves_review_result_on_in_review_transitions(tmp_path: Path)
 
     repair_repo(repo)
 
-    rows = [
-        json.loads(line)
-        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    rows = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(rows) == 1
     assert rows[0].get("review_result") == review_result
 
@@ -1235,11 +1213,7 @@ def test_repair_orders_lifecycle_rows_by_timestamp_not_to_the_top(tmp_path: Path
 
     repair_repo(repo)
 
-    rows = [
-        json.loads(line)
-        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    rows = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
     # The lifecycle row is chronologically later; it must stay last.
     assert [r.get("event_type", "lane") for r in rows] == ["lane", "WPCreated"]
 
@@ -1287,17 +1261,11 @@ def test_repair_quarantines_dropped_duplicate_event_rows(tmp_path: Path) -> None
         )
 
     # Second row shares the event_id but DIVERGES in payload.
-    (mission / "status.events.jsonl").write_text(
-        _row("original") + "\n" + _row("divergent") + "\n", encoding="utf-8"
-    )
+    (mission / "status.events.jsonl").write_text(_row("original") + "\n" + _row("divergent") + "\n", encoding="utf-8")
 
     repair_repo(repo)
 
-    rows = [
-        line
-        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    rows = [line for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(rows) == 1
 
     quarantined = list((repo / ".kittify" / "migrations" / "mission-state" / "quarantine").rglob("*"))

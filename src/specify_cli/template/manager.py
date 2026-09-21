@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 import shutil
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from importlib.resources.abc import Traversable
 from importlib.resources import files
 from pathlib import Path
@@ -12,9 +14,80 @@ from rich.console import Console
 
 console = Console()
 
+#: Prefix for the persistent, operator-reported backup directories this
+#: module creates (FR-006/D6). Deliberately distinct from
+#: ``template_render/pipeline.py``'s transactional ``.bak-{nonce}`` swap
+#: (removed on success) -- see C-006. Never removed automatically; the
+#: operator owns cleanup.
+_BACKUP_DIR_PREFIX = ".backup-"
+
 
 def _resource_exists(resource: Traversable) -> bool:
     return resource.is_file() or resource.is_dir()
+
+
+def _utc_backup_timestamp() -> str:
+    """Return the current UTC timestamp in a filesystem-safe, sortable form.
+
+    A separate seam (rather than inlining ``datetime.now`` at the call site)
+    so tests can force a same-second collision deterministically.
+    """
+    return datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+
+
+def _allocate_backup_dir(parent: Path) -> Path:
+    """Allocate a fresh backup directory under ``parent``, collision-safe.
+
+    Two re-inits within the same wall-clock second must not collide: a
+    numeric suffix is appended and retried until an as-yet-unclaimed
+    directory name is found and atomically created (``mkdir(exist_ok=False)``
+    -- no TOCTOU window between the existence check and the create).
+    """
+    parent.mkdir(parents=True, exist_ok=True)
+    timestamp = _utc_backup_timestamp()
+    suffix = 0
+    while True:
+        name = f"{_BACKUP_DIR_PREFIX}{timestamp}" if suffix == 0 else f"{_BACKUP_DIR_PREFIX}{timestamp}-{suffix}"
+        candidate = parent / name
+        try:
+            candidate.mkdir(parents=False, exist_ok=False)
+        except FileExistsError:
+            suffix += 1
+            continue
+        return candidate
+
+
+def back_up_operator_subtrees(
+    source_root: Path,
+    subtree_names: Sequence[str],
+    *,
+    backup_parent: Path | None = None,
+) -> Path | None:
+    """Move existing operator-authored subtrees out of harm's way before scaffolding.
+
+    The single canonical "back up operator-authored content, then proceed"
+    helper (FR-006/D6). For each name in ``subtree_names`` that exists
+    directly under ``source_root`` (e.g. ``.kittify/missions``,
+    ``.kittify/memory``), the whole subtree is moved -- not copied -- into a
+    freshly allocated, timestamped, collision-safe ``.backup-<UTC-ts>/``
+    directory, so the original destructive removal step downstream finds
+    nothing left to delete. Returns the backup directory's path (reported to
+    the operator) when anything was preserved, else ``None``.
+
+    ``backup_parent`` controls where the backup directory itself is created;
+    it defaults to ``source_root`` (``.kittify/.backup-<ts>/``). A caller
+    about to delete ``source_root``'s own ancestor wholesale must pass a
+    location that survives that deletion.
+    """
+    existing = [name for name in subtree_names if (source_root / name).exists()]
+    if not existing:
+        return None
+    parent = backup_parent if backup_parent is not None else source_root
+    backup_dir = _allocate_backup_dir(parent)
+    for name in existing:
+        shutil.move(str(source_root / name), str(backup_dir / name))
+    console.print(f"[yellow]Preserved existing operator-authored content ({', '.join(existing)}) before scaffolding -> {backup_dir}[/yellow]")
+    return backup_dir
 
 
 def copy_specify_base_from_local(repo_root: Path, project_path: Path) -> Path:
@@ -26,8 +99,9 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path) -> Path:
     memory_src = repo_root / ".kittify" / "memory"
     if memory_src.exists():
         memory_dest = specify_root / "memory"
-        if memory_dest.exists():
-            shutil.rmtree(memory_dest)
+        # FR-006: preserve any operator-authored memory/ instead of an
+        # unconditional rmtree -- back it up first (#4759).
+        back_up_operator_subtrees(specify_root, ["memory"])
         shutil.copytree(memory_src, memory_dest)
 
     # Copy from src/charter/offering/templates/ (doctrine artifacts, relocated
@@ -53,8 +127,9 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path) -> Path:
     missions_src = repo_root / "packs" / "built-in" / "missions"
     if missions_src.exists():
         missions_dest = specify_root / "missions"
-        if missions_dest.exists():
-            shutil.rmtree(missions_dest)
+        # FR-006: preserve any operator-authored custom missions instead of
+        # an unconditional rmtree -- back them up first (#4759).
+        back_up_operator_subtrees(specify_root, ["missions"])
         shutil.copytree(missions_src, missions_dest)
 
     # NOTE: Templates are copied temporarily for agent command generation
@@ -62,10 +137,22 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path) -> Path:
     return specify_root / "templates" / "command-templates"
 
 
-def copy_package_tree(resource: Traversable, dest: Path) -> None:
-    """Recursively copy an importlib.resources directory tree."""
+def copy_package_tree(resource: Traversable, dest: Path, *, preserve_existing: bool = False) -> None:
+    """Recursively copy an importlib.resources directory tree.
+
+    ``preserve_existing`` (FR-006/D6) guards this function's own removal
+    step: when True and ``dest`` already holds content, it is preserved
+    (moved into a timestamped ``.kittify/.backup-<ts>/`` directory via
+    :func:`back_up_operator_subtrees`) instead of being deleted outright.
+    Regenerable-scaffold callers (e.g. ``templates/``) pass the default
+    ``False`` and keep the prior replace-in-place behavior -- deliberately
+    not preserved (#4759).
+    """
     if dest.exists():
-        shutil.rmtree(dest)
+        if preserve_existing:
+            back_up_operator_subtrees(dest.parent, [dest.name])
+        else:
+            shutil.rmtree(dest)
     dest.mkdir(parents=True, exist_ok=True)
     for child in resource.iterdir():
         target = dest / child.name
@@ -84,7 +171,9 @@ def copy_specify_base_from_package(project_path: Path) -> Path:
 
     memory_resource = specify_data_root.joinpath("memory")
     if _resource_exists(memory_resource):
-        copy_package_tree(memory_resource, specify_root / "memory")
+        # FR-006: preserve, never unconditionally rmtree, operator-authored
+        # memory/ (#4759).
+        copy_package_tree(memory_resource, specify_root / "memory", preserve_existing=True)
 
     try:
         doctrine_data_root = files("charter.offering")
@@ -139,7 +228,9 @@ def copy_specify_base_from_package(project_path: Path) -> Path:
     )
     for missions_resource in missions_resource_candidates:
         if _resource_exists(missions_resource):
-            copy_package_tree(missions_resource, specify_root / "missions")
+            # FR-006: preserve, never unconditionally rmtree, operator-authored
+            # custom missions (#4759).
+            copy_package_tree(missions_resource, specify_root / "missions", preserve_existing=True)
             break
 
     return specify_root / "templates" / "command-templates"
@@ -154,6 +245,7 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
     Returns:
         Path to repository root containing doctrine templates and missions, or None
     """
+
     def _is_template_root(path: Path) -> bool:
         # The second conjunct checks packs/built-in/missions (mission
         # doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005,
@@ -161,10 +253,7 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
         # directory still exists post-relocation, .py-only, so checking it
         # here would silently accept a checkout whose missions data has
         # actually moved elsewhere, with no error signal).
-        return (
-            (path / "src" / "charter" / "offering" / "templates" / "AGENTS.md").is_file()
-            and (path / "packs" / "built-in" / "missions").is_dir()
-        )
+        return (path / "src" / "charter" / "offering" / "templates" / "AGENTS.md").is_file() and (path / "packs" / "built-in" / "missions").is_dir()
 
     # Check override path first (from --template-root flag)
     if override_path:
@@ -202,6 +291,7 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
 
 
 __all__ = [
+    "back_up_operator_subtrees",
     "copy_package_tree",
     "copy_specify_base_from_local",
     "copy_specify_base_from_package",

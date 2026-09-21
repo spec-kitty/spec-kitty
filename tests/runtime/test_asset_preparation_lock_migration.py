@@ -102,9 +102,15 @@ class TestColdInstallUsesOneUniformSentinel:
         with ap.recheck_assets(assessment):
             assert sentinel.exists(), "a cold install must create + lock the uniform sentinel"
 
-        # The sentinel is a machine-temp file, kept strictly outside the
-        # managed asset tree, on every platform now (never inside fake_home).
-        assert "spec-kitty-cold-install" in sentinel.parts
+        # #4756 WP02: the sentinel now resolves as a SIBLING of the per-user
+        # runtime state root (kernel.paths.get_runtime_state_root(), never
+        # the world-shared tempfile.gettempdir()) instead of a machine-temp
+        # file -- but it still stays strictly outside the managed asset
+        # tree, on every platform, so it never enters asset verification
+        # (and, deliberately, never nests inside fake_home -- see
+        # _cold_install_sentinel's docstring for why a nested sentinel would
+        # corrupt assess_runtime's own drift tracking on a cold install).
+        assert "-cold-install" in sentinel.parent.name
         assert fake_home not in sentinel.parents
 
     def test_sentinel_key_is_stable_across_equivalent_anchor_spellings(self, tmp_path: Path) -> None:

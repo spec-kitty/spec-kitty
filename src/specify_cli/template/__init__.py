@@ -1,6 +1,7 @@
 """Template management for spec-kitty."""
 
 from .manager import (
+    back_up_operator_subtrees,
     copy_package_tree,
     copy_specify_base_from_local,
     copy_specify_base_from_package,
@@ -19,6 +20,7 @@ from .asset_generator import (
 )
 
 __all__ = [
+    "back_up_operator_subtrees",
     "copy_package_tree",
     "copy_specify_base_from_local",
     "copy_specify_base_from_package",

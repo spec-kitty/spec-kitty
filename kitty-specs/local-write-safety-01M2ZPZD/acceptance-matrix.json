@@ -1,0 +1,119 @@
+{
+  "mission_slug": "local-write-safety-01M2ZPZD",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP01 approved; symlink-plant test victim-bytes-intact+raise",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T04:38:54.053930+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP02 approved; sentinel resolves under ~/.spec-kitty, not TMPDIR",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T04:39:30.251465+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP01/WP02/WP07 approved; symlink-plant raises, victim bytes intact",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T04:39:37.529589+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP03 approved; barrier-synchronized 8-key-set concurrency, index==events",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T04:39:44.946991+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP03 approved; reconciler heals log=8/index=5, lossy-slot_key warn/refuse",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T04:39:52.256607+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP04 approved; per-site backup, operator content survives config.yaml absent",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T04:39:59.637100+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP04 approved; _has_operator_authored_content predicate test",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T04:40:06.913758+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP05 approved; mission_state lock via kernel.locks, ban-gate + parity",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T04:40:14.194077+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP06 approved; credentials 0600-by-construction both transports, symlink refused",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T04:40:21.456751+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP07 approved; prompt temp per-user, no-follow, files <=0600",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T04:40:28.882208+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "test",
+      "evidence": "WP02/WP06/WP07 approved; ~/.spec-kitty 0700 single-owner + root harden",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T04:40:36.138075+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

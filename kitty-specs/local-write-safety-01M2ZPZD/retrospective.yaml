@@ -1,0 +1,266 @@
+schema_version: 1
+mission_id: 01M2ZPZD9GTXFCDAJN06P8P35S
+mission_slug: local-write-safety-01M2ZPZD
+mission_number:
+friendly_name: Local Write-Safety Hardening
+mission_type: software-dev
+target_branch: fix/local-write-safety
+created_at: '2026-09-21T04:45:48.276515+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-21T04:45:48.276515+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-002
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-003
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-012
+not_helpful:
+- id: n-015
+  category: doc
+  summary: analysis-report.md records 3 finding(s)
+  evidence_refs:
+  - e-027
+  details: The analysis-report.md artifact for this mission records 3 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-011
+  category: implementation
+  summary: WP02 needed 2 implementation cycles
+  evidence_refs:
+  - e-023
+  details: WP WP02 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-012
+  category: implementation
+  summary: WP03 needed 2 implementation cycles
+  evidence_refs:
+  - e-024
+  details: WP WP03 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-013
+  category: implementation
+  summary: WP04 needed 2 implementation cycles
+  evidence_refs:
+  - e-025
+  details: WP WP04 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-014
+  category: implementation
+  summary: WP07 needed 2 implementation cycles
+  evidence_refs:
+  - e-026
+  details: WP WP07 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-005
+  category: process
+  summary: WP02 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-017
+  details: WP WP02 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP03 required 5 --force override(s) during workflow
+  evidence_refs:
+  - e-018
+  details: WP WP03 required 5 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-007
+  category: process
+  summary: WP04 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-019
+  details: WP WP04 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-008
+  category: process
+  summary: WP05 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-020
+  details: WP WP05 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-009
+  category: process
+  summary: WP06 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-021
+  details: WP WP06 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-010
+  category: process
+  summary: WP07 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-022
+  details: WP WP07 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-013
+  details: WP WP02 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP03 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP04 was sent back from review/approval to an earlier lane 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP07 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-016
+  details: WP WP07 was sent back from review/approval to an earlier lane 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/local-write-safety-01M2ZPZD/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/local-write-safety-01M2ZPZD/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/local-write-safety-01M2ZPZD/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/local-write-safety-01M2ZPZD/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/local-write-safety-01M2ZPZD/tasks/WP01-kernel-no-follow-foundation.md
+- id: e-006
+  kind: file
+  path: kitty-specs/local-write-safety-01M2ZPZD/tasks/WP02-cold-install-sentinel-relocation.md
+- id: e-007
+  kind: file
+  path: kitty-specs/local-write-safety-01M2ZPZD/tasks/WP03-decisions-rmw-lock-reconciler.md
+- id: e-008
+  kind: file
+  path: kitty-specs/local-write-safety-01M2ZPZD/tasks/WP04-init-backup-then-proceed.md
+- id: e-009
+  kind: file
+  path: kitty-specs/local-write-safety-01M2ZPZD/tasks/WP05-mission-state-lock-canonical.md
+- id: e-010
+  kind: file
+  path: kitty-specs/local-write-safety-01M2ZPZD/tasks/WP06-credential-write-safety.md
+- id: e-011
+  kind: file
+  path: kitty-specs/local-write-safety-01M2ZPZD/tasks/WP07-prompt-temp-per-user.md
+- id: e-012
+  kind: file
+  path: kitty-specs/local-write-safety-01M2ZPZD/status.events.jsonl
+- id: e-013
+  kind: event_range
+  path: kitty-specs/local-write-safety-01M2ZPZD/status.events.jsonl
+  range: 01M303AEM9WMYW4DQX0698645S
+- id: e-014
+  kind: event_range
+  path: kitty-specs/local-write-safety-01M2ZPZD/status.events.jsonl
+  range: 01M300Q96T6MHEKYBKVXH3JFHV
+- id: e-015
+  kind: event_range
+  path: kitty-specs/local-write-safety-01M2ZPZD/status.events.jsonl
+  range: 01M2ZZNVD764DNVAD1QMS4G710
+- id: e-016
+  kind: event_range
+  path: kitty-specs/local-write-safety-01M2ZPZD/status.events.jsonl
+  range: 01M303A6XMD2RXG1XKC8PGADQV
+- id: e-017
+  kind: event_range
+  path: kitty-specs/local-write-safety-01M2ZPZD/status.events.jsonl
+  range: 01M301E0B3RYY4EQBQ29PS3GR0..01M303AEM9WMYW4DQX0698645S
+- id: e-018
+  kind: event_range
+  path: kitty-specs/local-write-safety-01M2ZPZD/status.events.jsonl
+  range: 01M2ZZPJ1VAY6XVJKN79FS03Z6..01M301RJ2APQNV9HE34DSHEJ5N
+- id: e-019
+  kind: event_range
+  path: kitty-specs/local-write-safety-01M2ZPZD/status.events.jsonl
+  range: 01M2ZZNVD764DNVAD1QMS4G710..01M3008A13SKYB7YZC5SGG8KWE
+- id: e-020
+  kind: event_range
+  path: kitty-specs/local-write-safety-01M2ZPZD/status.events.jsonl
+  range: 01M308FK9AQ4VW7YFEA8H51YQT..01M308VTD2MWN1ZF6ZZTZSNY3V
+- id: e-021
+  kind: event_range
+  path: kitty-specs/local-write-safety-01M2ZPZD/status.events.jsonl
+  range: 01M2ZZCZ1164JDW0BMBVJ401WQ
+- id: e-022
+  kind: event_range
+  path: kitty-specs/local-write-safety-01M2ZPZD/status.events.jsonl
+  range: 01M303A6XMD2RXG1XKC8PGADQV
+- id: e-023
+  kind: event_range
+  path: kitty-specs/local-write-safety-01M2ZPZD/status.events.jsonl
+  range: implementation_cycles
+- id: e-024
+  kind: event_range
+  path: kitty-specs/local-write-safety-01M2ZPZD/status.events.jsonl
+  range: implementation_cycles
+- id: e-025
+  kind: event_range
+  path: kitty-specs/local-write-safety-01M2ZPZD/status.events.jsonl
+  range: implementation_cycles
+- id: e-026
+  kind: event_range
+  path: kitty-specs/local-write-safety-01M2ZPZD/status.events.jsonl
+  range: implementation_cycles
+- id: e-027
+  kind: file
+  path: kitty-specs/local-write-safety-01M2ZPZD/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

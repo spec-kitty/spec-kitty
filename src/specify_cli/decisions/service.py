@@ -25,13 +25,16 @@ from typing import Any
 
 import ulid as _ulid_mod
 
-from kernel.clock import now_utc
+from kernel.clock import datetime, now_utc
 from kernel.errors import GuardedReadError
 from kernel.guarded_read import read_guarded
+from kernel.locks import machine_file_lock
 from specify_cli.decisions import emit as _emit
+from specify_cli.decisions import index_fold as _index_fold
 from specify_cli.decisions import store as _store
 from specify_cli.decisions.models import (
     DecisionErrorCode,
+    DecisionIndex,
     DecisionOpenResponse,
     DecisionStatus,
     DecisionTerminalResponse,
@@ -106,6 +109,26 @@ def _mint_decision_id() -> str:
     return str(_ulid_mod.ULID())
 
 
+#: T010 (D4, FR-004): the sidecar lock-only path guarding the decisions index
+#: RMW. Never the payload path (``index.json`` itself) -- see
+#: ``kernel.locks`` G1: the caller supplies a DEDICATED lock-only path.
+_LOCK_FILENAME = "index.json.lock"
+
+#: Bounded wait matching the NFR-002 10s hold ceiling -- a stuck holder fails
+#: loudly (``LockAcquireTimeout``) rather than hanging a caller forever.
+_LOCK_ACQUIRE_TIMEOUT_S = 10.0
+
+
+def _decisions_lock_path(mission_dir: Path) -> Path:
+    """Return the sidecar lock path guarding ``decisions/index.json``.
+
+    Shared by the forward write path below and the reconciler
+    (``cli/commands/_decisions_doctor.py``, T012, I8) -- both serialize
+    against the SAME lock so a concurrent open/resolve cannot race a repair.
+    """
+    return _store.decisions_dir(mission_dir) / _LOCK_FILENAME
+
+
 _TERMINAL_STATUSES = {
     DecisionStatus.RESOLVED,
     DecisionStatus.DEFERRED,
@@ -122,10 +145,7 @@ def _is_allowed_terminal_reopen(
     target_status: DecisionStatus,
 ) -> bool:
     """Return True for terminal states that may be explicitly closed later."""
-    return (
-        current_status == DecisionStatus.DEFERRED
-        and target_status == DecisionStatus.RESOLVED
-    )
+    return current_status == DecisionStatus.DEFERRED and target_status == DecisionStatus.RESOLVED
 
 
 def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
@@ -192,9 +212,7 @@ def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
     topology-aware and agrees with where emit.py writes; splitting reads onto
     PRIMARY here would read/write split-brain the ledger under coord topology.
     """
-    mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.STATUS_STATE
-    )
+    mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
     return mission_dir
 
 
@@ -220,9 +238,7 @@ def _parse_opened_events(content: bytes | str) -> list[dict[str, Any]]:
         try:
             events.append(json.loads(line))
         except json.JSONDecodeError as exc:
-            raise json.JSONDecodeError(
-                f"malformed event log line {line_number}: {exc.msg}", exc.doc, exc.pos
-            ) from exc
+            raise json.JSONDecodeError(f"malformed event log line {line_number}: {exc.msg}", exc.doc, exc.pos) from exc
     return events
 
 
@@ -247,11 +263,7 @@ def _opened_event_exists(repo_root: Path, mission_slug: str, decision_id: str) -
     )
     for event in events:
         payload = event.get("payload")
-        if (
-            event.get("event_type") == DECISION_POINT_OPENED
-            and isinstance(payload, dict)
-            and payload.get("decision_point_id") == decision_id
-        ):
+        if event.get("event_type") == DECISION_POINT_OPENED and isinstance(payload, dict) and payload.get("decision_point_id") == decision_id:
             return True
     return False
 
@@ -269,10 +281,7 @@ def _repair_missing_opened_event(
         raise DecisionError(
             code=DecisionErrorCode.EVENT_REPAIR_FAILED,
             details={"decision_id": entry.decision_id, "mission_slug": mission_slug},
-            message=(
-                f"Cannot repair opened event for decision {entry.decision_id!r}: "
-                "opening actor was not persisted"
-            ),
+            message=(f"Cannot repair opened event for decision {entry.decision_id!r}: opening actor was not persisted"),
         )
     try:
         return _emit.emit_decision_opened(
@@ -288,6 +297,65 @@ def _repair_missing_opened_event(
             details={"decision_id": entry.decision_id, "mission_slug": mission_slug},
             message=f"Failed to repair opened event for decision {entry.decision_id!r}: {exc}",
         ) from exc
+
+
+def _locate_or_create_open_entry(
+    mission_dir: Path,
+    *,
+    origin_flow: OriginFlow,
+    step_id: str | None,
+    slot_key: str | None,
+    input_key: str,
+    question: str,
+    options: tuple[str, ...],
+    actor: str,
+    mission_id: str,
+    mission_slug: str,
+    decision_id: str | None,
+) -> tuple[IndexEntry | None, IndexEntry | None, bool]:
+    """T010's service-level RMW critical section for ``open_decision``.
+
+    Runs the dedup lookup (check) and, when nothing matches, the mint +
+    append (act) under ONE lock acquisition on the dedicated sidecar
+    ``decisions/index.json.lock`` (D4/FR-004) -- closing the check-then-act
+    window a lock scoped to ``store.save_index`` alone would leave open.
+
+    Returns ``(existing_entry, new_entry, is_new)``: exactly one of
+    ``existing_entry``/``new_entry`` is non-``None``, selected by ``is_new``.
+    Entry construction routes through
+    :func:`specify_cli.decisions.index_fold.build_opened_entry` -- the same
+    assembler the reconciler's fold consumes (T008, "one canonical
+    constructor, no second interpretation").
+    """
+    lock_path = _decisions_lock_path(mission_dir)
+    with machine_file_lock(lock_path, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S):
+        index = _store.load_index(mission_dir)
+        existing = _store.find_by_logical_key(
+            index,
+            origin_flow,
+            step_id,
+            slot_key,
+            input_key,
+        )
+        if existing is not None:
+            return existing, None, False
+
+        minted_id = decision_id if decision_id is not None else _mint_decision_id()
+        entry = _index_fold.build_opened_entry(
+            decision_id=minted_id,
+            origin_flow=origin_flow,
+            step_id=step_id,
+            slot_key=slot_key,
+            input_key=input_key,
+            question=question,
+            options=options,
+            created_at=now_utc(),
+            opened_by=actor,
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+        )
+        _store.append_entry(mission_dir, entry)
+        return None, entry, True
 
 
 # ---------------------------------------------------------------------------
@@ -360,17 +428,29 @@ def open_decision(
             event_lamport=None,
         )
 
-    # Look up existing entry by logical key
-    index = _store.load_index(mission_dir)
-    existing = _store.find_by_logical_key(
-        index,
-        origin_flow,
-        step_id,
-        slot_key,
-        input_key,
+    # T010 (D4/FR-004): the dedup lookup (check) and the mint-and-append
+    # (act) run under ONE lock acquisition -- the service-level
+    # check-then-act window this WP closes. ``store.append_entry`` still
+    # does its own internal load->save, but that redundant internal read is
+    # harmless here: it happens while THIS lock is held, so no other
+    # open/resolve call can interleave between the dedup check and the
+    # write that follows it.
+    existing, entry, is_new = _locate_or_create_open_entry(
+        mission_dir,
+        origin_flow=origin_flow,
+        step_id=step_id,
+        slot_key=slot_key,
+        input_key=input_key,
+        question=question,
+        options=options,
+        actor=actor,
+        mission_id=mission_id,
+        mission_slug=mission_slug,
+        decision_id=decision_id,
     )
 
-    if existing is not None:
+    if not is_new:
+        assert existing is not None  # narrows for mypy: is_new=False implies existing
         if not _is_terminal(existing.status):
             # Idempotent return — already open
             repaired_lamport = _repair_missing_opened_event(
@@ -395,49 +475,109 @@ def open_decision(
                     "decision_id": existing.decision_id,
                     "status": existing.status.value,
                 },
-                message=(
-                    f"Decision {existing.decision_id!r} is already in terminal "
-                    f"state {existing.status.value!r}"
-                ),
+                message=(f"Decision {existing.decision_id!r} is already in terminal state {existing.status.value!r}"),
             )
 
-    # Mint new decision (use caller-supplied id if provided, else mint fresh)
-    decision_id = decision_id if decision_id is not None else _mint_decision_id()
-    created_at = now_utc()
-    entry = IndexEntry(
-        decision_id=decision_id,
-        origin_flow=origin_flow,
-        step_id=step_id,
-        slot_key=slot_key,
-        input_key=input_key,
-        question=question,
-        options=tuple(options),
-        status=DecisionStatus.OPEN,
-        created_at=created_at,
-        opened_by=actor,
-        mission_id=mission_id,
-        mission_slug=mission_slug,
-    )
-
-    _store.append_entry(mission_dir, entry)
+    assert entry is not None  # narrows for mypy: is_new=True implies entry
     artifact = _store.write_artifact(mission_dir, entry)
     lamport = _emit.emit_decision_opened(
         repo_root,
         mission_slug,
-        decision_id=decision_id,
+        decision_id=entry.decision_id,
         entry=entry,
         actor=actor,
     )
     if on_minted is not None:
-        on_minted(decision_id)
+        on_minted(entry.decision_id)
 
     return DecisionOpenResponse(
-        decision_id=decision_id,
+        decision_id=entry.decision_id,
         idempotent=False,
         mission_id=mission_id,
         artifact_path=str(artifact),
         event_lamport=lamport,
     )
+
+
+def _apply_terminal_under_lock(
+    mission_dir: Path,
+    decision_id: str,
+    *,
+    target_status: DecisionStatus,
+    final_answer: str | None,
+    other_answer: bool,
+    rationale: str | None,
+    summary_json: dict[str, str] | None,
+    resolved_by: str | None,
+    resolved_at: datetime,
+) -> tuple[IndexEntry, bool]:
+    """T010's service-level RMW critical section for resolve/defer/cancel.
+
+    Mirrors :func:`_locate_or_create_open_entry`'s span: load -> find ->
+    idempotency/conflict check -> mutate -> save, all under ONE acquisition
+    of the SAME sidecar lock ``open_decision`` uses (D4/FR-004) -- a
+    concurrent open and a concurrent terminal transition can never interleave
+    a stale read against each other's write.
+
+    Returns ``(entry, idempotent)``. Raises :class:`DecisionError`
+    (``NOT_FOUND`` / ``TERMINAL_CONFLICT``) from inside the lock -- the lock
+    is released via the context manager's own ``finally`` regardless.
+    """
+    lock_path = _decisions_lock_path(mission_dir)
+    with machine_file_lock(lock_path, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S):
+        index = _store.load_index(mission_dir)
+        entry = next(
+            (e for e in index.entries if e.decision_id == decision_id),
+            None,
+        )
+        if entry is None:
+            raise DecisionError(
+                code=DecisionErrorCode.NOT_FOUND,
+                details={"decision_id": decision_id},
+                message=f"Decision {decision_id!r} not found in index",
+            )
+
+        if _is_terminal(entry.status) and not _is_allowed_terminal_reopen(
+            entry.status,
+            target_status,
+        ):
+            # Already terminal — check for idempotency or conflict
+            if entry.status == target_status:
+                # Same outcome — check payload identity
+                payload_matches = entry.final_answer == final_answer and entry.other_answer == other_answer and entry.rationale == rationale
+                if payload_matches:
+                    return entry, True
+            # Different outcome or different payload — conflict
+            raise DecisionError(
+                code=DecisionErrorCode.TERMINAL_CONFLICT,
+                details={
+                    "decision_id": decision_id,
+                    "existing_status": entry.status.value,
+                    "requested_status": target_status.value,
+                },
+                message=(f"Decision {decision_id!r} is already in terminal state {entry.status.value!r}; cannot transition to {target_status.value!r}"),
+            )
+
+        # Apply the terminal transition via the SAME assembler the
+        # reconciler's fold uses (T008, "one canonical mapping").
+        updated_entry = _index_fold.apply_terminal(
+            entry,
+            status=target_status,
+            final_answer=final_answer,
+            other_answer=other_answer,
+            rationale=rationale,
+            resolved_at=resolved_at,
+            resolved_by=resolved_by,
+            summary_json=summary_json,
+        )
+        new_entries = tuple(updated_entry if e.decision_id == decision_id else e for e in index.entries)
+        new_index = DecisionIndex(
+            version=index.version,
+            mission_id=index.mission_id,
+            entries=new_entries,
+        )
+        _store.save_index(mission_dir, new_index)
+        return updated_entry, False
 
 
 # ---------------------------------------------------------------------------
@@ -476,70 +616,31 @@ def _terminal_command(
         )
 
     mission_dir = _mission_dir(repo_root, mission_slug)
-    index = _store.load_index(mission_dir)
-    entry = next(
-        (e for e in index.entries if e.decision_id == decision_id),
-        None,
-    )
-    if entry is None:
-        raise DecisionError(
-            code=DecisionErrorCode.NOT_FOUND,
-            details={"decision_id": decision_id},
-            message=f"Decision {decision_id!r} not found in index",
-        )
-
-    if _is_terminal(entry.status) and not _is_allowed_terminal_reopen(
-        entry.status,
-        target_status,
-    ):
-        # Already terminal — check for idempotency or conflict
-        if entry.status == target_status:
-            # Same outcome — check payload identity
-            payload_matches = (
-                entry.final_answer == final_answer
-                and entry.other_answer == other_answer
-                and entry.rationale == rationale
-            )
-            if payload_matches:
-                return DecisionTerminalResponse(
-                    decision_id=decision_id,
-                    status=target_status,
-                    terminal_outcome=terminal_outcome,
-                    idempotent=True,
-                    event_lamport=None,
-                )
-        # Different outcome or different payload — conflict
-        raise DecisionError(
-            code=DecisionErrorCode.TERMINAL_CONFLICT,
-            details={
-                "decision_id": decision_id,
-                "existing_status": entry.status.value,
-                "requested_status": target_status.value,
-            },
-            message=(
-                f"Decision {decision_id!r} is already in terminal state "
-                f"{entry.status.value!r}; cannot transition to {target_status.value!r}"
-            ),
-        )
-
-    # Apply the terminal transition
-    resolved_at = now_utc()
-    updated_index = _store.update_entry(
+    # T010 (D4/FR-004): load -> find -> idempotency/conflict-check -> mutate
+    # -> save all run under ONE lock acquisition (see
+    # ``_apply_terminal_under_lock``) instead of the prior lock-free
+    # load-then-separately-locked-``store.update_entry`` pattern, which left
+    # the check-then-act window between them open to a concurrent writer.
+    updated_entry, idempotent = _apply_terminal_under_lock(
         mission_dir,
         decision_id,
-        status=target_status,
+        target_status=target_status,
         final_answer=final_answer,
         other_answer=other_answer,
         rationale=rationale,
         summary_json=summary_json,
         resolved_by=resolved_by,
-        resolved_at=resolved_at,
+        resolved_at=now_utc(),
     )
+    if idempotent:
+        return DecisionTerminalResponse(
+            decision_id=decision_id,
+            status=target_status,
+            terminal_outcome=terminal_outcome,
+            idempotent=True,
+            event_lamport=None,
+        )
 
-    # Get the updated entry for artifact + event
-    updated_entry = next(
-        e for e in updated_index.entries if e.decision_id == decision_id
-    )
     _store.write_artifact(mission_dir, updated_entry)
     lamport = _emit.emit_decision_resolved(
         repo_root,

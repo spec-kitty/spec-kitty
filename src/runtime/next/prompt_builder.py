@@ -29,7 +29,7 @@ from charter.activation.mission_type_profiles import (
     resolve_mission_type_context,
 )
 from charter.activation.resolver import GovernanceResolutionError, resolve_project_governance
-from runtime.next._tmp_namespace import prompt_tmp_dir
+from runtime.next._tmp_namespace import prompt_tmp_dir, write_prompt_file
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
@@ -494,5 +494,5 @@ def _write_to_temp(
     wp_suffix = f"-{wp_id}" if wp_id else ""
     filename = f"spec-kitty-next-{agent}-{mission_slug}-{action}{wp_suffix}.md"
     prompt_path = prompt_tmp_dir(repo_root) / filename
-    prompt_path.write_text(content, encoding="utf-8")
+    write_prompt_file(prompt_path, content)
     return prompt_path

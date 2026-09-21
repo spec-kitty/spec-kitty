@@ -1,0 +1,42 @@
+{
+  "accept_commit": "6d423e3fe46d4a1147c4d63310efdc606ec9b92b",
+  "acceptance_history": [
+    {
+      "accept_commit": "787179b71d4b408bc78690b6f82aba679391724c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-21T04:40:53.279177+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "8ad9f02b653b1147bb6167857e8d823510d33c20"
+    },
+    {
+      "accept_commit": "6d423e3fe46d4a1147c4d63310efdc606ec9b92b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-21T04:41:07.901200+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "6e7f3aed64806734cd8d2ecd64e482e83c85a45c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-21T04:41:07.901200+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "6e7f3aed64806734cd8d2ecd64e482e83c85a45c",
+  "baseline_merge_commit": "3010e3f1f6d5f9d36291495904e02fada4592aef",
+  "created_at": "2026-09-20T15:29:24.283297+00:00",
+  "flattened": true,
+  "friendly_name": "Local Write-Safety Hardening",
+  "merged_at": "2026-09-21T04:45:19.064724+00:00",
+  "merged_commit": "99308580bafc7490397dae4cfb13e288aee7a9b8",
+  "mid8": "01M2ZPZD",
+  "mission_id": "01M2ZPZD9GTXFCDAJN06P8P35S",
+  "mission_number": null,
+  "mission_slug": "local-write-safety-01M2ZPZD",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Several Spec Kitty commands write to disk in ways that can silently harm a user: spec-kitty init can truncate an unrelated file a local attacker points at via a predictable shared-temp lock; concurrent mission activity can drop decision records so the index disagrees with the event log; and re-running init can delete a user's custom missions and memory notes. This mission closes those defect classes so routine commands are trustworthy on shared machines and under concurrency.",
+  "purpose_tldr": "Make Spec Kitty's on-disk writes safe: no symlink-hijack file truncation, no lost concurrent decision records, and no destruction of user-authored project content.",
+  "slug": "local-write-safety-01M2ZPZD",
+  "status_phase": "1",
+  "target_branch": "fix/local-write-safety",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-20T16:46:00.341164+00:00"
+}
