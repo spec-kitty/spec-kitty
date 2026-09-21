@@ -5,8 +5,8 @@ from __future__ import annotations
 import hashlib
 import os
 import stat
-from collections.abc import Mapping
-from dataclasses import dataclass
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 
@@ -55,9 +55,72 @@ def snapshot(roots: Mapping[str, Path]) -> Snapshot:
     return result
 
 
+#: ``specify_cli.runtime.asset_preparation._cold_install_sentinel`` names its
+#: per-user lock-coordination directory ``f"{runtime_root.name}-cold-install"``
+#: (a sibling of ``kernel.paths.get_runtime_state_root()``, #4756 WP02). The
+#: cold-install serialization lock is acquired on ANY cold-anchor path
+#: ``recheck_assets`` takes -- including one that ultimately refuses without
+#: writing a single asset -- and ``kernel.locks.machine_file_lock``'s G3
+#: ("release truncates, never unlinks") leaves its empty ``.lock`` sidecar on
+#: disk afterward. That is process-coordination infrastructure this oracle
+#: must not mistake for an asset/content change; production's own
+#: ``check_assets`` mirrors the same tolerance for the identical reason
+#: (``_is_cold_install_sentinel_materialization``).
+_COLD_INSTALL_SUFFIX = "-cold-install"
+
+
+def _cold_install_exclusions(
+    keys: Iterable[tuple[str, str]],
+) -> tuple[frozenset[tuple[str, str]], frozenset[tuple[str, str]]]:
+    """Identify cold-install sentinel keys purely structurally.
+
+    No production import (module docstring): this recognizes the SAME
+    ``f"{name}-cold-install"`` naming convention ``_cold_install_sentinel``
+    documents and is bound to, rather than importing the function that
+    builds the path.
+
+    Returns ``(ignored, mtime_only)``:
+      - ``ignored`` -- the sentinel directory itself and everything nested
+        under it (its persistent ``.lock`` sidecar). Never compared.
+      - ``mtime_only`` -- the sentinel directory's immediate parent. Its
+        KIND/MODE are still compared for real drift; only its ``mtime_ns``
+        (perturbed by the sentinel directory springing into existence, or
+        by its ``.lock`` sidecar being created/truncated inside it) is
+        excluded from the comparison.
+    """
+    key_set = set(keys)
+    sentinel_dirs = {(root, relative) for root, relative in key_set if relative.split("/")[-1].endswith(_COLD_INSTALL_SUFFIX)}
+    ignored: set[tuple[str, str]] = set()
+    mtime_only: set[tuple[str, str]] = set()
+    for root, relative in sentinel_dirs:
+        ignored.add((root, relative))
+        segments = relative.split("/")
+        mtime_only.add((root, "/".join(segments[:-1]) or "."))
+        prefix = f"{relative}/"
+        ignored |= {(r, rel) for r, rel in key_set if r == root and rel.startswith(prefix)}
+    return frozenset(ignored), frozenset(mtime_only)
+
+
 def assert_unchanged(before: Snapshot, after: Snapshot) -> None:
-    """Enforce exact within-fixture purity, including parent mtimes."""
-    changed = [key for key in sorted(before.keys() | after.keys()) if before.get(key) != after.get(key)]
+    """Enforce exact within-fixture purity, including parent mtimes.
+
+    The one deliberate exception is the cold-install sentinel (see
+    :func:`_cold_install_exclusions`): a serialization lock a cold-anchor
+    recheck can leave behind even on a path that refuses without writing
+    any asset is not the kind of drift this oracle exists to catch.
+    """
+    all_keys = before.keys() | after.keys()
+    ignored, mtime_only = _cold_install_exclusions(all_keys)
+    changed = []
+    for key in sorted(all_keys):
+        if key in ignored:
+            continue
+        before_node, after_node = before.get(key), after.get(key)
+        if key in mtime_only and before_node is not None and after_node is not None:
+            before_node = replace(before_node, mtime_ns=None)
+            after_node = replace(after_node, mtime_ns=None)
+        if before_node != after_node:
+            changed.append(key)
     assert not changed, f"Filesystem changed: {changed}"
 
 
@@ -94,9 +157,17 @@ def net_delta(before: Snapshot, after: Snapshot) -> tuple[Effect, ...]:
     A child's create changes parent mtime without a separate apply operation.
     Git internals remain present; callers must report their changes separately.
     No cross-copy content or timestamp-field normalization is performed here.
+
+    The cold-install sentinel (see :func:`_cold_install_exclusions`) is
+    excluded here too: its appearance is process-coordination infrastructure,
+    never an owner-effect this oracle should report as a "create".
     """
+    all_keys = before.keys() | after.keys()
+    ignored, _mtime_only = _cold_install_exclusions(all_keys)
     effects = []
-    for root, path in sorted(before.keys() | after.keys()):
+    for root, path in sorted(all_keys):
+        if (root, path) in ignored:
+            continue
         old = before.get((root, path), Node("absent"))
         new = after.get((root, path), Node("absent"))
         action = _action(old, new)
