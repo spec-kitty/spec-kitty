@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#2519": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3816": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4832": {
+      "evidence_ref": "<<<<<<< ours\n\"WP01 lands slug_for (T002) as the single slug authority foundation for #4832; full fix (scaffolder+engine wiring) completes in WP03 per tasks.md\"\n=======\n\"kebab slug_for authority (WP01) + hybrid manifest-driven validator (WP02) + scaffolder/engine routing (WP03); e2e green in test_slug_canonicalization_e2e.py\"\n>>>>>>> theirs",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "<<<<<<< ours\n\"in-mission\"\n=======\n\"fixed\"\n>>>>>>> theirs",
+      "wp": "<<<<<<< ours\n\"WP01\"\n=======\n\"WP03\"\n>>>>>>> theirs"
+    },
+    "#4833": {
+      "evidence_ref": "<<<<<<< ours\n\"WP01 lands DIRECT_WRITE_KINDS (T001) as the importable 5-kind SSOT for #4833; full fix (hybrid validator recognizing all 5 kinds) completes in WP02 per tasks.md\"\n=======\n\"5-kind _KIND_SUFFIX derived from DIRECT_WRITE_KINDS; agent_profile/procedure no longer 'unknown kind'; commit 338c514615\"\n>>>>>>> theirs",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "<<<<<<< ours\n\"in-mission\"\n=======\n\"fixed\"\n>>>>>>> theirs",
+      "wp": "<<<<<<< ours\n\"WP01\"\n=======\n\"WP02\"\n>>>>>>> theirs"
+    },
+    "#4834": {
+      "evidence_ref": "<<<<<<< ours\n\"#4834 (manifest path/provenance-drift re-write) is WP03-owned (T011/T016 per tasks.md); not touched by WP01, WP01's own scope, not yet implemented\"\n=======\n\"_registration_records rewrites manifest entry on path/provenance drift (no sidecar delete); test_path_and_provenance_drift_rewrites_manifest_entry_without_deleting_sidecar; commit 13510c82b3\"\n>>>>>>> theirs",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "<<<<<<< ours\n\"in-mission\"\n=======\n\"fixed\"\n>>>>>>> theirs",
+      "wp": "WP03"
+    }
+  },
+  "schema_version": 1
+}

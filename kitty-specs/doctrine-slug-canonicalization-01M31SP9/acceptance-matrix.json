@@ -1,0 +1,89 @@
+{
+  "mission_slug": "doctrine-slug-canonicalization-01M31SP9",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctrine_new.py::test_new_directive_scaffolds_kebab_filename_with_screaming_id_preserved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T13:38:47.887306+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_slug_canonicalization_e2e.py (real-engine directive authoring validates clean)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T13:38:57.239252+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_bundle_validate_extension.py (5-kind coverage; agent_profile/procedure no unknown-kind)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T13:39:06.671844+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_direct_write_kinds_parity.py + bundle manifest-driven + convergence tests",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T13:39:16.438324+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_slug_for.py (quote(safe='') preserved incl. namespaced team%2Fops-responder)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T13:39:25.945551+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_slug_canonicalization_e2e.py (existing SCREAMING-file validates green, files unmodified)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T13:39:35.338588+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_project_registration.py::test_path_and_provenance_drift_rewrites_manifest_entry_without_deleting_sidecar (#4834)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T13:39:44.828638+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "document_review",
+      "evidence": "docs/adr/3.x/2026-09-21-1-kebab-canonical-doctrine-artifact-slug.md + CHANGELOG entry (WP04 approved)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-21T13:39:54.238308+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,35 @@
+{
+  "accept_commit": "ab98abdd6bf6b33b2da862dd9387233eb146fd5f",
+  "acceptance_history": [
+    {
+      "accept_commit": "ab98abdd6bf6b33b2da862dd9387233eb146fd5f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-21T13:40:04.306524+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "3a583e4d3f702f2e99d379f599b9d16fc8ecb631"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-21T13:40:04.306524+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "3a583e4d3f702f2e99d379f599b9d16fc8ecb631",
+  "baseline_merge_commit": "ec0eaa137744fe3bf4464df4ff7668e8d2fe5fce",
+  "created_at": "2026-09-21T10:55:20.118359+00:00",
+  "flattened": true,
+  "friendly_name": "Canonical doctrine artifact slug convention",
+  "merged_at": "2026-09-21T13:51:39.786646+00:00",
+  "merged_commit": "7aa8c261c8cea66cec8fb279c6f1c2959d704349",
+  "mid8": "01M31SP9",
+  "mission_id": "01M31SP9H9N5SQNFYDX6FEW1D7",
+  "mission_number": null,
+  "mission_slug": "doctrine-slug-canonicalization-01M31SP9",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The 'charter new' scaffolder, the project-registration engine, and the bundle validator each derive a doctrine artifact's on-disk slug differently, so 'charter bundle validate' fails for any project that authors a project-tier directive (#4832) or activates a project profile (#4833). This mission adopts kebab-case as the single canonical filename/slug (internal id kept authored; id and slug decoupled), routes the scaffolder and engine through one slug_for helper with a manifest-driven validator, and extends the validator kind table to every registration-writing kind, so project-tier doctrine authoring reaches a clean bundle validate.",
+  "purpose_tldr": "Give doctrine artifacts one canonical on-disk slug so 'charter bundle validate' stops rejecting the registration engine's own records.",
+  "slug": "doctrine-slug-canonicalization-01M31SP9",
+  "status_phase": "1",
+  "target_branch": "fix/doctrine-slug-canonicalization",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-21T11:43:51.002532+00:00"
+}

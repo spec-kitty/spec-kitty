@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-21T10:56:16.069234Z",
+      "decision_id": "01M31SR065EGEZ82YXA2A0K3JM",
+      "final_answer": "durable",
+      "input_key": "fix_depth",
+      "mission_id": "01M31SP9H9N5SQNFYDX6FEW1D7",
+      "mission_slug": "doctrine-slug-canonicalization-01M31SP9",
+      "opened_by": "cli",
+      "options": [
+        "durable",
+        "minimal",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Minimal fix (scaffolder kebab + 5-kind validator table) or durable fix (also shared slug_for helper + manifest-driven validator to close the drift class per DIRECTIVE_043)?",
+      "rationale": null,
+      "resolved_at": "2026-09-21T10:57:40.750388Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.fix-depth",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-21T10:56:24.549521Z",
+      "decision_id": "01M31SR8F5N0V37A2MR8ZFH43W",
+      "final_answer": "include-migration-and-4834",
+      "input_key": "existing_migration",
+      "mission_id": "01M31SP9H9N5SQNFYDX6FEW1D7",
+      "mission_slug": "doctrine-slug-canonicalization-01M31SP9",
+      "opened_by": "cli",
+      "options": [
+        "include-migration-and-4834",
+        "go-forward-only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Migrate existing SCREAMING-filename project directives (which requires fixing the #4834 path-update gap in this mission), or go-forward only (new artifacts born clean; existing files + #4834 handled as follow-ups)?",
+      "rationale": null,
+      "resolved_at": "2026-09-21T10:57:49.262144Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.existing-migration",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M31SP9H9N5SQNFYDX6FEW1D7",
+  "version": 1
+}

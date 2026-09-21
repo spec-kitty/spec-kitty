@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "mission_slug": "doctrine-slug-canonicalization-01M31SP9",
+  "mission_id": "01M31SP9H9N5SQNFYDX6FEW1D7",
+  "mission_branch": "kitty/mission-doctrine-slug-canonicalization-01M31SP9",
+  "target_branch": "fix/doctrine-slug-canonicalization",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/synthesizer/manifest.py",
+        "src/charter/offering/artifact_kinds.py",
+        "src/charter/offering/drg/project_scan.py",
+        "tests/charter/test_direct_write_kinds_parity.py",
+        "tests/charter/test_slug_for.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/bundle.py",
+        "tests/charter/synthesizer/test_bundle_validate_extension.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "docs/adr/3.x/2026-09-21-1-kebab-canonical-doctrine-artifact-slug.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/activation/project_registration.py",
+        "src/specify_cli/cli/commands/doctrine.py",
+        "tests/charter/test_project_registration.py",
+        "tests/charter/test_slug_canonicalization_e2e.py",
+        "tests/specify_cli/cli/commands/test_doctrine_new.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-21T11:31:04.467125+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "aad202051caf88f511f5dcd6988f2fec9502e7f7"
+}
