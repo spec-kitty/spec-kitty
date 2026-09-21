@@ -728,8 +728,9 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # than left dangling.
         # specify_cli.runtime.resolver::ResolutionResult (escalated: live collision)
         SymbolKey("ResolutionResult", "a49e0d4f6645139569e84bec5471e1f3cfa6ee507aa530454f76265290ddca58", module_path="specify_cli.runtime.resolver"),
-        # specify_cli.runtime.resolver::ResolutionTier (escalated: live collision)
-        SymbolKey("ResolutionTier", "5503356030b4f173a85df71b0ddd839476675f23c6f80a53bd381a0a1e8004cb", module_path="specify_cli.runtime.resolver"),
+        # specify_cli.runtime.resolver::ResolutionTier -- REMOVED (#3831/#4088 landing):
+        # the org-aware mission-type loader now imports ResolutionTier directly, so it
+        # has a real src/ caller and is no longer dead.
         SymbolKey(
             "AssetDisposition", "80538ab23937dae2a0ae5057b94162ab6d3ee08ee7df23683f57a650eccd4580", source_module="specify_cli.runtime"
         ),  # specify_cli.runtime::AssetDisposition
@@ -741,8 +742,9 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         ),  # specify_cli.runtime::OriginEntry
         # specify_cli.runtime::ResolutionResult (escalated: live collision)
         SymbolKey("ResolutionResult", "a49e0d4f6645139569e84bec5471e1f3cfa6ee507aa530454f76265290ddca58", module_path="specify_cli.runtime"),
-        # specify_cli.runtime::ResolutionTier (escalated: live collision)
-        SymbolKey("ResolutionTier", "5503356030b4f173a85df71b0ddd839476675f23c6f80a53bd381a0a1e8004cb", module_path="specify_cli.runtime"),
+        # specify_cli.runtime::ResolutionTier -- REMOVED (#3831/#4088 landing): same
+        # loader fix as specify_cli.runtime.resolver::ResolutionTier above -- the
+        # re-export now has a real src/ caller too.
         SymbolKey(
             "classify_asset", "7d40a0db5e655cbd1457c6f28d6a5069a31642a0cde6c94149179003e86a7932", source_module="specify_cli.runtime"
         ),  # specify_cli.runtime::classify_asset
@@ -1880,6 +1882,38 @@ _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API: frozenset[SymbolKey] = frozenset
 )
 
 
+# ---------- C. mission-type-canonical-source-01M302V9 path_conventions forward API (#3831/#4088, FR-303) ----------
+# ``charter.offering.missions.models::VALID_PATH_KEYS`` /
+# ``::validate_path_conventions`` land the canonical ``path_conventions``
+# charter doctrine slot ahead of its wiring: per the ADR
+# (``docs/adr/3.x/2026-09-20-1-canonical-mission-type-source.md``), the slot
+# is a forward-declared, additive extension point on the charter
+# ``MissionType`` model -- its producers are downstream consumer org packs
+# and the #2652-deferred built-in convergence, neither of which lands in
+# this PR. Content-tier: ``VALID_PATH_KEYS`` also exists as a legacy, non-
+# ``__all__`` (widened-scope only) module-level constant in
+# ``specify_cli/mission.py``, which is invisible to the gate's live
+# collision index (``classify_collisions`` only walks statically-declared
+# ``__all__`` membership) -- so no module_path escalation is needed here.
+# Remove this entry once a real src/ caller lands (FR-303 tracker: #2652).
+_CATEGORY_C_PATH_CONVENTIONS_FORWARD_API: frozenset[SymbolKey] = frozenset(
+    {
+        # charter.offering.missions.models::VALID_PATH_KEYS
+        SymbolKey(
+            "VALID_PATH_KEYS",
+            "4dc70bf229274c7c614665394372a3cb1e3c95ea9825e433537d4ea4fbe9a365",
+            source_module="charter.offering.missions.models",
+        ),
+        # charter.offering.missions.models::validate_path_conventions
+        SymbolKey(
+            "validate_path_conventions",
+            "bae57d6c0a174e6d11b1af7c7d6b8c14b0ed5873aa446e5c5d1c6d96d11bb208",
+            source_module="charter.offering.missions.models",
+        ),
+    }
+)
+
+
 # ---------- C. fsm-write-path-integrity-01M1TZV6 WP03 raw-append door (FR-010) ----------
 # ``specify_cli.status._unsafe`` is the enumerated, gate-facing door for the
 # raw ``status.events.jsonl`` append primitives (they left the ``status``
@@ -2206,6 +2240,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_DOCTRINE_API_SURFACE_BRIDGE_3179
     | _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR
     | _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API
+    | _CATEGORY_C_PATH_CONVENTIONS_FORWARD_API
     | _CATEGORY_C_FSM_WRITE_PATH_UNSAFE_DOOR
     | _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API
     | _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API

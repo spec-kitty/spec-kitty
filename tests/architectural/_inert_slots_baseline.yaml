@@ -308,6 +308,23 @@ entries:
     disposition: wire-the-producer
     note: Enforcement field; the one shipped glossary pack does not author it.
 
+  # --- #3831/#4088 landing: path_conventions is a forward-declared, additive
+  # consumer-extension slot on the charter MissionType model (see the ADR at
+  # docs/adr/3.x/2026-09-20-1-canonical-mission-type-source.md). Its intended
+  # producers are downstream consumer org packs and the built-in wiring this
+  # mission's WP04 (retire legacy resolver)/WP05 (migration and doctor) would
+  # have completed -- both were canceled/deferred to #2652 because the legacy
+  # and charter mission-type sources turned out to encode different concerns,
+  # so no src/ author of this key lands in this PR.
+  - name: path_conventions
+    declared_at: src/charter/offering/missions/models.py
+    owner: mission:mission-type-canonical-source-01M302V9
+    disposition: wire-the-producer
+    note: >-
+      Additive charter doctrine slot with no authoring producer yet; WP04/WP05
+      of this mission (the wiring that would have filled it) were canceled and
+      deferred to #2652.
+
 # ---------------------------------------------------------------------------
 # CODE-ONLY SUPPRESSIONS
 #
