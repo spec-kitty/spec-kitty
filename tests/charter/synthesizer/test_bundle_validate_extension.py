@@ -23,10 +23,15 @@ from charter.bundle import (
     BundleValidationResult,
     CANONICAL_MANIFEST,
     SCHEMA_VERSION,
+    _KIND_SUFFIX,
     _check_artifacts_have_provenance,
     _find_artifact,
     _kind_and_slug_from_artifact,
     validate_synthesis_state,
+)
+from charter.activation.project_registration import (
+    commit_project_registration,
+    plan_project_registration,
 )
 from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 from charter.activation.synthesizer.manifest import (
@@ -36,6 +41,9 @@ from charter.activation.synthesizer.manifest import (
     finalize_manifest,
 )
 from charter.activation.synthesizer.path_guard import PathGuard
+from charter.offering.artifact_kinds import DIRECT_WRITE_KINDS
+
+from tests.charter.test_project_registration import author_guidance
 
 
 # ---------------------------------------------------------------------------
@@ -519,6 +527,7 @@ def test_check_artifacts_have_provenance_ignores_unrecognized_files(tmp_path: Pa
         repo_root=repo,
         artifact_files=[repo / ".kittify" / "doctrine" / "misc" / "notes.yaml"],
         provenance_root=repo / ".kittify" / "charter" / "provenance",
+        manifest_by_path={},
         result=result,
     )
 
@@ -697,3 +706,98 @@ def test_manifest_self_hash_mismatch_is_error(tmp_path: Path) -> None:
         "manifest" in e.lower() or "self-hash" in e.lower() or "mismatch" in e.lower()
         for e in result.errors
     ), result.errors
+
+
+# ---------------------------------------------------------------------------
+# WP02 T006/T007/T009: 5-kind hybrid manifest-driven resolution (#4832 / #4833)
+# ---------------------------------------------------------------------------
+
+
+def test_kind_suffix_parity_with_direct_write_kinds() -> None:
+    """``bundle._KIND_SUFFIX`` covers exactly ``DIRECT_WRITE_KINDS`` (NFR-002).
+
+    Owns the third parity surface (post-tasks squad HIGH): WP01's parity test
+    (``tests/charter/test_direct_write_kinds_parity.py``) covers the scanner +
+    manifest ``Literal``; this closes the loop on the validator's own kind
+    table by introspecting the live constant, not a hardcoded copy.
+    """
+    assert set(_KIND_SUFFIX) == set(DIRECT_WRITE_KINDS)
+    assert _KIND_SUFFIX["agent_profile"] == ".agent.yaml"
+    assert _KIND_SUFFIX["procedure"] == ".procedure.yaml"
+
+
+def test_registered_five_kind_bundle_validates_clean_via_real_engine(tmp_path: Path) -> None:
+    """All 5 direct-write kinds register clean through the real engine (#4833).
+
+    Drives the actual production seam (``author_guidance`` + ``plan_project_
+    registration`` + ``commit_project_registration``, the same helpers
+    ``tests/charter/test_project_registration.py`` uses) rather than hand-
+    fabricating artifact+sidecar+manifest fixtures: a hand-rolled manifest
+    never exercises the engine's real slug derivation, so it cannot catch the
+    bug this WP fixes. Asserts no "unknown kind" errors for the two kinds
+    that previously tripped the 3-entry ``_KIND_SUFFIX`` table
+    (``agent_profile``, ``procedure``), AND that the still-SCREAMING-cased
+    ``CHANGE_FREEZE.directive.yaml`` validates clean with its manifest-
+    recorded kebab slug (``change-freeze``) resolved via the manifest, not by
+    re-parsing the filename (FR-006 / #4832 / Decision 4/5 — no rename).
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    paths = author_guidance(repo)
+    directive_path = paths["directive"]
+    assert directive_path.name == "CHANGE_FREEZE.directive.yaml"
+    before = {token: path.read_bytes() for token, path in paths.items()}
+
+    commit_project_registration(plan_project_registration(repo))
+
+    result = validate_synthesis_state(repo)
+
+    assert result.passed, f"Expected pass but got errors: {result.errors}"
+    assert result.errors == []
+    assert not any("unknown kind" in e.lower() for e in result.errors)
+    # Go-forward, no migration/rename (Decision 5): authored files untouched.
+    assert {token: path.read_bytes() for token, path in paths.items()} == before
+    assert directive_path.name == "CHANGE_FREEZE.directive.yaml"
+
+
+def test_orphan_agent_profile_provenance_without_artifact_is_error(tmp_path: Path) -> None:
+    """An orphaned ``agent_profile`` sidecar with no backing artifact still errors.
+
+    NFR-001 orphan-*sidecar* direction, for the newly-covered agent_profile
+    kind. Filesystem fabrication is appropriate here: an orphan is by
+    definition unregistered, so there is no manifest entry to drive through.
+    """
+    repo = tmp_path / "repo"
+    (repo / ".kittify" / "doctrine" / "agent_profiles").mkdir(parents=True, exist_ok=True)
+    _write_provenance(
+        repo, "agent_profile", "ghost", _prov_yaml("agent_profile", "ghost", "a" * 64)
+    )
+
+    result = validate_synthesis_state(repo)
+
+    assert not result.passed
+    assert any("ghost" in e for e in result.errors)
+    assert any("non-existent artifact" in e for e in result.errors)
+
+
+def test_orphan_directive_artifact_without_manifest_or_sidecar_is_error(tmp_path: Path) -> None:
+    """An on-disk directive artifact absent from the manifest still errors.
+
+    NFR-001 orphan-*artifact* direction: proves the switch to manifest-driven
+    resolution for *registered* artifacts did not silently drop the
+    filesystem sweep for unregistered ones. Filesystem fabrication is
+    appropriate here for the same reason as above.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    body = _directive_body("PROJECT_099", "orphan")
+    _write_artifact(repo, "directive", "orphan", "orphan.directive.yaml", body)
+    # No provenance sidecar, no synthesis manifest.
+
+    result = validate_synthesis_state(repo)
+
+    assert not result.passed
+    assert any("orphan.directive.yaml" in e for e in result.errors)
+    assert any("provenance" in e.lower() for e in result.errors)

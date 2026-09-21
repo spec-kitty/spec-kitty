@@ -26,10 +26,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .hasher import hash_content
+from .offering.artifact_kinds import DIRECT_WRITE_KINDS, ArtifactKind
+
+if TYPE_CHECKING:
+    from .activation.synthesizer.manifest import ManifestArtifactEntry
 
 SCHEMA_VERSION: str = "2.0.0"
 CHARTER_MD = Path(".kittify/charter/charter.md")
@@ -64,11 +69,15 @@ PROVENANCE_DIR = Path(".kittify/charter/provenance")
 DOCTRINE_DIR = Path(".kittify/doctrine")
 STAGING_DIR = Path(".kittify/charter/.staging")
 
-# Artifact file-extension suffixes for each kind
+# Artifact file-extension suffixes for each kind, derived from the single
+# registration-writing kind authority (WP01 / NFR-002): every kind that
+# ``project_registration.py`` / the DRG project scanner / the synthesis
+# manifest's ``ManifestArtifactEntry.kind`` Literal register is covered here
+# (#4833 -- `agent_profile`/`procedure` no longer trip "unknown kind"). Do
+# NOT hand-maintain a second copy of this mapping -- import
+# ``DIRECT_WRITE_KINDS`` and derive.
 _KIND_SUFFIX: dict[str, str] = {
-    "directive": ".directive.yaml",
-    "tactic": ".tactic.yaml",
-    "styleguide": ".styleguide.yaml",
+    kind: ArtifactKind(kind).glob_pattern.removeprefix("*") for kind in DIRECT_WRITE_KINDS
 }
 _ALL_ARTIFACT_PATTERNS = list(_KIND_SUFFIX.values())
 
@@ -265,9 +274,16 @@ def validate_synthesis_state(repo_root: Path) -> BundleValidationResult:
 
     Checks (additive — legacy bundles without synthesis state pass unchanged):
 
-    1. Every artifact file under ``.kittify/doctrine/`` has a provenance sidecar
-       at ``.kittify/charter/provenance/<kind>-<slug>.yaml``.
-    2. Every provenance sidecar references an existing artifact file.
+    1. Every artifact file under ``.kittify/doctrine/`` has a provenance sidecar.
+       For an artifact *registered* in the synthesis manifest, the expected
+       sidecar is resolved from the manifest entry's own ``provenance_path``
+       field; for an unregistered (orphan/legacy) artifact, the expected
+       sidecar path is derived from the filename
+       (``.kittify/charter/provenance/<kind>-<slug>.yaml``) — hybrid
+       resolution, #4832 / Decision 4.
+    2. Every provenance sidecar references an existing artifact file, resolved
+       the same hybrid way (manifest entry's ``path`` field when registered,
+       filename stem-parse + filesystem walk otherwise).
     3. If ``.kittify/charter/synthesis-manifest.yaml`` is present, verify all
        listed ``content_hash`` values against on-disk bytes.
     4. Stale ``.kittify/charter/.staging/<runid>.failed/`` directories produce
@@ -315,8 +331,13 @@ def validate_synthesis_state(repo_root: Path) -> BundleValidationResult:
 
     result.synthesis_state_present = True
 
-    _check_artifacts_have_provenance(repo_root, artifact_files, provenance_root, result)
-    _check_provenance_have_artifacts(repo_root, doctrine_root, provenance_root, result)
+    by_artifact_path, by_provenance_path = _manifest_entry_indices(manifest_path)
+    _check_artifacts_have_provenance(
+        repo_root, artifact_files, provenance_root, by_artifact_path, result
+    )
+    _check_provenance_have_artifacts(
+        repo_root, doctrine_root, provenance_root, by_provenance_path, result
+    )
     _check_manifest_integrity(repo_root, result)
     return result
 
@@ -405,21 +426,78 @@ def _collect_artifact_files(doctrine_root: Path) -> list[Path]:
     return files
 
 
+def _load_manifest_entries(manifest_path: Path) -> list[ManifestArtifactEntry]:
+    """Load synthesis-manifest artifact entries for hybrid resolution (#4832).
+
+    Returns ``[]`` on any missing/unreadable/malformed manifest -- load and
+    integrity errors for a present-but-corrupt manifest are surfaced once, by
+    :func:`_check_manifest_integrity`. This helper must not duplicate that
+    reporting; a silent empty index simply falls the forward/reverse checks
+    back to the filesystem walk for every artifact/sidecar (equivalent to no
+    manifest being registered yet).
+    """
+    if not manifest_path.exists():
+        return []
+    try:
+        from .activation.synthesizer.manifest import load_yaml as load_manifest  # noqa: PLC0415
+
+        manifest = load_manifest(manifest_path)
+    except Exception:  # noqa: BLE001
+        return []
+    return list(manifest.artifacts)
+
+
+def _manifest_entry_indices(
+    manifest_path: Path,
+) -> tuple[dict[str, ManifestArtifactEntry], dict[str, ManifestArtifactEntry]]:
+    """Build (by artifact path, by provenance path) indices over manifest entries.
+
+    Both dicts are keyed by the entry's own repo-relative path string (exactly
+    as recorded at registration time, ``manifest.py:47-61``) -- not a
+    re-derived filename parse. This is what lets a *registered* artifact
+    resolve without re-parsing its on-disk stem (#4832).
+    """
+    entries = _load_manifest_entries(manifest_path)
+    by_artifact_path = {entry.path: entry for entry in entries}
+    by_provenance_path = {entry.provenance_path: entry for entry in entries}
+    return by_artifact_path, by_provenance_path
+
+
 def _check_artifacts_have_provenance(
     repo_root: Path,
     artifact_files: list[Path],
     provenance_root: Path,
+    manifest_by_path: dict[str, ManifestArtifactEntry],
     result: BundleValidationResult,
 ) -> None:
-    """Step 1: every artifact file must have a provenance sidecar."""
+    """Step 1: every artifact file must have a provenance sidecar.
+
+    Hybrid resolution (#4832 / Decision 4): an artifact *registered* in the
+    synthesis manifest resolves its expected sidecar from the manifest
+    entry's own ``provenance_path`` field -- not by re-parsing the on-disk
+    filename. This is what lets a registered SCREAMING-cased directive
+    validate clean without a rename (FR-006). An artifact absent from the
+    manifest (orphan/legacy) falls back to the filesystem filename-parse walk
+    so the orphan-artifact direction of NFR-001 is preserved.
+    """
     for artifact_path in sorted(artifact_files):
+        rel_path = artifact_path.relative_to(repo_root)
+        entry = manifest_by_path.get(rel_path.as_posix())
+        if entry is not None:
+            expected_prov = repo_root / entry.provenance_path
+            if not expected_prov.exists():
+                result.errors.append(
+                    f"Artifact '{rel_path}' has no provenance sidecar "
+                    f"(expected: {entry.provenance_path})"
+                )
+            continue
         kind, slug = _kind_and_slug_from_artifact(artifact_path)
         if kind is None or slug is None:
             continue
         expected_prov = provenance_root / f"{kind}-{slug}.yaml"
         if not expected_prov.exists():
             result.errors.append(
-                f"Artifact '{artifact_path.relative_to(repo_root)}' has no provenance sidecar "
+                f"Artifact '{rel_path}' has no provenance sidecar "
                 f"(expected: {expected_prov.relative_to(repo_root)})"
             )
 
@@ -428,28 +506,42 @@ def _check_provenance_have_artifacts(
     repo_root: Path,
     doctrine_root: Path,
     provenance_root: Path,
+    manifest_by_provenance_path: dict[str, ManifestArtifactEntry],
     result: BundleValidationResult,
 ) -> None:
-    """Step 2: every provenance sidecar must reference an existing artifact."""
+    """Step 2: every provenance sidecar must reference an existing artifact.
+
+    Hybrid resolution (#4832 / Decision 4): a sidecar *registered* in the
+    synthesis manifest resolves its expected artifact from the manifest
+    entry's own ``path`` field -- not by re-parsing ``kind``/``slug`` from
+    the sidecar's ``<kind>-<slug>.yaml`` stem. A sidecar absent from the
+    manifest (orphan/legacy) falls back to the stem-parse + filesystem walk
+    so the orphan-sidecar direction of NFR-001 is preserved.
+    """
     if not provenance_root.exists():
         return
     for prov_file in sorted(provenance_root.glob("*.yaml")):
+        rel_path = prov_file.relative_to(repo_root)
+        entry = manifest_by_provenance_path.get(rel_path.as_posix())
+        if entry is not None:
+            if not (repo_root / entry.path).exists():
+                result.errors.append(
+                    f"Provenance sidecar '{rel_path}' references "
+                    f"non-existent artifact (kind={entry.kind}, slug={entry.slug})"
+                )
+            continue
         stem = prov_file.stem  # e.g. "directive-my-slug"
         parts = stem.split("-", 1)
         if len(parts) != 2:
-            result.errors.append(
-                f"Provenance file has unexpected name format: {prov_file.relative_to(repo_root)}"
-            )
+            result.errors.append(f"Provenance file has unexpected name format: {rel_path}")
             continue
         kind, slug = parts[0], parts[1]
         if kind not in _KIND_SUFFIX:
-            result.errors.append(
-                f"Provenance file has unknown kind '{kind}': {prov_file.relative_to(repo_root)}"
-            )
+            result.errors.append(f"Provenance file has unknown kind '{kind}': {rel_path}")
             continue
         if _find_artifact(doctrine_root, kind, slug) is None:
             result.errors.append(
-                f"Provenance sidecar '{prov_file.relative_to(repo_root)}' references "
+                f"Provenance sidecar '{rel_path}' references "
                 f"non-existent artifact (kind={kind}, slug={slug})"
             )
 
