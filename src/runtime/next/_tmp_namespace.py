@@ -44,7 +44,7 @@ import os
 from pathlib import Path
 
 from kernel.no_follow import open_no_follow
-from kernel.paths import get_runtime_state_root
+from kernel.paths import ensure_runtime_state_root
 
 #: Directory name under the per-user runtime root that roots every
 #: spec-kitty prompt writer. The single shared constant: writers AND the
@@ -87,27 +87,24 @@ def prompt_tmp_dir(repo_root: Path) -> Path:
 
     WP07 cycle-2 / FR-011 residual (#4721): the runtime ROOT itself
     (``get_runtime_state_root()``) is hardened to ``0700`` here too, not
-    just this leaf subdir. Before this fold, ``mkdir(parents=True)`` created
-    any missing ancestor (including the root) at the ambient umask
-    (typically ``0755``); a prompt-only workload that runs before any
-    credential write left the root world-traversable until a later
-    credential write (WP06's ``ensure_runtime_root``,
-    ``specify_cli.paths.windows_paths``) self-healed it. This is idempotent
-    with that helper -- both chmod the same root to ``0700``, redundant but
-    not divergent -- done inline via ``kernel.paths`` + stdlib ``pathlib``
-    rather than importing WP06's helper because this module lives in the
-    ``runtime`` package, which must not import ``specify_cli`` (the
-    enforced layer direction is ``kernel <- ... <- specify_cli``; ``runtime``
-    sits below ``specify_cli``).
+    just this leaf subdir. Before this, ``mkdir(parents=True)`` created any
+    missing ancestor (including the root) at the ambient umask (typically
+    ``0755``); a prompt-only workload that runs before any credential write
+    left the root world-traversable until a later credential write self-healed
+    it. The root hardening is delegated to the single kernel-floor door
+    :func:`kernel.paths.ensure_runtime_state_root`, shared with WP06's
+    ``specify_cli.paths.windows_paths.ensure_runtime_root`` -- one 0o700
+    implementation, no longer a second inline copy. ``kernel`` is the root
+    layer, importable here (the enforced direction is
+    ``kernel <- runtime <- specify_cli``), so this module can share the door
+    without importing ``specify_cli``.
 
     All prompt writers must write their filenames under this directory
     (instead of rooting at ``tempfile.gettempdir()``) and write content
     through :func:`write_prompt_file`. This is what WP01's session reaper
     sweeps at session finish.
     """
-    root = get_runtime_state_root()
-    root.mkdir(parents=True, exist_ok=True, mode=_PROMPT_DIR_MODE)
-    root.chmod(_PROMPT_DIR_MODE)
+    root = ensure_runtime_state_root()
     tmp_dir = root / SPEC_KITTY_PROMPT_NAMESPACE / _repo_identity(repo_root)
     tmp_dir.mkdir(parents=True, exist_ok=True)
     tmp_dir.chmod(_PROMPT_DIR_MODE)

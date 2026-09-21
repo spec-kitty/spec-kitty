@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Literal
 
 import platformdirs
-from kernel.paths import to_posix
+from kernel.paths import ensure_runtime_state_root, to_posix
 
 
 @dataclass(frozen=True)
@@ -113,11 +113,18 @@ def ensure_runtime_root() -> Path:
     Idempotent and safe to call on every write: an already-existing
     directory is re-chmod'd to ``0o700`` rather than trusted at whatever
     mode a pre-fix write left it (ambient umask, typically ``0o755``).
+
+    The 0o700 mkdir/chmod itself is delegated to the single kernel-floor door
+    :func:`kernel.paths.ensure_runtime_state_root` so this hardening lives in
+    exactly one place, shared with the runtime-layer prompt-namespace writer
+    (``runtime.next._tmp_namespace``) which cannot import ``specify_cli``. The
+    kernel resolver ``get_runtime_state_root()`` and this module's
+    ``get_runtime_root().base`` are pinned equal on every branch
+    (``tests/kernel/test_runtime_root_resolver_parity.py``), so the hardened
+    directory is exactly ``get_runtime_root().base``.
     """
-    root = get_runtime_root()
-    root.base.mkdir(parents=True, exist_ok=True, mode=0o700)
-    root.base.chmod(0o700)
-    return root.base
+    ensure_runtime_state_root()
+    return get_runtime_root().base
 
 
 def render_runtime_path(path: Path, *, for_user: bool = True) -> str:

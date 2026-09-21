@@ -18,5 +18,6 @@ src/specify_cli/__init__.py:521
 # #4727 to assign an owner and route it (it is a 3-way win32/darwin/linux
 # normalizer, so it needs the kernel seam extended, not a boolean route-through).
 # local-write-safety (#4721/#4812): edits above this site in windows_paths.py
-# shifted it (:128 -> :156); re-pinned. Still deferred to #4727, still routed nowhere.
-src/specify_cli/paths/windows_paths.py:156
+# shifted it (:128 -> :163, via the landing folds that touched this module);
+# re-pinned. Still deferred to #4727, still routed nowhere.
+src/specify_cli/paths/windows_paths.py:163

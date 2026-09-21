@@ -357,6 +357,36 @@ def get_runtime_state_root() -> Path:
     return Path.home() / ".spec-kitty"
 
 
+def ensure_runtime_state_root() -> Path:
+    """Create (or re-harden) the runtime STATE root at ``0o700``, returning it.
+
+    The single side-effecting door for the runtime-state root.
+    :func:`get_runtime_state_root` (and its specify_cli mirror
+    ``specify_cli.paths.get_runtime_root``) stay **pure** resolvers, pinned by
+    their own contracts ("resolution creates no directories"), so the actual
+    ``mkdir``/``chmod`` cannot live in either. This kernel-floor door lets
+    BOTH the specify_cli hardening path
+    (``specify_cli.paths.windows_paths.ensure_runtime_root``, #4812/#4760) and
+    the runtime prompt-namespace path
+    (``runtime.next._tmp_namespace.prompt_tmp_dir``, #4721) share ONE
+    hardening implementation without either importing the other -- ``runtime``
+    must not import ``specify_cli`` (enforced layer direction
+    ``kernel <- runtime <- specify_cli``), but both may import ``kernel``.
+    Before this door the two hardened the same root with two independent
+    ``mkdir(mode=0o700)+chmod(0o700)`` copies ("redundant but not divergent"),
+    a DIRECTIVE_044 canonical-source gap that would drift the moment the mode
+    policy changed in one and not the other.
+
+    Idempotent and safe to call on every write: an already-existing directory
+    is re-chmod'd to ``0o700`` rather than trusted at whatever mode a pre-fix
+    write left it (ambient umask, typically ``0o755``).
+    """
+    root = get_runtime_state_root()
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    root.chmod(0o700)
+    return root
+
+
 def get_package_asset_root() -> Path:
     """Return the path to the package's bundled mission assets.
 
