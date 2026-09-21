@@ -157,7 +157,11 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
     # planning_commit_sha re-point affordance once execution has begun).
     # `missing: []` on the prior pin proves nothing was removed, only added —
     # same in-place amendment precedent as the 2026-08-04 fold below.
-    "finalize-tasks": frozenset({"--mission", "--json", "--validate-only", "--target-branch", "--owned-checkout", "--refresh-planning-commit"}),
+    # #4827: `--allow-orphaned` added -- the explicit operator assertion
+    # required to re-pin an ORPHANED (mid-mission-rebase) planning_commit_sha
+    # alongside `--refresh-planning-commit`. `missing: []` proves nothing
+    # else was removed.
+    "finalize-tasks": frozenset({"--mission", "--json", "--validate-only", "--target-branch", "--owned-checkout", "--refresh-planning-commit", "--allow-orphaned"}),
     "repair": frozenset({"--mission"}),
     # 2026-08-04 landing fold (PR #3175, fold-golden-flag-surface): re-pinned
     # to add the six negative-invariant-mode flags (--negative-invariant,

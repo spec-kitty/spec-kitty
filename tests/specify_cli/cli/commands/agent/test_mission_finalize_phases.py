@@ -1066,14 +1066,25 @@ def _preserve_or_capture(
     tip: str | None,
     ancestor: bool = True,
     refresh: bool = False,
+    allow_orphaned: bool = False,
 ) -> object:
-    """Drive ``_preserve_or_capture_planning_commit_sha`` with git faked out."""
+    """Drive ``_preserve_or_capture_planning_commit_sha`` with git faked out.
+
+    #4827: the ancestry check moved to the shared WP01
+    ``classify_recorded_pin`` authority (``_recorded_planning_sha_is_
+    ancestor_of_tip`` was retired). ``ancestor`` keeps its historical
+    True/False meaning here by mapping onto the two classes these existing
+    fixtures exercise: ``True`` -> ADVANCED (the pre-#4827 "is an ancestor"
+    case), ``False`` -> ORPHANED (the pre-#4827 "not an ancestor" case --
+    #4141's own diverged-side-branch fixture is exactly this shape per
+    research.md D3, so ORPHANED is the faithful mapping, not FOREIGN).
+    """
     monkeypatch.setattr(seam, "_execution_has_begun", lambda *a, **k: execution_begun)
     monkeypatch.setattr(seam, "_capture_target_branch_tip", lambda *a, **k: tip)
     monkeypatch.setattr(
         seam,
-        "_recorded_planning_sha_is_ancestor_of_tip",
-        lambda *a, **k: ancestor,
+        "classify_recorded_pin",
+        lambda *a, **k: seam.PinClass.ADVANCED if ancestor else seam.PinClass.ORPHANED,
     )
     monkeypatch.setattr(
         "specify_cli.lanes.persistence.read_lanes_json",
@@ -1086,6 +1097,7 @@ def _preserve_or_capture(
         "main",
         json_output=True,
         refresh_planning_commit=refresh,
+        allow_orphaned=allow_orphaned,
     )
 
 

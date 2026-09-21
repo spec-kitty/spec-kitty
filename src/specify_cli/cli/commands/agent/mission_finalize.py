@@ -60,6 +60,7 @@ from specify_cli.core.owned_mission import OwnedMission, require_unstaged_index,
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.missions._resolve_planning_branch import PlanningBranchResolutionFailed
 from specify_cli.lanes.models import LanesManifest
+from specify_cli.lanes.planning_commit_classify import PinClass, classify_recorded_pin
 from specify_cli.ownership import infer_ownership
 from specify_cli.ownership.audit_targets import validate_audit_coverage
 from specify_cli.ownership.inference import detect_post_integration_acceptance
@@ -2121,7 +2122,12 @@ class PlanningCommitResolution:
       was supplied; the previously recorded SHA is preserved (#3311).
     * ``"refreshed"`` — execution has begun and the operator explicitly
       re-pointed the recorded SHA with ``--refresh-planning-commit``; the
-      branch tip was captured after the advance-only ancestor check passed.
+      branch tip was captured after the advance-only ancestor check passed
+      (the recorded SHA was an ADVANCED ancestor of the tip).
+    * ``"repinned"`` — execution has begun and the operator supplied both
+      ``--refresh-planning-commit --allow-orphaned``; the recorded SHA was a
+      proven ORPHAN (present, not an ancestor — the mid-mission-rebase
+      shape, #4827) and was re-pointed to the target-branch tip.
     """
 
     sha: str | None
@@ -2145,25 +2151,95 @@ def _refuse_planning_sha_refresh(error_msg: str, *, json_output: bool) -> NoRetu
     raise typer.Exit(1)
 
 
-def _recorded_planning_sha_is_ancestor_of_tip(repo_root: Path, recorded_sha: str, branch_tip: str) -> bool:
-    """#4141 refresh safety: the recorded SHA must have ADVANCED to the tip.
+def _resolve_refresh_planning_commit_decision(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    target_branch: str,
+    recorded: str | None,
+    tip: str | None,
+    allow_orphaned: bool,
+    json_output: bool,
+) -> PlanningCommitResolution:
+    """#4141/#4827: resolve the ``--refresh-planning-commit`` branch.
 
-    A legitimate planning amendment lands on top of the recorded planning
-    commit, so ``git merge-base --is-ancestor <recorded> <tip>`` succeeds. Any
-    nonzero exit — the recorded SHA is not an ancestor (the planning history
-    was rewritten), or the SHA is unknown to this repository / not a git repo
-    — is a state a refresh must never paper over, so this helper fails closed
-    (returns ``False``) and the caller refuses the refresh.
+    Advance-only by default (the #4141 contract, unchanged): an ADVANCED
+    recorded SHA (an ancestor of the tip, or no recorded SHA at all to
+    compare) refreshes unconditionally. ``--allow-orphaned`` additionally
+    permits re-pointing a PROVEN ORPHANED pin (present in the object store,
+    unreachable from the tip — the mid-mission-rebase shape, #4827); without
+    it an orphan is refused with a message that still contains the substring
+    "not an ancestor" (keeps the #4141
+    ``test_refresh_refused_when_recorded_sha_not_ancestor`` fixture green — it
+    exercises exactly this shape per research.md D3). A FOREIGN (absent)
+    object is refused regardless of ``--allow-orphaned`` — there is nothing
+    to re-point to; the operator must investigate how it was recorded.
     """
-    import subprocess
+    if tip is None:
+        _refuse_planning_sha_refresh(
+            f"Cannot refresh planning_commit_sha for mission {mission_slug!r}: "
+            f"the tip of target branch {target_branch!r} could not be captured. "
+            "Refusing to refresh rather than silently preserve or guess.",
+            json_output=json_output,
+        )
+    pin_class = classify_recorded_pin(repo_root, recorded, tip)
+    if pin_class is PinClass.FOREIGN:
+        _refuse_planning_sha_refresh(
+            f"Cannot refresh planning_commit_sha for mission {mission_slug!r}: the recorded "
+            f"SHA {recorded} is not present in this repository (object absent, not merely "
+            "unreachable). Refusing to re-point to a SHA that cannot be inspected; investigate "
+            "how it was recorded.",
+            json_output=json_output,
+        )
+    if pin_class is PinClass.ORPHANED and not allow_orphaned:
+        _refuse_planning_sha_refresh(
+            f"Cannot refresh planning_commit_sha for mission {mission_slug!r}: the recorded "
+            f"SHA {recorded} is not an ancestor of the {target_branch!r} tip {tip}. If this is a "
+            "deliberate mid-mission rebase (the recorded commit is still present, just no longer "
+            "reachable from the tip), re-run with --refresh-planning-commit --allow-orphaned to "
+            "re-point to the live tip. Otherwise the planning history was rewritten/diverged "
+            "rather than advanced by an amendment; resolve the divergence manually. Refusing to "
+            "re-point.",
+            json_output=json_output,
+        )
+    action = "repinned" if pin_class is PinClass.ORPHANED else "refreshed"
+    return PlanningCommitResolution(sha=tip, action=action, previous_sha=recorded, branch_tip=tip)
 
-    result = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", recorded_sha, branch_tip],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-    )
-    return result.returncode == 0
+
+def _resolve_preserve_planning_commit_decision(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    target_branch: str,
+    recorded: str | None,
+    tip: str | None,
+    json_output: bool,
+) -> PlanningCommitResolution:
+    """#3311/#4827: resolve the no-flag (preserve) branch of the decision.
+
+    Fails closed BEFORE any write only for a PROVEN ORPHAN against a
+    capturable tip (D3/D4): the tool must not silently keep every
+    subsequently allocated lane merging a dead base. Every other shape
+    degrades to the historical #3311 preserve — ADVANCED (the normal, healthy
+    state), FOREIGN (absent object — #3311's own synthetic-absent-SHA
+    fixture), and INDETERMINATE (non-git workspace / uncapturable tip).
+    """
+    pin_class = classify_recorded_pin(repo_root, recorded, tip)
+    if pin_class is PinClass.ORPHANED:
+        error_msg = (
+            f"Cannot re-finalize mission {mission_slug!r}: the recorded planning_commit_sha "
+            f"{recorded} is orphaned — present in this repository but not an ancestor of the "
+            f"{target_branch!r} tip {tip} (a mid-mission rebase). Lanes would keep merging a dead "
+            "base. Re-run with --refresh-planning-commit --allow-orphaned to re-point the "
+            "recorded SHA to the live tip, or investigate the divergence manually. Refusing to "
+            "write lanes.json."
+        )
+        if json_output:
+            _emit_json({"error": error_msg})
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
+        raise typer.Exit(1)
+    return PlanningCommitResolution(sha=recorded, action="preserved", previous_sha=recorded, branch_tip=tip)
 
 
 def _preserve_or_capture_planning_commit_sha(
@@ -2175,8 +2251,9 @@ def _preserve_or_capture_planning_commit_sha(
     json_output: bool,
     owned: OwnedMission | None = None,
     refresh_planning_commit: bool = False,
+    allow_orphaned: bool = False,
 ) -> PlanningCommitResolution:
-    """#3311 T015 / #4141: resolve this run's ``planning_commit_sha`` decision.
+    """#3311 T015 / #4141 / #4827: resolve this run's ``planning_commit_sha`` decision.
 
     ADR ``2026-07-29-1`` / FR-009 freezes the recorded planning-artifact SHA
     into the SAME write ``_compute_and_write_lanes`` performs — no second
@@ -2189,14 +2266,19 @@ def _preserve_or_capture_planning_commit_sha(
     historical recompute + re-capture behavior is unchanged — every
     pre-execution re-finalize keeps regenerating freely (C-005).
 
-    Preserve is the default resolution. #4141 adds the one sanctioned
-    override: ``--refresh-planning-commit`` re-points the recorded SHA to the
-    current ``target_branch`` tip when the operator has deliberately landed a
-    planning amendment mid-execution, so subsequently allocated/reused lanes
-    merge the amended planning state instead of a stale snapshot. The
-    override is advance-only — if the recorded SHA is not an ANCESTOR of the
-    tip (:func:`_recorded_planning_sha_is_ancestor_of_tip`), the planning
-    history was rewritten rather than amended and the refresh is refused.
+    Once execution has begun, the recorded SHA is classified against the
+    target-branch tip with the shared WP01 authority
+    (:func:`specify_cli.lanes.planning_commit_classify.classify_recorded_pin`
+    — never a lane worktree HEAD, see that module's C-006 note) and the
+    decision is delegated to
+    :func:`_resolve_refresh_planning_commit_decision` (``--refresh-planning-
+    commit`` supplied) or :func:`_resolve_preserve_planning_commit_decision`
+    (the no-flag default). ``--allow-orphaned`` (#4827) is the explicit
+    operator assertion required to re-pin a PROVEN ORPHAN (present, not
+    reachable — a mid-mission rebase) to the live tip; without it the
+    no-flag path fails closed before any write and bare
+    ``--refresh-planning-commit`` refuses (advance-only, unchanged #4141
+    contract).
 
     Refuse (raise ``typer.Exit(1)`` before writing any bytes) when the
     requested resolution cannot be done safely: execution has begun yet no
@@ -2204,8 +2286,8 @@ def _preserve_or_capture_planning_commit_sha(
     inconsistent state finalize should never reach, since bootstrapping the
     event log itself requires a prior successful finalize run that already
     wrote ``lanes.json``); a refresh was requested but the branch tip could
-    not be captured; or a refresh was requested whose recorded SHA is not an
-    ancestor of the tip.
+    not be captured; a refresh was requested whose recorded SHA is orphaned
+    or foreign; or the no-flag default hit a proven orphan.
     """
     execution_has_begun = _execution_has_begun(repo_root, mission_slug, owned=owned)
     if not execution_has_begun:
@@ -2250,31 +2332,79 @@ def _preserve_or_capture_planning_commit_sha(
     # src/specify_cli/lanes/models.py src/specify_cli/lanes/persistence.py` in
     # isolation reports zero issues.
     recorded: str | None = existing.planning_commit_sha
+    # #4827: captured once here (rather than separately inside each resolve_*
+    # helper, the pre-#4827 shape) -- both the refresh and preserve branches
+    # need the SAME tip snapshot to classify against (C-006).
+    tip = _capture_target_branch_tip(repo_root, target_branch)
     if refresh_planning_commit:
-        tip = _capture_target_branch_tip(repo_root, target_branch)
-        if tip is None:
-            _refuse_planning_sha_refresh(
-                f"Cannot refresh planning_commit_sha for mission {mission_slug!r}: "
-                f"the tip of target branch {target_branch!r} could not be captured. "
-                "Refusing to refresh rather than silently preserve or guess.",
-                json_output=json_output,
-            )
-        if recorded is not None and not _recorded_planning_sha_is_ancestor_of_tip(repo_root, recorded, tip):
-            _refuse_planning_sha_refresh(
-                f"Cannot refresh planning_commit_sha for mission {mission_slug!r}: the recorded "
-                f"SHA {recorded} is not an ancestor of the {target_branch!r} tip {tip}. The "
-                "planning history was rewritten (or the recorded SHA does not belong to this "
-                "repository) rather than advanced by an amendment. Resolve the divergence "
-                "manually; refusing to re-point.",
-                json_output=json_output,
-            )
-        return PlanningCommitResolution(sha=tip, action="refreshed", previous_sha=recorded, branch_tip=tip)
-    return PlanningCommitResolution(
-        sha=recorded,
-        action="preserved",
-        previous_sha=recorded,
-        branch_tip=_capture_target_branch_tip(repo_root, target_branch),
+        return _resolve_refresh_planning_commit_decision(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            target_branch=target_branch,
+            recorded=recorded,
+            tip=tip,
+            allow_orphaned=allow_orphaned,
+            json_output=json_output,
+        )
+    return _resolve_preserve_planning_commit_decision(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        target_branch=target_branch,
+        recorded=recorded,
+        tip=tip,
+        json_output=json_output,
     )
+
+
+def _finalize_bookkeeping_commit_message(mission_slug: str) -> str:
+    """Single source for finalize's own bookkeeping commit subject line.
+
+    Used both as the ACTUAL commit message (:func:`_commit_finalize_
+    artifacts`) and as the signature :func:`_drift_is_finalize_bookkeeping_
+    only` checks for when distinguishing a real planning amendment from
+    finalize's own prior re-run commits (#4178 / research.md D7(b)).
+    """
+    return f"Add tasks for feature {mission_slug}"
+
+
+def _drift_is_finalize_bookkeeping_only(
+    repo_root: Path,
+    mission_slug: str,
+    recorded_sha: str,
+    branch_tip: str,
+) -> bool:
+    """#4178 / D7(b): True iff every commit between ``recorded_sha`` and
+    ``branch_tip`` is finalize's OWN bookkeeping commit for this mission.
+
+    The preserve-path drift WARN exists to catch a genuine planning
+    amendment landing mid-execution — not finalize's own prior bookkeeping
+    commits advancing the tip on every re-run, which happens unconditionally
+    once execution has begun (``planning_commit_sha`` stays frozen while the
+    branch keeps moving under finalize's own ``"Add tasks for feature ..."``
+    commits). Verified (research.md D7): ``_compute_and_write_lanes``
+    resolves this run's decision before ``_commit_finalize_artifacts`` lands
+    that commit, so a re-finalize with no operator amendment in between still
+    sees ``branch_tip != sha`` purely from a PRIOR run's own bookkeeping
+    commit — a false positive this check exists to suppress.
+
+    Fails OPEN (returns ``False`` — "real drift, keep warning") on any git
+    error or an empty range: this only gates a non-blocking console WARN, and
+    hiding a genuine drift signal is worse than an occasional over-warn.
+    """
+    import subprocess
+
+    expected = _finalize_bookkeeping_commit_message(mission_slug)
+    result = subprocess.run(
+        ["git", "log", "--format=%s", f"{recorded_sha}..{branch_tip}"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return False
+    subjects = [line for line in result.stdout.splitlines() if line]
+    return bool(subjects) and all(subject == expected for subject in subjects)
 
 
 def _report_planning_sha_decision(
@@ -2282,16 +2412,37 @@ def _report_planning_sha_decision(
     planning_sha: PlanningCommitResolution | None,
     *,
     json_output: bool,
+    repo_root: Path | None = None,
+    mission_slug: str | None = None,
 ) -> None:
-    """#4141: surface the ``planning_commit_sha`` decision on the console.
+    """#4141/#4827: surface the ``planning_commit_sha`` decision on the console.
 
     Human-mode only: the ``--json`` success report carries the same decision
     structurally (``planning_commit`` in the payload), and a console print
     would corrupt the machine-readable payload (the same reason the
     coord-staleness WARN is gated on ``not json_output``). ``None`` (the
     historical monkeypatched test seam) reports nothing.
+
+    Always called AFTER ``write_lanes_json`` has already run (#4178
+    print-before-write; the caller -- :func:`_compute_and_write_lanes` --
+    only reaches this call once ``compute_and_write_lanes`` has returned).
+
+    ``repo_root``/``mission_slug`` are optional (keyword-only, default
+    ``None``): when supplied, the preserve-path drift WARN additionally
+    suppresses itself when the ONLY commits between the recorded SHA and the
+    branch tip are finalize's own bookkeeping commits (#4178 / D7(b), via
+    :func:`_drift_is_finalize_bookkeeping_only`). Omitting them keeps the
+    pre-#4827 "any drift" behavior for direct unit-level callers of this
+    function.
     """
     if json_output or planning_sha is None:
+        return
+    if planning_sha.action == "repinned":
+        console.print(
+            f"[green]✓[/green] Re-pinned orphaned planning_commit_sha "
+            f"{planning_sha.previous_sha or '(none)'} -> {planning_sha.sha} "
+            f"(lanes merge the {target_branch} tip at their next allocation)"
+        )
         return
     if planning_sha.action == "refreshed":
         console.print(
@@ -2301,6 +2452,12 @@ def _report_planning_sha_decision(
         )
         return
     if planning_sha.action == "preserved" and planning_sha.sha is not None and planning_sha.branch_tip is not None and planning_sha.branch_tip != planning_sha.sha:
+        if (
+            repo_root is not None
+            and mission_slug is not None
+            and _drift_is_finalize_bookkeeping_only(repo_root, mission_slug, planning_sha.sha, planning_sha.branch_tip)
+        ):
+            return
         console.print(
             f"[yellow]⚠[/yellow] Planning branch {target_branch} has advanced since "
             f"planning_commit_sha was recorded ({planning_sha.sha} -> tip {planning_sha.branch_tip}); "
@@ -2324,6 +2481,7 @@ def _compute_and_write_lanes(
     json_output: bool,
     owned: OwnedMission | None = None,
     refresh_planning_commit: bool = False,
+    allow_orphaned: bool = False,
 ) -> tuple[Path | None, LanesManifest | None, PlanningCommitResolution | None]:
     """Phase: compute execution lanes + write lanes.json + risk report.
 
@@ -2365,6 +2523,7 @@ def _compute_and_write_lanes(
         json_output=json_output,
         owned=owned,
         refresh_planning_commit=refresh_planning_commit,
+        allow_orphaned=allow_orphaned,
     )
     # Tolerate a ``None`` resolution: the historical test seam in
     # ``test_mission_finalize_phases.py`` monkeypatches this helper to return
@@ -2398,7 +2557,13 @@ def _compute_and_write_lanes(
         else:
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1) from None
-    _report_planning_sha_decision(target_branch, planning_sha, json_output=json_output)
+    _report_planning_sha_decision(
+        target_branch,
+        planning_sha,
+        json_output=json_output,
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+    )
     if not json_output:
         console.print(f"[green]✓[/green] Computed {len(lanes_manifest.lanes)} execution lane(s)")
         if lanes_manifest.collapse_report and lanes_manifest.collapse_report.independent_wps_collapsed > 0:
@@ -2609,7 +2774,7 @@ def _commit_finalize_artifacts(
             repo_root=owned.primary if owned else repo_root,
             mission_slug=mission_slug,
             files=tuple(files_to_commit),
-            message=f"Add tasks for feature {mission_slug}",
+            message=_finalize_bookkeeping_commit_message(mission_slug),
             policy=tasks_policy,
             kind=MissionArtifactKind.TASKS_INDEX,
             primary_paths_created_this_invocation=primary_created,
@@ -2803,6 +2968,7 @@ def _run_commit_pipeline(
     all_canceled: bool = False,
     owned: OwnedMission | None = None,
     refresh_planning_commit: bool = False,
+    allow_orphaned: bool = False,
 ) -> None:
     """Phase: the post-validate-only commit pipeline.
 
@@ -2867,6 +3033,7 @@ def _run_commit_pipeline(
         json_output=json_output,
         owned=owned,
         refresh_planning_commit=refresh_planning_commit,
+        allow_orphaned=allow_orphaned,
     )
 
     _scaffold_acceptance_matrix_if_lane_based(
@@ -3108,7 +3275,24 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
                 "execution has begun (#4141). Without it, a re-finalize after execution "
                 "has begun preserves the recorded SHA (#3311) and every lane keeps merging "
                 "the stale planning snapshot. Refused when the recorded SHA is not an "
-                "ancestor of the tip (a history rewrite, not an amendment)."
+                "ancestor of the tip (a history rewrite, not an amendment) -- if that's "
+                "because of a deliberate mid-mission rebase rather than a divergence, add "
+                "--allow-orphaned to re-point anyway (#4827)."
+            ),
+        ),
+    ] = False,
+    allow_orphaned: Annotated[
+        bool,
+        typer.Option(
+            "--allow-orphaned",
+            help=(
+                "Only meaningful with --refresh-planning-commit (#4827). Permits the "
+                "re-pin to re-point a recorded planning_commit_sha that is ORPHANED -- "
+                "present in the repository but no longer an ancestor of the target-branch "
+                "tip, the mid-mission-rebase shape. Without it, an orphaned pin is refused "
+                "(a bare --refresh-planning-commit stays advance-only; a plain finalize "
+                "fails closed before writing lanes.json). Still refused regardless for a "
+                "FOREIGN (absent) object -- investigate that divergence manually."
             ),
         ),
     ] = False,
@@ -3125,7 +3309,9 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
     amendment has landed on the target branch: it advances the recorded
     planning_commit_sha in lanes.json to the current tip so lanes merge the amended
     planning state instead of a stale snapshot (#4141). It is refused when the recorded
-    SHA is not an ancestor of the tip (a history rewrite, not an amendment).
+    SHA is not an ancestor of the tip (a history rewrite, not an amendment) -- unless
+    that non-ancestor SHA is a proven ORPHAN (present, just unreachable -- a mid-mission
+    rebase), in which case add --allow-orphaned to re-point to the live tip (#4827).
 
     Bootstrap Mutation Surface (FR-003 / SC-002)
     =============================================
@@ -3146,6 +3332,7 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
         spec-kitty agent mission finalize-tasks --mission 020-my-feature --json
         spec-kitty agent mission finalize-tasks --mission 020-my-feature --validate-only --json
         spec-kitty agent mission finalize-tasks --mission 020-my-feature --refresh-planning-commit
+        spec-kitty agent mission finalize-tasks --mission 020-my-feature --refresh-planning-commit --allow-orphaned
     """
     # SK3466-R-001: tracked across the whole try body (not just the persist
     # call site) so the except blocks below can undo an already-applied
@@ -3390,6 +3577,7 @@ def finalize_tasks(  # noqa: C901 -- ordered fail-closed gates plus owned-checko
             target_branch_persist=target_branch_persist,
             meta_commit_progress=meta_commit_progress,
             refresh_planning_commit=refresh_planning_commit,
+            allow_orphaned=allow_orphaned,
             **({"owned": owned} if owned else {}),
         )
 
