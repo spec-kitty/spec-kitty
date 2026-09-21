@@ -96,12 +96,22 @@ class Occurrence(NamedTuple):
 # ``/pull/<n>`` URL anywhere on the line.
 _PR_OR_COMMIT_PATTERN = re.compile(r"\bpr\s*#|\bpull\b|/pull/\d+", re.IGNORECASE)
 
-# Context-only signal: an explicit context marker. Word-bounded where the
-# marker word could otherwise appear inside an unrelated word (``parent`` /
-# ``epic``); ``follow-up:`` / ``baseline-red`` / ``see #`` are distinctive
-# enough as-is. Extend this list judiciously -- it is the single definition
-# consumed by :func:`classify_occurrence`.
-_CONTEXT_MARKER_PATTERN = re.compile(r"follow-up:|baseline-red|see\s*#|\bparent\b|\bepic\b", re.IGNORECASE)
+# Context-only signal: an explicit context marker. ``follow-up:`` /
+# ``baseline-red`` are distinctive enough to match anywhere on the line.
+# ``parent`` / ``epic`` / ``see`` are ordinary English words -- fail-open hole
+# closed here (#3469): they only demote when used as a citation label, never
+# when they merely occur somewhere on a genuine implementation-target line
+# ("The parent widget must resolve #4521", "We see #4521 failures in prod").
+# A citation label is either (a) ``parent``/``epic`` sitting immediately
+# (within 12 non-#/non-newline characters) before the ``#`` ref, e.g.
+# "Tracked by the epic #200." / "Parent context: #200 ...", or (b) ``see``
+# leading the line (optionally after whitespace), e.g. "see #200 for ...".
+# Extend this list judiciously -- it is the single definition consumed by
+# :func:`classify_occurrence`.
+_CONTEXT_MARKER_PATTERN = re.compile(
+    r"follow-up:|baseline-red|^\s*see\s*#|(?:parent|epic)\b[^#\n]{0,12}#",
+    re.IGNORECASE,
+)
 
 
 def classify_occurrence(occurrence: Occurrence) -> GatingClass:

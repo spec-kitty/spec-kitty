@@ -158,6 +158,25 @@ class TestClassifyOccurrences:
 
         assert classify_occurrences(occurrences) == GatingClass.CONTEXT_ONLY
 
+    @pytest.mark.parametrize(
+        "line_text",
+        [
+            "The parent widget must resolve #4521",
+            "Epic groundwork: fix #4521",
+            "Refactor the parent class to close #4521",
+            "This epic-scale bug in #4521 needs a fix",
+            "We see #4521 failures in prod and must fix them",
+            "Users see #4521 errors when clicking",
+        ],
+    )
+    def test_ambiguous_english_word_on_implementation_line_still_gates(self, line_text: str) -> None:
+        """#3469 fail-open fold: ``parent``/``epic``/``see`` are ordinary
+        English words here, not citation labels -- a bare match anywhere on
+        the line must NOT demote a genuine implementation-target line."""
+        occurrences = (Occurrence(source_file="spec.md", line_text=line_text),)
+
+        assert classify_occurrences(occurrences) == GatingClass.IMPLEMENTATION_TARGET
+
     def test_pr_hash_form_is_pr_or_commit_ref(self) -> None:
         occurrences = (Occurrence(source_file="spec.md", line_text="PR #300 landed the rename."),)
 
