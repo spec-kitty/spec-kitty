@@ -1,0 +1,21 @@
+{
+  "baseline_merge_commit": "bd5bf7d1bbdb6b39c2bbbbaa84edc72dd4fc128b",
+  "created_at": "2026-09-21T11:03:48.269793+00:00",
+  "flattened": true,
+  "friendly_name": "CI: down-route prose-only .py diffs off the code matrix",
+  "merged_at": "2026-09-21T12:52:42.733527+00:00",
+  "merged_commit": "06c40c4b6a2af95fdb0980946a203dacc35042c5",
+  "mid8": "01M31T5S",
+  "mission_id": "01M31T5SRZDJ147ZEZG49HQNPV",
+  "mission_number": null,
+  "mission_slug": "ci-prose-only-downroute-01M31T5S",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The CI path router classifies any src/**.py or tests/**.py edit as a full code change, so a comment/docstring-only PR runs ~2 hours of aggregate shard compute it cannot possibly affect while the docs lane skips. This mission adds content-based prose-only detection that down-routes an all-prose-only PR off the code matrix and arch battery, keeps lint/terminology/help-drift/doctest lanes, and fails closed to full routing on any uncertainty. Issue #4842 under CI-honesty epic #4437.",
+  "purpose_tldr": "Stop docstring/comment-only Python PRs from fanning out the full CI code test matrix and heavy arch battery.",
+  "slug": "ci-prose-only-downroute-01M31T5S",
+  "status_phase": "1",
+  "target_branch": "feat/ci-prose-only-downroute",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-21T11:44:20.308685+00:00"
+}

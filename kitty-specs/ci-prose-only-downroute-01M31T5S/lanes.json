@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "mission_slug": "ci-prose-only-downroute-01M31T5S",
+  "mission_id": "01M31T5SRZDJ147ZEZG49HQNPV",
+  "mission_branch": "kitty/mission-ci-prose-only-downroute-01M31T5S",
+  "target_branch": "feat/ci-prose-only-downroute",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "scripts/ci/prose_only.py",
+        "tests/ci/test_prose_only.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-modules.yml",
+        ".github/workflows/ci-router.yml",
+        "tests/ci/test_ci_module_wiring.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "scripts/ci/aggregate_source.py",
+        "tests/ci/test_aggregate_source.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-21T11:41:07.818378+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a094b3ee2041a7c6fe08bb8e250c169f868cccc4"
+}
