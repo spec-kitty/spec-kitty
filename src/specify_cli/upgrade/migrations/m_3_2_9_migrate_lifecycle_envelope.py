@@ -66,17 +66,19 @@ no additional idempotency layer on top -- a second ``apply()`` over an
 unchanged corpus rewrites nothing and reports no changes, and ``detect()``
 returns ``False`` once every log in the corpus is converged.
 
-MIG4 (stale snapshot refusal) is per-file, not per-corpus
---------------------------------------------------------------
+MIG4 (stale snapshot refusal) continues per-file but fails the aggregate
+------------------------------------------------------------------------
 ``migrate_lifecycle_envelope`` itself refuses to re-migrate a single file
 that already carries a ``.pre-migration.bak`` from an earlier run with
 migrated rows still pending (an operator-recoverable situation: remove the
 stale snapshot once satisfied with the prior run). That refusal is
-deliberately non-fatal and file-scoped in the underlying function's own
-docstring, so this migration surfaces it as a ``MigrationResult.warning``
-naming the exact path and reason, and continues rewriting every OTHER log in
-the corpus rather than aborting the whole ``spec-kitty upgrade`` step over
-one stale backup file.
+file-scoped in the underlying function's own docstring, so this migration
+continues rewriting every OTHER log in the corpus rather than aborting the
+walk. The aggregate ``MigrationResult`` nevertheless fails, naming the exact
+path and reason: the runner must not record the migration as successful or
+advance project metadata while even one lifecycle log remains legacy-shaped.
+After the operator removes the stale snapshot, the ordinary upgrade path can
+retry the failed migration and converge the remaining log.
 
 Version-key pin (``target_version = "3.2.6rc2"``, not a WP-shaped digit)
 -------------------------------------------------------------------------
@@ -106,6 +108,7 @@ from specify_cli.status import (
     mission_event_log_path,
     project_event_log_path,
 )
+
 # migrate_lifecycle_envelope is imported directly from its home submodule,
 # not the facade: its bare name collides with the submodule's own filename
 # (status/migrate_lifecycle_envelope.py), so promoting it onto
@@ -168,41 +171,34 @@ def _needs_migration(log_path: Path) -> bool:
 def _migrate_corpus(log_paths: list[Path], *, dry_run: bool) -> tuple[list[str], list[str]]:
     """Run the F2-T1 rewrite over every path in *log_paths*.
 
-    Returns ``(changes_made, warnings)``. A MIG4 refusal (a stale
+    Returns ``(changes_made, refusals)``. A MIG4 refusal (a stale
     ``.pre-migration.bak`` left over from an earlier interrupted run) is
-    reported as a warning naming the exact path and the reused function's
-    own operator-actionable reason; it never aborts the rest of the corpus
-    walk, matching ``migrate_lifecycle_envelope``'s own per-file refusal
-    scope (module docstring above).
+    returned as an aggregate-fatal error naming the exact path and the reused
+    function's own operator-actionable reason. It does not abort the rest of
+    the corpus walk, matching ``migrate_lifecycle_envelope``'s own per-file
+    refusal scope (module docstring above).
     """
     migrated_total = 0
-    warnings: list[str] = []
+    refusals: list[str] = []
     for log_path in log_paths:
         manifest = migrate_lifecycle_envelope(log_path, dry_run=dry_run)
         if manifest.refused_reason is not None:
-            warnings.append(f"{log_path}: {manifest.refused_reason}")
+            refusals.append(f"{log_path}: {manifest.refused_reason}")
             continue
         migrated_total += manifest.migrated_count
 
     if migrated_total == 0:
-        return [], warnings
+        return [], refusals
 
     scanned = len(log_paths)
     if dry_run:
         return (
-            [
-                f"dry-run: would rewrite {migrated_total} legacy-shaped lifecycle "
-                f"envelope row(s) to F1's strict shape across {scanned} event "
-                "log(s) scanned"
-            ],
-            warnings,
+            [f"dry-run: would rewrite {migrated_total} legacy-shaped lifecycle envelope row(s) to F1's strict shape across {scanned} event log(s) scanned"],
+            refusals,
         )
     return (
-        [
-            f"Rewrote {migrated_total} legacy-shaped lifecycle envelope row(s) "
-            f"to F1's strict shape across {scanned} event log(s) scanned"
-        ],
-        warnings,
+        [f"Rewrote {migrated_total} legacy-shaped lifecycle envelope row(s) to F1's strict shape across {scanned} event log(s) scanned"],
+        refusals,
     )
 
 
@@ -241,8 +237,12 @@ class MigrateLifecycleEnvelopeMigration(BaseMigration):
         log_paths = _iter_existing_log_paths(project_path)
         if not log_paths:
             return MigrationResult(success=True, changes_made=[])
-        changes, warnings = _migrate_corpus(log_paths, dry_run=dry_run)
-        return MigrationResult(success=True, changes_made=changes, warnings=warnings)
+        changes, refusals = _migrate_corpus(log_paths, dry_run=dry_run)
+        return MigrationResult(
+            success=not refusals,
+            changes_made=changes,
+            errors=refusals,
+        )
 
 
 __all__ = ["MigrateLifecycleEnvelopeMigration"]
