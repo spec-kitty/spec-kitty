@@ -396,7 +396,9 @@ def force_release(lock_path: Path, *, only_if_age_s: float = STALE_AFTER_S_DEFAU
         # ``RuntimeError``, not an ``OSError``) -- a symlinked lock path is a
         # security signal the caller must see, not a routine "lock missing/
         # unreadable" outcome silently folded into a ``False`` return.
-        fd = open_no_follow(lock_path, os.O_RDWR | getattr(os, "O_NOFOLLOW", 0))
+        # ``open_no_follow`` ORs ``O_NOFOLLOW`` in itself -- the door owns the
+        # flag, so callers pass only their own intent.
+        fd = open_no_follow(lock_path, os.O_RDWR)
     except OSError:
         return False
     try:
@@ -453,11 +455,12 @@ class _LockCore:
 
     def open_fd(self) -> int:
         _ensure_dir(self.lock_path)
-        flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+        flags = os.O_RDWR | os.O_CREAT
         # ``0o600`` keeps the lock file readable only by the owner on POSIX.
         # Routed through ``open_no_follow`` (rather than a second raw
         # ``os.open``) so there is exactly one no-follow implementation
-        # (#4756, FR-001): a planted symlink at ``lock_path`` raises
+        # (#4756, FR-001) that owns the ``O_NOFOLLOW`` flag itself -- callers
+        # pass only their own flags: a planted symlink at ``lock_path`` raises
         # ``NoFollowPathError`` instead of being followed and later
         # truncated/overwritten by ``commit_record``/``release``. No
         # ``O_EXCL`` -- lock files are re-opened by every later acquirer
