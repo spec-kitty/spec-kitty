@@ -218,7 +218,10 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # FRESHENED (charter-code-topology-01M152G1 landing): line 52 -> 53,
         # a doctrine-relocation comment (R-12) was added directly above this
         # join; the join itself is unchanged.
-        (Path("src/specify_cli/template/manager.py"), 53),
+        # RE-PINNED (local-write-safety #4759 landing): the non-destructive
+        # init-backup seam added above this join shifted it 53 -> 130; the
+        # join itself is unchanged.
+        (Path("src/specify_cli/template/manager.py"), 130),
         # src/specify_cli/template/manager.py::get_local_repo_root::_is_template_root --
         # content-sniffs a caller-supplied `override_path`/checkout root, not
         # this installation's own built-in tier. See module docstring class 2.
@@ -226,7 +229,9 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # the sibling AGENTS.md sniff line above it now reads
         # `src/charter/offering/templates/AGENTS.md` (relocated from
         # `src/doctrine/templates/`), pushing this join down one line.
-        (Path("src/specify_cli/template/manager.py"), 166),
+        # RE-PINNED (local-write-safety #4759 landing): the non-destructive
+        # init-backup seam added above shifted it 166 -> 259; join unchanged.
+        (Path("src/specify_cli/template/manager.py"), 259),
         # src/charter/activation/neutrality/lint.py::_default_scan_roots -- scans a
         # caller-supplied `repo_root` (tmp_path-rooted in tests; see
         # tests/charter/test_neutrality_lint.py::test_default_scan_roots_include_relocated_builtin_missions),

@@ -34,5 +34,7 @@
 # WP04 (cross-os-primitive-unification): line-number drift fix -- these two
 # entries had gone stale (:217/:229) after an unrelated upstream shift in
 # kernel/locks.py; corrected to the current lines.
-src/kernel/locks.py:221
-src/kernel/locks.py:233
+# local-write-safety (#4756): the O_NOFOLLOW hoist in open_fd/force_release
+# shifted these two dispatches by one line (:221/:233 -> :222/:234); re-pinned.
+src/kernel/locks.py:222
+src/kernel/locks.py:234

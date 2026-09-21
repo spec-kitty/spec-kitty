@@ -23,4 +23,6 @@
 # :69) were REMOVED here, not routed: WP04 migrated both modules' locking
 # entirely onto kernel.locks.machine_file_lock, so neither module imports
 # msvcrt/fcntl at all any more -- there is no guard left to allowlist.
-src/kernel/locks.py:95
+# local-write-safety (#4756): the O_NOFOLLOW hoist shifted this import guard
+# by one line (:95 -> :96); re-pinned.
+src/kernel/locks.py:96

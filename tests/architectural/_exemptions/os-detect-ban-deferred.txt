@@ -17,4 +17,6 @@ src/specify_cli/__init__.py:521
 # ungated (would make the gate vacuous for this site). Tracked as follow-up
 # #4727 to assign an owner and route it (it is a 3-way win32/darwin/linux
 # normalizer, so it needs the kernel seam extended, not a boolean route-through).
-src/specify_cli/paths/windows_paths.py:128
+# local-write-safety (#4721/#4812): edits above this site in windows_paths.py
+# shifted it (:128 -> :156); re-pinned. Still deferred to #4727, still routed nowhere.
+src/specify_cli/paths/windows_paths.py:156
