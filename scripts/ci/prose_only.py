@@ -83,7 +83,14 @@ _DOCSTRING_HOLDER_TYPES = (
     ast.FunctionDef,
     ast.AsyncFunctionDef,
 )
-_ENCODING_COOKIE_RE = re.compile(r"coding[:=]\s*([-\w.]+)")
+# PEP 263 shape, `#`-anchored: `coding[:=]` must sit directly after the `#`
+# (only whitespace and an optional `-*-` decoration in between), never after
+# arbitrary prose -- e.g. `# -*- coding: utf-8 -*-` and `# coding=latin-1`
+# match; `# a prose note about our coding: style guide` does not, because
+# "coding:" there is not the start of the comment's content. Applied via
+# `.match()` against an already-`#`-leading, whitespace-stripped line
+# (`_cookie_or_shebang_lines`), so `^` effectively pins to right after `#`.
+_ENCODING_COOKIE_RE = re.compile(r"^#[ \t]*(?:-\*-[ \t]*)?coding[:=][ \t]*([-\w.]+)")
 _DOCTEST_PROMPT = ">>>"
 
 
@@ -334,7 +341,7 @@ def _cookie_or_shebang_lines(src: str) -> tuple[str, str]:
         stripped = line.strip()
         if index == 0 and stripped.startswith("#!"):
             shebang = stripped
-        if stripped.startswith("#") and _ENCODING_COOKIE_RE.search(stripped):
+        if stripped.startswith("#") and _ENCODING_COOKIE_RE.match(stripped):
             cookie = stripped
     return shebang, cookie
 

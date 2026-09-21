@@ -217,6 +217,31 @@ def test_shebang_change_is_detected() -> None:
     assert prose_only_reason(base, head) == "encoding_cookie"
 
 
+def test_coding_equals_cookie_change_is_detected() -> None:
+    # PEP 263's `coding=<name>` spelling, not just `coding:`.
+    base = "# coding=utf-8\nx = 1\n"
+    head = "# coding=latin-1\nx = 1\n"
+    assert is_prose_only(base, head) is False
+    assert prose_only_reason(base, head) == "encoding_cookie"
+
+
+def test_prose_comment_mentioning_coding_on_line_one_is_not_a_cookie() -> None:
+    """Renata NOTE / MINOR-3b regression: `coding[:=]` embedded in a prose
+    comment (not a `#`-leading PEP 263 cookie) must not be treated as an
+    encoding-cookie delta and over-route an otherwise comment-only edit."""
+    base = "# Some prose note: our coding: style guide applies here.\ndef f():\n    return 1\n"
+    head = "# Some prose note: our coding: convention changed.\ndef f():\n    return 1\n"
+    assert is_prose_only(base, head) is True
+    assert prose_only_reason(base, head) == "prose_only"
+
+
+def test_prose_comment_mentioning_coding_on_line_two_is_not_a_cookie() -> None:
+    base = "#!/usr/bin/env python3\n# a note about coding: conventions we follow\nx = 1\n"
+    head = "#!/usr/bin/env python3\n# a note about coding: conventions we now follow\nx = 1\n"
+    assert is_prose_only(base, head) is True
+    assert prose_only_reason(base, head) == "prose_only"
+
+
 # ---------------------------------------------------------------------------
 # False (fail-closed, FR-006)
 # ---------------------------------------------------------------------------
