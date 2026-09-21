@@ -59,6 +59,25 @@ steps:
       in-scope; do not open-ended refactor.
     actor: agent
 
+  - title: Consolidate history and prefer per-commit greenness for the rebase-merge model
+    description: >
+      This repo lands via rebase-merge, so each commit lands on main individually. The
+      ENFORCED merge bar is the PR head (the whole PR) going green — individual intermediate
+      commits are NOT held to that bar and MAY land stale on a gate (e.g. a regenerated
+      docs-index or pack manifest that only reconciles at the tip). Do not rewrite history
+      solely to make every intermediate commit green. Per-commit greenness is a PREFERRED
+      target for bisect readability, not a merge requirement, and two techniques help reach it
+      when it is worthwhile: (1) when a red-first regression repro must land in a different
+      commit from its fix, mark the repro ``@pytest.mark.xfail(strict=True)`` so intermediate
+      commits stay green — the fix commit removes the marker and ``strict`` forces the
+      flip-to-green (a still-red test then fails loudly, so the marker can never be silently
+      left behind). (2) To consolidate a churn-heavy branch into clean logical commits,
+      ``git reset --soft <base>`` (then unstage) and re-commit in groups — and verify the
+      working tree is BYTE-IDENTICAL before and after (``git rev-parse HEAD^{tree}``), so it is
+      a pure commit-boundary change, never a content change smuggled into a "cleanup". Both are
+      model-level (rebase-merge) techniques, independent of the lane/worktree implementation.
+    actor: agent
+
   - title: Red-first verification for bugfix PRs
     description: >
       For a bugfix, confirm the test is RED against the unpatched code before the fix,
