@@ -179,6 +179,13 @@ class IssueReference(NamedTuple):
     :func:`~specify_cli.tasks.issue_reference_discovery.is_gating` /
     :func:`~specify_cli.tasks.issue_reference_discovery.gating_issue_numbers`
     (attribute access), which is unaffected by equality semantics.
+
+    Reference *uniqueness* is a separate concern, owned by
+    :func:`detect_issue_references` / :func:`discover_issue_references` and
+    keyed on ``number`` alone. A full-field ``set(refs)`` dedup is therefore
+    a stricter relation than the number-keyed dedup those functions
+    guarantee; the two coincide only within a single, already-number-unique
+    discovery result.
     """
 
     number: int

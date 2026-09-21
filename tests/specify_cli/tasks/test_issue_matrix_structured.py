@@ -509,7 +509,10 @@ class TestIssueReferenceIdentity:
         )
         same_as_gating = IssueReference(1582, "Fixes #1582.", "spec.md")
 
-        assert hash(gating) != hash(context_only)
+        # The hash contract only guarantees equal objects share a hash, so we
+        # assert the observable behaviour -- set membership distinguishes the
+        # two references and collapses the equal pair -- rather than a brittle
+        # (collision-dependent) hash-inequality.
         assert {gating, context_only, same_as_gating} == {gating, context_only}
 
     def test_equal_references_have_equal_hashes(self) -> None:
@@ -521,11 +524,17 @@ class TestIssueReferenceIdentity:
         assert a == b
         assert hash(a) == hash(b)
 
-    def test_equality_against_non_reference_is_notimplemented(self) -> None:
-        """Plain NamedTuple semantics: no crash, no silent cross-type ``True``."""
+    def test_equality_against_shorter_tuple_or_string_is_false(self) -> None:
+        """Plain NamedTuple semantics: a length-mismatched tuple and a non-tuple
+        are both unequal (no crash). A NamedTuple *is* a tuple, so a matching
+        5-element tuple DOES compare equal -- asserted here so no caller mistakes
+        this for a cross-type ``NotImplemented``/never-``True`` guard.
+        """
         from specify_cli.tasks.issue_matrix import IssueReference
+        from specify_cli.tasks.issue_reference_discovery import GatingClass
 
         ref = IssueReference(1582, "Fixes #1582.", "spec.md")
 
         assert ref != (1582, "Fixes #1582.", "spec.md")
         assert ref != "not a reference"
+        assert ref == (1582, "Fixes #1582.", "spec.md", (), GatingClass.IMPLEMENTATION_TARGET)
