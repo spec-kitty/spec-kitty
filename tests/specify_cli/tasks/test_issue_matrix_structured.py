@@ -456,3 +456,76 @@ class TestBulkMigrateCommand:
         assert set(payload["skipped"]) == {"061-already-json-mission", "062-no-matrix-mission"}
         assert (legacy_dir / "issue-matrix.json").exists()
         assert len(calls) == 1
+
+
+# ---------------------------------------------------------------------------
+# #4825 -- IssueReference identity: ALL fields participate in ==/hash
+# ---------------------------------------------------------------------------
+
+
+class TestIssueReferenceIdentity:
+    """#4825: the pre-cleanup ``__eq__``/``__hash__`` override compared only
+    ``(number, first_line_context, source_file)`` and silently excluded the
+    two gating-metadata fields. Plain ``NamedTuple`` semantics are restored:
+    two references differing ONLY in ``classification`` (or only in
+    ``occurrences``) are distinct values, so an exact-equality assert can no
+    longer mask a classification regression, and a caller deduping
+    references into a ``set()`` gets distinct entries.
+    """
+
+    def test_references_differing_only_in_classification_are_not_equal(self) -> None:
+        from specify_cli.tasks.issue_matrix import IssueReference
+        from specify_cli.tasks.issue_reference_discovery import GatingClass
+
+        gating = IssueReference(1582, "Fixes #1582.", "spec.md")
+        context_only = IssueReference(
+            1582, "Fixes #1582.", "spec.md", classification=GatingClass.CONTEXT_ONLY
+        )
+
+        assert gating != context_only
+
+    def test_references_differing_only_in_occurrences_are_not_equal(self) -> None:
+        from specify_cli.tasks.issue_matrix import IssueReference
+        from specify_cli.tasks.issue_reference_discovery import Occurrence
+
+        bare = IssueReference(1582, "Fixes #1582.", "spec.md")
+        with_occurrence = IssueReference(
+            1582,
+            "Fixes #1582.",
+            "spec.md",
+            occurrences=(Occurrence(source_file="spec.md", line_text="Fixes #1582."),),
+        )
+
+        assert bare != with_occurrence
+
+    def test_hash_follows_equality_for_gating_metadata(self) -> None:
+        """``set`` membership distinguishes references by classification/occurrences."""
+        from specify_cli.tasks.issue_matrix import IssueReference
+        from specify_cli.tasks.issue_reference_discovery import GatingClass
+
+        gating = IssueReference(1582, "Fixes #1582.", "spec.md")
+        context_only = IssueReference(
+            1582, "Fixes #1582.", "spec.md", classification=GatingClass.CONTEXT_ONLY
+        )
+        same_as_gating = IssueReference(1582, "Fixes #1582.", "spec.md")
+
+        assert hash(gating) != hash(context_only)
+        assert {gating, context_only, same_as_gating} == {gating, context_only}
+
+    def test_equal_references_have_equal_hashes(self) -> None:
+        from specify_cli.tasks.issue_matrix import IssueReference
+
+        a = IssueReference(1582, "Fixes #1582.", "spec.md")
+        b = IssueReference(1582, "Fixes #1582.", "spec.md")
+
+        assert a == b
+        assert hash(a) == hash(b)
+
+    def test_equality_against_non_reference_is_notimplemented(self) -> None:
+        """Plain NamedTuple semantics: no crash, no silent cross-type ``True``."""
+        from specify_cli.tasks.issue_matrix import IssueReference
+
+        ref = IssueReference(1582, "Fixes #1582.", "spec.md")
+
+        assert ref != (1582, "Fixes #1582.", "spec.md")
+        assert ref != "not a reference"

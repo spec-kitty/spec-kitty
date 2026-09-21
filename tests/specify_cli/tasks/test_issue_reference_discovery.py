@@ -9,6 +9,12 @@ enforcement sites depend on.
 WP06 (#1738, FR-013) note: ``IssueReference`` gained a required
 ``source_file`` field (the basename of the file a reference was discovered
 in). Every expected tuple below names it explicitly.
+
+#4825 note: ``IssueReference`` equality now covers ALL five fields, so these
+discovery/provenance asserts compare the identity triple
+``(number, first_line_context, source_file)`` explicitly -- the fields they
+actually mean -- rather than whole-tuple equality (which would pin, or mask
+a regression in, the aggregate ``occurrences``/``classification`` fields).
 """
 
 from __future__ import annotations
@@ -17,7 +23,6 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.tasks.issue_matrix import IssueReference
 from specify_cli.tasks.issue_reference_discovery import discover_issue_references
 
 pytestmark = [pytest.mark.fast]
@@ -39,7 +44,9 @@ class TestDiscoverIssueReferences:
 
         refs = discover_issue_references(feature_dir)
 
-        assert refs == [IssueReference(1582, "Addresses issue #1582.", "spec.md")]
+        assert [(r.number, r.first_line_context, r.source_file) for r in refs] == [
+            (1582, "Addresses issue #1582.", "spec.md")
+        ]
 
     def test_reference_only_in_wp_file_is_discovered(self, tmp_path: Path) -> None:
         """The FR-004 headline case: a ref buried in ``tasks/WP01.md`` alone."""
@@ -53,7 +60,9 @@ class TestDiscoverIssueReferences:
 
         refs = discover_issue_references(feature_dir)
 
-        assert refs == [IssueReference(4242, "This WP fixes #4242 as a follow-up.", "WP01.md")]
+        assert [(r.number, r.first_line_context, r.source_file) for r in refs] == [
+            (4242, "This WP fixes #4242 as a follow-up.", "WP01.md")
+        ]
 
     def test_reference_only_in_plan_md_is_discovered(self, tmp_path: Path) -> None:
         feature_dir = _mission_dir(tmp_path)
@@ -63,7 +72,9 @@ class TestDiscoverIssueReferences:
 
         refs = discover_issue_references(feature_dir)
 
-        assert refs == [IssueReference(9001, "Design closes #9001.", "plan.md")]
+        assert [(r.number, r.first_line_context, r.source_file) for r in refs] == [
+            (9001, "Design closes #9001.", "plan.md")
+        ]
 
     def test_reference_only_in_contracts_is_discovered(self, tmp_path: Path) -> None:
         feature_dir = _mission_dir(tmp_path)
@@ -75,7 +86,9 @@ class TestDiscoverIssueReferences:
 
         refs = discover_issue_references(feature_dir)
 
-        assert refs == [IssueReference(5555, "Contract for #5555.", "commands.md")]
+        assert [(r.number, r.first_line_context, r.source_file) for r in refs] == [
+            (5555, "Contract for #5555.", "commands.md")
+        ]
 
     def test_reference_only_in_research_or_analysis_report_is_discovered(
         self, tmp_path: Path
@@ -107,7 +120,9 @@ class TestDiscoverIssueReferences:
 
         refs = discover_issue_references(feature_dir)
 
-        assert refs == [IssueReference(1582, "Addresses issue #1582 in spec.", "spec.md")]
+        assert [(r.number, r.first_line_context, r.source_file) for r in refs] == [
+            (1582, "Addresses issue #1582 in spec.", "spec.md")
+        ]
 
     def test_scan_order_is_deterministic_across_multiple_wp_files(
         self, tmp_path: Path

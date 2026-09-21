@@ -160,22 +160,25 @@ class IssueReference(NamedTuple):
         occurrences: EVERY site the number was found at (WP01, #3469,
             FR-015) -- the aggregate input :func:`classification` was
             derived from. Defaults to ``()`` for backward-compatible
-            positional construction (see equality note below).
+            positional construction (see identity note below).
         classification: The aggregate :class:`GatingClass` for this number
             (WP01, #3469, FR-001/FR-011). Defaults to the fail-safe
             ``IMPLEMENTATION_TARGET`` for backward-compatible positional
             construction.
 
-    Equality note: ``__eq__``/``__hash__`` are overridden to compare only
-    ``(number, first_line_context, source_file)`` -- the pre-WP01 identity
-    fields every existing caller and test already relies on. ``occurrences``
-    and ``classification`` are additive gating metadata, consumed via
+    Identity note (#4825): equality and hashing are the plain
+    ``NamedTuple`` defaults -- ALL five fields participate. The temporary
+    ``__eq__``/``__hash__`` override that compared only
+    ``(number, first_line_context, source_file)`` (a #3469 landing
+    compatibility shim) was removed: a tuple whose ``==`` silently ignored
+    two of its fields was a test-masking hazard (a classification
+    regression could pass an exact-equality assert) and a trap for any
+    future caller deduping references into a ``set()`` expecting
+    ``classification`` to distinguish them. ``occurrences`` and
+    ``classification`` are consumed via
     :func:`~specify_cli.tasks.issue_reference_discovery.is_gating` /
     :func:`~specify_cli.tasks.issue_reference_discovery.gating_issue_numbers`
-    (attribute access), not equality -- this keeps every pre-existing
-    exact-tuple-equality test green while still letting a number's
-    aggregate occurrence set legitimately outgrow what a 3-positional-arg
-    construction alone could represent (FR-015 multi-file aggregation).
+    (attribute access), which is unaffected by equality semantics.
     """
 
     number: int
@@ -183,18 +186,6 @@ class IssueReference(NamedTuple):
     source_file: str
     occurrences: tuple[Occurrence, ...] = ()
     classification: GatingClass = GatingClass.IMPLEMENTATION_TARGET
-
-    def __eq__(self, other: object) -> bool:
-        # ``__ne__`` is deliberately NOT overridden -- Python's default
-        # ``object.__ne__`` already delegates to ``__eq__`` and inverts the
-        # result (propagating ``NotImplemented`` correctly), so redefining
-        # it here would only duplicate that logic.
-        if isinstance(other, IssueReference):
-            return self.number == other.number and self.first_line_context == other.first_line_context and self.source_file == other.source_file
-        return NotImplemented
-
-    def __hash__(self) -> int:
-        return hash((self.number, self.first_line_context, self.source_file))
 
 
 def detect_issue_references(spec_md_path: Path) -> list[IssueReference]:

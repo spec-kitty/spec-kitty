@@ -33,7 +33,6 @@ import pytest
 from specify_cli.coordination import write_seam
 from specify_cli.tasks.issue_matrix import (
     IssueMatrixEntry,
-    IssueReference,
     detect_issue_references,
     scaffold_issue_matrix,
     write_issue_matrix,
@@ -240,7 +239,7 @@ class TestSourceFileProvenance:
 
         refs = detect_issue_references(spec_md)
 
-        assert refs == [IssueReference(1582, "Addresses issue #1582.", "spec.md")]
+        assert [(r.number, r.first_line_context, r.source_file) for r in refs] == [(1582, "Addresses issue #1582.", "spec.md")]
 
     def test_discovery_records_the_file_basename_across_scan_dirs(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
@@ -250,7 +249,7 @@ class TestSourceFileProvenance:
 
         refs = discover_issue_references(feature_dir)
 
-        assert refs == [IssueReference(4242, "This WP fixes #4242 as a follow-up.", "WP01.md")]
+        assert [(r.number, r.first_line_context, r.source_file) for r in refs] == [(4242, "This WP fixes #4242 as a follow-up.", "WP01.md")]
 
     def test_issue_matrix_entry_round_trips_source_file(self) -> None:
         entry = IssueMatrixEntry(verdict="fixed", evidence_ref="commit abc123", source_file="spec.md")
@@ -286,7 +285,7 @@ class TestDedupPreservesProvenance:
 
         refs = discover_issue_references(feature_dir)
 
-        assert refs == [IssueReference(1582, "Addresses issue #1582 in spec.", "spec.md")]
+        assert [(r.number, r.first_line_context, r.source_file) for r in refs] == [(1582, "Addresses issue #1582 in spec.", "spec.md")]
 
 
 # ---------------------------------------------------------------------------
