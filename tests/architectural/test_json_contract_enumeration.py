@@ -188,6 +188,7 @@ PARSEABLE: dict[str, tuple[tuple[str, ...], int, str]] = {
     "charter synthesize": ((), 1, "outside"),
     "doctor bytecode": ((), 1, "corrupt-bytecode"),
     "doctor channel": ((), 0, "total"),
+    "doctor decisions": (("--mission", "missing"), 1, "outside"),
     "doctrine asset list": ((), 0, "total"),
     "doctrine asset path": (("missing",), 1, "outside"),
     "doctrine pack assemble": (("missing", "missing"), 1, "outside"),
