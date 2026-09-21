@@ -672,6 +672,27 @@ def get_mission_by_name(mission_name: str, kittify_dir: Path | None = None) -> M
     except FileNotFoundError:
         pass
     else:
+        # Built-in mission-type names (software-dev, research, writing, seo,
+        # ...) are package-canonical. A GLOBAL_MISSION hit (tier 4:
+        # ~/.kittify/missions/<name>/) is an artifact of the *user's global
+        # runtime cache*, not a deliberate project decision the way an
+        # OVERRIDE (tier 1, .kittify/overrides/missions/<name>/, #4088) or a
+        # LEGACY project mission (tier 2, .kittify/missions/<name>/) is. Left
+        # unguarded, a populated global runtime would silently shadow the
+        # packaged built-in and split-brain against discover_missions /
+        # list_available_missions / get_active_mission, which never consult
+        # ~/.kittify and read _packaged_missions_dir() directly (NFR-001).
+        # Pin a GLOBAL_MISSION hit for a built-in name back to the historical
+        # project -> package view instead. OVERRIDE/LEGACY/ORG tiers are left
+        # untouched -- they are explicit, in-repo/in-org-pack configuration
+        # (including #4088's project-override-wins-over-built-in fix) and
+        # must keep taking effect for built-in names too. Fully unifying the
+        # two package roots (packs/built-in/missions vs specify_cli/missions)
+        # and this discovery path is the deferred #2652 convergence.
+        if result.tier is ResolutionTier.GLOBAL_MISSION and _mission_dir_if_valid(_packaged_missions_dir() / mission_name) is not None:
+            builtin_path = _mission_path_by_name(mission_name, kittify_dir)
+            if builtin_path is not None:
+                return Mission(builtin_path)
         if result.tier is ResolutionTier.PACKAGE_DEFAULT:
             # Keep built-in (package-tier) missions on the historical
             # ``specify_cli/missions/`` source rather than the resolver's
