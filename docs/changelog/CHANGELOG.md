@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-09-20'
+updated: '2026-09-21'
 ---
 # Changelog
 
@@ -13,10 +13,25 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 4.0.0rc4
+## [4.0.0rc4] - 2026-09-21
 
-_4.0.0rc4 candidate cycle. Entries land here until the release chore finalizes
-this section at publish._
+Fourth release candidate for the Team Kitty 4.x cold-start walkthrough. The
+headline is the **Windows runtime repair** — Spec Kitty is usable on Windows
+again, with the `[Errno 13] Permission denied` family closed (#4703) on a
+unified cross-OS lock / safe-delete / OS-detection foundation that now has one
+canonical owner each. This candidate also lands **local write-safety
+hardening** (routine commands can no longer truncate an unrelated file or
+destroy operator work), **merge / abort / close safety** (no silent loss of
+uncommitted work, no wedged missions; #4752–#4754, #4764, #4474), **charter and
+doctrine correctness** (canonical doctrine artifact slug #4832–#4834, custom
+mission-type resolution, and `finalize-tasks` re-pinning an orphaned
+`planning_commit_sha` after a mid-mission rebase #4827), an **auth fix** (no
+refresh/access token is sent to a server the session never authenticated
+against), the Zeitgeist `activity --person`/`--project` and `watch --seed`
+selectors (#4215), and a broad sweep of CLI, `doctor`, and `upgrade` fixes.
+
+Release and Kent's Windows 11 artifact smoke test remain subject to the gates
+in planning#1999.
 
 ### Added
 
