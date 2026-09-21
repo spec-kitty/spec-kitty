@@ -374,20 +374,38 @@ _Charter management commands_
 │                                                to skip cascade (referenced   │
 │                                                artifacts are reported as a   │
 │                                                warning).                     │
-│ --resynthesize      --no-resynthesize          Eagerly refresh the derived   │
-│                                                bundle/DRG after this         │
+│ --resynthesize      --no-resynthesize          Eagerly refresh the FULL      │
+│                                                derived bundle/DRG (bundle    │
+│                                                content hash + project DRG    │
+│                                                layer, not just the compiled  │
+│                                                catalog) after this           │
 │                                                activation via the EXISTING   │
 │                                                synthesize pipeline (the same │
 │                                                one `charter generate` +      │
-│                                                `charter synthesize` use) --  │
-│                                                reconciles the freshness      │
-│                                                signal to fresh immediately.  │
-│                                                Default: off -- activation    │
-│                                                stays a fast config-only      │
-│                                                write and the signal reports  │
-│                                                stale until a later reconcile │
+│                                                `charter synthesize` use).    │
+│                                                Default activation already    │
+│                                                recompiles                    │
+│                                                `catalog.references` on its   │
+│                                                own via `charter generate`'s  │
+│                                                own compile seam (see         │
+│                                                --no-compile to opt out of    │
+│                                                that lightweight recompile);  │
+│                                                --resynthesize goes further   │
+│                                                and reconciles the freshness  │
+│                                                signal to fresh immediately   │
 │                                                (NFR-001).                    │
 │                                                [default: no-resynthesize]    │
+│ --compile           --no-compile               Skip the default              │
+│                                                post-activation catalog       │
+│                                                recompile (FR-003): the fast  │
+│                                                config-only write from before │
+│                                                issue #4785's fix.            │
+│                                                `catalog.references` is left  │
+│                                                as-is and may go stale until  │
+│                                                a later `charter generate` or │
+│                                                `charter activate             │
+│                                                --resynthesize`.              │
+│                                                [default: compile]            │
 │ --help          -h                             Show this message and exit.   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -495,20 +513,38 @@ _Charter bundle validation commands._
 │                                                never removed. Omit to        │
 │                                                deactivate only the named     │
 │                                                artifact.                     │
-│ --resynthesize      --no-resynthesize          Eagerly refresh the derived   │
-│                                                bundle/DRG after this         │
+│ --resynthesize      --no-resynthesize          Eagerly refresh the FULL      │
+│                                                derived bundle/DRG (bundle    │
+│                                                content hash + project DRG    │
+│                                                layer, not just the compiled  │
+│                                                catalog) after this           │
 │                                                activation via the EXISTING   │
 │                                                synthesize pipeline (the same │
 │                                                one `charter generate` +      │
-│                                                `charter synthesize` use) --  │
-│                                                reconciles the freshness      │
-│                                                signal to fresh immediately.  │
-│                                                Default: off -- activation    │
-│                                                stays a fast config-only      │
-│                                                write and the signal reports  │
-│                                                stale until a later reconcile │
+│                                                `charter synthesize` use).    │
+│                                                Default activation already    │
+│                                                recompiles                    │
+│                                                `catalog.references` on its   │
+│                                                own via `charter generate`'s  │
+│                                                own compile seam (see         │
+│                                                --no-compile to opt out of    │
+│                                                that lightweight recompile);  │
+│                                                --resynthesize goes further   │
+│                                                and reconciles the freshness  │
+│                                                signal to fresh immediately   │
 │                                                (NFR-001).                    │
 │                                                [default: no-resynthesize]    │
+│ --compile           --no-compile               Skip the default              │
+│                                                post-activation catalog       │
+│                                                recompile (FR-003): the fast  │
+│                                                config-only write from before │
+│                                                issue #4785's fix.            │
+│                                                `catalog.references` is left  │
+│                                                as-is and may go stale until  │
+│                                                a later `charter generate` or │
+│                                                `charter activate             │
+│                                                --resynthesize`.              │
+│                                                [default: compile]            │
 │ --help          -h                             Show this message and exit.   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -1205,7 +1241,7 @@ _Query workspace context information_
  spec-kitty context info
 
  # Explicit workspace
- spec-kitty context info --workspace 010-feature-lane-a
+ spec-kitty context info --workspace 010-mission-lane-a
 
  # JSON output
  spec-kitty context info --json
@@ -1248,7 +1284,7 @@ _Query workspace context information_
 
  Resolve and persist a MissionContext token.
 
- Creates a new bound context for the given work package and feature,
+ Creates a new bound context for the given work package and mission,
  writes it to .kittify/runtime/contexts/, and prints the token.
 
  The token can be passed to other commands via --context <token>.
@@ -1256,10 +1292,10 @@ _Query workspace context information_
  Examples:
      # Resolve and print token for piping
      TOKEN=$(spec-kitty context mission-resolve --wp WP01 --mission
- 057-my-feature)
+ 057-my-mission)
 
      # Resolve and print full JSON
-     spec-kitty context mission-resolve --wp WP01 --mission 057-my-feature
+     spec-kitty context mission-resolve --wp WP01 --mission 057-my-mission
  --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
@@ -1453,6 +1489,12 @@ _Project health diagnostics_
 │                         stranded under a retired                             │
 │                         resolver path, ahead of WP13's consumer-unification  │
 │                         (FR-008).                                            │
+│ decisions               Diagnose or repair divergence between                │
+│                         ``decisions/index.json`` and the                     │
+│                         authoritative                                        │
+│                         ``DecisionPointOpened``/``DecisionPointResolved``    │
+│                         event log                                            │
+│                         (FR-004/FR-005).                                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1627,6 +1669,49 @@ _Project health diagnostics_
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Machine-readable JSON output                               │
 │ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor decisions
+
+```
+ Usage: spec-kitty doctor decisions [OPTIONS]
+
+ Diagnose or repair divergence between ``decisions/index.json`` and the
+ authoritative ``DecisionPointOpened``/``DecisionPointResolved`` event log
+ (FR-004/FR-005).
+
+ Diagnose (default): read-only; reports decisions present in the event
+ log but missing from the index, and index entries with no backing event.
+
+ ``--repair``: rebuilds ``index.json`` from the log via the single
+ canonical ``event -> IndexEntry`` fold
+ (:mod:`specify_cli.decisions.index_fold`) under the same sidecar lock the
+ write path uses — never invents an entry absent from the log, never
+ drops a log-backed entry. A no-op (no write) when the log and index
+ already agree.
+
+ Run ``--repair`` as an offline maintenance step, not concurrently with
+ live decision traffic: a decision that is mid-open (its index entry
+ written under the sidecar lock, its event not yet appended) is briefly
+ invisible to a log-authoritative rebuild, so a repair racing that window
+ can drop the in-flight entry (a later ``--repair`` heals it). Like
+ ``fsck``, it is meant to run when writers are quiesced.
+
+ Informational only: always exits 0.
+
+ Examples:
+     spec-kitty doctor decisions --mission my-mission-01ABCD
+     spec-kitty doctor decisions --mission my-mission-01ABCD --repair
+     spec-kitty doctor decisions --mission my-mission-01ABCD --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission          TEXT  Mission handle (mission_id / mid8 / slug)        │
+│                             [required]                                       │
+│    --json                   Machine-readable JSON output                     │
+│    --repair                 Rebuild decisions/index.json from the event log  │
+│                             (run offline; not against live decision traffic) │
+│    --help     -h            Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3087,6 +3172,35 @@ _Live Work harness capture: tools, files, tests and delegation as live relay fra
 │                                                            --skip-review-ar… │
 │                                                            (required with    │
 │                                                            it).              │
+│ --skip-lanes,--n…                                          Complete a        │
+│                                                            merge-ready       │
+│                                                            direct-on-target  │
+│                                                            mission that has  │
+│                                                            no lane branch    │
+│                                                            (#2745, FR-012):  │
+│                                                            when lanes.json   │
+│                                                            is genuinely      │
+│                                                            absent,           │
+│                                                            synthesize a      │
+│                                                            no-lane manifest  │
+│                                                            instead of        │
+│                                                            hard-failing with │
+│                                                            the missing-lanes │
+│                                                            error. A mission  │
+│                                                            that has real     │
+│                                                            lanes is          │
+│                                                            unaffected -- an  │
+│                                                            existing          │
+│                                                            lanes.json is     │
+│                                                            always honored    │
+│                                                            as-is. Does NOT   │
+│                                                            bypass the        │
+│                                                            merge-ready       │
+│                                                            precondition: a   │
+│                                                            not-merge-ready   │
+│                                                            mission still     │
+│                                                            refuses before    │
+│                                                            any mutation.     │
 │ --help             -h                                      Show this message │
 │                                                            and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -3738,14 +3852,20 @@ _Inspect mission types for this project._
 
  Close a mission. Wraps FR-016 lifecycle teardown.
 
- Without ``--discard``: run the merge-completion teardown — persist the
- mission retrospective to its durable home and tear down the coordination
- worktree. Idempotent after a successful ``spec-kitty merge`` (which already
- ran the same teardown); useful when the teardown was skipped (e.g. the legacy
- plain-git/GitHub merge path) or interrupted. NOTE: on a mission that was
- merged without a retrospective, this generates one
+ Without ``--discard``: fail-closed precondition (FR-004/FR-005, #4765) —
+ refuses (non-zero exit, no writes) unless the mission has a recorded merge
+ baseline (``is_mission_merged``). An all-terminal-but-unmerged mission
+ (e.g. every work package cancelled) still refuses here; use ``--discard``
+ to abandon it. Once merged: runs the merge-completion teardown — persists
+ the mission retrospective to its durable home and tears down the
+ coordination worktree. Idempotent after a successful ``spec-kitty merge``
+ (which already ran the same teardown); useful when the teardown was
+ skipped (e.g. the legacy plain-git/GitHub merge path) or interrupted.
+ NOTE: on a merged mission without a retrospective, this generates one
  (``kitty-specs/<slug>/retrospective.yaml``) plus a ``RetrospectiveCaptured``
- event and commits both — it is not a pure no-op in that case.
+ event and commits both — it is not a pure no-op in that case. Tolerates a
+ mission left with an orphaned ``coordination_branch`` marker (FR-013,
+ #2745) — no traceback, the mission slug is rendered once.
 
  With ``--discard``: abandon the mission mid-flight. Deletes the
  coordination branch and every lane branch named in
@@ -3759,13 +3879,14 @@ _Inspect mission types for this project._
  ``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission  -f      TEXT  Mission slug (auto-detected from cwd if omitted)    │
+│ --mission          TEXT  Mission slug (auto-detected from cwd if omitted)    │
 │ --discard                Discard the mission mid-flight: delete the          │
 │                          coordination branch + all lane branches and tear    │
 │                          down all worktrees. Without --discard, requires     │
 │                          that the mission has already been merged (no-op     │
 │                          cleanup otherwise).                                 │
 │ --force                  Skip the confirmation prompt when --discard is set. │
+│ --json                   Emit a JSON envelope instead of a rich panel.       │
 │ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -3800,7 +3921,7 @@ _Inspect mission types for this project._
  Show currently active mission for a mission (auto-detects mission from cwd).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission  -f      TEXT  Mission slug                                        │
+│ --mission          TEXT  Mission slug                                        │
 │ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -4007,14 +4128,20 @@ _Inspect mission types for this project._
 
  Close a mission. Wraps FR-016 lifecycle teardown.
 
- Without ``--discard``: run the merge-completion teardown — persist the
- mission retrospective to its durable home and tear down the coordination
- worktree. Idempotent after a successful ``spec-kitty merge`` (which already
- ran the same teardown); useful when the teardown was skipped (e.g. the legacy
- plain-git/GitHub merge path) or interrupted. NOTE: on a mission that was
- merged without a retrospective, this generates one
+ Without ``--discard``: fail-closed precondition (FR-004/FR-005, #4765) —
+ refuses (non-zero exit, no writes) unless the mission has a recorded merge
+ baseline (``is_mission_merged``). An all-terminal-but-unmerged mission
+ (e.g. every work package cancelled) still refuses here; use ``--discard``
+ to abandon it. Once merged: runs the merge-completion teardown — persists
+ the mission retrospective to its durable home and tears down the
+ coordination worktree. Idempotent after a successful ``spec-kitty merge``
+ (which already ran the same teardown); useful when the teardown was
+ skipped (e.g. the legacy plain-git/GitHub merge path) or interrupted.
+ NOTE: on a merged mission without a retrospective, this generates one
  (``kitty-specs/<slug>/retrospective.yaml``) plus a ``RetrospectiveCaptured``
- event and commits both — it is not a pure no-op in that case.
+ event and commits both — it is not a pure no-op in that case. Tolerates a
+ mission left with an orphaned ``coordination_branch`` marker (FR-013,
+ #2745) — no traceback, the mission slug is rendered once.
 
  With ``--discard``: abandon the mission mid-flight. Deletes the
  coordination branch and every lane branch named in
@@ -4028,13 +4155,14 @@ _Inspect mission types for this project._
  ``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission  -f      TEXT  Mission slug (auto-detected from cwd if omitted)    │
+│ --mission          TEXT  Mission slug (auto-detected from cwd if omitted)    │
 │ --discard                Discard the mission mid-flight: delete the          │
 │                          coordination branch + all lane branches and tear    │
 │                          down all worktrees. Without --discard, requires     │
 │                          that the mission has already been merged (no-op     │
 │                          cleanup otherwise).                                 │
 │ --force                  Skip the confirmation prompt when --discard is set. │
+│ --json                   Emit a JSON envelope instead of a rich panel.       │
 │ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -4069,7 +4197,7 @@ _Inspect mission types for this project._
  Show currently active mission for a mission (auto-detects mission from cwd).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission  -f      TEXT  Mission slug                                        │
+│ --mission          TEXT  Mission slug                                        │
 │ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -5845,7 +5973,8 @@ _Tracker synchronization commands_
 │ --project                     Restrict to current-project compat +           │
 │                               migrations (FR-015)                            │
 │ --yes           -y            Non-interactive confirmation; alias for        │
-│                               --force (FR-017)                               │
+│                               --force (FR-017). Also opts into the           │
+│                               mission-state repair sub-gate (NFR-003).       │
 │ --no-nag                      Suppress upgrade-nag output explicitly         │
 │ --help                        Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -6003,11 +6132,24 @@ _Access to one team's live Zeitgeist presence/focus stream and status-moment eve
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ status       One bounded snapshot of ``repo``'s live presence/focus state.   │
+│ status       Who is live on ``repo``'s relay right now, answered immediately │
+│              from                                                            │
+│              the relay's own presence/focus record; a relay without that     │
+│              route falls                                                     │
+│              back to a bounded listen.                                       │
 │ watch        Print live frames plus a final summary, bounded by whole-call   │
-│              ``--timeout`` and ``--max-frames`` count.                       │
+│              ``--timeout`` and ``--max-frames`` count. ``--seed <seconds>``  │
+│              first                                                           │
+│              replays that much retained history through the same policy, so  │
+│              nothing                                                         │
+│              published during startup is lost.                               │
 │ activity     Catch up on retained activity using the same policy as agent    │
 │              watch.                                                          │
+│              ``--person``/``--project`` narrow the catch-up client-side (the │
+│              relay's                                                         │
+│              retained-events route has no such filter) with matched/withheld │
+│              counts                                                          │
+│              in the result.                                                  │
 │ send         Author and publish one live message (#4269) —                   │
 │              accepted/offered/failed,                                        │
 │              never retained delivery.                                        │
@@ -6038,7 +6180,7 @@ _Access to one team's live Zeitgeist presence/focus stream and status-moment eve
 ## spec-kitty zeitgeist activity
 
 ```
-Usage: spec-kitty zeitgeist activity [OPTIONS] [REPO]
+ Usage: spec-kitty zeitgeist activity [OPTIONS] [REPO]
 
  Catch up on retained activity using the same policy as agent watch.
  ``--person``/``--project`` narrow the catch-up client-side (the relay's
@@ -6082,7 +6224,6 @@ Usage: spec-kitty zeitgeist activity [OPTIONS] [REPO]
 │                                               human-readable summary.        │
 │ --help        -h                              Show this message and exit.    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
-
 ```
 
 ## spec-kitty zeitgeist inbox
@@ -6455,7 +6596,7 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 ## spec-kitty zeitgeist status
 
 ```
-Usage: spec-kitty zeitgeist status [OPTIONS] [REPO]
+ Usage: spec-kitty zeitgeist status [OPTIONS] [REPO]
 
  Who is live on ``repo``'s relay right now, answered immediately from the
  relay's own presence/focus record; a relay without that route falls back to a
@@ -6480,13 +6621,12 @@ Usage: spec-kitty zeitgeist status [OPTIONS] [REPO]
 │                                            diagnostic snapshot.              │
 │ --help     -h                              Show this message and exit.       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
-
 ```
 
 ## spec-kitty zeitgeist watch
 
 ```
-Usage: spec-kitty zeitgeist watch [OPTIONS] [REPO]
+ Usage: spec-kitty zeitgeist watch [OPTIONS] [REPO]
 
  Print live frames plus a final summary, bounded by whole-call ``--timeout``
  and ``--max-frames`` count. ``--seed <seconds>`` first replays that much
@@ -6540,327 +6680,6 @@ Usage: spec-kitty zeitgeist watch [OPTIONS] [REPO]
 │                                               silent fall-back.              │
 │                                               [default: 0.0]                 │
 │ --help        -h                              Show this message and exit.    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-
-```
-
-## Internal / hidden commands
-
-> The following commands are hidden from the default `--help` output but documented here for internal reference.
-
-
-## spec-kitty __force_multi_command_mode__
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty __force_multi_command_mode__ [OPTIONS]
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty agent check-prerequisites
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty agent check-prerequisites [OPTIONS]
-
- Deprecated compatibility alias forwarding to agent mission
- check-prerequisites.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                TEXT  Mission slug                                  │
-│ --json                         Output JSON format                            │
-│ --paths-only                   Only output path variables                    │
-│ --include-tasks                Include tasks.md in validation                │
-│ --help           -h            Show this message and exit.                   │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty agent decision widen
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty agent decision widen [OPTIONS] DECISION_ID
-
-  Call the widen endpoint for a decision. Not for end users.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    decision_id      TEXT  ULID of the DecisionPoint to widen [required]    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --invited               TEXT  Comma-separated Teamspace user IDs to       │
-│                                  invite                                      │
-│                                  [required]                                  │
-│    --mission-slug          TEXT  Mission slug                                │
-│    --dry-run                     Print what would be called without calling  │
-│                                  it                                          │
-│    --help          -h            Show this message and exit.                 │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty agent profile
-
-> **Internal**: hidden from the default `--help` output.
-
-_Compatibility alias for listing agent profiles_
-
-```
- Usage: spec-kitty agent profile [OPTIONS] COMMAND [ARGS]...
-
- Compatibility alias for listing agent profiles
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list  List agent profiles (activated-only by default; --all for the full     │
-│       catalog).                                                              │
-│ show  Show the full resolved definition of an agent profile                  │
-│       (FR-013/014/015).                                                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty agent profile get
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty agent profile get [OPTIONS] PROFILE_ID
-
- Show the full resolved definition of an agent profile (FR-013/014/015).
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    profile_id      TEXT  Profile ID to show. [required]                    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Output JSON object.                                        │
-│ --all             Bypass the activation gate for inspection (show            │
-│                   non-activated profiles).                                   │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty commit-guard-hook
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty commit-guard-hook [OPTIONS] [_ARGS]...
-
- Run the commit guard and exit with its result code.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine
-
-> **Internal**: hidden from the default `--help` output.
-
-> **Deprecated**: [DEPRECATED — use `spec-kitty charter`] Manage org-layer doctrine packs
-
-```
- Usage: spec-kitty doctrine [OPTIONS] COMMAND [ARGS]...
-
- (deprecated)
- [DEPRECATED — use `spec-kitty charter`] Manage org-layer doctrine packs
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ fetch             Fetch org doctrine pack(s) from their configured remote    │
-│                   sources.                                                   │
-│ regenerate-graph  Regenerate the shipped DRG graph source deterministically  │
-│                   (FR-009).                                                  │
-│ new               Scaffold a stub doctrine artifact YAML (FR-016).           │
-│ validate          Validate project-layer doctrine artifacts against their    │
-│                   schemas (FR-017).                                          │
-│ pack              Validate or assemble doctrine packs.                       │
-│ org               Manage org-layer doctrine pack authoring (init, validate). │
-│ mission-type      Mission type commands.                                     │
-│ asset             Resolve shipped and overlay doctrine assets (no install —  │
-│                   C-002).                                                    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty merge-driver-acceptance-matrix
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty merge-driver-acceptance-matrix [OPTIONS] BASE OURS THEIRS
-
- Row-aware, 3-way merge of ``acceptance-matrix.json``; write result to ``ours``
- (FR-008).
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    base_path        BASE    [required]                                     │
-│ *    ours_path        OURS    [required]                                     │
-│ *    theirs_path      THEIRS  [required]                                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty merge-driver-event-log
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty merge-driver-event-log [OPTIONS] BASE OURS THEIRS
-
- Merge ``status.events.jsonl`` conflict inputs using event-log semantics.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    base_path        BASE    [required]                                     │
-│ *    ours_path        OURS    [required]                                     │
-│ *    theirs_path      THEIRS  [required]                                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty merge-driver-issue-matrix
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty merge-driver-issue-matrix [OPTIONS] BASE OURS THEIRS
-
- Row-aware, 3-way merge of ``issue-matrix.json``; write result to ``ours``
- (FR-008).
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    base_path        BASE    [required]                                     │
-│ *    ours_path        OURS    [required]                                     │
-│ *    theirs_path      THEIRS  [required]                                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty merge-driver-meta
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty merge-driver-meta [OPTIONS] BASE OURS THEIRS
-
- Field-merge conflicting ``meta.json`` blobs; write result to ``ours``.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    base_path        BASE    [required]                                     │
-│ *    ours_path        OURS    [required]                                     │
-│ *    theirs_path      THEIRS  [required]                                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty merge-driver-review-cycle
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty merge-driver-review-cycle [OPTIONS] BASE OURS THEIRS
-
- Reconcile a ``review-cycle-N.md`` collision, best-effort, non-aborting.
-
- Two distinct verdict documents colliding under the same filename are
- NEVER unioned/field-merged/interleaved into one document -- see the
- module-level design-decision comment immediately above this function for
- the full reasoning (embed both verbatim, never fabricate a blended
- verdict). Unlike WP18's original T077 driver, a divergent collision no
- longer aborts the squash (FR-014/D-PLAN-6): the ``.md`` render is
- non-authoritative, unread prose now that ``status.events.jsonl``'s
- ``review_result`` event slot is the sole verdict authority, so refusing
- the merge over it is no longer justified.
-
- Identical content on both sides (byte-for-byte) is the trivial fast path:
- resolves cleanly, exit 0, never reported as a conflict. Otherwise, both
- raw documents are embedded verbatim inside standard git-style conflict
- markers (never blended field-by-field -- a review verdict has no safely
- mergeable sub-fields the way a JSON matrix row does) and the driver
- exits 0, so ``git merge --squash -X theirs`` treats the path as resolved
- and the squash proceeds.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    base_path        BASE    [required]                                     │
-│ *    ours_path        OURS    [required]                                     │
-│ *    theirs_path      THEIRS  [required]                                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty merge-driver-traces
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty merge-driver-traces [OPTIONS] BASE OURS THEIRS
-
- Union conflicting ``traces/*.md`` documents; write result to ``ours``.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    base_path        BASE    [required]                                     │
-│ *    ours_path        OURS    [required]                                     │
-│ *    theirs_path      THEIRS  [required]                                     │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty profiles get
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty profiles get [OPTIONS] PROFILE_ID
-
- Show the full resolved definition of an agent profile (FR-013/014/015).
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    profile_id      TEXT  Profile ID to show. [required]                    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Output JSON object.                                        │
-│ --all             Bypass the activation gate for inspection (show            │
-│                   non-activated profiles).                                   │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty zeitgeist mcp-serve
-
-> **Internal**: hidden from the default `--help` output.
-
-```
- Usage: spec-kitty zeitgeist mcp-serve [OPTIONS]
-
- Serve the Z7-C stdio MCP adapter (``mcp_stdio.run_stdio``) until the client
- disconnects. Process entry point for an MCP client's launcher — not meant for
- direct interactive use, hence hidden.
-
- #190: switched off (`spec-kitty moments off`), this prints one line to
- stderr and exits 0 — stdout stays clean for the MCP framing protocol —
- rather than starting a server that would only ever look broken.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 <!-- END GENERATED -->

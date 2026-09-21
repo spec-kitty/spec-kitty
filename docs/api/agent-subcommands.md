@@ -611,11 +611,21 @@ _Decision Moment ledger for interview questions._
 │                                  [required]                                  │
 │ *  --issue                 TEXT  Issue reference, e.g. "#1726". [required]   │
 │ *  --verdict               TEXT  fixed | verified-already-fixed |            │
-│                                  deferred-with-followup | in-mission         │
+│                                  deferred-with-followup | in-mission |       │
+│                                  not-applicable (non-gating: cited for       │
+│                                  context or a PR/commit reference, no work   │
+│                                  owed; unlike in-mission it is terminal --   │
+│                                  it also passes the done/merge completeness  │
+│                                  gate unchanged)                             │
 │                                  [required]                                  │
 │ *  --actor                 TEXT  Identity of the acting agent. [required]    │
 │    --wp                    TEXT  Owning work-package id (e.g. WP01).         │
 │    --evidence-ref          TEXT  Evidence text or link for the verdict.      │
+│                                  Required when --verdict is                  │
+│                                  deferred-with-followup: the value must      │
+│                                  contain a follow-up handle ('#NNN' or a     │
+│                                  'Follow-up:' substring), or the row fails   │
+│                                  validation.                                 │
 │    --json                        Output JSON format.                         │
 │    --help          -h            Show this message and exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -1504,7 +1514,7 @@ _Canonical status management commands_
      spec-kitty upgrade  # applies all pending migrations
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission  -f      TEXT  Single mission slug to migrate                      │
+│ --mission          TEXT  Single mission slug to migrate                      │
 │ --all                    Migrate all features in kitty-specs/                │
 │ --dry-run                Preview migration without writing events            │
 │ --json                   Output results as JSON                              │
@@ -1530,7 +1540,7 @@ _Canonical status management commands_
      spec-kitty agent status validate --mission 034-feature-name
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission      -f             TEXT  Mission slug (required in multi-mission  │
+│ --mission                     TEXT  Mission slug (required in multi-mission  │
 │                                     repos)                                   │
 │ --dry-run          --apply          Preview vs persist reconciliation events │
 │                                     [default: dry-run]                       │

@@ -3595,6 +3595,7 @@ pages:
     - {slug: "spec-kitty-doctor-contracts", text: "spec-kitty doctor contracts", level: 2}
     - {slug: "spec-kitty-doctor-coordination", text: "spec-kitty doctor coordination", level: 2}
     - {slug: "spec-kitty-doctor-cutover", text: "spec-kitty doctor cutover", level: 2}
+    - {slug: "spec-kitty-doctor-decisions", text: "spec-kitty doctor decisions", level: 2}
     - {slug: "spec-kitty-doctor-doctrine", text: "spec-kitty doctor doctrine", level: 2}
     - {slug: "spec-kitty-doctor-env-file", text: "spec-kitty doctor env-file", level: 2}
     - {slug: "spec-kitty-doctor-identity", text: "spec-kitty doctor identity", level: 2}
@@ -3780,22 +3781,6 @@ pages:
     - {slug: "spec-kitty-zeitgeist-send", text: "spec-kitty zeitgeist send", level: 2}
     - {slug: "spec-kitty-zeitgeist-status", text: "spec-kitty zeitgeist status", level: 2}
     - {slug: "spec-kitty-zeitgeist-watch", text: "spec-kitty zeitgeist watch", level: 2}
-    - {slug: "internal-hidden-commands", text: "Internal / hidden commands", level: 2}
-    - {slug: "spec-kitty-force-multi-command-mode", text: "spec-kitty __force_multi_command_mode__", level: 2}
-    - {slug: "spec-kitty-agent-check-prerequisites", text: "spec-kitty agent check-prerequisites", level: 2}
-    - {slug: "spec-kitty-agent-decision-widen", text: "spec-kitty agent decision widen", level: 2}
-    - {slug: "spec-kitty-agent-profile", text: "spec-kitty agent profile", level: 2}
-    - {slug: "spec-kitty-agent-profile-get", text: "spec-kitty agent profile get", level: 2}
-    - {slug: "spec-kitty-commit-guard-hook", text: "spec-kitty commit-guard-hook", level: 2}
-    - {slug: "spec-kitty-doctrine", text: "spec-kitty doctrine", level: 2}
-    - {slug: "spec-kitty-merge-driver-acceptance-matrix", text: "spec-kitty merge-driver-acceptance-matrix", level: 2}
-    - {slug: "spec-kitty-merge-driver-event-log", text: "spec-kitty merge-driver-event-log", level: 2}
-    - {slug: "spec-kitty-merge-driver-issue-matrix", text: "spec-kitty merge-driver-issue-matrix", level: 2}
-    - {slug: "spec-kitty-merge-driver-meta", text: "spec-kitty merge-driver-meta", level: 2}
-    - {slug: "spec-kitty-merge-driver-review-cycle", text: "spec-kitty merge-driver-review-cycle", level: 2}
-    - {slug: "spec-kitty-merge-driver-traces", text: "spec-kitty merge-driver-traces", level: 2}
-    - {slug: "spec-kitty-profiles-get", text: "spec-kitty profiles get", level: 2}
-    - {slug: "spec-kitty-zeitgeist-mcp-serve", text: "spec-kitty zeitgeist mcp-serve", level: 2}
   - path: "docs/api/configuration.md"
     title: "Configuration Reference"
     divio_type: "none"
