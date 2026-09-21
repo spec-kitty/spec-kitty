@@ -319,12 +319,18 @@ def get_runtime_state_root() -> Path:
 
     Resolution order (mirrors
     ``specify_cli.paths.windows_paths.get_runtime_root().base`` exactly, so
-    both resolve to the same directory):
+    both resolve to the same directory on every branch, including the
+    platformdirs-failure fallback):
 
     1. ``SPEC_KITTY_HOME`` environment variable, used verbatim (all
        platforms).
     2. Windows: ``platformdirs.user_data_dir("spec-kitty", appauthor=False,
-       roaming=False)`` (non-roaming ``%LOCALAPPDATA%\\spec-kitty``).
+       roaming=False)`` (non-roaming ``%LOCALAPPDATA%\\spec-kitty``), falling
+       back to ``Path.home() / ".spec-kitty"`` if the platformdirs call
+       raises (e.g. a constrained/simulated Windows runtime where the
+       underlying ctypes/registry lookup is unavailable) -- the same
+       fallback ``get_runtime_root()`` applies, so the two resolvers agree
+       on this branch too.
     3. POSIX: ``~/.spec-kitty``.
 
     This function is pure -- it performs no I/O and creates no directories.
@@ -339,7 +345,14 @@ def get_runtime_state_root() -> Path:
         # platformdirs is the only sanctioned third-party import in kernel/.
         from platformdirs import user_data_dir  # noqa: PLC0415
 
-        return Path(str(user_data_dir("spec-kitty", appauthor=False, roaming=False)))
+        try:
+            return Path(str(user_data_dir("spec-kitty", appauthor=False, roaming=False)))
+        except Exception:
+            # Mirrors specify_cli.paths.windows_paths.get_runtime_root(): keep
+            # a constrained/simulated Windows runtime (ctypes/registry lookup
+            # unavailable) from crashing before callers can patch or inspect
+            # this resolver.
+            return Path.home() / ".spec-kitty"
 
     return Path.home() / ".spec-kitty"
 
