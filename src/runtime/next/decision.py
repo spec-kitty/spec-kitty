@@ -403,9 +403,13 @@ def _state_to_action(
     Returns ``(None, None, None)`` if the state cannot be mapped to a
     command template.
     """
-    # "implement" state: find first planned or in_progress WP
+    # "implement" state: use the same dependency-aware planned-WP authority
+    # as query mode and ``agent action implement`` (#4860). Filename/lane order
+    # alone cannot make a dependency-blocked package actionable.
     if state == "implement":
-        wp_id = _find_first_wp_by_lane(feature_dir, "planned")
+        from runtime.next.discovery import preview_claimable_wp
+
+        wp_id = preview_claimable_wp(feature_dir).wp_id
         if wp_id is None:
             wp_id = _find_first_wp_by_lane(feature_dir, "doing")
         if wp_id is None:
