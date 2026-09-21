@@ -1379,7 +1379,7 @@ def decisions_reconcile(
     ] = False,
     repair: Annotated[
         bool,
-        typer.Option("--repair", help="Rebuild decisions/index.json from the event log"),
+        typer.Option("--repair", help="Rebuild decisions/index.json from the event log (run offline; not against live decision traffic)"),
     ] = False,
 ) -> None:
     """Diagnose or repair divergence between ``decisions/index.json`` and the
@@ -1395,6 +1395,13 @@ def decisions_reconcile(
     write path uses — never invents an entry absent from the log, never
     drops a log-backed entry. A no-op (no write) when the log and index
     already agree.
+
+    Run ``--repair`` as an offline maintenance step, not concurrently with
+    live decision traffic: a decision that is mid-open (its index entry
+    written under the sidecar lock, its event not yet appended) is briefly
+    invisible to a log-authoritative rebuild, so a repair racing that window
+    can drop the in-flight entry (a later ``--repair`` heals it). Like
+    ``fsck``, it is meant to run when writers are quiesced.
 
     Informational only: always exits 0.
 
