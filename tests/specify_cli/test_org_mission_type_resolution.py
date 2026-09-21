@@ -190,6 +190,4 @@ class TestBuiltinNamePinnedToPackageView:
 
         mission = get_mission_by_name("docs-audit", kittify_dir)
 
-        assert mission.name == "Docs Audit Kitty", (
-            "get_mission_by_name stopped resolving a custom org-activated mission type through the org-aware resolver chain"
-        )
+        assert mission.name == "Docs Audit Kitty", "get_mission_by_name stopped resolving a custom org-activated mission type through the org-aware resolver chain"

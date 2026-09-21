@@ -393,7 +393,6 @@ exclude = [
     "src/charter/offering/missions/action_index.py",
     "src/charter/offering/missions/mission_step_repository.py",
     "src/charter/offering/missions/mission_type_repository.py",
-    "src/charter/offering/missions/models.py",
     "src/charter/offering/missions/primitives.py",
     "src/charter/offering/missions/repository.py",
     "src/charter/offering/missions/step_contracts.py",
