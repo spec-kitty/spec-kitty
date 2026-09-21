@@ -46,6 +46,7 @@ from pathlib import Path
 import typer
 from charter.drg import ArtifactKind
 from charter.activation.kind_vocabulary import PROJECT_KIND_DIRS
+from charter.offering.artifact_kinds import slug_for
 from specify_cli.cli.commands._doctrine_asset import asset_app
 from specify_cli.cli.console import console
 from rich.table import Table
@@ -581,11 +582,20 @@ _STUB_TEMPLATES: dict[ArtifactKind, str] = {
 
 
 def _artifact_filename(kind: ArtifactKind, artifact_id: str) -> str:
-    """Return the canonical filename for a doctrine artifact."""
+    """Return the canonical filename for a doctrine artifact.
+
+    The stem is derived via :func:`slug_for` (WP01) -- the same single
+    producer-side authority the registration engine uses -- so a SCREAMING
+    directive id such as ``LOVE_THY_ENEMY`` scaffolds as
+    ``love-thy-enemy.directive.yaml`` while the authored ``id:`` inside the
+    stub body stays ``LOVE_THY_ENEMY``. Non-directive kinds are unaffected
+    (``slug_for`` is verbatim + ``quote`` for them).
+    """
     glob_pattern = kind.glob_pattern
     if not glob_pattern.startswith("*"):
         raise ValueError(f"Unsupported artifact kind: {kind.value}")
-    return f"{artifact_id}{glob_pattern.removeprefix('*')}"
+    slug = slug_for(kind.value, artifact_id)
+    return f"{slug}{glob_pattern.removeprefix('*')}"
 
 
 def _stub_template(kind: ArtifactKind, artifact_id: str) -> str:

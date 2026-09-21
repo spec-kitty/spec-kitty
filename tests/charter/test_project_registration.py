@@ -128,7 +128,17 @@ def test_duplicate_identity_fails_before_bookkeeping_mutation(tmp_path):
     assert not (tmp_path / ".kittify/charter").exists()
 
 
-def test_existing_manifest_identity_and_provenance_are_preserved(tmp_path):
+def test_existing_manifest_slug_is_reconciled_against_slug_for(tmp_path):
+    """A hand-edited, non-canonical manifest ``slug`` is reconciled, not kept (T012/#4834).
+
+    Identity is still tracked by URN (via the provenance sidecar, unaffected by
+    this manual manifest edit), so the entry is correctly matched to its
+    artifact across the replan -- but the *slug* the manifest records for that
+    identity must always be ``slug_for(kind, id)``, never a legacy or
+    hand-edited value perpetuated verbatim (the pre-fix behavior this test
+    used to pin). The provenance sidecar path is unaffected here because the
+    reconciled slug equals the artifact's original (already-canonical) slug.
+    """
     from charter.activation.project_registration import plan_project_registration, commit_project_registration
     from charter.activation.synthesizer.manifest import dump_yaml, finalize_manifest
     from charter.activation.synthesizer.path_guard import PathGuard
@@ -142,12 +152,15 @@ def test_existing_manifest_identity_and_provenance_are_preserved(tmp_path):
     manifest = finalize_manifest(manifest.model_copy(update={"artifacts": [renamed, *manifest.artifacts[1:]]}))
     dump_yaml(manifest, manifest_path, PathGuard(tmp_path))
     sidecar = tmp_path / original.provenance_path
-    before = sidecar.read_bytes()
+
     commit_project_registration(plan_project_registration(tmp_path))
     after = load_yaml(manifest_path)
     assert sorted((a.kind, tmp_path / a.path) for a in after.artifacts) == sorted(paths.items())
-    assert after.artifacts[0] == renamed
-    assert sidecar.read_bytes() == before
+    reconciled = next(entry for entry in after.artifacts if entry.kind == original.kind)
+    assert reconciled.slug == original.slug
+    assert not any(entry.slug == "original-synthesis-slug" for entry in after.artifacts)
+    assert reconciled.provenance_path == original.provenance_path
+    assert sidecar.is_file()
     verify(after, tmp_path)
 
 
@@ -482,6 +495,82 @@ def test_artifactless_repo_plans_nothing_and_missing_sidecar_is_left_untouched(t
     plan = plan_project_registration(tmp_path)
     assert not any("Pruned project registration" in warning for warning in plan.warnings)
     assert plan.deletes == ()
+
+
+# ---------------------------------------------------------------------------
+# WP03: slug_for reconciliation + #4834 path-update (T012, T016)
+# ---------------------------------------------------------------------------
+
+
+def test_legacy_non_canonical_directive_slug_reconciles_and_moves_sidecar(tmp_path):
+    """T012 falsifying test: unlike the generic hand-edit test above, a
+    directive's canonical slug genuinely differs from a legacy SCREAMING
+    slug, so reconciliation must move (not merely relabel) the provenance
+    sidecar -- the legacy path is deleted, the canonical path is (re)written,
+    and the manifest never carries a duplicate entry for the same identity.
+    """
+    from charter.activation.project_registration import plan_project_registration, commit_project_registration
+    from charter.activation.synthesizer.manifest import dump_yaml, finalize_manifest
+    from charter.activation.synthesizer.path_guard import PathGuard
+
+    author_guidance(tmp_path)
+    commit_project_registration(plan_project_registration(tmp_path))
+    manifest_path = tmp_path / ".kittify/charter/synthesis-manifest.yaml"
+    manifest = load_yaml(manifest_path)
+    directive_entry = next(e for e in manifest.artifacts if e.kind == "directive")
+    assert directive_entry.slug == "change-freeze"
+
+    legacy_provenance_path = ".kittify/charter/provenance/directive-CHANGE_FREEZE.yaml"
+    (tmp_path / directive_entry.provenance_path).rename(tmp_path / legacy_provenance_path)
+    legacy_entry = directive_entry.model_copy(update={"slug": "CHANGE_FREEZE", "provenance_path": legacy_provenance_path})
+    others = [e for e in manifest.artifacts if e.kind != "directive"]
+    manifest = finalize_manifest(manifest.model_copy(update={"artifacts": [legacy_entry, *others]}))
+    dump_yaml(manifest, manifest_path, PathGuard(tmp_path))
+
+    plan = plan_project_registration(tmp_path)
+    assert any(path == tmp_path / legacy_provenance_path for path in plan.deletes)
+    commit_project_registration(plan)
+
+    after = load_yaml(manifest_path)
+    assert [e for e in after.artifacts if e.kind == "directive"] == [directive_entry]
+    assert not (tmp_path / legacy_provenance_path).exists()
+    assert (tmp_path / directive_entry.provenance_path).is_file()
+    verify(after, tmp_path)
+
+
+def test_path_and_provenance_drift_rewrites_manifest_entry_without_deleting_sidecar(tmp_path):
+    """#4834 path-update (T016): a manifest entry whose recorded ``path`` has
+    drifted from the freshly-resolved value -- on otherwise UNCHANGED content
+    -- is corrected in a single registration pass rather than silently
+    skipped by the pre-fix early ``continue``. No sidecar is deleted.
+    """
+    from charter.activation.project_registration import plan_project_registration, commit_project_registration
+    from charter.activation.synthesizer.manifest import dump_yaml, finalize_manifest
+    from charter.activation.synthesizer.path_guard import PathGuard
+
+    author_guidance(tmp_path)
+    commit_project_registration(plan_project_registration(tmp_path))
+    manifest_path = tmp_path / ".kittify/charter/synthesis-manifest.yaml"
+    manifest = load_yaml(manifest_path)
+    original = next(e for e in manifest.artifacts if e.kind == "procedure")
+    drifted = original.model_copy(update={"path": ".kittify/doctrine/procedures/stale-recorded-path.procedure.yaml"})
+    others = [e for e in manifest.artifacts if e.kind != "procedure"]
+    manifest = finalize_manifest(manifest.model_copy(update={"artifacts": [drifted, *others]}))
+    dump_yaml(manifest, manifest_path, PathGuard(tmp_path))
+    sidecar = tmp_path / original.provenance_path
+
+    plan = plan_project_registration(tmp_path)
+    assert plan.writes  # not silently skipped by the pre-fix early continue
+    assert plan.deletes == ()
+    commit_project_registration(plan)
+
+    after = load_yaml(manifest_path)
+    reconciled = next(e for e in after.artifacts if e.kind == "procedure")
+    assert reconciled.path == original.path
+    assert reconciled.path != drifted.path
+    assert reconciled.provenance_path == original.provenance_path
+    assert sidecar.is_file()
+    verify(after, tmp_path)
 
 
 def test_corrupt_sidecar_degrades_to_untouched_not_crash(tmp_path):

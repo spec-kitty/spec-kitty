@@ -9,7 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from importlib.metadata import version
 from pathlib import Path
-from urllib.parse import quote
 
 from ulid import ULID
 
@@ -27,6 +26,7 @@ from charter.activation.synthesizer.manifest import (
 from charter.activation.synthesizer.path_guard import PathGuard
 from charter.activation.synthesizer.provenance import ProvenanceEntry, provenance_path_for
 from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
+from charter.offering.artifact_kinds import slug_for
 from charter.offering.drg.loader import has_graph_files, load_graph_or_dir, merge_layers
 from charter.offering.drg.migration.extractor import graph_document_to_dict
 from charter.offering.drg.models import DRGGraph
@@ -156,7 +156,7 @@ def _registration_records(
     root: Path,
     artifacts: tuple[ProjectArtifact, ...],
     stale: tuple[tuple[str, ManifestArtifactEntry], ...] = (),
-) -> list[tuple[Path, str]]:
+) -> tuple[list[tuple[Path, str]], list[Path]]:
     manifest_path = root / MANIFEST_PATH
     existing = load_manifest(manifest_path) if manifest_path.exists() else None
     if existing:
@@ -177,22 +177,44 @@ def _registration_records(
         if urn is not None:
             urn_entries.setdefault(urn, entry)
     writes: list[tuple[Path, str]] = []
+    stale_sidecars: list[Path] = []
     timestamp = now_utc_seconds()
     run_id = str(ULID())
     package_version = version("spec-kitty-cli")
     for artifact in artifacts:
         kind, identifier = artifact.node.urn.split(":", 1)
-        # URNs admit slash-separated identities. Encode them as one filename
-        # component; preserve case except for canonical uppercase directive IDs.
-        slug = quote(identifier.lower().replace("_", "-") if kind == "directive" else identifier, safe="")
+        # URNs admit slash-separated identities; slug_for (WP01) is the single
+        # producer-side authority that encodes them as one filesystem-safe
+        # component and normalizes canonical uppercase directive IDs.
+        slug = slug_for(kind, identifier)
         content_hash = hash_content_bytes(artifact.path.read_bytes())
-        source_path = artifact.path.relative_to(root).as_posix()
+        resolved_path = artifact.path.relative_to(root).as_posix()
         previous = urn_entries.get(artifact.node.urn) or entries.get((kind, slug))
-        if previous:
-            slug = previous.slug
+        if previous is not None and previous.slug != slug:
+            # #4834 follow-on (T012): never perpetuate a legacy, non-canonical
+            # slug reused from an existing manifest entry -- drop its stale
+            # (kind, legacy-slug) key and queue its now-orphaned provenance
+            # sidecar for deletion. Both are derived state; the authored
+            # artifact source file is never touched (no rename).
+            entries.pop((kind, previous.slug), None)
+            legacy_sidecar = root / previous.provenance_path
+            if legacy_sidecar.is_file():
+                stale_sidecars.append(legacy_sidecar)
+        resolved_provenance_path = provenance_path_for(kind, slug)
         key = (kind, slug)
-        sidecar = provenance_path_for(kind, slug)
-        if previous and previous.content_hash == content_hash and (root / previous.provenance_path).is_file():
+        # #4834: even when content is unchanged, the manifest entry is
+        # re-written when the resolved source path or provenance path has
+        # drifted from what is recorded -- an unconditional early skip here
+        # left a permanently-stale manifest entry. No sidecar is deleted by
+        # this branch; a slug-driven sidecar move is handled above (T012).
+        if (
+            previous is not None
+            and previous.slug == slug
+            and previous.content_hash == content_hash
+            and previous.path == resolved_path
+            and previous.provenance_path == resolved_provenance_path
+            and (root / previous.provenance_path).is_file()
+        ):
             continue
         record = ProvenanceEntry(
             artifact_urn=artifact.node.urn,
@@ -203,17 +225,17 @@ def _registration_records(
             adapter_id="project-direct-write",
             adapter_version="1",
             synthesizer_version=package_version,
-            source_section=source_path,
+            source_section=resolved_path,
             source_urns=[],
-            source_input_ids=[source_path],
+            source_input_ids=[resolved_path],
             generated_at=timestamp,
             produced_at=timestamp,
             corpus_snapshot_id="(none)",
             synthesis_run_id=run_id,
             adapter_notes="Registered authored project content; no generation or source rewrite performed.",
         )
-        writes.append((root / sidecar, canonical_yaml(record.model_dump(mode="python")).decode()))
-        entries[key] = ManifestArtifactEntry(kind=kind, slug=slug, path=source_path, provenance_path=sidecar, content_hash=content_hash)
+        writes.append((root / resolved_provenance_path, canonical_yaml(record.model_dump(mode="python")).decode()))
+        entries[key] = ManifestArtifactEntry(kind=kind, slug=slug, path=resolved_path, provenance_path=resolved_provenance_path, content_hash=content_hash)
     if existing:
         manifest = existing.model_copy(update={"artifacts": list(entries.values()), "built_in_only": False})
     else:
@@ -229,7 +251,7 @@ def _registration_records(
         )
     manifest = finalize_manifest(manifest)
     writes.append((manifest_path, canonical_yaml(manifest.model_dump(mode="python")).decode()))
-    return writes
+    return writes, stale_sidecars
 
 
 def plan_project_registration(repo_root: Path, *, base_graph: DRGGraph | None = None) -> ProjectRegistrationPlan:
@@ -273,14 +295,17 @@ def plan_project_registration(repo_root: Path, *, base_graph: DRGGraph | None = 
     )
     assert_valid(merged)
     writes = [(root / ".kittify/doctrine/graph.yaml", canonical_yaml(graph_document_to_dict(project)).decode())]
-    writes.extend(_registration_records(root, artifacts, stale))
+    registration_writes, slug_reconcile_deletes = _registration_records(root, artifacts, stale)
+    writes.extend(registration_writes)
     # A re-created artifact with the same identity reuses its predecessor's
     # sidecar path, so a pruned sidecar is only deleted when this same plan
-    # does not re-write it.
+    # does not re-write it. The same rule covers a slug-reconciliation move
+    # (T012): the legacy sidecar is only deleted once the canonical sidecar
+    # has actually been queued for write.
     written = {path for path, _ in writes}
-    deletes = tuple(
-        root / entry.provenance_path for _, entry in stale if (root / entry.provenance_path).is_file() and (root / entry.provenance_path) not in written
-    )
+    stale_candidates = {root / entry.provenance_path for _, entry in stale if (root / entry.provenance_path).is_file()}
+    stale_candidates.update(slug_reconcile_deletes)
+    deletes = tuple(path for path in stale_candidates if path not in written)
     changed = tuple((path, text) for path, text in writes if not path.exists() or path.read_text() != text)
     return ProjectRegistrationPlan(root, merged, artifacts, (*stale_warnings, *warnings), changed, deletes)
 

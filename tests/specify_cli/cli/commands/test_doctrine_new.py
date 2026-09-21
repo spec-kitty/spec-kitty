@@ -187,6 +187,96 @@ def test_new_asset_stub_validates_on_first_emit(tmp_path: Path) -> None:
     assert "OK" in result_validate.stdout
 
 
+def test_new_directive_scaffolds_kebab_filename_with_screaming_id_preserved(
+    tmp_path: Path,
+) -> None:
+    """WP03 T013/T014: the scaffolder derives the filename stem via
+    ``slug_for`` -- a SCREAMING directive id lands as a kebab-case filename
+    while the authored ``id:`` inside the stub body stays SCREAMING.
+    """
+    project = _make_project_root(tmp_path)
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(project)
+        result = runner.invoke(
+            doctrine_app, ["new", "directive", "MY_DIRECTIVE"], catch_exceptions=False
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert result.exit_code == 0, result.stdout
+    target = (
+        project / ".kittify" / "doctrine" / "directive" / "my-directive.directive.yaml"
+    )
+    assert target.exists()
+    text = target.read_text(encoding="utf-8")
+    assert "id: MY_DIRECTIVE" in text
+
+
+def test_scaffolder_engine_and_manifest_slugs_converge_for_screaming_directive(
+    tmp_path: Path,
+) -> None:
+    """WP03 T014 convergence check: the scaffolder stem, the registration
+    engine's slug, and the manifest's recorded slug all derive from the same
+    ``slug_for`` authority -- proven here for a SCREAMING directive id (where
+    ``slug_for`` actually transforms the identifier) and for an
+    already-kebab non-directive id (where it is a no-op).
+
+    This is a wiring check, not a byte-identity proof against the
+    pre-refactor inline expression -- that anti-regression guard lives in
+    WP01 T004's equivalence table.
+    """
+    from charter.activation.project_registration import (
+        commit_project_registration,
+        plan_project_registration,
+    )
+    from charter.activation.synthesizer.manifest import load_yaml
+    from charter.offering.artifact_kinds import ArtifactKind, PROJECT_KIND_DIRS, slug_for
+
+    project = _make_project_root(tmp_path)
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(project)
+        directive_result = runner.invoke(
+            doctrine_app,
+            ["new", "directive", "SCREAMING_DIRECTIVE"],
+            catch_exceptions=False,
+        )
+        assert directive_result.exit_code == 0, directive_result.stdout
+        profile_result = runner.invoke(
+            doctrine_app,
+            ["new", "agent_profile", "already-kebab-profile"],
+            catch_exceptions=False,
+        )
+        assert profile_result.exit_code == 0, profile_result.stdout
+    finally:
+        os.chdir(old_cwd)
+
+    for kind_token, artifact_id in (
+        ("directive", "SCREAMING_DIRECTIVE"),
+        ("agent_profile", "already-kebab-profile"),
+    ):
+        kind = ArtifactKind(kind_token)
+        engine_slug = slug_for(kind_token, artifact_id)
+        suffix = kind.glob_pattern.removeprefix("*")
+        candidates = (project / ".kittify" / "doctrine" / PROJECT_KIND_DIRS[kind]).glob(
+            f"*{suffix}"
+        )
+        stems = {path.name.removesuffix(suffix) for path in candidates}
+        assert engine_slug in stems
+
+    plan = plan_project_registration(project)
+    commit_project_registration(plan)
+    manifest = load_yaml(project / ".kittify/charter/synthesis-manifest.yaml")
+    manifest_slugs = {entry.kind: entry.slug for entry in manifest.artifacts}
+    assert manifest_slugs["directive"] == slug_for("directive", "SCREAMING_DIRECTIVE")
+    assert manifest_slugs["agent_profile"] == slug_for(
+        "agent_profile", "already-kebab-profile"
+    )
+
+
 def test_new_refuses_to_overwrite_existing_file(tmp_path: Path) -> None:
     """Re-running ``doctrine new`` on the same id fails with a clear message."""
     project = _make_project_root(tmp_path)
