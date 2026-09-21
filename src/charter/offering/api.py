@@ -41,9 +41,10 @@ not an HTTP/REST schema — OpenAPI conventions do not apply.
 
 from __future__ import annotations
 
-# ArtifactKind — the doctrine artifact-kind taxonomy enum (also fronted by
-# charter.drg). PUBLIC per DISPOSITION["charter.offering.artifact_kinds"].
-from charter.offering.artifact_kinds import ArtifactKind
+# ArtifactKind / slug_for — the doctrine artifact-kind taxonomy enum and its
+# slug-derivation helper (also fronted by charter.drg). PUBLIC per
+# DISPOSITION["charter.offering.artifact_kinds"].
+from charter.offering.artifact_kinds import ArtifactKind, slug_for
 
 # Asset resolution surface — repository, sidecar manifest model, and the typed
 # (fail-closed) error hierarchy a consumer catches. PUBLIC per
@@ -76,4 +77,5 @@ __all__ = [
     "RoutingRecommendation",
     "evaluate",
     "load",
+    "slug_for",
 ]

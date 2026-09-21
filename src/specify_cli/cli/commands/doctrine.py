@@ -44,9 +44,8 @@ import json
 from pathlib import Path
 
 import typer
-from charter.drg import ArtifactKind
 from charter.activation.kind_vocabulary import PROJECT_KIND_DIRS
-from charter.offering.artifact_kinds import slug_for
+from charter.drg import ArtifactKind, slug_for
 from specify_cli.cli.commands._doctrine_asset import asset_app
 from specify_cli.cli.console import console
 from rich.table import Table
