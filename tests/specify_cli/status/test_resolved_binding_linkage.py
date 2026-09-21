@@ -542,8 +542,9 @@ def _make_local_charter_profile_repo(root: Path) -> Path:
     This is the exact #4120 shape: the profile resolves via ``agent profile
     show`` and is one of the ids the ``finalize-tasks`` charter-activation gate
     requires WP ``agent_profile`` frontmatter values to be, but the dispatch
-    *routing* catalog excludes the doctrine project layer — so threading it
-    through ``--profile`` used to fail with ``Available: []``.
+    *routing* catalog did not then carry the doctrine project layer (it does
+    now — #4128) — so threading it through ``--profile`` used to fail with
+    ``Available: []``.
     """
     profiles_dir = root / ".kittify" / "doctrine" / "agent_profiles"
     profiles_dir.mkdir(parents=True)
@@ -575,7 +576,8 @@ class TestResolveDispatchBindingLocalProfile:
         Pre-fix (#4120 bug 2) this raised ``Could not resolve dispatched
         profile 'seeker-implementer': Profile 'seeker-implementer' not found.
         Available: []`` because ``_resolved_profile_version`` resolved against
-        the routing catalog, which excludes the doctrine project layer.
+        the routing catalog, which at the time did not carry the doctrine
+        project layer (it does now — #4128).
         """
         repo = _make_local_charter_profile_repo(tmp_path)
         binding = _resolve_dispatch_binding(

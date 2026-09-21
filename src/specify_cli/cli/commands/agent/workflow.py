@@ -1095,9 +1095,12 @@ def _resolved_profile_version(profile_id: str | None, repo_root: Path) -> str | 
 
     #4120: resolves through ``ProfileRegistry.resolve_local`` — every local
     layer, same activation gate — not the dispatch routing catalog
-    (``resolve``), which excludes the doctrine project layer by design and
-    therefore rejected every project-local charter-activated profile id with
-    an empty ``Available: []``. An operator-supplied ``--profile <id>`` names
+    (``resolve``), which at the time did not carry the doctrine project layer
+    and therefore rejected every project-local charter-activated profile id
+    with an empty ``Available: []`` (routing now carries the activation-gated
+    project layer too — #4128 — but ``resolve_local`` remains the correct seam:
+    it applies no ``_DOCTRINE_ROUTING_LAYERS`` provenance filter). An
+    operator-supplied ``--profile <id>`` names
     the same ids ``agent profile show`` resolves and ``finalize-tasks``
     records in WP ``agent_profile`` frontmatter; those must resolve here even
     with no hosted registry / dispatch Op in play.

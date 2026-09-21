@@ -125,23 +125,27 @@ class ProfileRegistry:
     ) -> dict[str, AgentProfile]:
         """Build the local-resolution catalog (#4120): every layer, same gate.
 
-        The routing catalog above deliberately excludes the doctrine *project*
-        layer — dispatch routing has never carried it (R3 parity with the
-        governance-context seam). But a project-local charter-activated profile
-        is exactly what ``agent profile show`` resolves, what the
-        charter-activation gate in ``finalize-tasks`` requires WP
-        ``agent_profile`` frontmatter values to be, and therefore exactly what
-        an operator can reasonably pass to ``agent action implement/review
-        --profile <id>``. Resolving that flag against the routing catalog made
-        every locally-authored profile unresolvable ("Available: []").
+        The routing catalog above carries the activation-gated doctrine
+        *project* layer (see ``_DOCTRINE_ROUTING_LAYERS``); dispatch routing
+        began carrying it with R3 parity (#4114/#4128) — it formerly did not,
+        which is why resolving an operator ``--profile`` flag against the
+        routing catalog once made every locally-authored profile unresolvable
+        ("Available: []"). A project-local charter-activated profile is exactly
+        what ``agent profile show`` resolves, what the charter-activation gate
+        in ``finalize-tasks`` requires WP ``agent_profile`` frontmatter values
+        to be, and therefore exactly what an operator can reasonably pass to
+        ``agent action implement/review --profile <id>``.
 
         This catalog keeps the SAME ``activated_agent_profiles`` gate (and the
         same language-scope filter — both come with ``service.agent_profiles``)
-        but admits every doctrine layer (built-in + org + project), plus the
-        legacy ``.kittify/profiles`` invocation project overlay ungated on top
-        (same collision semantics as the routing catalog). It is the
-        operator-facing resolution surface behind ``resolve_local`` — NOT a
-        routing catalog, and never consumed by the dispatch router.
+        and, like the routing catalog, admits every doctrine layer (built-in +
+        org + project), plus the legacy ``.kittify/profiles`` invocation
+        project overlay ungated on top (same collision semantics as the routing
+        catalog). Unlike the routing catalog it applies no
+        ``_DOCTRINE_ROUTING_LAYERS`` provenance filter to the gated doctrine
+        profiles. It is the operator-facing resolution surface behind
+        ``resolve_local`` — NOT a routing catalog, and never consumed by the
+        dispatch router.
         """
         local: dict[str, AgentProfile] = dict(service.agent_profiles)
         for profile in self._repo.list_all():
@@ -168,14 +172,16 @@ class ProfileRegistry:
     def resolve_local(self, profile_id: str) -> AgentProfile:
         """Resolve a profile id across every local layer (#4120).
 
-        Unlike :meth:`resolve` (the dispatch *routing* catalog, which excludes
-        the doctrine project layer by design — R3 parity), this resolves
+        Unlike :meth:`resolve` (the dispatch *routing* catalog), this resolves
         against the local catalog built by ``_build_local_profiles``: the same
-        activation gate, but every doctrine layer admitted. This is the seam
-        for an operator-supplied ``--profile <id>`` on ``agent action
-        implement/review`` — the ids ``agent profile show`` resolves and
-        ``finalize-tasks`` records in WP ``agent_profile`` frontmatter must be
-        acceptable here even when no hosted registry / dispatch Op exists.
+        activation gate, every doctrine layer admitted, minus the routing
+        catalog's ``_DOCTRINE_ROUTING_LAYERS`` provenance filter. The routing
+        catalog now carries the activation-gated project layer as well (R3
+        parity, #4114/#4128); this remains the operator-facing seam for a
+        supplied ``--profile <id>`` on ``agent action implement/review`` — the
+        ids ``agent profile show`` resolves and ``finalize-tasks`` records in
+        WP ``agent_profile`` frontmatter must be acceptable here even when no
+        hosted registry / dispatch Op exists.
 
         Raises:
             ProfileNotFoundError: if the id is in no local layer.
