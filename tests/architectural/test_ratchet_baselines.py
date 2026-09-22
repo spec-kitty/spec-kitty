@@ -135,6 +135,7 @@ _REQUIRED_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
         "test_runtime_charter_doctrine_boundary",
         "test_doctrine_census",
         "test_cli_error_surface_seam",
+        "test_mutation_ownership_routing",
     }
 )
 
@@ -456,6 +457,15 @@ def test_growing_an_allowlist_above_baseline_fails() -> None:
             "_JUSTIFIED_RESIDUALS",
             data["test_cli_error_surface_seam"]["justified_raw_read_residuals"],
         ),
+        # WP09 non-vacuous FS-op ownership-routing gate: the frozen allowlist of
+        # genuinely-safe raw destructive ops is the surface an author would edit
+        # to silence the census, so growing it must cost the same visible diff.
+        (
+            "test_mutation_ownership_routing",
+            "tests.architectural.test_mutation_ownership_routing",
+            "_ALLOWLIST",
+            data["test_mutation_ownership_routing"]["destructive_op_allowlist"],
+        ),
     ]
     for label, module_dotted, attr_name, baseline in single_baselines:
         current = len(_import_module_attr(module_dotted, attr_name))
@@ -609,6 +619,14 @@ def test_growth_fails_shrinkage_warns(
             "tests.architectural.test_cli_error_surface_seam",
             "_JUSTIFIED_RESIDUALS",
             data["test_cli_error_surface_seam"]["justified_raw_read_residuals"],
+        ),
+        # WP09 FS-op ownership-routing gate participates in the shrink arm too:
+        # routing/removing a genuinely-safe op should lower the recorded bound.
+        (
+            "test_mutation_ownership_routing",
+            "tests.architectural.test_mutation_ownership_routing",
+            "_ALLOWLIST",
+            data["test_mutation_ownership_routing"]["destructive_op_allowlist"],
         ),
     ]
     for label, module_dotted, attr_name, baseline in single_baselines:

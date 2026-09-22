@@ -237,6 +237,9 @@ modules:
   - tests/decisions
   - tests/doctrine_synthesizer
   - tests/specify_cli/tool_surface
+  # ownership-boundary-preservation-01M32KEN: the new asset-preservation guard's
+  # unit tests, claimed alongside its tool_surface sibling so they run per-PR.
+  - tests/specify_cli/asset_preservation
   - tests/zeitgeist_client
 - module: unit
   roots:

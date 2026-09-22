@@ -418,3 +418,20 @@ test_cli_error_surface_seam:
   # degrades to False on OSError. Scan-derived (not assumed zero) — see the
   # gate test file's module docstring for the reproduction method.
   justified_raw_read_residuals: 7
+
+# tests/architectural/test_mutation_ownership_routing.py — the non-vacuous
+# FS-op ownership-routing gate (mission ownership-boundary-preservation-01M32KEN
+# WP09, FR-010/NFR-006). The `_ALLOWLIST` is the surface an author would edit to
+# silence the census, so growing it must cost this same visible diff.
+test_mutation_ownership_routing:
+  # justification: 55 individually-rationalized, genuinely-safe raw filesystem
+  # ops (shutil.rmtree / Path.unlink / os.unlink / shutil.move / Path.rmdir) in
+  # cli/commands/init.py + upgrade/migrations/*.py — ephemeral scratch/tmp,
+  # .worktrees/* teardown of package-generated dirs/symlinks,
+  # broken-symlink/package-state markers, overwrite-guarded relocations,
+  # backup-guarded scaffold discard, the empty-only rmdir category (raises on
+  # non-empty), already-content-guarded exemplars, and non-user machine
+  # surfaces. Routed fix-sites are literal-free (the guard performs the delete)
+  # so they are ABSENT here by construction. Shrink-only: growth fails, a
+  # vanished site warns.
+  destructive_op_allowlist: 55

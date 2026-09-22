@@ -58,115 +58,28 @@ from pathlib import Path
 
 import pytest
 
+from tests.architectural._destructive_op_census import (
+    REPO_ROOT,
+    SPECIFY_CLI_ROOT,
+    SRC_ROOT,
+    argv_tokens,
+    diff_against_allowlist,
+    drop_one_entry,
+    enclosing_qualname,
+    iter_py_files,
+    module_string_constants,
+    ordered_subsequence,
+    parse,
+    scan_planted_source,
+)
+
 pytestmark = pytest.mark.architectural
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-SRC_ROOT = REPO_ROOT / "src"
-SPECIFY_CLI_ROOT = SRC_ROOT / "specify_cli"
-
-# ---------------------------------------------------------------------------
-# Shared AST plumbing
-# ---------------------------------------------------------------------------
-
-
-def _iter_py_files(root: Path) -> list[Path]:
-    return sorted(p for p in root.rglob("*.py") if "__pycache__" not in p.parts)
-
-
-def _parse(path: Path) -> _ast.Module | None:
-    try:
-        return _ast.parse(path.read_text(encoding="utf-8"))
-    except (SyntaxError, UnicodeDecodeError, OSError):
-        return None
-
-
-def _module_string_constants(tree: _ast.Module) -> dict[str, str]:
-    """Module-level ``NAME = "literal"`` / ``NAME: str = "literal"`` bindings.
-
-    Resolves indirections like ``coordination/workspace.py``'s
-    ``_GIT_WORKTREE = "worktree"`` so an argv element referencing the
-    constant by name is not invisible to the scan (see module docstring).
-    """
-    consts: dict[str, str] = {}
-    for node in tree.body:
-        if (
-            isinstance(node, _ast.Assign)
-            and len(node.targets) == 1
-            and isinstance(node.targets[0], _ast.Name)
-            and isinstance(node.value, _ast.Constant)
-            and isinstance(node.value.value, str)
-        ):
-            consts[node.targets[0].id] = node.value.value
-        elif (
-            isinstance(node, _ast.AnnAssign)
-            and isinstance(node.target, _ast.Name)
-            and node.value is not None
-            and isinstance(node.value, _ast.Constant)
-            and isinstance(node.value.value, str)
-        ):
-            consts[node.target.id] = node.value.value
-    return consts
-
-
-def _resolve_token(node: _ast.expr, consts: dict[str, str]) -> str | None:
-    if isinstance(node, _ast.Constant) and isinstance(node.value, str):
-        return node.value
-    if isinstance(node, _ast.Name):
-        return consts.get(node.id)
-    return None
-
-
-def _argv_tokens(node: _ast.List | _ast.Tuple, consts: dict[str, str]) -> list[str | None]:
-    return [_resolve_token(elt, consts) for elt in node.elts]
-
-
-def _ordered_subsequence(tokens: list[str | None], *needles: str) -> bool:
-    """True when *needles* appear, in order (not necessarily contiguous),
-    among the resolved (non-``None``) elements of *tokens*."""
-    idx = 0
-    for tok in tokens:
-        if tok is not None and tok == needles[idx]:
-            idx += 1
-            if idx == len(needles):
-                return True
-    return False
-
-
-def _enclosing_qualname(tree: _ast.Module, lineno: int) -> str:
-    """Dotted qualname (``Class.method`` or bare ``func``) of the innermost
-    function/method whose body contains *lineno*; ``"<module>"`` for
-    module-level code."""
-
-    class _Finder(_ast.NodeVisitor):
-        def __init__(self) -> None:
-            self.stack: list[str] = []
-            self.result: str | None = None
-
-        def _visit_def(self, node: _ast.FunctionDef | _ast.AsyncFunctionDef) -> None:
-            end = getattr(node, "end_lineno", node.lineno) or node.lineno
-            if node.lineno <= lineno <= end:
-                self.result = ".".join([*self.stack, node.name])
-                self.stack.append(node.name)
-                self.generic_visit(node)
-                self.stack.pop()
-            else:
-                self.generic_visit(node)
-
-        def visit_FunctionDef(self, node: _ast.FunctionDef) -> None:
-            self._visit_def(node)
-
-        def visit_AsyncFunctionDef(self, node: _ast.AsyncFunctionDef) -> None:
-            self._visit_def(node)
-
-        def visit_ClassDef(self, node: _ast.ClassDef) -> None:
-            self.stack.append(node.name)
-            self.generic_visit(node)
-            self.stack.pop()
-
-    finder = _Finder()
-    finder.visit(tree)
-    return finder.result or "<module>"
-
+# The AST plumbing (file iteration, parsing, module-constant resolution, argv
+# tokenisation, ordered-subsequence matching, qualname resolution, the
+# allowlist diff, and the self-mutation harness) is the single shared authority
+# in ``_destructive_op_census`` (DIRECTIVE_044); this file keeps only the
+# git-argv classifier and its ``_ALLOWLIST``.
 
 # ---------------------------------------------------------------------------
 # T018 -- destructive-command routing/allowlist gate
@@ -185,21 +98,21 @@ _PATTERN_NEEDLES: dict[str, tuple[str, ...]] = {
 
 def _classify_argv(tokens: list[str | None]) -> str | None:
     for pattern, needles in _PATTERN_NEEDLES.items():
-        if _ordered_subsequence(tokens, *needles):
+        if ordered_subsequence(tokens, *needles):
             return pattern
     return None
 
 
 def _find_destructive_literals(path: Path) -> list[tuple[int, str]]:
     """``(lineno, pattern)`` for every destructive-command argv literal in *path*."""
-    tree = _parse(path)
+    tree = parse(path)
     if tree is None:
         return []
-    consts = _module_string_constants(tree)
+    consts = module_string_constants(tree)
     hits: list[tuple[int, str]] = []
     for node in _ast.walk(tree):
         if isinstance(node, (_ast.List, _ast.Tuple)):
-            pattern = _classify_argv(_argv_tokens(node, consts))
+            pattern = _classify_argv(argv_tokens(node, consts))
             if pattern is not None:
                 hits.append((node.lineno, pattern))
     return hits
@@ -207,7 +120,7 @@ def _find_destructive_literals(path: Path) -> list[tuple[int, str]]:
 
 def _scan_repo_for_destructive_literals() -> dict[str, list[tuple[int, str]]]:
     violations: dict[str, list[tuple[int, str]]] = {}
-    for py_file in _iter_py_files(SPECIFY_CLI_ROOT):
+    for py_file in iter_py_files(SPECIFY_CLI_ROOT):
         hits = _find_destructive_literals(py_file)
         if hits:
             rel = py_file.relative_to(REPO_ROOT).as_posix()
@@ -217,14 +130,6 @@ def _scan_repo_for_destructive_literals() -> dict[str, list[tuple[int, str]]]:
 
 def _flatten(live: dict[str, list[tuple[int, str]]]) -> set[str]:
     return {f"{rel}:{lineno}:{pattern}" for rel, hits in live.items() for lineno, pattern in hits}
-
-
-def _diff_against_allowlist(live_flat: set[str], allowlist: dict[str, str]) -> tuple[set[str], set[str]]:
-    """Return ``(unexpected, stale)``: sites live-but-unlisted (FAIL), and
-    sites listed-but-no-longer-live (WARN only -- shrink-only ratchet)."""
-    unexpected = live_flat - allowlist.keys()
-    stale = set(allowlist) - live_flat
-    return unexpected, stale
 
 
 # ---------------------------------------------------------------------------
@@ -316,7 +221,7 @@ def test_destructive_commands_only_at_allowlisted_or_guard_sites() -> None:
     a member of the frozen, rationalized allowlist. A NEW site fails; a
     disappeared site only warns (shrink-only ratchet)."""
     live_flat = _flatten(_scan_repo_for_destructive_literals())
-    unexpected, stale = _diff_against_allowlist(live_flat, _ALLOWLIST)
+    unexpected, stale = diff_against_allowlist(live_flat, _ALLOWLIST)
 
     assert not unexpected, (
         "New destructive git command literal(s) found outside the routed "
@@ -405,21 +310,21 @@ def _status_porcelain_hits(path: Path) -> list[tuple[int, str]]:
     literal in *path* -- deliberately NOT ``git worktree list --porcelain``
     (a different subcommand, listing worktrees rather than checking
     dirtiness), tagged with its enclosing function/method's qualname."""
-    tree = _parse(path)
+    tree = parse(path)
     if tree is None:
         return []
-    consts = _module_string_constants(tree)
+    consts = module_string_constants(tree)
     hits: list[tuple[int, str]] = []
     for node in _ast.walk(tree):
-        if isinstance(node, (_ast.List, _ast.Tuple)) and _ordered_subsequence(_argv_tokens(node, consts), "status", "--porcelain"):
-            hits.append((node.lineno, _enclosing_qualname(tree, node.lineno)))
+        if isinstance(node, (_ast.List, _ast.Tuple)) and ordered_subsequence(argv_tokens(node, consts), "status", "--porcelain"):
+            hits.append((node.lineno, enclosing_qualname(tree, node.lineno)))
     return hits
 
 
 def _scan_dirty_predicates() -> set[str]:
     found: set[str] = set()
     for seam_root in _DIRTY_PREDICATE_SEAM_DIRS:
-        for py_file in _iter_py_files(seam_root):
+        for py_file in iter_py_files(seam_root):
             rel = py_file.relative_to(SRC_ROOT).as_posix()
             for _lineno, qualname in _status_porcelain_hits(py_file):
                 found.add(f"{rel}::{qualname}")
@@ -450,12 +355,12 @@ def test_no_new_parallel_dirty_predicate_beyond_known_baseline() -> None:
 def test_scanner_detects_a_planted_unrouted_worktree_remove_force(tmp_path: Path) -> None:
     """A planted, un-rationalized raw force-remove is caught by the exact
     scanner the primary allowlist gate runs."""
-    planted = tmp_path / "planted_unrouted.py"
-    planted.write_text(
+    hits = scan_planted_source(
+        tmp_path,
+        "planted_unrouted.py",
         'import subprocess\n\n\ndef _sneaky_cleanup(worktree):\n    subprocess.run(["git", "worktree", "remove", str(worktree), "--force"])\n',
-        encoding="utf-8",
+        _find_destructive_literals,
     )
-    hits = _find_destructive_literals(planted)
     assert hits == [(5, _WORKTREE_REMOVE_FORCE)], (
         f"Non-vacuity failure: the routing scanner did not detect a planted raw `git worktree remove --force` call. Got: {hits!r}."
     )
@@ -466,15 +371,15 @@ def test_scanner_resolves_module_constant_indirection(tmp_path: Path) -> None:
     (``coordination/workspace.py``) must not evade detection -- a
     name-only-literal scanner would be structurally blind to it, a live
     false-negative vacuity risk."""
-    planted = tmp_path / "planted_indirection.py"
-    planted.write_text(
+    hits = scan_planted_source(
+        tmp_path,
+        "planted_indirection.py",
         "import subprocess\n\n"
         '_GIT_WORKTREE = "worktree"\n\n\n'
         "def _remove(repo_root, path):\n"
         '    subprocess.run(["git", "-C", str(repo_root), _GIT_WORKTREE, "remove", "--force", str(path)])\n',
-        encoding="utf-8",
+        _find_destructive_literals,
     )
-    hits = _find_destructive_literals(planted)
     assert hits == [(7, _WORKTREE_REMOVE_FORCE)], (
         f"Non-vacuity failure: the scanner did not resolve a module-level string-constant indirection for the destructive-command literal. Got: {hits!r}."
     )
@@ -484,15 +389,16 @@ def test_scanner_does_not_flag_unrelated_worktree_calls(tmp_path: Path) -> None:
     """Control: ``worktree add`` / ``worktree list --porcelain`` (no
     ``remove``+``--force``) must not be flagged -- proves the scanner isn't
     simply matching on the word "worktree" (vacuous in the OTHER direction)."""
-    planted = tmp_path / "planted_benign.py"
-    planted.write_text(
+    hits = scan_planted_source(
+        tmp_path,
+        "planted_benign.py",
         "import subprocess\n\n\n"
         "def _list_and_add(repo_root, path, branch):\n"
         '    subprocess.run(["git", "-C", str(repo_root), "worktree", "list", "--porcelain"])\n'
         '    subprocess.run(["git", "-C", str(repo_root), "worktree", "add", str(path), branch])\n',
-        encoding="utf-8",
+        _find_destructive_literals,
     )
-    assert _find_destructive_literals(planted) == []
+    assert hits == []
 
 
 def test_removing_an_allowlist_entry_reproduces_a_gate_failure() -> None:
@@ -502,15 +408,14 @@ def test_removing_an_allowlist_entry_reproduces_a_gate_failure() -> None:
     would raise if that site were ever un-routed and un-rationalized --
     proving the primary gate is not vacuously green."""
     live_flat = _flatten(_scan_repo_for_destructive_literals())
-    victim = next(iter(_ALLOWLIST))
-    shrunk_allowlist = {k: v for k, v in _ALLOWLIST.items() if k != victim}
+    victim, shrunk_allowlist = drop_one_entry(_ALLOWLIST)
 
-    unexpected, _stale = _diff_against_allowlist(live_flat, shrunk_allowlist)
+    unexpected, _stale = diff_against_allowlist(live_flat, shrunk_allowlist)
 
     assert victim in unexpected, (
         f"Self-mutation check failed: removing {victim!r} from the allowlist "
         "did not reproduce a gate failure against the live tree. The primary "
-        "routing gate is vacuous -- investigate _diff_against_allowlist / "
+        "routing gate is vacuous -- investigate diff_against_allowlist / "
         "_scan_repo_for_destructive_literals before trusting a green run."
     )
 
@@ -518,17 +423,17 @@ def test_removing_an_allowlist_entry_reproduces_a_gate_failure() -> None:
 def test_predicate_scan_detects_a_planted_new_predicate(tmp_path: Path) -> None:
     """A planted, brand-new porcelain-parsing 'is dirty' function is caught
     by the exact scanner the primary no-new-predicate gate runs."""
-    planted = tmp_path / "planted_predicate.py"
-    planted.write_text(
+    hits = scan_planted_source(
+        tmp_path,
+        "planted_predicate.py",
         "import subprocess\n\n\n"
         "def _is_worktree_dirty(path):\n"
         "    result = subprocess.run(\n"
         '        ["git", "status", "--porcelain"], cwd=path, capture_output=True\n'
         "    )\n"
         "    return bool(result.stdout)\n",
-        encoding="utf-8",
+        _status_porcelain_hits,
     )
-    hits = _status_porcelain_hits(planted)
     assert [qualname for _lineno, qualname in hits] == ["_is_worktree_dirty"], (
         f"Non-vacuity failure: the predicate scanner did not detect a planted new dirty predicate. Got: {hits!r}."
     )
@@ -537,12 +442,13 @@ def test_predicate_scan_detects_a_planted_new_predicate(tmp_path: Path) -> None:
 def test_predicate_scan_does_not_flag_worktree_list(tmp_path: Path) -> None:
     """Control: ``git worktree list --porcelain`` (a different subcommand,
     never an 'is dirty' check) must not be flagged."""
-    planted = tmp_path / "planted_worktree_list.py"
-    planted.write_text(
+    hits = scan_planted_source(
+        tmp_path,
+        "planted_worktree_list.py",
         'import subprocess\n\n\ndef _list_worktrees(repo_root):\n    return subprocess.run(["git", "-C", str(repo_root), "worktree", "list", "--porcelain"])\n',
-        encoding="utf-8",
+        _status_porcelain_hits,
     )
-    assert _status_porcelain_hits(planted) == []
+    assert hits == []
 
 
 def test_removing_a_known_predicate_reproduces_a_gate_failure() -> None:
