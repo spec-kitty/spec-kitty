@@ -434,4 +434,10 @@ test_mutation_ownership_routing:
   # surfaces. Routed fix-sites are literal-free (the guard performs the delete)
   # so they are ABSENT here by construction. Shrink-only: growth fails, a
   # vanished site warns.
-  destructive_op_allowlist: 55
+  # justification (55 -> 56, epic #4915 / PR #4936): the #4907 fix routes
+  # `agent config`'s surface-removal through the ownership guard and adds
+  # cli/commands/agent/config.py to the census module set; its one remaining raw
+  # op is the empty-only `root.rmdir()` on the manifest-owned branch (raises on a
+  # non-empty dir), a genuinely-safe empty-only-rmdir exemplar in the same class
+  # already rationalized above.
+  destructive_op_allowlist: 56
