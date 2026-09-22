@@ -186,6 +186,37 @@ def test_mig4_refusal_fails_aggregate_but_continues_corpus(tmp_path: Path) -> No
     assert stale_backup.read_text(encoding="utf-8") == "STALE SNAPSHOT FROM AN INTERRUPTED RUN"
 
 
+def test_all_logs_refusing_fails_aggregate_with_no_changes(tmp_path: Path) -> None:
+    """When every corpus log refuses, the aggregate fails and rewrites nothing.
+
+    The pure all-refuse edge is distinct from the partial case: ``changes_made``
+    is empty (no log migrated at all), yet the result must still be
+    ``success=False`` with a refusal per log, so the runner records a failed,
+    retryable migration rather than a false success over a wholly-legacy corpus.
+    """
+    project_uuid = "55555555-5555-5555-5555-555555555555"
+    _seed_legacy_project_log(tmp_path, project_uuid=project_uuid)
+    feature_dir = _seed_legacy_mission_log(tmp_path, project_uuid=project_uuid)
+
+    project_log = project_event_log_path(tmp_path)
+    mission_log = mission_event_log_path(feature_dir)
+    originals = {log: log.read_text(encoding="utf-8") for log in (project_log, mission_log)}
+    for log in (project_log, mission_log):
+        log.with_name(log.name + ".pre-migration.bak").write_text("STALE", encoding="utf-8")
+
+    result = MigrateLifecycleEnvelopeMigration().apply(tmp_path)
+
+    assert result.success is False
+    assert result.changes_made == []
+    assert result.warnings == []
+    assert len(result.errors) == 2
+    assert all("refusing to migrate" in error for error in result.errors)
+
+    # Every log stayed legacy-shaped: an all-refuse walk rewrites nothing.
+    for log, original in originals.items():
+        assert log.read_text(encoding="utf-8") == original
+
+
 def test_migration_is_auto_discovered_and_registered() -> None:
     """The wiring is real: the migration self-registers via auto-discovery
     (``pkgutil.iter_modules`` + ``@MigrationRegistry.register``), at the
