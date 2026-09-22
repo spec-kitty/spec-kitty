@@ -105,9 +105,7 @@ class MergeDriverPathError(Exception):
     same-directory temp-file contract (#2970 / Sonar S2083)."""
 
 
-def _resolve_merge_driver_paths(
-    base_path: str, ours_path: str, theirs_path: str
-) -> tuple[Path, Path, Path]:
+def _resolve_merge_driver_paths(base_path: str, ours_path: str, theirs_path: str) -> tuple[Path, Path, Path]:
     """Resolve the three driver placeholders, refusing a path-injection escape.
 
     Git materializes ``%O``/``%A``/``%B`` as three sibling temp files in ONE
@@ -134,9 +132,7 @@ def _resolve_merge_driver_paths(
     return resolved
 
 
-def _resolve_merge_driver_paths_or_exit(
-    base_path: str, ours_path: str, theirs_path: str
-) -> tuple[Path, Path, Path]:
+def _resolve_merge_driver_paths_or_exit(base_path: str, ours_path: str, theirs_path: str) -> tuple[Path, Path, Path]:
     """:func:`_resolve_merge_driver_paths`, translating a refusal to ``Exit(1)``.
 
     Every driver entrypoint calls this FIRST, before any file is opened — the
@@ -297,32 +293,126 @@ def merge_driver_meta(
 
 
 # ---------------------------------------------------------------------------
-# traces/*.md markdown union (FR-003)
+# traces/*.md markdown union (FR-003 / #4894 section-granularity rewrite)
 # ---------------------------------------------------------------------------
+
+# An ATX markdown heading (``#`` through ``######``) OR the explicit
+# ``<!-- section:... -->`` delimiter comment this module's docstring names --
+# either one opens a new section/block for :func:`union_trace_texts`'s
+# section-granularity dedup (#4894). Matched only OUTSIDE a fenced code block
+# (see ``_TRACE_FENCE_MARKER``), so a heading-like line quoted inside a fence
+# is never misread as a real section boundary.
+_TRACE_SECTION_BOUNDARY = re.compile(r"^(?:#{1,6}\s+\S.*|<!--\s*section:.*-->)\s*$")
+# A fenced-code-block delimiter (```` ``` ````); toggles the in-fence state
+# ``_split_trace_blocks`` tracks.
+_TRACE_FENCE_MARKER = re.compile(r"^```")
+
+
+def _split_trace_blocks(text: str) -> list[tuple[str, ...]]:
+    """Split *text* into ordered section/block-granularity chunks (#4894).
+
+    A new block starts at each :data:`_TRACE_SECTION_BOUNDARY` line seen
+    OUTSIDE a fenced code block; every other line (including a fence marker
+    itself) belongs to the block already open. Content before the first
+    boundary (a preamble) is its own block. Every line lands in exactly one
+    block, in original order, so concatenating every returned block's lines
+    reproduces *text* verbatim -- the property :func:`union_trace_texts`
+    relies on for INV-3 (no non-empty line is ever dropped without an
+    identical duplicate already present).
+    """
+    blocks: list[list[str]] = [[]]
+    in_fence = False
+    for line in text.splitlines():
+        if not in_fence and _TRACE_SECTION_BOUNDARY.match(line):
+            blocks.append([])
+        if _TRACE_FENCE_MARKER.match(line):
+            in_fence = not in_fence
+        blocks[-1].append(line)
+    return [tuple(block) for block in blocks if block]
 
 
 def union_trace_texts(ours_text: str, theirs_text: str) -> str:
-    """Union two append-only trace documents (FR-003).
+    """Union two append-only trace documents at SECTION granularity (#4894 / FR-003).
 
-    Concrete contract: concatenate ``ours`` then ``theirs`` at line granularity,
-    dropping any **non-empty** line already emitted (line-level dedup). Empty
-    lines are preserved verbatim so section spacing survives. A section present on
-    both sides collapses to one copy; the ``<!-- section:... -->`` delimiter lines
-    are ordinary non-empty lines, so distinct delimiters both survive and a naive
-    ``cat`` concat (which duplicates shared lines) fails this contract.
+    Concrete contract: split ``ours``/``theirs`` into blocks at
+    :func:`_split_trace_blocks` boundaries (markdown headings and the
+    ``<!-- section:... -->`` delimiter), then concatenate ours' blocks
+    followed by theirs' blocks, in order, dropping a theirs block only when
+    it is BYTE-IDENTICAL to a block already emitted -- a whole section
+    repeated verbatim on both sides collapses to one copy. Repeated lines
+    WITHIN one distinct section (fences, table separators, recurring prose)
+    are never touched, so every non-empty line present in either input is
+    present in the output (INV-3): a dropped theirs block's lines are, by
+    construction, already present via the identical block that superseded it.
+
+    This replaces the historical line-level GLOBAL dedup (#4894), which was
+    unsound for markdown: a fence's opening/closing ``` line recurs across
+    every distinct section and is not a duplicate to drop, so the old
+    line-granularity ``seen`` set silently destroyed every section after the
+    first.
     """
-    seen: set[str] = set()
-    merged: list[str] = []
-    for text in (ours_text, theirs_text):
-        for line in text.splitlines():
-            if line.strip() == "":
-                merged.append(line)
-                continue
-            if line in seen:
-                continue
-            seen.add(line)
-            merged.append(line)
+    ours_blocks = _split_trace_blocks(ours_text)
+    seen: set[tuple[str, ...]] = set(ours_blocks)
+    merged: list[str] = [line for block in ours_blocks for line in block]
+    for block in _split_trace_blocks(theirs_text):
+        if block in seen:
+            continue
+        seen.add(block)
+        merged.extend(block)
     return "\n".join(merged) + "\n" if merged else ""
+
+
+def _trace_block_key(block: tuple[str, ...]) -> str:
+    """A block's identity for 3-way base comparison: its own first line.
+
+    The first line is the section's heading/delimiter (or, for a preamble
+    block, its first content line) -- stable across an in-place edit to the
+    section's body, so it is the right join key for "is this the same
+    section, changed?" (base-awareness) as distinct from
+    :func:`union_trace_texts`'s "is this byte-identical content?" dedup.
+    """
+    return block[0] if block else ""
+
+
+def _drop_stale_theirs_trace_blocks(base_text: str, ours_text: str, theirs_text: str) -> str:
+    """Filter *theirs_text* to drop sections stale relative to *base_text* (#4894).
+
+    3-way base-awareness: a theirs block UNCHANGED from base under its
+    section identity (:func:`_trace_block_key`), while ours' same-identity
+    block DIVERGED from base, is theirs' now-superseded copy of content ours
+    already edited -- keeping it would resurrect stale prose alongside ours'
+    edit under a duplicate-looking heading. Every other theirs block (new, or
+    itself changed from base, or a key ours never touched) is kept untouched
+    and handed on to :func:`union_trace_texts`, which still performs the
+    byte-identical whole-block dedup / append-union.
+
+    A key both sides changed differently from base is deliberately NOT
+    filtered here -- both versions are kept (never silently picked), so a
+    genuine structural divergence never turns into a silent, lossy exit-0;
+    it simply appends both authored copies, preserving INV-3 without
+    aborting the merge (spec C-003: not fail-closed on an ordinary,
+    non-verdict-bearing repeat/divergence -- unlike the keyed row-matrix
+    drivers' verdict-field fail-closed rule, traces are keyless append-union
+    prose).
+    """
+    base_by_key: dict[str, tuple[str, ...]] = {}
+    for block in _split_trace_blocks(base_text):
+        base_by_key.setdefault(_trace_block_key(block), block)
+    ours_by_key: dict[str, tuple[str, ...]] = {}
+    for block in _split_trace_blocks(ours_text):
+        ours_by_key.setdefault(_trace_block_key(block), block)
+
+    kept: list[str] = []
+    for block in _split_trace_blocks(theirs_text):
+        key = _trace_block_key(block)
+        base_block = base_by_key.get(key)
+        ours_block = ours_by_key.get(key)
+        theirs_unchanged = base_block is not None and block == base_block
+        ours_diverged = ours_block is not None and ours_block != base_block
+        if theirs_unchanged and ours_diverged:
+            continue  # theirs' stale copy of a section ours already edited
+        kept.extend(block)
+    return "\n".join(kept) + "\n" if kept else ""
 
 
 def merge_driver_traces(
@@ -330,12 +420,22 @@ def merge_driver_traces(
     ours_path: str = typer.Argument(..., metavar="OURS"),
     theirs_path: str = typer.Argument(..., metavar="THEIRS"),
 ) -> None:
-    """Union conflicting ``traces/*.md`` documents; write result to ``ours``."""
+    """Union conflicting ``traces/*.md`` documents; write result to ``ours`` (#4894).
+
+    3-way base-aware: reads ``%O`` so a section theirs left UNCHANGED from
+    base, while ours edited the same section, is recognized as stale and
+    dropped rather than resurrected alongside ours' edit (see
+    :func:`_drop_stale_theirs_trace_blocks`). The remaining union is still
+    section-granularity and append-only via :func:`union_trace_texts` --
+    never a lossy line-level global dedup, never fail-closed on an ordinary
+    repeat.
+    """
     base, ours, theirs = _resolve_merge_driver_paths_or_exit(base_path, ours_path, theirs_path)
-    _ = base  # %O ancestor: git always passes it, but the union is 2-way.
+    base_text = base.read_text(encoding="utf-8") if base.exists() else ""
     ours_text = ours.read_text(encoding="utf-8") if ours.exists() else ""
     theirs_text = theirs.read_text(encoding="utf-8") if theirs.exists() else ""
-    ours.write_text(union_trace_texts(ours_text, theirs_text), encoding="utf-8")
+    filtered_theirs_text = _drop_stale_theirs_trace_blocks(base_text, ours_text, theirs_text)
+    ours.write_text(union_trace_texts(ours_text, filtered_theirs_text), encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -461,8 +561,7 @@ def _merge_field(
     # the sides target/incoming (the ``ours``/``theirs`` primary/merge footgun).
     row_label = f"row {row_key!r}: " if row_key is not None else ""
     raise RowMatrixMergeError(
-        f"{row_label}verdict field {field_name!r} diverged on both sides with no "
-        f"common base value (target/ours={ours_v!r}, incoming/theirs={theirs_v!r})"
+        f"{row_label}verdict field {field_name!r} diverged on both sides with no common base value (target/ours={ours_v!r}, incoming/theirs={theirs_v!r})"
     )
 
 
@@ -481,12 +580,7 @@ def _merge_row_fields(
     to "changed on the side that has it")."""
     base = base_row or {}
     field_names = dict.fromkeys((*base, *ours_row, *theirs_row))
-    return {
-        name: _merge_field(
-            name, base.get(name), ours_row.get(name), theirs_row.get(name), sentinels=sentinels, row_key=row_key
-        )
-        for name in field_names
-    }
+    return {name: _merge_field(name, base.get(name), ours_row.get(name), theirs_row.get(name), sentinels=sentinels, row_key=row_key) for name in field_names}
 
 
 def _reconcile_added_row(
@@ -600,9 +694,7 @@ def _reconcile_keyed_rows(
 
     merged: dict[str, dict[str, Any]] = {}
     for key in sorted({*base, *ours, *theirs}):
-        row = _reconcile_row(
-            base_row=base.get(key), ours_row=ours.get(key), theirs_row=theirs.get(key), sentinels=sentinels, row_key=key
-        )
+        row = _reconcile_row(base_row=base.get(key), ours_row=ours.get(key), theirs_row=theirs.get(key), sentinels=sentinels, row_key=key)
         if row is not None:
             merged[key] = row
     return merged  # already inserted in sorted-key order
