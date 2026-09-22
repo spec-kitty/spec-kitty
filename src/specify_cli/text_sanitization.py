@@ -17,6 +17,28 @@ __all__ = [
     "PROBLEMATIC_CHARS",
 ]
 
+# Content-sniff heuristics for classifying a file as binary vs text (#4896:
+# do NOT trust the ``.md`` extension alone -- a binary file merely *named*
+# ``*.md`` must never be decoded or rewritten).
+_BINARY_SNIFF_WINDOW = 8192
+_BINARY_NONTEXT_RATIO_THRESHOLD = 0.30
+# Bytes considered "text-like" when they appear outside a valid UTF-8 stream:
+# common whitespace/control codes plus the printable byte range.
+_TEXT_BYTES = frozenset({0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x1B} | set(range(0x20, 0x7F)) | set(range(0x80, 0x100)))
+
+# Fallback single-byte codec used to repair an individual invalid UTF-8 byte.
+# cp1252 is a superset of latin-1 for the printable range and is the
+# encoding that actually produced the historical mojibake reports.
+_REPAIR_CODEC = "cp1252"
+# Safety cap: refuse rather than loop indefinitely if a file has an
+# implausible number of invalid bytes (should not happen for real markdown;
+# genuinely binary content is already filtered out by the content sniff).
+_MAX_REPAIR_ATTEMPTS = 64
+
+# UTF-8 byte-order mark, built via chr() to avoid embedding the literal
+# BOM codepoint in this source file.
+_BOM = chr(0xFEFF)
+
 # Map of Windows-1252 / problematic characters to safe UTF-8 replacements
 PROBLEMATIC_CHARS = {
     # Smart quotes (Windows-1252 bytes 0x91-0x94)
@@ -116,6 +138,84 @@ def detect_problematic_characters(
     return issues
 
 
+def _looks_binary(data: bytes) -> bool:
+    """Content-sniff `data` as binary (never sanitized) vs text (#4896).
+
+    Classification is by CONTENT, never by file extension: a file merely
+    *named* ``*.md`` that actually holds binary data (e.g. a PNG) must be
+    skipped, not decoded and rewritten. Uses the standard NUL-byte
+    heuristic plus a non-text-byte ratio check over a leading window.
+    """
+    if not data:
+        return False
+    window = data[:_BINARY_SNIFF_WINDOW]
+    if b"\x00" in window:
+        return True
+    nontext = sum(1 for byte in window if byte not in _TEXT_BYTES)
+    return (nontext / len(window)) > _BINARY_NONTEXT_RATIO_THRESHOLD
+
+
+def _repair_invalid_utf8(data: bytes) -> tuple[str | None, list[int]]:
+    """Decode `data` as UTF-8, repairing only the individual invalid bytes.
+
+    Never re-decodes the whole file under a fallback codec (#4896): each
+    offending byte offset is mapped through ``cp1252`` (the encoding that
+    produced the historical mojibake) and substituted in place, one byte at
+    a time, so every already-valid UTF-8 byte sequence elsewhere in the
+    file survives untouched.
+
+    Returns:
+        (repaired_text, offsets) on success, or (None, offsets) if a byte
+        cannot be faithfully repaired (offsets lists every offset seen up
+        to and including the one that forced the refusal).
+    """
+    working = bytearray(data)
+    offsets: list[int] = []
+    for _ in range(_MAX_REPAIR_ATTEMPTS):
+        try:
+            return working.decode("utf-8"), offsets
+        except UnicodeDecodeError as exc:
+            offset = exc.start
+            offsets.append(offset)
+            offending_byte = working[offset : offset + 1]
+            try:
+                replacement_char = offending_byte.decode(_REPAIR_CODEC)
+            except UnicodeDecodeError:
+                return None, offsets
+            working[offset : offset + 1] = replacement_char.encode("utf-8")
+    return None, offsets
+
+
+class _UnrepairableEncodingError(Exception):
+    """Raised when invalid UTF-8 bytes cannot be faithfully repaired."""
+
+
+def _decode_faithfully(raw_bytes: bytes) -> tuple[str, bool]:
+    """Decode `raw_bytes` as UTF-8, scoping any repair to the bad byte(s).
+
+    Returns:
+        (text, needs_rewrite) -- ``needs_rewrite`` is True only when the
+        bytes were not already valid UTF-8 and a byte-scoped repair was
+        applied (a legitimate change that must be persisted even if
+        ``sanitize_markdown_text`` finds nothing further to normalize).
+
+    Raises:
+        _UnrepairableEncodingError: if an invalid byte cannot be mapped
+            through the repair codec; the message reports its offset(s)
+            (#4896 T018 -- refuse rather than corrupt).
+    """
+    try:
+        return raw_bytes.decode("utf-8-sig").lstrip(_BOM), False
+    except UnicodeDecodeError:
+        pass
+
+    repaired_text, offsets = _repair_invalid_utf8(raw_bytes)
+    if repaired_text is None:
+        offset_list = ", ".join(str(offset) for offset in offsets)
+        raise _UnrepairableEncodingError(f"invalid byte(s) at offset(s) [{offset_list}] could not be faithfully repaired")
+    return repaired_text.lstrip(_BOM), True
+
+
 def sanitize_file(
     file_path: Path,
     *,
@@ -161,32 +261,27 @@ def sanitize_file(
         if file_path.suffix.lower() != ".md":
             return False, f"Only markdown files are supported: {file_path}"
 
-        # Try reading as UTF-8 first
+        raw_bytes = file_path.read_bytes()
+
+        # Content sniff, not extension: a binary file merely named *.md
+        # must be skipped entirely, never decoded or rewritten (#4896).
+        if _looks_binary(raw_bytes):
+            return False, None
+
         try:
-            original_text = file_path.read_text(encoding="utf-8-sig")
-            encoding_issue = False
-        except UnicodeDecodeError:
-            # Fall back to cp1252 or latin-1
-            encoding_issue = True
-            original_bytes = file_path.read_bytes()
-            for encoding in ("cp1252", "latin-1"):
-                try:
-                    original_text = original_bytes.decode(encoding)
-                    break
-                except UnicodeDecodeError:
-                    continue
-            else:
-                # Last resort: replace invalid characters
-                original_text = original_bytes.decode("utf-8", errors="replace")
+            original_text, needs_rewrite = _decode_faithfully(raw_bytes)
+        except _UnrepairableEncodingError as exc:
+            return False, f"Refusing to sanitize {file_path}: {exc}"
 
-        # Strip UTF-8 BOM if present in the text
-        original_text = original_text.lstrip("\ufeff")
-
-        # Sanitize the text
+        # Sanitize the text (preserves existing line endings: raw_bytes was
+        # decoded directly, never through universal-newline text mode, so
+        # CRLF sequences remain intact in original_text/sanitized_text).
         sanitized_text = sanitize_markdown_text(original_text)
 
-        # Check if any changes were made
-        if sanitized_text == original_text and not encoding_issue:
+        # Check if any changes were made. needs_rewrite is only True when a
+        # genuine byte-level repair was applied above -- a forced rewrite
+        # is never reported as "Fixed" for bytes that didn't actually change.
+        if sanitized_text == original_text and not needs_rewrite:
             return False, None  # No changes needed
 
         if dry_run:
@@ -198,9 +293,10 @@ def sanitize_file(
             with file_path.open("rb") as source, backup_path.open("xb") as target:
                 shutil.copyfileobj(source, target)
 
-        # Write sanitized content
-        with file_path.open("w", encoding="utf-8", newline="") as handle:
-            handle.write(sanitized_text)
+        # Write sanitized content as raw bytes -- no text-mode newline
+        # translation, so the file's original line-ending convention
+        # (CRLF or LF) is preserved byte-for-byte (#4896).
+        file_path.write_bytes(sanitized_text.encode("utf-8"))
         return True, None
 
     except Exception as exc:

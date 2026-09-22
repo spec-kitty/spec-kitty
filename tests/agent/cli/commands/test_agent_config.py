@@ -181,19 +181,22 @@ class TestRemoveCommand:
     """Tests for 'spec-kitty agent config remove' command."""
 
     def test_remove_agent(self, mock_project):
-        """Test removing an agent."""
+        """Removing an agent preserves its unproven managed surface (#4907):
+        `opencode/command/spec-kitty.implement.md` carries no command-skills
+        manifest entry, so ownership is unprovable and the directory survives."""
         with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=mock_project):
             result = runner.invoke(app, ["remove", "opencode"])
 
             assert result.exit_code == 0
-            assert "Removed .opencode/" in result.stdout
+            assert "Removed" not in result.stdout
+            assert "Preserved" in result.stdout
             assert "Updated config.yaml" in result.stdout
 
-            # Verify directory was deleted
-            assert not (mock_project / ".opencode").exists()
+            # Verify directory was preserved, not deleted
+            assert (mock_project / ".opencode").exists()
 
     def test_remove_multiple_agents(self, mock_project):
-        """Test removing multiple agents."""
+        """Removing multiple agents preserves each unproven managed surface."""
         # Add another agent first (if not exists)
         claude = mock_project / ".claude" / "commands"
         if not claude.exists():
@@ -209,8 +212,10 @@ class TestRemoveCommand:
             result = runner.invoke(app, ["remove", "opencode", "claude"])
 
             assert result.exit_code == 0
-            assert "Removed .opencode/" in result.stdout
-            assert "Removed .claude/" in result.stdout
+            assert "Removed" not in result.stdout
+            assert result.stdout.count("Preserved") == 2
+            assert (mock_project / ".opencode").exists()
+            assert (mock_project / ".claude").exists()
 
     def test_remove_nonexistent_directory(self, mock_project):
         """Test removing an agent whose directory doesn't exist."""
@@ -231,22 +236,26 @@ class TestRemoveCommand:
             assert "gemini" not in config.available
 
     def test_remove_with_keep_config(self, mock_project):
-        """Test removing agent with --keep-config flag."""
+        """Test removing agent with --keep-config flag preserves the unproven
+        surface (#4907) while still dropping the config.yaml entry."""
         with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=mock_project):
             result = runner.invoke(app, ["remove", "opencode", "--keep-config"])
 
             assert result.exit_code == 0
-            assert "Removed .opencode/" in result.stdout
+            assert "Removed" not in result.stdout
+            assert "Preserved" in result.stdout
 
-            # Verify directory was deleted but config still has it
-            assert not (mock_project / ".opencode").exists()
+            # Verify directory was preserved and config still has it
+            assert (mock_project / ".opencode").exists()
 
             from specify_cli.core.agent_config import load_agent_config
             config = load_agent_config(mock_project)
             assert "opencode" in config.available
 
     def test_remove_copilot_preserves_github_workflows(self, tmp_path):
-        """Removing Copilot must not delete unrelated .github content."""
+        """Removing Copilot must not delete unrelated .github content -- and,
+        per the #4907 ownership gate, must not delete the unproven managed
+        prompts surface either (AGENT_DIRS generality, T008)."""
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
         (kittify / "config.yaml").write_text("agents:\n  available:\n    - copilot\n")
@@ -261,8 +270,9 @@ class TestRemoveCommand:
             result = runner.invoke(app, ["remove", "copilot"])
 
             assert result.exit_code == 0
-            assert "Removed .github/prompts/" in result.stdout
-            assert not prompts.exists()
+            assert "Removed" not in result.stdout
+            assert "Preserved" in result.stdout
+            assert prompts.exists()
             assert (workflows / "ci.yml").exists()
 
 
@@ -323,7 +333,8 @@ class TestSyncCommand:
     """Tests for 'spec-kitty agent config sync' command."""
 
     def test_sync_removes_orphaned(self, mock_project):
-        """Test sync removes orphaned directories by default."""
+        """An orphaned directory with no ownership proof is preserved, not
+        removed, by the default orphan sweep (#2691 removal half)."""
         # Create orphaned claude directory (if not exists)
         claude = mock_project / ".claude" / "commands"
         if not claude.exists():
@@ -333,11 +344,14 @@ class TestSyncCommand:
             result = runner.invoke(app, ["sync"])
 
             assert result.exit_code == 0
-            assert "Removed orphaned .claude/" in result.stdout
-            assert not (mock_project / ".claude").exists()
+            assert "Removed orphaned" not in result.stdout
+            assert "Preserved .claude/commands" in result.stdout
+            assert (mock_project / ".claude").exists()
 
     def test_sync_removes_only_copilot_prompts(self, tmp_path):
-        """Orphan cleanup must preserve unrelated .github files."""
+        """Orphan cleanup must preserve unrelated .github files -- and, since
+        the prompts dir itself carries no ownership proof, must preserve it
+        too (#2691 removal half / AGENT_DIRS generality)."""
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
         (kittify / "config.yaml").write_text("agents:\n  available: []\n")
@@ -352,8 +366,9 @@ class TestSyncCommand:
             result = runner.invoke(app, ["sync"])
 
             assert result.exit_code == 0
-            assert "Removed orphaned .github/prompts/" in result.stdout
-            assert not prompts.exists()
+            assert "Removed orphaned" not in result.stdout
+            assert "Preserved .github/prompts" in result.stdout
+            assert prompts.exists()
             assert (workflows / "ci.yml").exists()
 
     def test_sync_keep_orphaned(self, mock_project):

@@ -86,13 +86,14 @@ pytestmark = pytest.mark.architectural
 # reach the census (contract C3.1 / data-model.md).
 # ---------------------------------------------------------------------------
 _INIT_PY = SPECIFY_CLI_ROOT / "cli" / "commands" / "init.py"
+_AGENT_CONFIG_PY = SPECIFY_CLI_ROOT / "cli" / "commands" / "agent" / "config.py"
 _MIGRATIONS_DIR = SPECIFY_CLI_ROOT / "upgrade" / "migrations"
 
 _GUARD_CALL = "guard_destructive_removal("
 
 
 def _module_set() -> list[Path]:
-    return [_INIT_PY, *iter_py_files(_MIGRATIONS_DIR)]
+    return [_INIT_PY, _AGENT_CONFIG_PY, *iter_py_files(_MIGRATIONS_DIR)]
 
 
 # ---------------------------------------------------------------------------
@@ -224,6 +225,12 @@ def _flatten(live: dict[str, list[tuple[int, str]]]) -> set[str]:
 # fix-sites are ABSENT here on purpose — they carry no raw literal.
 # ---------------------------------------------------------------------------
 _ALLOWLIST: dict[str, str] = {
+    # --- cli/commands/agent/config.py (1): empty-only rmdir after guard ----
+    "src/specify_cli/cli/commands/agent/config.py:167:Path.rmdir": (
+        "empty-only rmdir: prunes the now-possibly-empty parent `root` only on the "
+        "guard's owned branch (verdict.owned), after guard_destructive_removal already "
+        "removed `surface` itself — raises OSError (caught) on a non-empty preserved dir."
+    ),
     # --- init.py (4): ephemeral scratch, backup-guarded discard, marker ----
     "src/specify_cli/cli/commands/init.py:136:Path.unlink": (
         "package-state marker: unlinks the .kittify pending-command-skills record only after a "
@@ -423,6 +430,7 @@ _ALLOWLIST: dict[str, str] = {
 _ROUTED_MODULES: frozenset[str] = frozenset(
     {
         "cli/commands/init.py",
+        "cli/commands/agent/config.py",
         "upgrade/migrations/m_3_2_0rc45_retire_standalone_skill_surface.py",
         "upgrade/migrations/m_3_1_1_charter_rename.py",
         "upgrade/migrations/m_0_10_0_python_only.py",

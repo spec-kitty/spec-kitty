@@ -520,7 +520,6 @@ exclude = [
     "src/specify_cli/cli/commands/agent/tasks.py",
     "src/specify_cli/cli/commands/agent/tasks_command_adapters.py",
     "src/specify_cli/cli/commands/agent/tasks_dependency_graph.py",
-    "src/specify_cli/cli/commands/agent/tasks_finalize_validation.py",
     "src/specify_cli/cli/commands/agent/tasks_map_requirements.py",
     "src/specify_cli/cli/commands/agent/tasks_mark_status.py",
     "src/specify_cli/cli/commands/agent/tasks_materialization.py",
@@ -654,7 +653,6 @@ exclude = [
     "src/specify_cli/events/sanitizer.py",
     "src/specify_cli/frontmatter.py",
     "src/specify_cli/git/bookkeeping_commit.py",
-    "src/specify_cli/git/commit_helpers.py",
     "src/specify_cli/git/protection_policy.py",
     "src/specify_cli/git/sparse_checkout_remediation.py",
     "src/specify_cli/identity/project.py",
@@ -1561,7 +1559,6 @@ exclude = [
     "tests/git_ops/test_git_preflight.py",
     "tests/git_ops/test_mark_status_pipe_table.py",
     "tests/git_ops/test_safe_commit_commit_failure_classification.py",
-    "tests/git_ops/test_safe_commit_helper_integration.py",
     "tests/git_ops/test_stale_detection_unit.py",
     "tests/git_ops/test_sync_staleness_integration.py",
     "tests/git_ops/test_two_branch_strategy_integration.py",
@@ -1581,7 +1578,6 @@ exclude = [
     "tests/init/test_init_next_steps.py",
     "tests/integration/coord_topology_fixture.py",
     "tests/integration/core/test_worktree_exclude_spec_kitty.py",
-    "tests/integration/git/test_safe_commit_backstop.py",
     "tests/integration/migration/test_audit_primary_anchor.py",
     "tests/integration/migration/test_canonicalization_pipeline.py",
     "tests/integration/migration/test_lifecycle_events_preserved.py",
@@ -2047,7 +2043,6 @@ exclude = [
     "tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py",
     "tests/specify_cli/cli/commands/agent/test_tasks_core_backed_orchestration.py",
     "tests/specify_cli/cli/commands/agent/test_tasks_dependency_readiness.py",
-    "tests/specify_cli/cli/commands/agent/test_tasks_finalize_seam.py",
     "tests/specify_cli/cli/commands/agent/test_tasks_finalize_validation.py",
     "tests/specify_cli/cli/commands/agent/test_tasks_json_bytes.py",
     "tests/specify_cli/cli/commands/agent/test_tasks_map_requirements_seam.py",
@@ -2812,6 +2807,18 @@ follow_imports = "skip"
 # to every narrow-file check that imports it — otherwise the delegate in
 # ``git/commit_helpers.py`` returns ``Any`` under ``--strict`` (issue #3719).
 module = ["specify_cli.git.protection_policy"]
+follow_imports = "normal"
+
+[[tool.mypy.overrides]]
+# asset_preservation.backup's backup_before_overwrite() is the shared
+# overwrite-backup helper (WP01, #4895 et al.) reused by policy/hook_installer.py
+# and other overwrite-guard call sites. Under the ``specify_cli.*`` skip above,
+# its concrete ``-> Path`` return type resolves as ``Any``, so every narrow-file
+# ``mypy --strict`` check on a caller reports "Returning Any from function
+# declared to return ...". Same shape/precedent as the protection_policy and
+# core.errors entries above (issue #3719) — must stay after the
+# ``specify_cli.*`` skip.
+module = ["specify_cli.asset_preservation.backup"]
 follow_imports = "normal"
 
 [[tool.mypy.overrides]]

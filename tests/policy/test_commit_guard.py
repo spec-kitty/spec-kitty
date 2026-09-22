@@ -203,24 +203,32 @@ class TestOwnershipEnforcement:
 class TestHookInstaller:
     def test_install_creates_hook(self, tmp_path):
         import subprocess
+
         repo = tmp_path / "repo"
         repo.mkdir()
         subprocess.run(["git", "init", str(repo)], capture_output=True, check=True)
 
         from specify_cli.policy.hook_installer import install_commit_guard
-        hook_path = install_commit_guard(repo, repo)
 
-        assert hook_path is not None
-        assert hook_path.exists()
-        assert "commit_guard_hook" in hook_path.read_text()
+        record = install_commit_guard(repo, repo)
+
+        # #4895: install_commit_guard now returns the full HookInstallRecord
+        # (so the backup_path it may carry is never dropped) rather than a
+        # bare Path; hook_path is still the installed hook's location.
+        assert record is not None
+        assert record.hook_path.exists()
+        assert "commit_guard_hook" in record.hook_path.read_text()
+        assert record.backup_path is None
 
     def test_install_is_idempotent(self, tmp_path):
         import subprocess
+
         repo = tmp_path / "repo"
         repo.mkdir()
         subprocess.run(["git", "init", str(repo)], capture_output=True, check=True)
 
         from specify_cli.policy.hook_installer import install_commit_guard
-        path1 = install_commit_guard(repo, repo)
-        path2 = install_commit_guard(repo, repo)
-        assert path1 == path2
+
+        record1 = install_commit_guard(repo, repo)
+        record2 = install_commit_guard(repo, repo)
+        assert record1 == record2

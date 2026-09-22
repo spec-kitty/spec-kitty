@@ -10,6 +10,7 @@ import typer
 from specify_cli.cli.console import console
 from rich.table import Table
 
+from specify_cli.asset_preservation import ManifestProver, guard_destructive_removal
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.core.env import is_truthy
 from specify_cli.core.agent_config import (
@@ -123,7 +124,19 @@ def _project_agent_surface(repo_root: Path, agent_key: str) -> tuple[Path, Path,
 
 
 def _remove_project_agent_surface(repo_root: Path, agent_key: str) -> tuple[bool, str]:
-    """Remove only the managed command surface for an agent."""
+    """Remove only the managed command surface for an agent.
+
+    Routes the destructive removal through ``guard_destructive_removal`` — the
+    ONE prove-or-preserve chokepoint (charter L463-479 / NFR-006) — instead of
+    a raw ``rmtree``/``unlink`` literal (#4907, #2691). ``ManifestProver``
+    proves ownership from the command-skills manifest; anything unprovable
+    (untracked, drifted, or a mixed manifest+user directory — dir-level
+    routing gives pure-owned⇒remove-whole, any-unproven⇒preserve-whole via
+    ``_prove_dir``) is preserved in place, never deleted. The return tuple is
+    verdict-driven so a preserved surface can never report "Removed"
+    (FR-014/FR-015): today's bug is that ``root.rmdir()`` raising ``OSError``
+    on a non-empty (preserved) dir was caught and still returned "Removed".
+    """
     paths = _project_agent_surface(repo_root, agent_key)
     if paths is None:
         return False, f"Unknown agent: {agent_key}"
@@ -133,18 +146,28 @@ def _remove_project_agent_surface(repo_root: Path, agent_key: str) -> tuple[bool
         return False, f"{label} already removed"
 
     try:
-        if surface.is_dir():
-            shutil.rmtree(surface)
-        else:
-            surface.unlink()
-
-        try:
-            root.rmdir()
-            return True, f"Removed {root.name}/"
-        except OSError:
-            return True, f"Removed {label}"
+        verdict = guard_destructive_removal(
+            surface,
+            repo_root,
+            prover=ManifestProver(check_command=True),
+            is_tree=surface.is_dir(),
+            backup_parent=None,
+        )
     except OSError as exc:
         return False, f"Failed to remove {label}: {exc}"
+
+    if not verdict.owned:
+        return False, verdict.diagnostic
+
+    # verdict.owned: the guard already removed `surface` itself. This is the
+    # single remaining destructive literal — an empty-only prune of the
+    # now-possibly-empty parent `root`; it only runs on the owned branch, so
+    # it can never fire (and never report "Removed") on a preserved surface.
+    try:
+        root.rmdir()
+        return True, f"Removed {root.name}/"
+    except OSError:
+        return True, f"Removed {label}"
 
 
 def _load_config_or_exit(repo_root: Path) -> AgentConfig:
@@ -236,10 +259,36 @@ def _remove_orphaned_agent_dirs(repo_root: Path, config: AgentConfig) -> bool:
             removed_label = message.removeprefix("Removed ")
             console.print(f"  [green]✓[/green] Removed orphaned {removed_label}")
             changes_made = True
+        elif message.startswith("Preserved "):
+            # Verdict-driven preserve (FR-015): not an error, so it must not
+            # read as one — the surface was deliberately left in place because
+            # ownership was unprovable.
+            console.print(f"  [yellow]⚠[/yellow] {message}")
         else:
             console.print(f"  [red]✗[/red] {message}")
 
     return changes_made
+
+
+def _skill_agent_already_installed(repo_root: Path, agent_key: str) -> bool:
+    """Return True when *agent_key* already owns a command-skills manifest entry.
+
+    ``sync --create-missing`` must only CREATE a genuinely missing skill
+    install, never refresh one that already exists — refreshing an already-
+    installed agent is exactly how a normal sync silently replaced
+    repository-pinned release/hash values with whatever the executing host
+    CLI happened to render (#2691 manifest half). A missing/corrupt manifest
+    is treated as "not yet installed" so the existing (already safe) install
+    path still runs and fails closed on any real drift.
+    """
+    from specify_cli.skills import manifest_store  # noqa: PLC0415
+    from specify_cli.skills.manifest_errors import ManifestError  # noqa: PLC0415
+
+    try:
+        manifest = manifest_store.load(repo_root)
+    except (ManifestError, OSError):
+        return False
+    return any(agent_key in entry.agents for entry in manifest.entries)
 
 
 def _check_or_create_configured_agent_dirs(repo_root: Path, config: AgentConfig) -> bool:
@@ -263,6 +312,9 @@ def _check_or_create_configured_agent_dirs(repo_root: Path, config: AgentConfig)
             continue
 
         if agent_key in SKILL_ONLY_AGENTS:
+            if _skill_agent_already_installed(repo_root, agent_key):
+                console.print(f"  [green]✓[/green] Skill commands present for {agent_key} in .agents/skills/")
+                continue
             ok, error = _register_skill_agent(
                 repo_root,
                 config,
@@ -590,6 +642,11 @@ def sync_agents(
         "--sync-hooks",
         help="Update AI harness hook configurations (Claude, Cursor, etc.)",
     ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Emit a JSON summary listing every tracked-manifest mutation (#2691).",
+    ),
 ):
     """Sync filesystem with config.yaml.
 
@@ -606,6 +663,9 @@ def sync_agents(
     # Load config
     config = _load_config_or_exit(repo_root)
 
+    manifest_path = repo_root / ".kittify" / "command-skills-manifest.json"
+    manifest_before = manifest_path.read_bytes() if manifest_path.exists() else None
+
     changes_made = False
 
     # Remove orphaned directories
@@ -619,6 +679,18 @@ def sync_agents(
     # Sync hooks
     if sync_hooks:
         changes_made = _sync_harness_hooks(repo_root, config) or changes_made
+
+    manifest_after = manifest_path.read_bytes() if manifest_path.exists() else None
+    tracked_mutations = [".kittify/command-skills-manifest.json"] if manifest_before != manifest_after else []
+
+    if json_output:
+        console.print(
+            json.dumps(
+                {"changes_made": changes_made, "tracked_mutations": tracked_mutations},
+                indent=2,
+            )
+        )
+        return
 
     if not changes_made:
         console.print("[dim]No changes needed - filesystem matches config[/dim]")

@@ -1,8 +1,18 @@
-"""Integration regression test for the safe_commit data-loss backstop.
+"""Integration regression test for the safe_commit data-loss invariant.
 
 Reproduces the sparse-checkout + index-refresh + phantom-deletion cascade
-documented in Priivacy-ai/spec-kitty#588, and asserts that the commit-layer
-backstop in :func:`safe_commit` aborts the commit before any data is lost.
+documented in Priivacy-ai/spec-kitty#588, and asserts that the phantom deletion
+never reaches the mainline commit.
+
+Mechanism note (#4888): :func:`safe_commit` no longer runs a whole-index
+backstop that *aborts* on an unexpected staged path. It now commits via
+``git commit --only -- <paths>``, which commits ONLY the requested pathspec, so
+an unexpected staged path (a phantom deletion re-introduced between the ``git
+add`` and the commit) can never be swept into the commit in the first place. The
+#588 invariant — an out-of-cone file is never phantom-deleted on the mainline —
+is therefore enforced structurally rather than by a post-hoc abort. The backstop
+helper itself is retained and unit-tested in
+``tests/unit/git/test_commit_helpers_backstop.py``.
 
 Tagged ``#588`` so future developers can locate it when they see the cascade
 again.
@@ -15,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.git.commit_helpers import SafeCommitBackstopError, safe_commit
+from specify_cli.git.commit_helpers import safe_commit
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.integration]
 
@@ -100,28 +110,30 @@ def sparse_cascade_repo(tmp_path: Path) -> Path:
     return repo
 
 
-def test_backstop_catches_sparse_checkout_phantom_deletion(
+def test_only_commit_excludes_phantom_deletion_from_mainline(
     sparse_cascade_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Regression for Priivacy-ai/spec-kitty#588.
+    """Regression for Priivacy-ai/spec-kitty#588 (mechanism updated for #4888).
 
     The real cascade involves a chain of ``git stash`` / ``git stash pop``
     interactions with ``core.sparseCheckout`` + ``skip-worktree`` that
     re-introduce phantom deletions into the staging area between safe_commit's
-    ``git add`` call and its ``git commit`` call.
+    ``git add`` call and its commit call. #588's harm was that such a phantom
+    deletion of an out-of-cone file got swept into a mainline commit (the
+    243-line phantom reversion that hit ``kg-automation`` ``main`` in mission
+    023).
 
-    We reproduce the invariant the backstop must enforce: between the time
-    safe_commit has staged the caller's requested file and the time it runs
-    ``git commit``, the staging area contains an unexpected path (a phantom
-    deletion of an out-of-cone file). The backstop must abort the commit
-    BEFORE it is created --- preventing the 243-line phantom reversion that
-    hit ``kg-automation`` ``main`` in mission 023.
+    Since #4888, safe_commit commits with ``git commit --only -- <paths>``,
+    which commits ONLY the requested pathspec regardless of what else is staged.
+    We reproduce the exact post-stage / pre-commit phantom deletion the cascade
+    produces and assert the resulting mainline commit contains only the
+    requested change and does NOT delete the out-of-cone file --- the #588
+    invariant, now enforced structurally rather than by a post-hoc abort.
 
     We inject the phantom deletion by intercepting ``subprocess.run`` and
     adding an ``update-index --force-remove`` for ``docs/long-runbook.md``
-    immediately after safe_commit's ``git add`` step. That simulates the
-    exact post-stage / pre-commit state the cascade produces.
+    immediately after safe_commit's ``git add`` step.
     """
     repo = sparse_cascade_repo
 
@@ -141,14 +153,7 @@ def test_backstop_catches_sparse_checkout_phantom_deletion(
     def intercepting_run(*args: object, **kwargs: object):  # type: ignore[no-untyped-def]
         result = real_run(*args, **kwargs)
         cmd = args[0] if args else kwargs.get("args")
-        if (
-            not injected["done"]
-            and isinstance(cmd, list)
-            and len(cmd) >= 2
-            and cmd[0] == "git"
-            and cmd[1] == "add"
-            and "status.md" in cmd
-        ):
+        if not injected["done"] and isinstance(cmd, list) and len(cmd) >= 2 and cmd[0] == "git" and cmd[1] == "add" and "status.md" in cmd:
             # Inject phantom deletion cascade without using subprocess.run
             # (so we don't recurse). ``--force-remove`` bypasses the sparse
             # filter --- this matches what stash-pop effectively does in the
@@ -172,28 +177,29 @@ def test_backstop_catches_sparse_checkout_phantom_deletion(
 
     monkeypatch.setattr(helpers.subprocess, "run", intercepting_run)
 
-    # Act: the backstop must fire because docs/long-runbook.md is staged as
-    # deleted but is NOT on the expected-paths list.
-    with pytest.raises(SafeCommitBackstopError) as exc_info:
-        safe_commit(
-            repo_root=repo,
-            worktree_root=repo,
-            destination_ref="kitty/mission-test-01ABCDEF",
-            message="chore: record done transitions",
-            paths=(repo / "status.md",),
-        )
-
-    err = exc_info.value
-    unexpected_paths = {p.path for p in err.unexpected}
-    assert "docs/long-runbook.md" in unexpected_paths, (
-        f"expected docs/long-runbook.md in unexpected, got {unexpected_paths!r}"
+    # Act: safe_commit succeeds (no whole-index abort) and commits ONLY the
+    # requested path via ``git commit --only``.
+    result = safe_commit(
+        repo_root=repo,
+        worktree_root=repo,
+        destination_ref="kitty/mission-test-01ABCDEF",
+        message="chore: record done transitions",
+        paths=(repo / "status.md",),
     )
+    assert injected["done"], "test never injected the phantom deletion"
+    assert result.destination_ref == "kitty/mission-test-01ABCDEF"
 
-    # No new commit must exist --- the backstop fired BEFORE git commit.
+    # A commit WAS created (the requested status.md change).
     commits_after = _head_count(repo)
-    assert commits_after == commits_before, (
-        f"Backstop did not prevent the commit: {commits_before} -> {commits_after}"
-    )
+    assert commits_after == commits_before + 1, f"safe_commit did not record the requested change: {commits_before} -> {commits_after}"
+
+    # The #588 invariant: the phantom deletion did NOT reach the mainline
+    # commit --- the out-of-cone file is still present in the committed tree.
+    committed_tree = _git(repo, "ls-tree", "-r", "--name-only", "HEAD").stdout
+    assert "docs/long-runbook.md" in committed_tree, "phantom deletion of docs/long-runbook.md was swept into the mainline commit"
+    # And the requested change is what landed.
+    head_files = _git(repo, "show", "--stat", "--name-only", "HEAD").stdout
+    assert "status.md" in head_files
 
 
 def test_backstop_has_no_force_bypass(tmp_path: Path) -> None:
@@ -208,9 +214,7 @@ def test_backstop_has_no_force_bypass(tmp_path: Path) -> None:
     sig = inspect.signature(safe_commit)
     forbidden = {"force", "allow_force", "skip_backstop", "bypass_backstop"}
     offending = forbidden.intersection(sig.parameters)
-    assert not offending, (
-        f"safe_commit must NOT expose a backstop bypass parameter; found {offending}"
-    )
+    assert not offending, f"safe_commit must NOT expose a backstop bypass parameter; found {offending}"
 
 
 def test_backstop_allows_clean_commit(tmp_path: Path) -> None:

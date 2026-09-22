@@ -22,16 +22,26 @@ Every exception below carries a stable ``error_code`` (NFR-007) for scripted
 detection, plus ``destination_ref`` and (where relevant) ``observed_head`` and
 ``worktree_root`` so operators and CI tooling can act on structured data.
 
-Staging-area data-loss backstop
--------------------------------
+Operator-index preservation (FR-011/FR-012, #4888)
+----------------------------------------------------
 
-In addition to the destination-ref invariant, every ``safe_commit`` call still
-asserts that the staging area contains exactly the paths the caller requested
-before the commit is created. If any unexpected path is staged (for example, a
-phantom deletion produced by a sparse-checkout filter interacting with
-``git stash pop``), the commit is aborted with ``SafeCommitBackstopError``. The
-backstop is unconditional and cannot be bypassed via any ``--force`` code path
---- see Priivacy-ai/spec-kitty#588 for the cascade it defends against.
+``safe_commit`` stages exactly the caller's ``paths`` into the real index
+(``git add --force``) and commits ONLY those paths via ``git commit --only``.
+It never stashes, unstages, or otherwise mutates anything outside ``paths`` ---
+the operator's own staged work (including a file that is only *partially*
+staged, e.g. mid ``git add -p``) is never read, moved, or restored, because it
+is never touched in the first place. Before this fix, the helper stashed away
+everything else with ``git stash push --staged`` and restored it with
+``git stash pop --index``; that pop is refused by git whenever any stashed
+path also carries an unstaged modification, which deterministically stranded
+the operator's staging in an un-poppable stash. ``--only`` structurally cannot
+sweep in unrelated content, so there is nothing left to strand.
+
+``assert_staging_area_matches_expected``/``SafeCommitBackstopError`` remain in
+this module as an independently-tested, whole-index staging-area probe (see
+Priivacy-ai/spec-kitty#588) --- ``safe_commit`` itself no longer calls it in
+its default flow, since an unscoped whole-index scan is incompatible with
+leaving unrelated staged content in place.
 
 Protected-branch authorization policy (FR-008)
 ----------------------------------------------
@@ -71,7 +81,6 @@ from specify_cli.core.constants import WORKTREES_DIR
 import contextlib
 import logging
 import subprocess
-import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -679,30 +688,6 @@ def _destination_ref_exists(worktree_root: Path, destination_ref: str) -> bool:
     return result.returncode == 0
 
 
-def _find_stash_ref(repo_path: Path, stash_message: str) -> str | None:
-    """Return the stash ref for a unique stash message, if present."""
-    result = subprocess.run(
-        ["git", "stash", "list", "--format=%gd\t%s"],
-        cwd=repo_path,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
-        return None
-
-    for line in result.stdout.splitlines():
-        if "\t" not in line:
-            continue
-        ref, message = line.split("\t", 1)
-        if message == stash_message or message.endswith(f": {stash_message}"):
-            return ref
-
-    return None
-
-
 def _stage_requested_files(repo_path: Path, normalized_files: list[str]) -> bool:
     """Stage each requested file via ``git add --force``. Returns False on failure."""
     for file_path in normalized_files:
@@ -721,7 +706,14 @@ def _stage_requested_files(repo_path: Path, normalized_files: list[str]) -> bool
 
 
 def _staged_patch_for_paths(repo_path: Path, normalized_files: list[str]) -> str | None:
-    """Return an exact binary patch for currently-staged requested paths."""
+    """Return an exact binary patch for currently-staged requested paths.
+
+    Captured BEFORE ``_stage_requested_files`` mutates the index for these
+    (and only these) paths, so a failed commit can revert exactly the
+    caller's pre-existing staged state for ``normalized_files`` -- never
+    anything outside that set (FR-011/FR-012: unrelated staged content, full
+    or partial, is never captured, touched, or restored here).
+    """
     if not normalized_files:
         return ""
     result = subprocess.run(
@@ -739,7 +731,8 @@ def _staged_patch_for_paths(repo_path: Path, normalized_files: list[str]) -> str
 
 
 def _unstage_requested_files(repo_path: Path, normalized_files: list[str]) -> None:
-    """Remove requested paths from the index before saving unrelated staging."""
+    """Remove ``normalized_files`` from the index, reverting them to HEAD (or
+    fully unstaging a never-committed path). Scoped to exactly these paths."""
     if not normalized_files:
         return
 
@@ -789,7 +782,8 @@ def _restore_staged_patch(
     *,
     destination_ref: str | None = None,
 ) -> None:
-    """Restore the caller's pre-existing staged requested-file state."""
+    """Restore the caller's pre-existing staged ``normalized_files`` state
+    after a failed commit. Never touches any path outside ``normalized_files``."""
     if patch is None:
         raise SafeCommitRecoveryFailed(
             f"safe_commit: failed to restore caller staging in {repo_path}; requested-file staged patch was not captured before index mutation.",
@@ -874,8 +868,44 @@ def _staged_tree_is_empty(repo_path: Path) -> bool:
     return result.returncode == 0
 
 
-def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> tuple[str | None, str, str]:
-    """Run ``git commit``.
+def _staged_tree_is_empty_for_paths(repo_path: Path, normalized_files: list[str]) -> bool:
+    """Pathspec-scoped sibling of :func:`_staged_tree_is_empty` (FR-011/#4888).
+
+    ``safe_commit`` no longer stashes away the operator's unrelated staged
+    content before committing (see :func:`_run_commit_capture_sha`'s
+    ``--only`` pathspec), so an unscoped ``git diff --cached --quiet`` would
+    report "not empty" for ANY unrelated staged file — including one that is
+    only partially staged — even when the requested ``normalized_files`` are
+    themselves a genuine no-op. Scoping the probe to ``normalized_files``
+    keeps the empty-changeset classification correct regardless of what else
+    is sitting in the operator's index.
+    """
+    result = subprocess.run(
+        ["git", "diff", "--cached", "--quiet", "--", *normalized_files],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _run_commit_capture_sha(
+    repo_path: Path,
+    commit_message: str,
+    normalized_files: list[str],
+) -> tuple[str | None, str, str]:
+    """Run ``git commit --only -- <normalized_files>``.
+
+    ``--only`` (git-commit(1)) commits exactly the given pathspec — "taking
+    the updated working tree contents of the paths specified..., disregarding
+    any contents that have been staged for other paths" — so this is the
+    WHOLE fix for #4888/FR-011/FR-012: no stash is pushed, no caller staging
+    is touched, and nothing needs restoring afterward, even when an unrelated
+    file is only partially staged (the exact shape that made
+    ``git stash pop --index`` fail deterministically before this fix).
 
     Returns ``(new_sha, stdout, stderr)``. ``new_sha`` is ``None`` on failure.
     ``stdout`` and ``stderr`` are kept SEPARATE rather than merged, because the
@@ -901,7 +931,7 @@ def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> tuple[str |
     PR #3269).
     """
     commit_result = subprocess.run(
-        ["git", "-c", "commit.gpgsign=false", "commit", "-m", commit_message],
+        ["git", "-c", "commit.gpgsign=false", "commit", "--only", "-m", commit_message, "--", *normalized_files],
         cwd=repo_path,
         capture_output=True,
         text=True,
@@ -913,8 +943,6 @@ def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> tuple[str |
         return None, commit_result.stdout, commit_result.stderr
     sha = _run_git_text(repo_path, ["rev-parse", "HEAD"])
     return sha, commit_result.stdout, commit_result.stderr
-
-
 
 
 def preflight_commit(
@@ -1022,7 +1050,7 @@ def preflight_commit(
     return normalized_files
 
 
-def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms readability
+def safe_commit(
     *,
     repo_root: Path,
     worktree_root: Path,
@@ -1054,9 +1082,13 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
     6. ``destination_ref`` is not protected unless ``capability`` authorizes a
        protected-branch flow (decided by ``commit_guard.evaluate``); an
        unauthorized protected destination raises :class:`ProtectedBranchRefused`.
-    7. Stage ``paths`` via ``git -C <worktree_root> add -- <paths>``.
-    8. Staging-area backstop: assert only the requested paths are staged.
-    9. Commit and return the new SHA in :class:`CommitResult`.
+    7. Stage ``paths`` via ``git -C <worktree_root> add --force -- <paths>``
+       (mutates the index entries for exactly these paths — nothing else).
+    8. Commit via ``git commit --only -- <paths>``, which disregards whatever
+       else is staged (FR-011/FR-012/#4888: no stash is pushed, so the
+       operator's index and worktree are never touched outside ``paths``,
+       even when an unrelated file is only partially staged).
+    9. Return the new SHA in :class:`CommitResult`.
 
     All parameters are keyword-only. Exactly one of ``target`` (preferred) or
     ``destination_ref`` (a destination-string compat shim retained for callers
@@ -1105,10 +1137,13 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
         SafeCommitDestinationNotFound: ``destination_ref`` does not exist in the repo.
         ProtectedBranchRefused: ``destination_ref`` is protected and ``capability``
             authorizes no protected-branch flow.
-        SafeCommitBackstopError: the staging area contains paths outside
-            ``paths`` at commit time (data-loss prevention).
-        SafeCommitRecoveryFailed: caller staging could not be restored, or
-            safe_commit could not capture recovery state before mutating.
+        SafeCommitStagedTreeUnchanged: the staged tree (scoped to ``paths``)
+            matches HEAD (a genuine empty changeset — benign no-op, distinct
+            from a rejecting hook).
+        SafeCommitRecoveryFailed: the pre-existing staged state of ``paths``
+            (and ONLY ``paths`` — never unrelated content) could not be
+            captured before mutation, or could not be restored after a
+            failed commit.
         RuntimeError: a low-level ``git add`` or ``git commit`` failed.
     """
     # Compatibility-only routing hint after retirement of the ambient sync emitter.
@@ -1135,8 +1170,15 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
         capability=capability,
     )
 
-    # 7-9. Stage + backstop + commit, with prior-staging preservation.
-    stash_message = f"spec-kitty-safe-commit:{uuid.uuid4()}"
+    # 7. Snapshot, then stage, EXACTLY the requested paths -- and ONLY these
+    #    paths. `git add --force -- <path>` mutates the index entry for that
+    #    single path alone; every other index entry (fully staged, partially
+    #    staged, or untouched) is never read, moved, or written. The
+    #    pre-mutation snapshot lets a FAILED commit revert `normalized_files`
+    #    to exactly their pre-call staged state -- still scoped to
+    #    `normalized_files` alone, so this restore path can never touch, let
+    #    alone strand, unrelated content (FR-011/FR-012: contrast with the
+    #    pre-fix `git stash push --staged` of EVERYTHING staged).
     requested_staged_patch = _staged_patch_for_paths(worktree_root, normalized_files)
     if requested_staged_patch is None:
         raise SafeCommitRecoveryFailed(
@@ -1145,127 +1187,85 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
             worktree_root=worktree_root,
             unrecovered_paths=normalized_files,
         )
+    # Unstage `normalized_files` (scoped to exactly these paths, per above)
+    # BEFORE re-staging them individually. This is NOT the removed stash step
+    # -- it is load-bearing on its own: if the caller already staged some of
+    # `normalized_files` as one half of a git-detected RENAME pair (e.g. a
+    # prior `git mv old.py new.py` in the same working tree), git folds both
+    # sides into a single `R old.py -> new.py` index entry, and a deleted
+    # source path like `old.py` then has NO independently addressable index
+    # entry -- `git add --force -- old.py` fails with "pathspec did not match
+    # any files". Unstaging first (restoring `old.py` to match HEAD, i.e. a
+    # plain unstaged deletion) makes each path in `normalized_files`
+    # independently re-stageable, matching the pre-fix behavior for this case.
     _unstage_requested_files(worktree_root, normalized_files)
 
-    stash_result = subprocess.run(
-        ["git", "stash", "push", "--staged", "--quiet", "-m", stash_message],
-        cwd=worktree_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    created_stash = stash_result.returncode == 0 and _find_stash_ref(worktree_root, stash_message) is not None
+    if not _stage_requested_files(worktree_root, normalized_files):
+        _restore_staged_patch(worktree_root, normalized_files, requested_staged_patch, destination_ref=destination_ref)
+        raise RuntimeError(f"safe_commit: failed to stage requested files in {worktree_root}: {normalized_files!r}")
 
-    backstop_error: SafeCommitBackstopError | None = None
-    new_sha: str | None = None
-    commit_created = False
-
-    try:
-        if not _stage_requested_files(worktree_root, normalized_files):
-            raise RuntimeError(f"safe_commit: failed to stage requested files in {worktree_root}: {normalized_files!r}")
-
-        try:
-            assert_staging_area_matches_expected(worktree_root, normalized_files)
-        except SafeCommitBackstopError as exc:
-            backstop_error = exc
-        else:
-            new_sha, commit_stdout, commit_stderr = _run_commit_capture_sha(worktree_root, message)
-            commit_created = new_sha is not None
-            if commit_created:
-                # SUCCESS path: stdout is git's own routine commit summary
-                # (`[branch sha] message`, `N files changed`, ...), printed on
-                # every successful commit -- not operator-actionable, so it
-                # goes to DEBUG rather than crowding the WARNING channel.
-                if commit_stdout.strip():
-                    logger.debug(
-                        "git commit in %s: %s",
-                        worktree_root,
-                        commit_stdout.strip(),
-                    )
-                # stderr is where a pre-commit hook writes (e.g. the
-                # spec-kitty commit guard in warn mode, #3580, which prints
-                # via `print(..., file=sys.stderr)` and exits 0). Non-empty
-                # stderr on an otherwise-successful commit is the genuine
-                # signal `capture_output=True` would otherwise swallow --
-                # warn-mode still commits; only the discarded signal was the
-                # defect. Gating on stderr (not "any output") keeps the
-                # channel meaningful: it no longer fires on every commit.
-                if commit_stderr.strip():
-                    logger.warning(
-                        "git commit in %s produced warnings on a successful commit: %s",
-                        worktree_root,
-                        commit_stderr.strip(),
-                    )
-            if not commit_created:
-                # AUTHORITY: staged state, not git's output text (audit
-                # BLOCK_MATERIAL, PR #3269). A rejecting pre-commit hook can
-                # print a "nothing to commit"-shaped message on its own
-                # account while leaving a real staged change in the index --
-                # `_commit_output_is_empty_changeset` alone would misclassify
-                # that as a benign no-op. `_staged_tree_is_empty` cannot be
-                # fooled by hook output: it is only True when the index
-                # genuinely matches HEAD.
-                commit_output = f"{commit_stdout}\n{commit_stderr}".strip()
-                if _staged_tree_is_empty(worktree_root):
-                    # Benign no-op: staged content already matches HEAD. The
-                    # commit router maps this distinct message to "unchanged".
-                    raise SafeCommitStagedTreeUnchanged(destination_ref=destination_ref)
-                # Genuine failure (rejecting pre-commit hook, lock, etc.) — carry
-                # git's own combined output so it is NOT mistaken for an empty
-                # changeset (failure-path behavior unchanged: both streams).
-                detail = f": {commit_output}" if commit_output else ""
-                raise RuntimeError(f"safe_commit: git commit failed in {worktree_root} for destination_ref={destination_ref!r}{detail}")
-    finally:
-        recovery_messages: list[str] = []
-        orphan_stash_ref: str | None = None
-        unrecovered_paths: Sequence[str] = ()
-        if created_stash:
-            stash_ref = _find_stash_ref(worktree_root, stash_message)
-            if stash_ref is not None:
-                pop_result = subprocess.run(
-                    ["git", "stash", "pop", "--index", "--quiet", stash_ref],
-                    cwd=worktree_root,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    check=False,
-                )
-                if pop_result.returncode != 0:
-                    orphan_stash_ref = _find_stash_ref(worktree_root, stash_message) or stash_ref
-                    detail = (pop_result.stderr or pop_result.stdout).strip()
-                    suffix = f": {detail}" if detail else "."
-                    recovery_messages.append(f"failed to restore pre-existing unrelated staging from {stash_ref}{suffix}")
-            else:
-                recovery_messages.append("created safe_commit staging stash was missing before restore; caller staging state is unknown.")
-
-        if not commit_created:
-            try:
-                _restore_staged_patch(
-                    worktree_root,
-                    normalized_files,
-                    requested_staged_patch,
-                    destination_ref=destination_ref,
-                )
-            except SafeCommitRecoveryFailed as exc:
-                recovery_messages.append(exc.message)
-                unrecovered_paths = exc.unrecovered_paths
-
-        if recovery_messages:
-            commit_note = f" Commit {new_sha} was created before recovery failed." if commit_created else ""
-            raise SafeCommitRecoveryFailed(
-                f"safe_commit: failed to restore caller staging in {worktree_root}; " + " ".join(recovery_messages) + commit_note,
-                destination_ref=destination_ref,
-                worktree_root=worktree_root,
-                unrecovered_paths=unrecovered_paths,
-                orphan_stash_ref=orphan_stash_ref,
-                commit_sha=new_sha if commit_created else None,
+    # 8-9. Commit ONLY the requested paths via `git commit --only`
+    # (FR-011/FR-012/#4888): this is the structural fix. `--only` commits
+    # exactly the given pathspec and "disregard[s] any contents that have
+    # been staged for other paths" (git-commit(1)) -- so unrelated content is
+    # never included in the commit itself, on top of never being staged in
+    # the first place. Before this fix, `git stash push --staged` followed by
+    # `git stash pop --index` was used to hide-then-restore the operator's
+    # unrelated staged content; that pop is refused by git whenever any
+    # stashed path also has an unstaged modification (an everyday
+    # `git add -p` partial stage), which stranded the operator's staging in
+    # an un-poppable stash. `--only` never touches that content in the first
+    # place, so there is nothing to strand.
+    new_sha, commit_stdout, commit_stderr = _run_commit_capture_sha(worktree_root, message, normalized_files)
+    commit_created = new_sha is not None
+    if commit_created:
+        # SUCCESS path: stdout is git's own routine commit summary
+        # (`[branch sha] message`, `N files changed`, ...), printed on
+        # every successful commit -- not operator-actionable, so it
+        # goes to DEBUG rather than crowding the WARNING channel.
+        if commit_stdout.strip():
+            logger.debug(
+                "git commit in %s: %s",
+                worktree_root,
+                commit_stdout.strip(),
             )
-
-    if backstop_error is not None:
-        raise backstop_error
+        # stderr is where a pre-commit hook writes (e.g. the
+        # spec-kitty commit guard in warn mode, #3580, which prints
+        # via `print(..., file=sys.stderr)` and exits 0). Non-empty
+        # stderr on an otherwise-successful commit is the genuine
+        # signal `capture_output=True` would otherwise swallow --
+        # warn-mode still commits; only the discarded signal was the
+        # defect. Gating on stderr (not "any output") keeps the
+        # channel meaningful: it no longer fires on every commit.
+        if commit_stderr.strip():
+            logger.warning(
+                "git commit in %s produced warnings on a successful commit: %s",
+                worktree_root,
+                commit_stderr.strip(),
+            )
+    else:
+        # AUTHORITY: staged state (scoped to the requested paths), not git's
+        # output text (audit BLOCK_MATERIAL, PR #3269). A rejecting
+        # pre-commit hook can print a "nothing to commit"-shaped message on
+        # its own account while leaving a real staged change in the index --
+        # `_staged_tree_is_empty_for_paths` cannot be fooled by hook output:
+        # it is only True when the requested paths genuinely match HEAD.
+        commit_output = f"{commit_stdout}\n{commit_stderr}".strip()
+        is_empty_changeset = _staged_tree_is_empty_for_paths(worktree_root, normalized_files)
+        # A REJECTED commit (hook failure, lock, etc.) must not leave the
+        # requested paths staged in the real index -- that would misreport
+        # them as tracked (e.g. via `git ls-files`) despite the commit never
+        # landing. Restore them to their pre-call state either way.
+        _restore_staged_patch(worktree_root, normalized_files, requested_staged_patch, destination_ref=destination_ref)
+        if is_empty_changeset:
+            # Benign no-op: staged content already matched HEAD. The
+            # commit router maps this distinct message to "unchanged".
+            raise SafeCommitStagedTreeUnchanged(destination_ref=destination_ref)
+        # Genuine failure (rejecting pre-commit hook, lock, etc.) — carry
+        # git's own combined output so it is NOT mistaken for an empty
+        # changeset (failure-path behavior unchanged: both streams).
+        detail = f": {commit_output}" if commit_output else ""
+        raise RuntimeError(f"safe_commit: git commit failed in {worktree_root} for destination_ref={destination_ref!r}{detail}")
 
     assert new_sha is not None  # type narrow: commit_created => new_sha set
 

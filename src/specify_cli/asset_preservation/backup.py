@@ -16,9 +16,10 @@ import shutil
 import stat
 from pathlib import Path
 
+from kernel.clock import now_utc_compact_stamp
 from specify_cli.template.manager import _allocate_backup_dir
 
-__all__ = ["archive_into", "write_file_verbatim"]
+__all__ = ["archive_into", "backup_before_overwrite", "write_file_verbatim"]
 
 
 def write_file_verbatim(src: Path, dest: Path) -> None:
@@ -49,6 +50,40 @@ def _copy_node(src: Path, dest: Path) -> None:
         shutil.copystat(src, dest)
     else:
         write_file_verbatim(src, dest)
+
+
+def _backup_symlink(path: Path, sidecar: Path) -> None:
+    """Recreate ``path``'s link (never its target) at ``sidecar``.
+
+    Uses ``os.readlink`` so a broken link's missing target never triggers a
+    raise, and ``os.symlink`` so an existing ``sidecar`` refuses (``FileExistsError``)
+    rather than being clobbered -- the same no-silent-overwrite guarantee
+    ``write_file_verbatim`` gives the regular-file case via ``O_EXCL``.
+    """
+    link_target = os.readlink(path)
+    sidecar.parent.mkdir(parents=True, exist_ok=True)
+    os.symlink(link_target, sidecar)
+
+
+def backup_before_overwrite(path: Path) -> Path:
+    """Create a byte-exact, symlink-aware sidecar backup before ``path`` is overwritten.
+
+    Returns the sidecar path ``<path>.<timestamp>`` (timestamp from the
+    canonical ``kernel.clock`` door, the same seam :func:`archive_into` uses
+    transitively via ``_allocate_backup_dir``). The sidecar is created with
+    ``O_EXCL`` semantics -- a pre-existing sidecar for the same path+timestamp
+    raises rather than being clobbered. A symlink ``path`` is captured via
+    ``os.readlink`` and recreated at the sidecar (never dereferenced), so a
+    broken link backs up cleanly. ``path`` itself is never removed or modified;
+    the caller replaces it afterward.
+    """
+    timestamp = now_utc_compact_stamp()
+    sidecar = path.with_name(f"{path.name}.{timestamp}")
+    if path.is_symlink():
+        _backup_symlink(path, sidecar)
+    else:
+        write_file_verbatim(path, sidecar)
+    return sidecar
 
 
 def archive_into(path: Path, project_path: Path, backup_parent: Path) -> Path:

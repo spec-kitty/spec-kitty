@@ -85,18 +85,19 @@ class TestRemoveProjectAgentSurface:
         assert removed is False
         assert "removed" in message.lower() or "already" in message.lower() or "Missing" in message or not removed
 
-    def test_removes_surface_directory_when_it_exists(self, tmp_path: Path) -> None:
-        """Arrange: claude surface dir exists;
-        Act: remove;
-        Assert: (True, ...) and directory gone."""
+    def test_preserves_surface_directory_with_no_ownership_proof(self, tmp_path: Path) -> None:
+        """Arrange: claude surface dir exists but carries no command-skills
+        manifest entry; Act: remove; Assert: (False, "Preserved ...") and the
+        directory survives (#4907 -- ownership must be proven, not assumed)."""
         # Create the claude commands surface
         claude_commands = tmp_path / ".claude" / "commands"
         claude_commands.mkdir(parents=True)
         (claude_commands / "spec-kitty.implement.md").write_text("# implement", encoding="utf-8")
 
         removed, message = _remove_project_agent_surface(tmp_path, "claude")
-        assert removed is True
-        assert not claude_commands.exists()
+        assert removed is False
+        assert "Preserved" in message
+        assert claude_commands.exists()
 
 
 # ---------------------------------------------------------------------------

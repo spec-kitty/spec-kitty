@@ -145,6 +145,14 @@ class FrontmatterUpdatePlan:
     Side-effect-free: ``writes`` lists the files that must be rewritten with
     new dependency values; the caller performs (or, in validate-only mode,
     skips) the actual writes. Bookkeeping mirrors the legacy inline loop.
+
+    ``effective_dependencies`` (#4890) is the EFFECTIVE PERSISTED graph: for
+    every WP this plan resolved, the dependency list that will actually be on
+    disk once the plan's writes are applied -- tasks.md-parsed deps for a WP
+    the parser found something for, or the PRESERVED existing frontmatter
+    deps for a WP the parser found nothing for. Callers must validate this
+    map (not the raw tasks.md-parsed map) before applying any write, since a
+    cycle/self-ref/unknown-WP can live entirely in preserved frontmatter.
     """
 
     writes: list[FrontmatterWrite] = field(default_factory=list)
@@ -152,6 +160,7 @@ class FrontmatterUpdatePlan:
     unchanged_wps: list[str] = field(default_factory=list)
     preserved_wps: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    effective_dependencies: dict[str, list[str]] = field(default_factory=dict)
 
     @property
     def updated_count(self) -> int:
@@ -179,16 +188,10 @@ def _wp_id_from_file(wp_file: Path) -> str:
 
 def compute_expected_wp_ids(tasks_dir: Path) -> list[str]:
     """Return the sorted set of ``WP##`` ids that own a file in *tasks_dir*."""
-    return sorted(
-        _wp_id_from_file(wp_file)
-        for wp_file in tasks_dir.glob("WP*.md")
-        if _is_wp_id(_wp_id_from_file(wp_file))
-    )
+    return sorted(_wp_id_from_file(wp_file) for wp_file in tasks_dir.glob("WP*.md") if _is_wp_id(_wp_id_from_file(wp_file)))
 
 
-def validate_wp_coverage(
-    dependencies_map: dict[str, list[str]], tasks_dir: Path
-) -> CoverageResult:
+def validate_wp_coverage(dependencies_map: dict[str, list[str]], tasks_dir: Path) -> CoverageResult:
     """Check that parsed tasks.md WP sections match the WP files on disk.
 
     Behaviour preserved from the inline ``finalize_tasks`` coverage check: a WP
@@ -196,9 +199,7 @@ def validate_wp_coverage(
     is *extra*. Either makes dependency lanes unreliable.
     """
     expected_wp_ids = compute_expected_wp_ids(tasks_dir)
-    missing_wp_sections = [
-        wp_id for wp_id in expected_wp_ids if wp_id not in dependencies_map
-    ]
+    missing_wp_sections = [wp_id for wp_id in expected_wp_ids if wp_id not in dependencies_map]
     extra_wp_sections = sorted(set(dependencies_map) - set(expected_wp_ids))
     return CoverageResult(
         expected_wp_ids=expected_wp_ids,
@@ -252,9 +253,7 @@ def detect_dependency_conflicts(
     """
     dep_conflict_errors: list[str] = []
     for wp_id_chk, parsed_deps in dependencies_map.items():
-        existing_meta = existing_frontmatter.get(
-            wp_id_chk, WPMetadata(work_package_id=wp_id_chk, title=wp_id_chk)
-        )
+        existing_meta = existing_frontmatter.get(wp_id_chk, WPMetadata(work_package_id=wp_id_chk, title=wp_id_chk))
         existing_deps: list[str] = list(existing_meta.dependencies)
         if existing_deps and parsed_deps and set(existing_deps) != set(parsed_deps):
             dep_conflict_errors.append(
@@ -265,9 +264,7 @@ def detect_dependency_conflicts(
     return dep_conflict_errors
 
 
-def compute_wp_frontmatter_updates(
-    dependencies_map: dict[str, list[str]], tasks_dir: Path
-) -> FrontmatterUpdatePlan:
+def compute_wp_frontmatter_updates(dependencies_map: dict[str, list[str]], tasks_dir: Path) -> FrontmatterUpdatePlan:
     """Compute (side-effect-free) the frontmatter rewrites finalize needs.
 
     Mirrors the legacy inline write loop (T004/T005) without performing any
@@ -283,9 +280,7 @@ def compute_wp_frontmatter_updates(
     """
     plan = FrontmatterUpdatePlan()
     for wp_id, parsed_deps in sorted(dependencies_map.items()):
-        wp_files = list(tasks_dir.glob(f"{wp_id}-*.md")) + list(
-            tasks_dir.glob(f"{wp_id}.md")
-        )
+        wp_files = list(tasks_dir.glob(f"{wp_id}-*.md")) + list(tasks_dir.glob(f"{wp_id}.md"))
         if not wp_files:
             plan.warnings.append(f"No file found for {wp_id}")
             continue
@@ -304,6 +299,12 @@ def compute_wp_frontmatter_updates(
             plan.preserved_wps.append(wp_id)
         else:
             deps = parsed_deps
+
+        # #4890: record the EFFECTIVE persisted value for every resolved WP,
+        # not just the ones whose deps changed — a cycle/self-ref/unknown-WP
+        # hiding in a PRESERVED (unchanged) frontmatter value must still be
+        # visible to the caller's pre-write graph validation.
+        plan.effective_dependencies[wp_id] = deps
 
         old_deps_list = list(wp_meta.dependencies)
         deps_changed = old_deps_list != deps

@@ -9,11 +9,9 @@ import shutil
 import subprocess
 from pathlib import Path
 
-import specify_cli.git.commit_helpers as commit_helpers
 from specify_cli.git.commit_helpers import (
     ProtectedBranchCommitError,
     ProtectedBranchRefused,
-    SafeCommitRecoveryFailed,
     safe_commit as _safe_commit,
 )
 
@@ -55,10 +53,7 @@ def safe_commit(
     ):
         raise ProtectedBranchCommitError(f"protected branch '{branch}'")
 
-    rel_paths = [
-        str(path.relative_to(repo_path) if path.is_absolute() else path)
-        for path in files_to_commit
-    ]
+    rel_paths = [str(path.relative_to(repo_path) if path.is_absolute() else path) for path in files_to_commit]
     status = subprocess.run(
         ["git", "status", "--porcelain", "--", *rel_paths],
         cwd=repo_path,
@@ -74,7 +69,8 @@ def safe_commit(
                 capture_output=True,
                 text=True,
                 check=False,
-            ).returncode == 0
+            ).returncode
+            == 0
             for rel_path in rel_paths
         )
         if all_paths_tracked:
@@ -93,6 +89,7 @@ def safe_commit(
     except RuntimeError:
         return False
     return True
+
 
 @pytest.fixture
 def git_repo(tmp_path: Path) -> Path:
@@ -133,6 +130,7 @@ def git_repo(tmp_path: Path) -> Path:
     )
 
     return repo
+
 
 def test_safe_commit_preserves_unrelated_staged_files(git_repo: Path):
     """T045: Pre-stage unrelated file, run safe_commit, assert unrelated file remains staged.
@@ -211,7 +209,9 @@ def test_safe_commit_blocks_status_commit_on_unborn_protected_branch(tmp_path: P
     repo.mkdir()
     subprocess.run(
         ["git", "init", "--initial-branch=main"],
-        cwd=repo, check=True, capture_output=True,
+        cwd=repo,
+        check=True,
+        capture_output=True,
     )
     (repo / ".kittify").mkdir()
     (repo / ".kittify" / "config.json").write_text("{}\n")
@@ -235,7 +235,7 @@ def test_safe_commit_blocks_merged_wp_done_commit_on_protected_branch(git_repo: 
     (git_repo / ".kittify" / "config.json").write_text("{}\n")
     status_file = git_repo / "kitty-specs" / "099-demo" / "status.events.jsonl"
     status_file.parent.mkdir(parents=True)
-    status_file.write_text("{\"to_lane\":\"done\"}\n")
+    status_file.write_text('{"to_lane":"done"}\n')
 
     with pytest.raises(ProtectedBranchCommitError, match="protected branch 'main'"):
         safe_commit(
@@ -244,6 +244,7 @@ def test_safe_commit_blocks_merged_wp_done_commit_on_protected_branch(git_repo: 
             commit_message="chore(099-demo): record done transitions for merged WPs",
             allow_empty=False,
         )
+
 
 def test_safe_commit_nothing_to_commit_graceful(git_repo: Path):
     """T046: Test 'nothing to commit' graceful handling.
@@ -313,30 +314,31 @@ def test_safe_commit_restores_prestaged_requested_files_when_stage_fails(git_rep
     assert "A  requested.txt" in status
 
 
-def test_safe_commit_raises_when_requested_patch_snapshot_fails(
+def test_safe_commit_never_creates_a_stash_even_on_failure(
     git_repo: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ):
-    """A failed pre-mutation snapshot must fail closed, not silently unstage."""
+    """#4888/FR-011: ``safe_commit`` no longer stashes ANYTHING, on any path.
+
+    Superseded tests (removed): ``test_safe_commit_raises_when_requested_patch_snapshot_fails``
+    monkeypatched the now-deleted ``_staged_patch_for_paths`` snapshot step,
+    and ``test_safe_commit_raises_with_orphan_stash_ref_when_stash_pop_fails``
+    forced a ``git stash pop --index`` failure — both exercised internals of
+    the stash/pop dance this WP removed from ``safe_commit``'s happy path
+    (see ``tests/regressions/test_issue_4888_safe_commit_index_preservation.py``
+    for the replacement coverage, including the residual
+    ``SafeCommitRecoveryFailed``/``orphan_stash_ref`` propagation contract
+    now exercised at the ``upgrade`` caller boundary). This test documents
+    the new invariant directly: a failure mid-``safe_commit`` (a genuinely
+    missing requested path) never touches ``git stash`` at all.
+    """
+    unrelated = git_repo / "other.txt"
+    unrelated.write_text("caller staged data\n", encoding="utf-8")
+    subprocess.run(["git", "add", "other.txt"], cwd=git_repo, check=True)
+
     requested = git_repo / "requested.txt"
-    requested.write_text("keep staged\n", encoding="utf-8")
-    subprocess.run(["git", "add", "requested.txt"], cwd=git_repo, check=True)
+    requested.write_text("commit me\n", encoding="utf-8")
 
-    before = subprocess.run(
-        ["git", "diff", "--cached", "--name-status"],
-        cwd=git_repo,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
-
-    monkeypatch.setattr(
-        commit_helpers,
-        "_staged_patch_for_paths",
-        lambda _repo_path, _normalized_files: None,
-    )
-
-    with pytest.raises(SafeCommitRecoveryFailed) as exc_info:
+    with pytest.raises(RuntimeError):
         _safe_commit(
             repo_root=git_repo,
             worktree_root=git_repo,
@@ -345,76 +347,23 @@ def test_safe_commit_raises_when_requested_patch_snapshot_fails(
             paths=(git_repo / "missing.txt", requested),
         )
 
-    after = subprocess.run(
-        ["git", "diff", "--cached", "--name-status"],
-        cwd=git_repo,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
-
-    assert exc_info.value.error_code == "SAFE_COMMIT_RECOVERY_FAILED"
-    assert exc_info.value.unrecovered_paths == ("missing.txt", "requested.txt")
-    assert after == before
-
-
-def test_safe_commit_raises_with_orphan_stash_ref_when_stash_pop_fails(
-    git_repo: Path,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """A failed stash pop must surface the orphaned safe_commit stash ref."""
-    unrelated = git_repo / "other.txt"
-    unrelated.write_text("caller staged data\n", encoding="utf-8")
-    subprocess.run(["git", "add", "other.txt"], cwd=git_repo, check=True)
-
-    requested = git_repo / "requested.txt"
-    requested.write_text("commit me\n", encoding="utf-8")
-
-    real_run = commit_helpers.subprocess.run
-
-    def run_with_failed_stash_pop(args, *pos_args, **kwargs):  # noqa: ANN001
-        if list(args[:4]) == ["git", "stash", "pop", "--index"]:
-            return subprocess.CompletedProcess(
-                args=args,
-                returncode=1,
-                stdout="",
-                stderr="simulated stash pop failure",
-            )
-        return real_run(args, *pos_args, **kwargs)
-
-    monkeypatch.setattr(commit_helpers.subprocess, "run", run_with_failed_stash_pop)
-
-    with pytest.raises(SafeCommitRecoveryFailed) as exc_info:
-        _safe_commit(
-            repo_root=git_repo,
-            worktree_root=git_repo,
-            destination_ref="kitty/mission-test-01ABCDEF",
-            message="Commit requested only",
-            paths=(requested,),
-        )
-
-    stash_list = real_run(
+    stash_list = subprocess.run(
         ["git", "stash", "list"],
         cwd=git_repo,
         check=True,
         capture_output=True,
         text=True,
     ).stdout
+    assert stash_list == "", f"safe_commit must never create a stash, got: {stash_list!r}"
 
-    assert exc_info.value.error_code == "SAFE_COMMIT_RECOVERY_FAILED"
-    assert exc_info.value.orphan_stash_ref is not None
-    assert exc_info.value.commit_sha is not None
-    assert exc_info.value.to_dict()["commit_sha"] == exc_info.value.commit_sha
-    assert "spec-kitty-safe-commit" in stash_list
-
-    log_subject = real_run(
-        ["git", "log", "-1", "--format=%s"],
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
         cwd=git_repo,
         check=True,
         capture_output=True,
         text=True,
-    ).stdout.strip()
-    assert log_subject == "Commit requested only"
+    ).stdout
+    assert "A  other.txt" in status
 
 
 def test_safe_commit_preserves_multiple_unrelated_staged_files(git_repo: Path):
@@ -462,6 +411,7 @@ def test_safe_commit_preserves_multiple_unrelated_staged_files(git_repo: Path):
     assert "A  docs.md" in status_result.stdout
     assert "WP02.md" not in status_result.stdout, "WP02.md should be committed"
 
+
 def test_safe_commit_with_absolute_paths(git_repo: Path):
     """Test safe_commit works with absolute file paths."""
     # Stage unrelated file
@@ -491,6 +441,7 @@ def test_safe_commit_with_absolute_paths(git_repo: Path):
         check=True,
     )
     assert "A  unrelated.txt" in status_result.stdout
+
 
 def test_safe_commit_with_subdirectory_files(git_repo: Path):
     """Test safe_commit works with files in subdirectories."""
@@ -527,6 +478,7 @@ def test_safe_commit_with_subdirectory_files(git_repo: Path):
     assert "A  root_file.txt" in status_result.stdout
     assert "WP04.md" not in status_result.stdout
 
+
 def test_safe_commit_can_commit_explicitly_ignored_file(git_repo: Path):
     """safe_commit should commit explicitly requested files even if ignored."""
     # Simulate stale project-level ignore rule.
@@ -555,6 +507,7 @@ def test_safe_commit_can_commit_explicitly_ignored_file(git_repo: Path):
         check=True,
     )
     assert str(wp_file.relative_to(git_repo)) in tracked.stdout
+
 
 def test_safe_commit_multiple_files_at_once(git_repo: Path):
     """Test committing multiple intended files while preserving staged files."""
@@ -590,6 +543,7 @@ def test_safe_commit_multiple_files_at_once(git_repo: Path):
     assert "A  unrelated.txt" in status_result.stdout
     assert "WP05.md" not in status_result.stdout
     assert "WP06.md" not in status_result.stdout
+
 
 def test_safe_commit_fails_gracefully_on_invalid_file(git_repo: Path):
     """Test safe_commit returns False when file doesn't exist."""
@@ -667,9 +621,7 @@ def test_safe_commit_allows_rename_like_staging_pair(git_repo: Path):
     src_dir.mkdir(parents=True)
     src = src_dir / "charter.md"
     src.write_text(
-        "# Project charter\n"
-        + "\n".join(f"- policy line {n}" for n in range(40))
-        + "\n",
+        "# Project charter\n" + "\n".join(f"- policy line {n}" for n in range(40)) + "\n",
         encoding="utf-8",
     )
     subprocess.run(

@@ -94,18 +94,11 @@ def test_resolve_context_routes_resolution_seams_through_tasks(tmp_path: Path) -
         tasks_finalize._ft_resolve_context(st, ports)
     assert exc_info.value.exit_code == 1
     locate_mock.assert_called_once()
-    sparse_mock.assert_called_once_with(
-        tmp_path, command="spec-kitty agent tasks finalize-tasks"
-    )
+    sparse_mock.assert_called_once_with(tmp_path, command="spec-kitty agent tasks finalize-tasks")
     slug_mock.assert_called_once()
     branch_mock.assert_called_once_with(tmp_path, "034-feature", True)
-    assert (
-        ports.fs.planning_read_dir.call_args.kwargs["kind"]
-        is MissionArtifactKind.WORK_PACKAGE_TASK
-    )
-    error_mock.assert_called_once_with(
-        True, f"tasks.md not found: {tmp_path / 'tasks.md'}"
-    )
+    assert ports.fs.planning_read_dir.call_args.kwargs["kind"] is MissionArtifactKind.WORK_PACKAGE_TASK
+    error_mock.assert_called_once_with(True, f"tasks.md not found: {tmp_path / 'tasks.md'}")
 
 
 def test_patched_output_error_intercepts_resolve_context_no_root() -> None:
@@ -128,9 +121,7 @@ def test_patched_output_error_intercepts_validate_coverage_gate(tmp_path: Path) 
     tasks_md.write_text("# Tasks\n\nno work package sections here\n", encoding="utf-8")
     tasks_dir = tmp_path / "tasks"
     tasks_dir.mkdir()
-    (tasks_dir / "WP01-build-the-thing.md").write_text(
-        "---\nwork_package_id: WP01\n---\nbody\n", encoding="utf-8"
-    )
+    (tasks_dir / "WP01-build-the-thing.md").write_text("---\nwork_package_id: WP01\n---\nbody\n", encoding="utf-8")
     st = _make_state()
     st.tasks_md = tasks_md
     st.tasks_dir = tasks_dir
@@ -163,10 +154,11 @@ def test_patched_bootstrap_seams_intercept_apply_writes(tmp_path: Path) -> None:
     st.mission_slug = "034-feature"
     st.tasks_dir = tasks_dir
     st.dependencies_map = {}
+    # #4890: the plan is now computed (and its effective graph validated) in
+    # ``_ft_validate`` — ``_ft_apply_writes`` only consumes ``st.update_plan``.
+    st.update_plan = tasks_finalize.compute_wp_frontmatter_updates(st.dependencies_map, tasks_dir)
     feature_dir = tmp_path / "kitty-specs" / "034-feature"
-    bootstrap_result = SimpleNamespace(
-        total_wps=0, already_initialized=0, newly_seeded=0, skipped=0, wp_details=[]
-    )
+    bootstrap_result = SimpleNamespace(total_wps=0, already_initialized=0, newly_seeded=0, skipped=0, wp_details=[])
     mock_seam = MagicMock()
     mock_seam.read_dir.return_value = feature_dir
     with (
@@ -174,9 +166,7 @@ def test_patched_bootstrap_seams_intercept_apply_writes(tmp_path: Path) -> None:
             "specify_cli.cli.commands.agent.tasks_finalize.placement_seam",
             return_value=mock_seam,
         ) as seam_mock,
-        patch(
-            f"{_TASKS}.bootstrap_canonical_state", return_value=bootstrap_result
-        ) as bootstrap_mock,
+        patch(f"{_TASKS}.bootstrap_canonical_state", return_value=bootstrap_result) as bootstrap_mock,
         patch(f"{_TASKS}.console") as console_mock,
     ):
         tasks_finalize._ft_apply_writes(st)
@@ -201,6 +191,9 @@ def test_patched_console_intercepts_apply_writes_warning_leg(tmp_path: Path) -> 
     st.mission_slug = "034-feature"
     st.tasks_dir = tasks_dir
     st.dependencies_map = {"WP01": []}
+    # #4890: the plan (and its unreadable-frontmatter warning) is now computed
+    # in ``_ft_validate`` — ``_ft_apply_writes`` only consumes ``st.update_plan``.
+    st.update_plan = tasks_finalize.compute_wp_frontmatter_updates(st.dependencies_map, tasks_dir)
     mock_seam = MagicMock()
     mock_seam.read_dir.return_value = tmp_path
     with (
@@ -210,9 +203,7 @@ def test_patched_console_intercepts_apply_writes_warning_leg(tmp_path: Path) -> 
         ),
         patch(
             f"{_TASKS}.bootstrap_canonical_state",
-            return_value=SimpleNamespace(
-                total_wps=0, already_initialized=0, newly_seeded=0, skipped=0, wp_details=[]
-            ),
+            return_value=SimpleNamespace(total_wps=0, already_initialized=0, newly_seeded=0, skipped=0, wp_details=[]),
         ),
         patch(f"{_TASKS}.console") as console_mock,
     ):
@@ -236,13 +227,12 @@ def test_patched_output_result_intercepts_ft_output_success_leg(tmp_path: Path) 
             preserved_wps=[],
             warnings=[],
             writes=[],
+            effective_dependencies={"WP02": ["WP01"]},
         ),
     )
     st.bootstrap_result = cast(
         Any,
-        SimpleNamespace(
-            total_wps=2, already_initialized=1, newly_seeded=1, skipped=0, wp_details=[]
-        ),
+        SimpleNamespace(total_wps=2, already_initialized=1, newly_seeded=1, skipped=0, wp_details=[]),
     )
     with (
         patch(
@@ -257,6 +247,7 @@ def test_patched_output_result_intercepts_ft_output_success_leg(tmp_path: Path) 
     assert payload["result"] == "success"
     assert payload["mission_id"] == "01SENTINEL"
     assert payload["updated_wp_count"] == 1
+    assert payload["dependencies"] == {"WP02": ["WP01"]}
     assert payload["bootstrap"]["newly_seeded"] == 1
     assert "would_modify" not in payload
 
@@ -278,13 +269,12 @@ def test_patched_output_result_intercepts_ft_output_validate_only_leg(
             preserved_wps=[],
             warnings=[],
             writes=[],
+            effective_dependencies={"WP02": ["WP01"]},
         ),
     )
     st.bootstrap_result = cast(
         Any,
-        SimpleNamespace(
-            total_wps=2, already_initialized=2, newly_seeded=0, skipped=0, wp_details=[]
-        ),
+        SimpleNamespace(total_wps=2, already_initialized=2, newly_seeded=0, skipped=0, wp_details=[]),
     )
     with (
         patch(f"{_TASKS}._mission_identity_payload", return_value={}),

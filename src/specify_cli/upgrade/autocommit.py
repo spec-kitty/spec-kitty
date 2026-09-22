@@ -38,7 +38,7 @@ from mission_runtime import CommitTarget
 
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.git.commit_helpers import safe_commit
+from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed, safe_commit
 from kernel.paths import to_posix
 
 UPGRADE_COMMIT_SKIP_WARNING = "Could not auto-commit upgrade changes; please review and commit manually."
@@ -428,6 +428,18 @@ def commit_touched_checkout(
             paths=tuple(files_to_commit),
             capability=GuardCapability.UPGRADE_BOOKKEEPING,
         )
+    except SafeCommitRecoveryFailed:
+        # #4888/FR-012 (defense-in-depth): unlike every other exception below,
+        # this one is NOT allowed to flatten to the generic
+        # "please review and commit manually" skip warning. It carries
+        # structured recovery state (``orphan_stash_ref``, ``commit_sha``)
+        # that the caller needs verbatim to know whether the commit actually
+        # landed and, if so, on top of what. Swallowing it here previously
+        # meant `upgrade` exited 0 with a misleading "please commit manually"
+        # even when the commit had already landed and the operator's own
+        # staging was stranded in an orphaned stash. Let it propagate; the
+        # CLI layer (``cli.commands.upgrade``) renders it honestly.
+        raise
     except Exception:
         return (
             False,

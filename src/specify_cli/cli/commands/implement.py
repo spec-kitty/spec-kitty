@@ -1886,6 +1886,14 @@ def implement(
     effective_actor = actor or "implement-command"
     status_result = None
     status_execution_mode = _execution_mode_for_workspace(resolved_workspace)
+    # #4888/T025: distinguishes a failure that occurred BEFORE the workspace
+    # existed (create_lane_workspace itself failed -- the WP is still
+    # `planned`, matching the comment below) from a failure that occurred
+    # AFTER it (inside _start_wp_implementation_status, e.g. a
+    # SafeCommitRecoveryFailed surfacing after the status commit already
+    # landed) -- so the printed message never contradicts a WP that is
+    # already `in_progress`/committed.
+    workspace_created = False
     try:
         # WP04/T015 (FR-004/NFR-003/SC-004): the pre-write claim triple rides
         # the planned -> claimed transition's policy_metadata sidecar (see
@@ -1915,6 +1923,7 @@ def implement(
         )
         workspace_path = result.workspace_path
         branch_name = result.branch_name
+        workspace_created = True
 
         status_result = _start_wp_implementation_status(
             feature_dir=feature_dir,
@@ -1946,18 +1955,41 @@ def implement(
     except Exception as exc:
         tracker.error("create", f"workspace allocation failed: {exc}")
         console.print(tracker.render())
-        console.print(f"\n[red]Error:[/red] Workspace allocation failed: {exc}")
-        # F-50 (#3937): a tooling/allocation failure emits NO lifecycle
-        # transition. ``create_lane_workspace`` runs BEFORE the claim, so the WP
-        # is still ``planned``, and the allocator self-cleans (abort +
-        # ``reset --hard``, no ``lanes.json`` write). The former
-        # ``_emit_blocked_on_alloc_failure`` manufactured ``planned -> blocked``,
-        # an unrecoverable state (``blocked -> planned`` is illegal). Leaving the
-        # WP ``planned`` is recoverable and reentrant — at parity with the
-        # orchestrator-api path, which never emits ``blocked``. Surface the
-        # exception's actionable ``next_step`` for the conflict/orphan types
-        # that carry one, so the operator gets the concrete resolution rather
-        # than a generic "re-run".
+        if workspace_created:
+            # #4888/T025: the workspace was already created (`create_lane_workspace`
+            # returned) and the failure happened inside `_start_wp_implementation_status`
+            # -- possibly AFTER its status commit already landed (e.g. a
+            # `SafeCommitRecoveryFailed` whose `commit_sha` is set). Printing
+            # the generic "Workspace allocation failed" line here would
+            # contradict a WP that is already `claimed`/`in_progress` and
+            # committed, so name the actual failure point instead.
+            commit_sha = getattr(exc, "commit_sha", None)
+            landed_note = (
+                f" A status commit (sha={commit_sha}) may have already landed on the lane branch."
+                if commit_sha
+                else " The WP status transition may have already landed on the lane branch."
+            )
+            console.print(
+                f"\n[red]Error:[/red] Workspace was created but starting the WP status failed: {exc}.{landed_note} "
+                "Run `spec-kitty agent tasks status` to check the WP's actual lane before retrying."
+            )
+        else:
+            console.print(f"\n[red]Error:[/red] Workspace allocation failed: {exc}")
+        # F-50 (#3937): a tooling/allocation failure that happens BEFORE the
+        # workspace exists emits NO lifecycle transition. ``create_lane_workspace``
+        # runs BEFORE the claim, so the WP is still ``planned`` in that case,
+        # and the allocator self-cleans (abort + ``reset --hard``, no
+        # ``lanes.json`` write). The former ``_emit_blocked_on_alloc_failure``
+        # manufactured ``planned -> blocked``, an unrecoverable state
+        # (``blocked -> planned`` is illegal). Leaving the WP ``planned`` is
+        # recoverable and reentrant — at parity with the orchestrator-api
+        # path, which never emits ``blocked``. When the failure happens AFTER
+        # workspace creation (``workspace_created`` above), the WP may
+        # instead already be ``claimed``/``in_progress`` with a landed commit
+        # — the message above says so instead of implying ``planned``.
+        # Surface the exception's actionable ``next_step`` for the
+        # conflict/orphan types that carry one, so the operator gets the
+        # concrete resolution rather than a generic "re-run".
         if isinstance(
             exc,
             (DependencyLaneMergeConflictError, PlanningCommitMergeConflictError, OrphanedPlanningCommitError),

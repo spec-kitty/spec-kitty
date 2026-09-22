@@ -177,7 +177,19 @@ def create_lane_workspace(
     # Install pre-commit ownership guard.
     from specify_cli.policy.hook_installer import install_commit_guard
 
-    install_commit_guard(workspace_path, repo_root)
+    hook_guard_record = install_commit_guard(workspace_path, repo_root)
+    # #4895: a foreign (non-spec-kitty) pre-existing hook was backed up
+    # before being overwritten -- surface the sidecar path in `implement`'s
+    # output so the operator can recover it, instead of leaving the
+    # preservation silent (the original harm: nothing printed).
+    if hook_guard_record is not None and hook_guard_record.backup_path is not None:
+        from specify_cli.cli.console import console
+
+        console.print(
+            f"[yellow]⚠ Existing .git/hooks/pre-commit was not spec-kitty-managed; "
+            f"backed up to {hook_guard_record.backup_path} before installing the "
+            f"commit guard.[/yellow]"
+        )
 
     # FR-011 / C-001: record the ACTUAL honored parent, not always
     # ``mission_branch``. ``base`` when supplied (the allocator parented the

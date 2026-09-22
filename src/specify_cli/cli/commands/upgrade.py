@@ -69,6 +69,7 @@ from specify_cli.cli.commands._teamspace_mission_state_gate import (
 )
 from specify_cli.core.env import is_truthy
 from specify_cli.core.version_compare import is_version_newer
+from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 from specify_cli.gitignore_manager import GitignorePathError
 from specify_cli.upgrade import autocommit
 from specify_cli.upgrade.autocommit import (
@@ -1011,6 +1012,11 @@ def _display_no_migrations_results(outcome: UpgradeOutcome, *, auto_commit_paths
         console.print(f"[yellow]Warning:[/yellow] {warning}")
     for error in outcome.activation_errors:
         console.print(f"[red]Error:[/red] {error}")
+    # #4888/FR-012: `result.errors` (e.g. a rendered SafeCommitRecoveryFailed
+    # from the commit_churn step) must be visible on the no-migrations path
+    # too — this path runs `commit_churn` exactly like the migrations path.
+    for error in result.errors:
+        console.print(f"[red]Error:[/red] {error}")
     if outcome.committed:
         console.print(f"[cyan]→ Auto-committed upgrade changes ({len(auto_commit_paths)} files)[/cyan]")
     elif left_uncommitted:
@@ -1147,6 +1153,23 @@ def _finalizer_step_surface_repair(
     return _surface_drift_exit_required(ctx.surface_repair_summary, confirm=confirm)
 
 
+def _render_safe_commit_recovery_failed(exc: SafeCommitRecoveryFailed) -> str:
+    """Render a ``SafeCommitRecoveryFailed`` honestly (#4888/FR-012).
+
+    Names the orphaned stash ref (if any) and states plainly whether the
+    commit landed, so ``upgrade`` never exits 0 with a message that hides an
+    orphaned stash or misstates the landed SHA.
+    """
+    landed = f"Commit {exc.commit_sha} DID land." if exc.commit_sha else "No commit landed."
+    stash = (
+        f" Your pre-existing staged changes were stashed at {exc.orphan_stash_ref!r} and must be "
+        f"restored manually (`git stash pop --index {exc.orphan_stash_ref}`)."
+        if exc.orphan_stash_ref
+        else ""
+    )
+    return f"Auto-commit of upgrade changes failed to restore your staging: {exc}. {landed}{stash}"
+
+
 def _finalizer_step_commit_churn(
     outcome: UpgradeOutcome,
     ctx: _FinalizerRenderContext,
@@ -1155,13 +1178,25 @@ def _finalizer_step_commit_churn(
     baseline_changed_paths: set[str] | None,
 ) -> bool:
     """Injected ``commit_churn`` step (C4 order position 3) — the single
-    main-checkout churn commit, run only when ``should_commit`` is True."""
-    committed, paths, warning = autocommit.commit_touched_checkout(
-        project_path,
-        baseline_changed_paths,
-        outcome.result.from_version,
-        outcome.result.to_version,
-    )
+    main-checkout churn commit, run only when ``should_commit`` is True.
+
+    A ``SafeCommitRecoveryFailed`` (#4888/FR-012) is never folded into the
+    generic ``commit_warning`` skip message: it is a genuine failure that
+    must flip the exit code non-zero and name the orphaned stash ref + landed
+    SHA, not a silent "please commit manually" that hides both.
+    """
+    try:
+        committed, paths, warning = autocommit.commit_touched_checkout(
+            project_path,
+            baseline_changed_paths,
+            outcome.result.from_version,
+            outcome.result.to_version,
+        )
+    except SafeCommitRecoveryFailed as exc:
+        ctx.commit_paths = []
+        outcome.result.success = False
+        outcome.result.errors.append(_render_safe_commit_recovery_failed(exc))
+        return False
     ctx.commit_paths = paths
     ctx.commit_warning = warning
     return committed

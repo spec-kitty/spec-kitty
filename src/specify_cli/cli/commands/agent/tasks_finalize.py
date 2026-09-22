@@ -59,7 +59,6 @@ from specify_cli.cli.commands.agent.tasks_finalize_validation import (
     FrontmatterUpdatePlan,
     compute_wp_frontmatter_updates,
     detect_dependency_conflicts,
-    detect_dependency_cycles,
     read_existing_frontmatter,
     validate_wp_coverage,
 )
@@ -196,14 +195,26 @@ def _ft_validate_occurrence_map_ready(st: _FinalizeState) -> None:
 
 
 def _ft_validate(st: _FinalizeState) -> None:
-    """Phase B: occurrence-map gate + parse deps + WP04 coverage/cycle/disagree-loud conflict gates.
+    """Phase B: occurrence-map gate + parse deps + WP04 coverage/graph/disagree-loud conflict gates.
 
     Each gate is a PRE-write refusal — the frontmatter writes in phase C fire only
     after every gate below passes. The occurrence-map gate runs FIRST (fail-fast,
     before the more expensive dependency-graph validators), mirroring the
     placement in ``mission_finalize.finalize_tasks``.
+
+    #4890: the dependency-graph gate validates the EFFECTIVE PERSISTED graph —
+    ``compute_wp_frontmatter_updates``'s ``effective_dependencies`` (tasks.md-parsed
+    deps merged with any PRESERVED frontmatter deps, i.e. the graph phase C is
+    about to write) — not just the raw tasks.md-parsed map. A cycle/self-ref/
+    unknown-WP hiding only in preserved frontmatter must be rejected before any
+    write, using the SAME validator ``agent mission finalize-tasks`` already
+    uses (single authority — ``mission_finalize._validate_dependency_graph``,
+    which runs both ``detect_cycles`` and ``validate_dependencies``). The
+    computed plan is stashed on ``st.update_plan`` so phase C does not
+    recompute it (it is side-effect-free/pure, but reads disk).
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+    from specify_cli.cli.commands.agent.mission_finalize import _validate_dependency_graph
     from specify_cli.core.dependency_parser import (
         parse_dependencies_from_tasks_md as _shared_parse_deps,
     )
@@ -224,10 +235,8 @@ def _ft_validate(st: _FinalizeState) -> None:
         )
         raise typer.Exit(1)
 
-    cycles = detect_dependency_cycles(st.dependencies_map)
-    if cycles:
-        _tasks._output_error(st.json_output, f"Circular dependencies detected: {cycles}")
-        raise typer.Exit(1)
+    st.update_plan = compute_wp_frontmatter_updates(st.dependencies_map, st.tasks_dir)
+    _validate_dependency_graph(st.update_plan.effective_dependencies, json_output=st.json_output)
 
     # --- Dependency conflict detection (T004: disagree-loud) ---
     existing_frontmatter = read_existing_frontmatter(st.tasks_dir)
@@ -393,8 +402,10 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
             )
             raise typer.Exit(1) from None
 
-    update_plan = compute_wp_frontmatter_updates(st.dependencies_map, st.tasks_dir)
-    st.update_plan = update_plan
+    # #4890: the plan was already computed (and its effective graph validated)
+    # in phase B (``_ft_validate``) — reuse it rather than recomputing it here.
+    assert st.update_plan is not None, "_ft_validate must set st.update_plan before _ft_apply_writes runs"
+    update_plan = st.update_plan
     for warning in update_plan.warnings:
         _tasks.console.print(f"[yellow]Warning:[/yellow] {warning}")
 
@@ -438,6 +449,11 @@ def _ft_output(st: _FinalizeState) -> None:
         "skipped": bootstrap_result.skipped,
         "wp_details": bootstrap_result.wp_details,
     }
+    # #4890 (T022): the ``dependencies`` payload must equal the EFFECTIVE
+    # persisted graph (parsed deps merged with any preserved frontmatter
+    # deps) — not the raw tasks.md-parsed map, which silently omits any
+    # preserved (frontmatter-only) dependency and falsifies what was
+    # actually written to disk.
     if st.validate_only:
         result: dict[str, object] = {
             "result": "validation_passed",
@@ -446,7 +462,7 @@ def _ft_output(st: _FinalizeState) -> None:
             "would_preserve": update_plan.preserved_wps,
             "unchanged": update_plan.unchanged_wps,
             "updated_wp_count": update_plan.updated_count,
-            "dependencies": st.dependencies_map,
+            "dependencies": update_plan.effective_dependencies,
             **_tasks._mission_identity_payload(st.feature_dir),
             "bootstrap": bootstrap_payload,
         }
@@ -457,7 +473,7 @@ def _ft_output(st: _FinalizeState) -> None:
             "modified_wps": update_plan.modified_wps,
             "unchanged_wps": update_plan.unchanged_wps,
             "preserved_wps": update_plan.preserved_wps,
-            "dependencies": st.dependencies_map,
+            "dependencies": update_plan.effective_dependencies,
             **_tasks._mission_identity_payload(st.feature_dir),
             "bootstrap": bootstrap_payload,
         }
