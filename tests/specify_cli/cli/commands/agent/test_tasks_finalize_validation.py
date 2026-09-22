@@ -23,7 +23,6 @@ from specify_cli.cli.commands.agent.tasks_finalize_validation import (
     compute_expected_wp_ids,
     compute_wp_frontmatter_updates,
     detect_dependency_conflicts,
-    detect_dependency_cycles,
     read_existing_frontmatter,
     validate_wp_coverage,
 )
@@ -89,28 +88,6 @@ class TestValidateWpCoverage:
         (tasks_dir / "WPxx-bad.md").write_text("bad id", encoding="utf-8")
         result = compute_expected_wp_ids(tasks_dir)
         assert result == ["WP01"]
-
-
-# ---------------------------------------------------------------------------
-# Cycle detection
-# ---------------------------------------------------------------------------
-
-
-class TestDetectDependencyCycles:
-    def test_acyclic_graph_returns_none_or_empty(self) -> None:
-        cycles = detect_dependency_cycles({"WP01": [], "WP02": ["WP01"], "WP03": ["WP02"]})
-        assert not cycles
-
-    def test_direct_cycle_detected(self) -> None:
-        cycles = detect_dependency_cycles({"WP01": ["WP02"], "WP02": ["WP01"]})
-        assert cycles  # truthy list of chains
-
-    def test_self_cycle_detected(self) -> None:
-        cycles = detect_dependency_cycles({"WP01": ["WP01"]})
-        assert cycles
-
-    def test_empty_graph_acyclic(self) -> None:
-        assert not detect_dependency_cycles({})
 
 
 # ---------------------------------------------------------------------------

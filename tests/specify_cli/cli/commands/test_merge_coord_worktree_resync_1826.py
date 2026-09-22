@@ -776,40 +776,6 @@ def test_advance_branch_ref_dossier_snapshot_drift_does_not_block_with_residue_e
     assert (wt / snapshot_rel).read_text(encoding="utf-8") == '{"v": 1}\n'
 
 
-def test_backstop_message_names_diverged_worktree_and_ref(tmp_path: Path) -> None:
-    """FR-012 rider: when the safe-commit backstop trips on a worktree whose
-    index/working tree is behind its own HEAD, the message names the
-    worktree, the ref, the behind state, and the most likely cause (#1826) —
-    not the bare "working tree is behind HEAD"."""
-    from specify_cli.git.commit_helpers import (
-        SafeCommitBackstopError,
-        assert_staging_area_matches_expected,
-    )
-
-    _init_git_repo(tmp_path)
-    branch, wt, new_sha = _setup_branch_with_worktree(tmp_path)
-    # Reproduce the #1826 divergence: advance the ref underneath the checkout.
-    _git(tmp_path, "update-ref", f"refs/heads/{branch}", new_sha)
-
-    with pytest.raises(SafeCommitBackstopError) as excinfo:
-        assert_staging_area_matches_expected(wt, ["only/this/path.json"])
-
-    err = excinfo.value
-    assert err.worktree_root == wt
-    assert err.destination_ref == branch
-    assert err.head_sha == new_sha
-    message = str(err)
-    assert str(wt) in message, "message must name WHICH worktree diverged"
-    assert branch in message, "message must name WHICH ref diverged"
-    assert "BEHIND" in message, "message must name the behind/ahead state"
-    assert "update-ref" in message and "#1826" in message, (
-        "message must name the most likely cause"
-    )
-    # Semantics unchanged: same type, same error_code, structured fields intact.
-    assert err.error_code == "SAFE_COMMIT_BACKSTOP"
-    assert any(u.path == "advanced.txt" for u in err.unexpected)
-
-
 def test_advance_branch_ref_no_checkout_is_plain_update_ref(tmp_path: Path) -> None:
     """With no worktree checkout of the branch, behavior is identical to a raw
     ``update-ref`` (plus the worktree scan)."""

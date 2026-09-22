@@ -208,16 +208,6 @@ def validate_wp_coverage(dependencies_map: dict[str, list[str]], tasks_dir: Path
     )
 
 
-def detect_dependency_cycles(
-    dependencies_map: dict[str, list[str]],
-) -> list[list[str]] | None:
-    """Return circular dependency chains, or ``None``/empty when acyclic."""
-    from specify_cli.core.dependency_graph import detect_cycles
-
-    cycles: list[list[str]] | None = detect_cycles(dependencies_map)
-    return cycles
-
-
 def read_existing_frontmatter(tasks_dir: Path) -> dict[str, WPMetadata]:
     """Read existing WP frontmatter for conflict detection (T004).
 

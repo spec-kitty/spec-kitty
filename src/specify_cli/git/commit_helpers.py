@@ -37,11 +37,19 @@ path also carries an unstaged modification, which deterministically stranded
 the operator's staging in an un-poppable stash. ``--only`` structurally cannot
 sweep in unrelated content, so there is nothing left to strand.
 
-``assert_staging_area_matches_expected``/``SafeCommitBackstopError`` remain in
-this module as an independently-tested, whole-index staging-area probe (see
-Priivacy-ai/spec-kitty#588) --- ``safe_commit`` itself no longer calls it in
-its default flow, since an unscoped whole-index scan is incompatible with
-leaving unrelated staged content in place.
+``assert_staging_area_matches_expected`` (the whole-index staging-area probe,
+Priivacy-ai/spec-kitty#588) is DELETED (mission ``fold-4946-stash-gate``,
+#4915/#4946/#4936): ``safe_commit`` had already stopped calling it in its
+default flow before this deletion, since an unscoped whole-index scan is
+incompatible with leaving unrelated staged content in place, and the #470
+dead-symbol gate confirmed it had zero remaining ``src/`` callers.
+``SafeCommitBackstopError`` (and ``UnexpectedStagedPath``) are RETAINED
+despite losing their only raise sites: ``tests/contract/test_orchestrator_api.py``
+still asserts ``SafeCommitBackstopError.error_code`` stays within the
+orchestrator-api ``allowed_error_codes`` contract, and
+``cli/commands/safe_commit_cmd.py`` still imports/catches it. Deleting the
+class would require updating that contract test too; left for an explicit
+operator allowlist-or-delete call rather than silently folded in here.
 
 Protected-branch authorization policy (FR-008)
 ----------------------------------------------
@@ -87,7 +95,6 @@ from pathlib import Path
 from typing import Any
 
 from mission_runtime import CommitTarget
-from kernel.paths import to_posix
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
 from kernel.git_topology import (
@@ -548,72 +555,6 @@ def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -
             raise ProtectedBranchCommitError(
                 f"Refusing to {operation} on protected branch '{branch}' in {repo_path}. Run status commit operations from the mission lane branch/worktree."
             )
-
-
-def assert_staging_area_matches_expected(
-    repo_path: Path,
-    expected_paths: Sequence[str],
-) -> None:
-    """Compare staged paths to ``expected_paths``; raise on mismatch.
-
-    Reads ``git diff --cached --name-status`` at ``repo_path`` and collects all
-    currently-staged paths. Any path that is staged but not in
-    ``expected_paths`` is a backstop violation and will raise
-    ``SafeCommitBackstopError``.
-
-    This function is pure (aside from the ``git`` subprocess probe) --- it does
-    not mutate the staging area. It returns ``None`` on success.
-
-    Args:
-        repo_path: The repository the stage applies to (worktree root).
-        expected_paths: The paths safe_commit was asked to commit, normalized
-            to POSIX separators for the compare.
-
-    Raises:
-        SafeCommitBackstopError: When any staged path is not in
-            ``expected_paths``, or when the ``git diff --cached`` probe fails.
-    """
-    # See prior history (mission 588) for the --no-renames rationale.
-    result = subprocess.run(
-        ["git", "diff", "--cached", "--no-renames", "--name-status", "-z"],
-        cwd=repo_path,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
-        raise SafeCommitBackstopError(
-            unexpected=(UnexpectedStagedPath(path="<probe-failed>", status_code="??"),),
-            requested=tuple(expected_paths),
-            worktree_root=repo_path,
-            destination_ref=_current_branch(repo_path),
-            head_sha=_run_git_text(repo_path, ["rev-parse", "HEAD"]),
-        )
-
-    expected_set = {to_posix(p) for p in expected_paths}
-    unexpected: list[UnexpectedStagedPath] = []
-    fields = result.stdout.split("\0")
-    for index in range(0, len(fields) - 1, 2):
-        status_code = fields[index]
-        staged_path = fields[index + 1]
-        if not status_code or not staged_path:
-            continue
-        normalized = to_posix(staged_path)
-        if normalized not in expected_set:
-            unexpected.append(
-                UnexpectedStagedPath(path=normalized, status_code=f"{status_code} "),
-            )
-
-    if unexpected:
-        raise SafeCommitBackstopError(
-            unexpected=tuple(unexpected),
-            requested=tuple(expected_set),
-            worktree_root=repo_path,
-            destination_ref=_current_branch(repo_path),
-            head_sha=_run_git_text(repo_path, ["rev-parse", "HEAD"]),
-        )
 
 
 # ---------------------------------------------------------------------------
