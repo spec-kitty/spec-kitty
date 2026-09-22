@@ -1,0 +1,28 @@
+work_packages:
+  - id: WP01
+    title: "Guard coordination fix branch identity"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/cli/commands/_coordination_doctor.py"
+      - "tests/coordination/test_coord_staleness.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - C-001
+      - C-002
+      - C-003
+    plan_concern_refs:
+      - IC-01
+      - IC-02
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+    prompt_file: "tasks/WP01-guard-coordination-fix-branch.md"

@@ -1,0 +1,6 @@
+evidence_id,source_id,finding,decision
+E1,S1,"Wrong checked-out branch is advanced; declared coordination ref remains stale; success is printed","D2;D3"
+E2,S2,"_coord_worktree_head_finding already detects symbolic HEAD mismatch",D1
+E3,S2,"_fix_one_mission_coord_staleness checks ancestry/existence/dirty state but not branch identity","D1;D2"
+E4,S3,"Real-git contract already covers correct branch, divergence, dirty state, and multi-mission continuation",D4
+E5,S4,"Bug fixes require red-first acceptance evidence and fail-closed mutation behavior","D2;D4"

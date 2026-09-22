@@ -1,0 +1,28 @@
+{
+  "event_count": 1,
+  "last_event_id": "01M35FF4RQWNHV9WCGFCZ2AVPX",
+  "materialized_at": "2026-09-22T21:13:37.815287+00:00",
+  "mission_number": "",
+  "mission_slug": "coordination-doctor-branch-safety-01M35EN8",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M35FF4RQWNHV9WCGFCZ2AVPX",
+      "last_transition_at": "2026-09-22T21:13:37.815287+00:00"
+    }
+  }
+}

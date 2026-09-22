@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-09-22T20:59:29.712646+00:00",
+  "flattened": false,
+  "friendly_name": "Coordination Doctor Branch Safety",
+  "mission_id": "01M35EN8HGKWQHE4MAQ43E3J4H",
+  "mission_number": null,
+  "mission_slug": "coordination-doctor-branch-safety-01M35EN8",
+  "mission_type": "software-dev",
+  "purpose_context": "GitHub issue #4920: the coordination doctor currently fast-forwards whichever branch is checked out in the coordination worktree and reports a misleading success. The repair must fail closed without branch mutation when HEAD is not the expected coordination branch, preserve correct-branch behavior, and prove both paths with red-first acceptance coverage.",
+  "purpose_tldr": "Make doctor coordination --fix refuse to mutate a coordination worktree checked out on the wrong branch.",
+  "slug": "coordination-doctor-branch-safety-01M35EN8",
+  "target_branch": "issue-4920-coordination-doctor-branch-safety",
+  "topology": "single_branch"
+}
