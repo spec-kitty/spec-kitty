@@ -62,7 +62,7 @@ from specify_cli.acceptance import (
 from specify_cli.acceptance.matrix import AcceptanceMatrix, AcceptanceMatrixParseError
 from specify_cli.mission_metadata import parse_meta_file
 from specify_cli.status import EventLogMergeError, merge_event_log_files
-from specify_cli.tasks.issue_matrix import ISSUE_MATRIX_SCHEMA_VERSION
+from specify_cli.tasks.issue_matrix import _SCAFFOLD_VERDICT_PLACEHOLDER, ISSUE_MATRIX_SCHEMA_VERSION
 
 # meta.json serialization identical to ``mission_metadata.write_meta`` so the
 # reconciled blob is byte-consistent with the canonical writer (no diff churn).
@@ -359,10 +359,12 @@ def merge_driver_traces(
 class RowMatrixMergeError(Exception):
     """Raised when a matrix document cannot be parsed/reconciled row-aware.
 
-    Covers malformed JSON documents and the intra-side duplicate-key guard
-    (two distinct raw rows on ONE side normalizing to the same canonical
-    key) — both are refused rather than silently resolved, per the
-    algorithm contract's "never silent drop" rule.
+    Covers malformed JSON documents, the intra-side duplicate-key guard (two
+    distinct raw rows on ONE side normalizing to the same canonical key), and
+    a genuinely-diverged VERDICT-authority field (#4880: both sides authored
+    a differing ``pass_fail`` / ``result`` / ``verdict``) — each is refused
+    rather than silently resolved, per the algorithm contract's "never silent
+    drop / never silent verdict flip" rule.
     """
 
 
@@ -396,9 +398,12 @@ _CONFLICT_MARKER_THEIRS = ">>>>>>> theirs"
 # Unset-sentinel placeholders per verdict-bearing field. During a 3-way merge an
 # unset value yields to an authored value instead of failing closed (#4880): a
 # lane that never recorded a verdict must not abort a merge with a lane that did.
-# Mirrors issue_matrix._SCAFFOLD_VERDICT_PLACEHOLDER ("unknown") and the
-# acceptance CRITERION_VERDICTS / NEGATIVE_INVARIANT_RESULTS "pending" member.
-_ISSUE_MATRIX_SENTINELS: Mapping[str, str] = {"verdict": "unknown"}
+# Imports issue_matrix._SCAFFOLD_VERDICT_PLACEHOLDER directly (rather than
+# duplicating its "unknown" literal) so a retune of that canonical placeholder
+# cannot silently desync this sentinel and reintroduce #2804. The acceptance
+# side mirrors the CRITERION_VERDICTS / NEGATIVE_INVARIANT_RESULTS "pending"
+# member (no importable named constant exists for it yet).
+_ISSUE_MATRIX_SENTINELS: Mapping[str, str] = {"verdict": _SCAFFOLD_VERDICT_PLACEHOLDER}
 _ACCEPTANCE_CRITERION_SENTINELS: Mapping[str, str] = {"pass_fail": "pending"}
 _ACCEPTANCE_INVARIANT_SENTINELS: Mapping[str, str] = {"result": "pending"}
 
@@ -410,6 +415,7 @@ def _merge_field(
     theirs_v: Any,
     *,
     sentinels: Mapping[str, str] | None = None,
+    row_key: str | None = None,
 ) -> Any:
     """3-way merge of one field value (contract: per-row reconciliation).
 
@@ -450,10 +456,13 @@ def _merge_field(
         return ours_v
     if ours_v == verdict_sentinel and theirs_v != verdict_sentinel:
         return theirs_v
-    # #4880: two genuinely-authored, differing verdicts — fail closed.
+    # #4880: two genuinely-authored, differing verdicts — fail closed. Name the
+    # offending row so an operator can locate it in a many-row matrix, and label
+    # the sides target/incoming (the ``ours``/``theirs`` primary/merge footgun).
+    row_label = f"row {row_key!r}: " if row_key is not None else ""
     raise RowMatrixMergeError(
-        f"verdict field {field_name!r} diverged on both sides with no common "
-        f"base value (ours={ours_v!r}, theirs={theirs_v!r})"
+        f"{row_label}verdict field {field_name!r} diverged on both sides with no "
+        f"common base value (target/ours={ours_v!r}, incoming/theirs={theirs_v!r})"
     )
 
 
@@ -463,6 +472,7 @@ def _merge_row_fields(
     theirs_row: Mapping[str, Any],
     *,
     sentinels: Mapping[str, str] | None = None,
+    row_key: str | None = None,
 ) -> dict[str, Any]:
     """Per-field 3-way merge of one row that exists (with differing content)
     on at least two of the three sides. ``base_row`` may be ``None`` (the row
@@ -472,7 +482,9 @@ def _merge_row_fields(
     base = base_row or {}
     field_names = dict.fromkeys((*base, *ours_row, *theirs_row))
     return {
-        name: _merge_field(name, base.get(name), ours_row.get(name), theirs_row.get(name), sentinels=sentinels)
+        name: _merge_field(
+            name, base.get(name), ours_row.get(name), theirs_row.get(name), sentinels=sentinels, row_key=row_key
+        )
         for name in field_names
     }
 
@@ -482,6 +494,7 @@ def _reconcile_added_row(
     theirs_row: Mapping[str, Any] | None,
     *,
     sentinels: Mapping[str, str] | None = None,
+    row_key: str | None = None,
 ) -> dict[str, Any] | None:
     """A key absent from *base*: added on one side, or independently on both
     (contract rule 1/2 — never a delete, since there is no base entry to
@@ -492,7 +505,7 @@ def _reconcile_added_row(
         return dict(ours_row)  # added on A only
     if ours_row == theirs_row:
         return dict(ours_row)
-    return _merge_row_fields(None, ours_row, theirs_row, sentinels=sentinels)
+    return _merge_row_fields(None, ours_row, theirs_row, sentinels=sentinels, row_key=row_key)
 
 
 def _reconcile_existing_row(
@@ -501,6 +514,7 @@ def _reconcile_existing_row(
     theirs_row: Mapping[str, Any] | None,
     *,
     sentinels: Mapping[str, str] | None = None,
+    row_key: str | None = None,
 ) -> dict[str, Any] | None:
     """A key present in *base*: delete-vs-stale disambiguation (contract) +
     3-way field merge when both sides still carry (differing) content."""
@@ -512,7 +526,7 @@ def _reconcile_existing_row(
         return None if ours_row == base_row else dict(ours_row)
     if ours_row == theirs_row:
         return dict(ours_row)
-    return _merge_row_fields(base_row, ours_row, theirs_row, sentinels=sentinels)
+    return _merge_row_fields(base_row, ours_row, theirs_row, sentinels=sentinels, row_key=row_key)
 
 
 def _reconcile_row(
@@ -521,14 +535,15 @@ def _reconcile_row(
     ours_row: Mapping[str, Any] | None,
     theirs_row: Mapping[str, Any] | None,
     sentinels: Mapping[str, str] | None = None,
+    row_key: str | None = None,
 ) -> dict[str, Any] | None:
     """One row's 3-way reconciliation (contract: per-row reconciliation +
     delete-vs-stale disambiguation). Returns the merged row, or ``None`` when
     the row is dropped (both sides deleted it, or one side deleted it while
     the other left it genuinely unchanged from *base_row*)."""
     if base_row is None:
-        return _reconcile_added_row(ours_row, theirs_row, sentinels=sentinels)
-    return _reconcile_existing_row(base_row, ours_row, theirs_row, sentinels=sentinels)
+        return _reconcile_added_row(ours_row, theirs_row, sentinels=sentinels, row_key=row_key)
+    return _reconcile_existing_row(base_row, ours_row, theirs_row, sentinels=sentinels, row_key=row_key)
 
 
 def _canonicalize_keyed_rows(
@@ -586,7 +601,7 @@ def _reconcile_keyed_rows(
     merged: dict[str, dict[str, Any]] = {}
     for key in sorted({*base, *ours, *theirs}):
         row = _reconcile_row(
-            base_row=base.get(key), ours_row=ours.get(key), theirs_row=theirs.get(key), sentinels=sentinels
+            base_row=base.get(key), ours_row=ours.get(key), theirs_row=theirs.get(key), sentinels=sentinels, row_key=key
         )
         if row is not None:
             merged[key] = row

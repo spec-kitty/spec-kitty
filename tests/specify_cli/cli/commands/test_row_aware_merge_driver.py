@@ -493,6 +493,24 @@ def test_acceptance_matrix_same_field_conflict_raises_fail_closed() -> None:
         reconcile_acceptance_matrix_documents(base, ours, theirs)
 
 
+def test_acceptance_matrix_fail_closed_message_names_the_offending_row() -> None:
+    """The fail-closed abort is resolved by a human, so the message must name
+    the offending row's canonical key — otherwise an operator staring at a
+    many-criterion matrix cannot locate the diverged verdict."""
+    base = _acceptance_doc(
+        [{"criterion_id": "FR-042", "description": "d", "proof_type": "automated_test", "pass_fail": "pending"}]
+    )
+    ours = _acceptance_doc(
+        [{"criterion_id": "FR-042", "description": "d", "proof_type": "automated_test", "pass_fail": "pass"}]
+    )
+    theirs = _acceptance_doc(
+        [{"criterion_id": "FR-042", "description": "d", "proof_type": "automated_test", "pass_fail": "fail"}]
+    )
+
+    with pytest.raises(RowMatrixMergeError, match=r"row 'FR-042'.*pass_fail"):
+        reconcile_acceptance_matrix_documents(base, ours, theirs)
+
+
 def test_acceptance_matrix_authored_pass_fail_beats_pending_sentinel_no_raise() -> None:
     """An UNSET sentinel (``pass_fail == "pending"``) yields to the authored
     side rather than failing closed — one lane graded the criterion, the other
