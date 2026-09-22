@@ -114,14 +114,66 @@ def _profiles_dict_from_service(service: object) -> dict[str, AgentProfile]:
     return dict(attr) if isinstance(attr, dict) else {}
 
 
+def _resolve_composed(repository: AgentProfileRepository, profile_id: str) -> AgentProfile | None:
+    """Resolve *profile_id* with its ``specializes_from`` lineage composed.
+
+    Dispatch-capsule / governance-context parity with ``profiles show`` and the
+    runtime bridge (#4917): those surfaces read the ungated
+    :meth:`AgentProfileRepository.resolve_profile`, which unions a profile's
+    ``directive-references`` / ``tactic-references`` (and the other list
+    sections) up its ``specializes_from`` ancestor chain. The capsule funnel
+    previously returned the raw, un-composed record via
+    :meth:`AgentProfileRepository.get`, so a leaf profile that
+    ``specializes_from`` a base citing directives/tactics only on the base
+    rendered those sections in ``profiles show`` but dropped them from the
+    capsule. Composing here closes that gap.
+
+    Lineage is composed *below the activation grain* (the pinned
+    ``resolver.py`` ``agent_profile_repository`` semantics): the traversal may
+    cross into a de-activated ancestor, matching ``profiles show``. Activation
+    gating on the leaf id is applied by the caller
+    (:func:`_activation_aware_profile_map` / :func:`_resolve_agent_profile_record`),
+    not here.
+
+    Returns ``None`` only when the profile genuinely does not exist. On a broken
+    lineage (missing parent / cycle) the raw record is returned so the
+    prompt-build hot path never collapses.
+    """
+    raw = repository.get(profile_id)
+    if raw is None:
+        return None
+    # Compose lineage when the store supports it; otherwise fall back to the raw
+    # record. A real ``AgentProfileRepository`` always does, so production always
+    # composes; the guard keeps the best-effort funnel tolerant of lightweight
+    # ``get``-only profile stubs (the funnel never collapses the prompt).
+    resolve = getattr(repository, "resolve_profile", None)
+    if resolve is None:
+        return raw
+    try:
+        return resolve(profile_id)
+    except (KeyError, ValueError):
+        _LOGGER.warning(
+            "Lineage composition failed for profile '%s'; rendering the raw record without inherited sections.",
+            profile_id,
+        )
+        return raw
+
+
 def _activation_aware_profile_map(repo_root: Path, org_roots: list[Path]) -> dict[str, AgentProfile]:
-    """Return (and cache) the activation-gated profile map for ``repo_root``.
+    """Return (and cache) the activation-gated, lineage-composed profile map.
 
     Reuses :func:`~charter.activation.doctrine_service_builder._build_activation_aware_doctrine_service`
     (the FR-016 precedent) so the ``activated_agent_profiles`` three-state
     gate is honoured — never re-implemented — and threads the discovered org
     roots in as **data** (no ``specify_cli`` import, preserving the layer
     rule).
+
+    Compose-then-filter (#4917): the wrapper's ``agent_profiles`` dict is the
+    already-gated **leaf** set, and each entry is then composed through the
+    ungated :attr:`agent_profile_repository` so the dispatch capsule renders the
+    same ``specializes_from`` lineage that ``profiles show`` does. The gate
+    still applies to the leaf id; lineage may cross into a de-activated
+    ancestor (:func:`_resolve_composed`).
     """
     cached = _ACTIVATION_AWARE_PROFILE_MAPS.get(repo_root)
     if cached is not None:
@@ -129,7 +181,12 @@ def _activation_aware_profile_map(repo_root: Path, org_roots: list[Path]) -> dic
     from charter.activation.context import _build_activation_aware_doctrine_service  # noqa: PLC0415
 
     service = _build_activation_aware_doctrine_service(repo_root, org_roots=org_roots)
-    profile_map = _profiles_dict_from_service(service)
+    gated = _profiles_dict_from_service(service)
+    repository = getattr(service, "agent_profile_repository", None)
+    profile_map: dict[str, AgentProfile] = {}
+    for profile_id, raw in gated.items():
+        composed = _resolve_composed(repository, profile_id) if repository is not None else None
+        profile_map[profile_id] = composed if composed is not None else raw
     _ACTIVATION_AWARE_PROFILE_MAPS[repo_root] = profile_map
     return profile_map
 
@@ -139,11 +196,16 @@ def _resolve_agent_profile_record(profile_id: str, repo_root: Path | None) -> Ag
 
     Only callers without a repository root use the built-in-only bootstrap
     repository. Project profiles must resolve even with no organization packs.
+
+    Every path composes ``specializes_from`` lineage via
+    :func:`_resolve_composed` (#4917) so the dispatch capsule renders the same
+    profile-cited sections ``profiles show`` does; the activation gate still
+    applies to the leaf id.
     """
     from charter.activation.context import _default_agent_profile_repository  # noqa: PLC0415
 
     if repo_root is None:
-        return _default_agent_profile_repository().get(profile_id)
+        return _resolve_composed(_default_agent_profile_repository(), profile_id)
     org_roots = _existing_org_roots(repo_root)
     return _activation_aware_profile_map(repo_root, org_roots).get(profile_id)
 
