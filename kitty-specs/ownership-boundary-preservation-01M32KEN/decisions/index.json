@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-21T18:26:04.440408Z",
+      "decision_id": "01M32KFM0RRA082CAP3K8ADTFY",
+      "final_answer": "Fold in; milestone MVP launch; keep P1. Operator decision (2026-09-21): fix #4862's rmtree-after-Skipped data loss in this mission alongside #4859/#4861 (one charter-class root); move #4862 to the 'MVP launch (2026-09-15)' milestone so it is not orphaned; keep priority P1 (no P0 re-triage).",
+      "input_key": "issue_4862_triage",
+      "mission_id": "01M32KEND1B4Z5G9SK2KB28VBN",
+      "mission_slug": "ownership-boundary-preservation-01M32KEN",
+      "opened_by": "cli",
+      "options": [
+        "Fold in; milestone MVP launch; keep P1",
+        "Fold in; milestone MVP launch; re-triage P0",
+        "Fold in; leave tracker as-is",
+        "Exclude #4862"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should #4862 (charter-rename migration deletes files it reported 'Skipped') be folded into this mission, and how should its tracker metadata (milestone/priority) be corrected?",
+      "rationale": null,
+      "resolved_at": "2026-09-21T18:26:19.956576Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.issue-4862-triage",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M32KEND1B4Z5G9SK2KB28VBN",
+  "version": 1
+}

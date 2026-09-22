@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "mission_slug": "ownership-boundary-preservation-01M32KEN",
+  "mission_id": "01M32KEND1B4Z5G9SK2KB28VBN",
+  "mission_branch": "kitty/mission-ownership-boundary-preservation-01M32KEN",
+  "target_branch": "fix/ownership-boundary-preservation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/asset_preservation/**",
+        "src/specify_cli/skills/installer.py",
+        "tests/specify_cli/asset_preservation/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc45_retire_standalone_skill_surface.py",
+        "tests/specify_cli/upgrade/migrations/test_m_3_2_0rc45_retire_standalone_skill_surface.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/init.py",
+        "tests/cli/test_init_backup_then_proceed.py",
+        "tests/init/test_init_command_templates_preservation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py",
+        "tests/specify_cli/upgrade/migrations/test_m_3_1_1_charter_rename.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/m_0_10_0_python_only.py",
+        "tests/specify_cli/upgrade/migrations/test_m_0_10_0_python_only.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/m_0_10_2_update_slash_commands.py",
+        "tests/specify_cli/upgrade/migrations/test_m_0_10_2_update_slash_commands.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/m_2_0_11_remove_clarify_command.py",
+        "src/specify_cli/upgrade/migrations/m_2_1_2_remove_release_skill.py",
+        "src/specify_cli/upgrade/migrations/m_2_2_0_profile_context_deployment.py",
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc43_retire_profile_context_command.py",
+        "tests/specify_cli/upgrade/migrations/test_m_2_0_11_remove_clarify_command.py",
+        "tests/specify_cli/upgrade/migrations/test_m_2_1_2_remove_release_skill.py",
+        "tests/specify_cli/upgrade/migrations/test_m_2_2_0_profile_context_deployment.py",
+        "tests/specify_cli/upgrade/migrations/test_m_3_2_0rc43_retire_profile_context_command.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/m_0_6_7_ensure_missions.py",
+        "src/specify_cli/upgrade/migrations/m_unify_charter_activation_finalize.py",
+        "tests/specify_cli/upgrade/migrations/test_m_0_6_7_ensure_missions.py",
+        "tests/specify_cli/upgrade/migrations/test_m_unify_charter_activation_finalize.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/_destructive_op_census.py",
+        "tests/architectural/test_destructive_op_routing.py",
+        "tests/architectural/test_mutation_ownership_routing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-g",
+        "lane-h"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-21T19:31:33.806311+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2a1d901f6d721641a5c0de162b8bfde4f95e3106"
+}

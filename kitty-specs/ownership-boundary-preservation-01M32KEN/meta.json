@@ -1,0 +1,35 @@
+{
+  "accept_commit": "93f1a4e6f2d757ef82c54127a0edf5f513291aa6",
+  "acceptance_history": [
+    {
+      "accept_commit": "93f1a4e6f2d757ef82c54127a0edf5f513291aa6",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-22T09:06:41.607907+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "9095feec33090e3cf1521f73107666265f6e42ae"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-22T09:06:41.607907+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "9095feec33090e3cf1521f73107666265f6e42ae",
+  "baseline_merge_commit": "edecef3833fa7531fdc0963ef401c6c4b97c81f9",
+  "created_at": "2026-09-21T18:25:33.104099+00:00",
+  "flattened": true,
+  "friendly_name": "Ownership-Boundary Preservation for Mutating Flows",
+  "merged_at": "2026-09-22T09:12:59.248602+00:00",
+  "merged_commit": "5e888e7ff1674c97803b0762e75ed21df76a82c0",
+  "mid8": "01M32KEN",
+  "mission_id": "01M32KEND1B4Z5G9SK2KB28VBN",
+  "mission_number": null,
+  "mission_slug": "ownership-boundary-preservation-01M32KEN",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When Spec Kitty scaffolds or upgrades a project, three cleanup paths delete files by name or directory alone, without proving Spec Kitty shipped them and without keeping a backup, yet still report success. A user who authored their own slash command, skill, or command template that happens to share a shipped name can lose that work with no warning. This mission makes every mutating flow prove package ownership before deleting, and otherwise preserve-with-a-warning plus an optional backup, closing the data-loss class by construction.",
+  "purpose_tldr": "Stop Spec Kitty's init/upgrade/migration flows from silently deleting a user's own commands, skills, and templates.",
+  "slug": "ownership-boundary-preservation-01M32KEN",
+  "status_phase": "1",
+  "target_branch": "fix/ownership-boundary-preservation",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-22T05:34:18.976304+00:00"
+}
