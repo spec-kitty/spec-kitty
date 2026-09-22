@@ -151,7 +151,6 @@ def _archive_existing_path(dest: Path, project_path: Path, backup_root: Path | N
     before = inputs[-1].state
     if before.kind not in {"file", "symlink"}:
         raise ValueError(f"Cannot archive skill node: {dest}")
-    content = dest.read_bytes() if before.kind == "file" else None
     if backup_root is None:
         allocation = prepare_skill_backup(project_path, (SkillBackupReplacement(dest.relative_to(project_path).as_posix(), before, after or FileState("absent")),))
         recheck_skill_paths(inputs)
@@ -171,14 +170,16 @@ def _archive_existing_path(dest: Path, project_path: Path, backup_root: Path | N
         backup_path.symlink_to(before.target)
         if before.mode is not None and stat.S_IMODE(backup_path.lstat().st_mode) != before.mode:
             backup_path.chmod(before.mode, follow_symlinks=False)
+        if before.mtime_ns is not None:
+            os.utime(backup_path, ns=(before.mtime_ns, before.mtime_ns), follow_symlinks=False)
     else:
-        assert content is not None and before.mode is not None
-        descriptor = os.open(backup_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, before.mode)
-        with os.fdopen(descriptor, "wb") as stream:
-            stream.write(content)
-            chmod_fd(stream.fileno(), backup_path, before.mode)
-    if before.mtime_ns is not None:
-        os.utime(backup_path, ns=(before.mtime_ns, before.mtime_ns), follow_symlinks=False)
+        # Delegate the verbatim regular-file copy to the single asset-preservation
+        # backup core (contract C1.5 / DIRECTIVE_044 single authority); it preserves
+        # mode + mtime and refuses to clobber. The trailing _safe_unlink stays here,
+        # in the wrapper, not in the copy-only core.
+        from specify_cli.asset_preservation.backup import write_file_verbatim
+
+        write_file_verbatim(dest, backup_path)
     recheck_skill_paths(inputs)
     _safe_unlink(dest)
     return backup_root
