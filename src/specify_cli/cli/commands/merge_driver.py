@@ -59,7 +59,7 @@ from specify_cli.acceptance import (
     ACCEPTANCE_HISTORY_FIELD,
     ACCEPTANCE_PROVENANCE_FIELDS,
 )
-from specify_cli.acceptance.matrix import AcceptanceMatrix
+from specify_cli.acceptance.matrix import AcceptanceMatrix, AcceptanceMatrixParseError
 from specify_cli.mission_metadata import parse_meta_file
 from specify_cli.status import EventLogMergeError, merge_event_log_files
 from specify_cli.tasks.issue_matrix import ISSUE_MATRIX_SCHEMA_VERSION
@@ -382,29 +382,35 @@ def _parse_json_document(path: Path) -> dict[str, Any]:
     return data
 
 
-# A field-level conflict never silently picks a side (contract: "never silent
-# pick"). It is embedded as a git-style conflict marker string — the merged
-# document stays valid JSON (the field's value is just a string), so the
-# merge never aborts (2026-07-23-2 / no consolidation abort) while remaining
-# visibly, unambiguously flagged for a human to resolve.
+# Git-style conflict markers used ONLY by the non-aborting review-cycle
+# prose driver (:func:`merge_driver_review_cycle`) to embed a two-verdict
+# collision verbatim into an unread ``.md`` render (NFR-002). #4880 removed
+# the row-matrix field-level embed path (:func:`_merge_field` now raises
+# :class:`RowMatrixMergeError` instead) — these constants are no longer used
+# for verdict-bearing JSON documents.
 _CONFLICT_MARKER_OURS = "<<<<<<< ours"
 _CONFLICT_MARKER_SEP = "======="
 _CONFLICT_MARKER_THEIRS = ">>>>>>> theirs"
 
 
-def _field_conflict_marker(ours_value: Any, theirs_value: Any) -> str:
-    return "\n".join(
-        (
-            _CONFLICT_MARKER_OURS,
-            json.dumps(ours_value),
-            _CONFLICT_MARKER_SEP,
-            json.dumps(theirs_value),
-            _CONFLICT_MARKER_THEIRS,
-        )
-    )
+# Unset-sentinel placeholders per verdict-bearing field. During a 3-way merge an
+# unset value yields to an authored value instead of failing closed (#4880): a
+# lane that never recorded a verdict must not abort a merge with a lane that did.
+# Mirrors issue_matrix._SCAFFOLD_VERDICT_PLACEHOLDER ("unknown") and the
+# acceptance CRITERION_VERDICTS / NEGATIVE_INVARIANT_RESULTS "pending" member.
+_ISSUE_MATRIX_SENTINELS: Mapping[str, str] = {"verdict": "unknown"}
+_ACCEPTANCE_CRITERION_SENTINELS: Mapping[str, str] = {"pass_fail": "pending"}
+_ACCEPTANCE_INVARIANT_SENTINELS: Mapping[str, str] = {"result": "pending"}
 
 
-def _merge_field(base_v: Any, ours_v: Any, theirs_v: Any) -> Any:
+def _merge_field(
+    field_name: str,
+    base_v: Any,
+    ours_v: Any,
+    theirs_v: Any,
+    *,
+    sentinels: Mapping[str, str] | None = None,
+) -> Any:
     """3-way merge of one field value (contract: per-row reconciliation).
 
     ``ours_v``/``theirs_v`` equal → take it (whether or not it changed from
@@ -412,8 +418,10 @@ def _merge_field(base_v: Any, ours_v: Any, theirs_v: Any) -> Any:
     changed side (this also covers a field one side dropped entirely — a
     dict ``.get`` miss and ``base_v`` both read as ``None``, so "removed" and
     "changed to None" are treated identically, which is the correct 3-way
-    reading). Changed on both sides to different values → a structured
-    conflict marker, never a silent pick.
+    reading). Changed on both sides to different values → a VERDICT-authority
+    field (a key in *sentinels*) fails closed unless one side is the unset
+    sentinel; any other field prefers the target (``ours``). Never embeds an
+    in-band conflict marker into the verdict artifact (#4880 / #2804).
     """
     if ours_v == theirs_v:
         return ours_v
@@ -421,13 +429,40 @@ def _merge_field(base_v: Any, ours_v: Any, theirs_v: Any) -> Any:
         return theirs_v
     if theirs_v == base_v:
         return ours_v
-    return _field_conflict_marker(ours_v, theirs_v)
+    # Both sides diverged from base to different values. Two rules reconcile
+    # #4880 (a silently-corrupted VERDICT must fail closed) with #2804 (a
+    # scaffold/placeholder row must yield to the filled side, never abort a
+    # normal lane consolidation):
+    #
+    #   * VERDICT-AUTHORITY fields (pass_fail / result / verdict — the keys in
+    #     *sentinels*) fail closed on a genuine disagreement, EXCEPT that an
+    #     unset sentinel (``pending`` / ``unknown``) is not an authored value
+    #     and yields to the authored side.
+    #   * every OTHER field (evidence_ref, description, notes, proof_type, ...)
+    #     is not verdict authority: it never aborts and never embeds a marker —
+    #     it prefers the target side (``ours``), matching #2804 / #1732's
+    #     target-authoritative tie convention (the accumulating target carries
+    #     the filled value; the incoming lane's scaffold placeholder loses).
+    verdict_sentinel = (sentinels or {}).get(field_name)
+    if verdict_sentinel is None:
+        return ours_v  # non-verdict field: target-authoritative, no abort, no marker
+    if theirs_v == verdict_sentinel and ours_v != verdict_sentinel:
+        return ours_v
+    if ours_v == verdict_sentinel and theirs_v != verdict_sentinel:
+        return theirs_v
+    # #4880: two genuinely-authored, differing verdicts — fail closed.
+    raise RowMatrixMergeError(
+        f"verdict field {field_name!r} diverged on both sides with no common "
+        f"base value (ours={ours_v!r}, theirs={theirs_v!r})"
+    )
 
 
 def _merge_row_fields(
     base_row: Mapping[str, Any] | None,
     ours_row: Mapping[str, Any],
     theirs_row: Mapping[str, Any],
+    *,
+    sentinels: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     """Per-field 3-way merge of one row that exists (with differing content)
     on at least two of the three sides. ``base_row`` may be ``None`` (the row
@@ -437,7 +472,7 @@ def _merge_row_fields(
     base = base_row or {}
     field_names = dict.fromkeys((*base, *ours_row, *theirs_row))
     return {
-        name: _merge_field(base.get(name), ours_row.get(name), theirs_row.get(name))
+        name: _merge_field(name, base.get(name), ours_row.get(name), theirs_row.get(name), sentinels=sentinels)
         for name in field_names
     }
 
@@ -445,6 +480,8 @@ def _merge_row_fields(
 def _reconcile_added_row(
     ours_row: Mapping[str, Any] | None,
     theirs_row: Mapping[str, Any] | None,
+    *,
+    sentinels: Mapping[str, str] | None = None,
 ) -> dict[str, Any] | None:
     """A key absent from *base*: added on one side, or independently on both
     (contract rule 1/2 — never a delete, since there is no base entry to
@@ -455,13 +492,15 @@ def _reconcile_added_row(
         return dict(ours_row)  # added on A only
     if ours_row == theirs_row:
         return dict(ours_row)
-    return _merge_row_fields(None, ours_row, theirs_row)
+    return _merge_row_fields(None, ours_row, theirs_row, sentinels=sentinels)
 
 
 def _reconcile_existing_row(
     base_row: Mapping[str, Any],
     ours_row: Mapping[str, Any] | None,
     theirs_row: Mapping[str, Any] | None,
+    *,
+    sentinels: Mapping[str, str] | None = None,
 ) -> dict[str, Any] | None:
     """A key present in *base*: delete-vs-stale disambiguation (contract) +
     3-way field merge when both sides still carry (differing) content."""
@@ -473,7 +512,7 @@ def _reconcile_existing_row(
         return None if ours_row == base_row else dict(ours_row)
     if ours_row == theirs_row:
         return dict(ours_row)
-    return _merge_row_fields(base_row, ours_row, theirs_row)
+    return _merge_row_fields(base_row, ours_row, theirs_row, sentinels=sentinels)
 
 
 def _reconcile_row(
@@ -481,14 +520,15 @@ def _reconcile_row(
     base_row: Mapping[str, Any] | None,
     ours_row: Mapping[str, Any] | None,
     theirs_row: Mapping[str, Any] | None,
+    sentinels: Mapping[str, str] | None = None,
 ) -> dict[str, Any] | None:
     """One row's 3-way reconciliation (contract: per-row reconciliation +
     delete-vs-stale disambiguation). Returns the merged row, or ``None`` when
     the row is dropped (both sides deleted it, or one side deleted it while
     the other left it genuinely unchanged from *base_row*)."""
     if base_row is None:
-        return _reconcile_added_row(ours_row, theirs_row)
-    return _reconcile_existing_row(base_row, ours_row, theirs_row)
+        return _reconcile_added_row(ours_row, theirs_row, sentinels=sentinels)
+    return _reconcile_existing_row(base_row, ours_row, theirs_row, sentinels=sentinels)
 
 
 def _canonicalize_keyed_rows(
@@ -530,11 +570,14 @@ def _reconcile_keyed_rows(
     theirs_rows: Any,
     *,
     key_of: Callable[[Any, Mapping[str, Any]], str],
+    sentinels: Mapping[str, str] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """3-way reconcile one row collection, keyed by canonicalized identity.
 
     Returns ``{canonical_key: merged_row}`` in sorted-key order — the stable
-    canonical order the contract requires for byte-determinism.
+    canonical order the contract requires for byte-determinism. *sentinels*
+    maps a field name to its unset placeholder (e.g. ``{"verdict": "unknown"}``)
+    so an unset side yields to an authored side instead of failing closed.
     """
     base = _canonicalize_keyed_rows(base_rows, key_of=key_of)
     ours = _canonicalize_keyed_rows(ours_rows, key_of=key_of)
@@ -543,7 +586,7 @@ def _reconcile_keyed_rows(
     merged: dict[str, dict[str, Any]] = {}
     for key in sorted({*base, *ours, *theirs}):
         row = _reconcile_row(
-            base_row=base.get(key), ours_row=ours.get(key), theirs_row=theirs.get(key)
+            base_row=base.get(key), ours_row=ours.get(key), theirs_row=theirs.get(key), sentinels=sentinels
         )
         if row is not None:
             merged[key] = row
@@ -584,6 +627,7 @@ def reconcile_issue_matrix_documents(
         ours_doc.get("rows", {}),
         theirs_doc.get("rows", {}),
         key_of=_issue_row_key,
+        sentinels=_ISSUE_MATRIX_SENTINELS,
     )
     return {"schema_version": ISSUE_MATRIX_SCHEMA_VERSION, "rows": merged_rows}
 
@@ -601,7 +645,7 @@ def merge_driver_issue_matrix(
             _parse_json_document(ours),
             _parse_json_document(theirs),
         )
-    except RowMatrixMergeError as exc:
+    except (RowMatrixMergeError, AcceptanceMatrixParseError) as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     ours.write_text(json.dumps(merged, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -662,19 +706,22 @@ def reconcile_acceptance_matrix_documents(
         ours_doc.get("criteria", []),
         theirs_doc.get("criteria", []),
         key_of=_row_key_field("criterion_id"),
+        sentinels=_ACCEPTANCE_CRITERION_SENTINELS,
     )
     merged_invariants = _reconcile_keyed_rows(
         base_doc.get("negative_invariants", []),
         ours_doc.get("negative_invariants", []),
         theirs_doc.get("negative_invariants", []),
         key_of=_row_key_field("invariant_id"),
+        sentinels=_ACCEPTANCE_INVARIANT_SENTINELS,
     )
     merged_document = {
         **_reconcile_identity_fields(base_doc, ours_doc, theirs_doc),
         "criteria": list(merged_criteria.values()),
         "negative_invariants": list(merged_invariants.values()),
     }
-    return AcceptanceMatrix.from_dict(merged_document).to_dict()
+    reconciled: dict[str, Any] = AcceptanceMatrix.from_dict(merged_document).to_dict()
+    return reconciled
 
 
 def merge_driver_acceptance_matrix(
@@ -690,7 +737,7 @@ def merge_driver_acceptance_matrix(
             _parse_json_document(ours),
             _parse_json_document(theirs),
         )
-    except RowMatrixMergeError as exc:
+    except (RowMatrixMergeError, AcceptanceMatrixParseError) as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     ours.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")

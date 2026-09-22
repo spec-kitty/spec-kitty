@@ -30,7 +30,7 @@ _PYPROJECT = _REPO_ROOT / "pyproject.toml"
 # 01KZNMA3/research/` that `ruff.toml`'s `extend-exclude` already drops from
 # collection independently. Growing the list requires bumping this constant
 # in the same PR as the new entry, which is the point of the ratchet.
-_BASELINE_EXCLUDE_COUNT = 2809
+_BASELINE_EXCLUDE_COUNT = 2808
 
 
 def _load_exclude_list() -> list[str]:

@@ -91,9 +91,7 @@ AUTO_DERIVABLE_PROOF_TYPES: frozenset[str] = frozenset({"code_review"})
 # The auto-derivation note appended to a populated criterion's ``notes`` so an
 # operator reading the matrix can tell a gate-derived row apart from one a
 # reviewer hand-verified through ``agent mission acceptance-verdict``.
-_AUTO_DERIVED_NOTE = (
-    "Auto-derived from WP review evidence (IC-04 gate-side capture, FR-008)."
-)
+_AUTO_DERIVED_NOTE = "Auto-derived from WP review evidence (IC-04 gate-side capture, FR-008)."
 
 
 def _is_empty_scaffold(criterion: AcceptanceCriterion) -> bool:
@@ -175,14 +173,73 @@ def _parse_items(
         try:
             parsed.append(parser(raw))
         except (TypeError, KeyError) as exc:
-            raise AcceptanceMatrixParseError(
-                section=section, item_index=idx, reason=str(exc)
-            ) from exc
+            raise AcceptanceMatrixParseError(section=section, item_index=idx, reason=str(exc)) from exc
     return parsed
 
 
 def _is_allowed_value(value: Any, allowed: frozenset[str]) -> bool:
     return isinstance(value, str) and value in allowed
+
+
+# FR-004 defense-in-depth: a stray, unresolved git conflict marker left in a
+# string field is a symptom of a botched merge, not an authored value. Left
+# unrejected, it round-trips through ``from_dict`` and — for a field that
+# feeds :attr:`AcceptanceMatrix.overall_verdict` (``pass_fail`` / ``result``)
+# — silently coerces the verdict to ``"fail"`` via the existing
+# out-of-domain-value branch (:func:`_is_allowed_value`), while a marker
+# landing in a prose-only field (e.g. ``notes``) leaves no such signal at
+# all. Either way the merge damage goes undetected. This is the read-side
+# guard; the write-side guard (merge-driver conflict-marker rejection) is a
+# separate module (WP01, ``merge_driver.py``).
+_CONFLICT_MARKERS: tuple[str, ...] = ("<<<<<<<", "=======", ">>>>>>>")
+
+
+def _reject_conflict_markers(field_name: str, value: Any, *, section: str, item_index: int, row_key: str) -> None:
+    """Raise :class:`AcceptanceMatrixParseError` if ``value`` carries a raw marker.
+
+    Only the three literal conflict-marker tokens are rejected — an
+    authored, merely out-of-domain string (e.g. an unrecognized
+    ``pass_fail`` value) is left alone; it still flows through
+    :func:`_is_allowed_value` unchanged (C-001), so ``overall_verdict``'s
+    existing out-of-domain-value handling is untouched by this guard.
+    """
+    if not isinstance(value, str):
+        return
+    for marker in _CONFLICT_MARKERS:
+        if marker in value:
+            raise AcceptanceMatrixParseError(
+                section=section,
+                item_index=item_index,
+                reason=(f"field {field_name!r} on row {row_key!r} contains an unresolved conflict marker {marker!r}"),
+            )
+
+
+def _reject_criteria_conflict_markers(criteria: list[AcceptanceCriterion]) -> None:
+    for idx, criterion in enumerate(criteria):
+        for item_field in fields(criterion):
+            if item_field.name == "extras":
+                continue
+            _reject_conflict_markers(
+                item_field.name,
+                getattr(criterion, item_field.name),
+                section="criteria",
+                item_index=idx,
+                row_key=criterion.criterion_id,
+            )
+
+
+def _reject_invariant_conflict_markers(invariants: list[NegativeInvariant]) -> None:
+    for idx, invariant in enumerate(invariants):
+        for item_field in fields(invariant):
+            if item_field.name == "extras":
+                continue
+            _reject_conflict_markers(
+                item_field.name,
+                getattr(invariant, item_field.name),
+                section="negative_invariants",
+                item_index=idx,
+                row_key=invariant.invariant_id,
+            )
 
 
 def _split_known_fields(
@@ -362,14 +419,14 @@ class AcceptanceMatrix:
             data.get("mission_number"),
             data.get("mission_type"),
         )
-        criteria = _parse_items(
-            data.get("criteria", []), AcceptanceCriterion.from_dict, section="criteria"
-        )
+        criteria = _parse_items(data.get("criteria", []), AcceptanceCriterion.from_dict, section="criteria")
         negative_invariants = _parse_items(
             data.get("negative_invariants", []),
             NegativeInvariant.from_dict,
             section="negative_invariants",
         )
+        _reject_criteria_conflict_markers(criteria)
+        _reject_invariant_conflict_markers(negative_invariants)
         return cls(
             mission_slug=identity["mission_slug"],
             criteria=criteria,
@@ -400,11 +457,7 @@ def write_acceptance_matrix(feature_dir: Path, matrix: AcceptanceMatrix) -> Path
     if (feature_dir / "meta.json").exists():
         identity = resolve_mission_identity(feature_dir)
         matrix.mission_slug = identity.mission_slug
-        matrix.mission_number = (
-            str(identity.mission_number)
-            if identity.mission_number is not None
-            else None
-        )
+        matrix.mission_number = str(identity.mission_number) if identity.mission_number is not None else None
         matrix.mission_type = identity.mission_type
     path = feature_dir / MATRIX_FILENAME
     atomic_write(path, json.dumps(matrix.to_dict(), indent=2) + "\n")
@@ -640,17 +693,11 @@ def validate_manual_evidence(criterion: AcceptanceCriterion) -> list[str]:
     if criterion.proof_type != "manual_qa":
         return errors
     if not criterion.evidence:
-        errors.append(
-            f"{criterion.criterion_id}: manual QA requires evidence (URL/screenshot)"
-        )
+        errors.append(f"{criterion.criterion_id}: manual QA requires evidence (URL/screenshot)")
     if not criterion.verified_at:
-        errors.append(
-            f"{criterion.criterion_id}: manual QA requires verified_at timestamp"
-        )
+        errors.append(f"{criterion.criterion_id}: manual QA requires verified_at timestamp")
     if not criterion.verified_by:
-        errors.append(
-            f"{criterion.criterion_id}: manual QA requires verified_by identity"
-        )
+        errors.append(f"{criterion.criterion_id}: manual QA requires verified_by identity")
     return errors
 
 
@@ -686,20 +733,14 @@ def _validate_invariant_provenance(invariant: NegativeInvariant) -> list[str]:
         return errors
     if not _is_allowed_value(invariant.provenance_origin, PROVENANCE_ORIGINS):
         allowed = ", ".join(sorted(PROVENANCE_ORIGINS))
-        errors.append(
-            f"{invariant.invariant_id}: provenance_origin must be one of {allowed}; "
-            f"got {invariant.provenance_origin!r}"
-        )
+        errors.append(f"{invariant.invariant_id}: provenance_origin must be one of {allowed}; got {invariant.provenance_origin!r}")
         return errors
     if (
         result in TERMINAL_INVARIANT_RESULTS
         and invariant.provenance_origin == PROVENANCE_RECORDED
         and (invariant.verified_ref is None or invariant.verified_surface_kind is None)
     ):
-        errors.append(
-            f"{invariant.invariant_id}: a recorded {result!r} result requires both "
-            "verified_ref and verified_surface_kind (NI-1)"
-        )
+        errors.append(f"{invariant.invariant_id}: a recorded {result!r} result requires both verified_ref and verified_surface_kind (NI-1)")
     return errors
 
 
@@ -762,9 +803,7 @@ def enforce_negative_invariants(
     return results
 
 
-def populate_criteria_from_review_evidence(
-    status_feature_dir: Path, criteria: list[AcceptanceCriterion]
-) -> list[AcceptanceCriterion]:
+def populate_criteria_from_review_evidence(status_feature_dir: Path, criteria: list[AcceptanceCriterion]) -> list[AcceptanceCriterion]:
     """FR-008 (IC-04): auto-derive ``pending`` ``code_review`` rows from WP evidence.
 
     Closes the "criterion rows never populated" gap (governance-at-the-gate
@@ -844,11 +883,7 @@ def populate_criteria_from_review_evidence(
     references: list[str] = []
     for wp_id in sorted(wp_states):
         lookup = event_sourced_review_result(status_feature_dir, wp_id)
-        if (
-            not lookup.slot_present
-            or lookup.result is None
-            or lookup.result.verdict != "approved"
-        ):
+        if not lookup.slot_present or lookup.result is None or lookup.result.verdict != "approved":
             # Incomplete evidence chain (a WP approved before T1/T2 landed,
             # or via a path that never recorded review_result) -- stay
             # pending rather than derive a verdict this gate cannot prove.
@@ -886,9 +921,7 @@ def populate_criteria_from_review_evidence(
     ]
 
 
-def _should_defer(
-    repo_root: Path, ni: NegativeInvariant, context: GateExecutionContext
-) -> bool:
+def _should_defer(repo_root: Path, ni: NegativeInvariant, context: GateExecutionContext) -> bool:
     """NI-3 / C9: does this ``pending`` invariant's subject exist on the surface?
 
     Only a ``grep_absence`` SCOPED to a source directory can defer: if any of its
@@ -906,18 +939,13 @@ def _should_defer(
     return any(not (repo_root / root).exists() for root in ni.scope.split())
 
 
-def _defer_invariant(
-    ni: NegativeInvariant, context: GateExecutionContext
-) -> NegativeInvariant:
+def _defer_invariant(ni: NegativeInvariant, context: GateExecutionContext) -> NegativeInvariant:
     """Transition a ``pending`` invariant to ``deferred_to_consolidation`` (C4)."""
     surface = context.surface_kind.value
     return replace(
         ni,
         result=DEFERRED_TO_CONSOLIDATION,
-        evidence=(
-            f"Scoped subject {ni.scope!r} is absent on the {surface} surface "
-            f"pre-consolidation; deferred to post-consolidation verification."
-        ),
+        evidence=(f"Scoped subject {ni.scope!r} is absent on the {surface} surface pre-consolidation; deferred to post-consolidation verification."),
         deferred_reason=(
             f"Scoped path(s) {ni.scope!r} do not exist on the {surface} surface at "
             f"ref {context.ref!r}; judging here would report a false still_present "
@@ -927,9 +955,7 @@ def _defer_invariant(
     )
 
 
-def _stamp_provenance(
-    ni: NegativeInvariant, context: GateExecutionContext | None
-) -> NegativeInvariant:
+def _stamp_provenance(ni: NegativeInvariant, context: GateExecutionContext | None) -> NegativeInvariant:
     """NI-1: stamp a freshly judged result with the surface + ref it was established against.
 
     A terminal result gets ``provenance_origin = recorded`` plus the context's
