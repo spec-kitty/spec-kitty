@@ -55,6 +55,18 @@ def test_owned_dry_run_does_not_remove(tmp_path: Path) -> None:
     verdict = guard_destructive_removal(path, tmp_path, prover=_AlwaysOwned(), dry_run=True)
     assert verdict.owned is True
     assert path.exists()
+    # A forecast must report what a real run WOULD do, never a removal it did
+    # not perform (the preserve branch already says "Would preserve").
+    assert verdict.diagnostic.startswith("Would remove")
+    assert "Removed" not in verdict.diagnostic
+
+
+def test_owned_real_run_diagnostic_says_removed(tmp_path: Path) -> None:
+    path = _seed(tmp_path, ".kittify/templates/x.md")
+    verdict = guard_destructive_removal(path, tmp_path, prover=_AlwaysOwned(), dry_run=False)
+    assert verdict.owned is True
+    assert not path.exists()
+    assert verdict.diagnostic.startswith("Removed")
 
 
 # --- unprovable ⇒ preserve (never delete) ----------------------------------

@@ -149,13 +149,16 @@ def guard_destructive_removal(
     if proof is not None:
         if not dry_run:
             _remove(path, is_tree=is_tree)
+        # Mirror the preserve branch's dry-run honesty: report what a real run
+        # WOULD do, not a removal that a forecast did not perform.
+        verb = "Would remove" if dry_run else "Removed"
         return OwnershipVerdict(
             owned=True,
             proof=proof,
             preserved_path=None,
             backup_path=None,
             reason=f"package-owned ({proof.kind})",
-            diagnostic=f"Removed package-owned {rel} (proof: {proof.kind})",
+            diagnostic=f"{verb} package-owned {rel} (proof: {proof.kind})",
         )
 
     reason = "not package-owned"
