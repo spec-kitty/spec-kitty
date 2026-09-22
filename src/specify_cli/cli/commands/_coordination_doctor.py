@@ -1277,7 +1277,31 @@ def _coord_staleness_fix_blocked_finding(
         message=message,
         next_step=(
             "Inspect the diff above and reconcile manually; `--fix` will not "
-            "mutate a diverged or dirty coordination branch."
+            "mutate a diverged, dirty, or mismatched coordination worktree."
+        ),
+        error_code=_COORD_STALE_FIX_BLOCKED_CODE,
+    )
+
+
+def _coord_staleness_fix_postcondition_finding(
+    coord_branch: str,
+    target_branch: str,
+    expected_sha: str,
+    actual_sha: str,
+) -> DoctorFinding:
+    """Return a fail-loud finding when repair did not update the declared ref."""
+
+    actual = actual_sha[:8] if actual_sha else "unreadable"
+    return DoctorFinding(
+        severity="error",
+        message=(
+            "Coordination repair failed its postcondition: declared branch "
+            f"{coord_branch!r} is at {actual}, expected {expected_sha[:8]} "
+            f"to match target {target_branch!r}."
+        ),
+        next_step=(
+            "Inspect the recorded coordination worktree and declared branch; "
+            "`--fix` did not report success."
         ),
         error_code=_COORD_STALE_FIX_BLOCKED_CODE,
     )
@@ -1328,6 +1352,15 @@ def _fix_one_mission_coord_staleness(
     if not worktree.exists():
         return None  # no coord worktree to fast-forward into; worktree-health check covers this
 
+    head_finding = _coord_worktree_head_finding(worktree, coord_branch)
+    if head_finding is not None:
+        return _coord_staleness_fix_blocked_finding(
+            repo_root,
+            coord_branch,
+            target_branch,
+            reason=f"checked out in a mismatched worktree ({head_finding.message}) instead of",
+        )
+
     if _coord_worktree_dirty_finding(worktree) is not None:
         return _coord_staleness_fix_blocked_finding(
             repo_root, coord_branch, target_branch, reason="not cleanly fast-forwardable vs",
@@ -1337,6 +1370,11 @@ def _fix_one_mission_coord_staleness(
         ["git", "-C", str(worktree), "merge", "--ff-only", target_branch],
         check=True, capture_output=True, text=True,
     )
+    repaired_coord_sha = _rev_parse(repo_root, f"refs/heads/{coord_branch}")
+    if repaired_coord_sha != target_sha:
+        return _coord_staleness_fix_postcondition_finding(
+            coord_branch, target_branch, target_sha, repaired_coord_sha,
+        )
     console.print(
         f"[green]Fast-forwarded:[/green] coordination branch {coord_branch!r} "
         f"({coord_sha[:8]} -> {target_sha[:8]}) to match target {target_branch!r}."

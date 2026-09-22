@@ -232,6 +232,48 @@ def test_unified_diff_returns_empty_on_os_error(monkeypatch: pytest.MonkeyPatch,
     assert cd._unified_diff(tmp_path, "coord", "main") == ""
 
 
+def test_fix_one_staleness_requires_declared_ref_postcondition(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A completed merge is not success until the declared coord ref reaches target."""
+    from specify_cli import coordination as coord_mod
+
+    monkeypatch.setattr(
+        cd,
+        "_coord_vs_target_shas",
+        lambda *_a: ("coord", "main", "coord-sha", "target-sha"),
+    )
+    monkeypatch.setattr(cd, "_is_ff_candidate", lambda *_a: True)
+    monkeypatch.setattr(
+        cd,
+        "_coordination_identity",
+        lambda *_a: ("coord", "mission", "01ABCDEF00000000000000000A"),
+    )
+    monkeypatch.setattr(cd, "_resolve_coord_short", lambda *_a: "01ABCDEF")
+    monkeypatch.setattr(
+        coord_mod.CoordinationWorkspace,
+        "worktree_path",
+        staticmethod(lambda *_a: tmp_path),
+    )
+    monkeypatch.setattr(cd, "_coord_worktree_head_finding", lambda *_a: None)
+    monkeypatch.setattr(cd, "_coord_worktree_dirty_finding", lambda *_a: None)
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout="", stderr=""),
+    )
+    monkeypatch.setattr(cd, "_rev_parse", lambda *_a: "unexpected-sha")
+
+    finding = cd._fix_one_mission_coord_staleness(tmp_path, {})
+
+    assert finding is not None
+    assert finding.error_code == cd._COORD_STALE_FIX_BLOCKED_CODE
+    assert "postcondition" in finding.message
+    assert "Fast-forwarded" not in capsys.readouterr().out
+
+
 def test_check_and_warn_coord_staleness_no_meta_is_silent(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -375,6 +417,47 @@ def test_a_strict_ancestor_check_staleness_reports_and_fix_fast_forwards(
 
     assert _git(worktree, "rev-parse", "HEAD").stdout.strip() == target_sha
     assert _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip() == target_sha
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_a_wrong_branch_worktree_fix_fails_closed_without_mutation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """#4920: ``--fix`` must not advance the wrong branch checked out at the coord path."""
+    repo = tmp_path / "repo"
+    mission_slug = "wrong-branch-mission"
+    _make_strict_ancestor_repo(repo, mission_slug)
+
+    wrong_branch = "wrong-branch"
+    _git(repo, "branch", wrong_branch, _COORD_BRANCH)
+    worktree = tmp_path / "wrong-branch-wt"
+    _git(repo, "worktree", "add", str(worktree), wrong_branch)
+    _patch_worktree_path(monkeypatch, worktree)
+
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    coord_sha_before = _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip()
+    wrong_sha_before = _git(repo, "rev-parse", wrong_branch).stdout.strip()
+    target_sha_before = _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip()
+    worktree_head_before = _git(worktree, "rev-parse", "HEAD").stdout.strip()
+    assert coord_sha_before == wrong_sha_before == worktree_head_before
+    assert coord_sha_before != target_sha_before
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True, fix=True)
+
+    out = capsys.readouterr().out
+    assert _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip() == coord_sha_before
+    assert _git(repo, "rev-parse", wrong_branch).stdout.strip() == wrong_sha_before
+    assert _git(worktree, "rev-parse", "HEAD").stdout.strip() == worktree_head_before
+    assert _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip() == target_sha_before
+    assert exc.value.exit_code == 1
+    assert cd._COORD_STALE_FIX_BLOCKED_CODE in out
+    assert "expected 'coord'" in out
+    assert "Fast-forwarded" not in out
 
 
 @pytest.mark.git_repo
