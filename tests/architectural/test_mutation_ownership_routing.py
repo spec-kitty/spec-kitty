@@ -226,7 +226,7 @@ def _flatten(live: dict[str, list[tuple[int, str]]]) -> set[str]:
 # ---------------------------------------------------------------------------
 _ALLOWLIST: dict[str, str] = {
     # --- cli/commands/agent/config.py (1): empty-only rmdir after guard ----
-    "src/specify_cli/cli/commands/agent/config.py:167:Path.rmdir": (
+    "src/specify_cli/cli/commands/agent/config.py:168:Path.rmdir": (
         "empty-only rmdir: prunes the now-possibly-empty parent `root` only on the "
         "guard's owned branch (verdict.owned), after guard_destructive_removal already "
         "removed `surface` itself — raises OSError (caught) on a non-empty preserved dir."
