@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import re
-import shutil
 from pathlib import Path
 
+from specify_cli.asset_preservation import CanonicalContentProver, guard_destructive_removal
 from specify_cli.runtime.generated_writer import write_generated_file
 
 from ..registry import MigrationRegistry
@@ -18,13 +18,18 @@ class PythonOnlyMigration(BaseMigration):
 
     As of v0.10.0, all spec-kitty commands are available through the
     `spec-kitty agent` CLI namespace. Bash wrapper scripts in
-    `.kittify/scripts/bash/` are replaced with Python implementations.
+    `.kittify/scripts/bash/` are superseded by Python implementations.
 
     This migration:
-    1. Detects and removes bash scripts from .kittify/scripts/bash/
+    1. Routes every ``.kittify/scripts/{bash,powershell}`` sweep through the
+       asset-preservation guard. Scripts carry no version marker and the package
+       no longer ships a canonical to byte-match, so ``CanonicalContentProver``
+       returns ``None`` for all of them ⇒ **preserve-all** (charter L472:
+       unprovable ⇒ preserve + warn). "owned-delete" is N/A — scripts have no
+       ownership signal — so the guard leaves every script in place and names it.
     2. Updates slash command templates to use `spec-kitty agent` commands
-    3. Cleans up bash scripts in worktrees
-    4. Detects custom modifications and warns users
+    3. Routes worktree bash sweeps through the same guard (preserve-all)
+    4. Routes the obsolete ``.kittify/scripts/tasks/`` directory through the guard
     5. Is idempotent (safe to run multiple times)
     """
 
@@ -117,8 +122,9 @@ class PythonOnlyMigration(BaseMigration):
         warnings.extend(bash_warnings)
 
         # Step 2: Clean up bash scripts in worktrees
-        worktree_changes = self._cleanup_worktree_bash_scripts(project_path, dry_run)
+        worktree_changes, worktree_warnings = self._cleanup_worktree_bash_scripts(project_path, dry_run)
         changes.extend(worktree_changes)
+        warnings.extend(worktree_warnings)
 
         # Step 2.5: Remove obsolete task helpers
         tasks_changes, tasks_warnings = self._remove_tasks_helpers(project_path, dry_run)
@@ -130,8 +136,8 @@ class PythonOnlyMigration(BaseMigration):
         changes.extend(template_changes)
         errors.extend(template_errors)
 
-        # Note: Custom script detection now happens in _remove_bash_scripts()
-        # before deletion, so users get warnings about custom scripts
+        # Note: the guard preserves every script in place (no ownership signal)
+        # and names it in a warning, so no user script is ever deleted.
 
         success = len(errors) == 0
         return MigrationResult(
@@ -141,8 +147,44 @@ class PythonOnlyMigration(BaseMigration):
             warnings=warnings,
         )
 
+    def _preserve_scripts(
+        self,
+        scripts: list[Path],
+        project_path: Path,
+        *,
+        changes: list[str],
+        warnings: list[str],
+        dry_run: bool,
+    ) -> int:
+        """Route each script through the asset-preservation guard; return the
+        number preserved.
+
+        Scripts carry no version marker (the marker is a markdown/HTML comment for
+        command files, never injected into scripts) and the package no longer
+        ships a canonical to byte-match (this migration exists *because* commands
+        went Python-only). With no content signal, ``CanonicalContentProver``
+        proves ``None`` for every script ⇒ the guard preserves it in place and
+        names it — charter L472 (unprovable ⇒ preserve + warn). "owned-delete" is
+        N/A here: there is no ownership signal for a script, so allowlisting these
+        deletes would be dishonest (the base code deleted *custom* scripts).
+        """
+        prover = CanonicalContentProver()
+        preserved = 0
+        for script in scripts:
+            verdict = guard_destructive_removal(script, project_path, prover=prover, dry_run=dry_run)
+            if verdict.owned:
+                changes.append(verdict.diagnostic)
+            else:
+                preserved += 1
+                warnings.append(verdict.diagnostic)
+        return preserved
+
     def _remove_bash_scripts(self, project_path: Path, dry_run: bool) -> tuple[list[str], list[str]]:
-        """Remove bash scripts from .kittify/scripts/bash/."""
+        """Route the .kittify bash/powershell script sweeps through the guard.
+
+        Preserve-all: no script proves package-owned, so the guard leaves every
+        one in place (parent survives) and names it in a warning.
+        """
         changes: list[str] = []
         warnings: list[str] = []
 
@@ -152,43 +194,28 @@ class PythonOnlyMigration(BaseMigration):
             warnings.append("No .kittify/scripts/bash/ directory found - already migrated?")
             return changes, warnings
 
-        # First, detect custom scripts (not in PACKAGE_SCRIPTS) and warn user
-        all_bash_scripts = list(kittify_bash.glob("*.sh"))
-        custom_scripts = [s for s in all_bash_scripts if s.name not in self.PACKAGE_SCRIPTS]
+        preserved = self._preserve_scripts(
+            sorted(kittify_bash.glob("*.sh")),
+            project_path,
+            changes=changes,
+            warnings=warnings,
+            dry_run=dry_run,
+        )
 
-        if custom_scripts:
-            custom_names = [s.name for s in custom_scripts]
-            warnings.append(f"Custom bash scripts detected: {', '.join(custom_names)}")
-            warnings.append(
-                "These custom scripts will be removed as part of the migration to Python-only. "
-                "If you need this functionality, please migrate it manually before upgrading."
-            )
-
-        # Now delete ALL .sh files (including custom ones)
-        # This ensures complete cleanup, matching PowerShell/worktree behavior
-        scripts_removed = len(all_bash_scripts)
-
-        for script in all_bash_scripts:
-            if dry_run:
-                changes.append(f"Would remove: .kittify/scripts/bash/{script.name}")
-            else:
-                script.unlink()
-                changes.append(f"Removed: .kittify/scripts/bash/{script.name}")
-
-        # Remove PowerShell equivalents if they exist
         kittify_ps = project_path / ".kittify" / "scripts" / "powershell"
         if kittify_ps.exists():
-            ps_scripts = list(kittify_ps.glob("*.ps1"))
-            if ps_scripts:
-                for ps_script in ps_scripts:
-                    if dry_run:
-                        changes.append(f"Would remove: .kittify/scripts/powershell/{ps_script.name}")
-                    else:
-                        ps_script.unlink()
-                        changes.append(f"Removed: .kittify/scripts/powershell/{ps_script.name}")
-                    scripts_removed += 1
+            preserved += self._preserve_scripts(
+                sorted(kittify_ps.glob("*.ps1")),
+                project_path,
+                changes=changes,
+                warnings=warnings,
+                dry_run=dry_run,
+            )
 
-        # Remove directories if empty
+        # Empty-directory cleanup fires only when the guard proved AND removed
+        # every member (rmdir is empty-only — it raises on a non-empty directory,
+        # so it can never silently drop content; see the WP09 rmdir allowlist
+        # class). Under preserve-all the user's scripts remain, so these no-op.
         if not dry_run:
             if kittify_bash.exists() and not any(kittify_bash.iterdir()):
                 kittify_bash.rmdir()
@@ -197,20 +224,28 @@ class PythonOnlyMigration(BaseMigration):
                 kittify_ps.rmdir()
                 changes.append("Removed empty: .kittify/scripts/powershell/")
 
-        if scripts_removed > 0:
-            changes.append(f"Total scripts removed: {scripts_removed}")
+        if preserved > 0:
+            warnings.append(f"Preserved {preserved} unprovable script(s); left in place (no ownership signal)")
         else:
             warnings.append("No bash scripts found to remove - already migrated?")
 
         return changes, warnings
 
-    def _cleanup_worktree_bash_scripts(self, project_path: Path, dry_run: bool) -> list[str]:
-        """Remove bash scripts from all worktrees."""
+    def _cleanup_worktree_bash_scripts(self, project_path: Path, dry_run: bool) -> tuple[list[str], list[str]]:
+        """Route worktree bash sweeps through the guard.
+
+        ``.worktrees/*/.kittify/scripts/bash/*.sh`` is user content in the same
+        hazard class as the ``:175`` sweep — a REQUIRED-route preserve-all, NOT a
+        package-teardown allowlist. Every worktree script proves ``None`` and is
+        preserved in place; the worktree bash dir is never emptied under
+        preserve-all, so the empty-only rmdir below no-ops.
+        """
         changes: list[str] = []
+        warnings: list[str] = []
 
         worktrees_dir = project_path / ".worktrees"
         if not worktrees_dir.exists():
-            return changes
+            return changes, warnings
 
         for worktree in sorted(worktrees_dir.iterdir()):
             if not worktree.is_dir():
@@ -220,21 +255,29 @@ class PythonOnlyMigration(BaseMigration):
             if not wt_bash.exists():
                 continue
 
-            scripts_found = list(wt_bash.glob("*.sh"))
-            if scripts_found:
-                if dry_run:
-                    changes.append(f"Would remove {len(scripts_found)} scripts from worktree: {worktree.name}")
-                else:
-                    for script in scripts_found:
-                        script.unlink()
-                    if not any(wt_bash.iterdir()):
-                        wt_bash.rmdir()
-                    changes.append(f"Removed {len(scripts_found)} scripts from worktree: {worktree.name}")
+            preserved = self._preserve_scripts(
+                sorted(wt_bash.glob("*.sh")),
+                project_path,
+                changes=changes,
+                warnings=warnings,
+                dry_run=dry_run,
+            )
+            if not dry_run and wt_bash.exists() and not any(wt_bash.iterdir()):
+                wt_bash.rmdir()
+            if preserved > 0:
+                warnings.append(f"Preserved {preserved} unprovable script(s) in worktree: {worktree.name}")
 
-        return changes
+        return changes, warnings
 
     def _remove_tasks_helpers(self, project_path: Path, dry_run: bool) -> tuple[list[str], list[str]]:
-        """Remove obsolete .kittify/scripts/tasks/ directory."""
+        """Route the obsolete .kittify/scripts/tasks/ directory through the guard.
+
+        Borderline B2: the same preserve-all rule as the ``:175``/``:187`` script
+        sweeps. The task helpers carry no version marker and no shipped canonical,
+        so ``CanonicalContentProver`` proves ``None`` for the directory ⇒ the guard
+        preserves it in place rather than ``rmtree``-ing it (charter L472). An
+        operator may remove the inert helpers manually.
+        """
         changes: list[str] = []
         warnings: list[str] = []
 
@@ -242,15 +285,17 @@ class PythonOnlyMigration(BaseMigration):
         if not tasks_dir.exists():
             return changes, warnings
 
-        if dry_run:
-            changes.append("Would remove .kittify/scripts/tasks/ (obsolete task helpers)")
-            return changes, warnings
-
-        try:
-            shutil.rmtree(tasks_dir)
-            changes.append("Removed .kittify/scripts/tasks/ (obsolete task helpers)")
-        except OSError as e:
-            warnings.append(f"Failed to remove .kittify/scripts/tasks/: {e}")
+        verdict = guard_destructive_removal(
+            tasks_dir,
+            project_path,
+            prover=CanonicalContentProver(),
+            is_tree=True,
+            dry_run=dry_run,
+        )
+        if verdict.owned:
+            changes.append(verdict.diagnostic)
+        else:
+            warnings.append(verdict.diagnostic)
 
         return changes, warnings
 
@@ -328,9 +373,6 @@ class PythonOnlyMigration(BaseMigration):
 
         if custom_scripts:
             warnings.append(f"Custom bash scripts detected: {', '.join(custom_scripts)}")
-            warnings.append(
-                "These scripts will NOT be removed automatically. "
-                "Please migrate them manually or remove if no longer needed."
-            )
+            warnings.append("These scripts will NOT be removed automatically. Please migrate them manually or remove if no longer needed.")
 
         return warnings

@@ -9,13 +9,17 @@ This migration removes .claude/skills/release/ if present.
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
+
+from specify_cli.asset_preservation import ManifestProver, guard_destructive_removal
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
 _RELEASE_SKILL_PATH = ".claude/skills/release"
+#: Archive root for an unprovable collision. It must sit OUTSIDE the doomed
+#: ``.claude/skills/release`` tree so the verbatim copy survives its removal.
+_BACKUP_PARENT = ".kittify"
 
 
 @MigrationRegistry.register
@@ -52,8 +56,26 @@ class RemoveReleaseSkillMigration(BaseMigration):
                 changes_made=[f"Would remove {_RELEASE_SKILL_PATH}/"],
             )
 
-        shutil.rmtree(skill_dir)
+        # Ownership gate (NFR-006): the directory name is not proof — only a
+        # managed-/command-skills manifest entry whose recorded hash matches the
+        # bytes on disk authorizes the delete. A user-authored ``release`` skill
+        # is unprovable, so it is archived verbatim (the guard performs the
+        # rmtree only on a proven-owned tree).
+        verdict = guard_destructive_removal(
+            skill_dir,
+            project_path,
+            prover=ManifestProver(),
+            is_tree=True,
+            backup_parent=project_path / _BACKUP_PARENT,
+        )
+        if verdict.owned:
+            return MigrationResult(
+                success=True,
+                changes_made=[f"Removed {_RELEASE_SKILL_PATH}/"],
+            )
         return MigrationResult(
             success=True,
-            changes_made=[f"Removed {_RELEASE_SKILL_PATH}/"],
+            changes_made=[verdict.diagnostic],
+            warnings=[verdict.diagnostic],
+            preserved_paths=[str(verdict.preserved_path)] if verdict.preserved_path is not None else [],
         )

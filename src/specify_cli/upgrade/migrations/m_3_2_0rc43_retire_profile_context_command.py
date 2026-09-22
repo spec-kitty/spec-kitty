@@ -10,6 +10,11 @@ from __future__ import annotations
 from collections.abc import Iterator
 from pathlib import Path
 
+from specify_cli.asset_preservation import (
+    CanonicalContentProver,
+    guard_destructive_removal,
+)
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
@@ -37,6 +42,8 @@ class RetireProfileContextCommandMigration(BaseMigration):
         """Remove profile-context.md from every configured and present agent dir."""
         changes: list[str] = []
         errors: list[str] = []
+        warnings: list[str] = []
+        preserved: list[str] = []
 
         for dest in _iter_existing_profile_context_files(project_path):
             rel = str(dest.relative_to(project_path))
@@ -44,19 +51,31 @@ class RetireProfileContextCommandMigration(BaseMigration):
                 changes.append(f"Would remove retired {rel}")
                 continue
 
+            # Ownership gate (NFR-006): the retired command filename is not
+            # proof — only a version marker / shipped canonical authorizes the
+            # delete, so a user file that reuses the name is preserved. The
+            # guard performs the removal on a proven-owned file.
             try:
-                dest.unlink()
-                changes.append(f"Removed retired {rel}")
+                verdict = guard_destructive_removal(dest, project_path, prover=CanonicalContentProver())
             except OSError as exc:
                 errors.append(f"Failed to remove {rel}: {exc}")
+                continue
 
-        if not changes and not errors:
+            if verdict.owned:
+                changes.append(f"Removed retired {rel}")
+            else:
+                warnings.append(verdict.diagnostic)
+                preserved.append(str(dest))
+
+        if not changes and not errors and not preserved:
             changes.append(f"{_DEST_FILENAME} absent from all configured agent dirs")
 
         return MigrationResult(
             success=len(errors) == 0,
             changes_made=changes,
             errors=errors,
+            warnings=warnings,
+            preserved_paths=preserved,
         )
 
 

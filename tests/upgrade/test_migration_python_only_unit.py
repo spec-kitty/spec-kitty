@@ -9,6 +9,7 @@ from specify_cli.upgrade.migrations.m_0_10_0_python_only import PythonOnlyMigrat
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
+
 @pytest.fixture
 def migration():
     """Create migration instance."""
@@ -122,28 +123,39 @@ def test_can_apply(migration, mock_project_with_bash):
 
 
 def test_remove_bash_scripts(migration, mock_project_with_bash):
-    """Test removal of bash scripts."""
+    """Preserve-all: scripts carry no ownership signal, so they survive + warn.
+
+    WP05 routed the `.sh`/`.ps1` sweeps through the asset-preservation guard;
+    ``CanonicalContentProver`` proves ``None`` for a markerless, no-longer-shipped
+    script ⇒ preserve in place (charter L472). The base migration deleted them.
+    """
     result = migration.apply(mock_project_with_bash, dry_run=False)
 
     assert result.success is True
     assert len(result.changes_made) > 0
 
-    # Verify bash scripts removed
+    # Verify bash scripts PRESERVED in place (no ownership signal ⇒ preserve-all)
     bash_dir = mock_project_with_bash / ".kittify" / "scripts" / "bash"
-    assert not bash_dir.exists() or not any(bash_dir.iterdir())
+    assert bash_dir.exists()
+    assert any(bash_dir.glob("*.sh"))
 
-    # Verify PowerShell scripts removed
+    # Verify PowerShell scripts PRESERVED in place
     ps_dir = mock_project_with_bash / ".kittify" / "scripts" / "powershell"
-    assert not ps_dir.exists() or not any(ps_dir.iterdir())
+    assert ps_dir.exists()
+    assert any(ps_dir.glob("*.ps1"))
+
+    # And the guard never claims to have removed a user script.
+    assert not any(change.startswith("Removed: ") for change in result.changes_made)
 
 
 def test_remove_bash_scripts_dry_run(migration, mock_project_with_bash):
-    """Test dry run doesn't remove scripts."""
+    """Dry run preserves scripts too and never emits a bogus 'Would remove'."""
     result = migration.apply(mock_project_with_bash, dry_run=True)
 
     assert result.success is True
     assert len(result.changes_made) > 0
-    assert any("Would remove" in change for change in result.changes_made)
+    # Preserve-all means there is nothing to remove — real or dry-run.
+    assert not any("Would remove" in change for change in result.changes_made)
 
     # Verify scripts still exist
     bash_dir = mock_project_with_bash / ".kittify" / "scripts" / "bash"
@@ -152,17 +164,23 @@ def test_remove_bash_scripts_dry_run(migration, mock_project_with_bash):
 
 
 def test_cleanup_worktree_scripts(migration, mock_project_with_worktrees):
-    """Test cleanup of worktree bash scripts."""
+    """Worktree bash sweeps (`:229`) are REQUIRED-route preserve-all, not teardown.
+
+    `.worktrees/*/.kittify/scripts/bash/*.sh` is user content in the same hazard
+    class as the `:175` sweep, so it survives rather than being torn down.
+    """
     result = migration.apply(mock_project_with_worktrees, dry_run=False)
 
     assert result.success is True
 
-    # Verify worktree bash scripts removed
+    # Verify worktree bash scripts PRESERVED in place
     wt1_bash = mock_project_with_worktrees / ".worktrees" / "001-feature-one" / ".kittify" / "scripts" / "bash"
-    assert not wt1_bash.exists() or not any(wt1_bash.iterdir())
+    assert wt1_bash.exists()
+    assert any(wt1_bash.glob("*.sh"))
 
     wt2_bash = mock_project_with_worktrees / ".worktrees" / "002-feature-two" / ".kittify" / "scripts" / "bash"
-    assert not wt2_bash.exists() or not any(wt2_bash.iterdir())
+    assert wt2_bash.exists()
+    assert any(wt2_bash.glob("*.sh"))
 
 
 def test_update_command_templates(migration, mock_project_with_bash):

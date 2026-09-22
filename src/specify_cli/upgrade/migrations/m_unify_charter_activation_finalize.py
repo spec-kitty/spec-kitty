@@ -205,9 +205,7 @@ def _config_has_activation(config_data: dict[str, Any]) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _compose_charter_yaml_document(
-    project_path: Path, config_data: dict[str, Any]
-) -> dict[str, Any]:
+def _compose_charter_yaml_document(project_path: Path, config_data: dict[str, Any]) -> dict[str, Any]:
     """Compose the target ``charter.yaml`` document.
 
     Reads whichever of the four legacy files are present (a missing file
@@ -253,10 +251,7 @@ def _compose_charter_yaml_document(
         mission=str(references_data.get("mission", "")),
         template_set=str(references_data.get("template_set", "")),
         languages=[str(lang) for lang in (references_data.get("languages") or [])],
-        references=[
-            CharterCatalogReference.model_validate(entry)
-            for entry in (references_data.get("references") or [])
-        ],
+        references=[CharterCatalogReference.model_validate(entry) for entry in (references_data.get("references") or [])],
     )
     # metadata.bundle_schema_version is always stamped 2 -- the retired
     # metadata.yaml's own value is NOT inherited (Landmine 2: charter_hash/
@@ -293,9 +288,7 @@ def _write_new_charter_yaml(charter_yaml_path: Path, document: dict[str, Any]) -
     save_charter_yaml(charter_yaml_path, document)
 
 
-def _relocate_activation_onto_existing_charter_yaml(
-    charter_yaml_path: Path, config_data: dict[str, Any]
-) -> None:
+def _relocate_activation_onto_existing_charter_yaml(charter_yaml_path: Path, config_data: dict[str, Any]) -> None:
     """Merge config-embedded activation onto an ALREADY-authoritative ``charter.yaml``.
 
     Routed through the shared INV-9 write helper
@@ -320,11 +313,7 @@ def _relocate_activation_onto_existing_charter_yaml(
 
 def _mint_pointer_value(charter_yaml_path: Path, project_path: Path) -> str:
     try:
-        return (
-            charter_yaml_path.resolve(strict=False)
-            .relative_to(project_path.resolve(strict=False))
-            .as_posix()
-        )
+        return charter_yaml_path.resolve(strict=False).relative_to(project_path.resolve(strict=False)).as_posix()
     except ValueError:
         return str(charter_yaml_path)
 
@@ -396,8 +385,7 @@ class ConsolidateCharterBundleMigration(BaseMigration):
             return True, ""
         return (
             False,
-            "charter.yaml already composed; no legacy bundle file or "
-            "config-embedded activation left to migrate",
+            "charter.yaml already composed; no legacy bundle file or config-embedded activation left to migrate",
         )
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
@@ -425,48 +413,62 @@ class ConsolidateCharterBundleMigration(BaseMigration):
         if charter_already_present:
             if has_activation:
                 _relocate_activation_onto_existing_charter_yaml(charter_yaml_path, config_data)
-                changes.append(
-                    f"Relocated activation keys onto existing {charter_yaml_path}"
-                )
+                changes.append(f"Relocated activation keys onto existing {charter_yaml_path}")
         else:
             document = _compose_charter_yaml_document(project_path, config_data)
             _write_new_charter_yaml(charter_yaml_path, document)
             changes.append(f"Composed {charter_yaml_path} from legacy bundle + config activation")
 
+        # NFR-006 ownership proof (B4 — routed, not allowlisted). The four
+        # legacy bundle files are retired here, but the charter_already_present
+        # branch above does NOT re-fold them into a pre-existing (authoritative)
+        # charter.yaml — so a bundle whose content diverges from charter.yaml
+        # would be lost on a raw unlink. Ownership that "charter.yaml already
+        # captures this file" is not provable on disk (a YAML bundle carries no
+        # package version marker; name/directory identity is never proof —
+        # charter L470), so route the removal through the asset-preservation
+        # guard with an external backup_parent: unprovable ⇒ the bytes are
+        # archived verbatim BEFORE removal (charter L472). The guard performs the
+        # removal, so no raw unlink literal remains at this site.
+        from specify_cli.asset_preservation import (  # noqa: PLC0415 -- lazy import (C-002); keeps registry-discovery cheap
+            CanonicalContentProver,
+            guard_destructive_removal,
+        )
+
+        bundle_prover = CanonicalContentProver()
+        bundle_backup = project_path / _KITTIFY_DIRNAME
         for name in LEGACY_BUNDLE_FILENAMES:
             path = charter_dir / name
-            if path.exists():
-                path.unlink()
+            verdict = guard_destructive_removal(
+                path,
+                project_path,
+                prover=bundle_prover,
+                backup_parent=bundle_backup,
+            )
+            if verdict.reason == "absent":
+                continue
+            if verdict.backup_path is not None:
+                changes.append(f"Preserved divergent {path} to {verdict.backup_path}, then retired it")
+            else:
                 changes.append(f"Deleted {path}")
 
         if has_activation or _CHARTER_POINTER_KEY not in config_data:
             _rewrite_config(config_path, config_data, yaml_inst, charter_yaml_path, project_path)
-            changes.append(
-                "Updated .kittify/config.yaml: removed activated_* keys, added charter: pointer"
-            )
+            changes.append("Updated .kittify/config.yaml: removed activated_* keys, added charter: pointer")
 
         return MigrationResult(success=True, changes_made=changes)
 
     @staticmethod
-    def _dry_run_summary(
-        charter_dir: Path, charter_yaml_path: Path, legacy: bool, has_activation: bool
-    ) -> list[str]:
+    def _dry_run_summary(charter_dir: Path, charter_yaml_path: Path, legacy: bool, has_activation: bool) -> list[str]:
         summary: list[str] = []
         if legacy:
             if charter_yaml_path.exists():
                 summary.append(f"dry-run: would delete stale legacy files under {charter_dir}")
             else:
                 summary.append(f"dry-run: would compose {charter_yaml_path} from legacy bundle files")
-            summary.extend(
-                f"dry-run: would delete {charter_dir / name}"
-                for name in LEGACY_BUNDLE_FILENAMES
-                if (charter_dir / name).exists()
-            )
+            summary.extend(f"dry-run: would delete {charter_dir / name}" for name in LEGACY_BUNDLE_FILENAMES if (charter_dir / name).exists())
         if has_activation:
-            summary.append(
-                "dry-run: would relocate activated_* keys from config.yaml onto "
-                "charter.yaml and add the charter: pointer"
-            )
+            summary.append("dry-run: would relocate activated_* keys from config.yaml onto charter.yaml and add the charter: pointer")
         return summary
 
 

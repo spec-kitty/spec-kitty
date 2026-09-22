@@ -13,6 +13,13 @@ import pytest
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+#: A genuinely package-owned generated command carries the version marker, which
+#: is what authorizes the retirement delete now that the migration is routed
+#: through the ownership guard (a name match alone no longer proves ownership).
+_OWNED = "<!-- spec-kitty-command-version: 4.0.0 -->\nlegacy profile-context body\n"
+
+
 def _write_config(project_path: Path, agents: list[str]) -> None:
     """Write .kittify/config.yaml with the given agent list."""
     kittify = project_path / ".kittify"
@@ -49,8 +56,8 @@ def test_migration_removes_from_configured_agents(tmp_path: Path, migration) -> 
     _write_config(tmp_path, ["claude", "opencode"])
     claude_dir = _make_agent_dir(tmp_path, ".claude", "commands")
     opencode_dir = _make_agent_dir(tmp_path, ".opencode", "command")
-    (claude_dir / "spec-kitty.profile-context.md").write_text("legacy", encoding="utf-8")
-    (opencode_dir / "spec-kitty.profile-context.md").write_text("legacy", encoding="utf-8")
+    (claude_dir / "spec-kitty.profile-context.md").write_text(_OWNED, encoding="utf-8")
+    (opencode_dir / "spec-kitty.profile-context.md").write_text(_OWNED, encoding="utf-8")
 
     result = migration.apply(tmp_path)
 
@@ -69,8 +76,8 @@ def test_migration_skips_unconfigured_agents(tmp_path: Path, migration) -> None:
     _write_config(tmp_path, ["opencode"])
     claude_dir = _make_agent_dir(tmp_path, ".claude", "commands")   # exists but NOT configured
     opencode_dir = _make_agent_dir(tmp_path, ".opencode", "command")  # configured
-    (claude_dir / "spec-kitty.profile-context.md").write_text("legacy", encoding="utf-8")
-    (opencode_dir / "spec-kitty.profile-context.md").write_text("legacy", encoding="utf-8")
+    (claude_dir / "spec-kitty.profile-context.md").write_text(_OWNED, encoding="utf-8")
+    (opencode_dir / "spec-kitty.profile-context.md").write_text(_OWNED, encoding="utf-8")
 
     result = migration.apply(tmp_path)
 
@@ -88,7 +95,7 @@ def test_migration_idempotent(tmp_path: Path, migration) -> None:
     """Running the migration twice produces no errors and does not recreate files."""
     _write_config(tmp_path, ["claude"])
     claude_dir = _make_agent_dir(tmp_path, ".claude", "commands")
-    (claude_dir / "spec-kitty.profile-context.md").write_text("legacy", encoding="utf-8")
+    (claude_dir / "spec-kitty.profile-context.md").write_text(_OWNED, encoding="utf-8")
 
     result1 = migration.apply(tmp_path)
     result2 = migration.apply(tmp_path)

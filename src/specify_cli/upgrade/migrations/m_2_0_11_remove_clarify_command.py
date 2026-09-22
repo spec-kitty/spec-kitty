@@ -6,6 +6,10 @@ from pathlib import Path
 from typing import Iterable, List
 
 from specify_cli.agent_utils.directories import AGENT_DIRS
+from specify_cli.asset_preservation import (
+    CanonicalContentProver,
+    guard_destructive_removal,
+)
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -32,6 +36,7 @@ class RemoveClarifyCommandMigration(BaseMigration):
         changes: list[str] = []
         warnings: list[str] = []
         errors: list[str] = []
+        preserved: list[str] = []
 
         targets = list(self._iter_targets(project_path))
         if not targets:
@@ -42,24 +47,32 @@ class RemoveClarifyCommandMigration(BaseMigration):
                 errors=errors,
             )
 
+        removed_count = 0
         for target in targets:
             rel = target.relative_to(project_path)
             if dry_run:
                 changes.append(f"Would remove: {rel}")
                 continue
 
+            # Ownership gate (NFR-006): the broad ``spec-kitty.clarify*`` name
+            # match is not proof — only a version marker / shipped canonical
+            # authorizes the delete, so a user file that merely shares the name
+            # is preserved. The guard performs the removal on a proven target.
             try:
-                target.unlink()
-                changes.append(f"Removed: {rel}")
+                verdict = guard_destructive_removal(target, project_path, prover=CanonicalContentProver())
             except OSError as exc:
                 errors.append(f"Failed to remove {rel}: {exc}")
+                continue
+
+            if verdict.owned:
+                removed_count += 1
+                changes.append(f"Removed: {rel}")
+            else:
+                warnings.append(verdict.diagnostic)
+                preserved.append(str(target))
 
         if not errors:
-            summary = (
-                f"Would remove {len(targets)} clarify command artifacts"
-                if dry_run
-                else f"Removed {len(targets)} clarify command artifacts"
-            )
+            summary = f"Would remove {len(targets)} clarify command artifacts" if dry_run else f"Removed {removed_count} clarify command artifacts"
             changes.append(summary)
 
         return MigrationResult(
@@ -67,6 +80,7 @@ class RemoveClarifyCommandMigration(BaseMigration):
             changes_made=changes,
             warnings=warnings,
             errors=errors,
+            preserved_paths=preserved,
         )
 
     def _iter_targets(self, project_path: Path) -> Iterable[Path]:

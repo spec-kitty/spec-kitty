@@ -15,6 +15,12 @@ import re
 import shutil
 from pathlib import Path
 
+from specify_cli.asset_preservation import (
+    AnyProver,
+    CanonicalContentProver,
+    ManagedPathProver,
+    guard_destructive_removal,
+)
 from specify_cli.runtime.generated_writer import write_generated_file
 
 from ..metadata import ProjectMetadata, _LEGACY_MIGRATION_ID_MAP
@@ -133,6 +139,18 @@ class CharterRenameMigration(BaseMigration):
         memory_constitution = kittify / "memory" / "constitution.md"
         missions_dir = kittify / "missions"
 
+        project_path = kittify.parent
+        # Archive doomed governance content OUTSIDE the tree being torn down
+        # (contract C1.4). ``.kittify/.backup-<ts>/`` is a sibling of every
+        # doomed location below, so it survives the removals.
+        backup_parent = kittify
+        # Governance payloads (constitution/charter files) carry no package
+        # version marker and no shipped canonical, so this composite prover
+        # returns None for them => preserve-always (NFR-006). A governance file
+        # that DID carry the version marker would be proven-owned and removed
+        # (the owned-delete anchor).
+        governance_prover = AnyProver([CanonicalContentProver(), ManagedPathProver()])
+
         # Layout C: Remove mission-specific constitution directories
         if missions_dir.exists():
             for mission_dir in sorted(missions_dir.iterdir()):
@@ -144,9 +162,26 @@ class CharterRenameMigration(BaseMigration):
                 if dry_run:
                     changes.append(f"Would remove {mission_dir.name}/constitution/")
                 else:
+                    # Ownership proof (NFR-006): a mission-specific constitution
+                    # dir carries no version marker / shipped canonical, so the
+                    # governance prover returns None => preserve. The guard
+                    # archives its bytes to an external backup and then removes
+                    # the legacy dir, so the content stays recoverable (B1).
+                    # governance_prover can never prove a markerless governance
+                    # target owned -- this is always archive-then-remove, never
+                    # prove-then-delete; safe-by-construction (over-preserve).
                     try:
-                        shutil.rmtree(mission_constitution)
-                        changes.append(f"Removed mission-specific: {mission_dir.name}/constitution/")
+                        verdict = guard_destructive_removal(
+                            mission_constitution,
+                            project_path,
+                            prover=governance_prover,
+                            is_tree=True,
+                            backup_parent=backup_parent,
+                        )
+                        if verdict.owned:
+                            changes.append(f"Removed mission-specific: {mission_dir.name}/constitution/")
+                        else:
+                            warnings.append(verdict.diagnostic)
                     except OSError as e:
                         errors.append(f"Failed to remove {mission_dir.name}/constitution/: {e}")
 
@@ -157,9 +192,26 @@ class CharterRenameMigration(BaseMigration):
                 if dry_run:
                     changes.append("Would remove stale .kittify/memory/constitution.md")
                 else:
+                    # Ownership proof (NFR-006): a stale memory/constitution.md
+                    # carries no version marker / shipped canonical => the
+                    # governance prover returns None => preserve. The guard
+                    # archives it to an external backup before removing the
+                    # original (B1).
+                    # governance_prover can never prove a markerless governance
+                    # target owned -- this is always archive-then-remove, never
+                    # prove-then-delete; safe-by-construction (over-preserve).
                     try:
-                        memory_constitution.unlink()
-                        changes.append("Removed stale .kittify/memory/constitution.md")
+                        verdict = guard_destructive_removal(
+                            memory_constitution,
+                            project_path,
+                            prover=governance_prover,
+                            is_tree=False,
+                            backup_parent=backup_parent,
+                        )
+                        if verdict.owned:
+                            changes.append("Removed stale .kittify/memory/constitution.md")
+                        else:
+                            warnings.append(verdict.diagnostic)
                     except OSError as e:
                         errors.append(f"Failed to remove stale memory/constitution.md: {e}")
             else:
@@ -188,11 +240,33 @@ class CharterRenameMigration(BaseMigration):
                                 shutil.move(str(item), str(dest))
                                 changes.append(f"Merged {item.name} from constitution/ to charter/")
                             else:
-                                warnings.append(
-                                    f"Skipped {item.name} (already exists in charter/)"
+                                # #4862: a same-named file already in charter/
+                                # used to be destroyed by the residual rmtree
+                                # below. Ownership proof (NFR-006): governance
+                                # payloads carry no version marker / shipped
+                                # canonical, so the governance prover returns
+                                # None => preserve. The guard archives the
+                                # colliding file to an external backup (outside
+                                # constitution_dir) before the residual dir is
+                                # removed; a marker-bearing owned file is removed
+                                # directly instead.
+                                # governance_prover can never prove a markerless
+                                # governance target owned -- this is always
+                                # archive-then-remove, never prove-then-delete;
+                                # safe-by-construction (over-preserve).
+                                verdict = guard_destructive_removal(
+                                    item,
+                                    project_path,
+                                    prover=governance_prover,
+                                    is_tree=item.is_dir(),
+                                    backup_parent=backup_parent,
                                 )
-                        # Remove the now-empty (or residual) constitution dir
-                        shutil.rmtree(constitution_dir)
+                                warnings.append(verdict.diagnostic)
+                        # Colliding items were archived-out (or removed when
+                        # owned) and merged items moved, so the residual dir is
+                        # now empty; remove it with an empty-only rmdir — never a
+                        # raw rmtree that could destroy an unproven file.
+                        constitution_dir.rmdir()
                         changes.append("Removed residual .kittify/constitution/ after merge")
                     except OSError as e:
                         errors.append(f"Failed to merge constitution/ into charter/: {e}")
@@ -252,9 +326,7 @@ class CharterRenameMigration(BaseMigration):
             for file_path in sorted(agent_dir.glob("spec-kitty.*.md")):
                 if not file_path.is_file():
                     continue
-                self._rewrite_file(
-                    file_path, project_path, dry_run, changes, errors, read_only=True
-                )
+                self._rewrite_file(file_path, project_path, dry_run, changes, errors, read_only=True)
 
     def _rewrite_file(
         self,
@@ -345,10 +417,7 @@ class CharterRenameMigration(BaseMigration):
                 else:
                     try:
                         shutil.move(str(old_skill), str(new_skill))
-                        changes.append(
-                            f"Renamed {agent_root}/skills/spec-kitty-constitution-doctrine/ "
-                            f"-> spec-kitty-charter-doctrine/"
-                        )
+                        changes.append(f"Renamed {agent_root}/skills/spec-kitty-constitution-doctrine/ -> spec-kitty-charter-doctrine/")
                         # Rewrite content inside skill files
                         for file_path in sorted(new_skill.rglob("*")):
                             if file_path.is_file() and file_path.suffix in _TEXT_SUFFIXES:

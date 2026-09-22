@@ -18,6 +18,7 @@ from rich.live import Live
 from rich.panel import Panel
 from ruamel.yaml import YAML
 
+from specify_cli.asset_preservation import ManagedPathProver, guard_destructive_removal
 from specify_cli.cli import StepTracker, multi_select_with_arrows
 from specify_cli.core import (
     AI_CHOICES,
@@ -1561,11 +1562,27 @@ def init(  # noqa: C901
     # In global-runtime mode: .kittify/.scratch/ holds base command templates
     # and .kittify/.resolved-* / .kittify/.merged-* hold resolver output.
     # User projects should only have the generated agent commands, not the sources.
+    # Ownership-proof rationale (NFR-006 / contract C1-C2): `.kittify/templates`
+    # and `.kittify/.scratch` are package-managed regenerable scratch this run
+    # created, so `ManagedPathProver` proves them owned by the declared managed
+    # contract and the guard removes them. `.kittify/command-templates` is the
+    # operator-authorable LEGACY resolver tier (no longer package-shipped) — it
+    # is outside the managed set, so it is never owned by name and the guard
+    # preserves it in place instead of deleting user content (#4861). Routing the
+    # single removal through the guard leaves no raw rmtree literal at the site.
+    _cleanup_prover = ManagedPathProver(managed_relpaths={".kittify/templates", ".kittify/.scratch"})
     for cleanup_name in ("templates", "command-templates", ".scratch"):
         cleanup_dir = project_path / ".kittify" / cleanup_name
         if cleanup_dir.exists():
             try:
-                shutil.rmtree(cleanup_dir)
+                verdict = guard_destructive_removal(
+                    cleanup_dir,
+                    project_path,
+                    prover=_cleanup_prover,
+                    is_tree=True,
+                )
+                if not verdict.owned:
+                    _console.print(f"[dim]{verdict.diagnostic}[/dim]")
             except PermissionError:
                 _console.print(f"[dim]Note: Could not remove .kittify/{cleanup_name}/ (permission denied)[/dim]")
             except Exception as e:

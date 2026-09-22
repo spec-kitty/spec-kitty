@@ -4,11 +4,72 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from specify_cli.asset_preservation import (
+    AnyProver,
+    CanonicalContentProver,
+    ManifestProver,
+    guard_destructive_removal,
+)
 from specify_cli.runtime.generated_writer import write_generated_file
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
+
+
+def _sweep_legacy_command_tomls(
+    commands_dir: Path,
+    project_path: Path,
+    *,
+    dry_run: bool,
+) -> tuple[list[str], list[str]]:
+    """Ownership-gate the legacy ``.kittify/commands/*.toml`` sweep.
+
+    Ownership proof (NFR-006): route every removal through the
+    asset-preservation guard so a ``.toml``'s name/location can never authorize
+    deleting user-authored content (charter L463-479, contract C1/C4 US4). The
+    ``AnyProver`` is ordered **manifest-first** — a cheap exact-path lookup in
+    the command-skills manifest — then falls back to a whole-file version-marker
+    scan. The marker (``<!-- spec-kitty-command-version:``) is the only command
+    marker syntax and can sit PAST a 15-line head inside a ``.toml`` prompt
+    body, so ``CanonicalContentProver`` scans the whole file (its default). In
+    practice the command-skills manifest schema restricts entry paths to
+    ``.agents/skills/spec-kitty.<cmd>/SKILL.md``, so a legacy ``.toml`` is only
+    ever proven by the marker; the manifest predicate is kept for a uniform,
+    guard-owned composition. The guard performs the delete itself when a proof
+    is found; an unprovable file is preserved in place with a diagnostic.
+    """
+    changes: list[str] = []
+    warnings: list[str] = []
+    prover = AnyProver(
+        [
+            ManifestProver(check_managed=False, check_command=True),
+            CanonicalContentProver(),
+        ]
+    )
+
+    for toml_file in sorted(commands_dir.glob("*.toml")):
+        verdict = guard_destructive_removal(
+            toml_file,
+            project_path,
+            prover=prover,
+            dry_run=dry_run,
+        )
+        if verdict.owned:
+            prefix = "Would remove" if dry_run else "Removed"
+            changes.append(f"{prefix} legacy {toml_file.name}")
+        else:
+            warnings.append(verdict.diagnostic)
+
+    if not dry_run:
+        try:
+            if not any(commands_dir.iterdir()):
+                commands_dir.rmdir()
+                changes.append("Removed empty .kittify/commands/ directory")
+        except OSError as e:
+            warnings.append(f"Failed to remove .kittify/commands/: {e}")
+
+    return changes, warnings
 
 
 @MigrationRegistry.register
@@ -144,24 +205,13 @@ class UpdateSlashCommandsMigration(BaseMigration):
 
         commands_dir = project_path / ".kittify" / "commands"
         if commands_dir.exists():
-            toml_files = list(commands_dir.glob("*.toml"))
-            for toml_file in toml_files:
-                if dry_run:
-                    changes.append(f"Would remove legacy {toml_file.name}")
-                else:
-                    try:
-                        toml_file.unlink()
-                        changes.append(f"Removed legacy {toml_file.name}")
-                    except OSError as e:
-                        warnings.append(f"Failed to remove {toml_file.name}: {e}")
-
-            if not dry_run:
-                try:
-                    if not any(commands_dir.iterdir()):
-                        commands_dir.rmdir()
-                        changes.append("Removed empty .kittify/commands/ directory")
-                except OSError as e:
-                    warnings.append(f"Failed to remove .kittify/commands/: {e}")
+            sweep_changes, sweep_warnings = _sweep_legacy_command_tomls(
+                commands_dir,
+                project_path,
+                dry_run=dry_run,
+            )
+            changes.extend(sweep_changes)
+            warnings.extend(sweep_warnings)
 
         success = len(errors) == 0
         return MigrationResult(

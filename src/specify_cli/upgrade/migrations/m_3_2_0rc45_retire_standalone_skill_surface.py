@@ -2,40 +2,15 @@
 
 from __future__ import annotations
 
-import shutil
-import stat
-from collections.abc import Callable, Iterator
-from contextlib import suppress
+from collections.abc import Iterator
 from pathlib import Path
 
+from specify_cli.asset_preservation import ManifestProver, guard_destructive_removal
 from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_WRAPPER
 from specify_cli.skills.retired import RETIRED_STANDALONE_SKILL_NAMES
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
-
-
-def _make_path_writable(path: str | Path) -> None:
-    path = Path(path)
-    with suppress(OSError):
-        path.chmod(path.stat().st_mode | stat.S_IWRITE)
-
-
-def _force_writable_and_retry(function: Callable[[str], object], path: str, _exc_info: object) -> None:
-    _make_path_writable(path)
-    function(path)
-
-
-def _safe_unlink(path: Path) -> None:
-    try:
-        path.unlink()
-    except PermissionError:
-        _make_path_writable(path)
-        path.unlink()
-
-
-def _safe_rmtree(path: Path) -> None:
-    shutil.rmtree(path, onerror=_force_writable_and_retry)
 
 
 def _project_skill_roots(project_path: Path) -> list[Path]:
@@ -69,11 +44,7 @@ def _managed_manifest_has_retired_entries(project_path: Path) -> bool:
     manifest = load_manifest(project_path)
     if manifest is None:
         return False
-    return any(
-        entry.skill_name in RETIRED_STANDALONE_SKILL_NAMES
-        or _path_contains_retired_skill(entry.installed_path)
-        for entry in manifest.entries
-    )
+    return any(entry.skill_name in RETIRED_STANDALONE_SKILL_NAMES or _path_contains_retired_skill(entry.installed_path) for entry in manifest.entries)
 
 
 def _command_manifest_has_retired_entries(project_path: Path) -> bool:
@@ -99,12 +70,16 @@ def _prune_managed_manifest(project_path: Path, *, dry_run: bool) -> tuple[list[
     if manifest is None:
         return changes, errors
 
-    removed = [
-        entry.installed_path
-        for entry in manifest.entries
-        if entry.skill_name in RETIRED_STANDALONE_SKILL_NAMES
-        or _path_contains_retired_skill(entry.installed_path)
-    ]
+    def _prunable(skill_name: str, installed_path: str) -> bool:
+        matches = skill_name in RETIRED_STANDALONE_SKILL_NAMES or _path_contains_retired_skill(installed_path)
+        # Preserve-aware pruning (#4859 / T010): keep the entry whenever its file
+        # still lives on disk — that is a not-package-owned collision the guard
+        # preserved in place; the manifest must not orphan a surviving user file.
+        # Prune only when the file is gone: the guard removed a proven-owned skill,
+        # or the entry is stale/dangling with no backing file.
+        return matches and not (project_path / installed_path).exists()
+
+    removed = [entry.installed_path for entry in manifest.entries if _prunable(entry.skill_name, entry.installed_path)]
     if not removed:
         return changes, errors
 
@@ -112,12 +87,7 @@ def _prune_managed_manifest(project_path: Path, *, dry_run: bool) -> tuple[list[
         changes.extend(f"Would prune retired skill manifest entry {path}" for path in sorted(removed))
         return changes, errors
 
-    manifest.entries = [
-        entry
-        for entry in manifest.entries
-        if entry.skill_name not in RETIRED_STANDALONE_SKILL_NAMES
-        and not _path_contains_retired_skill(entry.installed_path)
-    ]
+    manifest.entries = [entry for entry in manifest.entries if not _prunable(entry.skill_name, entry.installed_path)]
     try:
         save_manifest(manifest, project_path)
         changes.extend(f"Pruned retired skill manifest entry {path}" for path in sorted(removed))
@@ -143,7 +113,13 @@ def _prune_command_manifest(project_path: Path, *, dry_run: bool) -> tuple[list[
         warnings.append(f"Could not prune command skills manifest: {exc}")
         return changes, warnings, errors
 
-    removed = [entry.path for entry in manifest.entries if _path_contains_retired_skill(entry.path)]
+    def _prunable(entry_path: str) -> bool:
+        # Preserve-aware pruning (#4859 / T010): keep the entry when its file
+        # survived on disk (a preserved, not-package-owned collision); prune only
+        # a gone file (guard removed a proven-owned skill) or a stale entry.
+        return _path_contains_retired_skill(entry_path) and not (project_path / entry_path).exists()
+
+    removed = [entry.path for entry in manifest.entries if _prunable(entry.path)]
     if not removed:
         return changes, warnings, errors
 
@@ -151,9 +127,7 @@ def _prune_command_manifest(project_path: Path, *, dry_run: bool) -> tuple[list[
         changes.extend(f"Would prune retired command skills manifest entry {path}" for path in sorted(removed))
         return changes, warnings, errors
 
-    manifest.entries = [
-        entry for entry in manifest.entries if not _path_contains_retired_skill(entry.path)
-    ]
+    manifest.entries = [entry for entry in manifest.entries if not _prunable(entry.path)]
     try:
         manifest_store.save(project_path, manifest)
         changes.extend(f"Pruned retired command skills manifest entry {path}" for path in sorted(removed))
@@ -185,20 +159,33 @@ class RetireStandaloneSkillSurfaceMigration(BaseMigration):
         warnings: list[str] = []
         errors: list[str] = []
 
+        # Ownership proof (NFR-006 / charter L479): a retired-basename path is a
+        # candidate by NAME only, which is never proof of package ownership. It is
+        # removed ONLY when the ManifestProver produces a proof — a managed- or
+        # command-skills manifest entry maps to the path AND its recorded
+        # content_hash matches the current bytes under copy delivery — i.e. the
+        # package demonstrably installed exactly these bytes. Otherwise (unmanifested,
+        # or byte-drifted from the recorded hash) ownership is unprovable, so the
+        # guard preserves the path in place (its parent skill root survives) and the
+        # verdict's diagnostic is surfaced as a warning; nothing is deleted.
+        prover = ManifestProver()
         for dest in _iter_existing_retired_skill_paths(project_path):
             rel = str(dest.relative_to(project_path))
             if dry_run:
                 changes.append(f"Would remove retired skill surface {rel}")
                 continue
 
+            is_tree = dest.is_dir() and not dest.is_symlink()
             try:
-                if dest.is_symlink() or dest.is_file():
-                    _safe_unlink(dest)
-                else:
-                    _safe_rmtree(dest)
-                changes.append(f"Removed retired skill surface {rel}")
+                verdict = guard_destructive_removal(dest, project_path, prover=prover, is_tree=is_tree)
             except OSError as exc:
                 errors.append(f"Failed to remove {rel}: {exc}")
+                continue
+
+            if verdict.owned:
+                changes.append(f"Removed retired skill surface {rel}")
+            else:
+                warnings.append(verdict.diagnostic)
 
         manifest_changes, manifest_errors = _prune_managed_manifest(project_path, dry_run=dry_run)
         changes.extend(manifest_changes)

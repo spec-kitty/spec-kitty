@@ -14,6 +14,12 @@ import pytest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
+#: A genuinely package-shipped clarify command carries the version marker, which
+#: is what proves ownership now that the retirement is routed through the guard
+#: (a bare ``spec-kitty.clarify*`` name match is no longer treated as proof).
+_OWNED = "<!-- spec-kitty-command-version: 4.0.0 -->\nclarify command body\n"
+
+
 def _make_project(tmp_path: Path) -> Path:
     project = tmp_path / "project"
     project.mkdir()
@@ -55,7 +61,7 @@ def test_apply_removes_all_known_clarify_artifacts(tmp_path: Path) -> None:
         project / ".github" / "prompts" / "spec-kitty.clarify.prompt.md",
     ]
     for target in targets:
-        target.write_text("x", encoding="utf-8")
+        target.write_text(_OWNED, encoding="utf-8")
 
     migration = RemoveClarifyCommandMigration()
     result = migration.apply(project, dry_run=False)

@@ -58,9 +58,7 @@ class EnsureMissionsMigration(BaseMigration):
             # Skip gracefully rather than blocking all upgrades
             return (
                 False,
-                "Could not locate package missions to copy from. "
-                "This is expected in test environments. "
-                "Run 'spec-kitty init --force' to repair missions manually.",
+                "Could not locate package missions to copy from. This is expected in test environments. Run 'spec-kitty init --force' to repair missions manually.",
             )
 
         # Check we have all required missions in the package
@@ -73,14 +71,22 @@ class EnsureMissionsMigration(BaseMigration):
         if missing_in_pkg:
             return (
                 False,
-                f"Package is missing missions: {', '.join(missing_in_pkg)}. "
-                "Please upgrade spec-kitty-cli to the latest version.",
+                f"Package is missing missions: {', '.join(missing_in_pkg)}. Please upgrade spec-kitty-cli to the latest version.",
             )
 
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: C901
         """Copy missing missions from the package."""
+        # Lazy import (C-002): keeps migration registry auto-discovery cheap —
+        # asset_preservation pulls template.manager (rich Console) transitively,
+        # so it is imported only when a migration actually runs, not at
+        # CLI-startup module discovery.
+        from specify_cli.asset_preservation import (  # noqa: PLC0415
+            CanonicalContentProver,
+            guard_destructive_removal,
+        )
+
         changes: list[str] = []
         warnings: list[str] = []
         errors: list[str] = []
@@ -115,8 +121,35 @@ class EnsureMissionsMigration(BaseMigration):
                         changes.append(f"Would repair incomplete mission: {mission_name}")
                     else:
                         try:
-                            # Remove incomplete and copy fresh
-                            shutil.rmtree(dest_mission)
+                            # NFR-006 ownership proof: an incomplete
+                            # REQUIRED_MISSION dir may co-locate user/untracked
+                            # members with package remnants, and mission content
+                            # carries no manifest/version-marker ownership signal
+                            # (name/directory identity is never proof — charter
+                            # L470). copytree(dirs_exist_ok=False) structurally
+                            # requires the dest absent, so in-place preserve is
+                            # impossible here; route the removal through the
+                            # asset-preservation guard with an EXTERNAL
+                            # backup_parent so the whole dir (any user member
+                            # included) is archived verbatim BEFORE it is torn
+                            # down and recopied fresh from the package (charter
+                            # L472). The guard performs the removal, so no raw
+                            # rmtree literal remains at this site. Note:
+                            # CanonicalContentProver never proves a directory
+                            # (it only inspects file bytes), so the "owned"
+                            # branch is dead here by construction -- this call
+                            # is always archive-then-remove, never
+                            # prove-then-delete. Safe-by-construction:
+                            # over-preserve, never under-preserve.
+                            verdict = guard_destructive_removal(
+                                dest_mission,
+                                project_path,
+                                prover=CanonicalContentProver(),
+                                is_tree=True,
+                                backup_parent=project_path / ".kittify",
+                            )
+                            if verdict.backup_path is not None:
+                                warnings.append(verdict.diagnostic)
                             shutil.copytree(src_mission, dest_mission)
                             changes.append(f"Repaired incomplete mission: {mission_name}")
                         except OSError as e:
