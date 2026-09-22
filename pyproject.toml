@@ -2622,7 +2622,6 @@ exclude = [
     "tests/test_test_venv_bootstrap.py",
     "tests/test_worker_home_isolation.py",
     "tests/tracker/test_server_target_fail_closed.py",
-    "tests/unit/git/test_commit_helpers_backstop.py",
     "tests/unit/git/test_sparse_checkout_detection.py",
     "tests/unit/git/test_sparse_checkout_remediation.py",
     "tests/unit/intake/test_missing_vs_corrupt.py",
