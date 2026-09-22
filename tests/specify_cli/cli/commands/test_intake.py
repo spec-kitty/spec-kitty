@@ -95,8 +95,9 @@ def test_auto_single_match_existing_brief_no_force(intake_app: typer.Typer, tmp_
     _make_plan_file(tmp_path, "opencode-plan.md", content="# New Plan")
     mock_sources = [("opencode", "opencode", ["opencode-plan.md"])]
 
-    # Pre-create both brief files (complete state). The conflict guard requires
-    # both files to be present since fix(intake) 2026-04-21 (partial state is recovered).
+    # Pre-create both brief files. The conflict guard keys on the brief's
+    # existence alone (#4910); with the brief present it refuses regardless of
+    # the sidecar. Both files present is the canonical "complete state" case.
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
     existing_brief = kittify / MISSION_BRIEF_FILENAME
@@ -132,6 +133,71 @@ def test_auto_single_match_force_overwrites(intake_app: typer.Typer, tmp_path: P
     assert result.exit_code == 0, f"output: {result.output}"
     new_content = existing_brief.read_text(encoding="utf-8")
     assert "Updated Plan" in new_content, "Brief should have been overwritten"
+
+
+# ---------------------------------------------------------------------------
+# #4910: existing brief with an ABSENT provenance sidecar must still refuse.
+# A missing sidecar is unknown provenance (refuse without --force), not
+# safe-to-overwrite partial state. Covers both the --auto gate and the
+# explicit-path/stdin gate. RED on the pre-fix `brief AND source` conjunction.
+# ---------------------------------------------------------------------------
+
+
+def test_auto_existing_brief_missing_sidecar_refuses(intake_app: typer.Typer, tmp_path: Path) -> None:
+    """--auto with a brief present but no sidecar refuses and preserves it (#4910)."""
+    _make_plan_file(tmp_path, "opencode-plan.md", content="# New Plan")
+    mock_sources = [("opencode", "opencode", ["opencode-plan.md"])]
+
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    existing_brief = kittify / MISSION_BRIEF_FILENAME
+    existing_brief.write_text("# HAND-WRITTEN BRIEF", encoding="utf-8")
+    # No brief-source.yaml on purpose.
+
+    with patched_intake_command_environment(tmp_path, mock_sources):
+        result = runner.invoke(intake_app, ["--auto"], catch_exceptions=False)
+
+    assert result.exit_code == 1, f"output: {result.output}"
+    assert "--force" in result.output
+    assert existing_brief.read_text(encoding="utf-8") == "# HAND-WRITTEN BRIEF"
+    assert not (kittify / BRIEF_SOURCE_FILENAME).exists()
+
+
+def test_explicit_path_existing_brief_missing_sidecar_refuses(intake_app: typer.Typer, tmp_path: Path) -> None:
+    """Explicit-path intake with a brief present but no sidecar refuses it (#4910)."""
+    plan = _make_plan_file(tmp_path, content="# New Plan")
+
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    existing_brief = kittify / MISSION_BRIEF_FILENAME
+    existing_brief.write_text("# HAND-WRITTEN BRIEF", encoding="utf-8")
+    # No brief-source.yaml on purpose.
+
+    with patched_intake_command_environment(tmp_path, patch_cwd=False):
+        result = runner.invoke(intake_app, [str(plan)], catch_exceptions=False)
+
+    assert result.exit_code == 1, f"output: {result.output}"
+    assert "--force" in result.output
+    assert existing_brief.read_text(encoding="utf-8") == "# HAND-WRITTEN BRIEF"
+    assert not (kittify / BRIEF_SOURCE_FILENAME).exists()
+
+
+def test_explicit_path_orphan_sidecar_no_brief_still_writes(intake_app: typer.Typer, tmp_path: Path) -> None:
+    """An orphan sidecar with no brief is recoverable partial state — write proceeds (#4910)."""
+    plan = _make_plan_file(tmp_path, content="# Fresh Plan")
+
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    # Only the sidecar exists (no mission-brief.md): genuine partial state.
+    (kittify / BRIEF_SOURCE_FILENAME).write_text("stale: sidecar", encoding="utf-8")
+
+    with patched_intake_command_environment(tmp_path, patch_cwd=False):
+        result = runner.invoke(intake_app, [str(plan)], catch_exceptions=False)
+
+    assert result.exit_code == 0, f"output: {result.output}"
+    brief_path = kittify / MISSION_BRIEF_FILENAME
+    assert brief_path.exists()
+    assert "Fresh Plan" in brief_path.read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------

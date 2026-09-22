@@ -28,7 +28,6 @@ from specify_cli.intake.scanner import (
 )
 from specify_cli.intake_sources import scan_for_plans
 from specify_cli.mission_brief import (
-    BRIEF_SOURCE_FILENAME,
     MISSION_BRIEF_FILENAME,
     read_brief_source,
     read_mission_brief,
@@ -149,11 +148,11 @@ def _write_brief_from_candidate(
     """Write the brief from a resolved candidate file; exits 1 on conflict or error."""
     console.print(f"BRIEF DETECTED: {found_path} (source: {harness_key})")
     brief_path = repo_root / ".kittify" / MISSION_BRIEF_FILENAME
-    source_path = repo_root / ".kittify" / BRIEF_SOURCE_FILENAME
-    # Only block on an existing brief if BOTH files are present (complete state).
-    # If only one file exists, that is partial state from a prior interrupted write;
-    # write_mission_brief() will clean it up before re-writing.
-    if brief_path.exists() and source_path.exists() and not force:
+    # Gate on the brief's existence alone (#4910). A present brief with an
+    # absent provenance sidecar is unknown provenance — refuse without --force,
+    # never treat it as safe-to-overwrite partial state. An orphan sidecar with
+    # no brief is genuine partial state that write_mission_brief() recovers.
+    if brief_path.exists() and not force:
         err_console.print(
             "Brief already exists at .kittify/mission-brief.md. Use --force to overwrite."
         )
@@ -290,10 +289,11 @@ def intake(
 
     # Normal write branch
     brief_path = repo_root / ".kittify" / MISSION_BRIEF_FILENAME
-    _source_path = repo_root / ".kittify" / BRIEF_SOURCE_FILENAME
-    # Gate only on complete state (both files present). Partial state is recovered by
-    # write_mission_brief() and should not block re-ingest.
-    if brief_path.exists() and _source_path.exists() and not force:
+    # Gate on the brief's existence alone (#4910). A present brief with an
+    # absent provenance sidecar is unknown provenance — refuse without --force,
+    # never treat it as safe-to-overwrite partial state. An orphan sidecar with
+    # no brief is genuine partial state that write_mission_brief() recovers.
+    if brief_path.exists() and not force:
         err_console.print(
             "Brief already exists at .kittify/mission-brief.md. Use --force to overwrite."
         )
