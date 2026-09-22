@@ -28,13 +28,12 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands import mission_type
-from specify_cli.status.lifecycle import derive_mission_lifecycle
+from specify_cli.status.lifecycle import derive_mission_lifecycle, is_mission_completed
 from specify_cli.status.lifecycle_events import (
     MISSION_REOPENED,
     mission_event_log_path,
     read_lifecycle_events,
 )
-from specify_cli.status.lifecycle import is_mission_completed
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -442,6 +441,52 @@ def test_format_post_mission_events_renders_reopen_and_follow_up(
     assert any("re-opened by operator" in line and "residual fix" in line for line in lines)
     assert any("follow-up PR #42 by claude" in line for line in lines)
     assert format_post_mission_events([]) == []
+
+
+def test_reopen_post_emit_clear_failure_is_a_clean_recoverable_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A post-emit ``clear_merge_metadata`` failure must not surface as an
+    unhandled traceback.
+
+    The ``MissionReopened`` event is emitted (and durably appended) BEFORE the
+    trailing ``clear_merge_metadata`` call. If that trailing call raises
+    (documented ``FileNotFoundError`` / concurrent-delete), the event is
+    already on disk claiming markers were cleared while ``meta.json`` still
+    carries them. The command must surface this as a clean, retryable error
+    (not crash) and tell the operator to re-run ``reopen`` to complete the
+    marker cleanup — re-running heals it, since the still-present markers keep
+    ``is_mission_completed`` true.
+    """
+    repo = _init_repo(tmp_path)
+    feature_dir = _make_merged_mission(repo)
+    monkeypatch.chdir(repo)
+
+    def _boom(_feature_dir: Path) -> dict[str, str]:
+        raise FileNotFoundError("meta.json vanished mid-clear")
+
+    monkeypatch.setattr("specify_cli.mission_metadata.clear_merge_metadata", _boom)
+
+    result = _invoke(repo, "reopen", _MID8, "--reason", "residual fix")
+
+    assert result.exit_code == 1, result.output
+    # A clean, handled exit is a `typer.Exit`-raised `SystemExit` — anything
+    # else (e.g. the raw `FileNotFoundError` propagating unhandled) means the
+    # failure surfaced as an uncaught traceback rather than a structured error.
+    assert type(result.exception) is SystemExit, (
+        f"a post-emit clear failure must be handled cleanly (typer.Exit), not raised as an unhandled exception: {result.exception!r}"
+    )
+    assert "mission_reopen_clear_failed" in result.output or "reopen" in result.output.lower()
+    assert "spec-kitty mission reopen" in result.output
+
+    # The audit event is already durably recorded (emit happened before the
+    # failing clear) — the divergence is legible, not silent.
+    events = read_lifecycle_events(mission_event_log_path(feature_dir))
+    reopened = [e for e in events if e.get("event_type") == MISSION_REOPENED]
+    assert len(reopened) == 1
+
+    # The clear itself failed, so the markers are still present in meta.json —
+    # recoverable by re-running the same command.
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert meta.get("merged_at") == "2026-02-01T00:00:00+00:00"
 
 
 def test_reopen_ambiguous_handle_emits_structured_error(tmp_path: Path, monkeypatch) -> None:

@@ -870,7 +870,13 @@ def snapshot_merge_metadata(meta: Mapping[str, Any]) -> dict[str, Any]:
 
     This is the single field-membership authority shared by the re-open
     command's audit payload and :func:`clear_merge_metadata`, so the event
-    cannot claim a different snapshot from the fields the mutation removes.
+    cannot claim a different set of *fields* than the ones the mutation
+    removes. This is a field-membership guarantee only: if the trailing
+    ``clear_merge_metadata`` call itself fails (e.g. a concurrent delete),
+    the values captured here may no longer match what is on disk at the
+    moment of failure — the caller (``spec-kitty mission reopen``) surfaces
+    that as a structured, retryable error rather than claiming the clear
+    succeeded.
     """
     return {field: meta[field] for field in _MERGE_FIELDS if field in meta}
 

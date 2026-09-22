@@ -977,7 +977,11 @@ def emit_mission_reopened(
     for removal from ``meta.json`` by the IC-02 re-open command, retained for
     audit / reversibility. The command persists this replacement audit fact
     before clearing those fields, so marker-only completion remains provable
-    while this canonical producer enforces its completion guard (#4870).
+    while this canonical producer enforces its completion guard (#4870). This
+    function does not itself perform or guarantee the trailing clear: if that
+    later step fails, the command surfaces a structured, retryable error
+    rather than this event's ``cleared_merge`` payload being an unconditional
+    record of what is now on disk.
 
     This is a LOCAL-ONLY event (see ``MISSION_REOPENED`` registration note): it
     is intentionally kept off the SaaS strict-validation model map.

@@ -1441,8 +1441,12 @@ def reopen_cmd(
     # Persist the replacement audit fact while the completion proof is still
     # present. Clearing first made marker-only missions fail the producer's
     # canonical completion guard after their sole proof had already been
-    # durably removed (#4870). The event-first order has no proofless gap: if
-    # emission refuses or fails, meta.json remains byte-for-byte untouched.
+    # durably removed (#4870). The event-first order has no proofless gap if
+    # emission refuses or fails: meta.json remains byte-for-byte untouched.
+    # The trailing clear below is a separate, guarded step: if it raises
+    # (e.g. FileNotFoundError, concurrent delete) AFTER the event above has
+    # already been durably appended, that is surfaced as a clean, retryable
+    # error rather than an unhandled traceback (#4870 follow-up).
     cleared = snapshot_merge_metadata(meta)
     event = emit_mission_reopened(
         resolved.feature_dir,
@@ -1452,7 +1456,19 @@ def reopen_cmd(
         reopened_by=_detect_actor(),
         cleared_merge=cleared or None,
     )
-    clear_merge_metadata(resolved.feature_dir)
+    try:
+        clear_merge_metadata(resolved.feature_dir)
+    except Exception as exc:  # noqa: BLE001 — surfaced as a structured, retryable error
+        _emit_mission_error(
+            "[red]Error:[/red] mission "
+            f"[bold]{resolved.mission_slug}[/bold] was re-opened and the audit "
+            f"event was recorded, but clearing the merge markers failed ({exc}).\n"
+            "[dim]Remediation: rerun `spec-kitty mission reopen "
+            f"{resolved.mission_slug}` to complete marker cleanup.[/dim]",
+            code="mission_reopen_clear_failed",
+            json_output=json_output,
+        )
+        raise typer.Exit(1) from exc
 
     if json_output:
         print(
