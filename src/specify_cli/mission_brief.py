@@ -212,7 +212,6 @@ def read_brief_source(repo_root: Path) -> dict[str, Any] | None:
 # Re-export the structured error so callers don't need to know which
 # subpackage owns it. Surfaces FR-011 at this module's import layer.
 __all__ = [  # noqa: PLE0604 — module-level export contract
-    "BRIEF_SOURCE_FILENAME",
     "IntakeFileMissingError",
     "IntakeFileUnreadableError",
     "MISSION_BRIEF_FILENAME",
