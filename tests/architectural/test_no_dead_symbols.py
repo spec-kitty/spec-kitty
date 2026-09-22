@@ -3633,8 +3633,6 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.core.subtask_rows::count_subtask_rows",
         "specify_cli.core.subtask_rows::count_wp_section_subtask_rows",
         "specify_cli.core.subtask_rows::uncheck_wp_section_subtask_rows",
-        "specify_cli.core.vcs.git::git_stash",
-        "specify_cli.core.vcs.git::git_stash_pop",
         "specify_cli.core.worktree::create_feature_worktree",
         "specify_cli.core.worktree::create_wp_workspace",
         "specify_cli.doc_analysis.doc_generators::check_tool_available",

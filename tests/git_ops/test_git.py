@@ -12,8 +12,6 @@ from specify_cli.core.vcs import VCSBackend, VCSProtocol
 from specify_cli.core.vcs.git import (
     GitVCS,
     git_get_reflog,
-    git_stash,
-    git_stash_pop,
 )
 
 
@@ -511,50 +509,6 @@ class TestGitSpecificFunctions:
         assert len(operations) >= 3
         # Should have commit operations
         assert any("commit" in op.description.lower() for op in operations)
-
-    def test_git_stash(self, git_repo):
-        """git_stash should stash changes."""
-        # Make uncommitted change
-        (git_repo / "unstaged.txt").write_text("unstaged content")
-        subprocess.run(["git", "add", "."], cwd=git_repo, capture_output=True)
-
-        result = git_stash(git_repo, message="Test stash")
-
-        assert result is True
-
-        # File should no longer be in working directory as staged
-        status = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=git_repo,
-            capture_output=True,
-            text=True,
-        )
-        # Either file is gone or is now untracked (depending on stash behavior)
-        # The important thing is it's not staged anymore
-        assert "A  unstaged.txt" not in status.stdout
-
-    def test_git_stash_pop(self, git_repo):
-        """git_stash_pop should restore stashed changes."""
-        # Make and stash a change
-        (git_repo / "stashed.txt").write_text("stashed content")
-        subprocess.run(["git", "add", "."], cwd=git_repo, capture_output=True)
-        git_stash(git_repo)
-
-        # Pop it
-        result = git_stash_pop(git_repo)
-
-        assert result is True
-        # File should be back
-        assert (git_repo / "stashed.txt").exists()
-
-    def test_git_stash_returns_false_when_nothing_to_stash(self, git_repo):
-        """git_stash should return False when nothing to stash."""
-        # Clean working directory
-        result = git_stash(git_repo)
-
-        # Git returns success even with nothing to stash (with a message)
-        # So this might be True or False depending on git version
-        assert isinstance(result, bool)
 
 
 # =============================================================================

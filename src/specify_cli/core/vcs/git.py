@@ -956,57 +956,6 @@ def git_get_reflog(repo_path: Path, limit: int = 20) -> list[OperationInfo]:
         return []
 
 
-def git_stash(workspace_path: Path, message: str | None = None) -> bool:
-    """
-    Stash working directory changes.
-
-    git-specific: jj doesn't need stash (working copy always committed).
-
-    Args:
-        workspace_path: Workspace path
-        message: Optional stash message
-
-    Returns:
-        True if successful
-    """
-    try:
-        cmd = ["git", "-C", str(workspace_path), "stash", "push"]
-        if message:
-            cmd.extend(["-m", message])
-
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            timeout=30,
-        )
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, OSError):
-        return False
-
-
-def git_stash_pop(workspace_path: Path) -> bool:
-    """
-    Pop stashed changes.
-
-    git-specific: jj doesn't need stash.
-
-    Args:
-        workspace_path: Workspace path
-
-    Returns:
-        True if successful
-    """
-    try:
-        result = subprocess.run(
-            ["git", "-C", str(workspace_path), "stash", "pop"],
-            capture_output=True,
-            timeout=30,
-        )
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, OSError):
-        return False
-
-
 # =============================================================================
 # Canonical merge-base / diff surface
 # =============================================================================

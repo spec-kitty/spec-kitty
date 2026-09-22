@@ -6,9 +6,9 @@ mission fixes (a destructive git command run against dirty/off-target state)
 is closed BY CONSTRUCTION, not by reviewer goodwill:
 
 1. **T018 -- routing/allowlist gate.** Every ``git reset --hard``,
-   user-facing ``git worktree remove ... --force``, and ``git merge --abort``
-   command LITERAL under ``src/specify_cli/`` is either (a) inside the WP01
-   guard's own implementation (``git/destructive_guard.py``,
+   user-facing ``git worktree remove ... --force``, ``git merge --abort``,
+   and ``git stash push`` command LITERAL under ``src/specify_cli/`` is
+   either (a) inside the WP01 guard's own implementation (``git/destructive_guard.py``,
    ``git/ref_advance.py``), (b) reached only via the shared
    ``guarded_worktree_remove`` chokepoint (proven separately -- those live
    call sites carry no raw literal at all, by construction), or (c) a member
@@ -28,6 +28,19 @@ is closed BY CONSTRUCTION, not by reviewer goodwill:
    gates use, and separately, temporarily dropping one real entry from each
    frozen baseline reproduces the exact failure the primary gate would raise
    for a genuine regression -- proving the diff logic itself is not vacuous.
+
+``git stash push`` census (user-content-preservation epic #4915, finding #1
+of #4946, folded into PR #4936): PR #4936's #4888 fix already removed
+``git stash push --staged`` / ``git stash pop --index`` from
+``git/commit_helpers.py::safe_commit``, but nothing censused ``git stash``
+argv literals repo-wide, and two dead helpers (``core/vcs/git.py::git_stash``
+/ ``git_stash_pop``) still carried the footgun argv with no production
+caller. Those helpers are deleted (mission ``fold-4946-stash-gate``); this
+gate now censuses ``("stash", "push")`` the same way it censuses the other
+three destructive patterns, so a FUTURE reintroduction of a raw
+hide-then-restore stash call is caught here rather than relying on review.
+The live census currently finds zero ``("stash", "push")`` argv literals
+under ``src/specify_cli/``, so no ``_ALLOWLIST`` entry is needed.
 
 Detection strategy
 -------------------
@@ -88,11 +101,13 @@ pytestmark = pytest.mark.architectural
 _RESET_HARD = "reset_hard"
 _WORKTREE_REMOVE_FORCE = "worktree_remove_force"
 _MERGE_ABORT = "merge_abort"
+_STASH_PUSH = "stash_push"
 
 _PATTERN_NEEDLES: dict[str, tuple[str, ...]] = {
     _RESET_HARD: ("reset", "--hard"),
     _WORKTREE_REMOVE_FORCE: ("worktree", "remove", "--force"),
     _MERGE_ABORT: ("merge", "--abort"),
+    _STASH_PUSH: ("stash", "push"),
 }
 
 
@@ -364,6 +379,19 @@ def test_scanner_detects_a_planted_unrouted_worktree_remove_force(tmp_path: Path
     assert hits == [(5, _WORKTREE_REMOVE_FORCE)], (
         f"Non-vacuity failure: the routing scanner did not detect a planted raw `git worktree remove --force` call. Got: {hits!r}."
     )
+
+
+def test_scanner_detects_a_planted_unrouted_stash_push(tmp_path: Path) -> None:
+    """T020/non-vacuity for the ``git stash push`` needle (#4915/#4946): a
+    planted, un-rationalized raw hide-then-restore stash call is caught by
+    the exact scanner the primary allowlist gate runs."""
+    hits = scan_planted_source(
+        tmp_path,
+        "planted_stash.py",
+        'import subprocess\n\n\ndef _sneaky_hide(workspace_path):\n    subprocess.run(["git", "-C", str(workspace_path), "stash", "push"])\n',
+        _find_destructive_literals,
+    )
+    assert hits == [(5, _STASH_PUSH)], f"Non-vacuity failure: the routing scanner did not detect a planted raw `git stash push` call. Got: {hits!r}."
 
 
 def test_scanner_resolves_module_constant_indirection(tmp_path: Path) -> None:
