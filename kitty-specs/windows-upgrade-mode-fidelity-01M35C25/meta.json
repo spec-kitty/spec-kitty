@@ -1,0 +1,35 @@
+{
+  "accept_commit": "b42bfd40e9a0c206755e3c9faae10d66b33c2534",
+  "acceptance_history": [
+    {
+      "accept_commit": "b42bfd40e9a0c206755e3c9faae10d66b33c2534",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-22T22:17:10.527917+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "cc6966bbca0fb141ded67d901f9c1c68f8efdf93"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-22T22:17:10.527917+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "cc6966bbca0fb141ded67d901f9c1c68f8efdf93",
+  "baseline_merge_commit": "bf605ef83ded05a7360b60cea82f17491042c850",
+  "created_at": "2026-09-22T20:14:06.680985+00:00",
+  "flattened": true,
+  "friendly_name": "Windows upgrade POSIX-mode fidelity",
+  "merged_at": "2026-09-22T22:19:34.162872+00:00",
+  "merged_commit": "375f41d83b47de900fa283689f821084ad768920",
+  "mid8": "01M35C25",
+  "mission_id": "01M35C25ACHT6NBVRD0K8RN0T0",
+  "mission_number": null,
+  "mission_slug": "windows-upgrade-mode-fidelity-01M35C25",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "On Windows the upgrade/skill-install surfaces treat host-unrepresentable POSIX file modes as real divergence. This crashes the upgrade (an unsupported follow_symlinks flag, #4923) and reports phantom repairs on a converged project (#4927). This mission makes both surfaces host-aware so Windows users can upgrade cleanly, targeting the 4.0.0rc4 release / MVP launch.",
+  "purpose_tldr": "Make spec-kitty upgrade behave correctly on Windows, where filesystems cannot carry POSIX file modes.",
+  "slug": "windows-upgrade-mode-fidelity-01M35C25",
+  "status_phase": "1",
+  "target_branch": "fix/windows-upgrade-mode-fidelity",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-22T20:40:25.308905+00:00"
+}
