@@ -1,26 +1,4 @@
 {
-<<<<<<< HEAD
-  "event_count": 0,
-  "last_event_id": null,
-  "materialized_at": "",
-  "mission_number": "",
-  "mission_slug": "",
-  "mission_type": "software-dev",
-  "schema_version": 2,
-  "summary": {
-    "approved": 0,
-    "blocked": 0,
-    "canceled": 0,
-    "claimed": 0,
-    "done": 0,
-    "for_review": 0,
-    "in_progress": 0,
-    "in_review": 0,
-    "planned": 0
-  },
-  "work_packages": {}
-||||||| 86b78acf97
-=======
   "event_count": 24,
   "last_event_id": "01M34RDYYE52SN6BWXBNEZE84F",
   "materialized_at": "2026-09-22T14:31:01.838269+00:00",
@@ -156,5 +134,4 @@
       }
     }
   }
->>>>>>> kitty/mission-acceptance-matrix-merge-fail-closed-01M34HG8
 }
