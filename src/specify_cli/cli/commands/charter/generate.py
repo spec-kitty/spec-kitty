@@ -208,6 +208,86 @@ def _finalize_sync_result(sync_result: Any) -> tuple[list[str], list[str]]:
     return list(sync_result.warnings), list(sync_result.files_written)
 
 
+def _read_catalog_mission_from_charter_yaml(repo_root: Path) -> str | None:
+    """Read the recorded mission type from an already-compiled ``charter.yaml`` (#4908).
+
+    Returns ``None`` when ``charter.yaml`` is absent, unreadable, or its
+    ``catalog.mission`` field is missing/blank -- callers treat every one of
+    those as "no signal here" and fall back to the next SSOT, never as an
+    error. Mirrors the established fail-open read pattern
+    ``charter.activation.language_scope._read_compiled_languages`` already
+    uses for the same file/section.
+    """
+    from ruamel.yaml.error import YAMLError
+
+    from charter.activation.charter_yaml_io import load_charter_yaml
+    from charter.bundle import CHARTER_YAML
+
+    charter_yaml_path = repo_root / CHARTER_YAML
+    if not charter_yaml_path.exists():
+        return None
+
+    try:
+        document = load_charter_yaml(charter_yaml_path)
+    except (YAMLError, OSError, UnicodeDecodeError):
+        return None
+
+    catalog = document.get("catalog") if isinstance(document, dict) else None
+    if not isinstance(catalog, dict):
+        return None
+
+    mission = catalog.get("mission")
+    return mission if isinstance(mission, str) and mission.strip() else None
+
+
+def _resolve_recorded_mission_type(repo_root: Path, answers_path: Path) -> str:
+    """Resolve the project's recorded mission type from its SSOT (#4908).
+
+    The catalog-recompile call sites (``charter activate``/``deactivate``'s
+    ``recompile_catalog``, ``charter pack apply --compile``'s
+    ``_compile_bundle_after_merge``) call :func:`_load_interview_for_generate`
+    with ``from_interview=False`` (the #2940 guard that keeps a malformed
+    ``answers.yaml`` from aborting a recompile) and
+    ``resolved_mission_type=None`` -- neither threads an explicit
+    ``--mission-type`` through, because a recompile is not a mission change.
+    Before this fix that combination collapsed straight to the
+    ``"software-dev"`` literal, silently discarding the project's actual
+    recorded mission on every recompile of a non-``software-dev`` project.
+
+    This reads the two recorded-mission SSOTs in priority order instead:
+
+    1. ``charter.yaml`` ``catalog.mission`` -- the compiled record. The
+       recompile call sites only reach here after confirming ``charter.yaml``
+       already exists, so this is the authoritative, always-present answer
+       for an established store.
+    2. ``.kittify/charter/interview/answers.yaml`` ``mission:`` -- the
+       pre-compile interview record, via ``read_interview_answers``, which
+       already degrades a missing OR malformed file to ``None`` (preserving
+       the #2940 no-abort guarantee: this function never raises on a corrupt
+       answers file, it simply falls through to the next fallback).
+    3. The ``"software-dev"`` literal, ONLY when neither SSOT carries a
+       signal at all -- a brand-new project with no compiled charter and no
+       interview answers (not the recompile path).
+    """
+    from charter.activation.interview import read_interview_answers
+
+    recorded = _read_catalog_mission_from_charter_yaml(repo_root)
+    if recorded is not None:
+        return recorded
+
+    interview_data = read_interview_answers(answers_path)
+    if interview_data is not None and interview_data.mission:
+        # ``charter.*`` is a ``follow_imports = "skip"`` module for narrow,
+        # single-file mypy runs (pyproject.toml), so ``interview_data``
+        # resolves to ``Any`` here regardless of ``CharterInterview.mission``
+        # being a genuine ``str`` field at runtime. ``str(...)`` is a real,
+        # safe narrowing (not a suppression) that keeps this function's
+        # declared ``-> str`` honest under that configuration.
+        return str(interview_data.mission)
+
+    return "software-dev"
+
+
 def _load_interview_for_generate(
     *,
     repo_root: Path,
@@ -246,7 +326,7 @@ def _load_interview_for_generate(
         )
 
     if interview_data is None:
-        resolved_mission = resolved_mission_type or "software-dev"
+        resolved_mission = resolved_mission_type or _resolve_recorded_mission_type(repo_root, answers_path)
         interview_data = _charter_pkg.default_interview(
             mission=resolved_mission,
             profile=profile.strip().lower(),
