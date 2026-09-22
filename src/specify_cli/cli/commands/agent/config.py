@@ -11,6 +11,7 @@ from specify_cli.cli.console import console
 from rich.table import Table
 
 from specify_cli.asset_preservation import ManifestProver, guard_destructive_removal
+from specify_cli.cli.json_contract import json_error
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.core.env import is_truthy
 from specify_cli.core.agent_config import (
@@ -170,11 +171,14 @@ def _remove_project_agent_surface(repo_root: Path, agent_key: str) -> tuple[bool
         return True, f"Removed {label}"
 
 
-def _load_config_or_exit(repo_root: Path) -> AgentConfig:
+def _load_config_or_exit(repo_root: Path, *, json_output: bool = False) -> AgentConfig:
     try:
         return load_agent_config(repo_root)
     except AgentConfigError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
+        if json_output:
+            console.emit_json(json_error("agent_config_invalid", str(exc)))
+        else:
+            console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
 
@@ -657,11 +661,14 @@ def sync_agents(
     try:
         repo_root = find_repo_root()
     except Exception as e:
-        console.print(f"[red]Error:[/red] {e}")
+        if json_output:
+            console.emit_json(json_error("not_in_project", str(e)))
+        else:
+            console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
 
     # Load config
-    config = _load_config_or_exit(repo_root)
+    config = _load_config_or_exit(repo_root, json_output=json_output)
 
     manifest_path = repo_root / ".kittify" / "command-skills-manifest.json"
     manifest_before = manifest_path.read_bytes() if manifest_path.exists() else None

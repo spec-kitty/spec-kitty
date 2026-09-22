@@ -96,6 +96,7 @@ def test_real_zero_wp_status(graph: click.Command, outside: Path, monkeypatch: p
 # Each tuple is (valid parsed arguments, exit code, real fixture).
 # Read-only total-result cases are marked total, not mislabeled as error arms.
 ADOPTED: dict[str, tuple[tuple[str, ...], int, str]] = {
+    "agent config sync": ((), 1, "outside"),
     "agent tasks status": ((), 1, "outside"),
     "archive create": (("missing", "--by", "missing", "--reason", "missing"), 2, "outside"),
     "archive list": ((), 2, "outside"),

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import patch
 
 import pytest
@@ -10,6 +11,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.config import app
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.core.agent_config import save_agent_config
+from specify_cli.task_utils.support import TaskCliError
 
 pytestmark = pytest.mark.fast
 
@@ -420,6 +422,26 @@ class TestSyncCommand:
 
             assert result.exit_code == 0
             assert "No changes needed" in result.stdout
+
+    def test_sync_json_outside_project_emits_error_envelope(self):
+        """Outside a project, ``--json`` must emit the adopted
+        ``{ok: false, error: {code, message}}`` envelope on stdout instead of
+        the plain-text ``Error: ...`` line the human path prints (#4915
+        landing fold for PR #4936; see
+        tests/architectural/test_json_contract_enumeration.py ADOPTED
+        classification for "agent config sync")."""
+        with patch(
+            "specify_cli.cli.commands.agent.config.find_repo_root",
+            side_effect=TaskCliError("Unable to locate repository root (missing .git or .kittify)."),
+        ):
+            result = runner.invoke(app, ["sync", "--json"])
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is False
+        error = payload["error"]
+        assert isinstance(error["code"], str) and error["code"]
+        assert isinstance(error["message"], str) and error["message"]
 
 
 class TestAgentKeyMapping:
