@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#4506": {
+      "evidence_ref": "Follow-up: #4506. Pre-existing Ruff format ratchet; fresh evidence https://github.com/spec-kitty/spec-kitty/issues/4506#issuecomment-5784629458",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#4873": {
+      "evidence_ref": "Follow-up: #4873. Pre-existing linked-worktree charter failures; fresh evidence https://github.com/spec-kitty/spec-kitty/issues/4873#issuecomment-5784705683",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#4920": {
+      "evidence_ref": "Merged implementation f11137a72; wrong-branch real-Git regression and declared-ref postcondition tests pass; mission review product gates pass.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "`doctor coordination --fix` mutates the wrong checked-out branch",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4949": {
+      "evidence_ref": "Follow-up: #4949. Mission-review Gate 3 doctrine names a deliberately retired E2E scenario.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

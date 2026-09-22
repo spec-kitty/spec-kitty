@@ -16,6 +16,9 @@ requirement_refs:
 planning_base_branch: issue-4920-coordination-doctor-branch-safety
 merge_target_branch: issue-4920-coordination-doctor-branch-safety
 branch_strategy: Planning artifacts for this mission were generated on issue-4920-coordination-doctor-branch-safety. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-4920-coordination-doctor-branch-safety unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-coordination-doctor-branch-safety-01M35EN8
+base_commit: b427c2c0b83ab5938f54582f7e663d9bc41d35e1
+created_at: '2026-09-22T21:20:51.546608+00:00'
 subtasks:
 - T001
 - T002
@@ -223,3 +226,4 @@ wrong branch has already advanced.
 ## Activity Log
 
 - 2026-09-22T21:11:00Z – codex – Work package prompt created from the governed plan.
+- 2026-09-22T21:47:43Z – codex – shell_pid=530558 – Implemented fail-closed branch identity guard and declared-ref postcondition. Red-first #4920 tests committed; 30 focused and 183 coordination tests pass; Ruff lint and MyPy pass. make test-fast: 3 known linked-worktree charter failures / 1938 passed / 5 skipped, tracked in #4873. Ruff format baseline debt tracked in #4506.

@@ -2,48 +2,58 @@
   "mission_slug": "coordination-doctor-branch-safety-01M35EN8",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "Repair validates the recorded worktree symbolic HEAD against the declared coordination branch before any mutation.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/coordination/test_coord_staleness.py::test_a_wrong_branch_worktree_fix_fails_closed_without_mutation; production call to _coord_worktree_head_finding",
+      "pass_fail": "pass",
+      "verified_by": "codex:reviewer-renata",
+      "verified_at": "2026-09-22T21:53:02Z",
+      "notes": "Real-Git regression and independent review passed."
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "A mismatched or detached symbolic HEAD returns the stable blocked-fix finding before merge and exits through finding aggregation.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "wrong-branch test snapshots declared, wrong, worktree HEAD, and target refs; all remain unchanged and command exits 1",
+      "pass_fail": "pass",
+      "verified_by": "codex:reviewer-renata",
+      "verified_at": "2026-09-22T21:53:02Z",
+      "notes": "The canonical helper maps detached HEAD to the same mismatch path."
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
+      "description": "Success output is emitted only after the declared coordination ref is re-read and equals the target SHA.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/coordination/test_coord_staleness.py::test_fix_one_staleness_requires_declared_ref_postcondition",
+      "pass_fail": "pass",
+      "verified_by": "codex:reviewer-renata",
+      "verified_at": "2026-09-22T21:53:02Z",
+      "notes": "A simulated postcondition miss returns the stable blocked code and prints no Fast-forwarded message."
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "A clean, correct-branch, strict-ancestor coordination worktree still fast-forwards normally.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/coordination/test_coord_staleness.py::test_a_strict_ancestor_check_staleness_reports_and_fix_fast_forwards",
+      "pass_fail": "pass",
+      "verified_by": "codex:reviewer-renata",
+      "verified_at": "2026-09-22T21:53:02Z",
+      "notes": "30 focused and 183 owning-subsystem tests passed."
     }
   ],
-  "negative_invariants": []
+  "negative_invariants": [
+    {
+      "invariant_id": "no-unauthorized-ref-mutation",
+      "description": "The repair must not switch branches, reset refs, discard changes, or introduce a second symbolic-HEAD parser.",
+      "verification_method": "diff_review_and_automated_test",
+      "verification_command": "uv run --extra test pytest -q tests/coordination/test_coord_staleness.py -k 'wrong_branch_worktree or declared_ref_postcondition or strict_ancestor_check_staleness'",
+      "result": "confirmed_absent",
+      "evidence": "WP01 aggregate diff and reviewer anti-pattern checklist",
+      "scope": "src/specify_cli/cli/commands/_coordination_doctor.py and tests/coordination/test_coord_staleness.py"
+    }
+  ]
 }
