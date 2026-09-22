@@ -920,6 +920,9 @@ def test_scratch_workspace_cleanup_stays_ungated_under_full_retention(
     cleanup_mock.assert_called_once()
 
 
+_ABORT_MISSION_ID = "01ABORT0000000000000000001"
+
+
 def _init_abort_repo(tmp_path: Path, slug: str, *, retain_worktrees: bool) -> Path:
     """Minimal real git repo + primary meta.json for ``--abort`` teardown tests."""
     repo = tmp_path / "repo"
@@ -933,7 +936,7 @@ def _init_abort_repo(tmp_path: Path, slug: str, *, retain_worktrees: bool) -> Pa
     fdir.mkdir(parents=True)
     meta: dict[str, object] = {
         "mission_slug": slug,
-        "mission_id": "01ABORT0000000000000000001",
+        "mission_id": _ABORT_MISSION_ID,
         "mid8": "01ABORT0",
         "coordination_branch": f"kitty/mission-{slug}",
         "target_branch": "main",
@@ -956,11 +959,20 @@ def test_teardown_coordination_for_abort_retains_worktree_when_meta_retains(
 
     slug = "abort-retain-repro"
     repo = _init_abort_repo(tmp_path, slug, retain_worktrees=True)
+    # #4863: teardown now requires active merge state to run at all, so a real
+    # state_entry is supplied — otherwise the None short-circuit would skip the
+    # retention branch this test exists to exercise (a silent false-green).
+    state = MergeState(
+        mission_id=_ABORT_MISSION_ID,
+        mission_slug=slug,
+        target_branch="main",
+        wp_order=[],
+    )
 
     with patch(
         "specify_cli.coordination.teardown.teardown_coordination_topology"
     ) as mock_teardown:
-        _teardown_coordination_for_abort(repo, slug, None)
+        _teardown_coordination_for_abort(repo, slug, (_ABORT_MISSION_ID, state))
 
     mock_teardown.assert_not_called()
 
@@ -974,11 +986,19 @@ def test_teardown_coordination_for_abort_destroys_worktree_when_no_policy(
 
     slug = "abort-default-repro"
     repo = _init_abort_repo(tmp_path, slug, retain_worktrees=False)
+    # #4863: a real abort now requires active merge state before the destroy leg
+    # runs; supply it so this test still reaches the no-retention teardown path.
+    state = MergeState(
+        mission_id=_ABORT_MISSION_ID,
+        mission_slug=slug,
+        target_branch="main",
+        wp_order=[],
+    )
 
     with patch(
         "specify_cli.coordination.teardown.teardown_coordination_topology"
     ) as mock_teardown:
-        _teardown_coordination_for_abort(repo, slug, None)
+        _teardown_coordination_for_abort(repo, slug, (_ABORT_MISSION_ID, state))
 
     mock_teardown.assert_called_once()
 
