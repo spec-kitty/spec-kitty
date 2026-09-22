@@ -101,6 +101,16 @@ def _module_set() -> list[Path]:
 # exhaustiveness reference (adds ``removedirs``) so a destructive-shaped call
 # the classifier does NOT map is caught by the exhaustiveness self-test rather
 # than silently evading the census (contract C3.2).
+#
+# SCOPE: both vocabularies cover the *removal* family only (rmtree/unlink/
+# remove/rmdir/removedirs/shutil.move). The *overwrite* family — ``os.replace``/
+# ``os.rename``/``os.renames``/``Path.replace`` — is deliberately NOT in either
+# set: those spellings are also the safe write-then-replace atomic-write
+# primitive (``kernel.atomic``), indistinguishable from a destination-clobber by
+# call syntax alone, so flagging them here would red the gate on the correct
+# idiom. Covering destination-clobbering renames needs its own contract —
+# tracked by #4901 (the overwrite half of the asset-loss class this gate closes
+# for the removal half). Do not add them to ``_REFERENCE_ATTRS`` without it.
 # ---------------------------------------------------------------------------
 _CLASSIFIER_ATTRS: frozenset[str] = frozenset({"rmtree", "move", "unlink", "remove", "rmdir"})
 _REFERENCE_ATTRS: frozenset[str] = frozenset({"rmtree", "move", "unlink", "remove", "rmdir", "removedirs"})
