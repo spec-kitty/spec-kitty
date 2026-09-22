@@ -17,9 +17,11 @@ framing below. This module is the narrow #2804 overlay: it pins the specific
 invariant that a coordination gate artifact's already-*filled* criterion (a
 real accepted-evidence handle, marker-free prose) is never silently reset
 back to :data:`SCAFFOLD_TODO_MARKER` placeholder content by a mission->target
-squash merge, and that the accepted evidence handle survives even when it
-lands inside a git-style conflict marker string (a field genuinely diverged
-on both sides). It is NOT a duplicate of the sibling's general coverage.
+squash merge, and that when a NON-verdict field genuinely diverges on both
+sides the filled target survives (target-authoritative tie: no conflict
+marker embedded, no silent reset — #4880 removed the in-band marker embed;
+a genuinely-diverged VERDICT field instead fails closed in the sibling's
+coverage). It is NOT a duplicate of the sibling's general coverage.
 
 Integration-level regression: ``tests/merge/
 test_issue_2804_merge_resets_gate_artifacts.py`` (untouched by this module,
@@ -42,7 +44,6 @@ import pytest
 
 from specify_cli.acceptance.matrix import SCAFFOLD_TODO_MARKER, VERDICT_PASS_PENDING_CONSOLIDATION
 from specify_cli.cli.commands.merge_driver import (
-    RowMatrixMergeError,
     reconcile_acceptance_matrix_documents,
     reconcile_issue_matrix_documents,
 )
@@ -228,7 +229,7 @@ def test_a3_control_scaffold_only_drops_the_handle() -> None:
     the handle cannot appear in the merged document -- so A3's in-conflict
     handle-survival assertion is not satisfied by fabrication. (The side-selection
     falsifiability is covered by the main A3 test, which fails if the conflict
-    marker is collapsed to a theirs-only pick.)"""
+    filled target is inverted to a theirs-only pick.)"""
     base: dict[str, Any] = {}
     theirs = {
         "criteria": [
