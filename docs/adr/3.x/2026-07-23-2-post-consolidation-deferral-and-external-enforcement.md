@@ -172,3 +172,45 @@ state the contract at the moment it assigns the status.
 * Issues: #1834 (the live leg), #2885, #2795, #2882.
 * Mission: `kitty-specs/lifecycle-gate-execution-context-01KY72GQ/`.
 * User-facing guide: [accept-and-merge](../../guides/how-to/missions/accept-and-merge.md).
+
+## Amendment (2026-09-22)
+
+The **"do not add abort paths to consolidation"** principle — stated as a Decision Driver
+("Do not add abort paths to consolidation", Decision Drivers, above) and reaffirmed under
+Consequences ("Consolidation gains no new abort path", Positive Consequences, above) — is
+**qualified, not reversed, for gate/verdict artifacts**. It continues to govern the general
+consolidation path unchanged.
+
+`kitty-specs/write-side-seam-matrix-tracer-01KYP3MH/contracts/merge-driver-algorithm.md`
+originally cited this ADR to justify a "structured conflict result (fail-closed, no
+consolidation abort)" behavior for the row-aware matrix merge driver: a both-sides-diverged
+field on a keyed row (e.g. `pass_fail`) was embedded as a git-style conflict-marker string
+*inside the field value itself*, and the merge proceeded. For a **gate/verdict artifact**
+(the acceptance matrix, the issue matrix) this reading was unsafe: an embedded marker string
+in `pass_fail` is not human prose to review later, it is a value the artifact's own
+verdict-computation logic reads — and it recomputed `overall_verdict` to `fail`, silently
+corrupting an already-accepted mission's recorded state. That defect and its fix are tracked
+under #4880.
+
+**Amended rule:** for a gate/verdict artifact only, a both-sides-diverged keyed-row field is
+unresolvable by machine and **fails closed** — the driver raises, the CLI invocation exits
+non-zero, and `git merge` is left for a human to resolve (`git merge --abort` is available to
+the operator; the mission integration path does not silently advance past it). Conflict
+markers are never embedded as field values in a gate/verdict artifact.
+
+This qualification is scoped narrowly: it does **not** apply to non-authoritative prose
+artifacts (e.g. the review-cycle `.md`, whose verdict authority lives elsewhere), which keep
+the original best-effort, no-abort behavior this ADR describes. It also does not reopen or
+weaken any Core Decision item (1–7, including item 3's provenance requirement, which is
+untouched by this amendment) or the general "no new abort path in the merge executor's
+compensating-transaction machinery" principle for any surface other than gate/verdict
+artifacts.
+
+The originating contract and unit-gate mission
+(`kitty-specs/write-side-seam-matrix-tracer-01KYP3MH/...` and
+`kitty-specs/gate-artifact-merge-driver-unit-gate-01KZPG7V/spec.md` FR-004) are **immutable
+archived snapshots** and are deliberately NOT edited here — their original wording is
+preserved as history. This amendment (a living governance record) is the authoritative
+supersession of that "no consolidation abort" reading for gate/verdict artifacts; the new
+behavior and the FR-004 supersession are recorded in the #4880 mission's own living
+contract: `kitty-specs/acceptance-matrix-merge-fail-closed-01M34HG8/contracts/merge-driver-algorithm-amendment.md`.
