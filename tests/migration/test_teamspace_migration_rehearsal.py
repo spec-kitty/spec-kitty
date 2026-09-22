@@ -18,6 +18,7 @@ from specify_cli.migration.mission_state import FORBIDDEN_LEGACY_KEYS, repair_re
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
+
 def _has_events_5() -> bool:
     import spec_kitty_events
 
@@ -67,11 +68,16 @@ def _write_historical_fixture(repo: Path) -> None:
         "to_lane": "in_review",
         "work_package_id": "WP01",
     }
+    # A real DecisionPointOpened payload carries `mission_slug` (the canonical
+    # field name), never the legacy `feature_slug` -- this row is preserved
+    # in place, untouched, by the repair (#4897), so a legacy key embedded
+    # here (rather than in a canonicalized lane row) would be unrealistic
+    # test data, not a case the repair is expected to scrub.
     typed_side_log = {
         "at": "2026-01-01T00:00:01+00:00",
         "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
         "event_type": "DecisionPointOpened",
-        "payload": {"decision_point_id": "DP01", "feature_slug": "042-historical-shape"},
+        "payload": {"decision_point_id": "DP01", "mission_slug": "042-historical-shape"},
     }
     _write_jsonl(mission_a / "status.events.jsonl", [status_row, dict(status_row), typed_side_log])
     _write_jsonl(
@@ -213,6 +219,12 @@ def test_teamspace_mission_state_rehearsal_is_deterministic_across_clones(tmp_pa
             assert rows
             for row in rows:
                 assert not _find_forbidden_keys(row)
+                if "event_type" in row:
+                    # Preserved non-lane row (canonical lifecycle event or
+                    # DecisionPoint mirror, #4897) -- kept byte-identical by
+                    # the repair, not restamped with mission_id/mission_slug
+                    # the way a canonicalized lane row is.
+                    continue
                 assert row["mission_id"]
                 assert row["mission_slug"] == status_path.parent.name
 

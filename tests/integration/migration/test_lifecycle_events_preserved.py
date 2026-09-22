@@ -1,4 +1,5 @@
-"""Regression: mission-state repair preserves canonical lifecycle events (#2376).
+"""Regression: mission-state repair preserves canonical lifecycle events (#2376)
+and Decision-Moment events (#4897).
 
 A completed mission's ``status.events.jsonl`` legitimately holds canonical
 lifecycle events (``MissionCreated``, ``SpecifyStarted``, ``WPCreated``) whose
@@ -8,9 +9,12 @@ all ``event_type`` rows and emptied such a log. This test pins the corrected
 contract: canonical lifecycle events are preserved in place; the log is never
 emptied.
 
-Decision-Moment rows (``DecisionPoint*``) are intentionally NOT preserved here —
-their canonical store is ``decisions/index.json`` / ``DM-*.md``, so the copy in
-status.events.jsonl is a prunable mirror (the shipped #980 behaviour, retained).
+Decision-Moment rows (``DecisionPoint*``) are ALSO preserved (#4897): the
+event log is these events' canonical store -- ``decisions/index_fold.py``
+rebuilds ``decisions/index.json`` FROM this log, so the copy here is not a
+disposable mirror. (Before #4897 this module's own docstring asserted the
+opposite -- that the mirror was safely prunable -- and the repair quarantined
+it out of every healthy mission with a ``DecisionPoint*`` row.)
 
 The fixtures are built through the canonical event producers (C-007 / #1248) —
 ``emit_mission_created_local`` / ``emit_artifact_phase`` / ``emit_wp_created_local``
@@ -102,8 +106,9 @@ def _emit_lifecycle_events(mission_dir: Path) -> set[str]:
 def _emit_decision_mirror(tmp_path: Path, mission_dir: Path) -> str:
     """Emit a canonical ``DecisionPointOpened`` mirror; return its ``event_id``.
 
-    Its canonical store is ``decisions/``, so the copy in ``status.events.jsonl``
-    is a prunable mirror the repair quarantines.
+    ``status.events.jsonl`` is this event's canonical store (#4897):
+    ``decisions/index.json`` is REBUILT FROM this log, so the repair must
+    preserve this row in place, not quarantine it.
     """
     entry = IndexEntry(
         decision_id=_DECISION_ID,
@@ -117,15 +122,11 @@ def _emit_decision_mirror(tmp_path: Path, mission_dir: Path) -> str:
         mission_slug="m",
         step_id="plan.q1",
     )
-    emit_decision_opened(
-        tmp_path, "m", decision_id=_DECISION_ID, entry=entry, actor="claude"
-    )
+    emit_decision_opened(tmp_path, "m", decision_id=_DECISION_ID, entry=entry, actor="claude")
     return _find_event_id(mission_event_log_path(mission_dir), DECISION_POINT_OPENED)
 
 
-def _write_mission(
-    tmp_path: Path, *, with_decision: bool
-) -> tuple[Path, Path, set[str], str | None]:
+def _write_mission(tmp_path: Path, *, with_decision: bool) -> tuple[Path, Path, set[str], str | None]:
     """Seed a mission whose event log is built via canonical producers.
 
     Returns ``(mission_dir, log, lifecycle_event_ids, decision_event_id)``.
@@ -150,11 +151,7 @@ def _find_event_id(log: Path, event_type: str) -> str:
 
 
 def _event_ids(text: str) -> set[str]:
-    return {
-        json.loads(line)["event_id"]
-        for line in text.splitlines()
-        if line.strip()
-    }
+    return {json.loads(line)["event_id"] for line in text.splitlines() if line.strip()}
 
 
 def test_lifecycle_only_log_is_fully_preserved(tmp_path: Path) -> None:
@@ -172,23 +169,21 @@ def test_lifecycle_only_log_is_fully_preserved(tmp_path: Path) -> None:
     assert _event_ids(after_text) == before_ids
 
 
-def test_lifecycle_preserved_decision_mirror_pruned(tmp_path: Path) -> None:
-    """Mixed log: lifecycle events preserved; the DecisionPoint mirror is pruned
-    (its canonical store is decisions/), and the log is not emptied."""
-    mission_dir, log, lifecycle_ids, decision_id = _write_mission(
-        tmp_path, with_decision=True
-    )
+def test_lifecycle_and_decision_mirror_both_preserved(tmp_path: Path) -> None:
+    """Mixed log: lifecycle events AND the DecisionPoint mirror are both
+    preserved (#4897); zero rows are quarantined and the log is not emptied.
+    """
+    mission_dir, log, lifecycle_ids, decision_id = _write_mission(tmp_path, with_decision=True)
     assert decision_id is not None
 
     result = _repair_mission(tmp_path, mission_dir, run_id="mixed")
 
     assert result.status != "error", result.validation_errors
-    # Only the DecisionPoint mirror is quarantined.
-    assert result.quarantined_rows == 1
+    assert result.quarantined_rows == 0
     surviving = _event_ids(log.read_text(encoding="utf-8"))
     for event_id in lifecycle_ids:
         assert event_id in surviving
-    assert decision_id not in surviving
+    assert decision_id in surviving
 
 
 def _emit_retrospective_completed(mission_dir: Path) -> str:
@@ -242,24 +237,22 @@ def test_retrospective_event_name_row_is_preserved(tmp_path: Path) -> None:
         assert event_id in surviving
 
 
-def test_retrospective_row_preserved_decision_mirror_pruned(tmp_path: Path) -> None:
-    """Mixed log with all three preserved classes + a prunable Decision mirror:
-    lifecycle + retrospective survive; only the DecisionPoint mirror is pruned."""
-    mission_dir, log, lifecycle_ids, decision_id = _write_mission(
-        tmp_path, with_decision=True
-    )
+def test_retrospective_and_decision_mirror_both_preserved(tmp_path: Path) -> None:
+    """Mixed log with all preserved classes: lifecycle + retrospective +
+    DecisionPoint mirror ALL survive (#4897); zero rows are quarantined."""
+    mission_dir, log, lifecycle_ids, decision_id = _write_mission(tmp_path, with_decision=True)
     assert decision_id is not None
     retro_id = _emit_retrospective_completed(mission_dir)
 
     result = _repair_mission(tmp_path, mission_dir, run_id="mixed-retro")
 
     assert result.status != "error", result.validation_errors
-    assert result.quarantined_rows == 1
+    assert result.quarantined_rows == 0
     surviving = _event_ids(log.read_text(encoding="utf-8"))
     assert retro_id in surviving
     for event_id in lifecycle_ids:
         assert event_id in surviving
-    assert decision_id not in surviving
+    assert decision_id in surviving
 
 
 def _emit_inner_state_annotation(mission_dir: Path) -> str:
@@ -313,9 +306,7 @@ def test_annotation_row_is_preserved(tmp_path: Path) -> None:
     result = _repair_mission(tmp_path, mission_dir, run_id="annotation")
 
     assert result.status != "error", result.validation_errors
-    assert not any(
-        "missing required to_lane" in err for err in result.validation_errors
-    ), "an annotation row must never be asked for a to_lane it cannot have"
+    assert not any("missing required to_lane" in err for err in result.validation_errors), "an annotation row must never be asked for a to_lane it cannot have"
     assert result.quarantined_rows == 0
     surviving = _event_ids(log.read_text(encoding="utf-8"))
     assert annotation_id in surviving, "the annotation row must survive repair"
@@ -323,12 +314,10 @@ def test_annotation_row_is_preserved(tmp_path: Path) -> None:
         assert event_id in surviving
 
 
-def test_annotation_preserved_decision_mirror_pruned(tmp_path: Path) -> None:
-    """Mixed log with all four preserved classes + a prunable Decision mirror:
-    lifecycle + retrospective + annotation survive; only the mirror is pruned."""
-    mission_dir, log, lifecycle_ids, decision_id = _write_mission(
-        tmp_path, with_decision=True
-    )
+def test_annotation_and_decision_mirror_both_preserved(tmp_path: Path) -> None:
+    """Mixed log with all five preserved classes: lifecycle + retrospective +
+    annotation + DecisionPoint mirror ALL survive (#4897); zero quarantines."""
+    mission_dir, log, lifecycle_ids, decision_id = _write_mission(tmp_path, with_decision=True)
     assert decision_id is not None
     retro_id = _emit_retrospective_completed(mission_dir)
     annotation_id = _emit_inner_state_annotation(mission_dir)
@@ -336,13 +325,13 @@ def test_annotation_preserved_decision_mirror_pruned(tmp_path: Path) -> None:
     result = _repair_mission(tmp_path, mission_dir, run_id="mixed-annotation")
 
     assert result.status != "error", result.validation_errors
-    assert result.quarantined_rows == 1
+    assert result.quarantined_rows == 0
     surviving = _event_ids(log.read_text(encoding="utf-8"))
     assert retro_id in surviving
     assert annotation_id in surviving
     for event_id in lifecycle_ids:
         assert event_id in surviving
-    assert decision_id not in surviving
+    assert decision_id in surviving
 
 
 def test_backstop_never_empties_when_all_rows_preserved(tmp_path: Path) -> None:

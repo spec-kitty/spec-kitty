@@ -126,6 +126,56 @@ MISSION_EVENTS_FILENAME = "status.events.jsonl"
 
 
 # ---------------------------------------------------------------------------
+# Authoritative non-lane event-type registry (#4897)
+# ---------------------------------------------------------------------------
+
+# The Decision Moment Protocol's own ``event_type`` vocabulary
+# (``decisions/emit.py``, ``widen/flow.py``). ``status.events.jsonl`` is
+# these events' CANONICAL store, NOT a prunable mirror:
+# ``decisions/index_fold.py`` rebuilds ``decisions/index.json`` FROM this
+# log. Before this registry existed, ``migration/mission_state.py``'s
+# ``_is_preserved_non_lane_row`` believed the opposite -- that
+# ``decisions/index.json`` was canonical and this copy disposable -- and
+# quarantined these rows out of a healthy mission on every
+# ``doctor mission-state --fix`` (#4897).
+_DECISION_POINT_EVENT_TYPES: frozenset[str] = frozenset(
+    {
+        "DecisionPointOpened",
+        "DecisionPointResolved",
+        "DecisionPointDeferred",
+        "DecisionPointCanceled",
+        "DecisionPointWidened",
+    }
+)
+
+#: SINGLE authority (#4897) for "this ``event_type`` row is an authoritative
+#: non-lane record that shares ``status.events.jsonl`` and MUST survive
+#: every repair/prune pass over that file". Consulted by BOTH the durable
+#: reader (:func:`specify_cli.status.store.is_non_lane_event`) and the
+#: mission-state repair
+#: (:func:`specify_cli.migration.mission_state._is_preserved_non_lane_row`).
+#: Before this registry existed the two consulted divergent hand-maintained
+#: sets -- the reader treated ANY ``event_type`` as non-lane while the
+#: repair preserved only :data:`LIFECYCLE_EVENT_TYPES` -- which silently
+#: quarantined ``DecisionPoint*`` rows out from under a healthy mission
+#: (#4897), continuing a recurring whack-a-field class (#2376 retrospective,
+#: #3066 ``WPStatusChanged``, #3541 ``review_result``). A future event type
+#: that both the reader and the repair must agree is non-lane-and-preserved
+#: belongs in this union, not in a new parallel list in either consumer.
+AUTHORITATIVE_NON_LANE_EVENT_TYPES: frozenset[str] = LIFECYCLE_EVENT_TYPES | _DECISION_POINT_EVENT_TYPES
+
+
+def is_authoritative_non_lane_event_type(event_type: object) -> bool:
+    """Return True when *event_type* is a known authoritative non-lane type.
+
+    Typed ``object`` (not ``str``) because every call site passes
+    ``row.get("event_type")`` directly, which may be any JSON value -- or
+    absent, i.e. ``None`` -- for a malformed row.
+    """
+    return isinstance(event_type, str) and event_type in AUTHORITATIVE_NON_LANE_EVENT_TYPES
+
+
+# ---------------------------------------------------------------------------
 # Path resolvers
 # ---------------------------------------------------------------------------
 
@@ -1171,6 +1221,8 @@ __all__ = [
     "MISSION_REOPENED",
     "FOLLOW_UP_RECORDED",
     "LIFECYCLE_EVENT_TYPES",
+    "AUTHORITATIVE_NON_LANE_EVENT_TYPES",
+    "is_authoritative_non_lane_event_type",
     "PROJECT_EVENTS_FILENAME",
     "MISSION_EVENTS_FILENAME",
     "project_event_log_path",

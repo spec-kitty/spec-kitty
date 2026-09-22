@@ -614,21 +614,34 @@ def is_non_lane_event(obj: dict[str, Any]) -> bool:
     if is_retrospective_lifecycle_event(obj):
         return True
 
-    # Why: Skip mission-level events (DecisionPointOpened,
-    # DecisionPointResolved, DecisionPointDeferred,
-    # DecisionPointCanceled, DecisionPointWidened, and any future
-    # event-type written by a non-status-emitter subsystem) that
-    # share status.events.jsonl with lane-transition events.
+    # #4897 (T008): consult the SINGLE authoritative non-lane event-type
+    # registry (specify_cli.status.lifecycle_events) FIRST. This is the same
+    # registry migration/mission_state.py's `_is_preserved_non_lane_row` now
+    # consults, so a DecisionPoint* row (or any LIFECYCLE_EVENT_TYPES row)
+    # can never again be treated as non-lane HERE but prunable THERE.
+    # Imported lazily: lifecycle_events.py imports append_raw_rows_atomic
+    # from this module at its own top level, so a module-level import here
+    # would be circular.
+    from .lifecycle_events import is_authoritative_non_lane_event_type
+
+    if is_authoritative_non_lane_event_type(obj.get("event_type")):
+        return True
+
+    # Why: Skip ANY OTHER mission-level event (a future event-type written
+    # by a non-status-emitter subsystem, not yet added to the registry
+    # above) that shares status.events.jsonl with lane-transition events.
     # Two cooperating subsystems write to this file with incompatible
     # schemas: the status emitter writes lane-transition events
-    # (carrying wp_id, from_lane, to_lane), while the Decision Moment
-    # Protocol writes mission-level events that carry a top-level
-    # `event_type` field instead. Discriminating on event_type
-    # PRESENCE (not a specific value allowlist) is future-proof AND
-    # preserves the existing fail-loud contract for malformed
-    # lane-transition events: a corrupted lane event missing wp_id
-    # but ALSO missing event_type still hits StatusEvent.from_dict
-    # below and raises as today. See FR-010.
+    # (carrying wp_id, from_lane, to_lane), while a non-status-emitter
+    # subsystem (e.g. the Decision Moment Protocol) writes mission-level
+    # events that carry a top-level `event_type` field instead.
+    # Discriminating on event_type PRESENCE (not a specific value
+    # allowlist) is future-proof AND preserves the existing fail-loud
+    # contract for malformed lane-transition events: a corrupted lane
+    # event missing wp_id but ALSO missing event_type still hits
+    # StatusEvent.from_dict below and raises as today. See FR-010 and
+    # tests/status/test_read_events_tolerates_decision_events.py, which
+    # pins this presence-based fallback.
     return "event_type" in obj
 
 

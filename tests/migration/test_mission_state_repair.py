@@ -102,9 +102,10 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     assert report_dict["summary"]["missions_updated"] == 1
     result = report.missions[0]
     assert result.status == "updated"
-    # The DecisionPoint mirror row plus the dropped duplicate-event_id row: both
-    # leave the log, so both must be quarantined rather than merely hashed.
-    assert result.quarantined_rows == 2
+    # Only the dropped duplicate-event_id row is quarantined. The DecisionPoint
+    # mirror row is preserved in place (#4897): it is authoritative per the
+    # shared AUTHORITATIVE_NON_LANE_EVENT_TYPES registry, not a prunable mirror.
+    assert result.quarantined_rows == 1
     meta = _read_json(mission / "meta.json")
     assert meta["mission_id"] == deterministic_ulid(
         json.dumps(
@@ -131,7 +132,7 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     assert "mission" not in meta
 
     rows = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
-    assert len(rows) == 2
+    assert len(rows) == 3
     row = rows[0]
     assert row["mission_slug"] == "042-historical-shape"
     assert row["mission_id"] == meta["mission_id"]
@@ -142,16 +143,19 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     assert "feature_slug" not in row
     assert "work_package_id" not in row
     assert "legacy_aggregate_id" not in row
+    # The DecisionPoint mirror row is authoritative (#4897) -- preserved
+    # in place, untouched, rather than quarantined.
+    assert rows[1] == typed_row
     # Retrospective lifecycle rows are contracted provenance read back by
     # retrospective consumers — repair must preserve them untouched.
-    assert rows[1] == retrospective_row
+    assert rows[2] == retrospective_row
 
     status = _read_json(mission / "status.json")
     status_summary = cast(dict[str, object], status["summary"])
     assert status_summary["in_review"] == 1
     quarantine = repo / ".kittify" / "migrations" / "mission-state" / "quarantine" / report.run_id / "042-historical-shape" / "status.events.jsonl"
     quarantine_text = quarantine.read_text(encoding="utf-8")
-    assert "DecisionPointOpened" in quarantine_text
+    assert "DecisionPointOpened" not in quarantine_text
     assert "RetrospectiveCaptured" not in quarantine_text
 
     if not _has_events_5():
@@ -206,9 +210,10 @@ def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
     never trips — *succeeded* while regenerating a **zero-WP** ``status.json``: a
     silent, data-destroying repair. After the fix the typed lane row is passed
     through, canonicalized to a flat lane event, and folded back into
-    ``status.json`` (the WP is retained). TeamSpace replay envelopes (lane
-    fields under ``payload``) and ``DecisionPoint*`` mirrors MUST stay
-    quarantined regardless.
+    ``status.json`` (the WP is retained). A TeamSpace replay envelope (lane
+    fields under ``payload``) MUST stay quarantined regardless; a
+    ``DecisionPoint*`` mirror is now preserved in place (#4897), not
+    quarantined.
     """
     repo = tmp_path
     mission = repo / "kitty-specs" / "042-legacy-typed"
@@ -252,7 +257,8 @@ def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
             "wp_id": "WP01",
         },
     }
-    # Decision-Moment mirror: a different event_type. MUST stay quarantined.
+    # Decision-Moment mirror: a different event_type. Preserved in place (#4897) --
+    # authoritative per the shared registry, not a prunable mirror.
     decision_point_row = {
         "at": "2026-01-01T00:00:02+00:00",
         "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGT",
@@ -305,18 +311,20 @@ def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
     # The typed discriminator is stripped by the _build_canonical_row allowlist.
     assert "event_type" not in canonical
     assert retrospective_row in rows
+    # The DecisionPoint mirror is preserved in place, untouched (#4897).
+    assert decision_point_row in rows
 
-    # Only the TeamSpace envelope and the DecisionPoint mirror stay quarantined;
-    # the canonical-writer WPStatusChanged shape does NOT.
-    assert result.quarantined_rows == 2
+    # Only the TeamSpace envelope stays quarantined; the canonical-writer
+    # WPStatusChanged shape and the DecisionPoint mirror do NOT.
+    assert result.quarantined_rows == 1
     quarantine = repo / ".kittify" / "migrations" / "mission-state" / "quarantine" / report.run_id / "042-legacy-typed" / "status.events.jsonl"
     quarantine_rows = [json.loads(line) for line in quarantine.read_text(encoding="utf-8").splitlines() if line.strip()]
     quarantined_event_ids = {row["event_id"] for row in quarantine_rows}
     assert quarantined_event_ids == {
         "01KQHRB8GCFJAX7HM4ZY52AQGS",  # TeamSpace envelope
-        "01KQHRB8GCFJAX7HM4ZY52AQGT",  # DecisionPointOpened mirror
     }
     assert "01KQHRB8GCFJAX7HM4ZY52AQGR" not in quarantined_event_ids
+    assert "01KQHRB8GCFJAX7HM4ZY52AQGT" not in quarantined_event_ids  # DecisionPointOpened mirror
 
 
 def test_repair_is_idempotent_after_first_canonicalization(tmp_path: Path) -> None:
@@ -1037,12 +1045,15 @@ def test_repair_rejects_traversal_mission_slug_from_meta(tmp_path: Path) -> None
         "to_lane": "claimed",
         "wp_id": "WP01",
     }
-    # A typed side-log row with event_type → quarantined by _rule_filter_typed_rows
+    # A typed side-log row with an event_type OUTSIDE the shared
+    # AUTHORITATIVE_NON_LANE_EVENT_TYPES registry (#4897) → still quarantined
+    # by _rule_reject_non_status_event (a DecisionPointOpened row would no
+    # longer be, since it is now preserved in place as authoritative).
     typed_row: dict[str, Any] = {
         "at": "2026-01-01T00:00:01+00:00",
         "event_id": "01KQHRB8GCFJAX7HM4ZY52BBBB",
-        "event_type": "DecisionPointOpened",
-        "payload": {"decision_point_id": "DP01"},
+        "event_type": "SomeUnrecognizedSideLogEvent",
+        "payload": {"detail": "unrelated side log"},
     }
     (mission_dir / "status.events.jsonl").write_text(
         json.dumps(status_row, sort_keys=True) + "\n" + json.dumps(typed_row, sort_keys=True) + "\n",

@@ -60,7 +60,7 @@ from specify_cli.status import ULID_PATTERN, Lane, StatusEvent
 from specify_cli.status import materialize_snapshot, materialize_to_json
 from specify_cli.status import (
     ANNOTATION_KIND,
-    LIFECYCLE_EVENT_TYPES,
+    is_authoritative_non_lane_event_type,
     is_retrospective_lifecycle_event,
 )
 
@@ -1655,8 +1655,17 @@ def _repair_mission(
                 generated_ids=generated_ids,
             )
             row_changes.extend(row_transforms)
-            validation_errors.extend(row_errors)
-            if row_errors:
+            # T010 (#4897) fail-closed guard: fold in any row(s) the shared
+            # registry says are authoritative but that ended up in
+            # quarantine_lines anyway, so the repair can never report a
+            # successful (errors=0) result while dropping one. See
+            # _row_level_repair_errors for why this is a backstop against a
+            # FUTURE divergence rather than a live path today (the T007-T009
+            # fix above already stops any current authoritative type from
+            # reaching quarantine_lines).
+            combined_row_errors = _row_level_repair_errors(quarantine_lines, row_errors)
+            validation_errors.extend(combined_row_errors)
+            if combined_row_errors:
                 return MissionRepairResult(
                     mission_slug=mission_slug,
                     mission_id=mission_id,
@@ -1667,6 +1676,7 @@ def _repair_mission(
                     validation_errors=validation_errors,
                     meta_actions=list(meta_actions),
                 )
+
             before_events = _file_fingerprint(status_path)
             status_text = "".join(json.dumps(row, sort_keys=True) + "\n" for row in canonical_rows)
             # Backstop (#2376): never silently empty a previously-populated event
@@ -1921,39 +1931,54 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
 
     ``status.events.jsonl`` is a *shared* append log. Lane-transition rows are
     flat (``wp_id`` / ``from_lane`` / ``to_lane``); other subsystems co-locate
-    ``event_type`` / ``type`` / ``kind`` rows. Three of those classes have **no
-    other per-mission home**, so quarantining them is real data loss (#2376):
+    ``event_type`` / ``type`` / ``kind`` rows. Four of those classes have **no
+    other per-mission home**, so quarantining them is real data loss (#2376,
+    #4897):
 
     - **Retrospective lifecycle rows** (``type`` envelope) — contracted
       provenance read back by retrospective consumers.
-    - **Canonical lifecycle events** whose ``event_type`` is in
-      ``LIFECYCLE_EVENT_TYPES`` (``MissionCreated``, ``SpecifyStarted``,
-      ``WPCreated``, …). :mod:`specify_cli.status.lifecycle_events` is their
-      sole durable per-mission writer and declares this stream "a safe target
-      for repair / replay tooling".
+    - **Canonical lifecycle events AND Decision-Moment ``DecisionPoint*``
+      events** — both are members of the single shared
+      :data:`~specify_cli.status.lifecycle_events.AUTHORITATIVE_NON_LANE_EVENT_TYPES`
+      registry, consulted via
+      :func:`~specify_cli.status.lifecycle_events.is_authoritative_non_lane_event_type`.
+      Canonical lifecycle events (``MissionCreated``, ``SpecifyStarted``,
+      ``WPCreated``, …) have :mod:`specify_cli.status.lifecycle_events` as their
+      sole durable per-mission writer, which declares this stream "a safe
+      target for repair / replay tooling". ``DecisionPoint*`` rows are
+      likewise canonical here, NOT a prunable mirror: ``decisions/index.json``
+      is REBUILT FROM this log by ``decisions/index_fold.py`` — the copy in
+      ``status.events.jsonl`` is the decision's only durable per-mission home.
     - **``InnerStateChanged`` annotations** (``kind: "annotation"`` envelope) —
       load-bearing runtime state the reducer folds into the per-WP slots. They
       carry no lane fields by construction, so omitting them here does not just
       drop data: the row reaches ``_rule_require_to_lane`` and hard-errors the
       entire mission repair.
 
-    Other ``event_type`` rows (e.g. Decision-Moment ``DecisionPoint*``) are NOT
-    preserved here: their canonical store is elsewhere
-    (``decisions/index.json`` + ``DM-*.md``), so the copy in status.events.jsonl
-    is a prunable mirror — quarantining it (the shipped #980 behaviour) loses
-    nothing.
+    #4897 fixed an inverted belief that used to live here: this predicate
+    preserved only ``LIFECYCLE_EVENT_TYPES`` on the premise that a
+    DecisionPoint row's "canonical store is elsewhere ... so the copy in
+    status.events.jsonl is a prunable mirror" — the decisions subsystem
+    believes the opposite, and is right: quarantining these rows silently
+    emptied the Decision Moment ledger of a healthy mission on
+    ``doctor mission-state --fix`` (exit 0, ``errors=0``), and the advertised
+    follow-up ``doctor decisions --repair`` then rebuilt ``index.json`` from
+    the emptied log to zero entries.
 
     Kept in lock-step with the durable reader
-    :func:`specify_cli.status.store.is_non_lane_event`: a THIRD reader-preserved
+    :func:`specify_cli.status.store.is_non_lane_event`: a FOURTH reader-preserved
     class is the ``event_name``-envelope retrospective stream (rows whose
     ``event_name`` starts with ``"retrospective."`` — written by
     :func:`specify_cli.retrospective.events.emit_retrospective_event`, read back
     as load-bearing state by the reducer / retrospective gate + summary, with no
     other per-mission home). Omitting it re-opened the #2376 data-loss class in
     a different event format (a mixed log with a ``retrospective.completed`` row
-    silently strips it). The reader's broader ``"event_type" in obj`` branch is
-    deliberately NOT mirrored here: the repair's ``LIFECYCLE_EVENT_TYPES``
-    narrowing is the intentional pruning divergence for Decision-Moment mirrors.
+    silently strips it). The reader's broader ``"event_type" in obj`` branch
+    (true for ANY event_type, including one not yet in the registry above) is
+    deliberately NOT mirrored here: an ``event_type`` this repair does not
+    recognize at all is still routed to ``quarantined_non_status_event`` by
+    :func:`_rule_reject_non_status_event` — only registry membership (or one
+    of the other reader-preserved classes above) earns preservation.
     """
     # ``InnerStateChanged`` annotations are preserved FIRST, mirroring the
     # placement of the durable reader's own leading branch
@@ -1969,7 +1994,57 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
     event_name = row.get("event_name")
     if isinstance(event_name, str) and event_name.startswith("retrospective."):
         return True
-    return is_retrospective_lifecycle_event(row) or row.get("event_type") in LIFECYCLE_EVENT_TYPES
+    # bool(...): specify_cli.* is checked with follow_imports = "skip" (pyproject.toml
+    # [[tool.mypy.overrides]]), so both facade-imported predicates below type-check
+    # as Any at this call site even though each is annotated -> bool at its own
+    # definition; the explicit coercion keeps this function's own return type honest
+    # under --strict without widening the shared mypy override.
+    return bool(is_retrospective_lifecycle_event(row) or is_authoritative_non_lane_event_type(row.get("event_type")))
+
+
+def _registry_authoritative_quarantine_violations(quarantine_lines: Sequence[str]) -> list[str]:
+    """Return a diagnostic per quarantined line the registry says was live data.
+
+    T010 (#4897) fail-closed guard: with :func:`_is_preserved_non_lane_row`
+    now delegating to
+    :func:`~specify_cli.status.lifecycle_events.is_authoritative_non_lane_event_type`,
+    no currently-registered authoritative event_type is ever routed to
+    ``quarantine_lines`` by :func:`_rule_reject_non_status_event`. This is a
+    backstop against a FUTURE divergence (the registry gains a member that
+    ``_is_preserved_non_lane_row`` is somehow bypassed for, or a caller
+    invokes the two predicates out of step): if a quarantined line's
+    ``event_type`` is registry-authoritative, the repair must never report a
+    silent ``errors=0`` success while having dropped it — that is exactly
+    the #4897 defect shape. A line that fails to parse as JSON here was
+    already accepted by the same parse earlier in the pipeline, so this
+    treats a parse failure as "not diagnosable, not a violation" rather than
+    raising a second time.
+    """
+    violations: list[str] = []
+    for line in quarantine_lines:
+        try:
+            obj = json.loads(line)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if not isinstance(obj, dict):
+            continue
+        if is_authoritative_non_lane_event_type(obj.get("event_type")):
+            violations.append(
+                f"registry_authoritative_row_quarantined: event_id={obj.get('event_id')!r} "
+                f"event_type={obj.get('event_type')!r} was dropped as a non-status event "
+                "despite being authoritative per AUTHORITATIVE_NON_LANE_EVENT_TYPES (#4897 guard)"
+            )
+    return violations
+
+
+def _row_level_repair_errors(quarantine_lines: Sequence[str], row_errors: Sequence[str]) -> list[str]:
+    """Combine genuine canonicalization errors with T010's registry guard.
+
+    A single list lets ``_repair_mission`` fail on either failure class
+    through one early-return branch (kept under the complexity ceiling)
+    instead of two near-duplicate ``if``/return blocks.
+    """
+    return [*row_errors, *_registry_authoritative_quarantine_violations(quarantine_lines)]
 
 
 _LEGACY_TYPED_LANE_EVENT_TYPE = "WPStatusChanged"
