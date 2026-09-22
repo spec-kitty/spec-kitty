@@ -2,7 +2,7 @@
 title: How to Troubleshoot Merge Issues
 description: 'How to troubleshoot merge issues with Spec Kitty 3.2: Use this guide to recover from interrupted merges, resolve conflicts, and fix pre-flight failures.'
 doc_status: active
-updated: '2026-06-14'
+updated: '2026-09-22'
 audience: docs/context/audience/external/project-owner.md
 type: how-to
 related:
@@ -197,6 +197,33 @@ For conflicts in source code files:
    spec-kitty merge --resume
    ```
 
+### Gate Artifact Verdict Conflicts (Fail-Closed)
+
+If a merge stops with a message like this and leaves `acceptance-matrix.json`
+(or the issue matrix) conflicted:
+
+```
+row 'FR-042': verdict field 'pass_fail' diverged on both sides with no common base value (target/ours='pass', incoming/theirs='fail')
+```
+
+it means **two lanes recorded conflicting verdicts** for the same criterion or
+invariant — one graded it `pass`, the other `fail`. Spec Kitty refuses to guess
+(a wrong guess would silently corrupt an acceptance record), so it fails closed
+and hands the decision to you. This is intentional, not a bug.
+
+**Fix**: open the named matrix, find the row the message names (`FR-042` above),
+decide the correct verdict yourself, write that single value in place of the git
+conflict markers, save, stage, and resume:
+
+```bash
+git add kitty-specs/<mission>/acceptance-matrix.json
+spec-kitty merge --resume
+```
+
+A scaffold/placeholder verdict (`pending`, `unknown`) never triggers this — it
+yields to the graded side automatically. Only two genuinely-graded, disagreeing
+verdicts stop the merge.
+
 ### Conflict Resolution Tips
 
 - **Read both sides**: Understand what each WP was trying to do
@@ -306,6 +333,7 @@ spec-kitty implement WP02
 | `TARGET_BRANCH_NOT_SYNCHRONIZED` | target branch is ahead of, behind, or diverged from its tracking branch | Inspect commits and paths; use the focused PR path for ahead/diverged local target branches unless every ahead commit is intentionally ready for `main` |
 | `<branch> is N commit(s) behind origin. Run: git checkout <branch> && git pull` | Legacy target branch staleness diagnostic | Review remote-only commits, then update the local target branch |
 | `Warning: Could not fast-forward <branch>.` | Fast-forward failed, conflicts likely | Resolve conflicts manually |
+| `row '<id>': verdict field '<field>' diverged on both sides ...` | Two lanes recorded conflicting graded verdicts for the same matrix row (fail-closed, #4880) | Open the named matrix, pick the correct verdict for that row by hand, stage it, then `spec-kitty merge --resume` |
 | `Merge failed. Resolve conflicts and try again.` | Git merge conflict occurred in a multi-workspace mission | Resolve conflicts, then `spec-kitty merge --resume` |
 | `Merge failed. You may need to resolve conflicts.` | Git merge conflict occurred (legacy merge) | Resolve conflicts, then re-run merge |
 | `Error: No merge state to resume` | No `.kittify/merge-state.json` exists | Run `spec-kitty merge --mission <slug>` to start a new merge |

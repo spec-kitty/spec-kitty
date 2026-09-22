@@ -2497,6 +2497,7 @@ pages:
     - {slug: "negative-accepted-trade-offs", text: "Negative / accepted trade-offs", level: 3}
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-09-22", text: "Amendment (2026-09-22)", level: 2}
   - path: "docs/adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md"
     title: "ADR: DRG edges are the canonical artefact-relationship authority; inline `references:` blocks are pre-DRG residue to be migrated and retired"
     divio_type: "none"
@@ -8643,6 +8644,7 @@ pages:
     - {slug: "status-file-conflicts-automatic", text: "Status File Conflicts (Automatic)", level: 3}
     - {slug: "when-auto-resolution-fails", text: "When Auto-Resolution Fails", level: 3}
     - {slug: "code-conflicts-manual", text: "Code Conflicts (Manual)", level: 3}
+    - {slug: "gate-artifact-verdict-conflicts-fail-closed", text: "Gate Artifact Verdict Conflicts (Fail-Closed)", level: 3}
     - {slug: "conflict-resolution-tips", text: "Conflict Resolution Tips", level: 3}
     - {slug: "pre-flight-validation-failures", text: "Pre-flight Validation Failures", level: 2}
     - {slug: "uncommitted-changes", text: "Uncommitted Changes", level: 3}
