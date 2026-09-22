@@ -8,9 +8,12 @@ equality raised ``Completed command output changed`` (#4776) or re-planned the
 ``chmod`` forever, surfacing as a phantom ``upgrade --dry-run`` repair (#4777).
 
 These tests pin the surgical relaxation: gated on the canonical patchable
-``kernel.paths.is_windows`` seam, scoped to directory-kind effects whose *only*
-divergence from the plan is ``mode``. POSIX file- and directory-mode correctness
-is never weakened (NFR-003).
+``kernel.paths.is_windows`` seam, scoped to same-kind effects whose *only*
+divergence from the plan is ``mode``. Originally directory-only, the
+relaxation was generalized to file/symlink kinds under the same authority
+(#4927, T005) so a converged Windows project's managed *files* also stop
+phantom-repairing (see ``test_helper_windows_only_dir_mode`` below). POSIX
+mode correctness is never weakened (NFR-003).
 """
 
 from __future__ import annotations
@@ -139,7 +142,7 @@ def test_posix_wrong_dir_mode_still_refuses(tmp_path: Path, monkeypatch: pytest.
 
 
 def test_helper_is_dir_scoped_and_host_gated() -> None:
-    """T012 (NFR-003): the gate never relaxes files, and never relaxes POSIX."""
+    """T012 (NFR-003): the gate never relaxes on POSIX, regardless of kind."""
     dir_755 = FileState("directory", mode=0o755)
     dir_700 = FileState("directory", mode=0o700)
 
@@ -148,7 +151,10 @@ def test_helper_is_dir_scoped_and_host_gated() -> None:
 
 
 def test_helper_windows_only_dir_mode(monkeypatch: pytest.MonkeyPatch) -> None:
-    """T012 (NFR-003): under Windows, only directory mode-only divergence is excused."""
+    """T005/T007/T012 (FR-007/NFR-003): under Windows, mode-only divergence is excused
+    for directory, file, and symlink kinds alike -- but a kind mismatch or an
+    additional (non-mode) divergence is still refused.
+    """
     dir_755 = FileState("directory", mode=0o755)
     dir_700 = FileState("directory", mode=0o700)
     file_644 = FileState("file", sha256="a" * 64, mode=0o644)
@@ -157,8 +163,10 @@ def test_helper_windows_only_dir_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(kernel_paths, "is_windows", lambda: True)
     # Directory diverging only by mode: excused.
     assert windows_dir_mode_only_divergence(dir_700, dir_755) is True
-    # File modes are never relaxed, even on Windows.
-    assert windows_dir_mode_only_divergence(file_600, file_644) is False
+    # T005 (#4927): file modes are relaxed too, once the sole divergence is
+    # the host-unrepresentable POSIX mode (the contract changed here --
+    # delete-the-assertion-not-the-test, DIRECTIVE_041).
+    assert windows_dir_mode_only_divergence(file_600, file_644) is True
     # A kind mismatch (dir vs file) is not a mode-only divergence.
     assert windows_dir_mode_only_divergence(dir_700, file_644) is False
     # A directory that also diverges by content-kind is not mode-only.

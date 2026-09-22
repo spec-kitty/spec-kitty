@@ -490,8 +490,11 @@ def _state(path: Path) -> FileState:
     raise InstallerError("unsafe_path", path=str(path), detail="Unsupported node kind")
 
 
+_MODE_RELAXABLE_KINDS = frozenset({"directory", "file", "symlink"})
+
+
 def windows_dir_mode_only_divergence(observed: FileState, planned: FileState) -> bool:
-    """Return True when a directory diverges from the plan *only* by POSIX mode on Windows.
+    """Return True when a node diverges from the plan *only* by POSIX mode on Windows.
 
     A freshly-created shared skills directory (e.g. ``.agents/skills``) carries a
     POSIX ``mode`` of ``0o755`` in the plan, but Windows ``os.chmod`` cannot
@@ -505,17 +508,30 @@ def windows_dir_mode_only_divergence(observed: FileState, planned: FileState) ->
 
     Treating that single, host-inherent divergence as satisfied lets ``upgrade``
     converge in one pass with both command AND doctrine skills applied
-    (FR-005/006) and report zero dry-run repairs once converged (FR-007). The
-    relaxation is deliberately narrow: only directory-kind effects, only when the
-    *sole* remaining difference after equalizing ``mode`` is the mode itself, and
-    only on Windows -- the host check goes through the canonical patchable
-    ``kernel.paths.is_windows`` seam (module attribute at call time, so tests
-    monkeypatch ``kernel.paths.is_windows`` without faking ``os.name``), so POSIX
-    file- and directory-mode correctness is never weakened (NFR-003).
+    (FR-005/006) and report zero dry-run repairs once converged (FR-007).
+
+    **File/symlink extension (#4927, T005).** Every managed *file*'s
+    Windows-representable mode differs from its planned POSIX mode too --
+    exactly the same host-inherent shape as the directory case above -- so
+    the relaxation is generalized to ``file``/``symlink`` kinds under this
+    SAME authority (C-002: no second divergence authority). The relaxation
+    stays deliberately narrow: same-kind effects only (``observed.kind ==
+    planned.kind``, restricted to ``directory``/``file``/``symlink``), only
+    when the *sole* remaining difference after equalizing ``mode`` is the
+    mode itself, and only on Windows -- the host check goes through the
+    canonical patchable ``kernel.paths.is_windows`` seam (module attribute
+    at call time, so tests monkeypatch ``kernel.paths.is_windows`` without
+    faking ``os.name``), so POSIX file- and directory-mode correctness is
+    never weakened (NFR-003/FR-007). Callers whose "planned" state does not
+    carry a comparable ``mtime_ns`` (e.g. the project-skill projection's
+    ``_expected_project_entries``, which never sets one) must normalize
+    ``mtime_ns`` on the observed side before calling, exactly as the
+    managed-skills completion re-check already does -- this helper does not
+    special-case ``mtime_ns`` itself.
     """
     if not kernel_paths.is_windows():
         return False
-    if observed.kind != "directory" or planned.kind != "directory":
+    if observed.kind != planned.kind or observed.kind not in _MODE_RELAXABLE_KINDS:
         return False
     return bool(replace(observed, mode=planned.mode) == planned)
 
