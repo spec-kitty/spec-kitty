@@ -485,8 +485,6 @@ class TestAggregateUnderBudget:
     """A bounded bootstrap includes directive navigation without compaction."""
 
     def test_aggregate_self_sufficiency_under_budget(self, tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
-        from types import SimpleNamespace
-
         from charter.activation.context import build_charter_context
         from charter.activation.profile_resolution import _reset_agent_profile_cache
         from charter.offering.agent_profiles import AgentProfile
@@ -514,8 +512,10 @@ class TestAggregateUnderBudget:
                 "directive-references": [{"code": "025", "name": "Boy Scout Rule", "rationale": "Preserve local cleanup"}],
             }
         )
-        repository = SimpleNamespace(get=lambda name: profile if name == profile.profile_id else None)
-        monkeypatch.setattr("charter.activation.context._default_agent_profile_repository", lambda: repository)
+        monkeypatch.setattr(
+            "charter.activation.profile_resolution._activation_aware_profile_map",
+            lambda repo_root, org_roots: {profile.profile_id: profile},
+        )
         _reset_agent_profile_cache()
         try:
             result = build_charter_context(tmp_path, profile=profile.profile_id, action="implement", mark_loaded=False)

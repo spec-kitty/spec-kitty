@@ -112,9 +112,7 @@ def _setup_fixture_repo(tmp_path: Path) -> None:
     # ``mission_type_activations`` is provisioned so ``PackContext.from_config``
     # (WP04, C-A1: the provisioned charter is the sole activation authority)
     # does not hard-fail on a genuinely absent key.
-    (tmp_path / ".kittify" / "config.yaml").write_text(
-        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-    )
+    (tmp_path / ".kittify" / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
 
 
 def _call_build(
@@ -171,9 +169,7 @@ class TestProfileSurfacing:
         # The directive ID is rendered in canonical catalog form.
         assert "DIRECTIVE_010" in text
 
-    def test_known_profile_surfaces_tactic_section_when_refs_present(
-        self, tmp_path: Path
-    ) -> None:
+    def test_known_profile_surfaces_tactic_section_when_refs_present(self, tmp_path: Path) -> None:
         """A profile with ``tactic_references`` MUST surface the tactic header."""
         synthetic = AgentProfile.model_validate(
             {
@@ -185,30 +181,18 @@ class TestProfileSurfacing:
                 "tactic-references": [
                     {
                         "id": "language-driven-design",
-                        "rationale": (
-                            "Detect terminology conflicts in diffs as early "
-                            "signals of architectural problems"
-                        ),
+                        "rationale": ("Detect terminology conflicts in diffs as early signals of architectural problems"),
                     }
                 ],
             }
         )
 
-        class _StubRepo:
-            def get(self, profile_id: str) -> AgentProfile | None:
-                if profile_id == "synthetic-tactic-citer":
-                    return synthetic
-                return None
-
         with patch(
-            "charter.activation.context._default_agent_profile_repository",
-            return_value=_StubRepo(),
+            "charter.activation.profile_resolution._activation_aware_profile_map",
+            return_value={synthetic.profile_id: synthetic},
         ):
             text = _call_build(tmp_path, profile="synthetic-tactic-citer")
-        assert (
-            _PROFILE_TACTICS_HEADER_TPL.format(profile_id="synthetic-tactic-citer")
-            in text
-        )
+        assert _PROFILE_TACTICS_HEADER_TPL.format(profile_id="synthetic-tactic-citer") in text
         assert "language-driven-design" in text
 
     def test_unknown_profile_skips_profile_sections(self, tmp_path: Path) -> None:
@@ -242,26 +226,17 @@ class TestProfileSurfacing:
                 "roles": ["implementer"],
                 "purpose": "test fixture",
                 "specialization": {"primary-focus": "testing"},
-                "tactic-references": [
-                    {"id": "language-driven-design", "rationale": "for testing"}
-                ],
+                "tactic-references": [{"id": "language-driven-design", "rationale": "for testing"}],
             }
         )
 
-        class _StubRepo:
-            def get(self, profile_id: str) -> AgentProfile | None:
-                return synthetic if profile_id == "synthetic-no-directives" else None
-
         with patch(
-            "charter.activation.context._default_agent_profile_repository",
-            return_value=_StubRepo(),
+            "charter.activation.profile_resolution._activation_aware_profile_map",
+            return_value={synthetic.profile_id: synthetic},
         ):
             text = _call_build(tmp_path, profile="synthetic-no-directives")
         assert "Profile-Cited Directives" not in text
-        assert (
-            _PROFILE_TACTICS_HEADER_TPL.format(profile_id="synthetic-no-directives")
-            in text
-        )
+        assert _PROFILE_TACTICS_HEADER_TPL.format(profile_id="synthetic-no-directives") in text
 
 
 class TestUnknownDirectiveIdHandling:
@@ -285,20 +260,13 @@ class TestUnknownDirectiveIdHandling:
             }
         )
 
-        class _StubRepo:
-            def get(self, profile_id: str) -> AgentProfile | None:
-                return synthetic if profile_id == "synthetic-bad-ref" else None
-
         with patch(
-            "charter.activation.context._default_agent_profile_repository",
-            return_value=_StubRepo(),
+            "charter.activation.profile_resolution._activation_aware_profile_map",
+            return_value={synthetic.profile_id: synthetic},
         ):
             text = _call_build(tmp_path, profile="synthetic-bad-ref")
         # The header appears so the operator can audit the profile.
-        assert (
-            _PROFILE_DIRECTIVES_HEADER_TPL.format(profile_id="synthetic-bad-ref")
-            in text
-        )
+        assert _PROFILE_DIRECTIVES_HEADER_TPL.format(profile_id="synthetic-bad-ref") in text
         # The phantom directive is surfaced with the placeholder body.
         assert "DIRECTIVE_999" in text
         assert "catalog entry not found" in text
@@ -366,9 +334,7 @@ class TestPureRendererHelpers:
                 "roles": ["implementer"],
                 "purpose": "test fixture",
                 "specialization": {"primary-focus": "testing"},
-                "directive-references": [
-                    {"code": "010", "name": "Spec Fidelity", "rationale": "test"}
-                ],
+                "directive-references": [{"code": "010", "name": "Spec Fidelity", "rationale": "test"}],
             }
         )
 

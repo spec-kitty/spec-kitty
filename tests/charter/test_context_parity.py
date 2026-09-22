@@ -60,10 +60,7 @@ pytestmark = [pytest.mark.fast]
 # token-budget test can assert the VERBATIM body is gone post-substitution
 # (not just that *some* swap happened).
 _LONG_BODY_NEEDLE = "PARITY-FIXTURE-LONG-BODY-MARKER-78321"
-_LONG_BODY = (
-    f"Canonical term line reinforcing prose consistency ({_LONG_BODY_NEEDLE}).\n"
-    * 700
-)  # ~48,000 chars — comfortably over BUDGET_DEFAULT (40,000).
+_LONG_BODY = f"Canonical term line reinforcing prose consistency ({_LONG_BODY_NEEDLE}).\n" * 700  # ~48,000 chars — comfortably over BUDGET_DEFAULT (40,000).
 
 _GHOST_DIRECTIVE_CODE = "998"
 
@@ -82,9 +79,7 @@ def _write_common_charter_files(tmp_path: Path, charter_md: str) -> None:
     # (WP04, C-A1: the provisioned charter is the sole activation authority),
     # unconditionally called by ``_resolve_action_bundle`` on every bootstrap
     # render, does not hard-fail on a genuinely absent key.
-    (tmp_path / ".kittify" / "config.yaml").write_text(
-        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-    )
+    (tmp_path / ".kittify" / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
     (charter_dir / "charter.md").write_text(charter_md, encoding="utf-8")
     (charter_dir / "governance.yaml").write_text(
         textwrap.dedent(
@@ -164,16 +159,6 @@ def _ghost_directive_profile() -> AgentProfile:
     )
 
 
-class _GhostProfileRepo:
-    """Repository stub returning only the synthetic ghost-directive profile."""
-
-    def __init__(self, profile: AgentProfile) -> None:
-        self._profile = profile
-
-    def get(self, profile_id: str) -> AgentProfile | None:
-        return self._profile if profile_id == self._profile.profile_id else None
-
-
 def _empty_doctrine_root(tmp_path: Path) -> Path:
     """An intentionally-empty doctrine root: every catalog lookup misses.
 
@@ -204,8 +189,8 @@ class TestBootstrapCorpusParity:
         _reset_agent_profile_cache()
         with (
             patch(
-                "charter.activation.context._default_agent_profile_repository",
-                return_value=_GhostProfileRepo(profile),
+                "charter.activation.profile_resolution._activation_aware_profile_map",
+                return_value={profile.profile_id: profile},
             ),
             patch(
                 "charter.activation.catalog.resolve_doctrine_root",
@@ -269,8 +254,8 @@ class TestBootstrapCorpusParity:
 
         with (
             patch(
-                "charter.activation.context._default_agent_profile_repository",
-                return_value=_GhostProfileRepo(profile),
+                "charter.activation.profile_resolution._activation_aware_profile_map",
+                return_value={profile.profile_id: profile},
             ),
             patch(
                 "charter.activation.catalog.resolve_doctrine_root",
@@ -308,9 +293,7 @@ class TestBootstrapCorpusParity:
         whole block before the split.
         """
         text, _ = self._render(tmp_path)
-        assert _LONG_BODY_NEEDLE not in text, (
-            "the over-budget verbatim body must be swapped out, not inlined"
-        )
+        assert _LONG_BODY_NEEDLE not in text, "the over-budget verbatim body must be swapped out, not inlined"
         assert "section:terminology-canon" in text
         assert "# Governance payload:" in text
 
@@ -405,9 +388,7 @@ class TestJsonEntryPointParity:
 
 
 class TestEmptyCharterProvenance:
-    def test_empty_charter_fallback_does_not_leak_directive_canon(
-        self, tmp_path: Path
-    ) -> None:
+    def test_empty_charter_fallback_does_not_leak_directive_canon(self, tmp_path: Path) -> None:
         """The empty-charter generic fallback must not leak the directive canon.
 
         Behavioural marker only (the frozen ``empty_charter_corpus`` byte-golden
@@ -428,9 +409,7 @@ class TestEmptyCharterProvenance:
         # to mission-type activation, and no other activation key is written.
         kittify = tmp_path / ".kittify"
         kittify.mkdir(parents=True, exist_ok=True)
-        (kittify / "config.yaml").write_text(
-            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-        )
+        (kittify / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
 
         decision = resolve_generic_fallback(tmp_path, "please help me tidy this up")
         assert decision is not None
