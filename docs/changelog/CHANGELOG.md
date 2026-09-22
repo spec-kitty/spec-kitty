@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 _4.0.0rc5 candidate cycle. Entries land here until the release chore finalizes
 this section at publish._
 
+### Fixed
+
+- **`spec-kitty merge --abort` on a mission that has no active merge state no longer fabricates a completion record on the mainline or deletes the mission's live coordination worktree** (#4863). This is the `merge --abort` sibling of the rc4 #4765 `mission close` fix: the same successful-completion path was still reachable through a different live entry point. **Before:** running `merge --abort --mission <slug>` when no Spec Kitty merge state existed treated a merely-resolvable mission handle as proof of an active merge — it printed "No active merge state found … Workspace cleaned up" and exited 0, but on the way it committed a `retrospective.yaml` with `kind: runtime_post_completion` to the target branch, appended a `RetrospectiveCaptured` event, and tore down the coordination worktree of a mission that had never merged. Downstream tooling then counted the in-flight mission as completed, and that premature snapshot could suppress the real retrospective at eventual completion. **After:** the destructive abort path runs only when active merge state exists for the mission. With no state, abort is inert — it may still clean genuinely orphaned merge-runtime scratch, but leaves the target branch, the mission ledger, the retrospective, and the coordination worktree untouched, printing "Coordination workspace left unchanged." A genuine abort still tears down its coordination topology but now bypasses the completion terminus (`persist=False`), so recovery is never stamped with successful-completion provenance. Red-first `@pytest.mark.regression` coverage drives the real `spec-kitty merge --abort` entry point over both the no-state and real-abort cases.
+
 ## [4.0.0rc4] - 2026-09-21
 
 Fourth release candidate for the Team Kitty 4.x cold-start walkthrough. The
