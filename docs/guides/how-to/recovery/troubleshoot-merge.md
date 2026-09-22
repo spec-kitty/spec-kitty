@@ -197,6 +197,37 @@ For conflicts in source code files:
    spec-kitty merge --resume
    ```
 
+### Target-Branch Content Conflicts During Squash
+
+The default squash strategy fails closed when both the mission branch and a
+newer target-branch commit changed the same ordinary source hunk. Dry-run reports
+the same condition before the target ref can move:
+
+```text
+diagnostic_code: TARGET_BRANCH_CONTENT_CONFLICT
+mission_branch: kitty/mission-017-my-feature
+target_branch: main
+conflicting_path: src/specify_cli/lanes/merge.py
+```
+
+This protects target-branch hotfixes and concurrent mission landings. Spec Kitty
+does not choose either side automatically. Update the mission branch against the
+current target, resolve the listed files on the mission branch, run the relevant
+tests, and check readiness again:
+
+```bash
+git checkout kitty/mission-017-my-feature
+git merge main
+# Resolve and commit the named conflicts.
+spec-kitty merge --mission 017-my-feature --dry-run
+spec-kitty merge --mission 017-my-feature
+```
+
+The failed attempt does not advance the target ref, mark work packages done,
+write the retrospective, or remove lane branches and worktrees. Registered Spec
+Kitty artifact merge drivers and the target-newer planning-artifact policy still
+handle their own governed paths.
+
 ### Gate Artifact Verdict Conflicts (Fail-Closed)
 
 If a merge stops with a message like this and leaves `acceptance-matrix.json`
@@ -331,6 +362,7 @@ spec-kitty implement WP02
 | `Missing worktree for WP##. Expected at <path>. Run: spec-kitty agent action implement WP##` | The resolved execution workspace for that WP does not exist yet | Run `spec-kitty agent action implement WP##` |
 | `Branch <branch> does not exist` | Git branch was deleted manually | Recreate worktree with `spec-kitty implement WP##` |
 | `TARGET_BRANCH_NOT_SYNCHRONIZED` | target branch is ahead of, behind, or diverged from its tracking branch | Inspect commits and paths; use the focused PR path for ahead/diverged local target branches unless every ahead commit is intentionally ready for `main` |
+| `TARGET_BRANCH_CONTENT_CONFLICT` | Default squash integration found ordinary content changed differently on the mission and target branches | Update the mission branch against the target, resolve the listed paths, then rerun `spec-kitty merge --dry-run` |
 | `<branch> is N commit(s) behind origin. Run: git checkout <branch> && git pull` | Legacy target branch staleness diagnostic | Review remote-only commits, then update the local target branch |
 | `Warning: Could not fast-forward <branch>.` | Fast-forward failed, conflicts likely | Resolve conflicts manually |
 | `row '<id>': verdict field '<field>' diverged on both sides ...` | Two lanes recorded conflicting graded verdicts for the same matrix row (fail-closed, #4880) | Open the named matrix, pick the correct verdict for that row by hand, stage it, then `spec-kitty merge --resume` |

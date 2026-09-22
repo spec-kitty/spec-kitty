@@ -8654,6 +8654,7 @@ pages:
     - {slug: "status-file-conflicts-automatic", text: "Status File Conflicts (Automatic)", level: 3}
     - {slug: "when-auto-resolution-fails", text: "When Auto-Resolution Fails", level: 3}
     - {slug: "code-conflicts-manual", text: "Code Conflicts (Manual)", level: 3}
+    - {slug: "target-branch-content-conflicts-during-squash", text: "Target-Branch Content Conflicts During Squash", level: 3}
     - {slug: "gate-artifact-verdict-conflicts-fail-closed", text: "Gate Artifact Verdict Conflicts (Fail-Closed)", level: 3}
     - {slug: "conflict-resolution-tips", text: "Conflict Resolution Tips", level: 3}
     - {slug: "pre-flight-validation-failures", text: "Pre-flight Validation Failures", level: 2}
