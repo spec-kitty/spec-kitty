@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "mission_slug": "user-content-preservation-01M3549Q",
+  "mission_id": "01M3549Q1JZYMX2V648F15ACZY",
+  "mission_branch": "kitty/mission-user-content-preservation-01M3549Q",
+  "target_branch": "fix/user-content-preservation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/asset_preservation/backup.py",
+        "tests/specify_cli/asset_preservation/test_backup_before_overwrite.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/config.py",
+        "src/specify_cli/skills/command_installer.py",
+        "src/specify_cli/skills/manifest_store.py",
+        "tests/agent/cli/commands/test_agent_config.py",
+        "tests/regressions/test_issue_2691_agent_config_sync_preservation.py",
+        "tests/regressions/test_issue_4907_agent_config_remove_preservation.py",
+        "tests/specify_cli/cli/commands/test_agent_config.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/intake.py",
+        "tests/regressions/test_issue_4910_intake_brief_overwrite_gate.py",
+        "tests/specify_cli/cli/commands/test_intake.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/validate_encoding.py",
+        "src/specify_cli/text_sanitization.py",
+        "tests/cross_cutting/encoding/test_encoding_validation_functional.py",
+        "tests/regressions/test_issue_4896_validate_encoding_faithful_fix.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_finalize.py",
+        "src/specify_cli/cli/commands/agent/tasks_finalize_validation.py",
+        "tests/regressions/test_issue_4890_legacy_finalize_effective_graph.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/upgrade.py",
+        "src/specify_cli/git/commit_helpers.py",
+        "src/specify_cli/upgrade/autocommit.py",
+        "tests/regressions/test_issue_4888_safe_commit_index_preservation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/implement_support.py",
+        "src/specify_cli/policy/hook_installer.py",
+        "tests/policy/test_hook_installer_execution.py",
+        "tests/regressions/test_issue_4895_pre_commit_hook_preservation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "tests/architectural/test_mutation_ownership_routing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-22T18:33:01.613060+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "b28e5a0fdc6ce792b4bfec344babd72208f1d0c4"
+}

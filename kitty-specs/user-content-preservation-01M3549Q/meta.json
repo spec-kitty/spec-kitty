@@ -1,0 +1,35 @@
+{
+  "accept_commit": "04b0b8b3e02afeb8d6b3d284818711eb2500463f",
+  "acceptance_history": [
+    {
+      "accept_commit": "04b0b8b3e02afeb8d6b3d284818711eb2500463f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-22T19:45:06.553944+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "dd21d2023d40bcb4fb86c1931f6febc473e2c222"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-22T19:45:06.553944+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "dd21d2023d40bcb4fb86c1931f6febc473e2c222",
+  "baseline_merge_commit": "f44f6d2fec4f3feef453abfaaf5827808225b603",
+  "created_at": "2026-09-22T17:58:25.598868+00:00",
+  "flattened": true,
+  "friendly_name": "User-content preservation for mutating flows",
+  "merged_at": "2026-09-22T19:47:52.177713+00:00",
+  "merged_commit": "c1f914e8828fff69dd13d8905f3bdd1f85ac93fa",
+  "mid8": "01M3549Q",
+  "mission_id": "01M3549Q1JZYMX2V648F15ACZY",
+  "mission_number": null,
+  "mission_slug": "user-content-preservation-01M3549Q",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A cluster of catfooding defects (epic #4915) shows ordinary Spec Kitty commands destroying operator-authored content — custom slash commands, git hooks, hand-written briefs, spec files — with exit 0 and no backup or warning. This mission enforces the charter's existing User Customization Preservation invariant across the remaining mutating flows so the tool never fights its own operator.",
+  "purpose_tldr": "Spec Kitty's mutating commands must never silently overwrite, delete, or corrupt user-authored files while reporting success.",
+  "slug": "user-content-preservation-01M3549Q",
+  "status_phase": "1",
+  "target_branch": "fix/user-content-preservation",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-22T18:38:45.421641+00:00"
+}

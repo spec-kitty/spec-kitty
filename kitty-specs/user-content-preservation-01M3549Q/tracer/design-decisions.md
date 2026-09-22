@@ -1,0 +1,19 @@
+# Tracer: Design Decisions — user-content-preservation-01M3549Q
+
+Rationale for load-bearing decisions.
+
+- DM 01M354BCPEAH6CPXGSHMY0B9XJ — overwrite contract = hybrid per-flow.
+- DM 01M354BMVXECKWX0M1FT3XE27P — one non-draft PR to upstream for all 7.
+- #2691 has TWO defects in one command: removal (shared `_remove_project_agent_surface` seam, closed with #4907 by one guard call) + manifest-pin rewrite (separate FR-003).
+- WP08 (census widening) is a CLOSURE gate that lands LAST — it depends on config.py already being routed + literal-free (shrink-only/pinned), NOT a foundation others depend on.
+- Content-based ownership proof only (manifest hash / hook signature / canonical bytes); name/dir identity is never proof (charter L470).
+
+## Post-spec adversarial squad (renata + alphonso, opus) — carry into /plan + /tasks
+
+- **[SF1] `_remove_project_agent_surface` has THREE destructive literals** (config.py:137 rmtree, :139 unlink, :142 rmdir), not one. Route :137/:139 through ONE dir-level `guard_destructive_removal(surface, is_tree=surface.is_dir(), prover=ManifestProver(check_command=True), backup_parent=None)`; :142 empty-only `root.rmdir()` gets a rationalized allowlist entry. The return tuple + `remove_agents`/`_remove_orphaned_agent_dirs` rendering MUST become verdict-driven (`verdict.owned`/`verdict.diagnostic`) or the code reports "Removed" while preserving (FR-014/FR-015 violation). Today it rmtree→root.rmdir()→returns "Removed"; on preserve rmdir raises OSError(non-empty)→caught→still "Removed".
+- **[SF2] FR-013 census widening = THREE synchronized edits** in test_mutation_ownership_routing.py: (1) add config.py to `_module_set()` (~:94); (2) add `"cli/commands/agent/config.py"` to the pinned `_ROUTED_MODULES` frozenset (~:423) — `test_pinned_routed_module_set_is_complete` asserts SET-EQUALITY (route-without-pin fails AND pin-without-route fails); (3) allowlist the `:142 Path.rmdir` empty-only op. `list.remove`/`shutil.copy2` in config.py are NOT classifier-flagged (confirmed) — no false positives.
+- **[SF3] Dir-level routing, not per-file.** One `guard_destructive_removal(surface, is_tree=True)` — the guard's `_prove_dir` gives pure-owned⇒remove-whole (US1 AC3) and any-unproven⇒preserve-whole (US1 AC5, no partial rmtree). Per-file routing to satisfy AC3 literally would RE-ENABLE the partial-rmtree loss class.
+- **[SF4] Hook backup primitive:** `archive_into`/`_allocate_backup_dir` are removal-parent-shaped (dir under `.backup-<ts>/`); the hook wants an in-place sidecar `pre-commit.<ts>` (repro greps `pre-commit.(bak|orig|save|local)`). Add a small shared `backup_before_overwrite(path)->Path` to asset_preservation/backup.py built on `write_file_verbatim` (byte-exact, mode+mtime, O_EXCL) — one backup-naming authority (today there are two: template.manager move-based + asset_preservation copy-based).
+- **[SF5] Symlinked hook:** `write_file_verbatim` does `src.read_bytes()` which FOLLOWS symlinks (raises on broken link); `os.replace` at hook_installer:125 already replaces the link without following. The shared helper must capture `os.readlink` for a symlink target, not silently deref.
+- **[NICE2] #4888 root fix is single-seam** at `git/commit_helpers.py:safe_commit` (~:1025, already path-scoped via `paths=`). GIT_INDEX_FILE / `git commit --only -- <paths>` is transparent to all ~28 callers PROVIDED it still commits exactly `paths` — verify no caller relies on "commit whatever is staged". FR-012 narrows `upgrade/autocommit.py:436` `except Exception` to propagate the typed `SafeCommitRecoveryFailed` (orphan_stash_ref + commit_sha).
+- **Confirmed non-issues:** shared removal seam #4907↔#2691 call `_remove_project_agent_surface(repo_root, agent_key)` with IDENTICAL args → one guard call covers both; fail-closed dir semantics never partial-rmtree; layering clean (all touched modules top-layer specify_cli); single guard authority honored.

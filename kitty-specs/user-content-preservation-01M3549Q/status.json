@@ -1,0 +1,149 @@
+{
+  "event_count": 56,
+  "last_event_id": "01M35AHEJWDFXNZMQJZKDN0ACH",
+  "materialized_at": "2026-09-22T19:47:30.524092+00:00",
+  "mission_number": "",
+  "mission_slug": "user-content-preservation-01M3549Q",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 8,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M35AH5HTQ09FMQD9QP6DCQ0Z",
+      "last_transition_at": "2026-09-22T19:47:21.274925+00:00",
+      "review_result": {
+        "reference": "squad-review-WP01",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 3107194,
+      "shell_pid_created_at": "1790102314.58"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M35AH6VNB5E8VTFSR8V0GCT5",
+      "last_transition_at": "2026-09-22T19:47:22.613268+00:00",
+      "review_result": {
+        "reference": "squad-review-WP02",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 3112795,
+      "shell_pid_created_at": "1790102415.28"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M35AHD8W5CAHC2FMSKQWM3FP",
+      "last_transition_at": "2026-09-22T19:47:29.180975+00:00",
+      "review_result": {
+        "reference": "squad-review-WP03",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 3176245,
+      "shell_pid_created_at": "1790103218.45"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M35AH853ZQKRRXYCJTDG351G",
+      "last_transition_at": "2026-09-22T19:47:23.939308+00:00",
+      "review_result": {
+        "reference": "squad-review-WP04",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 3117734,
+      "shell_pid_created_at": "1790102552.96"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M35AH9DF87JS30HJQCHZ47SQ",
+      "last_transition_at": "2026-09-22T19:47:25.231937+00:00",
+      "review_result": {
+        "reference": "squad-review-WP05",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 3117734,
+      "shell_pid_created_at": "1790102552.96"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M35AHAPQG9WXHQKTQC0G8Z7P",
+      "last_transition_at": "2026-09-22T19:47:26.551306+00:00",
+      "review_result": {
+        "reference": "squad-review-WP06",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 3117734,
+      "shell_pid_created_at": "1790102552.96"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M35AHBZSRGZDAPARQ4RYKAZX",
+      "last_transition_at": "2026-09-22T19:47:27.865087+00:00",
+      "review_result": {
+        "reference": "squad-review-WP07",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 3117734,
+      "shell_pid_created_at": "1790102552.96"
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M35AHEJWDFXNZMQJZKDN0ACH",
+      "last_transition_at": "2026-09-22T19:47:30.524092+00:00",
+      "review_result": {
+        "reference": "squad-review-WP08",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 3342477,
+      "shell_pid_created_at": "1790104874.05"
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-22T17:59:20.526089Z",
+      "decision_id": "01M354BCPEAH6CPXGSHMY0B9XJ",
+      "final_answer": "Hybrid per-flow: refuse + require --force where the user drives the command directly and a flag is natural (intake brief); back up the existing foreign file to a timestamped sidecar + warn + proceed where refusing would break an in-progress workflow (git-hook install during implement \u2014 detect a foreign hook by signature, back it up, and surface it in output). Removals remain preserve-in-place + warn via the existing guard.",
+      "input_key": "overwrite_behavior",
+      "mission_id": "01M3549Q1JZYMX2V648F15ACZY",
+      "mission_slug": "user-content-preservation-01M3549Q",
+      "opened_by": "cli",
+      "options": [
+        "refuse+force",
+        "backup+warn",
+        "hybrid-per-flow"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When a mutating flow is about to overwrite a pre-existing user-authored file it did not create, what is the contract?",
+      "rationale": null,
+      "resolved_at": "2026-09-22T18:01:40.549612Z",
+      "resolved_by": null,
+      "slot_key": "specify.contract.overwrite-behavior",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-22T17:59:28.893620Z",
+      "decision_id": "01M354BMVXECKWX0M1FT3XE27P",
+      "final_answer": "One non-draft PR to upstream for all 7 defects + the census-closure gate. Single issue-matrix and acceptance gate; WPs land as sliced commits with the two P0 fixes ordered first.",
+      "input_key": "pr_shaping",
+      "mission_id": "01M3549Q1JZYMX2V648F15ACZY",
+      "mission_slug": "user-content-preservation-01M3549Q",
+      "opened_by": "cli",
+      "options": [
+        "one-pr-all-7",
+        "split-p0-fast-track"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should all 7 defects land as one PR, or split the two P0s into a fast-track PR ahead of the P1s?",
+      "rationale": null,
+      "resolved_at": "2026-09-22T18:01:48.636707Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.pr-shaping",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3549Q1JZYMX2V648F15ACZY",
+  "version": 1
+}

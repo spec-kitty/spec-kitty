@@ -1,0 +1,159 @@
+{
+  "mission_slug": "user-content-preservation-01M3549Q",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 tests/regressions/test_issue_4907_agent_config_remove_preservation.py red-first RED-on-base GREEN-on-fix, opus-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T19:42:38.101006+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 tests/regressions/test_issue_2691_agent_config_sync_preservation.py red-first, opus-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T19:42:47.577808+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 test_issue_2691 manifest byte-identical + sync --json tracked_mutations, opus-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T19:42:57.216845+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 test_backup_before_overwrite.py + WP03 tests/regressions/test_issue_4895_pre_commit_hook_preservation.py, opus-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T19:43:06.723362+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 tests/regressions/test_issue_4910_intake_brief_overwrite_gate.py red-first, opus-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T19:43:16.221135+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 tests/regressions/test_issue_4896_validate_encoding_faithful_fix.py mojibake case red-first, opus-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T19:43:25.618391+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 test_issue_4896 binary-skip case, opus-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T19:43:35.133361+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 test_issue_4896 honest-Fixed case, opus-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T19:43:44.588209+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 tests/regressions/test_issue_4890_legacy_finalize_effective_graph.py red-first, opus-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T19:43:54.020095+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 test_issue_4890 payload==persisted + no-status-on-reject, opus-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T19:44:03.649779+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07 tests/regressions/test_issue_4888_safe_commit_index_preservation.py red-first, opus-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T19:44:13.138041+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07 test_issue_4888 upgrade forced-failure surfaces stash ref+SHA, opus-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T19:44:22.886201+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP08 tests/architectural/test_mutation_ownership_routing.py self-mutation both directions, opus-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T19:44:32.572010+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "cross-cutting: all removal/overwrite/corruption WP regression tests assert exit-0-no-destruction, opus-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T19:44:42.068082+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 verdict-driven messaging: preserved surface never prints Removed, opus-approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T19:44:51.818936+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
