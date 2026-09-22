@@ -18,8 +18,10 @@ Covers:
 
 from __future__ import annotations
 
+import importlib
 import json
 import subprocess
+from collections.abc import Callable
 from dataclasses import fields
 from pathlib import Path
 
@@ -30,12 +32,24 @@ from specify_cli.acceptance.gates_core import _evaluate_acceptance_matrix
 from specify_cli.acceptance.matrix import (
     AcceptanceCriterion,
     AcceptanceMatrix,
+    NegativeInvariant,
+    enforce_negative_invariants,
     read_acceptance_matrix,
     write_acceptance_matrix,
     write_and_commit_acceptance_matrix,
 )
-from specify_cli.cli.commands.agent.acceptance_verdict import acceptance_verdict
+from specify_cli.cli.commands.agent.acceptance_verdict import (
+    _resolve_criterion_update,
+    acceptance_verdict,
+)
 from specify_cli.git.protection_policy import ProtectionPolicy
+from specify_cli.status.locking import (
+    BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
+    FeatureStatusLockTimeoutError,
+    feature_status_lock,
+    feature_status_lock_path,
+)
+from kernel.git_topology import git_common_dir
 
 # Reused verbatim (not duplicated) — the shared coord-topology mission
 # fixture builder this mission's own #2404 coord-partition test already
@@ -45,6 +59,16 @@ from tests.integration.test_accept_matrix_coord_partition import (
 )
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+# ``specify_cli.cli.commands.agent``'s ``__init__.py`` does
+# ``from .acceptance_verdict import acceptance_verdict`` — the FUNCTION is
+# re-exported under the SAME name as its own SUBMODULE, which shadows the
+# submodule on a plain attribute access (and even on ``import ... as alias``,
+# since that binding form is also attribute-lookup-based). ``importlib.
+# import_module`` reads straight from ``sys.modules`` instead, giving the
+# real submodule object so ``monkeypatch.setattr(av_command, "name", ...)``
+# patches the COMMAND-MODULE binding the concurrency seam tests need.
+av_command = importlib.import_module("specify_cli.cli.commands.agent.acceptance_verdict")
 
 
 # ---------------------------------------------------------------------------
@@ -531,3 +555,657 @@ class TestAcceptanceVerdictCommand:
         reloaded = read_acceptance_matrix(coord_feature_dir)
         assert reloaded is not None
         assert reloaded.criteria[0].pass_fail == "pass"
+
+
+# ===========================================================================
+# #4858 (P0) — concurrent acceptance-verdict lost-update (T001/T002).
+#
+# Deterministic serialized "read1 -> full-run2 -> finish1" harness (NO real
+# threads): a ONE-SHOT nonlocal-guarded wrapper patched onto the
+# COMMAND-MODULE binding (never the ``specify_cli.acceptance.matrix``
+# definition — the command imports the symbol by name, so patching the
+# source module would not intercept the call; see US1's Independent Test).
+# On the invocation's own slow-check/seam call, the wrapper drives a SECOND,
+# FULL ``acceptance-verdict`` invocation for a DISTINCT entry id to
+# completion (real check + commit), then delegates to the real check for
+# the FIRST invocation. The second invocation's own nested call to the same
+# patched name sees the one-shot flag already tripped and delegates straight
+# to the real implementation — otherwise it would recurse infinitely.
+# ===========================================================================
+
+
+def _ni_one_shot_driver(
+    *,
+    mission_slug: str,
+    other_invariant_id: str,
+    other_result: str,
+    on_after_other: Callable[[], None] | None = None,
+) -> Callable[..., list[NegativeInvariant]]:
+    """Build the one-shot NI-mode interleaving wrapper (US1 test-craft contract).
+
+    ``other_result`` is ``"pass"`` or ``"fail"`` — translated to a
+    ``custom_command`` verification command (``exit 0`` / ``exit 1``) so the
+    OTHER invocation's judged result is deterministic and controlled by the
+    caller, independent of repo contents.
+    """
+    driven = False
+    command_for_result = {"pass": "exit 0", "fail": "exit 1"}[other_result]
+
+    def _wrapper(repo_root_arg: Path, invariants: list[NegativeInvariant], **kwargs: object) -> list[NegativeInvariant]:
+        nonlocal driven
+        if not driven:
+            driven = True
+            try:
+                acceptance_verdict(
+                    mission=mission_slug,
+                    negative_invariant=other_invariant_id,
+                    description=f"{other_invariant_id} must not exist",
+                    verification_method="custom_command",
+                    verification_command=command_for_result,
+                    json_output=True,
+                )
+            except typer.Exit as exc:
+                assert exc.exit_code in (0, None), f"driven invocation failed: exit {exc.exit_code}"
+            if on_after_other is not None:
+                on_after_other()
+        # The unpatched, real implementation — imported at module top BEFORE
+        # any monkeypatching of the command-module binding, so this reference
+        # is never affected by ``monkeypatch.setattr`` on that other module.
+        return enforce_negative_invariants(repo_root_arg, invariants, **kwargs)
+
+    return _wrapper
+
+
+def _seed_empty_matrix(feature_dir: Path, slug: str) -> None:
+    write_acceptance_matrix(feature_dir, AcceptanceMatrix(mission_slug=slug))
+
+
+class TestConcurrentVerdictLostUpdateFlatNegativeInvariant:
+    """T001 — US1 Scenarios 1-3, flat layout, negative-invariant mode."""
+
+    def test_scenario1_row_survival_and_honest_fail_verdict(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """US1 S1: A reads first, finishes last; B fully completes and
+        commits a FAILING row; A commits a PASSING row. Both rows must
+        survive on disk (with evidence) and the disk-computed overall
+        verdict must be ``fail``. RED on base (B's row dropped, verdict
+        flips to ``pass``)."""
+        slug = "concurrent-ni-flat-s1"
+        repo_root, feature_dir = _init_flat_mission(tmp_path, slug)
+        _seed_empty_matrix(feature_dir, slug)
+        _git(repo_root, "add", "-A")
+        _git(repo_root, "commit", "-q", "-m", "seed empty matrix")
+        monkeypatch.chdir(repo_root)
+
+        wrapper = _ni_one_shot_driver(
+            mission_slug=slug, other_invariant_id="NI-B", other_result="fail"
+        )
+        monkeypatch.setattr(av_command, "enforce_negative_invariants", wrapper)
+
+        try:
+            acceptance_verdict(
+                mission=slug,
+                negative_invariant="NI-A",
+                description="NI-A must not exist",
+                verification_method="custom_command",
+                verification_command="exit 0",
+                json_output=True,
+            )
+        except typer.Exit as exc:
+            assert exc.exit_code in (0, None), f"A's invocation failed: exit {exc.exit_code}"
+
+        reloaded = read_acceptance_matrix(feature_dir)
+        assert reloaded is not None
+        by_id = {ni.invariant_id: ni for ni in reloaded.negative_invariants}
+        assert by_id.keys() == {"NI-A", "NI-B"}, (
+            "a committed sibling row must never be dropped by a stale-snapshot "
+            "overwrite (#4858)"
+        )
+        assert by_id["NI-A"].result == "confirmed_absent"
+        assert by_id["NI-B"].result == "still_present"
+        assert by_id["NI-B"].evidence, "B's evidence must survive intact"
+        assert reloaded.overall_verdict == "fail", (
+            "concurrency must never flip a committed failing row's verdict to pass"
+        )
+
+    def test_scenario2_midpoint_checkpoint_shows_b_before_a_resumes(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """US1 S2: at the point B finishes (inside the wrapped seam) and
+        BEFORE A resumes, the on-disk matrix already contains B's row —
+        proving the loss (when it occurs) is A's stale-snapshot overwrite,
+        not a B-side failure."""
+        slug = "concurrent-ni-flat-s2"
+        repo_root, feature_dir = _init_flat_mission(tmp_path, slug)
+        _seed_empty_matrix(feature_dir, slug)
+        _git(repo_root, "add", "-A")
+        _git(repo_root, "commit", "-q", "-m", "seed empty matrix")
+        monkeypatch.chdir(repo_root)
+
+        midpoint: dict[str, AcceptanceMatrix | None] = {"matrix": None}
+
+        def _capture_midpoint() -> None:
+            midpoint["matrix"] = read_acceptance_matrix(feature_dir)
+
+        wrapper = _ni_one_shot_driver(
+            mission_slug=slug,
+            other_invariant_id="NI-B",
+            other_result="fail",
+            on_after_other=_capture_midpoint,
+        )
+        monkeypatch.setattr(av_command, "enforce_negative_invariants", wrapper)
+
+        try:
+            acceptance_verdict(
+                mission=slug,
+                negative_invariant="NI-A",
+                description="NI-A must not exist",
+                verification_method="custom_command",
+                verification_command="exit 0",
+                json_output=True,
+            )
+        except typer.Exit as exc:
+            assert exc.exit_code in (0, None)
+
+        captured = midpoint["matrix"]
+        assert captured is not None, "B must have committed before A resumes"
+        ids_at_midpoint = {ni.invariant_id for ni in captured.negative_invariants}
+        assert "NI-B" in ids_at_midpoint
+        assert "NI-A" not in ids_at_midpoint, "A has not resumed/committed yet at this checkpoint"
+
+    def test_scenario3_reverse_role_passing_sibling_survives(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """US1 Scenario 3 (reverse role): B commits a PASSING row and A
+        commits a FAILING row. A splice that only preserves a FAILING
+        sibling would silently drop a PASSING one here — invisible to
+        Scenario 1 (where A's own row is passing)."""
+        slug = "concurrent-ni-flat-s3"
+        repo_root, feature_dir = _init_flat_mission(tmp_path, slug)
+        _seed_empty_matrix(feature_dir, slug)
+        _git(repo_root, "add", "-A")
+        _git(repo_root, "commit", "-q", "-m", "seed empty matrix")
+        monkeypatch.chdir(repo_root)
+
+        wrapper = _ni_one_shot_driver(
+            mission_slug=slug, other_invariant_id="NI-B", other_result="pass"
+        )
+        monkeypatch.setattr(av_command, "enforce_negative_invariants", wrapper)
+
+        try:
+            acceptance_verdict(
+                mission=slug,
+                negative_invariant="NI-A",
+                description="NI-A must not exist",
+                verification_method="custom_command",
+                verification_command="exit 1",
+                json_output=True,
+            )
+        except typer.Exit as exc:
+            assert exc.exit_code in (0, None)
+
+        reloaded = read_acceptance_matrix(feature_dir)
+        assert reloaded is not None
+        by_id = {ni.invariant_id: ni for ni in reloaded.negative_invariants}
+        assert by_id.keys() == {"NI-A", "NI-B"}
+        assert by_id["NI-A"].result == "still_present"
+        assert by_id["NI-B"].result == "confirmed_absent"
+        assert reloaded.overall_verdict == "fail"
+
+
+class TestConcurrentVerdictLostUpdateCoord:
+    """T002 — US2: the guarantee holds on coordination topology."""
+
+    def test_lock_key_resolves_to_same_path_across_primary_and_coord_worktree(
+        self, tmp_path: Path
+    ) -> None:
+        """US2 Scenario 2: the primary checkout and the coordination worktree
+        of the SAME mission resolve the identical lock-file path — the lock
+        spans worktrees via the shared git common dir."""
+        result, coord_root, coord_feature_dir = _build_coord_mission_for_matrix(tmp_path)
+        coord_feature_dir.mkdir(parents=True, exist_ok=True)
+        write_acceptance_matrix(coord_feature_dir, AcceptanceMatrix(mission_slug=result.mission_slug))
+        subprocess.run(["git", "-C", str(coord_root), "add", "-A"], check=True, capture_output=True)
+        subprocess.run(
+            ["git", "-C", str(coord_root), "commit", "-q", "-m", "seed coord matrix"],
+            check=True,
+            capture_output=True,
+        )
+
+        primary_lock_path = feature_status_lock_path(tmp_path, coord_feature_dir.name)
+        coord_lock_path = feature_status_lock_path(coord_root, coord_feature_dir.name)
+        assert primary_lock_path == coord_lock_path, (
+            "the SAME lock file must serialize writers whether they act "
+            "through the primary checkout or the coordination worktree"
+        )
+
+    def test_coord_surface_row_survival_and_honest_verdict_under_concurrency(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """US2 Scenario 1: the concurrent-loss guarantee holds identically on
+        the COORD surface (asserted non-vacuously distinct from primary, and
+        that the write never strands a primary copy — mirrors the pre-existing
+        ``test_lands_on_coord_surface_not_a_stranded_primary_dir`` control).
+        Scenario 2 above is the dedicated dual-worktree-root lock-spanning
+        proof (spec's explicit test-craft alternative for proving the lock
+        spans worktrees)."""
+        result, coord_root, coord_feature_dir = _build_coord_mission_for_matrix(tmp_path)
+        slug = result.mission_slug
+
+        coord_feature_dir.mkdir(parents=True, exist_ok=True)
+        _seed_empty_matrix(coord_feature_dir, slug)
+        subprocess.run(["git", "-C", str(coord_root), "add", "-A"], check=True, capture_output=True)
+        subprocess.run(
+            ["git", "-C", str(coord_root), "commit", "-q", "-m", "seed coord matrix"],
+            check=True,
+            capture_output=True,
+        )
+
+        monkeypatch.chdir(tmp_path)
+
+        wrapper = _ni_one_shot_driver(
+            mission_slug=slug, other_invariant_id="NI-B", other_result="fail"
+        )
+        monkeypatch.setattr(av_command, "enforce_negative_invariants", wrapper)
+
+        try:
+            acceptance_verdict(
+                mission=slug,
+                negative_invariant="NI-A",
+                description="NI-A must not exist",
+                verification_method="custom_command",
+                verification_command="exit 0",
+                json_output=True,
+            )
+        except typer.Exit as exc:
+            assert exc.exit_code in (0, None)
+
+        assert not (result.feature_dir / "acceptance-matrix.json").exists(), (
+            "must not strand a primary copy for a coord-topology mission"
+        )
+        reloaded = read_acceptance_matrix(coord_feature_dir)
+        assert reloaded is not None
+        by_id = {ni.invariant_id: ni for ni in reloaded.negative_invariants}
+        assert by_id.keys() == {"NI-A", "NI-B"}
+        assert reloaded.overall_verdict == "fail"
+
+
+class TestConcurrentVerdictLostUpdateCriterionMode:
+    """T002 — US3: the guarantee also holds for criterion mode.
+
+    Criterion mode has no slow-check seam, so the interleaving is forced at
+    ``_resolve_criterion_update`` instead (the seam this fix computes the
+    candidate row from, BEFORE the locked re-read+splice)."""
+
+    def test_criterion_mode_concurrent_row_survival(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        slug = "concurrent-criterion-flat"
+        repo_root, feature_dir = _init_flat_mission(tmp_path, slug)
+        write_acceptance_matrix(
+            feature_dir,
+            AcceptanceMatrix(
+                mission_slug=slug,
+                criteria=[
+                    AcceptanceCriterion(
+                        criterion_id="FR-001", description="A", proof_type="automated_test", pass_fail="pending"
+                    ),
+                    AcceptanceCriterion(
+                        criterion_id="FR-002", description="B", proof_type="automated_test", pass_fail="pending"
+                    ),
+                ],
+            ),
+        )
+        _git(repo_root, "add", "-A")
+        _git(repo_root, "commit", "-q", "-m", "seed matrix")
+        monkeypatch.chdir(repo_root)
+
+        driven = False
+
+        def _wrapper(
+            existing: AcceptanceCriterion,
+            *,
+            result: str,
+            verification_method: str | None,
+            actor: str | None,
+            evidence: str | None,
+        ) -> AcceptanceCriterion:
+            nonlocal driven
+            if not driven:
+                driven = True
+                try:
+                    acceptance_verdict(
+                        mission=slug,
+                        criterion="FR-002",
+                        result="pass",
+                        verification_method="automated_test",
+                        actor="B",
+                        evidence="b-evidence",
+                        json_output=True,
+                    )
+                except typer.Exit as exc:
+                    assert exc.exit_code in (0, None), f"driven invocation failed: exit {exc.exit_code}"
+            return _resolve_criterion_update(
+                existing,
+                result=result,
+                verification_method=verification_method,
+                actor=actor,
+                evidence=evidence,
+            )
+
+        monkeypatch.setattr(av_command, "_resolve_criterion_update", _wrapper)
+
+        try:
+            acceptance_verdict(
+                mission=slug,
+                criterion="FR-001",
+                result="fail",
+                verification_method="automated_test",
+                actor="A",
+                evidence="a-evidence",
+                json_output=True,
+            )
+        except typer.Exit as exc:
+            assert exc.exit_code in (0, None)
+
+        reloaded = read_acceptance_matrix(feature_dir)
+        assert reloaded is not None
+        by_id = {c.criterion_id: c for c in reloaded.criteria}
+        assert by_id["FR-001"].pass_fail == "fail"
+        assert by_id["FR-002"].pass_fail == "pass", (
+            "B's committed passing criterion must survive A's stale-snapshot write"
+        )
+        assert reloaded.overall_verdict == "fail"
+
+
+# ===========================================================================
+# #4858 — gate spies (US1 Scenarios 4-9): each gate is independently
+# falsifiable by a spy/ordering assertion, not review-only.
+# ===========================================================================
+
+
+class TestConcurrencyGateSpies:
+    def _seed_flat_criterion_mission(self, tmp_path: Path, slug: str) -> tuple[Path, Path]:
+        repo_root, feature_dir = _init_flat_mission(tmp_path, slug)
+        write_acceptance_matrix(
+            feature_dir,
+            AcceptanceMatrix(
+                mission_slug=slug,
+                criteria=[
+                    AcceptanceCriterion(
+                        criterion_id="FR-001",
+                        description="works",
+                        proof_type="automated_test",
+                        pass_fail="pending",
+                    )
+                ],
+            ),
+        )
+        _git(repo_root, "add", "-A")
+        _git(repo_root, "commit", "-q", "-m", "seed")
+        return repo_root, feature_dir
+
+    def test_lock_acquired_with_correct_key_and_path_under_common_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """FR-007: a spy on the lock helper records acquisition with
+        ``lock_key == matrix_dir.name`` and a resolved lock path under the
+        git common dir."""
+        slug = "gate-spy-lock-key"
+        repo_root, feature_dir = self._seed_flat_criterion_mission(tmp_path, slug)
+        monkeypatch.chdir(repo_root)
+
+        calls: list[tuple[Path, str, float]] = []
+
+        def _spy_lock(repo_root_arg: Path, lock_key: str, *, timeout: float = -1):
+            calls.append((repo_root_arg, lock_key, timeout))
+            return feature_status_lock(repo_root_arg, lock_key, timeout=timeout)
+
+        monkeypatch.setattr(av_command, "feature_status_lock", _spy_lock)
+
+        try:
+            acceptance_verdict(
+                mission=slug,
+                criterion="FR-001",
+                result="pass",
+                verification_method="automated_test",
+                actor="tester",
+                evidence="ev",
+                json_output=True,
+            )
+        except typer.Exit as exc:
+            assert exc.exit_code in (0, None)
+
+        assert len(calls) == 1, "the critical section must acquire the lock exactly once"
+        called_repo_root, lock_key, timeout = calls[0]
+        assert lock_key == feature_dir.name
+        assert timeout == BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS
+        lock_path = feature_status_lock_path(called_repo_root, lock_key)
+        common_dir = git_common_dir(repo_root)
+        assert lock_path.is_relative_to(common_dir), "the lock file must live under the git common dir"
+
+    def test_slow_check_runs_before_lock_is_acquired(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """FR-008: the slow custom check is invoked BEFORE the lock is
+        acquired (short critical section), verified by call-order."""
+        slug = "gate-spy-call-order"
+        repo_root, feature_dir = _init_flat_mission(tmp_path, slug)
+        _seed_empty_matrix(feature_dir, slug)
+        _git(repo_root, "add", "-A")
+        _git(repo_root, "commit", "-q", "-m", "seed")
+        monkeypatch.chdir(repo_root)
+
+        order: list[str] = []
+
+        def _spy_enforce(repo_root_arg: Path, invariants: list[NegativeInvariant], **kwargs: object):
+            order.append("check")
+            return enforce_negative_invariants(repo_root_arg, invariants, **kwargs)
+
+        def _spy_lock(repo_root_arg: Path, lock_key: str, *, timeout: float = -1):
+            order.append("lock_enter")
+            cm = feature_status_lock(repo_root_arg, lock_key, timeout=timeout)
+            return _OrderTrackingContext(cm, order)
+
+        monkeypatch.setattr(av_command, "enforce_negative_invariants", _spy_enforce)
+        monkeypatch.setattr(av_command, "feature_status_lock", _spy_lock)
+
+        try:
+            acceptance_verdict(
+                mission=slug,
+                negative_invariant="NI-A",
+                description="d",
+                verification_method="custom_command",
+                verification_command="exit 0",
+                json_output=True,
+            )
+        except typer.Exit as exc:
+            assert exc.exit_code in (0, None)
+
+        assert order == ["check", "lock_enter", "lock_exit"], order
+
+    def test_reread_and_write_happen_strictly_inside_the_lock(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """C-4858-reread-in-lock: strict order
+        ``lock.__enter__ -> read_acceptance_matrix -> write -> lock.__exit__``
+        — kills the "re-read outside the lock" mutant a serial harness alone
+        cannot catch."""
+        slug = "gate-spy-strict-order"
+        repo_root, feature_dir = self._seed_flat_criterion_mission(tmp_path, slug)
+        monkeypatch.chdir(repo_root)
+
+        order: list[str] = []
+
+        def _spy_lock(repo_root_arg: Path, lock_key: str, *, timeout: float = -1):
+            order.append("enter")
+            cm = feature_status_lock(repo_root_arg, lock_key, timeout=timeout)
+            return _OrderTrackingContext(cm, order)
+
+        def _spy_read(feature_dir_arg: Path):
+            order.append("read")
+            return read_acceptance_matrix(feature_dir_arg)
+
+        def _spy_write(*args: object, **kwargs: object):
+            order.append("write")
+            return write_and_commit_acceptance_matrix(*args, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(av_command, "feature_status_lock", _spy_lock)
+        monkeypatch.setattr(av_command, "read_acceptance_matrix", _spy_read)
+        monkeypatch.setattr(av_command, "write_and_commit_acceptance_matrix", _spy_write)
+
+        try:
+            acceptance_verdict(
+                mission=slug,
+                criterion="FR-001",
+                result="pass",
+                verification_method="automated_test",
+                actor="tester",
+                evidence="ev",
+                json_output=True,
+            )
+        except typer.Exit as exc:
+            assert exc.exit_code in (0, None)
+
+        # The FIRST "read" is the pre-lock existence check at the top of
+        # ``acceptance_verdict()``; the SECOND is the locked re-read.
+        assert order == ["read", "enter", "read", "write", "lock_exit"], order
+
+    def test_write_acceptance_matrix_routes_through_atomic_write(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """FR-009/C-003: the shared writer routes through
+        ``kernel.atomic.atomic_write``, not a bare ``path.write_text``."""
+        from kernel.atomic import atomic_write as real_atomic_write
+
+        slug = "gate-spy-atomic-write"
+        repo_root, feature_dir = self._seed_flat_criterion_mission(tmp_path, slug)
+        monkeypatch.chdir(repo_root)
+
+        calls: list[Path] = []
+
+        def _spy_atomic_write(path: Path, content: str | bytes, *, mkdir: bool = False) -> None:
+            calls.append(path)
+            return real_atomic_write(path, content, mkdir=mkdir)
+
+        monkeypatch.setattr("specify_cli.acceptance.matrix.atomic_write", _spy_atomic_write)
+
+        try:
+            acceptance_verdict(
+                mission=slug,
+                criterion="FR-001",
+                result="pass",
+                verification_method="automated_test",
+                actor="tester",
+                evidence="ev",
+                json_output=True,
+            )
+        except typer.Exit as exc:
+            assert exc.exit_code in (0, None)
+
+        assert calls, "write_acceptance_matrix must route through kernel.atomic.atomic_write"
+        assert calls[0] == feature_dir / "acceptance-matrix.json"
+
+    def test_fail_closed_on_lock_timeout_never_writes(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """C-4858-fail-closed / C-012 / FR-015: on a lock-acquisition timeout,
+        no write ever happens, the command exits non-zero with a structured
+        error, and it never falls back to an unlocked write."""
+        slug = "gate-spy-fail-closed"
+        repo_root, feature_dir = self._seed_flat_criterion_mission(tmp_path, slug)
+        monkeypatch.chdir(repo_root)
+        head_before = _head(repo_root)
+
+        def _timeout_lock(repo_root_arg: Path, lock_key: str, *, timeout: float = -1):
+            raise FeatureStatusLockTimeoutError(
+                "simulated timeout",
+                lock_path=Path("/nonexistent/fake.status.lock"),
+                timeout=timeout,
+            )
+
+        write_calls: list[object] = []
+
+        def _spy_write(*args: object, **kwargs: object):
+            write_calls.append(args)
+            return write_and_commit_acceptance_matrix(*args, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(av_command, "feature_status_lock", _timeout_lock)
+        monkeypatch.setattr(av_command, "write_and_commit_acceptance_matrix", _spy_write)
+
+        with pytest.raises(typer.Exit) as exc_info:
+            acceptance_verdict(
+                mission=slug,
+                criterion="FR-001",
+                result="pass",
+                verification_method="automated_test",
+                actor="tester",
+                evidence="ev",
+                json_output=True,
+            )
+        assert exc_info.value.exit_code == 1
+        assert not write_calls, "a lock-acquisition timeout must never reach the write"
+        assert _head(repo_root) == head_before, "no commit must occur on a fail-closed timeout"
+
+    def test_reported_overall_verdict_matches_disk_after_concurrent_interleaving(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """FR-016: the command's own reported ``overall_verdict`` is computed
+        from the re-read+spliced (committed) matrix, matching disk — not the
+        stale pre-lock in-memory snapshot."""
+        slug = "gate-spy-honest-verdict"
+        repo_root, feature_dir = _init_flat_mission(tmp_path, slug)
+        _seed_empty_matrix(feature_dir, slug)
+        _git(repo_root, "add", "-A")
+        _git(repo_root, "commit", "-q", "-m", "seed")
+        monkeypatch.chdir(repo_root)
+
+        wrapper = _ni_one_shot_driver(
+            mission_slug=slug, other_invariant_id="NI-B", other_result="fail"
+        )
+        monkeypatch.setattr(av_command, "enforce_negative_invariants", wrapper)
+
+        capsys.readouterr()
+        try:
+            acceptance_verdict(
+                mission=slug,
+                negative_invariant="NI-A",
+                description="d",
+                verification_method="custom_command",
+                verification_command="exit 0",
+                json_output=True,
+            )
+        except typer.Exit as exc:
+            assert exc.exit_code in (0, None)
+        out = capsys.readouterr().out.strip()
+        lines = [line for line in out.splitlines() if line.strip()]
+        # B prints first (nested inside the wrapped seam call); A's own
+        # payload is the LAST line printed.
+        a_payload = dict(json.loads(lines[-1]))
+
+        reloaded = read_acceptance_matrix(feature_dir)
+        assert reloaded is not None
+        assert a_payload["overall_verdict"] == "fail"
+        assert a_payload["overall_verdict"] == reloaded.overall_verdict
+
+
+class _OrderTrackingContext:
+    """Wrap a context manager, appending ``"lock_exit"`` to *order* on exit.
+
+    Used by the call-order gate-spy tests above so the SAME ``order`` list
+    records ``lock_enter`` (before ``__enter__``) and ``lock_exit`` (after
+    ``__exit__``) around the real lock's own body.
+    """
+
+    def __init__(self, inner: object, order: list[str]) -> None:
+        self._inner = inner
+        self._order = order
+
+    def __enter__(self) -> object:
+        return self._inner.__enter__()  # type: ignore[attr-defined]
+
+    def __exit__(self, *exc_info: object) -> object:
+        result = self._inner.__exit__(*exc_info)  # type: ignore[attr-defined]
+        self._order.append("lock_exit")
+        return result

@@ -18,6 +18,7 @@ from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from kernel.atomic import atomic_write
 from specify_cli.configured_command import ConfiguredCommandUnsupported, run_configured_command
 from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
@@ -387,7 +388,15 @@ MATRIX_FILENAME = "acceptance-matrix.json"
 
 
 def write_acceptance_matrix(feature_dir: Path, matrix: AcceptanceMatrix) -> Path:
-    """Write acceptance-matrix.json to the feature directory."""
+    """Write acceptance-matrix.json to the feature directory.
+
+    #4858 (C-003/FR-009/NFR-004): routes through :func:`kernel.atomic.
+    atomic_write` (tempfile-write + rename in ``feature_dir``) instead of a
+    bare ``path.write_text`` — no reader can ever observe a torn/partial
+    file. This is the ONE shared writer every acceptance-matrix caller
+    (the verdict command, the scaffold, the accept residual sweep, ...)
+    goes through, so every one of them benefits.
+    """
     if (feature_dir / "meta.json").exists():
         identity = resolve_mission_identity(feature_dir)
         matrix.mission_slug = identity.mission_slug
@@ -398,10 +407,7 @@ def write_acceptance_matrix(feature_dir: Path, matrix: AcceptanceMatrix) -> Path
         )
         matrix.mission_type = identity.mission_type
     path = feature_dir / MATRIX_FILENAME
-    path.write_text(
-        json.dumps(matrix.to_dict(), indent=2) + "\n",
-        encoding="utf-8",
-    )
+    atomic_write(path, json.dumps(matrix.to_dict(), indent=2) + "\n")
     return path
 
 

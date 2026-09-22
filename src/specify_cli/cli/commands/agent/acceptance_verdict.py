@@ -38,6 +38,7 @@ enforce_negative_invariants` engine (never reimplemented here), recording its
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
@@ -57,6 +58,11 @@ from specify_cli.agent_tasks_ports import RealRender
 from specify_cli.cli.console import console
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from kernel.clock import now_utc_iso
+from specify_cli.status import (
+    BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
+    FeatureStatusLockTimeoutError,
+    feature_status_lock,
+)
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
 if TYPE_CHECKING:
@@ -158,6 +164,99 @@ def _register_negative_invariant(
     matrix.negative_invariants.append(new_ni)
 
 
+def _replace_or_append_negative_invariant(
+    matrix: AcceptanceMatrix, judged: NegativeInvariant
+) -> None:
+    """Splice an ALREADY-JUDGED row into ``matrix`` (insert-if-absent).
+
+    #4858 (FR-002/C-4858-modes): unlike :func:`_register_negative_invariant`
+    (which synthesizes a fresh ``pending`` row for a NEW registration), this
+    replaces-or-appends a row that has ALREADY been through
+    :func:`~specify_cli.acceptance.matrix.enforce_negative_invariants` — it
+    must never reset the judged result back to ``pending``. Used exclusively
+    inside :func:`_locked_reread_splice_and_write`'s critical section to
+    merge the invocation's own judged row into the freshly re-read on-disk
+    matrix, leaving every sibling row untouched (FR-001).
+    """
+    for idx, existing in enumerate(matrix.negative_invariants):
+        if existing.invariant_id == judged.invariant_id:
+            matrix.negative_invariants[idx] = judged
+            return
+    matrix.negative_invariants.append(judged)
+
+
+def _splice_criterion_update(
+    matrix: AcceptanceMatrix, criterion_id: str, updated: AcceptanceCriterion
+) -> None:
+    """Splice ``updated`` into ``matrix.criteria`` by id (insert-if-absent).
+
+    #4858 (FR-002/C-4858-modes): the index is recomputed against the
+    FRESHLY re-read matrix (never the pre-lock snapshot) each time this
+    runs, so a concurrently-reshaped criteria list cannot cause a wrong-row
+    splice or an ``IndexError``.
+    """
+    for idx, existing in enumerate(matrix.criteria):
+        if existing.criterion_id == criterion_id:
+            matrix.criteria[idx] = updated
+            return
+    matrix.criteria.append(updated)
+
+
+def _locked_reread_splice_and_write(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    matrix_dir: Path,
+    entry_id: str,
+    message: str,
+    splice: Callable[[AcceptanceMatrix], None],
+) -> tuple[AcceptanceMatrix, WriteSeamResult]:
+    """#4858 — the locked re-read + single-row splice + write+commit critical section.
+
+    This is the ONE critical section shared by both verdict modes
+    (C-4858-lock / C-4858-reread-in-lock): ``matrix_dir`` is resolved ONCE
+    by the caller — BEFORE any slow check/seam call and BEFORE this lock is
+    acquired — and reused here as both the re-read base and the write
+    target (FR-003/FR-017/C-013), so the re-read surface agrees with
+    ``commit_for_mission``'s resolved placement surface. On a coordination
+    topology this holds once the coordination worktree is materialized —
+    the normal state once a mission has passed ``finalize-tasks`` (the
+    degrade-to-primary read documented in ``mission_runtime.resolution``
+    applies only to the pre-materialization creation window).
+
+    The re-read (:func:`~specify_cli.acceptance.matrix.read_acceptance_matrix`)
+    AND the write+commit both happen while the lock is held — a re-read
+    placed outside the lock would still pass a single-threaded serialized
+    harness while reopening the exact lost-update race this closes.
+
+    Fails CLOSED (C-012/FR-015): on a lock-acquisition timeout this lets
+    :class:`~specify_cli.status.locking.FeatureStatusLockTimeoutError`
+    propagate WITHOUT performing the re-read or any write — the caller
+    translates it into a structured, non-zero exit rather than falling back
+    to an unlocked write.
+    """
+    with feature_status_lock(
+        repo_root, matrix_dir.name, timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS
+    ):
+        fresh_matrix = read_acceptance_matrix(matrix_dir)
+        if fresh_matrix is None:
+            # The matrix vanished between the pre-lock existence check and
+            # this re-read (an external actor removed it mid-flight) — start
+            # from an empty, schema-valid matrix rather than crashing; the
+            # splice below still inserts exactly the row this invocation owns.
+            fresh_matrix = AcceptanceMatrix(mission_slug=mission_slug)
+        splice(fresh_matrix)
+        write_result = write_and_commit_acceptance_matrix(
+            repo_root,
+            mission_slug,
+            matrix_dir,
+            fresh_matrix,
+            entry_id=entry_id,
+            message=message,
+        )
+    return fresh_matrix, write_result
+
+
 def _emit_write_outcome(
     write_result: WriteSeamResult, *, mission_slug: str, json_output: bool
 ) -> None:
@@ -257,23 +356,27 @@ def _run_criterion_mode(
         )
         raise typer.Exit(1)
 
-    idx = index_by_id[criterion]
+    # #4858: compute the candidate row from the PRE-LOCK snapshot (the same
+    # shape as before) — the row's VALUE never depends on locking; only the
+    # SPLICE into the current on-disk matrix (below) needs the lock. This is
+    # also the seam a concurrent-interleaving test wraps to force a sibling
+    # invocation to fully commit before this one proceeds (US3).
+    existing = matrix.criteria[index_by_id[criterion]]
     updated = _resolve_criterion_update(
-        matrix.criteria[idx],
+        existing,
         result=result,
         verification_method=verification_method,
         actor=actor,
         evidence=evidence,
     )
-    matrix.criteria[idx] = updated
 
-    write_result = write_and_commit_acceptance_matrix(
-        repo_root,
-        mission_slug,
-        matrix_dir,
-        matrix,
+    fresh_matrix, write_result = _locked_reread_splice_and_write(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        matrix_dir=matrix_dir,
         entry_id=criterion,
         message=f"chore(acceptance): record {criterion}={result} for {mission_slug}",
+        splice=lambda fresh: _splice_criterion_update(fresh, criterion, updated),
     )
     _emit_write_outcome(write_result, mission_slug=mission_slug, json_output=json_output)
 
@@ -282,7 +385,7 @@ def _run_criterion_mode(
         "mission": mission_slug,
         "criterion": criterion,
         "result": result,
-        "overall_verdict": matrix.overall_verdict,
+        "overall_verdict": fresh_matrix.overall_verdict,
         "write_status": write_result.status,
         "destination_surface": write_result.destination_surface,
         "commit_hash": write_result.commit_hash,
@@ -292,7 +395,7 @@ def _run_criterion_mode(
     else:
         console.print(
             f"[green]✓[/green] {criterion}={result} recorded for {mission_slug} "
-            f"(overall_verdict={matrix.overall_verdict}, write={write_result.status})"
+            f"(overall_verdict={fresh_matrix.overall_verdict}, write={write_result.status})"
         )
 
 
@@ -321,24 +424,31 @@ def _run_negative_invariant_mode(
     )
 
     if execute:
-        # T020 / FR-008: reuse the existing enforcement engine verbatim — this
+        # #4858 (FR-008): the slow custom check (a subprocess grep/command)
+        # runs OUTSIDE the lock, against the PRE-LOCK snapshot — this is also
+        # the seam a concurrent-interleaving test wraps to force a sibling
+        # invocation to fully commit before this one proceeds (US1). T020 /
+        # FR-008: reuse the existing enforcement engine verbatim — this
         # command never reimplements verification logic. A prior TERMINAL
         # result on an unrelated invariant already in the matrix is preserved
         # by the engine's own NI-2 guard; only the just-registered (freshly
-        # ``pending``) row is actually (re-)judged.
+        # ``pending``) row is actually (re-)judged. Only THIS invocation's own
+        # judged row is used below — every sibling result the check happens
+        # to (re-)compute here is discarded in favour of the fresh re-read
+        # (FR-001: a verdict write changes only the row it owns).
         matrix.negative_invariants = enforce_negative_invariants(
             repo_root, matrix.negative_invariants
         )
 
     judged = next(ni for ni in matrix.negative_invariants if ni.invariant_id == invariant_id)
 
-    write_result = write_and_commit_acceptance_matrix(
-        repo_root,
-        mission_slug,
-        matrix_dir,
-        matrix,
+    fresh_matrix, write_result = _locked_reread_splice_and_write(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        matrix_dir=matrix_dir,
         entry_id=invariant_id,
         message=f"chore(acceptance): register negative invariant {invariant_id} for {mission_slug}",
+        splice=lambda fresh: _replace_or_append_negative_invariant(fresh, judged),
     )
     _emit_write_outcome(write_result, mission_slug=mission_slug, json_output=json_output)
 
@@ -347,7 +457,7 @@ def _run_negative_invariant_mode(
         "mission": mission_slug,
         "negative_invariant": invariant_id,
         "result": judged.result,
-        "overall_verdict": matrix.overall_verdict,
+        "overall_verdict": fresh_matrix.overall_verdict,
         "write_status": write_result.status,
         "destination_surface": write_result.destination_surface,
         "commit_hash": write_result.commit_hash,
@@ -357,7 +467,7 @@ def _run_negative_invariant_mode(
     else:
         console.print(
             f"[green]✓[/green] negative invariant {invariant_id}={judged.result} recorded for "
-            f"{mission_slug} (overall_verdict={matrix.overall_verdict}, write={write_result.status})"
+            f"{mission_slug} (overall_verdict={fresh_matrix.overall_verdict}, write={write_result.status})"
         )
 
 
@@ -447,36 +557,49 @@ def acceptance_verdict(
         )
         raise typer.Exit(1)
 
-    if negative_invariant is not None:
-        assert description is not None and verification_method is not None  # _validate_mode_selection
-        _run_negative_invariant_mode(
+    try:
+        if negative_invariant is not None:
+            assert description is not None and verification_method is not None  # _validate_mode_selection
+            _run_negative_invariant_mode(
+                repo_root=repo_root,
+                mission_slug=mission_slug,
+                matrix_dir=matrix_dir,
+                matrix=matrix,
+                invariant_id=negative_invariant,
+                description=description,
+                verification_method=verification_method,
+                verification_command=verification_command,
+                scope=scope,
+                execute=execute,
+                json_output=json_output,
+            )
+            return
+
+        assert criterion is not None and result is not None  # guaranteed by _validate_mode_selection
+        _run_criterion_mode(
             repo_root=repo_root,
             mission_slug=mission_slug,
             matrix_dir=matrix_dir,
             matrix=matrix,
-            invariant_id=negative_invariant,
-            description=description,
+            criterion=criterion,
+            result=result,
             verification_method=verification_method,
-            verification_command=verification_command,
-            scope=scope,
-            execute=execute,
+            actor=actor,
+            evidence=evidence,
             json_output=json_output,
         )
-        return
-
-    assert criterion is not None and result is not None  # guaranteed by _validate_mode_selection
-    _run_criterion_mode(
-        repo_root=repo_root,
-        mission_slug=mission_slug,
-        matrix_dir=matrix_dir,
-        matrix=matrix,
-        criterion=criterion,
-        result=result,
-        verification_method=verification_method,
-        actor=actor,
-        evidence=evidence,
-        json_output=json_output,
-    )
+    except FeatureStatusLockTimeoutError as exc:
+        # #4858 (C-012/FR-015): fail CLOSED on a lock-acquisition timeout —
+        # this is raised by ``feature_status_lock`` BEFORE the re-read or any
+        # write happens (see ``_locked_reread_splice_and_write``), so no
+        # unlocked fallback write ever occurs. Translated into a structured,
+        # non-zero exit rather than an unhandled traceback.
+        _emit_error(
+            f"Could not acquire the acceptance-matrix lock for mission "
+            f"{mission_slug!r} within {exc.timeout}s: {exc}",
+            json_output=json_output,
+        )
+        raise typer.Exit(1) from None
 
 
 __all__ = ["acceptance_verdict"]

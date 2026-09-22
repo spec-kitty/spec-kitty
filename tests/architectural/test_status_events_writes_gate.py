@@ -176,6 +176,13 @@ EXPECTED_LOCK_COMPOSITION_SITES: frozenset[str] = frozenset(
         "specify_cli.cli.commands.agent.workflow_executor",
         "specify_cli.cli.commands.agent.tasks_mark_status",
         "specify_cli.cli.commands.agent.tasks_move_task",
+        # #4858: acceptance-verdict holds L1 around the locked re-read +
+        # single-row splice + write-and-commit critical section.
+        "specify_cli.cli.commands.agent.acceptance_verdict",
+        # #4884: issue-verdict holds L1 around the same locked re-read +
+        # single-row splice + write-and-commit critical section, mirroring
+        # #4858 for the issue-matrix twin of the lost-update race.
+        "specify_cli.cli.commands.agent.issue_verdict",
     }
 )
 

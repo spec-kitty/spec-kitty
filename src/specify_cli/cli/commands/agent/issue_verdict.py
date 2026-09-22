@@ -42,7 +42,7 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 from pathlib import Path
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 
@@ -51,13 +51,24 @@ from specify_cli.cli.console import console
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.paths import locate_project_root
 from specify_cli.git.protection_policy import ProtectionPolicy
+from specify_cli.status import (
+    BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
+    FeatureStatusLockTimeoutError,
+    feature_status_lock,
+)
 from specify_cli.tasks.issue_matrix import (
     ISSUE_MATRIX_JSON_FILENAME,
     IssueMatrixEntry,
     parse_issue_matrix_document,
     write_issue_matrix,
 )
-from specify_cli.tasks.issue_matrix_migration import migrate_issue_matrix_to_json
+from specify_cli.tasks.issue_matrix_migration import (
+    IssueMatrixMigrationError,
+    migrate_issue_matrix_to_json,
+)
+
+if TYPE_CHECKING:
+    from specify_cli.coordination.write_seam import ProtectionPolicyLike, WriteSeamResult
 
 #: FR-011 deferred-surface disclosure referenced by every write-routing result
 #: shape (data-model.md "Entity: Write-routing result").
@@ -163,49 +174,122 @@ def _migrate_if_needed(
         return read_dir, False
 
     policy = ProtectionPolicy.resolve(repo_root)
-    migrate_result = migrate_issue_matrix_to_json(
-        feature_dir,
-        repo_root=repo_root,
-        mission_slug=mission_slug,
-        policy=policy,
-        actor=actor,
-    )
+    try:
+        migrate_result = migrate_issue_matrix_to_json(
+            feature_dir,
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            policy=policy,
+            read_dir=read_dir,
+            actor=actor,
+        )
+    except IssueMatrixMigrationError as exc:
+        # #4868: a malformed authoritative .md surfaces as a structured CLI
+        # error (caught by ``issue_verdict_command``), never a raw traceback.
+        raise IssueVerdictError(str(exc), code="malformed_legacy_matrix") from exc
     migrated = migrate_result is not None and migrate_result.status == "committed"
     # Re-resolve: a first coord-routed write may have materialized the
     # coordination worktree that did not exist a moment ago.
     return _resolve_read_dir(repo_root, mission_slug, feature_dir), migrated
 
 
-def _upsert_row(
-    rows: dict[str, IssueMatrixEntry],
-    issue_ref: str,
+def _resolve_issue_row_update(
+    existing: IssueMatrixEntry | None,
     *,
     verdict: str,
     evidence_ref: str | None,
     wp: str | None,
-) -> None:
-    """Set *issue_ref*'s verdict (and optionally evidence_ref/wp) in place.
+) -> IssueMatrixEntry:
+    """Compute the updated row for *issue_ref* (verdict/evidence_ref/wp only).
 
     Preserves every OTHER field on an existing row (title/scope/fr/nfr/sc/repo)
     -- this command sets stored per-item status only (reviewer guidance);
     derived/computed fields are never touched here because this schema has
     none (``overall_verdict``-style computed fields live on the sibling
     acceptance-matrix entity, not this one).
+
+    #4884 (mirrors #4858's ``_resolve_criterion_update``): the row's VALUE
+    never depends on locking -- it is computed once, from the pre-lock
+    snapshot -- only the SPLICE of this row into the freshly re-read row map
+    (:func:`_splice_issue_row`, run inside the lock) needs to be serialized
+    against a concurrent sibling writing a DIFFERENT row.
     """
-    existing = rows.get(issue_ref)
     if existing is None:
-        rows[issue_ref] = IssueMatrixEntry(
+        return IssueMatrixEntry(
             verdict=verdict,
             evidence_ref=evidence_ref or "",
             wp=wp,
         )
-        return
-    rows[issue_ref] = replace(
+    return replace(
         existing,
         verdict=verdict,
         evidence_ref=evidence_ref if evidence_ref is not None else existing.evidence_ref,
         wp=wp if wp is not None else existing.wp,
     )
+
+
+def _splice_issue_row(rows: dict[str, IssueMatrixEntry], issue_ref: str, updated: IssueMatrixEntry) -> None:
+    """Set *issue_ref* to *updated* in *rows* (insert-if-absent).
+
+    #4884 (mirrors #4858's ``_splice_criterion_update``): *rows* is the
+    FRESHLY re-read row map (never the pre-lock snapshot) each time this
+    runs inside :func:`_locked_reread_splice_and_write`'s critical section,
+    so a concurrently-added/removed sibling row is never clobbered by this
+    invocation's write (FR-001-equivalent: a verdict write changes only the
+    row it owns).
+    """
+    rows[issue_ref] = updated
+
+
+def _locked_reread_splice_and_write(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    read_dir: Path,
+    feature_dir: Path,
+    issue_ref: str,
+    updated_entry: IssueMatrixEntry,
+    policy: ProtectionPolicyLike,
+    actor: str,
+) -> WriteSeamResult:
+    """#4884 -- the locked re-read + single-row splice + write+commit critical section.
+
+    Mirrors ``acceptance_verdict._locked_reread_splice_and_write`` (#4858):
+    ``read_dir`` is resolved ONCE by the caller -- AFTER ``_migrate_if_needed``
+    (a slow, one-shot legacy-migration check that is #4868's concern, not
+    this lock's) and BEFORE this lock is acquired -- and reused here as both
+    the re-read surface and (via ``write_issue_matrix``'s own resolution) the
+    write target, so the re-read agrees with ``commit_for_mission``'s
+    resolved placement surface. The lock key is ``read_dir.name`` -- the
+    mission directory name, matching #4858's ``matrix_dir.name`` convention
+    (never a bare mission slug; see ``feature_status_lock_path``'s FR-004 /
+    C-003 contract).
+
+    The re-read (:func:`_load_raw_rows`) AND the write+commit both happen
+    while the lock is held -- a re-read placed outside the lock would still
+    pass a single-threaded serialized harness while reopening the exact
+    lost-update race this closes (two concurrent ``issue-verdict`` calls for
+    DIFFERENT issues each read the full row map, mutate their own row in
+    memory, and serialize the WHOLE map back -- the loser's write silently
+    drops the winner's row).
+
+    Fails CLOSED (mirrors #4858's C-012/FR-015): on a lock-acquisition
+    timeout this lets :class:`~specify_cli.status.FeatureStatusLockTimeoutError`
+    propagate WITHOUT performing the re-read or any write -- the caller
+    (:func:`do_issue_verdict`) translates it into a structured
+    :class:`IssueVerdictError` rather than falling back to an unlocked write.
+    """
+    with feature_status_lock(repo_root, read_dir.name, timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS):
+        fresh_rows = _load_raw_rows(read_dir / ISSUE_MATRIX_JSON_FILENAME)
+        _splice_issue_row(fresh_rows, issue_ref, updated_entry)
+        return write_issue_matrix(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            feature_dir=feature_dir,
+            rows=fresh_rows,
+            policy=policy,
+            actor=actor,
+        )
 
 
 def do_issue_verdict(
@@ -238,7 +322,9 @@ def do_issue_verdict(
         row_or_entry_ref, migrated, status, refusal?}``.
 
     Raises:
-        IssueVerdictError: invalid ``--verdict`` or empty ``--actor``.
+        IssueVerdictError: invalid ``--verdict``, empty ``--actor``, or a
+            status-lock acquisition timeout (code ``"lock_timeout"`` -- fails
+            CLOSED, never falls back to an unlocked write).
     """
     if not actor.strip():
         raise IssueVerdictError("--actor must be a non-empty string", code="empty_actor")
@@ -250,21 +336,38 @@ def do_issue_verdict(
     mission_slug = resolved.mission_slug
     feature_dir = resolved.feature_dir
 
-    read_dir, migrated = _migrate_if_needed(
-        repo_root=root, mission_slug=mission_slug, feature_dir=feature_dir, actor=actor
-    )
-    rows = _load_raw_rows(read_dir / ISSUE_MATRIX_JSON_FILENAME)
-    _upsert_row(rows, issue_ref, verdict=verdict, evidence_ref=evidence_ref, wp=wp)
+    # #4868's concern: migration is a slow, one-shot legacy-.md conversion --
+    # it stays OUTSIDE the lock, exactly like #4858 keeps the pre-lock
+    # existence check outside its own critical section.
+    read_dir, migrated = _migrate_if_needed(repo_root=root, mission_slug=mission_slug, feature_dir=feature_dir, actor=actor)
+
+    # The candidate row's VALUE never depends on locking (see
+    # ``_resolve_issue_row_update``'s docstring) -- computed once, here,
+    # from the pre-lock snapshot.
+    pre_lock_rows = _load_raw_rows(read_dir / ISSUE_MATRIX_JSON_FILENAME)
+    updated_entry = _resolve_issue_row_update(pre_lock_rows.get(issue_ref), verdict=verdict, evidence_ref=evidence_ref, wp=wp)
 
     policy = ProtectionPolicy.resolve(root)
-    result = write_issue_matrix(
-        repo_root=root,
-        mission_slug=mission_slug,
-        feature_dir=feature_dir,
-        rows=rows,
-        policy=policy,
-        actor=actor,
-    )
+    try:
+        result = _locked_reread_splice_and_write(
+            repo_root=root,
+            mission_slug=mission_slug,
+            read_dir=read_dir,
+            feature_dir=feature_dir,
+            issue_ref=issue_ref,
+            updated_entry=updated_entry,
+            policy=policy,
+            actor=actor,
+        )
+    except FeatureStatusLockTimeoutError as exc:
+        # #4884 (mirrors #4858's C-012/FR-015): fail CLOSED on a lock-
+        # acquisition timeout -- raised by ``feature_status_lock`` BEFORE the
+        # re-read or any write happens, so no unlocked fallback write ever
+        # occurs.
+        raise IssueVerdictError(
+            f"Could not acquire the issue-matrix lock for mission {mission_slug!r} within {exc.timeout}s: {exc}",
+            code="lock_timeout",
+        ) from exc
 
     payload: dict[str, object] = {
         "ok": result.status in _WRITE_SUCCESS_STATUSES,
@@ -339,10 +442,7 @@ def issue_verdict_command(
     if json_output:
         console.emit_json(payload, indent=None, sort_keys=True)
     else:
-        console.print(
-            f"[green]OK[/green] {payload['row_or_entry_ref']} -> {verdict} "
-            f"({payload['status']}, surface={payload['destination_surface']})"
-        )
+        console.print(f"[green]OK[/green] {payload['row_or_entry_ref']} -> {verdict} ({payload['status']}, surface={payload['destination_surface']})")
 
     if not payload["ok"]:
         raise typer.Exit(1)

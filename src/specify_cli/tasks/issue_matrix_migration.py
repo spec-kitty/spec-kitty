@@ -40,6 +40,18 @@ if TYPE_CHECKING:
 _ROWS_KEY = "rows"
 
 
+class IssueMatrixMigrationError(Exception):
+    """A legacy ``issue-matrix.md`` cannot be faithfully migrated to JSON.
+
+    Raised (rather than silently serializing an empty/lossy matrix) when the
+    authoritative legacy markdown fails structural validation and yields no
+    usable rows -- migrating it would drop every existing verdict (#4868). The
+    ``issue-verdict`` command path translates this into a structured
+    ``IssueVerdictError`` so the operator sees a clear message, not a raw
+    traceback or a silent data loss.
+    """
+
+
 # ---------------------------------------------------------------------------
 # Structured (.json) parsing -- shared by load_issue_matrix and the validator
 # ---------------------------------------------------------------------------
@@ -114,8 +126,7 @@ def _parse_structured_rows(
                 {
                     "diagnostic_code": str(MissionReviewDiagnostic.ISSUE_MATRIX_VERDICT_UNKNOWN),
                     "message": (
-                        f"Row for issue '{issue_ref}': verdict '{entry.get('verdict')}' is not "
-                        f"in the allowed set: {[v.value for v in IssueMatrixVerdict]}"
+                        f"Row for issue '{issue_ref}': verdict '{entry.get('verdict')}' is not in the allowed set: {[v.value for v in IssueMatrixVerdict]}"
                     ),
                 }
             )
@@ -126,9 +137,7 @@ def _parse_structured_rows(
             if not has_handle:
                 diagnostics.append(
                     {
-                        "diagnostic_code": str(
-                            MissionReviewDiagnostic.ISSUE_MATRIX_DEFERRED_WITHOUT_HANDLE
-                        ),
+                        "diagnostic_code": str(MissionReviewDiagnostic.ISSUE_MATRIX_DEFERRED_WITHOUT_HANDLE),
                         "message": (
                             f"Row for issue '{issue_ref}': verdict is 'deferred-with-followup' "
                             f"but evidence_ref contains no follow-up handle "
@@ -222,6 +231,7 @@ def migrate_issue_matrix_to_json(
     repo_root: Path,
     mission_slug: str,
     policy: ProtectionPolicyLike,
+    read_dir: Path | None = None,
     target_branch: str | None = None,
     actor: str = "issue-matrix-migrate",
 ) -> WriteSeamResult | None:
@@ -234,18 +244,42 @@ def migrate_issue_matrix_to_json(
     file is left in place (harmless historical residue; C-008 requires no NEW
     ``.md`` is ever emitted, not that an old one is deleted).
 
+    ``read_dir`` (#4868): the authoritative READ surface for the legacy matrix.
+    Under coord / lanes-with-coord topology the legacy ``.md`` lives on the
+    coordination worktree, NOT the primary ``feature_dir`` -- the caller
+    resolves that surface (via :func:`mission_runtime.coord_read_dir_for`) and
+    threads it here so the existence check and the markdown parse read
+    ``source_dir = read_dir or feature_dir``. The WRITE deliberately stays
+    staged on the primary ``feature_dir`` (C-011): the write-seam materializes
+    the coord copy and cleans the primary residue, so passing ``read_dir`` as
+    the write ``feature_dir`` would break that residue-cleanup contract.
+    ``read_dir`` is keyword-only and defaults to ``None`` (the pre-#4868
+    behaviour: read and write both on ``feature_dir``), keeping every existing
+    caller unaffected (NFR-006 back-compat).
+
     Returns ``None`` (nothing to migrate) when ``issue-matrix.json`` already
-    exists at ``feature_dir`` or no legacy ``.md`` is present there.
+    exists on the read surface or no legacy ``.md`` is present there.
+
+    Raises:
+        IssueMatrixMigrationError: the legacy ``.md`` is structurally malformed
+            and yields no usable rows -- migrating it would silently drop every
+            existing verdict, so it fails loud instead (#4868).
     """
-    if (feature_dir / ISSUE_MATRIX_JSON_FILENAME).exists():
+    source_dir = read_dir or feature_dir
+    if (source_dir / ISSUE_MATRIX_JSON_FILENAME).exists():
         return None
-    md_path = feature_dir / ISSUE_MATRIX_MD_FILENAME
+    md_path = source_dir / ISSUE_MATRIX_MD_FILENAME
     if not md_path.exists():
         return None
 
     from specify_cli.cli.commands.review._issue_matrix import validate_issue_matrix
 
-    legacy_rows = validate_issue_matrix(md_path).rows
+    validation = validate_issue_matrix(md_path)
+    legacy_rows = validation.rows
+    if not validation.passed and not legacy_rows:
+        raise IssueMatrixMigrationError(
+            f"legacy issue-matrix.md at {md_path} is malformed and yields no rows; refusing to migrate it to an empty (lossy) issue-matrix.json"
+        )
     rows = {
         row.issue: IssueMatrixEntry(
             verdict=row.verdict.value,
@@ -287,22 +321,23 @@ def _iter_primary_mission_dirs(repo_root: Path) -> list[Path]:
     specs_root = repo_root / KITTY_SPECS_DIR
     if not specs_root.is_dir():
         return []
-    return sorted(
-        p for p in specs_root.iterdir() if p.is_dir() and (p / "meta.json").exists()
-    )
+    return sorted(p for p in specs_root.iterdir() if p.is_dir() and (p / "meta.json").exists())
 
 
-def _migrate_one_mission(
-    feature_dir: Path, *, repo_root: Path, policy: ProtectionPolicyLike
-) -> tuple[str, bool]:
+def _migrate_one_mission(feature_dir: Path, *, repo_root: Path, policy: ProtectionPolicyLike) -> tuple[str, bool]:
     """Attempt migration for a single mission dir; returns ``(mission_slug, migrated)``."""
     mission_slug = feature_dir.name
-    result = migrate_issue_matrix_to_json(
-        feature_dir,
-        repo_root=repo_root,
-        mission_slug=mission_slug,
-        policy=policy,
-    )
+    try:
+        result = migrate_issue_matrix_to_json(
+            feature_dir,
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            policy=policy,
+        )
+    except IssueMatrixMigrationError:
+        # Bulk migration is best-effort: a malformed mission is skipped, never
+        # aborts the sweep over its siblings (#4868).
+        return mission_slug, False
     migrated = result is not None and result.status in ("committed", "unchanged")
     return mission_slug, migrated
 

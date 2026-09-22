@@ -47,6 +47,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+from kernel.atomic import atomic_write
 from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.tasks.issue_reference_discovery import (
     GatingClass,
@@ -361,7 +362,11 @@ def write_issue_matrix(
     def _stage() -> tuple[Path, ...]:
         # T029 (#3073): the write moves INTO the thunk so a refused write
         # never materializes ``issue-matrix.json`` on disk (no residue).
-        path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        # #4884 (mirrors #4858's ``write_acceptance_matrix``): routed through
+        # ``kernel.atomic.atomic_write`` (tempfile-write + rename in
+        # ``feature_dir``) instead of a bare ``path.write_text`` -- no reader
+        # can ever observe a torn/partial file.
+        atomic_write(path, json.dumps(document, indent=2, sort_keys=True) + "\n")
         return (path,)
 
     return write_artifact(
