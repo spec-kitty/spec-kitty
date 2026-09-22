@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "mission_slug": "verdict-matrix-rmw-preservation-01M32M9G",
+  "mission_id": "01M32M9GN86VB4FKSNJ92GGS9V",
+  "mission_branch": "kitty/mission-verdict-matrix-rmw-preservation-01M32M9G",
+  "target_branch": "fix/verdict-matrix-rmw-preservation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/matrix.py",
+        "src/specify_cli/cli/commands/agent/acceptance_verdict.py",
+        "tests/specify_cli/acceptance/test_acceptance_verdict_command.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/issue_verdict.py",
+        "src/specify_cli/tasks/issue_matrix_migration.py",
+        "tests/integration/test_issue_verdict_coord_legacy_md_preservation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-21T19:19:17.734893+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "1be74b1c239eeb1c4d9548500c1e3172632cd765"
+}

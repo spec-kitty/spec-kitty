@@ -1,0 +1,189 @@
+{
+  "mission_slug": "verdict-matrix-rmw-preservation-01M32M9G",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP01 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP01 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:13:42.446211+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP01 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP01 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:13:51.750558+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP01 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP01 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:14:01.028678+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP01 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP01 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:14:10.391314+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP01 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP01 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:14:19.662528+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP01 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP01 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:14:28.881834+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP01 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP01 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:14:38.212044+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP01 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP01 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:14:47.534933+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP01 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP01 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:14:56.784983+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP02 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP02 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:15:05.996796+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP02 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP02 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:15:15.215161+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP02 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP02 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:15:24.607642+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP01 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP01 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:15:33.916078+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP01 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP01 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:15:43.282166+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP01 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP01 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:15:52.658931+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP01 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP01 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:16:01.835700+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP01 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP01 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:16:11.080639+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Verify FR-018 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Verified by WP02 reviewed+approved ATDD tests (red-on-base -> green-on-fix, mutation-tested guards); see tests in the WP02 lane.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T06:16:20.388148+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

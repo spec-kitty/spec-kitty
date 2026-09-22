@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#2482": {
+      "evidence_ref": "Out of scope per spec C-005: same file as #4858 but P2 restage-clobber, a different mechanism; referenced as a note, not folded.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4858": {
+      "evidence_ref": "WP01 commit 87c7134917 (locked re-read + single-row splice + atomic write); test 5aef775c56; reviewer-approved with mutation-tested guards",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4868": {
+      "evidence_ref": "WP02 commit 0595164d77 (coord-aware migration read_dir); test 1948b48579; reviewer-approved, C-011 spy mutation-tested",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}

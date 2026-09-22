@@ -1,0 +1,35 @@
+{
+  "accept_commit": "ccfa06207d15dd3b9fb2fc717e34a847b8c1b45c",
+  "acceptance_history": [
+    {
+      "accept_commit": "ccfa06207d15dd3b9fb2fc717e34a847b8c1b45c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-22T06:16:56.737174+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "6a5afac0f8f7633d2be1cbfbc484873942ed9249"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-22T06:16:56.737174+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "6a5afac0f8f7633d2be1cbfbc484873942ed9249",
+  "baseline_merge_commit": "0d8aa2f57cf20bd6504b30c369f272fca7cc9715",
+  "created_at": "2026-09-21T18:40:12.978540+00:00",
+  "flattened": true,
+  "friendly_name": "Verdict-matrix RMW preservation (acceptance #4858 + issue #4868)",
+  "merged_at": "2026-09-22T06:18:15.225878+00:00",
+  "merged_commit": "ae5757d8f9dcd8e7559a973d650ea6c58f472118",
+  "mid8": "01M32M9G",
+  "mission_id": "01M32M9GN86VB4FKSNJ92GGS9V",
+  "mission_number": null,
+  "mission_slug": "verdict-matrix-rmw-preservation-01M32M9G",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Two verdict-recording flows can silently erase prior rows from their coordination-resident matrix and exit success. Recording an acceptance verdict concurrently for a different invariant overwrites the whole acceptance matrix from a stale pre-check snapshot, flipping the overall verdict fail to pass (#4858). Recording an issue verdict on a coord mission migrates the wrong source directory on the first JSON write, so existing issue verdicts vanish from active state (#4868). Both are verdict-matrix read-modify-write preservation failures: a verdict write must be based on the true authoritative current matrix and change only the row it owns. This mission closes that class across both matrices.",
+  "purpose_tldr": "Stop verdict-recording commands from silently dropping previously-committed matrix rows and flipping outcomes, on coordination and flat layouts.",
+  "slug": "verdict-matrix-rmw-preservation-01M32M9G",
+  "status_phase": "1",
+  "target_branch": "fix/verdict-matrix-rmw-preservation",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-21T19:32:09.519286+00:00"
+}
