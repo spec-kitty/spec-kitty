@@ -14,6 +14,7 @@ from specify_cli.lanes.merge import (
     _remove_info_attributes,
     consolidate_lane_into_mission,
     integrate_mission_into_target,
+    preview_mission_target_integration,
 )
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.merge.config import MergeStrategy
@@ -237,6 +238,133 @@ class TestMergeMissionToTarget:
         assert result.success is True
         assert result.commit is not None
         assert result.target_branch == "main"
+
+    def test_squash_conflict_preserves_newer_target_source(self, tmp_path):
+        """#4892: ordinary source divergence must fail before ref advancement."""
+        repo = _make_repo(tmp_path)
+        manifest = _make_manifest()
+        _commit(
+            repo,
+            "src/shared.py",
+            "ALPHA = 1\nBETA = 2\n",
+            "shared source base",
+        )
+
+        _run(["git", "branch", manifest.mission_branch], repo)
+        _run(["git", "checkout", manifest.mission_branch], repo)
+        _commit(
+            repo,
+            "src/shared.py",
+            "ALPHA = 100\nBETA = 2\n",
+            "mission changes alpha",
+        )
+        source_before = _git_stdout(repo, "rev-parse", manifest.mission_branch)
+
+        _run(["git", "checkout", "main"], repo)
+        _commit(
+            repo,
+            "src/shared.py",
+            "ALPHA = 777\nBETA = 2\n",
+            "target hotfix changes alpha",
+        )
+        target_before = _git_stdout(repo, "rev-parse", "main")
+        bytes_before = (repo / "src/shared.py").read_bytes()
+
+        result = integrate_mission_into_target(
+            repo,
+            "010-feat",
+            manifest,
+            strategy=MergeStrategy.SQUASH,
+        )
+
+        assert result.success is False
+        assert "src/shared.py" in result.errors[0]
+        assert _git_stdout(repo, "rev-parse", manifest.mission_branch) == source_before
+        assert _git_stdout(repo, "rev-parse", "main") == target_before
+        assert _git_stdout(repo, "branch", "--show-current") == "main"
+        assert (repo / "src/shared.py").read_bytes() == bytes_before
+
+    def test_squash_combines_disjoint_same_file_changes(self, tmp_path):
+        repo = _make_repo(tmp_path)
+        manifest = _make_manifest()
+        _commit(
+            repo,
+            "src/shared.py",
+            "ALPHA = 1\nBETA = 2\nGAMMA = 3\n",
+            "shared source base",
+        )
+
+        _run(["git", "branch", manifest.mission_branch], repo)
+        _run(["git", "checkout", manifest.mission_branch], repo)
+        _commit(
+            repo,
+            "src/shared.py",
+            "ALPHA = 100\nBETA = 2\nGAMMA = 3\n",
+            "mission changes alpha",
+        )
+
+        _run(["git", "checkout", "main"], repo)
+        _commit(
+            repo,
+            "src/shared.py",
+            "ALPHA = 1\nBETA = 2\nGAMMA = 300\n",
+            "target changes gamma",
+        )
+
+        result = integrate_mission_into_target(
+            repo,
+            "010-feat",
+            manifest,
+            strategy=MergeStrategy.SQUASH,
+        )
+
+        assert result.success is True
+        assert (repo / "src/shared.py").read_text(encoding="utf-8") == (
+            "ALPHA = 100\nBETA = 2\nGAMMA = 300\n"
+        )
+
+    def test_squash_preview_reports_same_conflict_without_mutation(self, tmp_path):
+        repo = _make_repo(tmp_path)
+        manifest = _make_manifest()
+        _commit(repo, "src/shared.py", "VALUE = 1\n", "shared source base")
+
+        _run(["git", "branch", manifest.mission_branch], repo)
+        _run(["git", "checkout", manifest.mission_branch], repo)
+        _commit(repo, "src/shared.py", "VALUE = 100\n", "mission value")
+        source_before = _git_stdout(repo, "rev-parse", manifest.mission_branch)
+
+        _run(["git", "checkout", "main"], repo)
+        _commit(repo, "src/shared.py", "VALUE = 777\n", "target hotfix")
+        target_before = _git_stdout(repo, "rev-parse", "main")
+        bytes_before = (repo / "src/shared.py").read_bytes()
+
+        preview = preview_mission_target_integration(
+            repo,
+            manifest.mission_branch,
+            "main",
+            strategy=MergeStrategy.SQUASH,
+        )
+
+        assert preview.conflicting_paths == ("src/shared.py",)
+        assert _git_stdout(repo, "rev-parse", manifest.mission_branch) == source_before
+        assert _git_stdout(repo, "rev-parse", "main") == target_before
+        assert _git_stdout(repo, "branch", "--show-current") == "main"
+        assert (repo / "src/shared.py").read_bytes() == bytes_before
+        assert _info_attributes_driver_lines(repo) == []
+        assert (
+            subprocess.run(
+                [
+                    "git",
+                    "config",
+                    "--local",
+                    "--get",
+                    "merge.spec-kitty-event-log.driver",
+                ],
+                cwd=str(repo),
+                capture_output=True,
+            ).returncode
+            != 0
+        )
 
     def test_squash_noop_fails_without_resume_permission(self, tmp_path):
         repo = _make_repo(tmp_path)

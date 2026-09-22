@@ -202,7 +202,12 @@ _ALLOWLIST: dict[str, str] = {
     "src/specify_cli/git/destructive_guard.py:229:worktree_remove_force": (
         "the chokepoint's OWN inline implementation (_remove_worktree_force, called only from guarded_worktree_remove) -- this IS the guard, not a bypass of it."
     ),
-    "src/specify_cli/lanes/merge.py:772:worktree_remove_force": ("ephemeral lane-merge tmp worktree, unconditionally cleaned up via ExitStack on exit."),
+    "src/specify_cli/lanes/merge.py:934:worktree_remove_force": (
+        "read-only forecast scratch worktree, created detached in the same "
+        "ExitStack and force-removed even when the simulated merge leaves "
+        "intentional conflict entries; never operator-visible state."
+    ),
+    "src/specify_cli/lanes/merge.py:1003:worktree_remove_force": ("ephemeral lane-merge tmp worktree, unconditionally cleaned up via ExitStack on exit."),
     "src/specify_cli/lanes/worktree_allocator.py:1155:worktree_remove_force": (
         "fresh-path atomicity (#3281/T010): removes a just-created worktree "
         "AFTER _merge_recorded_planning_commit already aborted the "
@@ -222,8 +227,8 @@ _ALLOWLIST: dict[str, str] = {
         "(cli.commands.merge._dispatch_abort, WP04/#4754) passes only the "
         "scoped merge-workspace path, never repo_root (INV-5)."
     ),
-    "src/specify_cli/lanes/merge.py:812:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (squash-conflict rollback), never repo_root."),
-    "src/specify_cli/lanes/merge.py:918:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (merge-conflict rollback), never repo_root."),
+    "src/specify_cli/lanes/merge.py:1035:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (squash-conflict rollback), never repo_root."),
+    "src/specify_cli/lanes/merge.py:1147:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (merge-conflict rollback), never repo_root."),
     "src/specify_cli/lanes/worktree_allocator.py:785:merge_abort": ("scoped to the lane worktree (planning-commit merge-conflict rollback), never repo_root."),
     "src/specify_cli/lanes/worktree_allocator.py:959:merge_abort": ("scoped to the lane worktree (dependency-lane merge-conflict rollback), never repo_root."),
     "src/specify_cli/lanes/auto_rebase.py:739:merge_abort": ("scoped to the lane worktree (auto-rebase conflict rollback), never repo_root."),

@@ -54,7 +54,7 @@ class _MergeDriverSpec:
 
 # C-006: the canonical merge-driver registry. Every both-sides-divergent
 # ``kitty-specs/**`` bookkeeping artifact that must reconcile (not clobber) under
-# ``git merge --squash -X theirs`` carries a driver here. Generalized from the
+# ``git merge --squash`` carries a driver here. Generalized from the
 # single event-log driver (DIRECTIVE_044 — parametrized, not cloned).
 _MERGE_DRIVERS: tuple[_MergeDriverSpec, ...] = (
     _MergeDriverSpec(
@@ -142,6 +142,27 @@ class MissionMergeResult:
     commit: str | None = None
     already_applied: bool = False
     errors: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class MissionIntegrationPreview:
+    """Read-only readiness result for mission-to-target branch integration."""
+
+    conflicting_paths: tuple[str, ...] = ()
+
+
+class _SquashMergeConflict(RuntimeError):
+    """Normal squash integration left paths that no policy may auto-resolve."""
+
+    def __init__(
+        self,
+        source_branch: str,
+        target_branch: str,
+        conflicting_paths: tuple[str, ...],
+    ) -> None:
+        self.conflicting_paths = conflicting_paths
+        paths = ", ".join(conflicting_paths)
+        super().__init__(f"Squash merge of {source_branch} into {target_branch} failed: unresolved content conflict(s): {paths}")
 
 
 def _resolve_lane_manifest(
@@ -423,7 +444,7 @@ def _ensure_info_attributes(repo_root: Path) -> list[str]:
     branch tip, which need not carry a committed ``.gitattributes`` (fresh repos,
     test fixtures). ``$GIT_COMMON_DIR/info/attributes`` applies to every linked
     worktree, so seeding the driver patterns there makes the custom drivers fire
-    under ``git merge --squash -X theirs`` regardless of what a branch committed.
+    under ``git merge --squash`` regardless of what a branch committed.
     Additive and idempotent: operator lines are preserved; missing lines appended.
 
     Returns the attribute lines it newly appended (``[]`` when everything was
@@ -505,15 +526,49 @@ def _ensure_merge_driver_git_config(repo_root: Path) -> None:
         _set_local_git_config(repo_root, f"merge.{spec.config_key}.driver", spec.command)
 
 
+def _merge_driver_config_snapshot(repo_root: Path) -> dict[str, str | None]:
+    """Capture the config keys self-healed by merge-driver activation."""
+    keys = {
+        key
+        for spec in _MERGE_DRIVERS
+        for key in (
+            f"merge.{spec.config_key}.name",
+            f"merge.{spec.config_key}.driver",
+        )
+    }
+    return {key: _git_config_get(repo_root, key) for key in keys}
+
+
+def _restore_merge_driver_config(
+    repo_root: Path,
+    snapshot: dict[str, str | None],
+) -> None:
+    """Restore merge-driver config after a read-only preview."""
+    for key, value in snapshot.items():
+        if value is not None:
+            _set_local_git_config(repo_root, key, value)
+            continue
+        subprocess.run(
+            ["git", "config", "--local", "--unset-all", key],
+            cwd=str(repo_root),
+            capture_output=True,
+            env=_make_merge_env(),
+        )
+
+
 @contextmanager
-def _ephemeral_merge_driver_activation(repo_root: Path) -> Iterator[None]:
+def _ephemeral_merge_driver_activation(
+    repo_root: Path,
+    *,
+    restore_config: bool = False,
+) -> Iterator[None]:
     """Activate the custom drivers for ONE ephemeral merge, then tear the seeding down.
 
     Used by the squash mission→target merge (``_merge_branch_into``): its
     ephemeral merge worktree checks out the target-branch tip, which need not
     carry a committed ``.gitattributes`` (fresh repos, test fixtures), so the
     driver patterns must be seeded into ``$GIT_COMMON_DIR/info/attributes`` for
-    the custom drivers to fire under ``git merge --squash -X theirs`` (C-006 /
+    the custom drivers to fire under ``git merge --squash`` (C-006 /
     DIRECTIVE_044).
 
     Seeding happens *before* the merge (so the drivers fire during it) and is
@@ -531,12 +586,16 @@ def _ephemeral_merge_driver_activation(repo_root: Path) -> Iterator[None]:
         yield
         return
 
-    _ensure_merge_driver_git_config(repo_root)
-    added = _ensure_info_attributes(repo_root)
+    config_snapshot = _merge_driver_config_snapshot(repo_root) if restore_config else None
+    added: list[str] = []
     try:
+        _ensure_merge_driver_git_config(repo_root)
+        added = _ensure_info_attributes(repo_root)
         yield
     finally:
         _remove_info_attributes(repo_root, added)
+        if config_snapshot is not None:
+            _restore_merge_driver_config(repo_root, config_snapshot)
 
 
 def _make_merge_env() -> dict[str, str]:
@@ -599,8 +658,8 @@ def _three_way_merge_favouring_target(
     Caveat — no common ancestor: when ``rel`` is add/add (absent at the merge-base
     and independently created on both sides), there is no base to anchor a disjoint
     union, so ``merge-file`` treats the whole file as one conflicting region and the
-    target wins wholesale (favour-target policy). Rare, and never worse than the
-    bare ``-X theirs`` default it replaces (which would take the lane).
+    target wins wholesale (favour-target policy). This is deliberately confined
+    to paths selected by the PRIMARY planning-artifact authority.
     """
     import tempfile
 
@@ -643,17 +702,13 @@ def _preserve_target_newer_planning_artifacts(
 ) -> list[str]:
     """Restore target-newer PRIMARY-partition planning files into the squash commit (#3942).
 
-    The mission->target ``git merge --squash -X theirs`` step forces the *source*
-    (mission-branch) copy to win every add/add conflict. For the driver-covered
-    ``kitty-specs/**`` bookkeeping classes that is reconciled by ``_MERGE_DRIVERS``,
-    but PRIMARY-partition planning artifacts (``spec.md`` / ``tasks/WP*.md`` and
-    the rest of the partition) are authored on the primary/target surface and can
+    PRIMARY-partition planning artifacts (``spec.md`` / ``tasks/WP*.md`` and the
+    rest of the partition) are authored on the primary/target surface and can
     legitimately carry a *newer* target copy than the mission branch. A merge
-    driver cannot detect that — it sees only three blobs, no history — so recency
-    is resolved here, *after* the squash and *outside* the ``-X theirs`` block
-    (which stays byte-identical): the pure three-way rule in
+    driver cannot detect that — it sees only three blobs, no history — so the
+    pure three-way rule in
     :func:`planning_recency.target_newer_primary_artifacts` names the paths the
-    target owns, each is re-resolved by a base/target/lane 3-way merge that
+    target owns. Each is re-resolved by a base/target/lane 3-way merge that
     favours the target on *overlapping* conflicts while preserving the lane's
     *disjoint* edits (never a wholesale target overwrite — that would drop a lane
     edit to a different section), and the squash commit is amended so the
@@ -728,6 +783,182 @@ def _preserve_target_newer_planning_artifacts(
     return restored
 
 
+def _unmerged_paths(
+    worktree: Path,
+    env: dict[str, str],
+) -> tuple[str, ...]:
+    """Return deterministic repo-relative paths still unresolved in the index."""
+    result = subprocess.run(
+        ["git", "diff", "--name-only", "--diff-filter=U", "-z"],
+        cwd=str(worktree),
+        capture_output=True,
+        env=env,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Could not inspect squash merge conflicts: {result.stderr.decode(errors='replace').strip()}")
+    return tuple(sorted(os.fsdecode(raw_path) for raw_path in result.stdout.split(b"\0") if raw_path))
+
+
+def _resolve_planning_conflicts(
+    repo_root: Path,
+    worktree: Path,
+    source_branch: str,
+    target_branch: str,
+    conflicting_paths: tuple[str, ...],
+    env: dict[str, str],
+) -> None:
+    """Resolve only conflicts owned by the existing PRIMARY planning policy."""
+    from specify_cli.merge.planning_recency import target_newer_primary_artifacts
+
+    target_wins = target_newer_primary_artifacts(
+        repo_root,
+        target_branch,
+        source_branch,
+        changed_paths=conflicting_paths,
+    )
+    target_paths = {str(path) for path in target_wins}
+    source_wins = target_newer_primary_artifacts(
+        repo_root,
+        source_branch,
+        target_branch,
+        changed_paths=(path for path in conflicting_paths if path not in target_paths),
+    )
+    resolutions = [(path, target_branch, source_branch) for path in target_wins] + [(path, source_branch, target_branch) for path in source_wins]
+    if not resolutions:
+        return
+    merge_base = subprocess.run(
+        ["git", "merge-base", target_branch, source_branch],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    if merge_base.returncode != 0 or not merge_base.stdout.strip():
+        return
+    merge_base_ref = merge_base.stdout.strip()
+    for path, preferred_branch, other_branch in resolutions:
+        rel = str(path)
+        reconciled = _three_way_merge_favouring_target(
+            repo_root,
+            merge_base_ref,
+            preferred_branch,
+            other_branch,
+            rel,
+            env,
+        )
+        if reconciled is None:
+            # Preserve the historical #3942 scope: content reconciliation only.
+            # A delete/modify ambiguity remains an explicit blocker.
+            continue
+        destination = worktree / rel
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(reconciled)
+        staged = subprocess.run(
+            ["git", "add", "--", rel],
+            cwd=str(worktree),
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        if staged.returncode != 0:
+            raise RuntimeError(f"Failed to stage reconciled planning artifact {rel}: {staged.stderr.strip()}")
+
+
+def _run_squash_merge(
+    repo_root: Path,
+    worktree: Path,
+    source_branch: str,
+    target_branch: str,
+    env: dict[str, str],
+) -> bool:
+    """Stage a squash merge; return whether planning reconciliation was needed."""
+    result = subprocess.run(
+        ["git", "merge", "--squash", source_branch],
+        cwd=str(worktree),
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    if result.returncode == 0:
+        return False
+
+    conflicts = _unmerged_paths(worktree, env)
+    if conflicts:
+        _resolve_planning_conflicts(
+            repo_root,
+            worktree,
+            source_branch,
+            target_branch,
+            conflicts,
+            env,
+        )
+        conflicts = _unmerged_paths(worktree, env)
+        if conflicts:
+            raise _SquashMergeConflict(
+                source_branch,
+                target_branch,
+                conflicts,
+            )
+        return True
+
+    # A non-zero merge with no unresolved index paths is an operational error
+    # (for example, a failed hook/driver), not a successful simulation.
+    diagnostic = result.stderr.strip() or result.stdout.strip()
+    raise RuntimeError(f"Squash merge of {source_branch} into {target_branch} failed: {diagnostic}")
+
+
+def preview_mission_target_integration(
+    repo_root: Path,
+    source_branch: str,
+    target_branch: str,
+    *,
+    strategy: MergeStrategy,
+) -> MissionIntegrationPreview:
+    """Simulate squash branch integration without committing or advancing refs.
+
+    Missing refs retain the historical dry-run behavior: other preflights may
+    still preview lifecycle/retention state before implementation has created a
+    local mission branch.
+    """
+    if strategy != MergeStrategy.SQUASH or not _branch_exists(repo_root, source_branch) or not _branch_exists(repo_root, target_branch):
+        return MissionIntegrationPreview()
+
+    import tempfile
+
+    tmp_path = Path(tempfile.mkdtemp(prefix="kitty-merge-preview-"))
+    env = _make_merge_env()
+    with ExitStack() as stack:
+        stack.enter_context(_ephemeral_merge_driver_activation(repo_root, restore_config=True))
+        stack.callback(
+            lambda: subprocess.run(
+                ["git", "worktree", "remove", str(tmp_path), "--force"],
+                cwd=str(repo_root),
+                capture_output=True,
+                env=env,
+            )
+        )
+        created = subprocess.run(
+            ["git", "worktree", "add", "--detach", str(tmp_path), target_branch],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        if created.returncode != 0:
+            raise RuntimeError(f"Failed to create merge preview worktree: {created.stderr.strip()}")
+        try:
+            _run_squash_merge(
+                repo_root,
+                tmp_path,
+                source_branch,
+                target_branch,
+                env,
+            )
+        except _SquashMergeConflict as exc:
+            return MissionIntegrationPreview(exc.conflicting_paths)
+    return MissionIntegrationPreview()
+
+
 def _merge_branch_into(
     repo_root: Path,
     source_branch: str,
@@ -788,33 +1019,25 @@ def _merge_branch_into(
             raise RuntimeError(f"Failed to create merge worktree: {result.stderr.strip()}")
 
         if strategy == MergeStrategy.SQUASH:
-            # Squash all commits from source into a single new commit.
-            # -X theirs: the mission branch (source) wins add/add conflicts by
-            # default. This is correct for source-authored code and the
-            # driver-covered kitty-specs/ bookkeeping classes, but its premise
-            # is FALSE for PRIMARY-partition planning artifacts (spec.md,
-            # tasks/WP*.md, ...): those are authored on the primary/target
-            # surface, so the target can legitimately carry a NEWER copy than
-            # the mission branch. A merge driver cannot fix that (it sees only
-            # three blobs, no history), so target-newer recency is preserved
-            # AFTER this squash by _preserve_target_newer_planning_artifacts
-            # (three-way rule in merge/planning_recency.py, #3942).
-            # This -X theirs invocation stays byte-identical.
-            result = subprocess.run(
-                ["git", "merge", "--squash", "-X", "theirs", source_branch],
-                cwd=str(tmp_path),
-                capture_output=True,
-                text=True,
-                env=_env,
-            )
-            if result.returncode != 0:
+            # #4892: ordinary source conflicts must remain visible. Registered
+            # artifact drivers and the history-aware planning policy are the
+            # only allowed auto-resolution authorities.
+            try:
+                planning_conflict_resolved = _run_squash_merge(
+                    repo_root,
+                    tmp_path,
+                    source_branch,
+                    target_branch,
+                    _env,
+                )
+            except RuntimeError:
                 subprocess.run(
                     ["git", "merge", "--abort"],
                     cwd=str(tmp_path),
                     capture_output=True,
                     env=_env,
                 )
-                raise RuntimeError(f"Squash merge of {source_branch} into {target_branch} failed: {result.stderr.strip() or result.stdout.strip()}")
+                raise
             # Squash merges do not record ancestry. On retry after a previous
             # successful squash, Git reports a clean index and a plain commit
             # would fail in this detached worktree with "Not currently on any
@@ -828,25 +1051,31 @@ def _merge_branch_into(
                 env=_env,
             )
             if staged.returncode == 0:
-                if allow_noop_squash:
+                if planning_conflict_resolved:
+                    pass
+                elif allow_noop_squash:
                     return False
-                raise RuntimeError(
-                    f"Squash merge of {source_branch} into {target_branch} "
-                    "produced no changes; target may already contain this tree. "
-                    "Retry with merge resume if recovering an interrupted merge."
-                )
+                else:
+                    raise RuntimeError(
+                        f"Squash merge of {source_branch} into {target_branch} "
+                        "produced no changes; target may already contain this tree. "
+                        "Retry with merge resume if recovering an interrupted merge."
+                    )
             if staged.returncode not in (0, 1):
                 raise RuntimeError(f"Could not inspect squash merge result for {source_branch} into {target_branch}: {staged.stderr.strip()}")
             # Commit the squashed result.
+            commit_command = [
+                "git",
+                "-c",
+                "commit.gpgsign=false",
+                "commit",
+                "-m",
+                f"feat({source_branch}): squash merge of mission",
+            ]
+            if planning_conflict_resolved:
+                commit_command.append("--allow-empty")
             result = subprocess.run(
-                [
-                    "git",
-                    "-c",
-                    "commit.gpgsign=false",
-                    "commit",
-                    "-m",
-                    f"feat({source_branch}): squash merge of mission",
-                ],
+                commit_command,
                 cwd=str(tmp_path),
                 capture_output=True,
                 text=True,
@@ -923,9 +1152,8 @@ def _merge_branch_into(
                 raise RuntimeError(f"Merge of {source_branch} into {target_branch} failed: {result.stderr.strip() or result.stdout.strip()}")
 
         # #3942: after the squash (never for merge/rebase), preserve any
-        # target-newer PRIMARY-partition planning artifact the ``-X theirs``
-        # resolution would otherwise clobber, amending it into the squash commit
-        # before the ref advances. Outside the byte-identical ``-X theirs`` block.
+        # target-newer PRIMARY-partition planning artifact not already handled
+        # during conflict resolution, amending it before the ref advances.
         if strategy == MergeStrategy.SQUASH:
             _preserve_target_newer_planning_artifacts(repo_root, tmp_path, source_branch, target_branch, _env)
 

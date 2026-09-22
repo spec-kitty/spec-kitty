@@ -133,6 +133,61 @@ def test_clean_forecast_json_payload_key_set(
     assert payload["push"] is False
 
 
+def test_squash_conflict_forecast_blocks_with_stable_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """#4892: dry-run must forecast the real squash content blocker."""
+    mission = create_mission_fixture(tmp_path)
+    write_work_package(mission, WorkPackageSpec(lane="approved"))
+    append_status_event(
+        mission,
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.APPROVED,
+        event_id="01KVXHDKFORECAST489200001",
+    )
+    _lanes_json_for(mission)
+    monkeypatch.setattr(
+        "specify_cli.merge.forecast.get_main_repo_root", lambda _r: mission.repo_root
+    )
+    preview = SimpleNamespace(conflicting_paths=("src/shared.py",))
+    monkeypatch.setattr(
+        forecast,
+        "preview_mission_target_integration",
+        lambda *_args, **_kwargs: preview,
+        raising=False,
+    )
+
+    with pytest.raises(typer.Exit) as exc:
+        forecast.run_dry_run_forecast(
+            repo_root=mission.repo_root,
+            resolved_feature=mission.mission_slug,
+            resolved_target_branch="main",
+            resolved_strategy=MergeStrategy.SQUASH,
+            delete_branch=True,
+            remove_worktree=True,
+            push=False,
+            json_output=True,
+        )
+
+    assert exc.value.exit_code == 1
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert payload == {
+        "spec_kitty_version": SPEC_KITTY_VERSION,
+        "mission_slug": mission.mission_slug,
+        "mission_branch": f"kitty/mission-{mission.mission_slug}",
+        "target_branch": "main",
+        "blocked": True,
+        "diagnostic_code": "TARGET_BRANCH_CONTENT_CONFLICT",
+        "conflicting_paths": ["src/shared.py"],
+        "remediation": [
+            "Update the mission branch against the current target branch.",
+            "Resolve the listed conflicts, then rerun `spec-kitty merge --dry-run`.",
+        ],
+    }
+
+
 def test_retaining_mission_forecast_reports_resolved_retention(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
