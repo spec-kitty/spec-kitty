@@ -1,0 +1,113 @@
+schema_version: 1
+mission_id: 01M3551GPHBTWW4SSPATKZ3V22
+mission_slug: squash-merge-target-safety-01M3551G
+mission_number:
+friendly_name: Squash merge target safety
+mission_type: software-dev
+target_branch: issue-4892-squash-merge-target-safety
+created_at: '2026-09-22T20:51:16.412788+00:00'
+created_by:
+  kind: human
+  id: cli
+  display: spec-kitty retrospect
+provenance:
+  kind: explicit_create
+  invoked_at: '2026-09-22T20:51:16.412788+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+  command: spec-kitty retrospect create
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped: []
+not_helpful:
+- id: n-002
+  category: implementation
+  summary: WP01 needed 2 implementation cycles
+  evidence_refs:
+  - e-008
+  details: WP WP01 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-007
+  details: WP WP01 was sent back from review/approval to an earlier lane 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/squash-merge-target-safety-01M3551G/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/squash-merge-target-safety-01M3551G/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/squash-merge-target-safety-01M3551G/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/squash-merge-target-safety-01M3551G/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/squash-merge-target-safety-01M3551G/tasks/WP01-fail-closed-squash-integration.md
+- id: e-006
+  kind: file
+  path: kitty-specs/squash-merge-target-safety-01M3551G/status.events.jsonl
+- id: e-007
+  kind: event_range
+  path: kitty-specs/squash-merge-target-safety-01M3551G/status.events.jsonl
+  range: 01M3584Q17KSYME6G7MQF0CRBP
+- id: e-008
+  kind: event_range
+  path: kitty-specs/squash-merge-target-safety-01M3551G/status.events.jsonl
+  range: implementation_cycles
+generator_version: '1.0'
+provenance_history:
+- kind: runtime_post_completion
+  invoked_at: '2026-09-22T19:29:29.952704+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
