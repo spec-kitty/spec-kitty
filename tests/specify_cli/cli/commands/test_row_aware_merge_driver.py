@@ -191,19 +191,31 @@ def test_issue_matrix_stale_side_does_not_resurrect_a_real_change() -> None:
     assert merged["rows"]["#100"]["verdict"] == "fixed"
 
 
-def test_issue_matrix_same_field_divergence_is_structured_conflict_not_silent_pick() -> None:
-    """Both sides change the SAME field to different values from base: neither
-    side silently wins, and the merge does not abort (2026-07-23-2)."""
+def test_issue_matrix_same_field_divergence_raises_fail_closed() -> None:
+    """Both sides change the SAME field (``verdict``, unknown -> fixed/wontfix)
+    to different values from base: neither side silently wins, and the merge
+    fails closed by raising rather than embedding a conflict marker into the
+    verdict-bearing document (fail-closed contract, #4880 / amended ADR
+    2026-07-23-2)."""
     base = _issue_doc({"#100": {"verdict": "unknown", "evidence_ref": "x"}})
     ours = _issue_doc({"#100": {"verdict": "fixed", "evidence_ref": "x"}})
     theirs = _issue_doc({"#100": {"verdict": "wontfix", "evidence_ref": "x"}})
 
-    merged = reconcile_issue_matrix_documents(base, ours, theirs)  # must not raise
+    with pytest.raises(RowMatrixMergeError, match="verdict"):
+        reconcile_issue_matrix_documents(base, ours, theirs)
 
-    verdict = merged["rows"]["#100"]["verdict"]
-    assert verdict not in ("fixed", "wontfix"), "neither side silently won"
-    assert "fixed" in verdict and "wontfix" in verdict, "both candidates preserved"
-    assert "<<<<<<<" in verdict and ">>>>>>>" in verdict
+
+def test_issue_matrix_authored_verdict_beats_unknown_sentinel_no_raise() -> None:
+    """An UNSET sentinel (``verdict == "unknown"``) is not an authored value: it
+    yields to the authored side instead of failing closed. This is the common
+    lane-merge case — one lane recorded a verdict, the other never did — and it
+    must NOT abort the merge (#4880 sentinel-yield refinement)."""
+    base = _issue_doc({})
+    ours = _issue_doc({"#100": {"verdict": "verified-already-fixed", "evidence_ref": "x"}})
+    theirs = _issue_doc({"#100": {"verdict": "unknown", "evidence_ref": "x"}})
+
+    merged = reconcile_issue_matrix_documents(base, ours, theirs)
+    assert merged["rows"]["#100"]["verdict"] == "verified-already-fixed"
 
 
 def test_issue_matrix_intra_side_duplicate_key_raises_never_silent_drop() -> None:
@@ -303,6 +315,92 @@ def test_merge_driver_acceptance_matrix_rejects_corrupt_json_exit1(tmp_path: Pat
     assert excinfo.value.exit_code == 1
 
 
+def test_merge_driver_acceptance_matrix_rejects_both_sides_pass_fail_conflict_exit1(
+    tmp_path: Path,
+) -> None:
+    """FR-002 CLI-exit contract: the real CLI entrypoint, not just the
+    reconciler, refuses a both-sides ``pass_fail`` divergence -- exit 1, not
+    a silently-written marker document (#4880)."""
+    import typer
+
+    base, ours, theirs = tmp_path / "O", tmp_path / "A", tmp_path / "B"
+    base.write_text(
+        json.dumps(
+            _acceptance_doc(
+                [
+                    {
+                        "criterion_id": "FR-001",
+                        "description": "d",
+                        "proof_type": "automated_test",
+                        "pass_fail": "pending",
+                    }
+                ]
+            )
+        ),
+        encoding="utf-8",
+    )
+    ours.write_text(
+        json.dumps(
+            _acceptance_doc(
+                [
+                    {
+                        "criterion_id": "FR-001",
+                        "description": "d",
+                        "proof_type": "automated_test",
+                        "pass_fail": "pass",
+                    }
+                ]
+            )
+        ),
+        encoding="utf-8",
+    )
+    theirs.write_text(
+        json.dumps(
+            _acceptance_doc(
+                [
+                    {
+                        "criterion_id": "FR-001",
+                        "description": "d",
+                        "proof_type": "automated_test",
+                        "pass_fail": "fail",
+                    }
+                ]
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(typer.Exit) as excinfo:
+        merge_driver_acceptance_matrix(str(base), str(ours), str(theirs))
+    assert excinfo.value.exit_code == 1
+
+
+def test_merge_driver_issue_matrix_rejects_both_sides_verdict_conflict_exit1(
+    tmp_path: Path,
+) -> None:
+    """FR-002 CLI-exit twin for the issue-matrix driver: a both-sides
+    ``verdict`` divergence exits 1 through the real CLI entrypoint."""
+    import typer
+
+    base, ours, theirs = tmp_path / "O", tmp_path / "A", tmp_path / "B"
+    base.write_text(
+        json.dumps(_issue_doc({"#100": {"verdict": "unknown", "evidence_ref": "x"}})),
+        encoding="utf-8",
+    )
+    ours.write_text(
+        json.dumps(_issue_doc({"#100": {"verdict": "fixed", "evidence_ref": "x"}})),
+        encoding="utf-8",
+    )
+    theirs.write_text(
+        json.dumps(_issue_doc({"#100": {"verdict": "wontfix", "evidence_ref": "x"}})),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(typer.Exit) as excinfo:
+        merge_driver_issue_matrix(str(base), str(ours), str(theirs))
+    assert excinfo.value.exit_code == 1
+
+
 # ---------------------------------------------------------------------------
 # T042 -- acceptance-matrix.json driver-unit tests (synthetic %O)
 # ---------------------------------------------------------------------------
@@ -376,7 +474,11 @@ def test_acceptance_matrix_stale_residue_dropped() -> None:
     assert merged["criteria"] == []
 
 
-def test_acceptance_matrix_same_field_conflict_never_silent_pick() -> None:
+def test_acceptance_matrix_same_field_conflict_raises_fail_closed() -> None:
+    """A same-key both-sides ``pass_fail`` divergence (pending -> pass/fail,
+    the direct #4880 repro) is refused, not silently embedded as an in-band
+    conflict marker inside a verdict-bearing document (fail-closed contract,
+    #4880 / amended ADR 2026-07-23-2)."""
     base = _acceptance_doc(
         [{"criterion_id": "FR-001", "description": "d", "proof_type": "automated_test", "pass_fail": "pending"}]
     )
@@ -387,12 +489,26 @@ def test_acceptance_matrix_same_field_conflict_never_silent_pick() -> None:
         [{"criterion_id": "FR-001", "description": "d", "proof_type": "automated_test", "pass_fail": "fail"}]
     )
 
-    merged = reconcile_acceptance_matrix_documents(base, ours, theirs)  # must not raise
+    with pytest.raises(RowMatrixMergeError, match="pass_fail"):
+        reconcile_acceptance_matrix_documents(base, ours, theirs)
 
+
+def test_acceptance_matrix_authored_pass_fail_beats_pending_sentinel_no_raise() -> None:
+    """An UNSET sentinel (``pass_fail == "pending"``) yields to the authored
+    side rather than failing closed — one lane graded the criterion, the other
+    left it pending. Must NOT abort the merge (#4880 sentinel-yield refinement);
+    contrast with the two-authored pass-vs-fail case above, which still raises."""
+    base = _acceptance_doc([])
+    ours = _acceptance_doc(
+        [{"criterion_id": "FR-001", "description": "d", "proof_type": "automated_test", "pass_fail": "pass"}]
+    )
+    theirs = _acceptance_doc(
+        [{"criterion_id": "FR-001", "description": "d", "proof_type": "automated_test", "pass_fail": "pending"}]
+    )
+
+    merged = reconcile_acceptance_matrix_documents(base, ours, theirs)
     (criterion,) = merged["criteria"]
-    pass_fail = criterion["pass_fail"]
-    assert pass_fail not in ("pass", "fail")
-    assert "pass" in pass_fail and "fail" in pass_fail
+    assert criterion["pass_fail"] == "pass"
 
 
 def test_acceptance_matrix_intra_side_duplicate_criterion_id_raises() -> None:

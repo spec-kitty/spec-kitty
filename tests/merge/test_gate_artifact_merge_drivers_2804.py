@@ -42,6 +42,7 @@ import pytest
 
 from specify_cli.acceptance.matrix import SCAFFOLD_TODO_MARKER, VERDICT_PASS_PENDING_CONSOLIDATION
 from specify_cli.cli.commands.merge_driver import (
+    RowMatrixMergeError,
     reconcile_acceptance_matrix_documents,
     reconcile_issue_matrix_documents,
 )
@@ -171,18 +172,20 @@ def test_a2_filled_theirs_survives_scaffold_ours_equal_base() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T003 -- A3: evidence survives inside a conflict marker (FR-003)
+# T003 -- A3: prose divergence with equal pass_fail raises fail-closed (FR-003)
 # ---------------------------------------------------------------------------
 
 
-def test_a3_evidence_survives_inside_conflict_marker() -> None:
-    """F1 (post-plan-squad-findings.md): ``pass_fail`` MUST be equal on both
-    sides (both ``pending``) -- a divergent ``pass_fail`` add/add would itself
-    become an unrecognized verdict string and recompute to ``fail``, which is
-    not what this test is pinning. ``theirs.evidence`` MUST be non-None and
-    != the handle so the ``evidence`` field genuinely diverges from both
-    ``ours`` and base (base is absent, so an equal-to-base check can't apply)
-    and a real conflict marker is produced -- not merely inherited."""
+def test_a3_prose_divergence_with_equal_pass_fail_prefers_target_no_abort() -> None:
+    """``pass_fail`` is equal on both sides (both ``pending``); only PROSE
+    (``description``/``evidence``/``notes``) diverges — the target (``ours``,
+    filled) carries real content, the incoming lane carries a scaffold
+    placeholder. #4880 fails closed only on a genuinely-diverged VERDICT-
+    authority field; a NON-verdict field never aborts and never embeds a
+    conflict marker — it prefers the target side (#2804 / #1732 target-
+    authoritative tie convention, so a filled row survives a scaffold on the
+    other side). The merge therefore resolves cleanly, keeping ``ours``' prose,
+    and no marker string is embedded."""
     base: dict[str, Any] = {}
     ours = {
         "criteria": [
@@ -211,14 +214,12 @@ def test_a3_evidence_survives_inside_conflict_marker() -> None:
 
     merged = reconcile_acceptance_matrix_documents(base, ours, theirs)
 
-    merged_evidence = merged["criteria"][0]["evidence"]
-    assert ACCEPTED_EVIDENCE_HANDLE in json.dumps(merged)
-    assert "<<<<<<< ours" in merged_evidence
-    # Never assert SCAFFOLD_TODO_MARKER absence here -- the marker string
-    # legitimately contains the scaffold side's conflicting text.
-    assert merged["overall_verdict"] == "pending"
-    assert merged["overall_verdict"] in ADMISSIBLE_MERGED_VERDICTS
-    assert merged["overall_verdict"] != "fail"
+    (criterion,) = merged["criteria"]
+    assert criterion["evidence"] == ACCEPTED_EVIDENCE_HANDLE  # target's filled prose survives
+    assert criterion["description"] == "real description"
+    assert criterion["notes"] == "real notes"
+    assert "<<<<<<<" not in json.dumps(merged)  # no conflict marker embedded
+    assert merged["overall_verdict"] != "fail"  # pass_fail unchanged (pending), no silent flip
 
 
 def test_a3_control_scaffold_only_drops_the_handle() -> None:
