@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "mission_slug": "squash-merge-target-safety-01M3551G",
+  "mission_id": "01M3551GPHBTWW4SSPATKZ3V22",
+  "mission_branch": "kitty/mission-squash-merge-target-safety-01M3551G",
+  "target_branch": "issue-4892-squash-merge-target-safety",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/recovery/troubleshoot-merge.md",
+        "src/specify_cli/lanes/merge.py",
+        "src/specify_cli/merge/forecast.py",
+        "tests/lanes/test_merge.py",
+        "tests/merge/test_forecast_seam.py",
+        "tests/merge/test_squash_target_newer_planning_3942.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-22T18:25:13.810973+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "c4da1335712bf66d0c1f8afe7d02398ebd05c6b0"
+}

@@ -1,0 +1,7 @@
+source_id,source_type,location,title,accessed_at,notes
+S-001,github_issue,https://github.com/spec-kitty/spec-kitty/issues/4892,Default squash merge silently reverts target source changes,2026-09-22,Primary defect report and executable reproduction
+S-002,source,src/specify_cli/lanes/merge.py,Mission-to-target branch integration,2026-09-22,Contains blanket -X theirs and isolated worktree/ref-advance boundary
+S-003,source,src/specify_cli/merge/forecast.py,Merge dry-run forecast,2026-09-22,Current preview omits Git conflict readiness
+S-004,source,src/specify_cli/merge/planning_recency.py,Target-newer planning artifact authority,2026-09-22,Existing path-scoped reconciliation must survive
+S-005,test,tests/merge/test_forecast_seam.py,Dry-run forecast contract tests,2026-09-22,Successful JSON key set is frozen
+S-006,glossary,docs/context/orchestration.md,Canonical orchestration terminology,2026-09-22,Defines branch integration target branch and lane consolidation
