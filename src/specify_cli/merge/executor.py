@@ -75,7 +75,12 @@ from specify_cli.git.destructive_guard import (
 from specify_cli.merge.git_probes import _paths_have_status_changes
 from specify_cli.git.sparse_checkout import require_no_sparse_checkout
 from specify_cli.lanes.persistence import read_lanes_json, require_lanes_json
-from specify_cli.merge._constants import _STATUS_EVENTS_FILENAME, _STATUS_FILENAME, logger
+from specify_cli.merge._constants import (
+    _STATUS_EVENTS_FILENAME,
+    _STATUS_FILENAME,
+    TARGET_BRANCH_CONTENT_CONFLICT,
+    logger,
+)
 from specify_cli.merge.baseline import (
     BaselineMergeCommitError,
     assert_baseline_merge_commit_on_target as _assert_baseline_merge_commit_on_target,
@@ -1223,6 +1228,31 @@ def _reject_zero_diff_noop_squash(run: _MergeRunState) -> None:
     raise typer.Exit(1)
 
 
+def _emit_mission_target_content_conflict(
+    run: _MergeRunState,
+    mission_result: MissionMergeResult,
+) -> None:
+    """Print the #4892 target-content conflict with the SAME code/remediation as ``--dry-run``.
+
+    The real merge previously printed only plain prose here while the dry-run
+    forecast emitted a structured ``TARGET_BRANCH_CONTENT_CONFLICT`` code — so an
+    operator who trusted the preview got a different, less actionable message on
+    the real run. Both paths now speak the same diagnostic vocabulary.
+    """
+    lanes_manifest = run.lanes_manifest
+    console.print(
+        "[red]Error:[/red] Default squash integration would conflict with "
+        "newer target-branch content."
+    )
+    console.print(f"  diagnostic_code: {TARGET_BRANCH_CONTENT_CONFLICT}")
+    console.print(f"  mission_branch: {lanes_manifest.mission_branch}")
+    console.print(f"  target_branch: {lanes_manifest.target_branch}")
+    for path in mission_result.conflicting_paths:
+        console.print(f"  conflicting_path: {path}")
+    console.print("  remediation: Update the mission branch against the current target branch.")
+    console.print("  remediation: Resolve the listed conflicts, then rerun `spec-kitty merge`.")
+
+
 def _handle_mission_merge_result(
     run: _MergeRunState,
     mission_result: MissionMergeResult,
@@ -1240,6 +1270,19 @@ def _handle_mission_merge_result(
         _reject_zero_diff_noop_squash(run)
 
     if not mission_result.success:
+        # #4892: a real target-content conflict carries structured paths. NEVER
+        # let the resume "already merged" tolerance below fire for it — the
+        # tolerance is a substring match on ``errors`` and a conflicting path
+        # such as ``tests/test_already_applied.py`` would otherwise read as
+        # "already merged" and continue to done-marking/cleanup while the target
+        # never moved. Report the SAME diagnostic code + remediation the
+        # ``--dry-run`` forecast emits, then fail closed. (``getattr`` mirrors the
+        # defensive ``already_applied`` read above — a real ``MissionMergeResult``
+        # always carries the field.)
+        if getattr(mission_result, "conflicting_paths", ()):
+            _emit_mission_target_content_conflict(run, mission_result)
+            _restore_pre_target_if_at_baseline(run)
+            raise typer.Exit(1)
         # T005: tolerate already-merged on retry
         already_merged = any("already" in e.lower() or "up to date" in e.lower() for e in mission_result.errors)
         if run.is_resume and already_merged:

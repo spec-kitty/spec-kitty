@@ -28,7 +28,7 @@ from specify_cli.lanes.persistence import (
     require_lanes_json,
 )
 from specify_cli.lanes.merge import preview_mission_target_integration
-from specify_cli.merge._constants import logger
+from specify_cli.merge._constants import TARGET_BRANCH_CONTENT_CONFLICT, logger
 from specify_cli.merge.config import MergeStrategy
 from specify_cli.merge.ordering import assign_next_mission_number
 from specify_cli.merge.state import needs_number_assignment
@@ -40,9 +40,6 @@ from specify_cli.post_merge.review_artifact_consistency import (
     review_artifact_finding_diagnostic,
     run_review_artifact_consistency_preflight,
 )
-
-
-TARGET_BRANCH_CONTENT_CONFLICT = "TARGET_BRANCH_CONTENT_CONFLICT"
 
 
 def _emit_dry_run_error(*, error_msg: str, json_output: bool) -> None:

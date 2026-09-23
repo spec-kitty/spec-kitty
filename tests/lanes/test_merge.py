@@ -284,6 +284,42 @@ class TestMergeMissionToTarget:
         assert _git_stdout(repo, "branch", "--show-current") == "main"
         assert (repo / "src/shared.py").read_bytes() == bytes_before
 
+    def test_squash_conflict_carries_structured_paths_and_code(self, tmp_path):
+        """#4892: the conflict is structured data, not just ``errors`` prose.
+
+        The executor's ``--resume`` tolerance is a substring match on ``errors``
+        for "already"/"up to date". A conflicting path that literally contains
+        "already" would read as "already merged" and slip a real conflict through
+        resume — so the result must expose ``conflicting_paths`` and the shared
+        ``TARGET_BRANCH_CONTENT_CONFLICT`` code for callers to gate on.
+        """
+        repo = _make_repo(tmp_path)
+        manifest = _make_manifest()
+        conflicting = "src/test_already_applied.py"
+        _commit(repo, conflicting, "VALUE = 1\n", "shared source base")
+
+        _run(["git", "branch", manifest.mission_branch], repo)
+        _run(["git", "checkout", manifest.mission_branch], repo)
+        _commit(repo, conflicting, "VALUE = 100\n", "mission value")
+
+        _run(["git", "checkout", "main"], repo)
+        _commit(repo, conflicting, "VALUE = 777\n", "target hotfix")
+
+        result = integrate_mission_into_target(
+            repo,
+            "010-feat",
+            manifest,
+            strategy=MergeStrategy.SQUASH,
+        )
+
+        assert result.success is False
+        assert result.conflicting_paths == (conflicting,)
+        assert result.diagnostic_code == "TARGET_BRANCH_CONTENT_CONFLICT"
+        # The path contains "already" — the very substring the resume tolerance
+        # keys on — proving callers must gate on ``conflicting_paths``, never the
+        # message text.
+        assert "already" in result.errors[0].lower()
+
     def test_squash_combines_disjoint_same_file_changes(self, tmp_path):
         repo = _make_repo(tmp_path)
         manifest = _make_manifest()

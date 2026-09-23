@@ -30,6 +30,7 @@ from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path as _
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.lanes.stale_check import StaleCheckResult, check_lane_staleness
+from specify_cli.merge._constants import TARGET_BRANCH_CONTENT_CONFLICT
 from specify_cli.merge.config import MergeStrategy
 
 
@@ -142,6 +143,15 @@ class MissionMergeResult:
     commit: str | None = None
     already_applied: bool = False
     errors: list[str] = field(default_factory=list)
+    # #4892: when the squash left unresolved content conflicts, carry the paths
+    # and diagnostic code as STRUCTURED data — never fold them into ``errors``
+    # prose alone. The executor's ``--resume`` "already merged" tolerance is a
+    # substring match on ``errors``; a conflicting path such as
+    # ``tests/test_already_applied.py`` would otherwise read as "already merged"
+    # and let a real conflict slip through resume. Callers gate on this field,
+    # not on the message text.
+    conflicting_paths: tuple[str, ...] = ()
+    diagnostic_code: str | None = None
 
 
 @dataclass(frozen=True)
@@ -361,6 +371,20 @@ def integrate_mission_into_target(
             target_branch,
             strategy=strategy,
             allow_noop_squash=allow_already_applied,
+        )
+    except _SquashMergeConflict as exc:
+        # #4892: a genuine target-content conflict. Surface the paths as
+        # structured data (never only as ``errors`` prose) and tag the shared
+        # diagnostic code so the real merge reports exactly what ``--dry-run``
+        # reports — and so the resume tolerance can never mistake it for
+        # "already merged".
+        return MissionMergeResult(
+            success=False,
+            mission_branch=mission_branch,
+            target_branch=target_branch,
+            errors=[str(exc)],
+            conflicting_paths=exc.conflicting_paths,
+            diagnostic_code=TARGET_BRANCH_CONTENT_CONFLICT,
         )
     except RuntimeError as e:
         return MissionMergeResult(
