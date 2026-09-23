@@ -19,6 +19,9 @@ names across calls.
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -387,3 +390,31 @@ def test_permanent_setup_failure_is_reported_as_error_not_warning(monkeypatch: p
     output = capsys.readouterr().out
     assert "::error::wait-for-artifacts: unexpected error" in output
     assert "::warning::wait-for-artifacts: unexpected error" not in output
+
+
+def test_script_runs_as_a_bare_subprocess_without_import_error() -> None:
+    """RED-FIRST for the #4932 landing regression: ci-aggregate.yml invokes this
+    step as a bare ``python3 scripts/ci/wait_for_artifacts.py`` -- a direct
+    script run, not ``python -m`` and not an installed console entry -- so the
+    repo root is NOT on ``sys.path`` and the module's ``from scripts.ci.*``
+    imports raise ``ModuleNotFoundError: No module named 'scripts'`` unless the
+    module bootstraps the repo root onto ``sys.path`` itself. Every other test
+    in this file imports the module through pytest (which already has the path),
+    and ci-aggregate.yml only runs on ``main`` (workflow_run), so this crash is
+    invisible to both the unit suite and PR CI -- it can only be caught by
+    invoking the script exactly as the workflow does, with ``PYTHONPATH`` unset.
+    With no ``SOURCE_RUN_ID`` the script fails closed and falls through (exit 0);
+    the assertion is only that the import did not crash.
+    """
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    proc = subprocess.run(
+        [sys.executable, str(_REPO_ROOT / "scripts" / "ci" / "wait_for_artifacts.py")],
+        cwd=_REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    combined = proc.stdout + proc.stderr
+    assert "ModuleNotFoundError" not in combined, combined
+    assert "No module named 'scripts'" not in combined, combined

@@ -21,17 +21,27 @@ import os
 import sys
 import time
 from collections.abc import Callable
+from pathlib import Path
 
-from scripts.ci.fleet_verdict import GitHub
-from scripts.ci.reconcile_retry import retry_with_backoff
-from scripts.ci.reconcile_shards import (
+# Support direct ``python3 scripts/ci/wait_for_artifacts.py`` invocation, which is
+# how ci-aggregate.yml runs this step (no editable install, cwd not on sys.path as
+# the repo root). Put the repo root on sys.path so the ``scripts.ci.*`` siblings
+# below import, mirroring select_source_artifacts.py / capture_shard_timings.py.
+# Without this the step crashes at import with ``ModuleNotFoundError: No module
+# named 'scripts'`` — and because ci-aggregate only runs on main (workflow_run),
+# that crash cannot surface until after merge.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.ci.fleet_verdict import GitHub  # noqa: E402
+from scripts.ci.reconcile_retry import retry_with_backoff  # noqa: E402
+from scripts.ci.reconcile_shards import (  # noqa: E402
     DEFAULT_REGISTRY_PATH,
     DEFAULT_SELECTED_PATH,
     RegistryShard,
     parse_registry,
     read_selected_modules,
 )
-from scripts.ci.select_source_artifacts import ARTIFACT
+from scripts.ci.select_source_artifacts import ARTIFACT  # noqa: E402
 
 __all__ = [
     "MAX_ATTEMPTS",
