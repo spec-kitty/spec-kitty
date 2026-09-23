@@ -274,11 +274,13 @@ def run_dry_run_forecast(
             resolved_target_branch,
             strategy=resolved_strategy,
         )
-    except RuntimeError as exc:
+    except (RuntimeError, OSError) as exc:
         # A *non-conflict* preview failure — unrelated histories, a failed
-        # ``git worktree add``, an operational git error. Route it through the
-        # same channel as every other dry-run error so ``--json`` output stays
-        # valid JSON (a raw traceback would corrupt it) and terminate the path.
+        # ``git worktree add`` (RuntimeError), or an OS-level failure from the
+        # scratch worktree (mkdtemp / write_bytes / fsdecode → OSError). Route it
+        # through the same channel as every other dry-run error so ``--json``
+        # output stays valid JSON (a raw traceback would corrupt it) and
+        # terminate the path.
         _emit_dry_run_error(error_msg=str(exc), json_output=json_output)
         raise typer.Exit(1) from exc
     if integration_preview.conflicting_paths:

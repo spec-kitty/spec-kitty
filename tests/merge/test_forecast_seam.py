@@ -604,3 +604,48 @@ def test_preview_runtime_error_routes_through_dry_run_error(
     # --json output must remain valid JSON, carrying the error — never a traceback.
     payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     assert "Failed to create merge preview worktree" in payload["error"]
+
+
+def test_preview_oserror_routes_through_dry_run_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An OS-level preview failure (mkdtemp/write_bytes/fsdecode) also stays JSON.
+
+    The scratch-worktree machinery can raise ``OSError``, not just
+    ``RuntimeError``; ``--dry-run --json`` must still emit valid JSON, not a
+    traceback.
+    """
+    mission = create_mission_fixture(tmp_path)
+    write_work_package(mission, WorkPackageSpec(lane="approved"))
+    append_status_event(
+        mission,
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.APPROVED,
+        event_id="01KVXHDKFORECAST489200004",
+    )
+    _lanes_json_for(mission)
+    monkeypatch.setattr(
+        "specify_cli.merge.forecast.get_main_repo_root", lambda _r: mission.repo_root
+    )
+
+    def _boom(*_args: object, **_kwargs: object) -> object:
+        raise OSError("No space left on device")
+
+    monkeypatch.setattr(
+        forecast, "preview_mission_target_integration", _boom, raising=False
+    )
+
+    with pytest.raises(typer.Exit) as exc:
+        forecast.run_dry_run_forecast(
+            repo_root=mission.repo_root,
+            resolved_feature=mission.mission_slug,
+            resolved_target_branch="main",
+            resolved_strategy=MergeStrategy.SQUASH,
+            delete_branch=True,
+            remove_worktree=True,
+            push=False,
+            json_output=True,
+        )
+    assert exc.value.exit_code == 1
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert "No space left on device" in payload["error"]
