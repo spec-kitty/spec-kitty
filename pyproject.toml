@@ -489,7 +489,6 @@ exclude = [
     "src/specify_cli/charter_runtime/lint/findings.py",
     "src/specify_cli/charter_runtime/preflight/cli.py",
     "src/specify_cli/charter_runtime/preflight/runner.py",
-    "src/specify_cli/cli/commands/__init__.py",
     "src/specify_cli/cli/commands/_auth_login.py",
     "src/specify_cli/cli/commands/_auth_recovery.py",
     "src/specify_cli/cli/commands/_branch_strategy_gate.py",
