@@ -10,6 +10,7 @@
   "purpose_context": "Three independently-reproduced QA P0s share a family: a documented operation performs a destructive write on healthy input, returns exit 0/errors 0, and warns nothing. Fixes are seam-respecting per-issue (SSOT read; shared authoritative-event-type registry; section-level union), not routed through the path-level asset_preservation guard.",
   "purpose_tldr": "Close three exit-0 silent-data-loss defects (#4908 charter recompile, #4897 mission-state --fix, #4894 merge-driver-traces) by reading the SSOT / preserving-unless-proven-redundant.",
   "slug": "silent-destructive-write-hardening-01M355VK",
+  "status_phase": "1",
   "target_branch": "fix/silent-destructive-write-hardening",
   "topology": "single_branch",
   "vcs": "git",
