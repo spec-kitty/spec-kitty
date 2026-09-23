@@ -6,10 +6,7 @@ from pathlib import Path
 import re
 from typing import TYPE_CHECKING
 
-from ruamel.yaml.error import YAMLError
-
-from charter.bundle import CHARTER_YAML
-from charter.activation.charter_yaml_io import load_charter_yaml
+from charter.activation.charter_yaml_io import read_catalog_field
 from charter.activation.interview import read_interview_answers
 from charter.offering.shared.scoping import normalize_languages
 
@@ -57,24 +54,17 @@ def _read_compiled_languages(repo_root: Path) -> list[str] | None:
 
     Tier-1, authoritative post-inversion (WP08): reads ``charter.yaml``'s
     ``catalog.languages`` rather than the retired ``references.yaml``.
+
+    Reads through the single shared ``catalog.<field>`` accessor
+    (:func:`charter.activation.charter_yaml_io.read_catalog_field`,
+    Finding B / #4993) -- absent file, unparseable document, absent
+    ``catalog``, and absent ``languages`` all collapse to the accessor's
+    uniform ``None``, which this function's own ``isinstance(languages,
+    list)`` guard below already treats identically to a present-but-null
+    or non-list value (byte-identical behavior to the prior hand-rolled
+    read).
     """
-    charter_yaml_path = repo_root / CHARTER_YAML
-    if not charter_yaml_path.exists():
-        return None
-
-    try:
-        document = load_charter_yaml(charter_yaml_path)
-    except (YAMLError, OSError, UnicodeDecodeError):
-        # Malformed or unreadable charter.yaml falls back to the
-        # pre-existing resolution path rather than hard-failing charter
-        # language resolution.
-        return None
-
-    catalog = document.get("catalog") if isinstance(document, dict) else None
-    if not isinstance(catalog, dict) or "languages" not in catalog:
-        return None
-
-    languages = catalog["languages"]
+    languages = read_catalog_field(repo_root, "languages")
     if not isinstance(languages, list):
         return None
 

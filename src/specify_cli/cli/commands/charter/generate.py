@@ -214,29 +214,13 @@ def _read_catalog_mission_from_charter_yaml(repo_root: Path) -> str | None:
     Returns ``None`` when ``charter.yaml`` is absent, unreadable, or its
     ``catalog.mission`` field is missing/blank -- callers treat every one of
     those as "no signal here" and fall back to the next SSOT, never as an
-    error. Mirrors the established fail-open read pattern
-    ``charter.activation.language_scope._read_compiled_languages`` already
-    uses for the same file/section.
+    error. Delegates to the single shared ``catalog.<field>`` reader
+    (``charter.activation.charter_yaml_io.read_catalog_mission``, Finding B
+    / #4993) rather than re-implementing the ``charter.yaml`` read.
     """
-    from ruamel.yaml.error import YAMLError
+    from charter.activation.charter_yaml_io import read_catalog_mission
 
-    from charter.activation.charter_yaml_io import load_charter_yaml
-    from charter.bundle import CHARTER_YAML
-
-    charter_yaml_path = repo_root / CHARTER_YAML
-    if not charter_yaml_path.exists():
-        return None
-
-    try:
-        document = load_charter_yaml(charter_yaml_path)
-    except (YAMLError, OSError, UnicodeDecodeError):
-        return None
-
-    catalog = document.get("catalog") if isinstance(document, dict) else None
-    if not isinstance(catalog, dict):
-        return None
-
-    mission = catalog.get("mission")
+    mission = read_catalog_mission(repo_root)
     return mission if isinstance(mission, str) and mission.strip() else None
 
 

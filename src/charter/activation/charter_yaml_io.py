@@ -29,9 +29,12 @@ from typing import Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.error import YAMLError
 from ruamel.yaml.events import DocumentEndEvent, DocumentStartEvent
 from ruamel.yaml.nodes import MappingNode
 from ruamel.yaml.tokens import AliasToken, KeyToken
+
+from charter.bundle import CHARTER_YAML
 
 __all__ = [
     "OWNED_SECTIONS",
@@ -46,6 +49,8 @@ __all__ = [
     "render_yaml_document",
     "prepare_charter_yaml_section",
     "yaml_documents_equal",
+    "read_catalog_field",
+    "read_catalog_mission",
 ]
 
 
@@ -527,6 +532,44 @@ def save_charter_yaml(path: Path, document: Any) -> None:
     before = observe_yaml_input(path)
     desired = render_yaml_document(before.content, document, _yaml_loader())
     apply_yaml_write(prepare_yaml_write(path, desired, section="document", inputs=(before,)))
+
+
+def read_catalog_field(repo_root: Path, field: str) -> Any | None:
+    """Read a single ``catalog.<field>`` value from ``charter.yaml`` (Finding B, #4993).
+
+    The ONE shared reader for every ``catalog.*`` field: prior to this, at
+    least two independent call sites each hand-rolled their own
+    ``catalog.mission`` read (one via the canonical round-trip
+    :func:`load_charter_yaml`, the other via an ad-hoc ``YAML(typ="safe")``
+    parser) -- a parser-drift risk over a single field. This is now the
+    single canonical read path; callers delegate rather than re-implement.
+
+    Returns ``None`` when ``charter.yaml`` does not exist, is unparseable
+    (``YAMLError``/``OSError``/``UnicodeDecodeError``), its ``catalog``
+    section is absent or not a mapping, or ``field`` itself is absent from
+    that section -- a uniform "no signal here" result for every caller.
+    Mirrors the fail-open shape ``charter.activation.language_scope.
+    _read_compiled_languages`` already used for this same file/section.
+    """
+    charter_yaml_path = repo_root / CHARTER_YAML
+    if not charter_yaml_path.exists():
+        return None
+
+    try:
+        document = load_charter_yaml(charter_yaml_path)
+    except (YAMLError, OSError, UnicodeDecodeError):
+        return None
+
+    catalog = document.get("catalog") if isinstance(document, dict) else None
+    if not isinstance(catalog, dict):
+        return None
+
+    return catalog.get(field)
+
+
+def read_catalog_mission(repo_root: Path) -> Any | None:
+    """Read ``catalog.mission`` -- thin wrapper over :func:`read_catalog_field`."""
+    return read_catalog_field(repo_root, "mission")
 
 
 def _validate_section(section: str, values: dict[str, Any]) -> None:

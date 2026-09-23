@@ -31,6 +31,7 @@ exactly the operator action issue #4908 pins. Contract:
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -38,6 +39,7 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
+from charter.activation.charter_yaml_io import read_catalog_field, read_catalog_mission
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.cli.commands.charter.generate import (
     _read_catalog_mission_from_charter_yaml,
@@ -248,3 +250,99 @@ def test_resolve_recorded_mission_type_malformed_answers_falls_back_to_compiled_
     answers_path.write_text("not: [a, valid, mapping\n", encoding="utf-8")
 
     assert _resolve_recorded_mission_type(tmp_path, answers_path) == "research"
+
+
+# ---------------------------------------------------------------------------
+# T010 -- shared ``catalog.mission`` accessor (Finding B, #4993)
+# ---------------------------------------------------------------------------
+
+
+def test_read_catalog_field_returns_none_when_charter_yaml_absent(tmp_path: Path) -> None:
+    assert read_catalog_field(tmp_path, "mission") is None
+    assert read_catalog_mission(tmp_path) is None
+
+
+def test_read_catalog_field_returns_recorded_value(tmp_path: Path) -> None:
+    _write_charter_yaml(tmp_path, mission="research")
+
+    assert read_catalog_field(tmp_path, "mission") == "research"
+    assert read_catalog_mission(tmp_path) == "research"
+
+
+def test_read_catalog_field_returns_none_when_catalog_section_absent(tmp_path: Path) -> None:
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
+
+    assert read_catalog_field(tmp_path, "mission") is None
+
+
+def test_read_catalog_field_returns_none_when_field_absent_from_catalog(tmp_path: Path) -> None:
+    _write_charter_yaml(tmp_path, mission=None)
+
+    assert read_catalog_field(tmp_path, "mission") is None
+
+
+def test_read_catalog_field_returns_none_on_malformed_yaml(tmp_path: Path) -> None:
+    """A corrupt ``charter.yaml`` must degrade to ``None``, never raise."""
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    (charter_dir / "charter.yaml").write_text("catalog: [unterminated\n", encoding="utf-8")
+
+    assert read_catalog_field(tmp_path, "mission") is None
+
+
+def test_read_catalog_field_resolves_quoted_commented_value_identically(tmp_path: Path) -> None:
+    """A quoted ``catalog.mission`` value with a trailing inline comment must
+    resolve to the same plain string as an unquoted, uncommented one -- the
+    accessor's canonical ruamel round-trip parser (``preserve_quotes``) must
+    not leak quote markers or comment text into the returned value."""
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    (charter_dir / "charter.yaml").write_text(
+        'schema_version: "2.0.0"\ncatalog:\n  mission: "research"  # recorded at compile time\n  references: []\n',
+        encoding="utf-8",
+    )
+
+    assert read_catalog_field(tmp_path, "mission") == "research"
+    assert read_catalog_mission(tmp_path) == "research"
+
+
+def test_generate_reader_and_shared_accessor_resolve_identical_value(tmp_path: Path) -> None:
+    """AC-B1: both former readers resolve the SAME value through the one
+    shared accessor for a normal charter."""
+    _write_charter_yaml(tmp_path, mission="research")
+
+    assert _read_catalog_mission_from_charter_yaml(tmp_path) == read_catalog_mission(tmp_path) == "research"
+
+
+def test_generate_reader_and_shared_accessor_agree_on_absent_result(tmp_path: Path) -> None:
+    """AC-B2: absent ``catalog.mission`` yields the same absent result to
+    every caller."""
+    _write_charter_yaml(tmp_path, mission=None)
+
+    assert _read_catalog_mission_from_charter_yaml(tmp_path) is None
+    assert read_catalog_mission(tmp_path) is None
+
+
+def test_catalog_mission_has_exactly_one_reader_outside_the_shared_accessor() -> None:
+    """AC-B3 / NFR-003 / SC-002 grep proof: no second ``catalog.mission``
+    parser survives outside ``charter_yaml_io.read_catalog_field`` /
+    ``read_catalog_mission``. Issue #4993 claimed three readers; the true
+    count was two (the claimed third read ``catalog.languages``) -- both
+    now delegate, so a direct ``catalog["mission"]`` / ``catalog.get(
+    "mission")`` read anywhere in ``src/`` other than the accessor itself is
+    a regression."""
+    repo_root = Path(__file__).resolve().parents[5]
+    accessor_path = repo_root / "src" / "charter" / "activation" / "charter_yaml_io.py"
+    pattern = re.compile(r"""catalog(\.get\(|\[)["']mission["']""")
+
+    hits: list[str] = []
+    for path in (repo_root / "src").rglob("*.py"):
+        if path == accessor_path:
+            continue
+        text = path.read_text(encoding="utf-8")
+        if pattern.search(text):
+            hits.append(str(path.relative_to(repo_root)))
+
+    assert hits == [], f"catalog.mission must be read only through charter.activation.charter_yaml_io.read_catalog_mission -- found direct reads in: {hits}"
