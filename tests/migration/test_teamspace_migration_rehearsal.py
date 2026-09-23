@@ -140,7 +140,7 @@ def _commit_all(repo: Path, message: str) -> None:
 
 def _git_diff(repo: Path) -> str:
     result = subprocess.run(
-        ["git", "diff", "--", "kitty-specs", ".kittify/migrations/mission-state"],
+        ["git", "diff", "--", "kitty-specs", ".kittify/mission-state-audit"],
         cwd=repo,
         check=True,
         text=True,
@@ -228,5 +228,5 @@ def test_teamspace_mission_state_rehearsal_is_deterministic_across_clones(tmp_pa
                 assert row["mission_id"]
                 assert row["mission_slug"] == status_path.parent.name
 
-        quarantine = repo / ".kittify/migrations/mission-state/quarantine"
+        quarantine = repo / ".kittify/mission-state-audit/quarantine"
         assert list(quarantine.glob("*/042-historical-shape/status.events.jsonl"))

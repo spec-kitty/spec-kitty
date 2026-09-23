@@ -47,7 +47,7 @@ the false-green.
 
 **Four fixed exclusion roots** (``DM-01M0P6C8C7Q6SPBT412V39RPN0``): the immutable
 historical-record roots ``kitty-specs/``,
-``.kittify/migrations/mission-state/quarantine/``, ``kitty-ops/`` and
+``.kittify/mission-state-audit/quarantine/``, ``kitty-ops/`` and
 ``.kittify/missions/`` are audit boundaries, never scanned.
 
 **Shrink-only rule** (methodology.md §2.1): per ``(path, line-hash)`` coordinate
@@ -115,9 +115,13 @@ _TOKEN = "doc" + "trine"
 _MISSION_BASE_REV = "efc0003b563d4a447e29bbfc726bf97c5179a209"
 
 # Immutable historical-record roots — audit boundaries, never scanned.
+# #4928: quarantine repointed to the tracked ``.kittify/mission-state-audit/
+# quarantine/`` root. Kept excluded (never scanned) because it holds VERBATIM
+# evicted event rows — legacy shapes that the shrink-only transition guard would
+# otherwise flag as retired-token violations. The manifest JSON is not here.
 _EXCLUSION_ROOTS: tuple[str, ...] = (
     "kitty-specs/",
-    ".kittify/migrations/mission-state/quarantine/",
+    ".kittify/mission-state-audit/quarantine/",
     "kitty-ops/",
     ".kittify/missions/",
 )

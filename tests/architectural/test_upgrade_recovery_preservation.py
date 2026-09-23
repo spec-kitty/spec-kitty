@@ -254,7 +254,7 @@ def test_historical_bytes_are_not_reserialized(
         "kitty-specs/old/status.events.jsonl",
         "kitty-specs/old/status.json",
         "kitty-ops/old.jsonl",
-        ".kittify/migrations/mission-state/quarantine/raw.jsonl",
+        ".kittify/mission-state-audit/quarantine/raw.jsonl",
         ".kittify/missions/old/retrospective.yaml",
         "kitty-specs/tab\tand\nnewline.md",
     ],
