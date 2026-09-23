@@ -152,10 +152,13 @@ modules:
   # Decision Moment 01M3584PY5A6F79DWX1QFDHW87 -- see mission decisions/):
   # durations recaptured 2026-09-22 via scripts/ci/capture_shard_timings.py
   # --module charter --write (run-id wp02-durations-20260922T174952Z; 6156
-  # collected/passed, exit_code 0, 1134.188s summed per-test durations --
-  # ci-shard-timings.json). The committed list length (6156) now equals what
+  # collected/passed, 1134.188s summed per-test durations -- ci-shard-timings.json),
+  # then RE-CAPTURED 2026-09-23 during the PR #4948 landing pass (run-id
+  # landing-pr4948; 6161 collected) because rebasing onto current main pulled in
+  # 5 new charter tests, so the anchor was recaptured to keep committed == collected.
+  # The committed list length (now 6161) equals what
   # the consumer actually collects (pytest tests/charter tests/doctrine -m
-  # "not performance and not stress" --collect-only -q -> 6156), so
+  # "not performance and not stress" --collect-only -q -> 6161), so
   # module-tests.yml's positional nodeid/duration pairing now weights this
   # module's shards by MEASURED time instead of silently falling back to
   # uniform weights (its length-mismatch fallback) -- that fallback, not
