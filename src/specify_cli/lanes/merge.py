@@ -1062,6 +1062,11 @@ def _merge_branch_into(
                     _env,
                 )
             except RuntimeError:
+                # ``git merge --squash`` leaves no MERGE_HEAD, so this abort is a
+                # defensive no-op (it exits non-zero: "no merge to abort") — the
+                # real cleanup is the ExitStack force-removing this scratch
+                # worktree on the way out. Kept as a belt-and-braces reset of any
+                # partially-staged index before the raise propagates.
                 subprocess.run(
                     ["git", "merge", "--abort"],
                     cwd=str(tmp_path),

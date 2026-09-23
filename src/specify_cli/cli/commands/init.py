@@ -76,7 +76,7 @@ _META_GITATTRIBUTES_ENTRY = "kitty-specs/**/meta.json merge=spec-kitty-meta"
 _TRACES_GITATTRIBUTES_ENTRY = "kitty-specs/**/traces/*.md merge=spec-kitty-traces"
 # C-006 (#2804): the coord gate artifacts are filled on the target at accept time
 # and scaffolded on the mission branch, so the squash integration needs a driver
-# to keep the filled side instead of letting `-X theirs` win.
+# to keep the filled side (without one the squash would conflict on it).
 _ACCEPTANCE_MATRIX_GITATTRIBUTES_ENTRY = "kitty-specs/**/acceptance-matrix.json merge=spec-kitty-acceptance-matrix"
 # WP11 (FR-008): repointed from issue-matrix.md -- WP05 migrated the canonical
 # artifact to structured JSON (C-008); the .md pattern is inert on new repos.
@@ -84,7 +84,7 @@ _ISSUE_MATRIX_GITATTRIBUTES_ENTRY = "kitty-specs/**/issue-matrix.json merge=spec
 # review-cycle-verdict-seam-rebuild-01KZ2W7W WP18 (T017/T078): review-cycle
 # verdict artifacts become genuinely two-sided during the create-window
 # migration (ADR 2026-08-03-1) -- a refuse-fail-closed driver (never a union)
-# keeps a genuine two-verdict collision from being clobbered by `-X theirs`.
+# keeps a genuine two-verdict collision from being silently clobbered.
 # Filename-anchored (never `tasks/*.md`), so `tasks/<wp>/baseline-tests.json`
 # and `tasks/WP*.md` are unaffected.
 _REVIEW_CYCLE_GITATTRIBUTES_ENTRY = "kitty-specs/**/tasks/*/review-cycle-*.md merge=spec-kitty-review-cycle"

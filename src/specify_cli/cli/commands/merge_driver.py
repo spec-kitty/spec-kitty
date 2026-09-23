@@ -1,16 +1,17 @@
 """Hidden git merge-driver entrypoints for Spec Kitty repositories.
 
-Six custom drivers keep mission bookkeeping semantic under
-``git merge --squash -X theirs`` (the squash mission→target integration in
-``lanes/merge.py::_merge_branch_into``). A custom driver overrides ``-X theirs``
-on the paths it is registered for, so target-newer canonical state is reconciled
-rather than clobbered (#2709 / FR-003 / FR-004 / FR-008):
+Six custom drivers keep mission bookkeeping semantic under the mission→target
+``git merge --squash`` in ``lanes/merge.py::_merge_branch_into`` (#4892 dropped
+the old ``-X theirs``; ordinary source paths now fail closed on conflict). A
+custom driver takes over conflict resolution on the paths it is registered for,
+so target-newer canonical state is reconciled rather than clobbered or
+hard-conflicting (#2709 / FR-003 / FR-004 / FR-008):
 
 - ``merge-driver-event-log``         — ``status.events.jsonl`` union (append-only log).
 - ``merge-driver-meta``              — ``meta.json`` field merge: acceptance/VCS keys
   target-authoritative (the accepted-newer ``ours`` side), ``acceptance_history``
   unioned, all other (planning) keys mission-authoritative (``theirs``; preserves
-  the #1732 ``-X theirs`` planning-artifact authority).
+  the #1732 planning-artifact authority — mission keys win).
 - ``merge-driver-traces``            — ``traces/*.md`` markdown union: order-preserving
   line-level dedup so both sides' sections survive without duplication.
 - ``merge-driver-acceptance-matrix`` — ``acceptance-matrix.json`` row-aware,
@@ -80,7 +81,7 @@ _META_JSON_KWARGS: dict[str, Any] = {
 # so a squash of the older mission branch must reconcile — not revert — them.
 # Every OTHER key (mission planning identity: slug, mission_id, target_branch,
 # purpose_*, friendly_name, created_at, coordination_branch, …) stays
-# mission-authoritative to preserve the #1732 ``-X theirs`` intent (C-002).
+# mission-authoritative to preserve the #1732 mission-authoritative planning intent (C-002).
 _TARGET_AUTHORITATIVE_META_FIELDS: tuple[str, ...] = (
     *ACCEPTANCE_PROVENANCE_FIELDS,
     "mission_number",
@@ -256,7 +257,7 @@ def reconcile_meta_payloads(
 
     ``ours`` is the target checkout (accepted-newer authority for acceptance/VCS
     provenance); ``theirs`` is the mission branch (planning-key authority — the
-    #1732 ``-X theirs`` intent). Acceptance/VCS scalar keys are taken from ``ours``
+    #1732 mission-authoritative planning intent). Acceptance/VCS scalar keys are taken from ``ours``
     when present; ``acceptance_history`` is unioned; every other key falls back to
     ``theirs`` so mission-authoritative planning state is preserved.
     """
@@ -870,8 +871,8 @@ def merge_driver_acceptance_matrix(
 #
 #   (a) REFUSE fail-closed -- embed both raw verdict documents, verbatim and
 #       clearly demarcated (never interleaved/blended), and exit non-zero so
-#       ``git merge --squash -X theirs`` reports the path as an unresolved
-#       conflict (``_merge_branch_into`` then ``git merge --abort``s and
+#       ``git merge --squash`` reports the path as an unresolved
+#       conflict (``_merge_branch_into`` then tears down the squash and
 #       raises -- the target ref is never advanced).
 #
 #   (b) RENUMBER -- silently reassign the incoming ("theirs") record the next
@@ -899,10 +900,10 @@ def merge_driver_acceptance_matrix(
 # a merged verdict -- the same "never silently drop a side" discipline this
 # module's row-matrix field-conflict markers use), but no longer raises
 # ``typer.Exit(1)`` -- the squash proceeds with the conflict-marked prose as
-# the resolved content. Retiring the driver entirely (falling through to
-# plain ``-X theirs``) was considered and rejected only because embedding
-# both sides costs nothing and preserves strictly more information than a
-# bare ``-X theirs`` pick would.
+# the resolved content. Retiring the driver entirely (letting the collision
+# fail closed like any other ordinary conflict) was considered and rejected
+# only because embedding both sides costs nothing and preserves strictly more
+# information than a hard conflict would.
 #
 # Identical content on both sides is NOT a collision at all -- it is the
 # trivial, common case (the same verdict was independently recorded/copied
@@ -931,7 +932,7 @@ def merge_driver_review_cycle(
     raw documents are embedded verbatim inside standard git-style conflict
     markers (never blended field-by-field -- a review verdict has no safely
     mergeable sub-fields the way a JSON matrix row does) and the driver
-    exits 0, so ``git merge --squash -X theirs`` treats the path as resolved
+    exits 0, so ``git merge --squash`` treats the path as resolved
     and the squash proceeds.
     """
     base, ours, theirs = _resolve_merge_driver_paths_or_exit(base_path, ours_path, theirs_path)

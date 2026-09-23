@@ -213,9 +213,10 @@ def _capture_pre_target_gate_artifacts(run: _MergeRunState) -> None:
     """Snapshot the TARGET's gate-artifact bytes BEFORE the mission->target squash.
 
     Called before :func:`_phase_mission_to_target` — the squash-merge step whose
-    ``-X theirs`` add/add conflict resolution can discard an already-accepted
-    target-checkout ``acceptance-matrix.json`` / ``issue-matrix.json`` in favor of
-    the mission branch's stale finalize-time scaffold placeholder (#2804). A
+    add/add resolution (via the gate-artifact merge drivers) can otherwise let the
+    mission branch's stale finalize-time scaffold placeholder win over an
+    already-accepted target-checkout ``acceptance-matrix.json`` /
+    ``issue-matrix.json`` (#2804). A
     mission's gate artifacts are per-mission (``kitty-specs/<slug>/...``), so in
     ordinary operation (no #2404-class divergent write) target carries nothing
     here pre-merge and this snapshot is empty/``None`` — a genuine no-op for
@@ -235,8 +236,8 @@ def _restore_regressed_gate_artifacts(run: _MergeRunState) -> None:
     divergence is WP09's merge-driver defense-in-depth, not this function's job.
     This guard is narrower and complementary: when the target checkout ALREADY
     held gate-artifact content before the squash merge (:func:`_capture_pre_
-    target_gate_artifacts`) and the squash step's ``-X theirs`` resolution
-    changed it, the pre-merge bytes are restored verbatim — an established,
+    target_gate_artifacts`) and the squash step's resolution changed it, the
+    pre-merge bytes are restored verbatim — an established,
     already-accepted verdict is never silently discarded by the squash step.
     Restored paths are recorded on ``run`` so the caller can fold them into the
     same final bookkeeping commit and the post-merge porcelain-invariant gate
