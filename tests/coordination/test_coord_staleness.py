@@ -269,8 +269,12 @@ def test_fix_one_staleness_requires_declared_ref_postcondition(
     finding = cd._fix_one_mission_coord_staleness(tmp_path, {})
 
     assert finding is not None
-    assert finding.error_code == cd._COORD_STALE_FIX_BLOCKED_CODE
+    # #4950 second-opinion follow-up: distinct code -- a fast-forward DID run
+    # in the worktree, so this is not the "nothing was mutated" BLOCKED case.
+    assert finding.error_code == cd._COORD_STALE_FIX_POSTCONDITION_CODE
+    assert finding.error_code != cd._COORD_STALE_FIX_BLOCKED_CODE
     assert "postcondition" in finding.message
+    assert str(tmp_path) in finding.message
     assert "Fast-forwarded" not in capsys.readouterr().out
 
 
@@ -460,6 +464,66 @@ def test_e_merge_failure_for_one_mission_does_not_block_another(
     # Mission B was NOT blocked by A's failure -- it really fast-forwarded.
     assert _git(ok_worktree, "rev-parse", "HEAD").stdout.strip() == target_sha
     assert _git(repo, "rev-parse", ok_branch).stdout.strip() == target_sha
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_postcondition_fails_when_recorded_worktree_is_a_separate_clone(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """#4950 second-opinion follow-up: repro for the dedicated postcondition code.
+
+    The recorded coordination worktree is a SEPARATE ``git clone`` of the
+    repo (not a linked worktree) with the coord branch checked out and the
+    target branch's commit present. The branch-identity check
+    (``_coord_worktree_head_finding``, branch NAME only) passes -- the clone
+    really is on a branch called "coord" -- so the fast-forward runs and
+    genuinely succeeds *inside the clone*. But the clone is a distinct
+    repository: the merge never touches ``repo_root``'s own ``coord`` ref,
+    so the declared branch this run reports against never moves. That is
+    exactly the postcondition failure, not the "nothing was mutated" BLOCKED
+    case.
+
+    (Item 6, #4950, closes this specific gap by additionally requiring the
+    recorded worktree to share ``repo_root``'s git-common-dir -- at that
+    point this scenario is refused BEFORE the clone's local branch ever
+    moves. See ``test_a_foreign_clone_fix_fails_closed_without_mutation`` in
+    that commit, which reuses this exact clone fixture.)
+    """
+    repo = tmp_path / "repo"
+    mission_slug = "postcondition-clone-mission"
+    _make_strict_ancestor_repo(repo, mission_slug)
+
+    clone = tmp_path / "postcondition-clone"
+    subprocess.run(
+        ["git", "clone", "--quiet", str(repo), str(clone)],
+        check=True, capture_output=True, text=True,
+    )
+    _git(clone, "checkout", "-q", _COORD_BRANCH)
+    _git(clone, "config", "user.email", "test@test.com")
+    _git(clone, "config", "user.name", "Test")
+    _git(clone, "config", "commit.gpgsign", "false")
+    _patch_worktree_path(monkeypatch, clone)
+
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    coord_sha_before = _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip()
+    target_sha = _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip()
+    assert coord_sha_before != target_sha, "fixture precondition: coord must start behind target"
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True, fix=True)
+
+    out = capsys.readouterr().out
+    assert exc.value.exit_code == 1
+    assert cd._COORD_STALE_FIX_POSTCONDITION_CODE in out
+    assert "postcondition" in out
+    assert "Fast-forwarded" not in out
+    # The DECLARED ref in repo_root never moved -- only the clone did.
+    assert _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip() == coord_sha_before
+    assert _git(clone, "rev-parse", "HEAD").stdout.strip() == target_sha
 
 
 def test_check_and_warn_coord_staleness_no_meta_is_silent(

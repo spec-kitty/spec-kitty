@@ -1359,7 +1359,18 @@ def _coord_staleness_fix_merge_failed_finding(
     )
 
 
+#: Postcondition failure (#4950 second-opinion follow-up): distinct from
+#: ``_COORD_STALE_FIX_BLOCKED_CODE``, whose documented meaning is "nothing
+#: was mutated." That is FALSE here -- a fast-forward genuinely ran inside
+#: the coord worktree; only the declared ref this run reads back from
+#: ``repo_root`` failed to reflect it (e.g. the recorded worktree path is a
+#: separate repository/clone, so the merge landed there instead of on the
+#: branch `--fix` reports against).
+_COORD_STALE_FIX_POSTCONDITION_CODE = "COORDINATION_BRANCH_STALE_FIX_POSTCONDITION_FAILED"
+
+
 def _coord_staleness_fix_postcondition_finding(
+    worktree: Path,
     coord_branch: str,
     target_branch: str,
     expected_sha: str,
@@ -1371,15 +1382,16 @@ def _coord_staleness_fix_postcondition_finding(
     return DoctorFinding(
         severity="error",
         message=(
-            "Coordination repair failed its postcondition: declared branch "
-            f"{coord_branch!r} is at {actual}, expected {expected_sha[:8]} "
-            f"to match target {target_branch!r}."
+            "Coordination repair failed its postcondition: a fast-forward "
+            f"ran in {worktree} but declared branch {coord_branch!r} is at "
+            f"{actual}, expected {expected_sha[:8]} to match target "
+            f"{target_branch!r}."
         ),
         next_step=(
             "Inspect the recorded coordination worktree and declared branch; "
             "`--fix` did not report success."
         ),
-        error_code=_COORD_STALE_FIX_BLOCKED_CODE,
+        error_code=_COORD_STALE_FIX_POSTCONDITION_CODE,
     )
 
 
@@ -1457,7 +1469,7 @@ def _fix_one_mission_coord_staleness(
     repaired_coord_sha = _rev_parse(repo_root, f"refs/heads/{coord_branch}")
     if repaired_coord_sha != target_sha:
         return _coord_staleness_fix_postcondition_finding(
-            coord_branch, target_branch, target_sha, repaired_coord_sha,
+            worktree, coord_branch, target_branch, target_sha, repaired_coord_sha,
         )
     console.print(
         f"[green]Fast-forwarded:[/green] coordination branch {coord_branch!r} "
