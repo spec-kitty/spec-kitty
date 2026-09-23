@@ -122,6 +122,26 @@ _STRANDED_COORD_REVERT_STUCK_HINT = (
     "the coordination ref."
 )
 
+#: BRANCH_MISMATCH variant (sibling of #4920/#4950, FR-007): a live strand
+#: whose recorded coordination worktree exists but is checked out on a branch
+#: other than the coord ref (`CoordRepairOutcome.branch_mismatch`,
+#: `coordination/coherence.py`). `repair_coord_strand` refuses to run the
+#: revert there rather than mutate whatever foreign branch happens to be
+#: checked out. It is STILL a committed-ref split-brain, so it stays an
+#: ``error`` (exit 1); `--fix` cannot heal it without first putting the
+#: worktree back on the coord branch, so this carries a distinct code + a
+#: manual-recovery `next_step` instead of looping the operator back to
+#: `_STRANDED_COORD_REVERT_HINT`'s "run `--fix`", which can never succeed
+#: while the worktree stays off the coord branch.
+_STRANDED_COORD_REVERT_BRANCH_MISMATCH_CODE = "COORDINATION_STRANDED_COORD_REVERT_BRANCH_MISMATCH"
+_STRANDED_COORD_REVERT_BRANCH_MISMATCH_HINT = (
+    "The coordination worktree recorded for this strand is checked out on the "
+    "wrong branch, so `--fix` refuses to revert there (it would mutate the "
+    "wrong branch instead of the coordination ref). Switch the worktree back "
+    f"to the coordination branch (see `{_WORKSPACE_RECOVERY_CMD}`), then "
+    "re-run `--fix`."
+)
+
 #: An enumerated ``pending_coord_reconcile`` marker that cannot be parsed into
 #: repair inputs (missing ref/sha/worktree or an empty strand). A safety-net
 #: checker must NOT silently drop it — surface a ``warning`` (reviewer-renata LOW).
@@ -1074,11 +1094,14 @@ def _heal_one_strand(
 
     Returns ``(healed_slug, warning)``: at most one is non-``None``. A genuine heal
     yields ``(slug, None)`` (and clears the marker); an un-parseable marker, an
-    unresolvable mission, or a repair that reports a pruned worktree yields
-    ``(None, warning)`` — a safety-net fixer must never silently drop a marker.
-    ``head_advanced`` / revert-error outcomes yield ``(None, None)``: the strand is
-    intentionally left for the next pass and the check's persistent ``error``
-    finding still surfaces it.
+    unresolvable mission, a repair that reports a pruned worktree
+    (``worktree_missing``), or a repair refused because the coordination
+    worktree is checked out on the wrong branch (``branch_mismatch``, sibling
+    of #4920/#4950) all yield ``(None, warning)`` — a safety-net fixer must
+    never silently drop a marker, and neither refusal is one simply re-running
+    ``--fix`` can resolve on its own. ``head_advanced`` / generic revert-error
+    outcomes yield ``(None, None)``: the strand is intentionally left for the
+    next pass and the check's persistent ``error`` finding still surfaces it.
     """
     from mission_runtime import MissionArtifactKind
 
@@ -1139,6 +1162,27 @@ def _heal_one_strand(
             ),
             next_step=_STRANDED_COORD_REVERT_STUCK_HINT,
             error_code=_STRANDED_COORD_REVERT_STUCK_CODE,
+            extra={"mission_id": mission_id, "mission_slug": mission_slug},
+        )
+    if outcome.branch_mismatch:
+        # Sibling of #4920/#4950: the repair refused to run the revert because
+        # the coord worktree is on a foreign branch — `--fix` re-run alone
+        # can never succeed, so this must not fall through to the silent
+        # `(None, None)` "leave it for the next pass" case below (that case
+        # is for outcomes the CHECK's own persistent `error` finding still
+        # surfaces; a branch-mismatch refusal needs its own actionable
+        # `next_step`, not the generic "run `--fix`" hint, which would keep
+        # telling the operator to do the one thing that cannot work).
+        actual = _coord_worktree_actual_head(Path(coord_worktree)).removeprefix("refs/heads/")
+        return None, DoctorFinding(
+            severity="error",
+            message=(
+                f"Coordination worktree {coord_worktree!r} for mission "
+                f"{mission_slug!r} is on {actual!r}, not {coord_ref!r} — `--fix` "
+                "refuses to revert its strand there."
+            ),
+            next_step=_STRANDED_COORD_REVERT_BRANCH_MISMATCH_HINT,
+            error_code=_STRANDED_COORD_REVERT_BRANCH_MISMATCH_CODE,
             extra={"mission_id": mission_id, "mission_slug": mission_slug},
         )
     return None, None
