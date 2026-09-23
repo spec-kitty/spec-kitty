@@ -721,14 +721,22 @@ class TestTypedFrontmatterMigration:
         tasks_dir.mkdir(parents=True)
         (tmp_path / ".kittify").mkdir(exist_ok=True)
 
-        # tasks.md with no dependency info
+        # tasks.md with no dependency info. WP03 is a real WP in the graph so
+        # WP01's preserved frontmatter dep resolves — #4890 validates the
+        # effective persisted graph and rejects a dep on a WP absent from it, so
+        # the "preserve existing deps" behaviour this test pins must use a valid
+        # target (the reject-on-unknown-WP path is covered by test_issue_4890).
         (feature_dir / "tasks.md").write_text(
-            "## Work Package WP01\n\n",
+            "## Work Package WP01\n\n## Work Package WP03\n\n",
             encoding="utf-8",
         )
-        # WP01 frontmatter has existing deps
+        # WP01 frontmatter has an existing (valid) dep the parser did not re-derive
         (tasks_dir / "WP01-test.md").write_text(
             "---\nwork_package_id: WP01\ntitle: Test WP01\ndependencies:\n  - WP03\n---\n\n# WP01\n",
+            encoding="utf-8",
+        )
+        (tasks_dir / "WP03-test.md").write_text(
+            "---\nwork_package_id: WP03\ntitle: Test WP03\n---\n\n# WP03\n",
             encoding="utf-8",
         )
 
@@ -739,11 +747,11 @@ class TestTypedFrontmatterMigration:
         from specify_cli.status.bootstrap import BootstrapResult
 
         mock_bootstrap.return_value = BootstrapResult(
-            total_wps=1,
-            already_initialized=1,
+            total_wps=2,
+            already_initialized=2,
             newly_seeded=0,
             skipped=0,
-            wp_details={"WP01": "exists"},
+            wp_details={"WP01": "exists", "WP03": "exists"},
         )
 
         result = runner.invoke(app, ["finalize-tasks", "--mission", mission_slug, "--json"])
