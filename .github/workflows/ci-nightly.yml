@@ -61,23 +61,48 @@ permissions:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # performance-and-e2e: the dedicated expensive-cadence workflow home (#3595).
-  # Runs the `performance` + `e2e` + `stress` marked suites that never execute
-  # on the per-PR path -- full-mode run-all-regardless, never fail-fast.
+  # performance / e2e / stress: split from the former single
+  # performance-and-e2e job (#4865) into three INDEPENDENT jobs, each with its
+  # own timeout budget and its own verdict, so a genuine regression in one
+  # suite is never blended with (or masked by) a different suite's timeout
+  # cancellation. Concretely: nightly run 35683539593 (2026-09-20) hit the old
+  # shared 60-minute cap, went `cancelled` at 65m01s, and truncated `stress`
+  # entirely while `performance`/`e2e` had already passed inside the SAME
+  # blended verdict -- a genuine e2e regression on that date would have been
+  # indistinguishable from routine timeout cancellation. No `needs:`
+  # dependency chain BETWEEN these three jobs -- they run in parallel where
+  # runners are available; only `nightly-summary` below depends on all three.
+  # The operator explicitly REJECTED merely raising the old job's timeout
+  # cap as a half-fix (it would still blend three verdicts into one) -- see
+  # spec.md "Binding operator decision #1".
   # ---------------------------------------------------------------------------
-  performance-and-e2e:
-    name: Performance + heavy e2e + stress (nightly-only, #3595)
+
+  # `performance`: timeout sized from the real measured duration (23m41s, run
+  # 35683539593, pre-split blended job) with ~1.5x headroom (plan.md "Real
+  # evidence used to size the new budgets"). Confirmed by WP03's first
+  # post-split nightly dispatch (run 35756657364, 2026-09-22, mode=full):
+  # this job alone measured 23m23s wall-clock -- consistent with the
+  # pre-split figure, since `performance` is the one job that legitimately
+  # owns SPEC_KITTY_RUN_PERFORMANCE=1 below (see the e2e/stress comments for
+  # the 3x duplication this split actually removed from THEIR steps).
+  # conftest.py skips `performance`-marked tests unless
+  # SPEC_KITTY_RUN_PERFORMANCE=1 (they are cold-start / runner-bound off the
+  # per-PR path) -- without this env var the `-m performance` step below
+  # selects the suite but conftest skips every test in it, a vacuous lane.
+  # PWHEADLESS keeps any UI-touching test headless. Budget kept at 35 (not
+  # shrunk): a generous timeout costs nothing unless a job hangs, and this
+  # WP's own evidence base is a single dispatch.
+  performance:
+    name: Performance suite (nightly-only, #3595)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-    # conftest.py skips `performance`-marked tests unless SPEC_KITTY_RUN_PERFORMANCE=1
-    # (they are cold-start / runner-bound off the per-PR path). Without this the
-    # `-m performance` step below selects the suite but conftest skips every test
-    # in it — a vacuous lane. Set it here so the performance flow actually runs
-    # the wall-clock budget guards it is the sole home for. PWHEADLESS keeps any
-    # UI-touching heavy/e2e test headless.
+    timeout-minutes: 35
     env:
+      # DO NOT add SPEC_KITTY_RUN_PERFORMANCE to any other job's env in this
+      # file (e2e, stress, etc.) -- it is deliberately scoped to THIS job
+      # alone. Re-adding it to `stress` re-duplicates the ~20
+      # performance-marked tests back into that job (see the `stress` job's
+      # `timeout-minutes` comment below) and reproduces #4865's truncation
+      # defect this mission exists to fix.
       SPEC_KITTY_RUN_PERFORMANCE: "1"
       PWHEADLESS: "1"
     steps:
@@ -100,6 +125,67 @@ jobs:
           echo "PERF_EXIT=$code" >> "$GITHUB_ENV"
           echo "::notice::performance suite exit=$code (if: always() -- full mode never short-circuits; a red suite is surfaced by the terminal fail-loud step, #4212)"
 
+      - name: Upload nightly performance reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-nightly-performance-reports
+          path: out/reports/
+
+      # Terminal fail-loud gate (#4212): the suite above ran under `set +e` +
+      # `if: always()` (run-all-regardless), capturing its pytest exit into
+      # $GITHUB_ENV instead of discarding it. This step, also `if: always()`,
+      # runs AFTER the artefact upload so the xunit report is preserved either
+      # way, then FAILS the job if the suite exited on a GENUINE failure.
+      #
+      # pytest exit 5 = "no tests were collected" (a marker-empty suite). Per
+      # spec.md Edge Case #4 a nightly suite that is *skipped* (marker-empty) is
+      # NOT a failure -- distinct from a *failed* one. So 0 (all passed) and 5
+      # (nothing to run) both pass; only a genuine failure exit (1/2/3/4/...)
+      # fails the job.
+      - name: Fail the job if the performance suite was red (run-all-then-fail-loud)
+        if: always()
+        shell: bash
+        run: |
+          if [ "${PERF_EXIT:-0}" -ne 0 ] && [ "${PERF_EXIT:-0}" -ne 5 ]; then
+            echo "::error::performance suite exited ${PERF_EXIT}"
+            exit 1
+          fi
+          echo "Performance suite passed (exit 0 or a marker-empty exit 5)."
+
+  # `e2e`: timeout sized from the real measured duration (24m44s, run
+  # 35683539593, pre-split blended job) with ~1.5x headroom (plan.md "Real
+  # evidence used to size the new budgets"). That historical 24m44s was
+  # measured while SPEC_KITTY_RUN_PERFORMANCE=1 was set at JOB level (the old
+  # `performance-and-e2e` job), so it unintentionally included the same 20
+  # `performance`-marked tests the `performance` job above already runs -- a
+  # real 3x duplication (performance/e2e/stress steps each ran them) this
+  # split removes: the env var is now scoped to the `performance` job alone,
+  # so those 20 tests correctly skip here. WP03's first post-split dispatch
+  # (run 35756657364, 2026-09-22, mode=full) confirms it: this job alone, no
+  # longer duplicating that work, measured 9m04s (xunit: 45 tests, 26
+  # skipped -- 20 of them the now-single-owner performance-marked tests, the
+  # other 6 pre-existing/unrelated skips: 1x #4213 known hang, 5x missing
+  # Playwright Chromium install). Budget kept at 40 (not shrunk -- outside
+  # this WP's scope and evidence base, which is a single dispatch; a
+  # generous timeout costs nothing unless a job hangs). PWHEADLESS keeps any
+  # UI-touching heavy/e2e test headless.
+  e2e:
+    name: Heavy e2e suite (nightly-only, #3595)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      PWHEADLESS: "1"
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Sync dev environment
+        shell: bash
+        run: uv sync --frozen --all-extras
+
       - name: Run heavy/e2e-marked suite (full-mode, run-all-regardless)
         if: always()
         shell: bash
@@ -110,15 +196,79 @@ jobs:
           echo "E2E_EXIT=$code" >> "$GITHUB_ENV"
           echo "::notice::e2e suite exit=$code (if: always() -- full mode never short-circuits; a red suite is surfaced by the terminal fail-loud step, #4212)"
 
+      - name: Upload nightly e2e reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-nightly-e2e-reports
+          path: out/reports/
+
+      # Terminal fail-loud gate (#4212): mirror of the performance job's gate
+      # above, scoped to this job's own suite/exit code.
+      - name: Fail the job if the e2e suite was red (run-all-then-fail-loud)
+        if: always()
+        shell: bash
+        run: |
+          if [ "${E2E_EXIT:-0}" -ne 0 ] && [ "${E2E_EXIT:-0}" -ne 5 ]; then
+            echo "::error::e2e suite exited ${E2E_EXIT}"
+            exit 1
+          fi
+          echo "e2e suite passed (exit 0 or a marker-empty exit 5)."
+
+  # `stress`: Stage B complete -- tightened, FINAL production timeout-minutes
+  # (plan.md "Real evidence used to size the new budgets" / Phasing Phase 1
+  # steps 1e-1f, PLAN-ARCH-001). Nightly run 35683539593 (pre-split blended
+  # job) truncated `stress` mid-run at >=16m18s (`cancelled`, never
+  # completed) inside the OLD shared 60-minute job cap -- and even that
+  # lower bound included the same 20 `performance`-marked tests duplicated
+  # into every step by the old job-level SPEC_KITTY_RUN_PERFORMANCE=1 (see
+  # the `e2e` job's comment above), so it was never a clean measurement of
+  # this suite alone. WP03's Stage A dispatch (run 35756657364, 2026-09-22,
+  # mode=full, the first dispatch after the split) gave the first REAL
+  # completed duration: `stress` finished in 4m44s (`success`; xunit: 33
+  # tests, 20 skipped -- the skip count matches the performance-marked tests
+  # correctly sitting out of this job now that the split scoped the env var
+  # to `performance` alone; 0 failures/errors). 4m44s is comfortably inside
+  # the 90-minute Stage A ceiling, so the bounded widen-retry ladder (90 ->
+  # 150 -> 300, each step under GitHub Actions' documented 6-hour/360-minute
+  # per-job ceiling for hosted `ubuntu-latest` runners) was never triggered.
+  # Stage B timeout-minutes below = ceil(4m44s x ~1.5 headroom), the SAME
+  # method used for `performance`/`e2e` above, rounded to a clean number:
+  # 284s x 1.5 = 426s = ~7.1min -> 10. Honesty caveat (plan.md requires this
+  # distinction): completing in 4m44s establishes only that the 90-minute
+  # Stage A ceiling was NOT hit -- it does not by itself establish that 10
+  # minutes is sufficient for every future run's variance; that can only be
+  # falsified by a future run, not this one (see WP03's "Risks &
+  # Mitigations": T017's headroom sufficiency is unverifiable at WP-close).
+  # Run serially (no `-n`): stress tests are not xdist-safe and race
+  # coverage's per-thread trace installation when co-scheduled with other
+  # suites. `not windows_ci` leaves the Windows-critical subset to
+  # ci-windows.yml.
+  stress:
+    name: Stress suite (nightly-only, #3595)
+    runs-on: ubuntu-latest
+    # DO NOT set SPEC_KITTY_RUN_PERFORMANCE on this job. This 10-minute
+    # budget assumes the ~20 performance-marked tests stay skipped here (they
+    # are the single-owner responsibility of the `performance` job above).
+    # Re-scoping that env var onto `stress` reintroduces the duplicated
+    # performance-marked cases, blows this budget, and reproduces #4865's
+    # ~16m18s+ truncation defect -- the exact regression this mission fixes.
+    timeout-minutes: 10
+    env:
+      PWHEADLESS: "1"
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Sync dev environment
+        shell: bash
+        run: uv sync --frozen --all-extras
+
       - name: Run stress-marked suite (full-mode, run-all-regardless)
         if: always()
         shell: bash
-        # The concurrency/load stress suite is deselected from the per-PR and
-        # full module-tests slices (they spawn their own threads and race
-        # coverage's per-thread trace installation when co-scheduled), so the
-        # nightly is its ONLY home. Run serially (no `-n`): stress tests are not
-        # xdist-safe. `not windows_ci` leaves the Windows-critical subset to
-        # ci-windows.yml.
         run: |
           set +e
           uv run --frozen pytest -m "stress and not windows_ci" -q --junitxml=out/reports/xunit-nightly-stress.xml
@@ -126,49 +276,24 @@ jobs:
           echo "STRESS_EXIT=$code" >> "$GITHUB_ENV"
           echo "::notice::stress suite exit=$code (if: always() -- full mode never short-circuits; a red suite is surfaced by the terminal fail-loud step, #4212)"
 
-      - name: Upload nightly performance/e2e reports
+      - name: Upload nightly stress reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ci-nightly-performance-e2e-reports
+          name: ci-nightly-stress-reports
           path: out/reports/
 
-      # Terminal fail-loud gate (#4212): every suite above ran under `set +e` +
-      # `if: always()` (run-all-regardless), capturing its pytest exit into
-      # $GITHUB_ENV instead of discarding it. This step, also `if: always()`,
-      # runs AFTER the artefact upload so xunit reports are preserved either
-      # way, then FAILS the job if any suite exited on a GENUINE failure -- so a
-      # red suite can no longer leave the job green. Run-all is preserved: the
-      # complete failure set is surfaced (annotations + reports) before this
-      # fails.
-      #
-      # pytest exit 5 = "no tests were collected" (a marker-empty suite). Per
-      # spec.md Edge Case #4 a nightly suite that is *skipped* (marker-empty) is
-      # NOT a failure -- distinct from a *failed* one. So 0 (all passed) and 5
-      # (nothing to run) both pass; only a genuine failure exit (1/2/3/4/...)
-      # fails the job.
-      - name: Fail the job if any nightly suite was red (run-all-then-fail-loud)
+      # Terminal fail-loud gate (#4212): mirror of the performance job's gate
+      # above, scoped to this job's own suite/exit code.
+      - name: Fail the job if the stress suite was red (run-all-then-fail-loud)
         if: always()
         shell: bash
         run: |
-          status=0
-          if [ "${PERF_EXIT:-0}" -ne 0 ] && [ "${PERF_EXIT:-0}" -ne 5 ]; then
-            echo "::error::performance suite exited ${PERF_EXIT}"
-            status=1
-          fi
-          if [ "${E2E_EXIT:-0}" -ne 0 ] && [ "${E2E_EXIT:-0}" -ne 5 ]; then
-            echo "::error::e2e suite exited ${E2E_EXIT}"
-            status=1
-          fi
           if [ "${STRESS_EXIT:-0}" -ne 0 ] && [ "${STRESS_EXIT:-0}" -ne 5 ]; then
             echo "::error::stress suite exited ${STRESS_EXIT}"
-            status=1
-          fi
-          if [ "$status" -ne 0 ]; then
-            echo "One or more nightly suites failed; see the ::error:: annotations above and the uploaded xunit reports."
             exit 1
           fi
-          echo "All nightly performance/e2e/stress suites passed (exit 0 or a marker-empty exit 5)."
+          echo "Stress suite passed (exit 0 or a marker-empty exit 5)."
 
   # ---------------------------------------------------------------------------
   # interpreter-matrix: FR-021 -- above-3.12 interpreter lane, nightly-only.
@@ -221,7 +346,7 @@ jobs:
           name: "ci-nightly-interpreter-${{ matrix.python-version }}-reports"
           path: out/reports/
 
-      # Terminal fail-loud gate (#4212): mirror of the performance-and-e2e
+      # Terminal fail-loud gate (#4212): mirror of the performance/e2e/stress
       # gate on the FR-021 interpreter lane. The suite above captured its
       # pytest exit into $GITHUB_ENV under `set +e` + `if: always()`; this
       # `if: always()` step (after the artefact upload) fails the matrix leg
@@ -334,12 +459,14 @@ jobs:
   nightly-summary:
     name: Nightly full-mode summary
     runs-on: ubuntu-latest
-    needs: [performance-and-e2e, interpreter-matrix, full-module-matrix]
+    needs: [performance, e2e, stress, interpreter-matrix, full-module-matrix]
     if: always()
     steps:
       - name: Report full-mode results (run-all-regardless, never fail-fast)
         shell: bash
         run: |
-          echo "performance-and-e2e: ${{ needs.performance-and-e2e.result }}"
+          echo "performance: ${{ needs.performance.result }}"
+          echo "e2e: ${{ needs.e2e.result }}"
+          echo "stress: ${{ needs.stress.result }}"
           echo "interpreter-matrix: ${{ needs.interpreter-matrix.result }}"
           echo "full-module-matrix: ${{ needs.full-module-matrix.result }}"

@@ -277,7 +277,7 @@ def test_nightly_suite_steps_are_fail_loud() -> None:
     """
     data = yaml.safe_load(NIGHTLY_WORKFLOW.read_text(encoding="utf-8")) or {}
     jobs = data.get("jobs") or {}
-    for job_name in ("performance-and-e2e", "interpreter-matrix"):
+    for job_name in ("performance", "e2e", "stress", "interpreter-matrix"):
         job = jobs.get(job_name)
         assert isinstance(job, dict), f"{job_name} job missing"
         steps = _job_steps(job)
@@ -310,7 +310,7 @@ def test_nightly_fail_loud_step_treats_marker_empty_exit_5_as_non_failing() -> N
     """
     data = yaml.safe_load(NIGHTLY_WORKFLOW.read_text(encoding="utf-8")) or {}
     jobs = data.get("jobs") or {}
-    for job_name in ("performance-and-e2e", "interpreter-matrix"):
+    for job_name in ("performance", "e2e", "stress", "interpreter-matrix"):
         job = jobs.get(job_name)
         assert isinstance(job, dict), f"{job_name} job missing"
         terminal_steps = [step for step in _job_steps(job) if "exit 1" in str(step.get("run") or "")]
@@ -347,7 +347,9 @@ def test_nightly_workflow_houses_performance_and_interpreter_jobs() -> None:
     interpreter matrix, off the per-PR path."""
     data = yaml.safe_load(NIGHTLY_WORKFLOW.read_text(encoding="utf-8")) or {}
     jobs = data.get("jobs") or {}
-    assert "performance-and-e2e" in jobs
+    assert "performance" in jobs
+    assert "e2e" in jobs
+    assert "stress" in jobs
     assert "-m performance" in NIGHTLY_WORKFLOW.read_text(encoding="utf-8")
 
     interpreter_job = jobs.get("interpreter-matrix")
