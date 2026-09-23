@@ -1,0 +1,147 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: PLAN-GOV-001
+    lens: FR-003 mechanism-fidelity / self-authorization check (mission-derived lens)
+    severity: 4
+    title: >
+      Lever C's dominant mechanism silently substitutes a different cost driver than the
+      one the operator named for FR-003, and the plan self-authorized skipping an operator
+      ruling on that substitution.
+    evidence:
+      - artifact: "spec.md § Clarifications — Operator decisions — \"Lever\" (verbatim
+          operator quote): \"A+C — redesign the `fresh_e2e_project` fixture ... AND trim
+          the residual ~0.2s/call Typer command-surface construction that #4417 deferred.\""
+      - artifact: "spec.md § Functional Requirements — FR-003: \"I want the ~0.2s/call
+          Typer command-surface construction cost that PR #4417 explicitly deferred ...
+          reduced, so that each of the golden path's 12 subprocess CLI calls costs less.\""
+      - artifact: "plan.md § Lever C — CLI startup cost (FR-003/FR-005), the \"Approach\"
+          and \"Secondary, complementary trim\" paragraphs: the freshness-stamp check
+          inside `assess_global_agent_commands()` is the PRIMARY mechanism (\"~55-65% of
+          a warm-cache init invocation's ... wall-clock time\"); the literal #4417-deferred
+          `register_commands()` lazy-import trim is demoted to \"Secondary ... Estimated
+          ~0.2s/call × ~10 ... calls ≈ 2s total — small relative to the freshness-check fix
+          above\"."
+      - artifact: "tracer-design-decisions.md § \"On whether this needed an operator
+          ruling\" (2026-09-23, plan phase): the plan-authoring agent explicitly considered
+          escalating this exact substitution to the operator and decided, on its own
+          reasoning, not to — \"I did not treat this as a fork needing the operator's
+          word ... only an internal mechanism choice for an already-open FR.\""
+      - code: "src/specify_cli/runtime/agent_commands.py:1-16 (module docstring: \"Bootstrap
+          user-global canonical slash commands for all configured agents\") and :503
+          (`ensure_global_agent_commands`), :343 (`assess_global_agent_commands`) — confirmed
+          this is the agent-command-template render/cache path, not Typer's own command-tree
+          construction."
+      - code: "src/specify_cli/cli/commands/__init__.py:181-257 (`register_commands`) —
+          confirmed this IS the literal Typer command-surface (module-import + `app.command`/
+          `app.add_typer`) construction path #4417 deferred and the operator's Lever quote
+          names."
+    claim: >
+      The operator's own verbatim Lever decision (spec.md's "Lever" blockquote, explicitly
+      marked as a direct quote from the original dispatch, distinct from the orchestrator's
+      own summarized Rulings) names a SPECIFIC mechanism for lever C: "trim the residual
+      ~0.2s/call Typer command-surface construction that #4417 deferred." FR-003's title and
+      body repeat and pin the same specific citation. `register_commands()`
+      (`src/specify_cli/cli/commands/__init__.py`) is genuinely that mechanism — an
+      unconditional eager import of ~40 command modules on every non-fast-pathed invocation.
+      `assess_global_agent_commands()` (`src/specify_cli/runtime/agent_commands.py`) is a
+      different subsystem entirely — it renders and caches per-agent slash-command files
+      (Claude/Gemini/Codex/etc.) into the user-global `~/.kittify`/agent directories, unrelated
+      to Typer's own command-tree construction. The plan's own profiling (this same planning
+      pass) found this second, unrelated path accounts for the large majority (~55-65%) of a
+      warm-cache invocation's cost, and chose to make it the PRIMARY lever-C fix, demoting the
+      literal, operator-named mechanism to a small ("~2s total"), secondary addition. This is a
+      real substitution of the operator-named cause under the FR-003/Lever-C label, discovered
+      via new evidence gathered mid-plan — not merely a same-requirement engineering choice
+      between two candidate implementations of the same named mechanism (contrast with the
+      `agent_keys`-scoping alternative in research.md, which correctly is NOT escalated, since
+      it is a genuine choice between two ways to implement the SAME already-open freshness-check
+      idea). The plan's own tracer file shows the plan-authoring agent recognized this was a
+      live question and resolved it unilaterally, reasoning that FR-003's "so that each call
+      costs less" outcome clause outranks the operator's own verbatim cause-naming — an
+      inference precisely of the kind this mission's spec phase HALTed five times to get an
+      explicit operator ruling on (Rulings 1-5, `reviews/spec.ruling.md`), including once
+      (Ruling 3/SPEC-FRESH4-001) specifically because a phase agent's own inference from a prior
+      ruling was judged a self-authorization requiring the operator's direct word rather than
+      the agent's own extrapolation. Unlike Ruling 5's explicit delegation of FR-002's mechanism
+      choice to the plan phase ("FR-002 must name no concrete mechanism... the plan chooses the
+      mechanism"), the operator's Lever quote for lever C DID name a mechanism directly — there
+      is no equivalent ruling delegating lever C's mechanism choice away from what the operator
+      already specified.
+    remediation: >
+      Treat this as a genuine decision fork and return it to the operator before implementation,
+      framed precisely: "profiling found the dominant lever-C cost is NOT the #4417-deferred
+      Typer-construction/import cost you named, but a much larger, previously undiagnosed cost
+      in the global agent-command template render path (`ensure_global_agent_commands()`) — do
+      you want the plan to (a) fix the newly-found larger cost as primary and the named
+      #4417 item as secondary [current plan], (b) fix only the literally-named #4417 item even
+      if it likely leaves the golden path short of the ≤110s bar, or (c) something else?" Do not
+      proceed to implementation on the plan's current self-authorized answer. If the operator
+      answers (a), amend FR-003's own text (or add a plan-level note) to record that the
+      requirement is retroactively confirmed outcome-based rather than cause-pinned, so a future
+      reader does not have to reconstruct this reasoning from a tracer-file aside.
+  - id: PLAN-GOV-002
+    lens: Ledger
+    severity: 4
+    title: >
+      Lever C's chosen mechanism adds new state into the exact code path SPEC-KITTY-LEDGER.md's
+      SK-243 documents as having a live, verified concurrency defect, and the plan does not
+      cite or account for it.
+    evidence:
+      - artifact: "SPEC-KITTY-LEDGER.md § SK-243 — \"`ensure_global_agent_commands()` races on
+          a `$HOME`-level asset, so concurrent missions on one machine hit spurious
+          `RuntimeError: Global asset input changed`\" — Status: open, \"VERIFIED FIRST-HAND by
+          the orchestrator on 2026-09-22\" (one day before this mission's plan.md was authored)."
+      - artifact: "plan.md § Lever C — \"Approach\" paragraph: the chosen primary mechanism adds
+          a new freshness-stamp file, read and written inside `assess_global_agent_commands()`,
+          reusing \"the same cache directory `AssetPreparation` already uses.\""
+      - artifact: "data-model.md § \"Agent-commands freshness stamp\" § \"Concurrency\": the only
+          concurrency treatment given is torn-write protection via lock reuse — \"so two
+          concurrent `spec-kitty` invocations on the same machine ... cannot race a torn stamp
+          write against each other\" — with no mention of SK-243, no mention of the
+          `RuntimeError`/`ValueError` drift-detection failure mode, and no analysis of whether
+          the new stamp file itself becomes a new observation/drift target."
+      - code: "src/specify_cli/runtime/agent_commands.py:35 (imports
+          `_GlobalAssetPreparation` from `asset_preparation.py`) and :368-369
+          (`AssetPreparation(\"slash_commands\", root, home / \"cache\", _LOCK_FILENAME,
+          consent)`) — confirms `assess_global_agent_commands()` is built directly on the same
+          `AssetPreparation` class SK-243 implicates."
+      - code: "src/specify_cli/runtime/asset_preparation.py:783 — `raise ValueError(f\"Global
+          asset input changed: {observation.path}\")` inside the drift-recheck loop that
+          SK-243's traceback (`RuntimeError: Global asset input changed: ...`) originates from."
+    claim: >
+      SK-243 is an open, first-hand-verified ledger entry (dated the day before this plan was
+      authored) documenting that `ensure_global_agent_commands()`'s underlying `AssetPreparation`
+      drift-recheck machinery spuriously raises when a sibling mission on the same machine
+      legitimately mutates the shared `$HOME`-level asset concurrently — exactly the "up to two
+      missions at once" operating pattern the ledger entry says is reachable by design, not
+      misuse. The plan's chosen Lever-C mechanism inserts NEW state (a freshness stamp: CLI
+      version + template-source signature + agent-key set) to be read and written inside this
+      exact function, on this exact `AssetPreparation` instance, on every non-fast-pathed CLI
+      invocation — i.e. more often than today, since the stamp read now runs unconditionally
+      as the very first step. Per CLAUDE.md's binding instruction ("Read SPEC-KITTY-LEDGER.md
+      before starting: it lists what is currently broken in spec-kitty, found while running real
+      missions") and this lens's own charge ("if SPEC-KITTY-LEDGER.md carries an entry on this
+      behaviour, the plan accounts for it rather than contradicting it"), the plan needed to
+      either demonstrate the new stamp file is excluded from `AssetPreparation`'s
+      observation/drift set (so it cannot itself trigger or be caught by SK-243's failure mode),
+      or explicitly acknowledge the interaction and either scope it out with the same rationale
+      spec.md gave for the separate #4017 carve-out, or fold a mitigation into FR-005's
+      regression guard. It does neither — data-model.md's "Concurrency" section addresses only
+      torn writes to the new stamp file, a materially different hazard from SK-243's documented
+      "legitimate concurrent mutation reported as unexplained drift" failure mode.
+    remediation: >
+      Add an explicit subsection to plan.md's Lever C (or data-model.md's freshness-stamp
+      section) analyzing the SK-243 interaction: state whether the new stamp file participates
+      in `AssetPreparation`'s `observations`/drift-recheck set for the `"slash_commands"` owner
+      batch, and if so, show how a concurrent sibling mission's legitimate re-render cannot make
+      the stamp read spuriously raise `RuntimeError: Global asset input changed` (or its
+      `ValueError` precursor) the way SK-243 documents for the adjacent skills path. If the
+      mechanism genuinely sidesteps this by construction (e.g. the stamp file is read-only
+      metadata never included in the observed-write set), say so explicitly with a code
+      citation proving it, rather than leaving the interaction unaddressed. Cite SK-243 by name
+      so a reviewer can confirm this was checked, not missed — the same treatment spec.md
+      already gives the sibling #4017 ledger item.

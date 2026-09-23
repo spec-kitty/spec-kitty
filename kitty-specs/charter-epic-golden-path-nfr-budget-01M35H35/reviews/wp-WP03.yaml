@@ -1,0 +1,106 @@
+# wp-verdict/v1 — canonical format for per-WP review verdicts.
+schema: wp-verdict/v1
+complete: true
+wp: WP03
+cycle: 1
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+verdict: approved
+gates_observed:
+  tsc: unknown   # not applicable — Python project
+  tests: pass    # Reproduced independently by this reviewer (never committed):
+                 # (1) a scratch script driving the exact `git init` + direct
+                 # `.git/config` write path from the diff confirms `git config
+                 # user.email`/`user.name` resolve correctly and a real `git commit`
+                 # (no -c overrides) succeeds with the expected author identity —
+                 # the direct write is observably equivalent to the two removed
+                 # `git config` subprocess calls. (2) A second scratch script
+                 # mutated the sequence (commit BEFORE the C-006 assertions run,
+                 # simulating a future reordering regression): the zero-commit
+                 # assertion (`not (project/".git"/"refs"/"heads"/"main").exists()`)
+                 # correctly fired (`AssertionError: C-006: zero-commit repo before
+                 # init`) once `.git/refs/heads/main` existed post-commit — this
+                 # confirms the agent's red-first claim and that the assertion is
+                 # load-bearing, not vacuous. The `.kittify` half of the assertion
+                 # cannot be tripped by this particular mutation (nothing in the
+                 # fixture's own code path ever creates `.kittify` before init runs
+                 # today) but is still real, executable code per Ruling 5's explicit
+                 # both-halves requirement — a defensive guard against a future
+                 # change, not currently falsifiable by any in-fixture mutation.
+                 # (3) `ruff check tests/e2e/conftest.py` — all checks passed. (4)
+                 # Ran `tests/e2e/test_charter_epic_golden_path.py` directly (the
+                 # fixture's single consumer) with a warm shared test-venv cache
+                 # already present in this worktree: 1 passed in 126.13s — no new
+                 # failure mode introduced by this WP's diff (git-config write and
+                 # C-006 assertions did not break anything); did not additionally
+                 # sweep the full `tests/e2e/` directory (resource/time cost, and
+                 # this fixture has exactly one consumer per the spec's own
+                 # evidence).
+  coverage: unknown
+feedback:
+  - id: WP03-C1-001
+    severity: 2
+    claim: >-
+      The agent's "honest value" framing — that the fixture-setup cost remaining
+      after this WP's own ~1.8ms/call savings is "WP04's territory" (i.e.
+      attributable to `ensure_global_agent_commands()` inside the fixture's
+      `spec-kitty init` call) — is not fully supported by the evidence it cites.
+      `_review-scratch/4211/e2e-measure-excerpt.log`'s own "Captured stdout setup"
+      block for `test_charter_epic_golden_path` shows a full `pip install`
+      resolving and installing ~50 packages ("Installing collected packages: ...
+      Successfully installed ... spec-kitty-cli-4.0.0rc5 ...") inside that same
+      51.31s setup window. That install is `tests/conftest.py`'s session-scoped,
+      autouse `test_venv` fixture (`tests/conftest.py:1188-1203` →
+      `_ensure_test_venv` → `_create_test_venv:1172` →
+      `subprocess.run([pip, "install", "-e", str(REPO_ROOT)], check=True)`), cached
+      under `REPO_ROOT/.pytest_cache/spec-kitty-test-venv` — a per-CI-job path with
+      no `actions/cache` step in `ci-router.yml`, so on a fresh Actions runner it
+      is rebuilt from scratch every job. Because `test_charter_epic_golden_path.py`
+      sorts early among `tests/e2e/*.py` and this fixture is autouse+session-scoped,
+      whichever test/worker first needs the venv absorbs the ENTIRE one-time
+      editable-install cost inside its own reported "setup" phase — a cost that is
+      neither WP03's fixture-local git-config lever nor WP04's
+      `ensure_global_agent_commands()` freshness lever, but fixed CI-job bootstrap
+      overhead orthogonal to both. The 51.31s figure is therefore not a clean
+      baseline for "remaining cost = WP04's" — an unquantified, possibly dominant,
+      fraction of it belongs to neither lever.
+    remediation: >-
+      No action required on this WP's diff — it is correct and approved as-is;
+      this finding is about the completion-report narrative, not the code. Before
+      this "51.31s setup" / "remaining cost is WP04's territory" framing is reused
+      in mission-level closure evidence (WP08's final integration validation, the
+      PR description, or NFR-002/SC-003 closure reasoning), re-derive the
+      fixture's own steady-state setup cost with the session-scoped `test_venv`
+      warm (e.g. run the golden path test as the SECOND or later test in a session
+      that has already paid the venv-build cost), or explicitly caveat that the
+      cited 51.31s figure includes a one-time, unrelated CI-job bootstrap cost.
+  - id: WP03-C1-002
+    severity: 1
+    claim: >-
+      WP03's own Definition of Done requires per-subtask completion recorded via
+      `spec-kitty agent tasks mark-status <Txxx> --status done` for T009–T011. No
+      such events are present in
+      `kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/status.events.jsonl`
+      for T009/T010/T011, and the WP03 task file's own `history:` frontmatter field
+      is still `[]` in the lane. Administrative/bookkeeping gap only — does not
+      affect code correctness.
+    remediation: >-
+      Run `spec-kitty agent tasks mark-status T009 --status done` (and T010, T011)
+      in the lane before this WP is folded into the mission's merge, so the task
+      ledger reflects reality.
+  - id: WP03-C1-003
+    severity: 1
+    claim: >-
+      The direct `.git/config` write opens the file in text mode (`"a"`,
+      `encoding="utf-8"`, no `newline=""`), which on Windows would translate the
+      written `\n` to `\r\n`. This is currently inert: `tests/e2e/**` is never
+      selected by `ci-windows.yml` (no file in `tests/e2e/` carries
+      `@pytest.mark.windows_ci`, and none of `tests/e2e/conftest.py` or
+      `test_charter_epic_golden_path.py` appear in that workflow's
+      `windows_critical` path-filter list), so this WP does not currently run on
+      Windows CI at all. Advisory only.
+    remediation: >-
+      No action required now. If `tests/e2e/` is ever added to the Windows-critical
+      surface, revisit whether CRLF line endings inside `.git/config` need
+      `newline=""` (git's config parser is generally CRLF-tolerant, but this was
+      not independently verified on a real Windows git install as part of this
+      review).

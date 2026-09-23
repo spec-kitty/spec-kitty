@@ -1,0 +1,61 @@
+---
+affected_files: []
+cycle_number: 1
+mission_slug: charter-epic-golden-path-nfr-budget-01M35H35
+reproduction_command:
+reviewed_at: '2026-09-23T15:31:47Z'
+reviewer_agent: reviewer-renata
+wp_id: WP08
+---
+
+schema: wp-verdict/v1
+complete: true
+wp: WP08
+cycle: 1
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+verdict: rejected
+gates_observed:
+  tsc: unknown
+  tests: pass
+  coverage: unknown
+feedback:
+  - id: WP08-C1-001
+    severity: 3
+    claim: >
+      tracer-design-decisions.md:866 (added in commit e196a39ba, WP08's own "WP08 closing
+      pass: T027 blast-radius results" entry) embeds a literal absolute filesystem path
+      containing the operator's real OS username:
+      "the throwaway integration worktree (`/home/<OS-USERNAME>/dev/SK-missions/4211-integration`,
+      ...)". This repo is spec-kitty/spec-kitty, PUBLIC, and this line ships permanently in
+      mission history once merged. This is exactly the same defect class WP01's own cycle-1
+      rejection caught in its baseline artifact (status.json WP01 notes: "rejected: sev3 local
+      absolute path in baseline artifact (WP01-C1-001)") — WP08 reintroduced the identical
+      class of finding in its own owned files.
+    remediation: >
+      Replace the literal `/home/<username>/dev/SK-missions/4211-integration` path with a
+      relative or genericized form (e.g. "a sibling directory outside the checkout,
+      `<checkout>-integration`") in tracer-design-decisions.md:866. Substance of the entry
+      (that the throwaway worktree equaled the already-merged HEAD) is unaffected by the redaction.
+  - id: WP08-C1-002
+    severity: 3
+    claim: >
+      tracer-tooling-friction.md:117 (added in the same commit e196a39ba, "WP08 closing pass:
+      implementation-phase tooling friction" entry) repeats the identical literal absolute path
+      with the operator's real OS username: "the throwaway worktree I had already created
+      (`git worktree add --detach /home/<OS-USERNAME>/dev/SK-missions/4211-integration HEAD`)".
+      Same public-repo hygiene defect as WP08-C1-001, in the second tracer file.
+    remediation: >
+      Replace the literal absolute path at tracer-tooling-friction.md:117 the same way as
+      WP08-C1-001 — a relative or genericized path, no OS username or absolute /home/ segment.
+  - id: WP08-C1-003
+    severity: 1
+    claim: >
+      Not WP08's fault and not in its owned_files, recorded for completeness per the reviewer
+      dispatch's public-repo-hygiene check: kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/analysis-report.md
+      and kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/reviews/wp-WP01-cycle2.yaml
+      each contain one hit of the OS username / an absolute /home/ path. Both files predate
+      WP08's commits (not in `git show e196a39ba --name-only`'s file list), so this is
+      pre-existing mission debt, not introduced by this WP. Advisory only; does not block WP08.
+    remediation: >
+      Out of scope for WP08 to fix (not its owned_files). Worth a separate ledger/cleanup pass
+      before this mission's PR goes up, given the repo is public.

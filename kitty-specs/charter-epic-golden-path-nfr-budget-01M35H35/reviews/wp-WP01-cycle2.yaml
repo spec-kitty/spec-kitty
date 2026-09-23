@@ -1,0 +1,56 @@
+# wp-verdict/v1 — canonical format for per-WP review verdicts.
+schema: wp-verdict/v1
+complete: true
+wp: WP01
+cycle: 2
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+verdict: approved
+gates_observed:
+  tsc: unknown
+  tests: unknown   # planning_artifact WP; no code changed. T003's own pytest runs are
+                   # reported inside the artifact itself, not re-executed by this reviewer.
+  coverage: unknown
+feedback:
+  - id: WP01-C2-001
+    severity: 1
+    claim: >-
+      Both cycle-1 findings are fixed. WP01-C1-001 (severity 3): commit 5a8391d54 rewrites
+      research/baseline-2026-09-23.md line ~140 from the literal
+      "<home>/dev/SK-missions/4211" to "<checkout-parent>/4211", removing the OS username;
+      confirmed by `git show 5a8391d54` and by grepping the current file/tree for the
+      operator's username and for any `/home/<name>/`-style path (zero hits in research/,
+      zero hits anywhere under the mission dir except one prose sentence in
+      analysis-report.md that describes the grep pattern itself, not a real path — and that
+      file is outside this WP's research/** ownership). WP01-C1-002 (severity 1): the
+      undisclosed PWHEADLESS=1 prefix is now disclosed inline in the T003 section with an
+      explicit "Disclosed deviation" callout naming the exact plan.md mismatch and the
+      Makefile-convention rationale, matching the original finding's own suggested
+      remediation.
+    remediation: none required.
+  - id: WP01-C2-002
+    severity: 1
+    claim: >-
+      Re-marking T001-T005 done via `spec-kitty agent tasks mark-status` was legitimate: the
+      DoD explicitly calls for that exact CLI command, it is not a hand-edit (status.json /
+      status.events.jsonl changed only as the CLI's own recorded side effect, in dedicated
+      "chore(spec-kitty): status transition" commits 26d56981c/1d3b7e723), and the current
+      artifact genuinely evidences every subtask: T001's real `git merge-base` SHA
+      (6b4164dbf...), T002's worktree creation/verification, T003's three full verbatim
+      command outputs with individual failing test IDs, T004's classification (with a
+      reasoned fifth category for the 3 worktree-guard failures, appropriately flagged as
+      not-fully-certain pending origin/main CI history), and T005's hand-off table that
+      explicitly does not claim to have filed a GitHub issue. Confirmed the mandated
+      SKIPPED note for test_charter_epic_golden_path is present, and worktree cleanup is
+      recorded.
+    remediation: none required.
+  - id: WP01-C2-003
+    severity: 1
+    claim: >-
+      Rework scope check: `git show --stat` on all three rework commits shows 5a8391d54
+      touches only research/baseline-2026-09-23.md, and 26d56981c/1d3b7e723 touch only
+      status.events.jsonl and status.json (the CLI's own status-transition side effects).
+      No other file was touched by the rework. (Noted, not a finding: this shared checkout
+      currently carries an unrelated uncommitted WP02 status.json/status.events.jsonl
+      change from a concurrently-running WP — left untouched per read-only reviewer rules,
+      unrelated to WP01.)
+    remediation: none required.

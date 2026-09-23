@@ -1,0 +1,48 @@
+# wp-verdict/v1 — canonical format for per-WP review verdicts.
+schema: wp-verdict/v1
+complete: true
+wp: WP06
+cycle: 2
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+verdict: approved
+gates_observed:
+  tsc: unknown
+  tests: pass    # tests/specify_cli/runtime/test_agent_commands_freshness_precheck_shape.py
+                 # + tests/cli/test_register_commands_lazy_import_shape.py -> 9 passed
+                 # (collected + run under PYTHONPATH=<lane>/src, venv python -m pytest).
+                 # tests/architectural/test_performance_marker_guard.py -> 11 passed.
+                 # Red-first: merge-base (6b4164dbf) source written over each target file
+                 # via `git show 6b4164dbf:<src> > <src>` reproduced both reds
+                 # (test_freshness_check_precedes_render_call_in_assess_global_agent_commands
+                 # and test_register_commands_has_no_eager_top_level_command_imports failed
+                 # as expected); HEAD source restored via `git show HEAD:<src> > <src>`
+                 # after each; `git status --porcelain` empty throughout and at the end.
+  coverage: unknown  # test-only file relocation/split, no coverage-floor module touched
+feedback:
+  - id: WP06-C2-001
+    severity: 2
+    claim: >
+      C1-002's shape-based exemption in tests/cli/test_register_commands_lazy_import_shape.py
+      (_is_narrow_single_import_branch) counts "exactly one from-import" by STATEMENT, not by
+      imported NAME: `import_count = sum(1 for stmt in body if _is_relative_command_import(stmt))`.
+      A single `ast.ImportFrom` statement that imports two names in one line --
+      `from . import accept as accept_module, agent as agent_module` -- is one AST statement,
+      so a branch shaped `if <predicate>: from . import a as _a, b as _b; a.register(app);
+      b.register(app); return` satisfies the exemption shape (one ImportFrom statement,
+      ends in unconditional return) and is walked past, even though it eagerly imports TWO
+      command modules unconditionally when the predicate is true -- the exact defect class
+      T021 exists to catch. Verified directly: constructed this branch and called
+      `_eager_relative_import_lines()` on it (via the checkout's own `_find_function`) --
+      returned `[]` (no offending lines), i.e. silently exempted.
+      Not a live regression today: `src/specify_cli/cli/commands/__init__.py`'s two real
+      fast-path branches each use single-name `from . import x as y` statements, one per
+      statement, matching the codebase's established style, so nothing currently exploits
+      this gap, and it does not undermine WP06-C1-002's stated purpose (surviving a predicate
+      *rename*, which it still does per the four control tests, all passing). It is a
+      narrower precision gap in the guard's own robustness, not a masked defect in the code
+      under test.
+    remediation: >
+      Tighten `_is_narrow_single_import_branch` to also require `len(stmt.names) == 1` on
+      the matched `ast.ImportFrom` (not just "exactly one ImportFrom statement"), so a
+      multi-name single-statement import cannot slip through the exemption. Advisory --
+      does not block this WP; safe to fold into a later touch of this file.

@@ -1,0 +1,350 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+merged_from:
+  - reviews/spec-gov.findings.yaml
+  - reviews/spec-arch.findings.yaml
+  - reviews/spec-verify.findings.yaml
+note: >
+  Mechanical R2 merge (orchestrator, no session). No two findings across the three
+  groups cite the same artifact section / file:line for substantially the same claim,
+  so all 13 findings are kept verbatim with their original ids and severities; nothing
+  was deduplicated or dropped.
+findings:
+  - id: SPEC-GOV-001
+    lens_group: gov
+    lens: directive (canonical-sources / citation discipline)
+    severity: 3
+    title: Evidence citations point to a directory outside the git checkout; will be a dangling reference once merged
+    evidence:
+      - artifact: "spec.md line 99 (\"Evidence carried into this spec\" section)"
+      - code: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/research/ (confirmed empty via ls)"
+    claim: >
+      spec.md line 99 cites "_readiness/4211/measured-results.md" and
+      "_readiness/4211/golden_path_run.log" as the evidentiary basis for the mission's
+      central performance numbers (127.55s total, 73.58s call, 29.36s setup, 0.03s
+      teardown) that NFR-002's margin rationale and the "No hang exists" finding both
+      depend on. These numbers are accurate transcriptions of the actual readiness-session
+      files, but those files live in the operator's local mission-hub workspace (a sibling
+      directory one level above this git checkout), not inside the spec-kitty repository —
+      `git ls-files | grep -i readiness` returns no match, and the mission's own
+      scaffolded `research/` directory (which exists for exactly this purpose) is empty.
+      Once this spec is committed and merges into the public spec-kitty repo, any future
+      reader following the "_readiness/4211/..." citation will find nothing.
+    remediation: >
+      Before spec-commit, copy the cited readiness artifacts into the mission's own
+      `kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/research/` directory
+      (already scaffolded, currently empty), then update spec.md's citations at line 99
+      to point at the in-repo, repo-relative path instead of "_readiness/4211/...". If the
+      operator prefers not to carry the raw session artifacts into the public repo, inline
+      the exact numbers as a table in spec.md itself (already partially done) and drop the
+      dangling path citation.
+
+  - id: SPEC-GOV-002
+    lens_group: gov
+    lens: operator-decision fidelity (real-CI-Actions closure requirement with stated margin)
+    severity: 3
+    title: "NFR-002/SC-003 leave it ambiguous whether ≤110s is a hard closure gate or an aspirational target"
+    evidence:
+      - artifact: "spec.md line 22 (Clarifications, binding Constraints block)"
+      - artifact: "spec.md line 65 (NFR-002)"
+      - artifact: "spec.md line 91 (SC-003)"
+    claim: >
+      The binding operator decision requires "a stated margin" but not a specific pass/fail
+      number. NFR-002 states "must be comfortably under the 120s cap — target ≤110s (a ≥10s
+      margin)" — mixing a "must" with a "target," which reads as aspirational rather than
+      gating. SC-003 says closure requires comparing the measured duration "against the
+      ≤110s target margin ... (not merely 'under 120s')," which could be read either way.
+      The spec never states what happens if the real Actions measurement lands between
+      110s and 120s (e.g. 113s) — a passing or failed closure. This is exactly the kind of
+      forced-clarification the binding operator decision asked the spec to resolve, and as
+      written it is left open.
+    remediation: >
+      Add one explicit sentence to NFR-002 or SC-003 stating the pass/fail rule for the
+      110-120s band, e.g. any real Actions measurement under 120s satisfies the cap and is
+      not a defect by itself; landing at or under 110s is required to declare SC-003/closure
+      satisfied without further discussion; a result between 110s and 120s requires an
+      explicit operator call before the PR is treated as ready to close #4213/#4211.
+
+  - id: SPEC-GOV-003
+    lens_group: gov
+    lens: directive (campsite-cleaning standing order)
+    severity: 2
+    title: Spec does not address Standing Order #2 (campsite-cleaning) for the surfaces FR-002/FR-003 are about to touch
+    evidence:
+      - artifact: ".kittify/charter/charter.md § Quality & Tech-Debt Standing Orders, item 2 (\"Campsite cleaning & incremental debt paydown\")"
+      - artifact: "spec.md FR-002 (line ~55) and FR-003 (line ~56)"
+      - code: "tests/e2e/conftest.py:390-452 (fresh_e2e_project fixture, the FR-002 surface)"
+    claim: >
+      The charter's Standing Order #2 requires campsite-cleaning the surfaces a mission
+      touches as a distinct, behavior-preserving step preceding the functional work, and
+      "Governance by workflow action" binds Specify/Plan to "fold only domain-matched
+      debt." spec.md's FR-002/FR-003 go directly to functional restructuring with no
+      FR/NFR/note addressing whether the touched surfaces carry pre-existing debt that
+      should be cleaned first, or an explicit statement that no such debt exists / the
+      redesign itself subsumes the campsite-clean.
+    remediation: >
+      Add a short note to spec.md either (a) naming a preceding, behavior-preserving
+      campsite-clean step for the touched fixture and Typer command-surface modules if
+      debt is found there, or (b) explicitly stating that FR-002/FR-003's redesign work
+      itself constitutes the campsite-clean for these surfaces.
+
+  - id: SPEC-ARCH-001
+    lens_group: arch
+    lens: "Fixture redesign integrity (FR-002 / Edge Case 1)"
+    severity: 4
+    title: "FR-002's proposed lever mechanism (shared venv/editable-install groundwork) does not correspond to any real per-invocation cost in the actual fixture code"
+    evidence:
+      - artifact: "spec.md § FR-002 (\"reduced by real restructuring (e.g. sharing venv/editable-install groundwork across the tests/e2e/ shard)\")"
+      - artifact: "spec.md § Edge Cases, item 1 (\"a shared venv/editable-install reused across the tests/e2e/ shard\")"
+      - code: "tests/e2e/conftest.py:390-452 (fresh_e2e_project body: git init/config x2/spec-kitty init via run_cli_subprocess/git add/commit — no venv or editable-install construction anywhere in this fixture)"
+      - code: "tests/test_isolation_helpers.py:35-41 (get_venv_python() just resolves an existing python path — it builds nothing; there is no per-test venv/editable-install cost to amortize)"
+    claim: >
+      FR-002 and Edge Case 1 both frame the redesign lever as "sharing cheaper-to-build
+      groundwork (e.g. a pre-built venv/editable install) across the tests/e2e/ shard."
+      But the actual fixture never builds a venv or performs an editable install per
+      invocation — it resolves an already-existing python executable via
+      get_venv_python(), which the whole test session already shares globally. The
+      measured 29.36s "setup" cost is dominated by three real subprocess operations
+      (git init, spec-kitty init, git add+commit), none of which is a venv/editable-install
+      cost. The spec's own Evidence section states the fixture has exactly ONE consumer, so
+      there is nothing today that redundantly re-pays a shareable per-fixture cost within
+      this fixture's own scope. A WP author following FR-002's literal wording could spend
+      real effort building a "shared venv" mechanism that saves nothing.
+    remediation: >
+      Rewrite FR-002 (and Edge Case 1's parenthetical) to describe the redesign lever in
+      terms that match what the fixture actually costs: replacing the subprocess git calls
+      with a faster/leaner git mechanism (e.g. seeding a pre-built bare-repo template the
+      way tests/conftest.py's temp_repo fixture already does), and/or reducing what the
+      spec-kitty init subprocess call itself does for this fixture's specific needs. Drop
+      the "shared venv/editable-install" framing entirely unless a concrete session-scoped
+      cost it actually amortizes can be shown.
+
+  - id: SPEC-ARCH-002
+    lens_group: arch
+    lens: "Fixture redesign integrity (FR-002 / Edge Case 1)"
+    severity: 4
+    title: "The fixture's documented-contract preservation constraint (\"truly clean, from-scratch project\") lives only in Edge Cases prose — no FR, Acceptance Scenario, or Success Criterion makes it a testable requirement"
+    evidence:
+      - artifact: "spec.md § Edge Cases, item 1 (states the preservation requirement in full)"
+      - artifact: "spec.md § FR-002 (does not itself state or cross-require the isolation-preservation constraint beyond a \"see Edge Cases\" pointer)"
+      - artifact: "spec.md § Success Criteria SC-001..SC-005 (none asserts anything about fixture isolation, cross-test state leakage, or the fixture's \"does NOT copy .kittify\" docstring contract)"
+      - code: "tests/e2e/conftest.py:392-398 (fresh_e2e_project docstring: \"does NOT copy .kittify from the source checkout ... exercises the operator path from a truly clean starting state\")"
+      - code: "tests/e2e/test_charter_epic_golden_path.py:485 (the one existing runtime check: asserts .kittify/doctrine does not exist pre-synthesize)"
+    claim: >
+      Edge Case 1 correctly names a real risk, but this is the ONLY place in the spec
+      where the constraint appears. FR-002's requirement text stops at describing the
+      cost-reduction goal; none of the five Success Criteria, none of the three Acceptance
+      Scenarios, and no Constraint row requires verifying that the redesigned fixture still
+      produces a from-scratch, non-.kittify-copying project, or that no other tests/e2e/
+      test is affected by whatever the redesign shares. A WP could satisfy every literal
+      FR/SC in this spec while silently breaking fixture isolation, and nothing would catch
+      it before merge.
+    remediation: >
+      Add an explicit Acceptance Scenario (or a new Constraint, e.g. C-006) under User
+      Story 1 stating that the produced project still contains no .kittify content copied
+      from the source checkout (the existing assertion at
+      tests/e2e/test_charter_epic_golden_path.py:485 keeps passing unmodified), and that
+      any newly-shared groundwork is verified not to leak state into or out of any other
+      tests/e2e/ test. Cross-reference this new AC from FR-002 itself, not only from Edge
+      Cases.
+
+  - id: SPEC-ARCH-003
+    lens_group: arch
+    lens: "Contracts / evidence accuracy"
+    severity: 3
+    title: "C-003 and Key Entities misattribute the golden path's actual CLI-invocation helper (_run_cli) to tests/e2e/conftest.py; it is defined in tests/conftest.py"
+    evidence:
+      - artifact: "spec.md § C-003 (\"`_run_cli` / `run_cli_subprocess` in `tests/e2e/conftest.py`\")"
+      - code: "tests/conftest.py:1318-1338 (the run_cli fixture, inner helper literally named _run_cli, is defined here — not in tests/e2e/conftest.py)"
+      - code: "tests/e2e/test_charter_epic_golden_path.py:66,808 (RunCli type alias / run_cli fixture the test consumes for all 12 subprocess calls resolve to tests/conftest.py's fixture)"
+      - code: "tests/test_isolation_helpers.py:93-124 (run_cli_subprocess is defined here, only imported into tests/e2e/conftest.py at line 22)"
+    claim: >
+      The spec's Constraints table and Key Entities section both cite tests/e2e/conftest.py
+      as the home of the helper(s) driving the golden path's 12 installed-CLI subprocess
+      calls. In fact the 12 run_cli(...) calls resolve to the run_cli fixture defined at
+      tests/conftest.py:1318-1338, and run_cli_subprocess is defined in
+      tests/test_isolation_helpers.py and merely imported into tests/e2e/conftest.py. A WP
+      author who trusts C-003's file citation and goes looking for a single shared helper
+      in tests/e2e/conftest.py will find only the fixture's own init-call helper, not the
+      golden path's 12-call invocation path.
+    remediation: >
+      Correct C-003 and Key Entities to read: the golden path's 12 CLI invocations run
+      through the run_cli fixture (tests/conftest.py:1318-1338, inner helper _run_cli); the
+      fixture's own spec-kitty init setup call uses the separate run_cli_subprocess helper
+      (tests/test_isolation_helpers.py:93-124, imported into tests/e2e/conftest.py). Both
+      ultimately build the same subprocess command, so FR-003's technical target is
+      unaffected — only the spec's citation needs correcting.
+
+  - id: SPEC-ARCH-004
+    lens_group: arch
+    lens: "Contracts / evidence accuracy"
+    severity: 2
+    title: "\"Installed CLI\" language (User Story 1, FR-001, C-003, SC-005) does not describe what the code actually exercises — it is source-tree code invoked via PYTHONPATH override, not a pip-installed package"
+    evidence:
+      - artifact: "spec.md § User Story 1 (\"through the installed CLI via subprocess, exactly as a real operator would invoke it\")"
+      - artifact: "spec.md § C-003 (\"must continue to exercise the real, installed spec-kitty CLI via subprocess\")"
+      - artifact: "spec.md § SC-005 (\"all 12 installed-CLI subprocess invocations remain real subprocess calls against the installed CLI\")"
+      - code: "tests/conftest.py:1290-1301 (isolated_env fixture docstring: guarantees tests never accidentally use a pip-installed version; PYTHONPATH forced to REPO_ROOT / \"src\")"
+      - code: "tests/test_isolation_helpers.py:70-84 (assert_test_isolation actively fails the test if an installed package version is detected and differs from source)"
+    claim: >
+      The spec repeatedly frames the golden path as exercising "the real, installed
+      spec-kitty CLI." The actual mechanism is designed to guarantee the OPPOSITE: the
+      test always runs against source, deliberately isolated from any pip-installed
+      package. What C-003 is actually protecting is the subprocess process boundary, not
+      "installed-ness." This matches the #4409/#4417 precedent's own shorthand, so it is
+      established project imprecision rather than a mission-specific error, but the
+      "installed" framing could mislead a reviewer of the closing PR (SC-004) into
+      believing this mission validates packaging/installation behavior, which it does not.
+    remediation: >
+      Replace "installed CLI" with "the CLI via a real subprocess boundary (source tree,
+      isolated from any pip-installed package per tests/conftest.py's isolated_env)" in
+      User Story 1, C-003, and SC-005, or add a one-line glossary note clarifying the
+      intended meaning.
+
+  - id: SPEC-ARCH-005
+    lens_group: arch
+    lens: "Reflexivity"
+    severity: 3
+    title: "Lever C touches CLI-startup machinery every other in-flight mission's CI run depends on, but the spec's only conflict check covers direct file overlap, not shared-surface behavior preservation"
+    evidence:
+      - artifact: "spec.md § Evidence (\"No open-PR lane-scope conflict: none of the four PRs open at readiness time ... touch tests/e2e/test_charter_epic_golden_path.py, tests/e2e/conftest.py, or CLI-startup paths\")"
+      - artifact: "spec.md § FR-003 (\"the ~0.2s/call Typer command-surface construction cost ... e.g., the init command's charter/doctrine provisioning stack\")"
+      - code: "tests/performance/test_cli_startup_budget_4409.py:1-19 (the precedent this mission must follow: deferring module-scope imports to call sites can silently reorder import-time side effects for every CLI command, not just the one measured)"
+    claim: >
+      FR-003/lever C proposes deferring eager module-scope imports to their call sites —
+      generally safe, but it changes WHEN certain modules first get imported across the
+      CLI's entire command surface, not just for the golden-path test's 12 calls. A subtle
+      import-order or lazy-registration regression in shared CLI startup machinery would
+      not necessarily show up as a file-touch conflict (all the spec's "no lane-scope
+      conflict" evidence checks) — it would show up as a behavior change in some OTHER
+      command's first invocation. Neither the FRs nor the Success Criteria require
+      validating the broader CLI command surface stays behaviorally unchanged.
+    remediation: >
+      Add an explicit validation step to FR-003 or as a new Success Criterion: run the
+      existing tests/specify_cli/cli/commands/ suite (per the charter's own blast-radius
+      rule) as part of this mission's acceptance evidence, and record the pass count in
+      the PR, specifically to catch import-order/registration regressions in CLI commands
+      other than the ones the golden path itself exercises.
+
+  - id: SPEC-VERIFY-001
+    lens_group: verify
+    lens: falsifiability
+    severity: 4
+    title: "C-004's stated skip-decorator line range (797-806) wrongly includes the timeout marker it must not touch"
+    evidence:
+      - artifact: "spec.md § Constraints, C-004"
+      - code: "tests/e2e/test_charter_epic_golden_path.py:797-806"
+    claim: >
+      C-004 states the @pytest.mark.skip(...) decorator to be removed is "currently at
+      lines 797-806 (immediately preceding @pytest.mark.timeout(120) and def
+      test_charter_epic_golden_path)". Reading the actual file: line 797 is
+      @pytest.mark.skip(, the decorator's closing paren is line 805, line 806 IS
+      @pytest.mark.timeout(120) itself, and line 807 is the def. An implementer who
+      follows C-004's stated range literally ("lines 797-806 ... removed") would delete
+      the timeout marker in the same edit that removes the skip decorator, directly
+      violating C-001 inside the PR meant to satisfy it. tracer-approach.md §4 shows this
+      was a deliberate choice, not a typo, which makes it more likely to be followed
+      literally rather than caught as an obvious off-by-one.
+    remediation: >
+      Correct C-004's cited range to "lines 797-805" (the skip decorator only, ending at
+      its closing paren), and add an explicit one-line caveat: "line 806
+      (@pytest.mark.timeout(120)) must remain untouched — see NFR-001/C-001."
+
+  - id: SPEC-VERIFY-002
+    lens_group: verify
+    lens: "mission-derived: margin arithmetic falsifiability (NFR-002)"
+    severity: 3
+    title: "NFR-002's own rationale cites a comparison that contradicts the 'CI ran slower' claim it's supporting"
+    evidence:
+      - artifact: "spec.md § NFR-002 (Non-Functional Requirements table)"
+      - artifact: "spec.md § Evidence carried into this spec (paragraph beginning 'Historical CI/VM runs were slower than local')"
+      - artifact: "tracer-design-decisions.md § NFR-002's ≤110s number"
+    claim: >
+      NFR-002 says historical CI/VM measurements "ran 12-30s slower than comparable local
+      numbers (139.7s implementer VM vs then-current local ~156s; 159.5s merge-agent
+      worktree)". But 139.7s is ~16.3s LESS than 156s — the cited comparison shows CI
+      running FASTER than local in that era, the opposite of the "12-30s slower" claim it
+      is offered as evidence for. The "12-30s slower" figure is actually only derivable by
+      comparing the same two historical numbers against the CURRENT post-#4417 local
+      baseline (127.55s) instead — which is what the spec's own Evidence section does two
+      paragraphs later. The spec cites the same two historical numbers against two
+      different baselines without reconciling which comparison actually grounds the
+      "12-30s slower" framing, and NFR-002's own embedded citation does not support the
+      direction it is offered for. tracer-design-decisions.md repeats the same
+      inconsistency.
+    remediation: >
+      Rewrite NFR-002's rationale to use one consistent comparison throughout: compare
+      139.7s and 159.5s only against the current 127.55s post-#4417 local baseline (the
+      comparison that actually yields "12-30s slower"), and drop the "vs then-current local
+      ~156s" parenthetical. If the pre-#4417 same-era comparison is meant to be part of the
+      evidentiary basis, state it as its own, separately-labeled data point.
+
+  - id: SPEC-VERIFY-003
+    lens_group: verify
+    lens: silent-success
+    severity: 4
+    title: "C-005 (silent-success prohibition) is policy prose with no proposed enforcement mechanism, unlike FR-005's lever-C guard"
+    evidence:
+      - artifact: "spec.md § Constraints, C-005"
+      - artifact: "spec.md § FR-005 / SC-002 (contrast: these DO specify a concrete two-tier gate mechanism)"
+      - artifact: ".kittify/charter/charter.md § Quality & Tech-Debt Standing Orders, item 5 (Architectural gate discipline: 'Close defect classes by construction with a NON-VACUOUS call-site gate ... a gate-unmask cannot self-validate')"
+    claim: >
+      C-005 states the golden path "must never be silently re-skipped, re-quarantined, or
+      have its budget quietly raised" in the future. This is exactly the defect class the
+      mission exists to fix (PR #4209's "controller correction" re-added the skip decorator
+      after a human reviewer's judgment call, not because any automated check caught the
+      recurrence). C-005 as written proposes no equivalent of FR-005's own two-tier guard
+      to make a FUTURE reintroduction of @pytest.mark.skip/xfail on this exact test
+      mechanically detectable — it relies entirely on review discipline, the same
+      mechanism that already produced the recurrence this mission is fixing.
+    remediation: >
+      Add an FR (or fold into FR-005) requiring a lightweight, deterministic structural
+      gate that fails CI if @pytest.mark.skip or xfail is applied to
+      test_charter_epic_golden_path (or any test tagged as an NFR-007 budget test) without
+      an explicit, separately-reviewed opt-out record. This converts C-005 from an
+      exhortation into a falsifiable, self-mutation-testable gate.
+
+  - id: SPEC-VERIFY-004
+    lens_group: verify
+    lens: falsifiability
+    severity: 3
+    title: "SC-002's 'if a wall-clock assertion is warranted' hedge makes the nightly lever-C guard optional, unlike the precedent it claims to follow"
+    evidence:
+      - artifact: "spec.md § SC-002"
+      - artifact: "spec.md § FR-005"
+      - code: "tests/performance/test_cli_startup_budget_4409.py:86 (test_jsonschema_stays_out_of_module_scope, structural, unmarked)"
+      - code: "tests/performance/test_cli_startup_budget_4409.py:132-133 (@pytest.mark.performance def test_help_stays_inside_its_startup_budget, wall-clock)"
+    claim: >
+      SC-002 requires "a structural check ... plus, if a wall-clock assertion is
+      warranted, it is scoped to the performance-marked nightly lane." The "if ...
+      warranted" clause makes the second tier conditional/subjective rather than a
+      falsifiable requirement. The #4409/#4417 precedent that SC-002/FR-005 cite does NOT
+      hedge this way: it ships both tiers unconditionally. Acceptance Scenario 3 inherits
+      the same ambiguity.
+    remediation: >
+      Remove the hedge from SC-002 and FR-005: require both tiers unconditionally, matching
+      the #4409/#4417 precedent exactly. If a genuine reason exists for the wall-clock tier
+      to be optional here, replace "if ... warranted" with an explicit, objective trigger
+      condition.
+
+  - id: SPEC-VERIFY-005
+    lens_group: verify
+    lens: "mission-derived: margin arithmetic falsifiability (SC-003 gap)"
+    severity: 2
+    title: "Edge Case names the 'lever A+C insufficient on Actions' risk but defines no resolution path"
+    evidence:
+      - artifact: "spec.md § Edge Cases (second bullet, 'How does the mission handle the case where lever A + lever C together are insufficient...')"
+    claim: >
+      The Edge Case correctly identifies a real risk and states "the mission must
+      re-measure on a real Actions runner before declaring closure" — but does not say
+      what happens if that re-measurement still fails to clear the margin. Given C-001,
+      C-002, and C-003 all forbid the obvious fallback levers, an implementer who hits this
+      exact scenario has no spec-stated next step other than the three explicitly-rejected
+      options.
+    remediation: >
+      Add an explicit fallback clause to the Edge Case: if lever A+C's real Actions-runner
+      measurement does not clear the NFR-002 margin, escalate to the operator/maintainer
+      for a new, explicitly-scoped decision (per C-005's own language) rather than leaving
+      the mission with an implicit choice among the three already-rejected levers.

@@ -1,0 +1,106 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: TASKS-FRESH-001
+    lens: decomp
+    severity: 4
+    title: "tracer-design-decisions.md's lane-cycle resolution record now contradicts WP08's actual (fixed) dependency on WP01"
+    evidence:
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-design-decisions.md:749-760"
+        code: "\"Resolution taken: removed the hard `dependencies: [WP01]` edge from WP02, WP03, WP04, WP05, and WP07 ... WP08 keeps a dependency on WP02–WP07 (all in code lanes) but not an explicit one on WP01 (same lane as WP08 already — a same-lane edge is a no-op for the cross-lane cycle check). ... Each affected WP's prompt file Context section now states explicitly why the hard gate is absent, so a reader does not mistake the missing dependency for an oversight.\""
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/wps.yaml:146-155"
+        code: "WP08 dependencies now list WP01, WP02, WP03, WP04, WP05, WP06, WP07 (WP01 added by commit 461f13eff, the finalize-tasks regen that closed the tasks-review round)."
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tasks/WP08-final-integration-validation.md:4-11"
+        code: "frontmatter dependencies: [WP01, WP02, WP03, WP04, WP05, WP06, WP07]"
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tasks/WP05-lazy-command-imports.md:60-64"
+        code: "\"WP01 (baseline capture) has no hard WP-dependency gate on it\" — also now stale, since WP08 gates on WP01."
+    claim: >
+      The fix round (commit 461f13eff) resolved a prior review finding by adding WP01
+      to WP08's dependencies in wps.yaml/tasks.md/WP08's own frontmatter. This is
+      structurally safe (an intra-lane edge inside the shared lane-planning lane, so it
+      does not reopen the lane-dependency cycle the tracer entry describes). But the
+      tracer-design-decisions.md entry dated 2026-09-23 ("Tasks phase: WP decomposition,
+      a lane-computation constraint found...") is the mission's own documented,
+      charter-mandated design-decision record for exactly this dependency shape, and it
+      explicitly states the opposite of what the artifacts now say: that WP08 does
+      "not" have "an explicit [dependency] on WP01", and that "each affected WP's
+      prompt file Context section now states explicitly why the hard gate is absent".
+      Neither commit in this fix round (461f13eff, d654f114c) touched this section of
+      tracer-design-decisions.md, so the mission's binding rationale record is now
+      factually wrong about its own current dependency graph. A later reader (WP08's
+      own debugger-debbie implementer, sk-review, or a future maintainer investigating
+      why the lane graph is shaped this way) will hit a direct contradiction between the
+      "official" resolution narrative and the real wps.yaml, and may spend
+      time/rework re-litigating a decision that was in fact already changed, or
+      may "fix" WP08 by removing the WP01 dependency again — silently reintroducing
+      the bug this same fix round just closed.
+    remediation: >
+      Update the "Resolution taken" paragraph in tracer-design-decisions.md
+      (~line 749-760) to reflect the current state: WP08 now DOES carry an explicit
+      dependency on WP01 (added post-review because WP08's T027 needs WP01's baseline
+      artifact to exist and be committed before WP08 can run), and confirm/record that
+      this is still a no-op for the cross-lane cycle check because it is an intra-lane
+      edge within lane-planning. Also update the "has no hard WP-dependency gate on it"
+      line in WP05-lazy-command-imports.md:60-61 to note WP08 is the one exception.
+  - id: TASKS-FRESH-002
+    lens: seq
+    severity: 3
+    title: "WP08's own Context section still says it depends only on WP02–WP07, contradicting its own (now-fixed) frontmatter dependency on WP01"
+    evidence:
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tasks/WP08-final-integration-validation.md:4-11"
+        code: "dependencies: [WP01, WP02, WP03, WP04, WP05, WP06, WP07]"
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tasks/WP08-final-integration-validation.md:65-66"
+        code: "\"This is the mission's closing WP, depending on every other implementation WP (WP02–WP07).\""
+    claim: >
+      The fix round added WP01 to WP08's frontmatter `dependencies` list (via
+      wps.yaml -> finalize-tasks regen), but WP08's own prose "Context" section,
+      two lines below the "Definition of Done"/Objective material, was not updated
+      and still describes the dependency set as "every other implementation WP
+      (WP02–WP07)" — omitting WP01 entirely. This is a same-file, self-contradictory
+      statement: the frontmatter (machine-enforced gate) and the prose (what a human
+      or agent reads to understand *why* the gate exists) now disagree. Since WP01 is
+      explicitly not "an implementation WP" the sentence is defensible read narrowly,
+      but as written it reads as an exhaustive list of what WP08 depends on, which is
+      no longer true, and nothing in WP08's Context/Objective explains why WP01 is
+      also a hard gate (contrast with WP01's own prompt, which at least explains why
+      WP02-WP07 do *not* gate on it).
+    remediation: >
+      Update WP08's Context paragraph to say "depending on WP01 (baseline artifact,
+      via T027) and every other implementation WP (WP02–WP07)", or otherwise make the
+      prose match the frontmatter's actual dependency list.
+  - id: TASKS-FRESH-003
+    lens: verify
+    severity: 3
+    title: "WP04's new T015 agent_keys staleness test demands red-first proof, but the WP's Objective/Definition-of-Done/Reviewer-Guidance still only require and check for three staleness tests"
+    evidence:
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tasks/WP04-freshness-precheck.md:263-274"
+        code: "T015 bullet 3, \"agent_keys staleness\": \"Use the same naive-stub-first red-first structure T012 used for (a)/(b): write it against a deliberately naive stamp comparison that omits `agent_keys` from the match condition, confirm it fails, then confirm it passes against the real four-condition contract.\""
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tasks/WP04-freshness-precheck.md:64-66"
+        code: "Objective: \"...prove it red-first per operator Ruling 6's binding condition (three named staleness tests, each proven to fail against a naive stub before the real fix makes them pass).\""
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tasks/WP04-freshness-precheck.md:315-317"
+        code: "Definition of Done: \"All three Ruling-6 staleness tests (a/b/c) were observed RED against a naive stub before the real implementation, then observed GREEN against the real four-condition contract.\""
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tasks/WP04-freshness-precheck.md:355-356"
+        code: "Reviewer Guidance point (1): \"the three staleness tests' red-before-green history is documented, not just claimed\""
+    claim: >
+      This fix round added a fourth staleness sub-test to T015 (agent_keys, the third
+      source-side stamp field, previously uncovered) and explicitly requires it follow
+      "the same naive-stub-first red-first structure T012 used for (a)/(b)" — i.e. the
+      same non-vacuous, observed-red-before-green proof Ruling 6 mandates for the
+      original three tests. But the WP's Objective, Definition of Done, and Reviewer
+      Guidance sections — none of which this fix round touched — still say "three"
+      staleness tests throughout. A reviewer checking WP04 against its own stated DoD/
+      Reviewer Guidance checklist has no prompt to verify the agent_keys test was
+      actually proven to fail against a naive stub first (only that it "has dedicated,
+      non-vacuous coverage" per T015's own Files/Validation line, which is weaker than
+      "observed RED before GREEN"). This creates a real risk that the red-first proof
+      for the newly-added fourth test is skipped or unverified in practice, silently
+      weakening Ruling 6's binding condition exactly for the test this fix round added
+      to close a coverage gap.
+    remediation: >
+      Update WP04's Objective ("three named staleness tests" -> "four", or explicitly
+      call out T012's three plus T015's agent_keys test), Definition of Done bullet 1,
+      and Reviewer Guidance point (1) to require/check the same red-before-green proof
+      for the agent_keys staleness test, not just the original three.

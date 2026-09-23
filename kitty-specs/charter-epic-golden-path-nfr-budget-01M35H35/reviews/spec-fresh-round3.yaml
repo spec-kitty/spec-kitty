@@ -1,0 +1,130 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh3
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: SPEC-FRESH3-001
+    lens: acceptance-criteria-consistency
+    severity: 4
+    title: Acceptance Scenario 1 and the "Independent Test" still describe the ≤110s number as a soft "target", contradicting NFR-002/SC-003's new hard no-exception-band rule
+    evidence:
+      - artifact: "spec.md line 47 (Independent Test, User Story 1): \"The test must pass, and the recorded wall-clock time must show a stated margin under 120s (see NFR-002), not a number that only barely clears the line.\""
+      - artifact: "spec.md line 51 (Acceptance Scenario 1, User Story 1): \"...passes within its unmodified 120s `@pytest.mark.timeout` budget, with a recorded runner-measured wall-clock time comfortably under 120s (target ≤110s — see NFR-002 for the rationale behind that specific number).\""
+      - artifact: "spec.md line 81 (NFR-002, hardened this round): \"**Hard rule, no exception band**... A measurement strictly over 110s and under 120s does **not** satisfy this NFR and is **not** closable through any documented exception, sign-off, or other self-authorized path — it is a STOP condition...\""
+      - artifact: "spec.md line 108 (SC-003, hardened this round): \"a measurement strictly over 110s and under 120s does **not** satisfy this criterion under any documented exception — it is a STOP condition...\""
+    claim: >
+      This fix round rewrote NFR-002 and SC-003 to make ≤110s a hard rule with
+      no exception band (per operator Ruling 2), but it did not touch the
+      Independent Test or Acceptance Scenario 1 in User Story 1, which still
+      describe ≤110s as a "target" and the pass condition as merely
+      "comfortably under 120s". Read literally, Scenario 1 is satisfiable by a
+      measurement of, say, 113s — "passes... comfortably under 120s" is true,
+      and "target ≤110s" is parenthetical, non-binding language, not a hard
+      requirement the way NFR-002 itself now is. This is exactly the class of
+      residual soft-language the review brief asked to hunt for: an unchanged
+      section describing the 110-120s band in terms that could be read as a
+      closable pass, directly contradicting the just-hardened NFR-002/SC-003.
+      A WP author or reviewer who scopes their ATDD test/acceptance check to
+      literally what Scenario 1 says (rather than cross-referencing NFR-002's
+      prose) could treat a 110-120s Actions measurement as satisfying "the"
+      acceptance criterion — precisely the outcome operator Ruling 2 closed off.
+    remediation: >
+      Rewrite the Independent Test and Acceptance Scenario 1 to state the same
+      hard ≤110s / no-exception-band rule in their own words (e.g. "...with a
+      recorded runner-measured wall-clock time at or under the NFR-002 hard
+      ≤110s rule; a measurement over 110s (even if under 120s) does not satisfy
+      this scenario and is a STOP condition per NFR-002/SC-003, not a pass"),
+      so a reader does not need to know to override Scenario 1's own wording
+      with NFR-002's stricter prose.
+
+  - id: SPEC-FRESH3-002
+    lens: clarifications-attribution-fidelity
+    severity: 3
+    title: Ruling 1 and Ruling 2 are formatted as verbatim operator quotes alongside Scope/Lever, but their text is an orchestrator synthesis (including phrasing pulled from the "question put", not the operator's answer) — the same over-attribution failure mode the round-2 HALT was raised to fix
+    evidence:
+      - artifact: "spec.md lines 10-17 (Clarifications intro): \"The **operator decisions** are genuinely the operator's own calls (quoted where the quote is verbatim)...\""
+      - artifact: "spec.md line 25 (Ruling 1 blockquote): \"cut the previously-drafted FR-006/SC-006 CI gate against re-applying `@pytest.mark.skip`/`xfail` to budget-guarded tests...\""
+      - artifact: "reviews/spec.ruling.md lines 8-9 (actual record): \"Question put: keep FR-006/SC-006 (a new CI gate blocking re-application of `@pytest.mark.skip`/`xfail` to budget-guarded tests) in this PR? Operator answer: **Cut it.** Remove FR-006/SC-006...\""
+    claim: >
+      spec.ruling.md separates "Question put" (the orchestrator's framing) from
+      "Operator answer" (the operator's own short words: "Cut it.", "Hard
+      ≤110s on Actions..."). spec.md's Ruling 1/Ruling 2 blockquotes merge both
+      into one sentence and present it in the same bolded ">" blockquote format
+      used for the Scope and Lever quotes, which genuinely are verbatim from
+      the original dispatch. The word "xfail" in spec.md's Ruling 1, for
+      example, comes from the orchestrator's "Question put" framing in
+      spec.ruling.md, not from the operator's own recorded answer. The intro's
+      hedge ("quoted where the quote is verbatim") is easy to miss given the
+      identical visual/quotation treatment of all four "Operator decisions"
+      bullets. This is the same species of issue the round-2 HALT's
+      "Attribution correction" targeted (the spec over-attributing
+      orchestrator-authored framing to the operator) — the restructuring fixed
+      the Constraints bullets but reintroduces a milder version of the same
+      problem for Ruling 1/Ruling 2.
+    remediation: >
+      Either mark Ruling 1/Ruling 2 explicitly as paraphrased ("operator
+      ruling, summarized" rather than a plain blockquote) or quote the
+      operator's actual short answer verbatim ("Cut it." / "Hard ≤110s on
+      Actions...") and attribute the surrounding scope/mechanism language to
+      the orchestrator's ruling record (`reviews/spec.ruling.md`) rather than
+      folding it into the same quotation style as the Scope/Lever dispatch quotes.
+
+  - id: SPEC-FRESH3-003
+    lens: traceability
+    severity: 2
+    title: The Lever operator-quote's note that "Lever D" (loosen the cap or move cadence) was also rejected has been dropped from Clarifications, undisclosed in tracer-design-decisions.md
+    evidence:
+      - artifact: "spec.md line 23 (current Lever note): \"Lever B (reduce installed-CLI subprocess call count / in-process substitution) was explicitly rejected as part of this same lever decision.\" — no mention of Lever D."
+      - artifact: "git diff HEAD, removed line: \"(Lever B — reduce installed-CLI subprocess call count / in-process substitution — was explicitly considered and REJECTED... Lever D — loosen the cap or move cadence — is also rejected, see below.)\""
+      - artifact: "tracer-design-decisions.md § \"2026-09-23 — Operator ruling after round-2 HALT\" — documents the FR-006/SC-006 cut, the NFR-002/SC-003 hardening, and the Clarifications attribution restructuring, but says nothing about dropping the Lever-D-rejected note."
+    claim: >
+      The current spec.md no longer states, anywhere in Clarifications, that
+      loosening the cap or moving cadence ("Lever D" in the original dispatch's
+      own vocabulary) was considered and rejected as part of the same operator
+      lever decision that picked A+C. C-001 (no cap loosening) and C-002 (no
+      cadence move) still independently enforce the substance, so nothing is
+      unenforced — but the traceability link ("this was a lever the operator
+      explicitly rejected, not just an independently-derived constraint") is
+      gone, and its removal is not recorded in tracer-design-decisions.md the
+      way every other substantive change to this spec round is. Given this
+      mission's whole Clarifications rewrite this round is about faithfully
+      preserving what the operator actually decided and documenting why text
+      changed, an undisclosed drop of an operator-decision detail is a fresh
+      gap in exactly the property this round was trying to strengthen.
+    remediation: >
+      Either restore a short clause noting Lever D (cap-loosening/cadence-move)
+      was also rejected as part of the same lever decision, cross-referencing
+      C-001/C-002, or add a tracer-design-decisions.md note explaining why it
+      was cut (e.g. "redundant with C-001/C-002, dropped for concision").
+
+  - id: SPEC-FRESH3-004
+    lens: scope-boundary-ambiguity
+    severity: 3
+    title: FR-002's "reducing what the spec-kitty init subprocess call itself does" is not clearly bound by C-003's subprocess-boundary requirement, since C-003 explicitly scopes that requirement to "the 12" test-body invocations
+    evidence:
+      - artifact: "spec.md § FR-002: \"...and/or reducing what the `spec-kitty init` subprocess call itself does for this fixture's specific needs...\""
+      - artifact: "spec.md § C-003: \"The golden path must continue to exercise the real `spec-kitty` CLI via a real `subprocess` boundary... for all 12 of its CLI invocations... the fixture's own `spec-kitty init` setup call separately uses `run_cli_subprocess`... both build the same underlying subprocess command.\""
+    claim: >
+      C-003's hard "no in-process substitution" rule is textually scoped to
+      "all 12 of its CLI invocations" (the `run_cli`/`_run_cli` calls inside
+      the test body). It explicitly carves out the fixture's own `spec-kitty
+      init` setup call as a separate thing built on a different helper
+      (`run_cli_subprocess`), noting only that it "builds the same underlying
+      subprocess command" today — it does not say that call is equally
+      protected against becoming an in-process call. FR-002 then invites
+      "reducing what the `spec-kitty init` subprocess call itself does," which
+      an implementer could read as license to replace that one subprocess
+      invocation with an in-process/library call for speed (it is, after all,
+      not one of "the 12"), even though the operator's Lever decision rejected
+      in-process substitution as a lever in general, and the fixture's whole
+      purpose (per its own docstring, quoted in Edge Cases) is exercising "the
+      operator path" end-to-end. The spec does not say whether the fixture's
+      setup call is subject to the same subprocess-boundary constraint as the
+      12 protected calls.
+    remediation: >
+      Add an explicit sentence to C-003 (or FR-002) stating whether the
+      fixture's own `spec-kitty init` setup call must also stay a real
+      subprocess invocation, or whether it is out of scope for the lever-B
+      prohibition and may be restructured/replaced as needed by FR-002's
+      redesign.

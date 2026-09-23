@@ -1,0 +1,20 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true               # flipped after the yaml self-check passed and the file was re-read
+phase: plan
+results:                    # one entry for EVERY finding in the findings file
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: >-
+      Against Ruling 6's bar (not the original remediation text): spec.md adds a Ruling 6
+      paragraph in Clarifications (line 35) citing plan.ruling.md as authority, the original
+      Scope/Lever blockquotes are byte-identical to HEAD (verified via diff against git show
+      HEAD), FR-003/Acceptance-Scenario-3/Key-Entities all now name freshness-check primary
+      and Typer trim secondary citing Ruling 6; plan.md's Lever C section opens with an
+      explicit "Authority for this section's primary/secondary ordering (operator Ruling 6)"
+      paragraph citing plan.ruling.md rather than the plan-authoring agent's own reasoning
+      (which is explicitly named and superseded); plan.md's new "Red-first staleness tests"
+      subsection names three tests (a) template-change, (b) version-change, (c)
+      destination-health/missing-or-altered, each stated as proven red-first against a
+      deliberately-broken/naive check before the real four-condition contract, matching
+      Ruling 6's binding condition verbatim.

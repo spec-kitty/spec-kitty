@@ -1,0 +1,108 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: SPEC-GOV-001
+    lens: directive (canonical-sources / citation discipline)
+    severity: 3
+    title: Evidence citations point to a directory outside the git checkout; will be a dangling reference once merged
+    evidence:
+      - artifact: "spec.md line 99 (\"Evidence carried into this spec\" section)"
+      - code: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/research/ (confirmed empty via ls)"
+    claim: >
+      spec.md line 99 cites "_readiness/4211/measured-results.md" and
+      "_readiness/4211/golden_path_run.log" as the evidentiary basis for the mission's
+      central performance numbers (127.55s total, 73.58s call, 29.36s setup, 0.03s
+      teardown) that NFR-002's margin rationale and the "No hang exists" finding both
+      depend on. I confirmed these numbers are accurate transcriptions of the actual
+      readiness-session files, but those files live in the operator's local mission-hub
+      workspace (a sibling directory one level above this git checkout), not inside the
+      spec-kitty repository — `git ls-files | grep -i readiness` returns no match, `find .
+      -maxdepth 1 -iname "*readiness*"` finds nothing, and the mission's own scaffolded
+      `research/` directory (which exists for exactly this purpose) is empty. Once this
+      spec is committed and this PR merges into the public spec-kitty repo, any future
+      reader following the "_readiness/4211/..." citation (a reviewer, an auditor, or a
+      later mission investigating a regression per C-005) will find nothing — the
+      citation is unresolvable outside this specific local session. This undermines the
+      charter's throughline of verifying against live, durable evidence (and
+      DIRECTIVE_048's citation-governance rule to cite the canonical, not a
+      session-local, copy of a claim) for exactly the numbers that ground a High-priority
+      NFR.
+    remediation: >
+      Before spec-commit, copy the cited readiness artifacts (measured-results.md,
+      golden_path_run.log, and/or the readiness report) into the mission's own
+      `kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/research/` directory
+      (already scaffolded, currently empty), then update spec.md's citations at line 99
+      to point at the in-repo, repo-relative path instead of "_readiness/4211/...". If
+      the operator prefers not to carry the raw session artifacts into the public repo,
+      inline the exact numbers as a table in spec.md itself (already partially done) and
+      drop the dangling path citation, relying on the prose numbers alone rather than an
+      unresolvable file reference.
+
+  - id: SPEC-GOV-002
+    lens: operator-decision fidelity (real-CI-Actions closure requirement with stated margin)
+    severity: 3
+    title: "NFR-002/SC-003 leave it ambiguous whether ≤110s is a hard closure gate or an aspirational target"
+    evidence:
+      - artifact: "spec.md line 22 (Clarifications, binding Constraints block)"
+      - artifact: "spec.md line 65 (NFR-002)"
+      - artifact: "spec.md line 91 (SC-003)"
+    claim: >
+      The binding operator decision (Clarifications, line 22) requires "a stated margin
+      (e.g. target comfortably under 120s on Actions, not just barely under)" — it does
+      not itself mandate a specific number as a pass/fail line, only that the spec state
+      one defensibly. NFR-002 (line 65) states the requirement as "must be comfortably
+      under the 120s cap — target ≤110s (a ≥10s margin)" — mixing a "must" (comfortably
+      under) with a "target" (≤110s), which reads as aspirational rather than gating.
+      SC-003 (line 91) then says closure requires the measured duration to be "compared
+      against the ≤110s target margin from NFR-002 (not merely 'under 120s')" — which
+      could be read either as "≤110s is informational context for the comparison" or as
+      "≤110s is the number that must actually be hit for SC-003 to pass." The spec never
+      states what happens if the real Actions measurement lands between 110s and 120s
+      (e.g. 113s): is that a passing closure (a real margin exists, just not the full
+      target) or a failed one (missed the stated NFR-002 target)? This is exactly the
+      kind of forced-clarification the binding operator decision asked the spec to
+      resolve, and as written it is left open — an implementer/reviewer could reasonably
+      disagree at close time about whether such a result satisfies SC-003.
+    remediation: >
+      Add one explicit sentence to NFR-002 or SC-003 stating the pass/fail rule for the
+      110-120s band, e.g. "A real Actions measurement anywhere under 120s satisfies the
+      120s cap (NFR-001/C-001) and is not a defect by itself; landing at or under 110s is
+      required to declare SC-003/closure satisfied without further discussion, and a
+      result between 110s and 120s requires an explicit operator call on whether the
+      margin is sufficient before the PR is treated as ready to close #4213/#4211."
+
+  - id: SPEC-GOV-003
+    lens: directive (campsite-cleaning standing order)
+    severity: 2
+    title: Spec does not address Standing Order #2 (campsite-cleaning) for the surfaces FR-002/FR-003 are about to touch
+    evidence:
+      - artifact: ".kittify/charter/charter.md § Quality & Tech-Debt Standing Orders, item 2 (\"Campsite cleaning & incremental debt paydown\")"
+      - artifact: "spec.md FR-002 (line ~55) and FR-003 (line ~56)"
+      - code: "tests/e2e/conftest.py:390-452 (fresh_e2e_project fixture, the FR-002 surface)"
+    claim: >
+      The charter's Standing Order #2 requires opening a mission by campsite-cleaning
+      the surfaces it will touch first — "resolve their Sonar findings, extract/decompose
+      over-long functions/files, refactor the methods about to change — before the
+      functional change, as a tidy-first enabler" — as a distinct, behavior-preserving
+      step preceding the functional work, and the "Governance by workflow action" table
+      explicitly binds Specify/Plan to "fold only domain-matched debt." spec.md's FR-002
+      and FR-003 go directly to the functional restructuring (fixture redesign, CLI
+      command-surface trim) with no FR/NFR/note addressing whether the touched surfaces
+      (the fixture in `tests/e2e/conftest.py`, the Typer command modules FR-003 touches)
+      carry any pre-existing debt (Sonar findings, over-long functions) that should be
+      cleaned as a preceding step, or an explicit statement that no such debt exists /
+      the redesign itself subsumes the campsite-clean. This is a gap in an otherwise
+      thorough spec, not a functional defect — the mission could still land correctly
+      without it — but it is silent on a named, binding standing order this lens is
+      specifically scoped to check.
+    remediation: >
+      Add a short note to spec.md (e.g. under Requirements or as an Edge Case) either (a)
+      naming a preceding, behavior-preserving campsite-clean step for the touched fixture
+      and Typer command-surface modules if debt is found there, per Standing Order #2, or
+      (b) explicitly stating that FR-002/FR-003's redesign work itself constitutes the
+      campsite-clean for these surfaces (since it restructures exactly the code the
+      standing order targets), so a future reader does not have to infer whether the
+      standing order was considered.

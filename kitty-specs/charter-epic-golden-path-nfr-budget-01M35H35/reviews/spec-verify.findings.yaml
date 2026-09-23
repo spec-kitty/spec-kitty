@@ -1,0 +1,152 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: SPEC-VERIFY-001
+    lens: falsifiability
+    severity: 4
+    title: "C-004's stated skip-decorator line range (797-806) wrongly includes the timeout marker it must not touch"
+    evidence:
+      - artifact: "spec.md § Constraints, C-004"
+      - code: "tests/e2e/test_charter_epic_golden_path.py:797-806"
+    claim: >
+      C-004 states the `@pytest.mark.skip(...)` decorator to be removed is "currently at
+      ... lines 797-806 (immediately preceding `@pytest.mark.timeout(120)` and
+      `def test_charter_epic_golden_path`)". Reading the actual file: line 797 is
+      `@pytest.mark.skip(`, the decorator's closing paren is line 805, line 806 is
+      `@pytest.mark.timeout(120)` itself, and line 807 is the `def`. So "806" is not
+      "immediately preceding" the timeout marker — it IS the timeout marker. C-004's own
+      parenthetical ("immediately preceding ... timeout(120)") is written as if 806 were a
+      trailing blank/context line, but it is the exact line NFR-001/C-001 forbid touching
+      ("must not be raised, removed, or otherwise loosened ... under any circumstance").
+      An implementer who follows C-004's stated range literally ("lines 797-806 ...
+      removed") would delete the timeout marker in the same edit that removes the skip
+      decorator, directly violating C-001 inside the PR meant to satisfy it. (The tracer
+      file `tracer-approach.md` §4 shows this was a deliberate choice — "the spec cites
+      797-806 as the full removed block including the trailing skip-adjacent context" —
+      not a typo, which makes it more likely to be followed literally rather than caught
+      as an obvious off-by-one.)
+    remediation: >
+      Correct C-004's cited range to "lines 797-805" (the skip decorator only, ending at
+      its closing paren), and add an explicit one-line caveat: "line 806
+      (`@pytest.mark.timeout(120)`) must remain untouched — see NFR-001/C-001."
+
+  - id: SPEC-VERIFY-002
+    lens: "mission-derived: margin arithmetic falsifiability (NFR-002)"
+    severity: 3
+    title: "NFR-002's own rationale cites a comparison that contradicts the 'CI ran slower' claim it's supporting"
+    evidence:
+      - artifact: "spec.md § NFR-002 (Non-Functional Requirements table)"
+      - artifact: "spec.md § Evidence carried into this spec (paragraph beginning 'Historical CI/VM runs were slower than local')"
+      - artifact: "tracer-design-decisions.md § NFR-002's ≤110s number"
+    claim: >
+      NFR-002 says historical CI/VM measurements "ran 12-30s slower than comparable local
+      numbers (139.7s implementer VM vs then-current local ~156s; 159.5s merge-agent
+      worktree)". Taken at face value, this parenthetical compares 139.7s (CI/VM) against
+      "then-current local ~156s" — but 139.7s is ~16.3s LESS than 156s, i.e. the cited
+      comparison shows CI running FASTER than local in that era, the opposite of the
+      "12-30s slower" claim it is offered as evidence for. The "12-30s slower" figure is
+      actually only derivable by comparing the SAME two historical numbers (139.7s, 159.5s)
+      against the CURRENT post-#4417 local baseline (127.55s) instead — which is exactly
+      what the spec's own Evidence section does two paragraphs later ("both higher than
+      this session's local 127.55s"), producing a self-consistent 12.15s/31.95s gap. The
+      spec cites the same two historical numbers against two different baselines (~156s
+      pre-fix local vs. 127.55s post-fix local) without reconciling which comparison
+      actually grounds the "12-30s slower" framing, and one of the two citations (the one
+      embedded directly in NFR-002's own rationale) does not support the direction it is
+      offered for. The tracer file repeats the same inconsistency ("139.7s vs. then-current
+      local ~156s is a ~17s gap" — stated as if consistent with "ran slower," when 139.7 <
+      156 means the reverse).
+    remediation: >
+      Rewrite NFR-002's rationale to use one consistent comparison throughout: compare
+      139.7s and 159.5s only against the current 127.55s post-#4417 local baseline (the
+      comparison that actually yields "12-30s slower" and is already used correctly in the
+      Evidence section), and drop the "vs then-current local ~156s" parenthetical, which
+      compares across different fix-eras and produces the opposite conclusion. If the
+      pre-#4417 same-era comparison (156s local vs 139.7s/159.5s CI) is meant to be part of
+      the evidentiary basis, state it as its own, separately-labeled data point rather than
+      folding it into the "12-30s slower" sentence.
+
+  - id: SPEC-VERIFY-003
+    lens: silent-success
+    severity: 4
+    title: "C-005 (silent-success prohibition) is policy prose with no proposed enforcement mechanism, unlike FR-005's lever-C guard"
+    evidence:
+      - artifact: "spec.md § Constraints, C-005"
+      - artifact: "spec.md § FR-005 / SC-002 (contrast: these DO specify a concrete two-tier gate mechanism)"
+      - artifact: ".kittify/charter/charter.md § Quality & Tech-Debt Standing Orders, item 5 (Architectural gate discipline: 'Close defect classes by construction with a NON-VACUOUS call-site gate ... a gate-unmask cannot self-validate')"
+    claim: >
+      C-005 states the golden path "must never be silently re-skipped, re-quarantined, or
+      have its budget quietly raised" in the future, and that "any future budget breach is
+      a new, explicitly-scoped decision." This is exactly the defect class the mission
+      exists to fix (PR #4209's "controller correction" re-added the skip decorator after a
+      human reviewer's judgment call, not because any automated check caught the
+      recurrence). C-005 as written proposes no equivalent of FR-005's own two-tier
+      guard (a structural check plus a scoped wall-clock check) to make a FUTURE
+      reintroduction of `@pytest.mark.skip`/`xfail` on this exact test mechanically
+      detectable — it relies entirely on review discipline, the same mechanism that
+      already produced the recurrence this mission is fixing. This is in tension with the
+      charter's own Standing Order #5, which requires closing defect classes "by
+      construction" with a non-vacuous gate rather than a norm stated in prose, precisely
+      because "a gate-unmask cannot self-validate."
+    remediation: >
+      Add an FR (or fold into FR-005) requiring a lightweight, deterministic structural
+      gate — analogous in spirit to the existing `tests/architectural/` allowlist-style
+      gates — that fails CI if `@pytest.mark.skip` or `xfail` is applied to
+      `test_charter_epic_golden_path` (or, more generally, to any test tagged as an
+      NFR-007 budget test) without an explicit, separately-reviewed opt-out record. This
+      converts C-005 from an exhortation into a falsifiable, self-mutation-testable gate
+      consistent with the charter's own architectural-gate-discipline standing order.
+
+  - id: SPEC-VERIFY-004
+    lens: falsifiability
+    severity: 3
+    title: "SC-002's 'if a wall-clock assertion is warranted' hedge makes the nightly lever-C guard optional, unlike the precedent it claims to follow"
+    evidence:
+      - artifact: "spec.md § SC-002"
+      - artifact: "spec.md § FR-005"
+      - code: "tests/performance/test_cli_startup_budget_4409.py:86 (test_jsonschema_stays_out_of_module_scope, structural, unmarked)"
+      - code: "tests/performance/test_cli_startup_budget_4409.py:132-133 (@pytest.mark.performance def test_help_stays_inside_its_startup_budget, wall-clock)"
+    claim: >
+      SC-002 requires "a structural check ... plus, if a wall-clock assertion is
+      warranted, it is scoped to the `performance`-marked nightly lane." The "if ...
+      warranted" clause makes the second tier conditional/subjective rather than a
+      falsifiable requirement — an implementer could satisfy the literal text of SC-002 by
+      shipping only the structural check and asserting (without any stated criterion) that
+      a wall-clock check was "not warranted." The #4409/#4417 precedent that SC-002 and
+      FR-005 explicitly cite as the pattern to follow does NOT hedge this way: it ships
+      both tiers unconditionally (`test_jsonschema_stays_out_of_module_scope`, structural,
+      runs in the fast tier; `test_help_stays_inside_its_startup_budget`, marked
+      `@pytest.mark.performance`, wall-clock, nightly-only). Acceptance Scenario 3 (User
+      Story 1) inherits the same ambiguity ("the dedicated startup-time regression guard
+      runs in its designated tier" does not say whether that guard is one tier or two).
+    remediation: >
+      Remove the hedge from SC-002 and FR-005: require both tiers unconditionally, matching
+      the #4409/#4417 precedent exactly (a structural/deterministic fast-tier check, plus a
+      `performance`-marked nightly wall-clock check). If a genuine reason exists for the
+      wall-clock tier to be optional here, replace "if ... warranted" with an explicit,
+      objective trigger condition stating when it is and isn't required.
+
+  - id: SPEC-VERIFY-005
+    lens: "mission-derived: margin arithmetic falsifiability (SC-003 gap)"
+    severity: 2
+    title: "Edge Case names the 'lever A+C insufficient on Actions' risk but defines no resolution path"
+    evidence:
+      - artifact: "spec.md § Edge Cases (second bullet, 'How does the mission handle the case where lever A + lever C together are insufficient...')"
+    claim: >
+      The Edge Case correctly identifies a real risk (historical CI/VM numbers ran 12-30s
+      slower than the local baseline, so lever A+C might not clear NFR-002's ≤110s margin
+      on a real Actions runner) and states "the mission must re-measure on a real Actions
+      runner before declaring closure" — but does not say what happens if that
+      re-measurement still fails to clear the margin. Given C-001 (no cap loosening),
+      C-002 (no cadence move), and C-003 (no in-process substitution) all forbid the
+      obvious fallback levers, an implementer who hits this exact scenario has no
+      spec-stated next step other than the three explicitly-rejected options.
+    remediation: >
+      Add an explicit fallback clause to the Edge Case: if lever A+C's real Actions-runner
+      measurement does not clear the NFR-002 margin, escalate to the operator/maintainer
+      for a new, explicitly-scoped decision (per C-005's own "any future budget breach is a
+      new, explicitly-scoped decision" language) rather than leaving the mission with an
+      implicit choice among the three already-rejected levers.

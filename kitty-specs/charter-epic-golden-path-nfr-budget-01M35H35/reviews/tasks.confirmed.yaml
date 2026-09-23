@@ -1,0 +1,151 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: confirmed
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+- id: TASKS-DECOMP-001
+  lens: pr-shape-size-estimate
+  severity: 2
+  title: WP04 row in the PR-shape diff-size table undercounts its always-touched files by one, and the
+    resulting subtotal inherits the error
+  evidence:
+  - artifact: tracer-design-decisions.md § 'PR-shape assessment (orchestrator's dispatch requirement)',
+      row 'WP04 (freshness pre-check)'
+  - artifact: 'tasks/WP04-freshness-precheck.md § Subtask T012 (''Files: tests/specify_cli/runtime/test_agent_commands.py
+      ... new tests added'') and § Subtask T013 (''Files: src/specify_cli/runtime/agent_commands.py'')'
+  claim: 'The PR-shape table states the WP04 row''s file count as "1-4" with the parenthetical "(agent_commands.py
+    always; tests/specify_cli/runtime/* always; __init__.py/ pyproject.toml/CHANGELOG.md only if the call-site
+    change is made)". That parenthetical itself names two files that are always touched (agent_commands.py
+    plus at least one file under tests/specify_cli/runtime/, per T012/T013/T015''s mandatory red-first
+    tests and disposition coverage) plus up to three conditional files (__init__.py, pyproject.toml, CHANGELOG.md)
+    — i.e. the row''s own stated logic implies a 2-5 range, not the 1-4 printed. The table''s "Code-diff
+    subtotal" row of "~7-10 files" was summed using the flawed 1-4 figure (1+1+1+2+1+1=7, 1+1+4+2+1+1=10);
+    using the row''s own stated logic (2-5) the correct subtotal is 8-11 files, not 7-10. This does not
+    change the table''s line-count totals (verified independently: they already sum to ~445-810, consistent
+    with the stated "~450-810") or overturn the "reviewable-as-is" verdict, but it means the file-count
+    portion of the estimate the lens asked to be checked for internal support is not actually self-consistent
+    as printed.
+
+    '
+  remediation: 'In tracer-design-decisions.md''s PR-shape assessment table, correct the WP04 row''s file
+    count from "1-4" to "2-5" (agent_commands.py + >=1 test file always; up to 3 more conditional), and
+    correct the "Code-diff subtotal" row''s file count from "~7-10" to "~8-11" to match. No WP prompt
+    file or implementation-facing content needs to change — this is a tracer-artifact arithmetic fix only.
+
+    '
+- id: TASKS-SEQ-001
+  lens: lane-cycle-fix-soundness
+  severity: 3
+  title: WP08 omits a free, mechanically-safe dependency edge on WP01, leaving its required input artifact
+    ungated
+  evidence:
+  - artifact: 'wps.yaml § WP08 (dependencies: [WP02, WP03, WP04, WP05, WP06, WP07])'
+  - artifact: tasks/WP08-final-integration-validation.md § Subtask T027 step 1 ("Read WP01's recorded
+      baseline artifact")
+  - artifact: tasks/WP01-baseline-capture.md § Context ("the orchestrator should still DISPATCH this WP
+      first, as a process/ordering matter, so its artifact exists before WP08 needs to diff against it")
+  - artifact: tracer-design-decisions.md § 2026-09-23 "Tasks phase" entry ("WP08 keeps a dependency on
+      WP02–WP07 ... but not an explicit one on WP01 (same lane as WP08 already — a same-lane edge is a
+      no-op for the cross-lane cycle check)")
+  - code: 'src/specify_cli/lanes/compute.py:578-585 (lane_deps only accumulates a cross-lane edge: `if
+      dep_lane and dep_lane != my_lane`)'
+  - code: src/specify_cli/lanes/compute.py:636-643, 697-704 (`_build_planning_lane` groups WP01+WP08 into
+      one `lane-planning` node; `wp_to_lane[WP01] == wp_to_lane[WP08] == PLANNING_LANE_ID`)
+  claim: 'The tracer entry correctly diagnoses why WP02/WP03/WP04/WP05/WP07 cannot carry a hard `dependencies:
+    [WP01]` edge (it would create `LANE_DEPENDENCY_CYCLE: lane-a -> lane-planning -> lane-a` once WP08
+    also depends on those same code lanes) — verified directly against compute.py, this is correct. But
+    the entry then draws the wrong conclusion for WP08 itself. WP01 and WP08 already share the single
+    `lane-planning` node (`wp_to_lane[WP01] == wp_to_lane[WP08]`), so a `WP08 -> WP01` edge is a SAME-lane
+    edge: `compute_lanes`''s own cross-lane accumulation loop (compute.py:582-585) filters it out with
+    `dep_lane != my_lane` before it can reach `lane_deps`, so it can never contribute to `LANE_DEPENDENCY_CYCLE`
+    no matter what else WP08 depends on. Adding `WP01` to WP08''s `dependencies` list is therefore free
+    with respect to the exact failure mode the tracer entry fixed — yet it was left out, while WP08''s
+    Subtask T027 genuinely requires WP01''s output artifact (`research/baseline-<date>.md`) to perform
+    its regression diff. WP-level claim gating (`dependency_readiness_for_wp`, driven by the `dependencies`
+    frontmatter, not by `lanes.json`''s lane-level `depends_on_lanes`) is therefore the only thing standing
+    between an implementer and claiming WP08 before WP01 has produced that artifact, and today nothing
+    stops it — the only backstop is prose in WP01''s own Context section asking the orchestrator to dispatch
+    WP01 first. If WP08 is claimed early, T027 step 1 has nothing to read.
+
+    '
+  remediation: 'Add `WP01` to WP08''s `dependencies` list in both `wps.yaml` and `tasks/WP08-final-integration-validation.md`''s
+    frontmatter (and the corresponding row in `tasks.md`), then re-run `spec-kitty agent mission finalize-tasks
+    --validate-only` to confirm — as the analysis above predicts — that this does NOT reproduce the `LANE_DEPENDENCY_CYCLE`
+    error, since it is a same-lane edge. This converts the current process-only ordering guarantee into
+    a mechanically-enforced one for the one WP that actually consumes WP01''s artifact, at zero cost to
+    the fix the tracer entry already applied correctly for WP02–WP07.
+
+    '
+- id: TASKS-SEQ-002
+  lens: open-pr-write-scope-overlap
+  severity: 3
+  title: WP04's conditional ownership of CHANGELOG.md/pyproject.toml is not checked against open-PR overlap
+    anywhere, unlike WP07's identical check for pytest.ini
+  evidence:
+  - artifact: wps.yaml § WP04 owned_files (docs/changelog/CHANGELOG.md, pyproject.toml)
+  - artifact: tasks/WP04-freshness-precheck.md frontmatter owned_files (same two files) — no open-PR check
+      mentioned anywhere in the prompt body
+  - artifact: tasks/WP07-pytest-durations.md:44 ("No open PR currently touches `pytest.ini` (checked at
+      dispatch time)")
+  - artifact: tracer-tooling-friction.md, tracer-design-decisions.md — grepped for "open PR"/"gh pr"/"overlap";
+      the only hit is WP07's own prompt line above
+  claim: 'A live `gh pr list --repo spec-kitty/spec-kitty --state open --limit 100 --json number,title,files`
+    query (run during this review) shows 9 open PRs, of which 6 touch `docs/changelog/CHANGELOG.md` (#4953,
+    #4950, #4947, #4942, #4938, #4936) and 2 touch `pyproject.toml` (#4953, #4936) — both files WP04 conditionally
+    owns (only if its `__init__.py` call-site change is made, per WP04''s frontmatter and the tracer''s
+    own diff-size table). None of the mission''s tracer files or WP prompts record that this overlap was
+    ever checked for WP04, even though WP07''s prompt shows the mission author DID perform and record
+    exactly this check for a lower-risk file (`pytest.ini`, zero overlap found). WP04 is independently
+    flagged by the mission''s own tracer entry as "the SK-243- adjacent chokepoint, highest risk." — it
+    is the WP where this check matters most, and it is the one WP where it is undocumented. No other mission-owned
+    file (`agent_commands.py`, `src/specify_cli/__init__.py`, `cli/commands/__init__.py`, the two `tests/e2e/*`
+    files, the new `tests/performance/*` file) overlaps with any of the 9 open PRs'' touched files (verified
+    with the same query), so the exposure is narrowly scoped to WP04''s two conditional files — but a
+    reviewer or a later implementer has no way to know this was checked (or that it wasn''t) without independently
+    re-running the `gh` query themselves.
+
+    '
+  remediation: 'Add a short note to WP04''s prompt (mirroring WP07''s line 44 pattern) recording the open-PR
+    overlap check for `docs/changelog/CHANGELOG.md` and `pyproject.toml` — either "no overlap found" if
+    a re-check clears it, or, given the actual overlap found by this review, an explicit acknowledgment
+    that WP04''s landing/rebase step should expect a trivial append/version-bump conflict on those two
+    files and name the resolution (rebase and re-append, not a functional merge) so a later agent does
+    not have to rediscover this from scratch at merge time.
+
+    '
+- id: TASKS-VERIFY-002
+  lens: Per-AC test strategy concrete
+  severity: 3
+  title: WP04's staleness/coverage tests name two of the stamp's three source-side fields (template signature,
+    cli_version) but never instruct a dedicated test for the third, agent_keys
+  evidence:
+  - code: 'plan.md § Lever C — Approach: "a stamp comparing (a) the CLI''s own version..., (b) a content
+      signature of the command-templates source directory..., and (c) the resolved agent-key set"'
+  - code: 'plan.md § Diff-cover ≥90%: "(2) Miss, stamp-side — the stamp is absent, or any of the three
+      source-side fields (cli_version/template_source_signature/agent_keys) differs"'
+  - artifact: tasks/WP04-freshness-precheck.md § Subtask T012, staleness tests (a) and (b) — template-change
+      and version-change only
+  - artifact: tasks/WP04-freshness-precheck.md § Subtask T015, step 1 — lists "Match" and "Unreadable/malformed"
+      as the tests to add beyond T012's three; no agent_keys-change scenario is named anywhere in the
+      WP
+  claim: 'plan.md''s own Diff-cover section names `agent_keys` as one of the three source-side fields
+    the stamp comparison must exercise as part of the "Miss, stamp-side" disposition, and plan.md''s Approach
+    section treats it as a first-class field of the stamp tuple alongside cli_version and template_source_signature.
+    Operator Ruling 6 mandates the three named staleness tests "at minimum," so it does not itself forbid
+    a fourth, but neither WP04''s Ruling-6-tracking T012 nor its diff-cover-tracking T015 instructs a
+    scenario that varies the resolved agent-key set while holding the other two fields constant. If the
+    real implementation compares the three fields as independently-testable conditions (rather than a
+    single opaque tuple-equality line that template/version-change tests already exercise for free), this
+    leaves a genuine, uninstructed gap against the mission''s own binding diff-cover ≥90% gate — discoverable
+    only at CI time, inside this WP, as rework.
+
+    '
+  remediation: 'Add a fourth scenario to WP04 (in T012 alongside (a)/(b)/(c), or as an explicit item in
+    T015''s list): simulate a resolved agent-key-set change (e.g., add/remove a configured agent, or vary
+    the `agent_keys` input) with `cli_version` and `template_source_signature` unchanged, call `assess_global_agent_commands()`/`ensure_global_agent_commands()`
+    again, and assert the mismatch is detected and triggers a re-render — using the same naive-stub-first
+    red-first structure already used for (a)/(b), so all three named source-side stamp fields, not just
+    two of them, have dedicated, non-vacuous coverage.
+
+    '

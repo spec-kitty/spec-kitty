@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "mission_slug": "charter-epic-golden-path-nfr-budget-01M35H35",
+  "mission_id": "01M35H35ASHN2RFHVJB78WN6MY",
+  "mission_branch": "kitty/mission-charter-epic-golden-path-nfr-budget-01M35H35",
+  "target_branch": "issue-4213-golden-path-nfr-budget",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/e2e/test_charter_epic_golden_path.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "pytest.ini"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/e2e/conftest.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "pyproject.toml",
+        "src/specify_cli/__init__.py",
+        "src/specify_cli/runtime/agent_commands.py",
+        "tests/specify_cli/runtime/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/__init__.py",
+        "tests/cli/**",
+        "tests/specify_cli/cli/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/performance/test_cli_startup_agent_commands_freshness.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP08"
+      ],
+      "write_scope": [
+        "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/research/**",
+        "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-approach.md",
+        "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-design-decisions.md",
+        "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-tooling-friction.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-09-23T02:20:42.611635+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01",
+    "WP08"
+  ],
+  "planning_commit_sha": "e7e5ef086ccf95f91307760fc4de432639db5d79"
+}

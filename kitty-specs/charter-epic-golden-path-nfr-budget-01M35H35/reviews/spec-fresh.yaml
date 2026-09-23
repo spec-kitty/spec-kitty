@@ -1,0 +1,130 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: SPEC-FRESH-001
+    lens: code-truth
+    severity: 3
+    title: New glossary note misattributes an "active detection" isolation mechanism that the golden-path code path does not use
+    evidence:
+      - artifact: 'spec.md § Clarifications, "Glossary note — \"installed CLI\"" (added this fix round)'
+      - code: "tests/conftest.py:1277-1315 (isolated_env fixture body — never calls get_installed_version or assert_test_isolation)"
+      - code: "tests/test_isolation_helpers.py:70-90 (assert_test_isolation definition)"
+      - code: "tests/cross_cutting/test_version_isolation_integration.py:13,289 (the only caller of assert_test_isolation in the whole tree)"
+    claim: >
+      The new glossary note says isolation is enforced by "`tests/conftest.py`'s
+      `isolated_env` fixture ... and `assert_test_isolation` ...
+      actively fail[ing] the test if an installed package version is detected."
+      This conflates two unrelated mechanisms. `isolated_env` (used by `run_cli`,
+      which the golden-path test and C-003 rely on) never calls
+      `get_installed_version()` or `assert_test_isolation()` — it isolates by
+      construction (stripping/overriding `PYTHONPATH` so only the source tree is
+      importable), not by detecting an installed package and failing loudly.
+      `assert_test_isolation` is a real "detect and fail" helper, but grepping the
+      whole tree shows its only caller is
+      `tests/cross_cutting/test_version_isolation_integration.py`, a test of the
+      helper itself, wholly unrelated to `fresh_e2e_project`/`run_cli`/the golden
+      path. So the note's supporting citation for "actively fail... if detected"
+      does not hold for the code path it is attached to — a reader/implementer
+      could wrongly assume there is an active version-mismatch guard inside the
+      golden path's own isolation fixtures that must be preserved or extended,
+      when none exists there.
+    remediation: >
+      Rewrite the glossary note's second sentence to describe `isolated_env`'s
+      actual mechanism (PYTHONPATH override / no-inheritance, i.e. isolation by
+      construction) and drop the `assert_test_isolation` citation from this
+      context, or move it to its own aside noting it is a separate helper used
+      only by the unrelated version-isolation integration test, not by the
+      golden path.
+
+  - id: SPEC-FRESH-002
+    lens: scope-integrity
+    severity: 4
+    title: FR-006/SC-006 add a brand-new CI-gate deliverable not present in any operator-quoted binding decision
+    evidence:
+      - artifact: "spec.md § Clarifications (verbatim operator quotes, unchanged by this fix round) — Scope/Lever/Constraints blockquotes"
+      - artifact: "spec.md § Functional Requirements — FR-006 (new this fix round)"
+      - artifact: "spec.md § Measurable Outcomes — SC-006 (new this fix round)"
+      - artifact: "spec.md § Constraints — C-005, sentence added this fix round: \"This prohibition is made mechanically enforceable ... by FR-006/SC-006's structural gate.\""
+    claim: >
+      The operator's binding Clarifications enumerate an exhaustive set of levers
+      (A+C chosen; B rejected; a cap-loosening/cadence-move "lever D" rejected)
+      and four constraints (cap unchanged, cadence unchanged, skip removed,
+      lever-B rejected, real-Actions-runner evidence). Nothing in that verbatim,
+      binding text authorizes building a new, general-purpose CI mechanism that
+      detects and blocks re-application of `@pytest.mark.skip`/`xfail` to
+      NFR-007-budget-marked tests. FR-006/SC-006 (both new in this diff) add
+      exactly that: a deterministic, non-vacuous, "opt-out record" enforcing
+      gate — a materially separate engineering deliverable from levers A/C, and
+      one that widens the file/behavior surface of the single PR (FR-004) beyond
+      what the operator scoped. This is scope creep introduced by the fix round,
+      not requested by the dispatch, and it is not proportionally justified by a
+      tracker reference the way the charter's own tension-reconciliation rule
+      requires for any extension beyond the touched area ("any extension beyond
+      the touched area must be directly connected to the goal, proportional, and
+      carry a one-line rationale (a tracker reference for anything genuinely
+      broad)").
+    remediation: >
+      Either cut FR-006/SC-006 back out of this spec (C-005 stands on its own as
+      a documented prohibition, as it did before this fix round) and file the
+      re-skip-detection gate as a separate, explicitly-scoped follow-up mission/
+      issue, or get an explicit operator decision adding it to scope (a fifth
+      "lever"/constraint) and cite that decision the same way the other
+      Clarifications are cited verbatim.
+
+  - id: SPEC-FRESH-003
+    lens: internal-consistency
+    severity: 2
+    title: Edge Cases bullet still cites the stale "12-30s" historical-spread figure the fix round corrected everywhere else
+    evidence:
+      - artifact: "spec.md § Edge Cases, second bullet (unchanged by this fix round): \"historical CI/VM numbers ran 12-30s slower than the 127.55s local baseline\""
+      - artifact: "spec.md § NFR-002 (corrected this fix round): \"139.7s implementer VM is ~12s slower than 127.55s; 159.5s merge-agent worktree is ~32s slower than 127.55s\""
+      - artifact: "tracer-design-decisions.md § NFR-002's ≤110s number (corrected this fix round, same 12s/32s figures)"
+    claim: >
+      This fix round corrected an arithmetic error: the historical CI/VM numbers
+      (139.7s, 159.5s) are ~12s and ~32s slower than the current 127.55s local
+      baseline, not "12-30s slower" as an earlier draft had it (that number came
+      from comparing against a different, pre-#4417 ~156s baseline). NFR-002 and
+      tracer-design-decisions.md were both updated to the corrected 12s/32s
+      figures, but the Edge Cases bullet (not touched by this diff) still reads
+      "12-30s slower than the 127.55s local baseline" — pairing the corrected
+      127.55s baseline with the old, now-inconsistent upper bound (30 instead of
+      32). It is a small (2s) drift, but it is exactly the kind of echo the
+      correction should have propagated to, and its presence suggests the
+      correction pass did not grep for all restatements of the spread.
+    remediation: >
+      Update the Edge Cases bullet's parenthetical to match NFR-002's corrected
+      spread ("~12-32s slower than the 127.55s local baseline"), or simply
+      cross-reference NFR-002 instead of restating the number.
+
+  - id: SPEC-FRESH-004
+    lens: acceptance-criteria
+    severity: 3
+    title: NFR-002's new 110-120s escalation band may undercut the operator's explicit "not just barely under" instruction
+    evidence:
+      - artifact: 'spec.md § Clarifications (verbatim, binding): "...with a stated margin (e.g. target comfortably under 120s on Actions, not just barely under)..."'
+      - artifact: "spec.md § NFR-002, new sentence this fix round: \"Pass/fail rule for the 110-120s band ... a measurement between 110s and 120s does not by itself block the PR but requires an explicit operator call ... before the PR is treated as ready to close #4213/#4211.\""
+      - artifact: "spec.md § SC-003 (updated to match, same band language)"
+    claim: >
+      The operator's binding instruction is that a bare pass "not just barely
+      under" 120s is insufficient evidence of closure. The fix round's new
+      pass/fail band formalizes a path where a measurement anywhere in
+      110-120s — i.e., exactly the "barely under" zone the operator called out —
+      "does not by itself block the PR" and can still reach closure given "an
+      explicit operator call." That may be a reasonable escalation procedure for
+      an edge case, but as written it reads as a formal license to close on a
+      barely-under number with a nod, which sits in tension with the verbatim
+      "not just barely under" language it is supposed to operationalize. The spec
+      does not explain why an operator sign-off overrides the substantive
+      "not just barely under" evidentiary bar the Clarifications set, versus
+      merely being a notice/escalation step.
+    remediation: >
+      Either state explicitly that an operator sign-off in the 110-120s band is
+      only a documented exception (recorded as a new, separately-scoped decision
+      per C-005's own escalation language) and does not retroactively count as
+      satisfying "not just barely under," or tighten the band language so 110-120s
+      cannot be the basis for declaring #4213/#4211 closed without an explicit
+      operator statement that supersedes the original "not just barely under"
+      instruction for this specific case.

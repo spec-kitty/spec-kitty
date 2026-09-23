@@ -1,0 +1,104 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh-round2
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: TASKS-FRESH2-001
+    lens: verify
+    severity: 2
+    title: "WP04's round-2 fix mislabels the newly-added agent_keys staleness test as an 'operator Ruling 6' requirement, contradicting T015's own, more accurate sourcing"
+    evidence:
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tasks/WP04-freshness-precheck.md:63-67"
+        code: >
+          Objective: "...and prove it red-first per operator Ruling 6's binding condition
+          (four named staleness tests — T012's original three (a/b/c) plus T015's
+          `agent_keys` staleness test — each proven to fail against a naive stub before
+          the real fix makes them pass)."
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tasks/WP04-freshness-precheck.md:316-319"
+        code: >
+          Definition of Done: "All four Ruling-6 staleness tests — T012's (a/b/c) plus
+          T015's `agent_keys` staleness test — were observed RED against a naive stub
+          before the real implementation, then observed GREEN against the real
+          four-condition contract."
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tasks/WP04-freshness-precheck.md:264-267"
+        code: >
+          T015 bullet 3 (agent_keys staleness), the actual source of the fourth test,
+          attributes it to a different binding source: "`plan.md`'s Approach and
+          Diff-cover sections name three source-side stamp fields — `cli_version`,
+          `template_source_signature`, and `agent_keys` — but T012's (a) and (b) tests
+          only exercise the first two. Add a dedicated test... This closes the gap where
+          `agent_keys` had no dedicated, non-vacuous coverage of its own."
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/reviews/plan.ruling.md:19-21"
+        code: >
+          Ruling 6's actual binding condition: "There must be tests that fail if the
+          check skips a render it should not skip: at minimum when a command template
+          changes, when the spec-kitty version changes, and when the rendered output on
+          disk is missing or was altered." (three conditions — no mention of the
+          agent-key set / `agent_keys` field.)
+    claim: >
+      Round 2's fix (commit fdb4e5a4d) correctly resolved the prior fresh-round finding
+      TASKS-FRESH-003 (confirmed "resolved" in reviews/tasks-verify-round2.yaml) by
+      bumping the Objective/DoD/Reviewer-Guidance staleness-test count from "three" to
+      "four" so the newly-added T015 agent_keys test also gets the same red-before-green
+      proof requirement. But in doing so it widened the *attribution*, not just the
+      count: the pre-round-2 text said "three Ruling-6 staleness tests," which was
+      accurate (Ruling 6 names exactly three conditions "at minimum" — template change,
+      version change, destination-health). The post-round-2 text says "four [...] per
+      operator Ruling 6's binding condition" (Objective) and "All four Ruling-6
+      staleness tests" (DoD), which is not accurate: the fourth test (agent_keys) is
+      additional coverage T015 introduces to satisfy plan.md's Diff-cover >=90% section
+      (per T015's own text, unchanged by this fix round, which correctly cites
+      "plan.md's Approach and Diff-cover sections," not Ruling 6), not something the
+      operator's ruling named or was even asked about. The round-2 fix therefore
+      introduced a new internal inconsistency between the Objective/DoD's blanket
+      "Ruling-6" framing and T015's own, correctly-sourced attribution two paragraphs
+      later in the same file — and it overstates what the operator's binding ruling
+      actually requires. This is a traceability/governance-attribution defect, not a
+      functional one: the actual required test coverage (four tests, red-first) is
+      still correctly specified and will still get built and verified either way. The
+      round-2 verifier (reviews/tasks-verify-round2.yaml, TASKS-FRESH-003) only checked
+      that the count was bumped and that all four tests require the red-before-green
+      proof; it did not check the attribution's accuracy against Ruling 6's actual text.
+    remediation: >
+      In WP04's Objective and Definition of Done, stop calling the agent_keys test a
+      "Ruling-6" staleness test. E.g.: "...prove it red-first per operator Ruling 6's
+      binding condition (T012's original three named staleness tests, a/b/c) and per
+      plan.md's Diff-cover >=90% completeness requirement (T015's additional
+      `agent_keys` staleness test) — four tests total, each proven to fail against a
+      naive stub before the real fix makes them pass." Mirror the same split-sourcing
+      language in the Definition of Done bullet so it no longer reads "All four Ruling-6
+      staleness tests."
+
+  - id: TASKS-FRESH2-002
+    lens: seq
+    severity: 1
+    title: "WP05's round-2 WP01-dependency-exception note omits WP02 from its list of WPs that still lack a hard WP01 gate"
+    evidence:
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tasks/WP05-lazy-command-imports.md:60-68"
+        code: >
+          "WP01 (baseline capture) has no hard WP-dependency gate on it from this WP or
+          from WP03/WP04/WP07 — it measures an isolated worktree at the merge-base and
+          does not touch this working tree — but the orchestrator should still dispatch
+          it early/first as a process matter, per `plan.md`'s Baseline method. (WP08,
+          the mission's closing WP, is the one exception...)"
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-design-decisions.md:776-781"
+        code: >
+          "This is exactly why WP02, WP03, WP04, WP05, and WP07 are different: those
+          five sit in separate code lanes (`lane-a`..`lane-f`) ... Those five therefore
+          still correctly carry NO hard dependency on WP01."
+    claim: >
+      Round 2 added this enumeration to WP05's Context section specifically to
+      cross-reference which WPs still lack a hard WP01 dependency (contrasting with
+      WP08's new exception). tracer-design-decisions.md's own authoritative list of
+      "still correctly carry NO hard dependency on WP01" names five WPs — WP02, WP03,
+      WP04, WP05, WP07 — but WP05's own enumeration lists only four ("this WP or from
+      WP03/WP04/WP07"), silently dropping WP02. WP02 does in fact have zero
+      dependencies (so the omission is not factually wrong), but the enumeration is
+      incomplete relative to the tracer's own list it is meant to mirror, which could
+      read as an oversight to a careful reader cross-checking the two.
+    remediation: >
+      Either list WP02 explicitly ("from this WP or from WP02/WP03/WP04/WP07") or note
+      why it is excluded (e.g., WP02 has no dependencies at all, so it was never part of
+      the discussion), so the enumeration matches tracer-design-decisions.md's five-WP
+      list one-for-one.

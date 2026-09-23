@@ -1,0 +1,58 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >
+      The glossary note now correctly attributes isolation-by-construction (PYTHONPATH
+      stripped/overridden) to isolated_env (tests/conftest.py:1277-1315, PYTHONPATH pop
+      verified at line 1293 and set at line 1299) and correctly demotes
+      assert_test_isolation to an unrelated, detect-and-fail helper whose only caller
+      in the whole tree is tests/cross_cutting/test_version_isolation_integration.py
+      (verified by grep: assert_test_isolation is imported/called only at lines 13 and
+      289 of that file); all cited line numbers check out against the live code.
+  - id: SPEC-FRESH-002
+    status: unresolved
+    remaining_severity: 4
+    reason: >
+      The Standing Order #5 quote is verbatim-accurate and correctly located
+      (.kittify/charter/charter.md:75-77, under "## Quality & Tech-Debt Standing
+      Orders"), C-005 is confirmed to be the spec author's own elaboration rather than
+      an operator quote (the Clarifications blockquotes cover only Scope/Lever/four
+      Constraints, none of which mention a re-skip prohibition), and FR-006's gate is
+      genuinely narrow (explicitly scoped to "this one budget-marker class, not a
+      repo-wide skip/xfail ban"); but none of that settles the actual question the
+      finding raised. The Clarifications section is explicitly framed as "binding
+      operator decisions, not open design choices for this mission," and the charter's
+      own reconciling-change-scope-tensions rule requires that "any extension beyond
+      the touched area must be directly connected to the goal, proportional, and carry
+      a one-line rationale (a tracker reference for anything genuinely broad)" — a new
+      CI structural-gate mechanism (code + a self-mutation test + CI wiring) is
+      genuinely broad relative to a fixture/CLI-startup performance fix, and the
+      Authorization note supplies a charter citation, not a tracker reference or any
+      operator decision authorizing this specific deliverable. A general, standing
+      charter directive that applies to all missions at all times cannot by itself
+      authorize a specific mission to add scope the operator's own exhaustive,
+      closed-scope Clarifications never mentioned — that would make the "binding
+      decisions, not open design choices" framing meaningless. This is a rationalization
+      built on true sub-facts, not a genuine settlement of the authorization question;
+      it still needs either an explicit operator/tracker decision or removal of
+      FR-006/SC-006 from this mission's scope.
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: >
+      The Edge Cases bullet now reads "historical CI/VM numbers ran ~12-32s slower than
+      the 127.55s local baseline," matching NFR-002's corrected 12s/32s figures — the
+      stale "12-30s" echo is gone.
+  - id: SPEC-FRESH-004
+    status: resolved
+    reason: >
+      NFR-002 now states explicitly that a 110-120s measurement "does not by itself
+      satisfy the operator's ... 'not just barely under' evidentiary bar," that
+      reaching closure in that band requires a per-instance, explicitly-justified
+      operator sign-off (not a routine alternate pass condition), and that such a
+      sign-off "does not retroactively redefine" the NFR's own <=110s target nor stand
+      as precedent for a future measurement in the same band — this directly
+      operationalizes the remediation's first option and removes the "license to close
+      on a barely-under number" reading.

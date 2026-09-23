@@ -1,0 +1,61 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: pr-FRESH-001
+    lens: tests
+    severity: 4
+    title: "Two PR-CONTRACT-001 tests do not fail when the fix they name is reverted"
+    evidence:
+      - artifact: "commit a2bcad3d0 (PR-CONTRACT-001)"
+      - code: "tests/cli/test_resolve_single_leaf_command_value_options.py:89-102"
+    claim: >
+      `test_synthetic_value_taking_option_falls_back_to_full_registration` and
+      `test_synthetic_value_taking_option_alone_also_falls_back` are both documented as covering
+      "the core regression this finding names" (a value-taking root option's VALUE token being
+      misread as the command name). Reverting `_resolve_single_leaf_command` to the pre-fix
+      naive `arg.startswith("-")` skip-and-continue shape (confirmed live: re-edited the function
+      to the old shape, ran `.venv/bin/python -m pytest
+      tests/cli/test_resolve_single_leaf_command_value_options.py`, then re-edited it back) leaves
+      both tests passing. They use `["spec-kitty", "--config", "some/path", "merge"]` /
+      `["spec-kitty", "--config", "some/path"]`; the synthetic value `"some/path"` never collides
+      with a real `_COMMAND_REGISTRARS` key, so the pre-fix code also returns `None` for it —
+      coincidentally, not because it detects the value-taking option. Only a third, differently-
+      scoped test in the same file (`test_unrecognized_option_token_falls_back_even_on_the_real_app`,
+      an unknown-option-before-a-real-command-name scenario) actually failed on the revert. The
+      two tests that claim to guard the named regression are vacuous against it.
+    remediation: >
+      Change the synthetic value token in both tests to a string that collides with a real
+      `_COMMAND_REGISTRARS` key (e.g. `"merge"`), so the pre-fix naive code would misread the
+      option's value as the resolved command and the test fails on a revert, per the review
+      protocol's tests lens ("Revert test... If not, severity 4").
+  - id: pr-FRESH-002
+    lens: architecture
+    severity: 3
+    title: "AssetPreparation.overwrite_internal() is an unguarded public misuse surface"
+    evidence:
+      - artifact: "commit fc9767c93 (PR-BOUNDARY-001)"
+      - code: "src/specify_cli/runtime/asset_preparation.py:281-300"
+    claim: >
+      `overwrite_internal()` is a thin public wrapper (`self._effect(path, after, content,
+      proof)`, no additional logic) promoted from a private `_effect()` call the caller used to
+      reach with `# noqa: SLF001` at the call site. The docstring says it is "[r]eserved for
+      internal bookkeeping artifacts this owner alone produces and consumes... never for files a
+      project author might hand-edit; those must go through asset()" — but nothing enforces that:
+      no path-prefix assertion (e.g. confining `path` under the owner's `cache/` directory), no
+      caller allowlist, and no architectural test restricting who may call it (grepped
+      `src/` and `tests/`: today only `agent_commands.py`'s freshness-stamp write calls it, but
+      that is convention, not a guard). Because `_effect()`'s semantics are "always overwrite, no
+      drift-preservation," any future caller that points `overwrite_internal()` at a user-facing
+      managed asset (e.g. a rendered slash-command file) would silently clobber a user's
+      hand-edit with zero disposition/warning recorded — the exact failure `asset()`'s
+      drift-preservation exists to prevent. Promoting the primitive to an ordinary public method
+      removed the one guardrail the old private-name-plus-noqa shape had: a visible, greppable
+      smell at every call site.
+    remediation: >
+      Add either a runtime guard (assert `path` is confined under `cache/` or another
+      owner-internal root before writing) or an architectural test that enumerates and pins the
+      call sites of `overwrite_internal()` across `src/`, so a future call against a user-facing
+      managed path fails loudly instead of silently overwriting user edits.

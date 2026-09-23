@@ -1,0 +1,90 @@
+# review-verify/v1 — R5a anchored round-2 verification (fresh verifier, isolated worktree).
+# Mission: charter-epic-golden-path-nfr-budget-01M35H35
+# Checkout: 4211, HEAD 5df77a07b (fix commits d393cba28, 5df77a07b applied on top of
+# round-1's 3bf8af0f1). Verified in a detached worktree
+# (git worktree add --detach .../4211-verify-r2 HEAD), PYTHONPATH pointed at that worktree's
+# src, main checkout's .venv interpreter. Worktree removed after verification.
+schema: review-verify/v1
+complete: true
+phase: pr
+results:
+  - id: pr-FRESH-001
+    status: resolved
+    reason: >-
+      d393cba28 changed the synthetic option value in both named tests from "some/path" to
+      "merge" (a real _COMMAND_REGISTRARS key), with "charter" (another real key) following
+      in the argv-with-trailing-command variant. Re-proved red-first myself: overwrote
+      _resolve_single_leaf_command in the isolated worktree with the naive pre-fix
+      arg.startswith("-") skip-and-continue body from a2bcad3d0^ (kept the current (argv, app)
+      signature since callers now pass both), ran
+      tests/cli/test_resolve_single_leaf_command_value_options.py -- both named tests, plus
+      test_unrecognized_option_token_falls_back_even_on_the_real_app, went FAILED (3 failed, 8
+      passed) with the naive resolver returning "merge" instead of None. Restored the file
+      (byte-identical, git diff clean) and reran: all 11 tests pass on HEAD's real resolver.
+      The tests are non-vacuous against the naive shape now.
+
+  - id: pr-FRESH-002
+    status: resolved
+    reason: >-
+      5df77a07b adds a runtime guard to overwrite_internal() (asset_preparation.py:296-300):
+      raises ValueError unless path.parent equals the owner's cache root
+      (self.inventory.parent) AND path.name ends with ".lock". Ran
+      tests/specify_cli/runtime -m "not performance and not stress": 117 passed, including
+      the 5 overwrite_internal tests, the full freshness/staleness/stamp-applies-last suite
+      (26 tests selected via -k "freshness or staleness or stale or overwrite_internal", all
+      passed) -- WP04's stamp write (agent_commands.py's
+      home/"cache"/_FRESHNESS_STAMP_FILENAME, a real ".lock" file directly under the cache
+      root) is unaffected. Re-proved red-first: removed the guard body, reran
+      test_asset_preparation_overwrite_internal.py -- the two rejection tests
+      (test_overwrite_internal_rejects_a_user_facing_managed_path,
+      test_overwrite_internal_rejects_a_cache_root_path_without_the_lock_suffix) went FAILED
+      ("DID NOT RAISE ValueError"); restored the file (byte-identical, git diff clean).
+      Bypass check (own script, not in the test suite): (1) a literal ".." traversal target
+      (cache/../evil.lock) is rejected by the guard itself, since Path equality on the
+      unresolved parent never matches cache_root when ".." segments are present. (2) the
+      guard does NOT call .resolve() -- a ".lock"-named symlink placed directly in the cache
+      root (parent literally == cache_root) DOES pass the guard's own check and gets staged.
+      However this is not an exploitable bypass end-to-end: the actual disk-apply layer
+      (_write_asset in the same module) explicitly safe_unlink()s any destination that is
+      currently a symlink before writing, and the underlying write_generated_file() used for
+      the real write independently raises ValueError if asked to write through a symlink
+      (its own docstring: "Symlinks are refused"). Empirically confirmed: staged a symlink
+      named cache/sneaky.lock pointing at an outside file, ran overwrite_internal (staged,
+      guard did not reject) then _write_asset on that staged write -- the outside file was
+      untouched, and sneaky.lock ended up a regular file (the symlink was destroyed and
+      replaced, never followed). So the guard's own comparison is unresolved-path, not a
+      resolved-path comparison, but the layered defense at apply time closes the gap the
+      finding's remediation was concerned about; no live bypass exists.
+
+additional_checks:
+  - name: round1_no_regression_tests_cli
+    status: resolved
+    reason: >-
+      pytest tests/cli -m "not performance and not stress": 701 passed, 3 skipped, 1
+      deselected, 3 failed. All 3 failures are in
+      tests/cli/commands/test_charter_json_error_contract.py and are an environment artifact
+      of the mandated isolated linked-worktree checkout, not a regression: the charter CLI
+      intentionally refuses charter writes from a linked git worktree
+      (src/specify_cli/cli/commands/charter/_charter_write_root.py:56, "Refusing charter
+      write from linked git worktree ... use a repository-root checkout or dedicated clone
+      for charter authoring"), which this verifier's own isolation worktree triggers. Neither
+      fix commit (d393cba28, 5df77a07b) touches charter/, and this guard predates both. Not
+      counted as a regression from either finding's fix.
+
+  - name: round1_no_regression_architectural
+    status: resolved
+    reason: >-
+      pytest tests/architectural/test_ruff_format_exclude_ratchet.py
+      tests/architectural/test_layer_rules.py: 61 passed, 0 failed.
+
+  - name: mypy_strict_agent_commands
+    status: resolved
+    reason: "mypy --strict src/specify_cli/runtime/agent_commands.py: Success, no issues found in 1 source file."
+
+  - name: ruff_changed_files
+    status: resolved
+    reason: >-
+      ruff check + ruff format --check on src/specify_cli/runtime/asset_preparation.py,
+      tests/specify_cli/runtime/test_asset_preparation_overwrite_internal.py,
+      tests/cli/test_resolve_single_leaf_command_value_options.py: all checks passed, all 3
+      files already formatted.

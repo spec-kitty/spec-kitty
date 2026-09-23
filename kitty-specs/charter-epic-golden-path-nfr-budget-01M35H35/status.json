@@ -1,0 +1,275 @@
+{
+  "event_count": 64,
+  "last_event_id": "01M37EJ09SWHZBN4SCHJPJS7D4",
+  "materialized_at": "2026-09-23T15:36:11.833238+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-epic-golden-path-nfr-budget-01M35H35",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 8,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M366CW0ZN843Y65XJFN0NJ03",
+      "last_transition_at": "2026-09-23T03:54:20.575170+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Baseline captured at merge-base 6b4164dbf; research/baseline-2026-09-23.md committed",
+        "rejected: sev3 local absolute path in baseline artifact (WP01-C1-001); sev1 PWHEADLESS prefix note",
+        "approved cycle 2 (reviewer-renata); cycle-1 findings fixed"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "reviews/wp-WP01-cycle2.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M370769E39H90KKDGBQCD5P6",
+      "last_transition_at": "2026-09-23T11:25:37.454097+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T006-T008 done. Diff is a pure 9-line deletion of only the @pytest.mark.skip decorator (verified via git diff); @pytest.mark.timeout(120) and the function signature untouched. UNEXPECTED FINDING: test now COLLECTS and PASSES (not RED/timeout as this WP's task file expected) -- 2 consecutive local runs both passed under the 120s cap: 100.40s (call 72.76s/setup 27.46s) and 89.65s (call 75.33s/setup 14.15s). No WP03/04/05 fixture/CLI-startup changes have landed yet (status.json shows them all 'planned'), so this is not explained by those levers landing early. Flagging for reviewer/orchestrator: SC-001's own premise (marker load-bearing only once fixes land) may not hold as documented, or the original #4213 hang is environment/cache-dependent and did not reproduce here (fresh_e2e_project fixture does not isolate $HOME). Not investigated further -- out of WP02's scope.",
+        "approved; red-first proven on Actions run 35853033595 (51.31s setup + 69.99s call, timeout)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "reviews/wp-WP02.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2414322,
+      "shell_pid_created_at": "1790134959.11",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP03": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M371VS2EQG30DA388P69B5YF",
+      "last_transition_at": "2026-09-23T11:54:20.622274+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T009-T011 done: git-config batched into direct .git/config write, C-006 assertions added+proven load-bearing, spec-kitty init call unchanged (C-003). tests/e2e -q: 20 passed/20 skipped, no new failures.",
+        "approved; sev2 WP03-C1-001 (CI setup dominated by session test_venv bootstrap, not WP03/WP04 levers) carried to mission level"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "reviews/wp-WP03.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3695553,
+      "shell_pid_created_at": "1790162864.57",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP04": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M379R1MVNFP7FWS6ZGTG3XDE",
+      "last_transition_at": "2026-09-23T14:12:06.939613+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: freshness pre-check implemented, red-first staleness tests (template/version/destination-altered/destination-missing/agent_keys) pass, mypy --strict clean, ruff clean, blast-radius + make test-fast surface green (3 pre-existing linked-worktree failures only, matching WP01 baseline), startup timing before/after measured.",
+        "rejected cycle 1: sev4 M2 unkilled (Ruling 6), sev3 diff-cover 89.6%, sev3 M7 unkilled, sev2 renderer code not in signature",
+        "approved cycle 2: M1-M8 all killed, 100% changed-line coverage"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "reviews/wp-WP04-cycle2.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
+    },
+    "WP05": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3792D5ZVMCWBD1XT04MG4QR",
+      "last_transition_at": "2026-09-23T14:00:17.855514+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "approved; sev2 coverage-attribution + 2 sev1 advisories accepted with reasons in verdict"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "reviews/wp-WP05.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3692959,
+      "shell_pid_created_at": "1790162821.15",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
+    },
+    "WP06": {
+      "actor": "user",
+      "agent": null,
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M37BVDHG1JB7V78197DEEC6H",
+      "last_transition_at": "2026-09-23T14:48:54.576449+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "rejected cycle 1: sev4 structural tier in tests/performance (no PR shard selects it; Ruling 4)",
+        "approved cycle 2; sev2 WP06-C2-001 folded into post-squad fix"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "reviews/wp-WP06-cycle2.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
+    },
+    "WP07": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M36ZGMBCT070ERYS3DESHVWF",
+      "last_transition_at": "2026-09-23T11:13:18.188833+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "approved (reviewer-renata), 2 sev-1 informational"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "reviews/wp-WP07.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2413154,
+      "shell_pid_created_at": "1790134942.99",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done"
+      }
+    },
+    "WP08": {
+      "actor": "user",
+      "agent": null,
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M37EJ09SWHZBN4SCHJPJS7D4",
+      "last_transition_at": "2026-09-23T15:36:11.833238+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "rejected cycle 1: two tracer lines embed a local absolute home path (sev3 x2)",
+        "approved cycle 2"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "reviews/wp-WP08-cycle2.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
+    }
+  }
+}

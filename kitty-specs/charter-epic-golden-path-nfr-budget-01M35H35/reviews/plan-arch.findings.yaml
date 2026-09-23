@@ -1,0 +1,89 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: PLAN-ARCH-001
+    lens: generated-artifacts / blast-radius
+    severity: 4
+    title: Freshness-stamp design has no destination-state check — a false "already fresh" positive silently skips the existing self-healing repair pass
+    evidence:
+      - artifact: "data-model.md § Agent-commands freshness stamp (Shape + Read/write contract)"
+      - artifact: "plan.md § Lever C, 'Approach' paragraph"
+      - code: "src/specify_cli/runtime/agent_commands.py:343-420 (assess_global_agent_commands — today's unconditional render-then-diff self-heals destination drift on every call: observes output dir, renders, diffs against existing_bytes, retires non-canonical files)"
+      - code: "src/specify_cli/runtime/agent_commands.py:296-305 (_all_global_agent_commands_healthy — an existing, UNUSED, cheap destination-aware health check: directory existence, filename completeness, per-file version-marker match. Zero callers anywhere in src/ or tests/, confirmed by grep.)"
+      - code: "src/specify_cli/runtime/agent_commands.py:503-508 (ensure_global_agent_commands docstring: \"Ensure actual global command health, retaining unchanged bytes and mtimes\")"
+    claim: >
+      The proposed freshness stamp's three fields — cli_version,
+      template_source_signature, agent_keys — are all SOURCE-side inputs. None of them
+      capture the state of the rendered DESTINATION files
+      (~/.claude/commands/, ~/.gemini/commands/, etc.). Today, `assess_global_agent_commands()`
+      unconditionally renders and diffs against destination bytes on every invocation, which
+      is what lets it self-heal a deleted, partially-installed, or externally-edited command
+      file on the very next `spec-kitty` call — this is the documented contract of
+      `ensure_global_agent_commands()` itself ("Ensure actual global command health"). Once the
+      freshness pre-check short-circuits on a matching (cli_version, template_source_signature,
+      agent_keys) stamp, that repair pass is skipped entirely — so if a user deletes
+      `~/.claude/commands/spec-kitty.plan.md`, or another concurrent `spec-kitty` process
+      (a real scenario under "one checkout, many agents") leaves a partially-materialized
+      destination tree, or an operator edits a command file by hand, the next invocation
+      reports the global command set healthy and does nothing, even though it is objectively
+      not. This is exactly the class of defect the arch lens brief names — "a stale render
+      treated as fresh" — and the charter explicitly calls silent success its dominant failure
+      mode. Tellingly, the codebase already contains a cheap, destination-aware health check
+      (`_all_global_agent_commands_healthy()`) that would close this exact gap, but it has zero
+      callers today and is not mentioned anywhere in research.md or plan.md despite both
+      documents listing `agent_commands.py` as directly read.
+    remediation: >
+      Extend the freshness-check contract in data-model.md (and the eventual implementation) to
+      require BOTH a stamp match AND an independent, cheap destination-health verification
+      before short-circuiting — e.g., call `_all_global_agent_commands_healthy()` (or fold its
+      per-agent directory/filename/version-marker checks into the freshness gate) for the
+      resolved agent-key set, and only skip `_render_agent_commands()` when the stamp matches
+      AND that check reports every configured agent's destination as healthy. Document this as
+      a fourth condition in data-model.md's read/write contract, not just the three source-side
+      fields.
+
+  - id: PLAN-ARCH-002
+    lens: migrations
+    severity: 4
+    title: Freshness-stamp read path has no specified behavior for malformed/legacy content — a corrupt or pre-mission stamp could crash every CLI invocation instead of degrading gracefully
+    evidence:
+      - artifact: "data-model.md § Agent-commands freshness stamp, 'Read/write contract' and 'No migration needed' bullets"
+      - code: "src/specify_cli/runtime/asset_preparation.py:186-204 (AssetPreparation.__init__ raises ValueError on a malformed sibling cache file — 'Invalid global asset inventory' — for this exact owner's existing cache directory)"
+      - code: "src/specify_cli/runtime/agent_commands.py:434-443 (assess_global_agent_commands's outer except (OSError, ValueError, KeyError) turns that raise into an incomplete() OwnerAssessment)"
+      - code: "src/specify_cli/runtime/agent_commands.py:473-492 (_apply_command_assessment: `if not assessment.complete: raise RuntimeError(...)` — propagates out of ensure_global_agent_commands() and thus main_callback())"
+      - code: "src/specify_cli/runtime/agent_commands.py:40-41,425-426 (the EXISTING _VERSION_FILENAME = \"agent-commands.lock\" file under home/cache, written today as plain version-string bytes via prepared.finish(stamp, _get_cli_version()) — confirmed by grep to have zero readers anywhere in the codebase today)"
+    claim: >
+      data-model.md asserts the new stamp "degrades gracefully... never errors or requires a
+      repair command," but only demonstrates this for the ABSENT case. It does not specify what
+      happens when the stamp file exists but cannot be parsed as the new shape. Two concrete,
+      non-hypothetical ways this happens: (1) EVERY existing installation's first post-upgrade
+      invocation, if the new stamp reuses the existing `_VERSION_FILENAME`/"agent-commands.lock"
+      path (which the plan explicitly leaves undecided — "exact filename/format is an
+      implementation choice, not fixed by this plan") — that file already exists on disk today
+      as plain version-string bytes, not the new JSON shape, so the very first read after
+      upgrade is guaranteed to hit unparseable legacy content, not a rare edge case; (2) a torn
+      write from a crashed process or an unimplemented lock-reuse path — the plan's own
+      Concurrency subsection admits the exact locking mechanics are "an implementation-time
+      decision," i.e. not actually resolved despite the "never errors" claim in the same
+      document. The nearest existing precedent in this same file — the sibling asset-inventory
+      cache's malformed-content handling — RAISES ValueError, which propagates through
+      assess_global_agent_commands()'s incomplete() path into `_apply_command_assessment`'s
+      `raise RuntimeError`, crashing `main_callback()` and therefore every `spec-kitty`
+      invocation on the machine until the file is manually removed. If the new stamp's read
+      path is implemented by analogy to that precedent (a reasonable default absent explicit
+      guidance), a corrupt or legacy-shaped stamp produces a strictly worse regression than
+      today's "always slow" baseline: a hard, repeated crash.
+    remediation: >
+      Add an explicit third disposition to data-model.md's read/write contract, alongside
+      "match" and "miss (absent or fields differ)": "unreadable/malformed (wrong schema, legacy
+      plain-bytes content, invalid encoding, torn write)" → treat identically to absent (fall
+      through to the unconditional render-then-diff path, then overwrite with a fresh,
+      correctly-shaped stamp on success). Implement this via a narrowly-scoped catch around the
+      stamp READ only — parse errors, not render/write errors — so a corrupt or legacy-shaped
+      freshness stamp degrades the CLI back to "always slow" rather than crashing it. State
+      explicitly in the plan/data-model whether the new stamp reuses `_VERSION_FILENAME` or
+      introduces a new file; if reused, call out the guaranteed first-upgrade legacy-content
+      case by name so the implementer does not treat it as a hypothetical.

@@ -1,0 +1,20 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: plan
+results:                    # one entry for EVERY finding in the findings file
+  - id: PLAN-FRESH3-001
+    status: resolved
+    reason: >-
+      The red-first binding-condition sentence was moved to the end (after the "so that"
+      clause) exactly per the remediation's first option: the secondary-mechanism clause now
+      flows directly into ", so that each of the golden path's 12 subprocess CLI calls costs
+      less." as one sentence, with "Both are in scope; the freshness check must be proven
+      red-first per Ruling 6's binding condition (see Clarifications)." as a separate trailing
+      sentence; both clauses are preserved verbatim, only reflowed.
+  - id: PLAN-FRESH3-002
+    status: resolved
+    reason: >-
+      NFR-003's row now reads "...serves both this mission's budget..." with "construction/render
+      cost" in place of the bare "construction cost", matching FR-003's title and the Key
+      Entities bullet elsewhere in spec.md, exactly per the remediation's first option.

@@ -1,0 +1,90 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: refuted
+    reason: >-
+      The files do exist (verified at ../_readiness/4211/measured-results.md and
+      golden_path_run.log, numbers match spec.md verbatim) but citing an external
+      readiness-session path is established, already-merged practice in this repo —
+      three other current specs (mission-type-guard-registry-01KZY2FG,
+      custom-mission-guard-failure-blocking-inert-01M0STY0,
+      spdd-reasons-activation-split-brain-01M1K6VN) cite the identical
+      "_readiness/<n>-*.md" pattern — and the invoked directive (DIRECTIVE_044,
+      read in full) governs template/skill/CLI-command canonical-source selection
+      and split-brain consolidation, not evidentiary citation paths for readiness
+      artifacts, so the claimed governance violation does not exist.
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: >-
+      Verified against spec.md lines 65/91 verbatim: NFR-002 mixes "must be
+      comfortably under the 120s cap" with "target ≤110s", and SC-003 requires
+      comparison against "the ≤110s target margin ... (not merely 'under 120s')"
+      without ever stating whether a 110-120s runner measurement passes or fails
+      closure — the textual tension is real and directly quotable, not vague.
+  - id: SPEC-GOV-003
+    verdict: refuted
+    reason: >-
+      Charter §Standing Order 2 (verified in .kittify/charter/charter.md lines
+      60-66) requires campsite-cleaning as a mission/WP-opening practice, not
+      necessarily spec-content; a repo-wide grep shows only 1 of 468 specs
+      (charter-activate-empty-action-sequence-01M0STSX) carries an explicit
+      campsite-clean note, and even that precedent defers sizing to the plan
+      phase rather than resolving it in the spec — confirming this is
+      discretionary, not a spec-phase requirement this spec fails to meet.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: >-
+      Verified tests/e2e/conftest.py:390-452 (fresh_e2e_project body): only
+      git init/config x2, run_cli_subprocess("init"), git add/commit, and a
+      branch checkout helper — no venv or editable-install construction of any
+      kind; and tests/test_isolation_helpers.py:35-41 get_venv_python() only
+      resolves an existing SPEC_KITTY_TEST_VENV path or falls back to
+      sys.executable, it builds nothing — so FR-002/Edge-Case-1's "shared
+      venv/editable-install" framing does not correspond to any real cost in
+      the actual fixture.
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: >-
+      Verified Edge Cases item 1 is the only place stating the "truly clean,
+      from-scratch" preservation contract (matches the fresh_e2e_project
+      docstring verbatim); FR-002 only says "see Edge Cases" with no binding
+      cross-requirement; and SC-001 through SC-005 (spec.md lines 89-93) cover
+      the timeout marker, the lever-C regression guard, real-CI verification,
+      the PR description, and subprocess-call-count fidelity — none of them
+      assert anything about fixture isolation or the docstring's no-.kittify-copy
+      contract, so a WP could satisfy every literal FR/SC while breaking it.
+  - id: SPEC-ARCH-003
+    verdict: confirmed
+    reason: >-
+      Verified tests/conftest.py:1318-1338 — the run_cli fixture and its inner
+      _run_cli helper are defined there (exact line match), not in
+      tests/e2e/conftest.py as spec.md's C-003 states verbatim
+      ("`_run_cli` / `run_cli_subprocess` in `tests/e2e/conftest.py`"); and
+      run_cli_subprocess is defined in tests/test_isolation_helpers.py and only
+      imported into tests/e2e/conftest.py — C-003's location citation is
+      concretely wrong, which is the finding's load-bearing claim.
+  - id: SPEC-ARCH-004
+    verdict: confirmed
+    reason: >-
+      Verified tests/conftest.py's isolated_env fixture docstring states it
+      "guarantees that tests will never accidentally use a pip-installed
+      version of spec-kitty-cli from the host system", and
+      test_isolation_helpers.py's assert_test_isolation actively fails the test
+      if an installed version differs from source — directly contradicting
+      spec.md's repeated "real, installed CLI" framing (User Story 1, C-003,
+      SC-005), which the actual mechanism guarantees the opposite of.
+  - id: SPEC-ARCH-005
+    verdict: refuted
+    reason: >-
+      tests/performance/test_cli_startup_budget_4409.py confirms the deferred-import
+      precedent is real, but the claimed gap (no requirement to validate the
+      broader CLI command surface) is already covered by this repo's standing,
+      documented blast-radius test policy (CLAUDE.md "Test policy — what you
+      must run for a change": run the test files of every module a diff
+      touches, e.g. tests/specify_cli/cli/commands/), which applies to every
+      mission regardless of whether the spec restates it — a repo grep shows
+      only 1 of 468 specs formalizes such a suite-run as an explicit
+      FR/SC, confirming this is not an expected spec-content pattern here.

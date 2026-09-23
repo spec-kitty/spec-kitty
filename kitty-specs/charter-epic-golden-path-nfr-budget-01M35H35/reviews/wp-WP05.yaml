@@ -1,0 +1,78 @@
+# wp-verdict/v1 — canonical format for per-WP review verdicts.
+schema: wp-verdict/v1
+complete: true
+wp: WP05
+cycle: 1
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+verdict: approved
+gates_observed:
+  tsc: unknown        # no mypy/tsc gate applies to this diff per the sk doctrine gate table (ruff only)
+  tests: pass          # tests/specify_cli/cli: 6 failed (pre-existing, confirmed below) / 4483 passed / 10 skipped / 2 xfailed
+                        # tests/cli: 3 failed (pre-existing linked-worktree artifacts) / 676 passed / 4 skipped
+                        # tests/architectural/test_layer_rules.py: 55/55 passed
+                        # ruff check --select TID251 on the changed file: clean
+  coverage: "92.4%"    # diff-cover vs c186f4cbc^ (parent) on src/specify_cli/cli/commands/__init__.py,
+                        # 144 changed lines, 11 missing (691, 704, 706-709, 712, 714-717) -- gate is >=90%
+feedback:
+  - id: WP05-C1-001
+    severity: 2
+    claim: >
+      The CI diff-cover gate cannot see subprocess execution, and this WP's own purpose-built
+      proof of the deferral mechanism (tests/specify_cli/cli/test_lazy_command_imports.py, T018)
+      runs entirely via subprocess.run() in a fresh interpreter per invocation -- correctly, since
+      module-cache isolation requires a fresh process. pyproject.toml's [tool.coverage.run] has no
+      `parallel = true` / COVERAGE_PROCESS_START subprocess propagation configured, so none of
+      test_lazy_command_imports.py's six test functions contribute one measured line to the 92.4%
+      diff-cover figure reported above. That figure passes the >=90% gate only because of
+      incidental, coincidental coverage from an unrelated pre-existing test
+      (tests/specify_cli/cli/commands/test_merge_cli_golden.py's `_registered_top_level_commands()`
+      helper, which directly calls `register_commands()` in-process) that happens to also touch
+      the `_COMMAND_REGISTRARS[single_leaf](app)` call site. Verified: reading cov.json's
+      per-line executed_lines confirms line 727 (`_COMMAND_REGISTRARS[single_leaf](app)`) is
+      covered, but the two pre-existing fast-path bodies at their new post-restructure position
+      (lines 704-709, 712-717) are NOT -- meaning the gate's pass/fail here is not actually
+      grounded in the mechanism's own dedicated tests. A future regression that broke the
+      single-leaf lookup specifically (while leaving the unrelated incidental test's coarser
+      assertion satisfied) could pass this gate undetected.
+    remediation: >
+      Advisory / mission-level, not blocking this WP: either configure subprocess coverage
+      propagation (COVERAGE_PROCESS_START + a sitecustomize.py under the test env, plus
+      `parallel = true` and a `coverage combine` step in CI) so
+      test_lazy_command_imports.py's subprocess runs actually count toward the gate, or
+      document in the test file that its coverage contribution is zero by design and rely on
+      its own strict equality assertions (not the coverage gate) as the correctness signal for
+      this mechanism. Worth a tracer-tooling-friction entry: the diff-cover gate silently
+      cannot see this class of test.
+  - id: WP05-C1-002
+    severity: 1
+    claim: >
+      The WP agent used `git stash` in the lane worktree during implementation (per dispatch).
+      The stash stack is shared across all worktrees of this one repository, so a concurrent
+      agent working a different lane in the same clone could have had its own uncommitted work
+      silently stashed/popped by this WP's use of stash, or this WP could have popped a stash it
+      did not create. No stash entries remain in either the lane or the main checkout at review
+      time (`git stash list` empty in both), so no harm materialized here, but the practice
+      itself is a process risk under this mission's own "one checkout, many agents" posture.
+    remediation: >
+      Advisory only. Future WP-agent dispatches in multi-lane checkouts should avoid `git
+      stash` entirely (use a throwaway commit or a separate worktree instead), consistent with
+      the orchestrator's own no-stash discipline for guardrail operations.
+  - id: WP05-C1-003
+    severity: 1
+    claim: >
+      `_resolve_single_leaf_command()` (src/specify_cli/cli/commands/__init__.py:675-691)
+      treats the first non-flag argv token as the invoked command name, mirroring the
+      pre-existing `_is_next_fast_path`/`_is_live_work_hook_fast_path` idiom. This is correct
+      today because the only root-level Typer option is `--version`/`-v`, a boolean flag that
+      never consumes a separate value token (confirmed via `main_callback`'s signature). If a
+      future root-level option that takes a value were ever added (e.g. a global `--config
+      <path>`), that value token would be misread as the command name and silently resolve to
+      `None` (falling back to full registration -- safe but wasteful) or, worse, to a real
+      command name that happens to collide with the option's value. This is a latent fragility
+      inherited from, and consistent with, the pre-existing precedent this WP explicitly
+      generalizes -- not a new class of bug introduced by WP05 -- but the blast radius is now
+      ~53 command names wide instead of 2.
+    remediation: >
+      Advisory only. If a root-level value-taking option is ever added, `_resolve_single_leaf_command`
+      (and the two pre-existing fast-path predicates) will need to explicitly skip that option's
+      value token, not just tokens starting with `-`.

@@ -1,0 +1,211 @@
+# R3 output — merged findings (reviews/pr.merged.yaml) whose refutation verdict
+# (reviews/pr-refute-1.yaml) is `confirmed`. All 6 merged findings were confirmed; none
+# refuted. This is a CODE phase (PHASE=pr): R1-R3 only, report-only — no fix round runs
+# inside this squad. These findings are routed OUT to a fix dispatch by the orchestrator
+# after this trail is committed, never fixed inside the squad itself.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: confirmed
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: PR-BOUNDARY-001
+    lens: kernel/CLI seam — private-convention reach
+    severity: 3
+    title: "agent_commands.py reaches past AssetPreparation's public API into its private _effect() method to write the freshness stamp"
+    needs_operator_decision: false
+    evidence:
+      - code: "<checkout>/src/specify_cli/runtime/agent_commands.py:687"
+      - code: "<checkout>/src/specify_cli/runtime/asset_preparation.py:261 (def _effect)"
+      - code: "<checkout>/src/specify_cli/runtime/asset_preparation.py:289 (def asset, the public equivalent)"
+      - artifact: "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/data-model.md § Agent-commands freshness stamp (\"Write: only after a full, successful render-and-apply cycle completes\")"
+    claim: >
+      `assess_global_agent_commands()`'s `_build()` closure writes the new freshness stamp via
+      `prepared._effect(freshness_path, FileState(...), freshness_payload, OwnershipProof(...))`
+      (agent_commands.py:687), calling `AssetPreparation._effect` — a leading-underscore method
+      of a different module's class — directly, suppressed with `# noqa: SLF001`; confirmed the
+      only cross-module call to `._effect()` anywhere in src/ or tests/. The inline rationale for
+      avoiding the public `asset()` method (its drift-preservation logic would permanently
+      preserve a corrupted stamp instead of overwriting it) is verified-correct, but argues for a
+      capability gap in `AssetPreparation`'s public surface, not for reaching past the
+      underscore. Distinct from the already-recorded WP04-C2-001 (that finding is about the
+      `.lock`-suffix filename convention coupling to `_write_order`'s stage classification, not
+      about this direct private-method call).
+    remediation: >
+      Promote a narrow public method on `AssetPreparation` (e.g. `overwrite_internal(path,
+      after, content, proof)`) with exactly `_effect()`'s "always overwrite, no
+      drift-preservation" semantics, documented as the supported primitive for internal
+      cache-only bookkeeping files. Have `agent_commands.py` call that instead of
+      `prepared._effect()`, and drop the `# noqa: SLF001`.
+    refutation:
+      verdict: confirmed
+      reason: >-
+        Read agent_commands.py:687 and asset_preparation.py:261/289 directly — confirmed the
+        only cross-module `._effect()` caller in src/+tests/, and data-model.md's contract text
+        corroborated.
+
+  - id: PR-CONTRACT-001
+    lens: Behavioural change from lazy registration
+    severity: 3
+    title: "_resolve_single_leaf_command's first-non-dash-token heuristic cannot distinguish a future value-taking global option from the subcommand name"
+    needs_operator_decision: false
+    evidence:
+      - code: "<checkout>/src/specify_cli/cli/commands/__init__.py:672-688"
+      - code: "<checkout>/src/specify_cli/__init__.py:119-124"
+    claim: >
+      `_resolve_single_leaf_command(argv)` walks `argv[1:]` and returns the first token that
+      does not start with `-`, treating it as the resolved leaf command. Safe today only because
+      the root app's sole option (`-v/--version`) is boolean/eager with no value token — nothing
+      in the function or its test coverage encodes that invariant. A future value-taking root
+      option (e.g. `--config PATH`) would have its value token misread as the subcommand,
+      silently registering the wrong module. Differs from (and is broader than) the two
+      pre-existing fast-path predicates it generalizes, which match a literal token anywhere in
+      argv and so are not fooled by an intervening value token. No test in the diff covers a
+      value-taking global option.
+    remediation: >
+      Add a regression test asserting every `typer.Option`/`typer.Argument` on `main_callback`
+      is boolean/eager, so a future global option addition is forced to revisit
+      `_resolve_single_leaf_command`'s token-skipping assumption. Alternatively, make the
+      resolver arity-aware via an explicit allow-list of value-consuming option names.
+    refutation:
+      verdict: confirmed
+      reason: >-
+        Confirmed main_callback's only option is boolean/eager -v/--version and no test
+        asserts that invariant; misrouting risk for a future value-taking option holds.
+
+  - id: PR-CONTRACT-002
+    lens: Behavioural change from lazy registration
+    severity: 2
+    title: "No automated test guards _COMMAND_REGISTRARS/_ALL_COMMAND_REGISTRARS consistency"
+    needs_operator_decision: false
+    evidence:
+      - code: "<checkout>/src/specify_cli/cli/commands/__init__.py:592-654"
+      - code: "<checkout>/src/specify_cli/cli/commands/__init__.py:672-688"
+    claim: >
+      `register_commands()` maintains two hand-written parallel collections: `_COMMAND_REGISTRARS`
+      (dict, lazy single-leaf path) and `_ALL_COMMAND_REGISTRARS` (tuple, eager fallback /
+      `--help` / unknown-command listing). AST-parsing the file confirms the two are consistent
+      today (53 registrar functions, 61 command-name keys), but nothing enforces it — no test
+      asserts `set(_COMMAND_REGISTRARS.values()) == set(_ALL_COMMAND_REGISTRARS)`. A future
+      one-sided edit would silently desync single-leaf-reachable commands from `--help`/
+      did-you-mean listings, or vice versa.
+    remediation: >
+      Add a unit test importing the real module and asserting
+      `set(_COMMAND_REGISTRARS.values()) == set(_ALL_COMMAND_REGISTRARS)`.
+    refutation:
+      verdict: confirmed
+      reason: >-
+        Independent AST re-parse reproduced the same 53/61 counts and confirmed no
+        set-equality test exists in tests/.
+
+  - id: PR-TESTS-001
+    lens: shard-selection + revert-test-for-every-changed-behaviour
+    severity: 4
+    title: >-
+      WP05's own behavioral revert-test (test_lazy_command_imports.py) lives in a
+      directory NO per-PR or nightly CI automation ever selects
+    needs_operator_decision: false
+    evidence:
+      - code: "<checkout>/tests/specify_cli/cli/test_lazy_command_imports.py:1-40"
+      - code: "<checkout>/.github/ci-module-registry.yml:402-415"
+      - code: "<checkout>/.github/workflows/ci-router.yml:596-611"
+      - code: "<checkout>/.github/workflows/module-tests.yml:180-194"
+      - code: "<checkout>/.github/workflows/ci-nightly.yml:263-312"
+      - code: "<checkout>/Makefile:38"
+      - artifact: "reviews/wp-WP05.yaml (WP05-C1-001, subprocess coverage cannot be seen by diff-cover either)"
+    claim: >-
+      WP05 adds `tests/specify_cli/cli/test_lazy_command_imports.py` (T018) as the only
+      behavioral (subprocess/sys.modules-based) proof that `register_commands()`'s lazy
+      command-module deferral actually works at runtime. No pytest marker. `ci-module-registry.yml`'s
+      `out_of_matrix_test_dirs` names `tests/specify_cli/cli` as an accepted "make test-full-only"
+      gap. On this diff: (1) `ci-router.yml`'s hardcoded `tests-cli` job runs `pytest tests/cli -q`
+      only; (2) the module registry's `cli` row has no `test_dirs` override, so the per-PR matrix
+      falls back to `tests/cli` too; (3) `ci-nightly.yml`'s `full-module-matrix` iterates only
+      `registry["modules"]`, never `out_of_matrix_test_dirs`; (4) no marker means no marker-based
+      nightly lane picks it up; (5) `make test-full` — the only thing that would collect this file —
+      is never invoked by any GitHub Actions workflow. Result: this test never runs in any
+      automated CI, pre-merge or nightly. The CI-visible surrogate,
+      `tests/cli/test_register_commands_lazy_import_shape.py` (WP06), is a purely structural
+      AST-shape check, not a runtime proof, and already carries the known K2 gap. A future change
+      that kept the AST shape compliant while breaking actual runtime deferral would pass every
+      CI-selected test and merge silently.
+    remediation: >-
+      Move `tests/specify_cli/cli/test_lazy_command_imports.py` into `tests/cli/` (already
+      selected by `tests-cli` and the `cli` module's per-PR matrix), matching where its sibling
+      shape test lives — mirrors WP06's own precedent of moving files out of `tests/performance/`
+      for the identical reason. Alternatively add an explicit `test_dirs` entry for the `cli`
+      module covering `tests/specify_cli/cli` (scoped to exclude the already-excluded
+      `tests/specify_cli/cli/commands` subtree), or mark the file with a marker a live gate
+      positively selects.
+    refutation:
+      verdict: confirmed
+      reason: >-
+        Independently traced ci-router.yml, the module registry, ci-nightly.yml's matrix
+        generation loop, and grepped .github/ for "make test-full" as a run step (found
+        none) — every numbered sub-claim held up; the file is genuinely unreachable by CI.
+
+  - id: PR-TESTS-002
+    lens: e2e-un-skip-timeout-flakiness
+    severity: 3
+    title: >-
+      The 7.44s Actions closure margin is a single-sample measurement that bakes in
+      an uncached, network-variable one-time venv-install cost
+    needs_operator_decision: false
+    evidence:
+      - artifact: "reviews/wp-WP03.yaml (WP03-C1-001) — independently establishes the pip-install/setup-phase attribution"
+      - code: "<checkout>/tests/conftest.py:148-158,1048-1203 (_VENV_CACHE_PATH, _ensure_test_venv, _create_test_venv, autouse session-scoped test_venv fixture)"
+      - code: "<checkout>/.github/workflows/ci-router.yml:666-683 (tests-e2e job: uv sync then pytest tests/e2e -q, no actions/cache step)"
+      - artifact: "tests/e2e/ directory listing — test_charter_epic_golden_path.py sorts alphabetically first, tests-e2e job runs pytest with no xdist, so it deterministically pays the session-scoped fixture's cost first"
+      - artifact: "Actions runs 35853033595 (121.30s, pre-fix) and 35872503133 (102.56s, post-fix) — each a single sampled run"
+    claim: >-
+      `test_charter_epic_golden_path` is, by construction, always the test that pays the entire
+      one-time cost of `tests/conftest.py`'s session-scoped, autouse `test_venv` fixture
+      (`pip install -e .` of ~50 packages), because it is textually first among `tests/e2e/*.py`
+      files and the `tests-e2e` CI job runs with no parallelism. This cost is not cached across
+      runs, so it is rebuilt from scratch at whatever speed the Actions runner's network delivers
+      that day, and sits inside both the 120s timeout window and the hard ≤110s Actions closure
+      bar from Ruling 2. The mission's closure evidence is exactly two single-sample Actions
+      numbers; neither isolates the venv-install fraction nor repeats the measurement. A 7.44s
+      margin against a variable, uncached, network-dependent cost is a real basis for the
+      golden-path test intermittently tripping the 110-120s STOP zone (or the outright timeout)
+      on ordinary runner-to-runner variance, independent of any future code change to the golden
+      path itself. Does not relitigate Ruling 2 (no cap loosening, no 110-120s exception path
+      proposed) — asks only that the evidence basis be stabilized.
+    remediation: >-
+      Either (a) cache the editable-install artifact across `tests-e2e` runs via `actions/cache`
+      keyed on `pyproject.toml`/`uv.lock` hashes, removing this variable cost from the timed
+      window entirely, or (b) move the venv bootstrap to an untimed warmup step before pytest
+      collection, or (c) at minimum take several repeated Actions runs (or a measurement that
+      isolates the venv-install fraction) before relying on the single 102.56s sample as durable
+      closure evidence.
+    refutation:
+      verdict: confirmed
+      reason: >-
+        Verified the tests-e2e job has no xdist and no actions/cache step, confirmed
+        alphabetical-first ordering of the golden-path test file, and corroborated the
+        pip-install-in-setup-window attribution against wp-WP02.yaml/wp-WP03.yaml.
+
+  - id: PR-TESTS-003
+    lens: revert-test-for-every-changed-behaviour
+    severity: 2
+    title: "WP07's pytest.ini durations-reporting addopts change has no test that fails if reverted"
+    needs_operator_decision: false
+    evidence:
+      - code: "<checkout>/pytest.ini:10 (addopts = --tb=short --durations=0 --durations-min=1.0)"
+      - artifact: "reviews/wp-WP07.yaml — the reviewer confirms the flag's effect only via one manual local run, not a repeatable assertion"
+    claim: >-
+      No test asserts `pytest.ini`'s `addopts` contains `--durations=0`/`--durations-min=1.0`.
+      Reverting this line to plain `--tb=short` would not fail any test in the suite — pure
+      CI-log diagnostics, not application behavior, so materially lower risk than WP02/03/04/05's
+      changes (each of which has a genuine revert-failing test). Flagged because the tests lens
+      explicitly names WP07 in its per-WP revert-test check and today no such test exists.
+    remediation: >-
+      Add a small architectural check asserting `pytest.ini`'s `[pytest]` section's `addopts`
+      includes `--durations=0` and `--durations-min=1.0` (a config-parse/regex check, not a full
+      pytest subprocess run). Non-blocking; safe to fold into a later touch of
+      `tests/architectural/`.
+    refutation:
+      verdict: confirmed
+      reason: >-
+        Confirmed pytest.ini's exact addopts line and grepped tests/architectural/ for
+        "durations" consumers — none parses or asserts pytest.ini's addopts content.

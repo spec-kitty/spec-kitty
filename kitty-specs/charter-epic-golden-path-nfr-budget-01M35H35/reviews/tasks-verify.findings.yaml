@@ -1,0 +1,71 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: TASKS-VERIFY-001
+    lens: Per-AC test strategy concrete
+    severity: 4
+    title: WP04's SK-243-immunity ordering property (no AssetPreparation construction on the Match path) has no automated test — only a manual "read the code" check
+    evidence:
+      - artifact: "tasks/WP04-freshness-precheck.md § Subtask T013, Validation line"
+      - artifact: "tasks/WP04-freshness-precheck.md § Definition of Done: \"The stamp-match short-circuit path never constructs an AssetPreparation(\\\"slash_commands\\\", ...) object — verified by reading the code, not only by tests passing (this is the SK-243 immunity property).\""
+      - artifact: "tasks/WP04-freshness-precheck.md § Risks: \"verify the ordering by reading the code path, not by assuming the tests would catch it (SK-243 is a concurrency race — a single-process unit test will not reliably reproduce it).\""
+      - code: "plan.md § Lever C — Approach (the freshness pre-check's Match disposition: \"short-circuits... without constructing an AssetPreparation batch at all\")"
+    claim: >
+      WP04 itself names this ordering property "the single highest-severity risk in this WP"
+      (Risks section) and the mission's own charter Standing Order #5 requires closing defect
+      classes "with a NON-VACUOUS call-site gate" rather than relying on review alone. WP04's
+      own rationale for skipping an automated test conflates two different things: (1) the
+      genuinely non-reproducible SK-243 *race condition* itself (correctly identified as
+      requiring real concurrency, which a single-process unit test can't reproduce), and (2)
+      the much simpler, fully deterministic question of whether `AssetPreparation(...)` is
+      *constructed at all* on the Match-disposition code path — a property that needs zero
+      concurrency to test: a spy/mock on the constructor, exercised against a fresh/healthy
+      stamp scenario, asserting zero calls, proves it directly. As written, T012/T013/T015 add
+      automated coverage for all four stamp *dispositions* but not for this specific
+      construction-avoidance property, leaving the property that motivates the entire SK-243
+      analysis provable only by a reviewer's one-time reading, not by CI on every future change
+      to this chokepoint file.
+    remediation: >
+      Add an explicit subtask (or extend T015) instructing a deterministic unit test that
+      monkeypatches/spies `AssetPreparation.__init__` (or wraps the specific
+      `AssetPreparation("slash_commands", ...)` call site) to record/raise on any invocation,
+      runs `assess_global_agent_commands()`/`ensure_global_agent_commands()` under the Match
+      disposition (fresh matching stamp + `_all_global_agent_commands_healthy()` True), and
+      asserts zero construction calls occurred. State in the Definition of Done that the
+      ordering property is verified BOTH by this automated test AND by the reviewer reading the
+      code — not by code-reading alone — so a future refactor of this chokepoint trips CI, not
+      only a human's attention.
+
+  - id: TASKS-VERIFY-002
+    lens: Per-AC test strategy concrete
+    severity: 3
+    title: WP04's staleness/coverage tests name two of the stamp's three source-side fields (template signature, cli_version) but never instruct a dedicated test for the third, agent_keys
+    evidence:
+      - code: "plan.md § Lever C — Approach: \"a stamp comparing (a) the CLI's own version..., (b) a content signature of the command-templates source directory..., and (c) the resolved agent-key set\""
+      - code: "plan.md § Diff-cover ≥90%: \"(2) Miss, stamp-side — the stamp is absent, or any of the three source-side fields (cli_version/template_source_signature/agent_keys) differs\""
+      - artifact: "tasks/WP04-freshness-precheck.md § Subtask T012, staleness tests (a) and (b) — template-change and version-change only"
+      - artifact: "tasks/WP04-freshness-precheck.md § Subtask T015, step 1 — lists \"Match\" and \"Unreadable/malformed\" as the tests to add beyond T012's three; no agent_keys-change scenario is named anywhere in the WP"
+    claim: >
+      plan.md's own Diff-cover section names `agent_keys` as one of the three source-side
+      fields the stamp comparison must exercise as part of the "Miss, stamp-side" disposition,
+      and plan.md's Approach section treats it as a first-class field of the stamp tuple
+      alongside cli_version and template_source_signature. Operator Ruling 6 mandates the three
+      named staleness tests "at minimum," so it does not itself forbid a fourth, but neither
+      WP04's Ruling-6-tracking T012 nor its diff-cover-tracking T015 instructs a scenario that
+      varies the resolved agent-key set while holding the other two fields constant. If the real
+      implementation compares the three fields as independently-testable conditions (rather than
+      a single opaque tuple-equality line that template/version-change tests already exercise
+      for free), this leaves a genuine, uninstructed gap against the mission's own binding
+      diff-cover ≥90% gate — discoverable only at CI time, inside this WP, as rework.
+    remediation: >
+      Add a fourth scenario to WP04 (in T012 alongside (a)/(b)/(c), or as an explicit item in
+      T015's list): simulate a resolved agent-key-set change (e.g., add/remove a configured
+      agent, or vary the `agent_keys` input) with `cli_version` and `template_source_signature`
+      unchanged, call `assess_global_agent_commands()`/`ensure_global_agent_commands()` again,
+      and assert the mismatch is detected and triggers a re-render — using the same
+      naive-stub-first red-first structure already used for (a)/(b), so all three named
+      source-side stamp fields, not just two of them, have dedicated, non-vacuous coverage.

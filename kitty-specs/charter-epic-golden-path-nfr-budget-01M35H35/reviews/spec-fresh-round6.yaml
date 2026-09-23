@@ -1,0 +1,56 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh6
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: SPEC-FRESH6-001
+    lens: fixture-precondition-fidelity
+    severity: 3
+    title: "FR-002's own suggested lever (clone_template) seeds spec-kitty init with a pre-existing commit, contradicting the 'truly clean, from-scratch' contract C-006/Edge-Cases require the redesign to preserve"
+    evidence:
+      - artifact: "spec.md § FR-002: \"e.g. replacing the `git init`/`config` subprocess calls with a faster/leaner mechanism such as seeding a pre-built bare-repo template the way `tests/conftest.py`'s `temp_repo` fixture already does ... (`tests/conftest.py:1341-1353`, via `clone_template` in `tests/_support/git_template/__init__.py:106`)\""
+      - artifact: "spec.md § C-006: \"must still produce a truly clean, from-scratch project per test invocation\""
+      - artifact: "spec.md § Edge Cases, item 1: fixture must preserve \"a truly clean, from-scratch project per test invocation\" (quoting the fixture's own docstring: \"exercises the operator path from a truly clean starting state\")"
+      - code: "tests/_support/git_template/__init__.py:67-84 (`_build_bare_template`): the template repo is built with a committed `README.md` (`_git(\"add\", \"README.md\", ...)`, `_git(\"commit\", \"-m\", \"Initial commit\", ...)`) before being cloned — every `clone_template()` output therefore starts with one pre-existing commit and a tracked file on `main`."
+      - code: "tests/e2e/conftest.py:404-410 (current `fresh_e2e_project`): `git init -b main` + two `git config` calls only — no commit — before `run_cli_subprocess(project, \"init\", ...)` runs; the repo is still on an unborn HEAD (zero commits, zero tracked files) at the moment `spec-kitty init` executes today."
+      - code: "tests/e2e/test_charter_epic_golden_path.py:485 (`assert not doctrine_path.exists()`): the only runtime pre-condition check C-006/AC4 point to. It asserts `.kittify/doctrine` absence; it does not assert anything about pre-existing commits or tracked files, so it would not catch this class of drift."
+    claim: >
+      FR-002 names `clone_template` (the `temp_repo` fixture's backing mechanism) as a
+      concrete example redesign lever for `fresh_e2e_project`'s git-subprocess cost, and
+      this same citation was independently re-verified for line-number accuracy across
+      three prior review rounds (SPEC-ARCH-001, SPEC-VERIFY round 1/round 3, SPEC-FRESH4-002)
+      — but none of those passes checked what `clone_template` actually produces at the
+      git-object level. `_build_bare_template` (`tests/_support/git_template/__init__.py:67-84`)
+      seeds the template with a real commit (`README.md`, message "Initial commit") before
+      it is ever cloned, so every clone starts life with one committed file already on
+      `main`. The current `fresh_e2e_project` fixture, by contrast, runs `spec-kitty init`
+      against a repo with zero commits and zero tracked files (git init + config only,
+      commit happens *after* init in the fixture's Step 3). Adopting FR-002's literal
+      example would therefore change golden-path's `spec-kitty init` invocation from
+      running against an unborn-HEAD/empty repo to running against a repo that already has
+      one commit and one tracked file — a materially different starting git state, not
+      merely a faster path to the same one. C-006 and the Edge Cases bullet both re-affirm
+      the fixture's "truly clean, from-scratch" contract as the thing the redesign must not
+      break, and Acceptance Scenario 4 / C-006's only concrete test for this is the
+      `doctrine_path` assertion at line 485 (a `.kittify`-specific check) — neither the
+      constraint's prose nor its one testable anchor would notice a pre-existing commit or
+      an extra tracked `README.md`. Whether this actually changes `spec-kitty init`'s
+      observable behavior (e.g. any "existing vs. brand-new project" branch in `init`) is
+      an open question this spec does not answer or scope out; either way, the "truly
+      clean, from-scratch" textual contract and the literal FR-002 example are now in
+      tension, and a WP implementer who follows the example as written has no spec
+      guidance on whether that tension is acceptable or must be engineered around (e.g. by
+      building a *dedicated, spec-kitty-specific* bare template with zero commits, rather
+      than reusing the existing `temp_repo`/`clone_template` singleton as suggested).
+    remediation: >
+      Either (a) qualify FR-002's `clone_template` example with an explicit caveat that a
+      redesign adopting this pattern must use a zero-commit variant of the bare template
+      (not the shared `temp_repo` singleton, which is pre-committed) so `spec-kitty init`
+      still observes an unborn/empty repo, and add that as a concrete clause to C-006
+      alongside the existing `.kittify`-copy check; or (b) if a pre-existing commit/tracked
+      file turns out to be harmless to `spec-kitty init`'s behavior, say so explicitly in
+      FR-002 or C-006 with a one-line rationale so the "truly clean, from-scratch" wording
+      is understood to mean "no `.kittify`/doctrine content," not "zero git history," and
+      the apparent tension is resolved rather than left implicit.

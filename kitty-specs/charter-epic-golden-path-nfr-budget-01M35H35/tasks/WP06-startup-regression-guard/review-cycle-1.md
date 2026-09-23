@@ -1,0 +1,95 @@
+---
+affected_files: []
+cycle_number: 1
+mission_slug: charter-epic-golden-path-nfr-budget-01M35H35
+reproduction_command:
+reviewed_at: '2026-09-23T14:34:05Z'
+reviewer_agent: reviewer-renata
+wp_id: WP06
+---
+
+# wp-verdict/v1 — canonical format for per-WP review verdicts.
+schema: wp-verdict/v1
+complete: true
+wp: WP06
+cycle: 1
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+verdict: rejected
+gates_observed:
+  tsc: unknown
+  tests: pass    # tests/performance -q -m "not performance" -> 13 passed, 2 deselected;
+                 # SPEC_KITTY_RUN_PERFORMANCE=1 tests/performance -q -m "performance" -> 2 passed, 13 deselected;
+                 # tests/architectural/test_performance_marker_guard.py -> 11 passed;
+                 # all pass LOCALLY -- see finding 001 for why that is not the same as
+                 # passing in CI.
+  coverage: unknown  # test-only file, no coverage-floor module touched
+feedback:
+  - id: WP06-C1-001
+    severity: 4
+    claim: >
+      The new file lives entirely under tests/performance/, and this repo's own CI
+      routing deliberately excludes that directory from every per-PR lane. Verified
+      directly: `grep -n "tests/performance" .github/workflows/ci-router.yml` has zero
+      matches (no job path-filters on it, no job invokes it by path), and
+      .github/ci-module-registry.yml:640-655 records the disposition explicitly --
+      "Real marker home is ci-nightly.yml's performance-and-e2e job ... no per-PR lane
+      selects this directory ... tests/performance is one of the two spec-kitty#4426
+      dirs this ledger decides (SC-008)." ci-nightly.yml itself triggers only on
+      `schedule` + `workflow_dispatch` (no `pull_request`, no `push`), confirmed by
+      tests/architectural/test_performance_marker_guard.py's own
+      test_nightly_workflow_never_triggers_on_pull_request. The consequence: T020 and
+      T021 -- the two structural, marker-free checks this WP's own Objective/DoD call
+      "the fast per-PR tier" -- are unmarked and pass a local
+      `pytest tests/performance -m "not performance"` invocation, but NO CI job on a
+      pull request ever runs that invocation, because nothing routes a PR touching
+      src/specify_cli/runtime/agent_commands.py or
+      src/specify_cli/cli/commands/__init__.py to tests/performance/ at all. Ruling 4
+      (reviews/spec.ruling.md) authorized dropping the "e2e shard catches every
+      CLI-change regression" premise specifically because it now "relies on lever C's
+      own startup regression guard (in the CLI's test surface) to catch startup
+      regressions" -- a guard that only a nightly/manual-dispatch workflow ever
+      executes does not catch anything "before merge" and does not discharge that
+      reliance. This is the #3241 class (a test collected by zero PR-selecting job),
+      the same class graded severity 4 in
+      kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/reviews/pr.tests.findings.yaml
+      (pr-tests-001) for the identical shape (new test file, zero PR job collects it).
+    remediation: >
+      Split the file along its two structural subjects and relocate each to a
+      directory a PR shard actually selects, per .github/ci-module-registry.yml and
+      .github/workflows/ci-router.yml (verified live, not assumed):
+      (1) T020 (assess_global_agent_commands / freshness-check-before-render shape,
+      plus its two non-vacuousness control tests) into tests/specify_cli/runtime/ --
+      module `specify_cli_runtime` (roots include src/specify_cli/runtime/**,
+      test_dirs: tests/specify_cli/runtime) is wired into ci-router.yml's `changes`
+      filter and gates a per-PR job (ci-router.yml:80/160/535).
+      (2) T021 (register_commands lazy-import shape, plus its two control tests) into
+      tests/cli/ -- module `cli` (roots: src/specify_cli/cli/**) is selected by the
+      `tests-cli` job (ci-router.yml:595-609, `if: needs.changes.outputs.cli == 'true'`).
+      (3) T022 (the wall-clock, @pytest.mark.performance test) stays exactly where it
+      is, in tests/performance/ -- that placement is correct and intended for the
+      nightly-only tier.
+      This is a test-file relocation only: no CI workflow, router filter, or module
+      registry edit is required (both target directories and their PR-selecting jobs
+      already exist), so the fix stays inside Ruling 4's "no CI or router changes" and
+      inside the mission's test + CLI-startup scope. WP06's frontmatter
+      (`authoritative_surface: tests/performance/`, `owned_files`) will need updating
+      to reflect the split location in the next cycle.
+  - id: WP06-C1-002
+    severity: 1
+    claim: >
+      T020's assertion is behavior/shape-based, not brittle: it looks for the first
+      top-level `if ...: return` before the first call to `_render_agent_commands`
+      and does not grep for the literal name `_freshness_short_circuit` anywhere --
+      confirmed by reading `_first_top_level_early_return_line` /
+      `_first_call_line` in the diff. T021 is very slightly more name-coupled: its
+      `_EXEMPT_FAST_PATH_PREDICATES = frozenset({"_is_next_fast_path",
+      "_is_live_work_hook_fast_path"})` hardcodes the two pre-existing fast-path
+      predicate names, so a cosmetic rename of either predicate would cause the walk
+      to descend into that branch and flag its single legitimate
+      `from . import <module>` as an offending eager import.
+    remediation: >
+      Advisory only -- the failure mode is fail-loud/over-strict (a false positive
+      the implementer would immediately see and fix), not vacuous-pass, so it is safe
+      as-is. If addressed, prefer matching on the `if` branch's return/short-circuit
+      shape (a single `from . import` immediately followed by an unconditional
+      `return`) rather than the predicate function's literal name.

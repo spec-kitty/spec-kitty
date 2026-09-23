@@ -1,0 +1,55 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: tasks
+batch: 1
+verdicts:                   # one entry for EVERY finding in your batch — no omissions
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: >
+      tracer-design-decisions.md:791 says agent_commands.py and tests/specify_cli/runtime/* are
+      "always" touched, and WP04's T012 (mandatory Ruling-6 red-first tests) always adds a new
+      test file while T013 always edits agent_commands.py, so the row's own stated logic is a
+      2-5 file range, not the printed 1-4; recomputing the "Code-diff subtotal" row with 2-5
+      gives 8-11 files, not the printed 7-10 — verified arithmetically against all six WP rows.
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: >
+      Verified directly against src/specify_cli/lanes/compute.py:568 (WP01, a planning_artifact
+      WP, is mapped to PLANNING_LANE_ID) and :584 (`if dep_lane and dep_lane != my_lane` filters
+      out same-lane edges before they reach lane_deps); lanes.json confirms WP01 and WP08 already
+      share lane-planning, so a WP08->WP01 edge is same-lane and provably cannot reproduce
+      LANE_DEPENDENCY_CYCLE; wps.yaml's WP08 dependencies list (WP02-WP07) omits WP01 despite
+      WP08's own T027 step 1 requiring WP01's baseline artifact, and WP01's Context section only
+      asks the orchestrator (prose, not a gate) to dispatch it first.
+  - id: TASKS-SEQ-002
+    verdict: confirmed
+    reason: >
+      Re-ran `gh pr list --repo spec-kitty/spec-kitty --state open --limit 100 --json
+      number,title,files` live: 9 open PRs, 6 touch docs/changelog/CHANGELOG.md (#4936, #4938,
+      #4942, #4947, #4950, #4953) and 2 touch pyproject.toml (#4936, #4953), exactly matching the
+      finding's numbers; WP07-pytest-durations.md:44 has an explicit "No open PR currently
+      touches pytest.ini" note but grep across tracer-design-decisions.md,
+      tracer-tooling-friction.md, and WP04-freshness-precheck.md finds no equivalent note for
+      WP04's conditionally-owned CHANGELOG.md/pyproject.toml; confirmed no other mission-owned
+      file overlaps the 9 open PRs either, matching the finding's scoping claim.
+  - id: TASKS-VERIFY-001
+    verdict: refuted
+    reason: >
+      Already handled by the artifact: WP04-freshness-precheck.md's Subtask T015 step 1 "Match"
+      bullet explicitly instructs an automated unit test asserting "zero renders and zero
+      AssetPreparation construction" on the Match-disposition path — this is precisely the
+      deterministic, non-concurrency-dependent construction-avoidance test the finding claims is
+      missing; the finding's evidence list cites T013's Validation line, Definition of Done, and
+      Risks but omits T015, which is where the automated coverage for exactly this property is
+      instructed.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: >
+      plan.md's Diff-cover section names agent_keys as one of three source-side fields the
+      "Miss, stamp-side" disposition must exercise, and WP04-freshness-precheck.md:111 explicitly
+      holds agent_keys constant in staleness test (a) while T012's (a)/(b) vary only
+      template_source_signature and cli_version; T015 step 1 adds only Match and
+      Unreadable/malformed scenarios — no subtask anywhere in WP04 names a scenario that varies
+      the resolved agent-key set independently, confirmed by grep across the WP file and
+      data-model.md.

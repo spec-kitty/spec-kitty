@@ -1,0 +1,183 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: >
+      NFR-002 (spec.md:81) and SC-003 (spec.md:108) now state an unambiguous hard
+      pass/fail rule for the 110-120s band under operator Ruling 2 (no exception band,
+      STOP condition, returns to operator) — strictly stronger than the original
+      remediation's "explicit operator call" ask, so the ambiguity this finding raised
+      no longer exists.
+
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: >
+      FR-002 (spec.md:71) still explicitly disclaims the venv/editable-install framing
+      ("builds no venv or editable install per invocation... neither 'amortize' nor
+      'share venv/editable-install groundwork'... is a real lever") and targets the real
+      git-subprocess/spec-kitty-init costs, citing tests/conftest.py's temp_repo
+      (def at conftest.py:1342, cited range 1342-1353) and clone_template (def confirmed
+      at tests/_support/git_template/__init__.py:106) — both citations verified exact
+      against the live files.
+
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: >
+      C-006 (spec.md:93) and Acceptance Scenario 4 (User Story 1, spec.md:54) still make
+      fixture-isolation preservation a testable requirement, cross-referencing the
+      pre-condition assertion verified live at tests/e2e/test_charter_epic_golden_path.py:485,
+      and FR-002 cross-references C-006/Edge Cases directly.
+
+  - id: SPEC-ARCH-003
+    status: resolved
+    reason: >
+      C-003 (spec.md:90) and Key Entities correctly attribute the run_cli fixture's inner
+      _run_cli helper to tests/conftest.py — verified live: run_cli def at line 1319,
+      inner _run_cli def at 1327, "return _run_cli" at 1338, matching the cited
+      1318-1338 range exactly; run_cli_subprocess verified at test_isolation_helpers.py:93,
+      imported into tests/e2e/conftest.py at line 22 (verified exact).
+
+  - id: SPEC-ARCH-004
+    status: resolved
+    reason: >
+      User Story 1, C-003, and SC-005 all use "real subprocess boundary — source tree,
+      isolated from any pip-installed package" instead of "installed CLI," and the
+      Glossary note (spec.md:37) explains the operator's original phrasing without
+      misattributing packaging behavior; wording verified unchanged from round 1's fix.
+
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: >
+      C-004 (spec.md:91) cites lines 797-805 for the skip decorator only, with an
+      explicit caveat that line 806 (@pytest.mark.timeout(120)) must remain untouched.
+      Verified live against tests/e2e/test_charter_epic_golden_path.py: line 797 is
+      "@pytest.mark.skip(", line 805 is its closing ")", line 806 is
+      "@pytest.mark.timeout(120)", line 807 is the def — citation is exact.
+
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: >
+      NFR-002's rationale (spec.md:81) compares 139.7s and 159.5s only against the
+      current 127.55s post-#4417 local baseline throughout (~12s and ~32s slower,
+      arithmetically consistent) and explicitly disclaims the old pre-#4417 ~156s
+      comparison as a separate, non-grounding data point.
+
+  - id: SPEC-VERIFY-003
+    status: unresolved
+    remaining_severity: 4
+    reason: >
+      REGRESSED since round 1's resolved verdict: the FR-006/SC-006 structural gate
+      that had converted C-005 from prose into a falsifiable, self-mutation-testable
+      check has been entirely removed (grep of spec.md for FR-006/SC-006/"budget
+      marker"/"opt-out" returns zero hits outside the Clarifications' historical
+      quote of Ruling 1) per operator Ruling 1, which is real and controls — but Ruling
+      1 is scoped by name to SPEC-FRESH-002/SPEC-FRESH2-001/SPEC-FRESH2-002, not to this
+      (distinct) round-1 finding, so per this task's instructions SPEC-VERIFY-003 is
+      checked against its own original remediation ("add a lightweight, deterministic
+      structural gate... converts C-005 from an exhortation into a falsifiable,
+      self-mutation-testable gate"), which is no longer met: C-005 (spec.md:92) is pure
+      prose again, exactly as it was before round 1's fix. Note for the orchestrator:
+      Ruling 1's own justification ("the active 120s timeout is what makes a budget miss
+      loud") does not actually address this finding's defect class — a re-applied
+      @pytest.mark.skip prevents the timeout from ever firing at all, so it would
+      silence a future budget miss rather than let it fire loud; the timeout being
+      active is not a substitute for a gate against re-applying skip. This finding was
+      not one of the five the ruling names, so it should not be treated as silently
+      settled by Ruling 1 without an explicit operator/orchestrator decision either
+      extending Ruling 1 to cover it (accepting prose-only enforcement here too,
+      consciously) or reopening it as its own scoped item.
+
+  - id: SPEC-VERIFY-004
+    status: resolved
+    reason: >
+      SC-002 (spec.md:107) and FR-005 (spec.md:74) both require the structural-plus-
+      wall-clock two-tier pattern unconditionally, matching the #4409/#4417 precedent;
+      the "if ... warranted" hedge is absent from both.
+
+  - id: SPEC-VERIFY-005
+    status: resolved
+    reason: >
+      The Edge Cases second bullet (spec.md:61) still adds the explicit fallback clause:
+      if the real Actions-runner re-measurement misses the NFR-002 margin, the mission
+      stops and escalates to the operator for a new, explicitly-scoped decision rather
+      than defaulting to a rejected lever; now also cross-references NFR-002's
+      Ruling-2-updated hard-rule language consistently.
+
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >
+      The Glossary note (spec.md:37) correctly attributes isolation-by-construction to
+      isolated_env (verified live: PYTHONPATH popped at tests/conftest.py:1293, set at
+      line 1299, fixture spanning the cited 1277-1315 range) and correctly demotes
+      assert_test_isolation to an unrelated detect-and-fail helper whose only caller,
+      verified live, is tests/cross_cutting/test_version_isolation_integration.py
+      (import at line 13, call at line 289).
+
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: >
+      Checked against Ruling 1's replacement bar: FR-006, SC-006, and the
+      "Authorization note"/"opt-out record" language are entirely absent from spec.md
+      (grep confirms zero hits); the sole remaining mention of "FR-006/SC-006" is inside
+      the Clarifications' verbatim historical quote of Ruling 1 itself, which is
+      attribution, not a live dependency — nothing else in the spec depends on the
+      removed requirement/criterion.
+
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: >
+      The Edge Cases bullet (spec.md:61) reads "~12-32s slower than the 127.55s local
+      baseline," matching NFR-002's figures exactly; the stale "12-30s" echo is gone.
+
+  - id: SPEC-FRESH-004
+    status: resolved
+    reason: >
+      Superseded by and resolved even more strongly under Ruling 2: NFR-002/SC-003 no
+      longer offer any 110-120s sign-off path at all (hard STOP, no exception band), so
+      the "formal license to close on a barely-under number" this finding warned about
+      no longer exists in any form; the phrase "not just barely under" itself is no
+      longer present in spec.md (removed per the orchestrator's attribution correction),
+      so there is nothing left to reconcile it against.
+
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >
+      Checked against Ruling 1's bar: FR-006 and its "NFR-007 budget marker" scoping
+      phrase are entirely removed from spec.md (grep confirms zero hits for "budget
+      marker"), eliminating the non-mechanically-identifiable class problem at its root
+      rather than patching the wording.
+
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: >
+      Checked against Ruling 1's bar: FR-006's self-authorizing "Authorization note" and
+      its charter Standing-Order-5 citation are entirely removed (grep confirms zero
+      hits); C-005 (spec.md:92) is plain prose again with no gate to self-authorize, so
+      the loose-fit citation problem this finding raised no longer applies to anything
+      live in the spec.
+
+  - id: SPEC-FRESH2-003
+    status: resolved
+    reason: >
+      Checked against Ruling 2's bar: NFR-002 (spec.md:81) and SC-003 (spec.md:108) now
+      state the hard ≤110s rule with no exception path — a 110-120s measurement "is not
+      closable through any documented exception, sign-off, or other self-authorized
+      path," full stop; the residual appearances of "documented exception"/"sign-off" in
+      the text are used only to explicitly foreclose those paths, not to offer them, and
+      NFR-002 no longer borrows C-005's post-ship-scoped escalation language — it grounds
+      the STOP condition directly in Ruling 2. The "who signs off" and "what artifact"
+      gaps the finding raised are moot because no sign-off can close this band anymore.
+
+  - id: SPEC-FRESH2-004
+    status: resolved
+    reason: >
+      Checked against Ruling 2's bar: of the three previously-scattered phrases,
+      FR-006's "opt-out record" is gone entirely (FR-006 removed); NFR-002/SC-003's
+      "documented exception"/"sign-off" survives only as a negated non-mechanism; and "a
+      new, explicitly-scoped decision" is now the one live, consistently-used term for
+      the operator-escalation concept across Ruling 2's clarification, Edge Cases,
+      NFR-002, and SC-003 — the three-way terminology drift the finding flagged is gone,
+      not merely cross-referenced.

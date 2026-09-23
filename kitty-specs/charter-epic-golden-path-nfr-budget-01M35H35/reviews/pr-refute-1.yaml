@@ -1,0 +1,62 @@
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 1
+verdicts:
+  - id: PR-BOUNDARY-001
+    verdict: confirmed
+    reason: >-
+      Read agent_commands.py:687 and asset_preparation.py:261/289 directly — the line is
+      exactly `prepared._effect(  # noqa: SLF001 ...)` calling the leading-underscore method
+      of AssetPreparation from a different module, `grep -rn "\._effect("` across src/ and
+      tests/ confirms it is the only cross-module caller, and data-model.md's "freshness
+      stamp" section contains the near-verbatim "**Write**: only after a full, successful
+      render-and-apply cycle completes" contract the finding cites.
+  - id: PR-CONTRACT-001
+    verdict: confirmed
+    reason: >-
+      Read __init__.py:672-688 and __init__.py:119-124 directly — main_callback's only
+      option is the boolean/eager `-v/--version`, `_resolve_single_leaf_command` returns the
+      first non-dash token that happens to match `_COMMAND_REGISTRARS` with no arity check,
+      and `grep -rn main_callback tests/` shows no test asserting the boolean/eager
+      invariant, so a future value-taking option whose value collides with a real command
+      name would misroute exactly as claimed.
+  - id: PR-CONTRACT-002
+    verdict: confirmed
+    reason: >-
+      AST-parsed __init__.py directly and got exactly 53 `_ALL_COMMAND_REGISTRARS` tuple
+      elements vs. 61 `_COMMAND_REGISTRARS` dict keys (matching the finding's cited counts
+      precisely), and grep for `_COMMAND_REGISTRARS.values()`/set-equality assertions across
+      tests/ returns nothing — no test guards the two collections stay in sync.
+  - id: PR-TESTS-001
+    verdict: confirmed
+    reason: >-
+      Traced the full chain myself — tests-cli job in ci-router.yml runs only `pytest
+      tests/cli -q`, the registry's `cli` row (line 136) has no `test_dirs` override so
+      module-tests.yml falls back to `tests/cli`, ci-nightly.yml's `generate-full-matrix`
+      loop is `for row in registry["modules"]:` (never touches `out_of_matrix_test_dirs`,
+      which does list `tests/specify_cli/cli` as a make-test-full-only gap), the test file
+      carries no pytest marker, and `grep -rn "make test-full" .github/` shows the phrase
+      appears only in comments/prose, never as an actual `run:` step — the file is
+      genuinely unreachable by any CI-selected job, and tests/cli/test_register_commands_
+      lazy_import_shape.py's own docstring independently corroborates the WP06 precedent
+      cited in the remediation.
+  - id: PR-TESTS-002
+    verdict: confirmed
+    reason: >-
+      Verified ci-router.yml's tests-e2e job (line 666-683) runs `pytest tests/e2e -q` with
+      no `-n`/xdist flag and no `actions/cache` step, `ls tests/e2e/` confirms
+      test_charter_epic_golden_path.py sorts alphabetically first among the test_*.py files,
+      conftest.py's session-scoped autouse `test_venv` fixture does an uncached `pip install
+      -e .`, and wp-WP02.yaml/wp-WP03.yaml corroborate the cited Actions run IDs and the
+      pip-install-inside-setup-window finding this claim builds on — the margin-stability
+      concern is evidence-supported and does not relitigate Ruling 2's hard cap.
+  - id: PR-TESTS-003
+    verdict: confirmed
+    reason: >-
+      pytest.ini:11 is exactly `addopts = --tb=short --durations=0 --durations-min=1.0`,
+      and grep for "durations" across tests/architectural/ shows only consumers of an
+      already-generated timings JSON file, none of which parses or asserts pytest.ini's
+      addopts content, and wp-WP07.yaml confirms the flag's effect was checked only via one
+      manual local pytest run, not a repeatable assertion — reverting the line would not
+      fail any existing test.

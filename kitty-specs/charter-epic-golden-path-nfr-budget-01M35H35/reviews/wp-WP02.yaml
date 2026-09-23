@@ -1,0 +1,62 @@
+# wp-verdict/v1 — canonical format for per-WP review verdicts.
+schema: wp-verdict/v1
+complete: true
+wp: WP02
+cycle: 1
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+verdict: approved
+gates_observed:
+  tsc: unknown
+  tests: pass    # GitHub Actions run 35853033595, job 107155051340 (CI Router, real
+                 # tests (e2e) shard): test_charter_epic_golden_path FAILED —
+                 # "Failed: Timeout (>120.0s) from pytest-timeout." — 51.31s setup +
+                 # 69.99s call = 121.30s, i.e. genuinely over the untouched 120s cap.
+                 # Confirmed independently by this reviewer via
+                 # `gh run view 35853033595 --repo spec-kitty/spec-kitty
+                 # --job 107155051340 --log`, matching the excerpt at
+                 # _review-scratch/4211/e2e-measure-excerpt.log verbatim. This is the
+                 # red-first proof for FR-001/SC-001; the two local runs the WP agent
+                 # also reports (100.40s, 89.65s, both PASS) reflect a faster/less
+                 # contended dev machine, not a fix — no WP03/04/05 lever has landed
+                 # on this diff.
+  coverage: unknown
+feedback:
+  - id: WP02-C1-001
+    severity: 1
+    claim: >-
+      WP02's own task file (T008, "Run the test and confirm it is RED (expected at
+      this point)") instructs the implementer to establish red-first evidence via a
+      LOCAL run under the real 120s timeout and record that local outcome. That did
+      not happen: two consecutive local runs both PASSED (100.40s and 89.65s,
+      well under 120s — status.events.jsonl WP02 for_review note,
+      event_id 01M36694SM73907QWB056AT9V0). Taken purely against T008's literal
+      text, this is a deviation from the WP's own instructions, not a fabricated or
+      masked result — the WP agent recorded the unexpected green honestly, quoted
+      the real numbers, stated it was "not explained by [WP03/04/05] levers landing
+      early," and explicitly flagged it for orchestrator/reviewer judgment rather
+      than silently reconciling it (correct behavior under C-005's "silent success
+      is forbidden" and the charter's honesty discipline). The spec's own closure
+      bar (NFR-002/SC-001/SC-003, Ruling 2) already anticipates exactly this
+      failure mode of local measurement — "a local pass under 120s is necessary but
+      not sufficient evidence" — and makes Actions measurement, not a local run,
+      the authoritative acceptance mechanism. The orchestrator's follow-up (a clean
+      throwaway branch off main carrying only this un-skip, run on real CI Router)
+      supplied the substantive red-first proof T008 was reaching for, and did so
+      more rigorously than a local run would have, since it reproduced the actual
+      historically-observed local-vs-CI gap (NFR-002's rationale: CI/VM runs
+      measured ~12-32s slower than local in this mission's own evidence record).
+      I judge the substance of FR-001/SC-001's red-first anchor satisfied by the
+      Actions evidence and do not reject on the local-vs-CI gap alone, per this
+      review's own instruction not to. This is recorded as a low-severity,
+      advisory finding only: the task template for future "local red" WPs in this
+      family should account for dev-machine-speed variance (e.g. instruct
+      "attempt local red; if it does not reproduce, escalate to an Actions
+      measurement rather than treating it as WP failure") so the next WP author
+      is not left to invent that escalation path themselves.
+    remediation: >-
+      No action required on this WP or this diff — it is approved as-is. Advisory
+      only: consider updating the WP-task template guidance (or a tracer/ledger
+      note) so a "confirm red locally" subtask states up front that a local pass
+      is not disqualifying and names the Actions-measurement escalation path, so
+      future WP agents don't have to reconstruct that judgment call under review
+      pressure the way this one did.

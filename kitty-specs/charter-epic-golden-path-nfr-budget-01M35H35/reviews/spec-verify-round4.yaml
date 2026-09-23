@@ -1,0 +1,60 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH3-001
+    status: resolved
+    reason: >
+      Verified live: the Independent Test (spec.md:53) now reads "the recorded wall-clock
+      time must be at or under the NFR-002 hard ≤110s rule... A measurement over 110s —
+      even if still under the 120s timeout — does not satisfy this Independent Test...
+      it is a STOP condition, not a pass"; Acceptance Scenario 1 (spec.md:57) matches with
+      "regardless of how comfortably it clears the separate 120s timeout" now used only to
+      foreclose the soft reading, not offer it. A full-file grep for
+      comfortably/barely/"target ≤"/"stated margin" found no other instance offering a
+      softer pass condition — the sole remaining "comfortably" (line 57) and "stated
+      margin" (line 124, Evidence section, factual rationale only) do not contradict
+      NFR-002/SC-003's hard rule.
+
+  - id: SPEC-FRESH3-002
+    status: resolved
+    reason: >
+      Verified live: Ruling 1 and Ruling 2 (spec.md:31, 33) are plain labeled paragraphs
+      — "*(operator ruling, summarized from `reviews/spec.ruling.md`; not a verbatim
+      quote)*" — not blockquotes; a full-file grep for lines starting `>` shows only
+      Scope (line 27) and Lever (line 29) use blockquote styling, which the Clarifications
+      intro (lines 12-16) explains are the genuinely-verbatim ones. The visual
+      distinction the remediation asked for is now real, not just stated in prose.
+
+  - id: SPEC-FRESH3-003
+    status: resolved
+    reason: >
+      Verified live: the Lever blockquote (spec.md:29) now ends "Lever D (loosening the
+      120s cap or moving the test's cadence) was also explicitly considered and rejected
+      as part of this same lever decision — see C-001... and C-002..., which independently
+      enforce this rejection as binding constraints" — restoring the dropped
+      traceability note in the same pattern already used for Lever B.
+
+  - id: SPEC-FRESH3-004
+    status: resolved
+    reason: >
+      Verified live: C-003 (spec.md:96) now states "This subprocess-boundary requirement
+      binds the fixture's own `spec-kitty init` setup call too, not only the 12 test-body
+      invocations... it must remain a real subprocess invocation... never converted to an
+      in-process/library call," and FR-002 (spec.md:77) cross-references C-003 with the
+      same "only its internal cost may be reduced, never converted to an in-process/library
+      call" caveat — the scope ambiguity between FR-002's redesign license and C-003's
+      12-calls wording is closed in both directions.
+
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: >
+      Applying the disposition check: C-005 (spec.md:98) is confirmed pure prose live (no
+      structural gate, no FR-006/SC-006 dependency), and a full-file grep shows FR-006/SC-006
+      appear exactly once, inside Ruling 1's historical paraphrase (spec.md:31) attributing
+      the cut decision — not a live requirement anything else depends on — so the current
+      spec.md is fully consistent with Ruling 1's "stays as prose... active 120s timeout is
+      what makes a budget miss loud" disposition and contains nothing suggesting a
+      mechanical gate still needs to exist; the orchestrator's reasoning in
+      tracer-design-decisions.md (that SPEC-VERIFY-003 asks the same underlying question
+      Ruling 1 already answered) holds, so this finding is resolved on that same disposition.

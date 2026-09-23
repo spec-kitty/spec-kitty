@@ -1,0 +1,41 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: unresolved
+    remaining_severity: 4
+    reason: Correctly left untouched by both fix rounds — plan.md still frames the freshness-check as the primary Lever C mechanism with the literal #4417 Typer-import trim demoted to secondary, and tracer-design-decisions.md explicitly records this as an unresolved operator-decision fork with no new operator ruling on record; this is the expected outcome, not a defect.
+  - id: PLAN-GOV-002
+    status: resolved
+    reason: data-model.md now carries a dedicated "SK-243 interaction" subsection analyzing both the stamp-match fast path (structurally immune — stamp/health-check reads happen before any AssetPreparation construction, verified against agent_commands.py:368-369 and 473-492) and the stamp-miss slow path (pre-existing exposure, not widened), citing SK-243 by name as CLAUDE.md requires.
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: data-model.md's read/write contract now requires a fourth condition — a destination-health check via the previously-zero-caller _all_global_agent_commands_healthy() (verified at agent_commands.py:296, still zero callers via grep) — before short-circuiting, closing the "stale render treated as fresh" gap; unchanged by round 2's edits.
+  - id: PLAN-ARCH-002
+    status: resolved
+    reason: data-model.md now specifies a third "Unreadable/malformed" disposition (wrong schema, legacy plain-bytes _VERSION_FILENAME content, torn write) treated identically to absent via a narrowly-scoped read-only catch, explicitly naming the guaranteed first-post-upgrade-read legacy-content case; unchanged by round 2's edits.
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: plan.md line 145 (Actions evidence path step 3) now leads with the negation — "Adding --durations=1 ... is explicitly NOT proposed here — that would be a CI/router change" — removing the self-contradictory imperative-then-trailing-negation construction; unchanged by round 2.
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: "plan.md now proposes adding --durations=1 to pytest.ini's addopts (pytest.ini:11) instead of relying on the tests-e2e job's single combined run step timestamp, correctly isolating the golden-path test's own duration from uv sync and the other 20 e2e tests; unchanged by round 2."
+  - id: PLAN-VERIFY-003
+    status: resolved
+    reason: plan.md now states explicitly "This evidence step is human-reviewed only, not mechanically gated" and requires sk-review's accept gate to positively confirm the Actions Evidence Log section and a real run URL/seconds figure before closure, converting the prior implicit gap into an acknowledged control; unchanged by round 2.
+  - id: PLAN-VERIFY-004
+    status: resolved
+    reason: plan.md's Router-filter note now correctly states agent_commands.py IS covered by the next filter group (verified against ci-router.yml:116-119, 160-163, 218, 523), and research.md — which round 1 left uncorrected — was fixed in round 2 (PLAN-FRESH-002) to match, so no mission artifact still carries the disproven claim.
+  - id: PLAN-VERIFY-005
+    status: resolved
+    reason: plan.md line 122 now enumerates all four fast-path guards (_is_next_invocation/_is_live_work_hook_invocation/_is_session_start_invocation plus the independent _is_doctor_skills_invocation at __init__.py:151), verified against src/specify_cli/__init__.py:137-151; unchanged by round 2.
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: data-model.md's SK-243 section now correctly cites check_assets() raising ValueError at asset_preparation.py:783 (caught internally by its own except (OSError, ValueError) at 788-789, returned as a Diagnostic) with the real RuntimeError constructed only in _apply_command_assessment at agent_commands.py:491-492 — independently re-verified against current source line-by-line and matches exactly; the "structurally immune" fast-path conclusion is unaffected and still holds.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: research.md's CI-gate verification section (lines ~99-105) now states the same corrected claim as plan.md's Router-filter note — agent_commands.py IS covered by the next filter group and does not trip unmatched alone — verified against both files' current text and against ci-router.yml directly; no residual contradiction between the two artifacts.
+  - id: PLAN-FRESH-003
+    status: resolved
+    reason: plan.md's Diff-cover ≥90% section now enumerates all four current branches of the freshness-stamp contract (match+health-pass short-circuit, stamp-side miss, destination-health-side miss, unreadable/malformed) consistently with data-model.md's three-disposition/four-condition contract, replacing the stale two-branch enumeration.

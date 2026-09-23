@@ -1,0 +1,28 @@
+# wp-verdict/v1 — canonical format for per-WP review verdicts.
+schema: wp-verdict/v1
+complete: true
+wp: WP08
+cycle: 2
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+verdict: approved
+gates_observed:
+  tsc: unknown
+  tests: unknown
+  coverage: unknown
+feedback: []
+notes: >
+  Cycle-1 rejection scope only (two literal /home/<OS-USERNAME>/... tracer lines);
+  cycle-1's evidence spot-checks, tracer honesty, scope, and worktree hygiene
+  findings stand and were not re-derived. Verified for cycle 2:
+  (1) `git show c2be30e94` touches exactly two files/lines
+  (tracer-design-decisions.md, tracer-tooling-friction.md), each replacing the
+  literal home path with `<checkout-parent>/4211-integration`, meaning intact,
+  nothing else in the diff. (2) Mission-dir leak sweep: 0 hits for the literal
+  OS username, 0 hits for a real `/home/<username>/` absolute path; 12 remaining
+  `/home/` occurrences are all placeholder prose
+  (`/home/<OS-USERNAME>/...`, `/home/<name>/...`, `/home/<username>/...`) in
+  review/analysis docs describing the rejection, not real leaks.
+  (3) `git show a21dc32db --stat` touches only status.events.jsonl and
+  status.json; diff confirms T026-T029 subtasks flip planned -> done, a
+  legitimate re-mark of work reset by the cycle-1 rejection, no other content
+  changed.

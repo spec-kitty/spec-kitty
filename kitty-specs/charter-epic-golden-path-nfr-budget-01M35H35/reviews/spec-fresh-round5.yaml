@@ -1,0 +1,99 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true              # flipped true after the yaml self-check below passed
+phase: spec
+lens_group: fresh5
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: SPEC-FRESH5-001
+    lens: fresh-eyes-code-truth
+    severity: 4
+    title: "User Story 1 / C-002 mischaracterize the 'per-push tests (e2e) shard' as running whenever a push touches the CLI; the actual CI router path-filters it to tests/e2e/** and tests/cross_cutting/** only"
+    evidence:
+      - artifact: "spec.md § User Story 1 (opening sentence: 'A contributor pushes a branch that touches the Spec Kitty CLI. The per-push `tests (e2e)` shard runs `test_charter_epic_golden_path`...')"
+      - artifact: "spec.md § C-002 ('test_charter_epic_golden_path stays on its current gate — the per-push `tests (e2e)` shard... or otherwise change when/how often it runs')"
+      - code: ".github/workflows/ci-router.yml:178-180 (the `e2e` dorny filter group maps ONLY 'tests/e2e/**' and 'tests/cross_cutting/**' to the e2e signal)"
+      - code: ".github/workflows/ci-router.yml:666,675 (the `tests-e2e` job — `name: tests (e2e)` — gates on `if: ${{ needs.changes.outputs.e2e == 'true' }}`)"
+      - code: ".github/workflows/ci-router.yml:202-239 (the fail-closed 'unmatched' catch-all only forces `e2e=true` when a src/** change matches NONE of ~20 named src groups; `src/specify_cli/cli/**` — the lever-C surface FR-003/NFR-003 target — is itself one of those named groups, `cli`, checked in the loop at line ~219, so a change there sets `matched=true` and `unmatched=false`)"
+      - code: ".github/workflows/ci-router.yml:19-30 (`on: pull_request` / `push: branches: [main]`; `inputs.mode` defaults to `pr`, not `full` — full/run-all mode is a manual `workflow_dispatch` opt-in, not the default per-PR behavior)"
+    claim: >
+      Verified directly against the CI router's dorny path-filter config: `test_charter_epic_golden_path`
+      does NOT run on every push that "touches the Spec Kitty CLI" as User Story 1 and C-002 assert. The
+      `tests-e2e` job only fires when the diff touches `tests/e2e/**` or `tests/cross_cutting/**`, or (rarely)
+      when a `src/**` change matches none of the ~20 named source filter groups. A PR that changes only
+      `src/specify_cli/cli/**` (e.g. the very lazy-import/command-surface-construction code FR-003 targets)
+      matches the named `cli` group, so `unmatched` stays false and, since it doesn't touch the e2e/cross_cutting
+      test paths either, the `tests-e2e` job — and therefore this golden-path test — never runs on that PR.
+      This means the mission's stated value proposition ("a regression in the operator journey is caught
+      before merge", User Story 1's own framing, and the whole rationale for P1 priority) is not actually
+      delivered by un-skipping the test for the common case of a CLI-source-only PR; only the FR-005
+      structural/deterministic guard (if it lands somewhere that IS collected in the always-on fast tier) would
+      catch a lever-C regression pre-merge in that case, not the golden-path e2e test the spec treats as the
+      primary acceptance mechanism (SC-001). This is a genuine contradiction between the spec's premise and the
+      actual behavior of the CI code it depends on, not a hypothetical.
+    remediation: >
+      Correct User Story 1's opening framing and C-002's "current gate" characterization to state the router's
+      actual trigger condition (path-scoped on tests/e2e/**+tests/cross_cutting/**, plus the rare unmatched
+      catch-all — not "any push that touches the CLI"). Either (a) explicitly note that FR-005's structural
+      guard, not the golden-path e2e test, is the real pre-merge safety net for a lever-C regression on an
+      ordinary CLI-source-only PR, and adjust the "Why this priority" / SC-001 framing accordingly, or (b) if
+      the operator wants the golden path to actually gate CLI-source PRs pre-merge, raise that as an explicit,
+      separately-scoped FR (widening the `e2e` dorny filter group to include `src/specify_cli/**` or similar) —
+      this would need operator sign-off since it arguably touches "when/how often it runs" territory that C-002
+      currently forbids touching.
+
+  - id: SPEC-FRESH5-002
+    lens: fresh-eyes-evidence-rigor
+    severity: 3
+    title: "NFR-002's ≤110s margin rationale computes the CI-vs-local gap by comparing pre-#4417 CI/VM numbers against a post-#4417 local baseline, understating that #4417 itself would also have reduced the CI-side numbers"
+    evidence:
+      - artifact: "spec.md § NFR-002 ('139.7s implementer VM is ~12s slower than 127.55s; 159.5s merge-agent worktree is ~32s slower than 127.55s — both compared here against the current post-#4417 local baseline... not against the different, pre-#4417 ~156s local number that was current in that same PR #4207/#4209 era')"
+      - artifact: "spec.md § Evidence carried into this spec ('spec-kitty --help measured at 0.83s warm this session, confirming PR #4417 (merged 2026-09-15) landed and works as claimed (down from pre-fix ~3.2s)')"
+      - artifact: "spec.md § C-002 ('This re-litigates and reaffirms the controller correction on PR #4209 (2026-09-11)') — establishes 139.7s/159.5s as pre-#4417 (#4417 merged 2026-09-15, four days after PR #4209's 2026-09-11 date)"
+      - artifact: "tracer-design-decisions.md § 'NFR-002's ≤110s number' (the R4 correction that reworked this comparison)"
+    claim: >
+      The 139.7s (implementer VM) and 159.5s (merge-agent worktree) numbers are both dated to the "PR
+      #4207/#4209" era (2026-09-11 or earlier), i.e. BEFORE PR #4417 (merged 2026-09-15) removed the
+      jsonschema eager-import cost that the spec's own evidence shows saved ~2.2s per CLI invocation
+      (`--help`: ~3.2s -> ~1.0s pre/post). NFR-002 and the tracer both now correctly compare these two
+      historical numbers against the CURRENT (post-#4417) local baseline (127.55s) rather than the old
+      pre-#4417 local figure — fixing the arithmetic self-contradiction the R4 correction found — but neither
+      corrects for the fact that the CI/VM side of the comparison is still a pre-#4417 measurement. Since
+      #4417's fix should reduce CI time by a comparable amount to what it reduced local time by (it is a
+      code-level import-time fix, not an environment-specific one), the true post-#4417 CI-vs-local gap is
+      unknown, and the cited 12s/32s gap is not a reliable, apples-to-apples "environment penalty" figure —
+      it may be substantially overstating (if #4417 shrank CI time by a similar ~28s that shrank local time)
+      or understating (if CI-specific overhead is larger than local for other reasons) the real gap the ≤110s
+      margin is meant to absorb. NFR-002/SC-003's actual acceptance mechanism (a real, empirical Actions
+      measurement, hard-ruled by the operator) does not depend on this rationale being correct, so this does
+      not invalidate the AC — but it does mean an implementer sizing effort against "lever A+C should
+      plausibly clear a ~10s margin" is working from a design-time estimate weaker than the confident
+      "Rationale for this specific number" framing in spec.md's NFR-002 body suggests.
+    remediation: >
+      Add one sentence to NFR-002 (or the Evidence section) explicitly flagging that the cited 139.7s/159.5s
+      CI numbers predate #4417, so the true post-#4417 CI-vs-local gap is unmeasured and could differ
+      materially from the cited 12-32s figures — making explicit what is currently only implied by the
+      "PR #4207/#4209 era" / "post-#4417" labels sitting side by side without commentary. This keeps the ≤110s
+      hard rule (already operator-ruled and unchanged) but stops the rationale from reading as more evidentially
+      solid than it is, which matters for how much engineering effort a work package plans against it.
+
+  - id: SPEC-FRESH5-003
+    lens: fresh-eyes-cross-reference
+    severity: 2
+    title: "FR-004 cites 'Clarifications' as a location for the hang-vs-budget empirical disproof, but Clarifications never discusses it — only the Evidence section does"
+    evidence:
+      - artifact: "spec.md § FR-004 ('#4213 (canonical tracker, \"hang\" framing empirically disproved — see Clarifications and evidence below)')"
+      - artifact: "spec.md § Clarifications (lines 8-51 — contains Operator decisions / issue-acceptance-text sections and the 'installed CLI' glossary note; no mention of 'hang' or the empirical disproof anywhere in the section)"
+      - artifact: "spec.md § Evidence carried into this spec ('No hang exists. On `main` @ `6b4164dbf`... test_charter_epic_golden_path passed in 127.55s... This independently corroborates robertDouglass's 2026-09-14 finding...') — this is the actual (and only) location of the disproof"
+      - artifact: "spec.md § SC-004 ('both issues' shared root cause (the budget overrun, not a hang — see evidence below)') — correctly cites only the Evidence section for the same underlying fact"
+    claim: >
+      FR-004's parenthetical points a reader to "Clarifications and evidence below" for the hang-disproof
+      claim, but Clarifications (the section immediately following the frontmatter) contains no discussion of
+      the hang misdiagnosis at all — it covers Scope/Lever/Ruling attribution and the "installed CLI" glossary
+      note. The actual disproof (the 127.55s clean pass plus robertDouglass's kill-site-moved observation) lives
+      only in the "Evidence carried into this spec" section. SC-004, describing the same fact, correctly cites
+      only "see evidence below" with no Clarifications reference — confirming FR-004's "Clarifications and" is
+      a stray, inaccurate addition rather than an intentional dual-citation.
+    remediation: >
+      Drop "Clarifications and" from FR-004's parenthetical so it reads "...('hang' framing empirically
+      disproved — see evidence below)", matching SC-004's citation of the same fact.
