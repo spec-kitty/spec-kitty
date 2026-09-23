@@ -49,7 +49,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -303,9 +303,14 @@ def merge_driver_meta(
 # (see ``_TRACE_FENCE_MARKER``), so a heading-like line quoted inside a fence
 # is never misread as a real section boundary.
 _TRACE_SECTION_BOUNDARY = re.compile(r"^(?:#{1,6}\s+\S.*|<!--\s*section:.*-->)\s*$")
-# A fenced-code-block delimiter (```` ``` ````); toggles the in-fence state
-# ``_split_trace_blocks`` tracks.
-_TRACE_FENCE_MARKER = re.compile(r"^```")
+# A fenced-code-block delimiter -- backtick (```` ``` ````) OR tilde
+# (``~~~``); toggles the in-fence state ``_split_trace_blocks`` tracks (#4993:
+# the backtick-only regex misread a heading-like line inside a ``~~~`` fence
+# as a real section boundary).
+_TRACE_FENCE_MARKER = re.compile(r"^(?:```|~~~)")
+# The id captured from a block's opening ``<!-- section:ID -->`` delimiter,
+# when its first line is one -- see :func:`_trace_block_key`.
+_TRACE_SECTION_ID = re.compile(r"^<!--\s*section:(.*?)\s*-->\s*$")
 
 
 def _split_trace_blocks(text: str) -> list[tuple[str, ...]]:
@@ -362,16 +367,70 @@ def union_trace_texts(ours_text: str, theirs_text: str) -> str:
     return "\n".join(merged) + "\n" if merged else ""
 
 
-def _trace_block_key(block: tuple[str, ...]) -> str:
-    """A block's identity for 3-way base comparison: its own first line.
+# A block's identity for 3-way base comparison: either the id captured from
+# an explicit ``<!-- section:ID -->`` opening line (stable regardless of
+# position or a heading text shared with another section), or, when no id is
+# present, the block's first line paired with its per-document occurrence
+# ordinal (the running count of prior blocks in the SAME document sharing
+# that first line). Body-insensitive by construction (never a full-block
+# hash): an edited section keeps its key, so an unchanged-vs-diverged
+# comparison against base still fires -- see :func:`_trace_block_key`.
+_TraceBlockKey = tuple[str, str] | tuple[str, str, int]
 
-    The first line is the section's heading/delimiter (or, for a preamble
-    block, its first content line) -- stable across an in-place edit to the
-    section's body, so it is the right join key for "is this the same
-    section, changed?" (base-awareness) as distinct from
-    :func:`union_trace_texts`'s "is this byte-identical content?" dedup.
+
+def _trace_block_key(block: tuple[str, ...], occurrence_ordinal: int) -> _TraceBlockKey:
+    """A block's identity for 3-way base comparison (non-colliding, #4993).
+
+    Prefers the explicit ``<!-- section:ID -->`` id parsed from the block's
+    opening line when present. Otherwise falls back to
+    ``("line", first_line, occurrence_ordinal)``, so two sections sharing an
+    identical heading get distinct keys instead of colliding on a bare
+    first-line return (the pre-#4993 bug: ``setdefault``-based indexing kept
+    only the FIRST same-heading block, so every later same-heading block's
+    base/ours comparison was silently mis-attributed to the first one's).
+
+    Either way the key is body-insensitive (never a full-block hash): an
+    in-place edit to a section's body keeps its key, which is what lets
+    :func:`_drop_stale_theirs_trace_blocks` still detect "same section, body
+    changed" (``theirs_unchanged`` vs ``ours_diverged``); only
+    :func:`union_trace_texts`'s separate whole-block dedup compares full
+    block content.
     """
-    return block[0] if block else ""
+    first_line = block[0] if block else ""
+    section_id = _TRACE_SECTION_ID.match(first_line)
+    if section_id:
+        return ("id", section_id.group(1))
+    return ("line", first_line, occurrence_ordinal)
+
+
+def _iter_trace_blocks_with_ordinal(
+    text: str,
+) -> Iterator[tuple[tuple[str, ...], int]]:
+    """Yield each of *text*'s blocks paired with its per-document occurrence
+    ordinal -- the running count of prior blocks in *this* document sharing
+    the same first line, which :func:`_trace_block_key`'s fallback folds in
+    so duplicate-heading blocks get distinct keys.
+    """
+    occurrence_counts: dict[str, int] = {}
+    for block in _split_trace_blocks(text):
+        first_line = block[0] if block else ""
+        ordinal = occurrence_counts.get(first_line, 0)
+        occurrence_counts[first_line] = ordinal + 1
+        yield block, ordinal
+
+
+def _index_trace_blocks_by_key(text: str) -> dict[_TraceBlockKey, tuple[str, ...]]:
+    """Index *text*'s blocks by :func:`_trace_block_key`, first-occurrence-wins.
+
+    Occurrence ordinals are computed per this document alone, matching the
+    identical per-document computation applied to ``theirs`` in
+    :func:`_drop_stale_theirs_trace_blocks`, so the same section lines up
+    across base/ours/theirs by key.
+    """
+    indexed: dict[_TraceBlockKey, tuple[str, ...]] = {}
+    for block, ordinal in _iter_trace_blocks_with_ordinal(text):
+        indexed.setdefault(_trace_block_key(block, ordinal), block)
+    return indexed
 
 
 def _drop_stale_theirs_trace_blocks(base_text: str, ours_text: str, theirs_text: str) -> str:
@@ -395,16 +454,12 @@ def _drop_stale_theirs_trace_blocks(base_text: str, ours_text: str, theirs_text:
     drivers' verdict-field fail-closed rule, traces are keyless append-union
     prose).
     """
-    base_by_key: dict[str, tuple[str, ...]] = {}
-    for block in _split_trace_blocks(base_text):
-        base_by_key.setdefault(_trace_block_key(block), block)
-    ours_by_key: dict[str, tuple[str, ...]] = {}
-    for block in _split_trace_blocks(ours_text):
-        ours_by_key.setdefault(_trace_block_key(block), block)
+    base_by_key = _index_trace_blocks_by_key(base_text)
+    ours_by_key = _index_trace_blocks_by_key(ours_text)
 
     kept: list[str] = []
-    for block in _split_trace_blocks(theirs_text):
-        key = _trace_block_key(block)
+    for block, ordinal in _iter_trace_blocks_with_ordinal(theirs_text):
+        key = _trace_block_key(block, ordinal)
         base_block = base_by_key.get(key)
         ours_block = ours_by_key.get(key)
         theirs_unchanged = base_block is not None and block == base_block

@@ -40,6 +40,8 @@ from pathlib import Path
 import pytest
 
 from specify_cli.cli.commands.merge_driver import (
+    _drop_stale_theirs_trace_blocks,
+    _split_trace_blocks,
     _union_acceptance_history,
     merge_driver_traces,
     union_trace_texts,
@@ -271,3 +273,99 @@ def test_union_acceptance_history_still_record_granularity_dedup() -> None:
     entry_b = {"accepted_at": "T2", "accepted_by": "b"}
     result = _union_acceptance_history([entry_a], [dict(entry_a), entry_b])
     assert result == [entry_a, entry_b]
+
+
+# ---------------------------------------------------------------------------
+# WP03/T011 -- RED-FIRST: tilde fences (AC-C1) + non-colliding block key (AC-C2)
+# (#4993)
+# ---------------------------------------------------------------------------
+
+
+def test_split_trace_blocks_does_not_split_on_heading_like_line_inside_tilde_fence() -> None:
+    """AC-C1: a ``~~~``-fenced block is not split at a heading-like line inside it.
+
+    Fails against the backtick-only ``_TRACE_FENCE_MARKER`` (``~~~`` never
+    toggles ``in_fence``, so ``# not a heading`` is misread as a section
+    boundary and the fenced block is split into two); passes once the
+    fence-marker regex also recognizes ``~~~``.
+    """
+    text = "## Real Heading\n~~~\n# not a heading\nstill inside fence\n~~~\nafter fence\n"
+    blocks = _split_trace_blocks(text)
+    assert len(blocks) == 1
+    assert blocks[0] == tuple(text.splitlines())
+
+
+def test_drop_stale_theirs_trace_blocks_keys_duplicate_headings_distinctly() -> None:
+    """AC-C2: two distinct sections sharing an identical heading are keyed
+    distinctly through the base-aware stale-drop -- neither collision-dropped
+    nor mis-attributed to the wrong section's base/ours comparison.
+
+    Base has two ``## Same`` sections. Ours leaves the FIRST unchanged and
+    diverges the SECOND; theirs leaves both unchanged (stale copies). The
+    correct result keeps theirs' first section (ours didn't touch it) and
+    drops theirs' second section (ours' diverged edit supersedes it).
+
+    Fails against the old ``setdefault(block[0])`` collision: both base/ours
+    index only ever retain the FIRST same-heading block under the shared key
+    ``"## Same"``, so theirs' second block is compared against the FIRST
+    section's base/ours content instead of its own -- it never matches its
+    own (different-content) base, so ``theirs_unchanged`` is wrongly False
+    and the stale second section is kept instead of dropped.
+    """
+    base_text = "## Same\nfirst body\n## Same\nsecond body\n"
+    ours_text = "## Same\nfirst body\n## Same\nsecond body EDITED\n"
+    theirs_text = base_text  # both sections left unchanged by theirs
+
+    result = _drop_stale_theirs_trace_blocks(base_text, ours_text, theirs_text)
+
+    assert "first body" in result  # ours didn't touch it -- theirs' copy survives
+    assert "second body" not in result  # ours diverged -- theirs' stale copy is dropped
+    assert result.count("## Same") == 1
+
+
+# ---------------------------------------------------------------------------
+# WP03/T013 -- explicit ``<!-- section:ID -->`` id takes priority over the
+# occurrence-ordinal fallback (position-independent identity) (#4993)
+# ---------------------------------------------------------------------------
+
+
+def test_drop_stale_theirs_trace_blocks_prefers_explicit_section_id_over_position() -> None:
+    """An explicit ``<!-- section:ID -->`` id is a stable key even when the
+    same two sections are reordered between documents -- not just a
+    same-position occurrence-ordinal match."""
+    base_text = "<!-- section:alpha -->\nalpha original\n<!-- section:beta -->\nbeta original\n"
+    # ours: reordered (beta first), alpha's body diverged
+    ours_text = "<!-- section:beta -->\nbeta original\n<!-- section:alpha -->\nalpha EDITED\n"
+    theirs_text = base_text  # both sections left unchanged by theirs, original order
+
+    result = _drop_stale_theirs_trace_blocks(base_text, ours_text, theirs_text)
+
+    assert "alpha original" not in result  # id-matched to ours' diverged edit -- dropped
+    assert "beta original" in result  # id-matched to ours' unchanged copy -- kept
+
+
+# ---------------------------------------------------------------------------
+# WP03/T014 -- regression: single-heading stale-drop + union_trace_texts
+# whole-block dedup unchanged by the key-collision fix (#4993)
+# ---------------------------------------------------------------------------
+
+
+def test_drop_stale_theirs_single_heading_section_still_stale_drops_after_key_change() -> None:
+    """AC-C3: a single (non-duplicated) heading section's 3-way base-aware
+    stale-drop is unaffected by the occurrence-indexed key change."""
+    base_text = "## Section X\noriginal body\n"
+    ours_text = "## Section X\nedited body\n"
+    theirs_text = base_text
+
+    result = _drop_stale_theirs_trace_blocks(base_text, ours_text, theirs_text)
+
+    assert result == ""
+
+
+def test_union_trace_texts_whole_block_dedup_unchanged_after_key_change() -> None:
+    """AC-C4: ``union_trace_texts``'s byte-identical whole-block dedup (C-002,
+    out of scope for this WP) is unchanged by the base-comparison key fix."""
+    text = "## Notes\nbody line\nbody line\n"
+    merged = union_trace_texts(text, text)
+    assert merged.count("## Notes") == 1
+    assert merged.count("body line") == 2
