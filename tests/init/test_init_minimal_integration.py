@@ -598,6 +598,7 @@ from typer.testing import CliRunner  # noqa: E402
 
 from specify_cli.cli.commands import init as _init_module  # noqa: E402
 from specify_cli.cli.commands.init import register_init_command  # noqa: E402
+from specify_cli.template.manager import TemplateCopyResult  # noqa: E402
 
 
 def _make_init_app(monkeypatch: pytest.MonkeyPatch) -> Typer:
@@ -615,10 +616,10 @@ def _make_init_app(monkeypatch: pytest.MonkeyPatch) -> Typer:
     return app
 
 
-def _fake_copy_pkg(project_path: Path) -> Path:
+def _fake_copy_pkg(project_path: Path) -> TemplateCopyResult:
     kittify = project_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    return kittify / "templates" / "command-templates"
+    return TemplateCopyResult(kittify / "templates" / "command-templates", templates_created=True)
 
 
 class TestWP01InitCoherence:

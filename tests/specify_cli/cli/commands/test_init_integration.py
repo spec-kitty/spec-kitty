@@ -21,6 +21,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import init as init_module
 from specify_cli.cli.commands.init import register_init_command
+from specify_cli.template.manager import TemplateCopyResult
 
 pytestmark = pytest.mark.integration
 
@@ -52,16 +53,16 @@ def _run(app: Typer, args: list[str], *, catch_exceptions: bool = True) -> objec
     return runner.invoke(app, args, catch_exceptions=catch_exceptions)
 
 
-def _fake_copy_local(local_repo: Path, project_path: Path, script: str) -> Path:
+def _fake_copy_local(local_repo: Path, project_path: Path, script: str) -> TemplateCopyResult:
     kittify = project_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    return kittify / "templates" / "command-templates"
+    return TemplateCopyResult(kittify / "templates" / "command-templates", templates_created=True)
 
 
-def _fake_copy_package(project_path: Path) -> Path:
+def _fake_copy_package(project_path: Path) -> TemplateCopyResult:
     kittify = project_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    return kittify / "templates" / "command-templates"
+    return TemplateCopyResult(kittify / "templates" / "command-templates", templates_created=True)
 
 
 # ---------------------------------------------------------------------------
@@ -393,14 +394,14 @@ def test_claudeignore_written(
     monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
 
     # Provide a fake package copy that also creates the claudeignore template
-    def _copy_with_claudeignore(project_path: Path, script: str) -> Path:
+    def _copy_with_claudeignore(project_path: Path) -> TemplateCopyResult:
         kittify = project_path / ".kittify"
         kittify.mkdir(parents=True, exist_ok=True)
         templates = kittify / "templates"
         templates.mkdir(parents=True, exist_ok=True)
         # Create a minimal claudeignore-template that init.py will copy
         (templates / "claudeignore-template").write_text("# claudeignore\n", encoding="utf-8")
-        return templates / "command-templates"
+        return TemplateCopyResult(templates / "command-templates", templates_created=True)
 
     monkeypatch.setattr(init_module, "copy_specify_base_from_package", _copy_with_claudeignore)
     # Also mock _get_package_templates_root to return our templates dir

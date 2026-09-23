@@ -179,7 +179,16 @@ def test_dashboard_kill_stops_instance(monkeypatch, tmp_path: Path) -> None:
     assert "Dashboard stopped" in result.stdout
 
 
-def test_research_creates_artifacts(monkeypatch, tmp_path: Path) -> None:
+def test_research_with_no_template_does_not_fabricate_artifacts(monkeypatch, tmp_path: Path) -> None:
+    """When no template resolves for ANY of the four research assets, `--force`
+    must NOT fabricate 0-byte "ready" artifacts (mission
+    ownership-boundary-overwrite-hardening-01M35ER3/#4926, FR-002). Formerly
+    named ``test_research_creates_artifacts`` and asserted the opposite (the
+    exact fabrication bug #4926 fixes) — `resolve_template_path` returning
+    ``None`` for every asset is precisely the "no template resolves" case the
+    guard now refuses, even under `--force` (never truncates/fabricates to
+    empty, regardless of authorization, per `guard_destructive_overwrite`'s
+    truth table)."""
     project_root = tmp_path / "project"
     (project_root / ".kittify" / "missions" / "software-dev" / "templates").mkdir(parents=True)
     feature_dir = project_root / "kitty-specs" / "001-demo-feature"
@@ -208,11 +217,15 @@ def test_research_creates_artifacts(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(research_module, "resolve_template_path", lambda *_args, **_kwargs: None)
 
     result = runner.invoke(cli_app, ["research", "--mission", "001-demo-feature", "--force"])
+    # FR-008: a refusal never fails the command — it exits 0 and reports the
+    # honest "no template" outcome instead (T022).
     assert result.exit_code == 0
 
-    assert (feature_dir / "research.md").exists()
-    assert (feature_dir / "data-model.md").exists()
-    assert (feature_dir / "research" / "evidence-log.csv").exists()
+    assert not (feature_dir / "research.md").exists()
+    assert not (feature_dir / "data-model.md").exists()
+    assert not (feature_dir / "research" / "evidence-log.csv").exists()
+    assert not (feature_dir / "research" / "source-register.csv").exists()
+    assert "no research template" in result.output.lower()
 
 
 def test_accept_checklist_json_output(monkeypatch, tmp_path: Path) -> None:

@@ -2617,7 +2617,6 @@ exclude = [
     "tests/test_frontmatter_dup_key.py",
     "tests/test_isolation_helpers.py",
     "tests/test_template/test_asset_generator.py",
-    "tests/test_template/test_manager.py",
     "tests/test_template/test_renderer.py",
     "tests/test_test_venv_bootstrap.py",
     "tests/test_worker_home_isolation.py",

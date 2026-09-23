@@ -95,6 +95,30 @@ def _init_repo(repo_root: Path) -> None:
     _git(repo_root, "config", "user.email", "research@example.test")
     _git(repo_root, "config", "user.name", "Research Gate")
     _git(repo_root, "commit", "--allow-empty", "-qm", "init")
+    # A generic template so the artifacts this file's tests use as a
+    # placement/routing signal actually get created — mission
+    # ownership-boundary-overwrite-hardening-01M35ER3/#4926 stopped
+    # ``research`` from fabricating a 0-byte research.md when NO template
+    # resolves at all, which this fixture's typeless/``software-dev`` mission
+    # otherwise never has. These tests are about primary-vs-coord placement
+    # and handle canonicalization, not the fabrication policy, so a real
+    # generic template preserves their original intent.
+    templates_dir = repo_root / ".kittify" / "templates"
+    templates_dir.mkdir(parents=True, exist_ok=True)
+    (templates_dir / "research.md").write_text(
+        "# Research\n\nSeeded template content.\n", encoding="utf-8"
+    )
+    (templates_dir / "data-model.md").write_text(
+        "# Data Model\n\nSeeded template content.\n", encoding="utf-8"
+    )
+    research_templates_dir = templates_dir / "research"
+    research_templates_dir.mkdir(parents=True, exist_ok=True)
+    (research_templates_dir / "evidence-log.csv").write_text(
+        "timestamp,source_type,citation,key_finding,confidence,notes\n", encoding="utf-8"
+    )
+    (research_templates_dir / "source-register.csv").write_text(
+        "source_id,citation,url,accessed_date,relevance,status\n", encoding="utf-8"
+    )
 
 
 def _write_meta(feature_dir: Path, meta: dict[str, object]) -> None:

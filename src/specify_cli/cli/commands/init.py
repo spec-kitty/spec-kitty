@@ -1048,6 +1048,13 @@ def init(  # noqa: C901
 
     templates_root: Path | None = None  # Track template source for later use
     base_prepared = False
+    # FR-001(a)/#4931/R3: true only when THIS invocation's full-copy step
+    # actually created .kittify/templates/ (copy_specify_base_from_local /
+    # copy_specify_base_from_package). The global-runtime (`use_global`)
+    # branch never creates it. Drives run_created provenance below, not a
+    # by-name managed_relpaths shortcut (C-002) -- a false positive here
+    # re-arms the #4931 deletion (R3).
+    templates_dir_created_this_run = False
     command_skill_agents: list[str] = []
 
     with Live(tracker.render(), console=_console, refresh_per_second=8, transient=True) as live:
@@ -1116,9 +1123,19 @@ def init(  # noqa: C901
                                 # tracker.error(...) + re-raise, same as before.
                                 if local_repo is None:
                                     raise RuntimeError("local_repo must be set when template_mode is 'local'")
-                                copy_specify_base_from_local(local_repo, project_path)
+                                _copy_result = copy_specify_base_from_local(local_repo, project_path)
                             else:
-                                copy_specify_base_from_package(project_path)
+                                _copy_result = copy_specify_base_from_package(project_path)
+                            # FR-001(a)/#4931 re-arm: provenance for the cleanup
+                            # guard's run_created prover (R3) must reflect
+                            # whether THIS invocation's full-copy step actually
+                            # created/refreshed .kittify/templates/ -- never
+                            # unconditionally True. When the templates SOURCE
+                            # was absent, the copy functions' templates branch
+                            # never ran (no backup, no copytree) and
+                            # `templates_created` is False, so a pre-existing
+                            # operator tree is never proven run-created.
+                            templates_dir_created_this_run = _copy_result.templates_created
                             # Track templates root for later use (AGENTS.md, .claudeignore)
                             pkg_templates = _get_package_templates_root()
                             if pkg_templates is not None:
@@ -1562,15 +1579,24 @@ def init(  # noqa: C901
     # In global-runtime mode: .kittify/.scratch/ holds base command templates
     # and .kittify/.resolved-* / .kittify/.merged-* hold resolver output.
     # User projects should only have the generated agent commands, not the sources.
-    # Ownership-proof rationale (NFR-006 / contract C1-C2): `.kittify/templates`
-    # and `.kittify/.scratch` are package-managed regenerable scratch this run
-    # created, so `ManagedPathProver` proves them owned by the declared managed
-    # contract and the guard removes them. `.kittify/command-templates` is the
-    # operator-authorable LEGACY resolver tier (no longer package-shipped) — it
-    # is outside the managed set, so it is never owned by name and the guard
-    # preserves it in place instead of deleting user content (#4861). Routing the
-    # single removal through the guard leaves no raw rmtree literal at the site.
-    _cleanup_prover = ManagedPathProver(managed_relpaths={".kittify/templates", ".kittify/.scratch"})
+    # Ownership-proof rationale (FR-001(a)/#4931, C-002): name is not proof of
+    # ownership. `.kittify/templates` is owned only when THIS invocation's
+    # full-copy step actually created it (`templates_dir_created_this_run`,
+    # set above) -- a pre-existing operator tree this run never touched is
+    # unprovable and the guard preserves it in place, same diagnostic as the
+    # sibling `command-templates` case below (#4861). `.kittify/.scratch` has
+    # no writer left anywhere in this module (dead legacy resolver-scratch
+    # tier); it is therefore never proven by name either -- only a future
+    # writer that adds its own path to `_run_created` at the point it creates
+    # it could prove it owned. `.kittify/command-templates` is the
+    # operator-authorable LEGACY resolver tier (no longer package-shipped) —
+    # it is never owned by name and the guard preserves it in place instead of
+    # deleting user content (#4861). Routing the single removal through the
+    # guard leaves no raw rmtree literal at the site.
+    _run_created: set[Path] = set()
+    if templates_dir_created_this_run:
+        _run_created.add(project_path / ".kittify" / "templates")
+    _cleanup_prover = ManagedPathProver(run_created=_run_created)
     for cleanup_name in ("templates", "command-templates", ".scratch"):
         cleanup_dir = project_path / ".kittify" / cleanup_name
         if cleanup_dir.exists():

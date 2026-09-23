@@ -1153,7 +1153,20 @@ def test_research_lands_on_the_canonical_directory_across_handle_forms(
     """``research --mission <handle>`` canonicalizes the DIRECTORY via
     resolve_feature_dir_for_slug and then re-keys mission_slug to it — every
     handle form must converge on one directory, never scaffold a second one
-    keyed by the raw operator handle."""
+    keyed by the raw operator handle.
+
+    A generic ``.kittify/templates/research.md`` is seeded so the artifact
+    this test uses as a landing-signal actually gets created — mission
+    ownership-boundary-overwrite-hardening-01M35ER3/#4926 stopped ``research``
+    from fabricating a 0-byte ``research.md`` when no template resolves at
+    all, which this fixture's ``software-dev`` mission type otherwise never
+    has (this test is about directory routing, not the fabrication policy, so
+    a real template preserves its original intent).
+    """
+    templates_dir = repo / ".kittify" / "templates"
+    templates_dir.mkdir(parents=True, exist_ok=True)
+    (templates_dir / "research.md").write_text("# Research\n\nSeeded template content.\n", encoding="utf-8")
+
     result = _invoke_research(repo, handle, monkeypatch)
     assert result.exit_code == 0, result.output
 

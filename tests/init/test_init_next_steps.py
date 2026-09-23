@@ -22,6 +22,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import init as init_module
 from specify_cli.cli.commands.init import register_init_command
+from specify_cli.template.manager import TemplateCopyResult
 
 
 # ---------------------------------------------------------------------------
@@ -51,10 +52,10 @@ def _run(app: Typer, args: list[str]) -> object:
     return runner.invoke(app, args, catch_exceptions=True)
 
 
-def _fake_copy_package(project_path: Path) -> Path:
+def _fake_copy_package(project_path: Path) -> TemplateCopyResult:
     kittify = project_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    return kittify / "templates" / "command-templates"
+    return TemplateCopyResult(kittify / "templates" / "command-templates", templates_created=True)
 
 
 # ---------------------------------------------------------------------------

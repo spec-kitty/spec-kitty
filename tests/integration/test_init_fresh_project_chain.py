@@ -28,6 +28,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import init as init_module
 from specify_cli.cli.commands.init import register_init_command
+from specify_cli.template.manager import TemplateCopyResult
 from specify_cli.migration.schema_version import (
     CURRENT_SCHEMA_CAPABILITIES,
     CURRENT_SCHEMA_VERSION,
@@ -43,11 +44,11 @@ pytestmark = pytest.mark.integration
 # ---------------------------------------------------------------------------
 
 
-def _fake_copy_package(project_path: Path) -> Path:
+def _fake_copy_package(project_path: Path) -> TemplateCopyResult:
     """Pretend the package install path was successful and return scratch dir."""
     kittify = project_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    return kittify / "templates" / "command-templates"
+    return TemplateCopyResult(kittify / "templates" / "command-templates", templates_created=True)
 
 
 @pytest.fixture()

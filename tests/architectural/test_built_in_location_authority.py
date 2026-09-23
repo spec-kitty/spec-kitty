@@ -221,7 +221,17 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # RE-PINNED (local-write-safety #4759 landing): the non-destructive
         # init-backup seam added above this join shifted it 53 -> 130; the
         # join itself is unchanged.
-        (Path("src/specify_cli/template/manager.py"), 130),
+        # RE-PINNED (WP03, mission ownership-boundary-overwrite-hardening-01M35ER3,
+        # #4931 preservation landing): manager.py's prove-or-preserve edits
+        # shifted this join 130 -> 132; the join itself is unchanged.
+        # RE-PINNED (pre-PR squad BLOCKER, #4931 re-arm fix): the new
+        # `TemplateCopyResult` NamedTuple (return-value provenance signal so
+        # init.py can gate `templates_dir_created_this_run` on the copy
+        # actually creating `.kittify/templates/`, instead of unconditionally)
+        # was added above this join, shifting it 132 -> 161 (the `ruff format`
+        # gate added one further blank-line normalization); the join itself
+        # is unchanged.
+        (Path("src/specify_cli/template/manager.py"), 161),
         # src/specify_cli/template/manager.py::get_local_repo_root::_is_template_root --
         # content-sniffs a caller-supplied `override_path`/checkout root, not
         # this installation's own built-in tier. See module docstring class 2.
@@ -231,7 +241,15 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # `src/doctrine/templates/`), pushing this join down one line.
         # RE-PINNED (local-write-safety #4759 landing): the non-destructive
         # init-backup seam added above shifted it 166 -> 259; join unchanged.
-        (Path("src/specify_cli/template/manager.py"), 259),
+        # RE-PINNED (WP03, mission ownership-boundary-overwrite-hardening-01M35ER3,
+        # #4931 preservation landing): manager.py's prove-or-preserve edits
+        # shifted this join 259 -> 264; join unchanged.
+        # RE-PINNED (pre-PR squad BLOCKER, #4931 re-arm fix): the new
+        # `TemplateCopyResult` NamedTuple and its `templates_created`
+        # tracking/return-shape edits in both copy functions (above this
+        # site) shifted this join 264 -> 301 (the `ruff format` gate added one
+        # further blank-line normalization); join unchanged.
+        (Path("src/specify_cli/template/manager.py"), 301),
         # src/charter/activation/neutrality/lint.py::_default_scan_roots -- scans a
         # caller-supplied `repo_root` (tmp_path-rooted in tests; see
         # tests/charter/test_neutrality_lint.py::test_default_scan_roots_include_relocated_builtin_missions),

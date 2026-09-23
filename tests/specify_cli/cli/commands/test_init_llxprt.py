@@ -23,6 +23,7 @@ from typer.testing import CliRunner, Result
 
 from specify_cli.cli.commands import init as init_module
 from specify_cli.cli.commands.init import register_init_command
+from specify_cli.template.manager import TemplateCopyResult
 from specify_cli.core.agent_config import load_agent_config
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.runtime.agent_commands import get_global_command_dir
@@ -52,10 +53,10 @@ def _run(app: Typer, args: list[str]) -> Result:
     return CliRunner().invoke(app, args, catch_exceptions=True)
 
 
-def _fake_copy_package(project_path: Path) -> Path:
+def _fake_copy_package(project_path: Path) -> TemplateCopyResult:
     kittify = project_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    return kittify / "templates" / "command-templates"
+    return TemplateCopyResult(kittify / "templates" / "command-templates", templates_created=True)
 
 
 def _render_llxprt(command: str) -> str:

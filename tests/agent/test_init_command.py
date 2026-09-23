@@ -17,6 +17,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import init as init_module
 from specify_cli.cli.commands.init import register_init_command
+from specify_cli.template.manager import TemplateCopyResult
 
 pytestmark = pytest.mark.fast
 
@@ -70,7 +71,7 @@ def test_init_creates_vcs_config(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_p
     def fake_copy(local_repo: Path, project_path: Path):
         commands_dir = project_path / ".templates"
         commands_dir.mkdir(parents=True, exist_ok=True)
-        return commands_dir
+        return TemplateCopyResult(commands_dir, templates_created=True)
 
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
@@ -129,7 +130,7 @@ def test_init_non_interactive_no_project_name_defaults_to_current_directory(
     def fake_copy(local_repo: Path, project_path: Path):
         commands_dir = project_path / ".templates"
         commands_dir.mkdir(parents=True, exist_ok=True)
-        return commands_dir
+        return TemplateCopyResult(commands_dir, templates_created=True)
 
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
@@ -162,7 +163,7 @@ def test_init_non_interactive_env_var(cli_app, monkeypatch: pytest.MonkeyPatch, 
     def fake_copy(local_repo: Path, project_path: Path):
         commands_dir = project_path / ".templates"
         commands_dir.mkdir(parents=True, exist_ok=True)
-        return commands_dir
+        return TemplateCopyResult(commands_dir, templates_created=True)
 
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
@@ -194,7 +195,7 @@ def test_init_writes_event_log_merge_attributes(
     def fake_copy(local_repo: Path, project_path: Path):
         commands_dir = project_path / ".templates"
         commands_dir.mkdir(parents=True, exist_ok=True)
-        return commands_dir
+        return TemplateCopyResult(commands_dir, templates_created=True)
 
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
@@ -249,7 +250,7 @@ def test_init_tolerates_merge_driver_git_config_failure(
         commands_dir = project_path / ".templates"
         commands_dir.mkdir(parents=True, exist_ok=True)
         (project_path / ".git").mkdir()
-        return commands_dir
+        return TemplateCopyResult(commands_dir, templates_created=True)
 
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
     ensure_config = MagicMock(side_effect=git_failure)
@@ -305,7 +306,7 @@ def test_init_gitattributes_merge_driver_keys_have_git_config_registrations(
     def fake_copy(local_repo: Path, project_path: Path):
         commands_dir = project_path / ".templates"
         commands_dir.mkdir(parents=True, exist_ok=True)
-        return commands_dir
+        return TemplateCopyResult(commands_dir, templates_created=True)
 
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)

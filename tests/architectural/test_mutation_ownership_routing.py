@@ -80,20 +80,31 @@ from tests.architectural._destructive_op_census import (
 pytestmark = pytest.mark.architectural
 
 # ---------------------------------------------------------------------------
-# Scanned module set: init.py + every upgrade migration. The guard's OWN
-# implementation lives in src/specify_cli/asset_preservation/ and is
-# deliberately NOT in this set, so its chokepoint rmtree/unlink/rmdir never
+# Scanned module set: init.py + agent/config.py + research.py + every upgrade
+# migration. The guard's OWN implementation lives in
+# src/specify_cli/asset_preservation/ and
+# is deliberately NOT in this set, so its chokepoint rmtree/unlink/rmdir never
 # reach the census (contract C3.1 / data-model.md).
+#
+# research.py (WP02/#4926/FR-004) routes its destructive OVERWRITE through
+# ``guard_destructive_overwrite`` — a distinct primitive from
+# ``guard_destructive_removal`` that ``_calls_guard_destructive_removal``
+# below does not recognise — so research.py is scanned for raw literals but
+# deliberately NEVER joins ``_ROUTED_MODULES`` below. See
+# ``test_research_py_removal_literals_are_never_allowlisted`` for the
+# explicit fail-closed guard this asymmetry requires.
 # ---------------------------------------------------------------------------
 _INIT_PY = SPECIFY_CLI_ROOT / "cli" / "commands" / "init.py"
 _AGENT_CONFIG_PY = SPECIFY_CLI_ROOT / "cli" / "commands" / "agent" / "config.py"
+_RESEARCH_PY = SPECIFY_CLI_ROOT / "cli" / "commands" / "research.py"
 _MIGRATIONS_DIR = SPECIFY_CLI_ROOT / "upgrade" / "migrations"
 
 _GUARD_CALL = "guard_destructive_removal("
+_RESEARCH_PY_ALLOWLIST_PREFIX = "src/specify_cli/cli/commands/research.py:"
 
 
 def _module_set() -> list[Path]:
-    return [_INIT_PY, _AGENT_CONFIG_PY, *iter_py_files(_MIGRATIONS_DIR)]
+    return [_INIT_PY, _AGENT_CONFIG_PY, _RESEARCH_PY, *iter_py_files(_MIGRATIONS_DIR)]
 
 
 # ---------------------------------------------------------------------------
@@ -244,10 +255,18 @@ _ALLOWLIST: dict[str, str] = {
         "ephemeral scratch: removes the .resolved-command-templates-<mission> resolver scratch dir "
         "this run creates immediately below — package-generated, never user-authored."
     ),
-    "src/specify_cli/cli/commands/init.py:1596:shutil.rmtree": (
+    "src/specify_cli/cli/commands/init.py:1622:shutil.rmtree": (
         "ephemeral scratch: best-effort sweep of .kittify/.resolved-* / .merged-* resolver scratch "
         "dirs (name-prefixed, package-generated this run); the #4861 command-templates cleanup just "
-        "above is routed through the guard (literal-free)."
+        "above is routed through the guard (literal-free). Re-pinned from :1596 (WP02, mission "
+        "ownership-boundary-overwrite-hardening-01M35ER3): WP03's cleanup edits shifted this single "
+        "line down by 20 — verified LINE-SHIFT-ONLY (same op-kinds, same count of 4 literals in "
+        "init.py as base; 136/453/677 sit above the edit region and are unaffected). Re-pinned again "
+        "from :1616 (pre-PR squad BLOCKER, #4931 re-arm fix): the `copy_specify_base_from_local`/"
+        "`copy_specify_base_from_package` call sites now capture a `TemplateCopyResult` and set "
+        "`templates_dir_created_this_run` from its `templates_created` field instead of "
+        "unconditionally, shifting this single line down by 6 — verified LINE-SHIFT-ONLY (same "
+        "op-kinds, same count of 4 literals in init.py as base; 136/453/677 unaffected)."
     ),
     # --- m_0_10_0 (3): empty-only rmdir after preserve-all -----------------
     "src/specify_cli/upgrade/migrations/m_0_10_0_python_only.py:221:Path.rmdir": (
@@ -502,6 +521,28 @@ def test_every_destructive_literal_is_allowlisted() -> None:
             UserWarning,
             stacklevel=1,
         )
+
+
+def test_research_py_removal_literals_are_never_allowlisted() -> None:
+    """research.py (WP02/#4926/FR-004) routes its destructive OVERWRITE through
+    ``guard_destructive_overwrite`` — a primitive ``_calls_guard_destructive_removal``
+    does not recognise — so research.py can never join ``_ROUTED_MODULES`` and
+    the positive-routing check (``test_each_routed_module_routes_and_is_allowlist_clean``)
+    cannot prove its fabrication was routed away. Without this explicit,
+    static guard, an implementer could satisfy the live census by adding a
+    research.py raw removal literal to ``_ALLOWLIST`` with a rationale instead
+    of actually deleting the unlink()+touch() fabrication (T021) — the census
+    would go green while the #4926 destroyer silently returned. Fail closed,
+    independent of the live scan: no
+    ``src/specify_cli/cli/commands/research.py:*`` key may EVER appear in
+    ``_ALLOWLIST``. Makes FR-004/SC-005's "the census refuses to allowlist a
+    raw user-content op" claim actually backed for the one module WP02 adds."""
+    research_keys = sorted(key for key in _ALLOWLIST if key.startswith(_RESEARCH_PY_ALLOWLIST_PREFIX))
+    assert not research_keys, (
+        "research.py literal(s) present in _ALLOWLIST — its destructive-overwrite "
+        "fabrication must be routed through guard_destructive_overwrite (T021), "
+        f"never allowlisted: {research_keys}"
+    )
 
 
 def test_allowlisted_files_exist() -> None:

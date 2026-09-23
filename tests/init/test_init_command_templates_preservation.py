@@ -35,6 +35,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import init as init_module
 from specify_cli.cli.commands.init import register_init_command
+from specify_cli.template.manager import TemplateCopyResult
 
 pytestmark = [pytest.mark.integration]
 
@@ -62,14 +63,14 @@ def _make_init_app() -> tuple[Typer, io.StringIO]:
     return app, buffer
 
 
-def _fake_copy_pkg(project_path: Path) -> Path:
+def _fake_copy_pkg(project_path: Path) -> TemplateCopyResult:
     """Package-mode base copy that creates only the empty `.kittify/` root."""
     kittify = project_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    return kittify / "templates" / "command-templates"
+    return TemplateCopyResult(kittify / "templates" / "command-templates", templates_created=False)
 
 
-def _fake_copy_pkg_with_scratch(project_path: Path) -> Path:
+def _fake_copy_pkg_with_scratch(project_path: Path) -> TemplateCopyResult:
     """Package-mode base copy that also stages regenerable scratch this run.
 
     ``.kittify/templates`` and ``.kittify/.scratch`` are the package-managed
@@ -83,7 +84,7 @@ def _fake_copy_pkg_with_scratch(project_path: Path) -> Path:
     scratch = kittify / ".scratch"
     scratch.mkdir(parents=True, exist_ok=True)
     (scratch / "staged.md").write_text("staged scratch\n", encoding="utf-8")
-    return templates / "command-templates"
+    return TemplateCopyResult(templates / "command-templates", templates_created=True)
 
 
 def _seed_command_template(project: Path) -> Path:

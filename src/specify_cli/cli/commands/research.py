@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
 import typer
 from rich.panel import Panel
 
+from specify_cli.asset_preservation import guard_destructive_overwrite
 from specify_cli.cli import StepTracker
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import get_project_root_or_exit, show_banner
@@ -20,6 +22,77 @@ from specify_cli.mission import get_mission_type
 from specify_cli.plan_validation import PlanValidationError, validate_plan_filled
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from mission_runtime import MissionArtifactKind, placement_seam
+
+
+@dataclass(frozen=True)
+class _AssetOutcome:
+    """The result of one guarded research-asset write attempt.
+
+    ``reason`` carries the underlying :class:`OverwriteVerdict.reason` code
+    (#4926 reporting-honesty fix) so a caller can distinguish WHY a skip
+    happened — "no template resolved for this asset" vs. "a template
+    resolved but the destination already exists and wasn't authorized to be
+    overwritten" — instead of collapsing every skip into one blanket
+    "no template" claim.
+    """
+
+    relative_path: Path
+    created: bool
+    diagnostic: str
+    reason: str
+
+
+# `OverwriteVerdict.reason` codes (guard.py `_overwrite_existing`) that mean
+# "a template resolved, but the destination already exists and wasn't proven
+# package-owned / authorized to overwrite" — i.e. something WAS preserved,
+# not "nothing to create here".
+_PRESERVED_EXISTING_REASONS = frozenset({"unauthorized", "would-truncate-to-empty"})
+
+
+def _has_preserved_existing(skipped: list[tuple[Path, str, str]]) -> bool:
+    """True when at least one skip was a preserve-existing refusal rather
+    than a genuine no-template-resolved case (#4926)."""
+    return any(reason in _PRESERVED_EXISTING_REASONS for _, _, reason in skipped)
+
+
+def _write_research_asset(
+    *,
+    dest_rel: Path,
+    template_rel: Path,
+    planning_dir: Path,
+    project_root: Path,
+    mission_type: str,
+    force: bool,
+) -> _AssetOutcome:
+    """Decide-then-write ONE research asset through
+    ``guard_destructive_overwrite`` (#4926/FR-002/T021): the skip decision is
+    made BEFORE any filesystem mutation, so a refusal never unlinks the
+    destination first and "fabricates" second. Shared by both the
+    research.md/data-model.md copy path and the CSV stub loop
+    (research/evidence-log.csv, research/source-register.csv) — all four
+    assets shared the same destroyer, so they now share the same fix.
+    """
+    dest_path = planning_dir / dest_rel
+    template_path = resolve_template_path(project_root, mission_type, template_rel)
+    substantive = template_path is not None and template_path.is_file()
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+    verdict = guard_destructive_overwrite(
+        dest_path,
+        project_root,
+        replacement_substantive=substantive,
+        authorized=force,
+    )
+    if not verdict.proceed:
+        return _AssetOutcome(dest_rel, created=False, diagnostic=verdict.diagnostic, reason=verdict.reason)
+
+    # The guard proceeds only when the replacement is substantive (an absent
+    # or existing destination with a non-substantive replacement always
+    # refuses, regardless of `authorized` — guard_destructive_overwrite's
+    # truth table), so `template_path` is guaranteed to be a real file here.
+    assert template_path is not None
+    shutil.copy2(template_path, dest_path)
+    return _AssetOutcome(dest_rel, created=True, diagnostic=verdict.diagnostic, reason=verdict.reason)
 
 
 def _read_mission_dir_or_exit(repo_root: Path, mission_slug: str, kind: MissionArtifactKind) -> Path:
@@ -163,29 +236,30 @@ def research(
         raise typer.Exit(1)
 
     created_paths: list[Path] = []
+    skipped_assets: list[tuple[Path, str, str]] = []
 
     def _copy_asset(step_key: str, label: str, relative_path: Path, template_name: Path) -> None:
         tracker.start(step_key)
-        dest_path = planning_dir / relative_path
-        template_path = resolve_template_path(project_root, mission_type, template_name)
-
-        dest_path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            if dest_path.exists() and not force:
-                created_paths.append(dest_path)
-                return
-            if template_path and template_path.is_file():
-                shutil.copy2(template_path, dest_path)
-            else:
-                if dest_path.exists():
-                    dest_path.unlink()
-                dest_path.touch()
-            created_paths.append(dest_path)
-            tracker.complete(step_key, label)
+            outcome = _write_research_asset(
+                dest_rel=relative_path,
+                template_rel=template_name,
+                planning_dir=planning_dir,
+                project_root=project_root,
+                mission_type=mission_type,
+                force=force,
+            )
         except Exception as exc:  # pragma: no cover - surfaces filesystem errors
             tracker.error(step_key, str(exc))
             console.print(tracker.render())
             raise typer.Exit(1)
+
+        if outcome.created:
+            created_paths.append(planning_dir / relative_path)
+            tracker.complete(step_key, label)
+        else:
+            skipped_assets.append((relative_path, outcome.diagnostic, outcome.reason))
+            tracker.skip(step_key, outcome.diagnostic)
 
     _copy_asset("research-md", "research.md ready", Path("research.md"), Path("research.md"))
     _copy_asset("data-model", "data-model.md ready", Path("data-model.md"), Path("data-model.md"))
@@ -196,47 +270,101 @@ def research(
         (Path("research") / "source-register.csv", Path("research") / "source-register.csv"),
     ]
     csv_errors: list[str] = []
+    csv_skipped: list[tuple[Path, str, str]] = []
+    csv_created = 0
     for dest_rel, template_rel in csv_targets:
-        dest_path = planning_dir / dest_rel
-        template_path = resolve_template_path(project_root, mission_type, template_rel)
-        dest_path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            if dest_path.exists() and not force:
-                created_paths.append(dest_path)
-                continue
-            if template_path and template_path.is_file():
-                shutil.copy2(template_path, dest_path)
-            else:
-                if dest_path.exists():
-                    dest_path.unlink()
-                dest_path.touch()
-            created_paths.append(dest_path)
+            outcome = _write_research_asset(
+                dest_rel=dest_rel,
+                template_rel=template_rel,
+                planning_dir=planning_dir,
+                project_root=project_root,
+                mission_type=mission_type,
+                force=force,
+            )
         except Exception as exc:  # pragma: no cover
             csv_errors.append(f"{dest_rel}: {exc}")
+            continue
+
+        if outcome.created:
+            created_paths.append(planning_dir / dest_rel)
+            csv_created += 1
+        else:
+            csv_skipped.append((dest_rel, outcome.diagnostic, outcome.reason))
+
+    skipped_assets.extend(csv_skipped)
 
     if csv_errors:
         tracker.error("research-csv", "; ".join(csv_errors))
         console.print(tracker.render())
         raise typer.Exit(1)
+    elif csv_created:
+        tracker.complete("research-csv", f"{csv_created} CSV template(s) ready")
+    elif _has_preserved_existing(csv_skipped):
+        # #4926: a CSV template resolved but the destination(s) already exist
+        # and weren't authorized to be overwritten — distinct from "no
+        # template ships for this mission type".
+        tracker.skip("research-csv", "Existing research CSV template(s) preserved; re-run with --force to overwrite")
     else:
-        tracker.complete("research-csv", "CSV templates ready")
+        tracker.skip("research-csv", f"No research CSV template for mission type '{mission_display}'")
 
     tracker.start("summary")
-    tracker.complete("summary", f"{len(created_paths)} artifacts ready")
+    if created_paths:
+        tracker.complete("summary", f"{len(created_paths)} artifact(s) ready")
+    elif _has_preserved_existing(skipped_assets):
+        # #4926: at least one skip was a preserve-existing refusal, not a
+        # genuine "no template resolved anywhere" case — say so honestly.
+        tracker.skip("summary", "Existing research artifact(s) preserved (not overwritten) — re-run with --force")
+    else:
+        tracker.skip("summary", f"No research template for mission type '{mission_display}' — nothing created")
 
     console.print(tracker.render())
 
-    relative_paths = [str(path.relative_to(planning_dir)) if path.is_relative_to(planning_dir) else str(path) for path in created_paths]
-    summary_lines = "\n".join(f"- [cyan]{rel}[/cyan]" for rel in sorted(set(relative_paths)))
     console.print()
-    console.print(
-        Panel(
-            summary_lines or "No artifacts were created (existing files kept).",
-            title="Research Artifacts",
-            border_style="cyan",
-            padding=(1, 2),
+    if created_paths:
+        relative_paths = [str(path.relative_to(planning_dir)) if path.is_relative_to(planning_dir) else str(path) for path in created_paths]
+        summary_lines = "\n".join(f"- [cyan]{rel}[/cyan]" for rel in sorted(set(relative_paths)))
+        if skipped_assets:
+            # #4926: a mix of created + skipped assets — report what was
+            # skipped too, rather than silently omitting it from a headline
+            # that only names what got created.
+            skip_lines = "\n".join(f"- [yellow]{rel}[/yellow]: {diagnostic}" for rel, diagnostic, _reason in skipped_assets)
+            summary_lines = f"{summary_lines}\n\n[yellow]Preserved / skipped:[/yellow]\n{skip_lines}"
+        console.print(
+            Panel(
+                summary_lines,
+                title="Research Artifacts",
+                border_style="cyan",
+                padding=(1, 2),
+            )
         )
-    )
+    else:
+        # #4926 reporting-honesty fix: "nothing was created" has two distinct,
+        # non-interchangeable causes — (a) a template genuinely resolved
+        # nowhere for this mission type, or (b) a template DID resolve but
+        # every destination already existed and wasn't authorized to be
+        # overwritten. Collapsing both into "No research template for
+        # mission type X" is provably false in case (b): the first run's own
+        # output already proved a template exists. Derive the headline from
+        # the actual per-asset skip reasons instead of the created_paths-only
+        # signal (T022's original fix only handled the genuine-absence case).
+        skipped_lines = "\n".join(f"- [yellow]{rel}[/yellow]: {diagnostic}" for rel, diagnostic, _reason in skipped_assets)
+        if _has_preserved_existing(skipped_assets):
+            headline = (
+                "Existing research artifacts preserved; they are not proven package-owned and "
+                "[cyan]--force[/cyan] was not given, so they were not overwritten. "
+                "Re-run with [cyan]--force[/cyan] to overwrite them."
+            )
+        else:
+            headline = f"No research template for mission type '{mission_display}'. Nothing was created; any existing files were preserved unchanged."
+        console.print(
+            Panel(
+                headline + "\n\n" + (skipped_lines or "No assets processed."),
+                title="Research Artifacts",
+                border_style="yellow",
+                padding=(1, 2),
+            )
+        )
     console.print()
 
 
