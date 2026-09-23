@@ -1075,31 +1075,32 @@ def _merge_branch_into(
                 env=_env,
             )
             if staged.returncode == 0:
-                if planning_conflict_resolved:
-                    pass
-                elif allow_noop_squash:
+                # Nothing staged. #4892 review: when a planning conflict resolves
+                # entirely to the target copy, the target already contains the
+                # mission's tree — a genuine no-op. NEVER force it through with an
+                # ``--allow-empty`` commit (that fabricated an empty squash commit
+                # and bypassed the FR-037 no-op check). Report the no-op so the
+                # executor's zero-diff guard can adjudicate it.
+                if planning_conflict_resolved or allow_noop_squash:
                     return False
-                else:
-                    raise RuntimeError(
-                        f"Squash merge of {source_branch} into {target_branch} "
-                        "produced no changes; target may already contain this tree. "
-                        "Retry with merge resume if recovering an interrupted merge."
-                    )
+                raise RuntimeError(
+                    f"Squash merge of {source_branch} into {target_branch} "
+                    "produced no changes; target may already contain this tree. "
+                    "Retry with merge resume if recovering an interrupted merge."
+                )
             if staged.returncode not in (0, 1):
                 raise RuntimeError(f"Could not inspect squash merge result for {source_branch} into {target_branch}: {staged.stderr.strip()}")
-            # Commit the squashed result.
-            commit_command = [
-                "git",
-                "-c",
-                "commit.gpgsign=false",
-                "commit",
-                "-m",
-                f"feat({source_branch}): squash merge of mission",
-            ]
-            if planning_conflict_resolved:
-                commit_command.append("--allow-empty")
+            # Commit the squashed result. There is guaranteed staged content here
+            # (returncode == 1), so no ``--allow-empty`` is ever needed.
             result = subprocess.run(
-                commit_command,
+                [
+                    "git",
+                    "-c",
+                    "commit.gpgsign=false",
+                    "commit",
+                    "-m",
+                    f"feat({source_branch}): squash merge of mission",
+                ],
                 cwd=str(tmp_path),
                 capture_output=True,
                 text=True,
