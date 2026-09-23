@@ -34,6 +34,7 @@ _HEAVY_MODULES = (
     "specify_cli.status.reducer",
 )
 
+
 def _drive(command: object, instruction: str, *, line: str) -> str:
     """Run Typer completion against ``command`` and capture its stdout.
 
@@ -45,10 +46,7 @@ def _drive(command: object, instruction: str, *, line: str) -> str:
     from typer.completion import shell_complete
 
     completion_init()
-    saved = {
-        key: os.environ.get(key)
-        for key in ("COMP_WORDS", "COMP_CWORD", "_TYPER_COMPLETE_ARGS")
-    }
+    saved = {key: os.environ.get(key) for key in ("COMP_WORDS", "COMP_CWORD", "_TYPER_COMPLETE_ARGS")}
     try:
         os.environ["COMP_WORDS"] = line
         os.environ["COMP_CWORD"] = str(len(line.split()))
@@ -96,10 +94,7 @@ def test_manifest_matches_live_cli(monkeypatch: pytest.MonkeyPatch) -> None:
     live = completion.generate_manifest()
     committed = completion._load_manifest()
 
-    assert live == committed, (
-        "completion manifest is stale; regenerate with "
-        "`SPEC_KITTY_ENABLE_SAAS_SYNC=1 python -m specify_cli.completion --regenerate`"
-    )
+    assert live == committed, "completion manifest is stale; regenerate with `SPEC_KITTY_ENABLE_SAAS_SYNC=1 python -m specify_cli.completion --regenerate`"
 
 
 # --------------------------------------------------------------------------- #
@@ -222,6 +217,32 @@ def test_completion_fast_path_avoids_heavy_imports(tmp_path: Path) -> None:
     assert "RC=0" in result.stderr, result.stderr
     assert "HEAVY=[]" in result.stderr, result.stderr
     assert "agent" in result.stdout.split()
+
+
+def test_generate_manifest_ignores_ambient_argv_narrowing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Landing fold (PR #4992): ``generate_manifest()`` must always capture the
+    FULL command tree, regardless of whatever ``sys.argv`` happens to be live
+    at call time.
+
+    ``register_commands()`` reads the global ``sys.argv`` to decide lazy vs
+    full registration (WP05's single-leaf fast path), so ``_build_app()``
+    returns an argv-dependent tree. Pin ``sys.argv`` to a value that resolves
+    to a single leaf command (``spec-kitty doctor``) -- the same shape a real
+    ``spec-kitty doctor ...`` invocation would leave behind -- and prove the
+    manifest generator still returns every top-level command, not just the
+    one argv would have lazily registered.
+    """
+    saved_argv = sys.argv[:]
+    sys.argv = ["spec-kitty", "doctor"]
+    try:
+        manifest = completion.generate_manifest()
+    finally:
+        sys.argv = saved_argv
+
+    top_level_commands = set(manifest.get("commands", {}))
+    assert "doctor" in top_level_commands
+    assert "init" in top_level_commands, "manifest was narrowed to the single leaf argv resolved to, not the full command tree"
+    assert len(top_level_commands) > 10, f"manifest looks narrowed: only {sorted(top_level_commands)}"
 
 
 def test_completion_does_not_mutate_project_files(tmp_path: Path) -> None:

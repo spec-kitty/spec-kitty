@@ -190,11 +190,31 @@ def generate_manifest() -> dict[str, Any]:
     function used to compute died with the sync transport, issue #5, once its
     last consumer -- the ``tracker`` command -- started registering
     unconditionally).
+
+    Landing fold (PR #4992): ``register_commands()`` reads the global
+    ``sys.argv`` to decide lazy (single-leaf) vs full registration, so
+    ``_build_app()`` returns an argv-dependent tree. Whatever ``sys.argv``
+    happens to be live when this function runs (e.g. a real ``spec-kitty
+    doctor ...`` process regenerating the manifest, or a test harness with
+    its own argv) would otherwise silently narrow the captured tree. ``argv``
+    is pinned to the bare program name -- which resolves to no single leaf --
+    for the duration of the ``_build_app()`` call and restored in a
+    ``finally``, so the manifest always reflects the FULL command set
+    regardless of ambient argv.
     """
+    import sys
+
     import specify_cli
     from typer.main import get_command
 
-    return build_manifest_from_command(get_command(specify_cli._build_app()))
+    saved_argv = sys.argv[:]
+    sys.argv = [PROG_NAME]
+    try:
+        app = specify_cli._build_app()
+    finally:
+        sys.argv = saved_argv
+
+    return build_manifest_from_command(get_command(app))
 
 
 def render_manifest_json(manifest: dict[str, Any]) -> str:
