@@ -1008,7 +1008,7 @@
    "deprecated": false
   },
   "merge-driver-traces": {
-   "help": "Union conflicting ``traces/*.md`` documents; write result to ``ours``.",
+   "help": "Union conflicting ``traces/*.md`` documents; write result to ``ours`` (#4894).\n\n3-way base-aware: reads ``%O`` so a section theirs left UNCHANGED from\nbase, while ours edited the same section, is recognized as stale and\ndropped rather than resurrected alongside ours' edit (see\n:func:`_drop_stale_theirs_trace_blocks`). The remaining union is still\nsection-granularity and append-only via :func:`union_trace_texts` --\nnever a lossy line-level global dedup, never fail-closed on an ordinary\nrepeat.",
    "hidden": true,
    "deprecated": false
   },
