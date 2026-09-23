@@ -1298,9 +1298,15 @@ def _unified_diff(repo_root: Path, ref_a: str, ref_b: str) -> str:
     return result.stdout
 
 
-#: Blocked Gap-1 fix (diverged coord branch, or a dirty coord worktree): a
-#: surfaced ``error`` finding rather than an abort (renata LOW, see
-#: :func:`_coord_staleness_fix_blocked_finding`).
+#: Blocked Gap-1 fix: a surfaced ``error`` finding rather than an abort
+#: (renata LOW). Shared by every "nothing was mutated" refusal --
+#: :func:`_coord_staleness_fix_blocked_finding` (diverged coord branch, or a
+#: dirty coord worktree), :func:`_coord_worktree_foreign_repo_finding` (coord
+#: worktree does not belong to this repository), and
+#: :func:`_coord_staleness_fix_merge_failed_finding` (the ``--ff-only`` merge
+#: itself failed). :func:`_coord_worktree_mismatch_fix_blocked_finding` (coord
+#: worktree on the wrong branch) also reuses this code, even though its
+#: dedicated diff-free message differs from the others.
 _COORD_STALE_FIX_BLOCKED_CODE = "COORDINATION_BRANCH_STALE_FIX_BLOCKED"
 
 
@@ -1488,9 +1494,15 @@ def _coord_staleness_fix_merge_failed_finding(
 #: ``_COORD_STALE_FIX_BLOCKED_CODE``, whose documented meaning is "nothing
 #: was mutated." That is FALSE here -- a fast-forward genuinely ran inside
 #: the coord worktree; only the declared ref this run reads back from
-#: ``repo_root`` failed to reflect it (e.g. the recorded worktree path is a
-#: separate repository/clone, so the merge landed there instead of on the
-#: branch `--fix` reports against).
+#: ``repo_root`` failed to reflect it. The original motivating example (the
+#: recorded worktree path is a separate repository/clone, so the merge
+#: landed there instead of on the branch `--fix` reports against) is now
+#: refused earlier, before any mutation, by
+#: :func:`_coord_worktree_foreign_repo_finding`'s git-common-dir/toplevel
+#: check -- so this postcondition is defence in depth against whatever can
+#: still move the declared ref between the merge and this readback (e.g. a
+#: concurrent process advancing/deleting the coord branch), not the primary
+#: guard against a foreign repository.
 _COORD_STALE_FIX_POSTCONDITION_CODE = "COORDINATION_BRANCH_STALE_FIX_POSTCONDITION_FAILED"
 
 
@@ -1529,13 +1541,20 @@ def _fix_one_mission_coord_staleness(
     coordinated, its identity/``target_branch`` is incomplete, either ref is
     unreadable, the SHAs already match, or the coord worktree does not exist
     (the existing ``COORDINATION_WORKTREE_MISSING``/``NEVER_CREATED`` findings
-    already cover that case). Otherwise: strict-ancestor + clean coord
-    worktree fast-forwards the coord worktree onto ``target_branch`` (``git
-    merge --ff-only``, itself belt-and-braces safe) and returns ``None``;
-    anything else returns a blocked-fix ``error`` finding via
-    :func:`_coord_staleness_fix_blocked_finding` instead of raising, mutating
-    nothing (renata LOW: a single mission's unsafe precondition must not
-    abort ``--fix`` for every OTHER mission in the same run).
+    already cover that case). Otherwise every precondition must hold before
+    any mutation: strict-ancestor, the coord worktree genuinely belongs to
+    this repository (:func:`_coord_worktree_foreign_repo_finding`), the
+    worktree is on the coord branch (:func:`_coord_worktree_head_finding`),
+    and the worktree is clean. Only then does the fast-forward run (``git
+    merge --ff-only``, itself belt-and-braces safe), followed by a postcondition
+    re-read (:func:`_coord_staleness_fix_postcondition_finding`). A refused
+    or failed precondition/postcondition returns an ``error`` finding instead
+    of raising, mutating nothing -- most route through
+    :func:`_coord_staleness_fix_blocked_finding`, but the foreign-repo,
+    branch-mismatch, merge-failure, and postcondition guards each return
+    their own dedicated finding instead (renata LOW: a single mission's
+    unsafe precondition must not abort ``--fix`` for every OTHER mission in
+    the same run).
     """
     shas = _coord_vs_target_shas(repo_root, mission_meta)
     if shas is None:
@@ -1683,12 +1702,21 @@ def run_coordination_health(
     findings, re-runs :func:`~specify_cli.migration.backfill_topology.backfill_topology_repo`
     to re-derive topology from the now-absent key, then attempts the WP06
     Gap-1 coord-vs-target fast-forward (:func:`_apply_coord_staleness_fixes`)
-    for every coordinated mission. A per-mission unsafe precondition (diverged
-    coord branch, or a dirty coord worktree) surfaces as an ``error`` finding
-    rather than raising (renata LOW, coord-commit-integrity squad) -- the
-    command still exits 1 overall for that mission, but no longer aborts
-    fixing every OTHER mission in the same run. FR-009/C-005 hold either way:
-    nothing is ever mutated for the blocked mission.
+    for every coordinated mission. A per-mission unsafe precondition -- a
+    diverged coord branch, a dirty coord worktree, a coord worktree that does
+    not belong to this repository (:func:`_coord_worktree_foreign_repo_finding`),
+    or one checked out on the wrong branch
+    (:func:`_coord_worktree_mismatch_fix_blocked_finding`) -- surfaces as an
+    ``error`` finding rather than raising (renata LOW, coord-commit-integrity
+    squad) -- the command still exits 1 overall for that mission, but no
+    longer aborts fixing every OTHER mission in the same run. FR-009/C-005
+    hold for every one of those *blocked* preconditions: nothing is mutated
+    for that mission. The one exception is the postcondition re-read
+    (:func:`_coord_staleness_fix_postcondition_finding`): by the time it can
+    fire, the fast-forward has already genuinely run in the coord worktree --
+    only the declared ref this run reads back from ``repo_root`` failed to
+    reflect it -- so that specific ``error`` reports a real (if incomplete)
+    mutation, not a refusal.
 
     ``check_staleness`` (FR-008, ``--check-staleness``) additionally reports
     Gap-1 coord-branch-vs-``target_branch`` staleness findings; it is purely a
