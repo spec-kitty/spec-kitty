@@ -213,15 +213,32 @@ conflicting_path: src/specify_cli/lanes/merge.py
 This protects target-branch hotfixes and concurrent mission landings. Spec Kitty
 does not choose either side automatically. Update the mission branch against the
 current target, resolve the listed files on the mission branch, run the relevant
-tests, and check readiness again:
+tests, and check readiness again.
+
+Do the update in a **throwaway worktree**, not the primary checkout. `spec-kitty
+merge`'s preflight refuses to run when the primary checkout is off the target
+branch (`MERGE_UNSAFE_PRIMARY_OFF_TARGET`), so a bare `git checkout
+kitty/mission-…` in the primary checkout would leave you unable to merge. A
+worktree keeps the primary checkout on `main` the whole time:
 
 ```bash
-git checkout kitty/mission-017-my-feature
-git merge main
-# Resolve and commit the named conflicts.
+# Reconcile the mission branch against current main in a scratch worktree.
+git worktree add /tmp/reconcile-017 kitty/mission-017-my-feature
+git -C /tmp/reconcile-017 merge main
+# Resolve the named conflicts, then commit and run the relevant tests.
+git -C /tmp/reconcile-017 commit
+git worktree remove /tmp/reconcile-017
+
+# Back in the primary checkout (still on main), re-check readiness and merge.
 spec-kitty merge --mission 017-my-feature --dry-run
 spec-kitty merge --mission 017-my-feature
 ```
+
+The reconciling `git merge main` leaves an ordinary merge commit on the mission
+branch — that is fine: the mission→target squash flattens the mission branch
+into a single commit, so the merge commit is absorbed and never reaches `main`.
+If you would rather not add a worktree, run `git checkout main` in the primary
+checkout before the `spec-kitty merge` lines instead.
 
 The failed attempt does not advance the target ref, mark work packages done,
 write the retrospective, or remove lane branches and worktrees. Registered Spec
