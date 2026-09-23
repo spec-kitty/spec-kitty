@@ -1,0 +1,79 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-23T18:02:38.324160Z",
+      "decision_id": "01M37PY4VMASHN80AJ6DYGV8SC",
+      "final_answer": "both-relocate-and-warn",
+      "input_key": "fix_direction",
+      "mission_id": "01M37PWGWRFNZY8X2Y7P7KJJGK",
+      "mission_slug": "mission-state-audit-trail-durability-01M37PWG",
+      "opened_by": "claude",
+      "options": [
+        "relocate-to-tracked-path",
+        "warn-at-exit-only",
+        "both-relocate-and-warn",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How should doctor mission-state --fix make its audit trail durable/visible: relocate manifest+quarantine to a git-tracked path, warn the operator at exit that the artifacts are untracked, or both?",
+      "rationale": "Operator chose strongest durability+visibility: relocate manifest+quarantine to a git-tracked path AND print an operator-visible summary of what was written/quarantined at --fix exit.",
+      "resolved_at": "2026-09-23T18:06:48.774553Z",
+      "resolved_by": "stijn-dejongh",
+      "slot_key": "specify.audit-trail.fix-direction",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-23T18:07:04.650077Z",
+      "decision_id": "01M37Q68YACZ0JJTJJPWAT159J",
+      "final_answer": "write-only-operator-commits",
+      "input_key": "audit_commit_behavior",
+      "mission_id": "01M37PWGWRFNZY8X2Y7P7KJJGK",
+      "mission_slug": "mission-state-audit-trail-durability-01M37PWG",
+      "opened_by": "claude",
+      "options": [
+        "write-only-operator-commits",
+        "fix-auto-commits-audit-trail",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Once the audit trail lives at a git-tracked path, does 'doctor mission-state --fix' commit it itself, or write it to the tracked location and leave the operator to commit (with the exit summary telling them to)?",
+      "rationale": "Repair stays a non-git-mutating maintenance op: --fix writes manifest+quarantine to the tracked path and the exit summary instructs the operator to commit them. Avoids surprise commits in a dirty tree and entanglement with the operator's staged changes.",
+      "resolved_at": "2026-09-23T18:08:35.893734Z",
+      "resolved_by": "stijn-dejongh",
+      "slot_key": "specify.audit-trail.commit-behavior",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-23T20:36:29.953428Z",
+      "decision_id": "01M37ZQW41RZJM9F08FPRCFRAX",
+      "final_answer": "relocate-properly-full-scope",
+      "input_key": "relocation_scope",
+      "mission_id": "01M37PWGWRFNZY8X2Y7P7KJJGK",
+      "mission_slug": "mission-state-audit-trail-durability-01M37PWG",
+      "opened_by": "claude",
+      "options": [
+        "relocate-properly-full-scope",
+        "warn-only-small-scope",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Brownfield pointcut: relocating to a tracked path collides with #2384 (artifacts ignored so repair does not gate accept/merge). Relocate properly (tracked + self-bookkeeping-churn registration, reconciling both concerns; full scope) or warn-only (keep ignored, advisory durability)?",
+      "rationale": "Operator chose the full-scope durable fix: tracked audit root AND register it as self-bookkeeping churn so accept/merge/record-analysis dirty-tree gates do not refuse. Reconciles #4928 (durable-by-construction) with #2384 (repair must not gate accept) \u2014 churn-classification replaces the ignore as the mechanism that keeps repair from gating accept. Expanded scope: state/contract.py TRACKED surface, is_self_bookkeeping_churn coverage, drop MANIFEST_ROOT from _assert_git_safe checked set (fixes the tracked-path self-block), repoint 3 architectural archive ratchets, keep legacy .kittify/migrations/ ignore for back-compat, update ~12 tests. Also fix guard citation (_assert_git_safe is :2611, not :526).",
+      "resolved_at": "2026-09-23T20:36:38.469115Z",
+      "resolved_by": "stijn-dejongh",
+      "slot_key": "plan.scope.2384-reconciliation",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M37PWGWRFNZY8X2Y7P7KJJGK",
+  "version": 1
+}
