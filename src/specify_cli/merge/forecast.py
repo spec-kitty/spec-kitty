@@ -265,12 +265,20 @@ def run_dry_run_forecast(
         )
         raise typer.Exit(1)
 
-    integration_preview = preview_mission_target_integration(
-        get_main_repo_root(repo_root),
-        lanes_manifest.mission_branch,
-        resolved_target_branch,
-        strategy=resolved_strategy,
-    )
+    try:
+        integration_preview = preview_mission_target_integration(
+            get_main_repo_root(repo_root),
+            lanes_manifest.mission_branch,
+            resolved_target_branch,
+            strategy=resolved_strategy,
+        )
+    except RuntimeError as exc:
+        # A *non-conflict* preview failure — unrelated histories, a failed
+        # ``git worktree add``, an operational git error. Route it through the
+        # same channel as every other dry-run error so ``--json`` output stays
+        # valid JSON (a raw traceback would corrupt it) and terminate the path.
+        _emit_dry_run_error(error_msg=str(exc), json_output=json_output)
+        raise typer.Exit(1) from exc
     if integration_preview.conflicting_paths:
         _emit_target_content_conflict(
             resolved_feature=resolved_feature,
