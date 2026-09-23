@@ -700,7 +700,6 @@ exclude = [
     "src/specify_cli/migration/strip_frontmatter.py",
     "src/specify_cli/migration/verdict_provenance_backfill.py",
     "src/specify_cli/mission.py",
-    "src/specify_cli/mission_brief.py",
     "src/specify_cli/mission_loader/command.py",
     "src/specify_cli/mission_loader/validator.py",
     "src/specify_cli/mission_step_contracts/executor.py",

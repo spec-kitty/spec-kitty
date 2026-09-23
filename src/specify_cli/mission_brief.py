@@ -134,10 +134,7 @@ def write_mission_brief(
     safe_source_file = escape_for_comment(source_file)
     safe_source_agent = escape_for_comment(source_agent) if source_agent else None
 
-    header = (
-        f"<!-- spec-kitty intake: ingested from {safe_source_file} at {ingested_at} -->\n"
-        f"<!-- brief_hash: {brief_hash} -->"
-    )
+    header = f"<!-- spec-kitty intake: ingested from {safe_source_file} at {ingested_at} -->\n<!-- brief_hash: {brief_hash} -->"
     brief_text = header + "\n\n" + content
 
     source_data: dict[str, Any] = {
@@ -240,10 +237,7 @@ def read_brief_source(repo_root: Path) -> dict[str, Any] | None:
     if not isinstance(result, dict):
         raise IntakeFileUnreadableError(
             path=path,
-            cause=ValueError(
-                f"brief-source.yaml must contain a YAML mapping; "
-                f"got {type(result).__name__}"
-            ),
+            cause=ValueError(f"brief-source.yaml must contain a YAML mapping; got {type(result).__name__}"),
         )
 
     # Pair-atomicity rule (P2.5): the writer renames source.yaml first
