@@ -10,6 +10,7 @@
   "purpose_context": "This mission advances Charter-epic golden path fits its NFR-007 budget and is un-skipped on issue-4213-golden-path-nfr-budget so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "Charter-epic golden path fits its NFR-007 budget and is un-skipped",
   "slug": "charter-epic-golden-path-nfr-budget-01M35H35",
+  "status_phase": "1",
   "target_branch": "issue-4213-golden-path-nfr-budget",
   "topology": "single_branch",
   "vcs": "git",
