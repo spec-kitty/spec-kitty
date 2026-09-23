@@ -198,6 +198,65 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     )
 
 
+@pytest.mark.regression
+def test_repair_dedupes_duplicate_authoritative_event_id_without_erroring(tmp_path: Path) -> None:
+    """#4938 (duplicate-drop false positive against the #4897 guard).
+
+    Two byte-identical authoritative rows (``event_type`` in
+    ``AUTHORITATIVE_NON_LANE_EVENT_TYPES``, e.g. a git-merge/replay artifact
+    of an append-only log carrying the same ``DecisionPointOpened`` twice)
+    sharing one ``event_id`` is an ordinary duplicate, not data loss: the
+    survivor already carries the row in ``canonical_rows``.
+
+    Before the #4938 fix, the T010 (#4897) fail-closed guard
+    (``_registry_authoritative_quarantine_violations``) could not
+    distinguish this "duplicate whose survivor made it to canonical_rows"
+    shape from a genuinely dropped/foreign authoritative row, and hard-erred
+    the whole mission repair (``status="error"``) instead of deduping it
+    cleanly (``status="updated"``, ``errors=0``) the way it did before #4897
+    shipped.
+    """
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "099-duplicate-authoritative-event"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "feature_number": "099",
+            "feature_slug": "099-duplicate-authoritative-event",
+            "friendly_name": "Duplicate Authoritative Event",
+            "mission": "software-dev",
+            "slug": "099-duplicate-authoritative-event",
+            "target_branch": "main",
+        },
+    )
+    decision_row = {
+        "at": "2026-01-01T00:00:01+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGX",
+        "event_type": "DecisionPointOpened",
+        "payload": {"decision_point_id": "DP01"},
+    }
+    duplicate_decision_row = dict(decision_row)
+    (mission / "status.events.jsonl").write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in (decision_row, duplicate_decision_row)) + "\n",
+        encoding="utf-8",
+    )
+
+    report = repair_repo(repo)
+
+    result = report.missions[0]
+    assert result.status == "updated", f"expected a successful dedup, got validation_errors: {result.validation_errors}"
+    assert result.validation_errors == []
+    assert not any("registry_authoritative_row_quarantined" in e for e in result.validation_errors)
+    # One copy survives on disk; the byte-identical duplicate is quarantined,
+    # not lost -- the survivor is verified below.
+    assert result.quarantined_rows == 1
+    rows = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert len(rows) == 1
+    assert rows[0] == decision_row
+
+
 def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
     tmp_path: Path,
 ) -> None:

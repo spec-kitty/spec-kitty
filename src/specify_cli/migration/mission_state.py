@@ -16,6 +16,7 @@ import subprocess
 import sys
 import uuid
 from collections.abc import Mapping, Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -1646,7 +1647,7 @@ def _repair_mission(
 
         status_path = mission_dir / EVENTS_FILENAME
         if status_path.exists():
-            canonical_rows, row_transforms, quarantine_lines, row_errors = _canonicalize_status_rows(
+            canonical_rows, row_transforms, quarantine_lines, row_errors, surviving_event_ids = _canonicalize_status_rows(
                 repo_root,
                 mission_dir,
                 raw_rows,
@@ -1662,8 +1663,12 @@ def _repair_mission(
             # _row_level_repair_errors for why this is a backstop against a
             # FUTURE divergence rather than a live path today (the T007-T009
             # fix above already stops any current authoritative type from
-            # reaching quarantine_lines).
-            combined_row_errors = _row_level_repair_errors(quarantine_lines, row_errors)
+            # reaching quarantine_lines). #4938: a quarantined authoritative
+            # row whose event_id also landed in ``surviving_event_ids`` is a
+            # duplicate-event_id drop, not a loss — its byte-identical copy is
+            # already in canonical_rows — so it is excluded from the guard
+            # rather than hard-erroring a healthy, deduped repair.
+            combined_row_errors = _row_level_repair_errors(quarantine_lines, row_errors, surviving_event_ids)
             validation_errors.extend(combined_row_errors)
             if combined_row_errors:
                 return MissionRepairResult(
@@ -1832,7 +1837,16 @@ def _canonicalize_status_rows(
     mission_slug: str,
     mission_id: str,
     generated_ids: list[str] | None = None,
-) -> tuple[list[dict[str, Any]], list[RowTransformation], list[str], list[str]]:
+) -> tuple[list[dict[str, Any]], list[RowTransformation], list[str], list[str], set[str]]:
+    """Canonicalize raw status rows.
+
+    Returns ``(canonical_rows, row_changes, quarantine_lines, errors,
+    seen_event_ids)``. ``seen_event_ids`` is every ``event_id`` that made it
+    into ``canonical_rows`` (i.e. has a surviving copy on disk); it lets a
+    caller distinguish a quarantined row that is genuinely lost from one
+    whose byte-identical duplicate survived elsewhere in the same repair pass
+    (see :func:`_registry_authoritative_quarantine_violations`, #4938).
+    """
     canonical_rows: list[dict[str, Any]] = []
     row_changes: list[RowTransformation] = []
     quarantine_lines: list[str] = []
@@ -1901,7 +1915,7 @@ def _canonicalize_status_rows(
             )
 
     sorted_rows = sorted(canonical_rows, key=_row_sort_key)
-    return sorted_rows, row_changes, quarantine_lines, errors
+    return sorted_rows, row_changes, quarantine_lines, errors, seen_event_ids
 
 
 # ---------------------------------------------------------------------------
@@ -2002,7 +2016,10 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
     return bool(is_retrospective_lifecycle_event(row) or is_authoritative_non_lane_event_type(row.get("event_type")))
 
 
-def _registry_authoritative_quarantine_violations(quarantine_lines: Sequence[str]) -> list[str]:
+def _registry_authoritative_quarantine_violations(
+    quarantine_lines: Sequence[str],
+    surviving_event_ids: AbstractSet[str] | None = None,
+) -> list[str]:
     """Return a diagnostic per quarantined line the registry says was live data.
 
     T010 (#4897) fail-closed guard: with :func:`_is_preserved_non_lane_row`
@@ -2019,7 +2036,21 @@ def _registry_authoritative_quarantine_violations(quarantine_lines: Sequence[str
     already accepted by the same parse earlier in the pipeline, so this
     treats a parse failure as "not diagnosable, not a violation" rather than
     raising a second time.
+
+    #4938: ``quarantine_lines`` is fed from two distinct sources upstream in
+    :func:`_canonicalize_status_rows` — a genuinely foreign/rejected row (no
+    surviving copy anywhere) and a *duplicate*-``event_id`` drop, whose
+    byte-identical survivor is already in ``canonical_rows``. The guard
+    cannot tell these apart from the quarantined text alone, so a caller may
+    pass ``surviving_event_ids`` (every ``event_id`` that reached
+    ``canonical_rows``) to exclude the second case: an authoritative
+    quarantined row whose ``event_id`` has a surviving copy is a safe dedup,
+    not data loss, and is skipped rather than reported. Passing ``None``
+    (the default, used by direct/unit-level callers with no survivor
+    context) preserves the original behavior of flagging every
+    registry-authoritative quarantined line unconditionally.
     """
+    surviving = surviving_event_ids or frozenset[str]()
     violations: list[str] = []
     for line in quarantine_lines:
         try:
@@ -2028,23 +2059,36 @@ def _registry_authoritative_quarantine_violations(quarantine_lines: Sequence[str
             continue
         if not isinstance(obj, dict):
             continue
-        if is_authoritative_non_lane_event_type(obj.get("event_type")):
-            violations.append(
-                f"registry_authoritative_row_quarantined: event_id={obj.get('event_id')!r} "
-                f"event_type={obj.get('event_type')!r} was dropped as a non-status event "
-                "despite being authoritative per AUTHORITATIVE_NON_LANE_EVENT_TYPES (#4897 guard)"
-            )
+        if not is_authoritative_non_lane_event_type(obj.get("event_type")):
+            continue
+        event_id = obj.get("event_id")
+        if isinstance(event_id, str) and event_id in surviving:
+            # A byte-identical copy already reached canonical_rows (the
+            # duplicate-event_id drop path) — nothing was lost.
+            continue
+        violations.append(
+            f"registry_authoritative_row_quarantined: event_id={event_id!r} "
+            f"event_type={obj.get('event_type')!r} was dropped as a non-status event "
+            "despite being authoritative per AUTHORITATIVE_NON_LANE_EVENT_TYPES (#4897 guard)"
+        )
     return violations
 
 
-def _row_level_repair_errors(quarantine_lines: Sequence[str], row_errors: Sequence[str]) -> list[str]:
+def _row_level_repair_errors(
+    quarantine_lines: Sequence[str],
+    row_errors: Sequence[str],
+    surviving_event_ids: AbstractSet[str] | None = None,
+) -> list[str]:
     """Combine genuine canonicalization errors with T010's registry guard.
 
     A single list lets ``_repair_mission`` fail on either failure class
     through one early-return branch (kept under the complexity ceiling)
-    instead of two near-duplicate ``if``/return blocks.
+    instead of two near-duplicate ``if``/return blocks. ``surviving_event_ids``
+    is forwarded to :func:`_registry_authoritative_quarantine_violations` so a
+    duplicate-``event_id`` drop with a surviving copy does not hard-error the
+    repair (#4938).
     """
-    return [*row_errors, *_registry_authoritative_quarantine_violations(quarantine_lines)]
+    return [*row_errors, *_registry_authoritative_quarantine_violations(quarantine_lines, surviving_event_ids)]
 
 
 _LEGACY_TYPED_LANE_EVENT_TYPE = "WPStatusChanged"
