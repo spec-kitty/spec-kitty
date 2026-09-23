@@ -103,8 +103,16 @@ def test_synthetic_mission_type_is_picked_up_by_both_rosters(tmp_path: Path) -> 
     # install recorded at the *primary* checkout's last ``uv sync``, not this
     # lane worktree's own ``src/`` — ``uv run`` re-resolves the project rooted
     # at ``cwd`` so the subprocess sees the worktree's own accessor (T012-T014).
+    # ``--no-sync`` (#4866 WP04 scope extension, was #4922): this call wants
+    # the project environment as-is, never a resync. Without it, a bare
+    # ``uv run --frozen`` silently resyncs whatever ``UV_PROJECT_ENVIRONMENT``
+    # (or the default ``.venv``) currently names down to the repo's
+    # ``.python-version`` pin — corrupting a concurrently-running xdist
+    # worker's environment underneath it. See
+    # ``tracer-design-decisions.md`` for the empirical comparison against
+    # ``--python``/``--all-extras``.
     result = subprocess.run(  # noqa: S603, S607 — fixed args, no shell, test-only; `uv` resolved via PATH like every other `uv run` invocation in this suite
-        ["uv", "run", "--frozen", "python", str(driver_script), str(tmp_path)],
+        ["uv", "run", "--frozen", "--no-sync", "python", str(driver_script), str(tmp_path)],
         cwd=_REPO_ROOT,
         capture_output=True,
         text=True,
