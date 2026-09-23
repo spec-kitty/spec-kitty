@@ -335,20 +335,26 @@ def test_migration_preserves_unrelated_gitattributes_content(tmp_path: Path) -> 
 
 @pytest.mark.git_repo
 @pytest.mark.non_sandbox  # shells out to `spec-kitty merge-driver-*` via git
-def test_create_window_collision_clobbers_target_without_driver_registered(
+def test_create_window_collision_fails_closed_without_driver_registered(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """RED-FIRST (T080): reproduce the #2804-shaped create-window clobber
-    through ``specify_cli.lanes.merge._merge_branch_into`` -- the exact
-    function ``spec-kitty merge`` calls for mission->target integration --
-    with the review-cycle driver EXCLUDED from the registry (simulating the
-    tree state before this WP landed). The target's genuine cycle-1 verdict
-    must be destroyed, demonstrated rather than merely asserted."""
+    """#4892: without a driver to reconcile it, the create-window collision is
+    now an ordinary content conflict — the squash must FAIL CLOSED, not clobber.
+
+    Before #4892 the mission->target squash ran ``-X theirs``, so with the
+    review-cycle driver EXCLUDED from the registry the target's genuine cycle-1
+    verdict was silently overwritten by the mission branch's mis-numbered
+    verdict (the #2804-shaped clobber this test used to pin). Dropping
+    ``-X theirs`` turns that same collision into a normal unresolved conflict:
+    ``_merge_branch_into`` raises and ``main`` never moves, so the target's
+    verdict survives verbatim. This is the fail-closed contract the driver-
+    present sibling test exercises the reconciling path for."""
     repo = tmp_path / "repo"
     mission_branch = _bootstrap_create_window_collision(repo)
 
     pre = _show(repo, "main", _REVIEW_CYCLE_REL_PATH)
     assert pre == _TARGET_VERDICT, "precondition: target must start with its genuine verdict"
+    main_before = _git(repo, "rev-parse", "main").stdout.strip()
 
     without_review_cycle = tuple(
         spec for spec in _MERGE_DRIVERS if spec.config_key != "spec-kitty-review-cycle"
@@ -359,19 +365,21 @@ def test_create_window_collision_clobbers_target_without_driver_registered(
     )
     monkeypatch.setattr("specify_cli.lanes.merge._MERGE_DRIVERS", without_review_cycle)
 
-    changed = _merge_branch_into(repo, mission_branch, "main", strategy=MergeStrategy.SQUASH)
-    assert changed is True
-
-    post = _show(repo, "main", _REVIEW_CYCLE_REL_PATH)
-    assert post == _MISCOUNTED_VERDICT, (
-        "RED reproduction did not reproduce the clobber -- expected the "
-        "target's genuine cycle-1 verdict to be silently overwritten by the "
-        f"mission branch's mis-numbered verdict. Got: {post!r}"
+    with pytest.raises(RuntimeError) as excinfo:
+        _merge_branch_into(repo, mission_branch, "main", strategy=MergeStrategy.SQUASH)
+    assert _REVIEW_CYCLE_REL_PATH in str(excinfo.value), (
+        "the fail-closed error must name the conflicting review-cycle artifact; "
+        f"got: {excinfo.value!r}"
     )
-    assert post != _TARGET_VERDICT, (
-        f"the target's genuine verdict SURVIVED verbatim ({post!r}) -- the "
-        "#2804-shaped clobber this test exists to reproduce did not occur; "
-        "the fixture no longer demonstrates the hazard."
+
+    # main must NOT have advanced, and the target's genuine verdict must survive
+    # verbatim — the whole point of failing closed instead of clobbering.
+    assert _git(repo, "rev-parse", "main").stdout.strip() == main_before, (
+        "target ref advanced despite an unresolved conflict — fail-closed broken"
+    )
+    post = _show(repo, "main", _REVIEW_CYCLE_REL_PATH)
+    assert post == _TARGET_VERDICT, (
+        f"the target's genuine verdict was not preserved verbatim. Got: {post!r}"
     )
 
 
