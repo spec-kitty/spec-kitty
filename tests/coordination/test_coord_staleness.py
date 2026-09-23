@@ -320,6 +320,148 @@ def test_fix_one_staleness_merges_target_sha_not_branch_name(
     assert captured["cmd"][-3:] == ["merge", "--ff-only", "target-sha"]
 
 
+def test_fix_one_staleness_merge_failure_returns_finding_without_raising(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """#4950 follow-up: a failed `--ff-only` must surface as a finding, not raise."""
+    from specify_cli import coordination as coord_mod
+
+    monkeypatch.setattr(
+        cd,
+        "_coord_vs_target_shas",
+        lambda *_a: ("coord", "main", "coord-sha", "target-sha"),
+    )
+    monkeypatch.setattr(cd, "_is_ff_candidate", lambda *_a: True)
+    monkeypatch.setattr(
+        cd,
+        "_coordination_identity",
+        lambda *_a: ("coord", "mission", "01ABCDEF00000000000000000A"),
+    )
+    monkeypatch.setattr(cd, "_resolve_coord_short", lambda *_a: "01ABCDEF")
+    monkeypatch.setattr(
+        coord_mod.CoordinationWorkspace,
+        "worktree_path",
+        staticmethod(lambda *_a: tmp_path),
+    )
+    monkeypatch.setattr(cd, "_coord_worktree_head_finding", lambda *_a: None)
+    monkeypatch.setattr(cd, "_coord_worktree_dirty_finding", lambda *_a: None)
+
+    def _fake_run(cmd: list[str], **k: Any) -> subprocess.CompletedProcess[str]:
+        result = subprocess.CompletedProcess(
+            cmd, 128, stdout="", stderr="fatal: Not possible to fast-forward, aborting.",
+        )
+        if k.get("check"):
+            raise subprocess.CalledProcessError(
+                128, cmd, output=result.stdout, stderr=result.stderr,
+            )
+        return result
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+
+    finding = cd._fix_one_mission_coord_staleness(tmp_path, {})
+
+    assert finding is not None
+    assert finding.error_code == cd._COORD_STALE_FIX_BLOCKED_CODE
+    assert "fatal: Not possible to fast-forward" in finding.message
+    assert "Fast-forwarded" not in capsys.readouterr().out
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_e_merge_failure_for_one_mission_does_not_block_another(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """#4950 follow-up (renata-LOW-shaped): a failed ``--ff-only`` for one
+    mission must not raise or abort fixing an unrelated, healthy mission in
+    the same ``--fix`` run.
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    # Mission A: a real strict-ancestor candidate whose merge we force to fail.
+    fail_slug = "merge-fail-mission"
+    fail_branch = "coord-fail"
+    _git(repo, "branch", fail_branch)
+    (repo / "advance-a.txt").write_text("a\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "advance target for A")
+    fail_dir = repo / "kitty-specs" / fail_slug
+    fail_dir.mkdir(parents=True)
+    (fail_dir / "meta.json").write_text(
+        json.dumps({
+            "mission_slug": fail_slug,
+            "mission_id": "01ABCDEF0000000000000FAIL",
+            "coordination_branch": fail_branch,
+            "target_branch": _TARGET_BRANCH,
+        }),
+        encoding="utf-8",
+    )
+    fail_worktree = tmp_path / "fail-wt"
+    _git(repo, "worktree", "add", str(fail_worktree), fail_branch)
+
+    # Mission B: a real, healthy strict-ancestor candidate that must still
+    # be fast-forwarded despite mission A's merge failure.
+    ok_slug = "merge-ok-mission"
+    ok_branch = "coord-ok"
+    _git(repo, "branch", ok_branch)
+    ok_dir = repo / "kitty-specs" / ok_slug
+    ok_dir.mkdir(parents=True)
+    (ok_dir / "meta.json").write_text(
+        json.dumps({
+            "mission_slug": ok_slug,
+            "mission_id": "01ABCDEF00000000000000OK01",
+            "coordination_branch": ok_branch,
+            "target_branch": _TARGET_BRANCH,
+        }),
+        encoding="utf-8",
+    )
+    ok_worktree = tmp_path / "ok-wt"
+    _git(repo, "worktree", "add", str(ok_worktree), ok_branch)
+
+    _patch_worktree_path_by_slug(
+        monkeypatch,
+        {fail_slug: fail_worktree, ok_slug: ok_worktree},
+        fallback=tmp_path / "no-such-worktree",
+    )
+
+    real_run = subprocess.run
+
+    def _selective_merge_failure(
+        cmd: list[str], **k: Any
+    ) -> subprocess.CompletedProcess[str]:
+        if "merge" in cmd and str(fail_worktree) in cmd:
+            result = subprocess.CompletedProcess(
+                cmd, 128, stdout="", stderr="fatal: forced failure for A",
+            )
+            if k.get("check"):
+                raise subprocess.CalledProcessError(
+                    128, cmd, output=result.stdout, stderr=result.stderr,
+                )
+            return result
+        return real_run(cmd, **k)
+
+    monkeypatch.setattr(subprocess, "run", _selective_merge_failure)
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    target_sha = _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip()
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True, fix=True)
+
+    out = capsys.readouterr().out
+    assert exc.value.exit_code == 1
+    assert cd._COORD_STALE_FIX_BLOCKED_CODE in out
+    assert "fatal: forced failure for A" in out
+
+    # Mission A's merge genuinely failed -- nothing mutated there.
+    assert _git(fail_worktree, "rev-parse", "HEAD").stdout.strip() != target_sha
+    # Mission B was NOT blocked by A's failure -- it really fast-forwarded.
+    assert _git(ok_worktree, "rev-parse", "HEAD").stdout.strip() == target_sha
+    assert _git(repo, "rev-parse", ok_branch).stdout.strip() == target_sha
+
+
 def test_check_and_warn_coord_staleness_no_meta_is_silent(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -1326,6 +1326,39 @@ def _coord_worktree_mismatch_fix_blocked_finding(
     )
 
 
+def _coord_staleness_fix_merge_failed_finding(
+    coord_branch: str, target_branch: str, stderr: str,
+) -> DoctorFinding:
+    """FR-009: a failed ``--ff-only`` merge, as a surfaced ``error`` finding.
+
+    #4950 second-opinion follow-up: every precondition above (divergence,
+    dirty worktree, branch mismatch) is checked before the merge runs, so in
+    principle the merge itself should never fail -- but ``check=True``
+    turning a real-world failure into an uncaught ``CalledProcessError``
+    would crash ``run_coordination_health`` (no JSON, no exit code, and
+    every OTHER mission's fix in the same run aborted) instead of reporting
+    it. A failed ``--ff-only`` mutates nothing, so this reuses
+    ``_COORD_STALE_FIX_BLOCKED_CODE`` -- same "nothing was mutated"
+    invariant as the other blocked-fix findings.
+    """
+    message = (
+        f"Refusing to fast-forward: coordination branch {coord_branch!r} "
+        f"failed to fast-forward to target branch {target_branch!r} — "
+        "`--fix` mutates nothing."
+    )
+    if stderr:
+        message = f"{message}\n{stderr.strip()}"
+    return DoctorFinding(
+        severity="error",
+        message=message,
+        next_step=(
+            "Inspect the coordination worktree and git's error above; "
+            "`--fix` did not attempt anything further."
+        ),
+        error_code=_COORD_STALE_FIX_BLOCKED_CODE,
+    )
+
+
 def _coord_staleness_fix_postcondition_finding(
     coord_branch: str,
     target_branch: str,
@@ -1408,10 +1441,19 @@ def _fix_one_mission_coord_staleness(
     # name) so the move and the check refer to the exact same commit --
     # `target_branch` can advance between resolving `target_sha` above and
     # running this merge (#4950 second-opinion follow-up).
-    subprocess.run(
+    #
+    # `check=False`: a failed `--ff-only` must surface as a finding, not
+    # raise `CalledProcessError` out of `run_coordination_health` (which
+    # would abort every OTHER mission's fix in the same run, and skip the
+    # JSON emission entirely) -- see `_coord_staleness_fix_merge_failed_finding`.
+    merge_result = subprocess.run(
         ["git", "-C", str(worktree), "merge", "--ff-only", target_sha],
-        check=True, capture_output=True, text=True,
+        check=False, capture_output=True, text=True,
     )
+    if merge_result.returncode != 0:
+        return _coord_staleness_fix_merge_failed_finding(
+            coord_branch, target_branch, merge_result.stderr,
+        )
     repaired_coord_sha = _rev_parse(repo_root, f"refs/heads/{coord_branch}")
     if repaired_coord_sha != target_sha:
         return _coord_staleness_fix_postcondition_finding(
