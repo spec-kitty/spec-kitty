@@ -11,6 +11,7 @@
   "purpose_context": "Catfooding defects show ordinary commands (init, research, intake) overwriting or truncating operator-authored content with no backup while reporting exit-0 success. This mission extends the existing asset-preservation ownership guard from the deletion seam to the overwrite/truncate seam so package-owned flows prove ownership by content or provenance before destroying user bytes, honoring the charter's User Customization Preservation invariant.",
   "purpose_tldr": "Stop Spec Kitty commands from silently destroying user-authored files by extending the ownership-proof guard from deletion to overwrite/truncate.",
   "slug": "ownership-boundary-overwrite-hardening-01M35ER3",
+  "status_phase": "1",
   "target_branch": "issue-4931-ownership-boundary-overwrite-hardening",
   "topology": "lanes",
   "vcs": "git",
