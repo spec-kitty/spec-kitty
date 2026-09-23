@@ -148,6 +148,30 @@ modules:
   - charter
   - specify_cli.charter_runtime
   tier: standard
+  # shard_count=5 (WP05 T024, spec-kitty#4865; corrected per operator ruling,
+  # Decision Moment 01M3584PY5A6F79DWX1QFDHW87 -- see mission decisions/):
+  # durations recaptured 2026-09-22 via scripts/ci/capture_shard_timings.py
+  # --module charter --write (run-id wp02-durations-20260922T174952Z; 6156
+  # collected/passed, exit_code 0, 1134.188s summed per-test durations --
+  # ci-shard-timings.json). The committed list length (6156) now equals what
+  # the consumer actually collects (pytest tests/charter tests/doctrine -m
+  # "not performance and not stress" --collect-only -q -> 6156), so
+  # module-tests.yml's positional nodeid/duration pairing now weights this
+  # module's shards by MEASURED time instead of silently falling back to
+  # uniform weights (its length-mismatch fallback) -- that fallback, not
+  # skew, is what #4864's observed 31m13s long pole (run 35756657364)
+  # needed fixed. LPT bin-packing (_lpt_bin_pack/_skew_of,
+  # test_module_shard_registry.py) of these durations gives skew=0.000% at
+  # shard_count=5; skew does not discriminate a good shard_count here (it
+  # stays ~0% across the whole practical range on both the pre- and
+  # post-recapture data), so it is NOT the basis for the value below.
+  # shard_count=5 is chosen as the smallest value whose worst shard,
+  # projected onto real GitHub Actions wall-clock via the empirical
+  # CI/local ratio measured in dispatch run 35756657364 (7624s CI /
+  # 1134.188s local ~= 6.72x), lands safely under module-tests.yml's
+  # 40-minute per-shard timeout (~25m vs ~32m projected at shard_count=4,
+  # which leaves almost no margin) -- not the manual wall-clock/test-count
+  # heuristic C-002 rejects as a precedent.
   shard_count: 5
   # DUAL test tree (CLAUDE.md Modularity SSOT): the doctrine test tree did
   # not move when src/doctrine/ was absorbed into src/charter/offering/, so
