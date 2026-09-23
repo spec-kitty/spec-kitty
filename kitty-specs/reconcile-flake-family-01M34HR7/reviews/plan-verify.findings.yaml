@@ -1,0 +1,131 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Gates
+    severity: 4
+    title: "Gate Statement misdescribes how the `ci` module shard is reached — ci-modules.yml is NOT gated by ci-router.yml's `ci` filter group"
+    evidence:
+      - artifact: "plan.md § Gate Statement (Triggers, hard-enforced), the `ci-modules.yml`'s `ci` shard bullet"
+      - code: ".github/workflows/ci-router.yml:181-193"
+      - code: ".github/workflows/ci-modules.yml:37-50"
+      - code: ".github/ci-module-registry.yml (module: ci, roots: scripts/ci/**, .github/workflows/**)"
+    claim: >-
+      plan.md states the `ci` shard is "the actual test *executor* for this diff, reached via
+      `ci-router.yml`'s `ci` filter group (`scripts/ci/**` + `.github/workflows/**`)". This is
+      factually wrong. `ci-router.yml`'s own header comment for the `ci` filter group says
+      verbatim: "No job gates on this group BY DESIGN: the per-PR executor for these paths'
+      guard suite (tests/ci) is the ci-modules.yml module matrix, which runs on every PR" —
+      i.e. ci-router.yml explicitly disclaims gating anything with this output. `ci-modules.yml`
+      is a wholly separate workflow file, triggered directly and independently by its own
+      `on: pull_request` / `on: push` / `on: workflow_call` block (lines 37-50), with its own
+      `generate-matrix` job that diff-scopes via `scripts/ci/gate_selection.py`'s
+      `select_modules` reading `git diff` directly — not by consuming any `ci-router.yml`
+      job output. The two workflows both use the same `gate_selection.py` authority in
+      PARALLEL, not in a "reached via" dependency chain. The practical bottom line (the `ci`
+      shard does execute against `scripts/ci/**` + `.github/workflows/**` changes) happens to
+      still be correct, because ci-modules.yml's own independent diff-scoping selects the `ci`
+      module row for this diff's paths — but the causal mechanism the Gate Statement asserts
+      contradicts the cited source files, which is exactly the "verified, trust us" failure
+      mode this section must not exhibit.
+    remediation: >-
+      Rewrite the bullet to state that `ci-modules.yml` is triggered directly by the same
+      `pull_request`/`push` events (not routed through `ci-router.yml`), and that its own
+      `generate-matrix` job independently selects the `ci` module row (via
+      `scripts/ci/gate_selection.select_modules` against `.github/ci-module-registry.yml`) for
+      diffs touching `scripts/ci/**` or `.github/workflows/**`. Drop the "reached via
+      ci-router.yml's `ci` filter group" framing entirely — cite `ci-modules.yml`'s own trigger
+      block and `generate-matrix` job instead.
+
+  - id: PLAN-VERIFY-002
+    lens: "MISSION-SPECIFIC (Retry Budget Rationale, NFR-001) — part (a)"
+    severity: 2
+    title: "Artifact-visibility propagation-lag claim is stated as established fact with no citation or hedge"
+    evidence:
+      - artifact: "plan.md § Retry Budget Rationale (NFR-001), the `wait_for_artifacts.py` bullet"
+      - artifact: ".kittify/charter/charter.md § Writing, Communication & Diagramming Doctrine → Supporting workflows (\"every factual claim in a research output is traceable to a named source (an unsourced claim is a hypothesis and must be labelled one)\", `research-citation-discipline` styleguide)"
+    claim: >-
+      The rationale for the 8-attempt/~155s artifact-poller budget states: "GitHub Actions
+      artifact-listing propagation lag (the actual race) is typically observed on the order of
+      single-digit-to-tens-of-seconds after upload completion" — presented as an established
+      empirical fact, with no citation (no GitHub docs link, no incident log, no measurement,
+      no reference to #4675's comment thread data). NFR-001 explicitly permits the plan to pick
+      numbers with "a stated rationale" without requiring the rationale be measured, so this is
+      not a hard NFR-001 violation and the provisional/tunable framing elsewhere in the plan
+      partially mitigates the risk. But per the charter's citation-discipline standard, an
+      unsourced factual claim must be labelled a hypothesis, and this one is not — a reviewer
+      could mistake "typically observed" for a grounded figure rather than an assumption.
+    remediation: >-
+      Either cite a concrete source for the propagation-lag figure (a GitHub Actions
+      documentation page, an incident report, or observed timing data from #4675's own
+      thread), or explicitly relabel the sentence as an unverified working assumption, e.g.
+      "this is our working hypothesis, not a measured figure — SC-004's post-merge watch is
+      what validates or corrects it."
+
+  - id: PLAN-VERIFY-003
+    lens: "MISSION-SPECIFIC (Retry Budget Rationale, NFR-001) — part (b)"
+    severity: 3
+    title: "Plan does not commit each of the three call sites to its own exact-attempt-count termination assertion — only the shared primitive is clearly so committed"
+    evidence:
+      - artifact: "plan.md § Retry Budget Rationale (NFR-001), closing paragraph: \"Both budgets are unit-tested for their bound itself (a mocked source that never stabilizes must still terminate after exactly the stated attempt count...)\""
+      - artifact: "plan.md § Project Structure, tests/ci/ file list (test_reconcile_retry.py \"the shared primitive's own unit tests\"; test_wait_for_artifacts.py \"FR-005/006 mocked-GH-artifacts-API tests\"; test_fleet_verdict.py/test_fleet_main.py \"new retry tests + one re-pinned existing test\")"
+      - artifact: "spec.md NFR-003 (requires asserting \"the recovery path\" and \"the terminal path\" per surface, but does not itself require pinning an exact attempt-count number at each call site)"
+    claim: >-
+      `retry_with_backoff` takes `max_attempts` as a caller-supplied parameter, so "terminates
+      after exactly the stated attempt count" is a property the shared primitive can prove once
+      generically (any N) in `test_reconcile_retry.py`. Whether each of the three call sites
+      (`fleet_verdict.py::report()`, `fleet_main.py::report()`, `wait_for_artifacts.py`) is
+      actually WIRED with the plan's stated numbers (4, 4, 8) is a separate, call-site-specific
+      fact that only a test asserting the mock's exact call/attempt count at that call site can
+      catch. The Project Structure test-file list describes each call-site file only generically
+      ("new retry tests", "mocked-GH-artifacts-API tests") — none of these descriptions commits
+      to asserting the wired constant itself. A call-site wiring bug (e.g. `fleet_main.py`
+      accidentally passed `max_attempts=3`) would pass every test description given here as long
+      as the call site "eventually skips"/"eventually recovers", because none of the described
+      tests are explicitly required to check the exact attempt count at that specific site — only
+      the generic primitive test in `test_reconcile_retry.py` is clearly committed to that
+      exactness, and it tests the primitive's own looping, not any specific call site's wiring.
+    remediation: >-
+      Add an explicit sentence in the Project Structure / NFR-003 test plan requiring each of
+      `test_fleet_verdict.py`, `test_fleet_main.py`, and `test_wait_for_artifacts.py` to assert
+      the mock's exact call count at the exhausted-budget path (e.g. `assert mock_snapshot.call_count == 4`
+      for the fleet-verdict pair, `== 8` for the artifact poller), so the plan's own stated
+      budget numbers are pinned at each call site, not only proven generically in the shared
+      primitive's test file.
+
+  - id: PLAN-VERIFY-004
+    lens: "Revert discipline"
+    severity: 3
+    title: "NFR-003's red-first clause is concretely walked through for only 2 of its 4 required test surfaces"
+    evidence:
+      - artifact: "plan.md § Constitution Check table, \"ATDD-first / red-first\" row (generic restatement only: \"Planned — binding on implement phase\")"
+      - artifact: "plan.md § \"Existing Test That Must Change, and Why That Is Not a Regression\" (concretely addresses red-first only for the two EXISTING tests being re-pinned in test_fleet_verdict.py/test_fleet_main.py, explicitly noting \"NFR-003's red-first clause is satisfied here in the inverse direction from a brand-new test\")"
+      - artifact: "plan.md § User Story 3 / Safety Invariants (describes wait_for_artifacts.py's new tests and FR-009's new isolation tests, but never states how red-first applies when there is no pre-existing entry point to run red against)"
+      - artifact: "spec.md NFR-003 (\"Each new retry unit test MUST first be run against the unmodified (pre-fix) surface and confirmed to fail the way the current code does today ... before the retry implementation is added\")"
+    claim: >-
+      The plan concretely satisfies red-first only for the two pre-existing-test-edit surfaces
+      (the `test_fleet_verdict.py`/`test_fleet_main.py` "publication rechecks head" tests being
+      re-pinned) — and explicitly frames that as the inverse case (the test is already red today
+      by design). It never explains how "red-first through the pre-existing entry point" applies
+      to: (a) the brand-NEW recovery-path tests inside those same two files (as opposed to the
+      one edited existing test); (b) `wait_for_artifacts.py`'s entirely new test file, where
+      there is literally no pre-existing entry point (the module does not exist pre-fix) to run
+      red against; or (c) FR-009's cross-invocation isolation test, which has no pre-fix failure
+      mode to reproduce at all (pre-fix code has no retry state to leak in the first place, so
+      the property trivially holds before this mission and cannot be run "red" against unmodified
+      code). This leaves 2 of NFR-003's 4 required test surfaces (wait_for_artifacts.py, FR-009
+      isolation) with no concrete red-first application described, risking the implement phase
+      either skipping red-first there or a reviewer being unable to verify it was done.
+    remediation: >-
+      Add an explicit note defining how red-first is satisfied for surfaces with no pre-existing
+      entry point: for `wait_for_artifacts.py`, specify running the new recovery/terminal tests
+      against a stub single-attempt (no-loop) version of the function first and confirming they
+      fail; for FR-009's isolation test, state explicitly that it is exempted from red-first
+      because no pre-fix analog exists (own that exemption rather than leaving it silently
+      unaddressed), and add one sentence confirming the NEW (non-re-pinned) recovery-path tests
+      inside test_fleet_verdict.py/test_fleet_main.py are also run red-first against the
+      unmodified `report()` (expecting the existing immediate `ValueError`) before the retry
+      wrapper lands.

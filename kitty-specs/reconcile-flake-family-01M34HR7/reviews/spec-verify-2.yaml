@@ -1,0 +1,24 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+round: 2
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: "AC1 (line 43) now scopes the mocked-instability scenario to the three retry-bearing surfaces (fleet_verdict.py::report(), fleet_main.py::report(), the new ci-aggregate.yml polling step) and a new AC2 (line 44) separately and correctly describes reconcile_shards.py::main()'s unchanged, non-retrying, single-pass behavior; the Independent Test (line 39) also now cites FR-002/FR-003/FR-004 and FR-005/FR-006 separately from main()'s unchanged fail-closed behavior (SC-001)."
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: "Key Entities (lines 124-131) now lists four entities, explicitly states entity 3 (reconcile_shards.py) is \"fully unchanged by this mission, both in shape and in behavior\" rather than lumped into a shared \"only retry behavior changes\" sentence, and entity 4 is the new artefact-visibility polling step/script."
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: "The Concurrent-missions edge case (line 82) now attributes retry-isolation only to report() (fleet_verdict.py/fleet_main.py) and the new ci-aggregate.yml polling step, with an explicit parenthetical excluding reconcile_shards.py::main() as out of scope because it \"does not retry at all post-fix.\""
+  - id: SPEC-FRESH-004
+    status: resolved
+    reason: "SC-002(b) (line 138) now attributes the bounded retry budget to the ci-aggregate.yml polling/download step, with an explicit closing clause \"the budget belongs to the polling step, not to reconcile_shards.py's own invocation,\" matching SC-001's framing."
+  - id: SPEC-FRESH-005
+    status: resolved
+    reason: "FR-005 (line 97) adds a binding \"Implementation shape\" clause requiring the polling step to be a new, importable Python script/module under scripts/ci/ (e.g. wait_for_artifacts.py), explicitly prohibiting inline YAML/bash or a third-party Marketplace Action, and ties this to NFR-003(3)'s pytest-mockability requirement."
+  - id: SPEC-FRESH-006
+    status: resolved
+    reason: "The Constraints table was fully renumbered (C-001 through C-008, no gap) rather than left with a permanent hole or an explanatory note; a whole-document grep for the C-0NN pattern confirms every reference (table rows plus the SC-004 cross-reference to C-001) is internally consistent with no dangling reference to a since-removed ID."

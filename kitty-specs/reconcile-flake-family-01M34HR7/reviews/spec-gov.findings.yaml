@@ -1,0 +1,107 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+lens_group: gov
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: SPEC-GOV-001
+    lens: Directive
+    severity: 4
+    title: "FR-005/User Story 3 asks reconcile_shards.py::main() to retry an artefact-presence check it structurally cannot re-observe"
+    evidence:
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 1: \"Given a selected (must_be_fresh) shard that is absent on the first read but present on a retry within the bounded budget, When reconcile_shards.py::main() runs, Then it completes successfully\""
+      - artifact: "spec.md § FR-005: \"reconcile_shards.py::main()'s missing-shard completeness check ... to re-attempt the artefact-presence check a bounded number of times with backoff before concluding a selected shard is absent\""
+      - code: "scripts/ci/reconcile_shards.py:245-272 (main()): current_dir/previous_dir are populated once, before main() is ever invoked, by prior workflow steps; main() only calls index_by_basename() (scripts/ci/reconcile_shards.py:200-207), which does a local Path.rglob() over an already-static directory. The module imports only json, os, re, sys, collections, dataclasses, pathlib, yaml — no urllib/requests/GitHub API client of any kind."
+      - code: ".github/workflows/ci-aggregate.yml:159-223 (three actions/download-artifact steps, each continue-on-error: true) run ONCE, BEFORE the single \"Reconcile shard artefacts\" step at .github/workflows/ci-aggregate.yml:230-239 (`run: python3 scripts/ci/reconcile_shards.py`, no retry wrapper)."
+    claim: >
+      The spec's User Story 3 / FR-005 / FR-006 / the Edge Cases entry for reconcile_shards.py all frame the fix as a
+      bounded retry loop living inside reconcile_shards.py::main() (parallel in shape to the FR-002/FR-003 retry in
+      fleet_verdict.py/fleet_main.py, which DO make live GitHub API calls via the GitHub class and so can legitimately
+      re-read and get a different answer). But reconcile_shards.py was deliberately extracted (per its own module
+      docstring, "so the completeness decision is unit-testable") into a pure function over an already-downloaded,
+      static local directory: it has no network/API capability at all, and nothing repopulates out/aggregate/current
+      between calls within one job. A bounded retry loop inside main() that re-reads the same static directory will
+      observe the identical (missing or present) result on every attempt — it cannot converge to a different answer,
+      so it would be a vacuous, no-op retry that never actually closes the #4675 race. The real timing race (if any)
+      is upstream, at the actions/download-artifact step(s), a GitHub-Actions-level concern the Python module has no
+      access to today. This is a plan-blocking gap: an implementer following FR-005 literally would either (a) write
+      a retry that can never fire in production (looks green, fixes nothing), or (b) discover mid-WP that reconcile_
+      shards.py needs an entirely new GitHub Actions artifact-polling capability grafted onto its declared
+      pure-function architecture (a materially bigger, unscoped change), or (c) have to move the retry to the YAML
+      workflow-step level instead — none of which the spec discloses or lets the plan phase choose between.
+    remediation: >
+      Before plan phase, resolve where the retryable read actually lives: either (1) explicitly scope FR-005 to a
+      YAML-level retry around the download-artifact + reconcile_shards.py step pair (and rewrite the User Story 3
+      acceptance scenarios so they no longer claim a single reconcile_shards.py::main() invocation observes the
+      transition from absent to present), or (2) explicitly authorize giving reconcile_shards.py new GitHub Actions
+      API/artifact-polling capability and say so as a first-class architectural decision (not an implicit retry
+      "parallel" to FR-002/FR-003). Either way, add a sentence to FR-005 or a new Constraint stating which of the two
+      shapes is in scope, so the plan phase doesn't have to reverse-engineer this from the code.
+
+  - id: SPEC-GOV-002
+    lens: Directive
+    severity: 3
+    title: "\"C-005\" is used for three unrelated meanings inside this spec plus a mis-citation of contracts/artefact-naming.md"
+    evidence:
+      - artifact: "spec.md § Constraints, C-005: \"Diff-cover coverage floor does not apply, but tests are still required\" (this spec's own numbered constraint)"
+      - artifact: "spec.md § User Story 3: \"invariant C-005 (\"never silently treat as complete\", per contracts/artefact-naming.md) is never weakened\""
+      - artifact: "spec.md § FR-006: \"(citing invariant C-005 / contracts/artefact-naming.md 'Stale-artefact fallback')\""
+      - artifact: "spec.md § Edge Cases (shard permanently missing): \"(this is the same C-005 floor as above...)\""
+      - code: "kitty-specs/ci-pipeline-reinstatement-01M1X35E/contracts/artefact-naming.md:1-21 — the only \"(C-005)\" text in this document is on line 3 (\"Preserve verbatim (C-005)\"), tagging the artefact-naming CONTRACT AS A WHOLE (an external cross-reference from a different mission's own numbering). The document's own \"## Invariants\" section (lines 10-13) is numbered 1-3 with no invariant named or labelled C-005, and no invariant states \"never silently treat as complete\" — that exact phrase only exists in scripts/ci/reconcile_shards.py:305's own error string."
+    claim: >
+      The spec cites an "invariant C-005" from contracts/artefact-naming.md three separate times (User Story 3,
+      FR-006, Edge Cases) as the authority for reconcile_shards.py's fail-closed floor, but that document does not
+      contain an invariant by that number or with that text — its "(C-005)" is a different mission's external
+      cross-reference to the document as a whole. Worse, this spec's OWN Constraints table already defines C-005 as
+      something unrelated (the diff-cover coverage-floor scoping). A reviewer or implementer who greps this spec for
+      "C-005" will find two contradictory in-spec definitions plus an unverifiable external citation, which is
+      exactly the DIRECTIVE_048 (version-governance / cite-the-canonical-version) failure mode the charter calls out:
+      "stale analysis is confidently wrong, not merely lower-quality."
+    remediation: >
+      Drop the numeric "C-005" label from the User Story 3 / FR-006 / Edge Cases references to the fail-closed floor
+      — refer to it descriptively (e.g. "the must_be_fresh fail-closed floor, per contracts/artefact-naming.md's
+      Stale-artefact fallback section and reconcile_shards.py's own ::error:: annotation") instead of inventing an
+      invariant number the source document doesn't define, so it no longer collides with this spec's own Constraints
+      table C-005.
+
+  - id: SPEC-GOV-003
+    lens: Public-repo
+    severity: 4
+    title: "C-008 hardcodes the operator's local home-directory path and OS username into a permanently public spec"
+    evidence:
+      - artifact: "spec.md § Constraints, C-008: \"`/home/jeroennouws/dev/SK-missions/SPEC-KITTY-LEDGER.md` (the workspace ledger, outside this checkout) was searched for ...\""
+    claim: >
+      spec-kitty is a PUBLIC repository; this spec.md is committed to a PR branch and stays in public history
+      permanently. C-008 quotes the reviewing operator's literal local filesystem path, including their OS username
+      ("jeroennouws") and local directory layout ("dev/SK-missions/"). This is exactly the class of local-machine
+      detail the Public-repo lens exists to catch — a personal-machine identifier with no functional need to be the
+      literal absolute path (the claim being made, "no ledger entry exists," is fully expressible without the
+      operator's home directory).
+    remediation: >
+      Reword C-008 to describe the ledger generically, e.g. "The mission orchestration workspace's
+      SPEC-KITTY-LEDGER.md (maintained outside this checkout, not part of the spec-kitty repository) was grepped for
+      'reconcile', 'fleet.verdict', 'fleet_main', and 'reconcile_shards' with no relevant hits" — drop the absolute
+      path and username entirely before this spec is committed/pushed.
+
+  - id: SPEC-GOV-004
+    lens: Directive
+    severity: 2
+    title: "NFR-003/SC-001 don't operationalize the charter's red-first standing order for the new retry tests"
+    evidence:
+      - artifact: "spec.md § NFR-003: \"MUST have unit tests added in tests/ci/ that mock the evidence/artefact-presence source ... and assert both the recovery path ... and the terminal path\""
+      - artifact: "spec.md § SC-001: \"This is verified pre-merge, by running the tests, not by a green PR.\""
+      - artifact: ".kittify/charter/charter.md Quality & Tech-Debt Standing Orders, item 4: \"Test remediation & bug-fix discipline. ... reproduce RED-FIRST through the pre-existing entry point; require live evidence over 'looks fixed'\""
+    claim: >
+      Charter Standing Order #4 requires reproducing the defect red-first through the pre-existing entry point before
+      it's fixed. NFR-003 and SC-001 require the new mocked-raciness unit tests to exist and pass after the fix, but
+      never require confirming that the same new test, run against the CURRENT (pre-fix) fleet_verdict.py::report() /
+      fleet_main.py::report() / reconcile_shards.py::main(), actually fails the way the real flake does (e.g. raises
+      the existing ValueError, or exits non-zero, on the very first unstable read) before the retry lands. Without
+      that explicit red-first checkpoint, a test could pass "by construction" without ever having exercised the bug
+      it claims to guard against.
+    remediation: >
+      Add one sentence to NFR-003 (or a new acceptance-scenario clause) requiring each new retry unit test to first
+      be run against the unmodified surface and confirmed to fail with the current behavior (ValueError / non-zero
+      exit on the very first instability) before the retry implementation is added, mirroring DIRECTIVE_034/041's
+      red-first discipline for this mission's own test suite.

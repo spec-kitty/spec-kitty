@@ -1,0 +1,6 @@
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: tasks
+lens_group: seq
+mission: reconcile-flake-family-01M34HR7
+findings: []

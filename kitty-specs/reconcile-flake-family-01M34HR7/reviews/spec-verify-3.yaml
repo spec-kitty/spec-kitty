@@ -1,0 +1,46 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+round: 3
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >
+      FR-005 (spec.md line 97) now reads "**Implementation shape**: left to the plan phase, per
+      the same pattern FR-008 uses..." — the binding clause is gone; the outcome (pytest-mockable,
+      stdlib-only per NFR-002, unit tests in tests/ci/ per NFR-003(3)) is the only MUST, and the
+      Python-module-under-scripts/ci/ shape (with the wait_for_artifacts.py name) is demoted to a
+      "stated preference," explicitly not foreclosing inline YAML/bash or a Marketplace Action,
+      mirroring FR-008's own "plan phase explicitly weighs" framing; Key Entities item 4 (line 131)
+      was updated in the same commit (b6a744af4) to match, calling the name/path "a plan-phase
+      decision, not binding here"; the Clarifications/Decision Record section (lines 8-29) still
+      contains only Decision 1 and Decision 2, and a full-document grep for "MUST"/"binding"/
+      "left to the plan phase" turns up no other new unrecorded binding architecture decision, so
+      the Decision Record's completeness claim holds.
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: >
+      User Story 1's Independent Test (spec.md line 39) now reads "...FR-005 (the new
+      ci-aggregate.yml artefact-visibility polling step/script)... plus the unit tests confirming
+      reconcile_shards.py::main()'s unchanged single-pass fail-closed behavior (FR-006, SC-001)" —
+      FR-006 is attributed once, in the correct place (attached to the unchanged
+      reconcile_shards.py::main() clause), and a full-document grep confirms FR-006 is no longer
+      paired with the new polling-step parenthetical anywhere.
+
+additional_observations:
+  - title: "Key Entities item 4 still asserts a Python script/module will be added, while FR-005 now leaves the shape itself (not just the name/path) open to the plan phase"
+    severity: 1
+    detail: >
+      FR-005 (line 97) explicitly keeps inline YAML/bash polling logic and a third-party GitHub
+      Marketplace retry Action on the table for the plan phase to weigh against a Python
+      script/module — the *shape* is now non-binding, not just the file name/path. Key Entities
+      item 4 (line 131), updated in the same commit, only hedges the name/path ("the exact
+      name/path is a plan-phase decision, not binding here") while still describing the entity
+      itself as "A new Python script/module" — i.e. it implicitly assumes the plan phase will pick
+      the Python-module shape FR-005 now says is merely a preference. This is a minor residual
+      wording mismatch (not a Decision-Record-completeness violation, since neither statement
+      asserts a binding decision) — harmless unless the plan phase actually selects a non-Python
+      shape, in which case Key Entities' item 4 description would read as wrong in hindsight.
+      Not blocking; a one-word hedge ("A new polling-step component (most likely a Python
+      script/module)...") would fully close it.

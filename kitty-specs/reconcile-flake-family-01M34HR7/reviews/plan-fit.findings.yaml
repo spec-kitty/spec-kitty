@@ -1,0 +1,55 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fit
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: PLAN-FIT-001
+    lens: mission-specific / workflow-step-reordering completeness
+    severity: 2
+    title: >-
+      New "Wait for selected shard artefact visibility" step's env-var plumbing
+      (SOURCE_RUN_ID/SOURCE_REPOSITORY) is unspecified, though it needs the same
+      values every prior step in this job re-declares locally
+    evidence:
+      - artifact: "plan.md § Architecture Seam and File Placement (§2a.1), item 5; § User Story 3, reordered step list"
+      - artifact: "plan.md § User Story 3 § scripts/ci/wait_for_artifacts.py (new): \"Polls GET actions/runs/{SOURCE_RUN_ID}/artifacts ...\""
+      - code: ".github/workflows/ci-aggregate.yml:110-112 (step-local env SOURCE_RUN_ID/SOURCE_RUN_ATTEMPT/SOURCE_REPOSITORY in \"Prepare exact source registry and diff\")"
+      - code: ".github/workflows/ci-aggregate.yml:148-150 (the same three vars re-declared as step-local env again in \"Select reports from executions retained by the source attempt\", id: select-current)"
+    claim: >-
+      Every existing `collect`-job step that needs SOURCE_RUN_ID/SOURCE_RUN_ATTEMPT/SOURCE_REPOSITORY
+      re-declares them as a step-local `env:` block (there is no job-level `env:` in this job — verified
+      by reading the full `collect:` job, lines 88-247, which has no top-level `env:` key). The plan's
+      description of the new "Wait for selected shard artefact visibility" step (User Story 3) says it
+      "Polls GET actions/runs/{SOURCE_RUN_ID}/artifacts" but neither the reordered step list nor the
+      file-placement section states that the new `run:` step must carry its own `env:` block repeating
+      these three variables, the way every other step that touches the GitHub API in this job does. This
+      is a genuine gap in the plan's own stated design for a file it lists as "modified" (item 5), not a
+      hazard from the reordering itself (the reorder itself introduces no dependency problem — see
+      mission-specific lens verification below) but a missing wiring detail for the *new* step's own
+      inputs.
+    remediation: >-
+      Add one sentence to plan.md's "User Story 3" `wait_for_artifacts.py` bullet list (or to the
+      reordered step list) stating that the new "Wait for selected shard artefact visibility" step must
+      declare its own step-local `env:` block for SOURCE_RUN_ID/SOURCE_REPOSITORY (mirroring
+      ci-aggregate.yml:110-112 and :148-150), since this job carries no job-level `env:` to inherit from.
+      This is a one-line plan clarification, not a design change.
+# Mission-specific lens (workflow step re-sequencing hazard) exercised and no finding filed:
+# read .github/workflows/ci-aggregate.yml's actual `collect` job step-by-step (checkout through
+# "Upload reconciled coverage set", lines 104-247). Confirmed the OLD position of "Download the
+# triggering run's selected-module set" (id: download-selected-modules, line 214-223) is
+# immediately after "download-previous" (line 202-212), matching plan.md's claim. Traced every
+# step between the OLD position and the proposed NEW position (immediately after "select-current",
+# line 144-157): "Download the triggering run's shard artefacts" (download-current, 159-169),
+# "Find the most-recent successful CI Modules run" (last-success, 171-200), and
+# "Download the fallback run's shard artefacts" (download-previous, 202-212). None of these three
+# steps' `if:`, `env:`, or `with:` blocks reference any output of download-selected-modules, and
+# download-selected-modules's own `if:`/`with:` block (purely `github.event_name` and the
+# job-start-available `github.event.workflow_run.id`) references nothing produced by any of the
+# three. GitHub Actions' implicit `success()` gating on steps with a plain (non-status-function)
+# `if:` is unaffected by the move, because the nearest upstream hard-failure gate (select-current,
+# which has no continue-on-error) stays in the same relative position before the moved step in both
+# orderings, and download-current/download-previous both carry `continue-on-error: true`, so their
+# outcome never blocks success()-gated later steps regardless of position. No real ordering hazard
+# found; the plan's own "Deviations" item 2 self-assessment (no dependency found, but flagged for
+# re-verification) is correct.

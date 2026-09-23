@@ -1,0 +1,104 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: SPEC-ARCH-001
+    lens: Contracts
+    severity: 4
+    title: "FR-005's 'in-process' retry for reconcile_shards.py has no live evidence source to retry against — main() only re-reads an already-static local directory"
+    evidence:
+      - artifact: "spec.md § FR-005, § User Story 3, § Acceptance Scenario 1 (US3)"
+      - artifact: "spec.md § NFR-003 ('mock the evidence/artefact-presence source')"
+      - code: "scripts/ci/reconcile_shards.py:21-32 (imports: json, os, re, sys, collections, dataclasses, pathlib, yaml — no urllib/subprocess/requests, no network or GH API call anywhere in the file)"
+      - code: "scripts/ci/reconcile_shards.py:235-307 (main() only calls index_by_basename() over aggregate_root/current and aggregate_root/previous — pure local filesystem reads)"
+      - code: ".github/workflows/ci-aggregate.yml:159-239 (three separate, already-completed 'actions/download-artifact' steps, two marked continue-on-error: true, populate out/aggregate/current and out/aggregate/previous BEFORE the 'Reconcile shard artefacts' step invokes 'python3 scripts/ci/reconcile_shards.py' at line 239)"
+    claim: >
+      FR-005 and User Story 3 ask for a bounded in-process retry inside
+      `reconcile_shards.py::main()`'s completeness check, framed as retrying
+      "the artefact-presence check" until a shard becomes visible (Acceptance
+      Scenario 1: "absent on the first read but present on a retry ... within
+      the bounded budget"). But `main()` performs zero network or GitHub API
+      calls — it is a pure local-filesystem/YAML/JSON reconciler. The actual
+      artefact-presence/visibility work happens earlier, in three separate
+      GitHub Actions `actions/download-artifact` steps in `ci-aggregate.yml`
+      (lines 159-223) that run to completion — two with `continue-on-error:
+      true` — strictly before the "Reconcile shard artefacts" step (line
+      230-239) invokes this script. By the time `main()` runs, whatever the
+      download steps found (or failed to find) is already fixed on local
+      disk; nothing else writes to that directory concurrently. A retry loop
+      added purely inside `main()` around `index_by_basename()` would
+      therefore re-read an unchanging directory and observe the identical
+      result on every attempt — it cannot self-heal an artefact-visibility
+      race, because `main()` has no mechanism to fetch new evidence between
+      attempts. This contradicts the spec's own premise that "the fix here
+      must resolve the timing race in-process" (FR-005 rationale). Worse,
+      NFR-003's unit tests will mock an "artefact-presence source" that does
+      not exist in production code today, so the tests can pass green while
+      the shipped fix is a no-op against the real flake — precisely the kind
+      of confident-but-wrong outcome C-007/Decision 2 warn this mission's own
+      PR is already blind to. This risks the plan phase producing a correctly
+      green, correctly unit-tested WP that does not actually close epic #4882
+      for the #4675 job shape.
+    remediation: >
+      Before plan phase, resolve where the retry boundary actually needs to
+      live and say so explicitly in the spec: either (a) extend FR-005's
+      scope to bound-retry the `actions/download-artifact` steps themselves
+      (a workflow-YAML-level change, e.g. wrap each download step with a
+      bounded poll/retry, or have a preceding step poll the GitHub Actions
+      artifacts API for the expected artifact names before invoking
+      `download-artifact`) and clarify that `reconcile_shards.py::main()`
+      alone cannot satisfy FR-005 without this; or (b) explicitly require
+      `reconcile_shards.py::main()` to gain a live artefact-existence check
+      against the GitHub Actions API (mirroring the `GitHub`/`GitHubCLI`
+      class already in `scripts/ci/fleet_verdict.py`) so a bounded in-process
+      retry has fresh evidence to observe on each attempt, and update
+      NFR-003's test description to mock that new API boundary rather than
+      an already-static local read. Either way, add an explicit sentence to
+      FR-005 or a new constraint stating which component (workflow YAML vs.
+      Python `main()`) owns the retryable network call, so the plan phase
+      does not default to wrapping `index_by_basename()` in a no-op loop.
+  - id: SPEC-ARCH-002
+    lens: Contracts
+    severity: 3
+    title: "FR-006/C-002 cite 'invariant C-005' from contracts/artefact-naming.md for the fail-closed completeness floor, but the canonical C-005 definition governs artefact naming/format preservation, not completeness"
+    evidence:
+      - artifact: "spec.md § FR-006 ('citing invariant C-005 / contracts/artefact-naming.md')"
+      - artifact: "spec.md § C-002 ('the C-005 (\"never silently treat as complete\") fail-closed behavior')"
+      - artifact: "spec.md § Acceptance Scenario 2 (US3) references the same '::error::ci-aggregate: ... refusing to silently treat this run as complete ...' text"
+      - code: "kitty-specs/ci-pipeline-reinstatement-01M1X35E/spec.md:214 — the owning mission's canonical FR/C table defines C-005 as: 'Artefact naming contract preserved | Coverage/xunit artefacts preserve the coverage-<tier>-<module>.xml + *-reports naming, relative_files=true, and dotted --cov=<module> form so aggregators resolve them.'"
+      - code: "kitty-specs/ci-pipeline-reinstatement-01M1X35E/contracts/artefact-naming.md:3,11-14,20-21 — the doc's only explicit '(C-005)' tag is 'Preserve verbatim (C-005)' attached to the whole naming contract (dotted --cov form, basename uniqueness); the 'Stale-artefact fallback' section (the one the spec under review actually points to) carries no invariant ID at all"
+      - code: "scripts/ci/reconcile_shards.py:296-306 (the script's own comment/error text already mislabels the fail-closed-on-missing-shard behavior as '# C-005', and its printed ::error:: message cites 'contracts/artefact-naming.md' — this pre-existing code-level mislabeling is what the spec under review repeats without correction)"
+    claim: >
+      The spec under review states, as a hard constraint (C-002) and as
+      an acceptance-criteria rationale (FR-006), that the "never silently
+      treat as complete" fail-closed floor in `reconcile_shards.py` is
+      "invariant C-005" per `contracts/artefact-naming.md`. Reading the
+      owning mission's canonical spec (ci-pipeline-reinstatement-01M1X35E),
+      C-005 is actually defined as artefact **naming/format** preservation
+      (dotted `--cov=<module>`, `relative_files=true`, basename convention)
+      — an unrelated invariant. The contract file itself never assigns an ID
+      to the "Stale-artefact fallback" / completeness-guard behavior the
+      spec under review is citing it for; that ID only appears as a
+      pre-existing mislabeled comment inside `reconcile_shards.py` itself
+      (line 296), which this spec's citation faithfully reproduces rather
+      than catching. This is not fabricated out of thin air (the citation
+      pattern already exists in the codebase), but it is misquoted relative
+      to the invariant's actual canonical definition, and repeating it here
+      launders a pre-existing code comment into a spec-level "binding
+      constraint" citation that a future reader (or the plan-phase review
+      squad) could reasonably trust as accurate provenance.
+    remediation: >
+      In FR-006 and C-002, either (a) drop the "C-005" label entirely and
+      describe the invariant by its actual textual anchor only — "the
+      fail-closed completeness guard documented under 'Stale-artefact
+      fallback' in contracts/artefact-naming.md" — without implying it has a
+      formal ID in that contract; or (b) if a stable ID is wanted for
+      traceability, file a follow-up to add a real invariant ID to
+      contracts/artefact-naming.md's "Stale-artefact fallback" section (and
+      fix the same mislabeled comment in scripts/ci/reconcile_shards.py:296),
+      and cite that new ID instead of colliding with the already-taken C-005
+      (naming/format preservation) from the owning mission's spec.
+findings_continued: []

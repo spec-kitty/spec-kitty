@@ -1,0 +1,67 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: >
+      Verified against the live code (scripts/ci/fleet_main.py:99-138, fresh read, not the
+      ruling's phrasing): `evidence` is bound by the first `snapshot()` call at line 99 and is
+      what the `elif evidence["state"] != "red"` branch (line ~119) reads; that elif sits
+      structurally between the incident lookup and the re-check `snapshot()` at line 122, i.e.
+      inside the exact span plan.md's own pre-existing (unchanged) "snapshot→incident-lookup→
+      re-snapshot→compare" enumeration commits `_attempt()` to wrap — there is no way to
+      extract `_attempt()` per that enumeration while leaving the elif outside it or binding
+      it to a stale outer `evidence`, since the retry's entire purpose is a fresh snapshot per
+      attempt, so the original "untouched ... outside the retry loop" plan.md text was not
+      defensible; the corrected paragraph (current plan.md:419-434) is technically accurate,
+      not merely different. `git diff d2f2afc81..20d72d086 -- plan.md` shows exactly one
+      paragraph changed (9 insertions/3 deletions), with the preceding FR-008 dry_run
+      sentence, the enumeration clause, and the following FR-009 paragraph byte-identical —
+      architecture, retry seam, gate set, campsite decision, WP split, and retry budget
+      numbers untouched. `20d72d086` is a separate commit from the WP02 fixes (`68205dde6`),
+      correctly labelled `fix(plan): correct elif retry-boundary claim superseded by live code
+      (ruling-authorized)`.
+  - id: TASKS-FRESH2-002
+    status: resolved
+    reason: >
+      Verified against live code (scripts/ci/fleet_main.py:99-104, fresh read): `evidence =
+      snapshot(...)` then `text = body(...)` then `if dry_run: print(text, end=""); return` —
+      all three lines execute strictly before the incident lookup at line 104 onward. Current
+      WP02 text (lines 142-156, and T009 lines 428-437) now unambiguously states fleet_main.py's
+      `dry_run` check stays in `report()` itself, uses its own single pre-loop `snapshot()`,
+      and runs BEFORE `retry_with_backoff`/`_attempt()` is invoked, with `_attempt()`'s
+      wrapped body explicitly starting only when `dry_run` is False — this is a correct,
+      non-contradictory reading of the same live code, and the "wraps the ENTIRE body" phrase
+      was itself corrected (T009 now says "wraps the rest of the existing body ... from the
+      incident lookup" and explicitly notes the enumeration "covers what `_attempt()` retries
+      per attempt, not `report()`'s one-time `dry_run` gate"), so no residual contradiction
+      remains. Read `tests/ci/test_fleet_main.py:260-265`
+      (`test_main_cli_dry_run_is_read_only`) directly: it asserts a single `[ci] green @{HEAD}`
+      print and `not api.mutations` after a `--dry-run` CLI invocation; an implementer
+      following the corrected text would return from `report()` before ever calling
+      `retry_with_backoff`, so no sleeps, no duplicate prints, and no mutating `api.request`
+      calls occur — the test would pass.
+  - id: TASKS-FRESH2-003
+    status: resolved
+    reason: >
+      Read the current Context section fresh (lines 168-215): the generic "tri-state" claim is
+      now explicitly scoped ("For `fleet_verdict.py`, this returns a tri-state outcome"),
+      immediately followed by a dedicated paragraph stating "`fleet_main.py::_attempt()` is
+      four-state, not three — see T009" and naming `_NothingToReport()` as the fourth outcome,
+      distinct from `_AlreadyReported()`; the shown `report()` wrapper pseudocode's comment
+      block was extended to cover both `_AlreadyReported` (both files) and `_NothingToReport`
+      (fleet_main.py only, falling through the same "nothing further to do" arm) — this is
+      internally consistent: `fleet_verdict.py`'s three-state shape is left completely
+      untouched elsewhere in the file (T008/plan.md still describe only
+      `_AlreadyReported`/`_Ready`/`None` for that file), so there is no contradiction between
+      the two files' differing state counts.
+  - id: TASKS-FRESH2-004
+    status: resolved
+    reason: >
+      Grepped the current WP02 file fresh for "SUCCESS" against the live elif's terminal
+      outcome: zero matches remain near the elif/_NothingToReport discussion; T009's label now
+      reads "an immediate, non-retried terminal outcome (informational print, no publish) —
+      distinct from both `_Ready(body)` (ready to publish) and `None`", which correctly avoids
+      conflating this outcome with `_Ready`'s publish-worthy success per the live code's
+      behavior (the elif branch only prints and returns, it never calls `api.request`).

@@ -1,0 +1,24 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: >-
+      C-007 is now substantively engaged in WP04's body in three places (Context's
+      "C-007 (no SPEC-KITTY-LEDGER.md entry) — confirm at close-out" paragraph, T017 step 4
+      requiring an explicit append confirming or noting drift, and a dedicated Definition of
+      Done bullet), mirroring C-001's treatment rather than remaining a name-only
+      requirement_refs entry.
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: >-
+      Both the Context paragraph and the Risks section of WP02 now correctly state that
+      RerunAPI.request() mutates run_attempt/status/conclusion on head_reads==1 rather than
+      self.head, and that move_on_second_read is never enabled in this test (verified
+      independently against tests/ci/test_fleet_main.py:239-246, which confirms the mock
+      mutates self.runs["ci-quality.yml"][0] and never touches self.head or sets
+      move_on_second_read); the "trace it yourself" instruction is preserved (Context: "Trace
+      it yourself; do not assume it behaves identically..."; T007 step 2: "tracing RerunAPI's
+      head_reads == 1 condition yourself"; Risks: "Trace each mock for real before writing its
+      assertion").

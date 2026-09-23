@@ -1,0 +1,62 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh2
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: SPEC-FRESH2-001
+    lens: architectural-integrity
+    severity: 3
+    title: "FR-005's new 'Implementation shape (binding, not left to plan phase)' clause asserts an unrecorded operator decision and contradicts the specify-phase HOW-avoidance guideline"
+    evidence:
+      - artifact: "spec.md § Functional Requirements, FR-005 (line 97)"
+      - artifact: "spec.md § Clarifications / Decision Record (lines 8-30) — only Decision 1 and Decision 2 exist"
+      - artifact: "spec.md § Functional Requirements, FR-008 (line 100) — an analogous architecture choice ('shared helper vs. two hand-patched copies') is explicitly left for the plan phase to weigh"
+      - code: "packs/built-in/missions/software-dev/actions/specify/guidelines.md:10 — 'Avoid HOW to implement (no tech stack, APIs, code structure).'"
+    claim: >
+      This round added a new binding sentence to FR-005: the artefact-visibility polling step "MUST be
+      implemented as a new, importable Python script/module under `scripts/ci/` (e.g.
+      `scripts/ci/wait_for_artifacts.py`) ... it MUST NOT be implemented as inline YAML/bash polling
+      logic or as a third-party GitHub Marketplace retry Action". This is a genuine architecture/implementation-shape
+      decision (module vs. inline-YAML vs. Marketplace Action, plus a specific new file path) asserted as
+      "binding, not left to plan phase" — the same kind of decision the spec elsewhere (FR-008) explicitly
+      defers to the plan phase for operator/plan-agent judgement. Unlike Decision 1 and Decision 2, which are
+      explicitly operator-made and logged in the "Clarifications / Decision Record" section (whose own stated
+      purpose is that "a future reader ... should be able to see exactly what was decided and why from this
+      section alone"), this new binding constraint is not recorded there — a reader relying on the Decision
+      Record alone will miss it. It also runs against the specify-action governance guideline to avoid
+      prescribing HOW (tech stack/code structure) in a spec. The self-justification given ("NFR-003(3) requires
+      pytest-mockable unit tests ... only satisfiable for an in-repo Python module") is plausible but is itself
+      a plan-phase-style engineering argument being made unilaterally at spec time, foreclosing options (e.g. a
+      vetted Marketplace retry Action, which could in principle still be exercised via an integration-style test)
+      without operator sign-off.
+    remediation: >
+      Either (a) promote this to a third, explicitly operator-attributed entry in the Clarifications / Decision
+      Record (mirroring Decision 1/2's format) so the record's own completeness claim stays true, or (b) soften
+      FR-005 back to describing the *outcome* required (a pytest-mockable, stdlib-only, in-repo component per
+      NFR-002/NFR-003) and leave the concrete module name/path as an illustrative "e.g." for the plan phase to
+      finalize, consistent with how FR-008 treats the comparable shared-helper-vs-duplication decision.
+
+  - id: SPEC-FRESH2-002
+    lens: conceptual-alignment
+    severity: 2
+    title: "User Story 1's rewritten Independent Test mislabels FR-006 as belonging to 'the new ci-aggregate.yml artefact-visibility polling step/script'"
+    evidence:
+      - artifact: "spec.md § User Story 1, Independent Test (line 39)"
+      - artifact: "spec.md § Functional Requirements, FR-006 (line 98) — title: 'Fail-closed floor preserved on reconcile_shards.py artefact-visibility retry exhaustion'"
+    claim: >
+      The rewritten Independent Test sentence groups FR IDs as "FR-005/FR-006 (the new `ci-aggregate.yml`
+      artefact-visibility polling step/script)". FR-005 does describe that new script, but FR-006 is actually
+      about `reconcile_shards.py::main()` continuing to fail closed when the polling budget is exhausted — a
+      claim about the *unchanged* script, not the new one. The same sentence then separately and correctly
+      attributes that exact behavior to "the unit tests confirming `reconcile_shards.py::main()`'s unchanged
+      single-pass fail-closed behavior (SC-001)" a few words later, so FR-006's content is effectively named
+      twice under two different (and partly contradictory) labels in one sentence. This is a wording-only
+      ambiguity — NFR-003's per-surface breakdown (items 1-4) and SC-001/SC-002(b), which govern actual test
+      authorship, already state the FR-006/reconcile_shards.py attribution correctly and unambiguously.
+    remediation: >
+      Reword to "FR-005 (the new `ci-aggregate.yml` artefact-visibility polling step/script) and FR-006 (the
+      unchanged `reconcile_shards.py::main()` fail-closed floor under that step's exhausted retry budget)", or
+      simply drop the FR-006 mention from that parenthetical since the sentence already covers it via the
+      later "unit tests confirming `reconcile_shards.py::main()`'s unchanged ... behavior" clause.

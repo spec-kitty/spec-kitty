@@ -1,0 +1,124 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh-sweep-3
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: TASKS-FRESH3-001
+    lens: "structural-root-cause (five-paradigm: bisection + differential-matrix)"
+    severity: 4
+    title: >-
+      WP02's own round-3 dry_run/pre-loop-snapshot design contradicts its own round-3
+      RerunAPI mock-trace prediction for fleet_main.py's re-pinned test; empirically the
+      elif/_NothingToReport() branch fires on _attempt()'s FIRST call, not its "second"
+    evidence:
+      - artifact: "tasks/WP02-fleet-verdict-fleet-main-retry.md § T009 (`dry_run stays in report() itself...`)"
+      - artifact: "tasks/WP02-fleet-verdict-fleet-main-retry.md § Context (`Existing tests you must re-pin...`, the RerunAPI walkthrough)"
+      - artifact: "tasks/WP02-fleet-verdict-fleet-main-retry.md § Risks (`Mock-behavior misreading risk`)"
+      - artifact: "tasks/WP02-fleet-verdict-fleet-main-retry.md § Reviewer Guidance"
+      - artifact: "tests/ci/test_fleet_main.py::RerunAPI / MainAPI.request (head_reads mutation gate)"
+      - artifact: "scripts/ci/fleet_main.py::report()/snapshot() (live code, unmodified)"
+    claim: >-
+      This round (commit 68205dde6) added two new WP02 clauses in the SAME file, about the
+      SAME function, that are mutually inconsistent. Clause A (T009, new this round): "the
+      dry_run check stays in report() ITSELF, evaluated immediately after report()'s own
+      single pre-loop snapshot() call and BEFORE retry_with_backoff/_attempt() is ever
+      called ... _attempt() performs its own fresh snapshot() call(s) per attempt rather
+      than reusing report()'s pre-loop evidence." This means, for any non-dry_run call,
+      report() makes one snapshot()/head-read BEFORE _attempt() starts, and _attempt()'s own
+      "first" snapshot() is therefore the SECOND ever git/ref/heads/main read of the whole
+      invocation. Clause B (also new this round, in Context/Risks/Reviewer Guidance):
+      predicts that for the RerunAPI mock (which mutates ci-quality's run state to
+      "running" on exactly the SECOND-ever head_reads call, i.e. `head_reads == 1` at
+      entry), "under retry, the SECOND `_attempt()` call's first `snapshot()` will likely
+      already observe ci-quality as ... running ... which likely routes into ... elif."
+      This is wrong given Clause A: I empirically traced the call sequence by invoking
+      the live `fleet_main.snapshot()` twice against the RerunAPI mock (matching Clause A's
+      literal call order — report()'s pre-loop call, then _attempt()'s own "first" call) and
+      confirmed the mutation fires on the SECOND overall call, which IS _attempt() attempt
+      #1's own first internal snapshot() — not attempt #2's. Attempt #1 therefore lands
+      directly in the `elif evidence["state"] != "red"` / `_NothingToReport()` branch on its
+      own first snapshot, before ever reaching a re-check snapshot() call, so
+      `retry_with_backoff` returns after exactly ONE call to `_attempt()` — no retry is ever
+      exercised for this re-pinned test's existing setup under WP02's own stated design. This
+      also means the pre-existing test's original intent (proving "changed before
+      publication" detection across two snapshots) no longer holds after the refactor: the
+      elif fires before any re-check snapshot ever runs, so the retry/re-check logic this
+      test was meant to exercise is bypassed entirely — a fact WP02 does not surface despite
+      spending three separate sections (Context, Risks, Reviewer Guidance) on this exact
+      test's trace this round.
+    remediation: >-
+      Re-derive the RerunAPI trace accounting for report()'s own extra pre-loop snapshot()
+      call (added this round in T009): state plainly that `_attempt()` is called exactly
+      once for this test's current setup and lands in `_NothingToReport()` on its own first
+      internal snapshot, with no retry ever exercised, and that report()'s pre-loop call
+      consumes one head_reads increment before `_attempt()` starts. Either (a) accept this
+      as the correct re-pin target and note explicitly that this pre-existing test no longer
+      exercises multi-attempt comparison after the refactor, or (b) adjust the mock/test
+      setup (e.g. start from a non-red initial state, or a state that requires two full
+      attempts) so it still exercises genuine retry behavior, and update the "likely" call-
+      count language in Context/Risks/Reviewer Guidance to match instead of contradicting
+      T009's own pre-loop-call design.
+
+  - id: TASKS-FRESH3-002
+    lens: conceptual-alignment (drift between plan.md sections)
+    severity: 3
+    title: >-
+      plan.md's Architecture Seam item 4 ("same shape as (3)" = tri-state) is stale relative
+      to plan.md's own amended fleet_main.py rewiring paragraph and WP02's four-state
+      _NothingToReport() contract
+    evidence:
+      - artifact: "plan.md § Architecture Seam and File Placement (§2a.1), item 4"
+      - artifact: "plan.md § Architecture Seam and File Placement (§2a.1), item 3"
+      - artifact: "plan.md § User Story 2, \"fleet_main.py::report() rewiring\" (amended this round)"
+      - artifact: "tasks/WP02-fleet-verdict-fleet-main-retry.md (\"fleet_main.py::_attempt() is four-state, not three\")"
+    claim: >-
+      Item 3 of plan.md's file-placement list says fleet_verdict.py's `_attempt()` returns
+      "a tri-state outcome." Item 4 says fleet_main.py (modified) is "same shape as (3)" —
+      i.e. also tri-state. This was never updated across any of the three fix rounds. But
+      the amended "fleet_main.py::report() rewiring" paragraph directly below (also in
+      plan.md, corrected this round) establishes that the pre-existing `elif
+      evidence["state"] != "red"` branch now executes inside `_attempt()` and must return
+      its own outcome distinct from `_Ready`/`_AlreadyReported`/`None` — and WP02's own text
+      (this round) makes this explicit: "`fleet_main.py::_attempt()` is four-state, not
+      three ... Do not collapse fleet_main.py's outcome set back down to the
+      fleet_verdict.py tri-state shape." plan.md's own Architecture Seam section thus
+      contradicts plan.md's own User Story 2 section and the binding WP02 task file. An
+      implementer or reviewer who reads only the Architecture Seam summary (a natural first
+      stop, since it is the file-by-file placement list) would be told the wrong outcome
+      shape for fleet_main.py.
+    remediation: >-
+      Update plan.md's Architecture Seam item 4 from "same shape as (3)" to something like
+      "extends (3)'s tri-state with a fourth outcome, `_NothingToReport()`, for the
+      pre-existing `elif evidence[\"state\"] != \"red\"` early return — see 'fleet_main.py::
+      report() rewiring' below and WP02" so the two sections of plan.md agree.
+
+  - id: TASKS-FRESH3-003
+    lens: conceptual-alignment (stale cross-reference)
+    severity: 2
+    title: >-
+      plan.md's "Existing Test That Must Change" section still frames the fleet_main.py
+      re-pin as a binary "publish or FR-004 skip" outcome, which round 3's own WP02 analysis
+      of the RerunAPI mock contradicts (a third, non-retry terminal path is the one actually
+      implicated)
+    evidence:
+      - artifact: "plan.md § Existing Test That Must Change, and Why That Is Not a Regression"
+      - artifact: "tasks/WP02-fleet-verdict-fleet-main-retry.md (RerunAPI trace paragraph, this round)"
+    claim: >-
+      plan.md states the re-pinned test "must be updated to assert the new contract (no
+      raise; either eventual publish of stabilized evidence, or a silent skip with the
+      FR-004 diagnostic line, depending on how the test's mock is shaped)" and that the
+      fleet_main.py equivalent "needs the identical treatment." This section was not touched
+      by any of the three fix rounds, despite round 3 adding a much more precise analysis in
+      WP02 concluding the fleet_main.py mock "likely routes into the untouched
+      `elif evidence[\"state\"] != \"red\"` ... early-return branch, rather than a
+      'stabilized, then publish' outcome" — a third terminal shape (informational print, no
+      incident action, no FR-004 diagnostic) that plan.md's binary framing does not name.
+      Lower severity than TASKS-FRESH3-001/002 because WP02 itself (the binding task doc)
+      already carries the correct, detailed guidance; this is plan.md-level staleness only.
+    remediation: >-
+      Add a one-clause parenthetical to plan.md's "Existing Test That Must Change" section
+      noting that fleet_main.py's re-pin may land in a third outcome (the pre-existing
+      not-red early return) distinct from "publish" and "FR-004 skip," pointing to WP02 for
+      the traced detail, so plan.md's own summary does not undersell the outcome space WP02
+      has already worked out.

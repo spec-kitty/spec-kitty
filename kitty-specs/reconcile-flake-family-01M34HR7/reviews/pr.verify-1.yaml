@@ -1,0 +1,50 @@
+# review-verify/v1
+schema: review-verify/v1
+complete: true
+phase: pr
+round: 1
+verdicts:
+  - id: PR-MERGED-001
+    verdict: resolved
+    reason: >-
+      Parsed the live ci-aggregate.yml collect job step order myself: "Install PyYAML"
+      is at line 170, "Wait for selected shard artefact visibility" at line 181, and
+      both "Download the triggering run's shard artefacts" (198) and "Download the
+      fallback run's shard artefacts" (241) come after the poll step -- both halves of
+      the constraint hold. No earlier collect-job step (aggregate_source.py,
+      select_source_artifacts.py, source_eligibility.py) imports yaml, so nothing else
+      depended on the old install position. Red-first spot-check: reverted the workflow
+      file to the pre-fix ordering in a throwaway worktree; test_pyyaml_install_precedes_
+      the_wait_for_artifacts_step failed exactly as the fixer reported.
+  - id: PR-MERGED-002
+    verdict: resolved
+    reason: >-
+      _attempt() now catches api.pages() failures and returns None (treated as "not yet
+      visible", retried by retry_with_backoff); main() wraps its whole body and returns
+      0 with a ::warning:: on any exception. reconcile_shards.py has zero diff against
+      main and its fail-closed guard (`return 1` after "refusing to silently treat this
+      run as complete") is untouched and unreachable from the poller's new except
+      blocks -- confirmed both by reading the code and by grep showing no diff.
+  - id: PR-MERGED-003
+    verdict: resolved
+    reason: >-
+      Not fixed behaviourally, as intended; each report() docstring now states the
+      rationale (fleet_verdict.py pays full retry latency to preview the exact
+      stabilized comment; fleet_main.py stays a cheap unstabilized preview) and
+      cross-references the other file by name, placed directly above the code that
+      implements the asymmetry -- a reader hitting either function finds it immediately,
+      not buried elsewhere.
+  - id: PR-MERGED-004
+    verdict: resolved
+    reason: >-
+      FLEET_MAX_ATTEMPTS, fleet_backoff_seconds and AlreadyReported are now defined
+      once in fleet_verdict.py; fleet_main.py's former _MAX_ATTEMPTS/_backoff_seconds/
+      _AlreadyReported definitions are deleted and replaced by an import from
+      fleet_verdict.py. No duplicate definition survives.
+  - id: PR-MERGED-005
+    verdict: resolved
+    reason: >-
+      fleet_main.py's _attempt() takes an on_evidence hook that fires on every fresh
+      snapshot; report() wires it to update a `last_seen` closure variable, and the
+      exhaustion diagnostic now prints last_seen["head"] instead of the pre-loop
+      snapshot's evidence["head"].

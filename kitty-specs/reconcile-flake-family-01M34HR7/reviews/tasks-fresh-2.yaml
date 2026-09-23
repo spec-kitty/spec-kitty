@@ -1,0 +1,135 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh-sweep-2
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: TASKS-FRESH2-001
+    lens: structural-root-cause
+    severity: 4
+    title: "plan.md still asserts the pre-round-2 (now-overturned) elif boundary that WP02 T009 claims to match"
+    evidence:
+      - artifact: "kitty-specs/reconcile-flake-family-01M34HR7/plan.md:424-428 (unmodified since original authoring — empty diff from 60ea6204f through d2f2afc81)"
+      - artifact: "kitty-specs/reconcile-flake-family-01M34HR7/tasks/WP02-fleet-verdict-fleet-main-retry.md § T009 (lines 407-418)"
+    claim: >
+      Round 2 rewrote WP02 T009 and the Context section to say the `elif evidence["state"] !=
+      "red"` branch in `fleet_main.py::report()` moves INSIDE `_attempt()` and is evaluated
+      fresh on every retry attempt — "matching plan.md's 'snapshot→incident-lookup→
+      re-snapshot→compare' enumeration for this file exactly." But plan.md itself was never
+      touched by either fix round, and its "fleet_main.py::report() rewiring" section still
+      reads: "when there is no existing open incident and the (now-stabilized) evidence is
+      not red, it already prints and returns without raising ... that branch is untouched;
+      the retry loop only wraps the *unstable-evidence* path, not this already-benign early
+      return." That is the literal OPPOSITE of what round-2's WP02 now instructs (elif
+      outside/before the retry loop vs. elif inside `_attempt()`, evaluated fresh each
+      attempt). WP02's Context tells the implementer to "Read plan.md in full before
+      starting" — an implementer doing so hits two directly contradictory descriptions of
+      where the elif sits relative to the retry loop, with the tasks file falsely asserting
+      it is consistent with plan.md's enumeration when plan.md's own closing sentence says
+      the opposite. The live code (verified against `scripts/ci/fleet_main.py:99-138` and
+      `tests/ci/test_fleet_main.py`'s `RerunAPI`/`classify()` trace) supports round-2's
+      corrected WP02 reading, not plan.md's stale one — so plan.md, not WP02, is now the
+      artifact carrying the factual error, and it was never reconciled.
+    remediation: >
+      Update plan.md's "fleet_main.py::report() rewiring" paragraph to match WP02's
+      round-2-corrected description: the elif branch is untouched in condition/action but
+      now executes inside `_attempt()`, evaluated fresh per retry attempt, returning its own
+      terminal outcome — not "untouched ... outside the retry loop." Alternatively, if
+      plan.md is frozen for this phase, add an explicit erratum note in WP02's Context
+      flagging that plan.md's prose on this point is stale and superseded by T009's
+      correction, so the implementer does not have to arbitrate the contradiction themselves.
+
+  - id: TASKS-FRESH2-002
+    lens: hypothesis-driven-debugging
+    severity: 4
+    title: "T009's '_attempt() wraps the ENTIRE body from the first snapshot() call' conflicts with 'dry_run stays exactly where it is' for fleet_main.py"
+    evidence:
+      - artifact: "kitty-specs/reconcile-flake-family-01M34HR7/tasks/WP02-fleet-verdict-fleet-main-retry.md lines 142-156 (dry_run/replay bullet) and lines 407-418 (T009 Steps)"
+      - artifact: "scripts/ci/fleet_main.py:99-113 (live `report()`: `evidence = snapshot(...)`; `text = body(...)`; `if dry_run: print(text, end=\"\"); return` — BEFORE the incident lookup)"
+      - artifact: "tests/ci/test_fleet_main.py:260-266 (`test_main_cli_dry_run_is_read_only`, exercises this exact path)"
+    claim: >
+      The Context section's general rule states "The dry_run / replay handling in both files
+      stays exactly where it is, outside the retry loop." For `fleet_verdict.py` this is
+      unambiguous: dry_run is checked only at the very end, after the two-snapshot compare,
+      gating the final publish step (fits naturally after `retry_with_backoff` resolves). For
+      `fleet_main.py`, however, "exactly where it is" in the live code is IMMEDIATELY after
+      the first `evidence = snapshot(...)` call and BEFORE the incident lookup — i.e. it sits
+      inside the exact span T009 now says `_attempt()` "wraps ... in its ENTIRETY — from the
+      first `evidence = snapshot(...)` call, through the incident lookup...". T009 gives no
+      guidance on reconciling these two instructions for this file: does dry_run get checked
+      inside `_attempt()` (in which case, on every retry attempt in a hypothetical dry_run
+      scenario, what does `_attempt()` return — is a fifth outcome type needed, and would
+      `retry_with_backoff`'s real `time.sleep` calls fire pointlessly before the dry_run print
+      is ever seen)? Or does `report()` do its own separate, duplicate first `snapshot()` call
+      before invoking `retry_with_backoff` at all, to preserve the original one-snapshot dry
+      run behavior? Neither option is stated. A literal reading of T009 ("wraps the ENTIRE
+      existing body ... from the first snapshot() call") risks routing the dry_run branch
+      through the retry loop with no outcome type assigned to it — which would misroute into
+      the `None`/retry path, causing repeated ~2s/4s/8s sleeps and either the wrong stdout
+      (a "deferred" diagnostic instead of the dry-run body) or multiple prints, breaking the
+      existing `test_main_cli_dry_run_is_read_only` assertion that a single `[ci] green @...`
+      line is emitted with no mutation.
+    remediation: >
+      Add an explicit clause to T009 (mirroring T008's line 389 note, which only mentions
+      "replay") stating exactly where fleet_main.py's dry_run check must live relative to
+      `_attempt()`'s boundary — e.g. "the top-of-function `if dry_run: print(text, end='');
+      return` check stays in `report()` itself, evaluated BEFORE calling
+      `retry_with_backoff`/`_attempt()`, using its own single `snapshot()` call exactly as the
+      original code does; `_attempt()`'s wrapped body begins only after that check, i.e. it
+      is invoked only when dry_run is False." Update the "dry_run ... stays exactly where it
+      is" bullet to call out this file-specific caveat instead of treating both files
+      identically.
+
+  - id: TASKS-FRESH2-003
+    lens: differential-matrix
+    severity: 3
+    title: "T009's 4th terminal outcome (_NothingToReport) contradicts the generic 'tri-state' _attempt() contract and isn't reflected in the shown report() wrapper"
+    evidence:
+      - artifact: "kitty-specs/reconcile-flake-family-01M34HR7/tasks/WP02-fleet-verdict-fleet-main-retry.md lines 163-192 (generic '_attempt() extraction' Context section: 'returns a tri-state outcome' — `_AlreadyReported()` / `_Ready(body_text)` / `None` — with a shown `report()` wrapper handling exactly those three)"
+      - artifact: "tasks/WP02-fleet-verdict-fleet-main-retry.md § T009 (lines 420-430): '...represent it as its own terminal `_attempt()` outcome ... distinct from both `_Ready(body)` ... and `None` ... Name it analogously to the existing dedupe short-circuit, e.g. `_NothingToReport()`'"
+    claim: >
+      The Context section that both T008 and T009 are told to follow explicitly frames
+      `_attempt()`'s return contract as "tri-state" (three named outcomes) and shows a
+      `report()` wrapper pseudocode that dispatches on exactly those three cases (`outcome is
+      None`, `isinstance(outcome, _Ready)`, and an implicit "else: _AlreadyReported, nothing
+      further to do"). Round 2's T009 fix, however, mandates a FOURTH distinct outcome type
+      for `fleet_main.py` specifically (`_NothingToReport()`, explicitly "distinct from" the
+      other three), for the elif branch's terminal case. Nothing updates the generic
+      tri-state framing or the shown wrapper pseudocode to acknowledge that
+      `fleet_main.py::_attempt()` is actually four-state, nor shows how `report()` should
+      branch on the new case (it happens to fall through the same implicit "else" arm as
+      `_AlreadyReported()`, but the prompt never says so, and never explains whether/why
+      `_NothingToReport()` couldn't simply reuse `_AlreadyReported()` instead of being a new
+      class). An implementer following the Context section's contract literally may believe
+      they've violated the mission's own stated "tri-state" design when adding a 4th case, or
+      may under-specify `report()`'s handling of it since only three arms are shown.
+    remediation: >
+      Either (a) update the generic Context "tri-state outcome" language to say the exact
+      state count is per-file (three for `fleet_verdict.py`, four for `fleet_main.py`, since
+      it has an extra pre-existing terminal branch), and extend the shown `report()` wrapper
+      pseudocode with an explicit `# _NothingToReport: nothing further to do (already printed
+      inside _attempt())` arm, or (b) explicitly instruct T009 to reuse `_AlreadyReported()`
+      for the elif's terminal case instead of introducing a new class, if the two are meant to
+      be handled identically by `report()`.
+
+  - id: TASKS-FRESH2-004
+    lens: five-whys-cartographer
+    severity: 2
+    title: "T009's elif prose still calls the branch a 'SUCCESS' outcome without stating whether it counts as the pre-existing raise-avoidance invariant (FR-007/C-003) or an unrelated informational path"
+    evidence:
+      - artifact: "kitty-specs/reconcile-flake-family-01M34HR7/tasks/WP02-fleet-verdict-fleet-main-retry.md lines 420-430"
+    claim: >
+      T009 labels the elif's terminal `_attempt()` outcome "an immediate, non-retried SUCCESS
+      (print text, return)". Calling a non-publish, informational early-return a "SUCCESS"
+      alongside `_Ready` (which IS the publish-worthy stabilized-evidence outcome) risks an
+      implementer conflating the two in tests or in the Definition of Done's phrasing ("never
+      catch the disagreement and fall through to publishing the first/stale snapshot") since
+      `_NothingToReport` never publishes anything at all — "success" here means "successfully
+      terminated, not an error," not "successfully published." This is a wording nit, not a
+      functional ambiguity (T009's surrounding prose is otherwise precise about what
+      `_NothingToReport` does), but it is the kind of label a fast implementer skimming the
+      subtask could misread as "this is the same category as `_Ready`."
+    remediation: >
+      Reword "an immediate, non-retried SUCCESS" to something unambiguous, e.g. "an
+      immediate, non-retried terminal outcome (informational print, no publish)" to avoid any
+      reader conflating it with `_Ready`'s publish-worthy success.

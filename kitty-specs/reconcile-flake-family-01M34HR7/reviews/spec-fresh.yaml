@@ -1,0 +1,164 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: SPEC-FRESH-001
+    lens: cross-artifact-consistency
+    severity: 4
+    title: "User Story 1 Acceptance Scenario 1 still tests reconcile_shards.py::main() for retry behavior the fix round removed"
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenarios, item 1 (line 43, untouched by the f8d001610 fix commit)"
+      - artifact: "spec.md § User Story 3 / FR-005 (line 67, rewritten by f8d001610): \"reconcile_shards.py::main() itself is unchanged by this requirement... a retry loop re-reading that same static directory could never observe a different answer\""
+      - code: "scripts/ci/reconcile_shards.py:235-248 — main() takes only local Path arguments (aggregate_root, registry_path, selected_path), no network/API client, confirming it cannot be handed a \"mocked evidence source that returns an unstable/changing result\""
+    claim: >
+      AC1 of User Story 1 says: "Given a mocked evidence source that returns an
+      unstable/changing result on the first read and a stable result on a subsequent
+      read within the retry budget, When any of the three reconcile entry points
+      (fleet_verdict.py::report(), fleet_main.py::report(), reconcile_shards.py::main())
+      runs against it, Then the call succeeds without raising..." This scenario was NOT
+      touched by the fix round, but the fix round rewrote FR-005/User Story 3 to
+      explicitly declare reconcile_shards.py::main() unchanged, retry-free, and
+      structurally incapable of observing a different answer across calls (no
+      network access, pure local-directory read). AC1 as written is now untestable
+      for that third entry point — there is no "unstable/changing result on first
+      read, stable on subsequent read" to mock for main() under the new design,
+      because main() no longer retries anything; the retry moved to a new
+      ci-aggregate.yml workflow step ahead of it. A plan/tasks author implementing
+      literally to this AC would be forced to either add retry logic to main() after
+      all (violating the rewritten FR-005/C-002) or treat the AC as vacuous for that
+      entry point.
+    remediation: >
+      Update User Story 1's Acceptance Scenario 1 (and its Independent Test wording,
+      which lists "FR-003/FR-004/FR-005" together as if symmetric) to stop listing
+      reconcile_shards.py::main() as a third "reconcile entry point" that gets mocked
+      with a changing/stabilizing evidence source. Either scope AC1 to the two
+      report() functions plus the new ci-aggregate.yml polling step/script (the actual
+      three retry-bearing surfaces post-fix), or add a second, separate scenario that
+      correctly describes main()'s post-fix behavior (single-pass, fails closed against
+      whatever the — possibly retried — download step produced).
+
+  - id: SPEC-FRESH-002
+    lens: cross-artifact-consistency
+    severity: 4
+    title: "Key Entities section was not updated for the fix round and now contradicts the FR-005 rewrite on two counts"
+    evidence:
+      - artifact: "spec.md § Key Entities (line 125, untouched by the f8d001610 fix commit): \"The three existing script modules (scripts/ci/fleet_verdict.py, scripts/ci/fleet_main.py, scripts/ci/reconcile_shards.py)... are the relevant 'entities,' and they are unchanged in shape by this mission — only their retry behavior around already-existing reads changes.\""
+      - artifact: "spec.md § FR-005 (line 96, rewritten by f8d001610): the new bounded polling step lives in ci-aggregate.yml \"ahead of its existing actions/download-artifact steps\", and \"reconcile_shards.py::main() itself is unchanged by this requirement\""
+      - artifact: "spec.md § NFR-003 item (3) (line 108, rewritten by f8d001610): requires unit tests for \"the new ci-aggregate.yml artefact-visibility polling step/script\""
+    claim: >
+      Key Entities was not part of the diff between 597b891f5 and f8d001610, so it
+      still describes the pre-fix, symmetric three-script design. It is now wrong in
+      two independent ways: (a) it omits the fourth entity the fix round introduced —
+      the new artefact-visibility polling step/script in ci-aggregate.yml that
+      NFR-003(3) already requires unit tests for — leaving it completely unaccounted
+      for anywhere a reader would look for "what exists"; and (b) it asserts "only
+      their retry behavior around already-existing reads changes" for all three
+      existing scripts, which is now false for reconcile_shards.py specifically — the
+      rewritten FR-005 states in so many words that reconcile_shards.py::main()'s
+      retry behavior does NOT change (it never retries; it is unmodified).
+    remediation: >
+      Update Key Entities to (1) add the new ci-aggregate.yml polling step/script as
+      a fourth entity, and (2) correct the "only their retry behavior... changes"
+      sentence to scope it to fleet_verdict.py and fleet_main.py only, stating
+      explicitly that reconcile_shards.py is unchanged (matching FR-005/FR-006/C-002).
+
+  - id: SPEC-FRESH-003
+    lens: cross-artifact-consistency
+    severity: 3
+    title: "Concurrency edge case still bundles main() into the set of things that \"retry\", after FR-005 moved retry out of main()"
+    evidence:
+      - artifact: "spec.md § Edge Cases, \"Concurrent missions' CI runs sharing the same reconcile code\" (line 81, untouched by the f8d001610 fix commit): \"each invocation of report()/main() retries only its own evidence read for its own subject\""
+      - artifact: "spec.md § FR-005 (line 96, rewritten): reconcile_shards.py::main() \"owns no network/API call and is not modified by this requirement\""
+    claim: >
+      This edge case (not touched by the fix round) still phrases the no-cross-run-
+      coupling guarantee as applying to "report()/main()" as if both retry. Under the
+      post-fix design, main() does not retry at all — only fleet_verdict.py::report(),
+      fleet_main.py::report(), and the new ci-aggregate.yml polling step/script retry.
+      Leaving main() in this sentence risks a plan-phase author designing per-subject
+      retry-state isolation inside main() itself (chasing a requirement that no longer
+      applies to that function) instead of on the new polling step, which is where the
+      isolation requirement actually now needs to be satisfied.
+    remediation: >
+      Reword to "each invocation of report()/[the new polling step] retries only its
+      own evidence read for its own subject", dropping main() from the set of
+      retry-bearing entities the FR-009 no-cross-coupling guarantee is stated over (or
+      add a note that main() is out of scope here because it does not retry).
+
+  - id: SPEC-FRESH-004
+    lens: cross-artifact-consistency
+    severity: 2
+    title: "SC-002(b) still frames reconcile_shards.py itself as subject to \"the entire bounded retry budget\""
+    evidence:
+      - artifact: "spec.md § Success Criteria, SC-002 (line 132, untouched by the f8d001610 fix commit): \"(b) reconcile_shards.py still exits non-zero with its ::error:: annotation when a selected/must_be_fresh shard remains absent for the entire bounded retry budget.\""
+      - artifact: "spec.md § SC-001 (line 131, rewritten by f8d001610): \"reconcile_shards.py::main() is exercised unchanged by these tests, confirming its existing fail-closed exit... fire against whatever the (possibly retried) download step actually produced.\""
+    claim: >
+      SC-001 was correctly rewritten to attribute the retry budget to "the new
+      ci-aggregate.yml artefact-visibility polling step/script," but the adjacent
+      SC-002(b), one line below, still describes reconcile_shards.py as running
+      "for the entire bounded retry budget" as if the budget belongs to
+      reconcile_shards.py's own invocation. The observable outcome (non-zero exit,
+      ::error:: annotation) is unaffected, so this is wording drift rather than a
+      behavioral gap, but it continues the same stale symmetric-retry framing flagged
+      in SPEC-FRESH-001/002/003 and could mislead a reviewer checking SC-002 in
+      isolation from the corrected SC-001.
+    remediation: >
+      Reword SC-002(b) to match SC-001's framing, e.g. "...when a selected/
+      must_be_fresh shard remains absent from what the (possibly retried)
+      ci-aggregate.yml polling step/download step actually produced."
+
+  - id: SPEC-FRESH-005
+    lens: scope-and-testability
+    severity: 3
+    title: "FR-005 leaves the new polling step's implementation shape (Python script vs. inline YAML/bash) undecided, while NFR-003 already presupposes a pytest-mockable Python script"
+    evidence:
+      - artifact: "spec.md § FR-005 (line 96): \"ci-aggregate.yml to gain a new bounded polling step... this new polling step/script owns it\" — never states the step must be implemented as an in-repo Python module"
+      - artifact: "spec.md § NFR-003 item (3) (line 108): \"unit tests added in tests/ci/ that mock... its own GitHub Actions artifacts-API client (mirroring the GitHub/GitHubCLI boundary already mocked for fleet_verdict.py)\""
+      - artifact: "spec.md § User Story 3, Independent Test (line 71): gives a concrete example filename, \"scripts/ci/wait_for_artifacts.py\", that appears nowhere in Functional Requirements or Key Entities as a stated deliverable"
+    claim: >
+      FR-005's own wording ("polling step" / "polling step/script", interchangeably)
+      does not commit to the new artefact-visibility check being implemented as an
+      importable Python module. A plan-phase author reading FR-005 alone could
+      legitimately implement it as an inline bash loop calling `gh api`/`gh run
+      download` in a `run:` block, or via a third-party GitHub Marketplace retry
+      Action — nothing in FR-005 rules this out, and NFR-002 ("Python standard
+      library... e.g. time.sleep plus a bounded loop") was written for, and only
+      explicitly enumerates, FR-002/FR-003/FR-005 without clarifying whether a
+      YAML-native implementation is even in scope for that NFR. But NFR-003 already
+      hard-requires pytest unit tests in tests/ci/ that mock "its own GitHub Actions
+      artifacts-API client" — a requirement that is unsatisfiable if the step is
+      implemented as bare YAML/bash or an off-the-shelf Action, since neither is
+      something pytest can unit-test. This is exactly the kind of gap the rubric
+      calls "FR without coverage": the FR that would make the polling step exist as
+      testable code is never stated; only the NFR that assumes it already exists is.
+    remediation: >
+      Make FR-005 explicit that the polling step MUST be implemented as a new,
+      importable Python script/module under scripts/ci/ (not inline YAML/bash, not a
+      third-party Action), invoked from ci-aggregate.yml — consistent with what
+      NFR-003 already requires to be unit-testable — and add that script to Key
+      Entities (see SPEC-FRESH-002) as the fourth entity this mission creates.
+
+  - id: SPEC-FRESH-006
+    lens: cross-reference-integrity
+    severity: 1
+    title: "Constraints table ID sequence has a permanent gap at C-005 after the fix-round renumber"
+    evidence:
+      - artifact: "spec.md § Constraints table (lines 114-121): IDs run C-001, C-002, C-003, C-004, C-006, C-007, C-008, C-009 — C-005 is never used"
+      - artifact: "diff 597b891f5..f8d001610: the old C-005 (\"Diff-cover coverage floor does not apply...\") was renumbered to C-009 and moved to the end of the table, rather than having a new constraint take the vacated C-005 slot"
+    claim: >
+      The fix round correctly removed the confusing self-reference where old C-002
+      cited "invariant C-005" for a constraint that was actually a diff-cover-gate
+      note unrelated to the fail-closed floor, by renaming the diff-cover constraint
+      to C-009. That renumber is sound and leaves no dangling "C-005" reference
+      anywhere in the document (verified by grep). However, it leaves the table with
+      a permanent, unexplained gap at C-005, and C-009's content sits out of ID order
+      at the bottom of the table (after C-008) rather than where C-005 used to be.
+      This is cosmetic — no functional harm — but a reader cross-referencing
+      constraint IDs from an external tracker comment or a future PR description
+      could reasonably wonder whether a constraint was silently deleted.
+    remediation: >
+      Either renumber C-006 through C-009 down to C-005 through C-008 to close the
+      gap, or add a one-line note where C-005 would have been ("C-005 retired/
+      renumbered to C-009 during the review-fix round") so the gap is self-explaining.

@@ -1,0 +1,64 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh2
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: PLAN-FRESH2-001
+    lens: fresh-eyes / trace-based-observability
+    severity: 4
+    title: "New step's prescribed env: block omits GH_TOKEN, which the reused GitHub/GitHubCLI boundary requires to authenticate"
+    evidence:
+      - artifact: "plan.md § User Story 3, \"New step's own `env:` block\" (lines ~480-494, edited in commit 89ad38031)"
+      - artifact: "plan.md § User Story 3, \"scripts/ci/wait_for_artifacts.py (new)\" bullet (lines ~509-511): \"Polls GET actions/runs/{SOURCE_RUN_ID}/artifacts ... via the same GitHub/GitHubCLI request/pages() boundary already defined in fleet_verdict.py, imported here as its third consumer\""
+      - code: "scripts/ci/fleet_verdict.py:142 — `GitHub.request()` reads `token = os.environ[\"GH_TOKEN\"]` and raises KeyError if absent; `GitHubCLI.request()` (fleet_verdict.py:166-176) shells out to `gh api`, which in this workflow's other steps is likewise fed by an explicit `GH_TOKEN` env var (see next citation) since the runner has no ambient gh auth otherwise"
+      - code: ".github/workflows/ci-aggregate.yml:107-112 and :146-150 — the two `run:` steps the plan itself cites as the precedent pattern (\"Prepare exact source registry and diff\", \"Select reports from executions retained by the source attempt\") both declare `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` in their step-local `env:` block *alongside* SOURCE_RUN_ID/SOURCE_RUN_ATTEMPT/SOURCE_REPOSITORY — the plan quotes these two steps as the model to copy but only lists the three SOURCE_* vars, dropping the fourth var (GH_TOKEN) that is actually present in both cited examples and that any GitHub API call requires"
+    claim: >
+      The latest revision (commit 89ad38031) rewrote and strengthened the "New step's own env:
+      block" paragraph to authoritatively enumerate exactly what the new "Wait for selected shard
+      artefact visibility" step must declare in its step-local env: block — "these three
+      variables" (SOURCE_RUN_ID/SOURCE_RUN_ATTEMPT/SOURCE_REPOSITORY) — and states "it cannot
+      inherit them from anywhere else in the job." But wait_for_artifacts.py is explicitly
+      designed (same section, a few lines below) to reuse fleet_verdict.py's GitHub/GitHubCLI
+      class boundary to call the GitHub Actions artifacts API, and that boundary requires GH_TOKEN
+      (read directly via os.environ["GH_TOKEN"] in GitHub.request(), or needed for `gh api`
+      authentication in GitHubCLI.request()). The job carries no job-level env: key (verified,
+      same paragraph), so GH_TOKEN is not ambiently available either — it is not inherited from
+      anywhere. Both `run:` steps the plan cites as the precedent to copy (lines 107-112, 146-150
+      of ci-aggregate.yml) declare GH_TOKEN in their own env: block precisely because it isn't
+      inherited. An implementer following this paragraph literally would declare an env: block
+      with only the three SOURCE_* vars, and the new step would crash (KeyError, or a `gh api`
+      auth failure) the first time it tries to call the GitHub API — not a graceful "retry budget
+      exhausted, exit 0" outcome, but an unhandled failure of the step itself, which (absent an
+      explicit continue-on-error the plan does not mention for this step) would fail the whole
+      `collect` job on every PR, a strictly worse regression than the flake this mission fixes.
+      NFR-003's mocked unit tests would not catch this because they exercise the Python function
+      directly, never the real workflow env: block.
+    remediation: >
+      In plan.md's "New step's own env: block" paragraph, add GH_TOKEN to the list of variables
+      the new step must declare (or explicitly state it reuses `secrets.GITHUB_TOKEN` the same
+      way the two cited precedent steps do), so the step-local env: block is
+      GH_TOKEN/SOURCE_RUN_ID/SOURCE_RUN_ATTEMPT/SOURCE_REPOSITORY — matching what both cited
+      example steps actually declare — not just the three SOURCE_* vars.
+  - id: PLAN-FRESH2-002
+    lens: fresh-eyes / decision-documentation
+    severity: 2
+    title: WP4's re-scoping (a structural change resolving a charter-gate contradiction) is not listed in the reviewer-facing "Deviations, Blockers, and Judgment Calls" summary
+    evidence:
+      - artifact: "plan.md § Constitution Check, C-011 row (lines ~74, edited in commit 89ad38031): WP4 is re-scoped from carrying the FR-009 cross-invocation isolation test to being a pure integration/verification WP with no test obligation"
+      - artifact: "plan.md § Deviations, Blockers, and Judgment Calls for Reviewers (lines 719-749, unchanged by commit 89ad38031) — 5 items, none mentioning the WP4 re-scoping"
+    claim: >
+      This revision made a real structural change to the work-package plan — moving FR-009's test
+      out of WP4 and re-scoping WP4 to carry zero test obligations, specifically to resolve a
+      charter C-011 contradiction the prior review round flagged (per the commit message
+      "resolve C-011/WP4 contradiction"). That is exactly the kind of judgment call the plan's own
+      "Deviations, Blockers, and Judgment Calls for Reviewers" section exists to surface, but the
+      section was not touched by this revision and still lists only the 5 pre-existing items —
+      nothing about the WP4 re-scoping. A reviewer skimming only that summary section (as the
+      section is designed to be skimmed) would miss that a WP's shape changed between plan
+      revisions to satisfy a charter gate.
+    remediation: >
+      Add a 6th item to "Deviations, Blockers, and Judgment Calls for Reviewers" noting that WP4
+      was re-scoped (from carrying FR-009's cross-invocation isolation test to being a pure
+      integration/verification WP with no test of its own) specifically to satisfy charter C-011,
+      with a pointer to the Constitution Check C-011 row and the Dependency Graph for the detail.

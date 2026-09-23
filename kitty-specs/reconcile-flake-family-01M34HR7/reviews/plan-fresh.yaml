@@ -1,0 +1,88 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: PLAN-FRESH-001
+    lens: fresh-eyes
+    severity: 4
+    title: >-
+      New ATDD-First Discipline row and new FR-009 red-first exemption
+      contradict each other for WP4, which has no other red-first anchor
+    evidence:
+      - artifact: "plan.md § Constitution Check (Charter rule table), row \"ATDD-First Discipline (binding per charter.md C-011)\""
+      - artifact: "plan.md § Red-First Application Across All NFR-003 Test Surfaces, bullet \"FR-009's cross-invocation isolation test\""
+      - artifact: "plan.md § Parallel Work Analysis / Dependency Graph, WP4 description"
+      - code: ".kittify/charter/charter.md:622-634 (\"ATDD-First Discipline (binding per C-011)\": \"The WP cannot start coding until at least one failing-first ATDD test exists ... committed as a separate commit ... BEFORE any implementation commits. The reviewer verifies red\\u2192green: the test was RED on the WP's planning_base_branch AND GREEN on the WP's final commit.\")"
+    claim: >-
+      This fix round added two new passages that were not reconciled against each
+      other or against the pre-existing (unchanged) WP4 scope. (1) The Constitution
+      Check table now has a new binding row, "ATDD-First Discipline (binding per
+      charter.md C-011)", requiring every WP's first commit to be a failing-first
+      ATDD test that is RED on planning_base_branch and GREEN on the final commit.
+      (2) The new "Red-First Application Across All NFR-003 Test Surfaces" section
+      explicitly exempts FR-009's cross-invocation isolation test from red-first,
+      reasoning that "there is no pre-fix analog to run red against ... the
+      isolation property trivially holds before this mission, since there is
+      nothing stateful to isolate yet" — i.e. that test cannot be RED on
+      planning_base_branch by construction. WP4 in the (unchanged) Parallel Work
+      Analysis section is scoped as "FR-009 cross-invocation isolation tests
+      (spans WP2's two surfaces) + final tracer-file append + SC-001/SC-002/SC-003
+      full-suite re-run" — none of which is new functional code with an
+      independent failing-first test. If the FR-009 test is WP4's only new test
+      content and it is exempt from red-first by the plan's own new text, WP4 has
+      no way to satisfy the newly-added binding C-011 row: there is no candidate
+      commit that can be RED on planning_base_branch and GREEN on the final
+      commit. This is a fresh contradiction created by this revision (both
+      passages are new in commit 3bb67a559), not a pre-existing gap: the fix
+      tightened the charter-compliance table with a hard commit-history gate in
+      the same breath as carving out the one exemption that defeats it for WP4.
+    remediation: >-
+      Either (a) reconcile WP4's scope so it also contains genuine new
+      user-observable behavior with its own valid red-first test (e.g. fold the
+      FR-009 isolation assertion into WP2's own red-first commit sequence instead
+      of leaving it as WP4's sole deliverable), or (b) add an explicit carve-out
+      in the ATDD-First Discipline row (or a WP4-specific note) stating that WP4's
+      first commit satisfies C-011 via a different anchor (e.g. the SC-001/002/003
+      full-suite re-run is not it, since it is not new/failing-first) — and name
+      that anchor concretely — or (c) merge WP4 into WP2/WP3 so the FR-009 test
+      rides along with a WP that already has a valid red-first commit. Whichever
+      is chosen, tasks.md's WP4 definition must state explicitly how it satisfies
+      C-011 given the FR-009 exemption, so the implement-phase reviewer is not
+      left to invent an answer.
+  - id: PLAN-FRESH-002
+    lens: fresh-eyes
+    severity: 2
+    title: >-
+      "Every existing step ... re-declares [vars] as a step-local env: block"
+      overstates the actual pattern; two adjacent uses: steps pass the same
+      values inline instead
+    evidence:
+      - artifact: "plan.md § User Story 3, \"New step's own env: block\""
+      - code: ".github/workflows/ci-aggregate.yml:159-169 (\"Download the triggering run's shard artefacts\", id: download-current, uses actions/download-artifact with `run-id: ${{ github.event.workflow_run.id || inputs.source_run_id }}` inlined directly, no env: block)"
+      - code: ".github/workflows/ci-aggregate.yml:214-222 (\"Download the triggering run's selected-module set\", id: download-selected-modules, same inline `run-id:` expression, no env: block)"
+    claim: >-
+      The new "New step's own env: block" paragraph states "every existing step
+      in this job that needs SOURCE_RUN_ID/SOURCE_RUN_ATTEMPT/SOURCE_REPOSITORY
+      re-declares them as a step-local env: block", citing two `run:` (shell)
+      steps as examples. That is true for those two `run:` steps, but it is not
+      true "every" step in the `collect` job: the two `uses: actions/download-artifact`
+      steps immediately surrounding the insertion point (download-current at
+      line 159 and download-selected-modules at line 214, the very step this new
+      polling step is inserted next to) also consume SOURCE_RUN_ID but do so by
+      inlining `${{ github.event.workflow_run.id || inputs.source_run_id }}`
+      directly into the `with: run-id:` action input, with no env: block at all.
+      The blanket "every ... step" phrasing is inaccurate and, read literally,
+      implies these two download-artifact steps should also have had env:
+      blocks (they never did and don't need one, since `uses:` action inputs
+      don't require env indirection the way `run:` shell scripts do).
+    remediation: >-
+      Qualify the claim to the steps it actually describes, e.g.: "every
+      existing run: (shell) step in this job that needs these values re-declares
+      them as a step-local env: block (e.g. ...); the two uses: actions/download-artifact
+      steps in this job instead inline the same GitHub Actions expression
+      directly into their with: run-id: input, which is the normal pattern for
+      action inputs and needs no env: block." This keeps the practical guidance
+      (the new step, being a run: python3 step, should follow the run:-step
+      pattern) intact while not overstating what the surrounding code does.

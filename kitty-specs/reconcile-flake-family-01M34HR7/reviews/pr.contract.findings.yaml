@@ -1,0 +1,106 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: contract
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: PR-CONTRACT-001
+    lens: workflow-dependency-ordering
+    severity: 5
+    title: "wait_for_artifacts.py runs before PyYAML is installed and will crash on every real (non-workflow_dispatch) run"
+    evidence:
+      - code: ".github/workflows/ci-aggregate.yml:170"   # "Wait for selected shard artefact visibility" step, no continue-on-error, set -euo pipefail
+      - code: ".github/workflows/ci-aggregate.yml:242"   # "Install PyYAML" step -- now runs AFTER the wait step, unchanged position from pre-diff
+      - code: "scripts/ci/wait_for_artifacts.py:25"       # from scripts.ci.fleet_verdict import GitHub
+      - code: "scripts/ci/wait_for_artifacts.py:27"       # from scripts.ci.reconcile_shards import (...)
+      - code: "scripts/ci/fleet_verdict.py:24"             # import yaml (module-level, unconditional)
+      - code: "scripts/ci/reconcile_shards.py:32"          # import yaml (module-level, unconditional)
+      - code: ".github/workflows/ci-stale-running-sweep.yml:53"  # sibling workflow's own comment: "fleet_verdict (imported read-only for its GitHub client) requires PyYAML" -- and it installs PyYAML BEFORE running such a script
+    claim: >
+      The diff moves the "Download the triggering run's selected-module set" step earlier
+      and inserts the new "Wait for selected shard artefact visibility" step
+      (`python3 scripts/ci/wait_for_artifacts.py`) immediately after it -- both now run
+      BEFORE the pre-existing "Install PyYAML" step, which was left at its original
+      position (line 242, right before the "Reconcile shard artefacts" step it was
+      installed to support). `wait_for_artifacts.py` imports `GitHub` from
+      `fleet_verdict.py` and several names from `reconcile_shards.py`; both of those
+      modules do a module-level, unconditional `import yaml`. GitHub-hosted `ubuntu-latest`
+      runners' bare `python3` does not ship PyYAML -- every other workflow in this repo
+      that runs a script importing `fleet_verdict.py` or `reconcile_shards.py`
+      (ci-modules.yml, ci-nightly.yml, ci-router.yml, ci-fleet-verdict.yml,
+      ci-stale-running-sweep.yml, release-readiness.yml) explicitly `pip install`s PyYAML
+      first, and ci-stale-running-sweep.yml even carries an inline comment stating this
+      exact rationale ("fleet_verdict ... requires PyYAML"). I confirmed empirically (in a
+      throwaway venv with PyYAML removed from `sys.path`) that
+      `import scripts.ci.wait_for_artifacts` raises
+      `ModuleNotFoundError: No module named 'yaml'`. The new "Wait for selected shard
+      artefact visibility" step has no `continue-on-error` and runs under
+      `set -euo pipefail`, unlike the `download-selected-modules` step right above it
+      (which does have `continue-on-error: true`). So on every triggering run except
+      `workflow_dispatch` (i.e. virtually all real CI Aggregate runs), this step will
+      raise `ModuleNotFoundError` at import time -- before `wait_for_artifacts.py::main()`
+      ever executes its "always exit 0, never raise" logic -- and hard-fail the entire
+      `collect` job, breaking coverage/diff-cover aggregation for every PR and every push
+      to main. This is the exact opposite of the architectural floor the module's own
+      docstring promises ("on budget exhaustion this module ALWAYS exits 0 and never
+      raises"): it never reaches that logic at all.
+    remediation: >
+      Move the "Install PyYAML" step to before the new "Wait for selected shard artefact
+      visibility" step (and before "Download the triggering run's selected-module set" if
+      that step's own dependents need it), or add a local, narrowly-scoped
+      `pip install pyyaml` immediately ahead of the `wait_for_artifacts.py` invocation.
+      Add a regression test/lint that fails when a `python3 scripts/ci/*.py` step in this
+      workflow file appears before its transitive `import yaml` dependency is satisfied,
+      or restructure `wait_for_artifacts.py`'s imports to avoid pulling in `fleet_verdict`
+      and `reconcile_shards` at module scope this early in the job.
+
+  - id: PR-CONTRACT-002
+    lens: behavioural-change-to-existing-callers
+    severity: 3
+    title: "fleet_verdict.py's --dry-run no longer fast-fails on unstable evidence; it now sleeps for real (up to ~14s) before printing anything"
+    evidence:
+      - code: "scripts/ci/fleet_verdict.py:383"   # report(): retry_with_backoff() called unconditionally, before the dry_run check
+      - code: "scripts/ci/fleet_verdict.py:409"   # sleep=time.sleep (the real sleep, not overridden for dry_run)
+      - code: "scripts/ci/fleet_verdict.py:419"   # dry_run branch only reached AFTER the retry loop completes
+      - code: "scripts/ci/fleet_main.py:181"       # fleet_main.py's contrasting design: dry_run short-circuits BEFORE retry_with_backoff is ever called
+    claim: >
+      In fleet_main.py, `report()`'s `dry_run` check is deliberately positioned before
+      `retry_with_backoff` is invoked, so a dry-run/manual invocation never sleeps for
+      real. fleet_verdict.py's `report()` does not have this property: `dry_run` is only
+      checked at the very end, after `retry_with_backoff(attempt_once, ..., sleep=time.sleep)`
+      has already run to completion. `--dry-run` is a real, human-facing CLI flag (wired in
+      `main()`) used for manual replay/debugging. If the two paired snapshot reads inside an
+      `_attempt()` disagree (e.g. CI state genuinely changing during a manual replay
+      session), a `--dry-run` invocation now silently blocks for up to ~14s of real
+      `time.sleep` (2s+4s+8s across up to 3 sleeps) with no stdout in between, whereas
+      pre-fix it raised a `ValueError` immediately. An operator debugging via `--dry-run`
+      has no indication the process is retrying rather than hung.
+    remediation: >
+      Either treat this as accepted (fleet_verdict.py's dry_run has always run the full
+      read-compare sequence before deciding whether to print or post, so retrying that
+      sequence is a faithful extension) and print a `[ci] retrying ...` line on each retry
+      so a dry-run caller isn't left staring at silence, or thread a no-op `sleep` through
+      when `dry_run=True` so manual invocations stay fast, matching fleet_main.py's
+      pre-loop short-circuit pattern.
+
+  - id: PR-CONTRACT-003
+    lens: silent-success
+    severity: 2
+    title: "fleet_main.py's exhausted-retry diagnostic prints the pre-loop snapshot's head, not the last attempt's own evidence"
+    evidence:
+      - code: "scripts/ci/fleet_main.py:179"   # evidence = snapshot(...) -- the pre-loop read, captured once before the retry loop
+      - code: "scripts/ci/fleet_main.py:201"   # print(f"[ci] deferred @{evidence['head']}: ...") -- uses that same pre-loop `evidence`, never refreshed
+    claim: >
+      `report()` takes one snapshot before the retry loop (needed for the dry_run
+      short-circuit), then never updates that local `evidence` again. When the retry
+      budget is exhausted (`outcome is None`), the deferred diagnostic prints
+      `evidence['head']` from that stale pre-loop read. If main's head moved during the
+      retry window (a realistic scenario -- it's exactly the kind of instability this
+      mission exists to tolerate), the printed head in the "deferred" log line can be wrong
+      relative to what was actually retried against, making the diagnostic misleading for
+      whoever is reading CI logs to understand why an incident wasn't filed.
+    remediation: >
+      Have `_attempt()`'s `None` return carry the last-observed head (e.g. via a small
+      wrapper/closure capturing the final evidence read before returning `None`), and have
+      `report()`'s deferred print use that value instead of the pre-loop snapshot.

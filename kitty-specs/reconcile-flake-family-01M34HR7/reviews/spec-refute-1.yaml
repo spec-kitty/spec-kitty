@@ -1,0 +1,54 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: >
+      Verified directly against scripts/ci/reconcile_shards.py:21-32 (imports json/os/re/sys/collections/
+      dataclasses/pathlib/yaml only, no network client) and main() (235-307), which calls index_by_basename()
+      exactly once over a static local directory with nothing to repopulate it between attempts within one
+      job; ci-aggregate.yml's three download-artifact steps run once before a single non-looped reconcile
+      step, confirming a bounded in-process retry as FR-005/US3 literally describes would observe the
+      identical result on every attempt.
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: >
+      Verified a genuine three-way collision — spec.md's own Constraints-table C-005 ("Diff-cover coverage
+      floor does not apply"), five in-body citations of "invariant C-005 ('never silently treat as
+      complete')" (User Story 3, FR-006, C-002, two Edge Cases), and contracts/artefact-naming.md, whose only
+      "(C-005)" tag labels the whole naming contract with an Invariants section numbered 1-3 that states no
+      "never silently treat as complete" invariant, while the owning mission's canonical spec.md:214 defines
+      C-005 as unrelated naming/format preservation — all citations check out verbatim against the primary
+      sources.
+  - id: SPEC-GOV-003
+    verdict: confirmed
+    reason: >
+      spec.md's C-008 verbatim contains "/home/jeroennouws/dev/SK-missions/SPEC-KITTY-LEDGER.md", exposing
+      the operator's OS username and local directory layout in a spec destined for a public-repo PR branch,
+      confirmed by direct read of the artifact.
+  - id: SPEC-GOV-004
+    verdict: confirmed
+    reason: >
+      charter.md's Standing Order #4 verbatim requires "reproduce RED-FIRST through the pre-existing entry
+      point; require live evidence over 'looks fixed'"; NFR-003 and SC-001 as written require the new mocked
+      retry tests to exist and pass post-fix but contain no clause requiring the same test be run against the
+      unmodified surface first to confirm it fails as the real flake does — confirmed absent from the spec
+      text.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: >
+      NFR-003 verbatim enumerates unit-test coverage for exactly three surfaces (FR-002/004, FR-003/004,
+      FR-005/006), omitting FR-009; SC-001 through SC-004 were checked and none reference FR-009, concurrency,
+      or cross-run coupling; a grep of tests/ci/test_fleet_verdict.py, test_fleet_main.py, and
+      test_reconcile_shards.py for lock/concurrent/shared-state/cross-run returned zero matches, confirming
+      the High-priority FR has no falsifiable test hook anywhere in the spec.
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: >
+      Verified verbatim — User Story 2 Acceptance Scenario 3 requires only that the skip "records that it
+      deferred to a later event" with no pinned string/format/mechanism, while its sibling User Story 3
+      Acceptance Scenario 2 pins the exact "::error::ci-aggregate: ... refusing to silently treat this run as
+      complete ..." annotation, confirming the asymmetry the finding describes.

@@ -1,0 +1,80 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+mission: reconcile-flake-family-01M34HR7
+merged_from:
+  - tasks-decomp.findings.yaml
+  - tasks-seq.findings.yaml
+  - tasks-verify.findings.yaml
+findings:
+  - id: TASKS-DECOMP-001
+    lens: Requirement-mapping fidelity
+    severity: 2
+    title: "C-007 is mapped to WP04's requirement_refs but never once engaged in WP04's body text"
+    evidence:
+      - artifact: "tasks.md § WP04 (\"Requirement Refs: FR-001, C-001, C-007\")"
+      - artifact: "kitty-specs/reconcile-flake-family-01M34HR7/wps.yaml:90 (WP04 requirement_refs: C-007)"
+      - artifact: "kitty-specs/reconcile-flake-family-01M34HR7/tasks/WP04-integration-verification-tracer-closeout.md:10 (frontmatter requirement_refs: C-007)"
+      - artifact: "spec.md line 121 (\"C-007 | No ledger entry exists for this behavior | ... Noted here so a reviewer does not need to re-grep it.\")"
+    claim: >
+      C-007 ("no SPEC-KITTY-LEDGER.md entry exists for this defect family — noted so a
+      reviewer does not need to re-grep it") is listed in WP04's requirement_refs (tasks.md,
+      wps.yaml, and the WP04 prompt frontmatter), but a full-text grep of
+      tasks/WP04-integration-verification-tracer-closeout.md for "C-007" and "ledger" finds
+      zero occurrences outside the frontmatter ref list — no subtask, Context paragraph,
+      Definition of Done bullet, or Risk references it. Contrast with C-001 in the same WP,
+      which is explicitly restated in the Context section's "Pre-merge verification scope
+      note" and again required to be restated in tracer-approach.md (T018) — C-007 gets no
+      equivalent treatment. This is exactly the "WP grabbing a ref to satisfy the
+      finalize-tasks validator" pattern the review brief asks this lens to catch: the ref is
+      present in the manifest but nothing in the WP concretely carries it.
+    remediation: >
+      Add one explicit line to WP04's Context (mirroring how C-001 is handled) confirming
+      C-007's finding still holds — e.g. "Confirm no SPEC-KITTY-LEDGER.md entry exists for
+      this defect family (C-007); if the operator's copy of the ledger now has one, note it
+      in tracer-tooling-friction.md rather than silently ignoring the drift" — and add a
+      corresponding bullet to T017 or T019's steps and to the Definition of Done, so C-007 is
+      actually carried by a task the same way C-001 is, rather than being a name-only entry
+      in requirement_refs.
+  - id: TASKS-VERIFY-001
+    lens: Silent-success / stale-evidence invariant fidelity (mission-specific)
+    severity: 3
+    title: "WP02's characterization of fleet_main.py's RerunAPI mock (\"it moves the head\") is factually wrong; it mutates CI-attempt data, not the head SHA"
+    evidence:
+      - artifact: "tasks/WP02-fleet-verdict-fleet-main-retry.md § Context, \"Existing tests you must re-pin...\" paragraph: \"read its RerunAPI mock ... it moves the head on head_reads == 1 specifically (not 'after the first read')\""
+      - code: "tests/ci/test_fleet_main.py:239-249 (test_attempt_change_during_publication_refuses_stale_verdict / class RerunAPI)"
+    claim: >
+      WP02's prompt tells the implementer that fleet_main.py's `RerunAPI` mock "moves the
+      head on head_reads == 1." Reading the live mock (tests/ci/test_fleet_main.py:241-243)
+      shows this is incorrect: `RerunAPI.request()` fires
+      `self.runs["ci-quality.yml"][0].update(run_attempt=2, status="in_progress",
+      conclusion=None)` when `path == "git/ref/heads/main" and self.head_reads == 1` — it
+      mutates the ci-quality workflow-run's attempt/status/conclusion, not `self.head`.
+      `move_on_second_read` (the actual head-SHA mover, inherited from `MainAPI`) is never
+      set `True` anywhere in `test_attempt_change_during_publication_refuses_stale_verdict`,
+      so the head SHA never moves in this test at all; the instability the mock manufactures
+      is entirely a CI-attempt-state change between the two `snapshot()` reads. The
+      `ValueError` message ("main head or CI attempts changed") is generic enough to cover
+      both cases, which is presumably why the prompt's author conflated them. Under the new
+      retry-wrapped `_attempt()`, this matters concretely: because the mutation is permanent
+      (baked into `self.runs` once head_reads reaches 1, not flapping), the SECOND
+      `_attempt()` call's first `snapshot()` will already observe ci-quality as
+      `status="in_progress"/conclusion=None` — i.e. evidence state likely becomes
+      "running," not "red" — which routes into the untouched, non-retried early-return branch
+      (`elif evidence["state"] != "red": print(text, end=""); return`) rather than into a
+      "stabilized-and-publish" outcome analogous to `fleet_verdict.py`'s re-pin. An
+      implementer who trusts the prompt's "moves the head" framing at face value (rather than
+      independently tracing, which the prompt does separately instruct) is liable to design
+      the re-pinned assertion around the wrong mechanism (expecting a stabilized-SHA publish
+      like the `fleet_verdict.py` case) and have to redo it once the actual trace surfaces the
+      CI-attempt-state / early-return path instead.
+    remediation: >
+      Correct the WP02 prompt's characterization: state that `RerunAPI` mutates the
+      ci-quality workflow run's `run_attempt`/`status`/`conclusion` (not the head SHA) when
+      `head_reads == 1`, that `move_on_second_read` is never enabled in this test (the head
+      SHA is constant throughout), and that this produces a different re-pin shape than
+      `fleet_verdict.py`'s case — likely landing in the untouched
+      `evidence["state"] != "red"` early-return branch rather than a "stabilized, then
+      publish" outcome. Keep the existing "trace it yourself" instruction, but replace the
+      inaccurate anchor sentence so implementers aren't primed with the wrong mental model
+      before they trace.

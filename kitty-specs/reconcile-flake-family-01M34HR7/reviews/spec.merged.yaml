@@ -1,0 +1,194 @@
+# review-findings/v1 (merged) — R2 mechanical merge/dedup, orchestrator-produced.
+# Concatenation of spec-gov.findings.yaml, spec-arch.findings.yaml, spec-verify.findings.yaml.
+# Findings citing the same artifact section/file:line and making substantially the same claim
+# are merged into one entry: highest severity kept, evidence unioned, all contributing ids
+# recorded under merged_from. No finding dropped for disagreement — that judgment is R3's.
+schema: review-findings/v1
+phase: spec
+mission: reconcile-flake-family-01M34HR7
+source_files:
+  - reviews/spec-gov.findings.yaml
+  - reviews/spec-arch.findings.yaml
+  - reviews/spec-verify.findings.yaml
+findings:
+  - id: SPEC-GOV-001
+    merged_from: [SPEC-GOV-001, SPEC-ARCH-001]
+    lens: "Directive (gov) / Contracts (arch)"
+    severity: 4
+    title: "FR-005/User Story 3 asks reconcile_shards.py::main() to retry an artefact-presence check it structurally cannot re-observe"
+    evidence:
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 1: \"Given a selected (must_be_fresh) shard that is absent on the first read but present on a retry within the bounded budget, When reconcile_shards.py::main() runs, Then it completes successfully\""
+      - artifact: "spec.md § FR-005: \"reconcile_shards.py::main()'s missing-shard completeness check ... to re-attempt the artefact-presence check a bounded number of times with backoff before concluding a selected shard is absent\""
+      - artifact: "spec.md § NFR-003 ('mock the evidence/artefact-presence source') — mocks a source that does not exist as a retryable boundary in current code"
+      - code: "scripts/ci/reconcile_shards.py:21-32 — imports json, os, re, sys, collections, dataclasses, pathlib, yaml only; no urllib/requests/GitHub API client anywhere in the file"
+      - code: "scripts/ci/reconcile_shards.py:235-307 (main()) — only calls index_by_basename() (scripts/ci/reconcile_shards.py:200-207), a pure local Path.rglob() over an already-static directory; nothing repopulates it between calls within one job"
+      - code: ".github/workflows/ci-aggregate.yml:159-223 — three actions/download-artifact steps (two continue-on-error: true) run ONCE, BEFORE the single non-looped \"Reconcile shard artefacts\" step at .github/workflows/ci-aggregate.yml:230-239 (`run: python3 scripts/ci/reconcile_shards.py`, no retry wrapper)"
+    claim: >
+      FR-005 and User Story 3 frame the #4675 fix as a bounded retry loop living inside
+      reconcile_shards.py::main() (parallel in shape to FR-002/FR-003's fleet_verdict.py/fleet_main.py retry,
+      which DO make live GitHub API calls and so can legitimately observe a different answer on a later
+      read). But reconcile_shards.py was deliberately extracted into a pure function over an already-downloaded,
+      static local directory: it has no network/API capability at all, and nothing repopulates
+      out/aggregate/current between calls within one job. A bounded retry loop inside main() that re-reads
+      the same static directory observes the identical (missing or present) result on every attempt — it
+      cannot converge to a different answer, so as specified it would be a vacuous, no-op retry that never
+      closes the real #4675 race. The actual timing race is upstream, at the actions/download-artifact
+      step(s), a GitHub-Actions-level concern main() has no access to today. NFR-003's unit tests would mock
+      an "artefact-presence source" that does not exist as a retryable boundary in production code, so the
+      tests could pass green while the shipped fix does nothing for the real flake. This is a plan-blocking
+      gap: an implementer following FR-005 literally would either (a) write a retry that can never fire in
+      production, (b) discover mid-WP that reconcile_shards.py needs new GitHub Actions artifact-polling
+      capability grafted onto its declared pure-function architecture (a materially bigger, unscoped change),
+      or (c) have to move the retry to the YAML workflow-step level instead — none of which the spec
+      discloses or lets the plan phase choose between.
+    remediation: >
+      Before plan phase, resolve where the retryable read actually lives and say so explicitly in the spec:
+      either (1) scope FR-005 to a YAML-level retry around the download-artifact step(s) (wrap each with a
+      bounded poll/retry, or add a preceding step that polls the GitHub Actions artifacts API for the
+      expected artifact names before invoking download-artifact), and rewrite User Story 3's acceptance
+      scenarios so they no longer claim a single reconcile_shards.py::main() invocation observes the
+      absent-to-present transition; or (2) explicitly authorize giving reconcile_shards.py::main() a new,
+      live artefact-existence check against the GitHub Actions API (mirroring the GitHub/GitHubCLI class
+      already in scripts/ci/fleet_verdict.py) so a bounded in-process retry has fresh evidence to observe on
+      each attempt, and update NFR-003 to mock that new API boundary rather than an already-static local
+      read. Either way, add a sentence to FR-005 (or a new Constraint) stating which component — workflow
+      YAML or Python main() — owns the retryable network call.
+
+  - id: SPEC-GOV-002
+    merged_from: [SPEC-GOV-002, SPEC-ARCH-002, SPEC-VERIFY-002]
+    lens: "Directive (gov) / Contracts (arch) / Silent-success (verify)"
+    severity: 3
+    title: "\"C-005\" is used for at least two contradictory meanings inside this spec, plus a mis-citation of contracts/artefact-naming.md's actual C-005"
+    evidence:
+      - artifact: "spec.md § Constraints table, row C-005: \"Diff-cover coverage floor does not apply, but tests are still required\" (this spec's own local constraint)"
+      - artifact: "spec.md § User Story 3: 'so invariant C-005 (\"never silently treat as complete\", per contracts/artefact-naming.md) is never weakened'"
+      - artifact: "spec.md § FR-006: '(citing invariant C-005 / contracts/artefact-naming.md \"Stale-artefact fallback\")'"
+      - artifact: "spec.md § C-002: 'may weaken or remove the C-005 (\"never silently treat as complete\") fail-closed behavior'"
+      - artifact: "spec.md § Acceptance Scenario US3-2 and § Edge Cases (two bullets): all reference 'the C-005 floor' by the same label"
+      - code: "scripts/ci/reconcile_shards.py:297 '# C-005: a shard absent from BOTH the current and fallback runs...' and :305 '::error::ci-aggregate: refusing to silently treat this run as complete -- see contracts/artefact-naming.md \"Stale-artefact fallback\"' — confirms this label is a real, pre-existing code-comment convention"
+      - code: "kitty-specs/ci-pipeline-reinstatement-01M1X35E/contracts/artefact-naming.md:3 'Preserve verbatim (C-005).' and :10-14,20-21 — the document's only '(C-005)' tag labels the WHOLE naming contract; its '## Invariants' section is numbered 1-3 with no invariant named/labelled C-005, and no invariant states 'never silently treat as complete'"
+      - code: "kitty-specs/ci-pipeline-reinstatement-01M1X35E/spec.md:214 — the owning mission's canonical FR/C table defines C-005 as: 'Artefact naming contract preserved | Coverage/xunit artefacts preserve the coverage-<tier>-<module>.xml + *-reports naming, relative_files=true, and dotted --cov=<module> form' — i.e. naming/format preservation, unrelated to shard completeness"
+    claim: >
+      Within this single spec document, "C-005" is used for (at least) two unrelated meanings: (1) this
+      spec's own local Constraints-table row ("Diff-cover coverage floor does not apply..."); and (2) five
+      separate in-body references (User Story 3, its Acceptance Scenario, FR-006, C-002, two Edge Cases
+      bullets) to an external "invariant C-005" — "never silently treat as complete" — attributed to
+      contracts/artefact-naming.md. Reading the owning mission's actual canonical definition
+      (ci-pipeline-reinstatement-01M1X35E/spec.md:214), C-005 there means artefact naming/format
+      preservation, an unrelated invariant; the contract file itself assigns no ID to the "Stale-artefact
+      fallback" completeness-guard section being cited. The "C-005" label for the completeness floor only
+      exists as a pre-existing mislabeled comment inside reconcile_shards.py:297, which this spec's citation
+      reproduces rather than corrects — and collides with this spec's own, third, locally-defined C-005. A
+      reviewer or implementer who greps this spec (or the owning mission's spec) for "C-005" gets
+      contradictory definitions, undermining exactly the traceability the Decision Record otherwise takes
+      care to provide (cf. C-008's stated purpose: "so a reviewer does not need to re-grep it") — the
+      DIRECTIVE_048 stale/wrong-citation failure mode, and adjacent to the silent-success concern since the
+      mislabeled citation could let an implementer under- or over-trust the invariant's actual scope.
+    remediation: >
+      Renumber this spec's own local Constraints-table row currently at C-005 ("Diff-cover coverage floor
+      does not apply...") to an unused local ID (e.g. C-009). Separately, in User Story 3 / FR-006 / C-002 /
+      Edge Cases, drop the numeric "C-005" label for the reconcile_shards.py fail-closed floor and refer to
+      it descriptively instead — e.g. "the must_be_fresh fail-closed floor documented under 'Stale-artefact
+      fallback' in contracts/artefact-naming.md and reconcile_shards.py's own ::error:: annotation" — without
+      implying a formal invariant ID that source document doesn't define. If a stable ID is wanted for
+      traceability, file a follow-up to add a real, non-colliding invariant ID to contracts/artefact-naming.md's
+      "Stale-artefact fallback" section (and fix the same mislabeled comment in reconcile_shards.py:296-297)
+      rather than reusing the already-taken C-005.
+
+  - id: SPEC-GOV-003
+    merged_from: [SPEC-GOV-003]
+    lens: Public-repo
+    severity: 4
+    title: "C-008 hardcodes the operator's local home-directory path and OS username into a permanently public spec"
+    evidence:
+      - artifact: "spec.md § Constraints, C-008: \"`/home/jeroennouws/dev/SK-missions/SPEC-KITTY-LEDGER.md` (the workspace ledger, outside this checkout) was searched for ...\""
+    claim: >
+      spec-kitty is a PUBLIC repository; this spec.md is committed to a PR branch and stays in public history
+      permanently. C-008 quotes the reviewing operator's literal local filesystem path, including their OS
+      username ("jeroennouws") and local directory layout ("dev/SK-missions/"). This is exactly the class of
+      local-machine detail the Public-repo lens exists to catch — a personal-machine identifier with no
+      functional need to be the literal absolute path (the claim being made, "no ledger entry exists," is
+      fully expressible without the operator's home directory).
+    remediation: >
+      Reword C-008 to describe the ledger generically, e.g. "The mission orchestration workspace's
+      SPEC-KITTY-LEDGER.md (maintained outside this checkout, not part of the spec-kitty repository) was
+      grepped for 'reconcile', 'fleet.verdict', 'fleet_main', and 'reconcile_shards' with no relevant hits" —
+      drop the absolute path and username entirely before this spec is committed/pushed.
+
+  - id: SPEC-GOV-004
+    merged_from: [SPEC-GOV-004]
+    lens: Directive
+    severity: 2
+    title: "NFR-003/SC-001 don't operationalize the charter's red-first standing order for the new retry tests"
+    evidence:
+      - artifact: "spec.md § NFR-003: \"MUST have unit tests added in tests/ci/ that mock the evidence/artefact-presence source ... and assert both the recovery path ... and the terminal path\""
+      - artifact: "spec.md § SC-001: \"This is verified pre-merge, by running the tests, not by a green PR.\""
+      - artifact: ".kittify/charter/charter.md Quality & Tech-Debt Standing Orders, item 4: \"Test remediation & bug-fix discipline. ... reproduce RED-FIRST through the pre-existing entry point; require live evidence over 'looks fixed'\""
+    claim: >
+      Charter Standing Order #4 requires reproducing the defect red-first through the pre-existing entry
+      point before it's fixed. NFR-003 and SC-001 require the new mocked-raciness unit tests to exist and
+      pass after the fix, but never require confirming that the same new test, run against the CURRENT
+      (pre-fix) fleet_verdict.py::report() / fleet_main.py::report() / reconcile_shards.py::main(), actually
+      fails the way the real flake does (e.g. raises the existing ValueError, or exits non-zero, on the very
+      first unstable read) before the retry lands. Without that explicit red-first checkpoint, a test could
+      pass "by construction" without ever having exercised the bug it claims to guard against.
+    remediation: >
+      Add one sentence to NFR-003 (or a new acceptance-scenario clause) requiring each new retry unit test to
+      first be run against the unmodified surface and confirmed to fail with the current behavior
+      (ValueError / non-zero exit on the very first instability) before the retry implementation is added,
+      mirroring DIRECTIVE_034/041's red-first discipline for this mission's own test suite.
+
+  - id: SPEC-VERIFY-001
+    merged_from: [SPEC-VERIFY-001]
+    lens: Falsifiability
+    severity: 4
+    title: "FR-009 (no cross-run/cross-mission coupling) has no Acceptance Scenario or Success Criterion — a High-priority FR with zero test coverage"
+    evidence:
+      - artifact: "spec.md § FR-009 (Requirements / Functional Requirements table)"
+      - artifact: "spec.md § NFR-003 (enumerates required unit-test coverage for exactly three surfaces: FR-002/FR-004, FR-003/FR-004, FR-005/FR-006 — FR-009 is absent from this list)"
+      - artifact: "spec.md § Success Criteria (SC-001..SC-004 — none mention FR-009, cross-run state, locking, or concurrency)"
+      - artifact: "spec.md § Edge Cases, 'Concurrent missions' CI runs sharing the same reconcile code' (narrative only, not an Acceptance Scenario)"
+      - code: "tests/ci/test_fleet_verdict.py, tests/ci/test_fleet_main.py, tests/ci/test_reconcile_shards.py — grepped for lock/concurrent/shared-state/cross-run: zero matches, confirming no existing test exercises this property either"
+    claim: >
+      FR-009 is a High-priority functional requirement ("each retry/backoff invocation scoped only to its
+      own subject... no shared mutable state, lock file, or coupling to another concurrently-running
+      invocation... a fix that adds, e.g., a repo-wide lock file or a shared retry-state artifact would
+      violate this"). It is discussed narratively in the Edge Cases section and cross-referenced by C-007,
+      but no User Story's Acceptance Scenarios test it, and NFR-003 — the spec's own enumeration of required
+      unit-test coverage — lists coverage only for FR-002/FR-004, FR-003/FR-004, and FR-005/FR-006, omitting
+      FR-009 entirely. There is consequently no concrete observable anywhere in the spec that would make an
+      implementation fail if it silently violated FR-009 (e.g., by introducing a shared lock file or a
+      retry-state dict keyed globally instead of per-subject). This is exactly the "FR without coverage" case
+      the severity rubric names as high (4): a plausible implementation (e.g., a shared retry-helper
+      introduced per FR-008's consideration) could accidentally thread a module-level dict or file across
+      subjects, and nothing in Success Criteria would catch it before merge.
+    remediation: >
+      Add an explicit unit-test requirement for FR-009 to NFR-003 (or a new NFR/SC), e.g.: "unit tests assert
+      that two concurrent invocations of report()/main() for two different subjects (distinct PR numbers, or
+      a PR vs. a main-head push) do not read or write any shared object, global, or filesystem path — each
+      invocation's retry state is constructed fresh from its own arguments." Add a corresponding Acceptance
+      Scenario to User Story 2 or 3 (or a new short User Story) stating the Given/When/Then for this check,
+      so FR-009 has the same falsifiable footing as FR-002 through FR-007.
+
+  - id: SPEC-VERIFY-003
+    merged_from: [SPEC-VERIFY-003]
+    lens: Falsifiability
+    severity: 2
+    title: "User Story 2 Acceptance Scenario 3 (deferred-to-later-event log record) has no pinned expected content, unlike its reconcile_shards.py sibling"
+    evidence:
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 3: 'Then it records that it deferred to a later event (so the skip is diagnosable, not silent-and-unexplained) — this is a logging/diagnostic requirement, not a change to the exit code or return value.'"
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 2 (contrast): pins the exact expected annotation text, '::error::ci-aggregate: ... refusing to silently treat this run as complete ...' (or an equivalent that preserves the same fail-closed semantics)"
+    claim: >
+      Acceptance Scenario 3 of User Story 2 requires that the exhausted-retry skip path for
+      fleet_verdict.py::report()/fleet_main.py::report() "records that it deferred to a later event" but
+      does not pin any expected log-line content, format, or even a required log level/destination (stdout?
+      stderr? Python logging? a GitHub Actions ::notice:: annotation?) the way the sibling AC in User Story 3
+      pins the exact ::error:: string for reconcile_shards.py. A unit test written against this AC as
+      literally stated could pass on almost any non-empty print/log call, making the scenario only weakly
+      falsifiable compared to its sibling.
+    remediation: >
+      Pin the expected diagnostic output the same way User Story 3's AC pins its ::error:: annotation, e.g.:
+      specify the minimum required substrings (subject identifier, "deferred"/"skipped", and the reason
+      "evidence did not stabilize within retry budget") and the expected log mechanism (stdout print vs.
+      Python logging vs. a GitHub Actions ::notice::/::warning:: annotation), so NFR-003's unit tests have an
+      unambiguous string/mechanism to assert against.

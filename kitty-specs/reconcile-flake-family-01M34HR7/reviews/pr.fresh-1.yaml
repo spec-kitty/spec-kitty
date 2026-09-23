@@ -1,0 +1,45 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh-1
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: PR-FRESH1-001
+    lens: architect-alphonso
+    severity: 3
+    title: "except Exception is not scoped to \"transient\"; a permanent misconfiguration degrades to a silent, unbounded no-op"
+    evidence:
+      - code: "scripts/ci/wait_for_artifacts.py:121-131"
+      - code: "scripts/ci/wait_for_artifacts.py:178-183"
+    claim: >-
+      Both new broad catches are documented and commented as handling "a transient
+      GitHub API failure" (5xx/429/timeout), but `except Exception` in Python has no
+      way to distinguish that from a permanent condition: a bad/expired token, a
+      renamed or dropped env var, a wrong registry path, or a bug in `GitHub.pages()`
+      itself all raise the same way and are treated identically to "not yet visible."
+      Empirically confirmed in a throwaway worktree: unsetting SOURCE_RUN_ID (simulating
+      a typo'd/dropped env var) produces `KeyError: 'SOURCE_RUN_ID'`, which main()'s
+      outer handler swallows, printing only
+      `::warning::wait-for-artifacts: unexpected error, falling through to existing
+      download steps: 'SOURCE_RUN_ID'` and exiting 0. Because this step carries no
+      `continue-on-error: false`-style hard gate and the job's terminal completeness
+      check lives entirely in the untouched `reconcile_shards.py` (confirmed
+      byte-identical to origin/main), a permanent break in this step's own
+      preconditions would never hard-fail CI -- it would silently and permanently
+      degrade every run to the slower fallback path, forever, with the only signal
+      being a build-log annotation nobody is required to read. This does not break
+      correctness (the settled fail-closed floor downstream is untouched), but it is
+      a real gap between the stated intent ("transient") and the actual scope
+      ("anything"), and it is exactly the class of quiet-nothing regression this sweep
+      exists to catch.
+    remediation: >-
+      Narrow the two catches to the exception types `GitHub.request()`/`GitHub.pages()`
+      actually raise for transient conditions (its own ValueError for HTTP errors,
+      OSError/URLError for network failures), and let anything else -- KeyError from a
+      missing env var, a config/parse error from parse_registry/read_selected_modules,
+      a TypeError from a code bug -- propagate or be logged distinctly (e.g. a
+      differently-worded `::error::` annotation, still followed by `return 0` to
+      preserve the documented "always exit 0" contract) so an operator scanning
+      annotations can tell "GitHub was flaky this run" apart from "this step is
+      permanently broken."

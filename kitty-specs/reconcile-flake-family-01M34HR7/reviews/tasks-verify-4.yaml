@@ -1,0 +1,48 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH3-001
+    status: resolved
+    reason: >-
+      Verified against LIVE CODE, not the ruling: traced tests/ci/test_fleet_main.py's
+      MainAPI.request/RerunAPI.request myself (head_reads increments per git/ref/heads/main
+      read; RerunAPI mutates ci-quality's run_attempt/status/conclusion when the check
+      self.head_reads==1 evaluates true, i.e. on the second overall head read) and confirmed
+      that WP02's T009 pre-loop snapshot() (added for the dry_run fix) consumes the first head
+      read, so the mutation now fires on _attempt() attempt #1's own first snapshot rather than
+      attempt #2's -- exactly what WP02 (kitty-specs/reconcile-flake-family-01M34HR7/tasks/WP02-fleet-verdict-fleet-main-retry.md)
+      now says. The current WP02 file carries a hard, non-optional binding requirement in three
+      places (Context ~L287-303, Definition of Done ~L531-537, Reviewer Guidance ~L589-593,
+      all citing "operator ruling #2 / TASKS-FRESH3-001") that the re-pinned test must exercise
+      _attempt() across at least two attempts and that a first-attempt resolution is
+      unacceptable; it does not prescribe the mock mechanism ("the exact mechanism ... is an
+      implementation-time decision ... not prescribed here"); and the old unqualified "likely
+      routes into elif on the second attempt" prediction is gone from the live artifact (only
+      survives in the historical reviews/*.yaml record, which is correct to keep as-is).
+  - id: TASKS-FRESH3-002
+    status: resolved
+    reason: >-
+      Verified against LIVE CODE (scripts/ci/fleet_main.py, scripts/ci/fleet_verdict.py --
+      neither yet has _attempt()/retry_with_backoff, confirming this is pre-implementation
+      tasks-phase prose, not a claim about already-existing behavior) plus a full fresh read of
+      all 792 lines of plan.md and every grep hit for tri-state/same shape/_attempt/elif
+      evidence/_NothingToReport/FR-004 skip: Architecture Seam item 4 (plan.md:198-204) now
+      reads "extends (3)'s tri-state shape with a fourth outcome, _NothingToReport()" and
+      four-state, matching the "fleet_main.py::report() rewiring" paragraph (plan.md:426-439,
+      unchanged this round, already correct from round 3) and WP02's own four-state contract;
+      item 3 (plan.md:193-197) still correctly describes fleet_verdict.py as tri-state and was
+      not touched. No remaining site in the document conflates the two files' outcome shapes.
+  - id: TASKS-FRESH3-003
+    status: resolved
+    reason: >-
+      Verified against LIVE CODE and a full fresh read of plan.md: the "Existing Test That Must
+      Change" section (plan.md:594-621) now explicitly states fleet_main.py's re-pin "may land
+      in a third, non-retried _NothingToReport() terminal path ... instead of either 'publish'
+      or 'FR-004 skip'" and that the section's binary framing "describes fleet_verdict.py's
+      re-pin only," pointing to WP02 for the traced detail -- resolving the staleness without
+      contradicting fleet_verdict.py's still-accurate tri-state/binary framing directly above
+      it. git diff 68205dde6..HEAD --stat confirms exactly the two authorized files changed
+      (plan.md, tasks/WP02-fleet-verdict-fleet-main-retry.md), both diffs are scoped to exactly
+      these two sections/T009 respectively with no architecture/retry-seam/gate-set/campsite/WP-split/retry-budget-number
+      drift, and grep for /home/ in both changed files returns no hits.

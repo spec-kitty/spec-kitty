@@ -1,0 +1,131 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M352VVKMM5PGH07J8EKF9AA5",
+  "materialized_at": "2026-09-22T17:33:22.932139+00:00",
+  "mission_number": "",
+  "mission_slug": "reconcile-flake-family-01M34HR7",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 3,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 1,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M34ZG6HKBX015QYWTQSVNV8F",
+      "last_transition_at": "2026-09-22T16:34:35.187701+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "WP01 lane-a diff 8aadd9488..b4dca9536",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 1982011,
+      "shell_pid_created_at": "1790094145.88",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M352RFD6E4PGYNJ42KMHVESM",
+      "last_transition_at": "2026-09-22T17:31:32.135018+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "WP02 lane-b b4dca9536..1bfdb0518 incl. follow-on test-fidelity fix, independently verified",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 2021031,
+      "shell_pid_created_at": "1790094987.89",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M350Q3AEXKMC2P13BWT1SVT7",
+      "last_transition_at": "2026-09-22T16:55:49.838881+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "WP03 lane-c diff b4dca9536..lane-c",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 2022626,
+      "shell_pid_created_at": "1790095019.73",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M352VVKMM5PGH07J8EKF9AA5",
+      "last_transition_at": "2026-09-22T17:33:22.932139+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 2226967,
+      "shell_pid_created_at": "1790098396.12"
+    }
+  }
+}

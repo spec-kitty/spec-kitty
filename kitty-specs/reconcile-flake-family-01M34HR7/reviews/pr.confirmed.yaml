@@ -1,0 +1,101 @@
+# review-findings/v1 — R3 confirmed set. Evidence: pr.merged.yaml + pr.refute-1.yaml.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: confirmed
+mission: reconcile-flake-family-01M34HR7
+provenance: |
+  Raw 5 (boundary 2, contract 3, tests 0) -> merged 5 (no duplicates) -> refuted 0,
+  confirmed 5. Refuter attacked PR-MERGED-001 through four escape hatches before
+  confirming: (1) actions/runner-images ubuntu-24.04 toolset manifest carries only
+  libyaml-dev + python-is-python3, no python3-yaml; the sole YAML tool is yamllint,
+  installed via pipx into a per-tool venv invisible to a bare `python3 -c "import yaml"`;
+  (2) no actions/setup-python step exists in the collect job; (3) the step's
+  `if: github.event_name != 'workflow_dispatch'` is the NORMAL path, not a narrow one;
+  (4) the two scripts running earlier in the same job import no yaml, so this is new
+  breakage, not masked pre-existing failure.
+
+  Two findings are severity >=4, which blocks the merge presentation by rule until fixed.
+  Per protocol these are fixed OUTSIDE the squad by a fresh dispatch, then re-verified
+  with an anchored check plus a fresh sweep. Findings a fix introduces are real findings.
+findings:
+  - id: PR-MERGED-001
+    severity: 5
+    title: wait_for_artifacts.py runs before PyYAML is installed and crashes at import on every real run
+    evidence:
+      - code: ".github/workflows/ci-aggregate.yml:170"   # new step
+      - code: ".github/workflows/ci-aggregate.yml:242"   # Install PyYAML, 72 lines later
+      - code: "scripts/ci/fleet_verdict.py:24"           # module-level import yaml
+      - code: "scripts/ci/reconcile_shards.py:32"        # module-level import yaml
+      - code: "scripts/ci/wait_for_artifacts.py:26"      # imports fleet_verdict
+      - code: "scripts/ci/wait_for_artifacts.py:28"      # imports reconcile_shards
+    claim: >-
+      The new step invokes python3 scripts/ci/wait_for_artifacts.py with no continue-on-error
+      under `set -euo pipefail`, 72 lines before PyYAML is installed. Both transitive imports
+      carry a module-level `import yaml`, so the step raises ModuleNotFoundError at import time
+      on 100% of non-workflow_dispatch runs, hard-failing the collect job and breaking CI
+      aggregation for every PR in this public repo. The module's documented "ALWAYS exit 0"
+      floor is never reached because the crash precedes it.
+    remediation: >-
+      Sequence PyYAML installation ahead of the new step, or make the registry/selection reads
+      lazy so no module-level yaml import fires. CONSTRAINT: the poll step MUST remain ahead of
+      the download-artifact steps - that ordering is the entire point of the fix.
+  - id: PR-MERGED-002
+    severity: 4
+    title: A transient GitHub API error propagates out of wait_for_artifacts.main() and hard-fails the aggregate job
+    evidence:
+      - code: "scripts/ci/wait_for_artifacts.py:119"     # api.pages() call site inside _attempt()
+      - code: "scripts/ci/wait_for_artifacts.py:96-125"  # poll_for_artifacts, no try/except
+      - code: "scripts/ci/wait_for_artifacts.py:128-156" # main, no try/except
+      - code: "scripts/ci/reconcile_retry.py:32-55"      # retry_with_backoff calls attempt() at :50, does NOT swallow
+      - code: "scripts/ci/fleet_verdict.py:144-155"      # GitHub.request converts HTTPError -> ValueError
+      - code: "scripts/ci/fleet_verdict.py:157-166"      # GitHub.pages calls self.request at :161
+    claim: >-
+      A transient 5xx/429 - precisely the racy GitHub behaviour this epic targets - becomes a
+      raised ValueError that nothing catches at any level, so a single blip anywhere in the
+      ~155s/8-attempt window hard-fails the collect job and skips both the fallback path and the
+      reconcile guard. The fix therefore ADDS a window in which GitHub flakiness breaks
+      aggregation repo-wide, inverting the mission's purpose, and contradicts the module's own
+      docstring contract ("ALWAYS exit 0 -- never raise").
+    remediation: >-
+      Treat a request failure inside _attempt() as "not yet visible" and retry it, and/or guard
+      main()'s body so it returns 0 on any exception. Consider continue-on-error on the step as
+      defence in depth.
+  - id: PR-MERGED-003
+    severity: 3
+    title: fleet_verdict.py --dry-run no longer fast-fails on unstable evidence and now sleeps up to 14s
+    evidence:
+      - code: "scripts/ci/fleet_verdict.py:383"
+      - code: "scripts/ci/fleet_verdict.py:409"
+      - code: "scripts/ci/fleet_verdict.py:419"
+      - code: "scripts/ci/fleet_main.py:181"
+    claim: >-
+      fleet_verdict.py checks dry_run AFTER the retry loop while fleet_main.py checks it BEFORE,
+      so a read-only --dry-run invocation now performs real backoff sleeps totalling exactly 14s
+      worst case where it previously fast-failed. The asymmetry appears to be per-file drafting
+      rather than a stated choice.
+    remediation: >-
+      Decide deliberately: either document the latency change for --dry-run, or hoist the check
+      as fleet_main.py does. The two files' dry-run semantics should be a recorded decision.
+  - id: PR-MERGED-004
+    severity: 2
+    title: Retry-budget constants and _AlreadyReported duplicated verbatim across the two fleet modules
+    evidence:
+      - code: "scripts/ci/fleet_main.py:101-110"
+      - code: "scripts/ci/fleet_verdict.py:318-327"
+    claim: >-
+      _MAX_ATTEMPTS, _backoff_seconds and _AlreadyReported are defined twice with no shared
+      definition, though plan.md treats them as one "fleet-verdict pair" with a single
+      retry-budget rationale. Drift risk, not a current bug.
+    remediation: Hoist to reconcile_retry, or record why duplication is preferred.
+  - id: PR-MERGED-005
+    severity: 2
+    title: fleet_main.py exhausted-retry diagnostic reports the pre-loop snapshot's head
+    evidence:
+      - code: "scripts/ci/fleet_main.py:179"
+      - code: "scripts/ci/fleet_main.py:201"
+    claim: >-
+      On budget exhaustion the diagnostic prints the head captured by the pre-loop snapshot
+      rather than the head the final attempt actually saw, so an operator reading the log is
+      told about evidence one observation stale.
+    remediation: Report the final attempt's own evidence in the exhaustion diagnostic.

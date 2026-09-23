@@ -1,0 +1,26 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >-
+      The Constitution Check C-011 row, the Red-First Application section's
+      FR-009 bullet, User Story 2's FR-009 paragraph, and the Dependency
+      Graph/Work Distribution/Coordination Points sections all now agree:
+      WP4 introduces no new functional code and carries no test of its own
+      (FR-009's cross-invocation isolation test is committed inside WP2's
+      own valid red-first commit sequence instead), so C-011's per-WP
+      failing-first-commit requirement does not apply to WP4 — no remaining
+      contradiction, and tasks/ has no WP4 task file yet to conflict with it.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: >-
+      The "New step's own env: block" paragraph now qualifies its claim to
+      "every existing run: (shell) step" and explicitly calls out the two
+      uses: actions/download-artifact steps (download-current at
+      ci-aggregate.yml:159-169, download-selected-modules at :214-222) as
+      not following that pattern, inlining
+      ${{ github.event.workflow_run.id || inputs.source_run_id }} directly
+      into with: run-id: with no env: block — verified against the current
+      file contents, which match the plan's description exactly.

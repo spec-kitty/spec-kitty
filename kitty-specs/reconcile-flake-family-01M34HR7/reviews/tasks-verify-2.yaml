@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: T009, Context, and Reviewer Guidance now unanimously state the elif sits structurally inside _attempt() and is re-evaluated fresh each retry attempt as its own terminal (non-retried) outcome distinct from _Ready/None, matching fleet_main.py's live source and plan.md's enumeration, with no surviving "before the retry"/"frozen"/"outside _attempt()" phrasing anywhere in the file.

@@ -1,0 +1,81 @@
+# review-refute/v1
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 1
+verdicts:
+  - id: PR-MERGED-001
+    verdict: confirmed
+    reason: >-
+      No escape hatch survives: actions/runner-images ubuntu-24.04's own
+      toolset-2404.json installs no PyYAML at the apt or system-python level
+      (only "libyaml-dev", the C library, and "python-is-python3"; yamllint,
+      the sole YAML-adjacent tool, is installed via the "pipx" list, which
+      isolates its PyYAML dependency in a per-tool venv invisible to bare
+      `python3 -c "import yaml"`); the collect job in ci-aggregate.yml has no
+      actions/setup-python step anywhere, so python3 is that bare runner
+      image interpreter; the two scripts this job runs earlier in the same
+      job (aggregate_source.py, select_source_artifacts.py) both import
+      cleanly with no `import yaml`, confirming this is a genuinely NEW crash
+      point, not pre-existing; and the step's `if: github.event_name !=
+      'workflow_dispatch'` is the normal (not narrow) path, with no
+      continue-on-error, under `set -euo pipefail` -- so ModuleNotFoundError
+      hard-fails the collect job on every workflow_run-triggered execution.
+  - id: PR-MERGED-002
+    verdict: confirmed
+    reason: >-
+      With corrected line numbers, the substance holds: wait_for_artifacts.py
+      has zero try/except in the whole 160-line file (confirmed by grep), so
+      the HTTPError-turned-ValueError raised inside
+      GitHub.request()/GitHub.pages() (fleet_verdict.py) propagates unhandled
+      through poll_for_artifacts()'s api.pages() call, through
+      reconcile_retry.retry_with_backoff() (which also calls attempt() with
+      no try/except, so it does not swallow exceptions), all the way out of
+      main() -- crashing the script and hard-failing the step (no
+      continue-on-error, `set -euo pipefail`) on a single transient GitHub
+      API blip.
+    corrected_evidence:
+      - "scripts/ci/wait_for_artifacts.py:119 — api.pages(...) call site, inside _attempt() (lines 117-121)"
+      - "scripts/ci/wait_for_artifacts.py:96-125 — poll_for_artifacts(): no try/except anywhere"
+      - "scripts/ci/wait_for_artifacts.py:128-156 — main(): no try/except anywhere; the 'ALWAYS exit 0' floor at :156 is never reached if an exception fires earlier"
+      - "scripts/ci/reconcile_retry.py:32-55 — retry_with_backoff(): calls attempt() at :50 with no try/except, so it does not swallow the exception"
+      - "scripts/ci/fleet_verdict.py:144-155 — GitHub.request(): converts urllib.error.HTTPError into a raised ValueError (except at :154-155)"
+      - "scripts/ci/fleet_verdict.py:157-166 — GitHub.pages(): calls self.request() at :161, propagating whatever request() raises"
+  - id: PR-MERGED-003
+    verdict: confirmed
+    reason: >-
+      Verified directly in source: fleet_main.py's report() computes
+      evidence/text once and checks `if dry_run:` at line 181 BEFORE ever
+      calling retry_with_backoff (called only afterward, at line 193), so
+      dry-run there is a single fast pass with zero sleeps; fleet_verdict.py's
+      report() calls retry_with_backoff at lines 405-410 first and checks
+      `if dry_run:` only at line 419, after the loop, passing the real
+      unmocked `sleep=time.sleep` regardless of dry_run. With
+      _MAX_ATTEMPTS=4 and _backoff_seconds = 2,4,8 (fleet_verdict.py:318-323),
+      the real worst-case delay before a --dry-run invocation prints anything
+      is exactly 2+4+8 = 14 seconds of genuine time.sleep() calls (triggered
+      whenever attempt_once() returns None on the first three attempts),
+      confirming the original "~14s" figure exactly.
+  - id: PR-MERGED-004
+    verdict: confirmed
+    reason: >-
+      Verified verbatim duplication at the cited lines: `_MAX_ATTEMPTS = 4`,
+      the identical `_backoff_seconds` docstring/body ("2s -> 4s -> 8s" /
+      `float(2.0 * (2 ** (attempt - 1)))`), and an identical `_AlreadyReported`
+      class (same one-line docstring) appear at both fleet_main.py:101-110
+      and fleet_verdict.py:318-327; reconcile_retry.py (the one module both
+      files already import from) defines only the generic
+      retry_with_backoff() and none of these three symbols, so no shared
+      definition currently exists to make this a false positive.
+  - id: PR-MERGED-005
+    verdict: confirmed
+    reason: >-
+      Verified in source: fleet_main.py's _attempt() (its own docstring at
+      lines 154-160 says so explicitly) "performs its own fresh snapshot()
+      call(s) -- it never reuses report()'s pre-loop evidence," so the fresh
+      evidence computed inside each retry attempt is a local variable that
+      never escapes _attempt()'s closure; when retry_with_backoff returns
+      None on exhaustion, report()'s exhaustion branch (line 200-201) prints
+      `evidence['head']` from the outer `evidence` variable captured once at
+      line 179, before the retry loop started -- genuinely the pre-loop
+      snapshot's head, not the final attempt's.

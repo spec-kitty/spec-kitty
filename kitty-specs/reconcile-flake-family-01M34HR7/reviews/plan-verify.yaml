@@ -1,0 +1,98 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FIT-001
+    status: resolved
+    reason: >-
+      plan.md's new "New step's own env block" subsection (User Story 3, lines
+      478-484) now states explicitly that the new "Wait for selected shard
+      artefact visibility" step must declare its own step-local env block for
+      SOURCE_RUN_ID/SOURCE_RUN_ATTEMPT/SOURCE_REPOSITORY, mirroring the
+      existing steps, since the job carries no job-level env.
+  - id: PLAN-SEQ-001
+    status: resolved
+    reason: >-
+      Independently re-ran radon cc on both files and confirmed exact matches
+      to plan.md's cited figures (fleet_verdict.py::snapshot() = 24/D,
+      fleet_main.py::snapshot() = 22/D, fleet_main.py::report() = 18/C); the
+      rewritten Campsite-Clean Scope section (lines 245-308) now names all
+      three violations, freezes both snapshot() functions as baseline debt
+      with a one-line deferral rationale, and sets an explicit
+      "_attempt() must land at or under complexity 15" decomposition target
+      for the report() extraction -- both of Standing Order #2's allowed
+      outcomes are exercised and reflected directly in plan.md text, not
+      merely claimed in a report.
+  - id: PLAN-SEQ-002
+    status: resolved
+    reason: >-
+      plan.md's User Story 2 section now carries an explicit "Compatibility
+      contract (binding...)" paragraph (lines 382-391) stating
+      retry_with_backoff MUST remain fully caller-agnostic with no
+      GitHub-specific or fleet-verdict-specific parameters/hooks, and that
+      this must be carried into reconcile_retry.py's own module docstring at
+      implement time -- converting the prior descriptive claim into a binding
+      future constraint as the finding requested.
+  - id: PLAN-SEQ-003
+    status: resolved
+    reason: >-
+      The Constitution Check table's Standing Order #9 row (line 78) now
+      reads "ENGAGED, not bypassed" with an explanation that
+      fleet_main.py::report() is the P0-incident-filing mechanism and that
+      the retry/skip-and-defer change preserves (does not suppress) a
+      stabilized red result; status changed from N/A to PASS, matching the
+      requested remediation.
+  - id: PLAN-SEQ-004
+    status: resolved
+    reason: >-
+      A new Constitution Check row (line 74) explicitly cites charter.md
+      C-011 and states the stricter separate-commit requirement (failing
+      test committed alone, before implementation commits, reviewer verifies
+      red-on-planning_base_branch/green-on-final-commit); verified against
+      charter.md's own "ATDD-First Discipline (binding per C-011)" section
+      (lines 622-634) -- the citation is accurate and the language tracks the
+      charter closely.
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: >-
+      Independently re-read ci-router.yml (its ci filter group header
+      comment states verbatim that no job gates on this group by design,
+      because the per-PR executor for these paths is the ci-modules.yml
+      module matrix) and ci-modules.yml (its own independent
+      pull_request/push/workflow_call/workflow_dispatch triggers at lines
+      37-50, and generate-matrix's own checkout-plus-git-diff-based
+      selection, not consuming any ci-router.yml job output) -- the
+      rewritten Gate Statement bullet (plan.md lines 104-112) now accurately
+      describes ci-modules.yml as triggered directly and independently,
+      dropping the incorrect "reached via ci-router.yml's ci filter group"
+      framing.
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: >-
+      The Retry Budget Rationale's wait_for_artifacts.py bullet (lines
+      330-334) now opens with "Working hypothesis, not a measured figure (no
+      GitHub Actions documentation citation, incident log, or measurement
+      backs this)" before stating the propagation-lag assumption, satisfying
+      the charter's citation-discipline requirement to label an unsourced
+      claim a hypothesis.
+  - id: PLAN-VERIFY-003
+    status: resolved
+    reason: >-
+      A new "NFR-003 exact-attempt-count requirement (per call site, not
+      only the shared primitive)" paragraph in Project Structure (lines
+      619-627) now requires test_fleet_verdict.py, test_fleet_main.py, and
+      test_wait_for_artifacts.py to each assert the mock's exact call count
+      at the exhausted-budget path (e.g. call_count == 4 / == 8), pinning the
+      plan's stated budget numbers at each wired call site rather than only
+      in the shared primitive's generic test.
+  - id: PLAN-VERIFY-004
+    status: resolved
+    reason: >-
+      A new "Red-First Application Across All NFR-003 Test Surfaces" section
+      (lines 534-557) concretely walks through all four required surfaces --
+      wait_for_artifacts.py's new tests (red-first against a stub
+      single-attempt version), FR-009's isolation test (explicitly named as
+      an exempted case with rationale), and the new non-re-pinned
+      recovery-path tests in test_fleet_verdict.py/test_fleet_main.py
+      (red-first against unmodified report()) -- closing the previous 2-of-4
+      gap.

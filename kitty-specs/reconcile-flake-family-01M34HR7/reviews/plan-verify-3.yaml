@@ -1,0 +1,24 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: >-
+      plan.md's "New step's own env: block" paragraph now lists GH_TOKEN alongside the three
+      SOURCE_* vars as one of "four" required variables, cites fleet_verdict.py:142's bare
+      os.environ["GH_TOKEN"] subscript and its KeyError-on-absence, cites both ci-aggregate.yml
+      precedent steps (:107-112 and :146-150, independently re-read and confirmed to declare
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} alongside the three SOURCE_* vars), and replaced the
+      old "cannot inherit them from anywhere else" sentence (which implied the three-var list was
+      exhaustive) with "None of these four variables is available from anywhere else in the job."
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: >-
+      A 6th item now exists in "Deviations, Blockers, and Judgment Calls for Reviewers" summarizing
+      the round-2 WP4 re-scoping (FR-009's isolation test moved into WP2's red-first commit
+      sequence, WP4 re-scoped to pure integration/verification with no test of its own) and the
+      C-011 exemption rationale, and it is internally consistent with the Constitution Check's
+      C-011 row and the Parallel Work Analysis / Dependency Graph, Work Distribution, and
+      Coordination Points sections in the same current plan.md, all of which independently describe
+      the identical re-scoping.

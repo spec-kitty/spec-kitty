@@ -1,0 +1,35 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: TASKS-DECOMP-001
+    lens: Requirement-mapping fidelity
+    severity: 2
+    title: "C-007 is mapped to WP04's requirement_refs but never once engaged in WP04's body text"
+    evidence:
+      - artifact: "tasks.md § WP04 (\"Requirement Refs: FR-001, C-001, C-007\")"
+      - artifact: "kitty-specs/reconcile-flake-family-01M34HR7/wps.yaml:90 (WP04 requirement_refs: C-007)"
+      - artifact: "kitty-specs/reconcile-flake-family-01M34HR7/tasks/WP04-integration-verification-tracer-closeout.md:10 (frontmatter requirement_refs: C-007)"
+      - artifact: "spec.md line 121 (\"C-007 | No ledger entry exists for this behavior | ... Noted here so a reviewer does not need to re-grep it.\")"
+    claim: >
+      C-007 ("no SPEC-KITTY-LEDGER.md entry exists for this defect family — noted so a
+      reviewer does not need to re-grep it") is listed in WP04's requirement_refs (tasks.md,
+      wps.yaml, and the WP04 prompt frontmatter), but a full-text grep of
+      tasks/WP04-integration-verification-tracer-closeout.md for "C-007" and "ledger" finds
+      zero occurrences outside the frontmatter ref list — no subtask, Context paragraph,
+      Definition of Done bullet, or Risk references it. Contrast with C-001 in the same WP,
+      which is explicitly restated in the Context section's "Pre-merge verification scope
+      note" and again required to be restated in tracer-approach.md (T018) — C-007 gets no
+      equivalent treatment. This is exactly the "WP grabbing a ref to satisfy the
+      finalize-tasks validator" pattern the review brief asks this lens to catch: the ref is
+      present in the manifest but nothing in the WP concretely carries it.
+    remediation: >
+      Add one explicit line to WP04's Context (mirroring how C-001 is handled) confirming
+      C-007's finding still holds — e.g. "Confirm no SPEC-KITTY-LEDGER.md entry exists for
+      this defect family (C-007); if the operator's copy of the ledger now has one, note it
+      in tracer-tooling-friction.md rather than silently ignoring the drift" — and add a
+      corresponding bullet to T017 or T019's steps and to the Definition of Done, so C-007 is
+      actually carried by a task the same way C-001 is, rather than being a name-only entry
+      in requirement_refs.

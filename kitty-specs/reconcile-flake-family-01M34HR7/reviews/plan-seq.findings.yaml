@@ -1,0 +1,146 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: seq
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: PLAN-SEQ-001
+    lens: Campsite scope
+    severity: 4
+    title: "Campsite-Clean Scope claims 'no domain-matched debt' but two directly-touched functions exceed the charter's complexity-15 ceiling"
+    evidence:
+      - artifact: "plan.md § Campsite-Clean Scope (§2a.4), lines 245-249 and 258-262"
+      - code: "scripts/ci/fleet_verdict.py:219 (snapshot()) — measured cyclomatic complexity 24 (radon grade D), called twice inside report()/the planned _attempt() extraction, i.e. the literal double-snapshot body this mission wraps in retry"
+      - code: "scripts/ci/fleet_main.py:99 (report()) — measured cyclomatic complexity 18 (radon grade C); this is the exact function the plan (plan.md line 361-364) says will be extracted into a private _attempt() helper"
+      - code: "scripts/ci/fleet_main.py:45 (snapshot()) — measured cyclomatic complexity 22 (radon grade D)"
+    claim: >
+      plan.md states, for fleet_verdict.py: "no dead code, duplicated literals, or obvious drift
+      found in the surrounding report()/snapshot() region during this reading" and for
+      fleet_main.py: "same — no drift found in the touched region", then concludes "All five
+      candidate files were read in full during this planning pass and no domain-matched debt
+      (dead code, duplicated ≥3x literals, effect-free exception handlers, functions over the
+      complexity-15 ceiling) was found in the regions this mission's functional change touches."
+      This is factually wrong for the complexity-15 category: `fleet_verdict.py::snapshot()`
+      (complexity 24) and `fleet_main.py::report()`/`snapshot()` (complexity 18/22) all sit
+      directly in the region this mission's functional change touches — `report()` in both files
+      is the function being extracted/wrapped, and `snapshot()` in both files is the literal
+      double-snapshot body the retry logic is built around — yet none of the three exceed-15
+      functions is mentioned. Separately, the plan's own claim that "extracting [report()'s] body
+      into a private `_attempt()` helper... is itself the complexity-reducing move" is only true
+      for the thin `report()` wrapper left behind; the extracted `_attempt()` will inherit most of
+      `report()`'s existing branching (the plan's own pseudocode shows `_attempt` absorbing
+      snapshot/dedupe/re-snapshot/compare), so complexity is relocated under a new name, not
+      resolved, unless decomposition is done deliberately.
+    remediation: >
+      Update plan.md's Campsite-Clean Scope section to (a) name
+      `fleet_verdict.py::snapshot()` (24), `fleet_main.py::snapshot()` (22), and
+      `fleet_main.py::report()` (18, pre-extraction) as complexity-15-ceiling violations inside
+      the touched region, and (b) per Standing Order #2's own two allowed outcomes, either extract
+      a narrowly-scoped opening campsite-clean commit that decomposes at least
+      `fleet_main.py::report()`/`snapshot()` before the functional retry change lands, or
+      explicitly freeze them as baseline debt with a one-line deferral rationale (e.g., "signature
+      and behavior unchanged per spec Key Entities; decomposition deferred, tracked separately")
+      instead of the current unqualified "no domain-matched debt... was found" claim. If the
+      extraction-into-`_attempt()` is kept as the sole tidy-up, the WP prompt should set an
+      explicit target (e.g., split evidence-comparison from publish-decision into two helpers) so
+      `_attempt()` itself lands under the 15 ceiling rather than silently inheriting `report()`'s
+      complexity under a new name.
+
+  - id: PLAN-SEQ-002
+    lens: MISSION-SPECIFIC (FR-008 generalization scope)
+    severity: 3
+    title: "FR-008's shared-helper generalization to a third, structurally-unrelated call site is legitimate but lacks a binding compatibility-contract guardrail"
+    evidence:
+      - artifact: "spec.md FR-005 (line 97) and FR-008 (line 100), Key Entities item 4 (line 131)"
+      - artifact: "plan.md § Summary (lines 15-17), § User Story 2 (lines 309-331), § Deviations item 1 (lines 590-594)"
+      - artifact: "tracer-design-decisions.md entry 1 (lines 9-20)"
+    claim: >
+      Verdict: this is (a), not (b) — a legitimate, charter-aligned reduction of duplication risk
+      that stays within spec.md's actual boundaries, not scope drift. FR-008 literally names only
+      the fleet_verdict/fleet_main pair, and FR-005/Key Entities item 4 explicitly frame
+      `wait_for_artifacts.py` as "a fourth entity this mission is expected to add" — conceived
+      independently. But the plan's chosen primitive
+      (`retry_with_backoff(attempt, *, max_attempts, backoff_seconds, sleep)`, plan.md lines
+      311-325) is deliberately mechanism-only: it has no GitHub awareness, no knowledge of PRs,
+      comments, incidents, or shard artifacts, and explicitly leaves the terminal-behavior decision
+      (skip-and-defer vs. fall-through-regardless) with each caller (plan.md lines 322-330: "carries
+      no GitHub-specific or fleet-verdict-specific behavior"). Sharing this kind of pure
+      control-flow utility across three call sites is exactly what the charter's Single Canonical
+      Authority governing principle asks for, and hand-rolling a third copy for
+      `wait_for_artifacts.py` would repeat, inside the very mission fixing it, the
+      hand-duplication anti-pattern FR-008's own rationale names as the root cause
+      ("the same pattern that let the current double-snapshot logic drift into two hand-written
+      copies in the first place" — spec.md FR-008). The plan and tracer-design-decisions.md both
+      already flag this generalization explicitly for reviewer scrutiny, which is the right
+      transparency move. The one real gap: nothing in plan.md binds `reconcile_retry.py` to STAY
+      domain-agnostic going forward — the description of its current genericness is not phrased as
+      a constraint future changes must honor, so a later "just add one GitHub-specific parameter to
+      reconcile_retry.py for the fleet-verdict pair's convenience" change could silently couple
+      `wait_for_artifacts.py`'s fate to fleet-verdict-pair-specific needs, which is exactly the
+      destabilization risk this lens was asked to weigh.
+    remediation: >
+      Add an explicit compatibility-contract note to plan.md's User Story 2 section (and carry it
+      into `scripts/ci/reconcile_retry.py`'s own module docstring at implement time) stating:
+      `retry_with_backoff` MUST remain fully caller-agnostic — no GitHub-specific parameters, no
+      fleet-verdict-specific terminal-behavior knobs, no optional hooks added for one caller's
+      convenience. Any GitHub-specific or fleet-verdict-specific need belongs in the caller's
+      `attempt()` closure or a caller-side wrapper, never inside `reconcile_retry.py` itself. This
+      converts the plan's current descriptive claim into a binding constraint a future reviewer can
+      hold changes to, protecting `wait_for_artifacts.py`'s independence from the fleet-verdict
+      pair's evolution.
+
+  - id: PLAN-SEQ-003
+    lens: Directive
+    severity: 2
+    title: "Constitution Check row for Standing Order #9 (red-main discipline) claims 'N/A' while the mission directly modifies the P0-incident-filing function it governs"
+    evidence:
+      - artifact: "plan.md § Constitution Check table, line 77"
+      - artifact: ".kittify/charter/charter.md lines 93-100 (Standing Order #9: red-main discipline)"
+      - code: "scripts/ci/fleet_main.py:1-8 (module docstring: 'Red main is P0 under PROGRAM.md section 9 and agents/ci.md step 6'), :23 (INCIDENT marker), :105-138 (report()'s incident-filing logic)"
+    claim: >
+      plan.md's Constitution Check table row reads: "Red-main discipline (Standing Order #9) | N/A
+      — this mission does not touch a red-main state; it changes CI-reporting tooling, not release
+      gating | N/A". This understates the actual engagement: `fleet_main.py::report()` — the exact
+      function this mission modifies under FR-003/FR-004 — IS the mechanism that implements
+      Standing Order #9 (it files/updates the `priority:P0` `from:ci` incident issue for a red
+      `main` head, per its own docstring and the `INCIDENT` marker logic). The mission does not
+      violate Standing Order #9 in substance (the retry only defers on unresolved snapshot
+      disagreement, never suppresses a stabilized/confirmed red result per Invariant (a)/FR-007),
+      but labeling the row "N/A" as if the standing order were never engaged is inaccurate and could
+      lead a reviewer checking charter compliance to skip verifying this exact safety property.
+    remediation: >
+      Change the Constitution Check row's status from "N/A" to "PASS" (or similar) and its check
+      text to something like: "Standing Order #9 IS engaged — this mission modifies
+      fleet_main.py::report(), the function that files the P0 red-main incident — but the
+      retry/skip-and-defer change (FR-004) only defers on unresolved snapshot disagreement; it never
+      suppresses a stabilized/confirmed red result (Invariant (a)/FR-007), so the red-main safety
+      guarantee is preserved, not weakened."
+
+  - id: PLAN-SEQ-004
+    lens: Directive
+    severity: 2
+    title: "Constitution Check omits the charter's binding ATDD-First Discipline (C-011) separate-commit requirement"
+    evidence:
+      - artifact: "plan.md § Constitution Check table, line 73 (only row addressing red-first/ATDD)"
+      - artifact: ".kittify/charter/charter.md § 'ATDD-First Discipline (binding per C-011)', lines 622-635"
+    claim: >
+      The charter's Governing Principles list "ATDD-first" as a distinct, named governing principle
+      (pointing to "the ATDD-First Discipline section below"), and that section (binding per C-011)
+      states a specific, stricter requirement than plain red-first testing: "The ATDD test is
+      committed as a separate commit (often the first commit of the lane) BEFORE any implementation
+      commits," and "the reviewer verifies red→green: the test was RED on the WP's
+      planning_base_branch AND GREEN on the WP's final commit." plan.md's Constitution Check table
+      only cites "Standing Order #4, DIRECTIVE_041" (test-remediation/red-first discipline) for this
+      row, and does not cite C-011 anywhere in the document (verified: no match for "C-011",
+      "separate commit", "first commit", or "planning_base_branch" in plan.md). This is a real,
+      more specific binding rule the plan's Constitution Check does not surface, so a WP
+      implementer following only plan.md could bundle a new retry unit test into the same commit as
+      its implementation, satisfying NFR-003's "run against unmodified surface first" in-session
+      but not C-011's commit-history requirement a reviewer will check.
+    remediation: >
+      Add an explicit citation to charter.md's "ATDD-First Discipline (binding per C-011)" section
+      in the Constitution Check table (either as a new row or appended to the existing red-first
+      row), stating that each WP's first commit must be the failing retry test alone — committed
+      separately and BEFORE the retry implementation commit(s) — so tasks.md/the implement phase
+      structures each WP's git history accordingly and the reviewer can verify red-on-base,
+      green-on-final per C-011.

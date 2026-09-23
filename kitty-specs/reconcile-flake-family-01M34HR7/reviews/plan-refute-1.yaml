@@ -1,0 +1,94 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-FIT-001
+    verdict: confirmed
+    reason: >-
+      Verified plan.md's "Architecture Seam and File Placement" item 5 (lines 187-192) and the
+      full "User Story 3" section (377-449, including the reordered step list at 402-416 and the
+      wait_for_artifacts.py bullet description at 418-442) describe the new "Wait for selected
+      shard artefact visibility" step and its GitHub API polling behavior in detail but never
+      state it needs a step-local env: block; independently confirmed ci-aggregate.yml's collect
+      job (lines 88-247) has no job-level env: key and that both cited steps (110-115, 148-155)
+      re-declare SOURCE_RUN_ID/SOURCE_RUN_ATTEMPT/SOURCE_REPOSITORY as step-local env, so the gap
+      is real.
+  - id: PLAN-SEQ-001
+    verdict: confirmed
+    reason: >-
+      Ran radon cc on both files and got exact matches for all three cited numbers
+      (fleet_verdict.py::snapshot() at line 219 = D(24), fleet_main.py::report() at line 99 =
+      C(18), fleet_main.py::snapshot() at line 45 = D(22)); plan.md's Campsite-Clean Scope
+      section (lines 245-261) literally frames the touched region as "the surrounding
+      report()/snapshot() region" and then claims no complexity-15-ceiling violations were found
+      there, which is factually contradicted by these three functions all exceeding 15 within
+      that self-declared region.
+  - id: PLAN-SEQ-002
+    verdict: confirmed
+    reason: >-
+      Verified spec.md FR-008 (line 100) names only the fleet_verdict/fleet_main pair, plan.md's
+      retry_with_backoff signature and "carries no GitHub-specific or fleet-verdict-specific
+      behavior" framing at lines 311-330, and tracer-design-decisions.md entry 1 at exactly lines
+      9-20 as cited; grepped plan.md for "must remain", "domain-agnostic", "caller-agnostic",
+      "going forward" and found no binding constraint language anywhere, confirming the claimed
+      gap (the genericness is described, never made a binding future constraint).
+  - id: PLAN-SEQ-003
+    verdict: confirmed
+    reason: >-
+      Confirmed plan.md's Constitution Check table row at line 77 reads exactly "N/A — this
+      mission does not touch a red-main state..."; charter.md lines 93-100 contain Standing Order
+      #9 "Red-main & release discipline" with the "red main == P0, never green-wash it" content as
+      characterized; fleet_main.py::report() (starting line 99) does file a priority:P0/from:ci
+      incident issue (lines 128-138) guarded by the INCIDENT marker at line 23, so the function
+      this mission modifies is indeed the Standing Order #9 mechanism, making "N/A" inaccurate even
+      though the finding's docstring quote at lines 1-8 is a loose paraphrase rather than a literal
+      quote — the substantive claim holds.
+  - id: PLAN-SEQ-004
+    verdict: confirmed
+    reason: >-
+      Confirmed plan.md's Constitution Check row at line 73 cites only "Standing Order #4,
+      DIRECTIVE_041"; charter.md line 622 has a section literally titled "ATDD-First Discipline
+      (binding per C-011)" containing the exact quoted text about a separate first commit before
+      implementation and reviewer verification of red-on-base/green-on-final; grepped plan.md for
+      "C-011", "separate commit", "first commit", "planning_base_branch" — no matches, confirming
+      the citation gap.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      Confirmed plan.md's Gate Statement (lines 103-104) states the ci shard is "reached via
+      ci-router.yml's ci filter group"; ci-router.yml's ci group comment (lines ~181-193) contains
+      the exact quoted text "No job gates on this group BY DESIGN: the per-PR executor for these
+      paths' guard suite (tests/ci) is the ci-modules.yml module matrix, which runs on every PR";
+      ci-modules.yml has its own independent on: pull_request/push/workflow_call trigger block
+      (lines 37-50), confirming the two workflows run in parallel rather than ci-modules.yml being
+      "reached via" ci-router.yml as the plan claims.
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      Confirmed the Retry Budget Rationale's wait_for_artifacts.py bullet (plan.md lines 289-291)
+      states the propagation-lag figure as an unqualified "typically observed" fact with no
+      citation; charter.md lines 240-242 contain the exact quoted citation-discipline text
+      ("every factual claim in a research output is traceable to a named source (an unsourced
+      claim is a hypothesis and must be labelled one)"), and the plan's sentence is not labelled a
+      hypothesis anywhere nearby.
+  - id: PLAN-VERIFY-003
+    verdict: confirmed
+    reason: >-
+      Confirmed retry_with_backoff takes max_attempts as a caller-supplied parameter (plan.md
+      lines 312-325); the NFR-001 closing paragraph (298-300) commits only to testing "the bound
+      itself" generically; the Project Structure test-file list (519-524) describes
+      test_fleet_verdict.py/test_fleet_main.py/test_wait_for_artifacts.py only generically ("new
+      retry tests", "mocked-GH-artifacts-API tests") with no sentence requiring an exact
+      call-count assertion at each site — a wiring bug (wrong max_attempts at one call site) could
+      indeed pass every test description given.
+  - id: PLAN-VERIFY-004
+    verdict: confirmed
+    reason: >-
+      Confirmed the Constitution Check's ATDD-first row (line 73) is a generic "Planned — binding
+      on implement phase" with no walkthrough; the "Existing Test That Must Change" section
+      (466-484) concretely addresses red-first only for the two pre-existing re-pinned tests,
+      explicitly framing it as "the inverse direction from a brand-new test"; User Story 3
+      (377-449) describes wait_for_artifacts.py's new tests but never states how red-first applies
+      to a module with no pre-fix entry point; no FR-009 isolation-test red-first discussion
+      appears anywhere in plan.md — the 2-of-4-surfaces gap is real.

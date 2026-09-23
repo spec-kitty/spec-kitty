@@ -1,0 +1,88 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: boundary
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: PR-BOUNDARY-001
+    lens: workflow-blast-radius
+    severity: 4
+    title: "wait_for_artifacts.py can raise on a transient GitHub API error, and its ci-aggregate.yml step has no continue-on-error, so a racy GH read can hard-fail the aggregate job it exists to protect"
+    evidence:
+      - code: "scripts/ci/wait_for_artifacts.py:562-590"
+      - code: "scripts/ci/wait_for_artifacts.py:530-559"
+      - code: "scripts/ci/fleet_verdict.py:144-155"
+      - code: ".github/workflows/ci-aggregate.yml:171-185"
+      - code: ".github/workflows/ci-aggregate.yml:159-169"
+    claim: >
+      main()'s own docstring states the module "ALWAYS exit 0 -- never raise, never set a
+      failing exit code (spec US3 Acceptance Scenario 2 / FR-006)", and the module
+      docstring repeats "on budget exhaustion this module ALWAYS exits 0 and never
+      raises." Neither claim is enforced in code: `poll_for_artifacts()`'s inner
+      `_attempt()` calls `api.pages(f"actions/runs/{run_id}/artifacts", ...)` with no
+      try/except, and `GitHub.request()` (scripts/ci/fleet_verdict.py:151-155) converts
+      any `urllib.error.HTTPError` (a transient 5xx/502/503/429 -- exactly the
+      eventually-consistent GH-API racy behavior this whole mission exists to tolerate)
+      into a raised `ValueError`. That `ValueError` propagates unmodified through
+      `retry_with_backoff` (scripts/ci/reconcile_retry.py has no exception handling
+      either -- by its own compatibility contract it must not add caller-specific
+      behavior) and out of `main()`, terminating the process with a non-zero exit.
+      Empirically confirmed against this branch's own `.venv`: calling
+      `poll_for_artifacts()` with a `.pages()` stub that raises `ValueError` propagates
+      the exception out uncaught (verified with a throwaway in-process repro; no files
+      were modified). Critically, unlike its sibling step `download-selected-modules`
+      (`.github/workflows/ci-aggregate.yml:159-169`), which explicitly declares
+      `continue-on-error: true` for exactly this class of "artifact/API may legitimately
+      be unavailable" risk, the new `wait-for-artifacts` step
+      (`.github/workflows/ci-aggregate.yml:171-185`) has no `continue-on-error`. A step
+      failure without `continue-on-error` stops the job; none of the following steps
+      (`download-current`, `download-previous`, `reconcile`, etc.) declare `if: always()`,
+      so they are all skipped and the whole `ci-aggregate` job fails outright. Since this
+      step polls up to 8 times across ~155s (MAX_ATTEMPTS=8, scripts/ci/wait_for_artifacts.py:485-492),
+      it materially widens -- not narrows -- the window in which a single transient GitHub
+      API hiccup can hard-fail aggregation, on every PR in the repo (shared CI surface).
+      This is the opposite of the epic's stated purpose (treating racy, eventually-
+      consistent evidence as fatal).
+    remediation: >
+      Wrap the network-touching call inside `poll_for_artifacts()`'s `_attempt()` closure
+      (scripts/ci/wait_for_artifacts.py:551-555) in a narrow try/except that treats a
+      request failure the same as "not yet visible" (return None to retry) or, at minimum,
+      wrap the body of `main()` in a try/except that logs a `::warning::` and returns 0 on
+      any exception, so the documented "always exits 0" contract is actually enforced by
+      code rather than by convention. As belt-and-braces defense-in-depth matching the
+      sibling `download-selected-modules` step, also add `continue-on-error: true` to the
+      `wait-for-artifacts` step in ci-aggregate.yml.
+
+  - id: PR-BOUNDARY-002
+    lens: canonical-reuse-vs-re-derivation
+    severity: 2
+    title: "_MAX_ATTEMPTS, _backoff_seconds, and _AlreadyReported are duplicated verbatim between fleet_main.py and fleet_verdict.py instead of sharing one definition"
+    evidence:
+      - code: "scripts/ci/fleet_main.py:101-106"
+      - code: "scripts/ci/fleet_verdict.py:318-323"
+      - code: "scripts/ci/fleet_main.py:109-110"
+      - code: "scripts/ci/fleet_verdict.py:326-327"
+    claim: >
+      `_MAX_ATTEMPTS = 4` and the `_backoff_seconds(attempt)` function (identical
+      `2.0 * (2 ** (attempt - 1))` body and identical "2s -> 4s -> 8s (plan.md's Retry
+      Budget Rationale for the fleet-verdict pair)" docstring, word for word) are defined
+      independently in both scripts/ci/fleet_main.py and scripts/ci/fleet_verdict.py, as
+      is the empty marker class `_AlreadyReported`. plan.md's own rationale calls these
+      two callers "the fleet-verdict pair" sharing one retry budget, which is exactly the
+      case `reconcile_retry.py`'s docstring anticipates ("the duplication that produced
+      the double-snapshot drift this mission fixes in the first place") -- yet the budget
+      constant and backoff schedule for this pair were re-derived twice rather than
+      shared once. This is not currently a functional bug (both copies agree today), but
+      it is the same duplication-drift shape the mission was chartered to eliminate: a
+      future change to the pair's retry budget can update one file and silently miss the
+      other.
+    remediation: >
+      Hoist `_MAX_ATTEMPTS` and `_backoff_seconds` (and, if desired, `_AlreadyReported`)
+      into a small shared helper -- e.g. a `PAIR_MAX_ATTEMPTS` constant and
+      `pair_backoff_seconds()` function colocated in `reconcile_retry.py` as a named
+      default policy (distinct from the generic `retry_with_backoff` primitive itself,
+      so the module's caller-agnostic contract is preserved), or a tiny third
+      `scripts/ci/_fleet_retry_policy.py` that both `fleet_main.py` and
+      `fleet_verdict.py` import. Either keeps the "one rationale, one definition"
+      property the module's own docstring already argues for.

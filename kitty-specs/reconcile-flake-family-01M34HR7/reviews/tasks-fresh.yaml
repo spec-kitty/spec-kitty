@@ -1,0 +1,54 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh-sweep
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: TASKS-FRESH-001
+    lens: dual-system-divergence-mapping
+    severity: 3
+    title: "Corrected WP02 RerunAPI trace assumes the elif early-return is re-evaluated per retry attempt; T009's 'critical difference to preserve' wording can be read as placing that same check OUTSIDE the retry loop, entirely unresolved by the fix"
+    evidence:
+      - artifact: "tasks/WP02-fleet-verdict-fleet-main-retry.md § Context (RerunAPI paragraph, lines ~204-218 of the diff)"
+      - artifact: "tasks/WP02-fleet-verdict-fleet-main-retry.md § Risks (Mock-behavior misreading risk bullet)"
+      - artifact: "tasks/WP02-fleet-verdict-fleet-main-retry.md § Subtask T009 ('Critical difference to preserve: the `elif evidence[\"state\"] != \"red\"`... early exit happens BEFORE the retry-worthy instability check and is untouched — only the `if snapshot(...) != evidence: raise ...` path ... is wrapped in retry logic.')"
+    claim: >
+      The revised Context/Risks text for WP02 now asserts, as its central trace conclusion,
+      that "under retry, the SECOND `_attempt()` call's first `snapshot()` will likely already
+      observe ci-quality as status='in_progress'/conclusion=None" and that this "likely routes
+      into the ... elif evidence['state'] != 'red' ... early-return branch" on a later attempt.
+      That claim requires the elif check to be re-evaluated fresh on every `_attempt()`
+      invocation (the same shape T008 gives fleet_verdict.py, whose whole
+      snapshot->dedupe->re-snapshot->compare body becomes `_attempt()`). But T009 — a few
+      pages later in the SAME file, untouched by this revision — describes the elif as
+      happening "BEFORE the retry-worthy instability check" and says "only" the final
+      snapshot-compare-and-mutate path "is wrapped in retry logic," which a reader can equally
+      naturally take to mean the elif sits structurally OUTSIDE `_attempt()`/the retry loop,
+      evaluated exactly once per `report()` call using the very first (pre-loop) snapshot. I
+      independently traced both readings against the live `RerunAPI` mock
+      (`tests/ci/test_fleet_main.py`) and `classify()` (`scripts/ci/fleet_verdict.py`): under
+      the "elif is per-attempt" reading the corrected paragraph's prediction holds (I verified
+      `classify()` returns "running", not "red", for a `status="in_progress"` run, confirming
+      the print-and-return outcome on the second attempt). Under the "elif runs once, outside
+      the loop, against a frozen first-`evidence`" reading, the outcome is categorically
+      different: subsequent attempts keep comparing a fresh snapshot against the SAME stale
+      `evidence` that is never refreshed, so the mismatch never resolves and the run instead
+      exhausts the retry budget and takes the FR-004 skip-silently path — which would also mean
+      fleet_main.py's retry-then-skip design could never recover from a genuinely-transient
+      CI-attempt-state change, undermining FR-003's own intent. The fix that was supposed to
+      correct WP02's RerunAPI description leaves this adjacent, load-bearing ambiguity about
+      `_attempt()`'s boundary completely unaddressed, and in fact sharpens the risk by stating
+      the per-attempt reading as the confident (if hedged with "likely") narrative without
+      reconciling it against T009's own "critical difference to preserve" language.
+    remediation: >
+      In T009 (and/or the WP02 Context paragraph), state unambiguously whether
+      `fleet_main.py::report()`'s `_attempt()` re-executes the first snapshot + incident-lookup
+      + `elif evidence["state"] != "red"` check on every retry attempt (mirroring T008's
+      whole-body extraction), or whether that check runs once before entering the retry loop
+      against a fixed `evidence`. If the latter, the corrected RerunAPI trace in Context/Risks
+      needs to be rewritten to match (the predicted outcome for
+      `test_attempt_change_during_publication_refuses_stale_verdict` under retry would be the
+      FR-004 exhausted-budget path, not the elif early return), and T009 should flag the
+      FR-003 recovery-intent implication explicitly so a reviewer can judge whether "elif fires
+      once, evidence frozen" is an acceptable design for fleet_main.py or itself a defect to
+      fix in this WP.

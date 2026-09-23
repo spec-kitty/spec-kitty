@@ -1,0 +1,48 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: TASKS-VERIFY-001
+    lens: Silent-success / stale-evidence invariant fidelity (mission-specific)
+    severity: 3
+    title: "WP02's characterization of fleet_main.py's RerunAPI mock (\"it moves the head\") is factually wrong; it mutates CI-attempt data, not the head SHA"
+    evidence:
+      - artifact: "tasks/WP02-fleet-verdict-fleet-main-retry.md § Context, \"Existing tests you must re-pin...\" paragraph: \"read its RerunAPI mock ... it moves the head on head_reads == 1 specifically (not 'after the first read')\""
+      - code: "tests/ci/test_fleet_main.py:239-249 (test_attempt_change_during_publication_refuses_stale_verdict / class RerunAPI)"
+    claim: >
+      WP02's prompt tells the implementer that fleet_main.py's `RerunAPI` mock "moves the
+      head on head_reads == 1." Reading the live mock (tests/ci/test_fleet_main.py:241-243)
+      shows this is incorrect: `RerunAPI.request()` fires
+      `self.runs["ci-quality.yml"][0].update(run_attempt=2, status="in_progress",
+      conclusion=None)` when `path == "git/ref/heads/main" and self.head_reads == 1` — it
+      mutates the ci-quality workflow-run's attempt/status/conclusion, not `self.head`.
+      `move_on_second_read` (the actual head-SHA mover, inherited from `MainAPI`) is never
+      set `True` anywhere in `test_attempt_change_during_publication_refuses_stale_verdict`,
+      so the head SHA never moves in this test at all; the instability the mock manufactures
+      is entirely a CI-attempt-state change between the two `snapshot()` reads. The
+      `ValueError` message ("main head or CI attempts changed") is generic enough to cover
+      both cases, which is presumably why the prompt's author conflated them. Under the new
+      retry-wrapped `_attempt()`, this matters concretely: because the mutation is permanent
+      (baked into `self.runs` once head_reads reaches 1, not flapping), the SECOND
+      `_attempt()` call's first `snapshot()` will already observe ci-quality as
+      `status="in_progress"/conclusion=None` — i.e. evidence state likely becomes
+      "running," not "red" — which routes into the untouched, non-retried early-return branch
+      (`elif evidence["state"] != "red": print(text, end=""); return`) rather than into a
+      "stabilized-and-publish" outcome analogous to `fleet_verdict.py`'s re-pin. An
+      implementer who trusts the prompt's "moves the head" framing at face value (rather than
+      independently tracing, which the prompt does separately instruct) is liable to design
+      the re-pinned assertion around the wrong mechanism (expecting a stabilized-SHA publish
+      like the `fleet_verdict.py` case) and have to redo it once the actual trace surfaces the
+      CI-attempt-state / early-return path instead.
+    remediation: >
+      Correct the WP02 prompt's characterization: state that `RerunAPI` mutates the
+      ci-quality workflow run's `run_attempt`/`status`/`conclusion` (not the head SHA) when
+      `head_reads == 1`, that `move_on_second_read` is never enabled in this test (the head
+      SHA is constant throughout), and that this produces a different re-pin shape than
+      `fleet_verdict.py`'s case — likely landing in the untouched
+      `evidence["state"] != "red"` early-return branch rather than a "stabilized, then
+      publish" outcome. Keep the existing "trace it yourself" instruction, but replace the
+      inaccurate anchor sentence so implementers aren't primed with the wrong mental model
+      before they trace.

@@ -1,0 +1,21 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: >-
+      Full read of tasks/WP04-integration-verification-tracer-closeout.md confirms "C-007"
+      appears exactly once (frontmatter requirement_refs) and "ledger" appears zero times in
+      the entire body, while C-001 is explicitly restated in the Pre-merge verification scope
+      note and again in T018's steps — the asymmetry the finding describes is real.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      tests/ci/test_fleet_main.py:241-243 shows RerunAPI.request() mutates
+      self.runs["ci-quality.yml"][0] (run_attempt/status/conclusion) on head_reads==1 and
+      never touches self.head, move_on_second_read defaults False and is never set True in
+      test_attempt_change_during_publication_refuses_stale_verdict, and WP02's prompt
+      (lines 241-243, 458-459) literally states "it moves the head on head_reads == 1" and
+      "the head moves ONCE and STAYS moved" — both factually wrong per the live mock.

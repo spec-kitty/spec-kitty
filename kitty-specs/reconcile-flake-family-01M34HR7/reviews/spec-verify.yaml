@@ -1,0 +1,57 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: >-
+      FR-005 now names the new bounded polling step/script as the explicit owner of the
+      retryable network call ("this new polling step/script owns it... reconcile_shards.py::main()
+      owns no network/API call and is not modified by this requirement"), User Story 3's
+      Acceptance Scenarios 1-2 were rewritten so the retry is observed by "the new
+      artefact-visibility polling step" ahead of actions/download-artifact while main() only
+      "completes successfully ... using it" against whatever was downloaded, and NFR-003 item (3)
+      now explicitly mocks "its own GitHub Actions artifacts-API client" for the new polling step
+      and explicitly excludes reconcile_shards.py::main()'s already-static local-directory read
+      "which this mission does not change" -- matching current code (reconcile_shards.py:235-307
+      / ci-aggregate.yml unchanged, confirmed by diffing against the pre-fix commit).
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: >-
+      A whole-file grep confirms zero remaining "C-005" occurrences anywhere in spec.md; the
+      local Constraints-table row was renumbered to C-009 (no collision with any other row in
+      this spec's own table), and every prior "invariant C-005" citation in User Story 3, FR-006,
+      C-002, and the Edge Cases/AC US3-2 text now refers descriptively to the must_be_fresh
+      fail-closed completeness floor documented under "Stale-artefact fallback" in
+      contracts/artefact-naming.md, without any numeric ID.
+  - id: SPEC-GOV-003
+    status: resolved
+    reason: >-
+      A whole-file grep for "jeroennouws" and "/home/" returns zero hits; C-008 now reads "The
+      mission orchestration workspace's SPEC-KITTY-LEDGER.md (maintained outside this checkout,
+      not part of the spec-kitty repository) was grepped for ..." with the operator's absolute
+      path and OS username fully removed.
+  - id: SPEC-GOV-004
+    status: resolved
+    reason: >-
+      NFR-003 now ends with an explicit red-first clause requiring each new retry unit test to
+      first be run against the unmodified (pre-fix) surface and confirmed to fail the way the
+      current code does today, before the retry implementation is added, citing Charter Standing
+      Order #4 (red-first through the pre-existing entry point).
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: >-
+      NFR-003 item (4) now adds a concrete unit-test requirement for FR-009 (asserting two
+      concurrent invocations for different subjects share no object/global/filesystem path, retry
+      state constructed fresh from arguments), and User Story 2 gained a new Acceptance Scenario 4
+      with a real Given/When/Then pinning the same no-shared-state property, explicitly labeled as
+      the FR-009 no-cross-run-coupling property.
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: >-
+      User Story 2's Acceptance Scenario 3 was rewritten to pin the exact mechanism (a plain
+      print(...) call to stdout, not an exception) and the minimum required substrings (subject
+      identifier, "deferred"/"skipped", and the reason "evidence did not stabilize within retry
+      budget"), bringing it to the same falsifiable rigor as User Story 3's sibling ::error::
+      annotation AC.

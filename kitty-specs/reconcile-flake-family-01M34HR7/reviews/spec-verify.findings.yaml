@@ -1,0 +1,99 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+lens_group: verify
+mission: reconcile-flake-family-01M34HR7
+findings:
+  - id: SPEC-VERIFY-001
+    lens: Falsifiability
+    severity: 4
+    title: "FR-009 (no cross-run/cross-mission coupling) has no Acceptance Scenario or Success Criterion — a High-priority FR with zero test coverage"
+    evidence:
+      - artifact: "spec.md § FR-009 (Requirements / Functional Requirements table)"
+      - artifact: "spec.md § NFR-003 (enumerates required unit-test coverage for exactly three surfaces: FR-002/FR-004, FR-003/FR-004, FR-005/FR-006 — FR-009 is absent from this list)"
+      - artifact: "spec.md § Success Criteria (SC-001..SC-004 — none mention FR-009, cross-run state, locking, or concurrency)"
+      - artifact: "spec.md § Edge Cases, 'Concurrent missions' CI runs sharing the same reconcile code' (narrative only, not an Acceptance Scenario)"
+      - code: "tests/ci/test_fleet_verdict.py, tests/ci/test_fleet_main.py, tests/ci/test_reconcile_shards.py — grepped for lock/concurrent/shared-state/cross-run: zero matches, confirming no existing test exercises this property either"
+    claim: >
+      FR-009 is a High-priority functional requirement ("each retry/backoff invocation scoped only
+      to its own subject... no shared mutable state, lock file, or coupling to another concurrently-running
+      invocation... a fix that adds, e.g., a repo-wide lock file or a shared retry-state artifact would
+      violate this"). It is discussed narratively in the Edge Cases section and cross-referenced by C-007,
+      but no User Story's Acceptance Scenarios test it, and NFR-003 — which is the spec's own enumeration of
+      what unit-test coverage is required per surface — lists coverage only for FR-002/FR-004,
+      FR-003/FR-004, and FR-005/FR-006, omitting FR-009 entirely. There is consequently no concrete
+      observable anywhere in the spec that would make an implementation fail if it silently violated FR-009
+      (e.g., by introducing a shared lock file or a retry-state dict keyed globally instead of per-subject).
+      This is exactly the "FR without coverage" case the severity rubric names as high (4): a plausible
+      implementation (e.g., a shared retry-helper introduced per FR-008's consideration) could accidentally
+      thread a module-level dict or file across subjects, and nothing in Success Criteria would catch it
+      before merge.
+    remediation: >
+      Add an explicit unit-test requirement for FR-009 to NFR-003 (or a new NFR/SC), e.g.: "unit tests assert
+      that two concurrent invocations of report()/main() for two different subjects (distinct PR numbers, or
+      a PR vs. a main-head push) do not read or write any shared object, global, or filesystem path — each
+      invocation's retry state is constructed fresh from its own arguments." Add a corresponding Acceptance
+      Scenario to User Story 2 or 3 (or a new short User Story) stating the Given/When/Then for this check,
+      so FR-009 has the same falsifiable footing as FR-002 through FR-007.
+
+  - id: SPEC-VERIFY-002
+    lens: Silent-success
+    severity: 3
+    title: "Constraints-table ID C-005 collides with the pre-existing external invariant also named 'C-005' that FR-006/C-002/User-Story-3/Edge-Cases repeatedly cite as the anti-silent-success authority"
+    evidence:
+      - artifact: "spec.md § Constraints table, row C-005: \"Diff-cover coverage floor does not apply, but tests are still required\""
+      - artifact: "spec.md § User Story 3 rationale: 'so invariant C-005 (\"never silently treat as complete\", per contracts/artefact-naming.md) is never weakened'"
+      - artifact: "spec.md § Acceptance Scenario US3-2: '... this is the C-005 floor, and it MUST NOT regress to a 0/success exit ...'"
+      - artifact: "spec.md § FR-006: '(citing invariant C-005 / contracts/artefact-naming.md \"Stale-artefact fallback\")'"
+      - artifact: "spec.md § Edge Cases: 'silent success would be a real defect (C-005 violation)' and 'this is the same C-005 floor as above'"
+      - artifact: "spec.md § C-002: 'may weaken or remove the C-005 (\"never silently treat as complete\") fail-closed behavior'"
+      - code: "scripts/ci/reconcile_shards.py:297 '# C-005: a shard absent from BOTH the current and fallback runs...' and :305 '::error::ci-aggregate: refusing to silently treat this run as complete -- see contracts/artefact-naming.md \"Stale-artefact fallback\"' — confirms the external 'C-005' label is a real, pre-existing code-comment convention"
+      - code: "kitty-specs/ci-pipeline-reinstatement-01M1X35E/contracts/artefact-naming.md:3 'Preserve verbatim (C-005).' and :20 '## Stale-artefact fallback (spec edge case)' — the external source of the 'C-005' label; it is about coverage/xunit artefact naming (Sonar/diff-cover dedup), unrelated to reconcile_shards.py's shard-completeness guard"
+    claim: >
+      Within this single spec document, "C-005" is used to mean two unrelated things: (1) the spec's own
+      local Constraints-table entry, "Diff-cover coverage floor does not apply, but tests are still
+      required"; and (2) five separate in-body references (User Story 3, its Acceptance Scenario, FR-006,
+      C-002, and two Edge Cases bullets) to a pre-existing external invariant — "never silently treat as
+      complete" — that is a real convention already used verbatim in scripts/ci/reconcile_shards.py's code
+      comments and in a different mission's contracts/artefact-naming.md. This is the exact invariant that
+      FR-006/C-002 rely on as the anti-silent-success floor this mission must not weaken, so a reader or
+      reviewer auditing "does this implementation violate C-005?" who looks it up in THIS spec's own
+      Constraints table gets completely unrelated information (a diff-cover coverage-gate exemption) instead
+      of the fail-closed invariant text. The collision is coincidental (both are simply the 5th sequential
+      constraint ID in their respective, unrelated documents) but it undermines exactly the traceability this
+      Decision Record otherwise takes care to provide (cf. C-008's stated purpose: "so a reviewer does not
+      need to re-grep it").
+    remediation: >
+      Renumber this spec's own local Constraints-table row currently at C-005 ("Diff-cover coverage floor
+      does not apply...") to an unused ID (e.g. C-009, since C-001..C-008 are otherwise taken) so it no
+      longer collides with the pre-existing external "C-005" invariant that scripts/ci/reconcile_shards.py
+      and contracts/artefact-naming.md already use for the anti-silent-success floor. Do not attempt to
+      renumber the external invariant — it is baked into existing code comments outside this mission's scope.
+      Alternatively, if renumbering is deferred to plan/tasks, add a one-line disambiguation note in this
+      spec's Constraints table ("this C-005 is local to this spec's constraint list and is unrelated to the
+      pre-existing 'C-005' shard-completeness invariant cited in User Story 3/FR-006/C-002").
+
+  - id: SPEC-VERIFY-003
+    lens: Falsifiability
+    severity: 2
+    title: "User Story 2 Acceptance Scenario 3 (deferred-to-later-event log record) has no pinned expected content, unlike its reconcile_shards.py sibling"
+    evidence:
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 3: 'Then it records that it deferred to a later event (so the skip is diagnosable, not silent-and-unexplained) — this is a logging/diagnostic requirement, not a change to the exit code or return value.'"
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 2 (contrast): pins the exact expected annotation text, '::error::ci-aggregate: ... refusing to silently treat this run as complete ...' (or an equivalent that preserves the same fail-closed semantics)"
+    claim: >
+      Acceptance Scenario 3 of User Story 2 requires that the exhausted-retry skip path for
+      fleet_verdict.py::report()/fleet_main.py::report() "records that it deferred to a later event" but
+      does not pin any expected log-line content, format, or even a required log level/destination (stdout?
+      stderr? Python logging? a GitHub Actions ::notice:: annotation?) the way the sibling AC in User Story 3
+      pins the exact ::error:: string for reconcile_shards.py. A unit test written against this AC as
+      literally stated could pass on almost any non-empty print/log call, making the scenario only weakly
+      falsifiable compared to its sibling.
+    remediation: >
+      Pin the expected diagnostic output the same way User Story 3's AC pins its ::error:: annotation, e.g.:
+      specify the minimum required substrings (subject identifier, "deferred"/"skipped", and the reason
+      "evidence did not stabilize within retry budget") and the expected log mechanism (stdout print vs.
+      Python logging vs. a GitHub Actions ::notice::/::warning:: annotation), so NFR-003's unit tests have an
+      unambiguous string/mechanism to assert against.
+
+# If you have no findings, write: findings: []

@@ -1,0 +1,21 @@
+# review-verify/v1
+schema: review-verify/v1
+complete: true
+phase: pr
+round: 2
+verdicts:
+  - id: PR-FRESH1-001
+    verdict: resolved
+    reason: >-
+      _attempt() now catches only (ValueError, OSError) -- traced against
+      GitHub.request()/GitHub.pages() in scripts/ci/fleet_verdict.py:144-166,
+      every genuinely transient shape (HTTPError converted to ValueError,
+      json.JSONDecodeError as a ValueError subclass, URLError/TimeoutError/
+      socket-level failures as OSError subclasses) is covered, a TypeError
+      from inside the poll now propagates on the first attempt instead of
+      being retried MAX_ATTEMPTS times, and main()'s outer handler now prints
+      ::error:: (not ::warning::) for a permanent setup failure such as a
+      missing SOURCE_RUN_ID while still honoring the exit-0 contract; both
+      behaviors are pinned by red-first tests that were confirmed red at
+      a2f5c22fd and green at HEAD in a throwaway worktree spot-check.
+sweep_findings: []

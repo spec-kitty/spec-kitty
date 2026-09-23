@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "mission_slug": "reconcile-flake-family-01M34HR7",
+  "mission_id": "01M34HR7VHXP24GDY7S68YJ3NT",
+  "mission_branch": "kitty/mission-reconcile-flake-family-01M34HR7",
+  "target_branch": "fix/reconcile-flake-family-4882",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "scripts/ci/reconcile_retry.py",
+        "tests/ci/test_reconcile_retry.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "scripts/ci/fleet_main.py",
+        "scripts/ci/fleet_verdict.py",
+        "tests/ci/test_fleet_main.py",
+        "tests/ci/test_fleet_verdict.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-aggregate.yml",
+        "scripts/ci/wait_for_artifacts.py",
+        "tests/ci/test_wait_for_artifacts.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "kitty-specs/reconcile-flake-family-01M34HR7/tracer-approach.md",
+        "kitty-specs/reconcile-flake-family-01M34HR7/tracer-design-decisions.md",
+        "kitty-specs/reconcile-flake-family-01M34HR7/tracer-tooling-friction.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-22T16:08:26.461836+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "planning_commit_sha": "daaa6aaeec2f6e18a0622951399c434ae452d7ad"
+}
