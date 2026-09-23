@@ -33,7 +33,8 @@ spec-kitty doctor coordination --check-staleness
 
 This reports Gap-1 coord-branch-vs-`target_branch` staleness. `--fix`
 attempts a fast-forward, but only when the coord branch is a strict ancestor
-of the target and the coord worktree is clean:
+of the target, the coord worktree is clean, and that worktree has the
+coordination branch of this repository checked out:
 
 ```bash
 spec-kitty doctor coordination --fix
@@ -43,6 +44,12 @@ A genuine post-rebase strand is a **divergence**, not simple staleness — the
 coord tip is not an ancestor of the new base at all, so `--fix` correctly
 fails loud with a unified diff and mutates nothing rather than guessing
 which side wins. Manual reset is required.
+
+A coord worktree on some other branch, on a detached HEAD, or belonging to a
+different repository is refused the same way (`COORDINATION_BRANCH_STALE_FIX_BLOCKED`),
+before anything is touched. If a fast-forward runs but the coordination branch
+still does not match the target afterwards, `--fix` reports
+`COORDINATION_BRANCH_STALE_FIX_POSTCONDITION_FAILED` instead of claiming success.
 
 `--fix` also sweeps every mission under `kitty-specs/`; scope your review to
 the mission you care about, or restore unrelated missions with
