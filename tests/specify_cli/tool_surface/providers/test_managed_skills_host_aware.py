@@ -145,9 +145,15 @@ def test_helper_is_dir_scoped_and_host_gated() -> None:
     """T012 (NFR-003): the gate never relaxes on POSIX, regardless of kind."""
     dir_755 = FileState("directory", mode=0o755)
     dir_700 = FileState("directory", mode=0o700)
+    file_644 = FileState("file", sha256="a" * 64, mode=0o644)
+    file_600 = FileState("file", sha256="a" * 64, mode=0o600)
 
-    # On POSIX (the real test host, is_windows False) nothing is ever excused.
+    # On POSIX (the real test host, is_windows False) nothing is ever excused --
+    # for a directory OR a file. Pinning the file kind here keeps FR-007 (a
+    # genuine mode divergence on a real POSIX host still repairs) regression-proof
+    # rather than implied only by the unconditional is_windows early return.
     assert windows_dir_mode_only_divergence(dir_700, dir_755) is False
+    assert windows_dir_mode_only_divergence(file_600, file_644) is False
 
 
 def test_helper_windows_only_dir_mode(monkeypatch: pytest.MonkeyPatch) -> None:
