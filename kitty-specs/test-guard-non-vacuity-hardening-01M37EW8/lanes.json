@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "mission_slug": "test-guard-non-vacuity-hardening-01M37EW8",
+  "mission_id": "01M37EW8MTZMY1S48P148KYK4E",
+  "mission_branch": "kitty/mission-test-guard-non-vacuity-hardening-01M37EW8",
+  "target_branch": "issue-4036-test-guard-non-vacuity-hardening",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/_gate_coverage.py",
+        "tests/architectural/test_gate_coverage_composite_path.py",
+        "tests/architectural/test_module_shard_registry.py",
+        "tests/architectural/test_no_dead_src_path_literals.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-nightly.yml",
+        "pytest.ini",
+        "tests/_support/repo_root_status_guard.py",
+        "tests/architectural/test_performance_marker_guard.py",
+        "tests/performance/test_cli_startup_budget_4409.py",
+        "tests/test_repo_root_status_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-23T15:57:30.487136+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a02ff485e5d9acaf48f803d94aa51bb715a274d0"
+}
