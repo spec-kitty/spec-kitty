@@ -2105,7 +2105,6 @@ exclude = [
     "tests/specify_cli/cli/commands/test_charter_status_provenance.py",
     "tests/specify_cli/cli/commands/test_charter_widen.py",
     "tests/specify_cli/cli/commands/test_charter_widen_integration.py",
-    "tests/specify_cli/cli/commands/test_completion_fast_path.py",
     "tests/specify_cli/cli/commands/test_context_info.py",
     "tests/specify_cli/cli/commands/test_coord_reader_fixes.py",
     "tests/specify_cli/cli/commands/test_coord_status_commit_2155.py",
