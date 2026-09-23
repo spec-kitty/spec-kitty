@@ -274,6 +274,52 @@ def test_fix_one_staleness_requires_declared_ref_postcondition(
     assert "Fast-forwarded" not in capsys.readouterr().out
 
 
+def test_fix_one_staleness_merges_target_sha_not_branch_name(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """#4950 follow-up: merge the same SHA the postcondition checks against.
+
+    ``target_branch`` can advance between resolving ``target_sha`` (via
+    ``_coord_vs_target_shas``) and running the merge; merging the SHA keeps
+    the move and the postcondition check pinned to the exact same commit.
+    """
+    from specify_cli import coordination as coord_mod
+
+    monkeypatch.setattr(
+        cd,
+        "_coord_vs_target_shas",
+        lambda *_a: ("coord", "main", "coord-sha", "target-sha"),
+    )
+    monkeypatch.setattr(cd, "_is_ff_candidate", lambda *_a: True)
+    monkeypatch.setattr(
+        cd,
+        "_coordination_identity",
+        lambda *_a: ("coord", "mission", "01ABCDEF00000000000000000A"),
+    )
+    monkeypatch.setattr(cd, "_resolve_coord_short", lambda *_a: "01ABCDEF")
+    monkeypatch.setattr(
+        coord_mod.CoordinationWorkspace,
+        "worktree_path",
+        staticmethod(lambda *_a: tmp_path),
+    )
+    monkeypatch.setattr(cd, "_coord_worktree_head_finding", lambda *_a: None)
+    monkeypatch.setattr(cd, "_coord_worktree_dirty_finding", lambda *_a: None)
+    monkeypatch.setattr(cd, "_rev_parse", lambda *_a: "target-sha")
+
+    captured: dict[str, list[str]] = {}
+
+    def _fake_run(cmd: list[str], **_k: Any) -> subprocess.CompletedProcess[str]:
+        captured["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+
+    finding = cd._fix_one_mission_coord_staleness(tmp_path, {})
+
+    assert finding is None
+    assert captured["cmd"][-3:] == ["merge", "--ff-only", "target-sha"]
+
+
 def test_check_and_warn_coord_staleness_no_meta_is_silent(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

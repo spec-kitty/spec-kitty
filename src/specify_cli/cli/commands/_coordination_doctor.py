@@ -1404,8 +1404,12 @@ def _fix_one_mission_coord_staleness(
             repo_root, coord_branch, target_branch, reason="not cleanly fast-forwardable vs",
         )
 
+    # Merge the SHA the postcondition below checks against (not the branch
+    # name) so the move and the check refer to the exact same commit --
+    # `target_branch` can advance between resolving `target_sha` above and
+    # running this merge (#4950 second-opinion follow-up).
     subprocess.run(
-        ["git", "-C", str(worktree), "merge", "--ff-only", target_branch],
+        ["git", "-C", str(worktree), "merge", "--ff-only", target_sha],
         check=True, capture_output=True, text=True,
     )
     repaired_coord_sha = _rev_parse(repo_root, f"refs/heads/{coord_branch}")
