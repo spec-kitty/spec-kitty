@@ -123,6 +123,16 @@ def test_audit_trail_is_durable_and_non_gating_e2e(tmp_path: Path) -> None:
     # C-005: the legacy path stays ignored for back-compat.
     assert _check_ignored(repo, ".kittify/migrations/mission-state/legacy.json")
 
+    # --- SC-005 regression: the churn gates classify the COLLAPSED untracked-dir
+    # entry that `git status --porcelain` emits BEFORE any `git add` (a wholly-
+    # untracked audit root collapses to one `.kittify/mission-state-audit/` line),
+    # NOT the staged file paths. If this form is not churn, accept/merge gate. ---
+    porcelain_before_add = _porcelain(repo, ".kittify/mission-state-audit")
+    assert porcelain_before_add.strip(), "audit trail must be untracked before commit"
+    for line in porcelain_before_add.splitlines():
+        entry = line[3:]  # strip the 'XY ' porcelain status prefix
+        assert is_self_bookkeeping_churn(entry), f"a --fix before accept would gate on {entry!r}"
+
     # --- SC-002 linchpin: git add actually STAGES them (not a silent no-op) ---
     subprocess.run(["git", "add", str(MISSION_STATE_AUDIT_ROOT)], cwd=repo, check=True)
     staged = _porcelain(repo, str(MISSION_STATE_AUDIT_ROOT))

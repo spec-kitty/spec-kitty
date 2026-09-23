@@ -152,6 +152,18 @@ class TestSelfBookkeepingPredicate:
             ".kittify/mission-state-audit/01M37PWGWRFNZY8X2Y7P7KJJGK.json"
         )
 
+    def test_audit_root_collapsed_untracked_dir_is_self_bookkeeping(self) -> None:
+        """#4928 regression: ``git status --porcelain`` collapses a wholly-
+        untracked audit root to a single ``.kittify/mission-state-audit/`` entry
+        (the fresh-repo first-repair shape). The gates classify THAT collapsed
+        form — before any ``git add`` — so it must be churn, or accept/merge gate
+        (SC-005/#2384). Both the porcelain (trailing-slash) and rstripped forms."""
+        assert is_self_bookkeeping_churn(".kittify/mission-state-audit/")
+        assert is_self_bookkeeping_churn(".kittify/mission-state-audit")
+        # A sibling that merely shares the prefix must still NOT be swept in.
+        assert not is_self_bookkeeping_churn(".kittify/mission-state-audit-legacy")
+        assert not is_self_bookkeeping_churn(".kittify/mission-state-audit-legacy/x.json")
+
     def test_audit_quarantine_is_self_bookkeeping(self) -> None:
         """#4928: the quarantine subtree is likewise self-bookkeeping churn."""
         assert is_self_bookkeeping_churn(

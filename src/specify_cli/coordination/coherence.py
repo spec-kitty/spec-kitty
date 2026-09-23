@@ -107,7 +107,16 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
     # self-bookkeeping churn so a repair run never dirties a dirty-state gate
     # (accept / merge / record-analysis) — preserving the #2384 non-gating
     # property now that the path is tracked rather than ignored.
-    mission_state_audit = re.compile(r"(?:^|/)\.kittify/mission-state-audit/")
+    # ``(?:/|$)`` (not a bare ``/``): ``git status --porcelain`` collapses a
+    # wholly-untracked directory to a single ``.kittify/mission-state-audit/``
+    # entry, which ``is_self_bookkeeping_churn`` rstrips to
+    # ``.kittify/mission-state-audit`` (no trailing slash). The gates that
+    # enumerate untracked paths with a bare ``--porcelain`` (accept/merge/
+    # record-analysis) receive exactly that collapsed form on a fresh repo's
+    # first repair, so the matcher must accept the bare root too — otherwise the
+    # #2384/SC-005 non-gating property fails on the common path. ``-legacy`` /
+    # ``-notes`` siblings still miss (``$`` / ``/`` cannot follow ``-``).
+    mission_state_audit = re.compile(r"(?:^|/)\.kittify/mission-state-audit(?:/|$)")
     normalized = to_posix(path).rstrip("/")
     if PurePosixPath(normalized).name == "meta.json":
         return True
