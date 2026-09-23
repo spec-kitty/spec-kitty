@@ -399,29 +399,36 @@ def fresh_e2e_project(tmp_path: Path) -> Path:
     project = tmp_path / "fresh-e2e-project"
     project.mkdir()
 
-    # Step 1: bare git init + config (spec-kitty init does NOT do this).
+    # Step 1: bare git init (spec-kitty init does NOT do this).
     subprocess.run(
         ["git", "init", "-b", "main"],
         cwd=project,
         check=True,
         capture_output=True,
     )
-    subprocess.run(
-        ["git", "config", "user.email", "fresh-e2e@example.com"],
-        cwd=project,
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Fresh E2E Test"],
-        cwd=project,
-        check=True,
-        capture_output=True,
-    )
+    # git config user.email/user.name: written directly into
+    # project/.git/config's [user] section (plain text/INI append)
+    # instead of two `git config` subprocess calls -- no change in
+    # git's own observable state, no commit, no .kittify content.
+    with (project / ".git" / "config").open("a", encoding="utf-8") as git_config:
+        git_config.write("[user]\n")
+        git_config.write("\temail = fresh-e2e@example.com\n")
+        git_config.write("\tname = Fresh E2E Test\n")
+
+    # Explicit, executable C-006 precondition assertions, immediately
+    # before the spec-kitty init call: init must observe a repository
+    # with no commits and no `.kittify` content, exactly as it does
+    # today.
+    assert not (project / ".kittify").exists(), "C-006: no .kittify content before init"
+    assert not (project / ".git" / "refs" / "heads" / "main").exists(), "C-006: zero-commit repo before init"
 
     # Step 2: drive `spec-kitty init` via the same isolated invocation
     # path used by the `run_cli` fixture (PYTHONPATH -> source `src/`,
     # SPEC_KITTY_TEMPLATE_ROOT -> REPO_ROOT, SPEC_KITTY_TEST_MODE=1).
+    # ^ unchanged call -- same subprocess boundary, same args (C-003).
+    # Faster because main_callback()'s ensure_global_agent_commands()
+    # now short-circuits on a warm, unchanged freshness stamp (see
+    # WP04) instead of unconditionally re-rendering.
     result = run_cli_subprocess(
         project,
         "init",
