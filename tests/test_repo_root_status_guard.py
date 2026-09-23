@@ -27,8 +27,10 @@ artifacts belong to).
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -147,7 +149,20 @@ def test_nested_pytest_run_errors_when_a_test_leaks_at_the_root(tmp_path: Path) 
     must exit non-zero with the ``RepoRootStatusArtifactLeak`` teardown error
     naming both artifacts. The copy is made from the live module at run time,
     so this always exercises the current guard, never a stale snapshot of it.
+
+    The self-check that THIS test itself never leaked at the REAL checkout
+    root (as opposed to the scratch sandbox above) is window-scoped
+    (``root_status_artifact_violations`` against a ``before`` snapshot taken
+    right before the nested run) rather than an absolute ``not exists()``
+    claim (#4036): an absolute claim cannot tell ambient, pre-existing
+    root-level dirt apart from a genuine leak caused by THIS test's own
+    nested-pytest invocation, and would flag both identically -- flaky under
+    ``-n auto`` and any checkout carrying leftover root-level ``status.*``
+    debris. The window-scoped check only flags a fingerprint change since
+    ``before``, exactly the "this test didn't leak" claim the self-check is
+    meant to make.
     """
+    before = snapshot_root_status_artifacts(REPO_ROOT)
     sandbox = _scratch_checkout(tmp_path)
     result = _run_nested_pytest(sandbox, with_guard=True)
 
@@ -160,8 +175,7 @@ def test_nested_pytest_run_errors_when_a_test_leaks_at_the_root(tmp_path: Path) 
     # The leaked artifacts landed in the scratch checkout, never here.
     assert (sandbox / "status.events.jsonl").exists()
     assert (sandbox / "status.json").exists()
-    for name in ROOT_LEVEL_STATUS_ARTIFACTS:
-        assert not (REPO_ROOT / name).exists()
+    assert root_status_artifact_violations(REPO_ROOT, before) == [], "this test's own nested-pytest invocation leaked at the REAL checkout root (#4036)"
 
 
 @pytest.mark.integration
@@ -182,6 +196,81 @@ def test_control_nested_pytest_without_the_guard_passes_the_polluter(
     # It wrote at the scratch root unguarded — exactly the pre-#2815 world.
     assert (sandbox / "status.events.jsonl").exists()
     assert (sandbox / "status.json").exists()
+
+
+#: A two-test straddle scenario for the #4036 attribution proof: a polluter
+#: (test A) writes both guarded artifacts at the scratch root, then a second,
+#: innocent test (test B) runs immediately after in the SAME nested session
+#: and touches nothing. A's leak persists on disk across the gap into B's
+#: nominal window -- proving attribution stays scoped to A alone (no cascade
+#: onto B) is the point of this fixture.
+_STRADDLE_POLLUTER_THEN_INNOCENT_TESTS = '''\
+from tests._support.repo_root_status_guard import GUARD_ROOT
+
+
+def test_a_polluter_writes_status_artifacts_at_the_root() -> None:
+    """The #2815 incident shape, replayed against the scratch checkout root."""
+    (GUARD_ROOT / "status.events.jsonl").write_text("{}\\n", encoding="utf-8")
+    (GUARD_ROOT / "status.json").write_text("{}\\n", encoding="utf-8")
+
+
+def test_b_innocent_leaves_the_leaked_files_untouched() -> None:
+    """Runs immediately after the polluter, in the same nested session.
+
+    A's leak still sits on disk (its own teardown already fired and errored
+    on it) -- this test does not touch it, so it must pass cleanly: its OWN
+    window (setup snapshot -> teardown compare) sees before == after.
+    """
+    assert (GUARD_ROOT / "status.events.jsonl").exists()  # sanity: A's leak persists
+'''
+
+
+@dataclass(frozen=True)
+class _StraddleOutcome:
+    """Per-test attribution outcome parsed from a two-test nested pytest run."""
+
+    polluter_errored: bool
+    innocent_passed: bool
+
+
+#: Matches pytest's ``-rA`` per-test summary lines, e.g.
+#: ``PASSED test_polluter.py::test_b_innocent_leaves_the_leaked_files_untouched``
+#: or ``ERROR test_polluter.py::test_a_polluter_writes_status_artifacts_at_the_root``.
+_RESULT_LINE_RE = re.compile(r"^(?P<outcome>PASSED|FAILED|ERROR)\s+(?P<nodeid>\S+)\s*$", re.MULTILINE)
+
+
+def _classify_straddle_result(result: subprocess.CompletedProcess[str]) -> _StraddleOutcome:
+    """Attribute the two-test straddle run's outcome to each test independently.
+
+    Parses the ``-rA`` per-test summary lines (never aggregate pass/fail
+    counts, which cannot distinguish "A errored, B passed" from "A passed, B
+    errored") so the straddle proof checks the SPECIFIC test each assertion
+    names, not just that something in the run went one way or the other.
+    """
+    combined = result.stdout + result.stderr
+    outcomes = {match.group("nodeid").rsplit("::", 1)[-1]: match.group("outcome") for match in _RESULT_LINE_RE.finditer(combined)}
+    return _StraddleOutcome(
+        polluter_errored=outcomes.get("test_a_polluter_writes_status_artifacts_at_the_root") == "ERROR",
+        innocent_passed=outcomes.get("test_b_innocent_leaves_the_leaked_files_untouched") == "PASSED",
+    )
+
+
+@pytest.mark.integration
+def test_leak_attribution_does_not_straddle_into_the_next_test(tmp_path: Path) -> None:
+    """RED-first #4036 demo: a leak's write straddles test A's window into
+    what would nominally be test B's -- proving it is attributed to A alone,
+    and B (which touches nothing) passes cleanly. This is a REAL, mechanistic
+    proof via a nested ``pytest`` run -- not merely a restatement of the
+    module docstring's "errors exactly once... no cascade follows" prose
+    claim.
+    """
+    sandbox = _scratch_checkout(tmp_path)
+    (sandbox / "test_polluter.py").write_text(_STRADDLE_POLLUTER_THEN_INNOCENT_TESTS, encoding="utf-8")
+    result = _run_nested_pytest(sandbox, with_guard=True)
+
+    outcome = _classify_straddle_result(result)
+    assert outcome.polluter_errored, f"test A must ERROR on its own leak.\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    assert outcome.innocent_passed, f"test B must pass cleanly -- attribution must not cascade.\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
 
 
 def _scratch_checkout(tmp_path: Path) -> Path:
@@ -210,8 +299,14 @@ def _run_nested_pytest(
     *,
     with_guard: bool,
 ) -> subprocess.CompletedProcess[str]:
-    """Run the polluter test in a nested pytest, optionally loading the guard."""
-    argv = [sys.executable, "-m", "pytest", "test_polluter.py", "-q", "--no-header", "-p", "no:cacheprovider"]
+    """Run the polluter test in a nested pytest, optionally loading the guard.
+
+    ``-rA`` prints an explicit per-test outcome summary line (``PASSED
+    <nodeid>`` / ``ERROR <nodeid>`` / ...) in addition to the ``-q`` dot
+    output, so callers can attribute a specific test's outcome from the
+    combined stdout/stderr without depending on aggregate count phrasing.
+    """
+    argv = [sys.executable, "-m", "pytest", "test_polluter.py", "-q", "--no-header", "-rA", "-p", "no:cacheprovider"]
     if with_guard:
         argv.append("-p")
         argv.append("tests._support.repo_root_status_guard")

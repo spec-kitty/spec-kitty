@@ -34,7 +34,15 @@ import yaml
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-pytestmark = [pytest.mark.architectural, pytest.mark.fast]
+pytestmark = [pytest.mark.architectural]
+# NOTE: no `pytest.mark.fast` here -- the additive #4210 real-tree AST walk
+# (test_real_tree_performance_marked_tests_have_no_functional_assertions,
+# below) parses every collected `tests/**/test_*.py` file and measures
+# ~11s, well over the `fast` marker's documented sub-second-per-test budget
+# (pytest.ini). `tests/architectural/` is not one of the Makefile's
+# FAST_TIER_DIRS (tests/unit, tests/status, tests/cli,
+# tests/specify_cli/runtime), so dropping `fast` here does not remove this
+# module from `make test-fast` selection -- it was never selected by it.
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
@@ -185,6 +193,196 @@ def test_ordinary_functional_check() -> None:
     assert {"a": 1} == {"a": 1}
 """
     assert find_functional_assertions_under_performance_marker(source) == []
+
+
+# ---------------------------------------------------------------------------
+# #4210 -- ADDITIVE real-tree AST walk. Before this section existed, the
+# guard above ran only against the planted TEXT fixtures -- it never
+# AST-walked a real, on-disk ``tests/**/test_*.py`` file, so a genuinely
+# mis-marked real test would sail through undetected (vacuous). RED-first
+# demo: plants a real on-disk mismark under a fake tree and proves the
+# walker below finds and flags it. This section is purely ADDITIVE: it
+# never touches the pure `find_functional_assertions_under_performance_marker(source)`
+# contract that `test_timing_coverage_invariant.py:51/525` imports.
+# ---------------------------------------------------------------------------
+
+_PLANTED_REAL_MISMARK_SOURCE = '''
+import pytest
+
+
+@pytest.mark.performance
+def test_planted_real_tree_mismark() -> None:
+    """A genuinely on-disk mismark: functional assertion under @performance."""
+    assert {"a": 1} == {"a": 1}
+'''
+
+#: Explicit exemption list for the real-tree walk below, keyed by path
+#: relative to the walked root (POSIX form). Widened deliberately, reviewed
+#: (mirrors TIMING_ASSERTION_VOCABULARY's "additions are LOUD" discipline),
+#: never silently. Each entry below is a pre-existing, operator-reviewed
+#: exception discovered by turning the real-tree walk on for the first time
+#: -- fixing/re-marking the underlying test is out of WP02's scope (neither
+#: file is WP02-owned) and each carries its own in-file rationale.
+_TEST_TREE_WALK_EXEMPTIONS: frozenset[str] = frozenset(
+    {
+        # Reviewed, operator-recorded budget ruling (see the comment
+        # directly above `test_installed_cli_keeps_two_owned_worktrees_isolated`):
+        # the full functional acceptance coverage is DELIBERATELY retained
+        # on the nightly-only performance cadence for this WP05 concurrency
+        # test -- an explicit ruling, never a #3665 mis-mark dodging the PR
+        # gate.
+        "tests/e2e/test_worktree_owned_root_concurrency.py",
+        # Benchmark-harness integrity precondition, not smuggled functional
+        # coverage: `assert len(payloads) == len(prepared) == _ROUNDS +
+        # _WARMUP_ROUNDS` verifies pytest-benchmark's `pedantic()` actually
+        # ran every configured round before the timing assertions that
+        # follow it are trusted -- a measurement precondition, not a #3665
+        # functional-coverage mis-mark.
+        "tests/review/test_verdict_save_performance.py",
+    },
+)
+
+
+def _is_exempt_from_the_test_tree_walk(path: Path) -> bool:
+    """True when ``path`` matches an entry in :data:`_TEST_TREE_WALK_EXEMPTIONS`.
+
+    Exemption entries are REPO_ROOT-relative POSIX paths (matching the
+    ``offenders`` dict keys the enforcing test below reports), so this stays
+    correct regardless of which root a given walk starts from.
+    """
+    try:
+        relpath = path.resolve().relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return False
+    return relpath in _TEST_TREE_WALK_EXEMPTIONS
+
+
+def _iter_performance_marked_test_sources(root: Path) -> Iterable[tuple[Path, str]]:
+    """Yield ``(path, source)`` for every real, parseable ``test_*.py`` under ``root``.
+
+    Bounded and non-flaky by construction: a plain ``rglob("test_*.py")``
+    glob (no recursive AST traversal beyond ``ast.parse`` per file), a
+    ``try/except`` around read + parse so one unreadable or syntactically
+    broken file never aborts the whole walk, and an explicit, reviewed
+    exemption list. This is purely ADDITIVE plumbing -- it never changes the
+    pure ``find_functional_assertions_under_performance_marker(source)``
+    contract callers (including ``test_timing_coverage_invariant.py``)
+    depend on; callers still pass it source text themselves.
+    """
+    for path in sorted(root.rglob("test_*.py")):
+        if _is_exempt_from_the_test_tree_walk(path):
+            continue
+        try:
+            source = path.read_text(encoding="utf-8")
+            ast.parse(source)
+        except (SyntaxError, UnicodeDecodeError, OSError):
+            continue
+        yield path, source
+
+
+def test_iter_performance_marked_test_sources_catches_a_planted_real_mismark(tmp_path: Path) -> None:
+    """RED-first #4210 demo: the additive real-tree walk finds a planted mismark.
+
+    Before ``_iter_performance_marked_test_sources`` existed, nothing ever
+    AST-walked the real on-disk test tree -- only the planted TEXT fixtures
+    above were ever checked. This proves a genuinely on-disk file (not a
+    source string) is discovered and flagged by the walker.
+    """
+    fake_tree = tmp_path / "tests"
+    fake_tree.mkdir()
+    planted = fake_tree / "test_planted_real_mismark.py"
+    planted.write_text(_PLANTED_REAL_MISMARK_SOURCE, encoding="utf-8")
+
+    sources = list(_iter_performance_marked_test_sources(fake_tree))
+    assert len(sources) == 1
+    path, source = sources[0]
+    assert path == planted
+
+    violations = find_functional_assertions_under_performance_marker(source)
+    assert violations, "the additive real-tree walk must flag a planted real mismark"
+
+
+def test_iter_performance_marked_test_sources_skips_unparseable_files(tmp_path: Path) -> None:
+    """Bounded walk: a syntax error in one file does not abort the whole scan."""
+    fake_tree = tmp_path / "tests"
+    fake_tree.mkdir()
+    (fake_tree / "test_broken_syntax.py").write_text("def broken(:\n", encoding="utf-8")
+    assert list(_iter_performance_marked_test_sources(fake_tree)) == []
+
+
+def test_iter_performance_marked_test_sources_only_visits_test_files(tmp_path: Path) -> None:
+    """Bounded walk: only ``test_*.py`` files are visited, per the rglob pattern."""
+    fake_tree = tmp_path / "tests"
+    fake_tree.mkdir()
+    (fake_tree / "conftest.py").write_text(_PLANTED_REAL_MISMARK_SOURCE, encoding="utf-8")
+    assert list(_iter_performance_marked_test_sources(fake_tree)) == []
+
+
+def test_real_tree_performance_marked_tests_have_no_functional_assertions() -> None:
+    """DoD enforcement: every REAL performance-marked test in this repo is clean.
+
+    Additive companion to the planted-fixture tests above -- this is the
+    mechanism that actually protects the real tree, not just the hand-picked
+    TEXT fixtures.
+    """
+    offenders: dict[str, list[str]] = {}
+    for path, source in _iter_performance_marked_test_sources(REPO_ROOT / "tests"):
+        violations = find_functional_assertions_under_performance_marker(source)
+        if violations:
+            offenders[path.relative_to(REPO_ROOT).as_posix()] = violations
+    assert not offenders, f"#4210: real performance-marked test(s) carry functional assertions: {offenders}"
+
+
+# ---------------------------------------------------------------------------
+# #4210 -- env-scope invariant. The "e2e double-run" the original finding
+# described is a GHOST (already removed by #4865): ci-nightly.yml runs
+# `-m e2e` exactly once and SPEC_KITTY_RUN_PERFORMANCE is already scoped to
+# the performance job. Re-scoped to a REAL invariant: that scoping must
+# never regress -- SPEC_KITTY_RUN_PERFORMANCE must never leak onto any other
+# nightly job (the guard the #4865 split relies on).
+# ---------------------------------------------------------------------------
+
+_PERFORMANCE_JOB_NAME = "performance"
+_SPEC_KITTY_RUN_PERFORMANCE_ENV = "SPEC_KITTY_RUN_PERFORMANCE"
+
+
+def _spec_kitty_run_performance_leaks(jobs: dict[str, object]) -> list[str]:
+    """Return job names (other than the performance job) whose ``env:`` sets the var.
+
+    Pure over an already-parsed ``jobs:`` mapping so both the real
+    enforcing test (parsed from ``ci-nightly.yml``) and the planted-leak
+    demo above share one implementation.
+    """
+    leaks: list[str] = []
+    for job_name, job in jobs.items():
+        if job_name == _PERFORMANCE_JOB_NAME:
+            continue
+        env = job.get("env") if isinstance(job, dict) else None
+        if isinstance(env, dict) and _SPEC_KITTY_RUN_PERFORMANCE_ENV in env:
+            leaks.append(job_name)
+    return sorted(leaks)
+
+
+def test_spec_kitty_run_performance_leak_on_a_non_performance_job_is_caught() -> None:
+    """RED-first #4210 demo: a planted env-var leak onto a non-performance job is caught."""
+    jobs: dict[str, object] = {
+        "performance": {"env": {_SPEC_KITTY_RUN_PERFORMANCE_ENV: "1"}},
+        "e2e": {"env": {_SPEC_KITTY_RUN_PERFORMANCE_ENV: "1"}},  # planted leak
+        "stress": {"env": {"PWHEADLESS": "1"}},
+    }
+    assert _spec_kitty_run_performance_leaks(jobs) == ["e2e"]
+
+
+def test_spec_kitty_run_performance_env_is_scoped_to_the_performance_job_only() -> None:
+    """DoD enforcement: SPEC_KITTY_RUN_PERFORMANCE lives on the performance job only."""
+    data = yaml.safe_load(NIGHTLY_WORKFLOW.read_text(encoding="utf-8")) or {}
+    jobs = data.get("jobs") or {}
+    performance_job = jobs.get(_PERFORMANCE_JOB_NAME) or {}
+    assert _SPEC_KITTY_RUN_PERFORMANCE_ENV in (performance_job.get("env") or {}), (
+        f"#4210: the {_PERFORMANCE_JOB_NAME!r} job must set {_SPEC_KITTY_RUN_PERFORMANCE_ENV} -- performance-marked tests skip without it (conftest.py)"
+    )
+    leaks = _spec_kitty_run_performance_leaks(jobs)
+    assert not leaks, f"#4210: {_SPEC_KITTY_RUN_PERFORMANCE_ENV} leaked onto non-performance job(s): {leaks}"
 
 
 # ---------------------------------------------------------------------------
