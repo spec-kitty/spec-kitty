@@ -1,15 +1,38 @@
-"""Scope: adversarial tests for migration robustness — atomic writes, concurrency, permissions."""
+"""Scope: adversarial tests for migration robustness — atomic writes, concurrency, permissions.
+
+Known coverage gap (#4866 pre-merge squad finding pr-merged-004, recorded not
+fixed -- severity 2, non-blocking): ``TestVenvCorruptionHazardFR003b`` covers
+a dedicated ``UV_PROJECT_ENVIRONMENT`` venv that is present+correct
+(matches the current interpreter) and present+wrong-version (a deliberately
+mismatched interpreter), but never the case where the target venv is
+ABSENT. Empirically, ``uv run --frozen --no-sync`` against a nonexistent
+``UV_PROJECT_ENVIRONMENT`` silently creates an empty ad hoc venv (exit 0,
+no warning) rather than failing -- untested here. Not covered because (a)
+that behavior belongs to ``uv`` itself, not any spec-kitty ``src/`` code,
+so a passing test would only pin a third-party tool's current behavior, and
+(b) exercising a genuinely-absent target is the one variant most likely to
+need network interpreter resolution on an unfamiliar host, which this
+mission's own operating constraints forbid triggering. Full rationale in
+``kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-design-decisions.md``
+(the "Post-merge pre-merge-squad fix (pr-merged-004)" entry).
+"""
 
 from __future__ import annotations
 
+import ast
 import multiprocessing
 import os
+import shutil
+import subprocess
+import sys
 import time
+import uuid
 from kernel.clock import now_utc
 from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
@@ -24,7 +47,15 @@ import contextlib
 # Get migrations directory path
 MIGRATIONS_DIR = Path(__file__).parents[2] / "src" / "specify_cli" / "upgrade" / "migrations"
 
-pytestmark = [pytest.mark.adversarial, pytest.mark.fast]
+# NOTE (#4866 WP-fix pr-merged-001): deliberately NO module-level `pytestmark`
+# here. pytest marks are additive down the module -> class -> function chain,
+# so a module-level `fast` cannot be "cleared" by a class-level override (see
+# TestVenvCorruptionHazardFR003b below, which must NOT carry `fast`). Instead,
+# every class in this module declares its own `pytestmark` explicitly. This
+# reproduces the exact prior collection behaviour for every class except
+# TestVenvCorruptionHazardFR003b, whose network-dependent subprocess venv
+# builds must never be collected by the nightly `-m "fast or unit"` selector
+# (`.github/workflows/ci-nightly.yml`'s `interpreter-matrix` job).
 
 LOCK_FILENAME = ".upgrade.lock"
 FLAKY_MARKER = ".kittify/.flaky-migration"
@@ -130,6 +161,8 @@ def _run_upgrade_concurrent(
 
 
 class TestAtomicWrites:
+    pytestmark = [pytest.mark.adversarial, pytest.mark.fast]
+
     def test_metadata_save_interruption_preserves_original(self, tmp_path: Path, monkeypatch):
         """Atomic writes preserve the original file when serialization crashes.
 
@@ -169,6 +202,8 @@ class TestAtomicWrites:
 
 @pytest.mark.slow
 class TestConcurrentMigration:
+    pytestmark = [pytest.mark.adversarial, pytest.mark.fast]
+
     def test_concurrent_upgrade_handled(self, migration_project: Path, registry_restore: Any):
         """Exactly one of two concurrent upgrade processes succeeds; the other is blocked."""
         # Arrange
@@ -210,7 +245,345 @@ class TestConcurrentMigration:
         )
 
 
+def _extract_uv_run_argv_prefix(source_path: Path, function_name: str) -> list[str]:
+    """Extract the literal ``uv run`` argv prefix from the first
+    ``subprocess.run([...])`` call inside ``function_name`` in ``source_path``,
+    up to and including the ``"python"`` element.
+
+    Reads the REAL call site via AST rather than duplicating its argv by
+    hand, so this regression test tracks the live source: if either fixed
+    call site is ever reverted to its old bare-``uv run`` shape, this
+    extraction reverts with it and the hazard assertion below goes red again
+    automatically -- the revert-check this mission's red-first discipline
+    requires, made structural instead of a one-time manual check.
+    """
+    tree = ast.parse(source_path.read_text(encoding="utf-8"))
+    func_node = next(
+        (node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == function_name),
+        None,
+    )
+    assert func_node is not None, f"{function_name!r} not found in {source_path}"
+
+    matching = [
+        node
+        for node in ast.walk(func_node)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "run" and node.args and isinstance(node.args[0], ast.List)
+    ]
+    assert len(matching) == 1, (
+        f"expected exactly one .run([...]) call inside {function_name!r} "
+        f"({source_path}), found {len(matching)} -- a second matching call "
+        "site would otherwise be silently shadowed by this extractor "
+        "(#4866 pr-merged-003)"
+    )
+    call_node = matching[0]
+
+    prefix: list[str] = []
+    for elt in call_node.args[0].elts:
+        if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+            prefix.append(elt.value)
+            if elt.value == "python":
+                return prefix
+        else:
+            # First non string-literal element (e.g. `str(driver_script)`
+            # or an f-string) -- the fixed argv prefix is always plain
+            # string literals up to and including "python", so stop here.
+            return prefix
+    return prefix
+
+
+def _new_home_scratch_venv_path() -> Path:
+    """A scratch ``UV_PROJECT_ENVIRONMENT`` directory path rooted under this
+    checkout (on ``/home``, never pytest's ``tmp_path`` -- which resolves
+    under system ``/tmp``, tmpfs/RAM on hosts this mission's instructions
+    warn about -- and never the checkout's own ``.venv`` / ``.venv313`` /
+    ``.venv312``, which WP01's baseline and WP05's re-measurement depend on).
+    The name matches the repo's ``.venv*/`` gitignore glob. Callers must
+    remove the directory unconditionally (``finally``) regardless of test
+    outcome.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    return repo_root / f".venv-hazard-test-{uuid.uuid4().hex[:8]}"
+
+
+class TestExtractUvRunArgvPrefixUniqueness:
+    """#4866 pre-merge squad finding pr-merged-003.
+
+    ``_extract_uv_run_argv_prefix`` returned on the FIRST matching
+    ``subprocess.run([...])`` call inside the target function, with no
+    uniqueness assertion -- unlike its sibling
+    ``_find_interpreter_matrix_run_step``
+    (``tests/ci/test_interpreter_matrix_env_pinning.py``), which asserts
+    ``len(matching) == 1``. Inert today (each guarded call site has exactly
+    one matching call), but a future second matching call added earlier in
+    the same target function would be silently shadowed rather than failing
+    loud. This test plants a synthetic function with TWO matching calls and
+    asserts the extractor now fails loudly instead of silently returning the
+    first one.
+    """
+
+    pytestmark = [pytest.mark.adversarial, pytest.mark.fast]
+
+    _TWO_MATCHING_CALLS_SOURCE = """
+import subprocess
+
+
+def call_uv_twice():
+    subprocess.run(["uv", "run", "--frozen", "python", "-c", "print('first')"])
+    subprocess.run(["uv", "run", "--frozen", "python", "-c", "print('second')"])
+"""
+
+    def test_two_matching_call_sites_fail_loudly_not_silently_shadowed(self, tmp_path: Path) -> None:
+        source_path = tmp_path / "two_calls.py"
+        source_path.write_text(self._TWO_MATCHING_CALLS_SOURCE, encoding="utf-8")
+
+        with pytest.raises(AssertionError, match="call_uv_twice"):
+            _extract_uv_run_argv_prefix(source_path, "call_uv_twice")
+
+    def test_single_matching_call_site_still_extracts_normally(self, tmp_path: Path) -> None:
+        """Negative control: the uniqueness assertion must not break the
+        single-match case the extractor exists to serve."""
+        source_path = tmp_path / "one_call.py"
+        source_path.write_text(
+            'import subprocess\n\n\ndef call_uv_once():\n    subprocess.run(["uv", "run", "--frozen", "python", "-c", "print(1)"])\n',
+            encoding="utf-8",
+        )
+        assert _extract_uv_run_argv_prefix(source_path, "call_uv_once") == ["uv", "run", "--frozen", "python"]
+
+
+class TestVenvCorruptionHazardFR003b:
+    """FR-003(b) regression checks for the venv-corruption hazard (#4866 WP04).
+
+    ``test_concurrent_upgrade_handled`` above is the test whose
+    multiprocessing-spawn traceback first surfaced this hazard by accident: a
+    shared project venv silently rebuilt from Python 3.13 down to 3.11
+    mid-``pytest -n auto`` run. WP04's investigation (evidence in
+    ``kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-tooling-friction.md``)
+    reproduced the mechanism directly, isolated from pytest/xdist entirely:
+    any bare ``uv run --frozen`` call that omits ``--python``/``--all-extras``
+    consults the repo's ``.python-version`` pin (3.11.15) and unconditionally
+    rebuilds whatever ``UV_PROJECT_ENVIRONMENT`` (or the default ``.venv``)
+    currently names to match it -- dropping extras -- REGARDLESS of whether
+    that path is a dedicated, already-populated 3.13 venv.
+
+    Two live call sites do exactly this today:
+    ``tests/charter/test_interview_mapping_mission_alias.py`` (the
+    ``subprocess.run(["uv", "run", "--frozen", "python", ...])`` call in
+    ``test_synthetic_mission_type_is_picked_up_by_both_rosters``) and
+    ``tests/docs/test_docs_index.py`` (the same shape in
+    ``test_render_index_is_byte_stable_across_hash_seeds``). Both are
+    confirmed culprits -- isolating either file alone under ``-n auto``
+    against a fresh, isolated 3.13 scratch venv reproduced the corruption on
+    its own. Both are OUTSIDE this WP's ``owned_files``
+    (``tests/upgrade/**``, ``tests/specify_cli/upgrade/**``,
+    ``tests/specify_cli/skills/**``) -- the WP prompt's own suspicion of the
+    upgrade/skill-installer families did not pan out; grep + reproduction
+    found nothing there -- so they are not fixed in this WP. See follow-up
+    issue #4922 for the exact fix (pin ``--python``/``--all-extras`` on
+    those two call sites) and the full reproduction evidence.
+
+    The fix landed by THIS WP -- a per-interpreter ``UV_PROJECT_ENVIRONMENT``
+    pin on ``ci-nightly.yml``'s ``interpreter-matrix`` job -- is containment,
+    not closure: it stops a corrupted resync from ever reaching a SHARED
+    default ``.venv`` path (protecting the primary dev checkout and any
+    other concurrent process). WP04's own reproduction proved it does NOT
+    prevent that leg's own dedicated venv from still being downgraded by the
+    two call sites above -- a bare ``uv run --frozen`` inherits and targets
+    whatever ``UV_PROJECT_ENVIRONMENT`` already names, pin or no pin.
+
+    Marker gating (#4866 pr-merged-001, pre-merge squad finding; refined by
+    pr-fresh-001): this class carries ONLY ``adversarial`` at class level --
+    never ``fast`` -- unlike every other class in this module. Two of these
+    tests spawn real ``uv`` subprocesses that build scratch venvs over the
+    network with no skip/availability guard; running them under a nominally
+    "fast" selector (the nightly ``-m "fast or unit"`` interpreter-matrix
+    step this mission repairs) is a flakiness hazard, not a time-budget one
+    (measured ~2s/test with interpreters already cached -- the risk is an
+    unguarded network fetch turning an ostensibly fast/unit run red). Keeping
+    those two tests out of `fast`/`unit` is therefore load-bearing.
+    ``test_interpreter_matrix_job_pins_a_dedicated_project_environment``
+    below is the exception: it is a pure static YAML-parse assertion with no
+    subprocess, no venv build, and no network access, so it carries its own
+    ``@pytest.mark.fast`` to keep it selected by both ``make test-fast`` and
+    the nightly leg. Verify with ``pytest
+    tests/upgrade/test_migration_robustness.py -m "fast or unit" -k
+    TestVenvCorruptionHazardFR003b --collect-only`` (expect exactly 1
+    collected -- the static test only) vs. running the class directly, or
+    under ``make test-full`` (which selects ``-m "not stress and not
+    timing"`` and therefore still runs it), which must still collect and run
+    all 4 tests.
+    """
+
+    pytestmark = [pytest.mark.adversarial]
+
+    @pytest.mark.fast
+    def test_interpreter_matrix_job_pins_a_dedicated_project_environment(self) -> None:
+        """FR-003(b): the interpreter-matrix job must pin
+        `UV_PROJECT_ENVIRONMENT` so a nested unpinned `uv run` call can, at
+        worst, corrupt only that leg's own dedicated venv -- never a default
+        `.venv` a concurrent process elsewhere might share.
+        """
+        workflow_path = Path(__file__).resolve().parents[2] / ".github" / "workflows" / "ci-nightly.yml"
+        with workflow_path.open(encoding="utf-8") as handle:
+            workflow = yaml.safe_load(handle)
+        job = workflow["jobs"]["interpreter-matrix"]
+
+        job_env = job.get("env") or {}
+        assert "UV_PROJECT_ENVIRONMENT" in job_env, (
+            "the interpreter-matrix job must pin UV_PROJECT_ENVIRONMENT "
+            "(#4866 WP04) so a nested `uv run` call inside any test cannot "
+            "silently rebuild a SHARED default `.venv` path; job env keys "
+            f"found: {sorted(job_env)}"
+        )
+        pinned_value = job_env["UV_PROJECT_ENVIRONMENT"]
+        assert "${{ matrix.python-version }}" in pinned_value, (
+            f"the pin must be scoped per interpreter (contain `${{{{ matrix.python-version }}}}`) so distinct legs never share a path; got: {pinned_value!r}"
+        )
+
+    @pytest.mark.slow
+    def test_a_well_pinned_nested_uv_run_leaves_a_dedicated_venv_untouched(self, tmp_path: Path) -> None:
+        """Positive control for the containment half of the fix: a nested
+        `uv run --frozen` call that DOES carry `--python`/`--all-extras` (the
+        same shape WP03 already pinned on this job's own top-level `uv run`
+        step, af011bacd) must not disturb a dedicated
+        `UV_PROJECT_ENVIRONMENT`-pinned venv it targets. Runs a REAL
+        subprocess against a throwaway scratch venv (never the repo's own
+        `.venv`) built with the CURRENTLY RUNNING interpreter, so it needs no
+        network fetch of a second interpreter.
+        """
+        if shutil.which("uv") is None:
+            pytest.skip("uv not on PATH")
+
+        repo_root = Path(__file__).resolve().parents[2]
+        version = f"{sys.version_info.major}.{sys.version_info.minor}"
+        scratch_env = tmp_path / ".venv-scratch"
+        env = dict(os.environ)
+        env["UV_PROJECT_ENVIRONMENT"] = str(scratch_env)
+
+        sync = subprocess.run(
+            ["uv", "sync", "--frozen", "--all-extras", "--python", version],
+            cwd=repo_root,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        assert sync.returncode == 0, f"scratch sync failed: {sync.stdout}\n{sync.stderr}"
+
+        before = (scratch_env / "pyvenv.cfg").read_text(encoding="utf-8")
+
+        pinned = subprocess.run(
+            ["uv", "run", "--frozen", "--all-extras", "--python", version, "python", "-c", "print('ok')"],
+            cwd=repo_root,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        assert pinned.returncode == 0, f"pinned nested uv run failed: {pinned.stdout}\n{pinned.stderr}"
+
+        after = (scratch_env / "pyvenv.cfg").read_text(encoding="utf-8")
+        assert after == before, (
+            "a well-pinned nested `uv run --frozen --python ... --all-extras` "
+            "must not rebuild the dedicated scratch venv it already targets; "
+            f"pyvenv.cfg changed:\nbefore={before!r}\nafter={after!r}"
+        )
+
+    @pytest.mark.slow
+    @pytest.mark.parametrize(
+        ("source_relpath", "function_name"),
+        [
+            (
+                "tests/charter/test_interview_mapping_mission_alias.py",
+                "test_synthetic_mission_type_is_picked_up_by_both_rosters",
+            ),
+            (
+                "tests/docs/test_docs_index.py",
+                "test_render_index_is_byte_stable_across_hash_seeds",
+            ),
+        ],
+    )
+    def test_named_call_site_argv_does_not_rebuild_a_mismatched_dedicated_venv(self, source_relpath: str, function_name: str) -> None:
+        """RED-FIRST end-to-end hazard test (#4866 WP04 scope extension --
+        follow-up #4922, now authorized in-mission per C-011).
+
+        Extracts the REAL ``uv run`` argv prefix the named call site uses
+        (via ``_extract_uv_run_argv_prefix``, AST-driven -- not a
+        hand-copied duplicate) and runs it, unmodified, against a scratch
+        ``UV_PROJECT_ENVIRONMENT`` venv deliberately built for Python 3.12 --
+        a DIFFERENT interpreter than the repo's own ``.python-version`` pin
+        (3.11.15) that a bare ``uv run --frozen`` silently resyncs toward.
+        Asserts the scratch venv's ``pyvenv.cfg`` is byte-identical
+        before/after -- i.e. the nested call did not resync/rebuild it.
+
+        Before this WP's fix: both call sites' argv was a bare
+        ``["uv", "run", "--frozen", "python"]`` with no ``--no-sync`` guard,
+        so uv silently resynced the 3.12 scratch venv down to 3.11.15,
+        dropping every optional extra in the process (reproduced manually
+        and recorded in ``tracer-design-decisions.md``) -- this assertion
+        was RED. After the fix lands ``--no-sync`` on both argv lists, the
+        AST-extracted prefix carries that flag and this assertion is GREEN.
+        Revert either fixed call site and this test goes red again for that
+        parametrization -- the mechanism this mission's reviewer uses as the
+        revert-check.
+        """
+        if shutil.which("uv") is None:
+            pytest.skip("uv not on PATH")
+
+        repo_root = Path(__file__).resolve().parents[2]
+        source_path = repo_root / source_relpath
+        argv_prefix = _extract_uv_run_argv_prefix(source_path, function_name)
+        assert argv_prefix[:2] == ["uv", "run"], f"expected an `uv run` invocation, extracted {argv_prefix!r} from {function_name} in {source_relpath}"
+
+        mismatched_python_version = "3.12"
+        scratch_env = _new_home_scratch_venv_path()
+        env = dict(os.environ)
+        env["UV_PROJECT_ENVIRONMENT"] = str(scratch_env)
+        try:
+            sync = subprocess.run(
+                [
+                    "uv",
+                    "sync",
+                    "--frozen",
+                    "--all-extras",
+                    "--python",
+                    mismatched_python_version,
+                ],
+                cwd=repo_root,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=180,
+            )
+            assert sync.returncode == 0, f"scratch sync failed: {sync.stdout}\n{sync.stderr}"
+
+            before = (scratch_env / "pyvenv.cfg").read_text(encoding="utf-8")
+
+            argv = [*argv_prefix, "-c", "print('hazard-test-ok')"]
+            result = subprocess.run(
+                argv,
+                cwd=repo_root,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            assert result.returncode == 0, f"argv={argv!r} failed: stdout={result.stdout!r} stderr={result.stderr!r}"
+            assert "hazard-test-ok" in result.stdout
+
+            after = (scratch_env / "pyvenv.cfg").read_text(encoding="utf-8")
+            assert after == before, (
+                f"{function_name}'s real `uv run` argv ({argv_prefix!r}) rebuilt a "
+                f"dedicated scratch venv pinned to Python {mismatched_python_version} "
+                "-- the venv-corruption hazard this WP fixes. "
+                f"pyvenv.cfg changed:\nbefore={before!r}\nafter={after!r}"
+            )
+        finally:
+            shutil.rmtree(scratch_env, ignore_errors=True)
+
+
 class TestPartialMigrationRecovery:
+    pytestmark = [pytest.mark.adversarial, pytest.mark.fast]
+
     def test_failed_migration_can_retry(self, migration_project: Path, registry_restore: Any):
         """A flaky migration that fails on first run succeeds on retry."""
         # Arrange
@@ -230,6 +603,8 @@ class TestPartialMigrationRecovery:
 
 
 class TestPermissionErrors:
+    pytestmark = [pytest.mark.adversarial, pytest.mark.fast]
+
     def test_readonly_gitignore_clear_error(self, migration_project: Path) -> None:
         """Read-only .gitignore causes migration to fail with a clear error message."""
         # Arrange
@@ -254,6 +629,8 @@ class TestMigrationRegistryCompleteness:
     CRITICAL: This test prevents the 0.13.2 release blocker class where
     migrations existed but never reached the runtime registry.
     """
+
+    pytestmark = [pytest.mark.adversarial, pytest.mark.fast]
 
     def test_all_migration_files_are_registered(self) -> None:
         """Verify every m_*.py file in migrations/ is discovered and registered.
