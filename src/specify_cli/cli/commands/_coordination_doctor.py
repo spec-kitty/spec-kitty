@@ -274,17 +274,28 @@ def _coordination_identity(
     return (coord_branch, mission_slug, mission_id)
 
 
+def _coord_worktree_actual_head(worktree: Path) -> str:
+    """Return the coord worktree's checked-out ref, or ``"<detached>"``.
+
+    Shared by :func:`_coord_worktree_head_finding` (the general health-check
+    warning) and :func:`_coord_worktree_mismatch_fix_blocked_finding` (the
+    dedicated ``--fix`` refusal, #4950 second-opinion follow-up) so both read
+    the same single git call's shape.
+    """
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(worktree), "symbolic-ref", "HEAD"], text=True,
+        ).strip()
+    except subprocess.CalledProcessError:
+        return "<detached>"
+
+
 def _coord_worktree_head_finding(
     worktree: Path, coord_branch: str
 ) -> DoctorFinding | None:
     """Return a finding if the coord worktree HEAD is off the coord branch."""
 
-    try:
-        actual_head = subprocess.check_output(
-            ["git", "-C", str(worktree), "symbolic-ref", "HEAD"], text=True,
-        ).strip()
-    except subprocess.CalledProcessError:
-        actual_head = "<detached>"
+    actual_head = _coord_worktree_actual_head(worktree)
     expected = f"refs/heads/{coord_branch}"
     if actual_head == expected or actual_head.removeprefix("refs/heads/") == coord_branch:
         return None
@@ -1263,7 +1274,9 @@ def _coord_staleness_fix_blocked_finding(
     while letting :func:`_apply_coord_staleness_fixes` continue to the next
     mission. ``reason`` shapes the message (e.g. ``"diverged from"`` /
     ``"not cleanly fast-forwardable vs"``); the diff itself is always
-    ``coord_branch..target_branch``.
+    ``coord_branch..target_branch``. The wrong-branch/detached-HEAD case has
+    its own dedicated, diff-free finding -- see
+    :func:`_coord_worktree_mismatch_fix_blocked_finding`.
     """
     diff_text = _unified_diff(repo_root, coord_branch, target_branch)
     message = (
@@ -1279,6 +1292,34 @@ def _coord_staleness_fix_blocked_finding(
             "Inspect the diff above and reconcile manually; `--fix` will not "
             "mutate a diverged, dirty, or mismatched coordination worktree."
         ),
+        error_code=_COORD_STALE_FIX_BLOCKED_CODE,
+    )
+
+
+def _coord_worktree_mismatch_fix_blocked_finding(
+    worktree: Path, coord_branch: str, head_finding: DoctorFinding,
+) -> DoctorFinding:
+    """FR-009: a dedicated refusal for a coord worktree off the coord branch.
+
+    #4950 second-opinion follow-up: the mismatch path used to feed
+    :func:`_coord_staleness_fix_blocked_finding`, whose message embeds a
+    ``coord_branch..target_branch`` diff and "inspect the diff above"
+    guidance -- both irrelevant here, since the problem is which branch (or
+    no branch, if detached) is checked out in the worktree, not branch
+    content. Reuses ``head_finding.next_step`` (the workspaces recovery
+    command) so the general health-check warning
+    (:func:`_coord_worktree_head_finding`) and this fix-blocked error point
+    to the same recovery action.
+    """
+    actual = _coord_worktree_actual_head(worktree).removeprefix("refs/heads/")
+    return DoctorFinding(
+        severity="error",
+        message=(
+            f"Refusing to fast-forward coordination branch {coord_branch!r}: "
+            f"coordination worktree {worktree} is on {actual!r}, not "
+            f"{coord_branch!r}. `--fix` mutates nothing."
+        ),
+        next_step=head_finding.next_step,
         error_code=_COORD_STALE_FIX_BLOCKED_CODE,
     )
 
@@ -1354,12 +1395,7 @@ def _fix_one_mission_coord_staleness(
 
     head_finding = _coord_worktree_head_finding(worktree, coord_branch)
     if head_finding is not None:
-        return _coord_staleness_fix_blocked_finding(
-            repo_root,
-            coord_branch,
-            target_branch,
-            reason=f"checked out in a mismatched worktree ({head_finding.message}) instead of",
-        )
+        return _coord_worktree_mismatch_fix_blocked_finding(worktree, coord_branch, head_finding)
 
     if _coord_worktree_dirty_finding(worktree) is not None:
         return _coord_staleness_fix_blocked_finding(

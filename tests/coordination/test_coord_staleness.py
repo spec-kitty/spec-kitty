@@ -456,7 +456,47 @@ def test_a_wrong_branch_worktree_fix_fails_closed_without_mutation(
     assert _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip() == target_sha_before
     assert exc.value.exit_code == 1
     assert cd._COORD_STALE_FIX_BLOCKED_CODE in out
-    assert "expected 'coord'" in out
+    # #4950: a dedicated message -- no coord..target diff, no "inspect the
+    # diff above" advice, and the actual branch name is named directly.
+    assert f"is on {wrong_branch!r}, not 'coord'" in out
+    assert "checked out in a mismatched worktree" not in out
+    assert "diff --git" not in out
+    assert "Fast-forwarded" not in out
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_a_detached_worktree_fix_fails_closed_without_mutation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """#4950: a detached-HEAD coord worktree must refuse ``--fix``, not mutate."""
+    repo = tmp_path / "repo"
+    mission_slug = "detached-mission"
+    _make_strict_ancestor_repo(repo, mission_slug)
+    worktree = _add_coord_worktree(repo, tmp_path)
+    _patch_worktree_path(monkeypatch, worktree)
+    _git(worktree, "checkout", "--detach", "HEAD")
+
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    coord_sha_before = _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip()
+    worktree_head_before = _git(worktree, "rev-parse", "HEAD").stdout.strip()
+    target_sha_before = _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip()
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True, fix=True)
+
+    out = capsys.readouterr().out
+    assert _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip() == coord_sha_before
+    assert _git(worktree, "rev-parse", "HEAD").stdout.strip() == worktree_head_before
+    assert _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip() == target_sha_before
+    assert exc.value.exit_code == 1
+    assert cd._COORD_STALE_FIX_BLOCKED_CODE in out
+    assert "is on '<detached>', not 'coord'" in out
+    assert "checked out in a mismatched worktree" not in out
+    assert "diff --git" not in out
     assert "Fast-forwarded" not in out
 
 
