@@ -301,6 +301,10 @@ class CoordRepairOutcome:
     expected ``captured_sha + this-merge's-done`` shape (e.g. a concurrent healer
     already reverted), so a blind ``git revert captured_sha..HEAD`` would re-apply
     ``done`` — the repair refuses rather than re-strand.
+    ``branch_mismatch`` flags the sibling-of-#4920 refusal: the coord worktree's
+    checked-out branch is not ``coord_ref`` (or HEAD is detached), so a
+    ``git revert`` there would mutate whatever foreign branch happens to be
+    checked out instead of the coordination branch the strand was derived from.
     """
 
     healed: bool
@@ -308,6 +312,7 @@ class CoordRepairOutcome:
     error: str | None = None
     worktree_missing: bool = False
     head_advanced: bool = False
+    branch_mismatch: bool = False
 
 
 def _rev_parse_head(coord_worktree: Path, env: dict[str, str]) -> str | None:
@@ -322,6 +327,52 @@ def _rev_parse_head(coord_worktree: Path, env: dict[str, str]) -> str | None:
     if head.returncode != 0:
         return None
     return head.stdout.strip() or None
+
+
+def _normalized_branch_name(ref: str) -> str:
+    """Strip a ``refs/heads/`` prefix so branch names compare like-for-like."""
+    prefix = "refs/heads/"
+    return ref[len(prefix) :] if ref.startswith(prefix) else ref
+
+
+def _worktree_checked_out_branch(coord_worktree: Path, env: dict[str, str]) -> str | None:
+    """Return the worktree's checked-out branch name, or ``None`` when detached.
+
+    ``git symbolic-ref HEAD`` fails (non-zero) on a detached HEAD — treated as no
+    branch identity rather than raising, so the caller can refuse uniformly.
+    """
+    ref = subprocess.run(
+        ["git", "-C", str(coord_worktree), "symbolic-ref", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    if ref.returncode != 0:
+        return None
+    return ref.stdout.strip() or None
+
+
+def _worktree_branch_matches_coord_ref(
+    coord_worktree: Path, coord_ref: str, env: dict[str, str]
+) -> bool:
+    """Branch-identity guard closing the #4920-sibling foreign-branch class.
+
+    ``_head_shape_is_expected`` is purely content-based (SHA ancestry + strand
+    liveness at HEAD) — it cannot tell whether the worktree's HEAD reached that
+    shape via ``coord_ref`` or via some OTHER branch checked out in the same
+    worktree (e.g. an operator running ``git switch -c scratch`` there after a
+    marker was persisted). A sibling branch created from the coord tip is
+    byte-identical to it and passes every content-based guard, yet a
+    ``git revert`` in that worktree would advance the sibling branch, not
+    ``coord_ref`` — reporting ``healed`` while the actual coordination ref stays
+    stranded. Require the worktree to have ``coord_ref`` itself checked out
+    (detached HEAD refuses too) before any revert is attempted.
+    """
+    checked_out = _worktree_checked_out_branch(coord_worktree, env)
+    if checked_out is None:
+        return False
+    return _normalized_branch_name(checked_out) == _normalized_branch_name(coord_ref)
 
 
 def _head_shape_is_expected(
@@ -428,8 +479,14 @@ def repair_coord_strand(
        (e.g. a concurrent healer already reverted), the repair refuses
        (``head_advanced=True``) rather than revert a wider range that re-applies
        ``done``.
-    3. **Scoped clean-to-HEAD** (:func:`_clean_coord_status_paths_to_head`): AFTER
-       the gate, BEFORE the revert, the mission's coord status paths are restored
+    3. **Branch-identity guard (#4920-sibling):** :func:`_worktree_branch_matches_coord_ref`
+       verifies the worktree's checked-out branch IS ``coord_ref`` (detached HEAD
+       refuses too). Guards 1-2 are purely content-based and pass identically for a
+       sibling branch created from the coord tip; without this check a
+       ``git revert`` there would mutate that foreign branch and still report
+       ``healed=True``. Refuses (``branch_mismatch=True``) before the revert.
+    4. **Scoped clean-to-HEAD** (:func:`_clean_coord_status_paths_to_head`): AFTER
+       the gates, BEFORE the revert, the mission's coord status paths are restored
        to HEAD so the forward revert can apply over the rollback's byte-restored
        (dirty) tree. Idempotent + no-op when clean; scoped to bound the blast radius.
 
@@ -487,6 +544,15 @@ def repair_coord_strand(
         # HEAD advanced unexpectedly (concurrency TOCTOU) — refuse the wider revert.
         return CoordRepairOutcome(
             healed=False, stranded_wp_ids=stranded, head_advanced=True
+        )
+
+    if not _worktree_branch_matches_coord_ref(coord_worktree, coord_ref, env):
+        # #4920-sibling: the worktree has some OTHER branch checked out (or a
+        # detached HEAD). Both content-based guards above pass for a sibling
+        # branch created from the coord tip — only a branch-identity check can
+        # catch it. Refuse before the revert would mutate that foreign branch.
+        return CoordRepairOutcome(
+            healed=False, stranded_wp_ids=stranded, branch_mismatch=True
         )
 
     # Scoped clean-to-HEAD (after the gate, before the revert) so the forward
