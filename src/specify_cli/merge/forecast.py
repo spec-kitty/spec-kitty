@@ -28,7 +28,12 @@ from specify_cli.lanes.persistence import (
     require_lanes_json,
 )
 from specify_cli.lanes.merge import preview_mission_target_integration
-from specify_cli.merge._constants import TARGET_BRANCH_CONTENT_CONFLICT, logger
+from specify_cli.merge._constants import (
+    TARGET_BRANCH_CONTENT_CONFLICT,
+    TARGET_BRANCH_CONTENT_CONFLICT_HEADER,
+    TARGET_BRANCH_CONTENT_CONFLICT_REMEDIATION_UPDATE,
+    logger,
+)
 from specify_cli.merge.config import MergeStrategy
 from specify_cli.merge.ordering import assign_next_mission_number
 from specify_cli.merge.state import needs_number_assignment
@@ -124,7 +129,7 @@ def _emit_target_content_conflict(
 ) -> None:
     """Render the stable #4892 dry-run blocker."""
     remediation = [
-        "Update the mission branch against the current target branch.",
+        TARGET_BRANCH_CONTENT_CONFLICT_REMEDIATION_UPDATE,
         "Resolve the listed conflicts, then rerun `spec-kitty merge --dry-run`.",
     ]
     if json_output:
@@ -144,10 +149,7 @@ def _emit_target_content_conflict(
         )
         return
 
-    console.print(
-        "[red]Error:[/red] Default squash integration would conflict with "
-        "newer target-branch content."
-    )
+    console.print(f"[red]Error:[/red] {TARGET_BRANCH_CONTENT_CONFLICT_HEADER}")
     console.print(f"  diagnostic_code: {TARGET_BRANCH_CONTENT_CONFLICT}")
     console.print(f"  mission_branch: {mission_branch}")
     console.print(f"  target_branch: {target_branch}")

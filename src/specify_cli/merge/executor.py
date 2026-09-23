@@ -79,6 +79,8 @@ from specify_cli.merge._constants import (
     _STATUS_EVENTS_FILENAME,
     _STATUS_FILENAME,
     TARGET_BRANCH_CONTENT_CONFLICT,
+    TARGET_BRANCH_CONTENT_CONFLICT_HEADER,
+    TARGET_BRANCH_CONTENT_CONFLICT_REMEDIATION_UPDATE,
     logger,
 )
 from specify_cli.merge.baseline import (
@@ -1241,16 +1243,16 @@ def _emit_mission_target_content_conflict(
     the real run. Both paths now speak the same diagnostic vocabulary.
     """
     lanes_manifest = run.lanes_manifest
-    console.print(
-        "[red]Error:[/red] Default squash integration would conflict with "
-        "newer target-branch content."
-    )
-    console.print(f"  diagnostic_code: {TARGET_BRANCH_CONTENT_CONFLICT}")
+    # Render the code the result carried (data-driven parity with the dry-run),
+    # falling back to the shared constant if a caller left it unset.
+    diagnostic_code = getattr(mission_result, "diagnostic_code", None) or TARGET_BRANCH_CONTENT_CONFLICT
+    console.print(f"[red]Error:[/red] {TARGET_BRANCH_CONTENT_CONFLICT_HEADER}")
+    console.print(f"  diagnostic_code: {diagnostic_code}")
     console.print(f"  mission_branch: {lanes_manifest.mission_branch}")
     console.print(f"  target_branch: {lanes_manifest.target_branch}")
     for path in mission_result.conflicting_paths:
         console.print(f"  conflicting_path: {path}")
-    console.print("  remediation: Update the mission branch against the current target branch.")
+    console.print(f"  remediation: {TARGET_BRANCH_CONTENT_CONFLICT_REMEDIATION_UPDATE}")
     console.print("  remediation: Resolve the listed conflicts, then rerun `spec-kitty merge`.")
 
 

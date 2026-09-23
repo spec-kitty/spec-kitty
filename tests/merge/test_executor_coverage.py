@@ -385,6 +385,23 @@ def test_emit_mission_target_content_conflict_reports_shared_code(tmp_path: Path
     assert "src/shared.py" in out
     assert "remediation:" in out
 
+    # Data-driven: the printed code comes from mission_result.diagnostic_code,
+    # not a hardcoded literal — a distinct value renders verbatim.
+    result_sentinel = SimpleNamespace(
+        success=False, errors=["x"], commit=None, already_applied=False,
+        conflicting_paths=("a.py",), diagnostic_code="SOME_OTHER_CODE",
+    )
+    ex._emit_mission_target_content_conflict(run, result_sentinel)
+    assert "diagnostic_code: SOME_OTHER_CODE" in capsys.readouterr().out
+
+    # None falls back to the shared constant.
+    result_none = SimpleNamespace(
+        success=False, errors=["x"], commit=None, already_applied=False,
+        conflicting_paths=("a.py",), diagnostic_code=None,
+    )
+    ex._emit_mission_target_content_conflict(run, result_none)
+    assert "diagnostic_code: TARGET_BRANCH_CONTENT_CONFLICT" in capsys.readouterr().out
+
 
 def test_handle_result_hard_failure_restores_and_exits(tmp_path: Path) -> None:
     run = _make_run(tmp_path, is_resume=False)
