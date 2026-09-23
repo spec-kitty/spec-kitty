@@ -106,6 +106,27 @@ _ARCHIVE_ROOTS: tuple[str, ...] = (
 # here would red there, not slip through silently.
 _APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset({"kitty-specs/common-docs-convergence-01KZMTR9/occurrence_map.yaml"})
 
+# Operator-sanctioned one-off CORRECTIONS of an archived file (distinct from the
+# living-spine carve-out above — these are not appends and not living registries).
+# The freeze protects the review frontier (unmerged edits) against diff-vs-main;
+# a genuine correction of an archived file that is itself CORRUPT can only land
+# through an explicit operator decision recorded here, because the always-on
+# archive-freeze job (ci-router.yml) now blocks the merge that would otherwise
+# make the correction baseline-by-construction.
+#
+# - kitty-specs/acceptance-matrix-merge-fail-closed-01M34HG8/status.json
+#   (2026-09-23, operator decision during the #4936 / epic #4915 landing pass):
+#   #4880's mission artifacts committed this status.json to main with UNRESOLVED
+#   git conflict markers (`<<<<<<< HEAD` … `=======` … `>>>>>>>`) — a CORRUPT_JSON
+#   teamspace blocker. It went unnoticed because the upgrade module shard (whose
+#   corpus scan flags it) is path-filtered and #4880 touched no upgrade paths;
+#   #4936's #4888 change un-skips that shard, surfacing the pre-existing
+#   corruption on this innocent PR. The correction resolves the markers to the
+#   populated side (event_count 24, real slug) — the HEAD side was a blank reset.
+#   Follow-up: once this correction is in main's baseline, this entry is dead
+#   weight and should be removed to restore the byte-freeze on the corrected file.
+_OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset({"kitty-specs/acceptance-matrix-merge-fail-closed-01M34HG8/status.json"})
+
 
 def _run_git(args: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
@@ -676,7 +697,7 @@ def test_no_preexisting_archived_file_was_modified() -> None:
     violations: list[str] = []
     for status, paths in [*_changes(port_base_rev), *_changes(port_base_rev, cached=True)]:
         for path in paths:
-            if not path.startswith(_ARCHIVE_ROOTS) or path in _APPEND_ONLY_SPINE_EXCEPTIONS:
+            if not path.startswith(_ARCHIVE_ROOTS) or path in _APPEND_ONLY_SPINE_EXCEPTIONS or path in _OPERATOR_SANCTIONED_CORRECTIONS:
                 continue
             if path == LIFECYCLE_LOG_RELATIVE_PATH.as_posix() and status == "M":
                 continue
