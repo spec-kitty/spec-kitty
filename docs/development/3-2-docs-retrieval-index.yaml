@@ -3165,6 +3165,17 @@ pages:
     - {slug: "rationale-why-these-three-gates-and-no-others", text: "Rationale — why these three gates, and no others", level: 2}
     - {slug: "why-ci-aggregate-gate-is-deliberately-not-required-learned-by-testing-this", text: "Why `CI Aggregate gate` is deliberately NOT required (learned by testing this)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
+  - path: "docs/adr/3.x/2026-09-23-2-mission-state-repair-preserve-by-default.md"
+    title: "ADR: mission-state repair inverts non-lane preservation to preserve-by-default"
+    divio_type: "none"
+    abstract: "Inverts mission-state repair's non-lane row preservation from a registry allowlist to preserve-by-default with an empty denylist, closing the #4897 whack-a-field class."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "behavioral-change", text: "Behavioral change", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
