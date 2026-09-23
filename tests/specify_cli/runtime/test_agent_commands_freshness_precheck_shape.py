@@ -34,6 +34,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 AGENT_COMMANDS_PATH = REPO_ROOT / "src" / "specify_cli" / "runtime" / "agent_commands.py"
 

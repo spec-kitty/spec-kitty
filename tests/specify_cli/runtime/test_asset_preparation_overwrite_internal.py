@@ -34,6 +34,8 @@ from pathlib import Path
 from specify_cli.runtime.asset_preparation import AssetPreparation, digest
 from specify_cli.tool_surface.operations import ApplyConsent, FileState, OperationRoot, OwnershipProof
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 def _prepared(tmp_path: Path) -> AssetPreparation:
     return AssetPreparation(

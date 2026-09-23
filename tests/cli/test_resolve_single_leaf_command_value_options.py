@@ -17,6 +17,7 @@ it cannot prove is value-less -- never guessing.
 
 from __future__ import annotations
 
+import pytest
 import typer
 
 from specify_cli.cli.commands import (
@@ -24,6 +25,8 @@ from specify_cli.cli.commands import (
     _resolve_single_leaf_command,
     _root_boolean_flag_tokens,
 )
+
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _real_app() -> typer.Typer:

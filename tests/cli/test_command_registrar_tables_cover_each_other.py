@@ -12,7 +12,11 @@ did-you-mean listings, or vice versa.
 
 from __future__ import annotations
 
+import pytest
+
 from specify_cli.cli.commands import _ALL_COMMAND_REGISTRARS, _COMMAND_REGISTRARS
+
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def test_every_command_registrar_is_reachable_from_both_tables() -> None:

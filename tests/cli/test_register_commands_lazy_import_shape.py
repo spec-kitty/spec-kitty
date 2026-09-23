@@ -54,6 +54,10 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMMANDS_INIT_PATH = REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "__init__.py"
 
