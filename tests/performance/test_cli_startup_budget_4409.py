@@ -52,25 +52,45 @@ def _is_type_checking_guard(node: ast.AST) -> bool:
     return isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING"
 
 
-#: Dotted callee spellings that dynamically import a module by string name.
-#: A module-scope call to either one with a first positional string argument
-#: of ``"jsonschema"`` (or a ``jsonschema.`` submodule) pays the exact same
+#: Bare callee names that dynamically import a module by string name, when
+#: the call target is an unqualified ``ast.Name`` (``__import__(...)``, or
+#: ``import_module(...)`` after ``from importlib import import_module``). A
+#: module-scope call to either, with a first positional string argument of
+#: ``"jsonschema"`` (or a ``jsonschema.`` submodule), pays the exact same
 #: startup tax as a plain ``import jsonschema`` (#4536).
-_DYNAMIC_IMPORT_CALLEES: frozenset[str] = frozenset({"__import__", "importlib.import_module"})
+#:
+#: A qualified call (``ast.Attribute``) is matched separately below by its
+#: trailing attribute name alone -- ``.import_module`` -- so it also catches
+#: ``importlib.import_module(...)`` and any aliased spelling of the module
+#: (``import importlib as il; il.import_module(...)``), not just the one
+#: fixed dotted string the original #4409 guard hardcoded (#4536
+#: completeness). Out of scope: a callee ALIASED to a different bare name
+#: (``from importlib import import_module as im; im(...)``) -- recognizing
+#: that needs name-binding analysis, not a syntactic shape check, and is a
+#: deliberate boundary, not an oversight.
+_DYNAMIC_IMPORT_CALLEE_NAMES: frozenset[str] = frozenset({"__import__", "import_module"})
+_DYNAMIC_IMPORT_ATTRIBUTE_TAIL = "import_module"
 
 
 def _is_dynamic_jsonschema_import_call(node: ast.AST) -> bool:
-    """True if ``node`` is a module-scope ``importlib.import_module("jsonschema"[...])`` / ``__import__("jsonschema"[...])`` call."""
+    """True if ``node`` is a module-scope dynamic ``jsonschema`` import call.
+
+    Matches by callee SHAPE, not a fixed dotted string: a bare name in
+    ``_DYNAMIC_IMPORT_CALLEE_NAMES`` (``__import__``, ``import_module``), or
+    any attribute access whose trailing name is ``import_module`` regardless
+    of the value expression (``importlib.import_module``,
+    ``il.import_module``, ...).
+    """
     if not isinstance(node, ast.Call):
         return False
     func = node.func
     if isinstance(func, ast.Name):
-        qualname = func.id
+        is_dynamic_import = func.id in _DYNAMIC_IMPORT_CALLEE_NAMES
     elif isinstance(func, ast.Attribute):
-        qualname = ast.unparse(func)
+        is_dynamic_import = func.attr == _DYNAMIC_IMPORT_ATTRIBUTE_TAIL
     else:
         return False
-    if qualname not in _DYNAMIC_IMPORT_CALLEES:
+    if not is_dynamic_import:
         return False
     if not node.args:
         return False
@@ -89,9 +109,13 @@ def _module_scope_jsonschema_imports(source: str) -> list[int]:
     The guard's ``else:`` branch (and everything else — plain module-scope
     imports, ``try:``-guarded imports, class-body imports) still executes at
     import time and stays flagged. Also flags the dynamic-import spellings
-    ``importlib.import_module("jsonschema")`` / ``__import__("jsonschema")``
-    (#4536) — a call with the exact same runtime cost the plain-``import``
-    scan already catches, previously invisible to it.
+    ``importlib.import_module("jsonschema")``, ``__import__("jsonschema")``,
+    a bare ``import_module("jsonschema")`` (via
+    ``from importlib import import_module``), and an aliased-module form
+    such as ``il.import_module("jsonschema")`` (via
+    ``import importlib as il``) (#4536) — each a call with the exact same
+    runtime cost the plain-``import`` scan already catches, previously
+    invisible to it.
     """
     offending: list[int] = []
 
@@ -216,6 +240,9 @@ def test_mis_rooted_or_empty_scan_is_caught_by_the_floor(tmp_path: Path) -> None
         'import importlib\nimportlib.import_module("jsonschema")\n',
         '__import__("jsonschema")\n',
         'import importlib\nimportlib.import_module("jsonschema.validators")\n',
+        'from importlib import import_module\nimport_module("jsonschema")\n',
+        'import importlib as il\nil.import_module("jsonschema")\n',
+        'from importlib import import_module\nimport_module("jsonschema.validators")\n',
     ),
 )
 def test_dynamic_jsonschema_import_is_flagged(source: str) -> None:
@@ -223,7 +250,12 @@ def test_dynamic_jsonschema_import_is_flagged(source: str) -> None:
 
     C-003-safe: this fixture is a planted source STRING (never a real
     ``src/`` file -- the scout confirmed no dynamic jsonschema import exists
-    there today).
+    there today). Covers the ``importlib.import_module`` / ``__import__``
+    dotted-name spellings plus the two the completeness follow-up added: a
+    bare ``import_module`` name (``from importlib import import_module``)
+    and an aliased module attribute (``import importlib as il``) -- both pay
+    the identical startup tax and were previously invisible to the fixed
+    ``_DYNAMIC_IMPORT_CALLEE_NAMES`` fixed-name set.
     """
     assert _module_scope_jsonschema_imports(source)
 
@@ -231,6 +263,23 @@ def test_dynamic_jsonschema_import_is_flagged(source: str) -> None:
 def test_dynamic_jsonschema_import_inside_a_function_is_allowed() -> None:
     """A dynamically-imported jsonschema inside a function body is deferred, same as a plain ``import``."""
     assert _module_scope_jsonschema_imports('def validate():\n    import importlib\n    importlib.import_module("jsonschema")\n') == []
+
+
+def test_new_dynamic_import_spellings_inside_a_function_are_allowed() -> None:
+    """The two #4536-completeness spellings are deferred the same way inside a function body."""
+    assert _module_scope_jsonschema_imports('def validate():\n    from importlib import import_module\n    import_module("jsonschema")\n') == []
+    assert _module_scope_jsonschema_imports('def validate():\n    import importlib as il\n    il.import_module("jsonschema")\n') == []
+
+
+def test_unrelated_import_module_attribute_call_is_not_flagged() -> None:
+    """An ``.import_module(...)`` call on an unrelated object/argument is not a jsonschema import.
+
+    Guards against over-broadening: matching the trailing attribute name
+    alone (``.import_module``) only matters combined with the existing
+    first-arg check for the ``"jsonschema"`` string -- an unrelated receiver
+    calling ``.import_module`` with a different module name must stay clean.
+    """
+    assert _module_scope_jsonschema_imports('obj.import_module("something_else")\n') == []
 
 
 @pytest.mark.performance
