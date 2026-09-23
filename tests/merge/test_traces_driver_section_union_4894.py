@@ -295,6 +295,42 @@ def test_split_trace_blocks_does_not_split_on_heading_like_line_inside_tilde_fen
     assert blocks[0] == tuple(text.splitlines())
 
 
+def test_split_trace_blocks_does_not_split_on_tilde_line_inside_backtick_fence() -> None:
+    """A literal ``~~~`` line INSIDE a backtick fence is ordinary content, not
+    a fence toggle -- it must not close the open backtick fence.
+
+    Landing-fold regression: PR #5006 widened ``_TRACE_FENCE_MARKER`` to
+    match EITHER fence character but the toggler still flips one shared
+    ``in_fence`` boolean on ANY fence-marker line regardless of which
+    character matched. A ``~~~`` line inside a backtick-fenced block
+    spuriously toggles the fence CLOSED, so the following heading-like line
+    (still really inside the fence) is misread as a section boundary and the
+    block is over-split -- reopening the #4993 silent-loss class in mirror
+    image (an over-split sub-block can later be dropped by
+    :func:`_drop_stale_theirs_trace_blocks` under
+    ``theirs_unchanged and ours_diverged``).
+
+    Fails against the shared-boolean toggler (2 blocks: split at
+    ``# not a real heading``); passes once fence tracking is aware of which
+    character (and run length) opened the fence, per CommonMark fenced-code
+    semantics.
+    """
+    text = "```\ncode\n~~~\n# not a real heading\nmore\n```\n"
+    blocks = _split_trace_blocks(text)
+    assert len(blocks) == 1
+    assert blocks[0] == tuple(text.splitlines())
+
+
+def test_split_trace_blocks_does_not_split_on_backtick_line_inside_tilde_fence() -> None:
+    """Mirror of the backtick-fence case: a literal backtick-fence line
+    inside a ``~~~``-fenced block must not toggle the fence closed either.
+    """
+    text = "~~~\ncode\n```\n# not a real heading\nmore\n~~~\n"
+    blocks = _split_trace_blocks(text)
+    assert len(blocks) == 1
+    assert blocks[0] == tuple(text.splitlines())
+
+
 def test_drop_stale_theirs_trace_blocks_keys_duplicate_headings_distinctly() -> None:
     """AC-C2: two distinct sections sharing an identical heading are keyed
     distinctly through the base-aware stale-drop -- neither collision-dropped
@@ -321,6 +357,28 @@ def test_drop_stale_theirs_trace_blocks_keys_duplicate_headings_distinctly() -> 
     assert "first body" in result  # ours didn't touch it -- theirs' copy survives
     assert "second body" not in result  # ours diverged -- theirs' stale copy is dropped
     assert result.count("## Same") == 1
+
+
+def test_drop_stale_theirs_trace_blocks_keys_duplicate_explicit_ids_distinctly() -> None:
+    """Landing-fold hardening: two blocks sharing the SAME explicit
+    ``<!-- section:ID -->`` id within one document (an authoring mistake,
+    but one the driver must not silently mis-resolve) are keyed distinctly
+    by occurrence ordinal, mirroring the duplicate-heading case above.
+
+    Would fail against an id key with no occurrence ordinal (bare
+    ``("id", ID)``): ``setdefault``-based indexing keeps only the FIRST
+    same-id block, so the second same-id block's base/ours comparison is
+    silently mis-attributed to the first one's.
+    """
+    base_text = "<!-- section:dup -->\nfirst body\n<!-- section:dup -->\nsecond body\n"
+    ours_text = "<!-- section:dup -->\nfirst body\n<!-- section:dup -->\nsecond body EDITED\n"
+    theirs_text = base_text  # both sections left unchanged by theirs
+
+    result = _drop_stale_theirs_trace_blocks(base_text, ours_text, theirs_text)
+
+    assert "first body" in result  # ours didn't touch it -- theirs' copy survives
+    assert "second body" not in result  # ours diverged -- theirs' stale copy is dropped
+    assert result.count("<!-- section:dup -->") == 1
 
 
 # ---------------------------------------------------------------------------
