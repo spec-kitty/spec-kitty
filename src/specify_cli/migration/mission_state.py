@@ -73,7 +73,14 @@ REQUIRED_EVENTS_PACKAGE = Version("5.0.0")
 EVENTS_FILENAME = "status.events.jsonl"
 STATUS_FILENAME = "status.json"
 META_FILENAME = "meta.json"
-MANIFEST_ROOT = Path(".kittify/migrations/mission-state")
+# #4928: the mission-state repair audit trail (per-run manifest + verbatim
+# quarantine of removed rows) lives at a git-TRACKED root so a repair record
+# survives ``git clean``. The old home under ``.kittify/migrations/`` was
+# gitignored by design (#2384: keep a repair from dirtying the tree / gating
+# accept). That non-gating property is now preserved by classifying this root
+# as self-bookkeeping churn (``coordination/coherence.py``), NOT by ignoring
+# it — so the trail is both durable AND never blocks accept/merge.
+MISSION_STATE_AUDIT_ROOT = Path(".kittify/mission-state-audit")
 
 # ---------------------------------------------------------------------------
 # Repair manifest file-classification policy (Mission 8, #930)
@@ -84,7 +91,7 @@ _POLICY_TRACKED: tuple[str, ...] = (
     "kitty-specs/*/meta.json",
     "kitty-specs/*/status.events.jsonl",
     "kitty-specs/*/status.json",
-    ".kittify/migrations/mission-state/*.json",
+    ".kittify/mission-state-audit/*.json",
 )
 # Patterns the repair will repair only when present (no-op when absent).
 _POLICY_OPTIONAL: tuple[str, ...] = ("kitty-specs/*/status.json",)
@@ -371,6 +378,10 @@ class RepairReport:
     command_args: list[str] = field(default_factory=list)
     generated_ids: list[str] = field(default_factory=list)
     policy: dict[str, list[str]] = field(default_factory=dict)
+    # #4928: repo-relative dir holding this run's verbatim quarantined rows,
+    # ``<audit-root>/quarantine/<run_id>``. Set only when >=1 row was
+    # quarantined; ``None`` otherwise. Consumed by the ``--fix`` exit summary.
+    quarantine_root_path: str | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -379,6 +390,7 @@ class RepairReport:
             "repo_head": self.repo_head,
             "target_missions": list(self.target_missions),
             "manifest_path": self.manifest_path,
+            "quarantine_root_path": self.quarantine_root_path,
             "cli_version": self.cli_version,
             "command_args": list(self.command_args),
             "generated_ids": list(self.generated_ids),
@@ -709,10 +721,13 @@ def repair_repo(
         raise MissionStateRepairError("No mission directories found to repair.")
 
     run_id = _compute_run_id(resolved_repo_root, mission_dirs)
-    manifest_rel = manifest_path or MANIFEST_ROOT / f"{run_id}.json"
+    manifest_rel = manifest_path or MISSION_STATE_AUDIT_ROOT / f"{run_id}.json"
     manifest_abs = _resolve_repo_relative(resolved_repo_root, manifest_rel)
+    # #4928/FR-009: the audit root is the repair's own OUTPUT, now git-tracked.
+    # It must NOT be in the dirty-path safety set — otherwise a prior run's
+    # uncommitted trail makes the next --fix refuse (self-block). Only the
+    # mission dirs (repair INPUTS) are safety-checked.
     relevant_paths = [_repo_relpath(resolved_repo_root, path) for path in mission_dirs]
-    relevant_paths.append(str(MANIFEST_ROOT))
 
     _assert_git_safe(resolved_repo_root, relevant_paths, allow_dirty=allow_dirty)
     with _git_lock(resolved_repo_root):
@@ -737,6 +752,14 @@ def repair_repo(
             raw_args = []
         command_args = _scrub_secret_args(raw_args)
 
+        quarantine_root_path = (
+            _repo_relpath(
+                resolved_repo_root,
+                _resolve_repo_relative(resolved_repo_root, MISSION_STATE_AUDIT_ROOT / "quarantine" / run_id),
+            )
+            if any(m.quarantined_rows for m in results)
+            else None
+        )
         report = RepairReport(
             run_id=run_id,
             repo_head=_git_head(resolved_repo_root),
@@ -747,6 +770,7 @@ def repair_repo(
             command_args=command_args,
             generated_ids=sorted(set(generated_ids)),
             policy=_build_policy(),
+            quarantine_root_path=quarantine_root_path,
         )
         atomic_write(manifest_abs, report.to_json(), mkdir=True)
         return report
@@ -900,11 +924,13 @@ def repair_duplicate_key_artifacts(
     # raises out of the planner here, so nothing on disk is touched.
     plans = _plan_duplicate_key_batch(detect_duplicate_key_artifacts(scan_dir))
     run_id = _compute_dup_key_run_id(resolved_repo_root, plans)
-    manifest_rel = manifest_path or MANIFEST_ROOT / f"{_DUP_KEY_MANIFEST_PREFIX}{run_id}.json"
+    manifest_rel = manifest_path or MISSION_STATE_AUDIT_ROOT / f"{_DUP_KEY_MANIFEST_PREFIX}{run_id}.json"
     manifest_abs = _resolve_repo_relative(resolved_repo_root, manifest_rel)
 
     rel_paths = [_repo_relpath(resolved_repo_root, plan.path) for plan in plans]
-    _assert_git_safe(resolved_repo_root, [*rel_paths, str(MANIFEST_ROOT)], allow_dirty=allow_dirty)
+    # #4928/FR-009: drop the audit root (repair output) from the dirty-path
+    # check set (see repair_repo). Only the plan targets (inputs) are checked.
+    _assert_git_safe(resolved_repo_root, rel_paths, allow_dirty=allow_dirty)
     with _git_lock(resolved_repo_root):
         file_changes = _write_duplicate_key_plans(resolved_repo_root, plans)
         report = _build_dup_key_report(resolved_repo_root, scan_dir, run_id, plans, file_changes, manifest_abs)
@@ -1708,7 +1734,7 @@ def _repair_mission(
                 # FR-001: mission_slug may originate from untrusted meta.json content
                 # (meta.get("mission_slug")); validate before joining into the quarantine path.
                 _safe_mission_slug = assert_safe_path_segment(mission_slug)
-                quarantine_path = repo_root / MANIFEST_ROOT / "quarantine" / run_id / _safe_mission_slug / EVENTS_FILENAME
+                quarantine_path = repo_root / MISSION_STATE_AUDIT_ROOT / "quarantine" / run_id / _safe_mission_slug / EVENTS_FILENAME
                 before_quarantine = _file_fingerprint(quarantine_path)
                 quarantine_text = "".join(line.rstrip("\n") + "\n" for line in quarantine_lines)
                 atomic_write(quarantine_path, quarantine_text, mkdir=True)

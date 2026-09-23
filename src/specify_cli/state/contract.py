@@ -270,19 +270,47 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
     ),
     StateSurface(
         name="migration_state_ledger",
-        path_pattern=".kittify/migrations/mission-state/<run_id>.json",
+        path_pattern=".kittify/mission-state-audit/<run_id>.json",
         root=StateRoot.PROJECT,
         format=StateFormat.JSON,
         authority=AuthorityClass.LOCAL_RUNTIME,
-        git_class=GitClass.IGNORED,
+        git_class=GitClass.TRACKED,
         owner_module="migration/mission_state",
         creation_trigger="spec-kitty doctor mission-state --fix / upgrade repair",
         notes=(
-            "Mission-state repair manifests plus quarantined-row backups under "
-            ".kittify/migrations/. Write-only local audit/recovery output; nothing "
-            "reads it back to gate re-runs. Ignored so a repair run does not dirty "
-            "the tree or gate accept (#2384) — the same class as the #2369 "
-            "derived-views fix. Collapses to the .kittify/migrations/ gitignore entry."
+            "Mission-state repair manifests plus verbatim quarantined-row backups "
+            "under .kittify/mission-state-audit/. The durable audit trail of a "
+            "destructive repair: TRACKED so it survives `git clean` and can be "
+            "committed as the record of what a repair did (#4928). Write-only — "
+            "`--fix` never commits; the operator commits the trail (the exit "
+            "summary says so). Previously IGNORED under .kittify/migrations/ so a "
+            "repair would not dirty the tree or gate accept (#2384); that "
+            "non-gating property is now preserved by classifying this root as "
+            "self-bookkeeping churn (coordination/coherence.py) instead of "
+            "ignoring it — durable AND non-gating. NOT emitted to .gitignore "
+            "(TRACKED surfaces are excluded from get_runtime_gitignore_entries); "
+            "the legacy .kittify/migrations/ ignore stays for back-compat with "
+            "pre-#4928 trails."
+        ),
+    ),
+    StateSurface(
+        name="legacy_migration_scratch",
+        path_pattern=".kittify/migrations/",
+        root=StateRoot.PROJECT,
+        format=StateFormat.DIRECTORY,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.IGNORED,
+        owner_module="migration/mission_state",
+        creation_trigger="pre-#4928 mission-state repair / general migration scratch",
+        notes=(
+            "Back-compat ignore for the legacy .kittify/migrations/ tree (#4928, "
+            "#2384). The mission-state repair audit trail MOVED to the tracked "
+            ".kittify/mission-state-audit/ root (see migration_state_ledger), but "
+            "pre-#4928 projects still carry old repair trails here and the ignore "
+            "must stay so they are not suddenly surfaced/committed. Retained as a "
+            "derived IGNORED surface so .kittify/migrations/ keeps appearing in "
+            "get_runtime_gitignore_entries() and the m_3_2_4 backfill stays "
+            "coherent. No new writer targets this path."
         ),
     ),
     StateSurface(

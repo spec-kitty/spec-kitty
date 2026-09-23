@@ -153,7 +153,7 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     status = _read_json(mission / "status.json")
     status_summary = cast(dict[str, object], status["summary"])
     assert status_summary["in_review"] == 1
-    quarantine = repo / ".kittify" / "migrations" / "mission-state" / "quarantine" / report.run_id / "042-historical-shape" / "status.events.jsonl"
+    quarantine = repo / ".kittify" / "mission-state-audit" / "quarantine" / report.run_id / "042-historical-shape" / "status.events.jsonl"
     quarantine_text = quarantine.read_text(encoding="utf-8")
     assert "DecisionPointOpened" not in quarantine_text
     assert "RetrospectiveCaptured" not in quarantine_text
@@ -462,7 +462,7 @@ def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
     # canonicalized into a lane row; the TeamSpace envelope and the
     # DecisionPoint mirror are both preserved verbatim.
     assert result.quarantined_rows == 0
-    quarantine = repo / ".kittify" / "migrations" / "mission-state" / "quarantine" / report.run_id / "042-legacy-typed" / "status.events.jsonl"
+    quarantine = repo / ".kittify" / "mission-state-audit" / "quarantine" / report.run_id / "042-legacy-typed" / "status.events.jsonl"
     assert not quarantine.exists()
 
 
@@ -1135,7 +1135,7 @@ def test_manifest_includes_cli_version_command_args_generated_ids_policy(
         assert value == sorted(value), f"policy[{key!r}] must be sorted"
 
     # On-disk manifest matches the in-memory report
-    manifest_files = sorted((repo / ".kittify" / "migrations" / "mission-state").glob("*.json"))
+    manifest_files = sorted((repo / ".kittify" / "mission-state-audit").glob("*.json"))
     assert manifest_files, "manifest file must be written to disk"
     persisted = _read_json(manifest_files[-1])
 
@@ -1290,7 +1290,7 @@ def test_repair_rejects_traversal_mission_slug_from_meta(tmp_path: Path) -> None
     )
 
     # Verify nothing was written at an escaped path
-    quarantine_root = repo / ".kittify" / "migrations" / "mission-state" / "quarantine"
+    quarantine_root = repo / ".kittify" / "mission-state-audit" / "quarantine"
     if quarantine_root.exists():
         for path in quarantine_root.rglob("*"):
             assert ".." not in str(path.relative_to(repo)), f"Escaped path found: {path}"
@@ -1491,6 +1491,107 @@ def test_repair_quarantines_dropped_duplicate_event_rows(tmp_path: Path) -> None
     rows = [line for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(rows) == 1
 
-    quarantined = list((repo / ".kittify" / "migrations" / "mission-state" / "quarantine").rglob("*"))
+    quarantined = list((repo / ".kittify" / "mission-state-audit" / "quarantine").rglob("*"))
     quarantined_text = "\n".join(p.read_text(encoding="utf-8") for p in quarantined if p.is_file())
     assert "divergent" in quarantined_text
+
+
+# ---------------------------------------------------------------------------
+# #4928 — audit trail durability: relocation to a git-TRACKED root
+# ---------------------------------------------------------------------------
+
+
+def _seed_quarantining_mission(repo: Path) -> Path:
+    """Seed a mission whose repair quarantines one row (writes manifest + quarantine)."""
+    mission = repo / "kitty-specs" / "042-historical-shape"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "feature_number": "042",
+            "feature_slug": "042-historical-shape",
+            "friendly_name": "Historical Shape",
+            "mission": "software-dev",
+            "slug": "042-historical-shape",
+            "target_branch": "main",
+        },
+    )
+    status_row = {
+        "actor": "Claude Code",
+        "at": "2026-01-01T00:00:00+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGR",
+        "execution_mode": "worktree",
+        "feature_slug": "042-historical-shape",
+        "force": False,
+        "from_lane": "doing",
+        "legacy_aggregate_id": "feature:042-historical-shape",
+        "to_lane": "in_review",
+        "work_package_id": "WP01",
+    }
+    duplicate_row = dict(status_row)  # duplicate event_id → quarantined
+    (mission / "status.events.jsonl").write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in (status_row, duplicate_row)) + "\n",
+        encoding="utf-8",
+    )
+    return mission
+
+
+def _check_ignored(repo: Path, rel: str) -> bool:
+    """True when git check-ignore reports ``rel`` as ignored."""
+    result = subprocess.run(["git", "check-ignore", rel], cwd=repo, capture_output=True, text=True)
+    return result.returncode == 0
+
+
+def test_audit_trail_written_to_tracked_root_not_ignored(tmp_path: Path) -> None:
+    """#4928: manifest AND quarantine land under a git check-ignore-clean root."""
+    repo = tmp_path
+    _seed_quarantining_mission(repo)
+    _init_git_repo(repo)
+
+    report = repair_repo(repo)
+    assert report.missions[0].quarantined_rows == 1
+
+    # Manifest under the tracked audit root, NOT the legacy gitignored path.
+    manifests = sorted((repo / ".kittify" / "mission-state-audit").glob("*.json"))
+    assert manifests, "manifest must be written under .kittify/mission-state-audit/"
+    assert not (repo / ".kittify" / "migrations" / "mission-state").exists(), "no artifact may be written to the legacy gitignored path"
+
+    # check-ignore: both artifacts are trackable (NOT ignored).
+    manifest_rel = manifests[-1].relative_to(repo).as_posix()
+    assert not _check_ignored(repo, manifest_rel), f"{manifest_rel} must not be gitignored"
+    assert report.quarantine_root_path is not None
+    quarantine_root = repo / report.quarantine_root_path
+    assert quarantine_root.exists()
+    quarantine_file = next(quarantine_root.rglob("status.events.jsonl"))
+    q_rel = quarantine_file.relative_to(repo).as_posix()
+    assert not _check_ignored(repo, q_rel), f"{q_rel} must not be gitignored"
+
+
+def test_second_fix_not_blocked_by_own_uncommitted_audit_trail(tmp_path: Path) -> None:
+    """#4928/FR-009: a prior run's uncommitted (now tracked) audit trail must not
+    make the next --fix refuse. Regression guard for the _assert_git_safe self-block
+    that only becomes live once the audit root is tracked."""
+    repo = tmp_path
+    _seed_quarantining_mission(repo)
+    _init_git_repo(repo)
+
+    # Run 1: canonicalizes the mission and writes the audit trail.
+    repair_repo(repo)
+    # Operator commits ONLY the mission changes, leaving the audit trail
+    # uncommitted+tracked (the exact state that trips a self-block).
+    subprocess.run(["git", "add", "kitty-specs"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "canonicalized mission"], cwd=repo, check=True)
+
+    audit_status = subprocess.run(
+        ["git", "status", "--porcelain", "--", ".kittify/mission-state-audit"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert audit_status.strip(), "precondition: audit trail is tracked-but-uncommitted"
+
+    # Run 2 must NOT raise "dirty relevant paths" on the audit root — it is the
+    # repair's own output, dropped from the safety-checked set.
+    report = repair_repo(repo)
+    assert report.missions[0].status == "unchanged"
