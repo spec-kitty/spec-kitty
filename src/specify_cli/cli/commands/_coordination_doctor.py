@@ -1314,6 +1314,27 @@ def _git_rev_parse_query(cwd: Path, *args: str) -> str:
         return ""
 
 
+def _resolved_git_rev_parse_path(cwd: Path, *args: str) -> Path | None:
+    """Run :func:`_git_rev_parse_query` and resolve its output against ``cwd``.
+
+    Deliberately does NOT pass ``--path-format=absolute`` -- that flag needs
+    git >= 2.31, newer than this module's declared ``_MIN_GIT_VERSION`` (2,
+    25). On an older git the flag is echoed back as a literal (unrecognised)
+    argument rather than rejected, and ``--git-common-dir``/``--show-toplevel``
+    come back relative to ``cwd`` (e.g. ``.git`` in the main checkout) instead
+    of absolute -- comparing that against an absolute worktree-side path would
+    always mismatch, refusing every legitimate ``--fix``. ``Path(cwd) / out``
+    is a no-op when ``out`` is already absolute (git returns an absolute path
+    for a linked worktree's common dir), so this single join+resolve handles
+    both an old-git relative result and a normal absolute one. Returns
+    ``None`` when the underlying git call failed.
+    """
+    out = _git_rev_parse_query(cwd, *args)
+    if not out:
+        return None
+    return (cwd / out).resolve()
+
+
 def _coord_worktree_foreign_repo_finding(
     repo_root: Path, worktree: Path, coord_branch: str,
 ) -> DoctorFinding | None:
@@ -1330,17 +1351,16 @@ def _coord_worktree_foreign_repo_finding(
     additionally require the worktree's git-common-dir to match
     ``repo_root``'s (same repository) AND its toplevel to resolve to the
     worktree path itself (a genuine linked worktree, not a subdirectory git
-    walked up from). A kept-as-a-separate-helper check (complexity ceiling).
+    walked up from). Both sides are resolved via
+    :func:`_resolved_git_rev_parse_path` (no ``--path-format=absolute`` --
+    see its docstring) and compared as ``Path`` objects rather than raw
+    strings. A kept-as-a-separate-helper check (complexity ceiling).
     """
-    repo_common_dir = _git_rev_parse_query(
-        repo_root, "--path-format=absolute", "--git-common-dir",
-    )
-    wt_common_dir = _git_rev_parse_query(
-        worktree, "--path-format=absolute", "--git-common-dir",
-    )
-    wt_toplevel = _git_rev_parse_query(worktree, "--show-toplevel")
-    same_repo = bool(repo_common_dir) and wt_common_dir == repo_common_dir
-    is_worktree_root = bool(wt_toplevel) and Path(wt_toplevel).resolve() == worktree.resolve()
+    repo_common_dir = _resolved_git_rev_parse_path(repo_root, "--git-common-dir")
+    wt_common_dir = _resolved_git_rev_parse_path(worktree, "--git-common-dir")
+    wt_toplevel = _resolved_git_rev_parse_path(worktree, "--show-toplevel")
+    same_repo = repo_common_dir is not None and wt_common_dir == repo_common_dir
+    is_worktree_root = wt_toplevel is not None and wt_toplevel == worktree.resolve()
     if same_repo and is_worktree_root:
         return None
     return DoctorFinding(

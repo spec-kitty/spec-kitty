@@ -469,6 +469,40 @@ def test_e_merge_failure_for_one_mission_does_not_block_another(
     assert _git(repo, "rev-parse", ok_branch).stdout.strip() == target_sha
 
 
+def test_coord_worktree_foreign_repo_finding_resolves_relative_common_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#4950 fold: ``--path-format=absolute`` needs git >= 2.31, newer than
+    this module's declared ``_MIN_GIT_VERSION`` (2, 25). On an older git the
+    flag is echoed back unrecognised and ``--git-common-dir`` comes back
+    RELATIVE (e.g. ``.git``) in the main checkout, while the worktree side
+    still reports an absolute common dir -- a raw string compare would then
+    refuse every legitimate coordination worktree. Monkeypatch
+    ``_git_rev_parse_query`` to reproduce exactly that shape (relative from
+    the main repo, absolute from the worktree, resolving to the SAME
+    directory) and assert the finding does NOT refuse.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    worktree = tmp_path / "elsewhere" / "coord-wt"
+    worktree.mkdir(parents=True)
+    common_dir_abs = (repo_root / ".git").resolve()
+
+    def fake_rev_parse(cwd: Path, *args: str) -> str:
+        if "--show-toplevel" in args:
+            return str(worktree)
+        assert "--git-common-dir" in args
+        if cwd == repo_root:
+            return ".git"  # relative, as an old git reports in the main checkout
+        return str(common_dir_abs)  # absolute, as git reports for a linked worktree
+
+    monkeypatch.setattr(cd, "_git_rev_parse_query", fake_rev_parse)
+
+    finding = cd._coord_worktree_foreign_repo_finding(repo_root, worktree, "coord")
+
+    assert finding is None
+
+
 @pytest.mark.git_repo
 @pytest.mark.non_sandbox
 def test_a_foreign_clone_fix_fails_closed_without_mutation(
