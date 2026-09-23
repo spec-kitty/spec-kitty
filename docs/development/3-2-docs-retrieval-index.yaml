@@ -3155,6 +3155,16 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/3.x/2026-09-23-1-auto-merge-required-checks-gate.md"
+    title: "ADR: Auto-Merge Gates on the Terminal CI Aggregators — main Required Status Checks"
+    divio_type: "none"
+    abstract: "main now requires the router and CI Modules terminal gates as status checks, plus repo auto-merge, so GitHub auto-merge waits for real green instead of merging on one fast check."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "rationale-why-these-three-gates-and-no-others", text: "Rationale — why these three gates, and no others", level: 2}
+    - {slug: "why-ci-aggregate-gate-is-deliberately-not-required-learned-by-testing-this", text: "Why `CI Aggregate gate` is deliberately NOT required (learned by testing this)", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
