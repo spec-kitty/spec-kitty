@@ -502,6 +502,30 @@ def test_a_detached_worktree_fix_fails_closed_without_mutation(
 
 @pytest.mark.git_repo
 @pytest.mark.non_sandbox
+def test_a_detached_worktree_head_finding_silences_symbolic_ref_stderr(
+    tmp_path: Path, capfd: pytest.CaptureFixture[str],
+) -> None:
+    """#4950: git's `fatal: ref HEAD is not a symbolic ref` must not leak.
+
+    ``capsys`` cannot see this -- git writes straight to the real stderr
+    file descriptor, bypassing Python's ``sys.stderr`` -- so this needs
+    ``capfd``, which captures at the OS file-descriptor level.
+    """
+    repo = tmp_path / "repo"
+    _make_strict_ancestor_repo(repo, "detached-stderr-mission")
+    worktree = tmp_path / "detached-wt"
+    _git(repo, "worktree", "add", "--detach", str(worktree), _COORD_BRANCH)
+
+    capfd.readouterr()  # discard `worktree add`'s own output
+
+    finding = cd._coord_worktree_head_finding(worktree, _COORD_BRANCH)
+
+    assert finding is not None
+    assert "fatal:" not in capfd.readouterr().err
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
 def test_b_diverged_fix_fails_loud_and_mutates_nothing(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

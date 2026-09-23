@@ -284,7 +284,9 @@ def _coord_worktree_actual_head(worktree: Path) -> str:
     """
     try:
         return subprocess.check_output(
-            ["git", "-C", str(worktree), "symbolic-ref", "HEAD"], text=True,
+            ["git", "-C", str(worktree), "symbolic-ref", "HEAD"],
+            text=True,
+            stderr=subprocess.DEVNULL,
         ).strip()
     except subprocess.CalledProcessError:
         return "<detached>"
