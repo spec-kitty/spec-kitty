@@ -201,7 +201,10 @@ For conflicts in source code files:
 
 The default squash strategy fails closed when both the mission branch and a
 newer target-branch commit changed the same ordinary source hunk. Dry-run reports
-the same condition before the target ref can move:
+the same condition before the target ref can move — scoped to conflicts already
+present on the **mission-branch tip** (it does not first consolidate the lane
+branches, so a conflict living only in an un-consolidated lane commit surfaces at
+the real merge, not the forecast; the real merge still stops safely on it):
 
 ```text
 diagnostic_code: TARGET_BRANCH_CONTENT_CONFLICT

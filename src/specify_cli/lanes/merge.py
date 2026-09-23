@@ -940,6 +940,13 @@ def preview_mission_target_integration(
 ) -> MissionIntegrationPreview:
     """Simulate squash branch integration without committing or advancing refs.
 
+    Scope: this previews ``source_branch`` (the current mission-branch tip)
+    against ``target_branch``. It does NOT first consolidate the lane branches
+    the way the real merge does (``_phase_merge_lanes``), so a conflict that
+    lives only in an un-consolidated lane commit is invisible here — the real
+    merge still fails closed on it. The forecast is a readiness signal, not a
+    completeness guarantee.
+
     Missing refs retain the historical dry-run behavior: other preflights may
     still preview lifecycle/retention state before implementation has created a
     local mission branch.

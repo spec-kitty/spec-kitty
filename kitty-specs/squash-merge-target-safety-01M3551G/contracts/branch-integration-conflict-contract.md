@@ -23,7 +23,13 @@ its dry-run forecast for ordinary source conflicts.
 
 ## Dry-run
 
-- Squash dry-run exercises the same isolated integration primitive as execution.
+- Squash dry-run exercises the same isolated integration primitive as execution,
+  scoped to the **current mission-branch tip**: it forecasts conflicts already
+  present on the mission branch against the target. It does NOT first consolidate
+  the lane branches the way a real merge does, so a conflict that lives only in an
+  un-consolidated lane commit is not visible to the forecast. The real merge still
+  stops safely on it — the forecast is a readiness signal, not a completeness
+  guarantee.
 - A predicted source conflict exits non-zero with
   `TARGET_BRANCH_CONTENT_CONFLICT` and includes the mission branch, target
   branch, sorted conflict paths, and remediation guidance.
