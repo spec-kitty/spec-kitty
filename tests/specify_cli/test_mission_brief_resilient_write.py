@@ -7,6 +7,7 @@ from pathlib import Path
 from specify_cli.mission_brief import (
     BRIEF_SOURCE_FILENAME,
     MISSION_BRIEF_FILENAME,
+    BriefExistsError,
     read_brief_source,
     read_mission_brief,
     write_mission_brief,
@@ -25,13 +26,30 @@ def test_write_mission_brief_success(tmp_path):
     assert not list(kittify.glob(".tmp-source-*.yaml"))
 
 
-def test_write_mission_brief_recovers_from_brief_without_source(tmp_path):
-    """If brief exists without source (post-replace-1 crash), next call recovers."""
+def test_write_mission_brief_refuses_brief_without_source_by_default(tmp_path):
+    """#4910/#4921: a brief present with no source sidecar is UNKNOWN
+    provenance, not recoverable partial state — the existence-alone gate
+    refuses without explicit ``overwrite=True`` and leaves the original bytes
+    untouched (superseded the old "post-replace-1 crash auto-recovers"
+    assumption, which was the #4910 bug class)."""
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    (kittify / MISSION_BRIEF_FILENAME).write_text("# partial", encoding="utf-8")
+    # No brief-source.yaml — unknown provenance, not partial state.
+    with pytest.raises(BriefExistsError):
+        write_mission_brief(tmp_path, "# recovered", "test.md")
+    assert (kittify / MISSION_BRIEF_FILENAME).read_text(encoding="utf-8") == "# partial"
+    assert not (kittify / BRIEF_SOURCE_FILENAME).exists()
+
+
+def test_write_mission_brief_overwrite_true_recovers_from_brief_without_source(tmp_path):
+    """The same brief-without-source state recovers when the caller explicitly
+    authorizes it via ``overwrite=True`` (e.g. CLI ``--force``)."""
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
     (kittify / MISSION_BRIEF_FILENAME).write_text("# partial", encoding="utf-8")
     # No brief-source.yaml — partial state
-    brief_path, source_path = write_mission_brief(tmp_path, "# recovered", "test.md")
+    brief_path, source_path = write_mission_brief(tmp_path, "# recovered", "test.md", overwrite=True)
     assert brief_path.exists()
     assert source_path.exists()
     # Content should be the new content, not the partial

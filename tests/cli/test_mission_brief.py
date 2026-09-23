@@ -159,12 +159,16 @@ def test_clear_is_idempotent(tmp_path: Path) -> None:
 
 
 def test_write_twice_overwrites(tmp_path: Path) -> None:
-    """Second write_mission_brief call replaces the first (hash changes)."""
+    """A second write_mission_brief call with overwrite=True replaces the
+    first (hash changes). #4921: the second call must explicitly authorize
+    the overwrite — an unauthorized call now refuses via BriefExistsError
+    (see test_mission_brief_overwrite_chokepoint.py) instead of the old
+    unconditional-clobber default."""
     write_mission_brief(tmp_path, RAW_CONTENT, "plan.md")
     first_hash = hashlib.sha256(RAW_CONTENT.encode()).hexdigest()  # noqa: TID251 — mission-brief content fingerprint, not charter freshness hashing
 
     new_content = "# New Plan\n\nDifferent content.\n"
-    write_mission_brief(tmp_path, new_content, "plan.md")
+    write_mission_brief(tmp_path, new_content, "plan.md", overwrite=True)
     second_hash = hashlib.sha256(new_content.encode()).hexdigest()  # noqa: TID251 — mission-brief content fingerprint, not charter freshness hashing
 
     source = read_brief_source(tmp_path)

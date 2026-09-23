@@ -182,6 +182,46 @@ def test_explicit_path_existing_brief_missing_sidecar_refuses(intake_app: typer.
     assert not (kittify / BRIEF_SOURCE_FILENAME).exists()
 
 
+def test_auto_existing_brief_missing_sidecar_force_overwrites(intake_app: typer.Typer, tmp_path: Path) -> None:
+    """--force overwrites a brief-only (sidecar-absent) file too — proving the
+    delegated chokepoint (write_mission_brief's guard_destructive_overwrite
+    gate via BriefExistsError), not just the legacy brief+sidecar case (#4921)."""
+    _make_plan_file(tmp_path, "opencode-plan.md", content="# Replacement Plan")
+    mock_sources = [("opencode", "opencode", ["opencode-plan.md"])]
+
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    existing_brief = kittify / MISSION_BRIEF_FILENAME
+    existing_brief.write_text("# HAND-WRITTEN BRIEF", encoding="utf-8")
+    # No brief-source.yaml on purpose.
+
+    with patched_intake_command_environment(tmp_path, mock_sources):
+        result = runner.invoke(intake_app, ["--auto", "--force"], catch_exceptions=False)
+
+    assert result.exit_code == 0, f"output: {result.output}"
+    assert "Replacement Plan" in existing_brief.read_text(encoding="utf-8")
+    assert (kittify / BRIEF_SOURCE_FILENAME).exists()
+
+
+def test_explicit_path_existing_brief_missing_sidecar_force_overwrites(intake_app: typer.Typer, tmp_path: Path) -> None:
+    """Explicit-path --force also overwrites a brief-only (sidecar-absent)
+    file through the same delegated chokepoint as the --auto path."""
+    plan = _make_plan_file(tmp_path, content="# Replacement Plan")
+
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    existing_brief = kittify / MISSION_BRIEF_FILENAME
+    existing_brief.write_text("# HAND-WRITTEN BRIEF", encoding="utf-8")
+    # No brief-source.yaml on purpose.
+
+    with patched_intake_command_environment(tmp_path, patch_cwd=False):
+        result = runner.invoke(intake_app, [str(plan), "--force"], catch_exceptions=False)
+
+    assert result.exit_code == 0, f"output: {result.output}"
+    assert "Replacement Plan" in existing_brief.read_text(encoding="utf-8")
+    assert (kittify / BRIEF_SOURCE_FILENAME).exists()
+
+
 def test_explicit_path_orphan_sidecar_no_brief_still_writes(intake_app: typer.Typer, tmp_path: Path) -> None:
     """An orphan sidecar with no brief is recoverable partial state — write proceeds (#4910)."""
     plan = _make_plan_file(tmp_path, content="# Fresh Plan")

@@ -37,7 +37,29 @@ from specify_cli.asset_preservation.backup import archive_into
 from specify_cli.asset_preservation.provers import OwnershipProver
 from specify_cli.tool_surface.operations import OwnershipProof
 
-__all__ = ["OwnershipVerdict", "guard_destructive_removal"]
+__all__ = [
+    "OverwriteVerdict",
+    "OwnershipVerdict",
+    "guard_destructive_overwrite",
+    "guard_destructive_removal",
+]
+
+
+@dataclass(frozen=True)
+class OverwriteVerdict:
+    """The guard's decision for one candidate OVERWRITE (charter L463-479).
+
+    ``proceed`` is ``True`` only when the write may go ahead — either because
+    the destination is absent and the replacement is substantive, the
+    destination is proven package-owned, or the caller is authorized to
+    replace unproven-owned bytes. ``backup_path`` is set only when the guard
+    archived existing user bytes before an authorized overwrite.
+    """
+
+    proceed: bool
+    reason: str
+    diagnostic: str
+    backup_path: Path | None
 
 
 @dataclass(frozen=True)
@@ -191,4 +213,117 @@ def guard_destructive_removal(
         backup_path=archived,
         reason=reason,
         diagnostic=(f"Preserved {rel}; {reason} — archived to {_display_rel(archived, project_path)} before parent removal"),
+    )
+
+
+def _overwrite_absent(rel: str, *, replacement_substantive: bool) -> OverwriteVerdict:
+    if not replacement_substantive:
+        return OverwriteVerdict(
+            proceed=False,
+            reason="absent-empty-replacement",
+            diagnostic=f"Refused to fabricate an empty {rel}; destination is absent and replacement is not substantive",
+            backup_path=None,
+        )
+    return OverwriteVerdict(
+        proceed=True,
+        reason="absent",
+        diagnostic=f"Proceeding; {rel} is absent",
+        backup_path=None,
+    )
+
+
+def _overwrite_existing(
+    dest: Path,
+    project_path: Path,
+    rel: str,
+    *,
+    replacement_substantive: bool,
+    authorized: bool,
+    prover: OwnershipProver | None,
+    backup_parent: Path | None,
+) -> OverwriteVerdict:
+    proof = prover.prove(dest, project_path) if prover is not None else None
+    if proof is not None:
+        return OverwriteVerdict(
+            proceed=True,
+            reason=f"package-owned ({proof.kind})",
+            diagnostic=f"Proceeding over package-owned {rel} (proof: {proof.kind})",
+            backup_path=None,
+        )
+
+    if not replacement_substantive:
+        return OverwriteVerdict(
+            proceed=False,
+            reason="would-truncate-to-empty",
+            diagnostic=f"Refused to truncate {rel} to empty; existing bytes are not proven package-owned",
+            backup_path=None,
+        )
+
+    if not authorized:
+        return OverwriteVerdict(
+            proceed=False,
+            reason="unauthorized",
+            diagnostic=f"Refused to overwrite {rel}; not proven package-owned and not authorized",
+            backup_path=None,
+        )
+
+    backup_path: Path | None = None
+    if backup_parent is not None:
+        backup_path = archive_into(dest, project_path, backup_parent)
+    diagnostic = f"Proceeding to overwrite {rel}; authorized"
+    if backup_path is not None:
+        diagnostic = f"Proceeding to overwrite {rel}; archived to {_display_rel(backup_path, project_path)} first"
+    return OverwriteVerdict(
+        proceed=True,
+        reason="authorized-overwrite",
+        diagnostic=diagnostic,
+        backup_path=backup_path,
+    )
+
+
+def guard_destructive_overwrite(
+    dest: Path,
+    project_path: Path,
+    *,
+    replacement_substantive: bool,
+    authorized: bool,
+    prover: OwnershipProver | None = None,
+    backup_parent: Path | None = None,
+) -> OverwriteVerdict:
+    """Prove-or-refuse one candidate OVERWRITE of ``dest`` (charter L463-479).
+
+    Pure decision surface (mirrors :func:`guard_destructive_removal`): the only
+    I/O it performs is the optional pre-overwrite archive when *authorizing* a
+    replacement of unproven-owned bytes and ``backup_parent`` is given. The
+    caller decides how to surface a ``proceed=False`` refusal and performs the
+    write itself on ``proceed=True`` — this primitive never writes the
+    replacement content.
+
+    Truth table (``dest`` existence × ``replacement_substantive`` ×
+    ``authorized`` — a proven package-owned ``dest`` always proceeds):
+
+    * absent, non-substantive replacement → refuse (never fabricate empty).
+    * absent, substantive replacement → proceed.
+    * exists (unproven), non-substantive replacement → refuse, any
+      ``authorized`` (never truncate to empty, even under ``--force``).
+    * exists (unproven), substantive replacement, unauthorized → refuse.
+    * exists (unproven), substantive replacement, authorized → proceed
+      (archives first when ``backup_parent`` is given).
+    * exists, proven package-owned (via ``prover``) → proceed regardless of
+      ``replacement_substantive``/``authorized``.
+    """
+    rel = _display_rel(dest, project_path)
+    exists = dest.exists() or dest.is_symlink()
+
+    if not exists:
+        return _overwrite_absent(rel, replacement_substantive=replacement_substantive)
+
+    return _overwrite_existing(
+        dest,
+        project_path,
+        rel,
+        replacement_substantive=replacement_substantive,
+        authorized=authorized,
+        prover=prover,
+        backup_parent=backup_parent,
     )

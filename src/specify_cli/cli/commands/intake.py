@@ -28,7 +28,7 @@ from specify_cli.intake.scanner import (
 )
 from specify_cli.intake_sources import scan_for_plans
 from specify_cli.mission_brief import (
-    MISSION_BRIEF_FILENAME,
+    BriefExistsError,
     read_brief_source,
     read_mission_brief,
     write_mission_brief,
@@ -116,25 +116,38 @@ def _commit_brief(
     content: str,
     source_file: str,
     source_agent: str | None = None,
+    *,
+    force: bool = False,
 ) -> None:
     """Write the brief pair, overlaying handoff-packet provenance when present.
 
     Fails closed before any write when invoked from a foreign checkout (FR-002):
     this is the single write chokepoint shared by the normal and ``--auto``
     paths, so guarding here also covers ``--force``.
+
+    The overwrite invariant (#4921) itself lives one layer down, in
+    ``write_mission_brief``'s ``guard_destructive_overwrite`` gate; this
+    adapter only translates the resulting :class:`BriefExistsError` into the
+    operator-facing CLI exit, reusing the error's own message text so both
+    call sites (``--auto`` and explicit-path/stdin) print one string.
     """
     _guard_shared_slot_ownership(repo_root)
     packet = parse_handoff_packet(content)
     agent = source_agent
     if agent is None and packet is not None and packet.source_tool:
         agent = packet.source_tool
-    write_mission_brief(
-        repo_root,
-        content,
-        source_file,
-        source_agent=agent,
-        packet_meta=packet.sidecar_fields() if packet is not None else None,
-    )
+    try:
+        write_mission_brief(
+            repo_root,
+            content,
+            source_file,
+            source_agent=agent,
+            packet_meta=packet.sidecar_fields() if packet is not None else None,
+            overwrite=force,
+        )
+    except BriefExistsError:
+        err_console.print(BriefExistsError.FORCE_MESSAGE)
+        raise typer.Exit(1) from None
 
 
 def _write_brief_from_candidate(
@@ -147,16 +160,6 @@ def _write_brief_from_candidate(
 ) -> None:
     """Write the brief from a resolved candidate file; exits 1 on conflict or error."""
     console.print(f"BRIEF DETECTED: {found_path} (source: {harness_key})")
-    brief_path = repo_root / ".kittify" / MISSION_BRIEF_FILENAME
-    # Gate on the brief's existence alone (#4910). A present brief with an
-    # absent provenance sidecar is unknown provenance — refuse without --force,
-    # never treat it as safe-to-overwrite partial state. An orphan sidecar with
-    # no brief is genuine partial state that write_mission_brief() recovers.
-    if brief_path.exists() and not force:
-        err_console.print(
-            "Brief already exists at .kittify/mission-brief.md. Use --force to overwrite."
-        )
-        raise typer.Exit(1)
     cap = load_max_brief_bytes(repo_root)
     try:
         content = read_brief(found_path, cap=cap)
@@ -169,9 +172,13 @@ def _write_brief_from_candidate(
     except IntakeFileUnreadableError as exc:
         err_console.print(f"[red]Could not read file: {exc.__cause__}[/red]")
         raise typer.Exit(1) from None
-    _commit_brief(
-        repo_root, content, str(found_path), source_agent=source_agent_value
-    )
+    # The overwrite gate is delegated to the write chokepoint (#4921) — see
+    # _commit_brief's BriefExistsError translation. It keys on the brief's
+    # existence alone: a present brief with an absent provenance sidecar is
+    # unknown provenance and refuses just the same (#4910); an orphan sidecar
+    # with no brief is genuine partial state that write_mission_brief()
+    # recovers.
+    _commit_brief(repo_root, content, str(found_path), source_agent=source_agent_value, force=force)
     console.print("[green]\u2713[/green] Brief written to .kittify/mission-brief.md")
     console.print("[green]\u2713[/green] Provenance written to .kittify/brief-source.yaml")
 
@@ -287,17 +294,8 @@ def intake(
         err_console.print("[red]Provide a file path, '-' for stdin, --show, or --auto[/red]")
         raise typer.Exit(1)
 
-    # Normal write branch
-    brief_path = repo_root / ".kittify" / MISSION_BRIEF_FILENAME
-    # Gate on the brief's existence alone (#4910). A present brief with an
-    # absent provenance sidecar is unknown provenance — refuse without --force,
-    # never treat it as safe-to-overwrite partial state. An orphan sidecar with
-    # no brief is genuine partial state that write_mission_brief() recovers.
-    if brief_path.exists() and not force:
-        err_console.print(
-            "Brief already exists at .kittify/mission-brief.md. Use --force to overwrite."
-        )
-        raise typer.Exit(1)
+    # Normal write branch. The overwrite gate is delegated to the write
+    # chokepoint (#4921) — see _commit_brief's BriefExistsError translation.
 
     # Read content from file or stdin via the bounded intake helpers so
     # the documented size cap (FR-009 / NFR-003) is enforced before the
@@ -333,6 +331,6 @@ def intake(
             raise typer.Exit(1) from None
         source_file = path
 
-    _commit_brief(repo_root, content, source_file)
+    _commit_brief(repo_root, content, source_file, force=force)
     console.print("[green]\u2713[/green] Brief written to .kittify/mission-brief.md")
     console.print("[green]\u2713[/green] Provenance written to .kittify/brief-source.yaml")

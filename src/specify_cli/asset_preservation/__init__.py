@@ -12,7 +12,12 @@ work-package scope ownership) — its job is *preservation on unproven ownership
 
 from __future__ import annotations
 
-from specify_cli.asset_preservation.guard import OwnershipVerdict, guard_destructive_removal
+from specify_cli.asset_preservation.guard import (
+    OverwriteVerdict,
+    OwnershipVerdict,
+    guard_destructive_overwrite,
+    guard_destructive_removal,
+)
 from specify_cli.asset_preservation.provers import (
     AnyProver,
     CanonicalContentProver,
@@ -26,7 +31,9 @@ __all__ = [
     "CanonicalContentProver",
     "ManagedPathProver",
     "ManifestProver",
+    "OverwriteVerdict",
     "OwnershipProver",
     "OwnershipVerdict",
+    "guard_destructive_overwrite",
     "guard_destructive_removal",
 ]

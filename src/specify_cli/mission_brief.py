@@ -21,6 +21,7 @@ from typing import Any
 import yaml
 
 from kernel.clock import now_utc_iso
+from specify_cli.asset_preservation import guard_destructive_overwrite
 from specify_cli.intake.brief_writer import write_brief_atomic
 from specify_cli.intake.errors import (
     IntakeFileMissingError,
@@ -32,6 +33,22 @@ from specify_cli.intake.scanner import load_allow_cross_fs
 
 MISSION_BRIEF_FILENAME = "mission-brief.md"
 BRIEF_SOURCE_FILENAME = "brief-source.yaml"
+
+
+class BriefExistsError(Exception):
+    """Raised by :func:`write_mission_brief` when a brief is already present
+    and the caller did not authorize an overwrite (``overwrite=False``).
+
+    Carries the operator-facing ``--force`` message as a class attribute so
+    every caller (the ``--auto`` and explicit-path/stdin CLI adapters alike)
+    reuses one string instead of duplicating it (Sonar S1192).
+    """
+
+    FORCE_MESSAGE: str = f"Brief already exists at .kittify/{MISSION_BRIEF_FILENAME}. Use --force to overwrite."
+
+    def __init__(self, brief_path: Path) -> None:
+        super().__init__(self.FORCE_MESSAGE)
+        self.brief_path = brief_path
 
 
 # ---------------------------------------------------------------------------
@@ -46,6 +63,7 @@ def write_mission_brief(
     *,
     source_agent: str | None = None,
     packet_meta: dict[str, Any] | None = None,
+    overwrite: bool = False,
 ) -> tuple[Path, Path]:
     """Write ``.kittify/mission-brief.md`` and ``.kittify/brief-source.yaml``.
 
@@ -61,13 +79,38 @@ def write_mission_brief(
         source_agent: Optional harness/agent identifier (e.g. ``"opencode"``).
             When ``None``, the ``source_agent`` key is omitted from
             ``brief-source.yaml`` entirely (no null written).
+        overwrite: Authorizes replacing an existing brief. This is the single
+            chokepoint (#4921) for the overwrite invariant: the refusal below
+            is keyed on ``brief_path.exists()`` ALONE — a brief present with
+            no provenance sidecar is unknown provenance and refuses just the
+            same as a "complete" brief+sidecar pair (#4910) — and is evaluated
+            BEFORE the XOR partial-state cleanup so a brief-only file is never
+            unlinked-then-rewritten.
 
     Returns a tuple of ``(brief_path, source_path)``.
+
+    Raises:
+        BriefExistsError: A brief already exists and ``overwrite`` is
+            ``False``.
     """
     kittify = repo_root / ".kittify"
     kittify.mkdir(exist_ok=True)
     brief_path = kittify / MISSION_BRIEF_FILENAME
     source_path = kittify / BRIEF_SOURCE_FILENAME
+
+    # Existence-alone gate (#4910/#4921), evaluated BEFORE the XOR cleanup
+    # below: a brief-only file (sidecar absent) must refuse, not be unlinked
+    # and silently rewritten. guard_destructive_overwrite stays pure here —
+    # no prover, no backup_parent — so a refusal never touches the filesystem.
+    if brief_path.exists() and not overwrite:
+        verdict = guard_destructive_overwrite(
+            brief_path,
+            repo_root,
+            replacement_substantive=True,
+            authorized=overwrite,
+        )
+        if not verdict.proceed:
+            raise BriefExistsError(brief_path)
 
     # Clean any partial state from a previous interrupted write.
     if brief_path.exists() != source_path.exists():
@@ -212,9 +255,9 @@ def read_brief_source(repo_root: Path) -> dict[str, Any] | None:
 # Re-export the structured error so callers don't need to know which
 # subpackage owns it. Surfaces FR-011 at this module's import layer.
 __all__ = [  # noqa: PLE0604 — module-level export contract
+    "BriefExistsError",
     "IntakeFileMissingError",
     "IntakeFileUnreadableError",
-    "MISSION_BRIEF_FILENAME",
     "clear_mission_brief",
     "read_brief_source",
     "read_mission_brief",
