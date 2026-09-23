@@ -102,6 +102,12 @@ def write_mission_brief(
     # below: a brief-only file (sidecar absent) must refuse, not be unlinked
     # and silently rewritten. guard_destructive_overwrite stays pure here —
     # no prover, no backup_parent — so a refusal never touches the filesystem.
+    # The enclosing ``not overwrite`` already predetermines proceed=False, so
+    # this call is a form-only funnel: the brief's refusal semantics route
+    # through the one shared preservation authority (the same primitive
+    # research/#4931 use) rather than a bespoke inline raise. The ``overwrite``
+    # path deliberately bypasses the guard and overwrites unarchived, matching
+    # the pre-#4921 brief behavior (no backup_parent threaded by design).
     if brief_path.exists() and not overwrite:
         verdict = guard_destructive_overwrite(
             brief_path,
