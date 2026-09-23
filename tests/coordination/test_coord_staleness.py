@@ -526,6 +526,97 @@ def test_a_foreign_clone_fix_fails_closed_without_mutation(
     assert _git(clone, "rev-parse", "HEAD").stdout.strip() == clone_head_before
 
 
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_e_wrong_branch_mismatch_for_one_mission_does_not_block_another(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Pin: one mission's wrong-branch coord worktree must not block fixing
+    an unrelated, healthy mission in the same ``--fix`` run.
+
+    Distinct from ``test_e_one_diverged_mission_does_not_block_fix_for_other_missions``
+    (a DIVERGED coord branch) and
+    ``test_e_merge_failure_for_one_mission_does_not_block_another`` (a failed
+    merge): here mission A's coord branch is itself a perfectly good
+    fast-forward candidate -- the problem is that its recorded WORKTREE has
+    the wrong branch checked out (#4920/#4950's original bug shape).
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    # Mission A: coord branch is a strict-ancestor fast-forward candidate,
+    # but the recorded worktree has a DIFFERENT branch checked out.
+    mismatch_slug = "mismatch-mission"
+    mismatch_branch = "coord-mismatch"
+    wrong_branch = "wrong-branch-for-mismatch"
+    _git(repo, "branch", mismatch_branch)
+    _git(repo, "branch", wrong_branch, mismatch_branch)
+    (repo / "advance-a.txt").write_text("a\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "advance target for A")
+    mismatch_dir = repo / "kitty-specs" / mismatch_slug
+    mismatch_dir.mkdir(parents=True)
+    (mismatch_dir / "meta.json").write_text(
+        json.dumps({
+            "mission_slug": mismatch_slug,
+            "mission_id": "01ABCDEF0000000000MISMTCH",
+            "coordination_branch": mismatch_branch,
+            "target_branch": _TARGET_BRANCH,
+        }),
+        encoding="utf-8",
+    )
+    mismatch_worktree = tmp_path / "mismatch-wt"
+    _git(repo, "worktree", "add", str(mismatch_worktree), wrong_branch)
+
+    # Mission B: a real, healthy strict-ancestor candidate that must still
+    # be fast-forwarded despite mission A's refusal.
+    ok_slug = "healthy-mission"
+    ok_branch = "coord-healthy"
+    _git(repo, "branch", ok_branch)
+    ok_dir = repo / "kitty-specs" / ok_slug
+    ok_dir.mkdir(parents=True)
+    (ok_dir / "meta.json").write_text(
+        json.dumps({
+            "mission_slug": ok_slug,
+            "mission_id": "01ABCDEF000000000000HLTHY",
+            "coordination_branch": ok_branch,
+            "target_branch": _TARGET_BRANCH,
+        }),
+        encoding="utf-8",
+    )
+    ok_worktree = tmp_path / "healthy-wt"
+    _git(repo, "worktree", "add", str(ok_worktree), ok_branch)
+
+    _patch_worktree_path_by_slug(
+        monkeypatch,
+        {mismatch_slug: mismatch_worktree, ok_slug: ok_worktree},
+        fallback=tmp_path / "no-such-worktree",
+    )
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    mismatch_coord_sha_before = _git(repo, "rev-parse", mismatch_branch).stdout.strip()
+    mismatch_wt_head_before = _git(mismatch_worktree, "rev-parse", "HEAD").stdout.strip()
+    target_sha = _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip()
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True, fix=True)
+
+    out = capsys.readouterr().out
+    assert exc.value.exit_code == 1
+    assert cd._COORD_STALE_FIX_BLOCKED_CODE in out
+    assert f"is on {wrong_branch!r}, not {mismatch_branch!r}" in out
+
+    # Mission A refused, unmutated.
+    assert _git(repo, "rev-parse", mismatch_branch).stdout.strip() == mismatch_coord_sha_before
+    assert _git(mismatch_worktree, "rev-parse", "HEAD").stdout.strip() == mismatch_wt_head_before
+
+    # Mission B was NOT blocked by A's refusal -- it really fast-forwarded.
+    assert _git(ok_worktree, "rev-parse", "HEAD").stdout.strip() == target_sha
+    assert _git(repo, "rev-parse", ok_branch).stdout.strip() == target_sha
+
+
 def test_check_and_warn_coord_staleness_no_meta_is_silent(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
