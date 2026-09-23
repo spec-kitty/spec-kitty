@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "mission_slug": "silent-write-hardening-residuals-01M37QN4",
+  "mission_id": "01M37QN45TTG30ZWV82998A6E3",
+  "mission_branch": "kitty/mission-silent-write-hardening-residuals-01M37QN4",
+  "target_branch": "fix/silent-write-hardening-residuals",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-09-23-2-mission-state-repair-preserve-by-default.md",
+        "src/specify_cli/migration/mission_state.py",
+        "src/specify_cli/status/__init__.py",
+        "src/specify_cli/status/lifecycle_events.py",
+        "tests/integration/migration/test_lifecycle_events_preserved.py",
+        "tests/migration/test_mission_state_repair.py",
+        "tests/status/test_authoritative_non_lane_registry_4897.py",
+        "tests/unit/migration/test_canonicalization_rules.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/charter_yaml_io.py",
+        "src/charter/activation/language_scope.py",
+        "src/specify_cli/charter_runtime/preflight/references_refresh.py",
+        "src/specify_cli/cli/commands/charter/generate.py",
+        "tests/specify_cli/charter_runtime/test_references_parity_refresh.py",
+        "tests/specify_cli/cli/commands/charter/test_recompile_preserves_mission_4908.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/merge_driver.py",
+        "tests/merge/test_traces_driver_section_union_4894.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/index.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/3-2-docs-retrieval-index.yaml",
+        "docs/development/3-2-page-inventory.yaml"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-23T19:42:35.940683+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "planning_commit_sha": "116867b27f48a76748e1d0aa3ab9911ce2b885f0"
+}
