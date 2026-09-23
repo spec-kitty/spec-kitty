@@ -423,7 +423,17 @@ def _rendering_pipeline_signature() -> bytes:
     caught here, matching ``_template_source_signature``: a rendering module
     that cannot be located/read is a genuine failure the caller must fall
     through on, never mask as "unchanged".
+
+    Landing fold (PR #4992): ``core.config.AGENT_COMMAND_CONFIG`` (each
+    agent's ``arg_format``/``ext``) is itself a rendered-content input --
+    ``render_command_template(arg_format=config["arg_format"],
+    extension=config["ext"])`` reads it directly -- but was not part of this
+    signature, so a same-version ``arg_format``-only edit changed rendered
+    content while leaving the freshness stamp matching, wrongly skipping the
+    re-render. A stable, sorted JSON dump of the config dict is folded into
+    the hash below to close that hole.
     """
+    from specify_cli.core.config import AGENT_COMMAND_CONFIG
     from specify_cli.shims import generator as shim_generator
     from specify_cli.template import asset_generator
 
@@ -434,6 +444,7 @@ def _rendering_pipeline_signature() -> bytes:
         hasher.update(b"\0")
         hasher.update(Path(module_file).read_bytes())
         hasher.update(b"\0")
+    hasher.update(json.dumps(AGENT_COMMAND_CONFIG, sort_keys=True).encode("utf-8"))
     return hasher.digest()
 
 

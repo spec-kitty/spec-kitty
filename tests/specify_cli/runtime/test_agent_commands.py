@@ -936,3 +936,27 @@ class TestRenderingPipelineSignatureFoldedIn:
         assert first == second, "the signature must be deterministic for unchanged source"
         assert isinstance(first, bytes)
         assert len(first) == 32, "sha256 digest must be 32 bytes"
+
+    def test_rendering_pipeline_signature_changes_with_agent_command_config(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Landing fold (PR #4992): ``AGENT_COMMAND_CONFIG`` (``arg_format``/
+        ``ext`` per agent) is a real rendered-content input --
+        ``render_command_template(arg_format=..., extension=...)`` reads it
+        directly -- but the signature only hashed module files, never the
+        config surface. A same-version ``arg_format``-only edit (no template
+        content change, no version bump -- exactly what an editable install
+        sees) must still change the digest so the freshness precheck cannot
+        silently skip a re-render that would leave stale rendered content."""
+        import specify_cli.core.config as config_module
+        import specify_cli.runtime.agent_commands as ac
+
+        baseline = ac._rendering_pipeline_signature()
+
+        mutated_config = {
+            key: (dict(value) | {"arg_format": "MUTATED-ARG-FORMAT"} if key == "claude" else dict(value))
+            for key, value in config_module.AGENT_COMMAND_CONFIG.items()
+        }
+        monkeypatch.setattr(config_module, "AGENT_COMMAND_CONFIG", mutated_config)
+
+        mutated = ac._rendering_pipeline_signature()
+
+        assert mutated != baseline, "an AGENT_COMMAND_CONFIG arg_format edit must change the rendering pipeline signature"
