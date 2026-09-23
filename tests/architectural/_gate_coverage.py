@@ -1141,13 +1141,19 @@ def _composite_action_path(uses: str, actions_dir: Path) -> Path | None:
     repository. ``<name>`` may be nested (``./.github/actions/a/b``) and is
     stripped of any ``@ref`` suffix, which local action refs never carry but
     which would otherwise become a directory name.
+
+    ``<name>`` is untrusted workflow YAML content, so a ``..``-laden ref
+    (``./.github/actions/../../secrets``) must not resolve to a file outside
+    *actions_dir* (#4408) -- mirrors :func:`_resolve_script_path`'s
+    ``is_relative_to`` containment guard.
     """
     name = uses[len(_LOCAL_ACTION_PREFIX) :].split("@", 1)[0].strip("/")
     if not name:
         return None
+    resolved_actions_dir = actions_dir.resolve()
     for file_name in _ACTION_FILE_NAMES:
-        candidate = actions_dir / name / file_name
-        if candidate.is_file():
+        candidate = (actions_dir / name / file_name).resolve()
+        if candidate.is_file() and candidate.is_relative_to(resolved_actions_dir):
             return candidate
     return None
 

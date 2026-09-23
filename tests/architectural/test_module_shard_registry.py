@@ -30,6 +30,7 @@ an ``ImportError`` or a collection-time crash.
 
 from __future__ import annotations
 
+import configparser
 import json
 from pathlib import Path
 from typing import Any
@@ -410,6 +411,36 @@ def test_reusable_workflow_ceiling_respected() -> None:
 # pytest's default python_files patterns (pytest.ini does not override
 # python_files) -- the collection basis for "a directory that holds tests".
 _PYTHON_FILE_PATTERNS = ("test_*.py", "*_test.py")
+
+
+def test_pytest_ini_does_not_override_python_files_4388() -> None:
+    """Anchor for #4388: ``_PYTHON_FILE_PATTERNS`` above is a hardcoded
+    restatement of pytest's *default* collection patterns, held together with
+    ``pytest.ini`` only by a prose comment. If ``pytest.ini`` ever grew a
+    ``python_files`` override, the hardcoded basis this gate's
+    test-bearing-directory scan (:func:`_test_bearing_dirs`) relies on would
+    silently diverge from what pytest actually collects. Anchor it: either
+    ``pytest.ini`` carries no override at all (the status quo), or its
+    override equals ``_PYTHON_FILE_PATTERNS`` exactly.
+
+    Non-vacuity is verified manually, not via a committed fixture, per the
+    WP01 task note: transiently (uncommitted) add ``python_files =
+    check_*.py`` under ``[pytest]`` in the real ``pytest.ini`` and re-run this
+    test -- it fails; revert and it passes again. This test only reads
+    ``pytest.ini`` and never edits it.
+    """
+    parser = configparser.ConfigParser()
+    read_files = parser.read(_REPO_ROOT / "pytest.ini")
+    assert read_files, f"could not read {_REPO_ROOT / 'pytest.ini'}"
+    section = parser["pytest"]
+    if "python_files" not in section:
+        return
+    configured = tuple(section["python_files"].split())
+    assert configured == _PYTHON_FILE_PATTERNS, (
+        f"pytest.ini's python_files override {configured} diverges from the hardcoded "
+        f"_PYTHON_FILE_PATTERNS {_PYTHON_FILE_PATTERNS} this gate's test-bearing-directory "
+        "scan assumes -- update _PYTHON_FILE_PATTERNS to match pytest.ini"
+    )
 
 
 def _test_bearing_dirs() -> set[str]:
