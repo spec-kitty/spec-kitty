@@ -11,6 +11,7 @@
   "purpose_context": "Six per-PR squad MINOR findings under epic #4883 each identify a gate/test that passes even on the broken input it should catch (stale marker desc, guard never walks the real tree, unanchored pattern, missing path guard, no vacuity floor). This mission closes that non-vacuity class by construction (DIRECTIVE_043), test-infra only, so every future PR's arch/perf gate is honest.",
   "purpose_tldr": "Make six deferred squad-flagged architectural/performance test-guards actually fail when the thing they exist to catch is broken.",
   "slug": "test-guard-non-vacuity-hardening-01M37EW8",
+  "status_phase": "1",
   "target_branch": "issue-4036-test-guard-non-vacuity-hardening",
   "topology": "lanes",
   "vcs": "git",
