@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "mission_slug": "ownership-boundary-overwrite-hardening-01M35ER3",
+  "mission_id": "01M35ER313MXMZCWRY6KXE4935",
+  "mission_branch": "kitty/mission-ownership-boundary-overwrite-hardening-01M35ER3",
+  "target_branch": "issue-4931-ownership-boundary-overwrite-hardening",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/asset_preservation/__init__.py",
+        "src/specify_cli/asset_preservation/guard.py",
+        "src/specify_cli/cli/commands/intake.py",
+        "src/specify_cli/mission_brief.py",
+        "tests/specify_cli/asset_preservation/test_guard_destructive_overwrite.py",
+        "tests/specify_cli/cli/commands/test_intake.py",
+        "tests/specify_cli/test_mission_brief_overwrite_chokepoint.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/init.py",
+        "src/specify_cli/template/manager.py",
+        "tests/cli/test_init_templates_preservation.py",
+        "tests/test_template/test_manager.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/research.py",
+        "tests/architectural/test_mutation_ownership_routing.py",
+        "tests/specify_cli/cli/commands/test_research_preservation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-c"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-22T21:24:39.912552+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "d798cc8a992c26b01aa7c6e47163ec3ac3851741"
+}

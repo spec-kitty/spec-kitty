@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#4759": {
+      "evidence_ref": "precedent ref",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4861": {
+      "evidence_ref": "precedent ref only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4895": {
+      "evidence_ref": "excluded sibling (C-005)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4907": {
+      "evidence_ref": "excluded sibling (C-005)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4910": {
+      "evidence_ref": "precedent ref only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4921": {
+      "evidence_ref": "lane-a 33b03b8624; reviewer APPROVE",
+      "fr": "FR-003",
+      "nfr": "NFR-003",
+      "repo": null,
+      "sc": "SC-003",
+      "scope": "in-scope",
+      "source_file": "spec.md",
+      "title": "mission-brief overwrite invariant lives only in the CLI adapter, not the write_mission_brief chokepoint",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4926": {
+      "evidence_ref": "lane-b 2227956bc8; reviewer APPROVE",
+      "fr": "FR-002",
+      "nfr": "NFR-001",
+      "repo": null,
+      "sc": "SC-001",
+      "scope": "in-scope",
+      "source_file": "spec.md",
+      "title": "research fabricates 0-byte artifacts and --force truncates user research.md",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#4931": {
+      "evidence_ref": "lane-c fb86fba92a; reviewer APPROVE",
+      "fr": "FR-001",
+      "nfr": "NFR-001",
+      "repo": null,
+      "sc": "SC-001",
+      "scope": "in-scope",
+      "source_file": "spec.md",
+      "title": "init deletes user-authored .kittify/templates/ (by-name managed_relpaths + full-copy rmtree)",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#4933": {
+      "evidence_ref": "excluded sibling (C-005)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

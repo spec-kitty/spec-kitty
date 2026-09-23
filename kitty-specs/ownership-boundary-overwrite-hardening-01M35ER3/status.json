@@ -1,0 +1,116 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M35TNAAQMY0TQ5C6H53GJSFS",
+  "materialized_at": "2026-09-23T00:29:14.455777+00:00",
+  "mission_number": "",
+  "mission_slug": "ownership-boundary-overwrite-hardening-01M35ER3",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 3,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M35JW6XPCYRMQBKD59D5BTWV",
+      "last_transition_at": "2026-09-22T22:13:11.734472+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "APPROVE"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260922",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3750155,
+      "shell_pid_created_at": "1790115067.64",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M35TNAAQMY0TQ5C6H53GJSFS",
+      "last_transition_at": "2026-09-23T00:29:14.455777+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE; #4926 fixed"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260923",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 138564,
+      "shell_pid_created_at": "1790123315.66",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M35JTNGEQN3AVH2YKQ7C1KYG",
+      "last_transition_at": "2026-09-22T22:12:21.134136+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "approve"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260922",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3740046,
+      "shell_pid_created_at": "1790114688.63",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
+    }
+  }
+}
