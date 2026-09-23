@@ -72,13 +72,13 @@ def test_read_rejects_symlink_planted_before_open(tmp_path: Path, monkeypatch: p
     original_open = os.open
     swapped = False
 
-    def plant_symlink(candidate: str | Path, flags: int, mode: int = 0o777) -> int:
+    def plant_symlink(candidate: str | Path, flags: int, mode: int = 0o777, *, dir_fd: int | None = None) -> int:
         nonlocal swapped
         if Path(candidate) == path and not swapped:
             path.unlink()
             path.symlink_to(target)
             swapped = True
-        return original_open(candidate, flags, mode)
+        return original_open(candidate, flags, mode, dir_fd=dir_fd)
 
     monkeypatch.setattr(os, "open", plant_symlink)
 

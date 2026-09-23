@@ -211,11 +211,11 @@ class _WindowsMandatoryLockSimulator:
         self._fd_to_path: dict[int, str] = {}
 
     def wrap_open(self, real_open: Callable[..., int]) -> Callable[..., int]:
-        def _open(path: str, flags: int, mode: int = 0o777) -> int:
+        def _open(path: str, flags: int, mode: int = 0o777, *, dir_fd: int | None = None) -> int:
             resolved = str(Path(path).resolve())
             if resolved in self._locked_paths:
                 raise PermissionError(13, "The process cannot access the file because another process has locked a portion of the file")
-            fd = real_open(path, flags, mode)
+            fd = real_open(path, flags, mode, dir_fd=dir_fd)
             self._fd_to_path[fd] = resolved
             return fd
 
