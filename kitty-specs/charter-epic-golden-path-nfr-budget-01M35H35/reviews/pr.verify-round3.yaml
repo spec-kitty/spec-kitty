@@ -1,0 +1,22 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: R5a-anchored
+results:
+  - id: PR-FRESH2-001
+    status: resolved
+    reason: >
+      Fix commit 0cde34a0d touches only tests/cli/test_lazy_command_module_imports.py,
+      adding `import ast` and replacing `eval(mods_repr)  # noqa: S307` with
+      `ast.literal_eval(mods_repr)`; no noqa remains in the file. The subprocess
+      writes `'MODS=' + repr(mods)` where mods is a sorted list of plain module-name
+      strings, exactly the literal shape ast.literal_eval parses safely. ruff check
+      on the file passes clean, and all 6 tests in the file pass. Verified in an
+      isolated worktree (0cde34a0d) that writing in the merge-base
+      (6b4164dbf) src/specify_cli/cli/commands/__init__.py causes 3 of the 6 tests
+      (test_single_leaf_command_imports_only_its_own_module,
+      test_a_second_unrelated_leaf_command_stays_isolated_too,
+      test_module_backing_multiple_command_names_is_still_lazy) to fail as expected
+      (eager-import regression correctly detected), confirming the tests are not
+      vacuous. The file was restored via `git checkout --` after the check, leaving
+      the worktree clean before it was removed.
