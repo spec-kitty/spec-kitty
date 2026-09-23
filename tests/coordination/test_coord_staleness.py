@@ -257,6 +257,7 @@ def test_fix_one_staleness_requires_declared_ref_postcondition(
         "worktree_path",
         staticmethod(lambda *_a: tmp_path),
     )
+    monkeypatch.setattr(cd, "_coord_worktree_foreign_repo_finding", lambda *_a: None)
     monkeypatch.setattr(cd, "_coord_worktree_head_finding", lambda *_a: None)
     monkeypatch.setattr(cd, "_coord_worktree_dirty_finding", lambda *_a: None)
     monkeypatch.setattr(
@@ -306,6 +307,7 @@ def test_fix_one_staleness_merges_target_sha_not_branch_name(
         "worktree_path",
         staticmethod(lambda *_a: tmp_path),
     )
+    monkeypatch.setattr(cd, "_coord_worktree_foreign_repo_finding", lambda *_a: None)
     monkeypatch.setattr(cd, "_coord_worktree_head_finding", lambda *_a: None)
     monkeypatch.setattr(cd, "_coord_worktree_dirty_finding", lambda *_a: None)
     monkeypatch.setattr(cd, "_rev_parse", lambda *_a: "target-sha")
@@ -347,6 +349,7 @@ def test_fix_one_staleness_merge_failure_returns_finding_without_raising(
         "worktree_path",
         staticmethod(lambda *_a: tmp_path),
     )
+    monkeypatch.setattr(cd, "_coord_worktree_foreign_repo_finding", lambda *_a: None)
     monkeypatch.setattr(cd, "_coord_worktree_head_finding", lambda *_a: None)
     monkeypatch.setattr(cd, "_coord_worktree_dirty_finding", lambda *_a: None)
 
@@ -468,33 +471,28 @@ def test_e_merge_failure_for_one_mission_does_not_block_another(
 
 @pytest.mark.git_repo
 @pytest.mark.non_sandbox
-def test_postcondition_fails_when_recorded_worktree_is_a_separate_clone(
+def test_a_foreign_clone_fix_fails_closed_without_mutation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """#4950 second-opinion follow-up: repro for the dedicated postcondition code.
+    """#4950 second-opinion follow-up: a foreign clone must be refused pre-mutation.
 
     The recorded coordination worktree is a SEPARATE ``git clone`` of the
     repo (not a linked worktree) with the coord branch checked out and the
-    target branch's commit present. The branch-identity check
-    (``_coord_worktree_head_finding``, branch NAME only) passes -- the clone
-    really is on a branch called "coord" -- so the fast-forward runs and
-    genuinely succeeds *inside the clone*. But the clone is a distinct
-    repository: the merge never touches ``repo_root``'s own ``coord`` ref,
-    so the declared branch this run reports against never moves. That is
-    exactly the postcondition failure, not the "nothing was mutated" BLOCKED
-    case.
-
-    (Item 6, #4950, closes this specific gap by additionally requiring the
-    recorded worktree to share ``repo_root``'s git-common-dir -- at that
-    point this scenario is refused BEFORE the clone's local branch ever
-    moves. See ``test_a_foreign_clone_fix_fails_closed_without_mutation`` in
-    that commit, which reuses this exact clone fixture.)
+    target branch's commit present. Branch-NAME equality alone
+    (``_coord_worktree_head_finding``) passes -- the clone really is on a
+    branch called "coord" -- so before this fold, the fast-forward ran and
+    genuinely succeeded *inside the clone* while the declared branch in
+    ``repo_root`` never moved (a real repro of the postcondition-failure
+    code path -- see the git-common-dir/toplevel check this test now
+    exercises). ``_coord_worktree_foreign_repo_finding`` catches the
+    identity mismatch BEFORE any mutation: the clone's local branch must
+    stay put too, not just ``repo_root``'s declared ref.
     """
     repo = tmp_path / "repo"
-    mission_slug = "postcondition-clone-mission"
+    mission_slug = "foreign-clone-mission"
     _make_strict_ancestor_repo(repo, mission_slug)
 
-    clone = tmp_path / "postcondition-clone"
+    clone = tmp_path / "foreign-clone"
     subprocess.run(
         ["git", "clone", "--quiet", str(repo), str(clone)],
         check=True, capture_output=True, text=True,
@@ -510,20 +508,22 @@ def test_postcondition_fails_when_recorded_worktree_is_a_separate_clone(
     monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
 
     coord_sha_before = _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip()
+    clone_head_before = _git(clone, "rev-parse", "HEAD").stdout.strip()
     target_sha = _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip()
     assert coord_sha_before != target_sha, "fixture precondition: coord must start behind target"
+    assert clone_head_before == coord_sha_before
 
     with pytest.raises(typer.Exit) as exc:
         cd.run_coordination_health(json_output=True, fix=True)
 
     out = capsys.readouterr().out
     assert exc.value.exit_code == 1
-    assert cd._COORD_STALE_FIX_POSTCONDITION_CODE in out
-    assert "postcondition" in out
+    assert cd._COORD_STALE_FIX_BLOCKED_CODE in out
+    assert "does not belong to this repository" in out
     assert "Fast-forwarded" not in out
-    # The DECLARED ref in repo_root never moved -- only the clone did.
+    # Nothing mutated -- neither the declared ref in repo_root NOR the clone.
     assert _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip() == coord_sha_before
-    assert _git(clone, "rev-parse", "HEAD").stdout.strip() == target_sha
+    assert _git(clone, "rev-parse", "HEAD").stdout.strip() == clone_head_before
 
 
 def test_check_and_warn_coord_staleness_no_meta_is_silent(

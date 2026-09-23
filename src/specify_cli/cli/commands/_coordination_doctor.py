@@ -1298,6 +1298,67 @@ def _coord_staleness_fix_blocked_finding(
     )
 
 
+def _git_rev_parse_query(cwd: Path, *args: str) -> str:
+    """Return stripped stdout of ``git -C cwd rev-parse *args``, or ``""``.
+
+    Distinct from :func:`_rev_parse` (which resolves exactly one ``ref`` to
+    a SHA): this passes arbitrary ``rev-parse`` flags (``--git-common-dir``,
+    ``--show-toplevel``) used by :func:`_coord_worktree_foreign_repo_finding`.
+    """
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(cwd), "rev-parse", *args],
+            text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return ""
+
+
+def _coord_worktree_foreign_repo_finding(
+    repo_root: Path, worktree: Path, coord_branch: str,
+) -> DoctorFinding | None:
+    """FR-009 (#4950 second-opinion follow-up): refuse a coord worktree that
+    does not belong to THIS repository.
+
+    Branch-NAME equality alone (:func:`_coord_worktree_head_finding`) passes
+    for a foreign clone -- or a plain directory under ``.worktrees/`` that
+    ``git -C`` silently walks up from to the main checkout -- that happens
+    to have a branch named the same as the coord branch (see the
+    postcondition repro this closes: a recorded worktree that is a separate
+    ``git clone`` genuinely fast-forwards *inside the clone* while the
+    declared branch in ``repo_root`` never moves). Before any mutation,
+    additionally require the worktree's git-common-dir to match
+    ``repo_root``'s (same repository) AND its toplevel to resolve to the
+    worktree path itself (a genuine linked worktree, not a subdirectory git
+    walked up from). A kept-as-a-separate-helper check (complexity ceiling).
+    """
+    repo_common_dir = _git_rev_parse_query(
+        repo_root, "--path-format=absolute", "--git-common-dir",
+    )
+    wt_common_dir = _git_rev_parse_query(
+        worktree, "--path-format=absolute", "--git-common-dir",
+    )
+    wt_toplevel = _git_rev_parse_query(worktree, "--show-toplevel")
+    same_repo = bool(repo_common_dir) and wt_common_dir == repo_common_dir
+    is_worktree_root = bool(wt_toplevel) and Path(wt_toplevel).resolve() == worktree.resolve()
+    if same_repo and is_worktree_root:
+        return None
+    return DoctorFinding(
+        severity="error",
+        message=(
+            f"Refusing to fast-forward coordination branch {coord_branch!r}: "
+            f"coordination worktree {worktree} does not belong to this "
+            "repository (git-common-dir/toplevel mismatch). `--fix` mutates "
+            "nothing."
+        ),
+        next_step=(
+            f"Inspect the worktree manually; then run `{_WORKSPACE_RECOVERY_CMD}` "
+            "to restore."
+        ),
+        error_code=_COORD_STALE_FIX_BLOCKED_CODE,
+    )
+
+
 def _coord_worktree_mismatch_fix_blocked_finding(
     worktree: Path, coord_branch: str, head_finding: DoctorFinding,
 ) -> DoctorFinding:
@@ -1439,6 +1500,10 @@ def _fix_one_mission_coord_staleness(
     worktree = CoordinationWorkspace.worktree_path(repo_root, mission_slug, short)
     if not worktree.exists():
         return None  # no coord worktree to fast-forward into; worktree-health check covers this
+
+    foreign_repo_finding = _coord_worktree_foreign_repo_finding(repo_root, worktree, coord_branch)
+    if foreign_repo_finding is not None:
+        return foreign_repo_finding
 
     head_finding = _coord_worktree_head_finding(worktree, coord_branch)
     if head_finding is not None:
