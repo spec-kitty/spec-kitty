@@ -1,0 +1,135 @@
+{
+  "event_count": 35,
+  "last_event_id": "01M35AZT22SCCGM0VX2E7WZ2YJ",
+  "materialized_at": "2026-09-22T19:55:21.026250+00:00",
+  "mission_number": "",
+  "mission_slug": "interpreter-matrix-3-13-env-and-divergence-01M34HVD",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 6,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M353WPFTX0VV0F7NEN2YMY88",
+      "last_transition_at": "2026-09-22T17:51:19.034884+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001-T003 done: 3.11 baseline captured (20 failed/34661 passed), #3284 confirmed closed, FR-005 issue #4916 opened. Zero source/test changes."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "WP01 diff 14d47ca0d..299c4f651",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 2263940,
+      "shell_pid_created_at": "1790099105.68",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3558BVP78ESF5TZ29MKE13M",
+      "last_transition_at": "2026-09-22T18:15:09.942101+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001-T003 are factually complete and evidenced in commit 7d297368a (RED captured on 3.13, fix applied, GREEN proven on 3.11/3.12/3.13). They cannot be recorded via mark-status: subtask IDs restart at T001 in every WP of this mission and mark-status has no --wp scoping, so it resolves to WP01 and silently mutates the wrong work package. No sanctioned command can mark them; forcing with this reason rather than hand-editing status.json."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "WP02 fix 7d297368a; independent revert-check reproduced 5 errors on 3.13; green on 3.11/3.12/3.13",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 2288489,
+      "shell_pid_created_at": "1790099969.7",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M3565ZAN3XN62P96TKKP7PYC",
+      "last_transition_at": "2026-09-22T18:31:20.149559+00:00",
+      "review_result": {
+        "reference": "WP03 e62d700b8+af011bacd; independent broken-position check confirms test rejects flags-after-pytest; tests/ci collected by ci module on PR",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M359EECC9184EXMYEM69GYPG",
+      "last_transition_at": "2026-09-22T19:28:23.436630+00:00",
+      "review_result": {
+        "reference": "WP04+extension; live revert-check confirms AST hazard test is load-bearing; --no-sync verified on uv 0.11.28",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      }
+    },
+    "WP05": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M35AY86H275HEKVDRX2Q2FM1",
+      "last_transition_at": "2026-09-22T19:54:29.969930+00:00",
+      "review_result": {
+        "reference": "WP05+WP06 joint review; node-ID identity diff independently reconstructed from junitxml: 20 common, 3 divergent, 0 reverse",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      }
+    },
+    "WP06": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M35AZT22SCCGM0VX2E7WZ2YJ",
+      "last_transition_at": "2026-09-22T19:55:21.026250+00:00",
+      "review_result": {
+        "reference": "WP05+WP06 joint review; node-ID identity diff independently reconstructed from junitxml: 20 common, 3 divergent, 0 reverse",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      }
+    },
+    "WP07": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M34RDT1TZHHWSAPEMK8YMXG3",
+      "last_transition_at": "2026-09-22T14:30:56.826103+00:00"
+    }
+  }
+}

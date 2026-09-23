@@ -1,0 +1,178 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    rationale: >
+      Verified live: tracer-tooling-friction.md's SK-64 bullet says the scaffold
+      auto-commit message "lacks a commitlint type" and is "already handled at
+      PR-prep time... not something this mission's ... WPs need to fix
+      mid-mission" — exactly the claim SPEC-KITTY-LEDGER.md's SK-64 entry (lines
+      3797-3876) opens by RETRACTING ("commitlint PASSES that message — by
+      design", verified 0 problems). I then read commitlint.config.cjs directly
+      in this checkout: the `type-enum` rule (lines ~28-45) lists exactly
+      build, charter, chore, ci, docs, feat, fix, lint, perf, plan, refactor,
+      revert, spec, style, test — no `tasks`, no `analyze`. This matches the
+      ledger's still-open, narrower SK-64 finding verbatim (the ledger's own
+      "EXTENSION" section documents `tasks(...)`/`analyze(...)` failing
+      type-enum). The tracer file is silent on this live, still-open gap and
+      instead reassures about the retracted non-issue. Finding is accurate on
+      both halves: the tracer misstates SK-64, and the live gap is real.
+    severity_adjustment: null
+
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    rationale: >
+      Read spec.md in full. C-001 (Constraints table) states blast radius is
+      the workflow file + kernel test-double files "plus whatever call site
+      FR-003's investigation names (scope unknown until found; if found,
+      expected to be a test/fixture shelling out to `uv`, not product code).
+      No other source, product, or migration code is expected to change." Edge
+      Case (a)'s own investigation approach instructs: "Search for `uv`
+      subprocess invocations anywhere under `tests/` and `src/`... (`grep -rn
+      "uv sync\|uv run\|subprocess.*uv " tests/ src/`)" — explicitly searching
+      src/. Checked FR-003's acceptance criteria and Edge Case (a)'s fallback
+      text end to end: neither addresses what happens if the named call site
+      is under src/ rather than tests/ — the fallback clause only covers
+      "timebox exhausted without isolating a culprit," a different case from
+      "culprit found, and it's in product code." This is a genuine, unresolved
+      internal tension between C-001's stated assumption and Edge Case (a)'s
+      actual search scope, left for a WP subagent to resolve silently.
+    severity_adjustment: null
+
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    rationale: >
+      Covers the unioned claim (SPEC-ARCH-001 + duplicate SPEC-VERIFY-005).
+      Verified against spec.md directly: NFR-002 (line 432) makes the blanket
+      "fail loudly ... if the interpreter/extras pinning is ever wrong again"
+      promise. User Story 3 Acceptance Scenario 2 (lines 164-169) chains "the
+      .venv's interpreter identity is unchanged before/after" regression test
+      from "Given the fix from (1)" — i.e., only the named-culprit-found
+      branch. Acceptance Scenario 3 (lines 170-174) and FR-003 option (b)
+      (lines 382-390) — the timebox-exhausted fallback branch — require only
+      that "the fallback mitigation and its rationale are recorded" plus a
+      follow-up issue; no test, assertion, or CI check is named there. I also
+      checked the "Acceptance criteria per FR" section end to end: it covers
+      FR-001 through FR-006 only: none of the three NFRs (including NFR-002)
+      gets a standalone "Checked by" clause of its own — confirmed by reading
+      the full requirements section. NFR-002's enforcement is inferable only
+      via FR-001's rationale text and is silent on FR-003's fallback path,
+      exactly as claimed. The reflexivity section itself names this exact
+      failure mode ("a venv-corruption fix that silently masks rather than
+      surfaces a future re-occurrence") without closing it for the fallback
+      branch. Evidence concretely supports the claim.
+    severity_adjustment: null
+
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    rationale: >
+      Verified directly against .github/workflows/ci-nightly.yml in this
+      checkout: the `nightly-summary` job (lines 334-345) declares `needs:
+      [performance-and-e2e, interpreter-matrix, full-module-matrix]` and its
+      report step echoes `${{ needs.interpreter-matrix.result }}` (line 344).
+      That is a literal programmatic dependency on and read of
+      interpreter-matrix's result, contradicting spec.md's Reflexivity section
+      claim (lines 467-469, verified) that "nothing ... is known to key off
+      that specific job's pass/fail state programmatically." I also ran `grep
+      -rn "interpreter-matrix" --include="*.yml" --include="*.py"` across the
+      repo: the only hits are ci-nightly.yml itself and
+      tests/architectural/test_performance_marker_guard.py (structural YAML
+      test, not runtime-result-based), matching the finding's claim that no
+      other workflow/script branches on the result. The finding's own
+      concession — that nightly-summary runs `if: always()` and never
+      branches/exits non-zero on the result, so the practical conclusion still
+      holds — is also verified from the same file excerpt. The literal
+      universal claim in the spec is falsifiable and false; severity 2 (minor,
+      wording-only) is appropriate as originally scored.
+    severity_adjustment: null
+
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    rationale: >
+      Verified line-for-line against .github/workflows/ci-nightly.yml in this
+      checkout: `grep -n "uv sync --frozen --all-extras --python\|uv run
+      --frozen pytest -m"` returns the sync step at line 205 ("uv sync
+      --frozen --all-extras --python \"${{ matrix.python-version }}\"") and
+      the run step at line 212 ("uv run --frozen pytest -m \"fast or unit\"
+      -q --junitxml=..."), with no --python/--all-extras on the run step. The
+      finding's line citations (205, 212) are exact, not approximate. The
+      claim — that a naive whole-job/whole-file substring check for
+      "--python"/"--all-extras" would be vacuously green today because the
+      sync step already carries both flags — follows directly from this. C-004
+      / FR-001's acceptance criteria do name the target step precisely enough
+      to avoid the trap if followed carefully, but do not explicitly warn
+      against the substring-collision failure mode, exactly as the finding
+      states.
+    severity_adjustment: null
+
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    rationale: >
+      Verified by reading both test files directly and grepping for
+      "parametrize" across tests/kernel/test_no_follow.py and
+      tests/specify_cli/core/test_no_follow.py: zero matches in either file.
+      `test_read_rejects_symlink_planted_before_open` in each file carries
+      only `@pytest.mark.skipif(...)`, no `@pytest.mark.parametrize`. No
+      conftest.py exists in either directory that could inject
+      parametrization. FR-002's acceptance criteria text "1 each -- across 2
+      parametrized dir cases -- in the two test_no_follow.py files" does
+      mischaracterize two separate non-parametrized test files/copies as
+      "parametrized dir cases" of one test. The arithmetic (5 total errors)
+      is unaffected — only the mechanism description is wrong, exactly as the
+      finding states.
+    severity_adjustment: null
+
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    rationale: >
+      Verified charter.md's ATDD-First Discipline section (binding per C-011,
+      lines ~622-635 as cited): "The ATDD test is committed as a separate
+      commit (often the first commit of the lane) BEFORE any implementation
+      commits. The reviewer verifies red→green: the test was RED on the WP's
+      planning_base_branch AND GREEN on the WP's final commit." — two distinct
+      obligations as the finding describes. Confirmed FR-002's target tests
+      (test_naive_second_open_of_a_held_lock_raises_under_simulation in
+      tests/kernel/test_lock_parity.py, and
+      test_read_rejects_symlink_planted_before_open in both test_no_follow.py
+      copies) already exist unmodified — `_WindowsMandatoryLockSimulator.
+      wrap_open`'s current `_open` signature (`def _open(path: str, flags:
+      int, mode: int = 0o777) -> int:`, tests/kernel/test_lock_parity.py:214)
+      has no dir_fd parameter, confirming these are pre-existing failing tests
+      the WP does not need to write or modify. C-004's parenthetical
+      substitutes "the WP records their current-3.13 RED" for a git commit
+      obligation, which is a materially different artifact from "committed as
+      a separate commit ... BEFORE any implementation commit." This is a
+      real, literal reading gap in the spec's own text against the charter's
+      binding language, not a misquote or an already-resolved ambiguity.
+    severity_adjustment: null
+
+  - id: SPEC-VERIFY-004
+    verdict: confirmed
+    rationale: >
+      The cited "readiness report" is an external artifact (from the
+      spec-authoring/triage pass) not present as a tracked file in this
+      checkout, so I could not verify the finding's exact "lines 113-118"
+      citation directly. However, I could and did verify the substance two
+      ways: (1) spec.md's own Edge Case (a) paraphrases the same source
+      verbatim -- "the readiness report's own suspicion: 'plausibly something
+      in the upgrade/skill-installer families that legitimately shells out to
+      `uv` while testing spec-kitty's own bootstrap tooling'" -- corroborating
+      that the underlying investigation did not isolate a deterministic
+      culprit; and (2) FR-003's acceptance criteria text itself, read directly
+      from spec.md: "Checked by: re-running the exact reproduction that first
+      surfaced the hazard ... and confirming it no longer occurs" is indeed
+      the named check for option (a), and User Story 3's own Independent Test
+      section describes the original repro as accidental ("a
+      multiprocessing-spawn child reporting Python 3.11... the exact signature
+      already captured in the readiness report"). The finding's core point
+      stands on the spec's own text: a single non-reproduction after the fix,
+      of a hazard whose trigger conditions were never deterministically
+      pinned down, is weaker revert-discipline than a targeted assertion on
+      the actual fixed call site. Confirmed, with the caveat that the external
+      readiness-report line numbers themselves are unverifiable from this
+      checkout.
+    severity_adjustment: null

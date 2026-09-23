@@ -1,0 +1,89 @@
+# review-findings/v1 (merged) — R2 mechanical merge of tasks-{decomp,seq,verify}.findings.yaml
+schema: review-findings/v1
+complete: true
+phase: tasks
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+note: >
+  R2 merge, orchestrator's own hands, no session. Sources: tasks-decomp.findings.yaml (1
+  finding), tasks-seq.findings.yaml (0 findings), tasks-verify.findings.yaml (1 finding).
+  No deduplication was needed — the two findings cite disjoint artifact sections and make
+  unrelated claims (a command-syntax defect vs. a missing dependency edge). Ids and content
+  kept verbatim from source files; nothing dropped or renumbered.
+findings:
+  - id: TASKS-DECOMP-001
+    source: decomp
+    lens: concrete-enough-to-implement
+    severity: 4
+    title: "WP03 T005 and WP07 T001's worked local-repro command places uv run's own flags after the pytest subcommand, where they are parsed as pytest arguments and fail — verified live"
+    evidence:
+      - artifact: "tasks/WP03-uv-run-env-pinning.md § Subtask T005: Local reproduction of the exact command pair"
+      - artifact: "tasks/WP07-final-verification.md § Subtask T001: Final local reproduction (explicitly 'same command as WP03's T005')"
+      - code: ".github/workflows/ci-nightly.yml:212 (the uv run step this WP03 fix targets: `uv run --frozen pytest -m \"fast or unit\" -q --junitxml=...`)"
+    claim: >
+      Both WP03's T005 and WP07's T001 give this exact worked command as the required local
+      reproduction of the post-fix uv run step: `uv run --frozen pytest -m "fast or unit" -q
+      --python 3.13 --all-extras --junitxml=out/reports/xunit-nightly-interpreter-3.13.xml`.
+      This places `--python 3.13 --all-extras` AFTER the `pytest` subcommand. `uv run`'s own
+      CLI grammar is `uv run [OPTIONS] [COMMAND]...` — once the command word (`pytest`)
+      appears, every subsequent token is passed through to that command, not consumed by
+      `uv run`. Verified live in this checkout: `uv run pytest -m "fast or unit" -q --python
+      3.13 --all-extras --collect-only tests/ci/` fails with `pytest: error: unrecognized
+      arguments: --python --all-extras tests/ci/`, while placing the same flags BEFORE the
+      command word (`uv run --frozen --python 3.13 --all-extras pytest --collect-only -q
+      tests/ci/`) collects cleanly. Both WPs frame this command as mirroring "ci-nightly.yml's
+      own commands byte-for-byte" post-fix, and WP03's own T003 (the subtask that actually
+      edits `ci-nightly.yml`'s `uv run` step) gives no exact resulting `run:` string — only
+      "add ... to this uv run invocation ... preserve the existing ... arguments unchanged."
+      An implementer who anchors on the only two concrete worked examples this mission
+      provides (T005/T001) risks landing the identical wrong placement in the actual
+      workflow YAML fix (FR-001, the mission's core defect), which would make the
+      `interpreter-matrix` job's `uv run` step fail outright with a pytest argument error
+      instead of running under 3.13 with the test extra — the opposite of what FR-001
+      requires. This is the same defect duplicated verbatim across two WPs, not two
+      independent mistakes.
+    remediation: >
+      In WP03's T003, give the exact resulting `run:` string for the fixed `uv run` step
+      (flags placed between `uv run --frozen` and `pytest`, e.g. `uv run --frozen --python
+      "${{ matrix.python-version }}" --all-extras pytest -m "fast or unit" -q
+      --junitxml="out/reports/xunit-nightly-interpreter-${{ matrix.python-version }}.xml"`),
+      not just prose describing which flags to add. Correct the worked command in WP03's T005
+      and WP07's T001 to place `--python 3.13 --all-extras` immediately after `uv run
+      --frozen` and before `pytest`. Re-verify both corrected commands live against this
+      checkout before considering the fix applied.
+  - id: TASKS-VERIFY-001
+    source: verify
+    lens: Baseline captured before the first change
+    severity: 3
+    title: WP01's "before any implementation change lands" baseline promise is not enforced by any dependency edge, so parallel/out-of-order WP dispatch can violate it
+    evidence:
+      - artifact: "tasks/WP01-baseline-capture-and-fr005-issue.md § Objective"
+      - artifact: "tasks/WP01-baseline-capture-and-fr005-issue.md § Context"
+      - artifact: "wps.yaml WP01.dependencies / WP02.dependencies / WP03.dependencies / WP04.dependencies (all `[]`)"
+    claim: >
+      WP01's Objective states it must "establish the recorded, falsifiable Python 3.11 `fast
+      or unit` baseline before any implementation change lands in this mission," and its own
+      Context section admits: "there is no dependency edge enforcing that in `wps.yaml`;
+      sequence it first as a matter of practice." `wps.yaml` confirms WP01, WP02, WP03, and
+      WP04 all carry `dependencies: []` — nothing in the machine-readable WP graph prevents
+      the mission-implement runtime (which this repo's own practice explicitly supports
+      dispatching independent WPs in parallel across worktrees, per the "one checkout, many
+      agents" discipline) from running WP02/WP03/WP04 to completion and merging them into
+      `issue-4866-interpreter-matrix-3-13` before WP01 ever branches off to capture its
+      baseline. If that ordering occurs, WP01's checkout already contains this mission's own
+      changes, so its "baseline" evidence file would no longer be a genuine pre-mission
+      reference point — undermining the entire justification WP01 exists for (a falsifiable
+      comparison point for WP05's re-measurement and for the charter's Pre-existing Failure
+      Reporting Rule). The WP's own Risks section acknowledges this exact scenario ("the only
+      risk is skipping this WP, or running it after other WPs have already changed test
+      behavior") but the mitigation offered is prose discipline only, not a structural
+      guarantee.
+    remediation: >
+      Add explicit `dependencies: [WP01]` edges for WP02, WP03, and WP04 in `wps.yaml` (and
+      mirror in each WP's frontmatter and in `tasks.md`'s Dependencies fields), so the
+      mission-implement runtime cannot dispatch any implementation WP before WP01's baseline
+      evidence file exists — or, if a genuinely parallel dispatch is desired for schedule
+      reasons, have WP01 assert and record (in `evidence-baseline-3.11.md`) that its run was
+      captured against a checkout containing zero diff versus this mission's
+      `planning_base_branch` tip, so a late-running WP01 fails loudly instead of silently
+      passing off contaminated data as a clean baseline.
+findings_count: 2

@@ -1,0 +1,90 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: SPEC-GOV-001
+    lens: Ledger
+    severity: 3
+    title: "tracer-tooling-friction.md misstates SK-64 (cites the retracted claim, omits the live type-enum gap that will actually bite this mission's own phase commits)"
+    evidence:
+      - artifact: "tracer-tooling-friction.md § 'Known friction carried in from the ledger'"
+      - artifact: "SPEC-KITTY-LEDGER.md § SK-64 (lines 3797-3876)"
+      - code: "commitlint.config.cjs:29-45 (current main, this checkout)"
+    claim: >
+      The tracer's SK-64 bullet says "the scaffold auto-commit message lacks a
+      commitlint type (uses 'feature' wording). Already handled at PR-prep
+      time... not something this mission's ... WPs need to fix mid-mission."
+      That is exactly the claim SPEC-KITTY-LEDGER.md's SK-64 entry itself
+      opens by RETRACTING: running commitlint against the "Add meta for
+      feature <slug>"-style scaffold commit shows 0 problems (an explicit
+      ignore regex covers it), and the Terminology Canon gate never lints
+      commit messages at all. The ledger's real, still-open SK-64 finding is
+      a different, narrower defect: commitlint's `type-enum` (verified live
+      in this checkout's commitlint.config.cjs, current main) still lists
+      only `build, charter, chore, ci, docs, feat, fix, lint, perf, plan,
+      refactor, revert, spec, style, test` — no `tasks`, no `analyze`. A
+      mission using `tasks(...)` or `analyze(...)` as a commit type (as this
+      mission's own plan/tasks/analyze phase commits are likely to, per the
+      sk-design adversarial-review-trail commit convention documented
+      elsewhere in the ledger) will fail commitlint at PR-prep, exactly the
+      class of surprise the tracer file exists to prevent. The tracer
+      currently reassures a later reader about a non-issue and is silent on
+      the one that is still live and directly relevant to this mission's own
+      commit history.
+    remediation: >
+      Correct the SK-64 bullet in tracer-tooling-friction.md to reflect the
+      ledger's actual (retracted-and-replaced) finding: scaffold-style
+      "Add meta for feature <slug>" commits already pass commitlint cleanly;
+      the live risk is the `type-enum` gap for `tasks(...)`/`analyze(...)`
+      commit-type prefixes. Add a watch-item instructing implementation/PR-
+      prep WPs to run `npx --no-install commitlint --from main --to HEAD`
+      before PR-prep (as SK-64's own "practical guidance" section already
+      recommends) and to use `docs(...)`/`chore(...)` rather than
+      `tasks(...)`/`analyze(...)` for this mission's own phase-review commits
+      if any are emitted.
+
+  - id: SPEC-GOV-002
+    lens: "MISSION-DERIVED (Scope-creep guard)"
+    severity: 4
+    title: "C-001's blast-radius claim ('expected to be a test/fixture ... not product code') is contradicted by Edge Case (a)'s own investigation scope, and neither names a disposition if the FR-003 culprit is in src/"
+    evidence:
+      - artifact: "spec.md § C-001 (Constraints table)"
+      - artifact: "spec.md § Edge Case (a)"
+      - artifact: "spec.md § FR-003 acceptance criteria"
+    claim: >
+      C-001 states the mission's blast radius is the workflow file plus the
+      kernel test-double files, "plus whatever call site FR-003's
+      investigation names (scope unknown until found; if found, expected to
+      be a test/fixture shelling out to `uv`, not product code). No other
+      source, product, or migration code is expected to change." But Edge
+      Case (a)'s own investigation approach explicitly instructs searching
+      BOTH `tests/` and `src/` for the offending `uv` subprocess call
+      ("grep -rn 'uv sync\|uv run\|subprocess.*uv ' tests/ src/") — i.e. the
+      spec itself anticipates the culprit could be in product code, directly
+      undercutting the "not product code" assumption baked into C-001's
+      scope claim two sections earlier. Neither C-001, Edge Case (a)'s
+      resolution/fallback text, nor FR-003's acceptance criteria ("a named,
+      fixed call site with a regression test...") state what the WP must do
+      if the named call site turns out to live in `src/` rather than
+      `tests/`: fix it in place (silently absorbing a product-code change
+      into a mission whose own C-001 says "no product code... expected to
+      change," and whose C-002 explicitly forbids expanding into #3189's
+      broader above-3.12 burn-down), treat it as the Edge-Case-(a) timebox-
+      exhausted fallback regardless of whether it was actually found, or
+      escalate to the operator before touching it. This is exactly the kind
+      of self-authorized scope decision a WP subagent should not be left to
+      make silently mid-implementation.
+    remediation: >
+      Add an explicit disposition to Edge Case (a) (or a new sub-bullet) for
+      the product-code-culprit case: e.g. "if the named call site is under
+      `src/` rather than `tests/`, treat it the same as a timebox-exhausted
+      finding — do not fix product code in this mission; apply the
+      UV_PROJECT_ENVIRONMENT interim mitigation at the test-harness level and
+      file the product-code call site as a follow-up issue with the evidence
+      gathered, cross-linked from this mission's PR." This keeps C-001's
+      blast-radius claim consistent with Edge Case (a)'s actual search scope
+      and removes the ambiguity before an implementation WP has to invent an
+      answer under time pressure.

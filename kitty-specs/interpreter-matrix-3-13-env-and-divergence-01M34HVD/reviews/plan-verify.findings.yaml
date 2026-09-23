@@ -1,0 +1,47 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Gates (live-verification)
+    severity: 2
+    title: "Gate table is silent on three other live, PR-triggered workflows (ci-windows.yml, docs-pages.yml, check-spec-kitty-events-alignment.yml) without stating why they don't apply"
+    evidence:
+      - artifact: "plan.md § 'The gate set for this mission'"
+      - code: ".github/workflows/ci-windows.yml:1-30 (paths-filter list; none of tests/kernel/test_lock_parity.py, tests/kernel/test_no_follow.py, tests/specify_cli/core/test_no_follow.py, or .github/workflows/ci-nightly.yml appear in it, and grep for `windows_ci` marker in those three files returns zero hits)"
+      - code: ".github/workflows/docs-pages.yml:1-13 (on: push only, branches [main, 2.x] — no pull_request trigger, so it cannot gate this PR even though its paths filter includes kitty-specs/**, which this mission's own spec.md/plan.md/tasks/* live under)"
+      - code: ".github/workflows/check-spec-kitty-events-alignment.yml:1-13 (on: pull_request, paths limited to pyproject.toml/uv.lock/.kittify/release/**/scripts/release/**, none of which this mission's diff touches)"
+    claim: >
+      AGENTS.md/CLAUDE.md's "Branches and CI" section explicitly names
+      ci-windows.yml, docs-pages.yml, and check-spec-kitty-events-alignment.yml
+      as "also live" alongside the workflows the plan's gate table does cover
+      (ci-router.yml, ci-quality.yml, ci-aggregate.yml, sonar.yml). The gate
+      table omits all three with no reasoning line for any of them, even
+      though the lens instruction for this table is "the plan states which
+      enforced CI gates apply ... and why any omitted one does not apply."
+      Independent verification (this review) confirms all three genuinely do
+      not apply to this PR's diff — ci-windows.yml's paths-filter and
+      windows_ci marker set don't cover the touched test files or workflow
+      file; docs-pages.yml has no pull_request trigger at all; and
+      check-spec-kitty-events-alignment.yml's path filter is
+      pyproject.toml/uv.lock-scoped and this mission touches neither. So the
+      omission happens to be harmless here, but the plan itself never states
+      that reasoning — it is a gap a future reader (or a less-careful
+      self-report) could not distinguish from an actual missed gate without
+      re-deriving it themselves, which is exactly the "confident-but-wrong
+      claims about its own tooling" failure class this mission exists to
+      close. Per the severity rubric this is a small gap where the
+      implementation still comes out right (verified above) but the plan's
+      self-audit is incomplete, not merely stylistic — hence minor (2), not
+      nit (1).
+    remediation: >
+      Add one row (or a short trailing note) to "The gate set for this
+      mission" table covering ci-windows.yml, docs-pages.yml, and
+      check-spec-kitty-events-alignment.yml, stating for each: N/A to this
+      diff, with the one-line reason (no touched-file overlap with the
+      windows_ci path filter / marker set; no pull_request trigger; no
+      pyproject.toml/uv.lock touch respectively) — mirroring the reasoning
+      style already used for the other N/A rows in the same table.

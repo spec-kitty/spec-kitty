@@ -1,0 +1,52 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >
+      plan.md now has 7 IC headings total (`grep -c "^### IC-0" plan.md` = 7,
+      IC-01..IC-07), and the IC-01 sequencing bullet at plan.md:302-303 reads
+      "independent of the other six concerns" — six siblings (IC-02..IC-07)
+      correctly matches total-minus-one; commit fd4e390ed's stated
+      "five" -> "six" change is present and no other prose count of ICs
+      remains stale (full-file grep for "other <number> concerns" finds
+      only this one instance, now correct).
+
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: >
+      plan.md:416 ("Verification route" point 2) now reads "not just the
+      three underlying fixes," matching IC-07's own "Relevant requirements"
+      bullet (plan.md:732-733, "IC-02/IC-03/IC-04's fixes") and spec.md's
+      FR-006 language (spec.md:369, "after all three in-scope fixes land";
+      spec.md:453-454, "FR-001/002/003 land") — the three-way count is now
+      consistent across plan.md and spec.md.
+
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: >
+      tracer-design-decisions.md's "Plan-authoring decisions" table
+      (lines 50-57) is now a single contiguous block — header, separator,
+      and all 6 original data rows (Plan template shape, Venv-corruption
+      spike timebox, FR-003(b) fallback regression check's home,
+      Coverage-floored shards gate framing, Bandit/pip-audit/commitlint/
+      markdownlint gate status, #3283 framing) — with the "Correction to
+      the 'Plan template shape' row above" section now starting at line 59,
+      strictly after the complete table; the correction note's content is
+      unchanged and remains accurate against plan.md's current "Tooling
+      drift flagged" section (plan.md:751-798) and its Standing Order 6
+      bullet (plan.md:126-139), which both carry the same override-based
+      diagnosis, and against tracer-tooling-friction.md's own parallel
+      correction note (lines 118-135).
+
+  - id: PLAN-FRESH2-003
+    status: resolved
+    reason: >
+      The "Kernel coverage floor (>=90%)" heading is at plan.md:259, and
+      IC-02's Risks bullet is at plan.md:664-666 and now reads "(see
+      'Kernel coverage floor' above)" — "above" is correct since 259 < 664;
+      confirmed no other "below"/"above" cross-reference to that section
+      is now misdirected (the other reference to the same section, at
+      plan.md:252, already correctly said "below" since it precedes the
+      section heading at 259, and was untouched by this fix).

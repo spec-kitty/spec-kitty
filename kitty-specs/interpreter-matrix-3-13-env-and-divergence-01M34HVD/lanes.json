@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "mission_slug": "interpreter-matrix-3-13-env-and-divergence-01M34HVD",
+  "mission_id": "01M34HVDRBAZX4W37YE49G8RMF",
+  "mission_branch": "kitty/mission-interpreter-matrix-3-13-env-and-divergence-01M34HVD",
+  "target_branch": "issue-4866-interpreter-matrix-3-13",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/kernel/test_lock_parity.py",
+        "tests/kernel/test_no_follow.py",
+        "tests/specify_cli/core/test_no_follow.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-nightly.yml",
+        "tests/ci/test_interpreter_matrix_env_pinning.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/specify_cli/skills/**",
+        "tests/specify_cli/upgrade/**",
+        "tests/upgrade/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP05",
+        "WP06",
+        "WP07"
+      ],
+      "write_scope": [
+        "kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/evidence-baseline-3.11.md",
+        "kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/evidence-final-verification.md",
+        "kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/evidence-remeasurement-3.13.md",
+        "kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/evidence-residual-disposition.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-22T15:21:59.089564+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01",
+    "WP05",
+    "WP06",
+    "WP07"
+  ],
+  "planning_commit_sha": "9b9d7234fe9fb89f7e719f62f29b2225f76f153e"
+}

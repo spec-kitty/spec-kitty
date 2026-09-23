@@ -1,0 +1,376 @@
+# review-findings/v1 — merged (R2, orchestrator, mechanical dedup only).
+# Source files: spec-gov.findings.yaml, spec-arch.findings.yaml, spec-verify.findings.yaml
+# Dedup rule applied once: SPEC-ARCH-001 and SPEC-VERIFY-005 cite the same artifact
+# section (NFR-002 + Edge Case (a) / FR-003(b) fallback) and make substantially the same
+# claim (the fallback branch has no enforcement/detection mechanism for NFR-002's
+# fail-loudly guarantee). Merged under SPEC-ARCH-001 (higher severity, 4 vs 2), evidence
+# unioned. Original id SPEC-VERIFY-005 preserved below as `duplicate_of` for the audit
+# trail — no other findings overlapped. All other ids are untouched, unrenumbered.
+schema: review-findings/v1
+complete: true
+phase: spec
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: SPEC-GOV-001
+    source: gov
+    lens: Ledger
+    severity: 3
+    title: "tracer-tooling-friction.md misstates SK-64 (cites the retracted claim, omits the live type-enum gap that will actually bite this mission's own phase commits)"
+    evidence:
+      - artifact: "tracer-tooling-friction.md § 'Known friction carried in from the ledger'"
+      - artifact: "SPEC-KITTY-LEDGER.md § SK-64 (lines 3797-3876)"
+      - code: "commitlint.config.cjs:29-45 (current main, this checkout)"
+    claim: >
+      The tracer's SK-64 bullet says "the scaffold auto-commit message lacks a
+      commitlint type (uses 'feature' wording). Already handled at PR-prep
+      time... not something this mission's ... WPs need to fix mid-mission."
+      That is exactly the claim SPEC-KITTY-LEDGER.md's SK-64 entry itself
+      opens by RETRACTING: running commitlint against the "Add meta for
+      feature <slug>"-style scaffold commit shows 0 problems (an explicit
+      ignore regex covers it), and the Terminology Canon gate never lints
+      commit messages at all. The ledger's real, still-open SK-64 finding is
+      a different, narrower defect: commitlint's `type-enum` (verified live
+      in this checkout's commitlint.config.cjs, current main) still lists
+      only `build, charter, chore, ci, docs, feat, fix, lint, perf, plan,
+      refactor, revert, spec, style, test` — no `tasks`, no `analyze`. A
+      mission using `tasks(...)` or `analyze(...)` as a commit type will fail
+      commitlint at PR-prep, exactly the class of surprise the tracer file
+      exists to prevent. The tracer currently reassures a later reader about
+      a non-issue and is silent on the one that is still live and directly
+      relevant to this mission's own commit history.
+    remediation: >
+      Correct the SK-64 bullet in tracer-tooling-friction.md to reflect the
+      ledger's actual (retracted-and-replaced) finding: scaffold-style
+      "Add meta for feature <slug>" commits already pass commitlint cleanly;
+      the live risk is the `type-enum` gap for `tasks(...)`/`analyze(...)`
+      commit-type prefixes. Add a watch-item instructing implementation/PR-
+      prep WPs to run `npx --no-install commitlint --from main --to HEAD`
+      before PR-prep and to use `docs(...)`/`chore(...)` rather than
+      `tasks(...)`/`analyze(...)` for this mission's own phase-review commits
+      if any are emitted.
+
+  - id: SPEC-GOV-002
+    source: gov
+    lens: "MISSION-DERIVED (Scope-creep guard)"
+    severity: 4
+    title: "C-001's blast-radius claim ('expected to be a test/fixture ... not product code') is contradicted by Edge Case (a)'s own investigation scope, and neither names a disposition if the FR-003 culprit is in src/"
+    evidence:
+      - artifact: "spec.md § C-001 (Constraints table)"
+      - artifact: "spec.md § Edge Case (a)"
+      - artifact: "spec.md § FR-003 acceptance criteria"
+    claim: >
+      C-001 states the mission's blast radius is the workflow file plus the
+      kernel test-double files, "plus whatever call site FR-003's
+      investigation names (scope unknown until found; if found, expected to
+      be a test/fixture shelling out to `uv`, not product code). No other
+      source, product, or migration code is expected to change." But Edge
+      Case (a)'s own investigation approach explicitly instructs searching
+      BOTH `tests/` and `src/` for the offending `uv` subprocess call
+      ("grep -rn 'uv sync\|uv run\|subprocess.*uv ' tests/ src/") — i.e. the
+      spec itself anticipates the culprit could be in product code, directly
+      undercutting the "not product code" assumption baked into C-001's
+      scope claim two sections earlier. Neither C-001, Edge Case (a)'s
+      resolution/fallback text, nor FR-003's acceptance criteria state what
+      the WP must do if the named call site turns out to live in `src/`
+      rather than `tests/`: fix it in place (silently absorbing a
+      product-code change into a mission whose own C-001 says "no product
+      code... expected to change," and whose C-002 explicitly forbids
+      expanding into #3189's broader above-3.12 burn-down), treat it as the
+      Edge-Case-(a) timebox-exhausted fallback regardless of whether it was
+      actually found, or escalate to the operator before touching it. This
+      is exactly the kind of self-authorized scope decision a WP subagent
+      should not be left to make silently mid-implementation.
+    remediation: >
+      Add an explicit disposition to Edge Case (a) (or a new sub-bullet) for
+      the product-code-culprit case: e.g. "if the named call site is under
+      `src/` rather than `tests/`, treat it the same as a timebox-exhausted
+      finding — do not fix product code in this mission; apply the
+      UV_PROJECT_ENVIRONMENT interim mitigation at the test-harness level and
+      file the product-code call site as a follow-up issue with the evidence
+      gathered, cross-linked from this mission's PR." This keeps C-001's
+      blast-radius claim consistent with Edge Case (a)'s actual search scope
+      and removes the ambiguity before an implementation WP has to invent an
+      answer under time pressure.
+
+  - id: SPEC-ARCH-001
+    source: arch
+    duplicate_of: SPEC-VERIFY-005
+    lens: silent-success-completeness (NFR-002, mission-derived)
+    severity: 4
+    title: NFR-002's "fail loudly" guarantee is not operationalized for the FR-003(b) fallback path — no enforcement mechanism named, and NFR-002 has no standalone falsifiable check of its own
+    evidence:
+      - artifact: "spec.md § NFR-002 (line 432): \"The uv run step fix and any venv-corruption fix must fail loudly ... not silently re-sync to an unexpected interpreter the way the current defect does.\""
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 2 (lines 164-169): the regression test (\"a new regression test asserting the .venv's interpreter identity is unchanged before/after the suite run\") is explicitly chained from Acceptance Scenario 1 (\"Given the fix from (1)\") — i.e. only required when a named culprit call site is found and fixed."
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 3 (lines 170-174) and § FR-003 AC option (b) (lines 382-390): the fallback path (timebox exhausted, UV_PROJECT_ENVIRONMENT pinned per-interpreter) requires only \"the fallback mitigation and its rationale are recorded\" plus a follow-up issue — no regression test, assertion, or CI check is named for this branch."
+      - artifact: "spec.md § Edge Case (a) (lines 247-257): describes the UV_PROJECT_ENVIRONMENT fallback mitigation with no accompanying verification mechanism for future re-occurrences in a *different* nested `uv` call."
+      - artifact: "spec.md § Edge Case (a) fallback mitigation (lines 247-257) [from SPEC-VERIFY-005]: every FR carries an explicit 'Checked by:' clause in the Acceptance criteria per FR section; NFRs do not — NFR-002's enforcement is only inferable indirectly via FR-001's acceptance-criteria rationale text, and is not addressed at all for FR-003's fallback path."
+    claim: >
+      NFR-002 makes a blanket promise ("any venv-corruption fix ... must fail
+      loudly ... if the interpreter/extras pinning is ever wrong again") but
+      the spec's own acceptance-criteria structure only wires a concrete
+      enforcement mechanism (the "regression test asserting the .venv's
+      interpreter identity is unchanged before/after the suite run") to the
+      root-cause-found branch, option (a) of FR-003. If the investigation
+      timebox in Edge Case (a) is exhausted and the fallback mitigation
+      (pinning UV_PROJECT_ENVIRONMENT per-interpreter) is applied instead,
+      nothing in the spec requires any check, assertion, or test that would
+      catch a *future* re-occurrence of this exact bug class in a different
+      nested `uv` call the investigation didn't find or rule out. This is
+      also the exact reflexive risk the spec itself names in the Reflexivity
+      section ("a venv-corruption fix that silently masks rather than
+      surfaces a future re-occurrence") without closing it for the one
+      branch (the fallback) where it is most likely to matter, since by
+      definition the fallback is chosen precisely when the culprit was NOT
+      found. Compounding this: unlike every FR, NFR-002 has no dedicated,
+      standalone "Checked by" clause of its own in the "Acceptance criteria
+      per FR" section — its enforcement is only inferable indirectly from
+      FR-001's rationale text, and is silent on FR-003's fallback path
+      entirely, meaning NFR-002 as written is not independently falsifiable.
+    remediation: >
+      Extend FR-003 option (b)'s acceptance criteria (and User Story 3
+      Acceptance Scenario 3) to require a lightweight regression check even
+      in the fallback branch: e.g. a test or CI step that asserts the pinned
+      per-interpreter UV_PROJECT_ENVIRONMENT venv's interpreter identity
+      (and installed-extras set) is unchanged before/after a `fast or unit` /
+      `-n auto` run — the same assertion shape already required for option
+      (a), just applied against the pinned venv rather than a fixed call
+      site. Additionally, add a standalone "Checked by" for NFR-002 itself —
+      e.g. a negative-path check that temporarily removes/breaks a flag or
+      the UV_PROJECT_ENVIRONMENT pin and confirms the job/test run now fails
+      loudly (non-zero exit or an explicit, visible warning) rather than
+      silently succeeding against the wrong interpreter/extras — covering
+      both the FR-001 flags fix and whichever FR-003 mitigation is chosen.
+      Alternatively, if extending the fallback branch's enforcement is judged
+      out of scope for this mission, NFR-002 should be narrowed to state
+      explicitly that it is guaranteed only for the root-cause-fixed branch,
+      so a later reader does not read it as covering the fallback too.
+
+  - id: SPEC-ARCH-002
+    source: arch
+    lens: reflexivity
+    severity: 2
+    title: Reflexivity section's "nothing keys off interpreter-matrix's pass/fail state programmatically" is not quite true — ci-nightly.yml's own nightly-summary job does
+    evidence:
+      - artifact: "spec.md § Reflexivity (lines 467-469): \"nothing in the repository is known to key off that specific job's pass/fail state programmatically (it is a human/operator-facing signal, not a merge gate — ci-nightly.yml is not in any PR's required-checks path)\""
+      - code: ".github/workflows/ci-nightly.yml:337 — nightly-summary: needs: [performance-and-e2e, interpreter-matrix, full-module-matrix]"
+      - code: ".github/workflows/ci-nightly.yml:344 — echo \"interpreter-matrix: ${{ needs.interpreter-matrix.result }}\""
+    claim: >
+      Direct inspection of .github/workflows/ci-nightly.yml shows the
+      nightly-summary job (same file, lines 330-345) declares
+      `interpreter-matrix` in its `needs:` list and reads
+      `needs.interpreter-matrix.result` in a report step. That is a
+      programmatic dependency on — and read of — interpreter-matrix's
+      pass/fail state, contradicting the literal claim "nothing ... is known
+      to key off that specific job's pass/fail state programmatically." In
+      practice the consequence is benign: nightly-summary runs `if:
+      always()`, never branches or exits non-zero on the result, and is not
+      itself wired into any PR-required-checks path (confirmed: no other
+      workflow or script references `interpreter-matrix` by name outside
+      ci-nightly.yml itself and the static-YAML architectural test
+      tests/architectural/test_performance_marker_guard.py, which asserts
+      the job's *structure*, not its runtime result). So the spec's
+      substantive conclusion (not a merge gate, doesn't disrupt other
+      missions) still holds — but the specific universal claim as worded is
+      falsifiable and false.
+    remediation: >
+      Tighten the Reflexivity claim's wording to the true, narrower
+      statement: "no job fails, blocks, or branches on interpreter-matrix's
+      result; the only reader is ci-nightly.yml's own nightly-summary job,
+      which echoes the result for operator visibility under `if: always()`
+      and does not gate on it." This keeps the conclusion (safe to fix,
+      nothing downstream breaks) but removes the falsifiable overreach.
+
+  - id: SPEC-VERIFY-001
+    source: verify
+    lens: ATDD test-shape concreteness (C-004)
+    severity: 3
+    title: >-
+      FR-001's YAML test-shape description doesn't warn that the sync step in
+      the SAME job already carries --python/--all-extras, a vacuous-test trap
+      for a naively-scoped RED check
+    evidence:
+      - artifact: "spec.md § C-004 (line 442) and § FR-001 acceptance criteria (lines 357-368)"
+      - code: ".github/workflows/ci-nightly.yml:205 (uv sync step: already has --python and --all-extras)"
+      - code: ".github/workflows/ci-nightly.yml:212 (uv run step: the actual target, currently lacks both flags)"
+    claim: >-
+      Verified directly against the live workflow: the interpreter-matrix
+      job's `uv sync` step (line 205) already carries both `--python` and
+      `--all-extras`; only the `uv run` step (line 212) lacks them. C-004 does
+      partially disambiguate by naming the target step "(the one invoking
+      pytest)", which is sufficient if an implementer scopes the test
+      precisely to that one step's `run:` string. But neither C-004 nor
+      FR-001's acceptance criteria explicitly warns that a less careful
+      implementation -- e.g. a whole-job or whole-file text/substring search
+      for "--python" and "--all-extras" instead of isolating the specific
+      pytest-invoking step -- would be vacuously GREEN today, before any fix,
+      because the sync step's flags already satisfy that substring check. A
+      test built that way would violate C-011's RED-on-planning_base_branch
+      requirement without the implementer necessarily realizing why the "RED
+      check" they expect to see doesn't materialize. (Verified: exactly one
+      `uv run` step exists in the interpreter-matrix job, so job/step
+      selection itself is unambiguous once correctly scoped -- the risk is
+      specifically the sync-vs-run substring collision, not step-count
+      ambiguity.)
+    remediation: >-
+      Add one explicit sentence to C-004 / FR-001's acceptance criteria:
+      "the test must assert the flags on the pytest-invoking step's own
+      `run:` string specifically, not on the job's or file's full YAML text
+      -- the preceding `uv sync` step at line ~205 already carries
+      `--python`/`--all-extras`, so a whole-text match would be vacuously
+      green even before the fix lands."
+
+  - id: SPEC-VERIFY-002
+    source: verify
+    lens: ATDD test-shape concreteness (C-004)
+    severity: 3
+    title: >-
+      "2 parametrized dir cases" for the test_no_follow.py failures is
+      factually wrong -- neither test is parametrized; they are two separate,
+      non-parametrized test files
+    evidence:
+      - artifact: "spec.md § FR-002 acceptance criteria (lines 374-381) and § C-004 (line 442)"
+      - code: "tests/kernel/test_no_follow.py:66 (test_read_rejects_symlink_planted_before_open, no @pytest.mark.parametrize)"
+      - code: "tests/specify_cli/core/test_no_follow.py:56 (same test name, also no @pytest.mark.parametrize)"
+    claim: >-
+      Verified by reading both files in full and grepping for "parametrize"
+      across both test files and their package-level conftest.py locations
+      (none exists in tests/kernel/ or tests/specify_cli/core/): neither
+      copy of `test_read_rejects_symlink_planted_before_open` carries a
+      `@pytest.mark.parametrize` decorator, and there is no
+      `pytest_generate_tests` hook or fixture-level parametrization
+      affecting either file. Each is a single, unparametrized test function.
+      The spec's "1 each -- across 2 parametrized dir cases -- in the two
+      test_no_follow.py files" describes the two *files*
+      (tests/kernel/ vs tests/specify_cli/core/) as if they were
+      pytest-parametrize instances of one test, which they are not -- they
+      are two independent copies of the same test name in different modules
+      (the kernel canonical copy and the specify_cli facade-identity copy,
+      per the module's own docstring). The arithmetic (3 + 1 + 1 = 5) still
+      matches the readiness report's "5 errors" total and the 3.13 run
+      summary, so no count is wrong -- only the mechanism description is.
+      An implementer searching for a parametrize decorator to widen (per
+      FR-002's "accept **kwargs ... and pass it through") could be misled
+      into looking for pytest.mark.parametrize machinery that doesn't exist.
+    remediation: >-
+      Reword FR-002's acceptance criteria and C-004 to: "5 errors: 3 in
+      test_lock_parity.py, and 1 each in the two separate, non-parametrized
+      test_no_follow.py copies (tests/kernel/test_no_follow.py and
+      tests/specify_cli/core/test_no_follow.py)" -- drop "parametrized dir
+      cases" entirely.
+
+  - id: SPEC-VERIFY-003
+    source: verify
+    lens: ATDD test-shape concreteness (C-004)
+    severity: 4
+    title: >-
+      FR-002's "existing test failure IS the pinning test, no new test file
+      required" does not satisfy C-011's literal "committed as a separate
+      commit ... BEFORE any implementation commit" clause
+    evidence:
+      - artifact: "spec.md § C-004 (line 442), parenthetical: \"the WP records their current-3.13 RED, then their post-fix GREEN, on the WP's planning_base_branch vs. final commit, per C-011\""
+      - artifact: ".kittify/charter/charter.md § \"ATDD-First Discipline (binding per C-011)\" (lines 622-635): \"The ATDD test is committed as a separate commit (often the first commit of the lane) BEFORE any implementation commit.\""
+    claim: >-
+      C-011 has two distinct obligations: (1) a failing-first test exists and
+      is committed as a separate commit in the WP's own lane before any
+      implementation commit, and (2) the reviewer verifies it was RED on
+      planning_base_branch and GREEN on the final commit. FR-002's dir_fd
+      tests (test_naive_second_open_of_a_held_lock_raises_under_simulation,
+      test_read_rejects_symlink_planted_before_open x2) already exist,
+      unmodified, on planning_base_branch -- confirmed by reading both files
+      directly; the WP does not touch them to add or change a test. Because
+      no test file changes, there is no way for this WP to produce a
+      "committed as a separate commit ... BEFORE any implementation commit"
+      artifact for its ATDD test -- WP02's own commit sequence would contain
+      only the implementation commit (widening wrap_open/plant_symlink to
+      accept dir_fd), with nothing preceding it. The spec's parenthetical
+      substitutes "the WP records their current-3.13 RED" for a commit, but
+      "records" (e.g. capturing pytest output in a PR body or WP evidence
+      note) is not the same artifact as a git commit obligation (1) names.
+      Obligation (2) (reviewer verifies red-on-base/green-on-final) is
+      arguably satisfiable without a new commit since it's a behavioral
+      check against two ref points, not a diff check -- but obligation (1)'s
+      literal text is not addressed by the spec's reasoning, and a reviewer
+      applying C-011 literally at WP-review time could reject WP02 for
+      lacking a separate pre-implementation test commit, forcing rework this
+      spec should have foreclosed.
+    remediation: >-
+      Either (a) specify concretely how WP02 produces a commit-level
+      RED-evidence artifact before its implementation commit -- e.g. a first,
+      behavior-preserving commit that adds a captured-output evidence file
+      (or a conftest/marker change) recording the pre-fix 3.13 RED run --
+      satisfying obligation (1) literally, or (b) add an explicit sentence
+      acknowledging that C-011's "committed as a separate commit" clause is
+      being read narrowly as inapplicable to an already-existing,
+      unmodified test, and that only the red-on-base/green-on-final
+      verification (obligation 2) applies here -- so a WP reviewer doesn't
+      independently discover and dispute the gap.
+
+  - id: SPEC-VERIFY-004
+    source: verify
+    lens: Revert discipline (FR-003)
+    severity: 3
+    title: >-
+      FR-003 option (a)'s "regression test" is a probabilistic full-suite
+      re-run, not a deterministic test that reliably fails on revert
+    evidence:
+      - artifact: "spec.md § FR-003 acceptance criteria (lines 382-390)"
+      - artifact: "readiness report lines 113-118: \"I did not isolate which specific test triggers the nested re-sync (time-boxed; plausibly something in the upgrade/skill-installer families...)\""
+    claim: >-
+      FR-003(a)'s check is "re-running the exact reproduction that first
+      surfaced the hazard ... and confirming it no longer occurs" -- i.e. a
+      full `fast or unit` / `-n auto` run (~7 minutes per the readiness
+      report and tracer-tooling-friction.md) that happened to trigger a
+      `multiprocessing.spawn` interpreter mismatch once, by accident, under
+      conditions the readiness probe explicitly says it could not pin down
+      ("I did not isolate which specific test triggers the nested
+      re-sync"). A single non-reproduction after the fix is weak revert
+      discipline for a race/timing-dependent hazard: it would not reliably
+      go RED again if the fix were reverted, since the original trigger was
+      never deterministically isolated to begin with -- it could simply fail
+      to reproduce on a given run whether or not the fix is present. This is
+      a materially weaker guarantee than "a test that would fail if the fix
+      were reverted" (the bar this lens is checking), even though the spec
+      frames it as a "regression test."
+    remediation: >-
+      Once FR-003's investigation names the culprit call site, require a
+      deterministic, fast, targeted assertion on that call site itself (e.g.
+      a unit/integration test asserting the specific subprocess invocation
+      now passes --python/--all-extras or --no-sync) as the primary
+      revert-sensitive regression test, with the full `-n auto` reproduction
+      kept only as corroborating, not sole, evidence -- state this
+      explicitly in FR-003's acceptance criteria rather than leaving the
+      full-suite re-run as the only named check.
+
+  - id: SPEC-VERIFY-005
+    source: verify
+    merged_into: SPEC-ARCH-001
+    lens: Silent-success (NFR-002)
+    severity: 2
+    title: >-
+      NFR-002 has no dedicated, standalone falsifiable check of its own,
+      unlike every FR
+    note: >-
+      Merged into SPEC-ARCH-001 at R2 (same artifact section, substantially
+      the same claim). Preserved here verbatim for the audit trail; not
+      independently refuted/fixed/verified as a separate item.
+    evidence:
+      - artifact: "spec.md § NFR-002 (line 432)"
+      - artifact: "spec.md § Edge Case (a) fallback mitigation (lines 247-257)"
+    claim: >-
+      Every FR in spec.md carries an explicit "Checked by:" clause in the
+      "Acceptance criteria per FR" section; NFRs do not get the same
+      treatment -- NFR-002's enforcement is only inferable indirectly, via
+      FR-001's acceptance-criteria rationale text (which cites it when
+      justifying the explicit-flags-over---no-sync choice) and is not
+      addressed at all for FR-003's fallback path: the Edge Case (a)
+      fallback (pinning `UV_PROJECT_ENVIRONMENT` per interpreter) is a
+      preventative mitigation, not a fail-loud detector -- it makes the
+      known corruption shape harder to trigger but doesn't add any new
+      "fail loudly if pinning is ever wrong again" signal for a
+      differently-shaped recurrence, which is what NFR-002's own text
+      promises ("must fail loudly ... if the interpreter/extras pinning is
+      ever wrong again"). This is not a critical gap (the two FRs it's meant
+      to bind are each independently and concretely checked), but it means
+      NFR-002 itself is not independently falsifiable as written.
+    remediation: >-
+      See SPEC-ARCH-001's remediation (unioned).

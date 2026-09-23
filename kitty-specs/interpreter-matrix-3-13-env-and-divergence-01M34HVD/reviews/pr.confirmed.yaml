@@ -1,0 +1,197 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: CONFIRMED
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+provenance:
+  lens_files:
+  - pr.boundary.findings.yaml
+  - pr.contract.findings.yaml
+  - pr.tests.findings.yaml
+  merged_file: pr.merged.yaml
+  refute_file: pr.refute-1.yaml
+  note: 'R1 three lens groups -> R2 orchestrator merge/dedup (6 raw -> 5) -> R3 independent refutation.
+    5 confirmed, 0 refuted. Code phases are REPORT-ONLY: findings are routed OUT to a fresh fix dispatch,
+    never fixed inside the squad.'
+refuter_corrections:
+- 'pr-merged-001: the refuter CONFIRMED the finding but corrected its rationale. Measured cost is ~6.67s
+  for 4 tests with interpreters already cached, so the time-budget framing in pr.merged.yaml supports
+  only ~sev2-3 on its own. The justification that carries sev4 is different and stronger: un-gated, network-dependent
+  subprocess venv builds with NO skip guard running in a nominally "fast" tier - a FLAKINESS risk, not
+  a time-budget risk. Severity 4 retained on that basis.'
+- 'pr-merged-002: strengthened, not weakened. The refuter tested whether file-scoped grouping matters
+  here and found `grep -rl ''scope="module"\|scope="class"'' tests/` returns 64 files, so the dependence
+  is real and the consequence is not theoretical.'
+unverified:
+- 'Whether GitHub ubuntu-latest runners have Python 3.12 pre-cached, which bears on the real network-fetch
+  risk in pr-merged-001. Deliberately left untested: settling it would require triggering an interpreter
+  download. Recorded as unknown rather than assumed either way.'
+findings:
+- id: pr-merged-001
+  severity: 4
+  from:
+  - pr-tests-001
+  - pr-boundary-001
+  title: TestVenvCorruptionHazardFR003b subprocess tests carry `fast` via module-level pytestmark and
+    are collected by the nightly `-m "fast or unit"` selector
+  claim: 'Module-level `pytestmark = [pytest.mark.adversarial, pytest.mark.fast]` at tests/upgrade/test_migration_robustness.py:33
+    applies additively to the new @pytest.mark.slow hazard tests, so all 4 (incl. a x2 parametrization)
+    are collected by `-m "fast or unit"`. That selector is used in exactly one place in the repo: the
+    nightly interpreter-matrix step this mission is repairing to fit a 45-minute cap. Two of the tests
+    spawn real `uv` subprocesses and build scratch venvs; one pins Python 3.12 on a runner that installed
+    3.13, risking a network interpreter fetch. Independently verified by the orchestrator via --collect-only.'
+  remediation: Keep the hazard tests out of the `fast`/`unit` population. Prefer the repo's own established
+    idiom for this situation (conftest.py env-gated marker) over ad-hoc deselection; a class-level pytestmark
+    override that clears `fast` is acceptable if it is the idiom the repo already uses. Verify with --collect-only.
+  evidence:
+  - code: tests/upgrade/test_migration_robustness.py:33
+  - code: tests/upgrade/test_migration_robustness.py:333
+  - code: tests/upgrade/test_migration_robustness.py:382
+  - code: .github/workflows/ci-nightly.yml:224
+  - artifact: tests/upgrade/test_migration_robustness.py:33 (module pytestmark = [pytest.mark.adversarial,
+      pytest.mark.fast])
+  - code: tests/upgrade/test_migration_robustness.py:333
+  - code: tests/upgrade/test_migration_robustness.py:382
+  - code: .github/workflows/ci-nightly.yml:224 (uv run ... pytest -m "fast or unit" ... -n auto)
+  blocks_merge: true
+  refute_verdict: confirmed
+  refute_reason: Collection fact reproduced independently and the class runs fast when interpreters are
+    already cached, but the mechanism (real subprocess uv sync/run against a differently-versioned scratch
+    venv, unguarded by any skip for missing interpreter/network) is a real fast-tier-purity and flakiness
+    hazard in the nightly gate, not merely a theoretical one.
+  refute_evidence: 'Ran `.venv/bin/python -m pytest tests/upgrade/test_migration_robustness.py -m "fast
+    or unit" -k TestVenvCorruptionHazardFR003b --collect-only -q` -> exactly 4 test IDs collected (5 deselected),
+    matching the finding''s count. Ran the same selection for real: `4 passed, 5 deselected in 6.67s`
+    (real 7.875s) -- confirms the tests DO get pulled in and are cheap ONLY because Python 3.11/3.12/3.13
+    happen to already be uv-managed-cached on this box (`uv python list` showed cpython-3.12.13 and cpython-3.11.15
+    already present under ~/.local/share/uv/python). `grep -rn ''fast or unit'' --include=*.yml .github/workflows`
+    confirms ci-nightly.yml:224 is the only CI consumer of that selector.'
+  refute_severity_note: 'The measured ~7s wall-clock cost does NOT by itself justify a 45-minute-budget-driven
+    sev 4 -- on this evidence alone the time-cost case supports something closer to sev 2-3. The stronger
+    basis for keeping it high is un-gated: whether GitHub''s ubuntu-latest runner has a Python 3.12 interpreter
+    already resolvable by uv (no fetch) is NOT knowable without running on that runner, which I did not
+    do per the explicit no-network-fetch instruction, so it is left unverified. If the runner lacks 3.12
+    and uv must fetch it, the `sync.returncode == 0` assertion in `test_a_well_pinned_nested_uv_run_leaves_a_dedicated_venv_untouched`/`test_named_call_site_argv_does_not_rebuild_a_mismatched_dedicated_venv`
+    has no skip/guard, so a network hiccup would turn an ostensibly ''fast'' test red in the nightly gate
+    -- that flakiness/tier-purity risk, not the raw seconds, is what supports keeping severity elevated;
+    sev 4 ''blocks merge'' is a defensible but not slam-dunk call on the evidence I could gather.'
+- id: pr-merged-002
+  severity: 3
+  from:
+  - pr-contract-001
+  title: interpreter-matrix `-n auto` omits `--dist loadfile`, contrary to documented repo policy
+  claim: .github/workflows/ci-nightly.yml:224 passes bare `-n auto`. Verified against installed xdist
+    3.8.0 (plugin.py:318-320) that bare `-n` falls back to `--dist load`, not `loadfile`. docs/development/testing/testing-parallel.md:42
+    and both Makefile xdist invocations (lines 52, 66) state loadfile must be used. WP05's local benchmark
+    made the same omission, so the 475.87s figure carries the same caveat.
+  remediation: Add `--dist loadfile` alongside `-n auto` on the interpreter-matrix pytest invocation.
+  evidence:
+  - code: .github/workflows/ci-nightly.yml:224
+  - code: Makefile:52
+  - code: Makefile:66
+  - code: docs/development/testing/testing-parallel.md:42
+  - artifact: 'verified in .venv313/lib64/python3.13/site-packages/xdist/plugin.py:318-320 — `if config.option.numprocesses:
+      if config.option.dist == "no": config.option.dist = "load"` (the implicit fallback when `-n` is
+      set without `--dist`)'
+  blocks_merge: false
+  refute_verdict: confirmed
+  refute_reason: xdist 3.8.0's own source confirms bare `-n auto` (no --dist) resolves to `dist=load`,
+    not `loadfile`, and the repo's testing doc states a blanket, unscoped policy ("We always use loadfile
+    ... CI uses loadfile for the same reason"), which ci-nightly.yml:224 violates.
+  refute_evidence: '`grep -n ''config.option.dist\|config.option.numprocesses'' .venv313/lib/python3.13/site-packages/xdist/plugin.py`
+    -> lines 318-320: `if config.option.numprocesses: if config.option.dist == "no": config.option.dist
+    = "load"` -- confirms the fallback is `load`, matching the finding exactly. `.venv313/bin/python -c
+    ''import xdist; print(xdist.__version__)''` -> 3.8.0, matching cited version. Read docs/development/testing/testing-parallel.md
+    lines 40-50: ''We always use `loadfile`'' / ''`load` ... breaks file-scoped fixtures and any test
+    that relies on collection order'' -- unscoped, not narrowed to make test-fast/test-full only. Makefile:52
+    and Makefile:66 both independently pass `--dist loadfile` alongside `-n auto`, confirming consistent
+    repo-wide practice that ci-nightly.yml:224 alone omits. `grep -rl ''scope="module"\|scope="class"''
+    tests/` -> 64 files, so file-scoped fixture reliance is real and widespread, not theoretical, across
+    the same fast/unit population the nightly job selects.'
+- id: pr-merged-003
+  severity: 2
+  from:
+  - pr-tests-002
+  title: _extract_uv_run_argv_prefix takes the first matching .run([...]) with no uniqueness assertion
+  claim: Unlike its sibling _find_interpreter_matrix_run_step, which asserts len == 1, the AST extractor
+    silently takes the first match. Inert today (each guarded function has exactly one such call) but
+    a future second call site would be silently shadowed.
+  remediation: Assert uniqueness the way the sibling helper does, so a second call site fails loudly.
+  evidence:
+  - code: tests/upgrade/test_migration_robustness.py:219
+  - code: tests/ci/test_interpreter_matrix_env_pinning.py:68
+  blocks_merge: false
+  refute_verdict: confirmed
+  refute_reason: Read both extractors side by side -- the sibling in tests/ci/test_interpreter_matrix_env_pinning.py
+    asserts uniqueness explicitly; the AST helper in test_migration_robustness.py returns on the first
+    structural match with no such assertion, so the asymmetry is real, and the helper is invoked against
+    source files outside this WP's own ownership where a future second matching call is plausible.
+  refute_evidence: 'tests/ci/test_interpreter_matrix_env_pinning.py:68 `_find_interpreter_matrix_run_step`:
+    `matching = [...]; assert len(matching) == 1, ...`. tests/upgrade/test_migration_robustness.py `_extract_uv_run_argv_prefix`
+    (~line 219-247): `for node in ast.walk(func_node): if isinstance(node, ast.Call) ... : ... return
+    prefix` -- returns on first match, no count/assert. The function is called (per its own docstring
+    and the parametrize table) against tests/charter/test_interview_mapping_mission_alias.py and tests/docs/test_docs_index.py,
+    both explicitly OUTSIDE this WP''s owned_files, so a later unrelated edit adding a second subprocess.run([...])
+    earlier in the same target function is plausible and would silently shadow the intended call -- "inert
+    today" is accurate, "silently shadowed" tomorrow is a real achievable failure mode given the helper''s
+    own design.'
+- id: pr-merged-004
+  severity: 2
+  from:
+  - pr-contract-002
+  title: '`uv run --frozen --no-sync` silently creates an empty ad hoc venv when the target environment
+    is absent; that branch is untested'
+  claim: 'Empirically reproduced against the real repo: exit 0, no warning. For the two call sites this
+    PR touches the failure is loud (ModuleNotFoundError) only incidentally, because both import third-party
+    packages - that is a property of their import graphs, not of --no-sync. TestVenvCorruptionHazardFR003b
+    covers present+wrong-version and present+correct, never absent.'
+  remediation: Either cover the venv-absent branch in the hazard suite, or record the gap explicitly with
+    its rationale.
+  evidence:
+  - code: tests/charter/test_interview_mapping_mission_alias.py:51
+  - code: tests/docs/test_docs_index.py:297
+  - code: tests/upgrade/test_migration_robustness.py:310
+  - code: tests/upgrade/test_migration_robustness.py:334
+  - code: tests/upgrade/test_migration_robustness.py:396
+  - artifact: 'empirically reproduced in this checkout: `UV_PROJECT_ENVIRONMENT=<nonexistent-path> uv
+      run --frozen --no-sync python -c "print(...)"` (run from the repo root, real pyproject.toml/uv.lock)
+      prints `Creating virtual environment at: <path>` and exits 0 with an EMPTY venv (no project deps
+      installed) — no error, no warning.'
+  blocks_merge: false
+  refute_verdict: confirmed
+  refute_reason: Empirically reproduced exactly as claimed -- --no-sync against a nonexistent UV_PROJECT_ENVIRONMENT
+    target silently creates an empty venv and exits 0, and the hazard suite's own three tests never exercise
+    this absent-target branch.
+  refute_evidence: 'Ran (scratch path under repo root, not tmp_path/RAM, cleaned up after): `UV_PROJECT_ENVIRONMENT=<nonexistent>
+    uv run --frozen --no-sync python -c "print(''hello'')"` -> stdout `Creating virtual environment at:
+    <path>` then `hello from venv`, exit 0. Follow-up run inspecting site-packages: `ls <path>/lib/python3.11/site-packages/`
+    -> only `_virtualenv.py`/`_virtualenv.pth`/`__pycache__`, and `import yaml` raised `ModuleNotFoundError:
+    No module named ''yaml''` inside that venv -- confirms it is genuinely empty of project deps, no warning
+    emitted anywhere. Re-read TestVenvCorruptionHazardFR003b (tests/upgrade/test_migration_robustness.py
+    lines ~310-450): its three concrete tests cover (a) a static job-env YAML check, (b) a dedicated venv
+    matching the CURRENT interpreter (present+correct), (c) a dedicated venv built for a MISMATCHED interpreter
+    3.12 (present+wrong-version) -- none constructs an absent-target venv, confirming the untested-branch
+    claim. Both scratch venvs from my reproduction were `rm -rf`''d immediately after inspection; `git
+    status --porcelain` stayed clean throughout.'
+- id: pr-merged-005
+  severity: 1
+  from:
+  - pr-boundary-002
+  title: AST extractor is narrowly coupled to a literal-list subprocess.run([...]) shape (informational)
+  claim: Noted for completeness. Both the boundary and tests lenses independently confirmed it fails LOUDLY
+    (AssertionError) rather than going silently green when the call shape changes, including against a
+    synthetic variable-assembled argv. Sound as designed.
+  remediation: No action required; recorded so the coupling is a known, deliberate property.
+  evidence:
+  - code: tests/upgrade/test_migration_robustness.py:170 (_extract_uv_run_argv_prefix)
+  blocks_merge: false
+  refute_verdict: confirmed
+  refute_reason: Read the extractor's control flow directly -- when no call matches the required literal-list-of-string-constants
+    shape, the function falls through to an explicit AssertionError rather than returning a wrong/empty
+    result silently.
+  refute_evidence: 'tests/upgrade/test_migration_robustness.py, end of `_extract_uv_run_argv_prefix`:
+    `raise AssertionError(f"no subprocess.run([...]) call found in {function_name!r} ({source_path})")`
+    is reached whenever `ast.walk` finds no `Call` node matching `.run([...])` with a literal `ast.List`
+    first arg -- e.g. if a call site were rewritten to assemble its argv in a variable instead of a literal
+    list. This is a genuine loud failure, not a silent pass; matches both lenses'' independent confirmation
+    cited in the merged finding.'

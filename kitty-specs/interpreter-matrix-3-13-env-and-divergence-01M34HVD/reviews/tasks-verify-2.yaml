@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: WP02/WP03/WP04 each now open their Context dependency line with "Depends on WP01 (baseline capture) only" matching frontmatter dependencies [WP01], scoping the remaining "no dependency" language strictly to the sibling WPs (WP02/WP03/WP04 among themselves), and WP01's own "independent of every other WP" claim (its correct root-node statement) is the only unscoped independence claim left in any of the 7 WP files.
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: tracer-tooling-friction.md's new correction entry accurately names allocate_lane_worktree/_guard_base_honorable (not merge timing) as the real depends_on_lanes consumer, explains why WP01's planning_artifact landing makes the mission's ordinary flow safe, and documents the --base risk, all independently verified against worktree_allocator.py:293-306 (dependency_lane route raises UnhonorableBaseError only when lane.depends_on_lanes is non-empty) and merge/executor.py's _phase_merge_lanes (iterates lanes_manifest.lanes in on-disk order, never consulting depends_on_lanes); WP02/WP03/WP04 each carry a matching "--base warning" note.

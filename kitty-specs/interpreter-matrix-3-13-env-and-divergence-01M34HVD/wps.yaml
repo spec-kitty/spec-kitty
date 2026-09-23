@@ -1,0 +1,135 @@
+work_packages:
+  - id: WP01
+    title: "Baseline capture (3.11) + FR-005 pre-existing-failure issue"
+    dependencies: []
+    owned_files:
+      - "kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/evidence-baseline-3.11.md"
+    requirement_refs:
+      - FR-005
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T001
+      - T002
+      - T003
+    prompt_file: "tasks/WP01-baseline-capture-and-fr005-issue.md"
+
+  - id: WP02
+    title: "Fix the 4 confirmed dir_fd kernel test-double failures (FR-002)"
+    dependencies: []
+    owned_files:
+      - "tests/kernel/test_lock_parity.py"
+      - "tests/kernel/test_no_follow.py"
+      - "tests/specify_cli/core/test_no_follow.py"
+    requirement_refs:
+      - FR-002
+      - NFR-003
+    plan_concern_refs:
+      - IC-02
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+      - T006
+    prompt_file: "tasks/WP02-kernel-dir-fd-shim-fix.md"
+
+  - id: WP03
+    title: "Pin interpreter/extras on the uv run step (FR-001), ATDD-first"
+    dependencies: []
+    owned_files:
+      - ".github/workflows/ci-nightly.yml"
+      - "tests/ci/test_interpreter_matrix_env_pinning.py"
+    requirement_refs:
+      - FR-001
+      - NFR-002
+      - C-004
+    plan_concern_refs:
+      - IC-03
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+    prompt_file: "tasks/WP03-uv-run-env-pinning.md"
+
+  - id: WP04
+    title: "Root-cause or timebox-and-fallback the venv-corruption hazard (FR-003)"
+    dependencies: []
+    owned_files:
+      - "tests/upgrade/**"
+      - "tests/specify_cli/upgrade/**"
+      - "tests/specify_cli/skills/**"
+    requirement_refs:
+      - FR-003
+      - NFR-001
+      - NFR-002
+      - C-001
+    plan_concern_refs:
+      - IC-04
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+      - T006
+    prompt_file: "tasks/WP04-venv-corruption-spike.md"
+
+  - id: WP05
+    title: "Re-measure fast or unit on 3.13 post-fix (FR-004)"
+    dependencies:
+      - WP02
+      - WP04
+    owned_files:
+      - "kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/evidence-remeasurement-3.13.md"
+    requirement_refs:
+      - FR-004
+      - NFR-001
+    plan_concern_refs:
+      - IC-05
+    subtasks:
+      - T001
+      - T002
+      - T003
+    prompt_file: "tasks/WP05-remeasure-3.13.md"
+
+  - id: WP06
+    title: "Residual-red disposition + #3189 filing (FR-006)"
+    dependencies:
+      - WP05
+    owned_files:
+      - "kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/evidence-residual-disposition.md"
+    requirement_refs:
+      - FR-006
+    plan_concern_refs:
+      - IC-06
+    subtasks:
+      - T001
+      - T002
+      - T003
+    prompt_file: "tasks/WP06-residual-disposition.md"
+
+  - id: WP07
+    title: "Final verification: local repro + operator-authorized manual dispatch"
+    dependencies:
+      - WP02
+      - WP03
+      - WP04
+      - WP05
+      - WP06
+    owned_files:
+      - "kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/evidence-final-verification.md"
+    requirement_refs:
+      - FR-001
+      - C-003
+    plan_concern_refs:
+      - IC-07
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+    prompt_file: "tasks/WP07-final-verification.md"

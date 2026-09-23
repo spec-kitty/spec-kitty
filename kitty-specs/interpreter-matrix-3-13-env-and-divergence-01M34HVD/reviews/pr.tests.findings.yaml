@@ -1,0 +1,97 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: pr-tests-001
+    lens: tests
+    severity: 4
+    title: New TestVenvCorruptionHazardFR003b subprocess tests are marked @pytest.mark.slow but still run under the nightly's `-m "fast or unit"` selector because a module-level `fast` mark is applied on top
+    evidence:
+      - code: "tests/upgrade/test_migration_robustness.py:33"   # pytestmark = [pytest.mark.adversarial, pytest.mark.fast] — applies to every test in the module
+      - code: "tests/upgrade/test_migration_robustness.py:333"  # @pytest.mark.slow on test_a_well_pinned_nested_uv_run_leaves_a_dedicated_venv_untouched
+      - code: "tests/upgrade/test_migration_robustness.py:382"  # @pytest.mark.slow on the parametrize decorator above test_named_call_site_argv_does_not_rebuild_a_mismatched_dedicated_venv (def at line 396)
+      - code: ".github/workflows/ci-nightly.yml:224"            # uv run --frozen --python ... --all-extras pytest -m "fast or unit" -q -n auto ... — the interpreter-matrix job's own selector, the sole consumer of "fast or unit" in the repo
+    claim: >
+      Pytest marks are additive, not overriding: because the module carries
+      `pytestmark = [pytest.mark.adversarial, pytest.mark.fast]` (line 33),
+      every test in tests/upgrade/test_migration_robustness.py — including
+      the three new @pytest.mark.slow hazard tests added by this diff — also
+      carries the `fast` mark. Verified empirically: `pytest
+      tests/upgrade/test_migration_robustness.py::TestVenvCorruptionHazardFR003b
+      -m "fast and slow" --collect-only` collects all three
+      @pytest.mark.slow-decorated tests. Consequently `-m "fast or unit"`
+      does NOT exclude them — verified by collecting the same class under
+      `-m "fast or unit"` and getting all 4 tests including the two
+      subprocess-spawning ones. The nightly's interpreter-matrix job
+      (.github/workflows/ci-nightly.yml:224) is the ONLY place in the repo
+      that selects `"fast or unit"` (confirmed by repo-wide grep), and it
+      runs with no path restriction over the whole `tests/` tree, so these
+      hazard tests — which spawn real `uv sync`/`uv run` subprocesses,
+      including building a scratch venv for a DIFFERENT Python interpreter
+      (3.12) in the parametrized case — execute inside that exact CI leg.
+      This both contradicts pytest.ini's own definition of `fast` ("pure-logic
+      tests with no subprocess/git overhead (sub-second per test)") and
+      reintroduces real, network/interpreter-download-dependent subprocess
+      overhead into the very leg this mission exists to keep inside its
+      45-minute budget via `-n auto` — overhead that WP05's 475.87s
+      re-measurement did not account for, since these tests were added by a
+      later scope extension. The pre-existing `TestConcurrentMigration`
+      class (line ~176-178, predates this diff) has the same module/method
+      mark collision, so the pattern is not new, but this diff adds three
+      new, materially more expensive (real subprocess + network) instances
+      of it rather than avoiding the trap.
+    remediation: >
+      Either move TestVenvCorruptionHazardFR003b out of this module (a
+      module without a `pytestmark = [..., pytest.mark.fast]` blanket), or
+      strip the inherited `fast` mark on this class specifically (e.g.
+      `pytestmark = [pytest.mark.slow]` at the class level, which does not
+      remove the module-level marks already applied via IDs but can be
+      combined with an explicit deselect such as scoping the module-level
+      `pytestmark` to only the non-hazard classes), or change the nightly
+      selector to something that positively excludes `slow`
+      (e.g. `-m "(fast or unit) and not slow"`) if `slow` should always mean
+      "excluded from the fast-tier lane" repo-wide.
+
+  - id: pr-tests-002
+    lens: tests
+    severity: 2
+    title: "`_extract_uv_run_argv_prefix` matches the first `.run([...])` call in the function without asserting uniqueness, unlike the sibling `_find_interpreter_matrix_run_step` helper"
+    evidence:
+      - code: "tests/upgrade/test_migration_robustness.py:219"  # def _extract_uv_run_argv_prefix — ast.walk(func_node) then `if isinstance(node, ast.Call) and ... node.func.attr == "run" and node.args and isinstance(node.args[0], ast.List):` — returns on first match, no count/uniqueness check
+      - code: "tests/ci/test_interpreter_matrix_env_pinning.py:68"  # sibling helper _find_interpreter_matrix_run_step DOES assert len(matching) == 1
+    claim: >
+      Verified via direct unit-exercise of `_extract_uv_run_argv_prefix`
+      against a synthetic source file: when the target function's argv is
+      built via a variable rather than a literal list, the function raises
+      AssertionError loudly ("no subprocess.run([...]) call found") rather
+      than silently matching nothing — so the specific false-green scenario
+      named in the review brief (variable-based argv) does NOT occur; this
+      is a genuine defect, not the one asked about. The actual gap is
+      narrower: the function's `ast.Call` match condition
+      (`node.func.attr == "run"` with a first-arg `ast.List`) matches the
+      FIRST such call anywhere in the function body and returns immediately,
+      with no assertion that exactly one such call exists (contrast
+      `_find_interpreter_matrix_run_step` in the sibling CI test file, which
+      explicitly asserts `len(matching) == 1`). Today both guarded functions
+      (`test_synthetic_mission_type_is_picked_up_by_both_rosters`,
+      `test_render_index_is_byte_stable_across_hash_seeds`) contain exactly
+      one `subprocess.run([...])` call each, so this is inert now. But if a
+      second `.run([...])`-shaped call (any object's `.run`, not
+      necessarily `subprocess.run`) were ever added earlier in either
+      function, the extractor would silently pick the wrong one. In practice
+      this residual risk is largely self-checking: the test asserts
+      `argv_prefix[:2] == ["uv", "run"]`, which would catch a wrong match
+      whose first two elements are not literally "uv","run" — but a
+      same-shaped false match (e.g. an unrelated future `uv run` call added
+      earlier in the same test body) would pass that check and silently
+      validate the wrong call site.
+    remediation: >
+      Add a uniqueness assertion mirroring `_find_interpreter_matrix_run_step`
+      — collect all matching `.run([...])` calls in the function and assert
+      exactly one exists (or that the first two literal elements are
+      specifically "uv","run" AND uniquely so) before returning, so a future
+      second call site fails loudly instead of being silently shadowed.
+

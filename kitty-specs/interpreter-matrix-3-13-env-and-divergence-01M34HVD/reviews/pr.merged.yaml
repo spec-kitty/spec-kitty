@@ -1,0 +1,106 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: MERGED
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+merge_note: 'R2 merge/dedup performed by the orchestrator as bookkeeping only. No finding was judged,
+  reworded, reprioritised on opinion, or dropped. One dedup pair: pr-boundary-001 and pr-tests-001 are
+  the SAME defect found independently by two lenses; merged under pr-tests-001 and the HIGHER severity
+  (4) retained, because the tests lens established by grep that the nightly interpreter-matrix step is
+  the only consumer of the `-m "fast or unit"` selector, which is what makes the blast radius specific.
+  6 raw -> 5 merged.'
+findings:
+- id: pr-merged-001
+  severity: 4
+  from:
+  - pr-tests-001
+  - pr-boundary-001
+  title: TestVenvCorruptionHazardFR003b subprocess tests carry `fast` via module-level pytestmark and
+    are collected by the nightly `-m "fast or unit"` selector
+  claim: 'Module-level `pytestmark = [pytest.mark.adversarial, pytest.mark.fast]` at tests/upgrade/test_migration_robustness.py:33
+    applies additively to the new @pytest.mark.slow hazard tests, so all 4 (incl. a x2 parametrization)
+    are collected by `-m "fast or unit"`. That selector is used in exactly one place in the repo: the
+    nightly interpreter-matrix step this mission is repairing to fit a 45-minute cap. Two of the tests
+    spawn real `uv` subprocesses and build scratch venvs; one pins Python 3.12 on a runner that installed
+    3.13, risking a network interpreter fetch. Independently verified by the orchestrator via --collect-only.'
+  remediation: Keep the hazard tests out of the `fast`/`unit` population. Prefer the repo's own established
+    idiom for this situation (conftest.py env-gated marker) over ad-hoc deselection; a class-level pytestmark
+    override that clears `fast` is acceptable if it is the idiom the repo already uses. Verify with --collect-only.
+  evidence:
+  - code: tests/upgrade/test_migration_robustness.py:33
+  - code: tests/upgrade/test_migration_robustness.py:333
+  - code: tests/upgrade/test_migration_robustness.py:382
+  - code: .github/workflows/ci-nightly.yml:224
+  - artifact: tests/upgrade/test_migration_robustness.py:33 (module pytestmark = [pytest.mark.adversarial,
+      pytest.mark.fast])
+  - code: tests/upgrade/test_migration_robustness.py:333
+  - code: tests/upgrade/test_migration_robustness.py:382
+  - code: .github/workflows/ci-nightly.yml:224 (uv run ... pytest -m "fast or unit" ... -n auto)
+  blocks_merge: true
+- id: pr-merged-002
+  severity: 3
+  from:
+  - pr-contract-001
+  title: interpreter-matrix `-n auto` omits `--dist loadfile`, contrary to documented repo policy
+  claim: .github/workflows/ci-nightly.yml:224 passes bare `-n auto`. Verified against installed xdist
+    3.8.0 (plugin.py:318-320) that bare `-n` falls back to `--dist load`, not `loadfile`. docs/development/testing/testing-parallel.md:42
+    and both Makefile xdist invocations (lines 52, 66) state loadfile must be used. WP05's local benchmark
+    made the same omission, so the 475.87s figure carries the same caveat.
+  remediation: Add `--dist loadfile` alongside `-n auto` on the interpreter-matrix pytest invocation.
+  evidence:
+  - code: .github/workflows/ci-nightly.yml:224
+  - code: Makefile:52
+  - code: Makefile:66
+  - code: docs/development/testing/testing-parallel.md:42
+  - artifact: 'verified in .venv313/lib64/python3.13/site-packages/xdist/plugin.py:318-320 — `if config.option.numprocesses:
+      if config.option.dist == "no": config.option.dist = "load"` (the implicit fallback when `-n` is
+      set without `--dist`)'
+  blocks_merge: false
+- id: pr-merged-003
+  severity: 2
+  from:
+  - pr-tests-002
+  title: _extract_uv_run_argv_prefix takes the first matching .run([...]) with no uniqueness assertion
+  claim: Unlike its sibling _find_interpreter_matrix_run_step, which asserts len == 1, the AST extractor
+    silently takes the first match. Inert today (each guarded function has exactly one such call) but
+    a future second call site would be silently shadowed.
+  remediation: Assert uniqueness the way the sibling helper does, so a second call site fails loudly.
+  evidence:
+  - code: tests/upgrade/test_migration_robustness.py:219
+  - code: tests/ci/test_interpreter_matrix_env_pinning.py:68
+  blocks_merge: false
+- id: pr-merged-004
+  severity: 2
+  from:
+  - pr-contract-002
+  title: '`uv run --frozen --no-sync` silently creates an empty ad hoc venv when the target environment
+    is absent; that branch is untested'
+  claim: 'Empirically reproduced against the real repo: exit 0, no warning. For the two call sites this
+    PR touches the failure is loud (ModuleNotFoundError) only incidentally, because both import third-party
+    packages - that is a property of their import graphs, not of --no-sync. TestVenvCorruptionHazardFR003b
+    covers present+wrong-version and present+correct, never absent.'
+  remediation: Either cover the venv-absent branch in the hazard suite, or record the gap explicitly with
+    its rationale.
+  evidence:
+  - code: tests/charter/test_interview_mapping_mission_alias.py:51
+  - code: tests/docs/test_docs_index.py:297
+  - code: tests/upgrade/test_migration_robustness.py:310
+  - code: tests/upgrade/test_migration_robustness.py:334
+  - code: tests/upgrade/test_migration_robustness.py:396
+  - artifact: 'empirically reproduced in this checkout: `UV_PROJECT_ENVIRONMENT=<nonexistent-path> uv
+      run --frozen --no-sync python -c "print(...)"` (run from the repo root, real pyproject.toml/uv.lock)
+      prints `Creating virtual environment at: <path>` and exits 0 with an EMPTY venv (no project deps
+      installed) — no error, no warning.'
+  blocks_merge: false
+- id: pr-merged-005
+  severity: 1
+  from:
+  - pr-boundary-002
+  title: AST extractor is narrowly coupled to a literal-list subprocess.run([...]) shape (informational)
+  claim: Noted for completeness. Both the boundary and tests lenses independently confirmed it fails LOUDLY
+    (AssertionError) rather than going silently green when the call shape changes, including against a
+    synthetic variable-assembled argv. Sound as designed.
+  remediation: No action required; recorded so the coupling is a known, deliberate property.
+  evidence:
+  - code: tests/upgrade/test_migration_robustness.py:170 (_extract_uv_run_argv_prefix)
+  blocks_merge: false

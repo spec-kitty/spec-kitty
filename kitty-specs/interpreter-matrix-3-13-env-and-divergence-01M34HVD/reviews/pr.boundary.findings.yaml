@@ -1,0 +1,75 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: boundary
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: pr-boundary-001
+    lens: boundary
+    severity: 3
+    title: New venv-corruption hazard tests are marked `slow` but still collected by the nightly `-m "fast or unit"` filter they were meant to stay out of
+    evidence:
+      - artifact: "tests/upgrade/test_migration_robustness.py:33 (module pytestmark = [pytest.mark.adversarial, pytest.mark.fast])"
+      - code: "tests/upgrade/test_migration_robustness.py:333"
+      - code: "tests/upgrade/test_migration_robustness.py:382"
+      - code: ".github/workflows/ci-nightly.yml:224 (uv run ... pytest -m \"fast or unit\" ... -n auto)"
+    claim: >
+      `TestVenvCorruptionHazardFR003b.test_a_well_pinned_nested_uv_run_leaves_a_dedicated_venv_untouched`
+      and `test_named_call_site_argv_does_not_rebuild_a_mismatched_dedicated_venv` (the latter
+      parametrized ×2) are each decorated `@pytest.mark.slow`, but the enclosing module's
+      blanket `pytestmark = [pytest.mark.adversarial, pytest.mark.fast]` also applies to them
+      (pytest markers are additive, not exclusive). `pytest -m "fast or unit"` — exactly the
+      filter the interpreter-matrix job's `uv run` step uses — selects on marker presence, not
+      absence of `slow`, so all three land in the "fast" population. Verified directly:
+      `.venv/bin/python -m pytest tests/upgrade/test_migration_robustness.py -m "fast or unit"
+      --collect-only -q` collects all 4 tests in the class, including the 3 slow ones. These
+      tests are not pure-logic: they shell out to a real `uv sync --frozen --all-extras
+      --python <version>` against a throwaway `.venv-hazard-test-*`/`.venv-scratch` directory
+      under the repo root, with a 180s timeout each. The mismatched-version test hardcodes
+      Python "3.12", which is not the interpreter `actions/setup-python` installs on this job
+      (3.13) — so `uv sync --python 3.12` can require `uv` to fetch a fresh interpreter over
+      the network the first time it runs on a given runner. This directly works against WP05's
+      own budget work in this same mission (measuring 475s vs the 45-min cap via `-n auto`):
+      it adds unaccounted, network-capable, multi-hundred-second-budget subprocess work into
+      the exact "fast" tier this mission tuned to fit the job's timeout, and it does so
+      silently because `slow` reads as "excluded" but isn't. Pre-existing marker precedent in
+      this repo (`tests/conftest.py`'s `performance` marker: env-gated skip unless
+      `SPEC_KITTY_RUN_PERFORMANCE=1`) shows the established idiom for exactly this situation,
+      which these new tests don't follow. Confirmed scoped to `ci-nightly.yml` only — no other
+      workflow uses `-m "fast or unit"` (grepped `.github/workflows/*.yml`), so no per-PR
+      blocking gate is affected; this is a nightly-lane hazard, not a merge blocker in itself.
+    remediation: >
+      Move `test_a_well_pinned_nested_uv_run_leaves_a_dedicated_venv_untouched` and
+      `test_named_call_site_argv_does_not_rebuild_a_mismatched_dedicated_venv` out from under
+      the module-level `fast` mark (e.g. `pytest.mark.fast(False)`-style class-level override
+      isn't idiomatic in pytest — instead give the class its own `pytestmark` that omits
+      `fast`, or add an explicit `-m "... and not slow"` to the interpreter-matrix run string),
+      or follow the existing `performance`/`quarantine` idiom in `tests/conftest.py` and
+      env-gate these two tests so they only run under an explicit opt-in, keeping the
+      always-collected nightly population genuinely fast.
+
+  - id: pr-boundary-002
+    lens: boundary
+    severity: 1
+    title: AST-extraction hazard test is narrowly coupled to a literal-list `subprocess.run([...])` call shape, but fails loud (not silently green) if that shape changes
+    evidence:
+      - code: "tests/upgrade/test_migration_robustness.py:170 (_extract_uv_run_argv_prefix)"
+    claim: >
+      `_extract_uv_run_argv_prefix` walks the named function's AST for a `subprocess.run([...])`
+      call whose first argument is a literal `ast.List` of string constants, stopping at
+      `"python"`. If a call site is ever restructured to build argv via a variable, f-string,
+      or list concatenation before reaching `"python"`, the walk either returns a truncated
+      prefix (documented, and would then fail the `assert argv_prefix[:2] == ["uv", "run"]`
+      or the hazard assertion itself — loud, not silently green) or finds no matching call and
+      raises `AssertionError: no subprocess.run([...]) call found`. Checked both real call
+      sites (`tests/charter/test_interview_mapping_mission_alias.py`,
+      `tests/docs/test_docs_index.py`) — both are plain string-literal lists, so extraction is
+      currently exact. This is intentionally narrow coupling, not a defect: worst case is a
+      hard test failure pointing at the extractor, never a false green.
+    remediation: >
+      None required. Optional: a one-line comment on `_extract_uv_run_argv_prefix` noting that
+      a restructured call site will fail this extractor loudly (already true) would pre-empt a
+      future "why did this break" question, but this is cosmetic.
+
+findings_summary: "2 findings: 1 severity-3 (real defect, does not block merge), 1 severity-1 (informational, no action required)."

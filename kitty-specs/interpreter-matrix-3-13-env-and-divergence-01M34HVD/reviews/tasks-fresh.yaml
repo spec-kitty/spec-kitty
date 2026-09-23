@@ -1,0 +1,112 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: TASKS-FRESH-001
+    lens: cross-artifact-correspondence
+    severity: 3
+    title: "WP02/WP03/WP04 each still assert 'No dependency on WP01' / 'independent of WP01' in their own prose, directly contradicting the R4 fix's own frontmatter dependencies: [WP01]"
+    evidence:
+      - artifact: "tasks/WP02-kernel-dir-fd-shim-fix.md line 107: \"**No dependency on WP01/WP03/WP04** — this WP is fully independent.\""
+      - artifact: "tasks/WP02-kernel-dir-fd-shim-fix.md frontmatter: `dependencies:\\n- WP01`"
+      - artifact: "tasks/WP03-uv-run-env-pinning.md line 90: \"**No dependency on WP01/WP02/WP04** — this WP is fully independent, but per plan.md's IC-03 'naturally lands before IC-07' note, it should land on the mission branch well before WP07...\""
+      - artifact: "tasks/WP03-uv-run-env-pinning.md frontmatter: `dependencies:\\n- WP01`"
+      - artifact: "tasks/WP04-venv-corruption-spike.md line 65: \"**This WP is independent of WP01/WP02/WP03** — it does not depend on them and they do not depend on it.\""
+      - artifact: "tasks/WP04-venv-corruption-spike.md frontmatter: `dependencies:\\n- WP01`"
+    claim: >
+      The R4 fix round correctly added `dependencies: [WP01]` to WP02, WP03, and WP04 in
+      wps.yaml, tasks.md, and each WP's own frontmatter (resolving confirmed finding
+      TASKS-VERIFY-001 — WP01's baseline-must-run-first promise now has an enforcing edge).
+      But the fix touched only the machine-readable dependency fields, not the prose body of
+      any of the three WP files it changed. Each of WP02, WP03, and WP04 still contains an
+      explicit, bolded claim in its own Context section that it has "no dependency on WP01"
+      / is "fully independent" — text that predates the fix and was never updated to match.
+      This is now a direct, verifiable self-contradiction inside each single WP document: the
+      frontmatter (which the runtime actually reads via
+      `dependency_readiness_for_wp`/`parse_wp_dependencies`) says WP01 is a hard dependency;
+      the prose immediately below it, which is what an implementing or reviewing agent reads
+      to understand *why* the WP is sequenced the way it is, says the opposite. WP03's version
+      is the most actively misleading of the three: it doesn't just claim independence, it
+      goes on to give a now-obsolete sequencing rationale ("should land on the mission branch
+      well before WP07") that assumes no upstream gate exists at all, when in fact a real one
+      (WP01) now does. An implementer or reviewer who trusts the prose over the frontmatter —
+      exactly the risk a fresh-eyes reviewer is meant to catch — could reasonably conclude the
+      WP01 dependency in the frontmatter is a leftover/typo and question or route around it,
+      or could simply be confused about why a WP marked "fully independent" is gated behind
+      another WP at claim time.
+    remediation: >
+      In each of WP02, WP03, and WP04's Context sections, replace the stale "No dependency on
+      WP01/..." / "independent of WP01/..." sentence with a line that matches the corrected
+      frontmatter, e.g. "**Depends on WP01** — this WP cannot be claimed until WP01's baseline
+      evidence file is approved/done; it has no dependency on WP02/WP03/WP04 among themselves
+      and could otherwise run in parallel with them." Grep all three WP files plus tasks.md and
+      plan.md's IC map for the literal strings "No dependency on WP01" and "independent of
+      WP01"/"fully independent" to make sure every occurrence introduced by or surviving the
+      fix round is caught, not just the three flagged here.
+  - id: TASKS-FRESH-002
+    lens: tooling-friction-verification
+    severity: 3
+    title: "tracer-tooling-friction.md's 'lanes.json staleness is harmless' claim rests on an inaccurate description of what consumes depends_on_lanes; the field is read at implement-time worktree allocation, not just merge timing, and a real (narrow) safety-guard bypass results"
+    evidence:
+      - artifact: "tracer-tooling-friction.md § 'Friction hit during post-tasks-review remediation' (2026-09-22): \"WP-level dispatch eligibility is driven solely by each WP's own dependencies list — never by lanes.json or its depends_on_lanes field, which the refutation itself notes is 'consumed only for merge timing, never dispatch eligibility'\""
+      - artifact: "reviews/tasks-refute-1.yaml (TASKS-VERIFY-001 verdict): \"lanes.json's depends_on_lanes/parallel_group are a separate, non-gating mechanism (worktree-merge timing only, per worktree_allocator.py) that neither function reads\""
+      - code: "src/specify_cli/lanes/worktree_allocator.py:80-90 and :424-434 (allocate_lane_worktree docstring): \"Issue #1684 — cross-lane dependency propagation: a lane may declare depends_on_lanes. The dependent lane's worktree base must contain the approved tips of those dependency lanes... Both the FRESH-creation path and the REUSE path merge in every resolvable dependency-lane tip.\""
+      - code: "src/specify_cli/lanes/worktree_allocator.py:293-306 (_guard_base_honorable, route == \"dependency_lane\"): raises UnhonorableBaseError only \"when lane.depends_on_lanes is non-empty\" (D2/FR-009) — an operator-supplied --base is silently honored for a lane whose depends_on_lanes is empty."
+      - artifact: "lanes.json: lane-a/lane-b/lane-c (WP02/WP03/WP04) all still carry `depends_on_lanes: []` after the fix that added `dependencies: [WP01]` to those WPs in wps.yaml."
+    claim: >
+      The tracer file (and the TASKS-VERIFY-001 refutation it quotes) justifies leaving
+      lanes.json's per-lane depends_on_lanes stale by asserting it is "consumed only for
+      merge timing, never dispatch eligibility." Independently tracing the actual source
+      (not re-reading the tracer's own characterization) shows this is not accurate:
+      depends_on_lanes IS read in production code, at `allocate_lane_worktree()` in
+      `src/specify_cli/lanes/worktree_allocator.py`, which runs during `spec-kitty implement`
+      (worktree creation/reuse) — well before any merge — under the Issue #1684 cross-lane
+      dependency propagation mechanism. It controls two real behaviors: (1) whether an
+      already-approved dependency lane's tip gets merged into the dependent lane's worktree
+      base on both the fresh-creation and reuse routes, and (2) whether the `_guard_base_honorable`
+      "dependency_lane" route raises `UnhonorableBaseError` when an operator supplies an
+      explicit `--base` for a WP in that lane (D2/FR-009's safety guard against silently
+      re-parenting a genuine dependency lane). Neither of these is "merge timing" in the sense
+      of `spec-kitty merge`'s lane-consolidation phase (which, independently checked in
+      `src/specify_cli/merge/executor.py::_phase_merge_lanes`, does not consult
+      depends_on_lanes for ordering at all — it just iterates `lanes_manifest.lanes` in
+      on-disk list order). Having traced the actual consuming code myself: in THIS specific
+      mission the staleness is very likely inert in the ordinary happy path, because WP01 is
+      a `planning_artifact` WP that resolves to the repository root and commits its evidence
+      file directly onto the coordination/mission branch (confirmed in
+      `src/specify_cli/workspace/context.py`'s `PLANNING_ARTIFACT` branch) rather than to a
+      separate lane branch — and because `_ensure_wp_claim_preconditions` (the
+      dependency-readiness gate) runs strictly before `resolve_workspace_for_wp`/
+      `allocate_lane_worktree` in `cli/commands/implement.py`, so lane-a/b/c's worktrees can
+      only ever be created after WP01 is already approved/done and already merged onto the
+      branch those worktrees naturally branch from — making the explicit cross-lane-tip-merge
+      redundant here. BUT the residual safety-guard bypass is real and not inert: if an
+      operator later runs `spec-kitty implement WP02 --base <ref>` (or WP03/WP04), the
+      "dependency_lane" `UnhonorableBaseError` guard will NOT fire (lane-a's
+      `depends_on_lanes` is `[]`), even though WP02 is now a genuine dependency lane per the
+      corrected wps.yaml — an explicit `--base` would be silently honored and would fully
+      REPLACE the topology-derived parent (per `_resolve_lane_parent`'s docstring: "base...
+      fully REPLACES the topology-derived parent... it is never layered on top of it"),
+      which is exactly the silent-re-parenting failure mode #1684/D2/FR-009 exist to prevent
+      for a real dependency lane. This is a narrow, operator-action-gated risk, but it is a
+      real gap the tracer's blanket "harmless, merge-timing-only" framing does not disclose,
+      and that framing is now baked into a *confirmed* review finding's refutation reasoning
+      that future readers (including implement/merge-phase agents) will trust rather than
+      re-derive from source.
+    remediation: >
+      Correct tracer-tooling-friction.md's residual-gap entry (and, if amendable per this
+      project's append-only tracer discipline, add a follow-up entry rather than editing the
+      original) to state the accurate mechanism: depends_on_lanes IS consumed at
+      implement-time worktree allocation (cross-lane tip merge + the dependency_lane
+      UnhonorableBaseError guard), not "merge timing only"; the staleness happens to be inert
+      in this mission's happy path specifically because WP01's planning_artifact execution
+      mode lands its commit on the coordination/mission branch directly, not because
+      lanes.json's depends_on_lanes is unused. Explicitly document the residual risk: an
+      operator must not pass `--base` when implementing WP02/WP03/WP04 for this mission,
+      since the safety guard that would normally refuse an unsafe --base for a real dependency
+      lane is currently silently disabled for these three lanes. If practical, also correct
+      the referenced TASKS-VERIFY-001 refutation reasoning in tasks-refute-1.yaml/
+      tasks.confirmed.yaml/tasks.merged.yaml so a later reader of the confirmed-findings
+      trail doesn't inherit the same inaccurate claim.

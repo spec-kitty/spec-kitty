@@ -1,0 +1,69 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+round: 3
+final: true
+verifications:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    rationale: >
+      Checked both cited locations in the current spec.md (commit fec166c09
+      on branch issue-4866-interpreter-matrix-3-13, HEAD unchanged during
+      this pass). FR-003's acceptance criteria (spec.md lines 415-421) no
+      longer say "colocated with whichever regression test option (a)'s own
+      investigation would have produced" -- the counterfactual clause is
+      gone. It now reads: "...as a small standalone test added to
+      `tests/upgrade/test_migration_robustness.py` -- the module already
+      hosting the hazard's own original reproduction,
+      `test_concurrent_upgrade_handled` -- the WP records the exact
+      file/test name it used." C-001's blast-radius row (spec.md line 486)
+      was updated to match: "...or a small standalone test added to
+      `tests/upgrade/test_migration_robustness.py` (the module already
+      hosting the hazard's own original reproduction,
+      `test_concurrent_upgrade_handled`)." Both locations now name the same
+      concrete, standing file and test, with no reference to a hypothetical
+      artifact from the branch not taken. This directly implements the
+      finding's own remediation text.
+
+      Verified the anchor is real, not just plausible-sounding, by reading
+      the live file rather than trusting the prior fixer's claim:
+      `grep -n "test_concurrent_upgrade_handled"
+      tests/upgrade/test_migration_robustness.py` returns line 172
+      (`def test_concurrent_upgrade_handled(self, migration_project: Path,
+      registry_restore: Any):`), inside `class TestConcurrentMigration`,
+      decorated `@pytest.mark.slow`. Read the test body directly: it uses
+      `multiprocessing.get_context("spawn")` to launch two concurrent
+      upgrade processes -- which is exactly the `multiprocessing.spawn`
+      mechanism the spec's own FR-003 "Checked by" clause (line 424) and
+      User Story 3 both cite as the hazard's original reproduction
+      signature. The file and test are not a coincidentally-named
+      placeholder; they are the actual reproduction the spec has been
+      referring to throughout. Both file and test genuinely exist in the
+      checkout at
+      /home/jeroennouws/dev/SK-missions/4866/tests/upgrade/test_migration_robustness.py.
+
+      The gap the finding raised -- a WP implementer or reviewer hitting the
+      fallback branch having no concrete, actionable file to look at -- is
+      closed: there is now a real, standing file name in both FR-003's AC
+      and C-001's blast-radius table, independent of which branch (a) or (b)
+      fires, and it does not depend on any counterfactual artifact from the
+      branch not taken.
+
+      Broader sanity pass over the whole current spec.md (605 lines):
+      cross-checked FR-002's failure counts (3 in test_lock_parity.py + 1
+      each in two non-parametrized test_no_follow.py copies = 5) for
+      consistency across User Story 2 (lines 101-104), FR-002's AC
+      (lines 391-398), and SC-002 (lines 581-587) -- all three agree. C-001
+      and C-004's cross-references to FR-002's touched files (dir_fd shim
+      widening, no new test assertion) remain mutually consistent with the
+      prior round's SPEC-FRESH-001 fix. No new contradiction, stale
+      citation, or leftover counterfactual reference was found elsewhere in
+      the document. One minor (non-blocking, not part of this finding)
+      observation: FR-003 AC's closing clause "the WP records the exact
+      file/test name it used" now reads slightly redundant for the file
+      component, since the file is pinned to
+      `tests/upgrade/test_migration_robustness.py` rather than open-ended --
+      only the exact test *name* within that file is still genuinely
+      variable. This is a wording nit, not a factual or structural gap, and
+      does not affect this finding's resolution.

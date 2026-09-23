@@ -1,0 +1,21 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: plan
+batch: 1
+verdicts:                   # one entry for EVERY finding in your batch — no omissions
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: "scripts/ci/gate_selection.py:44 sets DEFAULT_ROUTER_PATH to ci-router.yml and :120 yaml.safe_load()s that path (not ci-nightly.yml), and ci-nightly.yml has no `changes:` job (only ci-router.yml does), so plan.md's line-306-311 parenthetical citing gate_selection.py as parsing 'the same file's [ci-nightly.yml] changes job filters' is factually wrong."
+
+  - id: PLAN-GOV-002
+    verdict: confirmed
+    reason: "plan.md line 396 says IC-06 is sequenced 'after IC-02/IC-03/IC-04's fixes have all landed' and frames it as the last concern, but IC-06's own 'Sequencing/depends-on' field at line 689-690 lists only 'IC-02, IC-03' — the two sections genuinely disagree on IC-06's dependency set."
+
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: "The override .kittify/overrides/missions/software-dev/templates/plan-template.md is git-tracked, last touched 2026-04-17, and still has 'Constitution Check'/'Parallel Work Analysis' headings, while the canonical packs/built-in/.../plan-template.md was updated 2026-08-15 to 'Charter Check'/'Implementation Concern Map'; template_resolver.py:59 and resolver.py:4 both document OVERRIDE as the top-priority tier ahead of PACKAGE_DEFAULT, confirming the scaffold mismatch plan.md blames on a 'live defect in spec-kitty's own plan command' is actually this checkout's own stale project-tier override doing exactly what OVERRIDE resolution is designed to do."
+
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: "plan.md's 'The gate set for this mission' table (from line 225) has no row for ci-windows.yml, docs-pages.yml, or check-spec-kitty-events-alignment.yml despite AGENTS.md/CLAUDE.md line 594 naming all three as 'also live'; live checks confirm none of the mission's touched files (ci-nightly.yml, the three named kernel/core test files, tests/ci/test_interpreter_matrix_env_pinning.py, kitty-specs/ files) hit ci-windows.yml's paths-filter (no src/** or listed-file match, and C-001/Charter Check explicitly keep src/ out of scope), docs-pages.yml triggers on push only (no pull_request), and check-spec-kitty-events-alignment.yml's paths are limited to pyproject.toml/uv.lock/release scripts — so the three are correctly inapplicable but the omission carries no stated reasoning line as the lens required."

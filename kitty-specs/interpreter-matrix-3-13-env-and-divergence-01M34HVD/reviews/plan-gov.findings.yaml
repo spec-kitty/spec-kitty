@@ -1,0 +1,81 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: PLAN-GOV-001
+    lens: ATDD-First (C-011) concreteness — mission-derived lens 8(a)
+    severity: 2
+    title: "FR-001 ATDD precedent misattributes gate_selection.py's yaml.safe_load target: it parses ci-router.yml, not ci-nightly.yml"
+    evidence:
+      - artifact: "plan.md § ATDD-First (binding, C-011) → FR-001 (workflow-YAML flags fix), item 1 (line 306-311)"
+      - code: "scripts/ci/gate_selection.py:44-45 (`DEFAULT_ROUTER_PATH = _REPO_ROOT / \".github\" / \"workflows\" / \"ci-router.yml\"`), :120 (`workflow = yaml.safe_load((path or DEFAULT_ROUTER_PATH).read_text(...))`)"
+      - code: ".github/workflows/ci-nightly.yml — no `changes` job exists in this file (jobs are `performance-and-e2e`, `interpreter-matrix`, `generate-full-matrix`/`full-module-matrix`, etc.); the `changes` job with dorny/paths-filter lives in `.github/workflows/ci-router.yml`, confirmed by `scripts/ci/gate_selection.py:105` ('ci-router.yml `changes` job has no dorny/paths-filter step')."
+    claim: >
+      Plan.md's FR-001 ATDD-test design justifies its `yaml.safe_load()`-based
+      assertion approach by claiming "the file is already imported this way
+      elsewhere — scripts/ci/gate_selection.py parses the same file's changes
+      job filters with yaml.safe_load". "The same file" refers back to
+      `.github/workflows/ci-nightly.yml` (the subject of the preceding
+      clause). This is factually wrong: `gate_selection.py`'s `yaml.safe_load`
+      calls target `DEFAULT_ROUTER_PATH` (`ci-router.yml`) and
+      `DEFAULT_REGISTRY_PATH` (`.github/ci-module-registry.yml`), never
+      `ci-nightly.yml`. `ci-nightly.yml` itself has no `changes` job at all —
+      that job, and its dorny/paths-filter step, belong to `ci-router.yml`.
+      The underlying test design (steps 2-4: walk to
+      `workflow["jobs"]["interpreter-matrix"]["steps"]`, find the `uv run`
+      step, assert flags on its own `run:` string) is still correct and
+      self-contained, so this does not by itself produce a wrong
+      implementation — but it is a verifiable factual error in the plan's own
+      precedent citation, and an implementer who goes looking at
+      `gate_selection.py` for "the same file" parsed there will not find
+      `ci-nightly.yml` referenced, only `ci-router.yml` and the module
+      registry, causing avoidable confusion/rework while authoring the WP.
+    remediation: >
+      Correct the parenthetical to name the actual precedent accurately:
+      either "scripts/ci/gate_selection.py already parses a sibling
+      GitHub Actions workflow (`ci-router.yml`'s `changes` job) with
+      `yaml.safe_load`, establishing the in-repo pattern of parsing workflow
+      YAML directly rather than shelling out" (dropping the "same file"
+      framing), or drop the gate_selection.py precedent entirely and rely on
+      the already-correct, closer precedent this same section could cite:
+      `tests/ci/test_sonar_project_version.py`'s pattern of loading a CI
+      artifact by path under `tests/ci/`.
+
+  - id: PLAN-GOV-002
+    lens: Implementation Concern Map internal consistency — mission-derived lens 8(b) / Scope
+    severity: 2
+    title: "IC-06's own depends-on list (IC-02, IC-03) is inconsistent with the 'Verification route' section's stated sequencing (after IC-02/IC-03/IC-04)"
+    evidence:
+      - artifact: "plan.md § Verification route (no CI safety net), point 2 (line 396): 'sequenced as the **last** concern (IC-06, \"final verification\"), after IC-02/IC-03/IC-04's fixes have all landed on the mission branch'"
+      - artifact: "plan.md § Implementation Concern Map → IC-06 — Final verification, 'Sequencing/depends-on' bullet (line 689-690): 'IC-02, IC-03 (both fixes/fallbacks must have landed on the mission branch first)' — IC-04 (and, by the 'last concern' framing, IC-05) are omitted."
+    claim: >
+      The plan states in prose (Verification route) that the operator-gated
+      manual `gh workflow run` dispatch (IC-06) is sequenced after IC-02,
+      IC-03, *and* IC-04 have landed, and separately characterizes IC-06 as
+      "the last concern" (implying after IC-05's disposition write-up too,
+      since IC-05 is the concern immediately preceding it). But IC-06's own
+      canonical "Sequencing/depends-on" field — the field
+      `/spec-kitty.tasks` is instructed elsewhere in this same plan to
+      translate directly into WP dependency edges — names only IC-02 and
+      IC-03. Per the plan's own framing note ("given how narrowly this
+      mission is already scoped, each concern below is expected to map close
+      to 1:1 onto a future WP"), a WP-slicing pass reading the
+      Implementation Concern Map literally could wire IC-06 to unblock as
+      soon as IC-02/IC-03 land — before IC-04's re-measurement and IC-05's
+      disposition are written — contradicting the plan's own prose intent
+      that a single, operator-authorized dispatch validate the whole
+      mission's final state.
+    remediation: >
+      Reconcile the two statements: either (a) update IC-06's
+      "Sequencing/depends-on" line to read "IC-02, IC-03, IC-04, IC-05" if the
+      intent is genuinely to run the dispatch only after re-measurement and
+      disposition are complete, or (b) if IC-06 functionally only needs
+      IC-02/IC-03's code changes on the branch (IC-04/IC-05 produce no code
+      change the dispatch would validate), correct the "Verification route"
+      section's "after IC-02/IC-03/IC-04's fixes have all landed" wording to
+      "after IC-02/IC-03's fixes have landed" and drop the "last concern"
+      framing, so the two sections agree and `/spec-kitty.tasks` has one
+      unambiguous dependency edge to translate.

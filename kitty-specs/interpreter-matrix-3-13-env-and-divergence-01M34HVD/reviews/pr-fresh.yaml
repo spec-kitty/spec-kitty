@@ -1,0 +1,52 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: pr-fresh-001
+    lens: marker-restructuring collection-behaviour comparison (class-by-class, real selectors)
+    severity: 3
+    title: "Class-level pytestmark demotion for TestVenvCorruptionHazardFR003b also silently drops a safe, non-hazardous test out of the fast tier and the nightly interpreter leg"
+    evidence:
+      - code: "tests/upgrade/test_migration_robustness.py:410"
+      - code: "tests/upgrade/test_migration_robustness.py:412"
+      - code: "tests/upgrade/test_migration_robustness.py:435"
+      - code: "tests/upgrade/test_migration_robustness.py:484"
+    claim: >
+      The fix drops `pytestmark = [pytest.mark.adversarial]` (no `fast`) onto the
+      WHOLE `TestVenvCorruptionHazardFR003b` class (line 410) to keep its two
+      network-touching, subprocess-spawning tests
+      (`test_a_well_pinned_nested_uv_run_leaves_a_dedicated_venv_untouched`, line
+      435-436, and `test_named_call_site_argv_does_not_rebuild_a_mismatched_dedicated_venv`,
+      line 484/498, both individually `@pytest.mark.slow`) out of the nightly
+      `-m "fast or unit"` leg. Verified this is correctly achieved (0/4 collected
+      under `-m "fast or unit"` at HEAD vs 4/4 at the pre-fix commit 44a167590).
+      But the class also contains `test_interpreter_matrix_job_pins_a_dedicated_project_environment`
+      (line 412), which does a pure static YAML parse/assert of `ci-nightly.yml`
+      with no subprocess call, no venv build, and no network access, and carries
+      no `slow`/hazard marker of its own. At the pre-fix commit, this specific
+      test WAS collected and run under both `make test-fast`
+      (`FAST_TIER_MARKERS`) and the nightly `-m "fast or unit"` leg (verified:
+      5/9 collected under `FAST_TIER_MARKERS` at 44a167590, including this
+      test). At HEAD, the class-level marker removal takes this same safe test
+      out of BOTH the nightly leg and `make test-fast` (verified: 6/11 under
+      `FAST_TIER_MARKERS` at HEAD, this test absent) even though nothing in the
+      class docstring's justification (unguarded network subprocess builds)
+      applies to it. It still runs under `make test-full`
+      (`not stress and not timing`), so it is not deleted, but a cheap,
+      always-safe regression check for the FR-003(b) pinning behaviour this WP
+      exists to protect is silently demoted out of both the fast local gate and
+      the nightly interpreter matrix leg, with no test asserting that boundary
+      and no rationale in the diff for why THIS test specifically needed to
+      move.
+    remediation: >
+      Move `test_interpreter_matrix_job_pins_a_dedicated_project_environment`
+      out of `TestVenvCorruptionHazardFR003b` (or give it its own explicit
+      `pytestmark = [pytest.mark.adversarial, pytest.mark.fast]` at the method
+      level via `@pytest.mark.fast` on the function, since class-level
+      `pytestmark` covers the whole class) so only the two genuinely
+      network/subprocess-hazardous tests lose the `fast` marker, restoring this
+      test's presence in `make test-fast` and the nightly `-m "fast or unit"`
+      leg.

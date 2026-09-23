@@ -1,0 +1,93 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: contract
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: pr-contract-001
+    lens: contract
+    severity: 3
+    title: "interpreter-matrix's new `-n auto` omits `--dist loadfile`, silently falling back to xdist's `load` mode the project's own docs say never to use"
+    evidence:
+      - code: ".github/workflows/ci-nightly.yml:224"
+      - code: "Makefile:52"
+      - code: "Makefile:66"
+      - code: "docs/development/testing/testing-parallel.md:42"
+      - artifact: "verified in .venv313/lib64/python3.13/site-packages/xdist/plugin.py:318-320 — `if config.option.numprocesses: if config.option.dist == \"no\": config.option.dist = \"load\"` (the implicit fallback when `-n` is set without `--dist`)"
+    claim: >
+      The modified `uv run` step adds `-n auto` to the interpreter-matrix job's
+      pytest invocation but does not add `--dist loadfile`. pytest-xdist's own
+      option-postprocessing sets `--dist` to `load` (not `loadfile`) whenever
+      `-n`/`--numprocesses` is given and `--dist` was left at its default — verified
+      directly against the installed xdist 3.8.0 source, not asserted from memory.
+      `docs/development/testing/testing-parallel.md:42-54` documents this exact
+      hazard for this repo by name ("`load` scatters a single file's tests across
+      multiple workers... always pass `--dist loadfile`; never use bare `--dist
+      load`... CI uses `loadfile` for the same reason") and both canonical
+      `Makefile` xdist invocations (`test-fast` line 52, the parallel pass of
+      `test-full` line 66) comply. The new interpreter-matrix step does not, so this
+      one CI leg silently reintroduces the file-scoped-fixture/collection-order
+      hazard the rest of the project's tooling deliberately guards against — a
+      workflow-contract deviation from the project's own documented parallel-test
+      safety rule, on the exact leg this mission exists to make trustworthy. I did
+      not find an observed failure caused by this in the mission's own tracer
+      evidence (WP05's `-n auto` re-measurement reported an exact 20/20
+      baseline-failure-name match, `tracer-design-decisions.md:255`), and WP05's own
+      benchmarking command was already bare `-n auto` without `--dist loadfile`
+      (`plan.md:584`) — so this is a pre-existing gap in the mission's own local
+      validation methodology that the shipped workflow YAML inherits, not a
+      regression invented by this diff in isolation. That lowers confidence that it
+      has caused a concrete failure so far, but does not make the workflow's
+      deviation from documented policy correct.
+    remediation: >
+      Add `--dist loadfile` to the interpreter-matrix job's pytest invocation
+      (.github/workflows/ci-nightly.yml:224), matching `make test-fast`/`make
+      test-full`, so the new parallel leg gets the same file-scoped-fixture
+      guarantee the rest of the suite relies on. If `loadfile` was deliberately
+      omitted for some load-balancing reason specific to this leg, say so in the
+      inline comment — the current comment block (lines ~198-208) explains the
+      motivation for `-n auto` but is silent on the `--dist` choice.
+
+  - id: pr-contract-002
+    lens: contract
+    severity: 2
+    title: "`uv run --frozen --no-sync` silently creates an empty ad hoc venv (wrong deps, no failure) when the targeted `UV_PROJECT_ENVIRONMENT` doesn't exist yet; the new hazard-test suite never exercises this case"
+    evidence:
+      - code: "tests/charter/test_interview_mapping_mission_alias.py:51"
+      - code: "tests/docs/test_docs_index.py:297"
+      - code: "tests/upgrade/test_migration_robustness.py:310"
+      - code: "tests/upgrade/test_migration_robustness.py:334"
+      - code: "tests/upgrade/test_migration_robustness.py:396"
+      - artifact: "empirically reproduced in this checkout: `UV_PROJECT_ENVIRONMENT=<nonexistent-path> uv run --frozen --no-sync python -c \"print(...)\"` (run from the repo root, real pyproject.toml/uv.lock) prints `Creating virtual environment at: <path>` and exits 0 with an EMPTY venv (no project deps installed) — no error, no warning."
+    claim: >
+      `--no-sync` skips *syncing* the target environment, but does not require the
+      environment to already exist: when `UV_PROJECT_ENVIRONMENT` names a path with
+      no venv at it, `uv run --frozen --no-sync` silently creates a brand-new, empty
+      virtual environment there (using the `.python-version` pin, not necessarily
+      the interpreter the caller intended) and proceeds to run the command in it —
+      exit 0, no diagnostic. This is exactly the "silent success" shape the contract
+      lens is watching for: a missing precondition (a pre-synced dedicated venv)
+      degrades to a quietly-different-and-wrong execution environment rather than a
+      clear error. For the two call sites this PR actually touches
+      (`test_interview_mapping_mission_alias.py`, `test_docs_index.py`) the
+      practical blast radius is contained, because both driver scripts import
+      third-party packages (`charter.*`, `ruamel.yaml`/`yaml` via
+      `scripts.docs`/`specify_cli.docs`) that would not be present in that fresh
+      empty venv, so the actual failure mode I could reproduce for them is a loud
+      `ModuleNotFoundError` (verified empirically), not a false pass. But the
+      mitigation is incidental to those two scripts' import graphs, not to
+      `--no-sync` itself, and the new `TestVenvCorruptionHazardFR003b` suite (which
+      exists specifically to regression-test this WP's venv-corruption fix) only
+      covers "venv already exists, wrong interpreter" and "venv already exists,
+      correct interpreter" — never "venv does not exist at all," so this exact
+      degrade-to-silent-fallback behavior of `--no-sync` has no automated coverage
+      and would not be caught if a future nested `uv run --no-sync` call site (or
+      one of these two, if their import graph ever became pure-stdlib) hit it.
+    remediation: >
+      Add a `TestVenvCorruptionHazardFR003b` case that points `UV_PROJECT_ENVIRONMENT`
+      at a path that does not exist yet and asserts on the resulting behavior
+      (either that uv errors, or — given the demonstrated default — that the created
+      venv is provably unpopulated so callers relying on project packages fail
+      loudly), so the "no venv yet" branch of this hazard class is pinned instead of
+      relying on incidental import-graph luck at the two current call sites.

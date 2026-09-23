@@ -1,0 +1,35 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: >
+      Live repro in this checkout with uv 0.11.28 reproduces exactly the claimed failure —
+      `uv run pytest -m "fast or unit" -q --python 3.13 --all-extras --collect-only tests/ci/`
+      exits 4 with `pytest: error: unrecognized arguments: --python --all-extras tests/ci/`,
+      while moving the same flags before `pytest` (`uv run --frozen --python 3.13
+      --all-extras pytest --collect-only -q tests/ci/`) exits 0 and collects under 3.13; and
+      WP03-uv-run-env-pinning.md's T005 and WP07-final-verification.md's T001 verbatim give
+      the flags-after-pytest form as the worked local reproduction, while WP03's T003 gives
+      only prose ("add ... preserve the existing ... arguments unchanged") with no exact
+      resulting `run:` string, exactly as the finding states.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: >
+      wps.yaml verbatim confirms WP01/WP02/WP03/WP04 all carry `dependencies: []` (mirrored
+      in tasks.md's "Dependencies: None"), WP01's Objective/Context/Risks sections quote
+      verbatim as cited (including "there is no dependency edge enforcing that in `wps.yaml`;
+      sequence it first as a matter of practice" and the Risks section's skip/reorder
+      admission); independently traced the runtime's actual dispatch gate
+      (`dependency_readiness_for_wp` in `src/specify_cli/core/dependency_graph.py`, called
+      from `status/transition_pipeline.py`/`wp_state.py`) and confirmed it is driven purely
+      by `wps.yaml`'s per-WP `dependencies` field with no fallback — `lanes.json`'s
+      `depends_on_lanes`/`parallel_group` are a separate, non-gating mechanism (worktree-merge
+      timing only, per `worktree_allocator.py`) that neither function reads, so no
+      lane/topology constraint closes the gap and this mission's own single_branch topology
+      offers no other sequencing guarantee; plan.md's IC-01 states "Sequencing/depends-on:
+      none — runs first, independent of every other concern," confirming the ordering is
+      design intent only, never encoded as an enforceable edge.

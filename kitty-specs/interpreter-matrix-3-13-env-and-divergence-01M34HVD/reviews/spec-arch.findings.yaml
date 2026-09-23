@@ -1,0 +1,86 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: SPEC-ARCH-001
+    lens: silent-success-completeness (NFR-002, mission-derived)
+    severity: 4
+    title: NFR-002's "fail loudly" guarantee is not operationalized for the FR-003(b) fallback path — no enforcement mechanism named
+    evidence:
+      - artifact: "spec.md § NFR-002 (line 432): \"The uv run step fix and any venv-corruption fix must fail loudly ... not silently re-sync to an unexpected interpreter the way the current defect does.\""
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 2 (lines 164-169): the regression test (\"a new regression test asserting the .venv's interpreter identity is unchanged before/after the suite run\") is explicitly chained from Acceptance Scenario 1 (\"Given the fix from (1)\") — i.e. only required when a named culprit call site is found and fixed."
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 3 (lines 170-174) and § FR-003 AC option (b) (lines 382-390): the fallback path (timebox exhausted, UV_PROJECT_ENVIRONMENT pinned per-interpreter) requires only \"the fallback mitigation and its rationale are recorded\" plus a follow-up issue — no regression test, assertion, or CI check is named for this branch."
+      - artifact: "spec.md § Edge Case (a) (lines 247-257): describes the UV_PROJECT_ENVIRONMENT fallback mitigation with no accompanying verification mechanism for future re-occurrences in a *different* nested `uv` call."
+    claim: >
+      NFR-002 makes a blanket promise ("any venv-corruption fix ... must fail
+      loudly ... if the interpreter/extras pinning is ever wrong again") but
+      the spec's own acceptance-criteria structure only wires a concrete
+      enforcement mechanism (the "regression test asserting the .venv's
+      interpreter identity is unchanged before/after the suite run") to the
+      root-cause-found branch, option (a) of FR-003. If the investigation
+      timebox in Edge Case (a) is exhausted and the fallback mitigation
+      (pinning UV_PROJECT_ENVIRONMENT per-interpreter) is applied instead,
+      nothing in the spec requires any check, assertion, or test that would
+      catch a *future* re-occurrence of this exact bug class in a different
+      nested `uv` call the investigation didn't find or rule out. Per
+      DIRECTIVE_043 (Close Defect Classes by Construction — "a design that
+      requires discipline reminders to enforce a constraint is structurally
+      incomplete"), NFR-002 as written is aspirational text for the fallback
+      branch: it names a goal but not a mechanism. This is also the exact
+      reflexive risk the spec itself names in the Reflexivity section ("a
+      venv-corruption fix that silently masks rather than surfaces a future
+      re-occurrence") without closing it for the one branch (the fallback)
+      where it is most likely to matter, since by definition the fallback is
+      chosen precisely when the culprit was NOT found.
+    remediation: >
+      Extend FR-003 option (b)'s acceptance criteria (and User Story 3
+      Acceptance Scenario 3) to require a lightweight regression check even
+      in the fallback branch: e.g. a test or CI step that asserts the pinned
+      per-interpreter UV_PROJECT_ENVIRONMENT venv's interpreter identity
+      (and installed-extras set) is unchanged before/after a `fast or unit` /
+      `-n auto` run — the same assertion shape already required for option
+      (a), just applied against the pinned venv rather than a fixed call
+      site. This gives the fallback a concrete, falsifiable "fails loudly if
+      wrong again" mechanism instead of relying on the pinning alone (which
+      only closes the specific symptom already observed, not the defect
+      class). Alternatively, if that is judged out of scope for this
+      mission, NFR-002 should be narrowed to state explicitly that it is
+      guaranteed only for the root-cause-fixed branch, so a later reader
+      does not read it as covering the fallback too.
+
+  - id: SPEC-ARCH-002
+    lens: reflexivity
+    severity: 2
+    title: Reflexivity section's "nothing keys off interpreter-matrix's pass/fail state programmatically" is not quite true — ci-nightly.yml's own nightly-summary job does
+    evidence:
+      - artifact: "spec.md § Reflexivity (lines 467-469): \"nothing in the repository is known to key off that specific job's pass/fail state programmatically (it is a human/operator-facing signal, not a merge gate — ci-nightly.yml is not in any PR's required-checks path)\""
+      - code: ".github/workflows/ci-nightly.yml:337 — nightly-summary: needs: [performance-and-e2e, interpreter-matrix, full-module-matrix]"
+      - code: ".github/workflows/ci-nightly.yml:344 — echo \"interpreter-matrix: ${{ needs.interpreter-matrix.result }}\""
+    claim: >
+      Direct inspection of .github/workflows/ci-nightly.yml shows the
+      nightly-summary job (same file, lines 330-345) declares
+      `interpreter-matrix` in its `needs:` list and reads
+      `needs.interpreter-matrix.result` in a report step. That is a
+      programmatic dependency on — and read of — interpreter-matrix's
+      pass/fail state, contradicting the literal claim "nothing ... is known
+      to key off that specific job's pass/fail state programmatically." In
+      practice the consequence is benign: nightly-summary runs `if:
+      always()`, never branches or exits non-zero on the result, and is not
+      itself wired into any PR-required-checks path (confirmed: no other
+      workflow or script references `interpreter-matrix` by name outside
+      ci-nightly.yml itself and the static-YAML architectural test
+      tests/architectural/test_performance_marker_guard.py, which asserts
+      the job's *structure*, not its runtime result). So the spec's
+      substantive conclusion (not a merge gate, doesn't disrupt other
+      missions) still holds — but the specific universal claim as worded is
+      falsifiable and false, and this lens was specifically instructed not
+      to take the spec's word for it.
+    remediation: >
+      Tighten the Reflexivity claim's wording to the true, narrower
+      statement: "no job fails, blocks, or branches on interpreter-matrix's
+      result; the only reader is ci-nightly.yml's own nightly-summary job,
+      which echoes the result for operator visibility under `if: always()`
+      and does not gate on it." This keeps the conclusion (safe to fix,
+      nothing downstream breaks) but removes the falsifiable overreach.

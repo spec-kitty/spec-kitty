@@ -1,0 +1,47 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: >-
+      WP01's Context section (tasks/WP01-baseline-capture-and-fr005-issue.md) now states
+      "WP01 itself has dependencies: [] in wps.yaml and is not blocked by any other WP...
+      WP02/WP03/WP04 each depend on WP01 (dependencies: [WP01] in wps.yaml and in their own
+      frontmatter): they cannot be claimed until this WP's baseline evidence file reaches
+      approved/done, enforced by dependency_readiness_for_wp" — the false "no dependency
+      edge... in wps.yaml" and "does not block... WP02/WP03/WP04" sentences are gone; a
+      fresh grep of all 7 tasks/WP0X-*.md files for the stale-claim regex
+      (no dependency edge|does not block, and is not blocked|independent of every other
+      WP|fully independent) returns zero hits outside WP01's own accurate root-node
+      "independent of every other WP" phrasing, which matches wps.yaml's real
+      dependencies: [] for WP01.
+  - id: TASKS-FRESH2-002
+    status: resolved
+    reason: >-
+      plan.md now carries a clearly-marked "Tasks-phase amendment" note at the top of the
+      Implementation Concern Map (before IC-01, explaining wps.yaml's WP01-first gate on
+      WP02/WP03/WP04 while preserving IC-02/IC-03/IC-04's true inter-concern independence),
+      a matching amendment directly under the IC-01 prose summary (lines ~304-311) that
+      cross-references the map's note, and per-IC "Tasks-phase amendment:" sentences inside
+      IC-02/IC-03/IC-04's own Sequencing/depends-on bullets — none of the original prose was
+      silently altered or contradicted, each amendment names the specific new fact
+      (dependencies: [WP01] via wps.yaml) and reconciles it with the surviving true claim
+      (the four concerns remain independent of one another), and IC-01's own
+      Sequencing/depends-on entry was correctly left unamended since it is still accurate.
+summary: >-
+  Both findings are substantively resolved, not just reworded. TASKS-FRESH2-001: WP01's
+  Context section was rewritten to state the real wps.yaml edge (WP02/WP03/WP04 gated on
+  WP01's approved/done state via dependency_readiness_for_wp) and the specific false
+  sentences quoted in the finding are gone; an independent grep across all 7 WP files for
+  the whole class of stale claims found zero remaining instances beyond WP01's own correct,
+  unproblematic root-node claim. TASKS-FRESH2-002: plan.md's Implementation Concern Map
+  (read in full, IC-01 through IC-04) now carries a substantive, clearly-labelled
+  "Tasks-phase amendment" — one general note at the top of the map plus a per-IC pointer in
+  IC-02/IC-03/IC-04's Sequencing/depends-on fields, and a matching amendment under the
+  earlier IC-01 prose summary the finding also cited (plan.md lines ~302-311) — that
+  correctly distinguishes the new wps.yaml-enforced WP01-first gate from the still-true
+  claim that IC-02/IC-03/IC-04 remain independent of one another; nothing in the original
+  prose was deleted or silently overwritten, so a reader is not misled either way. git
+  status --short is clean and git log --oneline -3 shows the fix commit cffd9d978 at HEAD,
+  reachable on branch issue-4866-interpreter-matrix-3-13.

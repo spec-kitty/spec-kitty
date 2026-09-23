@@ -1,0 +1,75 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: PLAN-ARCH-001
+    lens: Canonical source
+    severity: 3
+    title: "'Tooling drift flagged' misdiagnoses the scaffold mismatch as a spec-kitty plan-command defect; the real cause is this checkout's own stale project-tier override"
+    evidence:
+      - artifact: "plan.md § top note (lines 6-12) and § 'Tooling drift flagged' (lines 698-714), also echoed in § Charter Check's Standing Order 6 bullet (lines 126-134)"
+      - code: "src/charter/activation/template_resolver.py:59 — \"Resolution order: OVERRIDE > LEGACY > ORG > GLOBAL_MISSION > GLOBAL > PACKAGE_DEFAULT.\" (OVERRIDE is the HIGHEST-priority tier, resolved before PACKAGE_DEFAULT)"
+      - code: "src/charter/offering/resolver.py:4 — \"1. OVERRIDE -- .kittify/overrides/missions/{mission}/{templates,command-templates}/\""
+      - code: "docs/architecture/mission-system.md:340-346 — resolution priority table confirms \"1. Project override\" wins over \"3. Package default\"; \"First match wins.\""
+      - code: ".kittify/overrides/missions/software-dev/templates/plan-template.md (tracked in git; last touched 2026-04-17, commit 2db24b3) still reads \"## Constitution Check\" / \"## Parallel Work Organization\" and cites the stale execution-workflow path \"src/doctrine/missions/software-dev/command-templates/plan.md\" — i.e. it is byte-for-byte the shape the plan blames on \"the scaffold\""
+      - code: "packs/built-in/missions/software-dev/templates/plan-template.md (last touched 2026-08-15, commit ca43bea) already reads \"## Charter Check\" / \"## Implementation Concern Map\" — the canonical template genuinely was updated after the project override was authored and nothing re-synced the override"
+    claim: >
+      Plan.md's "Tooling drift flagged" section (and the Standing Order 6 bullet
+      that leans on it) states: "`.venv/bin/spec-kitty plan --json` ...
+      scaffolded a plan.md that does not match this checkout's own canonical
+      template... This is a live defect in spec-kitty's own plan command (this
+      very repository's tooling) and should be filed upstream." The mechanical
+      observation (scaffold used "Constitution Check"/"Parallel Work
+      Organization" instead of "Charter Check"/"Implementation Concern Map",
+      and cited a stale execution-workflow path) is accurate — verified above.
+      But the causal attribution is wrong: this checkout carries a
+      project-tier `.kittify/overrides/missions/software-dev/templates/plan-template.md`
+      file, and per the resolver's own documented and enforced 6-tier chain,
+      OVERRIDE is the *highest*-priority tier — deliberately designed to win
+      over PACKAGE_DEFAULT ("Your override will be used instead of the
+      package default for that step," docs/architecture/mission-system.md:359).
+      The `plan --json` command did exactly what it is designed to do: it
+      picked up this repo's own tracked-but-stale override, which was authored
+      2026-04-17 and never updated when the canonical template's headings
+      changed on 2026-08-15. There is no evidence of a defect in the `plan`
+      command's resolution logic itself — the plan's own remediation (author
+      against the current canonical template, flag rather than silently
+      work around) is the *right action*, but the write-up instructs a future
+      reader to "file upstream" against the wrong subsystem (spec-kitty's
+      `plan` command) rather than against the actual, trivially-fixable
+      target (this repository's own stale `.kittify/overrides/` content, or —
+      if genuinely wanted — a feature request for override-staleness
+      detection, which does not exist today). Filing the issue as currently
+      framed would send a maintainer to inspect `plan --json`'s resolution
+      code, find it behaving exactly as designed, and either close the issue
+      as not-a-bug or waste time before discovering the real cause.
+      Severity reasoning: this does not corrupt any of the mission's own
+      FR-001..FR-006 acceptance criteria or force WP-level rework — C-001
+      already scopes this mission away from `packs/` and `.kittify/overrides/`
+      entirely, so the misdiagnosis is confined to an optional, "flagged not
+      fixed" appendix. It is nonetheless a factual claim about existing code
+      ("live defect in spec-kitty's own plan command") that the code
+      contradicts, and it is one of the mission's own explicitly-named
+      follow-up actions, so left uncorrected it produces a concretely
+      misdirected upstream filing — moderate (3), not high, because no WP
+      inside this mission's own scope depends on the diagnosis being right.
+    remediation: >
+      In plan.md's "Tooling drift flagged" section (and the Standing Order 6
+      bullet), replace "This is a live defect in spec-kitty's own plan
+      command... and should be filed upstream" with an accurate diagnosis:
+      name `.kittify/overrides/missions/software-dev/templates/plan-template.md`
+      as a project-tier override (OVERRIDE is documented as the
+      highest-priority resolution tier — src/charter/offering/resolver.py,
+      docs/architecture/mission-system.md's priority table) that has drifted
+      from the canonical `packs/built-in/.../plan-template.md` since the
+      canonical template's 2026-08-15 update. Either (a) note that the
+      one-line fix is to refresh/regenerate the stale override file in this
+      checkout (out of C-001's blast radius for *this* mission, but a
+      trivial follow-up unrelated to the `plan` command's own logic), or (b)
+      if an upstream issue is still wanted, scope it correctly as a feature
+      request for override-staleness detection (no mechanism currently warns
+      when a project-tier override silently shadows an updated canonical
+      template) rather than "a live defect in spec-kitty's own plan command."

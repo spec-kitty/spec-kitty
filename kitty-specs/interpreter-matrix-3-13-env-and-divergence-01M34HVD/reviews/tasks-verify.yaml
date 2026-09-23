@@ -1,0 +1,35 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: >
+      WP03's T003 now gives the exact fixed `run:` string (`uv run --frozen --python
+      "${{ matrix.python-version }}" --all-extras pytest -m "fast or unit" -q
+      --junitxml=...`) with flags correctly placed between `uv run --frozen` and
+      `pytest`, not just prose; WP03's T005 and WP07's T001 worked repro commands were
+      reordered identically; a full `grep -n "uv run"` across all 7 WP files found no
+      other worked command with the wrong flag placement (WP01/WP04 only mention `uv
+      run` in prose, no worked command); and I independently re-ran `timeout 60 uv run
+      --frozen --python 3.13 --all-extras pytest --collect-only -q tests/ci/` live in
+      this checkout, collecting 392 tests cleanly with zero unrecognized-arguments
+      error, with `.venv` left untouched at Python 3.13.15 (`.venv/bin/spec-kitty
+      --version` → `4.0.0rc5`) so no restore was needed.
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: >
+      `wps.yaml` now carries `dependencies: [WP01]` for WP02/WP03/WP04, `tasks.md`'s
+      Dependencies fields for WP02/WP03/WP04 read `WP01`, and each of
+      `tasks/WP02-*.md`, `tasks/WP03-*.md`, `tasks/WP04-*.md`'s own frontmatter agrees
+      — all three sources consistent; `tracer-tooling-friction.md`'s 2026-09-22 entry
+      correctly documents that `lanes.json` was left stale (a genuine
+      finalize-tasks lane-cycle tooling limitation, not an oversight), and I
+      independently read `dependency_readiness_for_wp` in
+      `src/specify_cli/core/dependency_graph.py` plus its real call site in
+      `src/specify_cli/cli/commands/implement.py`'s `_ensure_wp_claim_preconditions`
+      and confirmed the dependency list it gates on is threaded from the WP's own
+      declared `dependencies` (frontmatter/wps.yaml-derived), never from
+      `lanes.json` (which is resolved separately, only for workspace placement) —
+      matching the tracer file's claim exactly.

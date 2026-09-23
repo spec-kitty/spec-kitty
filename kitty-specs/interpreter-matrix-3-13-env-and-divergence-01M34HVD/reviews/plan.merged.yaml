@@ -1,0 +1,120 @@
+# review-findings/v1 — merged (R2), mechanical concatenation + dedup of
+# plan-gov.findings.yaml, plan-arch.findings.yaml, plan-verify.findings.yaml.
+# No finding dropped or re-judged here; that is R3's job.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: merged
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: PLAN-GOV-001
+    lens: ATDD-First (C-011) concreteness — mission-derived lens 8(a)
+    severity: 2
+    title: "FR-001 ATDD precedent misattributes gate_selection.py's yaml.safe_load target: it parses ci-router.yml, not ci-nightly.yml"
+    evidence:
+      - artifact: "plan.md § ATDD-First (binding, C-011) → FR-001 (workflow-YAML flags fix), item 1 (line 306-311)"
+      - code: "scripts/ci/gate_selection.py:44-45 (`DEFAULT_ROUTER_PATH = _REPO_ROOT / \".github\" / \"workflows\" / \"ci-router.yml\"`), :120 (`workflow = yaml.safe_load((path or DEFAULT_ROUTER_PATH).read_text(...))`)"
+      - code: ".github/workflows/ci-nightly.yml — no `changes` job exists in this file; the `changes` job with dorny/paths-filter lives in `.github/workflows/ci-router.yml`."
+    claim: >
+      Plan.md's FR-001 ATDD-test design cites "scripts/ci/gate_selection.py
+      parses the same file's [ci-nightly.yml] changes job filters with
+      yaml.safe_load" as precedent. This is factually wrong: gate_selection.py
+      parses ci-router.yml and the module registry, never ci-nightly.yml,
+      which has no `changes` job at all. The underlying test design (steps
+      2-4) is still correct and self-contained, so this does not produce a
+      wrong implementation, but it is a verifiable factual error in the
+      plan's own precedent citation that could send an implementer looking
+      for a reference that isn't there.
+    remediation: >
+      Correct the parenthetical to name the actual precedent accurately
+      (gate_selection.py parses a sibling workflow, ci-router.yml, not
+      ci-nightly.yml), or drop it and cite the closer precedent
+      tests/ci/test_sonar_project_version.py instead.
+
+  - id: PLAN-GOV-002
+    lens: Implementation Concern Map internal consistency — mission-derived lens 8(b) / Scope
+    severity: 2
+    title: "IC-06's own depends-on list (IC-02, IC-03) is inconsistent with the 'Verification route' section's stated sequencing (after IC-02/IC-03/IC-04)"
+    evidence:
+      - artifact: "plan.md § Verification route (no CI safety net), point 2 (line 396)"
+      - artifact: "plan.md § Implementation Concern Map → IC-06, 'Sequencing/depends-on' bullet (line 689-690)"
+    claim: >
+      The plan's prose says IC-06 (operator-gated manual dispatch) is
+      sequenced after IC-02/IC-03/IC-04, and calls it "the last concern"
+      (implying after IC-05 too). IC-06's own canonical
+      "Sequencing/depends-on" field — the field /spec-kitty.tasks is
+      instructed to translate directly into WP dependency edges — names only
+      IC-02 and IC-03. A literal WP-slicing pass could unblock IC-06 before
+      IC-04/IC-05 complete, contradicting the plan's own intent that a
+      single dispatch validate the whole mission's final state.
+    remediation: >
+      Reconcile: either update IC-06's depends-on to "IC-02, IC-03, IC-04,
+      IC-05" if the dispatch should wait for re-measurement/disposition, or
+      correct the "Verification route" prose to "after IC-02/IC-03's fixes
+      have landed" and drop the "last concern" framing, so both sections
+      agree and /spec-kitty.tasks has one unambiguous dependency edge.
+
+  - id: PLAN-ARCH-001
+    lens: Canonical source
+    severity: 3
+    title: "'Tooling drift flagged' misdiagnoses the scaffold mismatch as a spec-kitty plan-command defect; the real cause is this checkout's own stale project-tier override"
+    evidence:
+      - artifact: "plan.md § top note (lines 6-12) and § 'Tooling drift flagged' (lines 698-714), also echoed in § Charter Check's Standing Order 6 bullet (lines 126-134)"
+      - code: "src/charter/activation/template_resolver.py:59 — resolution order OVERRIDE > LEGACY > ORG > GLOBAL_MISSION > GLOBAL > PACKAGE_DEFAULT (OVERRIDE highest priority)"
+      - code: "src/charter/offering/resolver.py:4 — '1. OVERRIDE -- .kittify/overrides/missions/{mission}/{templates,command-templates}/'"
+      - code: "docs/architecture/mission-system.md:340-346 — resolution priority table confirms project override wins over package default"
+      - code: ".kittify/overrides/missions/software-dev/templates/plan-template.md (tracked, last touched 2026-04-17) still reads 'Constitution Check'/'Parallel Work Organization' and the stale execution-workflow path — byte-for-byte the shape the plan blames on 'the scaffold'"
+      - code: "packs/built-in/missions/software-dev/templates/plan-template.md (last touched 2026-08-15) already reads 'Charter Check'/'Implementation Concern Map'"
+    claim: >
+      Plan.md's "Tooling drift flagged" section states the scaffold mismatch
+      "is a live defect in spec-kitty's own plan command... and should be
+      filed upstream." The mechanical observation is accurate, but the
+      causal attribution is wrong: this checkout carries a project-tier
+      override file at .kittify/overrides/missions/software-dev/templates/plan-template.md,
+      and OVERRIDE is documented and enforced as the highest-priority
+      resolution tier. The plan command did exactly what it is designed to
+      do — picked up this repo's own tracked-but-stale override, authored
+      2026-04-17, never updated when the canonical template changed on
+      2026-08-15. Filing this upstream as currently framed would misdirect a
+      maintainer into inspecting the wrong subsystem. Rated moderate (not
+      high) because C-001 already scopes this mission away from
+      packs/.kittify/overrides/, so no WP inside this mission's scope
+      depends on the diagnosis — it only affects an optional appendix
+      action — but it is a factual claim about existing code that the code
+      contradicts.
+    remediation: >
+      Replace "This is a live defect in spec-kitty's own plan command...
+      should be filed upstream" with an accurate diagnosis naming
+      .kittify/overrides/missions/software-dev/templates/plan-template.md as
+      a stale project-tier override that has drifted from the canonical
+      template since 2026-08-15. Either (a) note the one-line local fix
+      (refresh/regenerate the stale override, out of C-001's blast radius
+      for this mission but trivial as a follow-up), or (b) if an upstream
+      issue is still wanted, scope it correctly as a feature request for
+      override-staleness detection, not "a live defect in spec-kitty's own
+      plan command."
+
+  - id: PLAN-VERIFY-001
+    lens: Gates (live-verification)
+    severity: 2
+    title: "Gate table is silent on three other live, PR-triggered workflows (ci-windows.yml, docs-pages.yml, check-spec-kitty-events-alignment.yml) without stating why they don't apply"
+    evidence:
+      - artifact: "plan.md § 'The gate set for this mission'"
+      - code: ".github/workflows/ci-windows.yml:1-30 (paths-filter; none of the three touched test files or ci-nightly.yml appear in it; zero windows_ci marker hits in those files)"
+      - code: ".github/workflows/docs-pages.yml:1-13 (on: push only [main, 2.x] — no pull_request trigger)"
+      - code: ".github/workflows/check-spec-kitty-events-alignment.yml:1-13 (on: pull_request, paths limited to pyproject.toml/uv.lock/.kittify/release/**/scripts/release/**, none touched by this mission)"
+    claim: >
+      AGENTS.md/CLAUDE.md's "Branches and CI" section names ci-windows.yml,
+      docs-pages.yml, and check-spec-kitty-events-alignment.yml as "also
+      live" alongside the workflows the plan's gate table does cover. The
+      gate table omits all three with no reasoning line, even though the
+      lens instruction is "why any omitted one does not apply." Independent
+      verification confirms all three genuinely do not apply to this diff,
+      so the omission is harmless here, but the plan's self-audit doesn't
+      say so — a gap a future reader could not distinguish from an actual
+      missed gate without re-deriving it themselves.
+    remediation: >
+      Add a row or trailing note to "The gate set for this mission" table
+      covering all three workflows, stating N/A with the one-line reason for
+      each (no path-filter/marker overlap; no pull_request trigger; no
+      pyproject.toml/uv.lock touch respectively).

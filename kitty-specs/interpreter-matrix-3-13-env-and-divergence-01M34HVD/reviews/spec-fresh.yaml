@@ -1,0 +1,38 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh-sweep
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+round: 2
+findings:
+  - id: SPEC-FRESH2-001
+    lens: ambiguity/gap check on the newly-added FR-003(b) blast-radius location clause (this round's fix for the prior round's C-001/FR-003(b) location gap)
+    severity: 3
+    title: "FR-003(b)'s new test-location instruction points at a counterfactual file that, by definition of taking the (b) branch, was never produced"
+    evidence:
+      - artifact: "spec.md lines 415-420 (added this round), FR-003 AC: \"This (b) check lands as a lightweight step added alongside the fallback's own `ci-nightly.yml` / `UV_PROJECT_ENVIRONMENT`-pinning change, or, if that is not a natural fit, as a small standalone test under `tests/upgrade/` colocated with whichever regression test option (a)'s own investigation would have produced — the WP records which location it used.\""
+      - artifact: "spec.md § Constraints, C-001 (line 485, added this round): \"If FR-003's (b) fallback branch is taken instead, its own regression check (FR-003 AC) is likewise in-radius: either a step added alongside the `ci-nightly.yml` fallback change itself, or a small standalone test under `tests/upgrade/`.\" — the C-001 summary omits the confusing qualifier entirely, so it doesn't resolve the ambiguity either."
+      - artifact: "spec.md Edge Case (a) (unchanged, lines 254-264): the (b) fallback is explicitly reached only when \"the timebox is exhausted without isolating a culprit\" — i.e., precisely the scenario in which option (a)'s investigation produced no named call site and therefore no regression test of its own."
+    claim: >
+      This round's fix for the prior finding (FR-003(b) not saying where its regression check
+      lives) adds a second, fallback placement option — \"a small standalone test under
+      `tests/upgrade/` colocated with whichever regression test option (a)'s own investigation
+      would have produced.\" But by the fallback's own definition (Edge Case (a): the timebox was
+      exhausted, no culprit was isolated), option (a)'s investigation did NOT produce a regression
+      test to colocate with — there is no actual file for the WP to look at and place a new test
+      next to. The clause reads as though it resolves the location question, but it actually asks
+      the WP implementing the (b) branch to imagine a counterfactual artifact from the branch that,
+      by construction, did not happen, and then physically colocate a real file with it. A WP
+      reviewer or implementer hitting this — which Edge Case (a) itself flags as \"the single
+      largest schedule risk in the mission\" — has no concrete, actionable instruction for where the
+      file actually goes; C-001's cross-reference to the same option doesn't add the missing
+      concreteness either, since it only repeats \"a small standalone test under `tests/upgrade/`\"
+      without the colocation qualifier's problem being resolved or removed.
+    remediation: >
+      Replace the counterfactual colocation reference with a concrete, standing convention: e.g.
+      "as a small standalone test under `tests/upgrade/` (the module already hosting the hazard's
+      own reproduction, `tests/upgrade/test_migration_robustness.py`), named for the pinned-venv
+      identity/extras check it performs — the WP records the exact file/test name it used." This
+      keeps the same two-option structure (workflow step vs. standalone test) but drops the
+      reference to a hypothetical artifact from the branch not taken, replacing it with a concrete
+      anchor (the existing repro test's own module) that exists regardless of which branch fires.

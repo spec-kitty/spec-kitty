@@ -1,0 +1,191 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: SPEC-VERIFY-001
+    lens: ATDD test-shape concreteness (C-004)
+    severity: 3
+    title: >-
+      FR-001's YAML test-shape description doesn't warn that the sync step in
+      the SAME job already carries --python/--all-extras, a vacuous-test trap
+      for a naively-scoped RED check
+    evidence:
+      - artifact: "spec.md § C-004 (line 442) and § FR-001 acceptance criteria (lines 357-368)"
+      - code: ".github/workflows/ci-nightly.yml:205 (uv sync step: already has --python and --all-extras)"
+      - code: ".github/workflows/ci-nightly.yml:212 (uv run step: the actual target, currently lacks both flags)"
+    claim: >-
+      Verified directly against the live workflow: the interpreter-matrix
+      job's `uv sync` step (line 205) already carries both `--python` and
+      `--all-extras`; only the `uv run` step (line 212) lacks them. C-004 does
+      partially disambiguate by naming the target step "(the one invoking
+      pytest)", which is sufficient if an implementer scopes the test
+      precisely to that one step's `run:` string. But neither C-004 nor
+      FR-001's acceptance criteria explicitly warns that a less careful
+      implementation -- e.g. a whole-job or whole-file text/substring search
+      for "--python" and "--all-extras" instead of isolating the specific
+      pytest-invoking step -- would be vacuously GREEN today, before any fix,
+      because the sync step's flags already satisfy that substring check. A
+      test built that way would violate C-011's RED-on-planning_base_branch
+      requirement without the implementer necessarily realizing why the "RED
+      check" they expect to see doesn't materialize. (Verified: I confirmed
+      via `python3 -c "import yaml..."` that exactly one `uv run` step exists
+      in the interpreter-matrix job, so job/step selection itself is
+      unambiguous once correctly scoped -- the risk is specifically the
+      sync-vs-run substring collision, not step-count ambiguity.)
+    remediation: >-
+      Add one explicit sentence to C-004 / FR-001's acceptance criteria:
+      "the test must assert the flags on the pytest-invoking step's own
+      `run:` string specifically, not on the job's or file's full YAML text
+      -- the preceding `uv sync` step at line ~205 already carries
+      `--python`/`--all-extras`, so a whole-text match would be vacuously
+      green even before the fix lands."
+  - id: SPEC-VERIFY-002
+    lens: ATDD test-shape concreteness (C-004)
+    severity: 3
+    title: >-
+      "2 parametrized dir cases" for the test_no_follow.py failures is
+      factually wrong -- neither test is parametrized; they are two separate,
+      non-parametrized test files
+    evidence:
+      - artifact: "spec.md § FR-002 acceptance criteria (lines 374-381) and § C-004 (line 442)"
+      - code: "tests/kernel/test_no_follow.py:66 (test_read_rejects_symlink_planted_before_open, no @pytest.mark.parametrize)"
+      - code: "tests/specify_cli/core/test_no_follow.py:56 (same test name, also no @pytest.mark.parametrize)"
+    claim: >-
+      Verified by reading both files in full and grepping for "parametrize"
+      across both test files and their package-level conftest.py locations
+      (none exists in tests/kernel/ or tests/specify_cli/core/): neither
+      copy of `test_read_rejects_symlink_planted_before_open` carries a
+      `@pytest.mark.parametrize` decorator, and there is no
+      `pytest_generate_tests` hook or fixture-level parametrization
+      affecting either file. Each is a single, unparametrized test function.
+      The spec's "1 each -- across 2 parametrized dir cases -- in the two
+      test_no_follow.py files" describes the two *files*
+      (tests/kernel/ vs tests/specify_cli/core/) as if they were
+      pytest-parametrize instances of one test, which they are not -- they
+      are two independent copies of the same test name in different modules
+      (the kernel canonical copy and the specify_cli facade-identity copy,
+      per the module's own docstring). The arithmetic (3 + 1 + 1 = 5) still
+      matches the readiness report's "5 errors" total and the 3.13 run
+      summary, so no count is wrong -- only the mechanism description is.
+      An implementer searching for a parametrize decorator to widen (per
+      FR-002's "accept **kwargs ... and pass it through") could be misled
+      into looking for pytest.mark.parametrize machinery that doesn't exist.
+    remediation: >-
+      Reword FR-002's acceptance criteria and C-004 to: "5 errors: 3 in
+      test_lock_parity.py, and 1 each in the two separate, non-parametrized
+      test_no_follow.py copies (tests/kernel/test_no_follow.py and
+      tests/specify_cli/core/test_no_follow.py)" -- drop "parametrized dir
+      cases" entirely.
+  - id: SPEC-VERIFY-003
+    lens: ATDD test-shape concreteness (C-004)
+    severity: 4
+    title: >-
+      FR-002's "existing test failure IS the pinning test, no new test file
+      required" does not satisfy C-011's literal "committed as a separate
+      commit ... BEFORE any implementation commit" clause
+    evidence:
+      - artifact: "spec.md § C-004 (line 442), parenthetical: \"the WP records their current-3.13 RED, then their post-fix GREEN, on the WP's planning_base_branch vs. final commit, per C-011\""
+      - artifact: ".kittify/charter/charter.md § \"ATDD-First Discipline (binding per C-011)\" (lines 622-635): \"The ATDD test is committed as a separate commit (often the first commit of the lane) BEFORE any implementation commit.\""
+    claim: >-
+      C-011 has two distinct obligations: (1) a failing-first test exists and
+      is committed as a separate commit in the WP's own lane before any
+      implementation commit, and (2) the reviewer verifies it was RED on
+      planning_base_branch and GREEN on the final commit. FR-002's dir_fd
+      tests (test_naive_second_open_of_a_held_lock_raises_under_simulation,
+      test_read_rejects_symlink_planted_before_open x2) already exist,
+      unmodified, on planning_base_branch -- confirmed by reading both files
+      directly; the WP does not touch them to add or change a test. Because
+      no test file changes, there is no way for this WP to produce a
+      "committed as a separate commit ... BEFORE any implementation commit"
+      artifact for its ATDD test -- WP02's own commit sequence would contain
+      only the implementation commit (widening wrap_open/plant_symlink to
+      accept dir_fd), with nothing preceding it. The spec's parenthetical
+      substitutes "the WP records their current-3.13 RED" for a commit, but
+      "records" (e.g. capturing pytest output in a PR body or WP evidence
+      note) is not the same artifact as a git commit obligation (1) names.
+      Obligation (2) (reviewer verifies red-on-base/green-on-final) is
+      arguably satisfiable without a new commit since it's a behavioral
+      check against two ref points, not a diff check -- but obligation (1)'s
+      literal text is not addressed by the spec's reasoning, and a reviewer
+      applying C-011 literally at WP-review time could reject WP02 for
+      lacking a separate pre-implementation test commit, forcing rework this
+      spec should have foreclosed.
+    remediation: >-
+      Either (a) specify concretely how WP02 produces a commit-level
+      RED-evidence artifact before its implementation commit -- e.g. a first,
+      behavior-preserving commit that adds a captured-output evidence file
+      (or a conftest/marker change) recording the pre-fix 3.13 RED run --
+      satisfying obligation (1) literally, or (b) add an explicit sentence
+      acknowledging that C-011's "committed as a separate commit" clause is
+      being read narrowly as inapplicable to an already-existing,
+      unmodified test, and that only the red-on-base/green-on-final
+      verification (obligation 2) applies here -- so a WP reviewer doesn't
+      independently discover and dispute the gap.
+  - id: SPEC-VERIFY-004
+    lens: Revert discipline (FR-003)
+    severity: 3
+    title: >-
+      FR-003 option (a)'s "regression test" is a probabilistic full-suite
+      re-run, not a deterministic test that reliably fails on revert
+    evidence:
+      - artifact: "spec.md § FR-003 acceptance criteria (lines 382-390)"
+      - artifact: "readiness report lines 113-118: \"I did not isolate which specific test triggers the nested re-sync (time-boxed; plausibly something in the upgrade/skill-installer families...)\""
+    claim: >-
+      FR-003(a)'s check is "re-running the exact reproduction that first
+      surfaced the hazard ... and confirming it no longer occurs" -- i.e. a
+      full `fast or unit` / `-n auto` run (~7 minutes per the readiness
+      report and tracer-tooling-friction.md) that happened to trigger a
+      `multiprocessing.spawn` interpreter mismatch once, by accident, under
+      conditions the readiness probe explicitly says it could not pin down
+      ("I did not isolate which specific test triggers the nested
+      re-sync"). A single non-reproduction after the fix is weak revert
+      discipline for a race/timing-dependent hazard: it would not reliably
+      go RED again if the fix were reverted, since the original trigger was
+      never deterministically isolated to begin with -- it could simply fail
+      to reproduce on a given run whether or not the fix is present. This is
+      a materially weaker guarantee than "a test that would fail if the fix
+      were reverted" (the bar this lens is checking), even though the spec
+      frames it as a "regression test."
+    remediation: >-
+      Once FR-003's investigation names the culprit call site, require a
+      deterministic, fast, targeted assertion on that call site itself (e.g.
+      a unit/integration test asserting the specific subprocess invocation
+      now passes --python/--all-extras or --no-sync) as the primary
+      revert-sensitive regression test, with the full `-n auto` reproduction
+      kept only as corroborating, not sole, evidence -- state this
+      explicitly in FR-003's acceptance criteria rather than leaving the
+      full-suite re-run as the only named check.
+  - id: SPEC-VERIFY-005
+    lens: Silent-success (NFR-002)
+    severity: 2
+    title: >-
+      NFR-002 has no dedicated, standalone falsifiable check of its own,
+      unlike every FR
+    evidence:
+      - artifact: "spec.md § NFR-002 (line 432)"
+      - artifact: "spec.md § Edge Case (a) fallback mitigation (lines 247-257)"
+    claim: >-
+      Every FR in spec.md carries an explicit "Checked by:" clause in the
+      "Acceptance criteria per FR" section; NFRs do not get the same
+      treatment -- NFR-002's enforcement is only inferable indirectly, via
+      FR-001's acceptance-criteria rationale text (which cites it when
+      justifying the explicit-flags-over---no-sync choice) and is not
+      addressed at all for FR-003's fallback path: the Edge Case (a)
+      fallback (pinning `UV_PROJECT_ENVIRONMENT` per interpreter) is a
+      preventative mitigation, not a fail-loud detector -- it makes the
+      known corruption shape harder to trigger but doesn't add any new
+      "fail loudly if pinning is ever wrong again" signal for a
+      differently-shaped recurrence, which is what NFR-002's own text
+      promises ("must fail loudly ... if the interpreter/extras pinning is
+      ever wrong again"). This is not a critical gap (the two FRs it's meant
+      to bind are each independently and concretely checked), but it means
+      NFR-002 itself is not independently falsifiable as written.
+    remediation: >-
+      Add a standalone "Checked by" for NFR-002 -- e.g. a negative-path
+      check that temporarily removes/breaks a flag or the
+      UV_PROJECT_ENVIRONMENT pin and confirms the job/test run now fails
+      loudly (non-zero exit or an explicit, visible warning) rather than
+      silently succeeding against the wrong interpreter/extras -- covering
+      both the FR-001 flags fix and whichever FR-003 mitigation is chosen.

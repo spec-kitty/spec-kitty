@@ -1,0 +1,77 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: TASKS-FRESH2-001
+    lens: cross-artifact-correspondence
+    severity: 3
+    title: "WP01's own Context section still asserts 'there is no dependency edge enforcing that in wps.yaml' between WP01 and WP02/WP03/WP04 — a specific, now-false factual claim the R4/R5 fix rounds corrected everywhere else but never touched in WP01 itself"
+    evidence:
+      - artifact: "tasks/WP01-baseline-capture-and-fr005-issue.md lines 66-70: \"This WP is **independent of every other WP** in this mission — it does not block, and is not blocked by, WP02/WP03/WP04. It should run first simply because its output (the baseline failure-ID set) is the reference every later re-measurement diffs against, but there is no dependency edge enforcing that in `wps.yaml`; sequence it first as a matter of practice.\""
+      - artifact: "wps.yaml WP02/WP03/WP04 entries: `dependencies:\\n  - WP01` (added by commit 20458ad48 to resolve confirmed finding TASKS-VERIFY-001; carried into tasks.md and each WP's own frontmatter by the latest round, commit 56ac54441)"
+      - artifact: "reviews/tasks-verify-2.yaml TASKS-FRESH-001 verdict: \"WP01's own 'independent of every other WP' claim (its correct root-node statement) is the only unscoped independence claim left in any of the 7 WP files\" — this verify pass checked only that WP01 itself has no incoming dependency (true) and did not check the specific embedded sub-claim that WP01 'does not block... WP02/WP03/WP04' and that 'there is no dependency edge enforcing that in wps.yaml' (both now false)."
+    claim: >
+      The latest fix round (commit 56ac54441) corrected the exact same class of stale
+      "no dependency" prose in WP02, WP03, and WP04's own Context sections (finding
+      TASKS-FRESH-001), but did not touch WP01-baseline-capture-and-fr005-issue.md at all.
+      WP01's Context section still makes two specific, checkable claims that are now false:
+      (1) "it does not block... WP02/WP03/WP04" — false, WP02/03/04 cannot be claimed until
+      WP01 reaches approved/done per their `dependencies: [WP01]`; and (2) "there is no
+      dependency edge enforcing that in `wps.yaml`" — false, `wps.yaml` now explicitly
+      carries that edge for all three downstream WPs. This is distinct from WP01's true,
+      unproblematic claim that nothing blocks WP01 itself (WP01's own `dependencies: []`
+      is correct and unchanged) — reviews/tasks-verify-2.yaml's TASKS-FRESH-001 verdict
+      dismissed WP01's language as "the only unscoped independence claim... its correct
+      root-node statement," which addresses only that narrower, true half and does not
+      notice the two specific false sub-claims quoted above. An agent implementing or
+      reviewing WP01 who reads its own Context section literally would be told, in WP01's
+      own words and citing `wps.yaml` by name, that no dependency edge exists gating
+      WP02/WP03/WP04 on it — directly contradicting the very fix this mission's own review
+      cycle just landed.
+    remediation: >
+      Update tasks/WP01-baseline-capture-and-fr005-issue.md lines 66-70 to match the
+      corrected wps.yaml, e.g.: "WP01 itself has no dependencies (`dependencies: []`) and
+      is not blocked by any other WP. WP02/WP03/WP04 each depend on WP01 (`dependencies:
+      [WP01]` in wps.yaml/their own frontmatter) — they cannot be claimed until this WP's
+      baseline evidence file reaches approved/done, enforced by `dependency_readiness_for_wp`.
+      Its output (the baseline failure-ID set) is also the reference every later
+      re-measurement diffs against." Do not leave the "no dependency edge... in wps.yaml"
+      sentence in place — it is a specific, falsifiable, now-false claim about a named file.
+  - id: TASKS-FRESH2-002
+    lens: correspondence-to-contract
+    severity: 3
+    title: "plan.md's Implementation Concern Map (IC-01/IC-02/IC-03/IC-04 'Sequencing/depends-on' fields) still asserts no dependency between these concerns, unresolved by either fix round despite the round-1 finding's own remediation explicitly naming plan.md's IC map as a place to check"
+    evidence:
+      - artifact: "plan.md lines 302-303 (IC-01, prose summary): \"IC-01 is sequenced **early** and is **independent** of the other six concerns — it does not block or wait on FR-001/002/003.\""
+      - artifact: "plan.md lines 662-663 (IC-02's own map entry): \"**Sequencing/depends-on**: none — independent, like IC-03 (FR-001) and IC-04 (FR-003).\""
+      - artifact: "plan.md lines 680-681 (IC-03): \"**Sequencing/depends-on**: none functionally, but naturally lands before IC-07 (final verification)...\""
+      - artifact: "plan.md lines 699-700 (IC-04): \"**Sequencing/depends-on**: none — independent of IC-03; IC-05 depends on this concern.\""
+      - artifact: "wps.yaml WP02/WP03/WP04 (mapped 1:1 to IC-02/IC-03/IC-04 per each WP's `plan_concern_refs`): `dependencies:\\n  - WP01` — added by the R4/R5 fix rounds to resolve confirmed finding TASKS-VERIFY-001."
+      - artifact: "reviews/tasks-fresh.yaml TASKS-FRESH-001 remediation (round 1, already committed): \"Grep all three WP files plus tasks.md and plan.md's IC map for the literal strings 'No dependency on WP01' and 'independent of WP01'/'fully independent' to make sure every occurrence introduced by or surviving the fix round is caught, not just the three flagged here.\" — plan.md's IC map was explicitly named as something to check, but the round-2 fix commit (56ac54441) touched only tasks/WP02-04*.md and tracer-tooling-friction.md; plan.md is unmodified since before either fix round."
+    claim: >
+      Per this review's own framing, spec.md/plan.md are "the contract" tasks.md and the WP
+      files must satisfy. plan.md's Implementation Concern Map — the plan-level ancestor of
+      WP02/WP03/WP04 — states in four separate places (the IC-01 prose summary plus each of
+      IC-02, IC-03, and IC-04's own "Sequencing/depends-on" fields) that these four concerns
+      have no dependency relationship among themselves. That was true under the pre-fix
+      task graph (WP02/WP03/WP04 had no enforced edge to WP01) but is now false under the
+      corrected wps.yaml. This is not a new problem introduced by the latest fix round's own
+      edits — plan.md itself was not touched by either fix round — but it is a contradiction
+      between an unchanged section (plan.md, "the contract") and a section the latest round
+      did change (WP02/WP03/WP04's frontmatter/prose), and round 1's own finding
+      (TASKS-FRESH-001) explicitly instructed a check of plan.md's IC map that was never
+      carried out. A reader who treats plan.md as authoritative — reasonable, since it is
+      the plan the tasks are meant to implement — would conclude IC-02/IC-03/IC-04 (and by
+      extension WP02/WP03/WP04) can be sequenced without regard to WP01, directly
+      contradicting the corrected `dependencies: [WP01]` this mission's tasks-phase review
+      cycle has now established as the truth in every other artifact.
+    remediation: >
+      Update plan.md's IC-01 prose summary (lines 302-303) and each of IC-02/IC-03/IC-04's
+      "Sequencing/depends-on" fields (lines 662-663, 680-681, 699-700) to state that IC-02,
+      IC-03, and IC-04 each depend on IC-01 (matching the corrected wps.yaml dependency on
+      WP01), while noting they remain independent of one another (as wps.yaml still shows no
+      edges among WP02/WP03/WP04). Cross-check spec.md for the same "independent of
+      WP01"/"no dependency" pattern while making this pass, since it was not checked in this
+      review either.

@@ -1,0 +1,37 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: pr
+results:
+  - id: pr-merged-001
+    status: resolved
+    reason: The blanket module-level pytestmark was removed and each of the 7 classes now carries its own explicit marker set; TestVenvCorruptionHazardFR003b carries [adversarial] only, so it is excluded from the nightly fast/unit selector but remains explicitly runnable, and the other six classes' collection is unchanged from base.
+    evidence: |
+      `.venv/bin/python -m pytest tests/upgrade/test_migration_robustness.py -m "fast or unit" -k VenvCorruption --collect-only -q` -> "no tests collected (11 deselected)".
+      `... -k VenvCorruption --collect-only -q` (no -m) -> "4/11 tests collected (7 deselected)".
+      `... -m adversarial -k VenvCorruption --collect-only -q` -> same 4/11 collected; real run `... -k VenvCorruption -q` -> "4 passed, 7 deselected in 5.90s".
+      Regression check: swapped the working file to `git show 44a167590:tests/upgrade/test_migration_robustness.py` content, re-ran collection: base -> "9 tests collected in 23.19s" with IDENTICAL 9/9 collected under `-m "fast or unit"` (no filtering at all -- the pre-fix bug). The 5 pre-existing non-hazard classes (TestAtomicWrites, TestConcurrentMigration, TestPartialMigrationRecovery, TestPermissionErrors, TestMigrationRegistryCompleteness) each contribute exactly the same single test id in base_all/base_fastunit and now_all/now_fastunit -- collection for those 5 is byte-identical base vs current, under both selectors. The 6th non-hazard class, TestExtractUvRunArgvPrefixUniqueness, is new in this fix, correctly tagged [adversarial, fast], and correctly collected under `-m "fast or unit"` (own 2 tests both pass: `pytest tests/upgrade/test_migration_robustness.py::TestExtractUvRunArgvPrefixUniqueness -q` -> "2 passed in 0.25s"). File restored exactly afterward (diff against `git show f811ae554:...` empty, `git status --porcelain` clean on the file).
+  - id: pr-merged-002
+    status: resolved
+    reason: ci-nightly.yml:224 now passes `--dist loadfile` positioned after the pytest command word (on the pytest side, not the uv-run prefix side), and the new dedicated test fails when the flag is removed.
+    evidence: |
+      `git diff 44a167590..f811ae554 -- .github/workflows/ci-nightly.yml` -> single hunk, `pytest -m "fast or unit" -q -n auto --dist loadfile --junitxml=...`.
+      New test `tests/ci/test_interpreter_matrix_env_pinning.py::TestInterpreterMatrixUvRunStepPinsEnv::test_uv_run_step_passes_dist_loadfile_flag_to_pytest_not_uv` asserts `--dist loadfile` in the pytest-side suffix and NOT in the uv-run prefix.
+      Reverted the flag in the working tree (sed removed ` --dist loadfile`) and re-ran that one test: FAILED with `AssertionError: ... must pass --dist loadfile to pytest itself ...`. Restored via `git checkout -- .github/workflows/ci-nightly.yml`; re-ran `tests/ci/test_interpreter_matrix_env_pinning.py -q` -> "6 passed in 0.28s"; `git diff` against HEAD for that file was empty after restore.
+  - id: pr-merged-003
+    status: resolved
+    reason: _extract_uv_run_argv_prefix now builds the full `matching` list and asserts len(matching) == 1 before proceeding, mirroring the sibling extractor's uniqueness check, and the new dedicated test class exercises both the two-match failure and the one-match success paths.
+    evidence: |
+      `pytest tests/upgrade/test_migration_robustness.py::TestExtractUvRunArgvPrefixUniqueness -q` -> "2 passed in 0.25s" (test_two_matching_call_sites_fail_loudly_not_silently_shadowed asserts pytest.raises(AssertionError, match="call_uv_twice"); test_single_matching_call_site_still_extracts_normally asserts the correct prefix is still returned for one match).
+      Also verified the zero-match branch (pr-merged-005's territory) directly: imported `_extract_uv_run_argv_prefix` and called it against a synthetic file with a variable-assembled argv (no literal-list `.run([...])` call) -> raised AssertionError "expected exactly one .run([...]) call ... found 0 ...", confirming the loud-fail contract survived the refactor.
+  - id: pr-merged-004
+    status: resolved
+    reason: The gap is recorded, not fixed, exactly as the remediation allowed -- present, cross-referenced, and honest in both required locations.
+    evidence: |
+      Module docstring at tests/upgrade/test_migration_robustness.py:1-18 states the venv-absent gap, why it's untested (uv's own behavior, not src/; avoids a network-fetch risk), and points to tracer-design-decisions.md.
+      kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-design-decisions.md:291-333, heading "## Post-merge pre-merge-squad fix (pr-merged-004) — recorded the venv-absent gap rather than adding a live-subprocess test for it", gives the full rationale including why the two call sites this WP touches cannot hit the absent-target branch in practice. Findable by heading grep, consistent with the docstring, not evasive.
+  - id: pr-merged-005
+    status: resolved
+    reason: No action was expected (informational, no remediation) and the fix did not target this behavior; the loud-AssertionError-on-no-match property survives the pr-merged-003 refactor (message text changed, behavior did not).
+    evidence: |
+      `git diff 44a167590..f811ae554` shows the prior `raise AssertionError("no subprocess.run([...]) call found in ...")` fallthrough was replaced by `assert len(matching) == 1, (...)` as a side effect of the pr-merged-003 uniqueness fix -- still an AssertionError on zero matches, confirmed by direct import: `_extract_uv_run_argv_prefix(<synthetic file with variable-assembled argv>, ...)` raised `AssertionError: expected exactly one .run([...]) call inside 'call_uv_variable' (...), found 0 ...`. No test or code change targeted this finding specifically (it required none).

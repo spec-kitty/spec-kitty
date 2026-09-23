@@ -1,0 +1,81 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: PLAN-FRESH2-001
+    lens: Renumbering fallout — stale fix-count left behind by the new IC-02 insertion
+    severity: 2
+    title: "'Verification route' still says the operator-gated dispatch validates 'not just the two underlying fixes', but the round-2 renumbering added a third fix-bearing concern (IC-02, FR-002) — the plan now contradicts itself and spec.md's own FR-006 wording"
+    evidence:
+      - artifact: "plan.md § Verification route (no CI safety net), point 2 (line 416): \"...not just the two underlying fixes — rather than being run repeatedly per-fix or early against an intermediate state.\""
+      - artifact: "plan.md § Implementation Concern Map → IC-07, 'Relevant requirements' bullet (line 732-733): \"SC-001 (and, transitively, confirms IC-02/IC-03/IC-04's fixes hold together in the real CI environment).\" — three fix-type concerns, not two."
+      - artifact: "spec.md § Requirements table, FR-006 row (line 369): \"Explicit disposition of any leg-still-red residue after all three in-scope fixes land\"; spec.md line 301 and 453-454 repeat \"all three fixes\"/\"FR-001/002/003 land\"."
+    claim: >
+      Before this round's fix, the Implementation Concern Map had only two
+      fix-type concerns feeding the final-verification dispatch (the old
+      IC-02 = FR-001 uv-run flags, and the old IC-03 = FR-003 venv-corruption
+      fix), so "not just the two underlying fixes" was accurate. This round
+      inserted a new IC-02 (FR-002, the kernel dir_fd fix) as its own
+      concern and renumbered the rest, making the dispatch-validated fix set
+      three (new IC-02/IC-03/IC-04) — exactly what the adjacent IC-07 bullet
+      two paragraphs later already says, and exactly what spec.md's own
+      FR-006 language ("all three in-scope fixes") requires. The
+      "Verification route" sentence at line 416 was not touched by the
+      renumbering pass and still says "two," so the same document now
+      states two different counts for the same set of fixes within the same
+      overall section, and disagrees with the spec contract it must satisfy.
+    remediation: >
+      Change "not just the two underlying fixes" to "not just the three
+      underlying fixes" (or "the FR-001/FR-002/FR-003 fixes") at plan.md
+      line 416, matching IC-07's own "IC-02/IC-03/IC-04's fixes" phrasing
+      and spec.md FR-006's "all three in-scope fixes."
+
+  - id: PLAN-FRESH2-002
+    lens: Renumbering-adjacent document integrity — tracer file structural correctness
+    severity: 3
+    title: "tracer-design-decisions.md's new 'Correction to the Plan template shape row' block was spliced into the middle of the 'Plan-authoring decisions' markdown table, orphaning its remaining 5 rows from their header/separator"
+    evidence:
+      - artifact: "tracer-design-decisions.md § 'Plan-authoring decisions worth flagging for later reviewers' — the table's header (\"| Decision | Chosen | Rationale (one line) |\" + separator) and its first data row (\"Plan template shape\") sit at the top of the table; the new '## Correction to the \"Plan template shape\" row above' heading plus its bullet-list body are inserted directly after that first row (this round's diff), and the table's remaining 5 rows (\"Venv-corruption spike timebox\", \"FR-003(b) fallback regression check's home\", \"'Coverage-floored shards...' gate framing\", \"Bandit/pip-audit/commitlint/markdownlint gate status\", \"#3283 (pytest shared test-venv lock) framing\") follow immediately after the bullet list with no repeated header/separator row."
+      - code: "git diff 66c1aa054 404e10c73 -- kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-design-decisions.md — the inserted hunk (a `##` heading + bullet paragraph) lands between the table's first `|`-row and its next `|`-row, with no new header/separator introduced for the continuation."
+    claim: >
+      A markdown pipe-table's data rows must be contiguous with their
+      header+separator; once an H2 heading and a bullet-list paragraph are
+      inserted between rows, the rows after the interruption are no longer
+      attached to any header and will not render as a table in standard
+      Markdown (GFM) — they render as stray lines of literal pipe-delimited
+      text, or at best as a malformed single-column blob. This round's fix
+      (adding the correction note) achieved its stated goal — flagging the
+      stale "live tooling defect" claim as corrected — but did so by
+      breaking the table structure for the venv-corruption timebox, the
+      FR-003(b) regression-check-location decision, the coverage-gate
+      reframing, the Bandit/pip-audit/commitlint status, and the #3283
+      framing: five load-bearing "for later reviewers" rows this tracer
+      file exists specifically to keep scan-fast (the file's own stated
+      purpose, line 3: "Scan-fast format — decision, one-line rationale").
+    remediation: >
+      Move the "Correction to the Plan template shape row above" section to
+      after the full table (i.e., after the #3283 row), or repeat the table
+      header+separator immediately after the correction block before
+      resuming the remaining rows, so every row stays attached to a
+      rendering header and the table displays correctly end to end.
+
+  - id: PLAN-FRESH2-003
+    lens: Renumbering fallout — cross-reference direction broken by the new IC-02 insertion's position
+    severity: 1
+    title: "New IC-02 entry's '(see \"Kernel coverage floor\" below)' points the wrong direction — that section is above IC-02 in the document, not below"
+    evidence:
+      - artifact: "plan.md § 'Kernel coverage floor (≥90%)' heading (line 259) — appears earlier in the document than the Implementation Concern Map."
+      - artifact: "plan.md § Implementation Concern Map → IC-02 (new this round), 'Risks' bullet (line 664-666): \"...it adds zero new lines under `src/kernel/**` (see \"Kernel coverage floor\" below)...\""
+    claim: >
+      IC-02 is a wholly new concern this round inserted at line 646-668, well
+      after the "Kernel coverage floor" section at line 259. Its own
+      cross-reference to that section says "below," which was true nowhere
+      in the document at the point this text was authored — the section it
+      points to is earlier in the file. A reader following the pointer in
+      the direction stated will look past the end of the document instead of
+      scrolling up.
+    remediation: >
+      Change "(see \"Kernel coverage floor\" below)" to "(see \"Kernel
+      coverage floor\" above)" in IC-02's Risks bullet.

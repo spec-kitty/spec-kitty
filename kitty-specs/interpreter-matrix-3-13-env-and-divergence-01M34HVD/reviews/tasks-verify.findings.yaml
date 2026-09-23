@@ -1,0 +1,46 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: interpreter-matrix-3-13-env-and-divergence-01M34HVD
+findings:
+  - id: TASKS-VERIFY-001
+    lens: Baseline captured before the first change
+    severity: 3
+    title: WP01's "before any implementation change lands" baseline promise is not enforced by any dependency edge, so parallel/out-of-order WP dispatch can violate it
+    evidence:
+      - artifact: "tasks/WP01-baseline-capture-and-fr005-issue.md § Objective"
+      - artifact: "tasks/WP01-baseline-capture-and-fr005-issue.md § Context"
+      - artifact: "wps.yaml WP01.dependencies / WP02.dependencies / WP03.dependencies / WP04.dependencies (all `[]`)"
+    claim: >
+      WP01's Objective states it must "establish the recorded, falsifiable
+      Python 3.11 `fast or unit` baseline before any implementation change
+      lands in this mission," and its own Context section admits: "there is
+      no dependency edge enforcing that in `wps.yaml`; sequence it first as
+      a matter of practice." `wps.yaml` confirms WP01, WP02, WP03, and WP04
+      all carry `dependencies: []` — nothing in the machine-readable WP
+      graph prevents the mission-implement runtime (which this repo's own
+      practice explicitly supports dispatching independent WPs in parallel
+      across worktrees, per the "one checkout, many agents" discipline) from
+      running WP02/WP03/WP04 to completion and merging them into
+      `issue-4866-interpreter-matrix-3-13` before WP01 ever branches off to
+      capture its baseline. If that ordering occurs, WP01's checkout already
+      contains this mission's own changes, so its "baseline" evidence file
+      would no longer be a genuine pre-mission reference point — undermining
+      the entire justification WP01 exists for (a falsifiable comparison
+      point for WP05's re-measurement and for the charter's Pre-existing
+      Failure Reporting Rule). The WP's own Risks section acknowledges this
+      exact scenario ("the only risk is skipping this WP, or running it
+      after other WPs have already changed test behavior") but the mitigation
+      offered is prose discipline only, not a structural guarantee.
+    remediation: >
+      Add explicit `dependencies: [WP01]` edges for WP02, WP03, and WP04 in
+      `wps.yaml` (and mirror in each WP's frontmatter and in `tasks.md`'s
+      Dependencies fields), so the mission-implement runtime cannot dispatch
+      any implementation WP before WP01's baseline evidence file exists —
+      or, if a genuinely parallel dispatch is desired for schedule reasons,
+      have WP01 assert and record (in `evidence-baseline-3.11.md`) that its
+      run was captured against a checkout containing zero diff versus this
+      mission's `planning_base_branch` tip, so a late-running WP01 fails
+      loudly instead of silently passing off contaminated data as a clean
+      baseline.
