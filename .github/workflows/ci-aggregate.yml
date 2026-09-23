@@ -156,6 +156,45 @@ jobs:
           python3 scripts/ci/select_source_artifacts.py out/aggregate/source/source.json \
             "$RUNNER_TEMP/source-jobs.json" "$RUNNER_TEMP/source-artifacts.json" >> "$GITHUB_OUTPUT"
 
+      - name: Download the triggering run's selected-module set (mission ci-modules-diff-scoping)
+        id: download-selected-modules
+        if: github.event_name != 'workflow_dispatch'
+        continue-on-error: true
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: selected-modules
+          path: out/aggregate/selected
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id || inputs.source_run_id }}
+
+      - name: Install PyYAML (registry parsing only, no editable install needed)
+        # Moved ahead of the poll step below (PR-MERGED-001): wait_for_artifacts.py
+        # and its transitive imports (fleet_verdict.py, reconcile_shards.py) carry
+        # a module-level `import yaml`; installing PyYAML after the poll step made
+        # it crash with ModuleNotFoundError at import time on every
+        # non-workflow_dispatch run. The poll step must stay ahead of the
+        # download-artifact steps below it -- only this install moved.
+        shell: bash
+        run: |
+          pip install --quiet --disable-pip-version-check --only-binary :all: "pyyaml==6.0.2"
+
+      - name: Wait for selected shard artefact visibility (mission reconcile-flake-family, FR-005)
+        id: wait-for-artifacts
+        # workflow_dispatch manual replay has no selection scoping to poll
+        # against (it never downloads the selected-modules artifact above) --
+        # mirrors download-selected-modules' own if: condition so both skip
+        # together.
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt || inputs.source_run_attempt }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/wait_for_artifacts.py
+
       - name: Download the triggering run's shard artefacts
         id: download-current
         if: steps.select-current.outputs.has-artifacts == 'true'
@@ -210,22 +249,6 @@ jobs:
           merge-multiple: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ steps.last-success.outputs.run-id }}
-
-      - name: Download the triggering run's selected-module set (mission ci-modules-diff-scoping)
-        id: download-selected-modules
-        if: github.event_name != 'workflow_dispatch'
-        continue-on-error: true
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
-        with:
-          name: selected-modules
-          path: out/aggregate/selected
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id || inputs.source_run_id }}
-
-      - name: Install PyYAML (registry parsing only, no editable install needed)
-        shell: bash
-        run: |
-          pip install --quiet --disable-pip-version-check --only-binary :all: "pyyaml==6.0.2"
 
       - name: Reconcile shard artefacts by basename (dedup + selection-aware stale-artefact fallback; guard collisions + completeness)
         id: reconcile
