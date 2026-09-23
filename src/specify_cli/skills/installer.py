@@ -13,7 +13,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from threading import RLock
 from kernel.clock import now_utc_iso
-from kernel.no_follow import chmod_no_follow, utime_no_follow
+from kernel.no_follow import chmod_fd, chmod_no_follow, utime_no_follow
 from pathlib import Path
 from typing import cast
 from charter.activation.compiler import _PreparedMissionTypeActivations, prepare_mission_type_activations
@@ -27,7 +27,6 @@ from specify_cli.core.config import (
 )
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.agent_config import AgentConfigError, load_agent_config
-from specify_cli.core.no_follow import chmod_fd
 from specify_cli.core.safe_delete import safe_rmdir as _safe_rmdir
 from specify_cli.core.safe_delete import safe_unlink as _safe_unlink
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter

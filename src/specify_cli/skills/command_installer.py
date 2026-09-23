@@ -35,7 +35,6 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 from specify_cli.core.agent_config import AgentConfigError
-from specify_cli.core.no_follow import chmod_fd
 
 from specify_cli.tool_surface.operations import (
     ApplyConsent,
@@ -59,6 +58,7 @@ from specify_cli.skills.paths import SkillPathObservation, observe_skill_path
 from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as SUPPORTED_AGENTS
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 from kernel.clock import now_utc_iso
+from kernel.no_follow import chmod_fd
 from specify_cli.shims.registry import CONSUMER_SKILLS
 from kernel import paths as kernel_paths
 from kernel.paths import to_posix
