@@ -403,6 +403,33 @@ def test_emit_mission_target_content_conflict_reports_shared_code(tmp_path: Path
     assert "diagnostic_code: TARGET_BRANCH_CONTENT_CONFLICT" in capsys.readouterr().out
 
 
+def test_handle_result_resume_tolerance_requires_equal_trees(tmp_path: Path) -> None:
+    """#4892 hardening: the resume 'already merged' tolerance requires equal trees.
+
+    An operational RuntimeError (failed hook/driver) carries no structured
+    `conflicting_paths` and embeds raw git stderr; if that stderr contains
+    "already"/"up to date" it must NOT be tolerated on resume when the branch
+    trees are not actually equal (the target never received the mission tree).
+    """
+    run = _make_run(tmp_path, is_resume=True)
+    result = SimpleNamespace(
+        success=False,
+        errors=["Squash merge failed: hook refused: file already exists"],
+        commit=None,
+        already_applied=False,
+        conflicting_paths=(),
+        diagnostic_code=None,
+    )
+    with (
+        patch.object(ex, "_restore_pre_target_if_at_baseline") as restore_mock,
+        pytest.raises(typer.Exit) as exc,
+    ):
+        # trees NOT equal → tolerance must not fire despite "already" in the text
+        ex._handle_mission_merge_result(run, result, mission_integrated_into_target=False)
+    assert exc.value.exit_code == 1
+    restore_mock.assert_called_once_with(run)
+
+
 def test_handle_result_hard_failure_restores_and_exits(tmp_path: Path) -> None:
     run = _make_run(tmp_path, is_resume=False)
     result = SimpleNamespace(success=False, errors=["real conflict"], commit=None, already_applied=False)

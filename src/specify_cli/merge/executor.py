@@ -1286,9 +1286,17 @@ def _handle_mission_merge_result(
             _emit_mission_target_content_conflict(run, mission_result)
             _restore_pre_target_if_at_baseline(run)
             raise typer.Exit(1)
-        # T005: tolerate already-merged on retry
+        # T005: tolerate already-merged on retry — but ONLY when the branch trees
+        # are actually equal (#4892 hardening). The substring match on error text
+        # is fragile: an operational RuntimeError (a failed hook/driver — a
+        # non-zero squash with no unmerged paths) carries ``conflicting_paths=()``
+        # and embeds raw git stderr, so on resume a stderr that happens to contain
+        # "already"/"up to date" would otherwise be tolerated even though the
+        # target never received the mission tree. Gating on the tree-equality
+        # signal the executor already computed ties the tolerance to the real
+        # state, not the message text.
         already_merged = any("already" in e.lower() or "up to date" in e.lower() for e in mission_result.errors)
-        if run.is_resume and already_merged:
+        if run.is_resume and already_merged and mission_integrated_into_target:
             console.print(f"[dim]{lanes_manifest.mission_branch} already merged into {lanes_manifest.target_branch}[/dim]")
         else:
             for error in mission_result.errors:
