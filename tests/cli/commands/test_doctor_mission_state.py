@@ -280,7 +280,7 @@ class TestFixModeCharacterization:
         )
         report.to_dict.return_value = {"summary": summary}
         report.missions = missions
-        report.manifest_path = ".kittify/migrations/mission-state/test-run.json"
+        report.manifest_path = ".kittify/mission-state-audit/test-run.json"
         return report
 
     def test_fix_mode_json_output_exits_0_on_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -443,7 +443,7 @@ class TestFixModeCharacterization:
             }
         }
         report.missions = [error_result]
-        report.manifest_path = ".kittify/migrations/mission-state/test.json"
+        report.manifest_path = ".kittify/mission-state-audit/test.json"
 
         with patch(
             "specify_cli.migration.mission_state.repair_repo",
@@ -455,6 +455,56 @@ class TestFixModeCharacterization:
             )
 
         assert result.exit_code == 1
+
+    def test_fix_names_audit_trail_and_quarantine_with_json_parity(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """#4928 WP03: a quarantining --fix run names the tracked audit trail +
+        quarantine path + count with a commit instruction (pretty), and --json
+        carries the same audit paths + count (parity). --fix never commits."""
+        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+
+        mission = MagicMock()
+        mission.status = "updated"
+        mission.mission_slug = "q-mission"
+        mission.validation_errors = []
+        mission.meta_actions = []
+        manifest = ".kittify/mission-state-audit/run-x.json"
+        quarantine = ".kittify/mission-state-audit/quarantine/run-x"
+        payload = {
+            "summary": {
+                "missions_updated": 1,
+                "missions_unchanged": 0,
+                "missions_error": 0,
+                "quarantined_rows": 2,
+            },
+            "manifest_path": manifest,
+            "quarantine_root_path": quarantine,
+        }
+        report = MagicMock()
+        report.missions = [mission]
+        report.manifest_path = manifest
+        report.quarantine_root_path = quarantine
+        report.to_dict.return_value = payload
+        report.to_json.return_value = json.dumps(payload)
+
+        # Pretty: names the tracked trail + quarantine + count + commit instruction.
+        with patch("specify_cli.migration.mission_state.repair_repo", return_value=report):
+            pretty = runner.invoke(app, ["mission-state", "--fix", "--allow-dirty"])
+        assert pretty.exit_code == 0, pretty.output
+        out = (pretty.output or "") + (pretty.stderr or "")
+        assert manifest in out
+        assert "tracked, uncommitted" in out
+        assert "Commit it to preserve" in out
+        assert "2 row(s) quarantined" in out
+        assert quarantine in out
+
+        # JSON parity: same audit paths + count.
+        with patch("specify_cli.migration.mission_state.repair_repo", return_value=report):
+            js = runner.invoke(app, ["mission-state", "--fix", "--json", "--allow-dirty"])
+        assert js.exit_code == 0, js.output
+        emitted = json.loads(js.output)
+        assert emitted["manifest_path"] == manifest
+        assert emitted["quarantine_root_path"] == quarantine
+        assert emitted["summary"]["quarantined_rows"] == 2
 
 
 # ---------------------------------------------------------------------------
