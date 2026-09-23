@@ -181,9 +181,12 @@ def copy_package_tree(resource: Traversable, dest: Path, *, preserve_existing: b
     step: when True and ``dest`` already holds content, it is preserved
     (moved into a timestamped ``.kittify/.backup-<ts>/`` directory via
     :func:`back_up_operator_subtrees`) instead of being deleted outright.
-    Regenerable-scaffold callers (e.g. ``templates/``) pass the default
-    ``False`` and keep the prior replace-in-place behavior -- deliberately
-    not preserved (#4759).
+    Callers copying an operator-authorable tree pass ``True`` -- both
+    ``memory/`` (#4759) and, since #4931, ``templates/`` do, so a
+    pre-existing operator tree is archived before the refresh rather than
+    rmtree'd. The default ``False`` (replace-in-place) is for genuinely
+    regenerable destinations only, and for this function's own nested
+    recursion into child subdirectories.
     """
     if dest.exists():
         if preserve_existing:
