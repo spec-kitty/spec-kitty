@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-09-22'
+updated: '2026-09-23'
 ---
 # Changelog
 
@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _4.0.0rc5 candidate cycle. Entries land here until the release chore finalizes
 this section at publish._
+
+### Changed
+
+- **CLI invocations start faster: global agent slash-commands are no longer re-rendered when already current, and only the invoked command's module is imported** (#4211, #4213). **Before:** every CLI invocation unconditionally re-rendered the global agent-command surface (template, version, and on-disk health all re-derived from scratch) and `register_commands()` eagerly imported every command module regardless of which one was invoked — both paid on a bare `doctor` or any other single-command call. **After:** a freshness precheck (template hash, version, and on-disk health) skips the render when nothing has changed, falling back to a full render on any doubt; `register_commands()` registers and imports only the invoked command's module. Measured locally on a warm bare `doctor`: ~13.2s → ~1.4s. The CLI help surface is byte-identical, and the previously quarantined charter-epic golden-path end-to-end test is back on its per-push gate under its unchanged 120s budget, now measured passing well within the ≤110s evidentiary bar used to close the mission.
 
 ### Fixed
 
