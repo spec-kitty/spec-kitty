@@ -1,0 +1,252 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: confirmed
+mission: ci-nightly-wallclock-budget-01M34HNZ
+findings:
+- id: SPEC-GOV-001
+  merged_ids:
+  - SPEC-GOV-001
+  lens: Scope-boundary enforcement (mission-derived)
+  severity: 4
+  title: The "13 others" out-of-scope module list is incomplete — omits `review`, and the count is wrong
+  evidence:
+  - artifact: spec.md § Constraints, C-003 (line 254)
+  - artifact: spec.md § Clarifications / Decisions, "Scope boundary (binding)" (lines 320-330)
+  - code: '.github/ci-module-registry.yml (21 `- module:` rows: merge, missions, post_merge, release,
+      status, review, next, lanes, dashboard, upgrade, cli, charter, agent, kernel, glossary, execution_context,
+      core_misc, unit, specify_cli_runtime, ci, auth)'
+  - code: .github/ci-shard-timings.json `module_capture_provenance` keys (only specify_cli_runtime, unit,
+      ci, merge, status, dashboard, auth are populated — 7 total, matching C-003's captured-correctly
+      list)
+  claim: 'C-003 and the "Scope boundary (binding)" section both assert "14 are stale, including `charter`
+    ... and 13 others" and both enumerate the same 12-name list: agent, cli, core_misc, execution_context,
+    glossary, kernel, lanes, missions, next, post_merge, release, upgrade. Direct inspection of `.github/ci-module-registry.yml`
+    shows 21 modules total; cross-referencing against the 7 modules with populated `module_capture_provenance`
+    entries in `.github/ci-shard-timings.json` (auth, ci, dashboard, merge, specify_cli_runtime, status,
+    unit — matching C-003''s own "captured correctly" list) leaves 14 stale modules: charter plus 13 others,
+    and those 13 are actually agent, cli, core_misc, execution_context, glossary, kernel, lanes, missions,
+    next, post_merge, release, upgrade, AND `review`. The spec''s enumerated list omits `review` (a real
+    registry module, also uncaptured) and contains only 12 names while claiming 13. An incomplete, miscounted
+    enumeration undermines the scope fence meant to stop an implementer from over-reaching, and the mis-count
+    (says 13, lists 12) will be ledgered as fact at mission exit per the spec''s own stated plan, propagating
+    the inaccuracy into governance record-keeping.
+
+    '
+  remediation: 'Add `review` to the enumerated list in both C-003 (spec.md:254) and the "Scope boundary
+    (binding)" section (spec.md:320-330), making it 13 names that actually total 13, and correct the surrounding
+    prose if needed (e.g. re-verify no other module was silently dropped by re-deriving the list as: all
+    21 registry modules minus the 7 with populated `module_capture_provenance` minus `charter`).
+
+    '
+- id: SPEC-GOV-002
+  merged_ids:
+  - SPEC-GOV-002
+  - SPEC-ARCH-002
+  lens: Directive (canonical-sources / citation accuracy); Workflow-YAML mechanics (mission-derived)
+  severity: 1
+  title: Summary section cites the charter row's `shard_count` at "line 150" without the tilde used elsewhere;
+    actual line is 151
+  evidence:
+  - artifact: 'spec.md § Summary, item 2 (line ~26-27): "`.github/ci-module-registry.yml`''s `charter`
+      module row (line 150) hardcodes `shard_count: 5`"'
+  - code: '.github/ci-module-registry.yml:151 (`  shard_count: 5`); the `charter` row itself starts at
+      line 143, and `tier: standard` is at line 150.'
+  claim: 'The Summary states the citation as an exact line ("line 150", no approximation marker), but
+    the `shard_count: 5` value is actually on line 151 (line 150 is `tier: standard`). Elsewhere in the
+    same document (FR-007, AC3 under User Story 2, Key Entities) the same citation is correctly written
+    with a tilde ("line ~150"), signalling awareness that it''s approximate. This is a trivial off-by-one
+    with no implementation impact — the implementer will read the real file, and the `charter` row is
+    easy to locate by module name regardless — but it is citation drift in a spec whose other citations
+    (job names, needs: list, env vars) are otherwise exact. Reported independently by both the `gov` and
+    `arch` lens groups against the same sentence.
+
+    '
+  remediation: 'Change "line 150" to "line ~150" (or the exact "line 151") in the Summary section, item
+    2, for consistency with the tilde-qualified citations used for the same fact elsewhere in the spec.
+
+    '
+- id: SPEC-ARCH-001
+  merged_ids:
+  - SPEC-ARCH-001
+  - SPEC-VERIFY-002
+  lens: Contracts; falsifiability
+  severity: 4
+  title: test_performance_marker_guard.py hardcodes the job name "performance-and-e2e" in three assertions
+    that the FR-001 split will break; AC4/FR-005/SC-004 claim it "passes unchanged" and do not scope or
+    distinguish this expected breakage from a genuine trigger regression
+  evidence:
+  - artifact: spec.md § Acceptance Scenarios (User Story 1), AC4 (line ~81-85) and "How each AC fails"
+      for AC4 (line ~102-103)
+  - artifact: spec.md § FR-005
+  - artifact: 'spec.md § Success Criteria SC-004 (line ~434-435): "passes unchanged after the split (zero
+      new violations reported)"'
+  - code: tests/architectural/test_performance_marker_guard.py:280 (`for job_name in ("performance-and-e2e",
+      "interpreter-matrix"):` inside test_nightly_suite_steps_are_fail_loud)
+  - code: tests/architectural/test_performance_marker_guard.py:313 (same hardcoded tuple, inside test_nightly_fail_loud_step_treats_marker_empty_exit_5_as_non_failing)
+  - code: tests/architectural/test_performance_marker_guard.py:350 (`assert "performance-and-e2e" in jobs`
+      inside test_nightly_workflow_houses_performance_and_interpreter_jobs)
+  claim: AC4 and SC-004 state that `test_performance_marker_guard.py` "still passes" / "passes unchanged"
+    after the split, and FR-005/C-001 frame the file's job purely as verifying "no pull_request trigger
+    + no -m performance/-m e2e/interpreter-matrix on the PR path." That framing is accurate for the file's
+    two pull_request-trigger-detection tests (test_nightly_workflow_never_triggers_on_pull_request, test_no_pull_request_workflow_selects_performance_or_interpreter_jobs)
+    but the same file ALSO contains three other tests that hardcode the literal job key "performance-and-e2e"
+    and read `jobs.get(job_name)`/`"performance-and-e2e" in jobs` against the live parsed `ci-nightly.yml`.
+    Once FR-001 removes the `performance-and-e2e` job (replacing it with three independent perf/e2e/stress
+    jobs, as required), `jobs.get("performance-and-e2e")` returns `None` and the assertion that the job
+    exists fails — guaranteed test failures in test_nightly_suite_steps_are_fail_loud, test_nightly_fail_loud_step_treats_marker_empty_exit_5_as_non_failing,
+    and test_nightly_workflow_houses_performance_and_interpreter_jobs, for a reason entirely unrelated
+    to any pull_request-trigger regression. The spec's own stated scope (only `.github/workflows/**` +
+    `.github/ci-module-registry.yml`/`ci-shard-timings.json` are touched) never names `tests/architectural/test_performance_marker_guard.py`
+    as an in-scope file, so an implementer following the spec literally would hit three unexpected, unscoped
+    red tests, and AC4/SC-004 as written cannot be satisfied ("passes unchanged" is incompatible with
+    a file that needs editing to keep working) — a reviewer relying on them verbatim would either treat
+    the necessary edit as an unexplained regression, or ship the split without updating the guard and
+    get an untestable/red gate.
+  remediation: 'Add an FR (or extend FR-005/C-001) explicitly naming `tests/architectural/test_performance_marker_guard.py`
+    as an in-scope file for this mission, listing the three job-name-hardcoding tests (lines 280, 313,
+    350) and requiring their tuples/literals be updated from `"performance-and-e2e"` to the three new
+    job names (or refactored to iterate the job list dynamically). Rewrite AC4/SC-004 to distinguish two
+    failure modes: (a) the file needing an edit because a hardcoded pre-split job name is now stale —
+    an EXPECTED, in-scope maintenance change, not evidence of a defect; versus (b) the pull_request-trigger-
+    detection tests reporting a genuine new violation — the actual regression AC4/C-001 care about. State
+    that the guard file is modified (not "unchanged") and, after the edit, still enforces the same pull_request/marker-selection
+    guarantee plus the same fail-loud/exit-5 shape, now against three jobs instead of one.'
+- id: SPEC-ARCH-003
+  merged_ids:
+  - SPEC-ARCH-003
+  lens: Contracts
+  severity: 2
+  title: C-004's "registry edit scoped to the charter row only" leaves several other rows' disposition-ledger
+    comments (and one tests/e2e/ comment) referencing the retired "performance-and-e2e" job name stale,
+    with no spec-level acknowledgment
+  evidence:
+  - artifact: spec.md § Constraints, C-004
+  - code: .github/ci-module-registry.yml:622 ("Real marker home is ci-nightly.yml's performance-and-e2e
+      job")
+  - code: .github/ci-module-registry.yml:641,669,692 (three more occurrences of the same phrase in other
+      disposition-ledger `reason:` blocks)
+  - code: 'tests/e2e/test_worktree_owned_root_concurrency.py:377 (comment: "the nightly ``performance-and-e2e``
+      job (ci-nightly.yml, ...)")'
+  claim: C-004 restricts this mission's `.github/ci-module-registry.yml` diff to the `charter` row only.
+    Repo-wide grep shows four other places in that same file (disposition-ledger `reason:` comments for
+    excluded test directories) plus one test-file comment (tests/e2e/test_worktree_owned_root_concurrency.py:377)
+    that name "performance-and-e2e" as the real marker home for excluded directories. After FR-001's split
+    these references describe a job that no longer exists. None of these are functionally consumed by
+    any gate (they are prose comments), so this is not a correctness break, but the spec neither acknowledges
+    this documentation drift nor states it is an accepted, out-of-scope side effect of C-004 the way it
+    does for other known trade-offs (e.g. NFR-005's 3x checkout cost).
+  remediation: Add one sentence to C-004 (or a new Edge Case) noting that the disposition-ledger comments
+    and the test_worktree_owned_root_concurrency.py comment naming "performance-and-e2e" will go stale
+    after the split and are explicitly accepted as out-of-scope prose drift for this mission — or, if
+    preferred, widen C-004 to permit updating just those comment strings (not the rows' functional fields)
+    to name the new job(s).
+- id: SPEC-VERIFY-001
+  merged_ids:
+  - SPEC-VERIFY-001
+  lens: falsifiability
+  severity: 4
+  title: AC3 (User Story 2) falsely claims agent/upgrade rows used the same LPT method the mission requires,
+    contradicting the spec's own C-002/Clarifications and the actual registry comments
+  evidence:
+  - artifact: spec.md § User Story 2, Acceptance Scenario 3 (line ~153-159)
+  - artifact: 'spec.md § Clarifications / Binding operator decisions #2 (line ~304-318) and § Constraints
+      C-002 (line ~253)'
+  - code: '.github/ci-module-registry.yml:129-135 (upgrade row: "Splitting by test count keeps each serial
+      shard well under budget; inter-shard skew stays 0%")'
+  - code: '.github/ci-module-registry.yml:166-171 (agent row: "~1173 tests at ~1.2s wall each ... -> ~23m
+      SERIAL, which brushed the 30m job timeout. Three serial shards land each near ~8m")'
+  claim: 'AC3 says shard_count for charter must be re-derived "via the existing skew-balancing method
+    (the same LPT approach already used for agent/upgrade/other rows)". This is factually wrong and directly
+    contradicted elsewhere in the same document: Clarifications / binding decision #2 and C-002 both state
+    that agent/upgrade were sized with "a manual test-count heuristic that bypassed the timings file entirely"
+    (commit 349b73fc0) and that this heuristic is "explicitly rejected as a precedent for this mission".
+    The actual registry comments confirm the Clarifications framing, not AC3''s: the upgrade row''s comment
+    describes "splitting by test count" (a wall-clock/test-count heuristic) and explicitly notes its own
+    inter-shard skew "stays 0%" — i.e. upgrade is itself still vacuous under the skew gate, the exact
+    defect class this mission fixes for charter. AC3''s own "How each AC fails" clause (spec.md line ~177-180)
+    even says AC3 fails "if shard_count ... is bumped by a wall-clock/target heuristic instead of the
+    LPT skew-balancing method, which would repeat the explicitly-rejected 349b73fc0 shortcut" — i.e. the
+    same AC''s failure condition names agent/upgrade''s real method as the forbidden one, while its success
+    condition cites that same pair of rows as the LPT precedent to follow. An implementer who reads AC3''s
+    parenthetical literally (rather than cross-referencing C-002) could copy agent/upgrade''s non-LPT,
+    skew-blind derivation for charter while believing it is the sanctioned method.
+
+    '
+  remediation: 'Remove the "(the same LPT approach already used for agent/upgrade/other rows)" parenthetical
+    from AC3 (and the analogous "existing skew- balancing method" framing wherever it implies agent/upgrade
+    as the model). Point instead to one of the 7 modules the spec''s own Scope boundary section (C-003)
+    says were captured with the correct tool (auth, ci, dashboard, merge, specify_cli_runtime, status,
+    unit) as the genuine LPT precedent, or simply describe the LPT algorithm itself (test_module_shard_registry.py''s
+    `_lpt_bin_pack`/`_skew_of` helpers) without citing agent/upgrade as an exemplar of the correct method.
+
+    '
+- id: SPEC-VERIFY-003
+  merged_ids:
+  - SPEC-VERIFY-003
+  lens: verification-mechanism-completeness
+  severity: 3
+  title: No requirement to capture/attach durable evidence (run URL, job conclusions, xunit artifact links)
+    from the pre-merge workflow_dispatch run
+  evidence:
+  - artifact: spec.md § FR-009 (line ~236)
+  - artifact: spec.md § Verification reality (line ~406-418)
+  - artifact: spec.md § Edge Cases, bullet 1 (line ~190-195)
+  - artifact: spec.md § Success Criteria SC-001/SC-002/SC-003 (line ~424-433)
+  claim: 'Both user stories name a manual `workflow_dispatch` (mode: full) run as the real acceptance
+    evidence, since neither fix is provable by a unit test alone (Verification reality section). Every
+    AC/SC describing that dispatch (AC2/AC3 of US1, AC4 of US2, SC-001/002/003) states what the GitHub
+    Actions run page or job list would show, but none of them requires that the run''s URL, per-job conclusions,
+    or the stress job''s xunit report (out/reports/xunit-nightly-stress.xml, named in AC3''s failure clause)
+    actually be captured and attached somewhere durable (PR description, a review artifact, or a mission
+    tracer file). As written, a later reviewer has no specified way to check this evidence without trusting
+    a verbal claim that the dispatch happened and showed what was claimed — the exact failure mode the
+    charter''s own throughline warns against ("never trust ... a confident summary — verify against live
+    code, witness the bug in a real run").
+
+    '
+  remediation: 'Add an FR or NFR requiring the dispatched run''s URL and each job''s conclusion (performance/e2e/stress,
+    and full-module-matrix''s charter shards for User Story 2''s AC4) to be pasted into the PR description
+    or a dedicated review-evidence file before the mission is considered complete, and require the stress
+    job''s xunit report existence/size to be confirmed (not just its absence used as a failure signal).
+
+    '
+- id: SPEC-VERIFY-004
+  merged_ids:
+  - SPEC-VERIFY-004
+  lens: silent-success
+  severity: 4
+  title: SC-006's proof that the skew gate is non-vacuous for charter is explicitly disclaimed as uncommitted,
+    leaving the mission's central defect-fix claim unverifiable after the fact
+  evidence:
+  - artifact: spec.md § Success Criteria SC-006 (line ~440-445)
+  - artifact: 'spec.md § Clarifications, "The vacuous-gate finding" (line ~334-366), citing charter.md
+      Standing Order #5: "a gate-unmask cannot self-validate"'
+  - code: tests/architectural/test_module_shard_registry.py:265-300 (test_inter_shard_skew_within_twenty_percent
+      asserts an aggregate over ALL modules and only requires checked_multi_shard >= 1 across the whole
+      registry — it does not assert per-module non-vacuity, so it already passes today without charter
+      contributing a non-zero skew)
+  claim: 'SC-006 correctly goes beyond "the gate passes" — it also requires the recomputed skew to be
+    "demonstrably sensitive to shard_count", which is the right instinct per this mission''s own charter
+    tie-in (Standing Order #5). But the only mechanism SC-006 names to demonstrate that sensitivity is
+    "a manual spot-check with an intentionally wrong shard_count during plan/implement verification, not
+    committed". Because test_inter_shard_skew_within_twenty_percent''s actual pass condition is an aggregate
+    over all 21 registry modules (it only requires that at least one module anywhere in the registry needed
+    >1 shard, not that charter specifically produced a non-zero skew), the suite will keep passing whether
+    or not charter''s recapture actually fixed the vacuousness — the ONLY evidence that would prove it
+    did is explicitly marked as not persisted anywhere. A later reviewer (or the mission''s own post-merge
+    review) has no artifact to check and must trust an unverifiable claim that the spot-check was run
+    and showed what was claimed — reproducing, for this one gate, the exact "trust a confident summary
+    instead of live evidence" failure mode the charter''s Standing Orders throughline and Standing Order
+    #5 exist to prevent.
+
+    '
+  remediation: 'Require the spot-check''s command and recomputed skew value (for charter''s derived shard_count
+    AND at least one deliberately-wrong shard_count) to be recorded as durable evidence — e.g. in the
+    PR description, a task/WP completion note, or a comment alongside the charter row in .github/ci-module-registry.yml
+    — rather than stating it will not be committed. Alternatively, add a narrow, charter-specific unit
+    test (not the aggregate test_inter_shard_skew_within_twenty_percent) that asserts charter''s own recomputed
+    skew is non-zero for its derived shard_count, giving SC-006 a committed, re-runnable proof instead
+    of a one-time manual check.
+
+    '

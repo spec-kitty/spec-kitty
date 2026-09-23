@@ -1,0 +1,59 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+mission: ci-nightly-wallclock-budget-01M34HNZ
+findings:
+  - id: PR-TESTS-001
+    lens: tests
+    severity: 3
+    title: "Two tests that pay the full ~34s live-collection cost are unmarked, defeating -m \"not slow\" selection"
+    evidence:
+      - artifact: "tests/architectural/test_module_length_agreement.py:280-281"
+      - artifact: "tests/architectural/test_module_length_agreement.py:305-306"
+      - artifact: "tests/architectural/test_module_length_agreement.py:339-340"
+    claim: >
+      Only `test_non_allowlisted_modules_agree_with_live_collection` (line 280) carries
+      `@pytest.mark.slow`. But `test_charter_is_not_allowlisted_and_agrees` (line 305) and
+      `test_allowlisted_modules_still_genuinely_mismatch` (line 339) both consume the same
+      session-scoped `_collected_counts` fixture (21 live pytest-collect subprocesses) and are
+      unmarked. Measured directly: running the file under `-m "not slow"` deselects exactly one
+      test but still takes 34.53s wall-clock (vs. 34.40s for the unfiltered file) --
+      `test_charter_is_not_allowlisted_and_agrees`, defined next in file order, still triggers the
+      full live-collection fixture. This contradicts pytest.ini's own `slow` marker definition
+      ("test expected to take >30 seconds") for two tests that demonstrably do, in isolation
+      (independently measured at 34.91s and would be comparable for the other), take that long.
+      Today no live CI job filters `tests/architectural` by `-m slow`/`-m "not slow"`
+      (`architectural-heavy` runs `-m "not performance and not stress and not timing"`, i.e. it
+      already includes slow tests unconditionally), so this has no live-CI consequence yet. But a
+      developer or a future job (e.g. the `slow-tests` narrowing described in mission
+      `ci-test-topology-performance-01KXBJRT`'s WP04/WP06, which explicitly enumerates
+      `@pytest.mark.slow`-decorated tests via `git grep "@pytest.mark.slow"` to build a shrink-only
+      baseline) would silently miss these two tests' real cost, and a local `-m "not slow"` run
+      gets essentially none of the promised savings.
+    remediation: >
+      Mark `test_charter_is_not_allowlisted_and_agrees` and
+      `test_allowlisted_modules_still_genuinely_mismatch` with `@pytest.mark.slow` as well (they
+      transitively depend on the same subprocess-heavy fixture as the test that already carries
+      it), or restructure so only one test per session actually forces fixture evaluation and the
+      others are demonstrably free when `-m "not slow"` is applied.
+
+  - id: PR-TESTS-002
+    lens: tests
+    severity: 1
+    title: "Two cheap, subprocess-free tests in the same file are left unmarked rather than tagged fast"
+    evidence:
+      - artifact: "tests/architectural/test_module_length_agreement.py:323"
+      - artifact: "tests/architectural/test_module_length_agreement.py:332"
+    claim: >
+      `test_allowlist_does_not_exceed_baseline` (no fixture args, pure len() comparison) and
+      `test_allowlist_entries_are_real_registry_modules` (only `_live_registry_state`, no
+      subprocess) are sub-second, pure-logic tests -- matching pytest.ini's `fast` marker
+      definition -- but are left unmarked, unlike the three genuinely-fast self-mutation tests at
+      the bottom of the file which do carry `@pytest.mark.fast`. This is a minor consistency gap,
+      not a functional defect (they still run everywhere `tests/architectural` runs), and does not
+      block merge.
+    remediation: >
+      Optionally tag both with `@pytest.mark.fast` for consistency with the file's own stated
+      convention ("kept in pure-logic tests ... so they stay sub-second and can run everywhere,
+      including under make test-fast-style selection").

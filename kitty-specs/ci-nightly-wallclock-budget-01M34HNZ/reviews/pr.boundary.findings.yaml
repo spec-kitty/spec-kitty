@@ -1,0 +1,64 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: boundary
+mission: ci-nightly-wallclock-budget-01M34HNZ
+findings:
+  - id: PR-BOUNDARY-001
+    lens: seam-violations / contracts-preserved
+    severity: 2
+    title: "ci-module-registry.yml still names the now-retired `performance-and-e2e` job in four disposition-ledger `reason:` entries after ci-nightly.yml split it into `performance`/`e2e`/`stress`"
+    evidence:
+      - artifact: ".github/ci-module-registry.yml:649"
+      - artifact: ".github/ci-module-registry.yml:668"
+      - artifact: ".github/ci-module-registry.yml:696"
+      - artifact: ".github/ci-module-registry.yml:719"
+      - artifact: ".github/workflows/ci-nightly.yml (job ids: performance, e2e, stress — performance-and-e2e no longer exists)"
+    claim: >
+      This PR is the one that renames/splits `ci-nightly.yml`'s `performance-and-e2e` job
+      into three independent jobs (`performance`, `e2e`, `stress`). `.github/ci-module-registry.yml`
+      — one of the four files this PR itself edits — carries four `reason:` entries (for the
+      `tests/stress`, `tests/performance`+siblings, `tests/cross_cutting`+`tests/cross_cutting/dashboard`,
+      and `tests/regressions` disposition rows) that assert "Real marker home is ci-nightly.yml's
+      performance-and-e2e job" in the present tense. That job id no longer exists after this diff, so
+      these four cross-file provenance claims are now factually wrong the moment this PR merges. No
+      gate catches it: `test_timings_excluded_dirs_are_documented` (test_module_shard_registry.py:307-312)
+      only checks that each `excluded` entry has a non-empty `path`/`reason` string, never that the
+      reason's content (a job name) matches a real job id in ci-nightly.yml. This is exactly the kind
+      of same-PR cross-reference drift the boundary lens exists to catch: the PR changes one half of a
+      documented producer/consumer pair (the job name) without updating the other half (the registry's
+      own prose that names it), inside a file already open in this diff.
+    remediation: >
+      Update the four `reason:` strings in .github/ci-module-registry.yml to name the correct
+      post-split job(s) — e.g. "ci-nightly.yml's `performance` job" / "`stress` job" per the marker
+      each row actually exercises — instead of the retired `performance-and-e2e` compound name.
+
+  - id: PR-BOUNDARY-002
+    lens: seam-violations / canonical-sources-and-unification
+    severity: 2
+    title: "New architectural test re-implements a second, less-defensive loading mechanism for scripts/ci/capture_shard_timings.py instead of reusing the one already established for that exact module"
+    evidence:
+      - artifact: "tests/architectural/test_module_length_agreement.py:200-203"
+      - artifact: "tests/ci/test_capture_shard_timings.py:18-46"
+    claim: >
+      `tests/architectural/test_module_length_agreement.py::_resolve_test_dirs` loads
+      `scripts/ci/capture_shard_timings.py` via `sys.path.insert(0, str(_SCRIPTS_CI_DIR)); import
+      capture_shard_timings as _capture` — called once per registry module inside the session-scoped
+      `_collected_counts` fixture (21 calls), each prepending the same directory to `sys.path` for the
+      rest of the pytest session. The SAME module already has an established loader in this repo:
+      `tests/ci/test_capture_shard_timings.py`'s `_load_module()` uses
+      `importlib.util.spec_from_file_location`, with a docstring explicitly stating this is necessary
+      because "`scripts/ci` is not an importable package from the test's own import root" and that it
+      "mirror[s] `tests/ci/test_sonar_project_version.py`" — i.e. this repo already settled on one
+      canonical technique for importing a `scripts/ci/*.py` module from a test, specifically to avoid
+      the global `sys.path` mutation the new file now performs. This is functionally harmless today
+      (no name collision exists among `scripts/ci/*.py`'s 19 modules, and `capture_shard_timings.py`
+      has no import-time side effects — its CLI is behind `if __name__ == "__main__"`), so it does not
+      break anything now, but it is a second, divergent seam for the same integration point that
+      DIRECTIVE_044 (Canonical Sources and Unification) calls out as needing convergence rather than a
+      parallel copy.
+    remediation: >
+      Load `capture_shard_timings` in `_resolve_test_dirs` via
+      `importlib.util.spec_from_file_location`, matching `tests/ci/test_capture_shard_timings.py`'s
+      `_load_module()` (or better, import a shared test-support helper both files call), instead of a
+      `sys.path.insert` + bare `import`.

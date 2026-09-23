@@ -1,0 +1,42 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 2
+verdicts:
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      WP01's prompt has no "Red-first / revert discipline" heading (confirmed absent by grep,
+      unlike WP02 line 256 and WP06 line 199), and T004's steps only instruct removing the two
+      lines with no prior grep/confirm-inert step; the only inertness confirmation appears
+      post-hoc in T006's optional commit-body language, not as an independent pre-removal check.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      WP03's Objectives/Test Strategy/Risks sections state the ~1.5x-headroom re-derivation
+      METHOD but never a falsification condition for the derived VALUE, tasks.md's WP03 entry
+      (lines 217-296) has no "Red-first / revert discipline" subsection, and plan.md's
+      "#4865 job split" Red-first subsection covers only job-topology (three independent job
+      conclusions) — not the Stage B stress-timeout numeric value WP03's T017 introduces.
+  - id: TASKS-VERIFY-003
+    verdict: confirmed
+    reason: >-
+      WP04's Success Criteria and tasks.md's "Independent Test" line for WP04 are phrased purely
+      as a GREEN/pass condition (provenance populated, exit_code == 0); T021/T022 give correct
+      operational content but no sentence anywhere states the RED condition explicitly, unlike
+      WP06's dedicated "RED before this WP... GREEN after" framing at WP06 line 199-206.
+  - id: TASKS-VERIFY-004
+    verdict: confirmed
+    reason: >-
+      WP05's Test Strategy explicitly defers to WP06 ("No new pytest suite is added by this
+      WP — WP06 owns the committed non-vacuity test") and Review Guidance offers only a verbal
+      "ask to see the computation"; WP06's T029 asserts skew at WP05's already-derived
+      shard_count is non-zero above a floor, which proves non-vacuity/sensitivity but does not
+      independently recompute or verify that value is the true LPT-minimal shard_count, so a
+      transcribed or non-minimal-but-still-sensitive value would not be caught.
+  - id: TASKS-VERIFY-005
+    verdict: confirmed
+    reason: >-
+      T002 (WP01) and T022 (WP04) each independently instruct filing a pre-existing-failure
+      issue with no instruction in either to check whether the other WP already filed a related
+      issue, confirmed by direct reading of both subtasks' Steps.

@@ -1,0 +1,221 @@
+# review-findings/v1 (merged) — R2 mechanical merge of tasks-decomp, tasks-seq, tasks-verify.
+# No findings dropped; no deduplication needed (no two findings cite the same artifact
+# section + same claim). Original ids and severities preserved verbatim.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: merged
+mission: ci-nightly-wallclock-budget-01M34HNZ
+source_files:
+  - tasks-decomp.findings.yaml
+  - tasks-seq.findings.yaml
+  - tasks-verify.findings.yaml
+findings:
+  - id: TASKS-DECOMP-001
+    source_group: decomp
+    lens: mission-derived (Phase-0-baseline fold / requirement-ref accuracy)
+    severity: 3
+    title: "WP01 cites FR-001 as a Requirement Ref, but WP01's own content never performs FR-001's split"
+    evidence:
+      - artifact: "tasks.md § WP01 (\"Requirement Refs: FR-001, NFR-006, SC-008\")"
+      - artifact: "tasks.md § Requirements Coverage Summary (\"FR-001 | WP01, WP02\")"
+      - artifact: "kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tasks/WP01-baseline-and-campsite-clean.md frontmatter (requirement_refs: [FR-001, NFR-006])"
+      - artifact: "kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/spec.md:250 (\"FR-001 | Split `performance-and-e2e` into three independent jobs\")"
+      - artifact: "tasks.md § WP02 Goal (\"Replace the ... single `performance-and-e2e` job with three jobs\") — this is where the FR-001 split actually happens"
+      - artifact: "kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tracer-tooling-friction.md (2026-09-22 \"tasks-parsing regex\" entry) — explains why NFR-006/SC-008 were added to WP01's Requirement Refs line, but never explains or justifies FR-001's presence"
+    claim: >
+      WP01's Goal is exactly two things: (a) record a Phase-0 pytest baseline (Activity-Log-only,
+      no commit) and (b) remove the inert fail-fast key as a behavior-preserving campsite-clean
+      commit. Neither splits performance-and-e2e — that is WP02's entire Goal. Yet WP01 lists
+      FR-001 in its Requirement Refs and the Requirements Coverage Summary records FR-001 as
+      covered by "WP01, WP02" rather than WP02 alone, degrading the coverage table's value as an
+      FR-coverage audit trail.
+    remediation: >
+      Drop FR-001 from WP01's Requirement Refs line (tasks.md WP01 section and the WP01 prompt
+      file's frontmatter requirement_refs) and from the Requirements Coverage Summary's FR-001
+      row, leaving FR-001 covered by WP02 alone. Keep NFR-006 as WP01's machine-parsed anchor.
+
+  - id: TASKS-DECOMP-002
+    source_group: decomp
+    lens: catalog (PR-shape judgment vs. real WP content)
+    severity: 3
+    title: "PR-shape judgment's \"not diff volume\" claim omits WP04's own ~4,200-line mechanical diff to ci-shard-timings.json"
+    evidence:
+      - artifact: "tasks.md § \"PR-shape judgment: ONE PR for the whole mission\" (\"the diff itself harder to review\"; enumerated diff list omits .github/ci-shard-timings.json)"
+      - artifact: "tasks.md § WP04 (Goal: run capture_shard_timings.py --module charter --write, producing a committed, regenerated .github/ci-shard-timings.json)"
+      - code: "scripts/ci/capture_shard_timings.py:217-241 (merge_capture: module_test_durations[\"charter\"] replaced wholesale, one float per collected charter test)"
+      - code: "scripts/ci/capture_shard_timings.py:274 (json.dumps(payload, indent=2) — one list element per line)"
+      - code: ".github/ci-shard-timings.json (module_test_durations[\"charter\"] currently has 4211 entries, measured directly)"
+    claim: >
+      WP04's recapture replaces module_test_durations["charter"]'s entire per-test duration list
+      (4,211 entries), serialized one element per line — a genuinely multi-thousand-line diff in
+      one PR. tasks.md's PR-shape judgment argues the cost driver "is dispatch-WAIT time, not diff
+      volume" and its enumerated diff-content list never names this file's size, conflating
+      wall-clock cost with diff size when the same step is both.
+    remediation: >
+      Amend the PR-shape judgment section to name .github/ci-shard-timings.json's expected diff
+      size explicitly (thousands of changed lines from WP04's recapture) and state why that size
+      does not change the single-PR recommendation (mechanical, machine-generated, verified by
+      WP06's non-vacuity gate rather than hand-review).
+
+  - id: TASKS-SEQ-001
+    source_group: seq
+    lens: Mission-derived — blanket "zero [P] subtasks" claim
+    severity: 2
+    title: "Two genuinely independent subtask pairs exist (WP07 T034/T036; WP02 T010/T011) despite the mission's blanket zero-[P] claim"
+    evidence:
+      - artifact: "tasks.md § Subtask Format (lines 49-56): \"No subtask below carries [P]\""
+      - artifact: "tasks.md § Dependency & Execution Summary (lines 558-596): reasoning is topology/chokepoint-level only, never examines intra-WP subtask independence"
+      - artifact: "tasks.md WP07 T034 (line 503) vs T036 (line 514) — T036 is pure prose from already-committed plan.md text with no data dependency on T034's dispatch output"
+      - artifact: "tasks.md WP02 T010-T011 (lines 164-169) — both read-only verification commands over the same T009-edited file with no ordering constraint between them"
+    claim: >
+      The mission's central "fully linear — zero [P] anywhere" claim is justified only at the
+      mission-topology/chokepoint level and never examines intra-WP independence. Two concrete
+      counter-examples exist: WP07's T034 (live dispatch wait) and T036 (prose from already-
+      committed text, zero data dependency on T034); WP02's T010 (ruff format --check) and T011
+      (pytest), both independent read-only checks over the same file.
+    remediation: >
+      In WP07, mark T036 [P] relative to T034 (or re-sequence T036 before T034 so write-up happens
+      while the dispatch is in flight). In WP02, mark T010/T011 [P] relative to each other. Add one
+      sentence to "Dependency & Execution Summary" acknowledging intra-WP subtask-level parallelism
+      was considered separately from inter-WP/topology-level parallelism.
+
+  - id: TASKS-SEQ-002
+    source_group: seq
+    lens: Chokepoints — PR #4886 collision handling (WP05 T026)
+    severity: 3
+    title: "PR #4886's collision check is performed once in WP05 but never re-verified at the actual highest-risk moment (WP07's PR push/open, T037)"
+    evidence:
+      - artifact: "tasks.md WP05 T026 (line 378): re-checks PR #4886 once, mid-mission"
+      - artifact: "tasks.md WP07 T036 (line 514-519): documents/references the collision policy in prose — not a live re-check"
+      - artifact: "tasks.md WP07 T037 (line 520): pushes/opens the PR with no intervening re-check of #4886's live status"
+      - artifact: "plan.md:427-436 § Known collision — PR #4886 (\"should be re-checked at implementation time\")"
+      - artifact: "plan.md:168-178 (worst-case cumulative wall-clock): up to ~650 minutes can elapse between WP05 and WP07 — a real window during which #4886 could merge"
+    claim: >
+      WP05's T026 checks PR #4886's live status once, mid-mission. Per plan.md's own worst-case
+      wall-clock accounting, up to ~650 minutes can elapse between that check and this mission's
+      own PR being pushed/opened (WP07 T037) — a real window in which #4886 could merge without
+      this mission's side noticing, since no WP07 subtask re-runs the live check.
+    remediation: >
+      Add an explicit subtask in WP07, immediately before T037, that re-runs `gh pr view 4886` and
+      re-confirms via `git diff` that the charter row is the only touched row relative to current
+      main, applying T026's re-apply-and-hand-verify procedure again if #4886 merged in the
+      interim.
+
+  - id: TASKS-SEQ-003
+    source_group: seq
+    lens: Chokepoints/lanes.json cross-check — stale "no lanes.json" prose
+    severity: 1
+    title: "tasks.md's Organization section states \"no lanes.json\" as a flat fact, but a real lanes.json now exists in this mission directory"
+    evidence:
+      - artifact: "tasks.md lines 19-22 § Organization: \"one continuous lane, no lanes.json, no parallel worktree split\""
+      - artifact: "kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/lanes.json (present on disk, written by the real finalize-tasks run)"
+      - artifact: "tracer-tooling-friction.md's final dated entry — explains the file's existence/provenance, but tasks.md's own prose was not updated to acknowledge it"
+    claim: >
+      tasks.md asserts "no lanes.json" as present-tense fact; that is no longer true of the
+      directory's actual contents (a lanes.json exists as a documented tooling side effect). A
+      reader has no in-document pointer explaining the apparent contradiction.
+    remediation: >
+      Add a one-clause cross-reference in tasks.md's Organization section pointing to
+      tracer-tooling-friction.md's dated entry — e.g. "(a lanes.json file is nonetheless written by
+      finalize-tasks as a documented side effect; see tracer-tooling-friction.md — it does not
+      indicate a real multi-lane split)".
+
+  - id: TASKS-VERIFY-001
+    source_group: verify
+    lens: mission-derived (per-WP red-first concreteness)
+    severity: 3
+    title: "WP01 has no dedicated red-first/falsification story for the campsite-clean half; the \"dead key\" claim isn't re-verified at the WP-task level before removal"
+    evidence:
+      - artifact: "tasks/WP01-baseline-and-campsite-clean.md — no '## Red-first / revert discipline' heading (contrast WP02 line 256 and WP06 line 199)"
+      - artifact: "tasks/WP01-baseline-and-campsite-clean.md § Subtask T004 — no step asks the implementer to independently confirm the key is inert before removing it"
+      - code: ".github/workflows/ci-nightly.yml:68-73 (confirmed: fail-fast at 72-73, no matrix: key in 68-171 — claim IS true, but WP01 doesn't ask the implementer to establish that fact itself)"
+    claim: >
+      WP02 and WP06 each carry an explicit "Red-first / revert discipline" section. WP01 — which
+      performs the campsite-clean edit whose "safety" rests entirely on "this key currently has no
+      effect" — has no equivalent section or task-level instruction to confirm the inertness claim
+      before acting on it.
+    remediation: >
+      Add a "Red-first / revert discipline" section to WP01's prompt stating the campsite-clean's
+      own falsification mechanism: before T004 removes the two lines, grep/confirm no matrix key
+      exists under performance-and-e2e in the current file; if one is found, that is this WP's
+      "red" — do not remove the key, escalate instead. Fold this check into T004's own steps.
+
+  - id: TASKS-VERIFY-002
+    source_group: verify
+    lens: mission-derived (per-WP red-first concreteness)
+    severity: 3
+    title: "WP03's Stage A/B stress-timeout re-derivation sub-claim has no falsification statement of its own — only WP02's inherited job-split framing is present"
+    evidence:
+      - artifact: "tasks/WP03-dispatch-evidence-stage-b.md § Objectives & Success Criteria and § Test Strategy — neither states what would show the Stage B re-derived timeout-minutes value is WRONG"
+      - artifact: "tasks.md WP03 entry — no 'Red-first / revert discipline' subsection, unlike WP02/WP06"
+      - artifact: "plan.md § Red-first / revert discipline, '#4865 job split' subsection — covers the job-topology claim only, not Stage B's timeout-VALUE claim which WP03 itself introduces via T017"
+    claim: >
+      WP03's prompt states the re-derivation METHOD precisely but never states what evidence would
+      show the derived value is wrong — e.g. a subsequent nightly stress run truncating again
+      against the new timeout would be direct falsification, but nothing in WP03 says this.
+    remediation: >
+      Add a short "Red-first / revert discipline" note to WP03's prompt stating: this re-derivation
+      is falsified if a subsequent stress run on ci-nightly.yml's nightly trigger is cancelled/
+      truncated against the newly-derived timeout-minutes — direct evidence the ~1.5x headroom was
+      insufficient, requiring re-derivation from a fresh completed duration.
+
+  - id: TASKS-VERIFY-003
+    source_group: verify
+    lens: mission-derived (per-WP red-first concreteness) / Baseline honesty
+    severity: 2
+    title: "WP04's \"red\" (capture failure) is implied by T021/T022 but never stated explicitly in red/green terms, unlike WP02's and WP06's dedicated sections"
+    evidence:
+      - artifact: "tasks/WP04-recapture-charter-timings.md § T021/T022 — operational content correct, never summarized as an explicit red/green statement"
+      - artifact: "tasks.md WP04 entry § Independent Test — phrased purely as a GREEN/pass criterion; RED is only inferable by negation"
+    claim: >
+      WP02 and WP06 both carry an explicit "Red-first / revert discipline" heading naming the
+      failure condition directly. WP04's failure mode (exit_code != 0, or provenance stays None)
+      is never stated as its own red-first claim.
+    remediation: >
+      Add one sentence to WP04's prompt stating explicitly: RED for this WP is exit_code != 0 in
+      the capture's provenance record, or module_capture_provenance[charter] remaining None after
+      T020 completes; GREEN is the populated, auth-shaped provenance record with exit_code == 0.
+
+  - id: TASKS-VERIFY-004
+    source_group: verify
+    lens: mission-derived (per-WP red-first concreteness)
+    severity: 3
+    title: "WP05's own claim that shard_count is genuinely LPT-derived (not a heuristic or the old value) has no falsification mechanism of its own — its Test Strategy explicitly defers entirely to WP06's test, which proves a different claim"
+    evidence:
+      - artifact: "tasks/WP05-rederive-charter-shard-count.md § Test Strategy — 'No new pytest suite is added by this WP — WP06 owns the committed non-vacuity test'"
+      - artifact: "tasks/WP05-rederive-charter-shard-count.md § Review Guidance — 'ask to see the computation' is verbal, non-durable, not a re-runnable check"
+      - artifact: "tasks/WP06-non-vacuity-spot-check-and-test.md § Objectives — WP06's test proves skew non-vacuity/sensitivity, a DIFFERENT claim from 'the specific number was actually LPT-computed'"
+    claim: >
+      WP05's Test Strategy section explicitly defers verification to WP06, but WP06's test would
+      not catch a shard_count value that passes non-vacuity while still not being the smallest
+      LPT-minimal value, or one transcribed incorrectly from a real computation.
+    remediation: >
+      Give WP05 its own concrete, durable falsification mechanism: require T024's Activity Log
+      entry to record the FULL derivation trace (every candidate shard_count tried and its computed
+      skew) so a reviewer can independently reproduce the identical chosen value. State explicitly:
+      if a reviewer re-runs the recorded derivation trace and gets a DIFFERENT smallest-skew-under-
+      20-percent shard_count than the one written to the registry row, that is red for THIS WP,
+      distinct from WP06's non-vacuity claim.
+
+  - id: TASKS-VERIFY-005
+    source_group: verify
+    lens: Baseline honesty / Pre-existing Failure Reporting Rule (conditional framing, dedup)
+    severity: 2
+    title: "WP01's T002 and WP04's T022 each independently instruct filing a pre-existing-failure GitHub issue, with no cross-check against an issue already filed by the other, earlier WP"
+    evidence:
+      - artifact: "tasks/WP01-baseline-and-campsite-clean.md § T002 — files an issue with no instruction to check for a prior filing"
+      - artifact: "tasks/WP04-recapture-charter-timings.md § T022 — same, no instruction to check whether WP01 already filed a related issue"
+    claim: >
+      Both T002 and T022 correctly frame the rule as conditional, but neither states the scope
+      distinction between the two command surfaces (test_module_shard_registry.py/
+      test_performance_marker_guard.py vs. capture_shard_timings.py --module charter) or instructs
+      a dedup check, leaving it to the implementing agent to notice the distinction on its own.
+    remediation: >
+      Add one sentence to both T002 and T022 clarifying scope and dedup: T002 states its baseline
+      covers only the two named architectural test files, unrelated to WP04's later capture run;
+      T022 states to check whether WP01's Activity Log already recorded an issue for a related
+      failure before filing a second one.
+# All findings above proceed to R3 refutation as a single batch (10 findings, well under the
+# ~8-per-batch guideline plus one — kept as one batch for coherence since they cluster into 3
+# tight groups by lens).

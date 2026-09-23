@@ -1,0 +1,95 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: ci-nightly-wallclock-budget-01M34HNZ
+findings:
+  - id: SPEC-GOV-001
+    lens: Scope-boundary enforcement (mission-derived)
+    severity: 4
+    title: The "13 others" out-of-scope module list is incomplete — omits `review`, and the count is wrong
+    evidence:
+      - artifact: "spec.md § Constraints, C-003 (line 254)"
+      - artifact: "spec.md § Clarifications / Decisions, \"Scope boundary (binding)\" (lines 320-330)"
+      - code: ".github/ci-module-registry.yml (21 `- module:` rows: merge, missions, post_merge, release, status, review, next, lanes, dashboard, upgrade, cli, charter, agent, kernel, glossary, execution_context, core_misc, unit, specify_cli_runtime, ci, auth)"
+      - code: ".github/ci-shard-timings.json `module_capture_provenance` keys (only specify_cli_runtime, unit, ci, merge, status, dashboard, auth are populated — 7 total, matching C-003's captured-correctly list)"
+    claim: >
+      C-003 and the "Scope boundary (binding)" section both assert "14 are
+      stale, including `charter` ... and 13 others" and both enumerate the
+      same 12-name list: agent, cli, core_misc, execution_context, glossary,
+      kernel, lanes, missions, next, post_merge, release, upgrade. Direct
+      inspection of `.github/ci-module-registry.yml` shows 21 modules total;
+      cross-referencing against the 7 modules with populated
+      `module_capture_provenance` entries in `.github/ci-shard-timings.json`
+      (auth, ci, dashboard, merge, specify_cli_runtime, status, unit — matching
+      C-003's own "captured correctly" list) leaves 14 stale modules: charter
+      plus 13 others, and those 13 are actually agent, cli, core_misc,
+      execution_context, glossary, kernel, lanes, missions, next, post_merge,
+      release, upgrade, AND `review`. The spec's enumerated list omits
+      `review` (a real registry module, also uncaptured) and contains only 12
+      names while claiming 13. This is the exact scope-boundary artifact this
+      mission-derived lens exists to check (per the dispatch: "verify this
+      boundary is stated clearly enough that an implementer could not
+      reasonably read the vacuous-gate finding as license to recapture more
+      than `charter`") — an incomplete, miscounted enumeration undermines that
+      guarantee: a reader has no explicit signal that `review` is also
+      out-of-scope-for-now, and the mis-count (says 13, lists 12) will be
+      ledgered as fact at mission exit per the spec's own stated plan, propagating
+      the inaccuracy into governance record-keeping.
+    remediation: >
+      Add `review` to the enumerated list in both C-003 (spec.md:254) and the
+      "Scope boundary (binding)" section (spec.md:320-330), making it 13 names
+      that actually total 13, and correct the surrounding prose if needed
+      (e.g. re-verify no other module was silently dropped by re-deriving the
+      list as: all 21 registry modules minus the 7 with populated
+      `module_capture_provenance` minus `charter`).
+
+  - id: SPEC-GOV-002
+    lens: Directive (canonical-sources / citation accuracy)
+    severity: 1
+    title: "Summary section cites the charter row's `shard_count` at \"line 150\" without the tilde used elsewhere; actual line is 151"
+    evidence:
+      - artifact: "spec.md § Summary, item 2 (line ~26-27): \"`.github/ci-module-registry.yml`'s `charter` module row (line 150) hardcodes `shard_count: 5`\""
+      - code: ".github/ci-module-registry.yml:151 (`  shard_count: 5`); the `charter` row itself starts at line 143, and `tier: standard` is at line 150."
+    claim: >
+      The Summary states the citation as an exact line ("line 150", no
+      approximation marker), but the `shard_count: 5` value is actually on
+      line 151 (line 150 is `tier: standard`). Elsewhere in the same document
+      (FR-007, AC3 under User Story 2) the same citation is correctly written
+      with a tilde ("line ~150"), signalling awareness that it's approximate.
+      This is a trivial off-by-one with no implementation impact — the
+      implementer will read the real file — but it is the kind of citation
+      drift the review brief asked to spot-check.
+    remediation: >
+      Change "line 150" to "line ~150" (or the exact "line 151") in the
+      Summary section for consistency with the tilde-qualified citations used
+      for the same fact elsewhere in the spec.
+
+# All other gov lenses checked clean:
+# - Terminology: no "feature*" aliasing found in spec.md (grep -i feature: zero
+#   hits); `spec-kitty glossary list` confirms none of the CI/shard-specific
+#   terms (shard, module registry, nightly, wallclock) are canon domain terms
+#   requiring alignment, so no drift is possible here.
+# - Public-repo: no credentials, customer data, or private-repo detail found
+#   in spec.md (grep for customer/private/confidential/secret/token/password:
+#   zero hits); the "349b73fc0" commit and agent/upgrade registry comments
+#   cited as the rejected-precedent are real, public, in-repo history —
+#   verified via `git show 349b73fc0` and the registry file itself.
+# - Ledger: searched /home/jeroennouws/dev/SK-missions/SPEC-KITTY-LEDGER.md
+#   (742KB, outside this checkout but reachable) for nightly/shard-registry/
+#   wallclock/skew/capture_shard_timings/#4865/#4864/performance-and-e2e
+#   keywords; no matching entries found, so no contradiction to report. Noting
+#   as a partial limitation: the ledger is large prose text, not an indexed
+#   database, so a keyword search is not a proof of absence, only the best
+#   available check from this checkout.
+# - Operator-decision fidelity (mission-derived): both binding decisions in
+#   spec.md's "Clarifications / Decisions" section state the rejected
+#   alternative AND the rejection rationale for both #4865 (raising the
+#   timeout cap — rejected because it leaves blended verdicts) and #4864 (the
+#   `349b73fc0` heuristic — rejected because it would leave NFR-005's
+#   "measured, not guessed" claim false for `charter` too). Cross-checked
+#   against tracer-design-decisions.md, which records the same two decisions
+#   with matching alternatives/rationale, and against the real `349b73fc0`
+#   commit message (`git show 349b73fc0`), which independently confirms the
+#   heuristic being described (wall-clock÷target bump for agent/upgrade) is
+#   accurately characterized. No finding.

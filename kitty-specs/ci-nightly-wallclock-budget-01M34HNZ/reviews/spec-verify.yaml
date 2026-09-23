@@ -1,0 +1,25 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: "spec.md C-003 and the Scope boundary section now both list 13 names including `review` (verified: .github/ci-module-registry.yml has 21 `- module:` rows, ci-shard-timings.json's module_capture_provenance has exactly 7 populated keys, 21-7-1(charter)=13 and `review` is genuinely one of the uncaptured 13, not charter, not populated)."
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: "Summary item 2 now reads 'line ~150' matching the tilde convention used elsewhere; actual shard_count line in .github/ci-module-registry.yml is line 151, one below the charter row's tier line, so the approximate citation is now consistent and non-misleading."
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: "New FR-010 explicitly names test_performance_marker_guard.py and its three hardcoded-\"performance-and-e2e\" tests (lines 280, 313, 350, confirmed by grep) as in-scope edits; AC4/SC-004/failure clauses now distinguish the two pull_request-trigger tests (the real regression guard) from the three job-name-literal tests (expected maintenance), resolving the AC4/SC-004 contradiction the finding identified."
+  - id: SPEC-ARCH-003
+    status: resolved
+    reason: "C-004 now explicitly names and accepts as out-of-scope prose drift the four disposition-ledger comments (lines 622, 641, 669, 692 — confirmed by grep) and tests/e2e/test_worktree_owned_root_concurrency.py:377 (confirmed), matching the finding's cited evidence exactly."
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: "AC3's false '(the same LPT approach already used for agent/upgrade/other rows)' precedent claim is removed; it now cites `auth` (one of the 7 correctly-captured rows) as the genuine precedent and explicitly names agent/upgrade's commit 349b73fc0 heuristic as the rejected non-precedent, consistent with C-002/Clarifications."
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: "New NFR-006 requires the workflow_dispatch run's URL, each relevant job's conclusion, and the stress job's xunit report existence to be recorded in the PR description or a dedicated evidence location before mission completion, closing the durable-evidence gap the finding described."
+  - id: SPEC-VERIFY-004
+    status: resolved
+    reason: "SC-006 is rewritten to state the aggregate test's checked_multi_shard>=1 pass condition is not sufficient proof (confirmed against tests/architectural/test_module_shard_registry.py:265-300, which does aggregate across all modules) and now requires the spot-check's command and both recomputed skew values to be recorded as durable evidence rather than left uncommitted."

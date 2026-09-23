@@ -1,0 +1,53 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: >
+      plan.md's "Campsite-clean decision" section (lines 235-259) verbatim folds the dead
+      `fail-fast` key drop into the FR-001 commit and justifies it via the reconciliation
+      order; charter.md:64-67 and :140-145 confirm the charter text separates the opening
+      campsite-clean (bound to "distinct...step that precedes") from the functional change
+      that the reconciliation order governs, so invoking that order to excuse skipping a
+      distinct preceding commit is a textually unsupported extension, and ci-nightly.yml:71-73
+      confirms no matrix: key exists in the job body (lines 68-172), matching the evidence.
+  - id: PLAN-GOV-002
+    verdict: confirmed
+    reason: >
+      plan.md:4 reads "**Input**: Feature specification from..." verbatim identical to
+      plan-template.md:4's boilerplate, and charter.md:557-561's Terminology Canon hard-bans
+      Feature/Features; the finding correctly root-causes the drift to the canonical template
+      rather than this plan and appropriately scopes remediation outside this mission.
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: >
+      spec.md's AC1 falsifiability clause (lines 100-103) literally states AC1 fails if any
+      new job's timeout-minutes is "a bare copy of the old 60 (rather than re-partitioned from
+      the 65-minute observed total)," and plan.md:89-92 sets stress's timeout-minutes to
+      exactly 60, describing it in the same breath as "the old shared job's full cap" while
+      the surrounding sentence claims budgets are "never a bare copy of the old shared 60" —
+      a direct, self-contradicting numeric match to the condition AC1 names as a failure, with
+      the plan's own mitigation explicitly permitting 60 to ship unrevised even if evidence
+      shows it's excessive.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: >
+      plan.md:222-223's "deliberately-wrong shard_count" instruction gives no concrete,
+      pre-declared value or rule, and _skew_of (test_module_shard_registry.py:119-122) applied
+      to _lpt_bin_pack's single-bin output at shard_count==1 (:104-116) provably always yields
+      exactly 0.0 regardless of data, confirming the core degenerate-value risk the finding
+      identifies is real and unguarded against by the plan's text (the "very large shard_count"
+      sub-claim in the finding is weaker but does not undermine the well-grounded core claim).
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: >
+      charter.md:79-83 (Standing Order #5) states "a gate-unmask cannot self-validate," plan.md
+      chooses an uncommitted, non-re-runnable "ad-hoc Python snippet (documented, not committed)"
+      as the mandatory SC-006 evidence (lines 217-227) while explicitly demoting the durable,
+      committed, re-runnable unit-test alternative to optional (lines 230-233), and plan.md:437-439
+      self-assesses "PASS, directly addressed" against that same standing order — confirmed no
+      __main__/CLI/standalone-invocation pattern exists in test_module_shard_registry.py (grep
+      empty across 569 lines) — so the same implementing agent hand-runs and hand-transcribes the
+      sole required non-vacuity proof, matching the self-validation the standing order forbids.

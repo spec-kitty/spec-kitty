@@ -1,0 +1,233 @@
+{
+  "event_count": 46,
+  "last_event_id": "01M35MHFF9GVG2NXXMF352YH0C",
+  "materialized_at": "2026-09-22T22:42:17.193536+00:00",
+  "mission_number": "",
+  "mission_slug": "ci-nightly-wallclock-budget-01M34HNZ",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 6,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 1,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M34XTTAPW2YFC8BZB483JZAZ",
+      "last_transition_at": "2026-09-22T16:05:25.974294+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "e864b4563..5a28d1277",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 1903069,
+      "shell_pid_created_at": "1790091971.27",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "claude",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M35079W1X40CCCXGBYWKW21J",
+      "last_transition_at": "2026-09-22T16:47:12.257550+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "e854c6e13..90ce47f3a",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 2099617,
+      "shell_pid_created_at": "1790095359.18",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M353MHQWB97X44G8GD4PCJ0M",
+      "last_transition_at": "2026-09-22T17:46:52.028879+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Rejection fix applied: coupling-risk warnings added to ci-nightly.yml (performance env block line ~100 + stress timeout-minutes ~line 250); finding-2 test-count claim corrected with real reproducible output (40 passed/0 skipped, see Activity Log)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "154a6c6e6..HEAD",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 2235284,
+      "shell_pid_created_at": "1790098512.02",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M355JH5EA7B7Z1WJQ1E3T523",
+      "last_transition_at": "2026-09-22T18:20:43.054260+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T020-T023 complete: charter recaptured (18m59s real vs ~110min budgeted), provenance verified against auth shape, length now matches consumer collection (6156==6156). Durability limit recorded in tracer-tooling-friction.md and WP04 Activity Log: no ongoing length-agreement check exists, so this is correct-now not correct-forever."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "7b55c05e3..ed5075af3",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 2269967,
+      "shell_pid_created_at": "1790099342.48",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
+    },
+    "WP05": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M35AAPVMNXHCVM1S87XTSDNG",
+      "last_transition_at": "2026-09-22T19:43:49.620230+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T024-T027 complete: shard_count=5 re-derived via _lpt_bin_pack/_skew_of against WP04's recaptured charter durations (skew ~0.000%, non-vacuous — fails at shard_count=68/21.1%). T026: PR #4886 confirmed MERGED, merged-but-clean (core_misc row only, already ancestor of HEAD). Gate green: test_module_shard_registry.py 17 passed. Broader tests/architectural/ green: 2808 passed/4 skipped/2 xfailed, matching measured baseline.",
+        "CORRECTIVE (Wrangler Wendy, rejection fix, cites DM-01M3584PY5A6F79DWX1QFDHW87): the prior note above (T024-T027 complete...skew ~0.000%, non-vacuous -- fails at shard_count=68/21.1%) is FALSE and WITHDRAWN, left in place per append-only ledger discipline. Re-measured: skew ~0.000% for shard_count 2-40 BOTH pre-recapture (4211 entries) and post-recapture (6156 entries), unchanged at shard_count=5. Pre-recapture data crosses the 20% NFR-005 ceiling EARLIER (shard_count=52, 20.1%) and reads WORSE at shard_count=67 (39.4% pre vs 19.9% post) than post-recapture. The recapture did NOT make the skew gate non-vacuous or shard_count-sensitive; the k>=68 failure is structural (largest single test 20.99s exceeding one ideal bin), not detection of real imbalance. FR-008 / NFR-003 / SC-006 are NOT satisfied by this recapture. shard_count=5 is correct, resting on wall-clock projection (module-tests.yml timeout-minutes: 40, measured ~6.72x CI/local ratio) -- not on skew. Full ruling: DM-01M3584PY5A6F79DWX1QFDHW87. Task-file corrective entry + withdrawal pointer also added (commit 7625edf37)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "8d788dd02..0b5ac272a",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 2324262,
+      "shell_pid_created_at": "1790101320.65",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
+    },
+    "WP06": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M35CWBPNVBDPPEK48R25D9YA",
+      "last_transition_at": "2026-09-22T20:28:25.173650+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Repointed per operator ruling DM-01M3584PY5A6F79DWX1QFDHW87: skew-sensitivity claim withdrawn (FR-008/NFR-003/SC-006 not satisfied). Delivered tests/architectural/test_module_length_agreement.py instead -- a committed/collected length-agreement gate with a frozen shrink-only allowlist for the 20 pre-existing mismatched modules; only charter agrees today. 8/8 new tests pass, mutation-demonstrated (twice), full tests/architectural green (2813 passed = 2805 baseline + 8 new). See WP06 Activity Log for full detail."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "0b5ac272a..1557505fd",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 3952353,
+      "shell_pid_created_at": "1790106308.29",
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      }
+    },
+    "WP07": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "for_review",
+      "last_event_id": "01M35MHFF9GVG2NXXMF352YH0C",
+      "last_transition_at": "2026-09-22T22:42:17.193536+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP07 complete; PR #4948 opened as draft by the orchestrator (T037). Squad trail, fixes and anchored verification all committed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done"
+      }
+    }
+  }
+}

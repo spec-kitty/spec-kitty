@@ -1,0 +1,69 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: ci-nightly-wallclock-budget-01M34HNZ
+findings:
+  - id: PLAN-ARCH-001
+    lens: Timeout-budget fidelity to spec AC1
+    severity: 4
+    title: "stress job's timeout-minutes: 60 is numerically a bare copy of the old shared cap, which is the literal condition AC1's falsifiability clause names as a failure"
+    evidence:
+      - artifact: "spec.md § User Story 1 › How each AC fails (falsifiability), AC1"
+      - artifact: "plan.md § Real evidence used to size the new budgets (grounds FR-002/NFR-002, not guessed)"
+      - artifact: "plan.md § Phasing › Phase 1, step 1a"
+      - code: ".github/workflows/ci-nightly.yml:71 (old shared job's `timeout-minutes: 60`)"
+    claim: >
+      spec.md's AC1 states plainly: "AC1 fails if ... any new job's timeout-minutes is a
+      bare copy of the old 60 (rather than re-partitioned from the 65-minute observed
+      total)." plan.md sets the new `stress` job's `timeout-minutes` to exactly `60` —
+      numerically identical to the old shared `performance-and-e2e` cap at
+      ci-nightly.yml:71 — and the plan itself concedes this is not derived from any
+      observed `stress`-only duration: stress's own real duration is explicitly
+      "unmeasured" (the 2026-09-22 run was cancelled mid-suite at >=16m18s, a lower
+      bound only). Unlike `performance` (23m41s observed -> 35, a ~1.5x-headroom
+      re-partition) and `e2e` (24m44s observed -> 40, same method), `stress`'s budget is
+      not re-partitioned from any suite-specific measurement — it is explicitly "the old
+      shared job's full cap, now dedicated solely to this suite." That rationale
+      addresses *why* the number was chosen, but AC1's falsification text does not carve
+      out an exception for "same number, different job, provisional, with a promise to
+      revisit conditionally" — it tests the literal committed value against the literal
+      old value. A reviewer running the AC1 falsification check as written (grep the new
+      jobs' `timeout-minutes` values against `60`) would find `stress: timeout-minutes:
+      60` and correctly flag it as the exact defect class AC1 exists to catch: a
+      budget that looks re-partitioned (because two of the three jobs genuinely were)
+      but for the specific job most at risk of truncation (`stress`, the one that
+      actually triggered #4865) was not itself re-derived from that job's own observed
+      cost. The plan's own mitigation ("re-validated against the FR-009 pre-merge
+      dispatch's actual stress job conclusion/duration before the PR is called done ...
+      if the dispatch shows stress completing well under 60 minutes, the plan does not
+      require lowering the number") makes this worse, not better: it explicitly permits
+      the PR to ship with `timeout-minutes: 60` unchanged even after real evidence shows
+      stress needs far less — i.e., permits landing a value indistinguishable from "a
+      bare copy of the old 60" as the final, merged state, with only a downside
+      trigger (still timing out) requiring a fix. This also cuts against the charter's
+      Standing Order #5 / profile directive 043 ("Close Defect Classes by Construction"
+      — architect-alphonso profile, directive-references): a conditional promise to
+      revisit a number later, rather than a structural requirement that the number
+      itself be re-derived before merge, is exactly the "discipline reminder" pattern
+      directive 043 calls structurally incomplete.
+    remediation: >
+      Do not commit `stress: timeout-minutes: 60` as a value that can ship unchanged.
+      Two structurally sound options: (1) Make Phase 1's FR-009 dispatch a hard
+      prerequisite for finalizing `stress`'s timeout, not merely a post-hoc validation —
+      i.e., run the dispatch first (or accept the one already-planned dispatch's `stress`
+      job result as authoritative), measure `stress`'s real, uncancelled wall-clock, and
+      then set `timeout-minutes` from that measurement with the same ~1.5x-headroom
+      method used for `performance`/`e2e` (so the shipped number is provably
+      re-partitioned, not coincidentally identical to 60); or (2) if a provisional value
+      must land before that dispatch runs, pick a number distinct from `60` (e.g. derive
+      a conservative estimate from the truncation point — `stress` was still running at
+      >=16m18s when killed, so even a generous 2.5-3x multiple of that lower bound lands
+      well clear of `60` — e.g. `45`) and make the plan's own gate unconditional: the
+      FR-009 dispatch MUST replace that placeholder with a value derived from the
+      observed `stress`-only duration before the PR is marked done, regardless of
+      whether the placeholder happened to be sufficient. Either way, the plan should
+      state explicitly that "the shipped `timeout-minutes` for `stress` must differ from
+      `60` unless a genuine re-derivation from the FR-009 dispatch's measured duration
+      independently lands on that same number" — closing the loophole the current
+      "generous-but-safe budget is acceptable" language leaves open.

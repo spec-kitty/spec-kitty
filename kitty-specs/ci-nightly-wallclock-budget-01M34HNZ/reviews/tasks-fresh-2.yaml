@@ -1,0 +1,83 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh-2
+mission: ci-nightly-wallclock-budget-01M34HNZ
+findings:
+  - id: TASKS-FRESH-001
+    lens: cross-WP file ownership / tenancy boundary after the fix's new T039
+    severity: 4
+    title: New T039 gives WP07 (planning_artifact) conditional write access to a file WP05 exclusively owns, contradicting WP05's declared sole ownership and duplicating WP05's own T026
+    evidence:
+      - artifact: "tasks/WP07-pr-assembly-evidence.md § Subtask T039 – Re-check PR #4886 immediately before push/PR open"
+      - artifact: "tasks/WP07-pr-assembly-evidence.md frontmatter: execution_mode: planning_artifact; owned_files: [kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tracer-approach.md]; authoritative_surface: kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/"
+      - artifact: "tasks/WP05-rederive-charter-shard-count.md frontmatter: execution_mode: code_change; owned_files: [.github/ci-module-registry.yml]; authoritative_surface: .github/ — and its own Subtask T026 (identical re-check-and-reapply procedure)"
+      - artifact: "tasks.md § 'PR-touching-.github/ci-module-registry.yml collision (open PR #4886)': \"WP05 is the WP that edits the `charter` row.\""
+    claim: >
+      The fix revision adds T039 to WP07 with the step "If #4886 has merged in the interim, reapply
+      WP05 T026's re-apply-and-hand-verify procedure: re-apply this mission's `charter`-row-only
+      diff on top of the updated upstream file, then `git diff` again to hand-verify only the
+      `charter` row changed" and lists "Files: `.github/ci-module-registry.yml` (only if a reapply
+      was needed)". This is a genuine, conditional edit to a file that WP07's own frontmatter does
+      NOT declare in `owned_files` (only `tracer-approach.md` is listed) and that falls outside
+      WP07's `authoritative_surface` (`kitty-specs/.../`, not `.github/`). WP05 is the WP that
+      exclusively owns `.github/ci-module-registry.yml` per its own frontmatter (`owned_files`,
+      `authoritative_surface: .github/`) and per WP05's own Review Guidance ("Confirm `git diff` for
+      this WP's commit touches ONLY the `charter` row + its comment — no other row, no other file").
+      tasks.md's own "PR-touching-.github/ci-module-registry.yml collision" paragraph states in
+      singular terms "WP05 is the WP that edits the `charter` row" — a sentence the fix left
+      unedited even though T039 now also conditionally edits that same row from WP07. T039 is also
+      a near-verbatim duplicate of WP05's existing T026 (same `gh pr view 4886` check, same
+      reapply-and-hand-verify procedure), performed a second time by a WP that does not own the
+      file, rather than as a re-invocation of WP05's own step. This is a cross-WP ownership/tenancy
+      gap the charter's Standing Order 8 ("give implementers ownership-map leeway — no-overlap is
+      the real guard") and the mission's own single-owner-per-file design exist to prevent: two
+      different WPs, run by two different (possibly concurrent-in-time) implementer sessions, each
+      with their own commit and their own verification procedure, could independently edit
+      `.github/ci-module-registry.yml` in response to the same PR #4886 collision, with no
+      coordination between them beyond prose in two separate prompt files.
+    remediation: >
+      Either (a) add `.github/ci-module-registry.yml` to WP07's frontmatter `owned_files` and
+      explicitly carve out this one conditional exception in WP05's Review Guidance / the
+      "PR-touching..." paragraph (naming WP07/T039 as the sole authorized re-checker at push-time,
+      with WP05's T026 explicitly scoped to the mid-mission check only), or (b) remove T039's file
+      edit responsibility entirely and instead have T039 merely detect a merged #4886 and, if found,
+      hand off to re-running WP05's T026 procedure (as WP05, not WP07) before WP07 proceeds to
+      T037. Also update the "PR-touching-.github/ci-module-registry.yml collision" paragraph in
+      tasks.md so it no longer states WP05 is singularly "the WP that edits the `charter` row" once
+      a second WP can conditionally touch it.
+
+  - id: TASKS-FRESH-002
+    lens: falsifiability of newly-added Red-first sections (ATDD-First Discipline, charter C-011)
+    severity: 3
+    title: WP03's new Red-first/revert-discipline section states its own RED/GREEN condition cannot be observed within this WP's execution, leaving no actual red/green gate for the WP's own T017 sub-claim
+    evidence:
+      - artifact: "tasks/WP03-dispatch-evidence-stage-b.md § 'Red-first / revert discipline (concrete, for this WP)'"
+      - artifact: ".kittify/charter/charter.md § 'ATDD-First Discipline (binding per C-011)': \"The reviewer verifies red→green: the test was RED on the WP's planning_base_branch AND GREEN on the WP's final commit.\""
+    claim: >
+      The fix adds a "Red-first / revert discipline" section to WP03 (mirroring the ones newly added
+      to WP01 and WP04) to address the R1-R3 finding about missing red-first falsifiability. For
+      WP03's own T017 sub-claim (Stage B's re-derived `stress` timeout is sufficient), the section
+      defines RED as "a SUBSEQUENT `stress` run on `ci-nightly.yml`'s nightly (scheduled) trigger
+      being cancelled/truncated against the newly-derived `timeout-minutes`" and GREEN as "the
+      absence of such a truncation across subsequent nightly runs" — then explicitly states "this
+      WP's own T013/T014/T017 cycle cannot itself observe this condition... this red-first condition
+      is necessarily forward-looking (a future-nightly-run check)". Unlike WP01's and WP04's
+      newly-added Red-first sections (both immediately checkable within their own WP's execution —
+      a grep for `matrix:`, an `exit_code` check), WP03's section is, by its own admission, not
+      checkable by anyone at WP03-close time, or even by mission-close time. This means the fix
+      satisfies the letter of "add a Red-first section to every newly-flagged WP" but does not give
+      WP03's reviewer an actual red→green artifact to verify per the charter's binding C-011 ATDD-
+      First Discipline for this specific sub-claim (T017's timeout sufficiency) — only for the
+      inherited job-topology claim, which the section correctly notes is already covered by WP02's
+      own red-first section.
+    remediation: >
+      Either narrow WP03's Red-first section to state plainly that T017's sufficiency claim has NO
+      WP-scoped red/green gate and is accepted as a documented, forward-looking risk (cross-
+      referencing the existing "Risks & Mitigations" entry) rather than presenting it under a
+      "Red-first / revert discipline" heading that implies a verifiable gate exists, or add a
+      WP-scoped falsifiable check WP03 CAN perform before close — e.g., confirm the newly-derived
+      timeout leaves at least the same proportional headroom ratio the `performance`/`e2e` timeouts
+      demonstrably held against their own single measured durations, as a checkable proxy for
+      "this WP's headroom choice is not obviously undersized," distinct from the true forward-
+      looking truncation check.

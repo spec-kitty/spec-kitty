@@ -1,0 +1,25 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: >
+      T039 in WP07-pr-assembly-evidence.md is now explicitly detection-only (gh pr view 4886 +
+      git diff, "Files: None ... Any actual file edit remains WP05's T026 procedure, re-invoked as
+      WP05's own work"), WP07's frontmatter owned_files still lists only tracer-approach.md with no
+      .github/ci-module-registry.yml addition, tasks.md's "PR-touching-.github/ci-module-registry.yml
+      collision" paragraph now names WP05 as the SOLE editor while explicitly describing WP07's T039
+      as a second, read-only checkpoint that hands off to a WP05-attributed re-invocation rather than
+      editing the file itself, and WP05's own T026 Notes explicitly cross-reference WP07's T039
+      hand-off with matching language (no contradiction between the two WPs' descriptions of who does
+      what).
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: >
+      WP03's "Red-first / revert discipline" section now states in a dedicated bolded subheading
+      that T017's Stage B sufficiency sub-claim has "NO WP-scoped red/green gate" (not softened
+      wording implying one exists), cross-references a "Risks & Mitigations" entry titled "T017's
+      headroom sufficiency is unverifiable at WP-close" that is genuinely present in that section,
+      and preserves the inherited job-topology claim's still-checkable framing ("WP-scoped gate
+      exists... this WP's dispatch, T013/T014, is the green") unchanged from before.

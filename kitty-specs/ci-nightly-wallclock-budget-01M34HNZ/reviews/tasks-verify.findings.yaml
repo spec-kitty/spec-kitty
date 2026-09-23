@@ -1,0 +1,191 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: ci-nightly-wallclock-budget-01M34HNZ
+findings:
+  - id: TASKS-VERIFY-001
+    lens: mission-derived (per-WP red-first concreteness)
+    severity: 3
+    title: >-
+      WP01 has no dedicated red-first/falsification story for the campsite-clean half; the
+      "dead key" claim isn't re-verified at the WP-task level before removal
+    evidence:
+      - artifact: "tasks/WP01-baseline-and-campsite-clean.md § Test Strategy (only section
+          touching verification for T004-T006), and the absence of a '## Red-first / revert
+          discipline' heading (contrast tasks/WP02 line 256 and tasks/WP06 line 199, both of
+          which carry that exact heading)"
+      - artifact: "tasks/WP01-baseline-and-campsite-clean.md § Subtask T004 (steps: remove the two
+          lines, confirm indentation) — no step asks the implementer to independently confirm the
+          key is inert (i.e. grep/confirm no matrix: key exists under performance-and-e2e) before
+          removing it; that verification exists only in plan.md's Campsite-clean decision section,
+          at plan-time, not restated as a WP-level check"
+      - code: ".github/workflows/ci-nightly.yml:68-73 (confirmed by direct read: strategy: /
+          fail-fast: false at 72-73, no matrix: key anywhere in the job body 68-171 — the
+          underlying claim IS true, but WP01 doesn't ask the implementer to establish that fact
+          itself)"
+    claim: >-
+      WP02 and WP06 each carry an explicit "Red-first / revert discipline (concrete, for this
+      WP)" section stating precisely what would falsify their central claim. WP01 — the WP that
+      opens the mission and performs the campsite-clean edit the plan explicitly separates from
+      Phase-0 baseline recording — has no equivalent section. Its baseline-recording (T001-T003,
+      a genuine pytest RED/GREEN candidate) and its campsite-clean commit (T004-T006, a
+      behavior-preserving YAML edit whose "safety" claim rests entirely on "this key currently has
+      no effect") are distinguished by subtask numbering but not by an explicit falsification
+      narrative for the second half, unlike every other code WP in this mission. An implementer
+      following only WP01's prompt has no task-level instruction to confirm the inertness claim
+      before acting on it — they are trusted to have absorbed plan.md's reasoning.
+    remediation: >-
+      Add a "Red-first / revert discipline (concrete, for this WP)" section to WP01's prompt (and
+      a matching one-line note in tasks.md's WP01 entry) that (a) restates why T001-T003 and
+      T004-T006 are deliberately treated differently, and (b) states the campsite-clean's own
+      falsification mechanism explicitly — before T004 removes the two lines, grep/confirm no
+      matrix key exists under the performance-and-e2e job in the current file (making the
+      "fail-fast has no effect" claim a checked fact, not an inherited assertion); if a matrix key
+      is ever found, that is this WP's "red" — do not remove the key, escalate instead. Fold this
+      check into T004's own steps, not merely T005's line-count diff check.
+
+  - id: TASKS-VERIFY-002
+    lens: mission-derived (per-WP red-first concreteness)
+    severity: 3
+    title: >-
+      WP03's Stage A/B stress-timeout re-derivation sub-claim has no falsification statement of
+      its own — only WP02's inherited job-split framing is present
+    evidence:
+      - artifact: "tasks/WP03-dispatch-evidence-stage-b.md § Objectives & Success Criteria (lines
+          77-91) and § Test Strategy (lines 236-241) — neither states what would show the Stage B
+          re-derived timeout-minutes value is WRONG; the WP describes only how it is computed (the
+          same ~1.5x-headroom method as performance/e2e), never what a bad derivation would look
+          like or how a future run would surface it"
+      - artifact: "tasks.md WP03 entry (no 'Red-first / revert discipline' subsection, unlike
+          WP02's and WP06's WP-level headings)"
+      - artifact: "plan.md § Red-first / revert discipline, '#4865 job split' subsection — this is
+          the framing WP03 inherits for the JOB-TOPOLOGY claim only; it says nothing about Stage
+          B's timeout-VALUE claim, which is a distinct sub-claim WP03 itself introduces via T017"
+    claim: >-
+      The mission-derived lens explicitly calls out that WP03 both inherits WP02's live-dispatch
+      falsification framing AND performs its own additional claim (Stage A/B re-derivation) that
+      needs its own falsification statement. WP03's prompt and tasks.md entry state the
+      re-derivation METHOD precisely (T017: same ~1.5x-headroom formula used for performance/e2e)
+      but never state what evidence would show the derived value is wrong — e.g. a subsequent
+      nightly stress run truncating again against the new timeout would be direct falsification of
+      "1.5x headroom was enough," but nothing in WP03 says this, so there is no documented signal
+      for a future maintainer to recognize a bad re-derivation as exactly that.
+    remediation: >-
+      Add a short "Red-first / revert discipline" note to WP03's prompt (mirroring WP02's heading)
+      stating Stage B's falsification condition explicitly: this re-derivation is falsified if a
+      subsequent stress run on ci-nightly.yml's nightly trigger is cancelled/truncated against the
+      newly-derived timeout-minutes — that is direct evidence the ~1.5x headroom was insufficient
+      for this suite and the value must be re-derived again from a fresh completed duration, not
+      just bumped ad hoc. This gives a concrete, checkable failure mode distinct from WP02's
+      job-topology falsification.
+
+  - id: TASKS-VERIFY-003
+    lens: mission-derived (per-WP red-first concreteness) / Baseline honesty
+    severity: 2
+    title: >-
+      WP04's "red" (capture failure) is implied by T021/T022 but never stated explicitly in
+      red/green terms, unlike WP02's and WP06's dedicated sections
+    evidence:
+      - artifact: "tasks/WP04-recapture-charter-timings.md § Subtask T021 (lines 129-140, 'Confirm
+          exit_code == 0') and T022 (lines 141-151, conditional pre-existing-failure filing) — the
+          operational content is correct and complete, but is never summarized as an explicit
+          red/green statement the way WP06's dedicated section is ('RED before this WP: ... GREEN
+          after: ...')"
+      - artifact: "tasks.md WP04 entry § Independent Test ('module_capture_provenance[charter] is
+          populated (not None) ... with exit_code == 0') — this is phrased purely as a GREEN/pass
+          criterion; RED (exit_code != 0, or provenance still None) is only inferable by negating
+          the Independent Test, never stated directly"
+    claim: >-
+      WP02 and WP06 both carry an explicit "Red-first / revert discipline" heading naming the
+      failure condition directly. WP04 — whose entire deliverable is a single long-running command
+      whose failure mode is exactly "exit_code != 0" or "provenance stays None" — never states this
+      as its own red-first claim; a reader must derive "red" by negating the Independent Test
+      clause rather than reading it stated plainly, unlike WP02/WP06's peers.
+    remediation: >-
+      Add one sentence to WP04's prompt (e.g. in Objectives & Success Criteria, or as a short
+      "Red-first" note) stating explicitly: RED for this WP is exit_code != 0 in the capture's
+      provenance record, or module_capture_provenance[charter] remaining None after T020
+      completes; GREEN is the populated, auth-shaped provenance record with exit_code == 0 (T021).
+      This costs one sentence and removes the need to infer the failure condition by negation.
+
+  - id: TASKS-VERIFY-004
+    lens: mission-derived (per-WP red-first concreteness)
+    severity: 3
+    title: >-
+      WP05's own claim that shard_count is genuinely LPT-derived (not a heuristic or the old
+      value) has no falsification mechanism of its own — its Test Strategy explicitly defers
+      entirely to WP06's test, which proves a different claim
+    evidence:
+      - artifact: "tasks/WP05-rederive-charter-shard-count.md § Test Strategy (lines 173-179): 'No
+          new pytest suite is added by this WP — WP06 owns the committed non-vacuity test. Optional
+          local sanity check before committing: re-run
+          tests/architectural/test_module_shard_registry.py -q to confirm the edited registry row
+          does not break the gate's own aggregate pass condition' — this is entirely about the
+          AGGREGATE gate not regressing, not about proving the specific shard_count value was
+          genuinely LPT-derived"
+      - artifact: "tasks/WP05-rederive-charter-shard-count.md § Review Guidance (line ~191):
+          'Confirm the derived shard_count traces to a real _lpt_bin_pack/_skew_of computation
+          against WP04's recaptured data (ask to see the computation, not just the final number)'
+          — the closest thing to a falsification mechanism, but human-verbal ('ask to see') under
+          Review Guidance, not a durable, re-runnable check the way WP06's committed test is for
+          its own claim"
+      - artifact: "tasks/WP06-non-vacuity-spot-check-and-test.md § Objectives (lines 74-91) — WP06's
+          committed test proves charter's recomputed skew at its derived shard_count is non-zero
+          and shard_count-sensitive. This is a DIFFERENT claim from 'the specific number written
+          into the registry row was actually computed via LPT rather than left at 5 or picked
+          arbitrarily' — a shard_count value could pass WP06's non-vacuity test while still not
+          being the smallest LPT-minimal value, or could be transcribed incorrectly from a real
+          computation, and WP06's test would not catch either"
+    claim: >-
+      The mission-derived lens specifically calls out that WP05 and WP06 are different WPs with
+      different owned files and asks whether WP05's own claim gets its own falsification statement
+      separate from WP06's non-vacuity test. It does not: WP05's Test Strategy section explicitly
+      says WP06 "owns" the verification, and the only concrete check tied to WP05's own claim (the
+      Review Guidance's "ask to see the computation") is a verbal, non-durable human-review
+      instruction, not a stated red/green mechanism comparable to WP02's or WP06's own sections.
+    remediation: >-
+      Give WP05 its own concrete, durable falsification mechanism distinct from WP06's: require
+      T024's Activity Log entry to record the FULL derivation trace — every candidate shard_count
+      tried (not just the final chosen one) and its computed skew — so a reviewer (or a future
+      re-run) can independently re-execute _lpt_bin_pack/_skew_of against the same recorded
+      durations and reproduce the identical chosen value. State explicitly in WP05's prompt: "This
+      WP's own falsification — if a reviewer re-runs the recorded derivation trace against
+      module_test_durations[charter] and gets a DIFFERENT smallest-skew-under-20-percent
+      shard_count than the one written to the registry row, that is red for THIS WP, distinct from
+      WP06's non-vacuity claim, which only proves the chosen value is skew-sensitive, not that it
+      is the genuinely smallest LPT-derived one."
+
+  - id: TASKS-VERIFY-005
+    lens: Baseline honesty / Pre-existing Failure Reporting Rule (conditional framing, dedup)
+    severity: 2
+    title: >-
+      WP01's T002 and WP04's T022 each independently instruct filing a pre-existing-failure GitHub
+      issue, with no cross-check against an issue already filed by the other, earlier WP
+    evidence:
+      - artifact: "tasks/WP01-baseline-and-campsite-clean.md § Subtask T002 (lines 161-176): 'unset
+          GITHUB_TOKEN && gh issue create' with no instruction to check for a prior filing"
+      - artifact: "tasks/WP04-recapture-charter-timings.md § Subtask T022 (lines 141-151): 'File a
+          GitHub issue ... BEFORE treating it as accepted baseline or proceeding to WP05' — again,
+          no instruction to check whether WP01 (upstream in the same mission's dependency chain)
+          has already filed an issue for a related failure"
+    claim: >-
+      Both T002 and T022 correctly frame the Pre-existing Failure Reporting Rule as CONDITIONAL
+      (only fires if a failure is actually encountered) — verified, no defect there. But the
+      mission brief specifically asks that WP04's T022 not silently duplicate or contradict WP01's
+      issue-filing instructions in a way that would produce two GitHub issues for what might be the
+      same underlying pre-existing failure. Concretely, WP01's baseline targets
+      tests/architectural/test_module_shard_registry.py and test_performance_marker_guard.py, while
+      WP04's capture run targets tests/charter via capture_shard_timings.py --module charter —
+      different command surfaces, so a literal duplicate is unlikely today, but neither WP states
+      this distinction or instructs a dedup check, leaving it to the implementing agent to notice
+      on its own that the two conditional issue-filing paths are for genuinely different failure
+      classes.
+    remediation: >-
+      Add one sentence to both T002 and T022 clarifying scope and dedup. In T002: "this baseline
+      covers only the two architectural test files above — a failure here is unrelated to WP04's
+      later capture_shard_timings.py --module charter run, which exercises tests/charter directly."
+      In T022: "before filing, check whether WP01's Activity Log already recorded an issue for a
+      related failure in this mission (unlikely given the different command surfaces, but confirm
+      rather than assume) — if genuinely the same underlying defect, reference the existing issue
+      instead of opening a second one."

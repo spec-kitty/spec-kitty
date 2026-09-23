@@ -1,0 +1,74 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh-3
+mission: ci-nightly-wallclock-budget-01M34HNZ
+findings:
+  - id: TASKS-FRESH2-001
+    lens: WP-state-machine executability of the new WP07-to-WP05 hand-off path
+    severity: 4
+    title: "T039's 'hand off to WP05' HALT path has no defined mechanism to reopen an already-terminal WP05"
+    evidence:
+      - artifact: "tasks.md T039 row / § 'PR-touching-...collision (open PR #4886) — two-checkpoint design'"
+      - artifact: "kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tasks/WP07-pr-assembly-evidence.md § Subtask T039, steps 3-5"
+      - artifact: "kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tasks/WP05-rederive-charter-shard-count.md § Subtask T026 Notes, § Review Guidance"
+      - artifact: "AGENTS.md 'Status Model Patterns' — '9-lane state machine ... Terminal: done, canceled (force required to leave).' and 'Re-invoking implement on an in_progress WP is a no-op resume (not re-gated)' (silent on done/terminal WPs)"
+    claim: >
+      This revision's fix for round-2's "WP07 edits a file it doesn't own" finding replaced WP07's
+      direct re-apply with a hand-off: T039, on detecting a genuine post-WP05 divergence, "HALTS
+      WP07 and hands off to a follow-up invocation of WP05's own T026 re-apply-and-hand-verify
+      procedure (run as WP05's work, landing as a WP05-attributed commit)... Only once that
+      re-invoked WP05 commit lands does WP07 resume." Neither WP05's nor WP07's prompt file, nor
+      tasks.md, nor plan.md/spec.md, nor AGENTS.md's documented status model describes how this
+      "follow-up invocation" is actually performed. This mission is `single_branch` topology with a
+      strictly sequential WP chain (tasks.md's own "Dependency & Execution Summary": WP01 -> WP02
+      -> ... -> WP07) and WP07 depends on WP05 being `approved` or `done` before WP07 can even be
+      claimed (AGENTS.md's dependency-gating rule). By the time WP07 executes T039, WP05 is
+      realistically `done` — a documented TERMINAL lane in the 9-lane state machine, which AGENTS.md
+      states explicitly requires `force` to leave. No force-reopen command, event type, or actor
+      authority is named anywhere in this mission's task artifacts. WP07 itself cannot perform the
+      edit (its own `execution_mode` is `planning_artifact`, `owned_files` is `tracer-approach.md`
+      only) and has no described way to re-trigger WP05's implementer role, no lane-worktree
+      re-entry point exists (per tasks.md's own note that this mission's `single_branch` topology
+      has "no lane-worktree re-entry"), and CLAUDE.md's status-model doc only documents idempotent
+      resume behavior for an `in_progress` WP, not for a `done` one. The fix is prose that sounds
+      procedurally correct but does not map onto any executable path in this codebase's actual WP
+      state machine — exactly the class of gap the round's review brief flagged as a risk this fix
+      could introduce.
+    remediation: >
+      Either (a) name the concrete mechanism explicitly in both WP05's and WP07's prompts — e.g. a
+      specific `spec-kitty agent tasks move-task WP05 --to in_progress --force` (or equivalent)
+      command, who is authorized to run it (the orchestrator, not WP07 itself), and how the
+      resulting new WP05 commit gets reviewed/approved again before WP07 resumes — or (b) drop the
+      "hand off to a re-invoked WP05" framing and instead have T039, on detecting genuine
+      divergence, HALT and escalate to the operator/orchestrator (which already has cross-WP
+      authority) rather than describing an in-WP hand-off neither prompt file nor the state model
+      supports.
+  - id: TASKS-FRESH2-002
+    lens: Review Guidance temporal consistency — WP05's own review checklist vs. a WP07-triggered future event
+    severity: 3
+    title: "WP05's newly-added Review Guidance bullet asks WP05's reviewer to confirm an event that, by the mission's own sequential chain, has not happened yet at WP05's close"
+    evidence:
+      - artifact: "kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tasks/WP05-rederive-charter-shard-count.md § Review Guidance: 'Confirm this WP remains the sole editor of .github/ci-module-registry.yml across the whole mission, including any later re-apply triggered by WP07's T039 hand-off — that re-apply must land as a WP05-attributed commit ... never as a commit authored by WP07.'"
+      - artifact: "tasks.md 'Dependency & Execution Summary' — fully linear chain, WP05 -> WP06 -> WP07; AGENTS.md dependency-gating rule (a WP's dependencies must be approved/done before it can be claimed)"
+    claim: >
+      WP05's Review Guidance section is the checklist its own reviewer works through when WP05
+      reaches `for_review`/`in_review`, which — by this mission's strictly sequential chain — is
+      necessarily BEFORE WP06 and WP07 ever run. The newly-added bullet asks that reviewer to
+      "confirm ... including any later re-apply triggered by WP07's T039 hand-off," an event that
+      by construction cannot have occurred yet at the time WP05 is under review (T039 is WP07's own
+      subtask, two WPs downstream). The reviewer can therefore never meaningfully close this bullet
+      at WP05's actual review checkpoint — it is either silently skipped (undermining the
+      "reviewer verifies" discipline) or leaves WP05 unable to reach a clean `approved` review
+      note. This is a second, smaller instance of the same TASKS-FRESH2-001 gap: the fix added
+      forward-looking review language to a WP whose review necessarily precedes the event it
+      references, without saying who re-reviews the later, WP05-attributed re-apply commit if/when
+      it actually lands.
+    remediation: >
+      Move this bullet out of WP05's own Review Guidance (evaluated once, at WP05's close) into
+      WP07's Review Guidance instead (which already has the parallel bullet confirming T039's
+      read-only behavior) — WP07's reviewer is the one positioned in time to actually confirm
+      whether a hand-off fired and, if so, that the resulting file edit is correctly attributed.
+      If a later WP05-attributed commit does land, define who re-reviews it (WP07's reviewer, or a
+      fresh WP05 review cycle) rather than leaving it implicitly re-covered by a review that already
+      closed.

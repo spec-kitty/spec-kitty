@@ -1,0 +1,81 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: ci-nightly-wallclock-budget-01M34HNZ
+findings:
+  - id: TASKS-DECOMP-001
+    lens: mission-derived (Phase-0-baseline fold / requirement-ref accuracy)
+    severity: 3
+    title: "WP01 cites FR-001 as a Requirement Ref, but WP01's own content never performs FR-001's split"
+    evidence:
+      - artifact: "tasks.md § WP01 (\"Requirement Refs: FR-001, NFR-006, SC-008\")"
+      - artifact: "tasks.md § Requirements Coverage Summary (\"FR-001 | WP01, WP02\")"
+      - artifact: "kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tasks/WP01-baseline-and-campsite-clean.md frontmatter (requirement_refs: [FR-001, NFR-006])"
+      - artifact: "kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/spec.md:250 (\"FR-001 | Split `performance-and-e2e` into three independent jobs\")"
+      - artifact: "tasks.md § WP02 Goal (\"Replace the ... single `performance-and-e2e` job with three jobs\") — this is where the FR-001 split actually happens"
+      - artifact: "kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tracer-tooling-friction.md (2026-09-22 \"tasks-parsing regex\" entry) — explains why NFR-006/SC-008 were added to WP01's Requirement Refs line (SC- ids are unparsed, NFR-006 chosen as \"a genuinely-applicable NFR anchor\"), but never explains or justifies FR-001's presence on that same line"
+    claim: >
+      WP01's Goal is exactly two things: (a) record a Phase-0 pytest baseline (Activity-Log-only,
+      no commit) and (b) remove the inert `strategy: { fail-fast: false }` key from the existing
+      single `performance-and-e2e` job as a behavior-preserving campsite-clean commit. Neither
+      subtask splits `performance-and-e2e` into three jobs — that is WP02's entire Goal and its
+      own `feat(ci)` commit (T007). Yet WP01 lists FR-001 in its Requirement Refs (both in
+      tasks.md's WP01 section and in the WP01 prompt file's frontmatter), and the mission's
+      Requirements Coverage Summary records FR-001 as covered by "WP01, WP02" rather than WP02
+      alone. tracer-tooling-friction.md's dated entry documents in detail why NFR-006 and SC-008
+      were added to WP01's line (to satisfy `finalize-tasks`'s `FR|NFR|C` regex and for human
+      traceability), but at no point explains why FR-001 itself belongs on WP01's line — it reads
+      as inherited from the mission-level FR-001 coverage need rather than reflecting WP01's own
+      deliverable. This is the exact "forced/inaccurate requirement mapping to satisfy the tool's
+      anchor requirement" pattern the lens was dispatched to check for, and it degrades the
+      Requirements Coverage Summary's value as an FR-coverage audit trail: a later mission review
+      (spk-gate-mission-review-style FR-coverage check) reading "FR-001 | WP01, WP02" would have to
+      re-derive from WP01's actual prose that WP01 delivers none of FR-001's substance, only a
+      preparatory campsite-clean.
+    remediation: >
+      Drop FR-001 from WP01's Requirement Refs line (both tasks.md's WP01 section and the WP01
+      prompt file's frontmatter `requirement_refs`) and from the Requirements Coverage Summary's
+      FR-001 row, leaving FR-001 covered by WP02 alone (WP02 is where the split, and thus FR-001,
+      is actually delivered). Keep NFR-006 (already justified in tracer-tooling-friction.md) as
+      WP01's machine-parsed anchor, and optionally note in tasks.md that the campsite-clean
+      sub-scope's true "requirement" is charter Standing Order #2, which has no FR/NFR/C id of its
+      own — consistent with the lens's suggested framing.
+
+  - id: TASKS-DECOMP-002
+    lens: catalog (PR-shape judgment vs. real WP content)
+    severity: 3
+    title: "PR-shape judgment's \"not diff volume\" claim omits WP04's own ~4,200-line mechanical diff to ci-shard-timings.json"
+    evidence:
+      - artifact: "tasks.md § \"PR-shape judgment: ONE PR for the whole mission\" (\"The mission's real cost driver ... is dispatch-WAIT time, not diff volume, and does not make the diff itself harder to review\"; enumerated diff list: \"a two-line dead-key removal, a job-topology restructuring ..., a timeout-value change, a registry row plus a comment, and two test files\" — `.github/ci-shard-timings.json` is not named in this enumerated list)"
+      - artifact: "tasks.md § WP04 (Goal: run `capture_shard_timings.py --module charter --write`, producing a committed, regenerated `.github/ci-shard-timings.json`)"
+      - code: "scripts/ci/capture_shard_timings.py:217-241 (merge_capture: module_test_durations[\"charter\"] is replaced wholesale with the freshly captured per-test duration list, one float per collected `charter` test)"
+      - code: "scripts/ci/capture_shard_timings.py:274 (destination.write_text(json.dumps(payload, indent=2) + \"\\n\", ...) — indent=2 puts one list element per line)"
+      - code: ".github/ci-shard-timings.json (current committed file: module_test_durations[\"charter\"] already has 4211 entries, measured directly via python3 -c \"json.load(...)['module_test_durations']['charter']\" length)"
+    claim: >
+      WP04's recapture replaces `module_test_durations["charter"]`'s entire per-test duration list
+      (currently 4,211 entries) with freshly measured values, and the producer serializes the whole
+      payload with `json.dumps(..., indent=2)`, which places one array element per line. Recapturing
+      `charter` therefore produces a diff on the order of several thousand changed lines in
+      `.github/ci-shard-timings.json` alone (plus smaller changes to `module_test_count["charter"]`,
+      `module_duration_seconds["charter"]`, and `module_capture_provenance["charter"]`) — this is a
+      real, WP04-caused diff, not a hypothetical. tasks.md's PR-shape judgment section explicitly
+      argues the mission's ~650-minute worst-case wall-clock cost "is dispatch-WAIT time, not diff
+      volume, and does not make the diff itself harder to review," and its enumerated list of what
+      "a reviewer reading the final diff in one sitting" sees never mentions this file's size, only
+      that "one generated JSON artifact" exists. The claim conflates "the WP04 recapture step is
+      wall-clock-expensive" with "the WP04 recapture step produces a small diff" — the same step
+      is both. A ~4,200-line diff of raw floats is low-cognitive-load (a reviewer is not meant to
+      hand-verify each number — that is what WP06's non-vacuity test exists to do
+      programmatically), but it is not literally "read in one sitting" in the git-diff sense the
+      judgment claims, and the judgment's own supporting enumeration omits it entirely rather than
+      naming it and explaining why its size doesn't defeat the single-PR recommendation.
+    remediation: >
+      Amend the PR-shape judgment section to explicitly name `.github/ci-shard-timings.json`'s
+      expected diff size (thousands of changed lines, one float per line, from WP04's `charter`
+      recapture) in its enumerated diff-content list, and state directly why that size does not
+      change the single-PR recommendation (e.g., "mechanical, machine-generated, verified by
+      WP06's non-vacuity gate rather than hand-review") instead of asserting "not diff volume"
+      without qualification. This keeps the judgment's conclusion (keep the single-PR shape) but
+      makes it accurate about what a reviewer actually encounters.

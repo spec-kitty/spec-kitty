@@ -1,0 +1,54 @@
+schema: review-verify/v1
+complete: true
+final: true
+phase: pr
+round: 1
+mission: ci-nightly-wallclock-budget-01M34HNZ
+verdict: verified
+scope: anchored verification of the three confirmed findings fixed in 563bd71b8, plus a bounded fresh
+  sweep over the changed file
+results:
+- id: PR-TESTS-001
+  status: resolved
+  remaining_severity: 0
+  reason: 'Independently measured: -m ''not slow'' -> 5 passed, 3 deselected in 0.28s vs 8 passed in 35.15s
+    unfiltered (was 1 deselected / 33.29s). Walked all 8 tests against the fixture graph: exactly 3 request
+    _collected_counts and all 3 now carry @pytest.mark.slow. None left unmarked.'
+- id: PR-BOUNDARY-002
+  status: resolved
+  remaining_severity: 0
+  reason: 'New _load_capture_shard_timings_module() is the same technique as tests/ci/test_capture_shard_timings.py''s
+    _load_module() (spec_from_file_location -> module_from_spec -> sys.modules registration -> exec_module),
+    plus an lru_cache. Not a third variant. Registration necessity verified empirically: omitting it reproduces
+    AttributeError at capture_shard_timings.py''s @dataclass ModuleCapture.'
+- id: PR-TESTS-002
+  status: resolved
+  remaining_severity: 0
+  reason: Both newly fast-marked tests confirmed subprocess-free.
+- id: PR-BOUNDARY-001
+  status: not-actioned-as-refuted
+  remaining_severity: 0
+  reason: Refuted by R3 under spec C-004. Confirmed .github/ci-module-registry.yml is absent from 563bd71b8's
+    diff (one file only).
+gate_non_vacuity_reverified:
+  real_mismatch_drill: 'popped charter 6156->6155: gate FAILED as designed; restored: 8 passed'
+  count_preserving_swap: 'removed ''merge'', added ''charter'', count held at 20: the pure ratchet test_allowlist_does_not_exceed_baseline
+    PASSED (length-only, as expected) while the hard-coded test_charter_is_not_allowlisted_and_agrees
+    FAILED - the guard, not the ratchet, defeats this attack'
+  behaviour_unchanged: _MISMATCH_ALLOWLIST, _BASELINE_ALLOWLIST_COUNT=20, _find_mismatches and every assertion
+    body byte-identical pre/post
+new_findings:
+- id: PR-VERIFY-001
+  severity: 2
+  status: pre-existing, not introduced by 563bd71b8, does not block merge
+  title: The architectural suite's parallel-vs-serial count delta is deterministic, not the flake it was
+    attributed to
+  claim: The +3 passed / +1 skipped delta (2816/4/2 parallel vs 2813/3/2) was attributed to a known non-reproducing
+    xdist race between test_charter_sole_door_resolver_imports.py and test_topology_inference_retired.py's
+    scratch file under src/. An independent re-run under the same -n auto --dist loadfile command reproduced
+    EXACTLY 2816 passed / 4 skipped / 2 xfailed, zero errors, totalling its own --collect-only count.
+    A genuine race would surface as an intermittent ERROR, not a clean twice-reproduced result. The likelier
+    cause is a deterministic serial-vs-parallel structural difference (per-worker HOME/XDG isolation,
+    which this repo documents by design). Root cause not established.
+  impact: Any baseline quoted for tests/architectural/ must state whether it is the serial or the parallel
+    figure; quoting one as though it were the other misattributes a deterministic difference to flakiness.

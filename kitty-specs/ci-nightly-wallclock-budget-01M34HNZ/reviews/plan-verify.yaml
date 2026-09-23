@@ -1,0 +1,68 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+round: 4
+final: true
+results:
+  - id: PLAN-FRESH3-001
+    status: resolved
+    remaining_severity: 0
+    reason: >-
+      plan.md at commit 83c733b2a adds a "Worst-case cumulative mission wall-clock (acknowledged,
+      not hidden)" paragraph (lines 168-178, echoed at Phasing's "Cumulative wall-clock,
+      non-hidden" lines 509-513) stating the ladder's 90+150+300=540-minute Phase 1 worst case plus
+      Phase 2's ~110-minute NFR-004 cost for a total of ~650 minutes (~11 hours); the arithmetic is
+      independently correct (540+110=650), the framing explicitly mirrors NFR-004's "accepted,
+      sized, non-hidden cost, not a target" language, and it carries a typical-case caveat (Stage
+      A's first 90-minute attempt is expected to succeed since the cited run's stress step was
+      already observed running >=16m18s before truncation) rather than presenting the worst case as
+      the expectation.
+  - id: PLAN-FRESH3-002
+    status: resolved
+    remaining_severity: 0
+    reason: >-
+      Both the Phase 3 PR-assembly checklist (lines 602-615) and the Verification path/NFR-006
+      section (lines 438-480) now require recording EVERY dispatch run's URL and conclusion
+      ("however many the Stage A widen ladder actually took, from 1 ... up to 3 ...; never assume
+      exactly 'both'" at line 604-605, "Record every dispatch this contingency actually performs —
+      not just the first" at lines 465-467), the widen-retry commit hash(es) if any widen attempt
+      happened (lines 474, 608), and — if the 300-minute escalation clause triggered — the filed
+      issue's URL plus a resolution note (lines 476-479, 611-613); this replaces the prior "both
+      dispatch run URLs" 2-only framing with language that correctly scopes to 1-3 dispatches.
+  - id: PLAN-FRESH3-003
+    status: resolved
+    remaining_severity: 0
+    reason: >-
+      A "Note on the confirmation method for this specific case" (lines 137-145) sits directly at
+      the escalation clause's primary location and honestly states that Baseline honesty's
+      upstream/main confirmation method does not transfer (upstream/main's stress suite is always
+      truncated today by the old 60-minute cap, so it can never be observed to hang or complete
+      standalone), offering the alternative wording "a suite that could not be shown to complete
+      within a generous, newly-isolated budget" instead of a false pre-existing-on-main claim; both
+      other occurrences (Verification path line 462-464, Phasing step 1f lines 567-571)
+      cross-reference this note rather than repeating or contradicting it, and the general Baseline
+      honesty section (lines 485-502) governing the Phase 0/2a pytest baseline is untouched and
+      still states the unqualified upstream/main confirmation method for those cases.
+  - id: PLAN-FRESH3-004
+    status: resolved
+    remaining_severity: 0
+    reason: >-
+      Verified by grep against the current file text and independently against this checkout's real
+      git log (git log --oneline -300 --all shows feat(scope):/fix(scope):/chore(scope): as the
+      actual, heavily-used repo convention, e.g. feat(ci), fix(merge), chore(landing) — not
+      invented). Commit B is tagged feat(ci) at exactly 4 locations (lines 356, 445, 529, 633);
+      Stage B's stress-timeout re-derivation commit is tagged fix(ci) at exactly 2 locations (lines
+      119, 551); widen-retry timeout-bump commits are tagged chore(ci) at exactly 3 locations (lines
+      152, 460, 563), distinct from Commit A's separate chore(ci) tagging (lines 444, 528, 632) for
+      the campsite-clean removal — all three type/count claims match the plan text exactly.
+overall_read: >
+  The full current plan.md (718 lines, commit 83c733b2a) reads as internally consistent end to
+  end. The stress-timeout figures (23m41s/24m44s/>=16m18s observed; 35/40/90-minute Stage A
+  budgets; the 90->150->300 widen ladder; the ~650-minute worst-case cumulative figure) are stated
+  identically everywhere they recur (Summary, "Real evidence used to size the new budgets",
+  Verification path, Phasing Phase 1/Phase 3). Commit typing (chore(ci) for Commit A and
+  widen-retry bumps, feat(ci) for Commit B, fix(ci) for Stage B re-derivation) is applied
+  consistently at every occurrence found. The upstream/main-confirmation-gap note is properly
+  scoped to the isolated-stress-timeout case only, leaving Baseline honesty's general rule intact
+  for Phase 0/2a. No broken cross-reference, stale figure, or contradiction was found on this full
+  read. No new findings are raised by this pass.

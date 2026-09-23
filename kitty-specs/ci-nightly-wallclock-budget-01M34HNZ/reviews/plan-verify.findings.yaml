@@ -1,0 +1,87 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: ci-nightly-wallclock-budget-01M34HNZ
+findings:
+  - id: PLAN-VERIFY-001
+    lens: SC-006 spot-check reproducibility (mission-derived)
+    severity: 4
+    title: "Deliberately-wrong shard_count for the SC-006 spot-check has no concrete, pre-committed selection rule and can silently land on a degenerate value that proves nothing"
+    evidence:
+      - artifact: "plan.md § Red-first / revert discipline (including for YAML-only changes) — \"#4864 registry re-derivation (FR-006-FR-008, SC-005-SC-007)\""
+      - code: "tests/architectural/test_module_shard_registry.py:119-122 (_skew_of)"
+      - code: "tests/architectural/test_module_shard_registry.py:104-116 (_lpt_bin_pack)"
+    claim: >
+      plan.md's spot-check instructs computing skew "at one deliberately-wrong shard_count
+      (e.g. the derived value +/- a value chosen to visibly imbalance the LPT packing, or
+      the old 5 if re-derivation lands on a different number)" — this is not a concrete
+      number or deterministic rule, it is deferred to implementation-time judgment, and the
+      phrasing "chosen to visibly imbalance" is circular (it presupposes knowing the
+      imbalance before computing it, inviting a post-hoc pick of whichever value happens to
+      look convincing rather than a principled, pre-declared candidate). Read directly:
+      `_skew_of` (test_module_shard_registry.py:119-122) computes
+      `(max(bins) - min(bins)) / max(bins)`. At `shard_count == 1`, `_lpt_bin_pack` produces
+      exactly one bin, so `max(bins) == min(bins)` and skew is **always exactly 0.0 by
+      construction**, regardless of the underlying data — a degenerate choice an
+      implementer could pick (e.g. "derived value - 1" landing on 1, or "the old 5" if
+      derivation happens to land on 6) would produce a spot-check that shows ~0% skew for
+      BOTH the correct and the "wrong" shard_count, which reads as evidence the gate is
+      STILL vacuous — the opposite of what FR-008/NFR-003/SC-006 need to demonstrate. Very
+      large shard_count values (approaching the per-test count) are similarly near-degenerate
+      (each bin ends up holding ~1 test, so skew trends toward 0 again). The plan never
+      excludes these degenerate candidates from the "deliberately-wrong" pool, so the
+      spot-check's own falsification power depends entirely on an unstated implementation
+      choice made after the fact.
+    remediation: >
+      Fix the "deliberately-wrong shard_count" to a concrete, pre-declared rule in plan.md
+      BEFORE implementation sees any skew numbers — e.g. "use derived_shard_count // 2
+      (floor, minimum 2)" or "use derived_shard_count * 3, capped at
+      len(module_test_durations['charter']) // 2" — and explicitly exclude shard_count == 1
+      and shard_count values within one unit of len(durations) as invalid choices, since
+      both are degenerate under `_skew_of`'s own math and would trivially show ~0% skew
+      regardless of the recapture's success. State the rule in the plan so the choice cannot
+      be adjusted after seeing which value "looks convincing."
+
+  - id: PLAN-VERIFY-002
+    lens: SC-006 spot-check reproducibility (mission-derived)
+    severity: 4
+    title: "'Documented, not committed' ad-hoc snippet is the sole required non-vacuity proof, but it is neither re-runnable nor independently verifiable — falling short of Standing Order #5's 'cannot self-validate' bar and NFR-006's durability requirement"
+    evidence:
+      - artifact: "plan.md § Red-first / revert discipline — \"The actual falsification path (SC-006's spot-check)\""
+      - artifact: "plan.md § Constitution Check — \"Architectural gate discipline (#5): ... PASS, directly addressed.\""
+      - code: "tests/architectural/test_module_shard_registry.py (whole file: no __main__ block, no CLI entry point, no fixture or standalone-invocation pattern for _lpt_bin_pack/_skew_of — confirmed by grep; both are plain, pure, underscore-prefixed module functions, importable via `from tests.architectural.test_module_shard_registry import _lpt_bin_pack, _skew_of` given tests/architectural/__init__.py and tests/__init__.py exist, but nothing in the file or repo currently supports calling them outside pytest collection)"
+    claim: >
+      Charter Standing Order #5 requires a gate-unmask to be backed by "a concrete floor +
+      self-mutation test + shrink-only allowlist" and states explicitly "a gate-unmask
+      cannot self-validate." plan.md's chosen evidence mechanism for FR-008/NFR-003/SC-006
+      is "a short ad-hoc Python snippet (documented, not committed as new production
+      code)" — confirmed by direct inspection that no such standalone-callable pattern
+      exists anywhere in test_module_shard_registry.py today, so this snippet would be
+      genuinely new, one-off code written and run by the same implementing agent that also
+      transcribes its command and output into the PR description. Nothing else re-runs it:
+      no committed file, no CI step, no second author. This means the entire proof that the
+      gate transitioned from vacuous to non-vacuous rests on a hand-typed command and a
+      hand-pasted output block that only the implementer ever executed — the textbook
+      self-validation the standing order forbids. plan.md's own Constitution Check section
+      claims this "PASS[es], directly addressed" for Architectural gate discipline (#5),
+      but that PASS is itself an unverified self-assessment resting on the same
+      non-durable evidence. Per NFR-006 ("recorded durably, not just claimed"), a
+      transcribed command+output in prose is a durability improvement over a bare verbal
+      claim, but it is not a re-runnable artifact: a later engineer (or CI) who wants to
+      confirm the spot-check — e.g. after a future `charter` shard_count edit — has nothing
+      to execute; they can only re-read prose and trust it. The plan itself flags a strictly
+      stronger, re-runnable alternative (a narrow committed `charter`-specific unit test)
+      but explicitly defers it to "implementation-phase judgment" as optional rather than
+      requiring it, despite this being the sole proof mechanism for a defect class the
+      charter calls out by name.
+    remediation: >
+      Either (a) make the narrow, committed, re-runnable `charter`-specific skew-sensitivity
+      unit test mandatory rather than optional — it is the one artifact in this plan that
+      would actually satisfy "cannot self-validate" and "recorded durably" simultaneously,
+      since CI re-runs it on every future PR that touches the row — or (b), if a committed
+      test is deliberately out of scope, commit the ad-hoc spot-check snippet itself as a
+      throwaway script (e.g. `scripts/ci/_charter_skew_spotcheck.py`, deleted after the PR
+      merges, or kept as a one-off under `docs/` referenced from the PR) so the exact code
+      that produced the recorded numbers is available for independent re-execution rather
+      than only its transcribed command text and output.

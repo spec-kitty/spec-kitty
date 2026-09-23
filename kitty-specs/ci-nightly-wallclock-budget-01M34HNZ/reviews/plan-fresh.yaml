@@ -1,0 +1,105 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+round: 3
+mission: ci-nightly-wallclock-budget-01M34HNZ
+findings:
+  - id: PLAN-FRESH3-001
+    lens: fresh-eyes
+    severity: 3
+    title: No stated total/cumulative mission wall-clock budget despite the newly bounded but still large widen ladder
+    evidence:
+      - artifact: "plan.md § Real evidence used to size the new budgets, lines 125-145"
+      - artifact: "plan.md § Phasing, Phase 1 step 1f, lines 511-531"
+      - artifact: "spec.md NFR-004 (~110-minute Phase 2 recapture cost, explicitly sized so it is 'not hidden')"
+    claim: >
+      Round 3 bounds the widen ladder to 90 -> 150 -> 300 minutes and checks the FINAL 300-minute rung
+      against GitHub Actions' 360-minute per-job ceiling, but that check is only about whether a single
+      job invocation is schema-legal. It says nothing about the cumulative wall-clock the human/agent
+      orchestrator must actually stay engaged for. In the worst realistic case allowed by this plan's own
+      contingency (Stage A truncates at 90, widen-1 truncates at 150, widen-2 finally completes near 300),
+      Phase 1 alone can consume up to 90+150+300 = 540 minutes of dispatch-wait time before Phase 2's own
+      NFR-004-budgeted ~110 minutes even starts — a cumulative ~650 minutes (~10.8 hours) of CI-babysitting
+      for one mission, none of it stated anywhere. This is a real asymmetry with how the plan treats Phase
+      2's much smaller 110-minute cost: NFR-004 and Phase 2a both call that cost out explicitly ("this is
+      its own explicit step... not silently absorbed") specifically so it is not hidden from whoever executes
+      the plan, but Phase 1's larger, newly-introduced potential cost gets no equivalent acknowledgment
+      anywhere in the plan (Summary, Phasing rationale, or Constitution Check).
+    remediation: >
+      Add a sentence near the widen-ladder description (or in Phasing's Phase 1 rationale) stating the
+      worst-case cumulative Phase 1 dispatch-wait time (90+150+300=540 min) and that it is a low-probability
+      tail case (the only known lower bound for `stress`, 16m18s, is far below even the 90-minute Stage A
+      ceiling), the same way NFR-004 makes Phase 2's cost explicit rather than silently absorbed.
+  - id: PLAN-FRESH3-002
+    lens: fresh-eyes
+    severity: 3
+    title: PR-assembly checklist and NFR-006 evidence list were not updated for the new widen ladder's variable dispatch/commit count
+    evidence:
+      - artifact: "plan.md § Phasing, Phase 3 (PR assembly), lines 559-569"
+      - artifact: "plan.md § Real evidence used to size the new budgets, lines 139-145 (widen-retry commit discipline)"
+      - artifact: "spec.md NFR-006 (dispatch evidence must be recorded durably, not just claimed)"
+    claim: >
+      Round 3 introduces up to 2 extra widen-and-redispatch cycles, each its own dispatch run and its own
+      small commit (lines 139-145, 525-531). But Phase 3's PR-assembly checklist still says the PR
+      description assembles "both dispatch run URLs + job conclusions (NFR-006)" and only walks through
+      Stage A's 90-minute budget and Stage B's final re-derivation — it never mentions recording the
+      widen-attempt dispatch URLs/conclusions or the widen-retry commits if the ladder was actually used, and
+      "both" presumes exactly two dispatches (Phase 1 + Phase 2) when the ladder can produce up to four. If
+      the contingency triggers during implementation, following Phase 3's checklist literally would produce
+      an incomplete PR description that omits real evidence NFR-006 requires to be durably recorded.
+    remediation: >
+      Update Phase 3's PR-assembly bullet to say "every dispatch run this mission performed (2 if the ladder
+      was never needed, more if widen attempts occurred)" and explicitly list the widen-retry commits/dispatch
+      URLs (and any filed Pre-existing-Failure issue, if escalation triggered) as conditional PR-description
+      content, mirroring how the widen contingency itself is described conditionally in Verification path
+      step 1 and Phasing step 1f.
+  - id: PLAN-FRESH3-003
+    lens: fresh-eyes
+    severity: 3
+    title: The 300-minute escalation clause invokes the Pre-existing Failure Reporting Rule for a scenario its own confirmation method cannot cleanly reach
+    evidence:
+      - artifact: "plan.md § Real evidence used to size the new budgets, lines 132-137"
+      - artifact: "plan.md § Baseline honesty, lines 454-471"
+    claim: >
+      The escalation clause says that if `stress` still hasn't completed within the 300-minute final ceiling,
+      treat it as "a genuine, unexpected test-suite defect (an infinite loop or deadlock)" and "apply the
+      charter's Pre-existing Failure Reporting Rule (file the GitHub issue before continuing past it — see
+      'Baseline honesty' below for the full rule)". But Baseline honesty's own rule requires the filed issue
+      to state "why judged pre-existing" and gives "confirmed still red on upstream/main via the merge-base"
+      as the standard confirmation method. That method does not transfer to this specific failure mode:
+      `upstream/main`'s `stress` suite has never run in isolation long enough to hang or complete — it is
+      always truncated early by the old shared 60-minute `performance-and-e2e` job cap before a genuine
+      infinite loop/deadlock could ever be observed there. There is no described way to actually confirm
+      on `upstream/main` that a >300-minute `stress` hang is pre-existing rather than newly exposed (not
+      necessarily caused, but newly exposed) by this mission's own job-isolation change. The plan cross-
+      references "the full rule" without acknowledging this gap, leaving "why judged pre-existing" genuinely
+      unanswerable by the stated method for this one contingency.
+    remediation: >
+      Either (a) add a sentence to the escalation clause stating the specific evidence that would justify
+      "pre-existing" here (e.g. the suite's own test bodies/fixtures are unchanged by this mission's diff, so
+      a hang is a property of the suite, not the job-split), since the standard upstream/main merge-base
+      comparison cannot apply to a job that does not exist in that shape on upstream/main; or (b) soften the
+      escalation instruction to say the filed issue should describe the hang as "newly exposed by this
+      mission's isolation of `stress` into its own job (previously always truncated before reaching this
+      point), not confirmed pre-existing via the usual merge-base method" rather than implying the ordinary
+      Baseline-honesty confirmation procedure applies unchanged.
+  - id: PLAN-FRESH3-004
+    lens: fresh-eyes
+    severity: 2
+    title: Widen-retry and Stage B commits are not given an explicit Conventional Commit type/scope
+    evidence:
+      - artifact: "plan.md § Phasing, Phase 1 step 1a (Commit A explicitly 'chore(ci)-scoped'), lines 487-491"
+      - artifact: "plan.md § Real evidence used to size the new budgets, lines 139-145 and 511-531 (widen-retry / Stage B commits)"
+    claim: >
+      Commit A is explicitly named a "chore(ci)-scoped Conventional Commit." Commit B, the Stage B
+      re-derivation commit, and the newly-introduced widen-retry commits are all described as "small,
+      functional commit(s)" but none is given an explicit Conventional Commit type/scope the way Commit A
+      is, even though commitlint gates every commit (Gate set § commitlint). An implementer would likely
+      infer `fix(ci)` correctly, but the plan is otherwise very precise about commit boundaries and this is
+      the one place it leaves the type implicit.
+    remediation: >
+      State the intended Conventional Commit type/scope (e.g. `fix(ci)`) for Commit B, the Stage B
+      re-derivation commit, and each widen-retry commit, consistent with how Commit A's type is spelled out.
+findings_meta:
+  workflow_dispatch_inputs_reverified: "Confirmed by direct read of .github/workflows/ci-nightly.yml lines 44-53 — on.workflow_dispatch.inputs exposes only `mode` (full/pr, default full), no timeout-override input. The round-3 fixer's claim that a widen retry is necessarily a file-edit action (not a dispatch-parameter-only one) is independently re-verified as accurate, not merely trusted."

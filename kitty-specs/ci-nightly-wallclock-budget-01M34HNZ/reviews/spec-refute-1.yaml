@@ -1,0 +1,64 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: >-
+      Registry has exactly 21 "- module:" rows and exactly 7 populated
+      module_capture_provenance entries (auth, ci, dashboard, merge,
+      specify_cli_runtime, status, unit), leaving 14 stale (missions,
+      post_merge, release, review, next, lanes, upgrade, cli, charter, agent,
+      kernel, glossary, execution_context, core_misc); the spec's enumerated
+      12-name list omits review while claiming "13 others".
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: >-
+      Direct line count of the charter row confirms tier standard is line 150
+      and shard_count 5 is line 151, so the Summary's unqualified "line 150"
+      is off by one versus the tilde-qualified "line ~150" used elsewhere in
+      the same doc.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: >-
+      test_performance_marker_guard.py lines 280, 313 and 350 hardcode the
+      literal job key performance-and-e2e (via jobs.get and an "in jobs"
+      membership check) unrelated to pull_request-trigger detection, and
+      FR-001's mandated split removes that job key, so these three tests will
+      fail while AC4 and SC-004 claim the file passes unchanged and no FR
+      names it as an in-scope edit.
+  - id: SPEC-ARCH-003
+    verdict: confirmed
+    reason: >-
+      Grep confirms four performance-and-e2e references in
+      ci-module-registry.yml disposition-ledger comments at exactly lines
+      622, 641, 669 and 692, plus one in
+      tests/e2e/test_worktree_owned_root_concurrency.py line 377, none
+      acknowledged by C-004's charter-row-only scoping language.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      The registry's own agent and upgrade row comments and the spec's
+      Clarifications and C-002 state agent and upgrade were sized via a
+      wall-clock-over-test-count heuristic that bypassed the timings file
+      (commit 349b73fc0, explicitly rejected as precedent), directly
+      contradicting AC3's parenthetical that cites agent and upgrade as
+      using the same LPT approach -- a verified internal contradiction with
+      AC3's own failure clause.
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: >-
+      A targeted grep across spec.md for PR-description, attach, run-URL and
+      durable-evidence language finds no requirement to persist the dispatch
+      run's URL, job conclusions, or the stress job's xunit report anywhere
+      durable; FR-009 only requires the dispatch be run, not that its
+      evidence be captured.
+  - id: SPEC-VERIFY-004
+    verdict: confirmed
+    reason: >-
+      test_inter_shard_skew_within_twenty_percent (test_module_shard_registry.py
+      lines 265-300) computes checked_multi_shard as an aggregate over ALL
+      registry rows and only asserts checked_multi_shard >= 1, so it already
+      passes today via other multi-shard modules regardless of charter, while
+      SC-006's only cited proof mechanism is an uncommitted manual spot-check.

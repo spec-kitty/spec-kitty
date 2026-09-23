@@ -1,0 +1,136 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: merged
+mission: ci-nightly-wallclock-budget-01M34HNZ
+source_files:
+- file: pr.boundary.findings.yaml
+  lens_group: boundary
+  complete: true
+  count: 2
+- file: pr.contract.findings.yaml
+  lens_group: contract
+  complete: true
+  count: 0
+- file: pr.tests.findings.yaml
+  lens_group: tests
+  complete: true
+  count: 2
+findings:
+- id: PR-TESTS-001
+  lens: tests
+  severity: 3
+  title: Two tests that pay the full ~34s live-collection cost are unmarked, defeating -m "not slow" selection
+  evidence:
+  - artifact: tests/architectural/test_module_length_agreement.py:280-281
+  - artifact: tests/architectural/test_module_length_agreement.py:305-306
+  - artifact: tests/architectural/test_module_length_agreement.py:339-340
+  claim: 'Only `test_non_allowlisted_modules_agree_with_live_collection` (line 280) carries `@pytest.mark.slow`.
+    But `test_charter_is_not_allowlisted_and_agrees` (line 305) and `test_allowlisted_modules_still_genuinely_mismatch`
+    (line 339) both consume the same session-scoped `_collected_counts` fixture (21 live pytest-collect
+    subprocesses) and are unmarked. Measured directly: running the file under `-m "not slow"` deselects
+    exactly one test but still takes 34.53s wall-clock (vs. 34.40s for the unfiltered file) -- `test_charter_is_not_allowlisted_and_agrees`,
+    defined next in file order, still triggers the full live-collection fixture. This contradicts pytest.ini''s
+    own `slow` marker definition ("test expected to take >30 seconds") for two tests that demonstrably
+    do, in isolation (independently measured at 34.91s and would be comparable for the other), take that
+    long. Today no live CI job filters `tests/architectural` by `-m slow`/`-m "not slow"` (`architectural-heavy`
+    runs `-m "not performance and not stress and not timing"`, i.e. it already includes slow tests unconditionally),
+    so this has no live-CI consequence yet. But a developer or a future job (e.g. the `slow-tests` narrowing
+    described in mission `ci-test-topology-performance-01KXBJRT`''s WP04/WP06, which explicitly enumerates
+    `@pytest.mark.slow`-decorated tests via `git grep "@pytest.mark.slow"` to build a shrink-only baseline)
+    would silently miss these two tests'' real cost, and a local `-m "not slow"` run gets essentially
+    none of the promised savings.
+
+    '
+  remediation: 'Mark `test_charter_is_not_allowlisted_and_agrees` and `test_allowlisted_modules_still_genuinely_mismatch`
+    with `@pytest.mark.slow` as well (they transitively depend on the same subprocess-heavy fixture as
+    the test that already carries it), or restructure so only one test per session actually forces fixture
+    evaluation and the others are demonstrably free when `-m "not slow"` is applied.
+
+    '
+  origin_lens_group: tests
+- id: PR-BOUNDARY-001
+  lens: seam-violations / contracts-preserved
+  severity: 2
+  title: ci-module-registry.yml still names the now-retired `performance-and-e2e` job in four disposition-ledger
+    `reason:` entries after ci-nightly.yml split it into `performance`/`e2e`/`stress`
+  evidence:
+  - artifact: .github/ci-module-registry.yml:649
+  - artifact: .github/ci-module-registry.yml:668
+  - artifact: .github/ci-module-registry.yml:696
+  - artifact: .github/ci-module-registry.yml:719
+  - artifact: ".github/workflows/ci-nightly.yml (job ids: performance, e2e, stress \u2014 performance-and-e2e\
+      \ no longer exists)"
+  claim: "This PR is the one that renames/splits `ci-nightly.yml`'s `performance-and-e2e` job into three\
+    \ independent jobs (`performance`, `e2e`, `stress`). `.github/ci-module-registry.yml` \u2014 one of\
+    \ the four files this PR itself edits \u2014 carries four `reason:` entries (for the `tests/stress`,\
+    \ `tests/performance`+siblings, `tests/cross_cutting`+`tests/cross_cutting/dashboard`, and `tests/regressions`\
+    \ disposition rows) that assert \"Real marker home is ci-nightly.yml's performance-and-e2e job\" in\
+    \ the present tense. That job id no longer exists after this diff, so these four cross-file provenance\
+    \ claims are now factually wrong the moment this PR merges. No gate catches it: `test_timings_excluded_dirs_are_documented`\
+    \ (test_module_shard_registry.py:307-312) only checks that each `excluded` entry has a non-empty `path`/`reason`\
+    \ string, never that the reason's content (a job name) matches a real job id in ci-nightly.yml. This\
+    \ is exactly the kind of same-PR cross-reference drift the boundary lens exists to catch: the PR changes\
+    \ one half of a documented producer/consumer pair (the job name) without updating the other half (the\
+    \ registry's own prose that names it), inside a file already open in this diff.\n"
+  remediation: "Update the four `reason:` strings in .github/ci-module-registry.yml to name the correct\
+    \ post-split job(s) \u2014 e.g. \"ci-nightly.yml's `performance` job\" / \"`stress` job\" per the\
+    \ marker each row actually exercises \u2014 instead of the retired `performance-and-e2e` compound\
+    \ name.\n"
+  origin_lens_group: boundary
+- id: PR-BOUNDARY-002
+  lens: seam-violations / canonical-sources-and-unification
+  severity: 2
+  title: New architectural test re-implements a second, less-defensive loading mechanism for scripts/ci/capture_shard_timings.py
+    instead of reusing the one already established for that exact module
+  evidence:
+  - artifact: tests/architectural/test_module_length_agreement.py:200-203
+  - artifact: tests/ci/test_capture_shard_timings.py:18-46
+  claim: "`tests/architectural/test_module_length_agreement.py::_resolve_test_dirs` loads `scripts/ci/capture_shard_timings.py`\
+    \ via `sys.path.insert(0, str(_SCRIPTS_CI_DIR)); import capture_shard_timings as _capture` \u2014\
+    \ called once per registry module inside the session-scoped `_collected_counts` fixture (21 calls),\
+    \ each prepending the same directory to `sys.path` for the rest of the pytest session. The SAME module\
+    \ already has an established loader in this repo: `tests/ci/test_capture_shard_timings.py`'s `_load_module()`\
+    \ uses `importlib.util.spec_from_file_location`, with a docstring explicitly stating this is necessary\
+    \ because \"`scripts/ci` is not an importable package from the test's own import root\" and that it\
+    \ \"mirror[s] `tests/ci/test_sonar_project_version.py`\" \u2014 i.e. this repo already settled on\
+    \ one canonical technique for importing a `scripts/ci/*.py` module from a test, specifically to avoid\
+    \ the global `sys.path` mutation the new file now performs. This is functionally harmless today (no\
+    \ name collision exists among `scripts/ci/*.py`'s 19 modules, and `capture_shard_timings.py` has no\
+    \ import-time side effects \u2014 its CLI is behind `if __name__ == \"__main__\"`), so it does not\
+    \ break anything now, but it is a second, divergent seam for the same integration point that DIRECTIVE_044\
+    \ (Canonical Sources and Unification) calls out as needing convergence rather than a parallel copy.\n"
+  remediation: 'Load `capture_shard_timings` in `_resolve_test_dirs` via `importlib.util.spec_from_file_location`,
+    matching `tests/ci/test_capture_shard_timings.py`''s `_load_module()` (or better, import a shared
+    test-support helper both files call), instead of a `sys.path.insert` + bare `import`.
+
+    '
+  origin_lens_group: boundary
+- id: PR-TESTS-002
+  lens: tests
+  severity: 1
+  title: Two cheap, subprocess-free tests in the same file are left unmarked rather than tagged fast
+  evidence:
+  - artifact: tests/architectural/test_module_length_agreement.py:323
+  - artifact: tests/architectural/test_module_length_agreement.py:332
+  claim: '`test_allowlist_does_not_exceed_baseline` (no fixture args, pure len() comparison) and `test_allowlist_entries_are_real_registry_modules`
+    (only `_live_registry_state`, no subprocess) are sub-second, pure-logic tests -- matching pytest.ini''s
+    `fast` marker definition -- but are left unmarked, unlike the three genuinely-fast self-mutation tests
+    at the bottom of the file which do carry `@pytest.mark.fast`. This is a minor consistency gap, not
+    a functional defect (they still run everywhere `tests/architectural` runs), and does not block merge.
+
+    '
+  remediation: 'Optionally tag both with `@pytest.mark.fast` for consistency with the file''s own stated
+    convention ("kept in pure-logic tests ... so they stay sub-second and can run everywhere, including
+    under make test-fast-style selection").
+
+    '
+  origin_lens_group: tests
+dedup_note: No cross-lens duplicates. PR-TESTS-001 and PR-TESTS-002 concern marker hygiene in the same
+  new file and are fixable together, but assert distinct defects and are kept separate. R2 performed by
+  the orchestrator (bookkeeping only; no finding was created, merged by judgment, or refuted here).
+severity_histogram:
+  '4': 0
+  '3': 1
+  '2': 2
+  '1': 1

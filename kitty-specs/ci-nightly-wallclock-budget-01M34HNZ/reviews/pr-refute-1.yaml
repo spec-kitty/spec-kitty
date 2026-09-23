@@ -1,0 +1,139 @@
+schema: review-refute/v1
+complete: true
+phase: pr
+round: 1
+mission: ci-nightly-wallclock-budget-01M34HNZ
+results:
+  - id: PR-TESTS-001
+    status: upheld
+    severity_after: 3
+    reason: >
+      Verified independently, fresh (not reusing the concurrent lens run):
+      `.venv/bin/python -m pytest tests/architectural/test_module_length_agreement.py
+      -m "not slow" -q` -> "7 passed, 1 deselected in 33.29s"; the unfiltered
+      run -> "8 passed in 33.54s". Deselecting the one `@pytest.mark.slow` test
+      saves essentially zero wall-clock, exactly as claimed (finding's own
+      34.53s/34.40s vs. my 33.29s/33.54s -- consistent, small run-to-run
+      variance, same conclusion). Read the source: `test_charter_is_not_allowlisted_and_agrees`
+      (line ~305) and `test_allowlisted_modules_still_genuinely_mismatch`
+      (line ~339) both take the session-scoped `_collected_counts` fixture
+      (21 live pytest --collect-only subprocesses, the same cost the marked
+      test pays) and neither carries `@pytest.mark.slow`. This directly
+      contradicts pytest.ini's own marker contract ("slow: test expected to
+      take >30 seconds") for two tests that demonstrably do. Confirmed via
+      ci-router.yml that no live CI job today filters this directory by
+      `-m slow`/`-m "not slow"` (`architectural-heavy` has no such filter),
+      so there is no live-CI break today -- but the marker is real,
+      documented tooling surface (pytest.ini's own definition, and a cited
+      future mission that greps `@pytest.mark.slow` to build a shrink-only
+      baseline), and it silently lies about the cost profile of 2 of the
+      file's 8 tests. This is a genuine defect the diff introduces (the file
+      is new), not pre-existing drift, and it's inexpensive to fix. Severity
+      kept at 3: real and verified, but disclosed-zero live-CI blast radius
+      today keeps it a should-fix-before-merge nit rather than higher.
+  - id: PR-BOUNDARY-001
+    status: refuted
+    severity_after: 2
+    reason: >
+      Read C-004 in spec.md directly and verified its factual premise against
+      the actual diff: `git diff origin/main...HEAD -- .github/ci-module-registry.yml`
+      shows exactly ONE hunk (lines 148-172), inserting a comment block above
+      `charter`'s `shard_count: 5`. Nothing else in the file is touched --
+      C-004's own scoping claim ("touches only the charter module's row") is
+      true, not aspirational. I also independently located and read the four
+      `reason:` entries at (post-diff) lines ~646/665/693/716 under
+      `out_of_matrix_test_dirs:` (offset from C-004's cited ~622/641/669/692
+      by the +24 lines the charter-comment insertion adds, modulo a small
+      ~3-line pre-existing shift -- same entries, same "performance-and-e2e"
+      language, confirmed by direct read). C-004 names these exact four
+      comments, by approximate location, as accepted out-of-scope drift,
+      written with full knowledge that FR-001 retires the job they name
+      ("after FR-001's split these comments describe a job that no longer
+      exists, and that documentation drift is accepted as out-of-scope prose
+      for this mission, not fixed here"). That is about as directly on-point
+      as a binding spec constraint can be: it doesn't merely fail to mention
+      this drift, it anticipates this exact objection and forecloses it by
+      name and line number. On the "does touching the file at all reopen the
+      constraint" question: C-004's own text already contemplates that the
+      file IS being edited (that's the entire reason the constraint exists --
+      an untouched file would need no locality carve-out) and explicitly
+      rules that touching one row does not extend scope to unrelated rows'
+      staleness. That is DIRECTIVE_024 (Locality of Change) applied exactly
+      as designed, not a loophole. On "is reason: prose or data": functionally
+      it is prose -- the boundary lens's own evidence confirms no gate parses
+      or validates reason-string content against real job ids (though the
+      specific test it cites, test_timings_excluded_dirs_are_documented,
+      actually validates ci-shard-timings.json's unrelated "excluded" list;
+      the correct analogous gate is test_out_of_matrix_inventory_entries_are_real_directories_with_real_reasons
+      in the same file, which I read and confirmed also only checks
+      non-empty/non-placeholder, never content-vs-real-job-id -- the boundary
+      lens's substantive claim holds, its citation is just one test off).
+      Since nothing consumes reason: as data, C-004's "accepted out-of-scope
+      prose" framing is accurate, not question-begging. Ruling: refuted --
+      already dispositioned by a binding, on-point spec constraint that was
+      written with the post-split state in mind. severity_after left at 2
+      as filed (matching the original) purely for traceability; status is
+      what changes, not severity, since the finding is not being merged as
+      a live defect.
+  - id: PR-BOUNDARY-002
+    status: upheld
+    severity_after: 2
+    reason: >
+      Verified the claim: `_resolve_test_dirs` in
+      tests/architectural/test_module_length_agreement.py:200-203 does
+      `sys.path.insert(0, str(_SCRIPTS_CI_DIR)); import capture_shard_timings
+      as _capture`, called once per registry module inside the session-scoped
+      `_collected_counts` fixture (21 calls -> 21 redundant sys.path
+      insertions of the same directory, never cleaned up). Read
+      tests/ci/test_capture_shard_timings.py:29-46: its `_load_module()` uses
+      `importlib.util.spec_from_file_location`, with an explicit docstring
+      reason ("scripts/ci is not an importable package from the test's own
+      import root", mirroring test_sonar_project_version.py) -- i.e. this
+      repo already has one established, deliberately-chosen technique for
+      this exact integration point, and the new file adds a second, more
+      permissive one. I tested the two real-risk questions raised: (1) name
+      collision among scripts/ci's 19 modules -- listed them all, none
+      collide with anything else imported in this session; (2) test-ordering
+      dependence -- ran both test files together in both orders
+      (`test_module_length_agreement.py tests/ci/test_capture_shard_timings.py`
+      and reversed), both pass, 22/22, ~33s either way; pytest-randomly is not
+      installed (pip show confirms absent, and pytest.ini's addopts carries
+      no randomization flag), so ordering is deterministic and this isn't a
+      flake risk either. So: functionally harmless today, exactly as the
+      finding itself discloses -- but it's a real, verified second seam for
+      one integration point (charter Governing Principle "Single canonical
+      authority" / DIRECTIVE_044: "reconcile existing doctrine rather than
+      add a second authority," explicitly a reviewer-weighed principle, not
+      an auto-reject). Upheld at severity 2 as filed: genuine, cheap-to-fix
+      canonical-sources drift, not a live break.
+  - id: PR-TESTS-002
+    status: upheld
+    severity_after: 1
+    reason: >
+      Verified: test_allowlist_does_not_exceed_baseline (line ~323) takes no
+      fixture args and does a pure len() comparison; test_allowlist_entries_are_real_registry_modules
+      (line ~332) takes only the session-scoped `_live_registry_state` fixture
+      (a single YAML load, not a subprocess) -- both are genuinely sub-second
+      and match pytest.ini's `fast` marker definition ("pure-logic tests with
+      no subprocess/git overhead"), same class as the three
+      `@pytest.mark.fast` self-mutation tests lower in the same file. The
+      file's own docstring states this design intent explicitly ("kept in
+      pure-logic tests ... so they stay sub-second and can run everywhere,
+      including under make test-fast-style selection"), so leaving these two
+      untagged is an internal inconsistency the diff itself introduces (not
+      pre-existing drift) against a convention the same file states and
+      partially applies. Checked the practical stakes: Makefile's
+      FAST_TIER_DIRS for `make test-fast` is `tests/unit tests/status
+      tests/cli tests/specify_cli/runtime
+      tests/architectural/test_no_retired_subsystems.py` -- this file isn't
+      in that list at all, so tagging `fast` would not actually pull these
+      two into `make test-fast` today; the marker is presently
+      documentation/selection-surface only for this file. Given the repo's
+      broad-but-optional use of `fast` elsewhere (used in ~23 architectural
+      files, usually sparingly), this is a real but genuinely cosmetic gap.
+      Upheld as filed (severity 1, the finding's own text already says "does
+      not block merge") rather than refuted, since it is accurate and the
+      diff does introduce the inconsistency -- but not escalated, since the
+      practical consequence is smaller than even the original finding
+      implies (the marker wouldn't currently change any CI selection for
+      this file either way).

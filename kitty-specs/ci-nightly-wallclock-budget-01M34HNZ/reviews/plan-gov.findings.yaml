@@ -1,0 +1,70 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: ci-nightly-wallclock-budget-01M34HNZ
+findings:
+  - id: PLAN-GOV-001
+    lens: campsite-clean-commit-distinctness (mission-derived)
+    severity: 3
+    title: "Folding the dead fail-fast key removal into the FR-001 commit is a real, if low-impact, Standing Order #2 deviation — not a textually-supported exception"
+    evidence:
+      - artifact: "plan.md § Campsite-clean decision"
+      - artifact: "plan.md § Phasing, Phase 1 (\"No campsite-clean pre-commit is needed beyond what's folded into this commit itself\")"
+      - code: "charter.md:64-67 (Standing Order #2: \"...before the functional change, as a tidy-first enabler (behavior-preserving, focused tests, a distinct preceding step;...)\")"
+      - code: "charter.md:140-145 (\"Reconciling change-scope tensions\": \"an opening campsite-clean is a distinct, behavior-preserving step that precedes the functional change...; the reconciliation order above governs the functional change that follows\")"
+      - code: ".github/workflows/ci-nightly.yml:68-73 (job start, timeout-minutes: 60 at :71, strategy/fail-fast at :72-73, no matrix: key anywhere in the job body :68-172, confirmed by direct grep)"
+    claim: >
+      The plan explicitly considers a separate preceding campsite-clean commit (drop the dead
+      `strategy: { fail-fast: false }` key from the existing single job) followed by the FR-001
+      commit that deletes the whole job, and rejects it as "churn with zero net behavioral or
+      textual difference." But the charter text does not carve out a churn-based exception to
+      Standing Order #2: the "Reconciling change-scope tensions" section deliberately separates
+      the *opening* campsite-clean (bound by Standing Order #2's literal "distinct...step that
+      precedes") from the *functional* change (bound by the more flexible smallest-viable-diff /
+      boy-scout / locality reconciliation order) — and states the reconciliation order governs
+      only the latter. The plan's rationale, if generalized, would void the "distinct preceding
+      commit" requirement in exactly the cases it matters most: any time the surface being
+      cleaned is about to be substantially rewritten or deleted, a preceding cleanup commit's
+      diff is *always* superseded by the following commit — so "zero net difference after the
+      second commit" is not a distinguishing fact about this case, it is true of nearly every
+      preceding-cleanup-then-rewrite sequence. That said, the debt item itself is trivial (a
+      2-line dead boolean key, zero functional stakes), the fold-in is transparently disclosed
+      with an explicit rationale (not hidden as an oversight), and the resulting `ci-nightly.yml`
+      text is byte-identical either way — so this is a process/commit-discipline deviation, not
+      a correctness risk to the shipped artifact.
+    remediation: >
+      Split into two commits per Standing Order #2's literal text: Commit 1 (campsite-clean,
+      distinct, preceding) removes lines 72-73 (`strategy: { fail-fast: false }`) from the
+      existing single `performance-and-e2e` job only — behavior-preserving, verifiable with a
+      workflow YAML parse/lint check before any restructuring lands. Commit 2 (functional,
+      FR-001) performs the three-job split on top of the now-clean job. This costs one small,
+      genuinely reviewable isolated diff and removes the tension entirely, rather than resolving
+      it via a diff-size argument the charter's own reconciliation-order text does not extend to
+      the opening campsite-clean step.
+
+  - id: PLAN-GOV-002
+    lens: terminology
+    severity: 1
+    title: "Plan.md inherits the canonical template's 'Feature specification' wording, a Terminology Canon violation not introduced by this mission"
+    evidence:
+      - artifact: "plan.md § header, line 4 (\"**Input**: Feature specification from `kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/spec.md`...\")"
+      - code: "packs/built-in/missions/software-dev/templates/plan-template.md:4 (\"**Input**: Feature specification from `/kitty-specs/[###-mission-name]/spec.md`\")"
+      - code: ".kittify/charter/charter.md:557-561 (Terminology Canon: \"Feature / Features are prohibited in canonical, operator, and user-facing language for active systems... Hard-break policy: do not introduce or preserve feature* aliases...\")"
+    claim: >
+      plan.md's line 4 literally reads "Feature specification," which is verbatim boilerplate
+      copied from the canonical `plan-template.md` this mission correctly used (confirmed by
+      direct comparison — this is not an ad hoc substitution, it is the template's own wording).
+      The charter's Terminology Canon hard-bans `Feature`/`Features` in canonical/user-facing
+      language for active systems. This is genuine terminology drift present in the reviewed
+      artifact, but it is root-caused in the canonical template itself, not authored by this
+      plan — fixing it inside this mission's diff would violate Locality of Change / C-004-style
+      scope discipline (this mission touches no `kitty-specs/**/templates` files) and the
+      charter's own canonical-source-unification principle (fix at the source, not per-mission).
+    remediation: >
+      Do not fix inline in this plan. File/ledger the canonical-template terminology drift
+      (`packs/built-in/missions/software-dev/templates/plan-template.md:4`) as a separate,
+      template-scoped fix per the charter's canonical-source-unification principle, so every
+      future mission's plan.md stops inheriting it. This mission's plan.md itself needs no
+      change — the drift is out of its scope.

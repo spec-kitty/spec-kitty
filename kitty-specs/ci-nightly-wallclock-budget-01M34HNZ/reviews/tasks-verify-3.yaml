@@ -1,0 +1,22 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: >
+      T039 in both tasks.md (lines 541-549, 635-654) and WP07's prompt (T039 section, Risks, and
+      Review Guidance) now describes pure detect-and-escalate — HALT + report (what changed, since
+      when, git diff evidence) to the orchestrator/operator for a fresh separate dispatch, with
+      explicit negations of move-task --force, terminal-lane transition, and any re-invocation of
+      WP05; WP05's own T026 (tasks.md lines 399-403 and tasks/WP05-....md T026 section) reads as
+      pure mid-mission recheck-and-reapply-if-still-open scope with no forward-looking reference to
+      a later WP07-triggered event.
+  - id: TASKS-FRESH2-002
+    status: resolved
+    reason: >
+      The review-guidance bullet confirming T039's detection-and-escalation now lives solely in
+      WP07's Review Guidance (tasks/WP07-pr-assembly-evidence.md lines 273-280, worded to require
+      confirming both that T039 ran and that any divergence was escalated rather than silently
+      absorbed/auto-repaired/used to reopen WP05), and WP05's Review Guidance (lines 201-211) has no
+      remaining bullet referencing a later re-apply/re-invocation event.

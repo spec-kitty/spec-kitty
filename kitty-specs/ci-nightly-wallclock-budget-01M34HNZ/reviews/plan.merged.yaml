@@ -1,0 +1,158 @@
+# review-findings/v1 — merged (R2, mechanical concatenation + dedup) of plan-gov / plan-arch / plan-verify.
+schema: review-findings/v1
+complete: true
+phase: plan
+mission: ci-nightly-wallclock-budget-01M34HNZ
+source_files:
+  - plan-gov.findings.yaml
+  - plan-arch.findings.yaml
+  - plan-verify.findings.yaml
+dedup_note: >
+  No duplicates found — all 5 findings address distinct claims (campsite-commit sequencing,
+  stress-timeout AC1 fidelity, spot-check wrong-value selection rule, spot-check
+  reproducibility/durability). Nothing dropped or merged; all ids kept as originally assigned.
+findings:
+  - id: PLAN-GOV-001
+    lens_group: gov
+    lens: campsite-clean-commit-distinctness (mission-derived)
+    severity: 3
+    title: "Folding the dead fail-fast key removal into the FR-001 commit is a real, if low-impact, Standing Order #2 deviation — not a textually-supported exception"
+    evidence:
+      - artifact: "plan.md § Campsite-clean decision"
+      - artifact: "plan.md § Phasing, Phase 1 (\"No campsite-clean pre-commit is needed beyond what's folded into this commit itself\")"
+      - code: "charter.md:64-67 (Standing Order #2: \"...before the functional change, as a tidy-first enabler (behavior-preserving, focused tests, a distinct preceding step;...)\")"
+      - code: "charter.md:140-145 (\"Reconciling change-scope tensions\": \"an opening campsite-clean is a distinct, behavior-preserving step that precedes the functional change...; the reconciliation order above governs the functional change that follows\")"
+      - code: ".github/workflows/ci-nightly.yml:68-73 (job start, timeout-minutes: 60 at :71, strategy/fail-fast at :72-73, no matrix: key anywhere in the job body :68-172, confirmed by direct grep)"
+    claim: >
+      The plan explicitly considers a separate preceding campsite-clean commit (drop the dead
+      `strategy: { fail-fast: false }` key from the existing single job) followed by the FR-001
+      commit that deletes the whole job, and rejects it as "churn with zero net behavioral or
+      textual difference." But the charter text does not carve out a churn-based exception to
+      Standing Order #2: the "Reconciling change-scope tensions" section deliberately separates
+      the *opening* campsite-clean (bound by Standing Order #2's literal "distinct...step that
+      precedes") from the *functional* change (bound by the more flexible smallest-viable-diff /
+      boy-scout / locality reconciliation order) — and states the reconciliation order governs
+      only the latter. The plan's rationale, if generalized, would void the "distinct preceding
+      commit" requirement in exactly the cases it matters most. That said, the debt item is
+      trivial (a 2-line dead boolean key, zero functional stakes), the fold-in is transparently
+      disclosed with an explicit rationale (not hidden as an oversight), and the resulting
+      `ci-nightly.yml` text is byte-identical either way — so this is a process/commit-discipline
+      deviation, not a correctness risk to the shipped artifact.
+    remediation: >
+      Split into two commits per Standing Order #2's literal text: Commit 1 (campsite-clean,
+      distinct, preceding) removes lines 72-73 (`strategy: { fail-fast: false }`) from the
+      existing single `performance-and-e2e` job only — behavior-preserving, verifiable with a
+      workflow YAML parse/lint check before any restructuring lands. Commit 2 (functional,
+      FR-001) performs the three-job split on top of the now-clean job.
+
+  - id: PLAN-GOV-002
+    lens_group: gov
+    lens: terminology
+    severity: 1
+    title: "Plan.md inherits the canonical template's 'Feature specification' wording, a Terminology Canon violation not introduced by this mission"
+    evidence:
+      - artifact: "plan.md § header, line 4 (\"**Input**: Feature specification from `kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/spec.md`...\")"
+      - code: "packs/built-in/missions/software-dev/templates/plan-template.md:4 (\"**Input**: Feature specification from `/kitty-specs/[###-mission-name]/spec.md`\")"
+      - code: ".kittify/charter/charter.md:557-561 (Terminology Canon: \"Feature / Features are prohibited in canonical, operator, and user-facing language for active systems... Hard-break policy: do not introduce or preserve feature* aliases...\")"
+    claim: >
+      plan.md's line 4 literally reads "Feature specification," verbatim boilerplate copied
+      from the canonical `plan-template.md` this mission correctly used (confirmed by direct
+      comparison — not an ad hoc substitution). The charter's Terminology Canon hard-bans
+      `Feature`/`Features`. This is genuine terminology drift present in the reviewed artifact,
+      but root-caused in the canonical template itself, not authored by this plan.
+    remediation: >
+      Do not fix inline in this plan. File/ledger the canonical-template terminology drift
+      (`packs/built-in/missions/software-dev/templates/plan-template.md:4`) as a separate,
+      template-scoped fix per the charter's canonical-source-unification principle. This
+      mission's plan.md itself needs no change — the drift is out of its scope.
+
+  - id: PLAN-ARCH-001
+    lens_group: arch
+    lens: Timeout-budget fidelity to spec AC1
+    severity: 4
+    title: "stress job's timeout-minutes: 60 is numerically a bare copy of the old shared cap, which is the literal condition AC1's falsifiability clause names as a failure"
+    evidence:
+      - artifact: "spec.md § User Story 1 › How each AC fails (falsifiability), AC1"
+      - artifact: "plan.md § Real evidence used to size the new budgets (grounds FR-002/NFR-002, not guessed)"
+      - artifact: "plan.md § Phasing › Phase 1, step 1a"
+      - code: ".github/workflows/ci-nightly.yml:71 (old shared job's `timeout-minutes: 60`)"
+    claim: >
+      spec.md's AC1 states plainly: "AC1 fails if ... any new job's timeout-minutes is a
+      bare copy of the old 60 (rather than re-partitioned from the 65-minute observed
+      total)." plan.md sets the new `stress` job's `timeout-minutes` to exactly `60` —
+      numerically identical to the old shared `performance-and-e2e` cap — and the plan itself
+      concedes this is not derived from any observed `stress`-only duration (only a >=16m18s
+      lower bound exists, from a cancelled run). Unlike `performance` (23m41s observed -> 35)
+      and `e2e` (24m44s observed -> 40), which genuinely are re-partitioned, `stress`'s budget
+      is explicitly "the old shared job's full cap, now dedicated solely to this suite." The
+      plan's own mitigation ("if the dispatch shows stress completing well under 60 minutes,
+      the plan does not require lowering the number") makes this worse: it explicitly permits
+      the PR to ship with `timeout-minutes: 60` unchanged even after real evidence shows stress
+      needs far less — a conditional promise to revisit, not a structural requirement to
+      re-derive, exactly the "discipline reminder" pattern directive 043 (Close Defect Classes
+      by Construction) calls structurally incomplete.
+    remediation: >
+      Either (1) make the FR-009 dispatch a hard prerequisite for finalizing stress's timeout —
+      derive it from stress's real measured duration with the same ~1.5x-headroom method used
+      for performance/e2e — or (2) if a provisional value must land first, pick a number
+      distinct from 60 (e.g. ~45, a 2.5-3x multiple of the observed >=16m18s lower bound) and
+      make the post-dispatch re-derivation unconditional rather than conditional on the
+      placeholder proving insufficient. State explicitly: "the shipped timeout-minutes for
+      stress must differ from 60 unless a genuine re-derivation independently lands on that
+      same number."
+
+  - id: PLAN-VERIFY-001
+    lens_group: verify
+    lens: SC-006 spot-check reproducibility (mission-derived)
+    severity: 4
+    title: "Deliberately-wrong shard_count for the SC-006 spot-check has no concrete, pre-committed selection rule and can silently land on a degenerate value that proves nothing"
+    evidence:
+      - artifact: "plan.md § Red-first / revert discipline (including for YAML-only changes) — \"#4864 registry re-derivation (FR-006-FR-008, SC-005-SC-007)\""
+      - code: "tests/architectural/test_module_shard_registry.py:119-122 (_skew_of)"
+      - code: "tests/architectural/test_module_shard_registry.py:104-116 (_lpt_bin_pack)"
+    claim: >
+      plan.md's spot-check instructs computing skew "at one deliberately-wrong shard_count
+      (e.g. the derived value +/- a value chosen to visibly imbalance the LPT packing, or the
+      old 5 if re-derivation lands on a different number)" — not a concrete number or
+      deterministic rule, deferred to implementation-time judgment; the phrasing "chosen to
+      visibly imbalance" is circular. `_skew_of` computes `(max(bins) - min(bins)) / max(bins)`.
+      At `shard_count == 1`, exactly one bin results, so skew is always exactly 0.0 by
+      construction regardless of data — a degenerate choice an implementer could pick (e.g.
+      "derived value - 1" landing on 1) would produce a spot-check showing ~0% skew for BOTH
+      the correct and the "wrong" shard_count, reading as evidence the gate is STILL vacuous —
+      the opposite of what FR-008/NFR-003/SC-006 need. Very large shard_count values are
+      similarly near-degenerate. The plan never excludes these candidates.
+    remediation: >
+      Fix the "deliberately-wrong shard_count" to a concrete, pre-declared rule in plan.md
+      BEFORE implementation sees any skew numbers — e.g. "use derived_shard_count // 2 (floor,
+      minimum 2)" — and explicitly exclude shard_count == 1 and values within one unit of
+      len(durations) as invalid choices, since both are degenerate under `_skew_of`'s own math.
+
+  - id: PLAN-VERIFY-002
+    lens_group: verify
+    lens: SC-006 spot-check reproducibility (mission-derived)
+    severity: 4
+    title: "'Documented, not committed' ad-hoc snippet is the sole required non-vacuity proof, but it is neither re-runnable nor independently verifiable — falling short of Standing Order #5's 'cannot self-validate' bar and NFR-006's durability requirement"
+    evidence:
+      - artifact: "plan.md § Red-first / revert discipline — \"The actual falsification path (SC-006's spot-check)\""
+      - artifact: "plan.md § Constitution Check — \"Architectural gate discipline (#5): ... PASS, directly addressed.\""
+      - code: "tests/architectural/test_module_shard_registry.py (whole file: no __main__ block, no CLI entry point, no fixture or standalone-invocation pattern for _lpt_bin_pack/_skew_of — confirmed by grep)"
+    claim: >
+      Charter Standing Order #5 requires a gate-unmask to be backed by "a concrete floor +
+      self-mutation test + shrink-only allowlist" and states "a gate-unmask cannot
+      self-validate." plan.md's chosen evidence mechanism is "a short ad-hoc Python snippet
+      (documented, not committed as new production code)" — confirmed no such
+      standalone-callable pattern exists today, so this would be genuinely new, one-off code
+      written and run by the same implementing agent that also transcribes its command/output
+      into the PR description. Nothing else re-runs it. The entire proof that the gate
+      transitioned from vacuous to non-vacuous rests on a hand-typed command and hand-pasted
+      output — the textbook self-validation the standing order forbids. plan.md's own
+      Constitution Check claims "PASS, directly addressed" for Standing Order #5, but that PASS
+      is itself an unverified self-assessment resting on the same non-durable evidence.
+    remediation: >
+      Either (a) make the narrow, committed, re-runnable `charter`-specific skew-sensitivity
+      unit test mandatory rather than optional — the one artifact that would satisfy "cannot
+      self-validate" and "recorded durably" simultaneously, since CI re-runs it on every future
+      PR touching the row — or (b) commit the ad-hoc spot-check snippet itself as a throwaway
+      script so the exact code that produced the recorded numbers is available for independent
+      re-execution.

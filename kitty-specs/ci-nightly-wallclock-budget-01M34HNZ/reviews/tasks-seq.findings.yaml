@@ -1,0 +1,96 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: ci-nightly-wallclock-budget-01M34HNZ
+findings:
+  - id: TASKS-SEQ-001
+    lens: Mission-derived — blanket "zero [P] subtasks" claim
+    severity: 2
+    title: "Two genuinely independent subtask pairs exist (WP07 T034/T036; WP02 T010/T011) despite the mission's blanket zero-[P] claim"
+    evidence:
+      - artifact: "tasks.md § Subtask Format (lines 49-56): \"No subtask below carries [P]\""
+      - artifact: "tasks.md § Dependency & Execution Summary (lines 558-596): reasoning is topology-level (single_branch, no concurrent-agent scenario) and phase-chokepoint-level only — it never examines intra-WP subtask independence"
+      - artifact: "tasks.md WP07 T034 (line 503): \"Using the same or a follow-up workflow_dispatch... inspect full-module-matrix's charter shards for per-shard wall-clock\" — a live-CI-wait step"
+      - artifact: "tasks.md WP07 T036 (line 514): \"In the same evidence assembly, note plan.md's 'Blast radius' finding verbatim... and PR #4886's collision-handling note (reference plan.md's 'Known collision' section, do not re-derive)\" — pure prose composed from already-committed plan.md text, with no data dependency on T034's dispatch output"
+      - artifact: "tasks.md WP07 Dependencies/Parallel Opportunities (lines 539-541): \"None — this WP is the mission's closing synthesis; it depends on every prior WP's evidence\" — this reasoning covers WP07-vs-other-WPs, not T034-vs-T036"
+      - artifact: "tasks.md WP02 T010-T011 (lines 164-169) and Parallel Opportunities (lines 196-199): \"T010/T011 depend on T009\" — both are read-only verification commands (ruff format --check; pytest) against the same T009-edited file, with no dependency on each other"
+    claim: >
+      The mission's central sequencing claim ("fully linear — zero [P] parallel-safe subtasks or
+      WPs anywhere," restated three times across the document) is justified only at the
+      mission-topology level (single_branch, no lanes/worktree split, causal WP-to-WP chokepoints).
+      That reasoning never examines whether any two subtasks WITHIN one WP are independent of each
+      other. Two concrete counter-examples exist: (1) WP07's T034 (a live workflow_dispatch
+      inspection with real wall-clock wait) and T036 (a prose note assembled purely from
+      already-committed plan.md text — the "Blast radius" and PR #4886 sections — with no
+      dependency on T034's output) touch the same eventual destination file only insofar as T035
+      consolidates both, but T036 itself has zero data dependency on T034 and could be drafted
+      first or concurrently while T034's dispatch is in flight; (2) WP02's T010 (ruff format
+      --check) and T011 (pytest run) are two independent, read-only verification commands over the
+      same already-T009-edited file with no ordering constraint between them. Marking these [P] (or
+      at minimum re-sequencing T036 ahead of/alongside T034's wait) would shrink the WP's real
+      wall-clock without weakening any dependency guarantee — the blanket claim across all 38
+      subtasks is therefore not fully substantiated by the reasoning actually given.
+    remediation: >
+      In WP07, either mark T036 [P] relative to T034 (both listed as parallel-safe, with a note
+      that T035's consolidation step is the actual join point) or explicitly re-sequence T036
+      before T034 so the write-up work happens while the dispatch run is in flight rather than
+      after it completes. In WP02, mark T010/T011 [P] relative to each other. Update the
+      "Dependency & Execution Summary" to add one sentence acknowledging that intra-WP
+      subtask-level parallelism was considered separately from inter-WP/topology-level
+      parallelism, and that the two cases above are the only ones found (or list any others found
+      on a closer pass).
+
+  - id: TASKS-SEQ-002
+    lens: Chokepoints — PR #4886 collision handling (WP05 T026)
+    severity: 3
+    title: "PR #4886's collision check is performed once in WP05 but never re-verified at the actual highest-risk moment (WP07's PR push/open, T037)"
+    evidence:
+      - artifact: "tasks.md WP05 T026 (line 378): \"Re-check PR #4886's status: gh pr view 4886... If #4886 has merged first, re-apply this WP's charter-row-only diff on top of the updated upstream file and hand-verify via git diff that only the charter row changed before proceeding.\""
+      - artifact: "tasks.md WP07 T036 (line 514-519): \"note... PR #4886's collision-handling note (reference plan.md's 'Known collision' section, do not re-derive)\" — this is documentation/note-taking, not a live re-check of PR #4886's current state"
+      - artifact: "tasks.md WP07 T037 (line 520): \"Push the branch... and open the PR targeting main\" — no subtask between T026 (WP05) and T037 (WP07) re-runs `gh pr view 4886` immediately before push"
+      - artifact: "plan.md:427-436 § Known collision — PR #4886 (\"gh pr view 4886 (or equivalent) should be re-checked at implementation time\")"
+      - artifact: "plan.md:168-178 (worst-case cumulative wall-clock): up to ~650 minutes can elapse between WP03/WP05 and WP07 across the widen-retry ladder (up to 540 min) plus the ~110-minute WP04 recapture — a real window during which an external PR can merge"
+    claim: >
+      WP05's T026 checks PR #4886's live status once, mid-mission, immediately before committing
+      the `charter`-row registry edit. Per plan.md's own worst-case wall-clock accounting, up to
+      ~650 minutes of dispatch-wait and recapture time can elapse between that check (WP05) and
+      when this mission's own PR is actually pushed/opened (WP07 T037) — a real window in which
+      PR #4886 could merge into `main` without anyone on this mission's side noticing. WP07's T036
+      only documents/references the collision-handling policy in prose; it does not re-run the
+      live check. If #4886 merges during that window, this mission's PR could be opened against a
+      stale local view of `.github/ci-module-registry.yml`'s `core_misc` row, surfacing only as a
+      GitHub-side merge conflict or a silent divergence discovered later — exactly the kind of
+      late-discovered rework the collision awareness was meant to prevent.
+    remediation: >
+      Add an explicit subtask in WP07, immediately before T037 (push/open PR), that re-runs
+      `gh pr view 4886` one more time and re-confirms (via `git diff`) that
+      `.github/ci-module-registry.yml`'s `charter` row is the only touched row relative to the
+      current `main`, applying T026's same re-apply-and-hand-verify procedure again if #4886 has
+      merged in the interim. This closes the gap between "checked once mid-mission" and "verified
+      true at the moment it actually matters" (immediately before this mission's own PR is opened).
+
+  - id: TASKS-SEQ-003
+    lens: Chokepoints/lanes.json cross-check — stale "no lanes.json" prose
+    severity: 1
+    title: "tasks.md's Organization section states \"no lanes.json\" as a flat fact, but a real lanes.json now exists in this mission directory"
+    evidence:
+      - artifact: "tasks.md lines 19-22 § Organization: \"This mission has topology: single_branch (meta.json) — one continuous lane, no lanes.json, no parallel worktree split.\""
+      - artifact: "kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/lanes.json (present on disk, 62 lines, written by the real, committing finalize-tasks run)"
+      - artifact: "tracer-tooling-friction.md's final dated entry (2026-09-22, \"finalize-tasks (real run) writes a lanes.json for a single_branch-topology mission...\") — explains the file's existence and provenance, but tasks.md's own prose was not updated to acknowledge it"
+    claim: >
+      tasks.md's own Organization section asserts "no lanes.json" as a present-tense fact about the
+      mission's shape. That was true when the sentence was drafted (before the real finalize-tasks
+      committing run), but is no longer true of the directory's actual contents: a lanes.json file
+      exists, generated as a documented tooling side effect (already correctly logged in
+      tracer-tooling-friction.md and correctly not treated as a real execution-lane split). A
+      reader who opens the mission directory today and sees a real lanes.json next to a tasks.md
+      that flatly says "no lanes.json" has no in-document pointer explaining the discrepancy unless
+      they separately find and read tracer-tooling-friction.md's final entry.
+    remediation: >
+      Add a one-clause cross-reference in tasks.md's Organization section (or the "A structural
+      note on execution_mode placement" paragraph, which already discusses lane-computation
+      side effects) pointing to tracer-tooling-friction.md's dated entry — e.g. "(a lanes.json file
+      is nonetheless written by finalize-tasks as a documented side effect; see
+      tracer-tooling-friction.md — it does not indicate a real multi-lane split)" — so the two
+      artifacts read as consistent rather than contradictory at first glance.

@@ -1,0 +1,31 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: FR-001 is absent from WP01's Requirement Refs in tasks.md ("NFR-006, SC-008"), absent from the WP01 prompt frontmatter's requirement_refs ([NFR-006]), and the Requirements Coverage Summary's FR-001 row now reads "WP02" only.
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: T010/T011 both carry a literal [P] tag in tasks.md's WP02 subtask list and Subtask Index table, and a new "A note on subtask-level parallelism" paragraph in the Dependency & Execution Summary explicitly states intra-WP parallelism was considered separately from topology-level parallelism.
+  - id: TASKS-SEQ-002
+    status: resolved
+    reason: A real new subtask T039 exists with its own numbered entry, ordering, and detailed steps in both tasks.md (inserted between T036 and T037) and the WP07 prompt file's "Subtask T039" section, instructing an immediate re-run of `gh pr view 4886` before T037's push/open.
+  - id: TASKS-SEQ-003
+    status: resolved
+    reason: The cross-reference to tracer-tooling-friction.md's 2026-09-22 dated lanes.json entry appears in both tasks.md's Organization section (lines 19-27) and the PR-shape judgment section (line ~652), and the referenced tracer entry itself exists with matching content.
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: WP01's prompt file now has a "Red-first / revert discipline" section stating a concrete RED/GREEN condition, and the grep-confirm-no-matrix-key step is folded directly into T004's own step 1 ("Red-first check (do this BEFORE editing anything)"), not left as a separate skippable note.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: WP03's prompt file carries a "Red-first / revert discipline" section stating Stage B's own falsification condition (a subsequent nightly stress run truncating against the newly-derived timeout is RED), distinct from the inherited WP02 topology claim.
+  - id: TASKS-VERIFY-003
+    status: resolved
+    reason: WP04's prompt file has a "Red-first / revert discipline" section explicitly stating RED (exit_code != 0 or provenance stays None) and GREEN (populated auth-shaped record with exit_code == 0) in red/green terms.
+  - id: TASKS-VERIFY-004
+    status: resolved
+    reason: WP05's T024 instructs recording the FULL derivation trace (every candidate shard_count and its computed skew, not only the final value) in the Activity Log, and both T024's own text and the Test Strategy section state this trace is WP05's own falsification mechanism, explicitly distinct from WP06's non-vacuity test.
+  - id: TASKS-VERIFY-005
+    status: resolved
+    reason: T002 (WP01 prompt) states its own scope ("this WP's baseline covers only the two named architectural test files... a distinct command surface from WP04's later recapture run") and T022 (WP04 prompt) states a check-first dedup instruction ("first check whether WP01's Activity Log already recorded an issue for a related failure") — substantively different, non-copy-pasted sentences.
