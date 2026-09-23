@@ -100,10 +100,20 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
     from specify_cli.status import is_dossier_snapshot
 
     kitty_ops_op_record = re.compile(r"(?:^|/)kitty-ops/[0-9A-HJKMNP-TV-Z]{26}\.jsonl$")
+    # #4928: the mission-state repair audit trail (manifest + quarantine) moved
+    # from a gitignored path to the git-TRACKED ``.kittify/mission-state-audit/``
+    # root. It is written by ``doctor mission-state --fix`` / ``upgrade`` and left
+    # uncommitted for the operator to commit (write-only). Classify it as
+    # self-bookkeeping churn so a repair run never dirties a dirty-state gate
+    # (accept / merge / record-analysis) — preserving the #2384 non-gating
+    # property now that the path is tracked rather than ignored.
+    mission_state_audit = re.compile(r"(?:^|/)\.kittify/mission-state-audit/")
     normalized = to_posix(path).rstrip("/")
     if PurePosixPath(normalized).name == "meta.json":
         return True
     if normalized.endswith(".kittify/encoding-provenance/global.jsonl"):
+        return True
+    if mission_state_audit.search(normalized):
         return True
     if is_dossier_snapshot(normalized):
         return True

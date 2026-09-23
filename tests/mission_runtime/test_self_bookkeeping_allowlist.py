@@ -141,6 +141,40 @@ class TestSelfBookkeepingPredicate:
         # 27 chars.
         assert not is_self_bookkeeping_churn("kitty-ops/01KWD0V5ABCDEFGHJKMNPQRSTVX.jsonl")
 
+    # ------------------------------------------------------------------
+    # #4928 — mission-state repair audit trail arm
+    # ------------------------------------------------------------------
+
+    def test_audit_manifest_is_self_bookkeeping(self) -> None:
+        """#4928: a tracked repair manifest under .kittify/mission-state-audit/
+        is spec-kitty's own bookkeeping — a --fix before accept must not gate."""
+        assert is_self_bookkeeping_churn(
+            ".kittify/mission-state-audit/01M37PWGWRFNZY8X2Y7P7KJJGK.json"
+        )
+
+    def test_audit_quarantine_is_self_bookkeeping(self) -> None:
+        """#4928: the quarantine subtree is likewise self-bookkeeping churn."""
+        assert is_self_bookkeeping_churn(
+            ".kittify/mission-state-audit/quarantine/RUNID/042-slug/status.events.jsonl"
+        )
+
+    def test_audit_root_with_leading_prefix_is_self_bookkeeping(self) -> None:
+        """A repo-relative prefix before .kittify/mission-state-audit/ is handled."""
+        assert is_self_bookkeeping_churn(
+            "some/prefix/.kittify/mission-state-audit/01M37PWG.json"
+        )
+
+    def test_legacy_migrations_path_is_not_over_allowlisted(self) -> None:
+        """The matcher is scoped to mission-state-audit/, NOT the legacy
+        .kittify/migrations/ tree — a stray file there must not be whitelisted."""
+        assert not is_self_bookkeeping_churn(
+            ".kittify/migrations/mission-state/legacy.json"
+        )
+
+    def test_unrelated_kittify_path_is_not_over_allowlisted(self) -> None:
+        """A sibling .kittify/ path must NOT be swept in by the audit matcher."""
+        assert not is_self_bookkeeping_churn(".kittify/mission-state-audit-notes.txt")
+
 
 # ---------------------------------------------------------------------------
 # The real dirty-tree preflight — FR-003 false-block fix + G-5 invariant.
