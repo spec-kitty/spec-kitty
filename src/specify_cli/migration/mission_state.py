@@ -61,8 +61,7 @@ from specify_cli.status import ULID_PATTERN, Lane, StatusEvent
 from specify_cli.status import materialize_snapshot, materialize_to_json
 from specify_cli.status import (
     ANNOTATION_KIND,
-    is_authoritative_non_lane_event_type,
-    is_retrospective_lifecycle_event,
+    is_non_lane_event,
 )
 
 logger = logging.getLogger(__name__)
@@ -1940,102 +1939,106 @@ def _row_sort_key(item: Mapping[str, Any]) -> tuple[str, str]:
     return (str(when), str(item.get("event_id", "")))
 
 
+#: Denylist of ``event_type`` values whose sole ``status.events.jsonl`` copy is
+#: a genuinely disposable mirror -- i.e. an authoritative, durable copy of the
+#: row exists elsewhere, so pruning it here is not data loss. **EMPTY.** An
+#: empirical writer census of ``status.events.jsonl`` (docs/adr/3.x/2026-09-23-2-
+#: mission-state-repair-preserve-by-default.md) found that every ``event_type``
+#: ever written to this file is either a lane transition (handled by the
+#: ``_is_legacy_typed_lane_transition`` passthrough in
+#: :func:`_rule_reject_non_status_event`, which runs BEFORE this denylist is
+#: ever consulted) or a canonical record whose *only* durable per-mission home
+#: is this log (lifecycle / DecisionPoint / retrospective). Adding an entry
+#: here is a deliberate, individually-reviewed decision that a *specific*
+#: ``event_type``'s copy in this file is safely prunable -- it is NOT a place
+#: to route a symptom fix for a newly-observed quarantine. See the ADR for the
+#: full rationale and the #2376 -> #3066 -> #3541 -> #4897 whack-a-field
+#: history this denylist (kept empty) closes at the root.
+PRUNABLE_MIRROR_EVENT_TYPES: frozenset[str] = frozenset()
+
+
 def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
     """Return True for non-lane rows the repair MUST keep in status.events.jsonl.
 
-    ``status.events.jsonl`` is a *shared* append log. Lane-transition rows are
-    flat (``wp_id`` / ``from_lane`` / ``to_lane``); other subsystems co-locate
-    ``event_type`` / ``type`` / ``kind`` rows. Four of those classes have **no
-    other per-mission home**, so quarantining them is real data loss (#2376,
-    #4897):
+    **Preserve-by-default, delegated to the durable reader (FR-001).** This
+    predicate no longer re-enumerates the reader's branches (annotation /
+    retrospective ``event_name`` / retrospective type-envelope / registry /
+    catch-all) as a hand-maintained second classifier kept in lock-step by
+    convention -- that two-classifiers-in-lockstep shape is exactly the
+    mechanism that generated the recurring whack-a-field class (#2376 ->
+    #3066 -> #3541 -> #4897 -> the unregistered-future case). Instead it
+    DELEGATES to :func:`specify_cli.status.store.is_non_lane_event`, the
+    single durable-reader authority, so the repair's preserved set is by
+    construction equal to the reader's non-lane set::
 
-    - **Retrospective lifecycle rows** (``type`` envelope) — contracted
-      provenance read back by retrospective consumers.
-    - **Canonical lifecycle events AND Decision-Moment ``DecisionPoint*``
-      events** — both are members of the single shared
-      :data:`~specify_cli.status.lifecycle_events.AUTHORITATIVE_NON_LANE_EVENT_TYPES`
-      registry, consulted via
-      :func:`~specify_cli.status.lifecycle_events.is_authoritative_non_lane_event_type`.
-      Canonical lifecycle events (``MissionCreated``, ``SpecifyStarted``,
-      ``WPCreated``, …) have :mod:`specify_cli.status.lifecycle_events` as their
-      sole durable per-mission writer, which declares this stream "a safe
-      target for repair / replay tooling". ``DecisionPoint*`` rows are
-      likewise canonical here, NOT a prunable mirror: ``decisions/index.json``
-      is REBUILT FROM this log by ``decisions/index_fold.py`` — the copy in
-      ``status.events.jsonl`` is the decision's only durable per-mission home.
-    - **``InnerStateChanged`` annotations** (``kind: "annotation"`` envelope) —
-      load-bearing runtime state the reducer folds into the per-WP slots. They
-      carry no lane fields by construction, so omitting them here does not just
-      drop data: the row reaches ``_rule_require_to_lane`` and hard-errors the
-      entire mission repair.
+        preserved(row) := (row["kind"] == ANNOTATION_KIND)
+                           or (is_non_lane_event(row) and not on PRUNABLE_MIRROR_EVENT_TYPES)
 
-    #4897 fixed an inverted belief that used to live here: this predicate
-    preserved only ``LIFECYCLE_EVENT_TYPES`` on the premise that a
-    DecisionPoint row's "canonical store is elsewhere ... so the copy in
-    status.events.jsonl is a prunable mirror" — the decisions subsystem
-    believes the opposite, and is right: quarantining these rows silently
-    emptied the Decision Moment ledger of a healthy mission on
-    ``doctor mission-state --fix`` (exit 0, ``errors=0``), and the advertised
-    follow-up ``doctor decisions --repair`` then rebuilt ``index.json`` from
-    the emptied log to zero entries.
+    The annotation OR-clause is the ONLY intended divergence from the reader:
+    the reader returns False for ``kind: "annotation"`` rows so they route to
+    their own partition (surfaced via the annotation read path, not
+    ``StatusEvent.from_dict``); the repair must return True for the same rows
+    to KEEP them on disk. They carry no ``from_lane``/``to_lane`` by
+    construction, so without this branch they fall through to
+    ``_rule_require_to_lane`` and hard-error the entire mission repair (the
+    reducer folds their typed ``WPInnerStateDelta`` into the per-WP runtime
+    slots, so quarantining them is real data loss, not a mirror).
 
-    Kept in lock-step with the durable reader
-    :func:`specify_cli.status.store.is_non_lane_event`: a FOURTH reader-preserved
-    class is the ``event_name``-envelope retrospective stream (rows whose
-    ``event_name`` starts with ``"retrospective."`` — written by
-    :func:`specify_cli.retrospective.events.emit_retrospective_event`, read back
-    as load-bearing state by the reducer / retrospective gate + summary, with no
-    other per-mission home). Omitting it re-opened the #2376 data-loss class in
-    a different event format (a mixed log with a ``retrospective.completed`` row
-    silently strips it). The reader's broader ``"event_type" in obj`` branch
-    (true for ANY event_type, including one not yet in the registry above) is
-    deliberately NOT mirrored here: an ``event_type`` this repair does not
-    recognize at all is still routed to ``quarantined_non_status_event`` by
-    :func:`_rule_reject_non_status_event` — only registry membership (or one
-    of the other reader-preserved classes above) earns preservation.
+    ``PRUNABLE_MIRROR_EVENT_TYPES`` is the only other point of divergence, and
+    it is EMPTY: no ``event_type``-bearing row in the authoritative log is a
+    disposable mirror (see the constant's own docstring and the FR-003 ADR).
+    Practically, this means the repair now preserves any row the reader
+    treats as non-lane -- including an ``event_type`` the reader has never
+    seen before, closing the unregistered-future gap that a registry
+    ALLOWLIST (the pre-inversion shape of this function) could never close.
+
+    ``_scan_raw_status_rows`` (the TeamSpace dry-run scanner) shares this
+    predicate, so it is fixed by the same edit -- no second site.
     """
-    # ``InnerStateChanged`` annotations are preserved FIRST, mirroring the
-    # placement of the durable reader's own leading branch
-    # (:func:`specify_cli.status.store.is_non_lane_event`). They carry no
-    # ``from_lane``/``to_lane`` by construction, so without this branch they
-    # fall through to ``_rule_require_to_lane`` and hard-error the whole
-    # mission repair. Quarantining them is NOT an option: the reducer folds
-    # their typed ``WPInnerStateDelta`` into the per-WP runtime slots, so
-    # dropping them is the #2376 data-loss class in a fourth event format.
     if row.get("kind") == ANNOTATION_KIND:
         return True
-
-    event_name = row.get("event_name")
-    if isinstance(event_name, str) and event_name.startswith("retrospective."):
-        return True
     # bool(...): specify_cli.* is checked with follow_imports = "skip" (pyproject.toml
-    # [[tool.mypy.overrides]]), so both facade-imported predicates below type-check
-    # as Any at this call site even though each is annotated -> bool at its own
+    # [[tool.mypy.overrides]]), so the facade-imported `is_non_lane_event` type-checks
+    # as Any at this call site even though it is annotated -> bool at its own
     # definition; the explicit coercion keeps this function's own return type honest
     # under --strict without widening the shared mypy override.
-    return bool(is_retrospective_lifecycle_event(row) or is_authoritative_non_lane_event_type(row.get("event_type")))
+    if not bool(is_non_lane_event(row)):
+        return False
+    return row.get("event_type") not in PRUNABLE_MIRROR_EVENT_TYPES
 
 
 def _registry_authoritative_quarantine_violations(
     quarantine_lines: Sequence[str],
     surviving_event_ids: AbstractSet[str] | None = None,
 ) -> list[str]:
-    """Return a diagnostic per quarantined line the registry says was live data.
+    """Return a diagnostic per quarantined line the durable reader says was live data.
 
-    T010 (#4897) fail-closed guard: with :func:`_is_preserved_non_lane_row`
-    now delegating to
-    :func:`~specify_cli.status.lifecycle_events.is_authoritative_non_lane_event_type`,
-    no currently-registered authoritative event_type is ever routed to
-    ``quarantine_lines`` by :func:`_rule_reject_non_status_event`. This is a
-    backstop against a FUTURE divergence (the registry gains a member that
-    ``_is_preserved_non_lane_row`` is somehow bypassed for, or a caller
-    invokes the two predicates out of step): if a quarantined line's
-    ``event_type`` is registry-authoritative, the repair must never report a
-    silent ``errors=0`` success while having dropped it — that is exactly
-    the #4897 defect shape. A line that fails to parse as JSON here was
-    already accepted by the same parse earlier in the pipeline, so this
-    treats a parse failure as "not diagnosable, not a violation" rather than
-    raising a second time.
+    FR-002 (#4993) strengthened fail-closed guard: this used to key on
+    registry membership alone (:func:`~specify_cli.status.lifecycle_events.
+    is_authoritative_non_lane_event_type`), which meant it could never catch
+    an UNREGISTERED authoritative row — exactly the case #4993 closes. It now
+    keys on the same reader predicate :func:`_is_preserved_non_lane_row`
+    delegates to, :func:`specify_cli.status.store.is_non_lane_event`, making
+    this a genuine **reader == repair** invariant check: no row the durable
+    reader treats as non-lane may ever reach ``quarantine_lines``. This also
+    covers reader-preserved rows that carry NO ``event_type`` at all (the
+    retrospective ``event_name``-envelope class), which a narrower
+    ``"event_type" in obj`` check would silently miss — a tautological
+    near-inverse of the preserve gate, not an independent invariant.
+
+    With :func:`_is_preserved_non_lane_row` now delegating to the same
+    predicate, no row the reader treats as non-lane is ever routed to
+    ``quarantine_lines`` by :func:`_rule_reject_non_status_event` in the
+    normal path. This function is a backstop against a FUTURE divergence (a
+    caller invokes the two predicates out of step, or a future edit
+    reintroduces a parallel classifier): if a quarantined line is
+    reader-non-lane, the repair must never report a silent ``errors=0``
+    success while having dropped it — that is exactly the #4897 defect
+    shape, generalized to any reader-preserved row rather than only
+    registry members. A line that fails to parse as JSON here was already
+    accepted by the same parse earlier in the pipeline, so this treats a
+    parse failure as "not diagnosable, not a violation" rather than raising
+    a second time.
 
     #4938: ``quarantine_lines`` is fed from two distinct sources upstream in
     :func:`_canonicalize_status_rows` — a genuinely foreign/rejected row (no
@@ -2043,12 +2046,12 @@ def _registry_authoritative_quarantine_violations(
     byte-identical survivor is already in ``canonical_rows``. The guard
     cannot tell these apart from the quarantined text alone, so a caller may
     pass ``surviving_event_ids`` (every ``event_id`` that reached
-    ``canonical_rows``) to exclude the second case: an authoritative
+    ``canonical_rows``) to exclude the second case: a reader-non-lane
     quarantined row whose ``event_id`` has a surviving copy is a safe dedup,
     not data loss, and is skipped rather than reported. Passing ``None``
     (the default, used by direct/unit-level callers with no survivor
     context) preserves the original behavior of flagging every
-    registry-authoritative quarantined line unconditionally.
+    reader-non-lane quarantined line unconditionally.
     """
     surviving = surviving_event_ids or frozenset[str]()
     violations: list[str] = []
@@ -2059,7 +2062,18 @@ def _registry_authoritative_quarantine_violations(
             continue
         if not isinstance(obj, dict):
             continue
-        if not is_authoritative_non_lane_event_type(obj.get("event_type")):
+        # bool(...): see the matching coercion in _is_preserved_non_lane_row —
+        # the facade-imported predicate type-checks as Any under the
+        # specify_cli.* follow_imports = "skip" mypy override.
+        #
+        # COHERENCE (#4993): this guard keys on is_non_lane_event ALONE, whereas
+        # _is_preserved_non_lane_row also subtracts PRUNABLE_MIRROR_EVENT_TYPES.
+        # The two are exactly aligned only while PRUNABLE is empty (its current
+        # state). A future, individually-reviewed change that populates PRUNABLE
+        # MUST also skip `obj.get("event_type") in PRUNABLE_MIRROR_EVENT_TYPES`
+        # here, or this guard will flag a legitimate denylist prune as a
+        # violation. Harmless and fail-closed today; a coupling to keep in step.
+        if not bool(is_non_lane_event(obj)):
             continue
         event_id = obj.get("event_id")
         if isinstance(event_id, str) and event_id in surviving:
@@ -2069,7 +2083,8 @@ def _registry_authoritative_quarantine_violations(
         violations.append(
             f"registry_authoritative_row_quarantined: event_id={event_id!r} "
             f"event_type={obj.get('event_type')!r} was dropped as a non-status event "
-            "despite being authoritative per AUTHORITATIVE_NON_LANE_EVENT_TYPES (#4897 guard)"
+            "despite the durable reader (is_non_lane_event) treating it as non-lane "
+            "and therefore preserved (#4993 guard)"
         )
     return violations
 
@@ -2079,7 +2094,7 @@ def _row_level_repair_errors(
     row_errors: Sequence[str],
     surviving_event_ids: AbstractSet[str] | None = None,
 ) -> list[str]:
-    """Combine genuine canonicalization errors with T010's registry guard.
+    """Combine genuine canonicalization errors with the FR-002 reader==repair guard.
 
     A single list lets ``_repair_mission`` fail on either failure class
     through one early-return branch (kept under the complexity ceiling)
@@ -2131,17 +2146,24 @@ def _rule_reject_non_status_event(row: _Row, _ctx: MigrationContext) -> Canonica
       the mission's own ``WPStatusChanged`` writer shape, with top-level
       ``wp_id`` / ``from_lane`` / ``to_lane``) are PASSED THROUGH to the rest of
       the pipeline, which strips the typed discriminator and folds them into
-      ``status.json``. This check runs FIRST, ahead of the quarantine branches,
-      so #3066's zero-WP regeneration can no longer eat live lane history.
-    - Rows whose only per-mission home is this file
-      (:func:`_is_preserved_non_lane_row`: retrospective + canonical lifecycle
-      events) are PRESERVED in place — the runtime reader skips them during lane
-      reduction but they are contracted data; quarantining them (issue #2376)
-      emptied healthy mission logs.
+      ``status.json``. This check runs FIRST, ahead of the preserve/quarantine
+      branches, so #3066's zero-WP regeneration can no longer eat live lane
+      history.
+    - Rows the durable reader treats as non-lane (:func:`_is_preserved_non_lane_row`,
+      preserve-by-default, FR-001) are PRESERVED in place — the runtime reader
+      skips them during lane reduction but they are contracted data;
+      quarantining them (issue #2376, generalized by #4993) emptied healthy
+      mission logs.
     - Any other ``event_type`` / ``event_name`` row is QUARANTINED (its canonical
-      state, if any, lives elsewhere). ``_scan_raw_status_rows`` flags the same
-      class before a TeamSpace dry-run.
+      state, if any, lives elsewhere — a genuinely non-status row, not a mirror
+      of anything in this log). ``_scan_raw_status_rows`` flags the same class
+      before a TeamSpace dry-run.
     """
+    # MUST stay first: a legacy typed WPStatusChanged lane row (top-level
+    # wp_id/from_lane/to_lane) is a lane transition to be canonicalized into
+    # status.json, NOT a row for the preserve-by-default path below. Evaluating
+    # _is_preserved_non_lane_row() first would preserve it verbatim instead of
+    # folding it into status.json and reintroduce #3066's zero-WP regeneration.
     if _is_legacy_typed_lane_transition(row):
         return CanonicalStepResult.passthrough(row)
     if _is_preserved_non_lane_row(row):

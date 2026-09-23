@@ -58,9 +58,7 @@ def _load_fixture(name: str) -> dict[str, Any]:
 def _run_fixture(fixture: dict[str, Any]) -> dict[str, Any]:
     """Call _canonicalize_status_row with fixture inputs; return comparable output."""
     inp = fixture["input"]
-    generated_ids: list[str] | None = (
-        list(inp["generated_ids"]) if inp["generated_ids"] is not None else None
-    )
+    generated_ids: list[str] | None = list(inp["generated_ids"]) if inp["generated_ids"] is not None else None
     result = _canonicalize_status_row(
         inp["data"],
         mission_slug=inp["mission_slug"],
@@ -81,17 +79,22 @@ def _run_fixture(fixture: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def test_canonicalize_status_row_rejects_generic_event_type_rows() -> None:
-    """A row with a generic 'event_type' (not a canonical lifecycle event) is
-    quarantined immediately; its canonical state, if any, lives elsewhere.
+def test_canonicalize_status_row_preserves_generic_event_type_rows() -> None:
+    """#4993 (FR-001 inversion): a row with a generic, unregistered 'event_type'
+    is now PRESERVED verbatim, not quarantined.
 
-    Canonical lifecycle events (whose only home is this file) are preserved
-    instead — see test_lifecycle_events_preserved.py (#2376).
+    Before the inversion this pinned the opposite ("quarantined immediately");
+    ``_is_preserved_non_lane_row`` now delegates to the durable reader
+    (``is_non_lane_event``) with an EMPTY denylist, so ANY event_type-bearing
+    row — registered or not — is preserved by construction. Canonical
+    lifecycle events (whose only home is this file) were already preserved
+    before this change — see test_lifecycle_events_preserved.py (#2376,
+    #4897).
     """
     fixture = _load_fixture("01_non_status_event_type.json")
     actual = _run_fixture(fixture)
     expected = fixture["expected"]
-    assert actual["row"] is None
+    assert actual["row"] == expected["row"]
     assert actual["actions"] == expected["actions"]
     assert actual["error"] == expected["error"]
 
@@ -276,10 +279,7 @@ def test_derive_migration_timestamp_collects_from_events_jsonl() -> None:
     """Latest 'at' timestamp from status.events.jsonl is selected and bumped by 1 second."""
     with tempfile.TemporaryDirectory() as td:
         p = Path(td)
-        (p / "status.events.jsonl").write_text(
-            '{"at": "2025-06-01T10:00:00+00:00", "wp_id": "WP01"}\n'
-            '{"at": "2025-07-01T12:00:00+00:00", "wp_id": "WP02"}\n'
-        )
+        (p / "status.events.jsonl").write_text('{"at": "2025-06-01T10:00:00+00:00", "wp_id": "WP01"}\n{"at": "2025-07-01T12:00:00+00:00", "wp_id": "WP02"}\n')
         result = _derive_migration_timestamp(p)
     # Latest is 2025-07-01T12:00:00+00:00; bumped by 1 second
     assert result == "2025-07-01T12:00:01+00:00"
@@ -311,9 +311,7 @@ def test_derive_migration_timestamp_picks_latest_across_all_sources() -> None:
         (p / "status.events.jsonl").write_text('{"at": "2025-06-01T10:00:00+00:00"}\n')
         status = {
             "materialized_at": "2025-09-15T12:00:00+00:00",
-            "work_packages": {
-                "WP01": {"last_transition_at": "2025-10-01T00:00:00+00:00"}
-            },
+            "work_packages": {"WP01": {"last_transition_at": "2025-10-01T00:00:00+00:00"}},
         }
         (p / "status.json").write_text(json.dumps(status))
         result = _derive_migration_timestamp(p)

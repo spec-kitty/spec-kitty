@@ -184,17 +184,23 @@ def test_registry_members_agree_between_reader_and_repair(event_type: str) -> No
     assert _is_preserved_non_lane_row(row) is True, f"{event_type!r} must be preserved by mission-state repair"
 
 
-def test_non_registry_event_type_still_quarantined_not_preserved() -> None:
-    """An unrecognized event_type is non-lane (reader) but NOT preserved by
-    repair -- pins the intentional remaining divergence: only registry
-    membership (or one of the other reader-preserved classes) earns
-    preservation; a truly unknown type is still routed to quarantine.
+def test_non_registry_event_type_now_preserved_by_default() -> None:
+    """#4993 (FR-001 inversion): an unregistered ``event_type`` is now
+    preserved by repair, not quarantined.
+
+    Before the inversion, this pinned the OPPOSITE behavior (repair
+    quarantined any type outside the registry) as an intentional divergence
+    from the reader. That divergence was the unregistered-future gap #4993
+    closes: ``_is_preserved_non_lane_row`` now DELEGATES to the reader
+    (:func:`is_non_lane_event`) with an EMPTY denylist, so any row the
+    reader treats as non-lane -- including a type it has never seen before
+    -- is preserved by construction, no registry update required.
     """
     row = {"event_id": "01UNKNOWNEVENTTYPETEST000", "event_type": "SomeFutureUnregisteredEvent", "payload": {}}
 
     assert is_authoritative_non_lane_event_type(row["event_type"]) is False
-    assert is_non_lane_event(row) is True, "the reader's presence-based fallback still skips it"
-    assert _is_preserved_non_lane_row(row) is False, "repair still quarantines a type outside the registry"
+    assert is_non_lane_event(row) is True, "the reader's presence-based fallback skips it"
+    assert _is_preserved_non_lane_row(row) is True, "repair now preserves a type outside the registry (#4993)"
 
 
 def test_registry_contains_all_five_documented_decision_point_types() -> None:
@@ -230,11 +236,20 @@ def test_guard_flags_registry_authoritative_quarantined_row() -> None:
     assert "DecisionPointResolved" in violations[0]
 
 
-def test_guard_ignores_unregistered_and_unparseable_quarantine_lines() -> None:
+def test_guard_now_flags_unregistered_reader_non_lane_line_ignores_unparseable() -> None:
+    """#4993 (FR-002 strengthening): the guard now flags an unregistered but
+    reader-non-lane quarantined line too (it should never have been
+    quarantined at all under preserve-by-default) -- only a genuinely
+    unparseable line is still ignored (nothing diagnosable to report).
+    """
     unregistered = json.dumps({"event_id": "01X", "event_type": "SomeFutureUnregisteredEvent"})
     not_json = "{not valid json"
 
-    assert _registry_authoritative_quarantine_violations([unregistered, not_json]) == []
+    violations = _registry_authoritative_quarantine_violations([unregistered, not_json])
+
+    assert len(violations) == 1
+    assert "01X" in violations[0]
+    assert "SomeFutureUnregisteredEvent" in violations[0]
 
 
 def test_row_level_repair_errors_unions_row_errors_with_guard_violations() -> None:

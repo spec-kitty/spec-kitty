@@ -1,5 +1,5 @@
 {
-  "description": "Rule 1: non-status event rejected (generic event_type present) — early return quarantine",
+  "description": "Rule 1: generic event_type row PRESERVED by default (#4993 FR-001 inversion) -- an unregistered event_type is treated as non-lane by the durable reader and preserved verbatim, not quarantined",
   "input": {
     "data": {"event_type": "some_event", "wp_id": "WP01", "to_lane": "done"},
     "mission_slug": "test-mission",
@@ -8,8 +8,8 @@
     "generated_ids": null
   },
   "expected": {
-    "row": null,
-    "actions": ["quarantined_non_status_event"],
+    "row": {"event_type": "some_event", "wp_id": "WP01", "to_lane": "done"},
+    "actions": [],
     "error": null,
     "generated_ids_after": null
   }

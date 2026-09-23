@@ -44,6 +44,7 @@ from .reducer import (
     wp_snapshot_state,
 )
 from .store import (
+    is_non_lane_event,
     is_retrospective_lifecycle_event,
     ANNOTATION_KIND,
     EVENTS_FILENAME,
@@ -465,6 +466,7 @@ __all__ = [
     "emit_wp_created_local",
     "format_post_mission_events",
     "has_non_bootstrap_status_history",
+    "is_non_lane_event",
     "is_retrospective_lifecycle_event",
     "materialize_snapshot",
     "repo_root_for_lifecycle_log",

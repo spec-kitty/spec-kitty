@@ -199,6 +199,75 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
 
 
 @pytest.mark.regression
+def test_repair_preserves_unregistered_future_authoritative_event_type(tmp_path: Path) -> None:
+    """RED-FIRST (#4993/#4897): an authoritative-shaped non-lane row whose
+    ``event_type`` is NOT (yet) a member of ``AUTHORITATIVE_NON_LANE_EVENT_TYPES``
+    must survive ``doctor mission-state --fix``, not be silently quarantined.
+
+    Before the FR-001 inversion, ``_is_preserved_non_lane_row`` was a registry
+    ALLOWLIST: a future subsystem's ``event_type``, written *before* it is added
+    to the registry, was silently dropped by an otherwise-successful repair
+    (exit 0, ``errors=0``) -- the recurring whack-a-field class (#2376 -> #3066
+    -> #3541 -> #4897), reopened for any type not yet on the list. After the
+    inversion the repair preserves every row the durable reader
+    (``is_non_lane_event``) treats as non-lane, pruning only an EMPTY denylist
+    of genuinely disposable mirrors -- so an unregistered future type survives
+    without a registry update.
+
+    MUST FAIL on pre-fix code (the row is dropped as
+    ``quarantined_non_status_event``); passes after the inversion.
+    """
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "042-future-authoritative"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "feature_number": "042",
+            "feature_slug": "042-future-authoritative",
+            "friendly_name": "Future Authoritative",
+            "mission": "software-dev",
+            "slug": "042-future-authoritative",
+            "target_branch": "main",
+        },
+    )
+    lane_row = {
+        "actor": "Claude Code",
+        "at": "2026-01-01T00:00:00+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGR",
+        "execution_mode": "worktree",
+        "feature_slug": "042-future-authoritative",
+        "force": False,
+        "from_lane": "planned",
+        "to_lane": "claimed",
+        "wp_id": "WP01",
+    }
+    # A synthetic future event_type deliberately NOT on
+    # AUTHORITATIVE_NON_LANE_EVENT_TYPES and carrying no lane fields -- the
+    # unregistered-future case this mission closes at the root.
+    future_row = {
+        "at": "2026-01-01T00:00:01+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
+        "event_type": "FutureAuthoritativeThing",
+        "payload": {"detail": "not yet registered"},
+    }
+    (mission / "status.events.jsonl").write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in (lane_row, future_row)) + "\n",
+        encoding="utf-8",
+    )
+
+    report = repair_repo(repo)
+
+    result = report.missions[0]
+    assert result.status != "error", result.validation_errors
+    assert result.quarantined_rows == 0, "an unregistered future event_type must not be quarantined (#4993)"
+
+    rows = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert future_row in rows, "the unregistered future authoritative row must be preserved verbatim"
+
+
+@pytest.mark.regression
 def test_repair_dedupes_duplicate_authoritative_event_id_without_erroring(tmp_path: Path) -> None:
     """#4938 (duplicate-drop false positive against the #4897 guard).
 
@@ -269,10 +338,20 @@ def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
     never trips — *succeeded* while regenerating a **zero-WP** ``status.json``: a
     silent, data-destroying repair. After the fix the typed lane row is passed
     through, canonicalized to a flat lane event, and folded back into
-    ``status.json`` (the WP is retained). A TeamSpace replay envelope (lane
-    fields under ``payload``) MUST stay quarantined regardless; a
-    ``DecisionPoint*`` mirror is now preserved in place (#4897), not
-    quarantined.
+    ``status.json`` (the WP is retained). This is the ``_is_legacy_typed_lane_transition``
+    passthrough that MUST stay evaluated FIRST (protects #3066) even under the
+    #4993 preserve-by-default inversion.
+
+    A TeamSpace replay envelope (same ``event_type``, but lane fields nested
+    under ``payload`` rather than top-level) now DISPOSES differently under
+    the #4993 inversion: quarantine -> preserve-verbatim. This is a SAFE,
+    intentional disposition change (squad-pinned, not a regression): the
+    envelope fails the legacy-typed-lane-transition shape (no top-level
+    ``wp_id``/``from_lane``/``to_lane``), so it is not folded into
+    ``status.json``, but it DOES carry ``event_type`` -- so the durable reader
+    already treated it as non-lane via the same catch-all, and the repair now
+    aligns with the reader instead of diverging from it. A ``DecisionPoint*``
+    mirror is likewise preserved in place (#4897), not quarantined.
     """
     repo = tmp_path
     mission = repo / "kitty-specs" / "042-legacy-typed"
@@ -372,18 +451,86 @@ def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
     assert retrospective_row in rows
     # The DecisionPoint mirror is preserved in place, untouched (#4897).
     assert decision_point_row in rows
+    # The TeamSpace envelope is ALSO now preserved in place, untouched (#4993
+    # inversion): it carries event_type, so the durable reader already treated
+    # it as non-lane, and preserve-by-default now aligns the repair with the
+    # reader instead of diverging from it. This is a safe disposition change,
+    # not a regression -- see the docstring above.
+    assert teamspace_envelope_row in rows
 
-    # Only the TeamSpace envelope stays quarantined; the canonical-writer
-    # WPStatusChanged shape and the DecisionPoint mirror do NOT.
-    assert result.quarantined_rows == 1
+    # Nothing is quarantined: the canonical-writer WPStatusChanged shape is
+    # canonicalized into a lane row; the TeamSpace envelope and the
+    # DecisionPoint mirror are both preserved verbatim.
+    assert result.quarantined_rows == 0
     quarantine = repo / ".kittify" / "migrations" / "mission-state" / "quarantine" / report.run_id / "042-legacy-typed" / "status.events.jsonl"
-    quarantine_rows = [json.loads(line) for line in quarantine.read_text(encoding="utf-8").splitlines() if line.strip()]
-    quarantined_event_ids = {row["event_id"] for row in quarantine_rows}
-    assert quarantined_event_ids == {
-        "01KQHRB8GCFJAX7HM4ZY52AQGS",  # TeamSpace envelope
+    assert not quarantine.exists()
+
+
+@pytest.mark.regression
+def test_repair_preserves_inert_partial_field_wpstatuschanged_row(tmp_path: Path) -> None:
+    """Squad-added AC (#4993/T004): a corrupted partial-field ``WPStatusChanged``
+    row (``wp_id`` + ``to_lane`` present, ``from_lane`` MISSING -- a shape no
+    writer emits) is now preserved verbatim rather than quarantined.
+
+    ``_is_legacy_typed_lane_transition`` requires ALL THREE of
+    ``wp_id``/``from_lane``/``to_lane`` to pass the lane-transition
+    passthrough, so this row fails that check and falls to
+    ``_is_preserved_non_lane_row``. It carries ``event_type``, so the
+    durable reader's catch-all already treats it as non-lane; under the
+    #4993 preserve-by-default inversion the repair now aligns with the
+    reader and preserves it too -- retained-but-inert (the reducer's own
+    lane-reduction path also skips it, per the reader). This is an
+    accepted fail-closed-toward-retention tradeoff for a corruption shape
+    no writer produces, not a data-integrity regression.
+    """
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "042-partial-wpstatuschanged"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "feature_number": "042",
+            "feature_slug": "042-partial-wpstatuschanged",
+            "friendly_name": "Partial WPStatusChanged",
+            "mission": "software-dev",
+            "slug": "042-partial-wpstatuschanged",
+            "target_branch": "main",
+        },
+    )
+    lane_row = {
+        "actor": "Claude Code",
+        "at": "2026-01-01T00:00:00+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGR",
+        "execution_mode": "worktree",
+        "feature_slug": "042-partial-wpstatuschanged",
+        "force": False,
+        "from_lane": "planned",
+        "to_lane": "claimed",
+        "wp_id": "WP01",
     }
-    assert "01KQHRB8GCFJAX7HM4ZY52AQGR" not in quarantined_event_ids
-    assert "01KQHRB8GCFJAX7HM4ZY52AQGT" not in quarantined_event_ids  # DecisionPointOpened mirror
+    # Partial-field corruption: wp_id + to_lane present, from_lane MISSING.
+    # Fails _is_legacy_typed_lane_transition (requires all three fields).
+    partial_row = {
+        "at": "2026-01-01T00:00:01+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
+        "event_type": "WPStatusChanged",
+        "to_lane": "in_review",
+        "wp_id": "WP01",
+    }
+    (mission / "status.events.jsonl").write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in (lane_row, partial_row)) + "\n",
+        encoding="utf-8",
+    )
+
+    report = repair_repo(repo)
+
+    result = report.missions[0]
+    assert result.status != "error", result.validation_errors
+    assert result.quarantined_rows == 0, "partial-field WPStatusChanged is now preserve-inert, not quarantined"
+
+    rows = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert partial_row in rows, "the partial-field row must be preserved verbatim"
 
 
 def test_repair_is_idempotent_after_first_canonicalization(tmp_path: Path) -> None:
@@ -1104,14 +1251,20 @@ def test_repair_rejects_traversal_mission_slug_from_meta(tmp_path: Path) -> None
         "to_lane": "claimed",
         "wp_id": "WP01",
     }
-    # A typed side-log row with an event_type OUTSIDE the shared
-    # AUTHORITATIVE_NON_LANE_EVENT_TYPES registry (#4897) → still quarantined
-    # by _rule_reject_non_status_event (a DecisionPointOpened row would no
-    # longer be, since it is now preserved in place as authoritative).
+    # A side-log row using the ``event_name`` discriminator, NOT
+    # ``event_type`` (#4993): since the FR-001 preserve-by-default inversion,
+    # ANY ``event_type``-bearing row is preserved by the durable reader's
+    # catch-all (empty PRUNABLE_MIRROR_EVENT_TYPES denylist), so an
+    # ``event_type`` row like the pre-#4993 ``SomeUnrecognizedSideLogEvent``
+    # fixture would no longer reach quarantine_lines. A non-retrospective
+    # ``event_name`` row is still "genuinely non-status" (the reader's
+    # retrospective-prefix branch doesn't match, and it carries no
+    # event_type), so it is the row shape that still exercises the
+    # quarantine-path traversal guard this test targets.
     typed_row: dict[str, Any] = {
         "at": "2026-01-01T00:00:01+00:00",
         "event_id": "01KQHRB8GCFJAX7HM4ZY52BBBB",
-        "event_type": "SomeUnrecognizedSideLogEvent",
+        "event_name": "some_unrecognized_side_log_event",
         "payload": {"detail": "unrelated side log"},
     }
     (mission_dir / "status.events.jsonl").write_text(
