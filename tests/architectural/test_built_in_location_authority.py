@@ -249,7 +249,10 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # tracking/return-shape edits in both copy functions (above this
         # site) shifted this join 264 -> 301 (the `ruff format` gate added one
         # further blank-line normalization); join unchanged.
-        (Path("src/specify_cli/template/manager.py"), 301),
+        # RE-PINNED (PR #4953 landing fold, squad MAJOR): the corrected
+        # `copy_package_tree` docstring (three added lines, above this site)
+        # shifted this join 301 -> 304; join unchanged.
+        (Path("src/specify_cli/template/manager.py"), 304),
         # src/charter/activation/neutrality/lint.py::_default_scan_roots -- scans a
         # caller-supplied `repo_root` (tmp_path-rooted in tests; see
         # tests/charter/test_neutrality_lint.py::test_default_scan_roots_include_relocated_builtin_missions),
