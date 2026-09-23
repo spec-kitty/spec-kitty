@@ -13,14 +13,17 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from contextlib import ExitStack
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias, cast
 
 import yaml
+
+from scripts.ci.reconcile_retry import retry_with_backoff
 
 PR_WORKFLOWS = frozenset(
     {
@@ -312,6 +315,77 @@ def comment_body(repository: str, evidence: dict[str, Any], reporter_id: int, at
     return "\n".join(lines) + "\n"
 
 
+# Retry-budget pair (PR-MERGED-004): fleet_main.py imports FLEET_MAX_ATTEMPTS,
+# fleet_backoff_seconds and AlreadyReported from here rather than redefining them --
+# plan.md treats fleet_verdict.py/fleet_main.py as one "fleet-verdict pair" sharing a
+# single retry-budget rationale, and this module is already the canonical source
+# fleet_main.py imports other shared symbols from (AGGREGATE, PR_WORKFLOWS, GitHub,
+# automatic_aggregate, classify, comment_body).
+FLEET_MAX_ATTEMPTS = 4
+
+
+def fleet_backoff_seconds(attempt: int) -> float:
+    """2s -> 4s -> 8s (plan.md's Retry Budget Rationale for the fleet-verdict pair)."""
+    return float(2.0 * (2 ** (attempt - 1)))
+
+
+class AlreadyReported:
+    """The existing dedupe short-circuit fired; nothing to publish."""
+
+
+class _Ready:
+    """The two snapshots agreed; ready to publish this stabilized evidence."""
+
+    def __init__(self, body: str) -> None:
+        self.body = body
+
+
+_Outcome: TypeAlias = AlreadyReported | _Ready | None
+
+
+def _already_reported(api: GitHub, number: int, evidence: dict[str, Any]) -> bool:
+    """Has an identical-latest-evidence comment already been posted for this head?
+
+    Only identical latest evidence is suppressed. Append changes: editing an older
+    comment would preserve created_at and leave a newer stale terminal dominant.
+    """
+    comments = api.pages(f"issues/{number}/comments")
+    fingerprint = "<!-- evidence: " + json.dumps(evidence, sort_keys=True) + " -->"
+    latest = next(
+        (c for c in reversed(comments) if re.match(r"\[ci\] (?:green|red|running|infra-error|no suite) @" + evidence["head"] + r"\b", c.get("body", ""))), None
+    )
+    return bool(
+        latest
+        and latest.get("user", {}).get("type") == "Bot"
+        and MARKER in latest.get("body", "")
+        and (fingerprint in latest["body"] or (evidence["state"] == "running" and latest["body"].startswith("[ci] running @")))
+    )
+
+
+def _attempt(
+    api: GitHub,
+    root: Path,
+    number: int,
+    workflow_ids: dict[str, int],
+    reporter_id: int,
+    attempt: int,
+    replay: dict[str, Any] | None,
+) -> _Outcome:
+    """One full snapshot -> dedupe-check -> re-snapshot -> compare cycle.
+
+    Retries the WHOLE pair as one unit (FR-002/FR-007/C-003): the two snapshot reads
+    below are never partially reused across attempts, and a disagreement here converts
+    to ``None`` (a retry signal), never a fall-through publish of stale evidence.
+    """
+    pr, evidence = snapshot(api, root, number, workflow_ids, replay)
+    if _already_reported(api, number, evidence):
+        return AlreadyReported()
+    final_pr, final_evidence = snapshot(api, root, number, workflow_ids, replay)
+    if final_evidence != evidence or final_pr["head"]["sha"] != pr["head"]["sha"]:
+        return None
+    return _Ready(comment_body(api.repository, evidence, reporter_id, attempt))
+
+
 def report(
     api: GitHub,
     root: Path,
@@ -323,33 +397,47 @@ def report(
     replay: dict[str, Any] | None = None,
     dry_run: bool = False,
 ) -> None:
+    """PR-MERGED-003 (stated decision): ``dry_run`` is checked AFTER the retry loop
+    here, deliberately, unlike ``fleet_main.py::report()`` which checks it BEFORE
+    and prints a single unstabilized snapshot. This module's ``--dry-run`` exists
+    for manual replay debugging (see ``main()``'s ``--aggregate-run-id`` path),
+    where the point is to preview the EXACT comment a live run would post --
+    including the already-reported dedup check and the two-snapshot stability
+    compare -- so it deliberately pays the same up-to-``FLEET_MAX_ATTEMPTS``x
+    ``fleet_backoff_seconds`` backoff latency (worst case ~14s) as a real run.
+    ``fleet_main.py``'s ``--dry-run`` is a cheap unstabilized preview instead; that
+    asymmetry is intentional, not drafting drift -- do not "fix" one to match the
+    other without re-deciding this rationale.
+    """
     if replay is not None:
         verify_replay_checkout(root, replay)
-    pr, evidence = snapshot(api, root, number, workflow_ids, replay)
-    comments = api.pages(f"issues/{number}/comments")
-    # Only identical latest evidence is suppressed. Append changes: editing an older
-    # comment would preserve created_at and leave a newer stale terminal dominant.
-    fingerprint = "<!-- evidence: " + json.dumps(evidence, sort_keys=True) + " -->"
-    latest = next(
-        (c for c in reversed(comments) if re.match(r"\[ci\] (?:green|red|running|infra-error|no suite) @" + evidence["head"] + r"\b", c.get("body", ""))), None
+
+    def attempt_once() -> AlreadyReported | _Ready | None:
+        return _attempt(api, root, number, workflow_ids, reporter_id, attempt, replay)
+
+    # mypy cannot solve T for Callable[[], T | None] against a Union-returning callback
+    # (it joins to `object` instead of `AlreadyReported | _Ready`); attempt_once()'s own
+    # signature above is the real, checked contract, so this narrows what mypy could not.
+    outcome = cast(
+        "AlreadyReported | _Ready | None",
+        retry_with_backoff(
+            attempt_once,
+            max_attempts=FLEET_MAX_ATTEMPTS,
+            backoff_seconds=fleet_backoff_seconds,
+            sleep=time.sleep,
+        ),
     )
-    if (
-        latest
-        and latest.get("user", {}).get("type") == "Bot"
-        and MARKER in latest.get("body", "")
-        and (fingerprint in latest["body"] or (evidence["state"] == "running" and latest["body"].startswith("[ci] running @")))
-    ):
+    if outcome is None:
+        print(f"[ci] deferred (pr #{number}): evidence did not stabilize within retry budget")
         return
-    final_pr, final_evidence = snapshot(api, root, number, workflow_ids, replay)
-    if final_evidence != evidence or final_pr["head"]["sha"] != pr["head"]["sha"]:
-        raise ValueError("PR head or CI attempts changed before publication; later event will reconcile")
+    if isinstance(outcome, AlreadyReported):
+        return
     if replay is not None:
         verify_replay_checkout(root, replay)
-    body = comment_body(api.repository, evidence, reporter_id, attempt)
     if dry_run:
-        print(body, end="")
+        print(outcome.body, end="")
     else:
-        api.request(f"issues/{number}/comments", {"body": body})
+        api.request(f"issues/{number}/comments", {"body": outcome.body})
 
 
 def main() -> None:

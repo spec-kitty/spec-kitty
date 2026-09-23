@@ -13,12 +13,25 @@ import argparse
 import fnmatch
 import json
 import re
+import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias, cast
 
 import yaml
 
-from scripts.ci.fleet_verdict import AGGREGATE, PR_WORKFLOWS, GitHub, automatic_aggregate, classify, comment_body
+from scripts.ci.fleet_verdict import (
+    AGGREGATE,
+    FLEET_MAX_ATTEMPTS,
+    PR_WORKFLOWS,
+    AlreadyReported,
+    GitHub,
+    automatic_aggregate,
+    classify,
+    comment_body,
+    fleet_backoff_seconds,
+)
+from scripts.ci.reconcile_retry import retry_with_backoff
 
 INCIDENT = "<!-- spec-kitty-main-ci-incident-v1 -->"
 
@@ -96,12 +109,36 @@ def body(repository: str, evidence: dict[str, Any], reporter_id: int, attempt: i
     )
 
 
-def report(api: GitHub, root: Path, ids: dict[str, int], reporter_id: int, attempt: int, *, dry_run: bool = False) -> None:
-    evidence = snapshot(api, root, ids)
-    text = body(api.repository, evidence, reporter_id, attempt)
-    if dry_run:
-        print(text, end="")
-        return
+# PR-MERGED-004: the retry-budget pair (max attempts, backoff schedule) and
+# AlreadyReported are the fleet-verdict pair's shared contract -- imported from
+# fleet_verdict.py above rather than redefined here (fleet_main.py already imports
+# other shared symbols from that module: AGGREGATE, PR_WORKFLOWS, GitHub,
+# automatic_aggregate, classify, comment_body).
+
+
+class _NothingToReport:
+    """The pre-existing `evidence["state"] != "red"` early return fired.
+
+    Condition and action are unchanged from the pre-fix code (same check, same
+    print-and-return behavior) -- this outcome only marks that it now runs inside
+    _attempt(), evaluated fresh on every retry attempt using that attempt's own
+    snapshot, distinct from both _Ready (ready to publish) and None (retry-worthy).
+    """
+
+
+class _Ready:
+    """The two snapshots agreed; ready to publish this stabilized evidence."""
+
+    def __init__(self, text: str, head: str, incident_number: int | None) -> None:
+        self.text = text
+        self.head = head
+        self.incident_number = incident_number
+
+
+_Outcome: TypeAlias = AlreadyReported | _NothingToReport | _Ready | None
+
+
+def _open_incidents(api: GitHub) -> list[dict[str, Any]]:
     incidents = [
         issue
         for issue in api.pages("issues?state=open&labels=from%3Aci")
@@ -109,30 +146,110 @@ def report(api: GitHub, root: Path, ids: dict[str, int], reporter_id: int, attem
     ]
     if len(incidents) > 1:
         raise ValueError("multiple active main CI incidents; fleet must reconcile ownership")
-    incident = incidents[0] if incidents else None
+    return incidents
+
+
+def _already_reported_to_incident(api: GitHub, incident: dict[str, Any], evidence: dict[str, Any]) -> bool:
+    comments = api.pages(f"issues/{incident['number']}/comments")
+    latest = next(
+        (comment for comment in reversed(comments) if comment.get("user", {}).get("type") == "Bot" and "<!-- evidence:" in comment.get("body", "")), incident
+    )
     fingerprint = "<!-- evidence: " + json.dumps(evidence, sort_keys=True) + " -->"
+    return fingerprint in latest.get("body", "")
+
+
+def _attempt(
+    api: GitHub,
+    root: Path,
+    ids: dict[str, int],
+    reporter_id: int,
+    attempt: int,
+    *,
+    on_evidence: Callable[[dict[str, Any]], None] | None = None,
+) -> _Outcome:
+    """One full snapshot -> incident-lookup -> re-snapshot -> compare cycle.
+
+    Retries the WHOLE pair as one unit (FR-003/FR-007): the two snapshot reads below are
+    never partially reused across attempts, and a disagreement here converts to ``None``
+    (a retry signal), never a fall-through publish of stale evidence. Performs its own
+    fresh snapshot() call(s) -- it never reuses report()'s pre-loop evidence.
+
+    ``on_evidence``, when given, observes THIS attempt's own fresh evidence (PR-MERGED-005):
+    it exists solely so report()'s exhaustion diagnostic can report the head the final
+    attempt actually saw, never influencing the retry decision itself.
+    """
+    evidence = snapshot(api, root, ids)
+    if on_evidence is not None:
+        on_evidence(evidence)
+    text = body(api.repository, evidence, reporter_id, attempt)
+    incidents = _open_incidents(api)
+    incident = incidents[0] if incidents else None
     if incident:
-        comments = api.pages(f"issues/{incident['number']}/comments")
-        latest = next(
-            (comment for comment in reversed(comments) if comment.get("user", {}).get("type") == "Bot" and "<!-- evidence:" in comment.get("body", "")), incident
-        )
-        if fingerprint in latest.get("body", ""):
-            return
+        if _already_reported_to_incident(api, incident, evidence):
+            return AlreadyReported()
     elif evidence["state"] != "red":
         print(text, end="")
-        return
+        return _NothingToReport()
     if snapshot(api, root, ids) != evidence:
-        raise ValueError("main head or CI attempts changed before publication; later event will reconcile")
-    if incident:
-        if api.request(f"issues/{incident['number']}")["state"] != "open":
+        return None
+    return _Ready(text, evidence["head"], incident["number"] if incident else None)
+
+
+def report(api: GitHub, root: Path, ids: dict[str, int], reporter_id: int, attempt: int, *, dry_run: bool = False) -> None:
+    evidence = snapshot(api, root, ids)
+    text = body(api.repository, evidence, reporter_id, attempt)
+    # PR-MERGED-003 (stated decision): ``dry_run`` fast-fails here, BEFORE the retry
+    # loop below, printing this single unstabilized pre-loop snapshot -- unlike
+    # ``fleet_verdict.py::report()``, whose ``--dry-run`` deliberately runs the full
+    # retry-then-stabilize loop (including the already-reported dedup check) to
+    # preview the exact comment a live run would post, at the cost of the same
+    # up-to-backoff-budget latency a real run pays. This module's ``--dry-run`` has
+    # no replay/manual-debug use case requiring that fidelity, so it stays a cheap,
+    # instant preview; the asymmetry between the two files is intentional.
+    if dry_run:
+        print(text, end="")
+        return
+
+    # PR-MERGED-005: tracks the LAST attempt's own evidence (via _attempt()'s
+    # on_evidence hook), never the pre-loop `evidence` above, so the exhaustion
+    # diagnostic below reports the head the final attempt actually saw instead of
+    # one-observation-stale pre-loop snapshot.
+    last_seen = evidence
+
+    def observe(latest: dict[str, Any]) -> None:
+        nonlocal last_seen
+        last_seen = latest
+
+    def attempt_once() -> AlreadyReported | _NothingToReport | _Ready | None:
+        return _attempt(api, root, ids, reporter_id, attempt, on_evidence=observe)
+
+    # mypy cannot solve T for Callable[[], T | None] against a Union-returning callback
+    # (it joins to `object` instead of the real outcome union); attempt_once()'s own
+    # signature above is the real, checked contract, so this narrows what mypy could not.
+    outcome = cast(
+        "AlreadyReported | _NothingToReport | _Ready | None",
+        retry_with_backoff(
+            attempt_once,
+            max_attempts=FLEET_MAX_ATTEMPTS,
+            backoff_seconds=fleet_backoff_seconds,
+            sleep=time.sleep,
+        ),
+    )
+    if outcome is None:
+        print(f"[ci] deferred @{last_seen['head']}: evidence did not stabilize within retry budget")
+        return
+    if isinstance(outcome, (AlreadyReported, _NothingToReport)):
+        return
+    if outcome.incident_number is not None:
+        if api.request(f"issues/{outcome.incident_number}")["state"] != "open":
             raise ValueError("main CI incident closed before publication; later event will reconcile")
-        api.request(f"issues/{incident['number']}/comments", {"body": text})
+        api.request(f"issues/{outcome.incident_number}/comments", {"body": outcome.text})
     else:
         api.request(
             "issues",
             {
-                "title": f"main-push CI is red at {evidence['head'][:12]}",
-                "body": INCIDENT + "\n\n" + text,
+                "title": f"main-push CI is red at {outcome.head[:12]}",
+                "body": INCIDENT + "\n\n" + outcome.text,
                 "labels": ["type:fix", "priority:P0", "from:ci", "status:triage"],
             },
         )
