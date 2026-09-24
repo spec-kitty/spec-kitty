@@ -1,0 +1,199 @@
+{
+  "version": 1,
+  "mission_slug": "terminus-merge-integrity-01M380R6",
+  "mission_id": "01M380R6XD37RTPGV0FW51V3GK",
+  "mission_branch": "kitty/mission-terminus-merge-integrity-01M380R6",
+  "target_branch": "fix/terminus-merge-integrity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/terminus/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/git/ref_advance.py",
+        "tests/git/test_ref_advance_cas.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/mission_runtime/write_target_degrade.py",
+        "src/specify_cli/cli/commands/agent/issue_verdict.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/coordination/surface_resolver.py",
+        "src/specify_cli/coordination/write_seam.py",
+        "src/specify_cli/tasks/issue_matrix.py",
+        "tests/coordination/test_surface_write_gate.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/compute.py",
+        "src/specify_cli/workspace/context.py",
+        "tests/lanes/test_lane_identity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/merge/preflight.py",
+        "tests/merge/test_behind_head_remedy.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/merge/executor.py",
+        "src/specify_cli/merge/git_probes.py",
+        "src/specify_cli/merge/reconciliation.py",
+        "tests/merge/test_reconciliation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/teardown.py",
+        "src/specify_cli/merge/bookkeeping_projection.py",
+        "tests/coordination/test_projection_teardown.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-f"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/coherence.py",
+        "tests/coordination/test_coherence_integrity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-g"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/merge.py",
+        "src/specify_cli/core/paths.py",
+        "src/specify_cli/merge/resolve.py",
+        "src/specify_cli/merge/state.py",
+        "tests/merge/test_merge_state_authority.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-h"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "CLAUDE.md",
+        "docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md",
+        "docs/architecture/status-model.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-i"
+      ],
+      "parallel_group": 5
+    }
+  ],
+  "computed_at": "2026-09-23T21:55:08.042346+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "351d6497b01b1d72c9e1ca2217856ef0adf625d7"
+}
