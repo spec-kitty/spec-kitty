@@ -56,8 +56,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from mission_runtime import (
+    CommitTarget,
+    MissionArtifactKind,
     MissionTopology,
     classify_topology,
+    resolve_write_target_or_degrade,
     routes_through_coordination,
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
@@ -84,6 +87,7 @@ __all__ = [
     "is_under_worktrees_segment",
     "read_worktree_registry",
     "resolve_declared_mid8",
+    "resolve_for_write",
     "resolve_status_surface",
     "resolve_status_surface_with_anchor",
 ]
@@ -501,6 +505,60 @@ def _coord_branch_exists(repo_root: Path, coord_branch: str) -> bool:
             if branch == coord_branch:
                 return True
     return False
+
+
+def _coord_branch_is_local_head(repo_root: Path, coord_branch: str) -> bool:
+    """Return whether *coord_branch* exists as a LOCAL head (``refs/heads/``).
+
+    Distinct from :func:`_coord_branch_exists`, which treats a remote-only branch
+    (``refs/remotes/origin/<branch>``) as present so the READ path never fires the
+    #2614 deleted-branch false-positive on a fresh clone. The WRITE gate (S-C /
+    #4970) needs the STRICTER signal: only a local head can be checked out into a
+    coordination worktree without forking from the primary branch, so a WRITE that
+    would otherwise self-materialize the coord surface is safe ONLY when the branch
+    is a local head. Fails closed — an unreadable/foreign git context returns
+    ``False`` (no local head proven ⇒ the WRITE must refuse rather than clobber).
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"refs/heads/{coord_branch}"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return False
+    return result.returncode == 0
+
+
+def resolve_for_write(
+    repo_root: Path,
+    mission_slug: str,
+    kind: MissionArtifactKind,
+) -> CommitTarget:
+    """Fail-closed WRITE-surface resolution — the thin write-side entry point (D1 / S-C).
+
+    The companion of the loud-primary-fallback READ path
+    (:func:`resolve_status_surface_with_anchor`, unchanged): one authority, two
+    postures. Reads may degrade to the primary checkout; a terminus WRITE must
+    NOT — on an unresolved/unmaterialized coordination surface it refuses rather
+    than overwrite committed coordination state (#4970).
+
+    Deliberately THIN (RN-F1): it does not re-implement resolution or the
+    materialization decision. It delegates BOTH to the real degrade point,
+    :func:`mission_runtime.resolve_write_target_or_degrade` in its
+    ``terminus_write`` mode (which resolves via the ONE placement authority and
+    then consults :func:`mission_runtime.assert_coord_write_materialized`), so the
+    write chain and this helper can never drift.
+
+    Returns the resolved :class:`~mission_runtime.CommitTarget`.
+
+    Raises:
+        ActionContextError: the mission cannot be resolved, or (code
+            ``COORD_WRITE_SURFACE_UNMATERIALIZED``) a coord-routing write's
+            coordination surface is unmaterialized/unresolved on this checkout.
+    """
+    return resolve_write_target_or_degrade(repo_root, mission_slug, kind, degrade_ref=None, terminus_write=True)
 
 
 @dataclass(frozen=True)

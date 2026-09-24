@@ -105,6 +105,13 @@ from pathlib import Path
 from typing import Literal, Protocol, runtime_checkable
 
 from mission_runtime import ActionContextError, CommitTarget, MissionArtifactKind, placement_seam
+
+# Imported from the submodule (not re-exported by ``mission_runtime.__init__``,
+# which is outside this WP's owned surface) — the same convention as the
+# ``specify_cli.missions._read_path_resolver`` import below. It IS a public name
+# (in ``write_target_degrade.__all__``); this is the ONE fail-closed WRITE
+# decision the seam consults (RN-F1), never a second resolver.
+from mission_runtime.write_target_degrade import assert_coord_write_materialized
 from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.owned_mission import effective_root_kwargs
@@ -136,9 +143,24 @@ _REFUSAL_DIAGNOSTIC_TEMPLATE = (
 # own exception text, which already names the branch-derived recovery
 # instruction (see module docstring) -- never recomputed here.
 _OFF_CHECKOUT_REFUSAL_DIAGNOSTIC_TEMPLATE = (
-    "write_seam: refusing a zero-write for mission {mission_slug!r} "
-    "(kind={kind_value!r}) -- FR-006 off-checkout refusal (#3033): {cause}"
+    "write_seam: refusing a zero-write for mission {mission_slug!r} (kind={kind_value!r}) -- FR-006 off-checkout refusal (#3033): {cause}"
 )
+
+# FR-006 (S-C / #4970): a DISTINCT diagnostic for the fail-closed WRITE gate —
+# a coord-routing write whose coordination surface is unresolved/unmaterialized
+# on this checkout. Distinguishable from the generic FR-011 unroutable-target
+# refusal so a log reader can tell "no route exists" apart from "the coordination
+# surface exists but is not materialized here". ``{cause}`` is the gate's own
+# exception text, which already names the branch-derived recovery instruction.
+_UNMATERIALIZED_COORD_REFUSAL_TEMPLATE = (
+    "write_seam: refusing a zero-write for mission {mission_slug!r} (kind={kind_value!r}) -- FR-006 unmaterialized coordination surface (#4970): {cause}"
+)
+
+# Mirrors ``mission_runtime.write_target_degrade._COORD_WRITE_UNMATERIALIZED_CODE``
+# (mirrored, not imported -- the code string itself IS the public "structured
+# signal" contract, exactly as ``_CONSOLIDATED_CONTENT_ABSENT_CODE`` below mirrors
+# resolution.py's private value).
+_COORD_WRITE_UNMATERIALIZED_CODE = "COORD_WRITE_SURFACE_UNMATERIALIZED"
 
 # Mirrors resolution.py's private ``_CONSOLIDATED_CONTENT_ABSENT_CODE`` value
 # (mirrored, not imported -- ``resolution.py`` is an internal ``mission_runtime``
@@ -155,14 +177,8 @@ _STATUS_COMMITTED: Literal["committed"] = "committed"
 _STATUS_UNCHANGED: Literal["unchanged"] = "unchanged"
 
 # T014 (renata m4): write_artifact accepts EXACTLY ONE of files=/stage=.
-_MATERIALIZATION_USAGE_ERROR_NEITHER = (
-    "write_artifact requires exactly one of files= or stage= (materialization "
-    "source); neither was supplied."
-)
-_MATERIALIZATION_USAGE_ERROR_BOTH = (
-    "write_artifact requires exactly one of files= or stage= (materialization "
-    "source); both were supplied."
-)
+_MATERIALIZATION_USAGE_ERROR_NEITHER = "write_artifact requires exactly one of files= or stage= (materialization source); neither was supplied."
+_MATERIALIZATION_USAGE_ERROR_BOTH = "write_artifact requires exactly one of files= or stage= (materialization source); both were supplied."
 
 # T017: git-level "nothing to commit" signal, shared verbatim with
 # ``coordination.commit_router._is_empty_changeset_error`` -- ``safe_commit``
@@ -222,7 +238,11 @@ class WriteSeamResult:
 
 
 def _probe_write_target(
-    repo_root: Path, mission_slug: str, kind: MissionArtifactKind, *, effective_root: Path | None = None,
+    repo_root: Path,
+    mission_slug: str,
+    kind: MissionArtifactKind,
+    *,
+    effective_root: Path | None = None,
 ) -> CommitTarget | Exception:
     """Probe routability via the seam; return the resolved target, or the
     caught exception on an unroutable target.
@@ -241,7 +261,9 @@ def _probe_write_target(
     """
     try:
         return placement_seam(
-            repo_root, mission_slug, **effective_root_kwargs(effective_root),
+            repo_root,
+            mission_slug,
+            **effective_root_kwargs(effective_root),
         ).write_target(kind)
     except _UNROUTABLE_EXCEPTIONS as exc:
         return exc
@@ -252,21 +274,52 @@ def _is_off_checkout_refusal(exc: Exception) -> bool:
     return isinstance(exc, ActionContextError) and exc.code == _CONSOLIDATED_CONTENT_ABSENT_CODE
 
 
-def _refused_result(
-    *, mission_slug: str, kind: MissionArtifactKind, entry_id: str, cause: Exception
-) -> WriteSeamResult:
+def _refused_result(*, mission_slug: str, kind: MissionArtifactKind, entry_id: str, cause: Exception) -> WriteSeamResult:
     """Build the FR-011/FR-006 zero-write refusal (T016 -- ONE locus, two templates)."""
-    template = (
-        _OFF_CHECKOUT_REFUSAL_DIAGNOSTIC_TEMPLATE
-        if _is_off_checkout_refusal(cause)
-        else _REFUSAL_DIAGNOSTIC_TEMPLATE
-    )
+    template = _OFF_CHECKOUT_REFUSAL_DIAGNOSTIC_TEMPLATE if _is_off_checkout_refusal(cause) else _REFUSAL_DIAGNOSTIC_TEMPLATE
     return WriteSeamResult(
         status=_STATUS_REFUSED,
         entry_id=entry_id,
         destination_surface=None,
         diagnostic=template.format(mission_slug=mission_slug, kind_value=kind.value, cause=cause),
     )
+
+
+def _coord_surface_write_refusal(
+    repo_root: Path,
+    mission_slug: str,
+    kind: MissionArtifactKind,
+    resolved: CommitTarget,
+    *,
+    entry_id: str,
+) -> WriteSeamResult | None:
+    """Consult the S-C fail-closed WRITE gate; return a refusal or ``None`` (proceed).
+
+    FR-006 / #4970: ``_probe_write_target`` already refuses an *unroutable* target
+    (a resolution exception), but a coord-routing mission whose coordination branch
+    RESOLVES cleanly while its worktree is absent-and-not-a-local-head (the
+    fresh-clone / CI shape) slips past it and would degrade to the primary
+    directory, overwriting committed coordination state. This gate closes that hole
+    by consulting the ONE decision locus
+    (:func:`mission_runtime.assert_coord_write_materialized`) on the
+    already-probed ``resolved`` target — no second resolution (C-006). It runs
+    BEFORE any staging so a refused write leaves zero residue (FR-005).
+
+    Returns a ``"refused"`` :class:`WriteSeamResult` when the gate raises, else
+    ``None``. A non-coord / E2 / materialized target is a no-op inside the gate,
+    so this returns ``None`` and the ordinary write path proceeds unchanged.
+    """
+    try:
+        assert_coord_write_materialized(repo_root, mission_slug, kind, resolved)
+    except ActionContextError as exc:
+        template = _UNMATERIALIZED_COORD_REFUSAL_TEMPLATE if exc.code == _COORD_WRITE_UNMATERIALIZED_CODE else _REFUSAL_DIAGNOSTIC_TEMPLATE
+        return WriteSeamResult(
+            status=_STATUS_REFUSED,
+            entry_id=entry_id,
+            destination_surface=None,
+            diagnostic=template.format(mission_slug=mission_slug, kind_value=kind.value, cause=exc),
+        )
+    return None
 
 
 def _materialize_files(
@@ -295,9 +348,7 @@ def _materialize_files(
 # silently authorize an elevated capability here too (belt-and-braces, not a
 # second resolver -- it never CHANGES where the write routes, only whether
 # THIS module may assert an elevated capability for it).
-_NEVER_POST_CONSOLIDATION_KINDS: frozenset[MissionArtifactKind] = frozenset(
-    {MissionArtifactKind.STATUS_STATE, MissionArtifactKind.DECISION_LOG}
-)
+_NEVER_POST_CONSOLIDATION_KINDS: frozenset[MissionArtifactKind] = frozenset({MissionArtifactKind.STATUS_STATE, MissionArtifactKind.DECISION_LOG})
 
 
 def is_post_consolidation_write_target(
@@ -374,18 +425,14 @@ def _commit_post_consolidation_write(
     from specify_cli.git import safe_commit
 
     if not files:
-        return WriteSeamResult(
-            status=_STATUS_UNCHANGED, entry_id=entry_id, destination_surface=resolved.ref
-        )
+        return WriteSeamResult(status=_STATUS_UNCHANGED, entry_id=entry_id, destination_surface=resolved.ref)
     if any(not path.exists() for path in files):
         return WriteSeamResult(
             status="no_op_wrong_surface",
             entry_id=entry_id,
             destination_surface=resolved.ref,
             diagnostic=(
-                f"Artifact(s) not present at resolved CONSOLIDATED placement "
-                f"({resolved.ref}); commit would no-op against the wrong "
-                f"surface and was not created."
+                f"Artifact(s) not present at resolved CONSOLIDATED placement ({resolved.ref}); commit would no-op against the wrong surface and was not created."
             ),
         )
 
@@ -400,12 +447,8 @@ def _commit_post_consolidation_write(
         )
     except RuntimeError as exc:
         if str(exc).startswith(_EMPTY_CHANGESET_PREFIX):
-            return WriteSeamResult(
-                status=_STATUS_UNCHANGED, entry_id=entry_id, destination_surface=resolved.ref
-            )
-        return WriteSeamResult(
-            status="error", entry_id=entry_id, destination_surface=resolved.ref, diagnostic=str(exc)
-        )
+            return WriteSeamResult(status=_STATUS_UNCHANGED, entry_id=entry_id, destination_surface=resolved.ref)
+        return WriteSeamResult(status="error", entry_id=entry_id, destination_surface=resolved.ref, diagnostic=str(exc))
 
     return WriteSeamResult(
         status=_STATUS_COMMITTED,
@@ -474,10 +517,24 @@ def write_artifact(
         raise WriteSeamUsageError(_MATERIALIZATION_USAGE_ERROR_BOTH)
 
     probed = _probe_write_target(
-        repo_root, mission_slug, kind, **effective_root_kwargs(effective_root),
+        repo_root,
+        mission_slug,
+        kind,
+        **effective_root_kwargs(effective_root),
     )
     if isinstance(probed, Exception):
         return _refused_result(mission_slug=mission_slug, kind=kind, entry_id=entry_id, cause=probed)
+
+    # S-C fail-closed WRITE gate (FR-006 / #4970): refuse a coord-routing write onto
+    # an unresolved/unmaterialized coordination surface BEFORE staging, so a refused
+    # write leaves no residue. Owned single-branch (``effective_root``) writes never
+    # route through coordination, so the gate is skipped for them (it would have no
+    # coordination_branch to gate on either). E2 CONSOLIDATED targets resolve to the
+    # Primary Branch (not the coordination branch) and are a no-op inside the gate.
+    if effective_root is None:
+        refusal = _coord_surface_write_refusal(repo_root, mission_slug, kind, probed, entry_id=entry_id)
+        if refusal is not None:
+            return refusal
 
     materialized_files = _materialize_files(files, stage)
 

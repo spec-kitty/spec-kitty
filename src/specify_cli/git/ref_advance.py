@@ -15,13 +15,17 @@ checked out behind a ref this function advanced.** An architectural ratchet
 raw ``update-ref`` subprocess invocation exists in ``src/specify_cli``
 outside this module (AC-B3).
 
-Locking: the three merge-pipeline call sites (``lanes/merge.py`` Stage-1
-lane→mission advances and ``cli/commands/merge.py`` mission-number baking)
-all run inside the global merge lock
-(``acquire_merge_lock("__global_merge__", ...)``), which serializes every
-merge operation. This helper therefore acquires NO lock of its own — adding
-one would introduce a second lock ordering. Callers outside the merge
-pipeline must hold an equivalent serialization guarantee.
+Atomicity: :func:`advance_branch_ref` moves the ref with a compare-and-swap
+``git update-ref <ref> <new> <expected_old>`` (3-arg), mirroring the
+rollback path :func:`restore_branch_ref`. Correctness rests on that CAS, not
+on any external lock: if the ref changed between the value the caller read at
+the start of its merge transaction and the write, ``update-ref`` returns
+non-zero and this function raises :class:`RefAdvanceError` rather than
+clobbering the concurrent writer's commit (FR-003). It never falls back to a
+2-arg write and never retries. The merge pipeline may still serialize its own
+call sites, but that serialization is no longer what makes the advance safe —
+the ``__global_merge__`` lock is unlinkable by ``merge --abort`` (#4996), so
+resting correctness on it was the latent hazard this CAS closes.
 """
 
 from __future__ import annotations
@@ -42,6 +46,27 @@ from kernel.vcs_lock import is_vcs_lock_only_change
 
 # Basename of the mission metadata file whose VCS-lock-only changes are tolerated.
 _META_FILENAME: str = "meta.json"
+
+# Sentinel for the short OID displayed when a ref has no current value yet.
+_UNBORN: str = "<unborn>"
+
+# The all-zero OID: ``git update-ref <ref> <new> <zero>`` asserts the ref does
+# not already exist, the CAS form of creating an unborn ref.
+_ZERO_OID: str = "0" * 40
+
+
+def _cas_expected_old(expected_old_sha: str | None, observed_old_sha: str) -> str:
+    """Resolve the compare-and-swap *old value* token for ``git update-ref``.
+
+    ``expected_old_sha`` is the value the caller read at the start of its merge
+    transaction (WP06 threads it). When absent — the interim default until that
+    wiring lands — fall back to the value :func:`advance_branch_ref` observed at
+    entry, so the write is still an atomic CAS rather than an unconditional
+    2-arg overwrite. An ``<unborn>`` observed value maps to the zero OID, which
+    ``git update-ref`` reads as "the ref must not already exist".
+    """
+    candidate = expected_old_sha if expected_old_sha is not None else observed_old_sha
+    return _ZERO_OID if candidate == _UNBORN else candidate
 
 
 class RefAdvanceError(RuntimeError):
@@ -326,6 +351,7 @@ def advance_branch_ref(
     branch: str,
     new_sha: str,
     *,
+    expected_old_sha: str | None = None,
     env: dict[str, str] | None = None,
     is_residue: Callable[[str], bool] | None = None,
 ) -> None:
@@ -335,16 +361,27 @@ def advance_branch_ref(
     this function advanced.** After a successful return, every worktree with
     ``branch`` checked out has HEAD == index == working tree == ``new_sha``
     (CONSISTENT). With no such checkout, behavior is identical to a raw
-    ``git update-ref`` plus the worktree scan.
+    compare-and-swap ``git update-ref`` plus the worktree scan.
 
     Order of operations (atomic refusal): all checked-out worktrees are
     dirty-checked BEFORE the ref moves, so a refusal leaves the ref, every
-    worktree, and the merge state exactly as found.
+    worktree, and the merge state exactly as found. The ref itself moves under
+    a compare-and-swap ``git update-ref <ref> <new_sha> <expected_old>`` — a
+    concurrent move fails the write closed (FR-003), mirroring
+    :func:`restore_branch_ref`; there is no 2-arg fallback and no retry.
 
     Args:
         repo_root: Primary repository root (where the ref lives).
         branch: Short branch name (no ``refs/heads/`` prefix).
         new_sha: Commit SHA the branch ref advances to.
+        expected_old_sha: The ref value the caller read at the start of its
+            merge transaction, used as the compare-and-swap *old value* so a
+            concurrent move between that read and this write fails closed
+            (FR-003). Keyword-only. **Interim default** ``None`` falls back to
+            the value observed at entry, keeping existing merge call sites
+            atomic until WP06 threads the transaction-start value; WP06 must
+            pass it explicitly at every call site (``lanes/merge.py``,
+            ``merge/ordering.py``, ``coordination/commit_router.py``).
         env: Optional subprocess environment (merge pipeline passes its
             ``_make_merge_env()`` result through).
         is_residue: Optional predicate excluding toolchain-generated-churn
@@ -362,15 +399,17 @@ def advance_branch_ref(
         RefAdvanceDirtyWorktreeError: a worktree with ``branch`` checked out
             holds uncommitted tracked changes (NFR-002/NFR-003); nothing was
             mutated.
-        RefAdvanceError: the worktree scan, ``update-ref``, or a resync
-            failed at the git level.
+        RefAdvanceError: the worktree scan or a resync failed at the git
+            level, or the compare-and-swap ``update-ref`` failed because the
+            ref changed since it was read (fail-closed; never a 2-arg fallback
+            or a retry).
     """
     ref = f"refs/heads/{branch}"
 
     old_sha_result = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", ref], env=env)
-    old_sha = old_sha_result.stdout.strip() if old_sha_result.returncode == 0 else "<unborn>"
+    old_sha = old_sha_result.stdout.strip() if old_sha_result.returncode == 0 else _UNBORN
 
-    if old_sha != "<unborn>":
+    if old_sha != _UNBORN:
         ff_check = _run_git(
             repo_root,
             ["merge-base", "--is-ancestor", old_sha, new_sha],
@@ -407,9 +446,17 @@ def advance_branch_ref(
                 dirty_entries=dirty,
             )
 
-    result = _run_git(repo_root, ["update-ref", ref, new_sha], env=env)
+    expected_old = _cas_expected_old(expected_old_sha, old_sha)
+    result = _run_git(repo_root, ["update-ref", ref, new_sha, expected_old], env=env)
     if result.returncode != 0:
-        raise RefAdvanceError(f"Failed to update {branch} ref: {result.stderr.strip() or result.stdout.strip()}")
+        raise RefAdvanceError(
+            f"Compare-and-swap advance of {branch!r} "
+            f"({old_sha[:12]} -> {new_sha[:12]}) failed: the ref no longer "
+            f"matches the expected value {expected_old[:12]} — it changed "
+            f"since it was read. Refusing to clobber the concurrent update "
+            f"(no 2-arg fallback, no retry). "
+            f"git: {result.stderr.strip() or result.stdout.strip()}"
+        )
 
     for worktree in checkouts:
         reset = _run_git(worktree, ["reset", "--hard", branch], env=env)

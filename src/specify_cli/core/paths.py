@@ -857,7 +857,11 @@ def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
 
 
 def resolve_merge_target_branch(
-    repo_root: Path, mission_slug: str | None, explicit_target: str | None
+    repo_root: Path,
+    mission_slug: str | None,
+    explicit_target: str | None,
+    *,
+    persisted_target: str | None = None,
 ) -> tuple[str, str]:
     """Resolve the branch a mission merges into, with provenance.
 
@@ -866,8 +870,19 @@ def resolve_merge_target_branch(
     The single source of truth shared by ``spec-kitty merge`` and
     ``orchestrator-api merge-mission`` so the two never disagree.
 
-    Order: explicit ``--target`` > primary-meta ``merge_target_branch`` >
-    primary-meta ``target_branch`` > repo default.
+    Order: explicit ``--target`` > persisted ``MergeState.target_branch`` >
+    primary-meta ``merge_target_branch`` > primary-meta ``target_branch`` >
+    repo default.
+
+    terminus-merge-integrity-01M380R6 WP09 (C-1, FR-007, D5, #4985/#4991): the
+    landing branch is resolved ONCE and persisted into ``MergeState``; every
+    later phase and every ``--resume`` reads that single authority. The
+    ``persisted_target`` argument is the merge-state value the caller
+    (``merge/resolve.py``) loads — it ranks BELOW an explicit ``--target`` (the
+    operator re-stating the target always wins) but ABOVE meta.json, so a
+    crashed ``merge --target develop`` followed by a bare ``--resume`` resolves
+    ``develop`` (persisted) rather than re-deriving ``main`` from stale meta.
+    An empty/blank persisted value is treated as absent (not authoritative).
 
     The merge target lives in the PRIMARY-checkout meta.json (like
     ``coordination_branch``), so it is read via the module-private
@@ -886,6 +901,9 @@ def resolve_merge_target_branch(
     """
     if explicit_target is not None:
         return explicit_target, "flag"
+
+    if persisted_target and persisted_target.strip():
+        return persisted_target, "merge_state"
 
     # Deferred imports: core.paths is imported very early; these pull in the
     # missions/git layers that import back into core — module-level imports would

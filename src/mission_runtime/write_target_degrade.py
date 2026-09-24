@@ -41,7 +41,16 @@ if TYPE_CHECKING:
     # further down for why a runtime module-level import here is unsafe).
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
-__all__ = ["resolve_write_target_or_degrade"]
+__all__ = ["assert_coord_write_materialized", "resolve_write_target_or_degrade"]
+
+# S-C fail-closed WRITE gate (FR-006; #4970). A terminus WRITE that resolves to
+# the coordination branch must land on a *materialized* coordination surface. On
+# a checkout where that surface is absent AND the coordination branch is not a
+# local head (the fresh-clone / CI shape where the lane exists only on
+# ``origin/<lane>``), materializing it would fork from the primary branch and
+# overwrite committed coordination state (teammates' verdicts). The single stable
+# ``error_code`` lets callers route on it without string parsing.
+_COORD_WRITE_UNMATERIALIZED_CODE = "COORD_WRITE_SURFACE_UNMATERIALIZED"
 
 # NOTE on the ``specify_cli.missions._read_path_resolver`` imports below: they
 # are deliberately LOCAL (function-scoped), matching the established
@@ -64,12 +73,14 @@ __all__ = ["resolve_write_target_or_degrade"]
 # closes that hole exactly the way every sibling ``resolution.py`` call site
 # already does.
 
+
 def resolve_write_target_or_degrade(
     repo_root: Path,
     mission_slug: str,
     kind: MissionArtifactKind,
     *,
     degrade_ref: str | None,
+    terminus_write: bool = False,
 ) -> CommitTarget:
     """Resolve write target via the placement port, or degrade to a caller-supplied ref.
 
@@ -92,16 +103,25 @@ def resolve_write_target_or_degrade(
             yet, or an ad-hoc fixture outside a resolvable mission). The caller decides
             the policy: fail-open passes a concrete ref, fail-closed passes ``None`` to
             raise instead of silently degrading.
+        terminus_write: Fail-closed WRITE mode (S-C / FR-006 / #4970). When ``True``
+            the caller is a terminus WRITE, so this NEVER degrades to ``degrade_ref``
+            on a resolution failure (it raises, regardless of ``degrade_ref``), AND —
+            once resolution succeeds — it additionally asserts that a coord-routing
+            target is a *materialized* coordination surface via
+            :func:`assert_coord_write_materialized`, refusing the wrong-surface write
+            #4970 exploits. Default ``False`` preserves every existing (fail-open /
+            fail-closed-via-``degrade_ref``) caller byte-identically.
 
     Returns:
         A ``CommitTarget`` resolved for ``kind`` through the placement port, or
         ``CommitTarget(ref=degrade_ref)`` if the mission is not resolvable and
-        ``degrade_ref`` is not ``None``.
+        ``degrade_ref`` is not ``None`` (fail-open, non-``terminus_write`` callers).
 
     Raises:
-        ``ActionContextError`` when the mission cannot be resolved AND
-        ``degrade_ref`` is ``None`` (fail-closed policy — never silently
-        degrades to a null ref). When a *caught-set* resolution failure
+        ``ActionContextError`` when the mission cannot be resolved AND either
+        ``degrade_ref`` is ``None`` or ``terminus_write`` is ``True`` (fail-closed
+        policy — never silently degrades to a null ref, and a terminus write never
+        degrades to a caller-supplied ref). When a *caught-set* resolution failure
         (``ActionContextError`` / ``StatusReadPathNotFound`` / ``FileNotFoundError``)
         is what triggered the fail-closed path, the fresh ``ActionContextError``
         raised here preserves that failure's concrete ``error_code`` (or
@@ -113,19 +133,98 @@ def resolve_write_target_or_degrade(
         ``CoordinationBranchDeleted`` (a ``StatusReadPathNotFound`` subclass)
         never gets flattened into a generic, chain-less error. Only failures
         *outside* the caught set (ambiguous/malformed mission, etc.) propagate
-        verbatim.
+        verbatim. Additionally raises ``ActionContextError`` (code
+        ``COORD_WRITE_SURFACE_UNMATERIALIZED``) when ``terminus_write`` is ``True``
+        and the resolved coord surface is unmaterialized/unresolved (#4970).
     """
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
     resolution_exc: ActionContextError | StatusReadPathNotFound | FileNotFoundError | None = None
     if _mission_meta_exists(repo_root, mission_slug):
         try:
-            return resolve_placement_only(repo_root, mission_slug, kind=kind)
+            resolved = resolve_placement_only(repo_root, mission_slug, kind=kind)
         except (ActionContextError, StatusReadPathNotFound, FileNotFoundError) as exc:
             resolution_exc = exc
-    if degrade_ref is None:
+        else:
+            if terminus_write:
+                assert_coord_write_materialized(repo_root, mission_slug, kind, resolved)
+            return resolved
+    if degrade_ref is None or terminus_write:
         raise _fail_closed_error(mission_slug, resolution_exc) from resolution_exc
     return CommitTarget(ref=degrade_ref)
+
+
+def assert_coord_write_materialized(
+    repo_root: Path,
+    mission_slug: str,
+    kind: MissionArtifactKind,
+    resolved: CommitTarget,
+) -> None:
+    """Fail-closed WRITE gate: refuse a coord-routing write onto an unmaterialized surface.
+
+    The single decision locus for S-C (FR-006 / #4970), consulted by
+    :func:`resolve_write_target_or_degrade`'s ``terminus_write`` mode and by the
+    real write chain (``coordination.write_seam.write_artifact``) on its
+    already-probed target. It is a NARROW materialization assertion, NOT a second
+    resolver: ``resolved`` is the target the ONE placement authority already
+    produced (C-006).
+
+    No-op unless this is genuinely a coordination-branch write:
+
+    * no primary ``meta.json`` (a stub / ad-hoc fixture / legacy mission) → return
+      (nothing to gate — the resolver's own policy already applied);
+    * no declared ``coordination_branch``, or ``resolved.ref`` is not that branch
+      (a PRIMARY write, a flattened mission, or an E2 CONSOLIDATED write that
+      resolves to the Primary Branch) → return;
+    * a coord-routing write whose coordination worktree is ``MATERIALIZED`` /
+      ``EMPTY`` (the worktree exists — the write populates/updates it), or is
+      ``UNMATERIALIZED`` while the coordination branch is a *local head* (the
+      sanctioned ``mission create`` → first-write self-materialization window on
+      the creating host) → return.
+
+    Raises ``ActionContextError`` (``COORD_WRITE_SURFACE_UNMATERIALIZED``) only for
+    the #4970 shape: a coord-routing write whose coordination worktree is absent
+    AND whose coordination branch is not a local head (deleted, or the fresh-clone
+    / CI checkout where it exists only on ``origin/<lane>``). Materializing there
+    would fork from the primary branch and overwrite committed coordination state.
+    """
+    from specify_cli.coordination.surface_resolver import (
+        _coord_branch_is_local_head,
+        resolve_declared_mid8,
+    )
+    from specify_cli.missions._read_path_resolver import (
+        CoordState,
+        probe_coord_state,
+        read_primary_meta,
+    )
+
+    primary_meta, _declares_coordination = read_primary_meta(repo_root, mission_slug)
+    raw_branch = primary_meta.get("coordination_branch")
+    coord_branch = str(raw_branch) if raw_branch else None
+    if coord_branch is None or resolved.ref != coord_branch:
+        # PRIMARY / flattened / E2 CONSOLIDATED write — not a coordination-branch
+        # write, so the coord-materialization gate does not apply.
+        return
+
+    mid8 = resolve_declared_mid8(primary_meta, mission_slug)
+    state = probe_coord_state(repo_root, mission_slug, mid8, coordination_branch=coord_branch)
+    if state in (CoordState.MATERIALIZED, CoordState.EMPTY):
+        return
+    if state is CoordState.UNMATERIALIZED and _coord_branch_is_local_head(repo_root, coord_branch):
+        return
+
+    raise ActionContextError(
+        _COORD_WRITE_UNMATERIALIZED_CODE,
+        f"Refusing a terminus WRITE of {kind.value!r} for mission {mission_slug!r}: "
+        f"its authoritative coordination surface (branch {coord_branch!r}) is "
+        f"unresolved or unmaterialized on this checkout — the coordination worktree "
+        f"is absent and {coord_branch!r} is not a local branch head (e.g. a fresh "
+        f"clone / CI checkout where the lane exists only on origin). Writing would "
+        f"degrade to the primary directory and overwrite committed coordination "
+        f"state (#4970). Materialize the coordination surface first: run `git fetch` "
+        f"then `spec-kitty doctor workspaces --fix`, or check out {coord_branch!r} "
+        f"locally before retrying.",
+    )
 
 
 def _fail_closed_error(

@@ -63,6 +63,7 @@ def commit_merge_bookkeeping(
     message: str,
     paths: tuple[Path, ...],
     branch: str | None = None,
+    destination_ref_override: str | None = None,
 ) -> CommitResult:
     """Commit ``paths`` as an authorized merge-bookkeeping flow.
 
@@ -87,6 +88,21 @@ def commit_merge_bookkeeping(
             mirrors the established degrade-path idiom in
             ``coordination.status_transition._resolve_write_target``. When
             omitted and resolution fails, the resolution error propagates.
+        destination_ref_override: The RESOLVED merge target, threaded by the
+            merge executor (terminus-merge-integrity C-1 / #4985/#4991).
+            The placement port resolves ``PRIMARY_METADATA`` from the mission's
+            ``meta.json`` ``target_branch``, which is STALE for a merge whose
+            resolved target differs (an explicit ``--target develop`` /
+            persisted ``MergeState.target_branch`` beating meta's ``main``). On a
+            non-default-target merge the post-merge checkout HEAD is on the
+            resolved target, so the meta-resolved destination triggers
+            ``SafeCommitHeadMismatch`` and aborts the housekeeping commit before
+            the work durably lands. When supplied, this AUTHORITATIVE resolved
+            target is used as the ``destination_ref`` directly, bypassing the
+            stale-meta placement resolution; the safe-commit HEAD-match guard
+            still runs (and now matches). For a default-target merge it equals the
+            meta target, so behavior is byte-identical. ``None`` (the retrospective
+            terminus, ``mission close``) preserves placement-port resolution.
 
     Returns:
         The :class:`CommitResult` from :func:`safe_commit`.
@@ -105,6 +121,7 @@ def commit_merge_bookkeeping(
         paths=paths,
         branch=branch,
         kind=_BOOKKEEPING_COMMIT_KIND,
+        destination_ref_override=destination_ref_override,
     )
 
 
@@ -153,6 +170,7 @@ def _commit_bookkeeping(
     paths: tuple[Path, ...],
     branch: str | None,
     kind: MissionArtifactKind,
+    destination_ref_override: str | None = None,
 ) -> CommitResult:
     """Shared core for the two named bookkeeping entry points.
 
@@ -161,9 +179,15 @@ def _commit_bookkeeping(
     ``GuardCapability.MERGE_BOOKKEEPING`` commit. ``kind`` selects only the
     partition destination (``PRIMARY_METADATA`` -> primary ``target_branch`` for
     every topology; a non-primary kind -> the topology-routed ``destination_ref``)
-    -- it never re-classifies the committed paths.
+    -- it never re-classifies the committed paths. ``destination_ref_override``,
+    when supplied, is the AUTHORITATIVE resolved target that supersedes the
+    (possibly stale-meta) placement resolution for a ``PRIMARY_METADATA`` merge
+    housekeeping commit (see :func:`commit_merge_bookkeeping`).
     """
-    target = _resolve_bookkeeping_commit_target(repo_root, mission_slug, branch, kind)
+    if destination_ref_override is not None:
+        target = CommitTarget(ref=destination_ref_override)
+    else:
+        target = _resolve_bookkeeping_commit_target(repo_root, mission_slug, branch, kind)
     return safe_commit(
         repo_root=repo_root,
         worktree_root=worktree_root,

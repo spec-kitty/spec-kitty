@@ -281,6 +281,24 @@ def _cleanup_merge_workspaces_for_state(
         cleanup_merge_workspace(key, repo_root)
 
 
+def _persisted_merge_target(repo_root: Path, mission_slug: str | None) -> str | None:
+    """Return the persisted ``MergeState.target_branch`` for a mission, if any.
+
+    terminus-merge-integrity-01M380R6 WP09 (C-1, FR-007, #4985/#4991): the merge
+    target lives on ``MergeState`` so a ``--resume`` reads the single persisted
+    authority instead of re-deriving it from stale meta. This reads it via the
+    same canonical/legacy key resolution used by resume/abort. A blank stored
+    value is treated as absent. A corrupt own-state read is left to propagate
+    (fail-closed) rather than silently reverting to meta — which would re-open
+    the exact #4991 split-brain.
+    """
+    state = _load_merge_state_for_mission(repo_root, mission_slug)
+    if state is None:
+        return None
+    target = (state.target_branch or "").strip()
+    return target or None
+
+
 def _resolve_target_branch(
     repo_root: Path,
     mission_slug: str | None,
@@ -292,11 +310,17 @@ def _resolve_target_branch(
     and ``orchestrator-api merge-mission`` resolve the target identically (reading
     the PRIMARY-checkout meta, never silently falling back to main when the
     mission declares a target_branch).
+
+    WP09 (C-1): the persisted ``MergeState.target_branch`` is threaded in as the
+    second-precedence source (explicit ``--target`` > persisted > meta.json), so
+    a resumed merge honors the branch the interrupted run resolved and never
+    re-derives it from stale meta.
     """
     from specify_cli.core.paths import resolve_merge_target_branch
 
+    persisted_target = _persisted_merge_target(repo_root, mission_slug)
     resolved: tuple[str, str | None] = resolve_merge_target_branch(
-        repo_root, mission_slug, explicit_target
+        repo_root, mission_slug, explicit_target, persisted_target=persisted_target
     )
     return resolved
 

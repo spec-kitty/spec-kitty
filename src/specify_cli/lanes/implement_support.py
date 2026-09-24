@@ -201,7 +201,18 @@ def create_lane_workspace(
     # actually created). No-regression pin: a default no-``--base`` coord
     # lane still records ``coordination_branch`` exactly as before.
     coordination_branch = _read_coordination_branch(repo_root, mission_slug)
-    honored_base = base if base is not None else (coordination_branch if coordination_branch is not None else lanes_manifest.mission_branch)
+    topology_parent = coordination_branch if coordination_branch is not None else lanes_manifest.mission_branch
+    # WP10 integration (C-4 / #4969): record the ACTUAL honored parent the allocator
+    # cut from. When no explicit ``base`` was supplied, the allocator prefers
+    # ``origin/<lane>`` when it exists (:func:`resolve_lane_base_ref`), so the
+    # provenance we persist must reflect that same origin-aware resolution — not the
+    # topology parent the fresh cut may have been shadowed away from.
+    if base is not None:
+        honored_base = base
+    else:
+        from specify_cli.workspace.context import resolve_lane_base_ref
+
+        honored_base = resolve_lane_base_ref(repo_root, predicted_branch, fallback_base=topology_parent)
 
     base_branch = honored_base
 

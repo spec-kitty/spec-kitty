@@ -24,7 +24,7 @@ from __future__ import annotations
 import functools
 import subprocess
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
@@ -65,6 +65,7 @@ from specify_cli.git.bookkeeping_commit import (
     commit_merge_bookkeeping,
 )
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
+from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
 from specify_cli.git.destructive_guard import (
     MERGE_UNSAFE_PRIMARY_DIRTY,
     DestructiveOpRefused,
@@ -89,9 +90,12 @@ from specify_cli.merge.baseline import (
     record_baseline_merge_commit as _record_baseline_merge_commit,
 )
 from specify_cli.merge.bookkeeping_projection import (
+    _post_checkpoint_mission_paths,
     _project_status_bookkeeping_to_target,
+    _resolve_ref_sha,
     _target_bookkeeping_status_paths,
     _target_branch_still_at_baseline,
+    projected_content_matches_target,
 )
 from specify_cli.merge.config import MergeStrategy
 from specify_cli.merge.done_bookkeeping import (
@@ -122,6 +126,17 @@ from specify_cli.merge.preflight import (
     _warn_or_confirm_hollow_reviews,
 )
 from specify_cli.merge.push_preflight import _enforce_target_branch_sync_preflight
+from specify_cli.merge.reconciliation import (
+    ApprovedWpCommitSet,
+    MergeOutcomeVerifier,
+    VerifyResult,
+    VerifyStatus,
+    build_approved_wp_set,
+    clear_post_fix_marker,
+    detect_legacy_in_flight_state,
+    route_terminus,
+    write_post_fix_marker,
+)
 from specify_cli.merge.resolve import _load_or_create_merge_state
 from specify_cli.merge.state import (
     MergeLockError,
@@ -134,7 +149,12 @@ from specify_cli.merge.state import (
 )
 from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace
 from specify_cli.mission_metadata import resolve_mission_identity
-from mission_runtime import MissionArtifactKind, placement_seam, resolve_placement_only
+from mission_runtime import (
+    MissionArtifactKind,
+    MissionTopology,
+    placement_seam,
+    resolve_placement_only,
+)
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 
 _GLOBAL_MERGE_LOCK_ID = "__global_merge__"
@@ -390,6 +410,47 @@ class _MergeRunState:
     # ``remove_worktree`` fields at ~303-304) so the pre-existing
     # ``_MergeRunState`` construction sites that predate #3131 keep compiling.
     teardown_coordination: bool = False
+
+    # -- terminus-merge-integrity WP06 (S-D) scaffold fields ------------------
+    # All new fields the serialized executor lane needs, added in ONE change so
+    # the following serial WPs (WP07/WP08/WP09) only ASSIGN, never grow the
+    # dataclass (PR-priti). Defaulted so every existing construction site
+    # compiles and behavior is unchanged until the phases fill them. The
+    # ``_CoordCheckpoint`` annotation is a forward reference (resolved lazily via
+    # ``from __future__ import annotations``); the class is defined below.
+    #
+    # ``approved_wp_set`` (T027) — the fail-closed, Lamport-sourced claim,
+    # captured ONCE at transaction start (before any mutation) so the teardown
+    # gate compares the post-merge target against PRE-mutation lane tips.
+    approved_wp_set: ApprovedWpCommitSet | None = None
+    # ``coord_checkpoint`` — the coordination tip captured at transaction start;
+    # the base the approved lane-tip SHAs are read relative to (S-B/WP08 also
+    # projects post-checkpoint coord commits from here).
+    coord_checkpoint: _CoordCheckpoint | None = None
+    # ``reconciliation_result`` — the gate verdict, stored for the finalize
+    # summary + post-run inspection.
+    reconciliation_result: VerifyResult | None = None
+    # ``coord_tip_after_projection`` (WP10 integration / S-B teardown gate) — the
+    # coordination tip observed immediately AFTER
+    # :func:`_project_status_bookkeeping_to_target` brought every post-checkpoint
+    # coord commit forward. The teardown gate compare-and-swaps against this value
+    # so a concurrent status-emit / verdict that landed AFTER projection (and was
+    # therefore never projected) can never be silently destroyed at teardown
+    # (#4981). ``None`` on a non-coord mission (no coord tip to anchor).
+    coord_tip_after_projection: str | None = None
+    # ``target_expected_old_sha`` (D2/WP02) — the target ref value read at
+    # transaction start; the CAS anchor and the excluded-patch-id window base.
+    # Under the serialized executor lane each ``advance_branch_ref`` call already
+    # CASes on its own entry-observed old value (WP02's interim default), which
+    # equals this transaction-start value for the FIRST target advance and is the
+    # correct per-advance old value for the sequential advances that follow (a
+    # single transaction-start value would wrongly reject the 2nd+ advance); this
+    # field records the anchor and bounds the reconciliation excluded window.
+    target_expected_old_sha: str | None = None
+    # ``projected_since_checkpoint`` (S-B/WP08) — coord commits added after the
+    # checkpoint that must be projected onto the target before teardown. WP06
+    # scaffolds the slot; WP08 fills it.
+    projected_since_checkpoint: tuple[str, ...] = ()
 
 
 def _assert_mission_terminal_ready(run: _MergeRunState) -> None:
@@ -1422,11 +1483,23 @@ def _phase_record_done_and_project(run: _MergeRunState) -> None:
             _restore_and_guard_coord_coherence(run, run.final_bookkeeping_snapshots, error=exc)
             raise
 
+    # WP10 integration (S-B / FR-004, #4981/#4970/#4973): thread the coordination
+    # checkpoint captured at transaction start so the projection ALSO brings every
+    # NON-status post-checkpoint coord commit (concurrent status-emit / acceptance
+    # verdict) forward onto the target — the status union alone covers only the two
+    # status files. Both kwargs default to ``None`` (WP07's byte-unchanged path)
+    # unless a coord checkpoint resolved, so a non-coord/legacy mission is
+    # unaffected.
+    checkpoint = run.coord_checkpoint
+    checkpoint_sha = checkpoint.sha if checkpoint is not None else None
+    coord_ref = checkpoint.ref if checkpoint is not None else None
     try:
         target_events_path, target_status_path = _project_status_bookkeeping_to_target(
             main_repo=run.main_repo,
             mission_slug=run.mission_slug,
             status_feature_dir=run.feature_dir,
+            checkpoint_sha=checkpoint_sha,
+            coord_ref=coord_ref,
         )
     except Exception as exc:
         # Coord-reachable live strand: OUTSIDE the done_marked_before_target guard,
@@ -1439,6 +1512,18 @@ def _phase_record_done_and_project(run: _MergeRunState) -> None:
     _restore_regressed_gate_artifacts(run)
 
     _run_birth_cutover(run)
+
+    # WP10 integration (S-B teardown gate): snapshot the coord tip AFTER every
+    # merge-owned coord write of this phase (the done-recording above, the general
+    # projection, and the birth-cutover status_phase seed) has landed — this is the
+    # merge's LAST write to the coordination ref. :func:`_teardown_coord_worktree`
+    # compare-and-swaps the ref against this value before destroying the coordination
+    # triple, so a genuinely CONCURRENT status-emit / verdict that lands on the coord
+    # ref AFTER this point (and was therefore never projected) is caught and teardown
+    # refuses fail-closed (#4981). Capturing it here — not mid-phase — is what keeps
+    # a clean merge's own cutover commit from tripping the CAS.
+    if coord_ref is not None:
+        run.coord_tip_after_projection = _resolve_ref_sha(run.main_repo, coord_ref)
 
 
 def _run_birth_cutover(run: _MergeRunState) -> None:
@@ -1687,6 +1772,17 @@ def _phase_commit_and_assert(run: _MergeRunState) -> None:
                 # ``mission_slug``; this value is used solely if that
                 # resolution fails.
                 branch=lanes_manifest.target_branch,
+                # terminus-merge-integrity C-1 (#4985/#4991): thread the RESOLVED
+                # merge target (WP09's single persisted authority — explicit
+                # ``--target`` > ``MergeState.target_branch`` > meta — already
+                # baked into ``lanes_manifest.target_branch``) as the housekeeping
+                # commit's destination. The placement port would otherwise resolve
+                # PRIMARY_METADATA from the mission's STALE meta ``target_branch``,
+                # raising ``SafeCommitHeadMismatch`` on a non-default-target merge
+                # (HEAD on the resolved target, meta expects the old one) and
+                # aborting before the work durably lands. For a default-target
+                # merge this equals the meta target — byte-identical behavior.
+                destination_ref_override=lanes_manifest.target_branch,
                 message=f"chore({run.mission_slug}): record done transitions for merged WPs",
                 paths=tuple(files_to_commit),
             )
@@ -1719,6 +1815,267 @@ def _phase_commit_and_assert(run: _MergeRunState) -> None:
     except BaselineMergeCommitError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
+
+
+def _resolve_pre_mutation_target_sha(
+    main_repo: Path, target_branch: str, state: MergeState
+) -> str | None:
+    """Resolve the TRANSACTION-START target tip, persisting it at first capture.
+
+    #5001 pre-merge FOLD-4. The excluded/closed-world reconciliation window base
+    (and the rollback CAS anchor) MUST be the genuine pre-mutation target tip, not
+    the current tip. On a fresh merge that is the live ``rev-parse`` here — before
+    any lane/mission→target advance — and it is persisted into ``MergeState`` so a
+    later ``--resume`` (which runs AFTER attempt-1 already advanced the target)
+    re-reads the ORIGINAL tip instead of recapturing the already-advanced one.
+    Without this, the resume window collapses to empty and the excluded/closed-
+    world axes false-PASS, and the rollback would anchor to the stale advanced tip
+    (Debbie [MEDIUM] resume false-PASS). ``None`` when the target ref cannot be
+    resolved (nothing is persisted — a subsequent resume re-attempts the read).
+    """
+    persisted = state.pre_mutation_target_sha
+    if persisted:
+        return persisted
+    ret, target_sha, _err = run_command(
+        ["git", "rev-parse", target_branch],
+        capture=True,
+        check_return=False,
+        cwd=main_repo,
+    )
+    resolved = target_sha.strip() if ret == 0 and target_sha.strip() else None
+    if resolved is not None:
+        state.pre_mutation_target_sha = resolved
+        save_state(state, main_repo)
+    return resolved
+
+
+def _capture_reconciliation_claim(run: _MergeRunState) -> None:
+    """Capture the fail-closed, Lamport-sourced claim ONCE at transaction start.
+
+    terminus-merge-integrity WP06 (T027/T029). Runs BEFORE any mutating phase so
+    the teardown gate (:func:`_phase_reconcile_before_teardown`) compares the
+    post-merge target against a claim sourced from the PRE-mutation lane tips.
+    Also enforces FR-012: a resumed pre-fix in-flight state (no post-fix marker)
+    is refused here — before any mutation — rather than proceeding under the new
+    gate against unknown-shape state; a fresh merge stamps the marker itself.
+    """
+    legacy = detect_legacy_in_flight_state(
+        run.main_repo, run.canonical_id, is_resume=run.is_resume
+    )
+    if legacy is not None:
+        console.print(f"[red]Error:[/red] {legacy}")
+        raise typer.Exit(1)
+    write_post_fix_marker(run.main_repo, run.canonical_id)
+
+    checkpoint = _capture_coord_checkpoint(run)
+    run.coord_checkpoint = checkpoint
+    coord_base = (
+        checkpoint.sha if checkpoint is not None else run.lanes_manifest.mission_branch
+    )
+
+    run.target_expected_old_sha = _resolve_pre_mutation_target_sha(
+        run.main_repo, run.lanes_manifest.target_branch, run.state
+    )
+
+    run.approved_wp_set = build_approved_wp_set(
+        run.main_repo,
+        run.feature_dir,
+        run.lanes_manifest,
+        coord_base_ref=coord_base,
+        excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
+        excluded_window_base=run.target_expected_old_sha,
+    )
+
+
+def _reconciliation_claim_for_gate(run: _MergeRunState) -> ApprovedWpCommitSet:
+    """Return the strategy-appropriate claim for the teardown gate.
+
+    Content reachability (approved-SHA ancestry + excluded SHA/patch-id) is only
+    SOUND for ancestry-preserving strategies (merge/rebase). A squash merge
+    preserves neither lane-tip SHAs nor per-lane patch-ids, and the post-merge
+    target additionally carries legitimate bookkeeping commits (mission_number
+    bake, done-transition record) that make even an aggregate mission→target tree
+    comparison diverge (verified: :func:`lane_integrated_by_tree_or_ancestry`
+    returns False on a genuine squash merge because of that bookkeeping). Proving
+    approved content landed under squash therefore requires the projection seam
+    WP07/WP08 own. For squash we hand the verifier a claim with
+    ``verify_reachability=False`` so it enforces ONLY fail-closed claim integrity
+    (surface + refusal) and DEFERS the content checks to those WPs — never
+    false-failing a legitimate squash merge (NFR-004). Merge/rebase use the
+    captured per-SHA claim verbatim (the Tier-0 clean-merge strategy).
+    """
+    captured = run.approved_wp_set
+    if captured is None:
+        # Defensive: the claim should have been captured at transaction start.
+        # Rebuild fail-closed rather than pass vacuously.
+        captured = build_approved_wp_set(
+            run.main_repo,
+            run.feature_dir,
+            run.lanes_manifest,
+            coord_base_ref=run.lanes_manifest.mission_branch,
+            excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
+            excluded_window_base=run.target_expected_old_sha,
+        )
+    if run.strategy is MergeStrategy.SQUASH:
+        return replace(captured, verify_reachability=False)
+    return captured
+
+
+def _phase_reconcile_before_teardown(run: _MergeRunState) -> None:
+    """S-D gate: verify the merge outcome by tree reachability BEFORE any teardown.
+
+    terminus-merge-integrity WP06 (FR-001/FR-002; NFR-005). Runs strictly between
+    ``_phase_commit_and_assert`` and cleanup. On FAIL/REFUSE it refuses (non-zero
+    exit) with recovery guidance and tears down NOTHING and mutates NOTHING; on
+    PASS it continues to cleanup. The success message is scoped to
+    **approved-WP commit reachability** (NOT verdict integrity — #4990 out of
+    scope, FR-013).
+    """
+    # NFR-005: this executor path is the ``merge`` terminus entry point; routing
+    # it through the allowlist proves the gate is reached (a 7th, unrouted path
+    # would raise here). ``merge --resume`` reuses the same executor flow.
+    route_terminus("merge --resume" if run.is_resume else "merge")
+    claim = _reconciliation_claim_for_gate(run)
+    result = MergeOutcomeVerifier(run.main_repo).verify(
+        run.lanes_manifest.target_branch, claim
+    )
+    run.reconciliation_result = result
+    if result.is_pass:
+        _assert_squash_projected_content_landed(run)
+        console.print(_reconciliation_pass_message(run.strategy))
+        return
+    console.print(f"\n[red]Error:[/red] {result.recovery_guidance()}")
+    # terminus-merge-integrity (S-D): a FAIL means the target tree diverged from
+    # the approved-WP claim — a removed/canceled commit rode a carrier lane onto
+    # the target, or approved work is missing. The mission→target advance already
+    # landed before this gate (it is homed post-``_phase_commit_and_assert``), so a
+    # bare refusal would leave the divergent content on the integration branch. Roll
+    # the target ref back to its PRE-mutation tip (captured at transaction start)
+    # so the epic invariant holds: after a non-zero exit, nothing excluded is
+    # reachable from the target. NO teardown runs (branches/worktrees are retained
+    # for inspection — the ordering guarantee), and the revert is a CAS restore that
+    # fails safe if the ref moved. A REFUSE (fail-closed claim integrity, not a
+    # proven tree divergence) keeps its historical behavior: it never advanced under
+    # a materialized claim, so there is nothing to revert here.
+    if result.status is VerifyStatus.FAIL:
+        _rollback_target_after_failed_reconciliation(run)
+    raise typer.Exit(1)
+
+
+def _reconciliation_pass_message(strategy: MergeStrategy) -> str:
+    """Operator-facing reconciliation PASS line, honest per strategy.
+
+    #5001 pre-merge FOLD-2. Under SQUASH the gate verified ONLY approved-WP claim
+    integrity — content reachability (approved-SHA ancestry + excluded/closed-
+    world) runs with ``verify_reachability=False`` and is deferred to the
+    projection seam (see :func:`_reconciliation_claim_for_gate`). The message must
+    therefore NOT claim "no excluded commit reachable" (which was never checked
+    under squash — the pre-fix line did, fabricating success). Merge/rebase ran the
+    full per-SHA reachability + excluded/closed-world checks and keep the full-
+    verification line.
+    """
+    if strategy is MergeStrategy.SQUASH:
+        return (
+            "  [green]✓[/green] Reconciliation verified: approved-WP claim "
+            "integrity verified; content reachability deferred under squash "
+            "strategy (see #5001 follow-up)."
+        )
+    return (
+        "  [green]✓[/green] Reconciliation verified: approved-WP commit "
+        "reachability on the target (no excluded commit reachable)."
+    )
+
+
+def _rollback_target_after_failed_reconciliation(run: _MergeRunState) -> None:
+    """Revert the target ref to its pre-mutation tip after a reconciliation FAIL.
+
+    Restores ``target_branch`` to ``run.target_expected_old_sha`` (the tip read at
+    transaction start, before any lane/mission→target advance) with a
+    compare-and-swap, then refreshes the primary checkout so its working tree
+    matches the reverted ref. Best-effort and non-fatal: the command is already
+    exiting non-zero with recovery guidance; a rollback hiccup is warned, never
+    masked. No-op when the pre-mutation tip is unknown (nothing safe to restore).
+    """
+    pre_merge_sha = run.target_expected_old_sha
+    if not pre_merge_sha:
+        return
+    target_branch = run.lanes_manifest.target_branch
+    current_sha = _resolve_ref_sha(run.main_repo, target_branch)
+    # ``_resolve_ref_sha`` returns "" (never ``None``) for an unresolvable ref, so
+    # the guard tests falsiness (#5001 pre-merge FOLD-5: the pre-fix ``is None``
+    # arm was dead code — "" fell through to a restore with expected_current_sha=""
+    # that git rejects). An empty/unresolvable current tip, or one already at the
+    # pre-merge tip, means there is nothing safe to undo.
+    if not current_sha or current_sha == pre_merge_sha:
+        return
+    try:
+        restore_branch_ref(
+            run.main_repo,
+            target_branch,
+            pre_merge_sha,
+            expected_current_sha=current_sha,
+        )
+    except RefRestoreError as exc:
+        console.print(
+            f"[yellow]Warning:[/yellow] could not revert {target_branch!r} to its "
+            f"pre-merge tip after the reconciliation failure: {exc}. Inspect the "
+            "target branch by hand before retrying."
+        )
+        return
+    _refresh_primary_checkout_after_merge(run.main_repo, target_branch)
+
+
+def _assert_squash_projected_content_landed(run: _MergeRunState) -> None:
+    """SQUASH content proof (WP10 integration / S-D + WP07 handoff).
+
+    The reconciliation claim for a SQUASH merge runs with
+    ``verify_reachability=False`` (a squash preserves neither lane-tip SHAs nor
+    per-lane patch-ids, so SHA/patch-id reachability is unsound — see
+    :func:`_reconciliation_claim_for_gate`). This restores content verification
+    for squash — WITHOUT the unsound SHA reachability — by asserting, over the
+    set of bookkeeping paths the projection brought forward, that each one's
+    content at the target equals its content at the coordination ref
+    (:func:`projected_content_matches_target`). A legitimate squash merge already
+    copied that content forward, so this PASSES (NFR-004: never false-fail a
+    genuine squash); it refuses fail-closed only if a projected commit's content
+    did not actually land on the target — the divergence a bare
+    ``verify_reachability=False`` would have missed. A no-op for merge/rebase
+    (SHA reachability already covered them) and for a non-coord/legacy mission
+    (no checkpoint window to project)."""
+    if run.strategy is not MergeStrategy.SQUASH:
+        return
+    checkpoint = run.coord_checkpoint
+    if checkpoint is None:
+        return
+    projected_paths = tuple(
+        _post_checkpoint_mission_paths(
+            run.main_repo, run.mission_slug, checkpoint.sha, checkpoint.ref
+        )
+    )
+    if not projected_paths:
+        return
+    if projected_content_matches_target(
+        main_repo=run.main_repo,
+        coord_ref=checkpoint.ref,
+        target_ref=run.lanes_manifest.target_branch,
+        projected_paths=projected_paths,
+    ):
+        return
+    # #5001 pre-merge FOLD-5 (asymmetry rationale): unlike the reconciliation-FAIL
+    # path, this does NOT roll the target back. A FAIL means the tree diverged from
+    # the approved-WP claim (the whole advance is untrustworthy → revert). Here the
+    # squash content itself DID land; only the projected bookkeeping diverged, so
+    # reverting the target would discard legitimately-landed approved code. The
+    # merge is resumable — ``--resume`` re-projects the bookkeeping — so we exit
+    # non-zero WITHOUT a rollback and retain everything for inspection. A
+    # squash-sound revert of only the bookkeeping projection is deferred (FU-4
+    # squash-content-soundness).
+    console.print(
+        "\n[red]Error:[/red] SQUASH reconciliation refused: projected coordination "
+        "bookkeeping content did not land on the target. Nothing was torn down; "
+        "re-run `spec-kitty merge --resume`."
+    )
+    raise typer.Exit(1)
 
 
 def _phase_dossier_and_stale(run: _MergeRunState) -> None:
@@ -1867,6 +2224,29 @@ def _flatten_coordination_metadata_after_branch_delete(run: _MergeRunState) -> N
         )
 
 
+def _stored_topology_for(feature_dir: Path) -> MissionTopology | None:
+    """Read the mission's STORED :class:`MissionTopology` for the churn classifier.
+
+    WP10 integration (C-3 / #4978): the merge dirty gate must thread the mission's
+    real topology into :func:`is_toolchain_generated_churn` so the coord-residue
+    leg is topology-aware — on a LANES / SINGLE_BRANCH mission a coord-partition
+    artifact (``issue-matrix.md``, the status log, ``acceptance-matrix.json``) is
+    NEVER residue and is never ``reset --hard``ed as such. Routes through the pure
+    :func:`~specify_cli.migration.backfill_topology.read_topology` reader (stored
+    value, else derived from ``coordination_branch`` + lanes presence — it never
+    persists). An unreadable/absent meta degrades to ``None``, which
+    :func:`is_toolchain_generated_churn` maps to its explicit, overridable
+    COORD-projecting backward-compatibility default (behaviour-preserving).
+    """
+    from specify_cli.migration.backfill_topology import read_topology
+
+    try:
+        topology: MissionTopology = read_topology(feature_dir)
+    except (FileNotFoundError, ValueError, MissionMetaReadError):
+        return None
+    return topology
+
+
 def _is_coord_topology_mission(run: _MergeRunState) -> bool:
     """Detect coord topology via the same signal the flatten helper uses (#3131).
 
@@ -1931,7 +2311,10 @@ def _teardown_coord_worktree(run: _MergeRunState) -> None:
     removal that safely no-ops for legacy missions that never created a
     coordination worktree (FR-017, empty ``mid8``).
     """
-    from specify_cli.coordination.teardown import teardown_coordination_topology
+    from specify_cli.coordination.teardown import (
+        ProjectionTeardownGate,
+        teardown_coordination_topology,
+    )
     from specify_cli.core.paths import load_meta_fail_closed as _load_meta
 
     # FR-007 route: ``route-unwrapped`` census site -- a corrupt meta.json
@@ -1943,10 +2326,47 @@ def _teardown_coord_worktree(run: _MergeRunState) -> None:
         if isinstance(_meta_for_teardown, dict)
         else ""
     )
+    # WP10 integration (S-B / FR-004 / T034): when the merge captured a
+    # coordination checkpoint AND ran the reconciliation gate, build the
+    # projection teardown gate so ``teardown_coordination_topology`` refuses
+    # fail-closed unless (a) the reconciliation reachability check passed AND
+    # (b) the coordination tip is unchanged since the projection captured its
+    # window (compare-and-swap). A non-coord/legacy mission (no checkpoint)
+    # keeps the ungated behaviour (``projection_gate=None``).
+    #
+    # The compare-and-swap protects a SEPARATE coordination branch from a
+    # concurrent commit landing between projection and teardown (#4981). When the
+    # coordination ref IS the target branch (a degenerate placement where the
+    # STATUS_STATE surface resolves to the target itself), the merge's OWN final
+    # bookkeeping commit legitimately advances that ref AFTER the projection
+    # capture, so a fixed-SHA CAS would false-abort (#2804 regression) — and there
+    # is no distinct coordination surface for it to protect anyway. In that case
+    # enforce ONLY the reachability leg (a stable ``expected_coord_sha`` equal to
+    # the ref's current tip makes the CAS a satisfied no-op) rather than skipping
+    # the gate entirely.
+    projection_gate: ProjectionTeardownGate | None = None
+    checkpoint = run.coord_checkpoint
+    if checkpoint is not None and run.reconciliation_result is not None:
+        coord_is_distinct = _resolve_ref_sha(run.main_repo, checkpoint.ref) != _resolve_ref_sha(
+            run.main_repo, run.lanes_manifest.target_branch
+        )
+        if coord_is_distinct:
+            expected_coord_sha = run.coord_tip_after_projection or checkpoint.sha
+        else:
+            # No separate coordination branch to CAS-protect; anchor on the ref's
+            # current tip so the compare-and-swap is a satisfied no-op and only the
+            # reachability leg gates teardown.
+            expected_coord_sha = _resolve_ref_sha(run.main_repo, checkpoint.ref) or checkpoint.sha
+        projection_gate = ProjectionTeardownGate(
+            coord_ref=checkpoint.ref,
+            expected_coord_sha=expected_coord_sha,
+            reachability_ok=run.reconciliation_result.is_pass,
+        )
     teardown_coordination_topology(
         run.main_repo,
         run.mission_slug,
         _mid8_for_teardown,
+        projection_gate=projection_gate,
     )
     logger.debug(
         "Coordination topology teardown for %s-%s completed",
@@ -2037,8 +2457,13 @@ def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
     # the guard's ``retain`` parameter here).
     if run.remove_worktree:
         delay = _worktree_removal_delay()
+        # WP10 integration (C-3 / #4978): thread the STORED topology so the
+        # coord-residue leg is topology-aware — a coord-partition-KIND artifact
+        # on a LANES / SINGLE_BRANCH mission is real work, never reset as residue.
         is_residue = functools.partial(
-            is_toolchain_generated_churn, mission_slug=run.mission_slug
+            is_toolchain_generated_churn,
+            mission_slug=run.mission_slug,
+            topology=_stored_topology_for(run.target_feature_dir),
         )
         for idx, lane in enumerate(lanes_manifest.lanes):
             wt_path = worktree_path(
@@ -2106,6 +2531,10 @@ def _phase_finalize_and_summary(run: _MergeRunState) -> None:
     """Cleanup workspace + clear state, render stale findings."""
     # -- T002: Cleanup workspace (preserves state.json) then clear state --
     cleanup_merge_workspace(run.canonical_id, run.main_repo)
+    # terminus-merge-integrity WP06 (FR-012): drop the post-fix marker before the
+    # state is cleared, so a subsequent, unrelated merge for the same mission
+    # never mistakes a leftover marker for its own in-flight transaction.
+    clear_post_fix_marker(run.main_repo, run.canonical_id)
     clear_state(run.main_repo, run.canonical_id)
 
     _render_stale_findings(run.stale_report)
@@ -2229,7 +2658,14 @@ def _pre_mutation_safety_preflight(
     """
     from specify_cli.lanes.branch_naming import worktree_path
 
-    is_residue = functools.partial(is_toolchain_generated_churn, mission_slug=mission_slug)
+    # WP10 integration (C-3 / #4978): thread the STORED topology so the pre-mutation
+    # dirty gate never resets a coord-partition-KIND artifact as residue on a
+    # LANES / SINGLE_BRANCH mission.
+    is_residue = functools.partial(
+        is_toolchain_generated_churn,
+        mission_slug=mission_slug,
+        topology=_stored_topology_for(primary_meta_dir),
+    )
 
     assert_checkout_on_target(main_repo, target_branch)
     assert_worktree_clean(
@@ -2341,6 +2777,17 @@ def _run_lane_based_merge_locked(
         skip_lanes=skip_lanes,
     )
 
+    # terminus-merge-integrity WP06 (C-1 wiring half / T029): reseed the manifest
+    # target from the PERSISTED MergeState target immediately after load, so the
+    # 28 ``lanes_manifest.target_branch`` read-sites consume the single persisted
+    # authority (never the meta-seeded copy) on both a fresh and a ``--resume``d
+    # merge. WP09 owns RESOLVING/PERSISTING ``state.target_branch`` (precedence
+    # explicit ``--target`` > persisted > meta); this WP only makes the executor
+    # CONSUME it — until WP09 lands, ``state.target_branch`` equals the value
+    # passed in above, so this reseed is an identity no-op (proven safe for
+    # NFR-004) that establishes the consumption seam. Flagged to WP09.
+    lanes_manifest.target_branch = state.target_branch
+
     run = _MergeRunState(
         main_repo=main_repo,
         mission_slug=mission_slug,
@@ -2400,6 +2847,12 @@ def _run_lane_based_merge_locked(
     # and :func:`_rollback_to_pre_mutation_checkpoint` still marks/heals via
     # the SEPARATE, proven coordination-reconcile primitive.
     _capture_pre_mutation_coord_checkpoint(run)
+    # terminus-merge-integrity WP06 (T027/T029): capture the fail-closed,
+    # Lamport-sourced reconciliation claim + the transaction-start target tip
+    # (CAS anchor / excluded-window base) NOW — before any mutation — and refuse
+    # a resumed pre-fix in-flight state (FR-012). The teardown gate compares the
+    # post-merge target against this pre-mutation claim.
+    _capture_reconciliation_claim(run)
     try:
         _phase_merge_lanes(run)
     except Exception as exc:
@@ -2413,6 +2866,11 @@ def _run_lane_based_merge_locked(
     _phase_record_done_and_project(run)
     _phase_porcelain_invariant(run)
     _phase_commit_and_assert(run)
+    # terminus-merge-integrity WP06 (S-D): the tree-authoritative reconciliation
+    # gate runs strictly BEFORE any teardown/push — on FAIL/REFUSE it refuses
+    # (non-zero) and mutates nothing (ordering guarantee: teardown executes only
+    # after verify == PASS).
+    _phase_reconcile_before_teardown(run)
     _phase_dossier_and_stale(run)
     _phase_push(run)
     _phase_cleanup_worktrees_and_branches(run)
@@ -2476,6 +2934,44 @@ def _synthesize_no_lane_manifest(
         lanes=[lane],
         computed_at=now_utc_iso(),
         computed_from="skip-lanes direct-on-target synthesis (T021, FR-012)",
+    )
+
+
+def _report_pre_mutation_refusal(
+    exc: DestructiveOpRefused, main_repo: Path, *, mission_branch: str
+) -> None:
+    """Print the pre-mutation refusal, upgrading a behind-own-HEAD remedy (WP05 / #4982/#4997).
+
+    WP10 integration: a dirty-PRIMARY refusal may actually be the checkout sitting
+    BEHIND ITS OWN HEAD — a prior terminus advanced the target ref but the
+    ``reset --hard`` that refreshes the checkout never ran, so the already-integrated
+    lane's files read as local changes. The generic "commit/stash/revert" remedy is
+    DANGEROUS there (recording them reverts the merge). Route a
+    ``MERGE_UNSAFE_PRIMARY_DIRTY`` refusal through
+    :func:`~specify_cli.merge.preflight.classify_resume_dirty_remedy` so a
+    behind-own-HEAD (or interrupted-``reset``) state gets the safe reset-to-HEAD
+    remedy instead. Advisory only — the refusal still aborts fail-closed BEFORE any
+    mutation (NFR-001); this only changes the printed guidance.
+    """
+    console.print(f"[red]Error:[/red] {exc}")
+    if getattr(exc, "error_code", None) == MERGE_UNSAFE_PRIMARY_DIRTY:
+        from specify_cli.merge.preflight import (
+            ResumeRemedyKind,
+            classify_resume_dirty_remedy,
+        )
+
+        remedy = classify_resume_dirty_remedy(main_repo, lane_branch=mission_branch)
+        if remedy.kind is not ResumeRemedyKind.LOCAL_CHANGES:
+            console.print(
+                "[yellow]Resume recovery guidance (behind-own-HEAD / interrupted "
+                "reset detected):[/yellow]"
+            )
+            for line in remedy.remediation:
+                console.print(f"  • {line}")
+            return
+    console.print(
+        "[yellow]Merge aborted before any state change.[/yellow] "
+        "Resolve the reported condition, then re-run [bold]spec-kitty merge[/bold]."
     )
 
 
@@ -2674,16 +3170,16 @@ def _run_lane_based_merge(
             teardown_coordination=retention.teardown_coordination,
         )
     except DestructiveOpRefused as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        console.print(
-            "[yellow]Merge aborted before any state change.[/yellow] "
-            "Resolve the reported condition, then re-run "
-            "[bold]spec-kitty merge[/bold]."
-        )
+        _report_pre_mutation_refusal(exc, main_repo, mission_branch=lanes_manifest.mission_branch)
         raise typer.Exit(1) from exc
 
     # -- Acquire global merge lock to serialize concurrent merges --
-    if not acquire_merge_lock(_GLOBAL_MERGE_LOCK_ID, main_repo):
+    # WP09 (C-2, FR-008, #4996): stamp the lock with this merge's owner_token =
+    # merge-state-id (``canonical_id``, stable across ``--resume``) so ``--abort``
+    # can prove ownership and never free a DIFFERENT mission's live lock. This is
+    # the single documented out-of-map (WP06-owned executor) edit sanctioned by
+    # the WP09 prompt — serial lane after WP06, no ``_MergeRunState`` collision.
+    if not acquire_merge_lock(_GLOBAL_MERGE_LOCK_ID, main_repo, owner_token=canonical_id):
         raise MergeLockError(
             _GLOBAL_MERGE_LOCK_ID,
             main_repo / KITTIFY_DIR / "runtime" / "merge" / _GLOBAL_MERGE_LOCK_ID / "lock",

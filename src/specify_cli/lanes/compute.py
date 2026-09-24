@@ -356,6 +356,80 @@ def _find_lane_dependency_cycle(
 
 
 # ---------------------------------------------------------------------------
+# Stable lane identity (C-4 / FR-010)
+# ---------------------------------------------------------------------------
+
+
+def _next_free_lane_id(used: set[str]) -> str:
+    """Return the lowest ``lane-<letter>`` positional id not already claimed.
+
+    With no read-back (``used`` filling in group order) this reproduces the
+    historical ``lane-a``, ``lane-b``, … minting byte-for-byte; when some ids
+    are already bound by read-back it skips them so a freshly minted lane never
+    collides with a bound one.
+    """
+    letter = ord("a")
+    while True:
+        candidate = f"lane-{chr(letter)}"
+        if candidate not in used:
+            return candidate
+        letter += 1
+
+
+def _assign_stable_lane_ids(
+    sorted_groups: list[list[str]],
+    previous_lanes: LanesManifest | None,
+) -> list[str]:
+    """Assign a ``lane_id`` per computed group, reading back bound ids (PP-F5).
+
+    Identity is bound to a lane's git branch at creation. On a re-finalize the
+    id is **read back** from ``previous_lanes`` — never re-minted positionally —
+    so removing a WP and re-finalizing cannot re-letter a surviving lane onto a
+    different WP's branch (#4945). A group inherits the previously persisted lane
+    whose WP membership it overlaps most (deterministic; ties broken by lane id);
+    each prior id is claimed at most once, so read-back never overwrites or
+    duplicates a bound id. Genuinely new lanes — and every lane on a first
+    finalize (``previous_lanes is None``) — mint the next free positional id.
+    """
+    existing: dict[str, set[str]] = {}
+    if previous_lanes is not None:
+        for lane in previous_lanes.lanes:
+            # The planning lane owns a fixed, non-positional id — never a
+            # candidate for a code lane's read-back.
+            if is_planning_lane(lane):
+                continue
+            existing[lane.lane_id] = set(lane.wp_ids)
+
+    assigned: dict[int, str] = {}
+    used: set[str] = set()
+
+    # Pass 1: read back a bound id for each group by best membership overlap.
+    for index, group in enumerate(sorted_groups):
+        group_set = set(group)
+        best_lane_id: str | None = None
+        best_overlap = 0
+        for lane_id, members in sorted(existing.items()):
+            if lane_id in used:
+                continue
+            overlap = len(group_set & members)
+            if overlap > best_overlap:
+                best_overlap = overlap
+                best_lane_id = lane_id
+        if best_lane_id is not None:
+            assigned[index] = best_lane_id
+            used.add(best_lane_id)
+
+    # Pass 2: mint the next free positional id for every unbound group.
+    for index in range(len(sorted_groups)):
+        if index not in assigned:
+            fresh = _next_free_lane_id(used)
+            assigned[index] = fresh
+            used.add(fresh)
+
+    return [assigned[index] for index in range(len(sorted_groups))]
+
+
+# ---------------------------------------------------------------------------
 # Main computation
 # ---------------------------------------------------------------------------
 
@@ -367,6 +441,7 @@ def compute_lanes(
     target_branch: str = "main",
     wp_bodies: dict[str, str] | None = None,
     mission_id: str | None = None,
+    previous_lanes: LanesManifest | None = None,
 ) -> LanesManifest:
     """Compute execution lanes from dependency graph and ownership manifests.
 
@@ -390,6 +465,13 @@ def compute_lanes(
         mission_slug: Mission identifier.
         target_branch: Branch the mission merges into.
         wp_bodies: Optional WP ID → body text for surface inference.
+        previous_lanes: The ``lanes.json`` manifest from a prior finalize, when
+            one exists. Lane identity is bound to its git branch at creation and
+            **read back** here on every subsequent finalize (C-4 / FR-010,
+            PP-F5) — a surviving lane keeps its ``lane_id`` across a WP-removal
+            re-finalize instead of being re-lettered positionally onto a
+            different WP's branch (#4945). ``None`` (a first finalize) mints
+            positional ids exactly as before.
 
     Returns:
         An acyclic LanesManifest ready for persistence.
@@ -512,13 +594,16 @@ def compute_lanes(
 
     # Order WPs within each lane by topological sort.
     lanes: list[ExecutionLane] = []
-    lane_letter = ord("a")
 
     # Sort groups deterministically by lowest WP ID in each group.
     sorted_groups = sorted(raw_groups.values(), key=lambda g: min(g))
 
+    # C-4 / FR-010 (PP-F5): bind each lane's id to its branch by reading back a
+    # previously minted id; only genuinely new lanes mint a fresh positional id.
+    lane_ids = _assign_stable_lane_ids(sorted_groups, previous_lanes)
+
     # Build a sub-graph for each group to topologically sort within it.
-    for group_wps in sorted_groups:
+    for group_index, group_wps in enumerate(sorted_groups):
         group_set = set(group_wps)
         sub_graph = {wp: [d for d in dependency_graph.get(wp, []) if d in group_set] for wp in group_wps}
         ordered_wps = topological_sort(sub_graph)
@@ -533,8 +618,7 @@ def compute_lanes(
             if wp_bodies:
                 lane_surfaces.update(infer_surfaces(wp_bodies.get(wp_id, "")))
 
-        lane_id = f"lane-{chr(lane_letter)}"
-        lane_letter += 1
+        lane_id = lane_ids[group_index]
 
         lanes.append(
             ExecutionLane(

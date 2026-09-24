@@ -311,6 +311,211 @@ def _has_branch_ref(repo_root: Path, ref_name: str) -> bool:
     return bool(retcode == 0)
 
 
+# ---------------------------------------------------------------------------
+# Reconciliation-gate probes (S-D / #5001) — reachability + patch-id equivalence.
+#
+# These are the ONLY git authority the Terminus Reconciliation Gate
+# (:mod:`specify_cli.merge.reconciliation`) consults: the tree at the target ref
+# cannot be faked by the bookkeeping that is itself wrong (D3). Every probe here
+# is bounded — a single ``merge-base --is-ancestor`` per commit, or a
+# ``rev-list``/``patch-id`` over the small ``base..tip`` post-merge window — so
+# the verifier is O(#approved-WP-commits), never O(repo history) (NFR-003).
+# ---------------------------------------------------------------------------
+
+
+class GitProbeError(RuntimeError):
+    """A window probe could NOT be evaluated because the underlying git command errored.
+
+    #5001 pre-merge FOLD-3: the window probes (:func:`commits_in_range`,
+    :func:`patch_ids_in_range`) must distinguish a *genuinely empty* range from a
+    *git error* (an unresolvable ref, a corrupt object store, a transient
+    failure). Collapsing an error to ``[]`` reads to the verifier as "no
+    excluded/unattributable content" and passes vacuously (fail-OPEN). Raising
+    this instead lets the caller REFUSE (fail-closed), matching the
+    :func:`sha_reachable_from` discipline where an error counts against the tree,
+    never for it.
+    """
+
+
+def sha_reachable_from(repo_root: Path, sha: str, ref: str) -> bool:
+    """Return True iff *sha* is an ancestor of (reachable from) *ref*.
+
+    Uses ``git merge-base --is-ancestor`` (exit 0 ⇒ reachable, exit 1 ⇒ not).
+    An empty *sha*, a git error, or an unknown ref is treated as NOT reachable
+    (fail-closed for the approved-reachability check: a commit we cannot prove
+    reachable is treated as missing, never as present).
+    """
+    if not sha:
+        return False
+    ret, _out, _err = run_command(
+        ["git", "merge-base", "--is-ancestor", sha, ref],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    return bool(ret == 0)
+
+
+def commits_in_range(repo_root: Path, base: str, tip: str) -> list[str]:
+    """Return the SHAs reachable from *tip* but not *base* (``git rev-list base..tip``).
+
+    The bounded window the reconciliation claim + excluded-check operate over.
+    A successful ``rev-list`` with no output is a *genuinely empty* range and
+    returns ``[]``. A git ERROR (an unresolvable ref, corrupt store, …) is NOT an
+    empty range — it means the window could not be evaluated — so it raises
+    :class:`GitProbeError` (fail-closed; #5001 FOLD-3). Callers that build the
+    claim translate that into a REFUSE-shaped claim; the verifier translates it
+    into a REFUSE result — never a vacuous PASS.
+    """
+    ret, out, err = run_command(
+        ["git", "rev-list", f"{base}..{tip}"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        raise GitProbeError(
+            f"git rev-list {base}..{tip} failed (exit {ret}): {(err or '').strip()}"
+        )
+    return [line for line in out.splitlines() if line.strip()]
+
+
+def patch_id_of(repo_root: Path, sha: str) -> str:
+    """Return the stable patch-id of *sha* — the identity of the CHANGE, not the commit.
+
+    Patch-id equivalence lets the excluded-commit check catch cherry-picked,
+    rebased, or re-lettered copies of canceled code: the same diff under a new
+    SHA maps to the same patch-id (#4945 / #4977 / contract postcondition 1).
+    Returns ``""`` when the commit has no diff (e.g. a merge commit) or git
+    fails — an empty patch-id is never matched, so a merge commit can never be
+    mistaken for excluded content.
+
+    ``git show <sha> | git patch-id --stable`` needs stdin piping, which
+    :func:`run_command` does not expose, so this uses ``subprocess`` directly
+    (mirrors :func:`_raw_porcelain_status`).
+    """
+    import subprocess as _subprocess
+
+    if not sha:
+        return ""
+    show = _subprocess.run(
+        ["git", "show", sha],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if show.returncode != 0:
+        return ""
+    pid = _subprocess.run(
+        ["git", "patch-id", "--stable"],
+        input=show.stdout,
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    fields = pid.stdout.split()
+    return fields[0] if fields else ""
+
+
+def patch_ids_in_range(repo_root: Path, base: str, tip: str) -> set[str]:
+    """Patch-ids of every non-empty-diff commit in ``base..tip`` (bounded window).
+
+    O(#commits in the window), never O(repo history) (NFR-003). Merge commits
+    (empty patch-id) are dropped so they never masquerade as excluded content.
+    Propagates :class:`GitProbeError` from :func:`commits_in_range` when the
+    window cannot be evaluated (fail-closed; #5001 FOLD-3) — never a silent empty
+    set on a git error.
+    """
+    ids: set[str] = set()
+    for sha in commits_in_range(repo_root, base, tip):
+        pid = patch_id_of(repo_root, sha)
+        if pid:
+            ids.add(pid)
+    return ids
+
+
+def first_parent_commits_in_range(repo_root: Path, base: str, tip: str) -> list[str]:
+    """Return the FIRST-PARENT SHAs reachable from *tip* but not *base*.
+
+    ``git rev-list --first-parent base..tip`` — the lane's OWN authorship spine.
+    A commit that a lane *merged in* from another branch (a second parent of a
+    merge commit) is NOT on the first-parent spine, so it is excluded. This is the
+    structural signal the closed-world excluded check (S-D / #4945/#4977/#4981)
+    relies on to distinguish a lane's genuinely-authored work from a removed WP's
+    commit smuggled into a carrier lane's history via a merge: the smuggled commit
+    rides a second-parent branch and is never counted as approved authorship.
+    Returns ``[]`` on any git error (fail-closed: no authorship claimed).
+    """
+    ret, out, _err = run_command(
+        ["git", "rev-list", "--first-parent", f"{base}..{tip}"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        return []
+    return [line for line in out.splitlines() if line.strip()]
+
+
+def changed_paths_of(repo_root: Path, sha: str) -> list[str]:
+    """Return the repo-relative paths a single (non-merge) commit changed.
+
+    ``git show --name-only --format= --no-renames <sha>`` — the files whose
+    content the commit authored. Used by the closed-world content check to decide
+    whether a window commit is real content (touches a path outside the mission's
+    bookkeeping surface) or pure spec-kitty housekeeping (status/meta/matrix/
+    retrospective projections). Returns ``[]`` on any git error or for a commit
+    with no file changes.
+    """
+    import subprocess as _subprocess
+
+    if not sha:
+        return []
+    result = _subprocess.run(
+        ["git", "show", "--name-only", "--format=", "--no-renames", sha],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return []
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def lane_integrated_by_tree_or_ancestry(
+    repo_root: Path, lane_branch: str, mission_branch: str
+) -> bool:
+    """Return True when ``lane_branch``'s payload has already landed on ``mission_branch``.
+
+    Upgrades the ancestry-only :func:`_lane_already_integrated` with the
+    content/identity axis the reconciliation gate needs (DEBRIEF #4982/#4997): a
+    squash merge does not preserve ancestry, so ``rev-list`` alone reports a
+    squashed-but-already-landed lane as un-integrated. This probe answers the
+    integration question on EITHER axis:
+
+    * ancestry — the lane carries no commits absent from the mission branch
+      (:func:`_lane_already_integrated`), OR
+    * tree equality — merging the lane into the mission branch would produce no
+      tree change (:func:`_branch_trees_equal`), i.e. the squash payload is
+      already present byte-for-byte.
+
+    Either being true means re-integrating the lane is a genuine no-op; both
+    being false means real, un-integrated lane work remains.
+    """
+    if _lane_already_integrated(repo_root, lane_branch, mission_branch):
+        return True
+    return _branch_trees_equal(repo_root, lane_branch, mission_branch)
+
+
 __all__ = [
     "_lane_already_integrated",
     "_branch_trees_equal",
@@ -323,4 +528,12 @@ __all__ = [
     "_paths_have_status_changes",
     "_is_git_repo",
     "_has_branch_ref",
+    "GitProbeError",
+    "sha_reachable_from",
+    "commits_in_range",
+    "patch_id_of",
+    "patch_ids_in_range",
+    "first_parent_commits_in_range",
+    "changed_paths_of",
+    "lane_integrated_by_tree_or_ancestry",
 ]

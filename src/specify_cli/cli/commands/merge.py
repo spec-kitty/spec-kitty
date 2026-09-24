@@ -228,8 +228,9 @@ from specify_cli.merge.state import (
     clear_state,
     has_active_merge,
     load_state,
+    release_merge_lock_if_owned,
 )
-from specify_cli.merge.workspace import get_merge_runtime_dir, get_merge_workspace_path
+from specify_cli.merge.workspace import get_merge_workspace_path
 from specify_cli.post_merge.retrospective_terminus import run_retrospective_postcondition
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
@@ -457,12 +458,19 @@ def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
         else:
             console.print("[yellow]No active merge state to abort.[/yellow]")
 
-    # T002: Remove the global merge lock file (idempotent — a crash between lock
-    # acquisition and release in _run_lane_based_merge leaves it behind).
-    _global_lock_path = get_merge_runtime_dir("__global_merge__", repo_root) / "lock"
-    with suppress(FileNotFoundError):
-        _global_lock_path.unlink()
+    # T002 / WP09 (C-2, FR-008, #4996 second half): release the shared
+    # ``__global_merge__`` lock ONLY when this abort provably owns it, or when
+    # its owner is a merge that is no longer live. The pre-WP09 code blindly
+    # unlinked the lock, so aborting mission A would free mission B's still-live
+    # merge lock. The owner_token is this abort's merge-state-id (the aborted
+    # mission's canonical id) — ``None`` when no state was resolved, in which
+    # case only a provably-dead lock is reclaimable, never a live one.
+    _abort_owner_token = state_entry[1].mission_id if state_entry is not None else None
+    _lock_outcome = release_merge_lock_if_owned("__global_merge__", repo_root, owner_token=_abort_owner_token)
+    if _lock_outcome in ("released_owned", "released_stale"):
         console.print("[green]Removed merge lock.[/green]")
+    elif _lock_outcome == "left_live":
+        console.print("[yellow]Left the merge lock in place[/yellow] — it is held by another mission's still-active merge (not this abort's to release).")
 
     # T003: Remove the legacy .kittify/merge-state.json (pre-mission-scoped releases).
     _legacy_state_path = repo_root / KITTIFY_DIR / "merge-state.json"

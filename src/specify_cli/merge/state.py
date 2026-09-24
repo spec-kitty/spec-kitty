@@ -32,6 +32,8 @@ __all__ = [
     "get_state_path",
     "acquire_merge_lock",
     "release_merge_lock",
+    "release_merge_lock_if_owned",
+    "read_merge_lock_owner",
     "is_merge_locked",
     "detect_git_merge_state",
     "abort_git_merge",
@@ -121,6 +123,17 @@ class MergeState:
     # exactly like ``mission_number_baked`` — back-compat for state files
     # written before this field existed (absent key -> default ``False``).
     skip_lanes: bool = False
+    # terminus-merge-integrity-01M380R6 #5001 pre-merge FOLD-4: the target ref's
+    # tip at TRANSACTION START (before any lane/mission->target advance) -- the
+    # excluded/closed-world reconciliation window base AND the rollback CAS anchor.
+    # Captured live ONCE on a fresh merge and persisted here, then re-read on
+    # ``--resume`` instead of recaptured: a post-fix resume runs AFTER attempt-1
+    # already advanced the target, so a live recapture would read the
+    # already-advanced tip -- collapsing the excluded window to empty (false PASS)
+    # and anchoring the rollback to the stale advanced tip. Round-trips through
+    # ``from_dict``'s known-fields filter like ``skip_lanes`` (absent key ->
+    # default ``None``).
+    pre_mutation_target_sha: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -367,15 +380,30 @@ def iter_pending_coord_reconcile_markers(repo_root: Path) -> Iterable[MergeState
 # Lock management
 # ---------------------------------------------------------------------------
 
-def acquire_merge_lock(mission_id: str, repo_root: Path) -> bool:
+def acquire_merge_lock(
+    mission_id: str, repo_root: Path, *, owner_token: str | None = None
+) -> bool:
     """Create a lock file to prevent concurrent merge operations.
 
     Uses an atomic exclusive-create (``open(path, 'x')``) to avoid the
     TOCTOU race that exists() + write_text() is vulnerable to.
 
+    terminus-merge-integrity-01M380R6 WP09 (C-2, FR-008, D7/PP-F2): the lock
+    body now records an ``owner_token`` — the acquiring merge's
+    ``merge-state-id`` (the canonical mission id), NOT a pid. A pid cannot
+    survive the crash the lock protects (``--resume`` runs in a brand-new
+    process), so pinning the token to the durable state-id is what lets
+    ``--abort`` prove ownership across a resume (see
+    :func:`release_merge_lock_if_owned`). The body is written as JSON; a legacy
+    (pre-WP09) lock is a bare timestamp and reads back with ``owner_token=None``
+    (:func:`read_merge_lock_owner`).
+
     Args:
-        mission_id: Mission/feature slug identifier
-        repo_root: Repository root path
+        mission_id: Lock key (mission id, or the shared ``__global_merge__`` key).
+        repo_root: Repository root path.
+        owner_token: The acquiring merge's ``merge-state-id``. ``None`` writes
+            an unowned lock (backward-compatible with callers that do not yet
+            thread an owner).
 
     Returns:
         True if the lock was acquired, False if already locked
@@ -390,14 +418,115 @@ def acquire_merge_lock(mission_id: str, repo_root: Path) -> bool:
     try:
         # Atomic exclusive create — fails immediately if lock already exists.
         with lock_path.open("x", encoding="utf-8") as fh:
-            fh.write(now_utc_iso())
+            json.dump({"owner_token": owner_token, "acquired_at": now_utc_iso()}, fh)
         return True
     except FileExistsError:
         return False
 
 
+def read_merge_lock_owner(mission_id: str, repo_root: Path) -> str | None:
+    """Return the ``owner_token`` recorded in a merge lock, or ``None``.
+
+    ``None`` is returned when the lock is absent, unreadable, or carries a
+    legacy (pre-WP09) bare-timestamp body with no ``owner_token`` — an unowned
+    lock whose ownership cannot be proven.
+    """
+    lock_path = get_merge_runtime_dir(mission_id, repo_root) / _LOCK_FILE
+    try:
+        raw = lock_path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    try:
+        body = json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+    if isinstance(body, dict):
+        token = body.get("owner_token")
+        if isinstance(token, str) and token:
+            return token
+    return None
+
+
+def _any_active_merge(repo_root: Path) -> bool:
+    """Return True if ANY mission has an active merge state (remaining WPs).
+
+    A non-raising scan across every mission runtime dir — unlike
+    ``has_active_merge(repo_root, None)``, which raises on multiple active
+    states. A sibling's corrupt state is skipped (never aborts the scan).
+    """
+    runtime_merge_dir = repo_root / ".kittify" / "runtime" / "merge"
+    if not runtime_merge_dir.exists():
+        return False
+    for candidate in sorted(runtime_merge_dir.iterdir()):
+        if not candidate.is_dir():
+            continue
+        try:
+            state = _load_state_file(candidate / _STATE_FILE)
+        except MergeStateReadError:
+            continue
+        if state is not None and len(state.remaining_wps) > 0:
+            return True
+    return False
+
+
+def _lock_owner_is_dead(repo_root: Path, recorded_owner: str | None) -> bool:
+    """Liveness check for a non-owned lock (C-2 dead-owner reclaim, D7).
+
+    A known owner is dead when that mission has no active merge state; an
+    unknown (legacy, no-owner) lock is only declared dead when NO merge is
+    active anywhere — so a legacy lock is never reclaimed out from under a
+    still-running merge.
+    """
+    if recorded_owner is None:
+        return not _any_active_merge(repo_root)
+    return not has_active_merge(repo_root, recorded_owner)
+
+
+def release_merge_lock_if_owned(
+    mission_id: str, repo_root: Path, *, owner_token: str | None
+) -> str:
+    """Release a merge lock ONLY when the aborting invocation may safely do so.
+
+    terminus-merge-integrity-01M380R6 WP09 (C-2, FR-008, #4996 second half):
+    the pre-WP09 ``--abort`` blindly unlinked the shared ``__global_merge__``
+    lock, freeing whatever merge held it — including a *different* mission's
+    still-live merge. This gates the release on ownership + liveness:
+
+    * ``released_owned`` — the lock's ``owner_token`` matches the aborting
+      invocation's ``merge-state-id``; it is our own lock → unlinked.
+    * ``released_stale`` — a different (or unknown) owner whose merge is no
+      longer active → reclaimed via the explicit liveness check.
+    * ``left_live`` — a different owner whose merge is still active → left
+      untouched (never free a live merge).
+    * ``absent`` — no lock file.
+
+    Args:
+        mission_id: Lock key (e.g. the shared ``__global_merge__`` key).
+        repo_root: Repository root path.
+        owner_token: The aborting invocation's ``merge-state-id`` (``None`` when
+            the abort resolved no state of its own — it can then only reclaim a
+            provably-dead lock, never a live one).
+    """
+    lock_path = get_merge_runtime_dir(mission_id, repo_root) / _LOCK_FILE
+    if not lock_path.exists():
+        return "absent"
+    recorded_owner = read_merge_lock_owner(mission_id, repo_root)
+    if recorded_owner is not None and owner_token is not None and recorded_owner == owner_token:
+        lock_path.unlink()
+        return "released_owned"
+    if _lock_owner_is_dead(repo_root, recorded_owner):
+        lock_path.unlink()
+        return "released_stale"
+    return "left_live"
+
+
 def release_merge_lock(mission_id: str, repo_root: Path) -> None:
     """Remove the merge lock file.
+
+    Unconditional unlink — used by the merge executor to release the lock it
+    itself just acquired and still holds (the happy-path ``finally``). The
+    owner-gated :func:`release_merge_lock_if_owned` is what the ``--abort`` path
+    must use, since it may run against a lock a *different* live merge owns.
 
     Args:
         mission_id: Mission/feature slug identifier

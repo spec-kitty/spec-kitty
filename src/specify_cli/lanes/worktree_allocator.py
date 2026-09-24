@@ -403,6 +403,34 @@ def resolve_lane_base_or_refuse(
     )
 
 
+def _fresh_lane_parent_ref(
+    repo_root: Path,
+    branch: str,
+    base: str | None,
+    decision_parent_ref: str,
+) -> str:
+    """Return the ref a FRESH lane branches from, preferring ``origin/<branch>`` (#4969).
+
+    WP10 integration (C-4 / #4969): when the operator supplied no explicit
+    ``--base``, an approved lane that exists only as ``refs/remotes/origin/<branch>``
+    (pushed by a teammate, dropped locally) must root the fresh cut instead of the
+    topology-derived parent — otherwise the fresh cut from the local mission/coord
+    branch SHADOWS the pushed work. Delegates the origin-ref probe to
+    :func:`~specify_cli.workspace.context.resolve_lane_base_ref` so this site and
+    ``implement._validate_base_ref`` (WP03) agree on what "the origin lane exists"
+    means; the resolver falls back to ``decision_parent_ref`` when no origin ref
+    exists (offline / never pushed) — byte-identical to the prior local cut. An
+    explicit ``base`` already fully replaced the parent (D1) and is never
+    origin-overridden.
+    """
+    if base is not None:
+        return decision_parent_ref
+    from specify_cli.workspace.context import resolve_lane_base_ref
+
+    resolved: str = resolve_lane_base_ref(repo_root, branch, fallback_base=decision_parent_ref)
+    return resolved
+
+
 def allocate_lane_worktree(
     repo_root: Path,
     mission_slug: str,
@@ -585,7 +613,7 @@ def allocate_lane_worktree(
             repo_root,
             worktree_path,
             branch,
-            decision.parent_ref,
+            _fresh_lane_parent_ref(repo_root, branch, base, decision.parent_ref),
         )
         # Register the sparse-checkout policy so the lane filesystem does
         # NOT contain status.events.jsonl / status.json. Only meaningful
@@ -617,7 +645,7 @@ def allocate_lane_worktree(
             repo_root,
             worktree_path,
             branch,
-            decision.parent_ref,
+            _fresh_lane_parent_ref(repo_root, branch, base, decision.parent_ref),
         )
 
     # FR-009 (#2993) / ADR 2026-07-29-1: merge the recorded finalize-tasks
