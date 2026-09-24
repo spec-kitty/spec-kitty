@@ -248,6 +248,33 @@ def test_finalize_refresh_reports_owned_checkout_commit_success(checkouts):
     assert git(primary, "rev-parse", "HEAD") != commit_sha
     assert git(owned, "status", "--porcelain=v1", "--untracked-files=all") == ""
     assert (snapshot(primary), snapshot(sibling)) == before_other_checkouts
+def test_finalized_owned_tasks_resolve_for_next_implementation(checkouts):
+    from runtime.next.decision import _state_to_action
+
+    primary, owned, sibling = checkouts
+    before = snapshot(primary), snapshot(sibling)
+    result = invoke("finalize-tasks", owned)
+    assert result.exit_code == 0, result.output
+    action, wp_id, workspace = _state_to_action(
+        "implement", SLUG, owned / "kitty-specs" / SLUG, primary,
+        "software-dev", effective_root=owned,
+    )
+    assert (action, wp_id) == ("implement", "WP01")
+    assert workspace is not None
+    assert (snapshot(primary), snapshot(sibling)) == before
+
+
+def test_wp_cache_is_scoped_to_selected_checkout(checkouts):
+    from specify_cli.workspace.context import get_normalized_wp
+
+    primary, owned, _sibling = checkouts
+    source = owned / "kitty-specs" / SLUG
+    shutil.copytree(source, primary / "kitty-specs" / SLUG)
+    wp = primary / "kitty-specs" / SLUG / "tasks/WP01-test.md"
+    wp.write_text(wp.read_text().replace("title: Local task", "title: Primary task"))
+    assert get_normalized_wp(primary, SLUG, "WP01").metadata.title == "Primary task"
+    assert get_normalized_wp(primary, SLUG, "WP01", effective_root=owned).metadata.title == "Local task"
+    assert get_normalized_wp(primary, SLUG, "WP01").metadata.title == "Primary task"
 
 
 COMMANDS = ["check-prerequisites", "finalize-tasks", "spec-commit", "accept"]
