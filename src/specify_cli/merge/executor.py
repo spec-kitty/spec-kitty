@@ -145,6 +145,7 @@ from specify_cli.merge.state import (
     acquire_merge_lock,
     clear_state,
     get_state_path,
+    lane_tip_cas_ok,
     release_merge_lock,
     save_state,
 )
@@ -1850,6 +1851,150 @@ def _resolve_pre_mutation_target_sha(
     return resolved
 
 
+def _persist_executed_strategy(
+    state: MergeState,
+    strategy: MergeStrategy,
+    *,
+    is_resume: bool,
+    main_repo: Path,
+) -> None:
+    """Persist the strategy attempt-1 ACTUALLY executes into ``MergeState`` (FR-003).
+
+    terminus-integrity-followups WP05 (T020, F14; #4982/#4985/#4991). A fresh state
+    is created with the inert ``MergeState.strategy`` dataclass default (``"merge"``)
+    regardless of the operator's choice, so a ``--resume`` that reads it back would
+    silently upgrade a squash operator to merge. The CLI resolves the effective
+    strategy (explicit ``--strategy`` > persisted > config > SQUASH; an explicit flip
+    on resume is refused — WP04) and hands the executor the resolved enum; this stamps
+    that resolved value so the persisted record is truthful. Mirrors the C-1 target
+    reseed neighbourhood. **Fresh-only:** a resume's persisted value already IS the
+    executed strategy (WP04's CLI precedence sourced it), so re-stamping would be a
+    no-op that could only ever overwrite the authority with a re-derived proxy — the
+    persisted authority is never touched on resume (same rule as ``skip_lanes``)."""
+    if is_resume:
+        return
+    state.strategy = strategy.value
+    save_state(state, main_repo)
+
+
+def _capture_pre_interrupt_lane_tips(run: _MergeRunState) -> dict[str, str]:
+    """Resolve each lane BRANCH's current tip SHA at pre-mutation capture (FR-004).
+
+    terminus-integrity-followups WP05 (T021, b2). Keyed by the lane branch name the
+    reconciliation claim resolves (:func:`lane_branch_name`, mid8 form), so a resume
+    CAS-checks the SAME ref via :func:`lane_tip_cas_ok` (``refs/heads/<key>``). The
+    canonical ``lane-planning`` lane resolves to the target branch (not a
+    ``kitty/mission-…`` branch) and is skipped — its "tip" is the moving target ref,
+    never a pre-interrupt identity to preserve. A branch that does not resolve (a
+    fully-canceled lane has none) contributes no entry (tolerant, like the claim
+    builder). Captured ONCE before ``_phase_merge_lanes`` mutates anything."""
+    from specify_cli.lanes.branch_naming import lane_branch_name
+
+    tips: dict[str, str] = {}
+    for lane in run.lanes_manifest.lanes:
+        if lane.lane_id == "lane-planning":
+            continue
+        branch = lane_branch_name(
+            run.lanes_manifest.mission_slug,
+            lane.lane_id,
+            planning_base_branch=run.lanes_manifest.target_branch,
+            mission_id=run.lanes_manifest.mission_id,
+        )
+        ret, sha, _err = run_command(
+            ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}^{{commit}}"],
+            capture=True,
+            check_return=False,
+            cwd=run.main_repo,
+        )
+        resolved = sha.strip() if ret == 0 and sha.strip() else None
+        if resolved is not None:
+            tips[branch] = resolved
+    return tips
+
+
+def _resolve_pre_mutation_coord_sha(state: MergeState, run: _MergeRunState) -> str | None:
+    """Resolve the TRANSACTION-START coord tip, persisting it (+ lane tips) once.
+
+    terminus-integrity-followups WP05 (T021, FR-004; F3/F9). The coord-window twin of
+    :func:`_resolve_pre_mutation_target_sha` — read-persisted-first, byte-for-byte
+    shape: if a value is already persisted, return it (a ``--resume`` MUST anchor the
+    reconciliation claim to the TRUE pre-mutation base, never the live checkpoint,
+    which already contains attempt-1's partial consolidation and would collapse the
+    approved-WP claim to empty — the #4982 vacuous-claim false PASS). Otherwise capture
+    the coord checkpoint ONCE (a fresh merge, before any mutation), persist it together
+    with the per-lane pre-interrupt tips, and return it. ``None`` when the coord tip
+    cannot be resolved (a non-coord / legacy mission — nothing is persisted, and the
+    claim falls back to the mission-branch ref). NEVER overwrites a persisted value on
+    a later resume (re-poison)."""
+    persisted: str | None = state.pre_mutation_coord_sha
+    if persisted:
+        return persisted
+    checkpoint = _capture_coord_checkpoint(run)
+    if checkpoint is None:
+        return None
+    state.pre_mutation_coord_sha = checkpoint.sha
+    state.pre_mutation_coord_ref = checkpoint.ref
+    if not state.pre_interrupt_lane_tips:
+        state.pre_interrupt_lane_tips = _capture_pre_interrupt_lane_tips(run)
+    save_state(state, run.main_repo)
+    return checkpoint.sha
+
+
+def _enforce_resume_anchor_integrity(run: _MergeRunState, *, coord_topology: bool) -> None:
+    """Fail-closed resume guard for the persisted coord/lane-tip anchors (FR-004/005).
+
+    terminus-integrity-followups WP05 (T022, H3/H4). Runs only on a ``--resume``;
+    a fresh merge has nothing persisted yet (the anchors are captured moments later).
+
+    * **H4** — a coord-topology resume *that requires the persisted base* REFUSEs on
+      its absence rather than silently collapsing to the live (already-advanced)
+      checkpoint (the exact vacuous-claim false PASS this mission closes). "Requires
+      it" == attempt-1 durably consolidated at least one lane (``completed_wps``
+      non-empty), so the live checkpoint is poisoned by that consolidation and the
+      claim MUST anchor to the persisted pre-mutation base. When attempt-1 recorded no
+      consolidation, the live checkpoint is still the pristine pre-mutation tip, so the
+      resolver may safely capture+persist it — refusing there would break a merge that
+      was interrupted before any mutation (regression). In post-fix code the base is
+      ALWAYS persisted before any consolidation (persist-before-mutate, see
+      :func:`_resolve_pre_mutation_coord_sha` called from :func:`_capture_reconciliation_claim`
+      before :func:`_phase_merge_lanes`), so a consolidated-but-baseless state is an
+      inconsistency (corruption / pre-fix residue) and refusing it is correct.
+    * **H3** — each persisted pre-interrupt lane tip must satisfy the CAS expectation
+      (:func:`lane_tip_cas_ok`: equal / descendant / behind-HEAD ancestor OK; true
+      divergence REFUSEs), so a legitimately-advanced lane is never silently dropped
+      and a superseded tip is never resurrected. The behind-HEAD #4982 window is
+      explicitly NOT a refusal."""
+    if not run.is_resume:
+        return
+    state = run.state
+    manifest_lists_wps = any(lane.wp_ids for lane in run.lanes_manifest.lanes)
+    attempt_one_consolidated = bool(state.completed_wps)
+    if (
+        coord_topology
+        and manifest_lists_wps
+        and attempt_one_consolidated
+        and not state.pre_mutation_coord_sha
+    ):
+        console.print(
+            "\n[red]Error:[/red] cannot resume this merge: a prior attempt already "
+            "consolidated work but the pre-mutation coordination base was not "
+            "persisted, so the reconciliation claim cannot be anchored to the true "
+            "pre-interrupt tip. Run `spec-kitty merge --abort` and start the merge "
+            "fresh."
+        )
+        raise typer.Exit(1)
+    for branch, persisted_sha in state.pre_interrupt_lane_tips.items():
+        if not lane_tip_cas_ok(run.main_repo, branch, persisted_sha):
+            console.print(
+                "\n[red]Error:[/red] cannot resume this merge: lane branch "
+                f"{branch!r} diverged from its persisted pre-interrupt tip "
+                f"{persisted_sha[:10]} (neither equal, ancestor, nor descendant). "
+                "Resuming would drop or resurrect work. Run `spec-kitty merge --abort` "
+                "and start the merge fresh."
+            )
+            raise typer.Exit(1)
+
+
 def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     """Capture the fail-closed, Lamport-sourced claim ONCE at transaction start.
 
@@ -1870,8 +2015,22 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
 
     checkpoint = _capture_coord_checkpoint(run)
     run.coord_checkpoint = checkpoint
+
+    # terminus-integrity-followups WP05 (T021/T022, FR-004/005; F3/F9/H3/H4): the
+    # reconciliation CLAIM's coord base MUST be the PERSISTED pre-mutation coord tip,
+    # not the live checkpoint (which on a resume already contains attempt-1's partial
+    # consolidation and would collapse the approved-WP claim to empty — the #4982
+    # vacuous-claim false PASS). ``run.coord_checkpoint`` above stays the LIVE tip: it
+    # anchors the projection + teardown CAS (a separate, unchanged concern). Validate
+    # the persisted anchors fail-closed on resume BEFORE resolving the base, so an
+    # absent base (H4) or a truly-divergent lane tip (H3) refuses rather than the
+    # resolver falling back to a live capture.
+    _enforce_resume_anchor_integrity(run, coord_topology=checkpoint is not None)
+    coord_base_sha = _resolve_pre_mutation_coord_sha(run.state, run)
     coord_base = (
-        checkpoint.sha if checkpoint is not None else run.lanes_manifest.mission_branch
+        coord_base_sha
+        if coord_base_sha is not None
+        else (checkpoint.sha if checkpoint is not None else run.lanes_manifest.mission_branch)
     )
 
     run.target_expected_old_sha = _resolve_pre_mutation_target_sha(
@@ -1915,9 +2074,11 @@ def _reconciliation_claim_for_gate(run: _MergeRunState) -> ApprovedWpCommitSet:
     returns False on a genuine squash merge because of that bookkeeping). Proving
     approved content landed under squash therefore requires the projection seam
     WP07/WP08 own. For squash we hand the verifier a claim with
-    ``verify_reachability=False`` so it enforces ONLY fail-closed claim integrity
-    (surface + refusal) and DEFERS the content checks to those WPs — never
-    false-failing a legitimate squash merge (NFR-004). Merge/rebase use the
+    ``verify_reachability=False`` so it still runs the squash-sound blob-attribution
+    content axis (#5013) plus fail-closed claim integrity (surface + refusal),
+    deferring only the per-SHA approved-reachability check — never false-failing a
+    legitimate squash merge (NFR-004). The ``replace`` preserves ``enforce_closed_world``
+    and ``authored_blobs`` so the content axis is reachable. Merge/rebase use the
     captured per-SHA claim verbatim (the Tier-0 clean-merge strategy).
     """
     captured = run.approved_wp_set
@@ -1981,20 +2142,22 @@ def _phase_reconcile_before_teardown(run: _MergeRunState) -> None:
 def _reconciliation_pass_message(strategy: MergeStrategy) -> str:
     """Operator-facing reconciliation PASS line, honest per strategy.
 
-    #5001 pre-merge FOLD-2. Under SQUASH the gate verified ONLY approved-WP claim
-    integrity — content reachability (approved-SHA ancestry + excluded/closed-
-    world) runs with ``verify_reachability=False`` and is deferred to the
-    projection seam (see :func:`_reconciliation_claim_for_gate`). The message must
-    therefore NOT claim "no excluded commit reachable" (which was never checked
-    under squash — the pre-fix line did, fabricating success). Merge/rebase ran the
-    full per-SHA reachability + excluded/closed-world checks and keep the full-
+    #5001 pre-merge FOLD-2 + #5013. Under SQUASH the gate verifies approved-WP claim
+    integrity AND the squash-sound blob-attribution content axis (#5013 — no
+    un-attributable content on the target); only the per-SHA approved-reachability
+    check (structurally unsatisfiable once squash mints new SHAs) is deferred. The
+    message must NOT claim "no excluded commit reachable" (a per-SHA phrasing never
+    computed under squash — the pre-fix line did, fabricating success), but it no
+    longer under-claims: content attribution WAS verified. Merge/rebase ran the full
+    per-SHA reachability + excluded/closed-world checks and keep the full-
     verification line.
     """
     if strategy is MergeStrategy.SQUASH:
         return (
             "  [green]✓[/green] Reconciliation verified: approved-WP claim "
-            "integrity verified; content reachability deferred under squash "
-            "strategy (see #5001 follow-up)."
+            "integrity and squash content attribution verified (no un-attributable "
+            "content on the target); per-SHA approved-reachability deferred under "
+            "squash strategy."
         )
     return (
         "  [green]✓[/green] Reconciliation verified: approved-WP commit "
@@ -2803,6 +2966,14 @@ def _run_lane_based_merge_locked(
     # passed in above, so this reseed is an identity no-op (proven safe for
     # NFR-004) that establishes the consumption seam. Flagged to WP09.
     lanes_manifest.target_branch = state.target_branch
+
+    # terminus-integrity-followups WP05 (T020, FR-003, F14): mirror the C-1 target
+    # reseed above for strategy — persist the strategy attempt-1 ACTUALLY executes
+    # (the CLI-resolved value threaded in here) so a ``--resume`` reads a truthful
+    # authority instead of the inert ``MergeState.strategy`` default. Fresh-only; a
+    # resume's persisted value already sourced this run's strategy (WP04 CLI
+    # precedence) and must never be re-stamped.
+    _persist_executed_strategy(state, strategy, is_resume=is_resume, main_repo=main_repo)
 
     run = _MergeRunState(
         main_repo=main_repo,

@@ -53,9 +53,7 @@ class MergeAmbiguousStateError(Exception):
     def __init__(self, mission_ids: list[str]) -> None:
         self.mission_ids = mission_ids
         ids_formatted = "\n  ".join(mission_ids)
-        super().__init__(
-            f"Multiple active merge states found — pass --mission to disambiguate:\n  {ids_formatted}"
-        )
+        super().__init__(f"Multiple active merge states found — pass --mission to disambiguate:\n  {ids_formatted}")
 
 
 class MergeStateReadError(GuardedReadError, RuntimeError):
@@ -134,6 +132,26 @@ class MergeState:
     # ``from_dict``'s known-fields filter like ``skip_lanes`` (absent key ->
     # default ``None``).
     pre_mutation_target_sha: str | None = None
+    # terminus-integrity-followups-01M393QR WP04 (WS2, FR-004, INV-2): the
+    # coordination ref tip captured ONCE before the first mutation of the
+    # interrupted run -- the coord-window twin of ``pre_mutation_target_sha``.
+    # Read-persisted-first on resume (WP05 executor reseed): a resume derives
+    # the reconciliation claim's ``coord_base`` from THIS value, never a live
+    # ``_capture_coord_checkpoint`` (which already contains attempt-1's partial
+    # consolidation and would collapse the approved-WP claim to empty -- a false
+    # PASS). Round-trips through ``from_dict``'s known-fields filter like
+    # ``pre_mutation_target_sha`` (absent key -> default ``None``); an absent
+    # value on a resume that requires it ⇒ the executor REFUSEs (H4).
+    pre_mutation_coord_sha: str | None = None
+    pre_mutation_coord_ref: str | None = None
+    # Per-lane branch tip (lane_id -> tip SHA) captured ONCE before the
+    # interrupted run's consolidation. On resume each persisted tip is a CAS
+    # expectation compared as a git OBJECT (see :func:`lane_tip_cas_ok`): the
+    # live state must be the persisted commit, a descendant, or a strict
+    # ancestor (behind-HEAD -- the #4982 window, which MUST NOT refuse); the
+    # lane branch ref may be gone (already consolidated). Defaults to an empty
+    # dict so a legacy state loads cleanly.
+    pre_interrupt_lane_tips: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -380,9 +398,8 @@ def iter_pending_coord_reconcile_markers(repo_root: Path) -> Iterable[MergeState
 # Lock management
 # ---------------------------------------------------------------------------
 
-def acquire_merge_lock(
-    mission_id: str, repo_root: Path, *, owner_token: str | None = None
-) -> bool:
+
+def acquire_merge_lock(mission_id: str, repo_root: Path, *, owner_token: str | None = None) -> bool:
     """Create a lock file to prevent concurrent merge operations.
 
     Uses an atomic exclusive-create (``open(path, 'x')``) to avoid the
@@ -482,9 +499,7 @@ def _lock_owner_is_dead(repo_root: Path, recorded_owner: str | None) -> bool:
     return not has_active_merge(repo_root, recorded_owner)
 
 
-def release_merge_lock_if_owned(
-    mission_id: str, repo_root: Path, *, owner_token: str | None
-) -> str:
+def release_merge_lock_if_owned(mission_id: str, repo_root: Path, *, owner_token: str | None) -> str:
     """Release a merge lock ONLY when the aborting invocation may safely do so.
 
     terminus-merge-integrity-01M380R6 WP09 (C-2, FR-008, #4996 second half):
@@ -551,6 +566,7 @@ def is_merge_locked(mission_id: str, repo_root: Path) -> bool:
 # ---------------------------------------------------------------------------
 # Git merge state helpers (unchanged from original)
 # ---------------------------------------------------------------------------
+
 
 def needs_number_assignment(feature_dir: Path) -> bool:
     """Return True if the mission's ``meta.json`` lacks an integer ``mission_number``.
@@ -624,3 +640,94 @@ def abort_git_merge(repo_root: Path) -> bool:
         check=False,
     )
     return True
+
+
+# ---------------------------------------------------------------------------
+# Lane-tip compare-and-swap (WP04 — WS2 resume fidelity, FR-004)
+# ---------------------------------------------------------------------------
+
+
+def _commit_object_exists(repo: Path, sha: str) -> bool:
+    """Return True if *sha* resolves to a commit object in *repo*.
+
+    Resolves the persisted SHA as a git OBJECT, never a branch ref — a
+    already-consolidated lane's branch may be gone while its commit still lives
+    in history.
+    """
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"],
+        cwd=str(repo),
+        capture_output=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _resolve_branch_tip(repo: Path, lane_id: str) -> str | None:
+    """Return the commit SHA at ``refs/heads/<lane_id>`` or ``None`` if absent."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{lane_id}^{{commit}}"],
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def _is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
+    """Return True if *ancestor* is an ancestor of (or equal to) *descendant*."""
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+        cwd=str(repo),
+        capture_output=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def lane_tip_cas_ok(repo: Path, lane_id: str, persisted_sha: str) -> bool:
+    """Compare-and-swap check for a persisted pre-interrupt lane tip.
+
+    terminus-integrity-followups-01M393QR WP04 (WS2, FR-004, INV-2, D/F8): a
+    resumed merge judges reachability against the pre-interrupt lane tip
+    persisted in :attr:`MergeState.pre_interrupt_lane_tips`, NOT the live
+    resume-start delta. The persisted SHA is treated as a CAS expectation
+    compared **as a git object**:
+
+    * live tip **equal** to the persisted commit ⇒ OK;
+    * live tip a **descendant** (the branch advanced past the persisted tip) ⇒ OK;
+    * live tip a **strict ancestor** (behind-HEAD — the interrupted advance left
+      the ref behind its own HEAD; the exact #4982 window) ⇒ **OK, never
+      refused**;
+    * the lane **branch ref is gone** (already consolidated) but the persisted
+      commit still resolves as an object ⇒ OK (branch-ref existence is never
+      required — reachability is checked against the object DB);
+    * **true divergence** (the persisted commit is neither an ancestor of, equal
+      to, nor a descendant of the live tip) ⇒ REFUSE.
+
+    An empty or unresolvable *persisted_sha* is a required base that is absent or
+    corrupt ⇒ REFUSE (fail-closed; the caller's H4 guard). This function never
+    mutates any ref — it is a pure predicate.
+
+    Args:
+        repo: Repository (or worktree) root to probe.
+        lane_id: Lane branch short name (``refs/heads/<lane_id>``).
+        persisted_sha: The pre-interrupt tip SHA captured for this lane.
+
+    Returns:
+        ``True`` when the live state satisfies the CAS expectation; ``False`` on
+        true divergence or an absent/unresolvable persisted base.
+    """
+    if not persisted_sha or not _commit_object_exists(repo, persisted_sha):
+        return False
+    live_tip = _resolve_branch_tip(repo, lane_id)
+    if live_tip is None:
+        # Branch already consolidated away; the persisted commit still resolves
+        # as an object (checked above), so the pre-interrupt tip is preserved.
+        return True
+    # Accept equal, descendant, OR strict ancestor (behind-HEAD). REFUSE only
+    # true divergence (neither commit reachable from the other).
+    return _is_ancestor(repo, persisted_sha, live_tip) or _is_ancestor(repo, live_tip, persisted_sha)
