@@ -26,6 +26,8 @@ related:
 
 The status model uses a single canonical append-only event log per mission as the sole authority for work package status. Every lane transition is an immutable `StatusEvent` in `status.events.jsonl`. A deterministic reducer produces `status.json` snapshots.
 
+> **Reducer determinism is Lamport-primary; a wall-clock LWW sibling still ships (`#4990` named-open).** "Deterministic reducer" refers to the **Lamport** reduction wrapper (`status.reducer.materialize` / `reduce_shared_state`) that honors ADR [`2026-02-09-3`](../adr/2.x/2026-02-09-3-event-log-merge-semantics.md) — causal ordering, reviewer-rollback precedence. A **second** reducer also ships, the wall-clock last-writer-wins `reduce_parsed` (`spec_kitty_events.diary`, sorts `(at, event_id)`), which does **not** honor that ADR. The merge/terminus reconciliation gate deliberately sources its WP-membership claim through the Lamport wrapper so its own verdict is causally sound. The general LWW split-brain in `reduce_parsed` is a **separate, open** sibling mission, **#4990** (a `spec_kitty_events`-side fix), and is **not** resolved by the *terminus-merge-integrity* mission. Read "deterministic reducer" as Lamport-primary, not as a claim that a single reducer ships or that #4990 is closed.
+
 **Key principles (3.0)**:
 - `status.events.jsonl` is the **sole source of truth** for WP lane state
 - `status.json` is a **derived** materialized snapshot (regenerable)

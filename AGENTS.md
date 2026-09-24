@@ -424,11 +424,15 @@ spec-kitty merge --feature 017-my-feature
 
 **Implementation files:** `merge/state.py`, `merge/preflight.py`, `merge/executor.py`, `merge/forecast.py`, `merge/resolve.py`, `merge/retention.py`, `merge/bookkeeping_projection.py`, `cli/commands/merge.py`, `core/paths.py` (`resolve_merge_retention`, `read_retention_from_meta`), `core/mission_creation.py` (create-time mint)
 
+**Forward ref advance is compare-and-swap (terminus-merge-integrity / #4996).** The forward merge advance `advance_branch_ref` (`git/ref_advance.py`) now performs a 3-arg `git update-ref <ref> <new_sha> <expected_old_sha>` and **fails closed** (raises) when the ref moved since it was read — it never falls back to a 2-arg write and never silently retries. This matches the compare-and-swap discipline `restore_branch_ref` (rollback) always had; the two are no longer opposite (the pre-fix `advance_branch_ref` was a non-CAS 2-arg write, the #4996 smoking gun). The coord teardown additionally re-checks the coordination tip via a compare-and-swap gate (`coordination/teardown.py::ProjectionTeardownGate`) before destroying the coordination triple, so a commit that landed after the projection window is never silently torn down.
+
 ---
 
 ## Status Model Patterns (034+, 060 cleanup)
 
 Append-only event log (`status.events.jsonl`) is the **sole authority** for WP lane state. Frontmatter `lane` is retired (migration-only). Phase 2 is the only active model as of 3.0.
+
+> **Reducer duality — two reducers ship (`#4990` named-open).** "Deterministic event → snapshot" holds ONLY for the **Lamport** reduction wrapper (`status.reducer.materialize` / `reduce_shared_state`, `status/reducer.py:371`), which honors ADR [`2026-02-09-3`](docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md) (Lamport-primary, causal ordering). A **second** reducer also ships — the wall-clock LWW `reduce_parsed` (`spec_kitty_events.diary`, sorts `(at, event_id)`) — and the merge/terminus reconciliation gate deliberately sources its own approved/canceled WP-membership claim through the **Lamport** wrapper (`merge/reconciliation.py::build_approved_wp_set`) so a wall-clock-later approval cannot green-wash a committed rejection *in the gate's claim*. The general LWW split-brain (a later wall-clock event overriding a causally-earlier one in `reduce_parsed`) is **not** fixed by the terminus-merge-integrity mission — it is tracked as the open sibling **#4990** (a `spec_kitty_events` change, out of scope / C-002). Do not read "sole authority / deterministic reducer" as a claim that only one reducer ships or that #4990 is resolved.
 
 **Event format:**
 ```json
@@ -440,7 +444,7 @@ Append-only event log (`status.events.jsonl`) is the **sole authority** for WP l
 | Function | Module | Purpose |
 |----------|--------|---------|
 | `emit_status_transition()` | `status.emit` | Flat/primary shell over the status-owned `transition_pipeline` (validation runs once there); the transactional shell lives in `coordination/status_transition.py` |
-| `reduce()` | `status.reducer` | Deterministic event → snapshot |
+| `reduce()` | `status.reducer` | Causal (Lamport) event → snapshot — the deterministic reducer honoring ADR `2026-02-09-3`. NOT the wall-clock LWW `reduce_parsed` sibling (`#4990` named-open). |
 | `append_event()` / `read_events()` | `status.store` | JSONL I/O with corruption detection |
 | `validate_transition()` | `status.transitions` | Check (from, to) against matrix + guards |
 | `resolve_lane_alias()` | `status.transitions` | `doing` → `in_progress` at input boundaries |
