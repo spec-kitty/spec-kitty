@@ -222,3 +222,34 @@ def test_porcelain_invariant_violation_restores_then_exits(tmp_path: Path) -> No
 
     assert exc.value.exit_code == 1
     assert restored == [{tmp_path / "x": b"orig"}]
+
+
+# --- #5001: claim-builder GitProbeError -> clean fail-closed abort ----------
+
+
+def test_capture_reconciliation_claim_aborts_clean_on_git_probe_error(tmp_path: Path) -> None:
+    """A ``GitProbeError`` from ``build_approved_wp_set`` aborts cleanly (exit 1).
+
+    ``_capture_reconciliation_claim`` runs strictly pre-mutation, so a probe
+    error there must never surface as an uncaught traceback: it should be
+    caught and turned into the same clean, non-zero-exit abort the teardown
+    gate's own ``GitProbeError`` REFUSE path uses (#5001).
+    """
+    from specify_cli.merge.git_probes import GitProbeError
+
+    run = _make_run(tmp_path)
+    boom = GitProbeError("git show deadbeef failed (exit 128): fatal: bad object deadbeef")
+
+    with (
+        patch.object(ex, "detect_legacy_in_flight_state", lambda *_a, **_k: None),
+        patch.object(ex, "write_post_fix_marker", lambda *_a, **_k: None),
+        patch.object(ex, "_capture_coord_checkpoint", lambda *_a, **_k: None),
+        patch.object(ex, "_resolve_pre_mutation_target_sha", lambda *_a, **_k: "abc123"),
+        patch.object(ex, "build_approved_wp_set", side_effect=boom),
+        pytest.raises(typer.Exit) as exc,
+    ):
+        ex._capture_reconciliation_claim(run)
+
+    assert exc.value.exit_code == 1
+    # Strictly pre-mutation: the claim is never partially populated.
+    assert run.approved_wp_set is None

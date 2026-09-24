@@ -105,6 +105,7 @@ from specify_cli.merge.done_bookkeeping import (
     acceptably_canceled_wp_ids,
 )
 from specify_cli.merge.git_probes import (
+    GitProbeError,
     _branch_trees_equal,
     _classify_porcelain_lines,
     _emit_remediation_hint,
@@ -1877,14 +1878,29 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
         run.main_repo, run.lanes_manifest.target_branch, run.state
     )
 
-    run.approved_wp_set = build_approved_wp_set(
-        run.main_repo,
-        run.feature_dir,
-        run.lanes_manifest,
-        coord_base_ref=coord_base,
-        excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
-        excluded_window_base=run.target_expected_old_sha,
-    )
+    try:
+        run.approved_wp_set = build_approved_wp_set(
+            run.main_repo,
+            run.feature_dir,
+            run.lanes_manifest,
+            coord_base_ref=coord_base,
+            excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
+            excluded_window_base=run.target_expected_old_sha,
+        )
+    except GitProbeError as exc:
+        # #5001: a git probe (patch_id_of/changed_paths_of) errored while
+        # deriving the claim's excluded/authored SHA sets. This runs strictly
+        # pre-mutation — nothing has landed yet — so abort clean (fail-closed)
+        # rather than let the uncaught GitProbeError surface as a raw
+        # traceback. Mirrors how the teardown gate's own GitProbeError→
+        # VerifyResult.refused(...) REFUSE is reported to the operator.
+        console.print(
+            f"\n[red]Error:[/red] Reconciliation refused (fail-closed): a git "
+            f"probe failed while building the approved-WP claim: {exc}. Nothing "
+            "was torn down and no refs/worktrees were mutated. Resolve the "
+            "underlying git issue, then re-run the merge."
+        )
+        raise typer.Exit(1) from exc
 
 
 def _reconciliation_claim_for_gate(run: _MergeRunState) -> ApprovedWpCommitSet:
