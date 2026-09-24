@@ -1496,6 +1496,87 @@ def test_repair_quarantines_dropped_duplicate_event_rows(tmp_path: Path) -> None
     assert "divergent" in quarantined_text
 
 
+@pytest.mark.regression
+def test_repair_reports_no_quarantine_write_on_mixed_row_error_and_quarantine_run(tmp_path: Path) -> None:
+    """#4928 mixed-run correctness: a canonicalization row_error must not let a
+    stale ``quarantined_rows`` count claim a write that never happened.
+
+    ``_repair_mission`` returns EARLY when ``combined_row_errors`` is
+    non-empty -- before the ``if quarantine_lines:`` block that actually
+    writes the quarantine file. On a run whose ``status.events.jsonl``
+    produces BOTH a genuine canonicalization row_error (here: a row missing
+    the required ``wp_id``) AND a genuinely non-status row that would be
+    quarantined (here: an ``event_name``-discriminated side-log row, which
+    ``is_non_lane_event`` treats as non-preserved), the pre-fix code still
+    reported ``quarantined_rows=len(quarantine_lines)`` on the early-return
+    result, and ``repair_repo``'s ``quarantine_root_path`` guard keyed on
+    that same (unwritten) count -- so the ``--fix`` exit summary printed
+    "N row(s) quarantined verbatim to <path>" for a file that was never
+    created.
+    """
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "099-mixed-repair"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "friendly_name": "Mixed Repair",
+            "mission_slug": "099-mixed-repair",
+            "mission_type": "software-dev",
+            "slug": "099-mixed-repair",
+            "target_branch": "main",
+        },
+    )
+
+    # Row A: a genuine canonicalization row_error (missing required wp_id).
+    # This lands in `row_errors` via `_canonicalize_status_rows`'s
+    # `result.error is not None` branch, which `continue`s WITHOUT ever
+    # appending to `quarantine_lines`.
+    error_row = {
+        "actor": "codex",
+        "at": "2026-01-01T00:00:00+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGX",
+        "execution_mode": "worktree",
+        "force": False,
+        "from_lane": "planned",
+        "to_lane": "claimed",
+    }
+    # Row B: a genuinely non-status row. It carries `event_name` (NOT
+    # `event_type`), so `is_non_lane_event()` returns False -- it is not
+    # reader-preserved -- and `_rule_reject_non_status_event` routes it to
+    # `quarantine_lines` via the `quarantined_non_status_event` sentinel.
+    quarantine_row = {
+        "at": "2026-01-01T00:00:01+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGY",
+        "event_name": "some_unrecognized_side_log_event",
+        "payload": {"detail": "unrelated side log"},
+    }
+    (mission / "status.events.jsonl").write_text(
+        json.dumps(error_row, sort_keys=True) + "\n" + json.dumps(quarantine_row, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    _init_git_repo(repo)
+
+    report = repair_repo(repo)
+
+    assert len(report.missions) == 1
+    result = report.missions[0]
+    assert result.status == "error"
+    assert any("missing required wp_id" in e for e in result.validation_errors)
+    # `quarantined_rows` is a legitimate diagnostic count (Row B WAS
+    # classified for quarantine) and may still be reported as >0.
+    assert result.quarantined_rows == 1
+
+    quarantine_dir = repo / ".kittify" / "mission-state-audit" / "quarantine"
+    assert not quarantine_dir.exists(), "no quarantine file may exist: _repair_mission returned before the write block ran"
+    assert report.quarantine_root_path is None, (
+        "quarantine_root_path must be None when nothing was actually written to disk -- "
+        "reporting it non-None here is the false 'quarantined verbatim' claim the --fix "
+        "exit summary printed on a mixed row_error + quarantine run"
+    )
+
+
 # ---------------------------------------------------------------------------
 # #4928 — audit trail durability: relocation to a git-TRACKED root
 # ---------------------------------------------------------------------------

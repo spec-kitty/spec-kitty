@@ -345,6 +345,14 @@ class MissionRepairResult:
     quarantined_rows: int = 0
     validation_errors: list[str] = field(default_factory=list)
     meta_actions: list[str] = field(default_factory=list)
+    # Whether the quarantine file was ACTUALLY written to disk this run,
+    # distinct from `quarantined_rows` (a diagnostic count of rows classified
+    # for quarantine, which can be >0 even when the write never ran -- e.g.
+    # the `combined_row_errors` early return in `_repair_mission`). Consumed
+    # by `repair_repo`'s `quarantine_root_path` guard so the `--fix` exit
+    # summary never claims a write that did not happen (#4928 mixed-run
+    # correctness fix).
+    quarantine_written: bool = False
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -356,6 +364,7 @@ class MissionRepairResult:
             "quarantined_rows": self.quarantined_rows,
             "validation_errors": list(self.validation_errors),
             "meta_actions": list(self.meta_actions),
+            "quarantine_written": self.quarantine_written,
         }
 
 
@@ -757,7 +766,7 @@ def repair_repo(
                 resolved_repo_root,
                 _resolve_repo_relative(resolved_repo_root, MISSION_STATE_AUDIT_ROOT / "quarantine" / run_id),
             )
-            if any(m.quarantined_rows for m in results)
+            if any(m.quarantine_written for m in results)
             else None
         )
         report = RepairReport(
@@ -1652,6 +1661,13 @@ def _repair_mission(
     row_changes: list[RowTransformation] = []
     validation_errors: list[str] = []
     quarantined_rows = 0
+    # Whether the quarantine file was actually written to disk this run (as
+    # opposed to `quarantined_rows`, a count of rows CLASSIFIED for
+    # quarantine that may be >0 even on the `combined_row_errors` early
+    # return below, which returns before the write block ever runs).
+    # Bound before the try, alongside `quarantined_rows`, so the outer
+    # `except` return can report it too.
+    quarantine_written = False
     # Bind before the try so the except path can still report canonicalizer
     # actions (e.g. normalized_change_mode) that were applied and persisted
     # before a later step raised — an error result must not silently drop the
@@ -1705,6 +1721,11 @@ def _repair_mission(
                     quarantined_rows=len(quarantine_lines),
                     validation_errors=validation_errors,
                     meta_actions=list(meta_actions),
+                    # Nothing was written yet: this return is reached BEFORE
+                    # the `if quarantine_lines:` write block below, so no
+                    # quarantine file exists on disk despite `quarantined_rows`
+                    # being nonzero.
+                    quarantine_written=False,
                 )
 
             before_events = _file_fingerprint(status_path)
@@ -1738,6 +1759,7 @@ def _repair_mission(
                 before_quarantine = _file_fingerprint(quarantine_path)
                 quarantine_text = "".join(line.rstrip("\n") + "\n" for line in quarantine_lines)
                 atomic_write(quarantine_path, quarantine_text, mkdir=True)
+                quarantine_written = True
                 after_quarantine = _file_fingerprint(quarantine_path)
                 if before_quarantine != after_quarantine:
                     file_changes.append(_file_change(repo_root, quarantine_path, before_quarantine, after_quarantine))
@@ -1783,6 +1805,7 @@ def _repair_mission(
             quarantined_rows=quarantined_rows,
             validation_errors=validation_errors,
             meta_actions=list(meta_actions),
+            quarantine_written=quarantine_written,
         )
     except Exception as exc:
         validation_errors.append(str(exc))
@@ -1795,6 +1818,11 @@ def _repair_mission(
             quarantined_rows=quarantined_rows,
             validation_errors=validation_errors,
             meta_actions=list(meta_actions),
+            # The write block may have run before a LATER step raised (e.g.
+            # lanes-rebuild); report the real on-disk outcome rather than
+            # assuming nothing was written just because this path returns
+            # `status="error"`.
+            quarantine_written=quarantine_written,
         )
 
 
