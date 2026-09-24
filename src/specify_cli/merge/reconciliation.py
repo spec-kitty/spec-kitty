@@ -646,7 +646,7 @@ def _collect_authored(
     against. A lane contributes its authorship only when at least one of its WPs
     is approved/done (a fully-canceled lane's commits are NOT approved authorship).
     Authorship is the lane's **first-parent** spine (``git rev-list
-    --first-parent``): a commit a lane merged IN from another branch (a removed
+    --first-parent``): a commit merged into a lane from another branch (a removed
     WP's commit smuggled via a carrier merge's second parent) is excluded, so it
     is never mistaken for approved work. Merge commits on the spine yield an empty
     patch-id and contribute only their SHA.
