@@ -118,20 +118,40 @@ class DecisionsReconciliationReport:
 
 
 def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
-    """Resolve ``kitty-specs/<mission_slug>/`` via the kind-aware placement
-    seam — the SAME ``STATUS_STATE`` kind ``decisions/service.py`` and
-    ``decisions/emit.py`` resolve, so this reconciler never reads a
-    different directory than the writers it is reconciling."""
+    """Resolve the COORD-partition ``kitty-specs/<mission_slug>/`` dir via the
+    kind-aware placement seam — the SAME ``STATUS_STATE`` kind
+    ``decisions/service.py`` and ``decisions/emit.py`` resolve, so this
+    reconciler reads ``status.events.jsonl`` from the same directory the
+    writers use.
+
+    #4966 AC-D2 (WP03 residual): the decisions LEDGER (``decisions/index.json``
+    / ``DM-<id>.md``) no longer resolves through this helper — see
+    :func:`_ledger_dir` below. Only the event log stays COORD-routed here.
+    """
     mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
     return mission_dir
+
+
+def _ledger_dir(repo_root: Path, mission_slug: str) -> Path:
+    """Resolve the PRIMARY-partition dir holding the decision ledger content.
+
+    #4966 AC-D2 (WP03 residual): must resolve the SAME dir
+    ``decisions/service.py::_ledger_dir`` resolves (the ``PRIMARY_METADATA``
+    kind), so this reconciler's repair target AND its sidecar lock path
+    (:func:`_decisions_lock_path`) stay in lockstep with the forward write
+    path — a concurrent open/resolve cannot race a repair only if both sides
+    serialize against the SAME ``index.json.lock``.
+    """
+    ledger_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    return ledger_dir
 
 
 def _events_path(mission_dir: Path) -> Path:
     return mission_dir / _EVENTS_FILENAME
 
 
-def _decisions_lock_path(mission_dir: Path) -> Path:
-    return _store.decisions_dir(mission_dir) / _LOCK_FILENAME
+def _decisions_lock_path(ledger_dir: Path) -> Path:
+    return _store.decisions_dir(ledger_dir) / _LOCK_FILENAME
 
 
 def _read_decision_events(events_path: Path) -> dict[str, list[dict]]:  # type: ignore[type-arg]
@@ -232,9 +252,15 @@ def _rebuild_index_from_log(
     return DecisionIndex(mission_id=mission_id, entries=tuple(rebuilt_entries)), lossy_ids, malformed_ids
 
 
-def _diagnose(mission_dir: Path, mission_slug: str) -> tuple[DecisionsReconciliationReport, dict[str, list[dict]]]:  # type: ignore[type-arg]
-    grouped = _read_decision_events(_events_path(mission_dir))
-    index = _store.load_index(mission_dir)
+def _diagnose(events_dir: Path, ledger_dir: Path, mission_slug: str) -> tuple[DecisionsReconciliationReport, dict[str, list[dict]]]:  # type: ignore[type-arg]
+    """Diagnose log/index divergence.
+
+    ``events_dir`` (COORD/``STATUS_STATE``) and ``ledger_dir`` (PRIMARY/
+    ``PRIMARY_METADATA``) are resolved separately (#4966 AC-D2) -- the event
+    log and the ledger content no longer share one directory.
+    """
+    grouped = _read_decision_events(_events_path(events_dir))
+    index = _store.load_index(ledger_dir)
     log_ids = set(grouped)
     index_ids = {e.decision_id for e in index.entries}
     report = DecisionsReconciliationReport(
@@ -247,7 +273,7 @@ def _diagnose(mission_dir: Path, mission_slug: str) -> tuple[DecisionsReconcilia
     return report, grouped
 
 
-def _repair(mission_dir: Path) -> tuple[list[str], list[str]]:
+def _repair(events_dir: Path, ledger_dir: Path) -> tuple[list[str], list[str]]:
     """Rebuild ``index.json`` from a FRESH in-lock read of the event log,
     under the sidecar lock (I8: the SAME lock the write path uses, T010) — a
     concurrent open/resolve cannot race a repair, and a repair cannot race a
@@ -261,17 +287,21 @@ def _repair(mission_dir: Path) -> tuple[list[str], list[str]]:
     therefore re-reads BOTH the event log and the current index itself,
     INSIDE the lock, rather than accepting either as a pre-lock argument.
 
+    ``events_dir`` (COORD) and ``ledger_dir`` (PRIMARY, #4966 AC-D2) are
+    resolved separately by the caller; the lock is taken against
+    ``ledger_dir`` — the SAME dir ``decisions/service.py`` locks against.
+
     Returns ``(lossy_ids, malformed_ids)``: the decision_ids
     :func:`_rebuild_index_from_log` refused to rewrite (Fold A) and the
     decision_ids whose event group raised ``FoldError`` (Fold C), so the
     caller can report both conditions loudly instead of crashing.
     """
-    lock_path = _decisions_lock_path(mission_dir)
+    lock_path = _decisions_lock_path(ledger_dir)
     with machine_file_lock(lock_path, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S):
-        grouped = _read_decision_events(_events_path(mission_dir))
-        current = _store.load_index(mission_dir)
+        grouped = _read_decision_events(_events_path(events_dir))
+        current = _store.load_index(ledger_dir)
         rebuilt, lossy_ids, malformed_ids = _rebuild_index_from_log(current, grouped)
-        _store.save_index(mission_dir, rebuilt)
+        _store.save_index(ledger_dir, rebuilt)
         return lossy_ids, malformed_ids
 
 
@@ -360,13 +390,16 @@ def run_decisions_reconciliation(
 
     mission_root = resolve_mission_dir_with_bare_modern_fold(mission, repo_root, json_mode=json_output)
     mission_slug = mission_root.name
-    mission_dir = _mission_dir(repo_root, mission_slug)
+    # #4966 AC-D2: the event log (COORD) and the ledger content (PRIMARY)
+    # resolve to separate dirs — see ``_mission_dir`` / ``_ledger_dir``.
+    events_dir = _mission_dir(repo_root, mission_slug)
+    ledger_dir = _ledger_dir(repo_root, mission_slug)
 
-    report, _grouped = _diagnose(mission_dir, mission_slug)
+    report, _grouped = _diagnose(events_dir, ledger_dir, mission_slug)
 
     if repair and not report.clean:
-        lossy_ids, malformed_ids = _repair(mission_dir)
-        report, _grouped = _diagnose(mission_dir, mission_slug)
+        lossy_ids, malformed_ids = _repair(events_dir, ledger_dir)
+        report, _grouped = _diagnose(events_dir, ledger_dir, mission_slug)
         report.repaired = True
         report.lossy_attribution = sorted(lossy_ids)
         report.malformed_folds = sorted(malformed_ids)
