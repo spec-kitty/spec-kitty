@@ -142,12 +142,20 @@ class Divergence:
     ``""`` when the match was made on the other axis. ``unattributable_content`` —
     ``(sha, patch_id)`` pairs of CONTENT commits in the merge window that belong to
     NO approved WP's authorship (the closed-world axis: a removed WP's commit that
-    rode a carrier lane into the target — #4945/#4977/#4981).
+    rode a carrier lane into the target — #4945/#4977/#4981). ``unattributable_blobs``
+    — ``(path, blob)`` pairs from the SQUASH blob-attribution axis
+    (:meth:`MergeOutcomeVerifier._unattributable_content_squash`, #5013 WS1): a
+    squash destroys commit SHAs and patch-ids, so that axis names a repo-relative
+    PATH and a blob sha instead — a distinct shape from ``unattributable_content``,
+    rendered with its own vocabulary (Epic #5001 landing fix; the two fields were
+    previously conflated, mislabeling a path as a "content commit" truncated to 10
+    chars and a blob as a "patch-id").
     """
 
     missing_approved: tuple[tuple[str, str], ...] = ()
     reachable_excluded: tuple[tuple[str, str], ...] = ()
     unattributable_content: tuple[tuple[str, str], ...] = ()
+    unattributable_blobs: tuple[tuple[str, str], ...] = ()
 
     def describe(self) -> str:
         """Operator-facing, one-line-per-divergence explanation."""
@@ -163,6 +171,10 @@ class Divergence:
                 f"content commit {ident} (patch-id {pid[:12]}) IS reachable from the "
                 "target but belongs to NO approved WP — un-attributable "
                 "(removed/canceled work would ship)"
+            )
+        for path, blob in self.unattributable_blobs:
+            parts.append(
+                f"file '{path}' (blob {blob[:10]}) IS reachable on the target but belongs to NO approved WP — un-attributable (removed/canceled work would ship)"
             )
         return "; ".join(parts) if parts else "no divergence"
 
@@ -484,7 +496,7 @@ class MergeOutcomeVerifier:
         except GitProbeError as exc:
             return VerifyResult.refused(f"a git probe failed while verifying the squash window: {exc}")
         if unattributable:
-            return VerifyResult.failed(Divergence(unattributable_content=tuple(unattributable)))
+            return VerifyResult.failed(Divergence(unattributable_blobs=tuple(unattributable)))
         return VerifyResult.passed()
 
     def _unattributable_content_squash(self, target_ref: str, claim: ApprovedWpCommitSet, window_base: str) -> list[tuple[str, str]]:

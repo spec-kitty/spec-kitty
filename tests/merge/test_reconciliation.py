@@ -989,6 +989,25 @@ def test_divergence_describe_reports_both_axes() -> None:
     assert "excluded" in text
 
 
+def test_divergence_describe_renders_squash_unattributable_blob_honestly() -> None:
+    """FIX B (Epic #5001 landing remediation): the squash axis attributes by
+    ``(path, blob)`` tuples, not ``(sha, patch_id)`` — describing them through the
+    ``(sha, patch_id)``-shaped ``unattributable_content`` field mislabels a repo
+    path truncated to 10 chars as a "content commit" and a blob as a "patch-id".
+    A dedicated ``unattributable_blobs`` field must render the FULL path and call
+    the second element a blob, in both ``describe()`` and
+    ``VerifyResult.recovery_guidance()``."""
+    div = Divergence(unattributable_blobs=(("src/config/meta.json", "deadbeef" * 5),))
+    text = div.describe()
+    assert "src/config/meta.json" in text, text
+    assert "blob" in text.lower(), text
+    assert "patch-id" not in text.lower(), text
+    assert "content commit" not in text.lower(), text
+
+    guidance = VerifyResult.failed(div).recovery_guidance()
+    assert "src/config/meta.json" in guidance, guidance
+
+
 # --------------------------------------------------------------------------- #
 # WS1 squash-sound blob-attribution content axis (#5013 / T012-T014).
 #
@@ -1067,7 +1086,7 @@ def test_squash_fails_when_superseded_v1_blob_ships(tmp_path: Path) -> None:
     result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
     assert result.status is VerifyStatus.FAIL
     assert result.divergence is not None
-    assert any(path == "src/pkg/x.py" for path, _blob in result.divergence.unattributable_content)
+    assert any(path == "src/pkg/x.py" for path, _blob in result.divergence.unattributable_blobs)
 
 
 def test_squash_fails_on_second_parent_smuggled_blob(tmp_path: Path) -> None:
@@ -1090,7 +1109,7 @@ def test_squash_fails_on_second_parent_smuggled_blob(tmp_path: Path) -> None:
     result = MergeOutcomeVerifier(repo).verify(_TARGET, squash_claim)
     assert result.status is VerifyStatus.FAIL
     assert result.divergence is not None
-    assert any(path == "src/wp99_removed.py" for path, _blob in result.divergence.unattributable_content)
+    assert any(path == "src/wp99_removed.py" for path, _blob in result.divergence.unattributable_blobs)
 
 
 def test_squash_passes_clean_no_false_fail(tmp_path: Path) -> None:
