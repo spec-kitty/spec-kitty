@@ -531,6 +531,67 @@ def _coord_branch_is_local_head(repo_root: Path, coord_branch: str) -> bool:
     return result.returncode == 0
 
 
+def coord_branch_has_committed_artifact(
+    repo_root: Path,
+    coord_branch: str,
+    mission_slug: str,
+    kind: MissionArtifactKind,
+) -> bool:
+    """Return whether *coord_branch* carries a COMMITTED artifact of *kind*.
+
+    The committed-content probe the S-C write gate consults before sanctioning a
+    self-materialization write (FR-006 / #4970). A ``CoordState.UNMATERIALIZED``
+    local-head coordination branch that ALREADY carries committed matrix content is
+    a *stale* head, not a virgin first-write window: materializing over it would
+    fork from the primary branch and clobber committed coordination state.
+
+    The probe scans the WHOLE ``kitty-specs/<mission_slug>/`` subtree of
+    *coord_branch* (``git ls-tree -r``) and matches on the artifact BASENAME, so a
+    path-drifted committed matrix (one that migrated to a non-default sub-path) is
+    still detected rather than mis-read as "absent" (post-plan F2). Both
+    ``issue-matrix.json`` and ``issue-matrix.md`` map to ``ISSUE_MATRIX``, so a
+    not-yet-migrated legacy mission is protected too.
+
+    Fail-closed (mirrors :func:`_coord_branch_is_local_head`'s posture): an
+    unreadable git context — a missing/foreign ref, or the git binary absent, i.e.
+    anything other than a CLEAN, readable "subtree absent" — returns ``True``
+    (treated as present ⇒ the caller REFUSEs). The pathspec form ``git ls-tree -r
+    --name-only <branch> -- <subtree>`` returns exit 0 with EMPTY output for a
+    readable branch whose subtree simply holds no such file (⇒ ``False``, a genuine
+    first-write) and a non-zero exit for an unresolvable ref (⇒ fail-closed
+    ``True``), so the two cases never collapse together.
+    """
+    basenames = _artifact_basenames_for_kind(kind)
+    if not basenames:
+        return False
+    subtree = f"kitty-specs/{mission_slug}/"
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "ls-tree", "-r", "--name-only", coord_branch, "--", subtree],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return True
+    if result.returncode != 0:
+        return True
+    return any(line.rsplit("/", 1)[-1] in basenames for line in result.stdout.splitlines())
+
+
+def _artifact_basenames_for_kind(kind: MissionArtifactKind) -> frozenset[str]:
+    """Return the committed basenames that classify to *kind* (placement authority).
+
+    Derived by inverting ``mission_runtime.artifacts``'s basename→kind classifier —
+    the SAME authority that resolves the artifact home — never a hardcoded
+    ``issue-matrix.{json,md}`` literal, so the probe path can never drift out of
+    sync with the classifier (post-plan F2).
+    """
+    from mission_runtime.artifacts import _MISSION_FILE_KIND_BY_BASENAME
+
+    return frozenset(name for name, mapped in _MISSION_FILE_KIND_BY_BASENAME.items() if mapped is kind)
+
+
 def resolve_for_write(
     repo_root: Path,
     mission_slug: str,

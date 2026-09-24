@@ -178,18 +178,24 @@ def assert_coord_write_materialized(
       resolves to the Primary Branch) → return;
     * a coord-routing write whose coordination worktree is ``MATERIALIZED`` /
       ``EMPTY`` (the worktree exists — the write populates/updates it), or is
-      ``UNMATERIALIZED`` while the coordination branch is a *local head* (the
-      sanctioned ``mission create`` → first-write self-materialization window on
-      the creating host) → return.
+      ``UNMATERIALIZED`` while the coordination branch is a *local head* that
+      carries NO committed artifact-of-this-kind (the sanctioned ``mission
+      create`` → first-write self-materialization window on the creating host) →
+      return.
 
-    Raises ``ActionContextError`` (``COORD_WRITE_SURFACE_UNMATERIALIZED``) only for
-    the #4970 shape: a coord-routing write whose coordination worktree is absent
-    AND whose coordination branch is not a local head (deleted, or the fresh-clone
-    / CI checkout where it exists only on ``origin/<lane>``). Materializing there
-    would fork from the primary branch and overwrite committed coordination state.
+    Raises ``ActionContextError`` (``COORD_WRITE_SURFACE_UNMATERIALIZED``) for the
+    #4970 shape: a coord-routing write whose coordination worktree is absent AND
+    whose coordination branch is not a local head (deleted, or the fresh-clone / CI
+    checkout where it exists only on ``origin/<lane>``), OR a local head that
+    ALREADY carries committed matrix content (a STALE head whose worktree was
+    pruned — the self-materialization-hardening case, FR-006). Materializing in
+    either case would fork from the primary branch and overwrite committed
+    coordination state. The committed-content probe fails CLOSED: an unreadable git
+    context is treated as content-present (refuse).
     """
     from specify_cli.coordination.surface_resolver import (
         _coord_branch_is_local_head,
+        coord_branch_has_committed_artifact,
         resolve_declared_mid8,
     )
     from specify_cli.missions._read_path_resolver import (
@@ -210,7 +216,17 @@ def assert_coord_write_materialized(
     state = probe_coord_state(repo_root, mission_slug, mid8, coordination_branch=coord_branch)
     if state in (CoordState.MATERIALIZED, CoordState.EMPTY):
         return
-    if state is CoordState.UNMATERIALIZED and _coord_branch_is_local_head(repo_root, coord_branch):
+    if (
+        state is CoordState.UNMATERIALIZED
+        and _coord_branch_is_local_head(repo_root, coord_branch)
+        and not coord_branch_has_committed_artifact(repo_root, coord_branch, mission_slug, kind)
+    ):
+        # Sanctioned self-materialization window (FR-006 / #4970): an UNMATERIALIZED
+        # LOCAL-head coord branch that carries NO committed artifact-of-this-kind is
+        # a genuine ``mission create`` → first-write. A local head that ALREADY
+        # carries committed matrix content is a STALE head — self-materializing over
+        # it would clobber committed coordination state — so it falls through to the
+        # REFUSE raise below.
         return
 
     raise ActionContextError(
@@ -264,22 +280,28 @@ def _mission_meta_exists(repo_root: Path, mission_slug: str) -> bool:
     A cheap, read-only existence gate — NOT a ref derivation — that
     distinguishes a genuinely bootstrapped mission from an ad-hoc fixture or
     the create→first-write window. ``resolve_placement_only`` never raises
-    for a merely-absent mission (:func:`candidate_feature_dir_for_mission`'s
-    own contract): it silently degrades to the repo's generic default branch
-    instead of signalling unresolvability, so this gate is checked BEFORE
-    consulting the classifier rather than relying on an exception that would
-    never fire.
+    for a merely-absent mission: it silently degrades to the repo's generic
+    default branch instead of signalling unresolvability, so this gate is
+    checked BEFORE consulting the classifier rather than relying on an
+    exception that would never fire.
+
+    Anchored on the PRIMARY meta via :func:`read_primary_meta` (not the
+    coord-aware :func:`candidate_feature_dir_for_mission`): ``meta.json`` lives
+    on the primary checkout only — the coordination worktree's sparse policy
+    excludes it (``PRIMARY_METADATA`` is a primary-partition kind). The
+    coord-aware candidate returns the coordination-worktree feature dir once the
+    coord worktree is MATERIALIZED, where ``meta.json`` is absent, so a
+    ``candidate/meta.json`` check reported a bootstrapped coord mission as
+    "unresolvable" the moment its first coord-routed write materialized the
+    worktree — falsely refusing every subsequent terminus WRITE (the #4970
+    self-materialization reroute's second-write false-refusal). The primary-meta
+    anchor is coord-materialization-invariant, so a genuinely bootstrapped
+    mission reads as resolvable in every topology state.
     """
-    from specify_cli.missions._read_path_resolver import (
-        candidate_feature_dir_for_mission,
-    )
+    from specify_cli.missions._read_path_resolver import read_primary_meta
 
     try:
-        # Explicit ``Path`` annotation: under the project's
-        # ``follow_imports = "skip"`` mypy config the cross-module
-        # ``candidate_feature_dir_for_mission`` return is seen as ``Any``; the
-        # annotation re-narrows it (the function IS typed ``-> Path``).
-        candidate: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
+        primary_meta, _declares_coordination = read_primary_meta(repo_root, mission_slug)
     except Exception:  # noqa: BLE001 — any resolution hiccup means "not resolvable"
         return False
-    return (candidate / "meta.json").exists()
+    return bool(primary_meta)

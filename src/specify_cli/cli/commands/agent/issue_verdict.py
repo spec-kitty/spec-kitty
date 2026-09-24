@@ -336,6 +336,22 @@ def do_issue_verdict(
     mission_slug = resolved.mission_slug
     feature_dir = resolved.feature_dir
 
+    # FR-007 / #4970: resolve the WRITE surface through the FAIL-CLOSED resolver
+    # up-front, BEFORE the degrading read-dir resolution / migration below. On a
+    # coord-routed write whose coordination surface is unmaterialized-yet-committed
+    # (a stale local head, the #4970 shape) this REFUSEs here instead of silently
+    # degrading the read to the primary surface and clobbering committed rows. A
+    # flat / no-coord mission no-ops the gate (no ``coordination_branch``), so this
+    # never false-refuses one. ``ActionContextError`` → the command's structured
+    # error type (mapped to a clean ``Exit(1)`` by ``issue_verdict_command``).
+    from mission_runtime import ActionContextError
+    from specify_cli.coordination.surface_resolver import resolve_for_write
+
+    try:
+        resolve_for_write(root, mission_slug, MissionArtifactKind.ISSUE_MATRIX)
+    except ActionContextError as exc:
+        raise IssueVerdictError(str(exc), code="coord_surface_unmaterialized") from exc
+
     # #4868's concern: migration is a slow, one-shot legacy-.md conversion --
     # it stays OUTSIDE the lock, exactly like #4858 keeps the pre-lock
     # existence check outside its own critical section.
