@@ -343,3 +343,48 @@ def test_unmaterialized_coord_tracer_append_fails_closed_and_preserves_findings(
     assert not staged_local.exists(), (
         "a fail-closed read must never materialize the local staging file"
     )
+
+
+# ---------------------------------------------------------------------------
+# 7: CLI-level structured refusal on a corrupt (non-UTF-8) traces file
+# (coord-read-fail-closed-01M38VVH WP02/#4959, pre-PR squad fold): the
+# writer's own read-before-write already PROPAGATES ``UnicodeDecodeError`` for
+# an EXISTING, undecodable ``traces/<cat>.md`` (see
+# ``test_tracer_writer.py::TestFailClosedOnUnmaterializedCoordRead
+# ::test_undecodable_existing_file_refuses_not_empty``); the CLI boundary had
+# no catcher for it, so it surfaced as a raw traceback instead of the same
+# structured ``{"ok": false, ...}`` refusal shape every other fail-closed
+# branch in ``tracer_append.py`` uses.
+# ---------------------------------------------------------------------------
+
+
+def test_cli_returns_structured_refusal_on_corrupt_traces_file(tmp_path: Path) -> None:
+    ctx = _build_coord_topology(tmp_path, write_husk_meta=False)
+    lane_path, _lane_branch = _create_lane_worktree(ctx.repo, ctx.slug)
+
+    with patch(
+        f"{_TRACER_MODULE}.append_tracer_finding",
+        side_effect=UnicodeDecodeError("utf-8", b"\xff\xfe", 0, 1, "invalid start byte"),
+    ):
+        result = _invoke_from_lane(
+            lane_path,
+            "--mission",
+            ctx.slug,
+            "--category",
+            "tooling-friction",
+            "--entry",
+            "should never be persisted over a corrupt file",
+            "--actor",
+            "claude",
+            "--json",
+        )
+
+    assert result.exit_code == 1, result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit), (
+        f"a corrupt traces file must surface as a structured refusal, never an uncaught traceback: {result.exception!r}"
+    )
+    payload = json.loads(result.output)
+    assert payload["ok"] is False
+    assert payload["kind"] == "TRACER_FILE"
+    assert "not valid utf-8" in payload["error"].lower(), payload
+    assert "next_step" in payload, "the refusal must carry actionable recovery guidance"

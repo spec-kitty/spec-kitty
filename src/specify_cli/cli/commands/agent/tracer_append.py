@@ -113,6 +113,24 @@ def tracer_append(
     except (TracerAttributionError, TracerCategoryError) as exc:
         _emit(_error_payload(str(exc)), json_output=json_output, ok=False)
         raise typer.Exit(1) from None
+    except UnicodeDecodeError as exc:
+        # coord-read-fail-closed-01M38VVH WP02/#4959 (pre-PR squad fold): the
+        # writer's own read-before-write (``tracer_writer._read_current_coord_
+        # content``) now PROPAGATES ``UnicodeDecodeError`` when an EXISTING
+        # ``traces/<category>.md`` file is not valid UTF-8, rather than
+        # degrading to "" and letting the merge clobber it with a
+        # from-scratch header. That refusal previously had no catcher here,
+        # so it surfaced as a raw traceback instead of the same structured
+        # ``{"ok": false, ...}`` refusal shape every other fail-closed branch
+        # above uses.
+        payload = {
+            "ok": False,
+            "kind": _KIND_LABEL,
+            "error": f"the traces file is not valid UTF-8; refusing to overwrite: {exc}",
+            "next_step": "inspect and repair the corrupt traces file on the coordination surface before retrying",
+        }
+        _emit(payload, json_output=json_output, ok=False)
+        raise typer.Exit(1) from None
 
     if result.status == "refused":
         payload = {
