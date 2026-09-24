@@ -2178,6 +2178,89 @@ _CATEGORY_D_LIVE_WORK_AUTHORED_PUBLIC_SURFACE: frozenset[SymbolKey] = frozenset(
 )
 
 
+# ---------- C. Terminus reconciliation gate + merge-coord integrity (#5001) ----------
+# The terminus/merge-coord integrity spine (Epic #5001) lands its public
+# vocabulary ahead of every external caller: today each symbol is exercised
+# intra-module (the wired `route_terminus`/`VerifyResult`/claim-builder call
+# chains) and by the WP06 reconciliation test suite
+# (tests/merge/test_reconciliation.py), not yet imported from a second
+# src/ module. External consumers land with the Epic #5001 follow-ups.
+_CATEGORY_C_TERMINUS_RECONCILIATION_5001: frozenset[SymbolKey] = frozenset(
+    {
+        # specify_cli.coordination.surface_resolver::resolve_for_write --
+        # the intended single write-side entry point for the surface-
+        # authority WRITE gate; wiring of the real callers is deferred to
+        # #4970.
+        SymbolKey(
+            "resolve_for_write",
+            "8d4f083edec869f11a61d55a55e466d6b50064ee27be9b6cfed0fca151176055",
+            source_module="specify_cli.coordination.surface_resolver",
+        ),
+        # specify_cli.merge.reconciliation::TERMINUS_ENTRY_POINTS -- public
+        # vocabulary of the new reconciliation gate (the closed-world entry
+        # point registry `route_terminus` consults).
+        SymbolKey(
+            "TERMINUS_ENTRY_POINTS",
+            "8fd87d4ce8ab8b7f9a6eae7f527026fae6020db5d0f3a9820b43cc3d00475b68",
+            source_module="specify_cli.merge.reconciliation",
+        ),
+        # specify_cli.merge.reconciliation::UnroutedTerminusPathError --
+        # public vocabulary of the new reconciliation gate (raised by
+        # `route_terminus` for an unrouted terminus path).
+        SymbolKey(
+            "UnroutedTerminusPathError",
+            "6be092c657d631005f4fc08807167d8174789d3dae9f3c9d8a8eb946a2815dab",
+            source_module="specify_cli.merge.reconciliation",
+        ),
+        # specify_cli.merge.reconciliation::Divergence -- public vocabulary
+        # of the new reconciliation gate (the verifier's FAIL-shaped
+        # structured divergence record).
+        SymbolKey(
+            "Divergence",
+            "ca9564fd3e74097165a734e76fd64cc2f5b428bb5b6cc72d703a92d3cfb35472",
+            source_module="specify_cli.merge.reconciliation",
+        ),
+        # specify_cli.merge.bookkeeping_projection::ProjectionResult -- the
+        # S-B/FR-004 post-checkpoint commit projection's outcome type;
+        # exercised intra-module today, external consumer deferred to the
+        # Epic #5001 follow-ups.
+        SymbolKey(
+            "ProjectionResult",
+            "397a6e1caea4f4f303ad58b212bb66cd884630a556a423605e5b4866a8a66384",
+            source_module="specify_cli.merge.bookkeeping_projection",
+        ),
+        # specify_cli.merge.bookkeeping_projection::project_post_checkpoint_commits_to_target
+        # -- same S-B/FR-004 projection helper; called only from within its
+        # own module today (the ``__all__`` claim of cross-module export
+        # keeps it caught by this gate's rules regardless).
+        SymbolKey(
+            "project_post_checkpoint_commits_to_target",
+            "fd9b9d68d3086089da9b3efbe15209dddfb6a7c1810ecddefaccdc4e2ec57fcc",
+            source_module="specify_cli.merge.bookkeeping_projection",
+        ),
+        # specify_cli.merge.git_probes::lane_integrated_by_tree_or_ancestry --
+        # T028 git probe (ancestry -> tree-equality integration under
+        # squash); consumed by the reconciliation verifier's own body
+        # (docstring cross-reference only) and exercised directly by
+        # tests/merge/test_reconciliation.py.
+        SymbolKey(
+            "lane_integrated_by_tree_or_ancestry",
+            "4931a4ad6aaefd85c74e43203d5b3e97d7688ad4e4483437b1bddace884c80c3",
+            source_module="specify_cli.merge.git_probes",
+        ),
+        # specify_cli.merge.state::read_merge_lock_owner -- FR-008
+        # owner-token lock-ownership probe; consumed only from within its
+        # own module (acquire_merge_lock) and by
+        # tests/merge/test_merge_state_authority.py today.
+        SymbolKey(
+            "read_merge_lock_owner",
+            "152d2a612a16091432a35d186dbb9b234ad12e673816a683bf61f4bfae44f0d7",
+            source_module="specify_cli.merge.state",
+        ),
+    }
+)
+
+
 # ---------- C. WP-in-flight cross-OS lock primitive unification (#4714) ----------
 # ``kernel.locks`` (cross-os-primitive-unification mission, WP03) lands the
 # canonical sync facade + test-double injection seam AHEAD of its planned
@@ -2247,6 +2330,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_TEAM_KITTY_LAUNCH_DEFAULTS_3980
     | _CATEGORY_C_LIVE_WORK_CAPTURE_PUBLIC_SURFACE
     | _CATEGORY_D_LIVE_WORK_AUTHORED_PUBLIC_SURFACE
+    | _CATEGORY_C_TERMINUS_RECONCILIATION_5001
 )
 
 
