@@ -363,6 +363,9 @@ def _guard_route_base(
     _guard_base_honorable(base, "dependency_lane", wp_id, lane=lane)
 
 
+_FRESH_ROUTES = frozenset({LaneAllocationRoute.FRESH_COORD, LaneAllocationRoute.FRESH_LEGACY})
+
+
 def resolve_lane_base_or_refuse(
     *,
     base: str | None,
@@ -373,6 +376,7 @@ def resolve_lane_base_or_refuse(
     lane: ExecutionLane | None = None,
     planning_sha: str | None = None,
     repo_root: Path | None = None,
+    branch: str | None = None,
 ) -> LaneBaseDecision:
     """Resolve a lane parent ref, or refuse a base the route cannot honor.
 
@@ -380,6 +384,12 @@ def resolve_lane_base_or_refuse(
     preserves the topology-derived parent. An explicit base replaces that parent
     only on an honorable fresh route; reuse, crash recovery, dependency-bearing,
     and detached-base routes raise before creation side effects.
+
+    #4969 origin-preference: on a FRESH route (``FRESH_COORD`` / ``FRESH_LEGACY``)
+    with no explicit ``base``, the topology-derived parent is further resolved
+    through :func:`_fresh_lane_parent_ref`'s origin-aware probe so the returned
+    ``parent_ref`` is already origin-preferring -- callers never compute a
+    parent ref outside this seam.
     """
 
     _guard_route_base(
@@ -391,12 +401,20 @@ def resolve_lane_base_or_refuse(
         repo_root=repo_root,
     )
     topology = LaneTopology.COORD if coordination_branch is not None else LaneTopology.LEGACY
+    topology_parent = _resolve_lane_parent(
+        base,
+        coordination_branch,
+        mission_branch,
+    )
+    parent_ref = _fresh_lane_parent_ref(
+        repo_root,
+        branch,
+        base,
+        topology_parent,
+        route,
+    )
     return LaneBaseDecision(
-        parent_ref=_resolve_lane_parent(
-            base,
-            coordination_branch,
-            mission_branch,
-        ),
+        parent_ref=parent_ref,
         base_honored=base is not None,
         route=route,
         topology=topology,
@@ -404,12 +422,17 @@ def resolve_lane_base_or_refuse(
 
 
 def _fresh_lane_parent_ref(
-    repo_root: Path,
-    branch: str,
+    repo_root: Path | None,
+    branch: str | None,
     base: str | None,
-    decision_parent_ref: str,
+    topology_parent_ref: str,
+    route: LaneAllocationRoute,
 ) -> str:
     """Return the ref a FRESH lane branches from, preferring ``origin/<branch>`` (#4969).
+
+    PRIVATE helper called only by :func:`resolve_lane_base_or_refuse` -- the
+    single seam for every lane parent-ref decision. Never call this from an
+    allocation call site directly.
 
     WP10 integration (C-4 / #4969): when the operator supplied no explicit
     ``--base``, an approved lane that exists only as ``refs/remotes/origin/<branch>``
@@ -418,16 +441,18 @@ def _fresh_lane_parent_ref(
     branch SHADOWS the pushed work. Delegates the origin-ref probe to
     :func:`~specify_cli.workspace.context.resolve_lane_base_ref` so this site and
     ``implement._validate_base_ref`` (WP03) agree on what "the origin lane exists"
-    means; the resolver falls back to ``decision_parent_ref`` when no origin ref
+    means; the resolver falls back to ``topology_parent_ref`` when no origin ref
     exists (offline / never pushed) — byte-identical to the prior local cut. An
     explicit ``base`` already fully replaced the parent (D1) and is never
-    origin-overridden.
+    origin-overridden. Only applies to a FRESH route (``FRESH_COORD`` /
+    ``FRESH_LEGACY``); reuse, crash-recovery, and any route missing ``repo_root``
+    or ``branch`` return the topology-derived parent unchanged.
     """
-    if base is not None:
-        return decision_parent_ref
+    if base is not None or route not in _FRESH_ROUTES or repo_root is None or branch is None:
+        return topology_parent_ref
     from specify_cli.workspace.context import resolve_lane_base_ref
 
-    resolved: str = resolve_lane_base_ref(repo_root, branch, fallback_base=decision_parent_ref)
+    resolved: str = resolve_lane_base_ref(repo_root, branch, fallback_base=topology_parent_ref)
     return resolved
 
 
@@ -603,6 +628,7 @@ def allocate_lane_worktree(
             lane=lane,
             planning_sha=lanes_manifest.planning_commit_sha,
             repo_root=repo_root,
+            branch=branch,
         )
         _ensure_branch_exists(
             repo_root,
@@ -613,7 +639,7 @@ def allocate_lane_worktree(
             repo_root,
             worktree_path,
             branch,
-            _fresh_lane_parent_ref(repo_root, branch, base, decision.parent_ref),
+            decision.parent_ref,
         )
         # Register the sparse-checkout policy so the lane filesystem does
         # NOT contain status.events.jsonl / status.json. Only meaningful
@@ -635,6 +661,7 @@ def allocate_lane_worktree(
             lane=lane,
             planning_sha=lanes_manifest.planning_commit_sha,
             repo_root=repo_root,
+            branch=branch,
         )
         _ensure_mission_branch(
             repo_root,
@@ -645,7 +672,7 @@ def allocate_lane_worktree(
             repo_root,
             worktree_path,
             branch,
-            _fresh_lane_parent_ref(repo_root, branch, base, decision.parent_ref),
+            decision.parent_ref,
         )
 
     # FR-009 (#2993) / ADR 2026-07-29-1: merge the recorded finalize-tasks
