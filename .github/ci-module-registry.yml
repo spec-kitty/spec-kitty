@@ -21,9 +21,15 @@ modules:
   # test_dirs list REPLACES the tests/merge fallback claim, so tests/merge is named
   # explicitly alongside it or the guard reds. shard_count re-measured in T010.
   shard_count: 1
+  # spec-kitty#5001 (terminus-merge-integrity): tests/terminus holds the real-CLI,
+  # mock-free terminus reconciliation repros. The spine they exercise lives under
+  # src/specify_cli/merge/** (reconciliation.py, executor.py, ref_advance via merge),
+  # so they are claimed here and run on every merge-touching PR. Naming an explicit
+  # test_dirs list REPLACES the tests/merge fallback claim, so tests/merge stays named.
   test_dirs:
   - tests/merge
   - tests/specify_cli/merge
+  - tests/terminus
 - module: missions
   roots:
   - src/specify_cli/mission.py
