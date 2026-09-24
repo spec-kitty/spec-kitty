@@ -173,7 +173,7 @@ _ALLOWLIST: dict[str, str] = {
         "other guard call reuses) and only resets after that check already "
         "passed for this worktree."
     ),
-    "src/specify_cli/lanes/worktree_allocator.py:995:reset_hard": (
+    "src/specify_cli/lanes/worktree_allocator.py:1040:reset_hard": (
         "atomic rollback to a pre-loop ref (#1915) AFTER the loop's own "
         "half-merge was already aborted -- lane-loop-scoped recovery, not an "
         "arbitrary destroy of operator state."
@@ -208,7 +208,7 @@ _ALLOWLIST: dict[str, str] = {
         "intentional conflict entries; never operator-visible state."
     ),
     "src/specify_cli/lanes/merge.py:1034:worktree_remove_force": ("ephemeral lane-merge tmp worktree, unconditionally cleaned up via ExitStack on exit."),
-    "src/specify_cli/lanes/worktree_allocator.py:1183:worktree_remove_force": (
+    "src/specify_cli/lanes/worktree_allocator.py:1228:worktree_remove_force": (
         "fresh-path atomicity (#3281/T010): removes a just-created worktree "
         "AFTER _merge_recorded_planning_commit already aborted the "
         "half-merge -- the tree is clean by construction; best-effort, "
@@ -229,8 +229,8 @@ _ALLOWLIST: dict[str, str] = {
     ),
     "src/specify_cli/lanes/merge.py:1071:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (squash-conflict rollback), never repo_root."),
     "src/specify_cli/lanes/merge.py:1184:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (merge-conflict rollback), never repo_root."),
-    "src/specify_cli/lanes/worktree_allocator.py:813:merge_abort": ("scoped to the lane worktree (planning-commit merge-conflict rollback), never repo_root."),
-    "src/specify_cli/lanes/worktree_allocator.py:987:merge_abort": ("scoped to the lane worktree (dependency-lane merge-conflict rollback), never repo_root."),
+    "src/specify_cli/lanes/worktree_allocator.py:858:merge_abort": ("scoped to the lane worktree (planning-commit merge-conflict rollback), never repo_root."),
+    "src/specify_cli/lanes/worktree_allocator.py:1032:merge_abort": ("scoped to the lane worktree (dependency-lane merge-conflict rollback), never repo_root."),
     "src/specify_cli/lanes/auto_rebase.py:739:merge_abort": ("scoped to the lane worktree (auto-rebase conflict rollback), never repo_root."),
 }
 
