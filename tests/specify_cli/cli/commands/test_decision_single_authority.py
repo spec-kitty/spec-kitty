@@ -304,3 +304,92 @@ def test_open_resolves_meta_via_primary_on_materialized_status_only_husk(
     assert payload.get("code") != "MISSION_NOT_FOUND", f"#4966: decision open resolved meta.json through the coord husk instead of PRIMARY: {payload}"
     assert result.exit_code == 0, f"open failed: {result.output!r}"  # type: ignore[attr-defined]
     assert payload["contract"] == "decision_open_v2"
+
+
+# ---------------------------------------------------------------------------
+# Fold 1 (#4966/FR-003 residual, pre-PR squad fold) — ``decision verify`` /
+# ``decision list`` MUST read the ledger from the SAME PRIMARY partition the
+# write path already uses.
+#
+# WP03 (T010, ``2bf81a53ec``) fixed ``decisions/service.py::_ledger_dir`` so
+# ``open``/``resolve``/``defer``/``cancel`` all write the ledger CONTENT
+# (``decisions/index.json`` / ``DM-<id>.md``) to the PRIMARY partition. These
+# two READ-ONLY commands were left routing through
+# ``resolve_handle_to_read_path`` (the topology-aware coord-vs-primary
+# chooser), which on a MATERIALIZED status-only coord husk still resolves the
+# COORD worktree -- a directory the ledger writer never touches. The exact
+# #4966/FR-003 symptom: ``decision list`` reports an empty ledger and
+# ``decision verify`` reports a false "clean" even though a real deferred
+# decision was just opened with no inline marker (which SHOULD trip
+# ``DEFERRED_WITHOUT_MARKER``).
+# ---------------------------------------------------------------------------
+
+
+def _defer_args(decision_id: str, mission: str) -> list[str]:
+    return [
+        "decision",
+        "defer",
+        decision_id,
+        "--mission",
+        mission,
+        "--rationale",
+        "revisit after research spike",
+        "--json",
+    ]
+
+
+def _list_args(mission: str) -> list[str]:
+    return ["decision", "list", "--mission", mission, "--json"]
+
+
+def test_verify_and_list_read_ledger_via_primary_on_materialized_status_only_husk(
+    tmp_path: Path,
+) -> None:
+    """#4966/FR-003: ``decision list``/``decision verify`` must read the
+    decision ledger from the SAME PRIMARY partition ``open``/``defer`` already
+    write to -- not the coord husk ``resolve_handle_to_read_path`` still
+    resolves to when materialized.
+
+    Pre-fold: both commands silently read an EMPTY ledger off the coord husk
+    -- ``list`` reports ``count: 0`` and ``verify`` reports ``status:
+    "clean"`` even though a real decision was just deferred with no inline
+    marker in ``spec.md`` (which must trip ``DEFERRED_WITHOUT_MARKER``).
+    Post-fold both commands see the real PRIMARY-resident ledger entry.
+    """
+    slug = _husk_materialized_coord_mission(tmp_path)
+
+    with patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1):
+        open_result = _invoke(_open_args(slug), cwd=tmp_path)
+    _assert_no_raw_traceback(open_result)
+    assert open_result.exit_code == 0, f"open failed: {open_result.output!r}"  # type: ignore[attr-defined]
+    decision_id = _parse_json_lines(open_result.output)[-1]["decision_id"]  # type: ignore[attr-defined]
+
+    with patch("specify_cli.decisions.emit.emit_decision_resolved", return_value=2):
+        defer_result = _invoke(_defer_args(decision_id, slug), cwd=tmp_path)
+    _assert_no_raw_traceback(defer_result)
+    assert defer_result.exit_code == 0, f"defer failed: {defer_result.output!r}"  # type: ignore[attr-defined]
+
+    list_result = _invoke(_list_args(slug), cwd=tmp_path)
+    _assert_no_raw_traceback(list_result)
+    assert list_result.exit_code == 0, f"list failed: {list_result.output!r}"  # type: ignore[attr-defined]
+    list_payload = _parse_json_lines(list_result.output)[-1]  # type: ignore[attr-defined]
+    assert list_payload["count"] == 1, (
+        f"#4966/FR-003: decision list read an EMPTY ledger from the coord husk instead of the PRIMARY partition the write path uses: {list_payload}"
+    )
+    assert list_payload["decisions"][0]["decision_id"] == decision_id
+    assert list_payload["decisions"][0]["status"] == "deferred"
+
+    verify_result = _invoke(
+        ["decision", "verify", "--mission", slug, "--no-fail-on-stale", "--json"],
+        cwd=tmp_path,
+    )
+    _assert_no_raw_traceback(verify_result)
+    assert verify_result.exit_code == 0, f"verify failed: {verify_result.output!r}"  # type: ignore[attr-defined]
+    verify_payload = _parse_json_lines(verify_result.output)[-1]  # type: ignore[attr-defined]
+    assert verify_payload["deferred_count"] == 1, (
+        f"#4966/FR-003: decision verify read an EMPTY ledger from the coord husk and silently reported no deferred decisions: {verify_payload}"
+    )
+    assert verify_payload["status"] == "drift", (
+        f"the deferred decision has no inline marker in spec.md -- verify must report DEFERRED_WITHOUT_MARKER, not a false 'clean': {verify_payload}"
+    )
+    assert any(f["kind"] == "DEFERRED_WITHOUT_MARKER" and f["decision_id_or_ref"] == decision_id for f in verify_payload["findings"]), verify_payload
