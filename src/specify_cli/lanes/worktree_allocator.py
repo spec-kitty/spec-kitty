@@ -62,12 +62,24 @@ class LaneAllocationRoute(Enum):
 
 @dataclass(frozen=True)
 class LaneBaseDecision:
-    """The parent-ref decision returned by the lane-allocation seam."""
+    """The parent-ref decision returned by the lane-allocation seam.
+
+    ``parent_ref`` is origin-aware (#4969): on a FRESH route with no explicit
+    ``base`` it prefers ``origin/<branch>`` over the topology-derived parent,
+    and is the ref the lane *worktree* branches from
+    (:func:`_create_lane_worktree`). ``topology_parent_ref`` is the
+    pre-override topology parent (``coordination_branch`` for coord topology,
+    ``mission_branch`` for legacy, or the explicit ``base``) -- it names the
+    mission INTEGRATION branch to ensure exists (:func:`_ensure_mission_branch`),
+    which is a distinct concern from the lane worktree's parent and must never
+    be origin-substituted (#5001).
+    """
 
     parent_ref: str
     base_honored: bool
     route: LaneAllocationRoute
     topology: LaneTopology
+    topology_parent_ref: str
 
 
 class DirtyWorktreeError(Exception):
@@ -390,6 +402,11 @@ def resolve_lane_base_or_refuse(
     through :func:`_fresh_lane_parent_ref`'s origin-aware probe so the returned
     ``parent_ref`` is already origin-preferring -- callers never compute a
     parent ref outside this seam.
+
+    The returned :class:`LaneBaseDecision` carries both refs: ``parent_ref``
+    is origin-aware and feeds the lane *worktree*'s parent; ``topology_parent_ref``
+    is the pre-override topology parent and feeds the mission INTEGRATION
+    branch's ensure-exists call (#5001) -- the two must not be conflated.
     """
 
     _guard_route_base(
@@ -418,6 +435,7 @@ def resolve_lane_base_or_refuse(
         base_honored=base is not None,
         route=route,
         topology=topology,
+        topology_parent_ref=topology_parent,
     )
 
 
@@ -665,7 +683,7 @@ def allocate_lane_worktree(
         )
         _ensure_mission_branch(
             repo_root,
-            decision.parent_ref,
+            decision.topology_parent_ref,
             lanes_manifest.target_branch,
         )
         _create_lane_worktree(

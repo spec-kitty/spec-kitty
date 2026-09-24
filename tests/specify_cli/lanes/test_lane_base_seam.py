@@ -218,6 +218,72 @@ def test_fresh_legacy_base_none_descends_mission_branch(
     assert _is_ancestor(legacy_repo, LEGACY_MISSION_BRANCH, branch)
 
 
+def test_fresh_legacy_origin_only_lane_still_creates_real_mission_branch(
+    legacy_repo: Path,
+) -> None:
+    """#5001 regression: #4969's origin-preference must not leak into
+    ``_ensure_mission_branch``.
+
+    When the per-WP lane branch for a FRESH_LEGACY mission exists ONLY as
+    ``origin/<lane_branch>`` (approved by a teammate, dropped locally) and no
+    explicit ``--base`` is given, ``decision.parent_ref`` correctly resolves
+    origin-first (#4969) so the lane *worktree* roots on the teammate's tip.
+    But the mission INTEGRATION branch must still be ensured from the
+    topology parent (``LEGACY_MISSION_BRANCH``), never from that origin-aware
+    ref. Before the fix, ``_ensure_mission_branch`` received
+    ``decision.parent_ref`` (``refs/remotes/origin/<lane_branch>``) and ran
+    ``git branch refs/remotes/origin/<lane_branch> main`` -- creating a
+    spuriously-named local branch instead of the real mission branch.
+    """
+    from specify_cli.lanes.branch_naming import lane_branch_name
+
+    repo = legacy_repo
+    lane_branch = lane_branch_name(LEGACY_MISSION_SLUG, LANE_A)
+
+    # Real bare origin; push the lane branch there, then drop the local ref
+    # so it exists ONLY as origin/<lane_branch> (mirrors #4969's fixture shape).
+    bare = repo.parent / "origin.git"
+    _git(repo, "init", "--bare", "-q", str(bare))
+    _git(repo, "remote", "add", "origin", str(bare))
+    _git(repo, "checkout", "-q", "-b", lane_branch)
+    (repo / "lane-work.txt").write_text("approved lane work\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "approved lane work")
+    _git(repo, "push", "-q", "origin", f"{lane_branch}:{lane_branch}")
+    _git(repo, "checkout", "-q", "main")
+    _git(repo, "branch", "-D", lane_branch)
+
+    # Fixture preconditions: origin has it, local does not.
+    assert not _branch_missing(repo, f"refs/remotes/origin/{lane_branch}")
+    assert _branch_missing(repo, lane_branch)
+
+    manifest = _make_manifest(
+        mission_slug=LEGACY_MISSION_SLUG,
+        mission_branch=LEGACY_MISSION_BRANCH,
+    )
+    worktree_path, branch = allocate_lane_worktree(
+        repo_root=repo,
+        mission_slug=LEGACY_MISSION_SLUG,
+        wp_id=WP_ID,
+        lanes_manifest=manifest,
+    )
+    assert worktree_path.exists()
+
+    # (a) the real mission integration branch must exist.
+    assert not _branch_missing(repo, LEGACY_MISSION_BRANCH), "the real mission integration branch was never created"
+
+    # (b) no branch literally named after the origin ref (or any raw ref/sha)
+    # was created — the exact #5001 misnaming.
+    spurious = f"refs/heads/refs/remotes/origin/{lane_branch}"
+    result = subprocess.run(["git", "rev-parse", "--verify", spurious], cwd=repo, capture_output=True)
+    assert result.returncode != 0, f"a spurious branch literally named {spurious!r} was created"
+
+    local_branches = set(_git_out(repo, "for-each-ref", "refs/heads", "--format=%(refname:short)").splitlines())
+    assert local_branches == {"main", LEGACY_MISSION_BRANCH, branch}, (
+        f"unexpected local branch set after FRESH_LEGACY allocation of an origin-only lane: {local_branches}"
+    )
+
+
 @pytest.mark.parametrize(
     "route_name,coordination",
     [
