@@ -1,0 +1,113 @@
+{
+  "event_count": 19,
+  "last_event_id": "01M392ET1BVYWRCFVV8E3M607J",
+  "materialized_at": "2026-09-24T06:43:13.067668+00:00",
+  "mission_number": "",
+  "mission_slug": "coord-read-fail-closed-01M38VVH",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 1,
+    "in_progress": 1,
+    "in_review": 1,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M391BMVMJFM4RHACGVNRYM27",
+      "last_transition_at": "2026-09-24T06:24:00.884762+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Reviewer-renata PASS (opus): red-first witnessed, C-002 byte-unchanged, exception+seam correct, ADR clean, 11 passed. Lane-hygiene + matrix resolved."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260924",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 360948,
+      "shell_pid_created_at": "1790230064.88",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "in_review",
+      "last_event_id": "01M392ET1BVYWRCFVV8E3M607J",
+      "last_transition_at": "2026-09-24T06:43:13.067668+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 555742,
+      "shell_pid_created_at": "1790232190.78",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "for_review",
+      "last_event_id": "01M392D2M0VVYEHW9V2XGTHM9A",
+      "last_transition_at": "2026-09-24T06:42:16.320808+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 548356,
+      "shell_pid_created_at": "1790232117.53",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "in_progress",
+      "last_event_id": "01M391K9WT3FK0S7KD58X76BX0",
+      "last_transition_at": "2026-09-24T06:28:11.789148+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 462525,
+      "shell_pid_created_at": "1790231288.89"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M38ZD413ZVK7SWJ3XBPJ2BJB",
+      "last_transition_at": "2026-09-24T05:49:52.035968+00:00"
+    }
+  }
+}
