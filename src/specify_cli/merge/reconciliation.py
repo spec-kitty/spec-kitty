@@ -42,11 +42,13 @@ scope for this mission and stays named-open in the docs.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
 
+from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.merge.git_probes import (
@@ -98,6 +100,14 @@ _REFUSE_WINDOW_BASE_UNRESOLVED = "the excluded-content window base could not be 
 _REFUSE_EMPTY_AUTHORED_BLOBS = (
     "the approved-authorship blob set is empty while approved WPs are claimed; the squash content axis cannot attribute any target blob (fail-closed)"
 )
+
+# A repo-ROOT ``kitty-ops/<ULID>.jsonl`` Op-record orphan (#2251) — anchored to the
+# repo root (``^``), never anywhere-in-tree, so a product-source path that merely
+# CONTAINS a ``kitty-ops/`` segment deeper in the tree is not mistaken for the
+# toolchain's own Op-record ledger. Mirrors the ULID shape
+# ``coordination/coherence.py`` uses for its (deliberately broader, whole-tree)
+# dirty-state-gate classifier.
+_KITTY_OPS_ROOT_RECORD = re.compile(r"^kitty-ops/[0-9A-HJKMNP-TV-Z]{26}\.jsonl$")
 
 
 class VerifyStatus(Enum):
@@ -517,15 +527,76 @@ class MergeOutcomeVerifier:
 
     @staticmethod
     def _is_bookkeeping_path(path: str, claim: ApprovedWpCommitSet) -> bool:
-        # Lazy import: the churn classifier pulls the status facade + mission_runtime;
-        # keeping it function-local mirrors :func:`build_approved_wp_set`'s own lazy
-        # status import and avoids a module-level cycle (C-002 discipline).
-        from specify_cli.coordination.coherence import is_toolchain_generated_churn
+        """True when *path* is the MISSION's OWN planning/toolchain surface.
 
-        if is_toolchain_generated_churn(path, mission_slug=claim.mission_slug):
-            return True
+        Anchored to three mission/toolchain-owned roots — never a global
+        basename match — closing a silent-data-loss defect (Epic #5001 landing
+        remediation): this method used to delegate to
+        :func:`~specify_cli.coordination.coherence.is_toolchain_generated_churn`,
+        a DIRTY-STATE-gate classifier that is CORRECT for its own callers but
+        matches by bare basename anywhere in the repository
+        (``PurePosixPath(path).name == "meta.json"`` matches ``src/config/
+        meta.json`` just as readily as the mission's own ``kitty-specs/<slug>/
+        meta.json``). In the squash content axis a path this classifier calls
+        bookkeeping is skipped BEFORE authored-blob attribution, so a removed/
+        canceled WP's commit touching an ordinary product-source file merely
+        NAMED like a toolchain artifact rode a carrier lane onto the target and
+        shipped at exit 0. ``coherence.py`` itself is intentionally UNCHANGED —
+        its whole-tree breadth is correct for the dirty-state gates that consume
+        it; only this axis's classification is narrowed.
+
+        A path counts as bookkeeping only when it is anchored to:
+
+        * a ``kitty-specs/<slug>/`` segment sequence where ``<slug>`` is THIS
+          claim's own :attr:`ApprovedWpCommitSet.mission_slug` — covers the
+          mission's own ``meta.json``, ``status.events.jsonl``, issue-matrix,
+          ``traces/``, ``decisions/``, retrospective, tasks, and plan artifacts,
+          wherever that segment sequence occurs in the path (the repo-root
+          ``kitty-specs/<slug>/…`` a merge commit lands directly, AND a
+          coordination-topology worktree's nested copy alike);
+        * :attr:`ApprovedWpCommitSet.planning_prefix` as an exact prefix
+          (belt-and-suspenders for a hand-built claim that sets the prefix
+          without a ``mission_slug``);
+        * a repo-ROOT ``.kittify/`` prefix — encoding-provenance,
+          mission-state-audit, and other toolchain-owned state;
+        * a repo-ROOT ``kitty-ops/<ULID>.jsonl`` Op-record orphan
+          (:data:`_KITTY_OPS_ROOT_RECORD`).
+
+        Any other path — including one that merely shares a bookkeeping
+        basename — is real content, subject to the closed-world attribution
+        check.
+        """
+        normalized = path.rstrip("/")
+        mission_slug = claim.mission_slug
+        if mission_slug:
+            parts = normalized.split("/")
+            try:
+                specs_index = parts.index(KITTY_SPECS_DIR)
+            except ValueError:
+                specs_index = -1
+            # ``kitty-specs`` segment immediately followed by THIS mission's own
+            # slug, wherever it occurs in the path (not just at a literal prefix
+            # match). Mission-scoped, never a bare basename: a product path can
+            # never satisfy this unless it is literally nested under the
+            # mission's own planning directory. Anchoring on the SEGMENT SEQUENCE
+            # (not ``claim.planning_prefix`` alone) closes a real mismatch: under
+            # coordination topology ``planning_prefix`` is derived from the
+            # STATUS_STATE placement's ``feature_dir`` (the coord WORKTREE's
+            # nested copy, e.g. ``.worktrees/<slug>-<mid8>-coord/kitty-specs/
+            # <slug>``), while the commits this axis scans land the mission's
+            # bookkeeping directly at the repo-root ``kitty-specs/<slug>/`` — the
+            # two paths never share a common prefix, so relying on
+            # ``planning_prefix`` alone silently stopped recognizing the
+            # mission's own ``status.json`` / ``status.events.jsonl`` / etc. as
+            # bookkeeping once the whole-tree churn classifier was dropped.
+            if specs_index != -1 and specs_index + 1 < len(parts) and parts[specs_index + 1] == mission_slug:
+                return True
         prefix = claim.planning_prefix
-        return bool(prefix and (path == prefix or path.startswith(prefix + "/")))
+        if prefix and (normalized == prefix or normalized.startswith(prefix + "/")):
+            return True
+        if normalized == KITTIFY_DIR or normalized.startswith(KITTIFY_DIR + "/"):
+            return True
+        return bool(_KITTY_OPS_ROOT_RECORD.match(normalized))
 
 
 def route_terminus(entry_point: str) -> None:
@@ -771,6 +842,22 @@ def _final_authored_blobs(repo_root: Path, first_parent_shas: list[str]) -> set[
     so a second-parent-smuggled blob is never recorded as authored. A path deleted
     by its newest touching commit has no blob at that commit (:func:`blob_id_at`
     raises); it is marked seen and contributes no shippable blob.
+
+    FIX D (#5001 landing remediation) — the invariant this axis rests on: the
+    squash content axis's soundness depends on lanes being sliced by DISJOINT
+    write-scope (project doctrine: lanes collapse by write-scope, not
+    dependency — each lane owns a distinct set of paths). Under that invariant
+    each content path is authored by exactly ONE approved lane, so "the FINAL
+    first-parent blob per (lane, path), unioned across approved lanes" and "the
+    final blob per path, full stop" coincide — there is no path two approved
+    lanes both touch to disambiguate between. If a future topology ever allowed
+    two approved lanes to modify the SAME path, this axis would false-FAIL
+    whenever their independently-resolved final blobs differ from the squash's
+    (correctly merged/rebased) resolution — see
+    ``test_squash_three_way_merge_resolution_is_unattributable`` (pinned
+    ``xfail(strict=True)``). That is the SAFE direction (refuse/rollback a
+    legitimate merge, never ship unattributed content), but it means this
+    assumption must be revisited before write-scope disjointness is relaxed.
     """
     seen_paths: set[str] = set()
     blobs: set[tuple[str, str]] = set()

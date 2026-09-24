@@ -404,6 +404,7 @@ def plant_canceled_commit(
     *,
     canceled_wp: str,
     carrier_wp: str,
+    path: str | None = None,
 ) -> tuple[str, str, str]:
     """Plant a canceled/removed WP's commit so it rides a dependent lane's history.
 
@@ -415,12 +416,18 @@ def plant_canceled_commit(
     "derived canceled set" the gate would compute from status is empty — exactly
     the non-vacuous case (contract postcondition 3).
 
+    ``path`` overrides the default planted path (``src/pkg/<wp>_removed.py``) —
+    used by the #5001 bookkeeping-over-exclusion repro to plant the removed
+    content at a path that is itself NAMED like a bookkeeping file (e.g.
+    ``src/config/meta.json``) while remaining ordinary product source, never
+    mission planning/toolchain output.
+
     Returns ``(canceled_sha, canceled_patch_id, planted_path)`` where
     ``planted_path`` is the repo-relative path of the removed file
-    (``src/pkg/<wp>_removed.py``). The SHA/patch-id observables serve the
-    ``--strategy merge`` repros (a distinct, patch-id-identifiable node survives a
-    merge consolidation); ``planted_path`` serves the **default-squash** repros,
-    whose only squash-sound observable is tree/blob presence via
+    (``src/pkg/<wp>_removed.py`` by default). The SHA/patch-id observables serve
+    the ``--strategy merge`` repros (a distinct, patch-id-identifiable node
+    survives a merge consolidation); ``planted_path`` serves the **default-
+    squash** repros, whose only squash-sound observable is tree/blob presence via
     :func:`blob_present_at` (squash destroys the SHA/patch-id identity #5013).
     """
     repo = mission.repo
@@ -430,7 +437,7 @@ def plant_canceled_commit(
     # A real commit that must NEVER reach the target.
     _git(repo, "branch", cancel_branch, mission.coord_branch)
     _git(repo, "checkout", "-q", cancel_branch)
-    planted_path = f"src/pkg/{canceled_wp.lower()}_removed.py"
+    planted_path = path if path is not None else f"src/pkg/{canceled_wp.lower()}_removed.py"
     canceled_code = repo / planted_path
     canceled_code.parent.mkdir(parents=True, exist_ok=True)
     canceled_code.write_text(
