@@ -275,6 +275,75 @@ def test_wp_cache_is_scoped_to_selected_checkout(checkouts):
     assert get_normalized_wp(primary, SLUG, "WP01").metadata.title == "Primary task"
     assert get_normalized_wp(primary, SLUG, "WP01", effective_root=owned).metadata.title == "Local task"
     assert get_normalized_wp(primary, SLUG, "WP01").metadata.title == "Primary task"
+    # An ambient linked-checkout call without opt-in still reads primary,
+    # even when equal timestamps would otherwise make snapshots look alike.
+    owned_wp = source / "tasks/WP01-test.md"
+    os.utime(wp, ns=(owned_wp.stat().st_atime_ns, owned_wp.stat().st_mtime_ns))
+    assert get_normalized_wp(owned, SLUG, "WP01", effective_root=owned).metadata.title == "Local task"
+    assert get_normalized_wp(owned, SLUG, "WP01").metadata.title == "Primary task"
+
+
+def test_owned_composition_policy_reaches_executor_before_advancing(checkouts, monkeypatch):
+    from types import SimpleNamespace
+    from runtime.next import runtime_bridge as rb
+    from tests._factories import provision_test_charter
+
+    primary, owned, _sibling = checkouts
+    provision_test_charter(owned)
+    (primary / ".kittify/config.yaml").write_text("mission_type_activations: []\n")
+    run_dir = owned / ".kittify/test-run"
+    assert rb._should_dispatch_via_composition("software-dev", "tasks", repo_root=owned)
+    assert not rb._should_dispatch_via_composition("software-dev", "tasks", repo_root=primary)
+    executed = []
+    original_inputs = rb._composition._composition_dispatch_inputs
+
+    def inputs(**kwargs):
+        assert kwargs["repo_root"] == owned
+        return original_inputs(**kwargs)
+
+    def execute(**kwargs):
+        assert kwargs["repo_root"] == owned
+        executed.append(kwargs["action"])
+        return []
+
+    def advance(**kwargs):
+        assert executed == ["tasks"]
+        assert kwargs["repo_root"] == primary
+        assert kwargs["effective_root"] == owned
+        return "advanced"
+
+    monkeypatch.setattr(rb._composition, "_composition_dispatch_inputs", inputs)
+    monkeypatch.setattr(rb, "_dispatch_via_composition", execute)
+    monkeypatch.setattr(rb, "_advance_run_state_after_composition", advance)
+    context = SimpleNamespace(
+        agent="codex", mission_slug=SLUG, mission_type="software-dev",
+        feature_dir=owned / "kitty-specs" / SLUG, repo_root=primary,
+        effective_root=owned, now="2026-09-24T00:00:00Z", progress=None,
+        origin={}, run_ref=None, run_dir=run_dir, current_step_id="tasks",
+        result="success", emitter_for_engine=None,
+    )
+    assert rb._dn_composition_dispatch(context) == "advanced"
+
+
+def test_owned_review_prompt_uses_owned_target_branch(checkouts):
+    from runtime.next.prompt_builder import build_prompt
+    from tests._factories import provision_test_charter
+
+    primary, owned, _sibling = checkouts
+    result = invoke("finalize-tasks", owned)
+    assert result.exit_code == 0, result.output
+    provision_test_charter(owned)
+    shutil.copytree(owned / "kitty-specs" / SLUG, primary / "kitty-specs" / SLUG)
+    meta = primary / "kitty-specs" / SLUG / "meta.json"
+    data = json.loads(meta.read_text())
+    data["target_branch"] = "wrong-primary-base"
+    meta.write_text(json.dumps(data))
+    prompt, _ = build_prompt(
+        "review", owned / "kitty-specs" / SLUG, SLUG, "WP01", "codex",
+        primary, "software-dev", effective_root=owned,
+    )
+    assert f"git diff {TARGET}..HEAD --stat" in prompt
+    assert "wrong-primary-base" not in prompt
 
 
 COMMANDS = ["check-prerequisites", "finalize-tasks", "spec-commit", "accept"]
