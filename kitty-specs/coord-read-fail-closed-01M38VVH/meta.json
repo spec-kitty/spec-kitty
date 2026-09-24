@@ -12,6 +12,7 @@
   "purpose_context": "On a coord-topology mission from a checkout where the coordination worktree is not materialised (a fresh clone, a CI runner, a removed worktree), two commands read through an empty or status-only coordination surface and then act on it as if it were the real document: tracer-append rewrites a traces file from an empty default (destroying every earlier finding, exit 0), and the decision ledger resolves to a status-only husk that blocks a mission's acceptance with no CLI way out. This mission makes those reads fail closed against the authoritative file instead of clobbering or split-braining it. Closes #4959 and #4966 (siblings under epic #5002).",
   "purpose_tldr": "Stop an unmaterialised coordination surface from silently overwriting or hiding a teammate's real mission files during ordinary coord-topology commands.",
   "slug": "coord-read-fail-closed-01M38VVH",
+  "status_phase": "1",
   "target_branch": "fix/coord-read-fail-closed",
   "topology": "coord",
   "vcs": "git",
