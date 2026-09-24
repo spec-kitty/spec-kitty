@@ -52,12 +52,34 @@ def _interrupt_after_first_lane(mission: CoordMission, first_wp: str, wp_order: 
     """Advance coord to carry *first_wp*'s lane, then persist a mid-merge resume state.
 
     Mirrors a crash AFTER the first lane consolidated but BEFORE the mission
-    branch reached the target — the exact behind-HEAD window (#4982)."""
-    coord_wt = _coord_worktree(mission)
-    git(coord_wt, "merge", "-q", "--no-edit", mission.lane_branch(first_wp))
+    branch reached the target — the exact behind-HEAD window (#4982).
 
+    Persists the SAME pre-mutation anchors real post-fix attempt-1 durably writes
+    BEFORE it consolidates any lane (persist-before-mutate: ``_resolve_pre_mutation_
+    coord_sha`` runs from ``_capture_reconciliation_claim`` before ``_phase_merge_
+    lanes``). Without them the resume's H4 guard fail-closes — a coord-topology
+    resume with ``completed_wps`` but no persisted pre-mutation base is a corrupt /
+    pre-fix shape it refuses (``_enforce_resume_anchor_integrity``), so the fixture
+    would model a state real code never emits."""
+    from mission_runtime import MissionArtifactKind, resolve_placement_only
     from specify_cli.merge.reconciliation import write_post_fix_marker
     from specify_cli.merge.state import MergeState, save_state
+
+    # --- pre-mutation anchors, captured BEFORE the simulated consolidation -----
+    # Pristine coord base (before any lane merges into coord) so the reconciliation
+    # claim is computed against the true pre-mutation tip, never the interrupted
+    # checkpoint (which already contains lane-a and would collapse WP01's claim to
+    # empty — the #4982 vacuous-claim false PASS).
+    pre_mutation_coord_sha = mission.rev(mission.coord_branch)
+    pre_mutation_coord_ref = resolve_placement_only(mission.repo, mission.slug, kind=MissionArtifactKind.STATUS_STATE).ref
+    # Each lane branch's pre-interrupt tip, keyed EXACTLY as _capture_pre_interrupt_
+    # lane_tips keys it — lane_branch_name(mid8 form), which for this fixture equals
+    # mission.lane_branch(wp) (kitty/mission-<slug>-lane-<id>). H3's lane_tip_cas_ok
+    # CAS-checks refs/heads/<key>, so the key MUST resolve to a real branch ref.
+    pre_interrupt_lane_tips = {mission.lane_branch(wp): mission.rev(mission.lane_branch(wp)) for wp in wp_order}
+
+    coord_wt = _coord_worktree(mission)
+    git(coord_wt, "merge", "-q", "--no-edit", mission.lane_branch(first_wp))
 
     state = MergeState(
         mission_id=mission.mission_id,
@@ -68,6 +90,9 @@ def _interrupt_after_first_lane(mission: CoordMission, first_wp: str, wp_order: 
     state.completed_wps = [first_wp]
     state.current_wp = wp_order[1] if len(wp_order) > 1 else first_wp
     state.strategy = "merge"
+    state.pre_mutation_coord_sha = pre_mutation_coord_sha
+    state.pre_mutation_coord_ref = pre_mutation_coord_ref
+    state.pre_interrupt_lane_tips = pre_interrupt_lane_tips
     save_state(state, mission.repo)
     # WP10 integration (FR-012): stamp the post-fix reconciliation marker so the
     # resumed merge is treated as a POST-fix in-flight crash (the fixture models a
@@ -77,17 +102,6 @@ def _interrupt_after_first_lane(mission: CoordMission, first_wp: str, wp_order: 
     git(mission.repo, "checkout", "-q", mission.target_branch)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="#4982 RESIDUAL GAP (WP10 finding): with the FR-012 post-fix marker now "
-    "stamped, the resume no longer refuses and the reconciliation gate PASSES — but "
-    "the gate's claim is computed relative to the RESUME-START coord checkpoint "
-    "(which already contains the interrupted lane-a merge), so WP01's set is empty "
-    "and trivially satisfied. The PRE-resume lane-tip SHA the test captured is NOT "
-    "preserved onto the target after the resume re-consolidates (R1 resume SHA-"
-    "preservation). The already-integrated lane's exact commit identity is lost. "
-    "Follow-up (resume consolidation must preserve pre-interrupt lane-tip SHAs).",
-)
 def test_4982_resume_preserves_already_merged_lane_commit(tmp_path: Path) -> None:
     mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M4982A")
     approved = mission.approved_shas_from_lane_tips(["WP01", "WP02"])  # PRE-resume tips

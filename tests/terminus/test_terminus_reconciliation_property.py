@@ -30,6 +30,7 @@ import pytest
 
 from tests.terminus.conftest import (
     CoordMission,
+    blob_present_at,
     build_coord_mission,
     patch_ids_in_window,
     plant_canceled_commit,
@@ -38,8 +39,6 @@ from tests.terminus.conftest import (
 )
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
-
-_FIX_WP = "WP06/WP02/WP09"
 
 
 def _assert_approved_reachable(mission: CoordMission, approved: dict[str, list[str]], target: str) -> None:
@@ -73,13 +72,42 @@ def test_terminus_reconciliation_property_clean_merge(tmp_path: Path) -> None:
     _assert_approved_reachable(mission, approved, mission.target_branch)
 
 
+def test_terminus_reconciliation_property_clean_squash(tmp_path: Path) -> None:
+    """Clean, merge-ready mission under the DEFAULT squash — the NFR-003 no-false-
+    fail guard for the squash content axis.
+
+    A legitimate squash (all approved present, nothing excluded) MUST exit 0 with
+    every approved WP's content on the target. This passes TODAY (a clean squash
+    already exits 0) and — critically — must KEEP passing after WP03/WP05 land the
+    blob-attribution axis: it is the counterweight that a "refuse-everything" fix
+    would break. It is deliberately NOT xfail.
+
+    The observable is squash-sound **blob presence** (``blob_present_at``): squash
+    rewrites history so lane-tip SHAs do not survive, but the approved *content*
+    must. The dirty default-squash variants
+    (``test_4945/4977/4981_default_squash_must_not_ship_*``) reference THIS test as
+    their paired no-false-fail guard."""
+    mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M5001Q")
+
+    result = run_terminus(mission, ["merge", "--mission", mission.slug, "--yes"])
+    assert result.returncode == 0, f"clean default squash should exit 0:\n{result.stdout}\n{result.stderr}"
+
+    # Every approved WP's authored file must be present on the target (content
+    # observable — SHA reachability is not squash-sound and is NOT asserted here).
+    for wp_id in ("WP01", "WP02"):
+        path = f"src/pkg/{wp_id.lower()}.py"
+        assert blob_present_at(mission.repo, mission.target_branch, path), (
+            f"approved {wp_id} file {path} is absent from {mission.target_branch} after a clean default squash — the content axis false-failed a legitimate squash"
+        )
+
+
 def test_excluded_detector_is_nonvacuous(tmp_path: Path) -> None:
     """Harness self-test (RN-Q3, contract postcondition 3): the excluded-commit
     detector actually fires on a planted commit — it is not a silent no-op. This
     passes today; it guarantees the strict-xfail integrity assertions below are
     meaningful and not vacuously satisfied by a detector that never detects."""
     mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M5001D")
-    canceled_sha, canceled_pid = plant_canceled_commit(mission, canceled_wp="WP99", carrier_wp="WP01")
+    canceled_sha, canceled_pid, _planted = plant_canceled_commit(mission, canceled_wp="WP99", carrier_wp="WP01")
     assert canceled_pid, "planted canceled commit must have a real patch-id"
     # Reachable from the carrier lane tip (where it was planted) — detector works.
     window = patch_ids_in_window(mission.repo, mission.coord_branch, mission.lane_branch("WP01"))
@@ -100,23 +128,14 @@ def test_excluded_detector_is_nonvacuous(tmp_path: Path) -> None:
         # gate now FAILs (non-zero) rather than shipping it (#4945/#4977/#4981 +
         # this property).
         "merge",
-        # [squash] stays xfail: a squash merge preserves neither lane-tip SHAs nor
-        # per-lane patch-ids, so the approved-reachability half asserted by SHA is
-        # structurally unsatisfiable under an exit-0 squash — squash content
-        # integrity is proved separately by `projected_content_matches_target`
-        # (WP07 seam), NOT by this SHA/patch-id property. A follow-up, not a
-        # regression.
-        pytest.param(
-            "squash",
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="squash preserves neither lane-tip SHAs nor per-lane "
-                "patch-ids; approved-reachability by SHA is structurally "
-                f"unsatisfiable under an exit-0 squash ({_FIX_WP}). Squash content "
-                "integrity is verified via projected_content_matches_target, not "
-                "this property. Follow-up, not a regression.",
-            ),
-        ),
+        # [squash]: the closed-world blob-attribution axis (WP03/WP05) now FAILs an
+        # exit-0 squash that would ship an excluded commit's content and CAS-rolls
+        # the target back, so the excluded-half invariant holds under squash too —
+        # a refusal (non-zero) leaves nothing excluded reachable. Previously xfail
+        # (lane-tip SHAs/patch-ids do not survive squash); the landed content axis
+        # makes the assertion satisfiable via the refusal branch. No longer a
+        # follow-up.
+        "squash",
     ],
 )
 def test_terminus_reconciliation_property_no_excluded_commit_reachable(tmp_path: Path, strategy: str) -> None:
@@ -129,7 +148,7 @@ def test_terminus_reconciliation_property_no_excluded_commit_reachable(tmp_path:
     excludes it, so no exit-0 merge leaves it reachable."""
     mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M5001E")
     pre_target = mission.rev(mission.target_branch)
-    canceled_sha, canceled_pid = plant_canceled_commit(mission, canceled_wp="WP99", carrier_wp="WP01")
+    canceled_sha, canceled_pid, _planted = plant_canceled_commit(mission, canceled_wp="WP99", carrier_wp="WP01")
     approved = mission.approved_shas_from_lane_tips(["WP01", "WP02"])  # captured PRE-merge
 
     result = run_terminus(mission, ["merge", "--mission", mission.slug, "--strategy", strategy, "--yes"])

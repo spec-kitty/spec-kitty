@@ -49,23 +49,6 @@ def _persist_interrupted_merge(mission: CoordMission, wp_ids: list[str], target:
     write_post_fix_marker(mission.repo, mission.mission_id)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="#4985 RESIDUAL GAP (integration finding, terminus-merge-integrity fold): "
-    "the FIX A housekeeping-destination gap IS closed — the post-merge 'record done "
-    "transitions' commit now threads the RESOLVED target (develop) into "
-    "commit_merge_bookkeeping's destination_ref, so it no longer raises "
-    "SafeCommitHeadMismatch against stale meta 'main' (verified: a fresh `merge "
-    "--target develop` lands the approved WP on develop by SHA, and forcing "
-    "`--strategy merge` on THIS resume makes this repro PASS). The remaining blocker "
-    "is INDEPENDENT and OUT OF THIS FOLD: `merge --resume` does not consume the "
-    "persisted `MergeState.strategy` ('merge') — it uses the CLI default SQUASH — so "
-    "the resumed mission→target step SQUASHES and the pre-resume lane-tip SHA is not "
-    "preserved, failing the by-SHA reachability assertion. That is the #4982/#4997 "
-    "resume SHA-preservation gap (honoring the persisted strategy on resume also "
-    "flips #4982/#4997 to xpass, which must stay xfail). Follow-up: make resume honor "
-    "the persisted MergeState.strategy / preserve pre-interrupt lane-tip SHAs.",
-)
 def test_4985_explicit_target_wins_over_stale_meta_on_resume(tmp_path: Path) -> None:
     # meta.json declares target_branch=main (the fixture default / stale value).
     mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M4985A")

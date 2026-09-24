@@ -132,6 +132,46 @@ def patch_id(repo: Path, sha: str) -> str:
     return first[0] if first else ""
 
 
+def blob_present_at(repo: Path, ref: str, path: str) -> bool:
+    """True iff *path* exists as a blob in *ref*'s tree.
+
+    The **squash-sound** observable. A squash merge preserves neither lane-tip
+    SHAs nor per-commit patch-ids, so ``sha_reachable`` / ``patch_ids_in_window``
+    are structurally unable to answer "did a removed file ship" under squash (the
+    aggregate squash commit re-diffs and drops ancestry). Tree/blob presence is the
+    only content observable that survives squash: it asks whether the *content path*
+    is materialized on *ref*, independent of which commit authored it.
+
+    Implemented with ``git cat-file -e <ref>:<path>`` — a deterministic real
+    subprocess, never mocked (harness contract). Returns ``False`` for an absent
+    path or an unresolvable ref (a deleted/absent file ships no content).
+    """
+    result = subprocess.run(
+        ["git", "-C", str(repo), "cat-file", "-e", f"{ref}:{path}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def output_names_content_fail(result: subprocess.CompletedProcess[str]) -> bool:
+    """True iff a merge's output NAMES a reconciliation FAIL / un-attributable content.
+
+    The squash-content repros pin the FAIL **cause**, not mere file absence (post-plan
+    renata: absence is trivially true on any abort/refusal, so it cannot distinguish
+    the content axis from an unrelated early error). A correct default-squash gate
+    FAILs with the operator-facing ``Reconciliation FAILED: … un-attributable …``
+    recovery line (``VerifyResult.recovery_guidance`` in ``merge/reconciliation.py``).
+
+    Whitespace is collapsed to single spaces first so a rich-console line-wrap
+    (``Reconciliation\\nFAILED``) still matches; the ``attributable`` token matches
+    the ``un-attributable`` divergence detail even if the hyphen wraps.
+    """
+    flat = " ".join((result.stdout + "\n" + result.stderr).split()).lower()
+    return "reconciliation failed" in flat or "attributable" in flat
+
+
 def sha_reachable(repo: Path, sha: str, ref: str) -> bool:
     """True iff *sha* is an ancestor of (reachable from) *ref*."""
     if not sha:
@@ -364,7 +404,7 @@ def plant_canceled_commit(
     *,
     canceled_wp: str,
     carrier_wp: str,
-) -> tuple[str, str]:
+) -> tuple[str, str, str]:
     """Plant a canceled/removed WP's commit so it rides a dependent lane's history.
 
     Mirrors the #4977 / #4945 mechanism: a WP whose code was CANCELED/removed still
@@ -375,9 +415,13 @@ def plant_canceled_commit(
     "derived canceled set" the gate would compute from status is empty — exactly
     the non-vacuous case (contract postcondition 3).
 
-    Returns ``(canceled_sha, canceled_patch_id)`` — a real target the
-    excluded-commit check must fire on. Use ``--strategy merge`` so the planted
-    commit stays a distinct, patch-id-identifiable node after consolidation.
+    Returns ``(canceled_sha, canceled_patch_id, planted_path)`` where
+    ``planted_path`` is the repo-relative path of the removed file
+    (``src/pkg/<wp>_removed.py``). The SHA/patch-id observables serve the
+    ``--strategy merge`` repros (a distinct, patch-id-identifiable node survives a
+    merge consolidation); ``planted_path`` serves the **default-squash** repros,
+    whose only squash-sound observable is tree/blob presence via
+    :func:`blob_present_at` (squash destroys the SHA/patch-id identity #5013).
     """
     repo = mission.repo
     slug = mission.slug
@@ -386,7 +430,8 @@ def plant_canceled_commit(
     # A real commit that must NEVER reach the target.
     _git(repo, "branch", cancel_branch, mission.coord_branch)
     _git(repo, "checkout", "-q", cancel_branch)
-    canceled_code = repo / "src" / "pkg" / f"{canceled_wp.lower()}_removed.py"
+    planted_path = f"src/pkg/{canceled_wp.lower()}_removed.py"
+    canceled_code = repo / planted_path
     canceled_code.parent.mkdir(parents=True, exist_ok=True)
     canceled_code.write_text(
         f'# CANCELED {canceled_wp} -- must not ship\ndef {canceled_wp.lower()}_removed() -> str:\n    return "leaked"\n',
@@ -405,7 +450,7 @@ def plant_canceled_commit(
     _git(repo, "branch", "-qD", cancel_branch)
 
     mission.canceled_wps.add(canceled_wp)
-    return canceled_sha, canceled_pid
+    return canceled_sha, canceled_pid, planted_path
 
 
 # ---------------------------------------------------------------------------

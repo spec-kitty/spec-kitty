@@ -43,20 +43,6 @@ def _coord_issue_rows(mission: CoordMission) -> set[str]:
     return set(json.loads(result.stdout).get("rows", {}).keys())
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="#4970 RESIDUAL GAP (WP10 finding): the S-C fail-closed WRITE gate "
-    "(`resolve_for_write` / `assert_coord_write_materialized`) IS landed, but it "
-    "treats an UNMATERIALIZED coord worktree whose branch is a LOCAL HEAD as the "
-    "sanctioned 'mission create → first-write self-materialization' window and "
-    "RETURNS (no refusal) — regardless of whether that local-head branch already "
-    "carries committed rows. This repro is exactly that shape (coord branch is a "
-    "local head WITH #1111 committed, worktree removed), so the write self-"
-    "materializes and clobbers. The gate needs a 'branch has committed matrix "
-    "content' check before allowing self-materialization. Also the issue-verdict "
-    "write path routes through the degrading read resolver, not `resolve_for_write`. "
-    "Follow-up (S-C hardening).",
-)
 def test_4970_issue_verdict_must_not_overwrite_unmaterialized_coord_surface(tmp_path: Path) -> None:
     mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M4970A")
 

@@ -53,21 +53,6 @@ def _persist_interrupted_develop_merge(mission: CoordMission, wp_ids: list[str])
     write_post_fix_marker(mission.repo, mission.mission_id)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="#4991 RESIDUAL GAP (integration finding, terminus-merge-integrity fold): "
-    "sibling of #4985. FIX A is closed — the housekeeping 'record done transitions' "
-    "commit now threads the RESOLVED persisted target into destination_ref, so no "
-    "SafeCommitHeadMismatch against stale meta 'main' (verified: forcing `--strategy "
-    "merge` on this resume makes the repro PASS). The remaining blocker is OUT OF "
-    "THIS FOLD: `merge --resume` ignores the persisted `MergeState.strategy` "
-    "('merge') and uses the CLI default SQUASH, so the resumed mission→target step "
-    "squashes and the pre-resume lane-tip SHA is not preserved — the by-SHA "
-    "reachability assertion cannot hold. That is the #4982/#4997 resume SHA-"
-    "preservation gap (honoring persisted strategy on resume also flips #4982/#4997 "
-    "to xpass, which must stay xfail). Follow-up: resume must honor the persisted "
-    "strategy / preserve pre-interrupt lane-tip SHAs.",
-)
 def test_4991_resume_honors_persisted_target_branch_not_stale_meta(tmp_path: Path) -> None:
     mission = build_coord_mission(tmp_path, wps=("WP01",), mid8="01M4991A")
     git(mission.repo, "branch", "develop", "main")
