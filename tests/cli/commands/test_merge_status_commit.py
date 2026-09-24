@@ -38,17 +38,15 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 def _init_git_repo(path: Path, branch: str = "main") -> None:
     """Initialize a git repo with a signed-off initial commit."""
     subprocess.run(["git", "init", f"-b{branch}"], cwd=path, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@test.com"], cwd=path, check=True, capture_output=True
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test"], cwd=path, check=True, capture_output=True
-    )
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=path, check=True, capture_output=True)
     (path / "README.md").write_text("init\n")
     subprocess.run(["git", "add", "."], cwd=path, check=True, capture_output=True)
     subprocess.run(
         ["git", "-c", "commit.gpgsign=false", "commit", "-m", "init"],
-        cwd=path, check=True, capture_output=True,
+        cwd=path,
+        check=True,
+        capture_output=True,
     )
 
 
@@ -67,7 +65,7 @@ def _seed_mission_branch(repo_path: Path, mission_slug: str) -> None:
 def _write_wp_file(tasks_dir: Path, wp_id: str, *, review_status: str = "approved", reviewed_by: str = "reviewer-1") -> None:
     tasks_dir.mkdir(parents=True, exist_ok=True)
     (tasks_dir / f"{wp_id}-impl.md").write_text(
-        f"---\nwork_package_id: \"{wp_id}\"\nreview_status: \"{review_status}\"\nreviewed_by: \"{reviewed_by}\"\n---\n# {wp_id}\n",
+        f'---\nwork_package_id: "{wp_id}"\nreview_status: "{review_status}"\nreviewed_by: "{reviewed_by}"\n---\n# {wp_id}\n',
         encoding="utf-8",
     )
 
@@ -126,25 +124,10 @@ def _baseline_run_command_side_effect(feature_dir: Path, baseline_sha: str):
     committed_meta_json = json.dumps(meta, sort_keys=True)
 
     def _side_effect(cmd, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
-        if (
-            isinstance(cmd, (list, tuple))
-            and len(cmd) >= 3
-            and cmd[0] == "git"
-            and cmd[1] == "show"
-            and str(cmd[2]).endswith("meta.json")
-        ):
+        if isinstance(cmd, (list, tuple)) and len(cmd) >= 3 and cmd[0] == "git" and cmd[1] == "show" and str(cmd[2]).endswith("meta.json"):
             return (0, committed_meta_json, "")
-        if (
-            isinstance(cmd, (list, tuple))
-            and len(cmd) >= 3
-            and cmd[0] == "git"
-            and cmd[1] == "show"
-            and str(cmd[2]).endswith("status.events.jsonl")
-        ):
-            committed_events = "\n".join(
-                json.dumps({"wp_id": wp_id, "to_lane": "done"})
-                for wp_id in ("WP01", "WP02")
-            )
+        if isinstance(cmd, (list, tuple)) and len(cmd) >= 3 and cmd[0] == "git" and cmd[1] == "show" and str(cmd[2]).endswith("status.events.jsonl"):
+            committed_events = "\n".join(json.dumps({"wp_id": wp_id, "to_lane": "done"}) for wp_id in ("WP01", "WP02"))
             return (0, committed_events + "\n", "")
         return (0, baseline_sha, "")
 
@@ -254,28 +237,36 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
         mission_result.commit = "abc1234"
         mission_result.errors = []
 
-        with (
-            patch("specify_cli.merge.executor.require_lanes_json", return_value=manifest),
-            patch("specify_cli.merge.resolve.load_state", return_value=None),
-            patch("specify_cli.merge.done_bookkeeping.save_state"),
-            patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path),
-            patch("specify_cli.merge.executor._enforce_target_branch_sync_preflight"),
-            patch("specify_cli.merge.executor._pre_mutation_safety_preflight"),
-            patch("specify_cli.merge.executor.guarded_worktree_remove"),
-            patch("specify_cli.status.get_wp_lane", return_value="done"),
-            patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result),
-            patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result),
-            patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
-            patch("specify_cli.merge.executor.commit_merge_bookkeeping", return_value=True) as mock_safe_commit,
-            patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
-            patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
-            patch("specify_cli.policy.config.load_policy_config") as mock_policy,
-            patch("specify_cli.merge.executor.run_command", return_value=(0, "abc123", "")),
-            patch("specify_cli.merge.executor.has_remote", return_value=False),
-            patch("specify_cli.merge.executor.cleanup_merge_workspace"),
-            patch("specify_cli.merge.executor.clear_state"),
-            patch("specify_cli.merge.state.MergeState"),
-        ):
+        with ExitStack() as stack:
+            stack.enter_context(patch("specify_cli.merge.executor.require_lanes_json", return_value=manifest))
+            stack.enter_context(patch("specify_cli.merge.resolve.load_state", return_value=None))
+            stack.enter_context(patch("specify_cli.merge.done_bookkeeping.save_state"))
+            stack.enter_context(patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path))
+            stack.enter_context(patch("specify_cli.merge.executor._enforce_target_branch_sync_preflight"))
+            stack.enter_context(patch("specify_cli.merge.executor._pre_mutation_safety_preflight"))
+            stack.enter_context(patch("specify_cli.merge.executor.guarded_worktree_remove"))
+            stack.enter_context(patch("specify_cli.status.get_wp_lane", return_value="done"))
+            # #5001: the reconciliation-claim phase (terminus/merge-coord
+            # integrity spine) needs real lane manifest data (string
+            # lane_id/wp_ids/slug) to compute lane branch names via
+            # lane_branch_name. This test mocks the lanes manifest with
+            # MagicMock, so stub the reconciliation phase here; reconciliation
+            # itself is covered by tests/terminus + tests/merge/test_reconciliation.
+            stack.enter_context(patch("specify_cli.merge.executor._capture_reconciliation_claim"))
+            stack.enter_context(patch("specify_cli.merge.executor._phase_reconcile_before_teardown"))
+            stack.enter_context(patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result))
+            stack.enter_context(patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result))
+            stack.enter_context(patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"))
+            mock_safe_commit = stack.enter_context(patch("specify_cli.merge.executor.commit_merge_bookkeeping", return_value=True))
+            mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
+            mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
+            mock_policy = stack.enter_context(patch("specify_cli.policy.config.load_policy_config"))
+            stack.enter_context(patch("specify_cli.merge.executor.run_command", return_value=(0, "abc123", "")))
+            stack.enter_context(patch("specify_cli.merge.executor.has_remote", return_value=False))
+            stack.enter_context(patch("specify_cli.merge.executor.cleanup_merge_workspace"))
+            stack.enter_context(patch("specify_cli.merge.executor.clear_state"))
+            stack.enter_context(patch("specify_cli.merge.state.MergeState"))
+
             stale_report = MagicMock()
             stale_report.findings = []
             mock_run_check.return_value = stale_report
@@ -346,6 +337,12 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             stack.enter_context(patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path))
             stack.enter_context(patch("specify_cli.merge.executor._enforce_target_branch_sync_preflight"))
             stack.enter_context(patch("specify_cli.status.get_wp_lane", return_value="done"))
+            # #5001: stub the reconciliation-claim phase — see comment on the
+            # same patch pair in test_safe_commit_is_called_with_correct_files
+            # above (reconciliation is covered by tests/terminus +
+            # tests/merge/test_reconciliation, not this focused unit test).
+            stack.enter_context(patch("specify_cli.merge.executor._capture_reconciliation_claim"))
+            stack.enter_context(patch("specify_cli.merge.executor._phase_reconcile_before_teardown"))
             stack.enter_context(patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result))
             stack.enter_context(patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result))
             stack.enter_context(patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"))
@@ -354,9 +351,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             # this unit test; patch them at their seam homes.
             stack.enter_context(patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"))
             stack.enter_context(patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"))
-            mock_safe_commit = stack.enter_context(
-                patch("specify_cli.merge.executor.commit_merge_bookkeeping", return_value=True)
-            )
+            mock_safe_commit = stack.enter_context(patch("specify_cli.merge.executor.commit_merge_bookkeeping", return_value=True))
             mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
             mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
             mock_policy = stack.enter_context(patch("specify_cli.policy.config.load_policy_config"))
@@ -432,9 +427,7 @@ class TestMergeDoneTransitions:
         kwargs = mock_emit.call_args.kwargs
         assert kwargs["ensure_sync_daemon"] is False
 
-    def test_safe_commit_called_before_worktree_removal(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_safe_commit_called_before_worktree_removal(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """FR-019: safe_commit must precede any worktree removal step."""
         mission_slug = "068-test-order"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
@@ -485,28 +478,34 @@ class TestMergeDoneTransitions:
             lambda _repo_root, _paths: True,
         )
 
-        with (
-            patch("specify_cli.merge.executor.require_lanes_json", return_value=manifest),
-            patch("specify_cli.merge.resolve.load_state", return_value=None),
-            patch("specify_cli.merge.done_bookkeeping.save_state"),
-            patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path),
-            patch("specify_cli.merge.executor._enforce_target_branch_sync_preflight"),
-            patch("specify_cli.merge.executor._pre_mutation_safety_preflight"),
-            patch("specify_cli.merge.executor.guarded_worktree_remove"),
-            patch("specify_cli.status.get_wp_lane", return_value="done"),
-            patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result),
-            patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result),
-            patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
-            patch("specify_cli.merge.executor.commit_merge_bookkeeping", side_effect=record_safe_commit),
-            patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
-            patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
-            patch("specify_cli.policy.config.load_policy_config") as mock_policy,
-            patch("specify_cli.merge.executor.run_command", side_effect=record_worktree_remove),
-            patch("specify_cli.merge.executor.has_remote", return_value=False),
-            patch("specify_cli.merge.executor.cleanup_merge_workspace"),
-            patch("specify_cli.merge.executor.clear_state"),
-            patch("specify_cli.merge.state.MergeState"),
-        ):
+        with ExitStack() as stack:
+            stack.enter_context(patch("specify_cli.merge.executor.require_lanes_json", return_value=manifest))
+            stack.enter_context(patch("specify_cli.merge.resolve.load_state", return_value=None))
+            stack.enter_context(patch("specify_cli.merge.done_bookkeeping.save_state"))
+            stack.enter_context(patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path))
+            stack.enter_context(patch("specify_cli.merge.executor._enforce_target_branch_sync_preflight"))
+            stack.enter_context(patch("specify_cli.merge.executor._pre_mutation_safety_preflight"))
+            stack.enter_context(patch("specify_cli.merge.executor.guarded_worktree_remove"))
+            stack.enter_context(patch("specify_cli.status.get_wp_lane", return_value="done"))
+            # #5001: stub the reconciliation-claim phase — see comment on the
+            # same patch pair in test_safe_commit_is_called_with_correct_files
+            # above (reconciliation is covered by tests/terminus +
+            # tests/merge/test_reconciliation, not this focused unit test).
+            stack.enter_context(patch("specify_cli.merge.executor._capture_reconciliation_claim"))
+            stack.enter_context(patch("specify_cli.merge.executor._phase_reconcile_before_teardown"))
+            stack.enter_context(patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result))
+            stack.enter_context(patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result))
+            stack.enter_context(patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"))
+            stack.enter_context(patch("specify_cli.merge.executor.commit_merge_bookkeeping", side_effect=record_safe_commit))
+            mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
+            mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
+            mock_policy = stack.enter_context(patch("specify_cli.policy.config.load_policy_config"))
+            stack.enter_context(patch("specify_cli.merge.executor.run_command", side_effect=record_worktree_remove))
+            stack.enter_context(patch("specify_cli.merge.executor.has_remote", return_value=False))
+            stack.enter_context(patch("specify_cli.merge.executor.cleanup_merge_workspace"))
+            stack.enter_context(patch("specify_cli.merge.executor.clear_state"))
+            stack.enter_context(patch("specify_cli.merge.state.MergeState"))
+
             stale_report = MagicMock()
             stale_report.findings = []
             mock_run_check.return_value = stale_report
@@ -533,10 +532,7 @@ class TestMergeDoneTransitions:
         if "worktree_remove" in call_order:
             sc_idx = call_order.index("safe_commit")
             wr_idx = call_order.index("worktree_remove")
-            assert sc_idx < wr_idx, (
-                f"safe_commit (idx={sc_idx}) must precede worktree_remove (idx={wr_idx}). "
-                "FR-019: persist events before destroying worktree."
-            )
+            assert sc_idx < wr_idx, f"safe_commit (idx={sc_idx}) must precede worktree_remove (idx={wr_idx}). FR-019: persist events before destroying worktree."
 
 
 # ---------------------------------------------------------------------------
@@ -571,7 +567,9 @@ class TestDoneEventsCommittedToGit:
         subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
         subprocess.run(
             ["git", "-c", "commit.gpgsign=false", "commit", "-m", "initial feature"],
-            cwd=tmp_path, check=True, capture_output=True,
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
         )
         _seed_mission_branch(tmp_path, mission_slug)
 
@@ -581,6 +579,7 @@ class TestDoneEventsCommittedToGit:
 
         # Materialize status.json
         from specify_cli.status.reducer import materialize
+
         materialize(feature_dir)
 
         manifest = MagicMock()
@@ -611,6 +610,12 @@ class TestDoneEventsCommittedToGit:
             patch("specify_cli.merge.resolve.load_state", return_value=None),
             patch("specify_cli.merge.done_bookkeeping.save_state"),
             patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path),
+            # #5001: stub the reconciliation-claim phase — see comment on the
+            # same patch pair in test_safe_commit_is_called_with_correct_files
+            # above (reconciliation is covered by tests/terminus +
+            # tests/merge/test_reconciliation, not this focused unit test).
+            patch("specify_cli.merge.executor._capture_reconciliation_claim"),
+            patch("specify_cli.merge.executor._phase_reconcile_before_teardown"),
             patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result),
             patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
@@ -654,11 +659,7 @@ class TestDoneEventsCommittedToGit:
             text=True,
             check=True,
         )
-        events = [
-            json.loads(line)
-            for line in result.stdout.splitlines()
-            if line.strip()
-        ]
+        events = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
         done_wps = {e["wp_id"] for e in events if e.get("to_lane") == "done"}
 
         assert done_wps == set(wps), (
@@ -741,6 +742,12 @@ class TestDoneEventsCommittedToGit:
             patch("specify_cli.merge.done_bookkeeping.save_state"),
             patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path),
             patch("specify_cli.cli.commands.merge._bake_mission_number_into_mission_branch"),
+            # #5001: stub the reconciliation-claim phase — see comment on the
+            # same patch pair in test_safe_commit_is_called_with_correct_files
+            # above (reconciliation is covered by tests/terminus +
+            # tests/merge/test_reconciliation, not this focused unit test).
+            patch("specify_cli.merge.executor._capture_reconciliation_claim"),
+            patch("specify_cli.merge.executor._phase_reconcile_before_teardown"),
             patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.integrate_mission_into_target", side_effect=_integrate_mission_into_target),
             patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
