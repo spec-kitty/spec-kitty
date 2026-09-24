@@ -857,7 +857,6 @@ exclude = [
     "src/specify_cli/upgrade/migrations/m_zz_verdict_provenance_backfill.py",
     "src/specify_cli/upgrade/pre30_guard.py",
     "src/specify_cli/upgrade/registry.py",
-    "src/specify_cli/upgrade/runner.py",
     "src/specify_cli/upgrade/skill_update.py",
     "src/specify_cli/validators/csv_schema.py",
     "src/specify_cli/validators/paths.py",

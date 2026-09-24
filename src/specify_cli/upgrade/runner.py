@@ -7,7 +7,7 @@ import logging
 import platform
 import sys
 from dataclasses import dataclass, field
-from kernel.clock import now_utc
+from kernel.clock import datetime, now_utc
 from pathlib import Path
 from typing import Any
 
@@ -403,6 +403,17 @@ class MigrationRunner:
         if not worktrees_dir.exists():
             return result
 
+        # Loaded once, up front: the main checkout's already-settled
+        # ``last_upgraded_at`` is the shared stamp a bookkeeping-only
+        # worktree version bump must align to (#4972) -- see
+        # ``_reconcile_worktree_bookkeeping`` below. Reading it fresh here
+        # (rather than threading an already-loaded object through all three
+        # callers) picks up whatever this same command run already wrote to
+        # main's metadata.yaml (``_finalize_main_metadata`` /
+        # ``_stamp_no_migrations_metadata`` both run and save before any
+        # caller reaches ``_upgrade_worktrees``).
+        main_metadata = ProjectMetadata.load(self.kittify_dir) if not dry_run else None
+
         # Use deterministic ordering so migrations and logs are reproducible.
         for worktree in sorted(worktrees_dir.iterdir(), key=lambda p: p.name):
             if not worktree.is_dir():
@@ -458,9 +469,7 @@ class MigrationRunner:
                 try:
                     migration_needed = migration.detect(worktree)
                 except GitignorePathError as exc:
-                    result["errors"].append(
-                        f"Worktree {worktree.name}: Cannot safely detect {migration.migration_id}: {exc}"
-                    )
+                    result["errors"].append(f"Worktree {worktree.name}: Cannot safely detect {migration.migration_id}: {exc}")
                     if not dry_run and self._record_migration_result(
                         wt_metadata,
                         wt_kittify,
@@ -493,9 +502,7 @@ class MigrationRunner:
                 try:
                     migration_result = migration.apply(worktree, dry_run=dry_run)
                 except GitignorePathError as exc:
-                    result["errors"].append(
-                        f"Worktree {worktree.name}: Cannot apply {migration.migration_id}: {exc}"
-                    )
+                    result["errors"].append(f"Worktree {worktree.name}: Cannot apply {migration.migration_id}: {exc}")
                     continue
                 if migration_result.manual_review_required:
                     worktree_manual_review = True
@@ -533,12 +540,9 @@ class MigrationRunner:
             # or the version advanced); a no-op upgrade must not rewrite
             # last_upgraded_at (issue #1838).
             if not dry_run:
-                if wt_metadata.version != target_version:
-                    wt_metadata.version = target_version
-                    worktree_metadata_dirty = True
+                worktree_metadata_dirty = self._reconcile_worktree_bookkeeping(wt_metadata, target_version, worktree_metadata_dirty, main_metadata)
 
                 if worktree_metadata_dirty:
-                    wt_metadata.last_upgraded_at = now_utc()
                     wt_metadata.save(wt_kittify)
                 # ProjectMetadata.save() rewrites metadata.yaml from its fixed
                 # model, so stamp after save just like the main project path.
@@ -568,6 +572,58 @@ class MigrationRunner:
                             result["warnings"].append(f"Worktree {worktree.name}: {wt_commit_warning}")
 
         return result
+
+    @staticmethod
+    def _reconcile_worktree_bookkeeping(
+        wt_metadata: ProjectMetadata,
+        target_version: str,
+        worktree_metadata_dirty: bool,
+        main_metadata: ProjectMetadata | None,
+    ) -> bool:
+        """Advance ``wt_metadata.version`` to ``target_version`` and settle
+        its ``last_upgraded_at`` stamp; return the resulting dirty flag.
+
+        Extends the #1838 save-gate (a no-op upgrade must not rewrite
+        ``last_upgraded_at``): the gate previously only suppressed the mint
+        when ``version == target_version`` already, leaving a real hole --
+        a worktree that is otherwise fully settled (no migration applied
+        content, no metadata synthesized fresh) but merely lagging main's
+        ``version`` still got a FRESH ``now_utc()`` mint here, diverging
+        main/coord/lane on this one bookkeeping line and wedging in-flight
+        coord missions (#4972).
+
+        A version-only bump (``worktree_metadata_dirty`` was False coming
+        in) is bookkeeping-only: align ``last_upgraded_at`` to the main
+        checkout's already-stamped value instead of minting a new one. A
+        genuine change (migration applied real content, or metadata was
+        freshly synthesized -- ``worktree_metadata_dirty`` was already True
+        coming in) keeps stamping ``now_utc()`` (#2385 preservation).
+        """
+        bookkeeping_only_bump = not worktree_metadata_dirty and wt_metadata.version != target_version
+
+        if wt_metadata.version != target_version:
+            wt_metadata.version = target_version
+            worktree_metadata_dirty = True
+
+        if worktree_metadata_dirty:
+            wt_metadata.last_upgraded_at = MigrationRunner._aligned_worktree_timestamp(main_metadata) if bookkeeping_only_bump else now_utc()
+
+        return worktree_metadata_dirty
+
+    @staticmethod
+    def _aligned_worktree_timestamp(main_metadata: ProjectMetadata | None) -> datetime:
+        """Return the shared stamp a bookkeeping-only worktree bump aligns to.
+
+        Falls back to ``now_utc()`` only when the main checkout has no
+        stamped value to align to (missing metadata, or never upgraded) --
+        there is nothing to diverge from in that case.
+        """
+        if main_metadata is None:
+            return now_utc()
+        main_stamp = main_metadata.last_upgraded_at
+        if main_stamp is None:
+            return now_utc()
+        return main_stamp
 
     def _create_initial_metadata(self, detected_version: str) -> ProjectMetadata:
         """Create initial metadata for a project without it.

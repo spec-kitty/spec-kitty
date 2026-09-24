@@ -23,7 +23,9 @@ from collections import deque
 from pathlib import Path
 
 import pytest
+import yaml
 
+from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
@@ -150,6 +152,131 @@ def test_synthesized_worktree_metadata_is_saved_when_version_matches_target(tmp_
     assert (wt / ".kittify" / "metadata.yaml").exists(), "synthesized worktree metadata must be saved to disk (#1873)"
     assert _dirty(wt) == [], "the healed metadata must also be committed"
     assert "spec-kitty upgrade" in _git_out(wt, "log", "-1", "--pretty=%s"), "synthesized metadata commit must land on the worktree branch (#1873)"
+
+
+def test_genuine_worktree_migration_still_mints_fresh_stamp_not_main_aligned(tmp_path: Path) -> None:
+    """#4972 scope guard (no #2385 regression): a worktree whose migration
+    applied REAL content must still mint its own fresh ``now_utc()`` stamp
+    and commit -- the #4972 main-aligned bookkeeping-only path must never
+    swallow a genuine change, even when main's own stamp is stale/distinct.
+    """
+    root = tmp_path / "repo"
+    _init_repo(root, version="3.2.1")
+    # The worktree forks BEFORE main's later bump, so it starts stale (no
+    # `last_upgraded_at` yet, old version) -- mirroring the real trigger.
+    wt = _add_worktree(root, "m-lane-genuine", "kitty/mission-m-lane-genuine")
+
+    old_main_stamp = "2020-01-01T00:00:00+00:00"
+    (root / ".kittify" / "metadata.yaml").write_text(
+        "spec_kitty:\n"
+        "  version: '3.2.9'\n"
+        "  initialized_at: '2026-01-01T00:00:00'\n"
+        f"  last_upgraded_at: '{old_main_stamp}'\n"
+        "environment:\n"
+        "  python_version: '3.12'\n"
+        "  platform: linux\n"
+        "  platform_version: ''\n"
+        "migrations:\n"
+        "  applied: []\n",
+        encoding="utf-8",
+    )
+    _git(root, "commit", "-q", "-am", "bump main metadata fixture")
+
+    MigrationRegistry.clear()
+
+    @MigrationRegistry.register
+    class _GenuineChangeStub(BaseMigration):
+        migration_id = "test_4972_genuine_change_stub"
+        description = "T003 stub -- real worktree content change"
+        target_version = "3.2.9"
+        runs_on_worktrees = True
+
+        def detect(self, project_path: Path) -> bool:  # noqa: ARG002
+            return True
+
+        def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
+            return True, ""
+
+        def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+            if not dry_run:
+                (project_path / "genuine-change.txt").write_text("real content\n", encoding="utf-8")
+            return MigrationResult(success=True, changes_made=["wrote genuine-change.txt"])
+
+    try:
+        result = MigrationRunner(root)._upgrade_worktrees("3.2.9", [_GenuineChangeStub()], dry_run=False, auto_commit=True)
+        assert result["errors"] == []
+
+        wt_data = yaml.safe_load((wt / ".kittify" / "metadata.yaml").read_text(encoding="utf-8-sig"))
+        wt_stamp = wt_data["spec_kitty"]["last_upgraded_at"]
+        assert wt_stamp != old_main_stamp, (
+            "a genuine worktree migration must mint its own fresh stamp, never align to main's stale value (#2385, no #4972 regression)"
+        )
+        assert wt_data["spec_kitty"]["version"] == "3.2.9"
+        assert (wt / "genuine-change.txt").exists()
+        assert _dirty(wt) == []
+        assert "spec-kitty upgrade" in _git_out(wt, "log", "-1", "--pretty=%s")
+    finally:
+        MigrationRegistry.clear()
+
+
+def test_current_equals_target_worktree_catchup_ends_byte_identical_to_main(tmp_path: Path) -> None:
+    """#4972 T004: the teammate-first-run path -- main is already at
+    ``target_version`` (unchanged by this call) and a live worktree is
+    merely lagging on ``version`` -- must leave the worktree's
+    ``.kittify/metadata.yaml`` byte-identical to main's, sharing the same
+    ``last_upgraded_at`` rather than minting a fresh one.
+    """
+    root = tmp_path / "repo"
+    _init_repo(root, version="3.2.1")
+    main_stamp = "2026-03-01T12:00:00+00:00"
+    # Main's fixture already carries REQUIRED_SCHEMA_VERSION (a real upgrade
+    # run stamps it there before ever reaching `_upgrade_worktrees`), so the
+    # byte-identical comparison below is a fair like-for-like check.
+    schema_version_line = f"  schema_version: {REQUIRED_SCHEMA_VERSION}\n" if REQUIRED_SCHEMA_VERSION is not None else ""
+    main_metadata_text = (
+        "spec_kitty:\n"
+        "  version: '3.2.9'\n"
+        "  initialized_at: '2026-01-01T00:00:00'\n"
+        f"  last_upgraded_at: '{main_stamp}'\n"
+        f"{schema_version_line}"
+        "environment:\n"
+        "  python_version: '3.12'\n"
+        "  platform: linux\n"
+        "  platform_version: ''\n"
+        "migrations:\n"
+        "  applied: []\n"
+    )
+    (root / ".kittify" / "metadata.yaml").write_text(main_metadata_text, encoding="utf-8")
+    _git(root, "commit", "-q", "-am", "main already at target")
+
+    # The worktree lags: it still shows the pre-upgrade version.
+    wt = _add_worktree(root, "m-lane-teammate", "kitty/mission-m-lane-teammate")
+    wt_metadata_text = (
+        "spec_kitty:\n"
+        "  version: '3.2.1'\n"
+        "  initialized_at: '2026-01-01T00:00:00'\n"
+        "environment:\n"
+        "  python_version: '3.12'\n"
+        "  platform: linux\n"
+        "  platform_version: ''\n"
+        "migrations:\n"
+        "  applied: []\n"
+    )
+    (wt / ".kittify" / "metadata.yaml").write_text(wt_metadata_text, encoding="utf-8")
+    _git(wt, "commit", "-q", "-am", "lagging worktree metadata")
+
+    # current_version == target_version: this mirrors upgrade.py:822's guard
+    # (no-migrations, already-current main) funneling into the shared
+    # `_upgrade_worktrees` call with an empty migrations list.
+    result = MigrationRunner(root)._upgrade_worktrees("3.2.9", [], dry_run=False, auto_commit=True)
+    assert result["errors"] == []
+
+    main_data = yaml.safe_load((root / ".kittify" / "metadata.yaml").read_text(encoding="utf-8-sig"))
+    wt_data = yaml.safe_load((wt / ".kittify" / "metadata.yaml").read_text(encoding="utf-8-sig"))
+
+    assert wt_data["spec_kitty"]["last_upgraded_at"] == main_stamp
+    assert wt_data["spec_kitty"]["version"] == "3.2.9"
+    assert wt_data == main_data, "worktree metadata.yaml must end byte-identical to main's (#4972)"
 
 
 def test_dry_run_writes_and_commits_nothing_in_worktrees(tmp_path: Path) -> None:
