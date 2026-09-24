@@ -161,6 +161,55 @@ def test_patch_id_of_merge_commit_is_empty(tmp_path: Path) -> None:
     assert merge_sha is not None
 
 
+def test_patch_id_of_raises_on_git_error(tmp_path: Path) -> None:
+    """#5001 fail-closed-on-error: a NON-ZERO ``git show`` exit (bogus sha) is a
+    git ERROR, not a legitimate empty patch-id, and must raise ``GitProbeError``
+    so callers (``patch_ids_in_range``, ``_collect_excluded``, ``_collect_authored``,
+    the closed-world scan) REFUSE/propagate instead of silently treating the
+    errored probe as "no content" and skipping it."""
+    repo = _init_repo(tmp_path)
+    with pytest.raises(git_probes.GitProbeError):
+        git_probes.patch_id_of(repo, "deadbeef" * 5)
+
+
+def test_patch_id_of_empty_but_successful_output_still_returns_empty_string(
+    tmp_path: Path,
+) -> None:
+    """A merge commit's ``git show`` EXITS 0 with an empty diff -> ``git patch-id``
+    legitimately produces no fields. That is NOT a git error and must keep
+    returning ``""`` rather than raising (the empty-but-successful case the fix
+    must not disturb)."""
+    repo = _init_repo(tmp_path)
+    base = _rev(repo, _TARGET)
+    _lane_commit(repo, base, "lane-a", "a.py", "A\n")
+    _lane_commit(repo, base, "lane-b", "b.py", "B\n")
+    _git(repo, "merge", "-q", "--no-edit", "lane-a")
+    _git(repo, "merge", "-q", "--no-edit", "--no-ff", "lane-b")
+    assert git_probes.patch_id_of(repo, _rev(repo, "HEAD")) == ""
+
+
+def test_changed_paths_of_raises_on_git_error(tmp_path: Path) -> None:
+    """Same fail-closed-on-error distinction as ``patch_id_of``: a NON-ZERO
+    ``git show --name-only`` exit (bogus sha) must raise ``GitProbeError`` so the
+    closed-world content check (``_commit_is_content``) REFUSEs instead of
+    treating the errored probe as "no changed paths" (never content) and
+    silently skipping an un-attributable content commit whose probe errored."""
+    repo = _init_repo(tmp_path)
+    with pytest.raises(git_probes.GitProbeError):
+        git_probes.changed_paths_of(repo, "deadbeef" * 5)
+
+
+def test_changed_paths_of_empty_but_successful_output_still_returns_empty_list(
+    tmp_path: Path,
+) -> None:
+    """A real commit that genuinely changes no files (``--allow-empty``) EXITS 0
+    with no ``--name-only`` output. That is NOT a git error and must keep
+    returning ``[]`` rather than raising."""
+    repo = _init_repo(tmp_path)
+    _git(repo, "commit", "--allow-empty", "-qm", "empty commit, no file changes")
+    assert git_probes.changed_paths_of(repo, _rev(repo, "HEAD")) == []
+
+
 def test_lane_integrated_by_tree_or_ancestry_squash(tmp_path: Path) -> None:
     """Squash breaks ancestry but the tree-equality axis still proves integration."""
     repo = _init_repo(tmp_path)

@@ -386,9 +386,19 @@ def patch_id_of(repo_root: Path, sha: str) -> str:
     Patch-id equivalence lets the excluded-commit check catch cherry-picked,
     rebased, or re-lettered copies of canceled code: the same diff under a new
     SHA maps to the same patch-id (#4945 / #4977 / contract postcondition 1).
-    Returns ``""`` when the commit has no diff (e.g. a merge commit) or git
-    fails — an empty patch-id is never matched, so a merge commit can never be
-    mistaken for excluded content.
+    Returns ``""`` when the commit has a genuinely empty diff (e.g. a merge
+    commit) — a successful ``git show`` with nothing for ``git patch-id`` to
+    hash — so an empty patch-id is never matched and a merge commit can never
+    be mistaken for excluded content.
+
+    Raises :class:`GitProbeError` when ``git show`` itself ERRORS (non-zero
+    exit — an unresolvable sha, a corrupt object store, …). #5001 FOLD-3-lite:
+    a git error is NOT a legitimate empty patch-id — collapsing it to ``""``
+    reads to callers (``patch_ids_in_range``, the closed-world content scan,
+    the excluded/authored claim collectors) as "no content" and lets an
+    un-attributable content commit whose probe transiently errored ship
+    undetected (fail-OPEN). Raising here lets those callers REFUSE/propagate
+    instead, matching the :func:`commits_in_range` discipline.
 
     ``git show <sha> | git patch-id --stable`` needs stdin piping, which
     :func:`run_command` does not expose, so this uses ``subprocess`` directly
@@ -408,7 +418,9 @@ def patch_id_of(repo_root: Path, sha: str) -> str:
         check=False,
     )
     if show.returncode != 0:
-        return ""
+        raise GitProbeError(
+            f"git show {sha} failed (exit {show.returncode}): {(show.stderr or '').strip()}"
+        )
     pid = _subprocess.run(
         ["git", "patch-id", "--stable"],
         input=show.stdout,
@@ -470,8 +482,16 @@ def changed_paths_of(repo_root: Path, sha: str) -> list[str]:
     content the commit authored. Used by the closed-world content check to decide
     whether a window commit is real content (touches a path outside the mission's
     bookkeeping surface) or pure spec-kitty housekeeping (status/meta/matrix/
-    retrospective projections). Returns ``[]`` on any git error or for a commit
-    with no file changes.
+    retrospective projections). Returns ``[]`` for a commit that genuinely
+    changed no files (a successful, empty ``git show``).
+
+    Raises :class:`GitProbeError` when ``git show`` itself ERRORS (non-zero
+    exit). #5001 FOLD-3-lite: a git error is NOT the same as "this commit
+    touched nothing" — collapsing it to ``[]`` lets the closed-world scan
+    (:meth:`MergeOutcomeVerifier._commit_is_content`) read an errored probe as
+    pure housekeeping and SKIP an un-attributable content commit undetected
+    (fail-OPEN). Raising here routes the caller into the existing
+    ``GitProbeError`` REFUSE path instead.
     """
     import subprocess as _subprocess
 
@@ -487,7 +507,10 @@ def changed_paths_of(repo_root: Path, sha: str) -> list[str]:
         check=False,
     )
     if result.returncode != 0:
-        return []
+        raise GitProbeError(
+            f"git show --name-only {sha} failed (exit {result.returncode}): "
+            f"{(result.stderr or '').strip()}"
+        )
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
