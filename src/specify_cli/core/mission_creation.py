@@ -948,7 +948,9 @@ def _create_mission_core_impl(
     # ``[]`` -- cannot host a mission: a mission requires at least one
     # activated mission type. Read/gating callers of ``existing_mission_types``
     # keep returning empty WITHOUT raising; only this require boundary raises.
-    if not existing_mission_types(resolved_root):
+    # The validated write checkout also owns charter and template configuration.
+    # Its activation may intentionally differ from the primary checkout.
+    if not existing_mission_types(effective_root):
         raise CharterPackConfigError(
             "This project has no activated mission types, so a mission cannot "
             "be created. A mission requires at least one activated mission "
@@ -960,12 +962,12 @@ def _create_mission_core_impl(
 
     selected_mission_type = mission or "software-dev"
     mission_type_context = resolve_mission_type_context(
-        resolved_root,
+        effective_root,
         mission_type=selected_mission_type,
     )
     spec_template = resolve_configured_template(
         "spec",
-        resolved_root,
+        effective_root,
         mission_type_context,
     )
 

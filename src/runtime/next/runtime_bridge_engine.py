@@ -51,6 +51,8 @@ would be circular) so the WP02 compat guard's per-symbol sentinel patches on
 from __future__ import annotations
 
 from pathlib import Path
+
+from specify_cli.core.owned_mission import effective_root_kwargs
 from typing import TYPE_CHECKING, Any
 
 from kernel.clock import now_utc
@@ -301,9 +303,7 @@ def _apply_decision_effects(
         issued_step_id = decision.step_id
         _emit_step_issued(run_dir, snapshot, decision.step_id, agent, sync_emitter)
     elif decision.kind == DecisionKind.decision_required and decision.decision_id:
-        pending_decisions = _emit_decision_required(
-            run_dir, snapshot, decision, decision.decision_id, agent, pending_decisions, sync_emitter
-        )
+        pending_decisions = _emit_decision_required(run_dir, snapshot, decision, decision.decision_id, agent, pending_decisions, sync_emitter)
     elif decision.kind == DecisionKind.terminal and did_complete_step:
         _emit_terminal(run_dir, snapshot, agent, mission_slug, repo_root, feature_dir, sync_emitter)
 
@@ -327,6 +327,7 @@ def advance_run_state_after_composition(
     progress: dict[str, int | float] | None,
     origin: dict[str, Any],
     sync_emitter: RuntimeEventEmitter,
+    effective_root: Path | None = None,
 ) -> Decision:
     """Advance run state after a successful composed action and return a Decision.
 
@@ -383,4 +384,5 @@ def advance_run_state_after_composition(
         timestamp,
         progress,
         origin,
+        **effective_root_kwargs(effective_root),
     )

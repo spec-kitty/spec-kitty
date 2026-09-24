@@ -681,6 +681,7 @@ def _resolve_wp_bearing_fields(
     resolve_workspace_for_wp: Callable[..., Any],
     resolve_lane_alias: Callable[[str], str],
     planned_lane: str,
+    effective_root: Path | None = None,
 ) -> dict[str, Any]:
     """Assemble the WP-bearing fields (incl. ``commands``) for one build call.
 
@@ -696,7 +697,7 @@ def _resolve_wp_bearing_fields(
         )
 
     try:
-        wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
+        wp = locate_work_package(repo_root, mission_slug, normalized_wp_id, **({"effective_root": effective_root} if effective_root is not None else {}))
     except Exception as exc:
         raise ActionContextError("WORK_PACKAGE_UNRESOLVED", str(exc)) from exc
 
@@ -707,7 +708,7 @@ def _resolve_wp_bearing_fields(
         resolve_lane_alias=resolve_lane_alias,
         planned_lane=planned_lane,
     )
-    wp_workspace = resolve_workspace_for_wp(repo_root, mission_slug, normalized_wp_id)
+    wp_workspace = resolve_workspace_for_wp(repo_root, mission_slug, normalized_wp_id, **({"effective_root": effective_root} if effective_root is not None else {}))
 
     return {
         "wp_id": normalized_wp_id,
@@ -2362,5 +2363,6 @@ def resolve_action_context(
         resolve_workspace_for_wp=resolve_workspace_for_wp,
         resolve_lane_alias=resolve_lane_alias,
         planned_lane=Lane.PLANNED,
+        effective_root=effective_root,
     )
     return build_execution_context(**base_fields, **wp_fields)

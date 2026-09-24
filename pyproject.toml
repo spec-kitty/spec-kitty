@@ -443,7 +443,6 @@ exclude = [
     "src/runtime/next/discovery.py",
     "src/runtime/next/runtime_bridge_composition.py",
     "src/runtime/next/runtime_bridge_cores.py",
-    "src/runtime/next/runtime_bridge_engine.py",
     "src/runtime/next/runtime_bridge_identity.py",
     "src/runtime/next/runtime_bridge_retrospective.py",
     "src/specify_cli/acceptance/__init__.py",

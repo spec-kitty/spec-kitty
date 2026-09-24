@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+
+from specify_cli.core.owned_mission import effective_root_kwargs
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -64,6 +66,7 @@ def build_prompt(
     agent: str,
     repo_root: Path,
     mission_type: str,
+    effective_root: Path | None = None,
 ) -> tuple[str, Path]:
     """Build a prompt for the given action.
 
@@ -76,9 +79,9 @@ def build_prompt(
     rules, WP content, and completion instructions.
     """
     if action in ("implement", "review") and wp_id:
-        prompt_text = _build_wp_prompt(action, feature_dir, mission_slug, wp_id, agent, repo_root, mission_type)
+        prompt_text = _build_wp_prompt(action, feature_dir, mission_slug, wp_id, agent, repo_root, mission_type, **effective_root_kwargs(effective_root))
     else:
-        prompt_text = _build_template_prompt(action, feature_dir, mission_slug, agent, repo_root, mission_type)
+        prompt_text = _build_template_prompt(action, feature_dir, mission_slug, agent, effective_root or repo_root, mission_type)
 
     prompt_file = _write_to_temp(action, wp_id, prompt_text, agent=agent, mission_slug=mission_slug, repo_root=repo_root)
     return prompt_text, prompt_file
@@ -155,9 +158,10 @@ def _build_wp_prompt(
     agent: str,
     repo_root: Path,
     mission_type: str,
+    effective_root: Path | None = None,
 ) -> str:
     """Build prompt for implement or review actions with WP context."""
-    workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
+    workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id, **effective_root_kwargs(effective_root))
     workspace_path = workspace.worktree_path
     wp_files = sorted((feature_dir / "tasks").glob(f"{wp_id}*.md"))
     wp_meta = None
@@ -188,8 +192,8 @@ def _build_wp_prompt(
     else:
         lines.append("Workspace contract: repository root planning workspace")
     lines.append("")
-    lines.extend(_mission_type_governance_lines(repo_root, feature_dir))
-    lines.append(_governance_context(repo_root, action=action, feature_dir=feature_dir, profile=agent_profile_id))
+    lines.extend(_mission_type_governance_lines(effective_root or repo_root, feature_dir))
+    lines.append(_governance_context(effective_root or repo_root, action=action, feature_dir=feature_dir, profile=agent_profile_id))
     lines.append("Authority references: project glossary `docs/context/`; architecture ADRs `docs/adr/`.")
     lines.append("")
 
@@ -218,7 +222,7 @@ def _build_wp_prompt(
 
     if action == "review":
         review_paths = ""
-        if not workspace.lane_id:
+        if not workspace.lane_id or effective_root is not None:
             if wp_files:
                 wp_meta, _ = read_wp_frontmatter(wp_files[0])
                 if wp_meta.owned_files:
@@ -242,7 +246,7 @@ def _build_wp_prompt(
                     "--",
                     *(str(path) for path in wp_files),
                 ],
-                cwd=repo_root,
+                cwd=effective_root or repo_root,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -258,7 +262,7 @@ def _build_wp_prompt(
                     review_base = commit_hash.strip()
                     break
         lines.append("REVIEW COMMANDS:")
-        if workspace.lane_id:
+        if workspace.lane_id and effective_root is None:
             review_base = (
                 workspace.context.base_branch if workspace.context and workspace.context.base_branch else get_feature_target_branch(repo_root, mission_slug)
             )

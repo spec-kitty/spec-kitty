@@ -191,6 +191,161 @@ def test_finalize_seeds_owned_status_only(checkouts):
     assert (snapshot(primary), snapshot(sibling)) == before
 
 
+def test_finalized_owned_tasks_resolve_for_next_implementation(checkouts):
+    from runtime.next.decision import _state_to_action
+    from runtime.next.runtime_bridge import NextDecision, _map_runtime_decision
+    from mission_runtime import resolve_action_context
+    from tests._factories import provision_test_charter
+
+    primary, owned, sibling = checkouts
+    before = snapshot(primary), snapshot(sibling)
+    result = invoke("finalize-tasks", owned)
+    assert result.exit_code == 0, result.output
+    action, wp_id, workspace = _state_to_action(
+        "implement",
+        SLUG,
+        owned / "kitty-specs" / SLUG,
+        primary,
+        "software-dev",
+        effective_root=owned,
+    )
+    assert (action, wp_id) == ("implement", "WP01")
+    assert workspace == str(owned)
+    provision_test_charter(owned)
+    decision = _map_runtime_decision(
+        NextDecision(kind="step", run_id="test-run", mission_key=SLUG, step_id="implement"),
+        "codex",
+        SLUG,
+        "software-dev",
+        primary,
+        owned / "kitty-specs" / SLUG,
+        "2026-09-24T00:00:00Z",
+        None,
+        {},
+        effective_root=owned,
+    )
+    assert decision.kind == "step", decision.reason
+    assert decision.wp_id == "WP01"
+    assert decision.workspace_path == str(owned)
+    assert "Local task" in Path(decision.prompt_file).read_text()
+    context = resolve_action_context(
+        primary,
+        action="implement",
+        feature=SLUG,
+        wp_id="WP01",
+        agent="codex",
+        effective_root=owned,
+    )
+    assert Path(context.wp_file) == owned / "kitty-specs" / SLUG / "tasks/WP01-test.md"
+    assert (snapshot(primary), snapshot(sibling)) == before
+
+
+def test_wp_cache_is_scoped_to_selected_checkout(checkouts):
+    from specify_cli.workspace.context import get_normalized_wp
+
+    primary, owned, _sibling = checkouts
+    source = owned / "kitty-specs" / SLUG
+    shutil.copytree(source, primary / "kitty-specs" / SLUG)
+    wp = primary / "kitty-specs" / SLUG / "tasks/WP01-test.md"
+    wp.write_text(wp.read_text().replace("title: Local task", "title: Primary task"))
+    assert get_normalized_wp(primary, SLUG, "WP01").metadata.title == "Primary task"
+    assert get_normalized_wp(primary, SLUG, "WP01", effective_root=owned).metadata.title == "Local task"
+    assert get_normalized_wp(primary, SLUG, "WP01").metadata.title == "Primary task"
+    # An ambient linked-checkout call without opt-in still reads primary,
+    # even when equal timestamps would otherwise make snapshots look alike.
+    owned_wp = source / "tasks/WP01-test.md"
+    os.utime(wp, ns=(owned_wp.stat().st_atime_ns, owned_wp.stat().st_mtime_ns))
+    assert get_normalized_wp(owned, SLUG, "WP01", effective_root=owned).metadata.title == "Local task"
+    assert get_normalized_wp(owned, SLUG, "WP01").metadata.title == "Primary task"
+
+
+def test_owned_composition_policy_reaches_executor_before_advancing(checkouts, monkeypatch):
+    from types import SimpleNamespace
+    from runtime.next import runtime_bridge as rb
+    from tests._factories import provision_test_charter
+
+    primary, owned, _sibling = checkouts
+    provision_test_charter(owned)
+    (primary / ".kittify/config.yaml").write_text("mission_type_activations: []\n")
+    run_dir = owned / ".kittify/test-run"
+    assert rb._should_dispatch_via_composition("software-dev", "tasks", repo_root=owned)
+    assert not rb._should_dispatch_via_composition("software-dev", "tasks", repo_root=primary)
+    executed = []
+    original_inputs = rb._composition._composition_dispatch_inputs
+
+    def inputs(**kwargs):
+        assert kwargs["repo_root"] == owned
+        return original_inputs(**kwargs)
+
+    def execute(**kwargs):
+        assert kwargs["repo_root"] == owned
+        executed.append(kwargs["action"])
+        return []
+
+    def advance(**kwargs):
+        assert executed == ["tasks"]
+        assert kwargs["repo_root"] == primary
+        assert kwargs["effective_root"] == owned
+        return "advanced"
+
+    monkeypatch.setattr(rb._composition, "_composition_dispatch_inputs", inputs)
+    monkeypatch.setattr(rb, "_dispatch_via_composition", execute)
+    monkeypatch.setattr(rb, "_advance_run_state_after_composition", advance)
+    context = SimpleNamespace(
+        agent="codex",
+        mission_slug=SLUG,
+        mission_type="software-dev",
+        feature_dir=owned / "kitty-specs" / SLUG,
+        repo_root=primary,
+        effective_root=owned,
+        now="2026-09-24T00:00:00Z",
+        progress=None,
+        origin={},
+        run_ref=None,
+        run_dir=run_dir,
+        current_step_id="tasks",
+        result="success",
+        emitter_for_engine=None,
+    )
+    assert rb._dn_composition_dispatch(context) == "advanced"
+
+
+def test_owned_review_prompt_uses_owned_target_branch(checkouts):
+    from runtime.next.prompt_builder import build_prompt
+    from tests._factories import provision_test_charter
+
+    primary, owned, _sibling = checkouts
+    result = invoke("finalize-tasks", owned)
+    assert result.exit_code == 0, result.output
+    provision_test_charter(owned)
+    shutil.copytree(owned / "kitty-specs" / SLUG, primary / "kitty-specs" / SLUG)
+    task = owned / "kitty-specs" / SLUG / "tasks/WP01-test.md"
+    task.write_text(task.read_text() + "\nClaimed for implementation.\n")
+    git(owned, "add", str(task))
+    git(owned, "commit", "-qm", "Start WP01 implementation")
+    claim = git(owned, "rev-parse", "HEAD")
+    (owned / "app.py").write_text("VALUE = 2\n")
+    git(owned, "add", "app.py")
+    git(owned, "commit", "-qm", "Implement local task")
+    meta = primary / "kitty-specs" / SLUG / "meta.json"
+    data = json.loads(meta.read_text())
+    data["target_branch"] = "wrong-primary-base"
+    meta.write_text(json.dumps(data))
+    prompt, _ = build_prompt(
+        "review",
+        owned / "kitty-specs" / SLUG,
+        SLUG,
+        "WP01",
+        "codex",
+        primary,
+        "software-dev",
+        effective_root=owned,
+    )
+    assert f"git diff {claim}..HEAD --stat -- app.py" in prompt
+    assert "wrong-primary-base" not in prompt
+    assert "+VALUE = 2" in git(owned, "diff", f"{claim}..HEAD", "--", "app.py")
+
+
 COMMANDS = ["check-prerequisites", "finalize-tasks", "spec-commit", "accept"]
 
 

@@ -1280,6 +1280,15 @@ def _read_contract_from_transaction_target(
     mission_slug: str,
 ) -> EventLogReadContract:
     """Resolve the read-only contract for the transaction write target."""
+    if identity.primary_root is not None:
+        # _identity_for_request resolved this explicit single-branch checkout.
+        # Keep that authority: an in-repo owned lane is not coordination merely
+        # because its physical path contains the worktree parent directory.
+        return EventLogReadContract.owned_checkout(
+            identity.feature_dir,
+            repo_root=identity.primary_root,
+            owned_root=identity.repo_root,
+        )
     if not _transaction_topology_available(identity, mission_slug):
         # #1900 / FR-001: the worktree-context read is the blessed seam shape
         # predicate (_is_under_worktree → is_under_worktrees_segment), not a raw

@@ -23,6 +23,8 @@ import tempfile
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+
+from specify_cli.core.owned_mission import effective_root_kwargs
 from typing import Any
 
 from charter.activation.pack_context import CharterPackConfigError
@@ -397,6 +399,7 @@ def _state_to_action(
     feature_dir: Path,
     repo_root: Path,
     mission_name: str,
+    effective_root: Path | None = None,
 ) -> tuple[str | None, str | None, str | None]:
     """Map a mission state to a ``(action, wp_id, workspace_path)`` triple.
 
@@ -422,7 +425,7 @@ def _state_to_action(
             # reassigned (FR-012a).
             review_wp = _find_first_wp_by_lane(feature_dir, "for_review")
             if review_wp:
-                workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, review_wp).worktree_path)
+                workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, review_wp, **effective_root_kwargs(effective_root)).worktree_path)
                 return "review", review_wp, workspace_path
             # in_review WPs exist but are not actionable by this agent —
             # review is already in progress, nothing to pick up.
@@ -431,7 +434,7 @@ def _state_to_action(
                 return None, None, None
             return None, None, None
 
-        workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id).worktree_path)
+        workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id, **effective_root_kwargs(effective_root)).worktree_path)
         return "implement", wp_id, workspace_path
 
     # "review" state: WP-level if for_review WP exists, else template-level.
@@ -440,7 +443,7 @@ def _state_to_action(
     if state == "review":
         wp_id = _find_first_wp_by_lane(feature_dir, "for_review")
         if wp_id is not None:
-            workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id).worktree_path)
+            workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id, **effective_root_kwargs(effective_root)).worktree_path)
             return "review", wp_id, workspace_path
         # Explicitly skip in_review WPs — they are claimed by another
         # reviewer (FR-012a).  Fall through to generic template resolution.
@@ -455,7 +458,7 @@ def _state_to_action(
     from specify_cli.runtime.resolver import resolve_command
 
     try:
-        resolve_command(f"{state}.md", repo_root, mission=mission_name)
+        resolve_command(f"{state}.md", effective_root or repo_root, mission=mission_name)
         return state, None, None
     except FileNotFoundError:
         pass
@@ -501,6 +504,7 @@ def _build_prompt_safe(
     agent: str,
     repo_root: Path,
     mission_type: str,
+    effective_root: Path | None = None,
 ) -> str | None:
     """Build prompt, returning None on failure instead of raising.
 
@@ -517,6 +521,7 @@ def _build_prompt_safe(
         agent=agent,
         repo_root=repo_root,
         mission_type=mission_type,
+        **effective_root_kwargs(effective_root),
     )
     return path
 
@@ -529,6 +534,7 @@ def _build_prompt_or_error(
     agent: str,
     repo_root: Path,
     mission_type: str,
+    effective_root: Path | None = None,
 ) -> tuple[str | None, str | None]:
     """Build prompt, returning ``(path, None)`` on success or ``(None, error)``.
 
@@ -556,7 +562,7 @@ def _build_prompt_or_error(
             resolve_mission_type_context,
         )
 
-        action_sequence = resolve_mission_type_context(repo_root, mission_type=mission_type).action_sequence
+        action_sequence = resolve_mission_type_context(effective_root or repo_root, mission_type=mission_type).action_sequence
         _is_composed_action = wp_id is None and action in action_sequence
     except Exception:
         pass
@@ -583,6 +589,7 @@ def _build_prompt_or_error(
                 agent=agent,
                 repo_root=repo_root,
                 mission_type=mission_type,
+                **effective_root_kwargs(effective_root),
             )
         path_str = str(prompt_path)
         try:

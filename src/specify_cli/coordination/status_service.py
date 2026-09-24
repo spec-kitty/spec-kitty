@@ -40,6 +40,7 @@ class StatusReadSource(enum.StrEnum):
     """Explicit status read source."""
 
     PRIMARY_CHECKOUT = "primary_checkout"
+    OWNED_CHECKOUT = "owned_checkout"
     COORDINATION_WORKTREE = "coordination_worktree"
     COORDINATION_BRANCH_REF = "coordination_branch_ref"
 
@@ -88,6 +89,19 @@ class EventLogReadContract:
     repo_root: Path | None = None
     destination_ref: str | None = None
     parser_feature_dir: Path | None = None
+    owned_root: Path | None = None
+
+    @classmethod
+    def owned_checkout(
+        cls, feature_dir: Path, *, repo_root: Path, owned_root: Path
+    ) -> EventLogReadContract:
+        """Carry explicit checkout scope; readers validate it before opening events."""
+        return cls(
+            source=StatusReadSource.OWNED_CHECKOUT,
+            feature_dir=feature_dir,
+            repo_root=repo_root,
+            owned_root=owned_root,
+        )
 
     @classmethod
     def primary_checkout(cls, feature_dir: Path) -> EventLogReadContract:
@@ -144,12 +158,30 @@ class EventLogWriteContract:
         )
 
 
+def _validate_owned_read(contract: EventLogReadContract) -> None:
+    """Validate owned authority without weakening primary/coordination labels."""
+    from specify_cli.core.owned_mission import resolve_owned_mission
+    from specify_cli.core.paths import get_main_repo_root
+
+    if contract.repo_root is None or contract.owned_root is None:
+        raise StatusContractError("owned_checkout reads require primary and owned roots")
+    if get_main_repo_root(contract.repo_root).resolve() != contract.repo_root.resolve():
+        raise StatusContractError("owned_checkout repo_root must identify the primary checkout")
+    owned = resolve_owned_mission(contract.repo_root, contract.owned_root, contract.feature_dir.name)
+    if owned.directory != contract.feature_dir.resolve():
+        raise StatusContractError("owned_checkout mission directory does not match the validated checkout")
+
+
 def read_event_log(contract: EventLogReadContract) -> list[StatusEvent]:
     """Read events from the contract's explicit source without mutation."""
     from specify_cli.status import EVENTS_FILENAME, read_events, read_events_from_text  # noqa: PLC0415
 
     if not isinstance(contract, EventLogReadContract):
         raise StatusContractError("read_event_log requires EventLogReadContract")
+
+    if contract.source == StatusReadSource.OWNED_CHECKOUT:
+        _validate_owned_read(contract)
+        return read_events(contract.feature_dir)
 
     if contract.source in {
         StatusReadSource.PRIMARY_CHECKOUT,
@@ -212,6 +244,10 @@ def read_event_stream_log(contract: EventLogReadContract) -> EventStream:
 
     if not isinstance(contract, EventLogReadContract):
         raise StatusContractError("read_event_stream_log requires EventLogReadContract")
+
+    if contract.source == StatusReadSource.OWNED_CHECKOUT:
+        _validate_owned_read(contract)
+        return read_event_stream(contract.feature_dir)
 
     if contract.source in {
         StatusReadSource.PRIMARY_CHECKOUT,
