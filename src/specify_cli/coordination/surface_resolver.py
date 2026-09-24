@@ -587,7 +587,7 @@ def _artifact_basenames_for_kind(kind: MissionArtifactKind) -> frozenset[str]:
     ``issue-matrix.{json,md}`` literal, so the probe path can never drift out of
     sync with the classifier (post-plan F2).
     """
-    from mission_runtime.artifacts import _MISSION_FILE_KIND_BY_BASENAME
+    from mission_runtime import _MISSION_FILE_KIND_BY_BASENAME
 
     return frozenset(name for name, mapped in _MISSION_FILE_KIND_BY_BASENAME.items() if mapped is kind)
 

@@ -82,6 +82,11 @@ _PUBLIC_SURFACE = sorted(
         # root public symbol because ``ResolvedSurface.surface_kind`` stamps it and
         # consumers read the stamp.
         "TopologySurface",
+        # coord-read-fail-closed landing (#5001): the basename->kind classifier
+        # map itself, re-exported so ``specify_cli.coordination.surface_resolver``
+        # can invert it (kind -> basenames) without reaching into the
+        # ``mission_runtime.artifacts`` submodule directly (MR-1/MR-2).
+        "_MISSION_FILE_KIND_BY_BASENAME",
         "classify_topology",
         # coord-commit-integrity SURFACE A (#5): the ONE topology-guarded coord-read
         # helper both gates_core._acceptance_matrix_read_dir and accept._coord_

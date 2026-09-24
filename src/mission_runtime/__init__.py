@@ -46,6 +46,7 @@ from mission_runtime.context import (
 from mission_runtime.artifacts import (
     MissionArtifactKind,
     TopologySurface,
+    _MISSION_FILE_KIND_BY_BASENAME,
     is_primary_artifact_kind,
     kind_for_mission_file,
     kind_is_coordination_residue,
@@ -92,6 +93,11 @@ __all__ = [
     "ReadDegradeStrategy",
     "ReadDirDecision",
     "TopologySurface",
+    # coord-read-fail-closed landing (#5001): the basename->kind classifier map
+    # itself, re-exported so ``specify_cli.coordination.surface_resolver`` can
+    # invert it (kind -> basenames) without reaching into the
+    # ``mission_runtime.artifacts`` submodule directly (MR-1/MR-2).
+    "_MISSION_FILE_KIND_BY_BASENAME",
     "assert_coord_write_materialized",
     "classify_topology",
     "coord_read_dir_for",
