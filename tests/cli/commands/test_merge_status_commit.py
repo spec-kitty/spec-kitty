@@ -19,6 +19,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch, call
 
 import pytest
+import typer
 
 from specify_cli.cli.commands.merge import (
     _mark_wp_merged_done,
@@ -704,7 +705,26 @@ class TestDoneEventsCommittedToGit:
             check=True,
             capture_output=True,
         )
-        subprocess.run(["git", "branch", coord_branch], cwd=tmp_path, check=True, capture_output=True)
+        # Materialize the coordination worktree via a real `git worktree add`
+        # (not just `git branch`) — post-#4959, a coord-topology STATUS_STATE
+        # read against a declared-but-unmaterialized coord worktree raises
+        # `CoordinationWorktreeUnmaterialized` instead of silently substituting
+        # the (empty-of-done-events) PRIMARY checkout. Mirrors the canonical
+        # materialized-coord fixture shape in
+        # tests/architectural/test_read_surface_placement_guard.py
+        # (`_build_mission_materialized`) and tests/merge/test_merge_target_resolution.py
+        # (`coord_repo`), and gives `_run_lane_based_merge` a genuine coord
+        # worktree to write the merge-time done events into before they are
+        # folded into target history by `_integrate_mission_into_target` below.
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+
+        coord_worktree = CoordinationWorkspace.worktree_path(tmp_path, mission_slug, mid8)
+        subprocess.run(
+            ["git", "worktree", "add", "-q", "-b", coord_branch, str(coord_worktree), "HEAD"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
 
         manifest = MagicMock()
         manifest.target_branch = "main"
@@ -790,3 +810,73 @@ class TestDoneEventsCommittedToGit:
         events = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
         done_wps = {event["wp_id"] for event in events if event.get("to_lane") == "done"}
         assert done_wps == set(wps)
+
+    def test_lane_based_merge_exits_cleanly_on_unmaterialized_coord_worktree(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """#5019 landing-pass fold (Finding 1): a coord-topology merge whose
+        coordination worktree is declared in meta.json AND still exists in git,
+        but was never materialized on disk (the fresh-clone / CI-runner /
+        ``git worktree remove`` window — ``CoordState.UNMATERIALIZED``), must
+        exit gracefully rather than raise a raw
+        ``CoordinationWorktreeUnmaterialized`` traceback.
+
+        Sibling of ``test_lane_based_merge_exits_cleanly_instead_of_tracebacking``
+        in tests/merge/test_coord_deleted_degrade_paths.py, which covers the
+        DELETED-branch case via the pre-existing ``except CoordinationBranchDeleted``
+        handler. That handler does NOT catch ``CoordinationWorktreeUnmaterialized``
+        — a sibling ``StatusReadPathNotFound`` subclass, not a
+        ``CoordinationBranchDeleted`` subclass — so before this fold's widened
+        handler, this scenario propagated the raw exception straight out of
+        ``spec-kitty merge`` instead of the graceful pre-state-change exit every
+        other coord-partition read failure gets.
+        """
+        from specify_cli.merge.executor import _run_lane_based_merge
+
+        mid8 = "01KMATRX"
+        mission_slug = f"merge-unmat-coord-{mid8}"
+        mission_id = f"{mid8}0000000000000000"
+        coord_branch = f"kitty/mission-{mission_slug}"
+
+        _init_git_repo(tmp_path)
+
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        feature_dir.mkdir(parents=True)
+        _write_meta(
+            feature_dir,
+            mission_slug,
+            mission_id=mission_id,
+            mid8=mid8,
+            coordination_branch=coord_branch,
+        )
+        _write_wp_file(feature_dir / "tasks", "WP01")
+
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "-c", "commit.gpgsign=false", "commit", "-m", "declared coord branch"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+        # The coord branch genuinely exists in git (rules out DELETED) but its
+        # worktree is deliberately never materialized (`git worktree add` is NOT
+        # run here) — the UNMATERIALIZED cell this fold's handler must degrade
+        # gracefully on.
+        subprocess.run(["git", "branch", coord_branch], cwd=tmp_path, check=True, capture_output=True)
+
+        with pytest.raises(typer.Exit) as excinfo:
+            _run_lane_based_merge(
+                repo_root=tmp_path,
+                mission_slug=mission_slug,
+                push=False,
+                delete_branch=False,
+                remove_worktree=False,
+                strategy=MergeStrategy.SQUASH,
+            )
+
+        assert excinfo.value.exit_code == 1
+        # Rich hard-wraps console output at the terminal width, so collapse
+        # whitespace before matching — the assertion is about content, not line
+        # breaks.
+        output = " ".join(capsys.readouterr().out.split())
+        assert coord_branch in output, f"the error must name the unmaterialized branch; got: {output!r}"
+        assert "doctor workspaces --fix" in output, f"the error must carry the exception's OWN remediation (next_step); got: {output!r}"
+        assert "Merge aborted before any state change" in output, f"the operator must be told the merge is a clean no-op; got: {output!r}"

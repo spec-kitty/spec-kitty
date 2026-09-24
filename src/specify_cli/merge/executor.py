@@ -49,6 +49,7 @@ from specify_cli.coordination.coherence import (
 )
 from specify_cli.coordination.surface_resolver import (
     CoordinationBranchDeleted,
+    CoordinationWorktreeUnmaterialized,
     is_under_worktrees_segment,
     resolve_status_surface,
 )
@@ -3046,10 +3047,15 @@ def _run_lane_based_merge(
     # topology-aware resolver so the append-only event log resolves the coord
     # worktree for a coord-topology mission.
     seam = placement_seam(main_repo, mission_slug)
-    # Fail-closed, but NOT with a traceback: a deleted coordination branch means
-    # the mission's status authority is gone, so the merge cannot proceed. Render
-    # the exception's own remediation (``doctor coordination --fix``) and exit,
-    # matching the handler shape at ``agent/status.py`` and ``mission_finalize.py``.
+    # Fail-closed, but NOT with a traceback, for either coord-partition read
+    # failure sibling: a deleted coordination branch means the mission's status
+    # authority is gone, so the merge cannot proceed (``CoordinationBranchDeleted``);
+    # an unmaterialized-but-still-extant coordination worktree (fresh clone / CI /
+    # ``git worktree remove`` window) means the status authority is intact but not
+    # yet checked out (``CoordinationWorktreeUnmaterialized``, #4959) — neither is a
+    # traceback-worthy crash. Render each exception's own remediation (its
+    # ``next_step``, already folded into ``str(exc)``) and exit, matching the
+    # handler shape at ``agent/status.py`` and ``mission_finalize.py``.
     try:
         feature_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
     except CoordinationBranchDeleted as exc:
@@ -3057,6 +3063,14 @@ def _run_lane_based_merge(
         console.print(
             "[yellow]Merge aborted before any state change.[/yellow] "
             "Recover the mission's status authority, then re-run "
+            "[bold]spec-kitty merge[/bold]."
+        )
+        raise typer.Exit(1) from exc
+    except CoordinationWorktreeUnmaterialized as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        console.print(
+            "[yellow]Merge aborted before any state change.[/yellow] "
+            "Materialize the coordination worktree, then re-run "
             "[bold]spec-kitty merge[/bold]."
         )
         raise typer.Exit(1) from exc
