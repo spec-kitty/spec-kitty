@@ -162,10 +162,14 @@ _ALLOWLIST: dict[str, str] = {
         "fetch+reset consistency story for a throwaway doctrine-pack clone, "
         "unrelated to the operator checkout the guard protects."
     ),
-    "src/specify_cli/merge/git_probes.py:239:reset_hard": (
+    "src/specify_cli/merge/git_probes.py:232:reset_hard": (
         "guarded by WP03/T011 (#4752): refuses via assert_checkout_on_target "
         "before this reset runs whenever expected_branch is supplied; the "
-        "live merge preflight always supplies it."
+        "live merge preflight always supplies it. Re-pinned from :239 "
+        "(landing/coord-read-fail-closed #5001 follow-up, PR #5020): WS1's "
+        "blob-attribution axis added code earlier in the file, shifting this "
+        "line; same _refresh_primary_checkout_after_merge site/rationale, "
+        "confirmed by a direct read -- not a new destructive op."
     ),
     "src/specify_cli/git/ref_advance.py:462:reset_hard": (
         "the reused guard primitive's OWN resync implementation -- this "
@@ -222,10 +226,13 @@ _ALLOWLIST: dict[str, str] = {
         "own docstring, not an unrouted/unexplained raw force-remove."
     ),
     # --- merge --abort (6) --------------------------------------------------
-    "src/specify_cli/merge/state.py:622:merge_abort": (
+    "src/specify_cli/merge/state.py:638:merge_abort": (
         "abort_git_merge's own generic primitive; its one live caller "
         "(cli.commands.merge._dispatch_abort, WP04/#4754) passes only the "
-        "scoped merge-workspace path, never repo_root (INV-5)."
+        "scoped merge-workspace path, never repo_root (INV-5). Re-pinned "
+        "from :622 (landing/coord-read-fail-closed #5001 follow-up, "
+        "PR #5020): this PR's state.py edits shifted the line, same "
+        "primitive/rationale."
     ),
     "src/specify_cli/lanes/merge.py:1071:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (squash-conflict rollback), never repo_root."),
     "src/specify_cli/lanes/merge.py:1184:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (merge-conflict rollback), never repo_root."),
