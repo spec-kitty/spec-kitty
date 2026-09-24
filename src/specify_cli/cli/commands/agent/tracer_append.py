@@ -23,6 +23,7 @@ from specify_cli.core.paths import (
     get_main_repo_root,
     locate_project_root,
 )
+from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.retrospective.tracer_writer import (
     TRACER_CATEGORIES,
@@ -89,6 +90,26 @@ def tracer_append(
             policy=policy,
             target_branch=target_branch,
         )
+    except CoordinationWorktreeUnmaterialized as exc:
+        # coord-read-fail-closed-01M38VVH WP04 out-of-map wrap (mid-mission
+        # coordinator referral from WP02's review): WP02 narrows the tracer
+        # read's absorption so a coord-topology read on an UNMATERIALIZED
+        # coordination worktree now PROPAGATES out of
+        # ``append_tracer_finding`` instead of degrading to "" — this CLI
+        # boundary previously caught only ``TracerAttributionError``/
+        # ``TracerCategoryError``, so the new sibling would have surfaced as a
+        # raw traceback here. Minimal message-wrap only: present the same
+        # structured ``{"ok": false, ...}`` refusal shape the other error
+        # branches below use, carrying the sibling's operator-facing
+        # ``next_step`` verbatim rather than swallowing it into success.
+        payload = {
+            "ok": False,
+            "kind": _KIND_LABEL,
+            "error": str(exc),
+            "next_step": exc.next_step,
+        }
+        _emit(payload, json_output=json_output, ok=False)
+        raise typer.Exit(1) from None
     except (TracerAttributionError, TracerCategoryError) as exc:
         _emit(_error_payload(str(exc)), json_output=json_output, ok=False)
         raise typer.Exit(1) from None
