@@ -123,13 +123,24 @@ def _write_meta(feature_dir: Path) -> None:
 
 
 def _write_manifest(feature_dir: Path) -> LanesManifest:
-    """A single code lane (legacy branch naming via mission_id == slug)."""
+    """A single code lane (legacy branch naming)."""
     manifest = LanesManifest(
         version=1,
         mission_slug=MISSION_SLUG,
-        # mission_id == slug => legacy lane_branch_name form
-        # ``kitty/mission-<slug>-lane-a`` which consolidate_lane_into_mission constructs.
-        mission_id=MISSION_SLUG,
+        # ``mission_id=None`` => the LEGACY ``lane_branch_name`` form
+        # ``kitty/mission-<slug>-lane-a`` which consolidate_lane_into_mission
+        # constructs (and which the lane branch created below matches
+        # verbatim). The prior value here, ``mission_id=MISSION_SLUG``, was a
+        # documented-contract violation (``LanesManifest.mission_id``: "ULID
+        # or None; never a slug") that also happened to derive the WRONG
+        # branch name (``lane_branch_name`` takes the NEW mid8-based naming
+        # branch whenever ``mission_id is not None``, mangling the slug into
+        # ``...-coord-to-lane-a``) -- silently masked before Epic #5001's FIX C
+        # closed the squash content axis's vacuous-authorship PASS. Passing
+        # the real ``MISSION_ID`` ULID instead would ALSO derive the wrong
+        # (mid8-suffixed) branch, since this fixture's lane branch was created
+        # without one; ``None`` is the value that is actually correct here.
+        mission_id=None,
         mission_branch=COORD_BRANCH,
         target_branch="main",
         lanes=[

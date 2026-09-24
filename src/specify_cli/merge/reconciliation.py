@@ -100,6 +100,14 @@ _REFUSE_WINDOW_BASE_UNRESOLVED = "the excluded-content window base could not be 
 _REFUSE_EMPTY_AUTHORED_BLOBS = (
     "the approved-authorship blob set is empty while approved WPs are claimed; the squash content axis cannot attribute any target blob (fail-closed)"
 )
+# FIX C (#5001 landing remediation): NO approved lane resolved any commits and no
+# authored blob exists, yet the squash window carries a non-bookkeeping A/M path —
+# there is no authorship authority to attribute that content against at all.
+_REFUSE_NO_AUTHORSHIP_AUTHORITY = (
+    "no approved lane resolved any commits and the authored-blob set is empty, "
+    "but the squash window carries non-bookkeeping content; there is no "
+    "authorship authority to attribute it against (fail-closed)"
+)
 
 # A repo-ROOT ``kitty-ops/<ULID>.jsonl`` Op-record orphan (#2251) — anchored to the
 # repo root (``^``), never anywhere-in-tree, so a product-source path that merely
@@ -487,7 +495,7 @@ class MergeOutcomeVerifier:
         if not claim.authored_blobs:
             if any(shas for shas in claim.approved.values()):
                 return VerifyResult.refused(_REFUSE_EMPTY_AUTHORED_BLOBS)
-            return VerifyResult.passed()
+            return self._verify_squash_vacuous_authorship(target_ref, claim)
         window_base = claim.excluded_window_base
         if window_base is None:
             return VerifyResult.refused(_REFUSE_WINDOW_BASE_UNRESOLVED)
@@ -498,6 +506,49 @@ class MergeOutcomeVerifier:
         if unattributable:
             return VerifyResult.failed(Divergence(unattributable_blobs=tuple(unattributable)))
         return VerifyResult.passed()
+
+    def _verify_squash_vacuous_authorship(self, target_ref: str, claim: ApprovedWpCommitSet) -> VerifyResult:
+        """FIX C (#5001 landing remediation): no lane resolved commits AND
+        ``authored_blobs`` is empty — there is no authorship authority at all
+        (distinct from the F1-corollary case above, where ``approved`` names
+        non-empty SHA tuples but authorship failed to build).
+
+        The pre-#5001 behavior PASSed unconditionally here — a fail-OPEN vacuous
+        PASS: a target that carries real, un-evaluated content ships with no
+        attribution check ever running. Now the window diff is inspected; a
+        non-bookkeeping Added/Modified path with no authorship authority behind
+        it REFUSEs (fail-closed) rather than passing silently. A genuinely
+        content-free window (every window path absent, or bookkeeping-only)
+        keeps the original PASS deferral (NFR-004) — this matches the claim
+        builder's own tolerance for a fully-canceled / already-consolidated lane
+        (:func:`_lane_tip_commits` / :func:`_lane_first_parent_spine`).
+        """
+        window_base = claim.excluded_window_base
+        if window_base is None:
+            return VerifyResult.refused(_REFUSE_WINDOW_BASE_UNRESOLVED)
+        try:
+            has_content = self._window_has_non_bookkeeping_change(target_ref, claim, window_base)
+        except GitProbeError as exc:
+            return VerifyResult.refused(f"a git probe failed while verifying the squash window: {exc}")
+        if has_content:
+            return VerifyResult.refused(_REFUSE_NO_AUTHORSHIP_AUTHORITY)
+        return VerifyResult.passed()
+
+    def _window_has_non_bookkeeping_change(self, target_ref: str, claim: ApprovedWpCommitSet, window_base: str) -> bool:
+        """True iff ``window_base..target`` carries any non-bookkeeping A/M path.
+
+        Mirrors :meth:`_unattributable_content_squash`'s Added/Modified + bookkeeping
+        filter, without reading blobs — this only asks WHETHER attributable content
+        exists, never WHICH blob it is (there is no authorship set to attribute
+        against here).
+        """
+        for status, path in changed_paths_in_range(self._repo, window_base, target_ref):
+            if status.startswith("D"):
+                continue  # a deletion ships no content
+            if self._is_bookkeeping_path(path, claim):
+                continue
+            return True
+        return False
 
     def _unattributable_content_squash(self, target_ref: str, claim: ApprovedWpCommitSet, window_base: str) -> list[tuple[str, str]]:
         """Target ``(path, blob)`` pairs in ``B..target`` authored by no approved lane.

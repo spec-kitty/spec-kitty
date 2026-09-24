@@ -282,10 +282,17 @@ def _rb_write_meta(feature_dir: Path) -> None:
 
 
 def _rb_write_manifest(feature_dir: Path) -> LanesManifest:
+    # ``mission_id`` MUST be the ULID ``RB_MISSION_ID`` (never the slug -- see
+    # ``LanesManifest.mission_id``'s docstring, "ULID or None; never a slug").
+    # Epic #5001 landing remediation: passing the slug here made
+    # ``lane_branch_name`` derive a lane branch that never matched the real
+    # one this fixture creates, so the reconciliation claim builder silently
+    # resolved empty authorship for every run -- invisible before FIX C's new
+    # fail-closed squash-vacuous-authorship guard, which correctly surfaces it.
     manifest = LanesManifest(
         version=1,
         mission_slug=RB_MISSION_SLUG,
-        mission_id=RB_MISSION_SLUG,
+        mission_id=RB_MISSION_ID,
         mission_branch=RB_COORD_BRANCH,
         target_branch="main",
         lanes=[
@@ -519,10 +526,17 @@ def _f1_write_meta(feature_dir: Path) -> None:
 
 
 def _f1_write_manifest(feature_dir: Path) -> LanesManifest:
+    # ``mission_id`` MUST be the ULID ``F1_MISSION_ID`` (never the slug -- see
+    # ``LanesManifest.mission_id``'s docstring, "ULID or None; never a slug").
+    # Epic #5001 landing remediation: passing the slug here made
+    # ``lane_branch_name`` derive a lane branch that never matched the real
+    # one this fixture creates, so the reconciliation claim builder silently
+    # resolved empty authorship for every run -- invisible before FIX C's new
+    # fail-closed squash-vacuous-authorship guard, which correctly surfaces it.
     manifest = LanesManifest(
         version=1,
         mission_slug=F1_MISSION_SLUG,
-        mission_id=F1_MISSION_SLUG,
+        mission_id=F1_MISSION_ID,
         mission_branch=F1_COORD_BRANCH,
         target_branch="main",
         lanes=[

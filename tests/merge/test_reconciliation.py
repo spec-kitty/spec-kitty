@@ -1218,6 +1218,50 @@ def test_squash_hand_built_claim_without_closed_world_still_passes(tmp_path: Pat
     assert MergeOutcomeVerifier(repo).verify(_TARGET, claim).is_pass
 
 
+def test_squash_refuses_vacuous_authorship_when_window_has_non_bookkeeping_content(tmp_path: Path) -> None:
+    """FIX C (Epic #5001 landing remediation): a fail-OPEN vacuous PASS.
+
+    When NO approved lane resolved to any commits (``approved == {"WP01": ()}``,
+    the claim builder's tolerant "lane branch absent / already consolidated"
+    shape) AND ``authored_blobs`` is empty, there is no authorship authority to
+    attribute against. The axis used to PASS unconditionally in that case. But a
+    non-bookkeeping Added/Modified path landing in the window while there is
+    NO authorship authority at all is exactly the un-evaluable-claim shape the
+    axis must REFUSE, not silently wave through — so it now inspects the window
+    diff and REFUSEs when it finds one; only a genuinely content-free window
+    (no A/M paths at all) still defers to PASS (NFR-004)."""
+    repo = _init_repo(tmp_path)
+    base = _rev(repo, _TARGET)
+    (repo / "src").mkdir()
+    (repo / "src" / "leaked.py").write_text("leaked\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "feat: content with no authorship authority behind it")
+    claim = _squash_claim(
+        approved={"WP01": ()},  # no lane resolved any commits
+        authored_blobs=frozenset(),
+        window_base=base,
+        manifest_wp_ids=frozenset({"WP01"}),
+    )
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
+    assert result.status is VerifyStatus.REFUSE, result.status
+    assert result.refusal_reason is not None
+
+
+def test_squash_vacuous_authorship_with_no_window_content_still_passes(tmp_path: Path) -> None:
+    """FIX C positive control: a genuinely content-free window (no A/M paths at
+    all) keeps the pre-#5001 PASS deferral — the new REFUSE guard never
+    false-fails a legitimately empty window."""
+    repo = _init_repo(tmp_path)
+    base = _rev(repo, _TARGET)
+    claim = _squash_claim(
+        approved={"WP01": ()},
+        authored_blobs=frozenset(),
+        window_base=base,
+        manifest_wp_ids=frozenset({"WP01"}),
+    )
+    assert MergeOutcomeVerifier(repo).verify(_TARGET, claim).is_pass
+
+
 @pytest.mark.xfail(
     strict=True,
     reason=(
