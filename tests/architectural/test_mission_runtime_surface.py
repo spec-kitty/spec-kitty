@@ -87,6 +87,11 @@ _PUBLIC_SURFACE = sorted(
         # helper both gates_core._acceptance_matrix_read_dir and accept._coord_
         # worktree_root consume — a package-root public symbol, so it is pinned here.
         "coord_read_dir_for",
+        # landing/coord-read-fail-closed (#5001): the ONE fail-closed WRITE
+        # decision ``specify_cli.coordination.write_seam`` consults (RN-F1) --
+        # promoted onto the package root so external callers stop reaching
+        # into the ``write_target_degrade`` submodule directly.
+        "assert_coord_write_materialized",
         # coord-write-placement-closure-01KYCF83 WP07 (T034 fold): the shared
         # materialization-BLIND partition+topology predicate both
         # ``_classify_artifact_surface`` (this package) and

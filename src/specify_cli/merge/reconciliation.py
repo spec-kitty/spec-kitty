@@ -503,7 +503,7 @@ def build_approved_wp_set(
     """
     # Imported lazily so this module stays import-light and the status facade is
     # resolved through ``specify_cli.status`` (C-002: the Lamport wrapper only).
-    from specify_cli.status.reducer import materialize_snapshot
+    from specify_cli.status import materialize_snapshot
 
     manifest_wp_ids = frozenset(wp for lane in lanes_manifest.lanes for wp in lane.wp_ids)
     planning_prefix = _planning_prefix(repo_root, feature_dir)

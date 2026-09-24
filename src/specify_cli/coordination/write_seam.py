@@ -104,14 +104,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol, runtime_checkable
 
-from mission_runtime import ActionContextError, CommitTarget, MissionArtifactKind, placement_seam
-
-# Imported from the submodule (not re-exported by ``mission_runtime.__init__``,
-# which is outside this WP's owned surface) — the same convention as the
-# ``specify_cli.missions._read_path_resolver`` import below. It IS a public name
-# (in ``write_target_degrade.__all__``); this is the ONE fail-closed WRITE
-# decision the seam consults (RN-F1), never a second resolver.
-from mission_runtime.write_target_degrade import assert_coord_write_materialized
+from mission_runtime import (
+    ActionContextError,
+    CommitTarget,
+    MissionArtifactKind,
+    assert_coord_write_materialized,
+    placement_seam,
+)
 from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.owned_mission import effective_root_kwargs

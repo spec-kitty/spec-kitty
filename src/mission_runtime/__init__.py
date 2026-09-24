@@ -74,7 +74,10 @@ from mission_runtime.read_dir_degrade import (
     ReadDirDecision,
     resolve_read_dir_or_degrade,
 )
-from mission_runtime.write_target_degrade import resolve_write_target_or_degrade
+from mission_runtime.write_target_degrade import (
+    assert_coord_write_materialized,
+    resolve_write_target_or_degrade,
+)
 
 __all__ = [
     "ActionContextError",
@@ -89,6 +92,7 @@ __all__ = [
     "ReadDegradeStrategy",
     "ReadDirDecision",
     "TopologySurface",
+    "assert_coord_write_materialized",
     "classify_topology",
     "coord_read_dir_for",
     "declared_read_surface",
