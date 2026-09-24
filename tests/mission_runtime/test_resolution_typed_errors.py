@@ -34,9 +34,11 @@ import pytest
 from mission_runtime import (
     ActionContextError,
     MissionArtifactKind,
+    MissionTopology,
     resolve_action_context,
     resolve_placement_only,
 )
+from specify_cli.core.mission_creation import MissionCreationResult
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -162,3 +164,123 @@ def test_ambiguous_handle_resolve_placement_only_raises_action_context_error(
         f"Expected code 'MISSION_AMBIGUOUS_SELECTOR', got {excinfo.value.code!r}. "
         "MissionSelectorAmbiguous escaped resolve_placement_only untranslated."
     )
+
+
+# ===========================================================================
+# coord-read-fail-closed-01M38VVH WP01 T004 — regression pins (#4959, AC-S2)
+# ===========================================================================
+#
+# T003 changed ONLY the ``CoordState.UNMATERIALIZED`` leg of
+# ``_classify_artifact_surface``. These pins confirm the sibling states are
+# byte-for-byte unchanged: ``DELETED`` still raises the pre-existing
+# ``CoordinationBranchDeleted``; a PRIMARY-partition kind on the very same
+# UNMATERIALIZED mission never raises (PRIMARY-partition kinds short-circuit
+# before any coord probe); and the out-of-scope ``EMPTY`` / ``NONE`` states
+# keep returning the PRIMARY surface.
+
+
+def _create_coord_mission(repo: Path, slug: str) -> MissionCreationResult:
+    """Build a real COORD-topology mission (branch minted, worktree absent).
+
+    Thin wrapper so this module does not need to import the golden-path
+    fixture module's git/kittify bootstrap twice — it reuses the exact same
+    ``_create_mission`` / ``_init_git_repo`` primitives ``test_coord_read_seam
+    .py`` already reuses from ``tests/integration/
+    test_placement_partition_golden_path.py`` (mirroring, not duplicating).
+    """
+    from tests.integration.test_placement_partition_golden_path import (
+        _create_mission,
+        _init_git_repo,
+    )
+
+    _init_git_repo(repo, branch="main")
+    result: MissionCreationResult = _create_mission(repo, slug, MissionTopology.COORD)
+    return result
+
+
+def test_deleted_coord_branch_still_raises_coordination_branch_deleted(
+    tmp_path: Path,
+) -> None:
+    """Regression pin: ``DELETED`` is unaffected by the T003 UNMATERIALIZED
+    change — a coord-partition read still raises ``CoordinationBranchDeleted``
+    when the declared branch has been removed from git entirely."""
+    from mission_runtime import placement_seam
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    result = _create_coord_mission(repo, "coord-deleted-pin-demo")
+    coordination_branch = result.coordination_branch
+    assert coordination_branch, "fixture must mint a coordination branch"
+    subprocess.run(
+        ["git", "-C", str(repo), "branch", "-D", coordination_branch],
+        check=True,
+        capture_output=True,
+    )
+
+    seam = placement_seam(repo, result.mission_slug)
+
+    with pytest.raises(CoordinationBranchDeleted) as excinfo:
+        seam.read_dir(MissionArtifactKind.STATUS_STATE)
+
+    assert excinfo.value.error_code == "COORDINATION_BRANCH_DELETED"
+
+
+def test_primary_kind_on_unmaterialized_coord_mission_does_not_raise(
+    tmp_path: Path,
+) -> None:
+    """Regression pin: on the SAME UNMATERIALIZED mission the T003 fix now
+    makes a coord-partition kind raise, a PRIMARY-partition kind
+    (``PRIMARY_METADATA``) never raises — it short-circuits to PRIMARY before
+    any coord probe (AH-1/AH-3), so the seam change is invisible to it."""
+    from mission_runtime import placement_seam
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    result = _create_coord_mission(repo, "coord-unmat-primary-pin-demo")
+    # No coord-worktree materialization: CoordState.UNMATERIALIZED.
+
+    seam = placement_seam(repo, result.mission_slug)
+
+    resolved = seam.read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    assert resolved.exists()
+    assert resolved.name == result.mission_slug
+
+
+def test_empty_and_none_coord_states_still_resolve_primary(tmp_path: Path) -> None:
+    """Regression pin: ``EMPTY`` (coord root materialized, mission dir absent)
+    and ``NONE`` (no coord topology) are OUT of this mission's scope and keep
+    resolving the PRIMARY surface, never raising."""
+    from mission_runtime import placement_seam
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    # NONE: a coord-less (SINGLE_BRANCH) mission never probes coord state.
+    repo_none = tmp_path / "repo-none"
+    repo_none.mkdir()
+    from tests.integration.test_placement_partition_golden_path import (
+        _create_mission,
+        _init_git_repo,
+    )
+
+    _init_git_repo(repo_none, branch="main")
+    result_none = _create_mission(repo_none, "coord-none-pin-demo", MissionTopology.SINGLE_BRANCH)
+    seam_none = placement_seam(repo_none, result_none.mission_slug)
+    resolved_none = seam_none.read_dir(MissionArtifactKind.STATUS_STATE)
+    assert resolved_none.exists()
+
+    # EMPTY: coord worktree root materialized, but its mission dir is absent.
+    repo_empty = tmp_path / "repo-empty"
+    repo_empty.mkdir()
+    _init_git_repo(repo_empty, branch="main")
+    result_empty = _create_coord_mission(repo_empty, "coord-empty-pin-demo")
+    meta = json.loads((result_empty.feature_dir / "meta.json").read_text(encoding="utf-8"))
+    mid8 = str(meta["mission_id"])[:8]
+    # Materialize the coord worktree ROOT without ever writing a mission dir
+    # into it — the EMPTY state (distinct from UNMATERIALIZED, where the root
+    # itself does not exist yet).
+    CoordinationWorkspace.resolve(repo_empty, result_empty.mission_slug, mid8)
+
+    seam_empty = placement_seam(repo_empty, result_empty.mission_slug)
+    resolved_empty = seam_empty.read_dir(MissionArtifactKind.STATUS_STATE)
+    assert resolved_empty.exists()
+    assert resolved_empty.name == result_empty.mission_slug
