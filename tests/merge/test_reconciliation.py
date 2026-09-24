@@ -25,11 +25,11 @@ from __future__ import annotations
 import json
 import subprocess
 from dataclasses import replace
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import now_utc_iso
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.merge import git_probes
@@ -682,7 +682,7 @@ def test_build_claim_authorship_excludes_merged_in_second_parent(tmp_path: Path)
 
 
 def _now_iso() -> str:
-    return datetime.now(UTC).isoformat()
+    return now_utc_iso()
 
 
 def _event(seq: int, wp: str, frm: str, to: str, *, at: str, lamport: int) -> dict[str, object]:

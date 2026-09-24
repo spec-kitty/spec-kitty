@@ -21,15 +21,16 @@ import subprocess
 import sys
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import now_utc_iso
+
 
 def _now_iso() -> str:
-    """UTC ISO-8601 timestamp (stdlib -- keeps fixture building import-light)."""
-    return datetime.now(UTC).isoformat()
+    """UTC ISO-8601 timestamp via the repo's canonical clock seam."""
+    return now_utc_iso()
 
 
 # ---------------------------------------------------------------------------
