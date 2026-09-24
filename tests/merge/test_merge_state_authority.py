@@ -40,6 +40,11 @@ from specify_cli.merge.state import (
 
 _GLOBAL_LOCK_ID = "__global_merge__"
 
+# Real-fixture tests that build throwaway git repos and shell out to the git
+# binary via subprocess -- git_repo for the real-repo tier, non_sandbox because
+# the tests invoke the git subprocess directly (mirrors the sibling merge suite).
+pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
+
 
 # ---------------------------------------------------------------------------
 # Real-fixture helpers (no mocking)

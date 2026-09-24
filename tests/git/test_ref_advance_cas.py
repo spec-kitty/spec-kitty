@@ -24,6 +24,11 @@ import pytest
 from specify_cli.git import ref_advance
 from specify_cli.git.ref_advance import RefAdvanceError, advance_branch_ref
 
+# Real-git tests over throwaway temp repos that shell out to the git binary via
+# subprocess -- git_repo for the real-repo tier, non_sandbox because the tests
+# invoke the git subprocess directly (mirrors the sibling git/merge suites).
+pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
+
 
 def _git(cwd: Path, *args: str) -> str:
     """Run a real git command in *cwd*, returning trimmed stdout."""
