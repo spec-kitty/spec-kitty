@@ -155,7 +155,12 @@ def test_mission_state_fix_preserves_decision_point_rows_4897(tmp_path: Path) ->
     assert len(after_rows) == 2, "doctor mission-state --fix must preserve both DecisionPoint rows (#4897)"
     assert after_rows == before_rows
 
-    diagnosis, _grouped = _diagnose(mission_dir, _MISSION_SLUG)
+    # #4966: ``_diagnose`` now takes (events_dir, ledger_dir, mission_slug) since
+    # the ledger moved to the PRIMARY_METADATA partition. This is a FLAT/non-coord
+    # mission, so the COORD events dir and the PRIMARY ledger dir coincide at
+    # ``mission_dir`` — pass it for both, matching the flat-fixture caller in
+    # tests/decisions/test_decisions_reconciler.py.
+    diagnosis, _grouped = _diagnose(mission_dir, mission_dir, _MISSION_SLUG)
     assert diagnosis.clean, diagnosis
     assert diagnosis.orphaned_in_index == []
 
