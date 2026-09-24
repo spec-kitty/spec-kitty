@@ -1249,8 +1249,6 @@ exclude = [
     "tests/cli/commands/test_doctor_topology.py",
     "tests/cli/commands/test_implement_base_flag.py",
     "tests/cli/commands/test_intake.py",
-    "tests/cli/commands/test_merge_status_commit.py",
-    "tests/cli/commands/test_merge_strategy.py",
     "tests/cli/commands/test_render_fold_not_repairable_3115.py",
     "tests/cli/commands/test_resolve_lanes_dir.py",
     "tests/cli/commands/test_retrospect.py",
