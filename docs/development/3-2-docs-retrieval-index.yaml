@@ -3177,6 +3177,16 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/3.x/2026-09-24-2-coord-read-fail-closed.md"
+    title: "ADR: the placement read seam raises on an unmaterialized coordination worktree"
+    divio_type: "none"
+    abstract: "A coord-partition read on CoordState.UNMATERIALIZED now raises CoordinationWorktreeUnmaterialized instead of silently substituting an empty PRIMARY path."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
