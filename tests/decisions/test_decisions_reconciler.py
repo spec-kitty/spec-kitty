@@ -638,3 +638,70 @@ def test_service_and_doctor_resolve_ledger_dir_in_lockstep(tmp_path: Path) -> No
     # (AC-D3), so this also pins that coincidence for the flat case.
     events_dir = _service_mod._mission_dir(tmp_path, MISSION_SLUG)
     assert service_ledger_dir == events_dir, "flat-topology sanity: PRIMARY and COORD dirs must coincide here (AC-D3)"
+
+
+def test_service_and_doctor_resolve_ledger_dir_in_lockstep_under_coord_topology(
+    tmp_path: Path,
+) -> None:
+    """COORD-topology variant of the lockstep pin above (pre-PR squad
+    hardening fold): the flat fixture above resolves PRIMARY_METADATA and
+    STATUS_STATE to the SAME directory (AC-D3), so it cannot distinguish a
+    correct ``_ledger_dir`` (PRIMARY_METADATA) from a REGRESSED one that
+    reverts to routing through STATUS_STATE (the COORD partition) -- both
+    copies would still "agree" with each other while silently agreeing on the
+    WRONG dir.
+
+    Mocks ``placement_seam`` to hand back genuinely DIFFERENT directories for
+    the two kinds (the coord-topology shape, ``PRIMARY_METADATA`` != COORD
+    ``STATUS_STATE``) and asserts BOTH ``decisions/service.py::_ledger_dir``
+    and ``cli/commands/_decisions_doctor.py::_ledger_dir`` land on the
+    PRIMARY dir, identically to each other (and their sidecar
+    ``index.json.lock`` paths), AND that this differs from the COORD events
+    dir (``_mission_dir`` / ``status.events.jsonl``'s home) -- a drift back to
+    ``STATUS_STATE`` in either module fails this test.
+    """
+    from unittest.mock import patch
+
+    from mission_runtime import MissionArtifactKind
+
+    from specify_cli.cli.commands import _decisions_doctor as _doctor_mod
+    from specify_cli.decisions import service as _service_mod
+
+    primary_dir = tmp_path / "kitty-specs" / MISSION_SLUG
+    coord_dir = tmp_path / ".worktrees" / f"{MISSION_SLUG}-01KTEST0-coord" / "kitty-specs" / MISSION_SLUG
+    primary_dir.mkdir(parents=True)
+    coord_dir.mkdir(parents=True)
+    assert primary_dir != coord_dir, "fixture invariant: the two surfaces must be genuinely distinct dirs"
+
+    def _fake_read_dir(kind: MissionArtifactKind) -> Path:
+        if kind is MissionArtifactKind.PRIMARY_METADATA:
+            return primary_dir
+        if kind is MissionArtifactKind.STATUS_STATE:
+            return coord_dir
+        raise AssertionError(f"unexpected MissionArtifactKind requested in this test: {kind}")
+
+    class _FakeSeam:
+        def read_dir(self, kind: MissionArtifactKind) -> Path:
+            return _fake_read_dir(kind)
+
+    with (
+        patch.object(_service_mod, "placement_seam", return_value=_FakeSeam()) as service_seam_ctor,
+        patch.object(_doctor_mod, "placement_seam", return_value=_FakeSeam()) as doctor_seam_ctor,
+    ):
+        service_ledger_dir = _service_mod._ledger_dir(tmp_path, MISSION_SLUG)
+        doctor_ledger_dir = _doctor_mod._ledger_dir(tmp_path, MISSION_SLUG)
+        events_dir = _service_mod._mission_dir(tmp_path, MISSION_SLUG)
+
+    service_seam_ctor.assert_called_with(tmp_path, MISSION_SLUG)
+    doctor_seam_ctor.assert_called_with(tmp_path, MISSION_SLUG)
+
+    assert service_ledger_dir == primary_dir, "service.py::_ledger_dir must resolve PRIMARY_METADATA under coord topology, not drift to STATUS_STATE"
+    assert doctor_ledger_dir == primary_dir, "_decisions_doctor.py::_ledger_dir must resolve PRIMARY_METADATA under coord topology, not drift to STATUS_STATE"
+    assert service_ledger_dir == doctor_ledger_dir, "service.py and _decisions_doctor.py disagree on the ledger dir under coord topology"
+
+    service_lock_path = _service_mod._decisions_lock_path(service_ledger_dir)
+    doctor_lock_path = _doctor_mod._decisions_lock_path(doctor_ledger_dir)
+    assert service_lock_path == doctor_lock_path, "service.py and _decisions_doctor.py disagree on the sidecar lock path under coord topology"
+
+    assert events_dir == coord_dir, "fixture sanity: the events dir must resolve the mocked COORD surface"
+    assert service_ledger_dir != events_dir, "PRIMARY ledger dir must differ from the COORD events dir -- a drift to STATUS_STATE would collapse this undetected"
