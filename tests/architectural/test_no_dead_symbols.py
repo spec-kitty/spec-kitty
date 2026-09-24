@@ -686,8 +686,13 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "display_merge_order", "305ac620b2ebbb6568c8aef92428d3c8326cbca533039995280ad367fd35dd67", source_module="specify_cli.merge.ordering"
         ),  # specify_cli.merge.ordering::display_merge_order
-        # specify_cli.merge.state::MergeAmbiguousStateError
-        SymbolKey("MergeAmbiguousStateError", "d69fb84bf96a1edbfa84500b1c49c6eaf6c30fce35ce95659504abff5221d7c5", source_module="specify_cli.merge.state"),
+        # specify_cli.merge.state::MergeAmbiguousStateError -- RE-KEYED
+        # (landing/coord-read-fail-closed #5001 follow-up, PR #5020): WS2
+        # changed the body; hash recomputed via resolve_symbol_key/key_tier
+        # (tests/architectural/_symbol_key.py), not hand-guessed. Still
+        # unwired from a second src/ module today -- external consumers land
+        # with the Epic #5001 follow-ups.
+        SymbolKey("MergeAmbiguousStateError", "8cd8372b816b4d9832d81b923bb132c5a28ab45a9d64c31e8ae27356f8e87f38", source_module="specify_cli.merge.state"),
         SymbolKey(
             "detect_git_merge_state", "1ebb0846821cef8d19a05382e249a78a78e602af5c6568fcf47746664b27e1f6", source_module="specify_cli.merge.state"
         ),  # specify_cli.merge.state::detect_git_merge_state
@@ -2188,14 +2193,10 @@ _CATEGORY_D_LIVE_WORK_AUTHORED_PUBLIC_SURFACE: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_TERMINUS_RECONCILIATION_5001: frozenset[SymbolKey] = frozenset(
     {
         # specify_cli.coordination.surface_resolver::resolve_for_write --
-        # the intended single write-side entry point for the surface-
-        # authority WRITE gate; wiring of the real callers is deferred to
-        # #4970.
-        SymbolKey(
-            "resolve_for_write",
-            "8d4f083edec869f11a61d55a55e466d6b50064ee27be9b6cfed0fca151176055",
-            source_module="specify_cli.coordination.surface_resolver",
-        ),
+        # REMOVED (landing/coord-read-fail-closed #5001 follow-up, PR #5020):
+        # WS3 wired it -- ``issue_verdict.py``'s ``resolve_for_write`` call
+        # site now routes through it, so it has a real src/ caller and the
+        # allowlist entry is stale.
         # specify_cli.merge.reconciliation::TERMINUS_ENTRY_POINTS -- public
         # vocabulary of the new reconciliation gate (the closed-world entry
         # point registry `route_terminus` consults).
@@ -2242,10 +2243,14 @@ _CATEGORY_C_TERMINUS_RECONCILIATION_5001: frozenset[SymbolKey] = frozenset(
         # T028 git probe (ancestry -> tree-equality integration under
         # squash); consumed by the reconciliation verifier's own body
         # (docstring cross-reference only) and exercised directly by
-        # tests/merge/test_reconciliation.py.
+        # tests/merge/test_reconciliation.py. RE-KEYED (landing/coord-read-
+        # fail-closed #5001 follow-up, PR #5020): the body changed (WS1's
+        # blob-attribution axis), so the content-tier body_hash below was
+        # recomputed via ``resolve_symbol_key``/``key_tier``
+        # (``tests/architectural/_symbol_key.py``), not hand-guessed.
         SymbolKey(
             "lane_integrated_by_tree_or_ancestry",
-            "4931a4ad6aaefd85c74e43203d5b3e97d7688ad4e4483437b1bddace884c80c3",
+            "ab4e79f1559ad1b71468df4342fa35d3a294f525ad4304f13abbab30e4833e99",
             source_module="specify_cli.merge.git_probes",
         ),
         # specify_cli.merge.state::read_merge_lock_owner -- FR-008
