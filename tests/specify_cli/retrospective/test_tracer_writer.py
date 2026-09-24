@@ -19,6 +19,13 @@ Pure-logic coverage (no subprocess, no real git -- see
   bespoke compute-and-commit path -- with the artifact staged locally under
   the primary checkout's ``kitty-specs/<mission>/traces/<file>`` and residue
   cleanup requested for that same path.
+- Fail-closed on an unmaterialised coord read (#4959 / WP02 / T006-T007):
+  ``_read_current_coord_content`` must PROPAGATE
+  ``CoordinationWorktreeUnmaterialized`` rather than degrade it to ``""``
+  (which ``append_tracer_finding`` would then clobber with a from-scratch
+  header), and must refuse (propagate) on an undecodable byte in an
+  EXISTING file rather than treat corruption as "no content". See
+  ``contracts/reader-partition-contract.md`` (AC-T1 / AC-T2 / AC-T3).
 """
 
 from __future__ import annotations
@@ -30,6 +37,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from mission_runtime import ActionContextError, MissionArtifactKind
+from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
 from specify_cli.coordination.write_seam import WriteSeamResult
 from specify_cli.retrospective import tracer_writer
 from specify_cli.retrospective.tracer_writer import (
@@ -196,6 +204,134 @@ class TestLedgerM16ReadCallSite:
                 tmp_path, _MISSION_SLUG, "tooling-friction.md"
             )
         assert content == ""
+
+
+# ---------------------------------------------------------------------------
+# Fail-closed on an unmaterialised coord read (#4959 / WP02 / T006-T007)
+# ---------------------------------------------------------------------------
+
+
+def _unmaterialized_error(mission_slug: str, tmp_path: Path) -> CoordinationWorktreeUnmaterialized:
+    return CoordinationWorktreeUnmaterialized.for_mission(
+        repo_root=tmp_path,
+        mission_slug=mission_slug,
+        mid8="01TESTMID",
+        coordination_branch=f"kitty/mission-{mission_slug}",
+        primary_candidate=tmp_path,
+    )
+
+
+class TestFailClosedOnUnmaterializedCoordRead:
+    """AC-T1/AC-T2 (contracts/reader-partition-contract.md): a coord-partition
+    read that cannot resolve because the coordination worktree is
+    unmaterialised must PROPAGATE, never degrade to ``""`` -- the degrade is
+    exactly what let ``append_tracer_finding`` clobber a real, already
+    coord-committed ``traces/<cat>.md`` with a from-scratch header (module
+    docstring "Why a read-before-write at all"; the #4959 bug class). An
+    undecodable byte on an EXISTING file is likewise a refusal, not "no
+    content"."""
+
+    def test_unmaterialized_coord_raise_propagates_not_swallowed_to_empty(
+        self, tmp_path: Path
+    ) -> None:
+        exc = _unmaterialized_error(_MISSION_SLUG, tmp_path)
+        with patch(
+            "specify_cli.retrospective.tracer_writer.placement_seam"
+        ) as seam_ctor:
+            seam_ctor.return_value = MagicMock(read_dir=MagicMock(side_effect=exc))
+            with pytest.raises(CoordinationWorktreeUnmaterialized):
+                tracer_writer._read_current_coord_content(
+                    tmp_path, _MISSION_SLUG, "tooling-friction.md"
+                )
+
+    def test_undecodable_existing_file_refuses_not_empty(self, tmp_path: Path) -> None:
+        """Corruption is not "no content" (AC-T2): an existing traces file with
+        an undecodable byte must raise, never silently degrade to ``""``."""
+        traces_dir = tmp_path / "traces"
+        traces_dir.mkdir()
+        (traces_dir / "tooling-friction.md").write_bytes(
+            b"# Tracer\n\n\xff\xfe not valid utf-8\n"
+        )
+        with patch(
+            "specify_cli.retrospective.tracer_writer.placement_seam"
+        ) as seam_ctor:
+            seam_ctor.return_value = MagicMock(read_dir=MagicMock(return_value=tmp_path))
+            with pytest.raises(UnicodeDecodeError):
+                tracer_writer._read_current_coord_content(
+                    tmp_path, _MISSION_SLUG, "tooling-friction.md"
+                )
+
+    def test_append_tracer_finding_fails_closed_never_calls_write_artifact(
+        self, tmp_path: Path
+    ) -> None:
+        """The propagated raise must stop ``append_tracer_finding`` BEFORE it
+        ever reaches ``write_artifact`` (i.e. before staging/committing a
+        from-scratch-header clobber) -- and must leave no local staging
+        residue behind either."""
+        exc = _unmaterialized_error(_MISSION_SLUG, tmp_path)
+        with (
+            patch(
+                "specify_cli.retrospective.tracer_writer.placement_seam"
+            ) as seam_ctor,
+            patch(
+                "specify_cli.retrospective.tracer_writer.write_artifact",
+                side_effect=AssertionError(
+                    "write_artifact must not be called when the coord read fails closed"
+                ),
+            ),
+        ):
+            seam_ctor.return_value = MagicMock(read_dir=MagicMock(side_effect=exc))
+            with pytest.raises(CoordinationWorktreeUnmaterialized):
+                append_tracer_finding(
+                    repo_root=tmp_path,
+                    mission_slug=_MISSION_SLUG,
+                    category="tooling-friction",
+                    entry="A real finding that must never be lost.",
+                    actor="claude",
+                    policy=_policy(),
+                )
+        staged = (
+            tmp_path / "kitty-specs" / _MISSION_SLUG / "traces" / "tooling-friction.md"
+        )
+        assert not staged.exists(), (
+            "a fail-closed read must never materialize the local staging file"
+        )
+
+    def test_resolved_absent_file_still_returns_empty_first_write_regression(
+        self, tmp_path: Path
+    ) -> None:
+        """T008 regression: a resolved-but-absent file (legitimate first
+        append) must still degrade to ``""`` -- the narrowed catch must not
+        overcorrect into refusing a genuine first write."""
+        with patch(
+            "specify_cli.retrospective.tracer_writer.placement_seam"
+        ) as seam_ctor:
+            seam_ctor.return_value = MagicMock(read_dir=MagicMock(return_value=tmp_path))
+            content = tracer_writer._read_current_coord_content(
+                tmp_path, _MISSION_SLUG, "tooling-friction.md"
+            )
+        assert content == ""
+
+    def test_resolved_present_file_returns_its_content_regression(
+        self, tmp_path: Path
+    ) -> None:
+        """T008 regression: a materialised coord surface with a present file
+        still returns its real content (normal-append path unaffected)."""
+        traces_dir = tmp_path / "traces"
+        traces_dir.mkdir()
+        (traces_dir / "tooling-friction.md").write_text(
+            "# Tracer: tooling-friction\n\n---\n\n"
+            "2026-01-01 · claude · a pre-existing finding\n",
+            encoding="utf-8",
+        )
+        with patch(
+            "specify_cli.retrospective.tracer_writer.placement_seam"
+        ) as seam_ctor:
+            seam_ctor.return_value = MagicMock(read_dir=MagicMock(return_value=tmp_path))
+            content = tracer_writer._read_current_coord_content(
+                tmp_path, _MISSION_SLUG, "tooling-friction.md"
+            )
+        assert "a pre-existing finding" in content
 
 
 # ---------------------------------------------------------------------------
