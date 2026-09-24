@@ -28,9 +28,7 @@ from specify_cli.git.destructive_guard import (
 from specify_cli.merge._constants import LINEAR_HISTORY_REJECTION_TOKENS, logger
 
 
-def _lane_already_integrated(
-    repo_root: Path, lane_branch: str, mission_branch: str
-) -> bool:
+def _lane_already_integrated(repo_root: Path, lane_branch: str, mission_branch: str) -> bool:
     """Return True when ``lane_branch`` carries no commits absent from ``mission_branch``.
 
     FR-037 (#1772 Bug 3): the lane-skip decision must gate on the ACTUAL lane
@@ -204,9 +202,7 @@ def _emit_remediation_hint(hint_console: Console) -> None:
     )
 
 
-def _refresh_primary_checkout_after_merge(
-    repo_root: Path, expected_branch: str | None = None
-) -> None:
+def _refresh_primary_checkout_after_merge(repo_root: Path, expected_branch: str | None = None) -> None:
     """Force the primary checkout's tracked files to match HEAD.
 
     The target ref is advanced from a detached merge worktree, so the primary
@@ -229,10 +225,7 @@ def _refresh_primary_checkout_after_merge(
         try:
             assert_checkout_on_target(repo_root, expected_branch)
         except DestructiveOpRefused:
-            console.print(
-                "[yellow]Warning:[/yellow] skipping post-merge working-tree "
-                f"refresh: {repo_root} is not checked out on {expected_branch!r}."
-            )
+            console.print(f"[yellow]Warning:[/yellow] skipping post-merge working-tree refresh: {repo_root} is not checked out on {expected_branch!r}.")
             return
 
     ret_reset, out_reset, err_reset = run_command(
@@ -242,10 +235,7 @@ def _refresh_primary_checkout_after_merge(
         cwd=repo_root,
     )
     if ret_reset != 0:
-        console.print(
-            f"[yellow]Warning:[/yellow] post-merge working-tree refresh failed: "
-            f"{(err_reset or out_reset or '').strip()}"
-        )
+        console.print(f"[yellow]Warning:[/yellow] post-merge working-tree refresh failed: {(err_reset or out_reset or '').strip()}")
         return
 
     ret_refresh, out_refresh, err_refresh = run_command(
@@ -291,6 +281,7 @@ def _paths_have_status_changes(repo_root: Path, paths: list[Path]) -> bool:
 def _is_git_repo(path: Path) -> bool:
     """Return True when *path* is inside a git working tree."""
     import subprocess as _subprocess
+
     probe = _subprocess.run(
         ["git", "rev-parse", "--is-inside-work-tree"],
         cwd=str(path),
@@ -374,9 +365,7 @@ def commits_in_range(repo_root: Path, base: str, tip: str) -> list[str]:
         cwd=repo_root,
     )
     if ret != 0:
-        raise GitProbeError(
-            f"git rev-list {base}..{tip} failed (exit {ret}): {(err or '').strip()}"
-        )
+        raise GitProbeError(f"git rev-list {base}..{tip} failed (exit {ret}): {(err or '').strip()}")
     return [line for line in out.splitlines() if line.strip()]
 
 
@@ -453,7 +442,7 @@ def patch_ids_in_range(repo_root: Path, base: str, tip: str) -> set[str]:
 
 
 def first_parent_commits_in_range(repo_root: Path, base: str, tip: str) -> list[str]:
-    """Return the FIRST-PARENT SHAs reachable from *tip* but not *base*.
+    """Return the FIRST-PARENT SHAs reachable from *tip* but not *base* (newest-first).
 
     ``git rev-list --first-parent base..tip`` — the lane's OWN authorship spine.
     A commit that a lane *merged in* from another branch (a second parent of a
@@ -462,17 +451,86 @@ def first_parent_commits_in_range(repo_root: Path, base: str, tip: str) -> list[
     relies on to distinguish a lane's genuinely-authored work from a removed WP's
     commit smuggled into a carrier lane's history via a merge: the smuggled commit
     rides a second-parent branch and is never counted as approved authorship.
-    Returns ``[]`` on any git error (fail-closed: no authorship claimed).
+
+    A successful ``rev-list`` with no output is a *genuinely empty* range and
+    returns ``[]``. A git ERROR (an unresolvable ref, corrupt store, …) is NOT an
+    empty range — it means the spine could not be evaluated — so it raises
+    :class:`GitProbeError` (fail-closed; #5013 F7). This mirrors
+    :func:`commits_in_range`: collapsing an error to ``[]`` reads as "no authored
+    content" and lets an unattributable blob PASS vacuously (fail-OPEN). Callers
+    that build the claim tolerate the raise (an unresolvable lane yields no
+    authorship, never a spurious refusal); the verifier's window scan translates it
+    into a REFUSE.
     """
-    ret, out, _err = run_command(
+    ret, out, err = run_command(
         ["git", "rev-list", "--first-parent", f"{base}..{tip}"],
         capture=True,
         check_return=False,
         cwd=repo_root,
     )
     if ret != 0:
-        return []
+        raise GitProbeError(f"git rev-list --first-parent {base}..{tip} failed (exit {ret}): {(err or '').strip()}")
     return [line for line in out.splitlines() if line.strip()]
+
+
+def blob_id_at(repo_root: Path, ref: str, path: str) -> str:
+    """Return the blob object id of *path* in the tree at *ref* (``git rev-parse ref:path``).
+
+    The CONTENT identity of a file — squash-sound, since a squash merge preserves
+    tree/blob content while destroying lane-tip SHAs and per-commit patch-ids
+    (#5013). Raises :class:`GitProbeError` on any git error, INCLUDING an absent
+    path: the squash content axis only ever calls this for an Added/Modified path
+    (a Deleted path is skipped before the call), so an "unexpected empty" blob for
+    an A/M path is a genuine probe failure that must REFUSE, never be inferred as a
+    deletion (#5013 F1). The caller therefore distinguishes "A/M path but the probe
+    errored" (→ REFUSE) from "D path" (skipped) purely by which paths it feeds here.
+    """
+    ret, out, err = run_command(
+        ["git", "rev-parse", f"{ref}:{path}"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        raise GitProbeError(f"git rev-parse {ref}:{path} failed (exit {ret}): {(err or '').strip()}")
+    blob: str = (out or "").strip()
+    if not blob:
+        raise GitProbeError(f"git rev-parse {ref}:{path} returned no blob id")
+    return blob
+
+
+def changed_paths_in_range(repo_root: Path, base: str, tip: str) -> list[tuple[str, str]]:
+    """Return ``(status, path)`` pairs for the aggregate diff ``base..tip``.
+
+    ``git diff --name-status --no-renames base..tip`` — the paths whose content
+    differs between the two trees, each tagged with its status letter (``A`` added,
+    ``M`` modified, ``D`` deleted, ``T`` type-changed, …). Net-unchanged paths never
+    appear, so the caller needs no separate base-blob comparison. ``--no-renames``
+    matches :func:`changed_paths_of`'s own flag (#5013 F6): a rename surfaces as a
+    delete + an add, so the added side is attributed by content like any other new
+    blob rather than hidden behind an ``R`` status. Raises :class:`GitProbeError` on
+    any git error (fail-closed; mirrors :func:`commits_in_range`), so the squash
+    content axis REFUSEs on an unevaluable window rather than passing vacuously.
+    """
+    ret, out, err = run_command(
+        ["git", "diff", "--name-status", "--no-renames", f"{base}..{tip}"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        raise GitProbeError(f"git diff --name-status {base}..{tip} failed (exit {ret}): {(err or '').strip()}")
+    changes: list[tuple[str, str]] = []
+    for line in out.splitlines():
+        if not line.strip():
+            continue
+        parts = line.split("\t", 1)
+        if len(parts) != 2:
+            continue
+        status, path = parts[0].strip(), parts[1].strip()
+        if status and path:
+            changes.append((status, path))
+    return changes
 
 
 def changed_paths_of(repo_root: Path, sha: str) -> list[str]:
@@ -514,9 +572,7 @@ def changed_paths_of(repo_root: Path, sha: str) -> list[str]:
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
-def lane_integrated_by_tree_or_ancestry(
-    repo_root: Path, lane_branch: str, mission_branch: str
-) -> bool:
+def lane_integrated_by_tree_or_ancestry(repo_root: Path, lane_branch: str, mission_branch: str) -> bool:
     """Return True when ``lane_branch``'s payload has already landed on ``mission_branch``.
 
     Upgrades the ancestry-only :func:`_lane_already_integrated` with the
@@ -557,6 +613,8 @@ __all__ = [
     "patch_id_of",
     "patch_ids_in_range",
     "first_parent_commits_in_range",
+    "blob_id_at",
+    "changed_paths_in_range",
     "changed_paths_of",
     "lane_integrated_by_tree_or_ancestry",
 ]

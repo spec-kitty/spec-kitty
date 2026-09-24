@@ -987,3 +987,255 @@ def test_divergence_describe_reports_both_axes() -> None:
     text = div.describe()
     assert "approved WP01" in text
     assert "excluded" in text
+
+
+# --------------------------------------------------------------------------- #
+# WS1 squash-sound blob-attribution content axis (#5013 / T012-T014).
+#
+# Under the DEFAULT squash strategy (``verify_reachability=False``) a PRODUCTION
+# claim (``enforce_closed_world``) attributes every non-bookkeeping A/M path of
+# the aggregate squash diff ``B..T`` against ``authored_blobs`` — the FINAL
+# first-parent-authored ``(path, blob)`` per (lane, path). Content identity, never
+# SHA/patch-id, so it survives squash. Every arm drives REAL on-disk git.
+# --------------------------------------------------------------------------- #
+
+
+def _squash_claim(
+    *,
+    approved: dict[str, tuple[str, ...]],
+    authored_blobs: frozenset[tuple[str, str]],
+    window_base: str | None,
+    manifest_wp_ids: frozenset[str],
+    planning_prefix: str | None = None,
+) -> ApprovedWpCommitSet:
+    """A production (closed-world) SQUASH claim exercising the blob axis."""
+    return ApprovedWpCommitSet(
+        approved=approved,
+        manifest_wp_ids=manifest_wp_ids,
+        enforce_closed_world=True,
+        authored_blobs=authored_blobs,
+        excluded_window_base=window_base,
+        mission_slug=_MISSION_SLUG,
+        planning_prefix=planning_prefix,
+        verify_reachability=False,  # squash
+    )
+
+
+def test_squash_authored_blobs_keep_final_not_superseded(tmp_path: Path) -> None:
+    """F5: ``authored_blobs`` records the FINAL first-parent blob per (lane, path);
+    a superseded intermediate ``v1`` is NOT admitted (so a canceled blob matching
+    ``v1`` cannot be green-washed as attributable)."""
+    repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01",))
+    lane_branch = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET, mission_id=_MISSION_ID)
+    # _build_mission already authored src/wp01.py (v1) on lane-a.
+    v1_blob = git_probes.blob_id_at(repo, lane_branch, "src/wp01.py")
+    _git(repo, "checkout", "-q", lane_branch)
+    (repo / "src" / "wp01.py").write_text("# WP01 v2\n", encoding="utf-8")
+    _git(repo, "add", "src/wp01.py")
+    _git(repo, "commit", "-qm", "feat: wp01 v2")
+    v2_blob = git_probes.blob_id_at(repo, lane_branch, "src/wp01.py")
+    _git(repo, "checkout", "-q", _TARGET)
+    assert v1_blob != v2_blob
+
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base)
+    assert ("src/wp01.py", v2_blob) in claim.authored_blobs  # final kept
+    assert ("src/wp01.py", v1_blob) not in claim.authored_blobs  # superseded dropped
+    assert claim.authored_blobs  # always (path, blob) tuples, never blob-only
+    assert all(isinstance(item, tuple) and len(item) == 2 for item in claim.authored_blobs)
+
+
+def test_squash_fails_when_superseded_v1_blob_ships(tmp_path: Path) -> None:
+    """A canceled blob matching the discarded ``v1`` rides to the target under
+    squash ⇒ FAIL (F5: ``v1`` is not attributable to the superseded intermediate)."""
+    repo = _init_repo(tmp_path)
+    base = _rev(repo, _TARGET)
+    # Author v2 on a side branch to capture a genuine, different blob.
+    v2_sha = _lane_commit(repo, base, "authoring", "src/pkg/x.py", "v2\n")
+    v2_blob = git_probes.blob_id_at(repo, v2_sha, "src/pkg/x.py")
+    # Ship v1 on the target (the superseded content that must NOT be attributable).
+    (repo / "src" / "pkg").mkdir(parents=True)
+    (repo / "src" / "pkg" / "x.py").write_text("v1\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "squash: ships v1")
+    claim = _squash_claim(
+        approved={"WP01": (v2_sha,)},
+        authored_blobs=frozenset({("src/pkg/x.py", v2_blob)}),
+        window_base=base,
+        manifest_wp_ids=frozenset({"WP01"}),
+        planning_prefix=None,
+    )
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
+    assert result.status is VerifyStatus.FAIL
+    assert result.divergence is not None
+    assert any(path == "src/pkg/x.py" for path, _blob in result.divergence.unattributable_content)
+
+
+def test_squash_fails_on_second_parent_smuggled_blob(tmp_path: Path) -> None:
+    """A removed WP's blob merged in via a carrier lane's SECOND parent is on no
+    approved lane's first-parent spine ⇒ absent from ``authored_blobs`` ⇒ FAIL,
+    naming the smuggled path."""
+    repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01",))
+    lane_branch = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET, mission_id=_MISSION_ID)
+    smuggled = _lane_commit(repo, coord_base, "lane-removed", "src/wp99_removed.py", "REMOVED\n")
+    smuggled_blob = git_probes.blob_id_at(repo, smuggled, "src/wp99_removed.py")
+    _git(repo, "checkout", "-q", lane_branch)
+    _git(repo, "merge", "-q", "--no-edit", "lane-removed")
+    _git(repo, "checkout", "-q", _TARGET)
+    _git(repo, "merge", "-q", "--no-edit", lane_branch)  # both wp01 + smuggled land
+    _git(repo, "branch", "-qD", "lane-removed")
+
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
+    assert ("src/wp99_removed.py", smuggled_blob) not in claim.authored_blobs
+    squash_claim = replace(claim, verify_reachability=False)
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, squash_claim)
+    assert result.status is VerifyStatus.FAIL
+    assert result.divergence is not None
+    assert any(path == "src/wp99_removed.py" for path, _blob in result.divergence.unattributable_content)
+
+
+def test_squash_passes_clean_no_false_fail(tmp_path: Path) -> None:
+    """NFR-004 positive control: a clean squash whose every target blob is authored
+    by an approved lane PASSes — the axis never false-fails a legitimate squash."""
+    repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01", "WP02"))
+    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET, mission_id=_MISSION_ID)
+    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", planning_base_branch=_TARGET, mission_id=_MISSION_ID)
+    _git(repo, "merge", "-q", "--no-edit", lane_a)
+    _git(repo, "merge", "-q", "--no-edit", lane_b)
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
+    squash_claim = replace(claim, verify_reachability=False)
+    assert MergeOutcomeVerifier(repo).verify(_TARGET, squash_claim).is_pass
+
+
+def test_squash_refuses_when_authored_blobs_empty_but_approved_nonempty(tmp_path: Path) -> None:
+    """F1 corollary: an empty ``authored_blobs`` while ``approved`` is non-empty is a
+    fail-closed REFUSE under squash (never an empty-loop PASS)."""
+    repo = _init_repo(tmp_path)
+    base = _rev(repo, _TARGET)
+    sha = _lane_commit(repo, base, "lane-a", "src/a.py", "A\n")
+    claim = _squash_claim(
+        approved={"WP01": (sha,)},
+        authored_blobs=frozenset(),  # empty while approved lists WP01
+        window_base=base,
+        manifest_wp_ids=frozenset({"WP01"}),
+    )
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
+    assert result.status is VerifyStatus.REFUSE
+    assert result.refusal_reason is not None
+
+
+def test_squash_refuses_on_probe_error_for_am_path(tmp_path: Path) -> None:
+    """Fail-closed: a git error while scanning the squash window (unresolvable base)
+    ⇒ REFUSE, never a vacuous PASS."""
+    repo = _init_repo(tmp_path)
+    base = _rev(repo, _TARGET)
+    sha = _lane_commit(repo, base, "lane-a", "src/a.py", "A\n")
+    _git(repo, "merge", "-q", "--no-edit", "lane-a")
+    claim = _squash_claim(
+        approved={"WP01": (sha,)},
+        authored_blobs=frozenset({("src/a.py", git_probes.blob_id_at(repo, _TARGET, "src/a.py"))}),
+        window_base="deadbeef" * 5,  # non-None, unresolvable -> changed_paths errors
+        manifest_wp_ids=frozenset({"WP01"}),
+    )
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
+    assert result.status is VerifyStatus.REFUSE
+    assert result.refusal_reason is not None
+
+
+def test_squash_refuses_on_none_window_base(tmp_path: Path) -> None:
+    """The last NFR-001 fail-closed branch: a production squash claim whose window
+    base is ``None`` cannot evaluate the blob axis ⇒ REFUSE (the reorder makes this
+    fire under squash, above the old early-return)."""
+    repo = _init_repo(tmp_path)
+    base = _rev(repo, _TARGET)
+    sha = _lane_commit(repo, base, "lane-a", "src/a.py", "A\n")
+    _git(repo, "merge", "-q", "--no-edit", "lane-a")
+    claim = _squash_claim(
+        approved={"WP01": (sha,)},
+        authored_blobs=frozenset({("src/a.py", git_probes.blob_id_at(repo, _TARGET, "src/a.py"))}),
+        window_base=None,
+        manifest_wp_ids=frozenset({"WP01"}),
+    )
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
+    assert result.status is VerifyStatus.REFUSE
+    assert result.refusal_reason is not None
+
+
+def test_squash_masks_bookkeeping_paths(tmp_path: Path) -> None:
+    """A window path under the mission planning prefix is bookkeeping, not content —
+    masked by ``_is_bookkeeping_path`` even though its blob is unauthored ⇒ PASS."""
+    repo = _init_repo(tmp_path)
+    base = _rev(repo, _TARGET)
+    approved_sha = _lane_commit(repo, base, "lane-a", "src/wp01.py", "APPROVED\n")
+    _git(repo, "merge", "-q", "--no-edit", "lane-a")
+    # A pure-bookkeeping change under kitty-specs/<slug>/ lands on the target.
+    book = repo / "kitty-specs" / _MISSION_SLUG
+    book.mkdir(parents=True)
+    (book / "status.json").write_text('{"ok": true}\n', encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "chore: bookkeeping")
+    claim = _squash_claim(
+        approved={"WP01": (approved_sha,)},
+        authored_blobs=frozenset({("src/wp01.py", git_probes.blob_id_at(repo, _TARGET, "src/wp01.py"))}),
+        window_base=base,
+        manifest_wp_ids=frozenset({"WP01"}),
+        planning_prefix=f"kitty-specs/{_MISSION_SLUG}",
+    )
+    assert MergeOutcomeVerifier(repo).verify(_TARGET, claim).is_pass
+
+
+def test_squash_hand_built_claim_without_closed_world_still_passes(tmp_path: Path) -> None:
+    """Back-compat: a hand-built squash claim (``enforce_closed_world`` unset) keeps
+    the pre-widening deferral PASS — the blob axis is opt-in, so existing unit
+    claims never see new refusals/fails."""
+    repo = _init_repo(tmp_path)
+    base = _rev(repo, _TARGET)
+    unreached = _lane_commit(repo, base, "lane-a", "src/a.py", "A\n")  # NOT on target
+    claim = ApprovedWpCommitSet(
+        approved={"WP01": (unreached,)},
+        manifest_wp_ids=frozenset({"WP01"}),
+        verify_reachability=False,
+        # enforce_closed_world defaults False; authored_blobs empty.
+    )
+    assert MergeOutcomeVerifier(repo).verify(_TARGET, claim).is_pass
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "3-way merge-resolution content: final blob != either parent is not "
+        "attributable to a single approved lane; bounded, file-disjoint-lane-"
+        "mitigated; tracked follow-up"
+    ),
+)
+def test_squash_three_way_merge_resolution_is_unattributable(tmp_path: Path) -> None:
+    """C-003 residual: two approved lanes edit the SAME path; the squash resolves it
+    to a third blob (!= either lane's first-parent blob). The desired behavior is a
+    PASS (a genuine resolution is not removed content), but the blob axis cannot
+    attribute it, so it FAILs — pinned as a strict xfail, exercising a REAL 3-way
+    scenario, never a bare marker."""
+    repo = _init_repo(tmp_path)
+    (repo / "src").mkdir()
+    (repo / "src" / "shared.py").write_text("base\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "base shared")
+    window_base = _rev(repo, _TARGET)
+    a_sha = _lane_commit(repo, window_base, "lane-a", "src/shared.py", "alpha\n")
+    b_sha = _lane_commit(repo, window_base, "lane-b", "src/shared.py", "beta\n")
+    alpha_blob = git_probes.blob_id_at(repo, a_sha, "src/shared.py")
+    beta_blob = git_probes.blob_id_at(repo, b_sha, "src/shared.py")
+    # The squash resolves the conflict to a THIRD blob (neither parent verbatim).
+    (repo / "src" / "shared.py").write_text("resolved\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "squash: conflict-resolved shared")
+    resolved_blob = git_probes.blob_id_at(repo, _TARGET, "src/shared.py")
+    assert resolved_blob not in {alpha_blob, beta_blob}
+    claim = _squash_claim(
+        approved={"WP01": (a_sha,), "WP02": (b_sha,)},
+        authored_blobs=frozenset({("src/shared.py", alpha_blob), ("src/shared.py", beta_blob)}),
+        window_base=window_base,
+        manifest_wp_ids=frozenset({"WP01", "WP02"}),
+        planning_prefix=None,
+    )
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
+    # Desired (not yet achievable): a genuine resolution is not "removed content".
+    assert result.is_pass

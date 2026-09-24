@@ -51,6 +51,8 @@ from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.merge.git_probes import (
     GitProbeError,
+    blob_id_at,
+    changed_paths_in_range,
     changed_paths_of,
     commits_in_range,
     first_parent_commits_in_range,
@@ -85,6 +87,17 @@ TERMINUS_ENTRY_POINTS: frozenset[str] = frozenset(
 # on an in-flight (resumed) merge means the state was created by pre-fix code,
 # whose shape the new guarantees cannot be retro-applied to (D6) — refuse.
 _POST_FIX_MARKER_FILENAME = "reconciliation.post-fix"
+
+# Fail-closed REFUSE reasons (hoisted per Sonar S1192 — the window-base reason is
+# shared by the merge/rebase reachability path and the squash blob-attribution
+# path, which must refuse identically when the window base cannot be resolved).
+_REFUSE_WINDOW_BASE_UNRESOLVED = "the excluded-content window base could not be resolved; the excluded/closed-world axes cannot be verified (fail-closed)"
+# Squash-only (#5013 F1 corollary): a production claim whose authorship set came
+# back empty while it lists approved WPs cannot attribute any target blob — the
+# empty loop would PASS vacuously, so refuse instead.
+_REFUSE_EMPTY_AUTHORED_BLOBS = (
+    "the approved-authorship blob set is empty while approved WPs are claimed; the squash content axis cannot attribute any target blob (fail-closed)"
+)
 
 
 class VerifyStatus(Enum):
@@ -223,6 +236,19 @@ class ApprovedWpCommitSet:
     enforce_closed_world: bool = False
     authored_shas: frozenset[str] = frozenset()
     authored_patch_ids: frozenset[str] = frozenset()
+    # Squash-sound closed-world authorship (#5013 / WS1). The **FINAL**
+    # first-parent-authored blob **per (lane, path)** across approved lanes, as
+    # ``(repo_rel_path, blob_sha)`` tuples. Content identity (blob), never lane-tip
+    # SHAs or per-commit patch-ids (both destroyed by squash), so it survives the
+    # DEFAULT squash strategy. Taking the FINAL blob per (lane, path) — not the
+    # union of every first-parent commit's blob — is the F5 crux: the union would
+    # admit a superseded intermediate ``v1`` and false-PASS a canceled blob matching
+    # it. Always the ``(path, blob)`` tuple, never blob-only (F10 — catches
+    # identical-content-different-path). Populated by ``_collect_authored`` only in
+    # the production claim builder; a hand-built claim leaves it empty and the squash
+    # axis stays off (``enforce_closed_world`` unset), preserving pre-widening
+    # behavior byte-for-byte.
+    authored_blobs: frozenset[tuple[str, str]] = frozenset()
     mission_slug: str | None = None
     # Repo-relative posix path of the mission's planning/status directory
     # (``kitty-specs/<slug>``). A window commit that touches ONLY paths under this
@@ -236,11 +262,13 @@ class ApprovedWpCommitSet:
     # that make even an aggregate mission→target tree comparison diverge. Proving
     # approved content landed under squash therefore requires the projection seam
     # WP07/WP08 own. When ``verify_reachability`` is ``False`` (squash), the
-    # verifier checks ONLY fail-closed claim integrity (surface + refusal) and
-    # DEFERS the content checks to those WPs — never false-failing a legitimate
-    # squash merge (NFR-004). Fail-closed integrity still applies to both
-    # strategies. ``True`` (merge/rebase — the Tier-0 clean-merge strategy) runs
-    # the full per-SHA reachability + excluded checks.
+    # verifier still runs the squash-sound blob-attribution content axis (#5013,
+    # :meth:`MergeOutcomeVerifier._unattributable_content_squash`) plus fail-closed
+    # claim integrity (surface + refusal); only the per-SHA approved-reachability
+    # check (structurally unsatisfiable once squash mints new SHAs) is deferred —
+    # never false-failing a legitimate squash merge (NFR-004). Fail-closed
+    # integrity applies to both strategies. ``True`` (merge/rebase — the Tier-0
+    # clean-merge strategy) runs the full per-SHA reachability + excluded checks.
     verify_reachability: bool = True
 
     @property
@@ -272,10 +300,13 @@ class MergeOutcomeVerifier:
         1. an explicit ``refusal`` on the claim → REFUSE;
         2. an unresolved/unmaterialized coord surface → REFUSE;
         3. an empty claim while the manifest lists WPs → REFUSE (PP-F3);
-        4. (squash / ``verify_reachability=False``) content reachability is
-           deferred to the WP07/WP08 projection seam → PASS;
-        5. (production claim) an unresolvable excluded window base → REFUSE
-           (#5001 FOLD-3: the excluded/closed-world axes cannot be evaluated);
+        4. (squash / ``verify_reachability=False``) the squash-sound closed-world
+           BLOB-attribution axis (#5013 WS1): a production claim with empty
+           authorship or a ``None`` window base → REFUSE, a git probe error →
+           REFUSE, a target A/M path whose blob is authored by no approved lane →
+           FAIL(un-attributable); a hand-built (non-production) claim → PASS;
+        5. (production merge/rebase claim) an unresolvable excluded window base →
+           REFUSE (#5001 FOLD-3: the excluded/closed-world axes cannot be evaluated);
         6. any approved SHA unreachable from *target_ref* → FAIL(missing);
         7. any excluded SHA/patch-id reachable from *target_ref* → FAIL(excluded);
         8. (closed-world) any CONTENT commit in the merge window attributable to
@@ -295,18 +326,22 @@ class MergeOutcomeVerifier:
             return VerifyResult.refused(f"derived claim is empty while the manifest lists {len(approved_wp_set.manifest_wp_ids)} WP(s)")
 
         # Squash (and any strategy that does not preserve content identity):
-        # claim integrity held, but content reachability cannot be soundly proven
-        # here — defer it to the WP07/WP08 projection seam rather than false-fail
-        # a legitimate merge (NFR-004).
+        # claim integrity held, but SHA/patch-id reachability is unsound (a squash
+        # destroys lane-tip SHAs AND per-commit patch-ids). The squash-sound
+        # closed-world BLOB-attribution axis runs instead (#5013 WS1). Every
+        # fail-closed guard — empty authorship, an unresolvable window base, a git
+        # probe error — fires INSIDE that branch, strictly above any PASS (F1
+        # corollary), so a squash can no longer short-circuit to a vacuous pass the
+        # way the pre-#5013 early-return did.
         if not approved_wp_set.verify_reachability:
-            return VerifyResult.passed()
+            return self._verify_squash_content(target_ref, approved_wp_set)
 
         # Reachability-path fail-closed (#5001 FOLD-3): a production claim
         # (``enforce_closed_world``) whose excluded window base could not be
         # resolved cannot evaluate the excluded/closed-world axes at all. Skipping
         # them silently collapsed to PASS (fail-OPEN); refuse instead.
         if approved_wp_set.enforce_closed_world and approved_wp_set.excluded_window_base is None:
-            return VerifyResult.refused("the excluded-content window base could not be resolved; the excluded/closed-world axes cannot be verified (fail-closed)")
+            return VerifyResult.refused(_REFUSE_WINDOW_BASE_UNRESOLVED)
 
         try:
             missing = self._missing_approved(target_ref, approved_wp_set)
@@ -394,6 +429,75 @@ class MergeOutcomeVerifier:
             if sha in claim.authored_shas or pid in claim.authored_patch_ids:
                 continue  # attributable to an approved WP's own authorship
             unattributable.append((sha, pid))
+        return unattributable
+
+    def _verify_squash_content(self, target_ref: str, claim: ApprovedWpCommitSet) -> VerifyResult:
+        """Squash-sound content verdict via closed-world BLOB attribution (#5013 WS1).
+
+        A squash merge preserves neither lane-tip SHAs nor per-commit patch-ids, so
+        the reachability/patch-id axes are inert under it. This axis compares
+        **tree/blob content** instead, which a squash DOES preserve: every
+        non-bookkeeping Added/Modified path of the aggregate squash diff
+        ``B..target`` must carry a blob authored by an approved lane
+        (:attr:`ApprovedWpCommitSet.authored_blobs`); one that is not is
+        removed/canceled content that shipped ⇒ FAIL ⇒ the executor's existing
+        rollback path reverts the squash advance.
+
+        The axis is opt-in: only a production claim (``enforce_closed_world``, set by
+        :func:`build_approved_wp_set`) runs it. A hand-built claim keeps the
+        pre-#5013 deferral PASS byte-for-byte. Fail-closed guards fire ABOVE any
+        PASS (F1 corollary): a ``None`` window base and a git probe error REFUSE
+        rather than pass on unevaluated content.
+
+        Empty ``authored_blobs`` is split by whether any approved lane RESOLVED to
+        commits. When the claim carries approved commit SHAs but no authored blobs,
+        the axis cannot attribute against a claim it should have been able to build
+        ⇒ REFUSE (fail-closed). When NO approved lane resolved to commits at all —
+        the tolerant "lane branch absent / already consolidated" state the claim
+        builder legitimately yields as empty tuples (``{"WP01": ()}``) — there is no
+        authorship authority to attribute against, so the axis defers to the
+        pre-#5013 PASS rather than false-fail every target path (NFR-004). This
+        matches the claim builder's own lane-resolution tolerance
+        (:func:`_lane_tip_commits` / :func:`_lane_first_parent_spine`).
+        """
+        if not claim.enforce_closed_world:
+            return VerifyResult.passed()
+        if not claim.authored_blobs:
+            if any(shas for shas in claim.approved.values()):
+                return VerifyResult.refused(_REFUSE_EMPTY_AUTHORED_BLOBS)
+            return VerifyResult.passed()
+        window_base = claim.excluded_window_base
+        if window_base is None:
+            return VerifyResult.refused(_REFUSE_WINDOW_BASE_UNRESOLVED)
+        try:
+            unattributable = self._unattributable_content_squash(target_ref, claim, window_base)
+        except GitProbeError as exc:
+            return VerifyResult.refused(f"a git probe failed while verifying the squash window: {exc}")
+        if unattributable:
+            return VerifyResult.failed(Divergence(unattributable_content=tuple(unattributable)))
+        return VerifyResult.passed()
+
+    def _unattributable_content_squash(self, target_ref: str, claim: ApprovedWpCommitSet, window_base: str) -> list[tuple[str, str]]:
+        """Target ``(path, blob)`` pairs in ``B..target`` authored by no approved lane.
+
+        Iterates ``git diff --name-status --no-renames window_base..target``
+        (:func:`changed_paths_in_range`). For each **Added/Modified** path (a
+        Deleted path ships no content, so it is skipped — never inferring deletion
+        from a rev-parse failure, F1) that is not mission bookkeeping, reads the
+        target blob (:func:`blob_id_at`; an unexpected probe error propagates as
+        :class:`GitProbeError` ⇒ the caller REFUSEs). A ``(path, blob)`` absent from
+        :attr:`ApprovedWpCommitSet.authored_blobs` is unattributable and named in
+        the divergence. Bounded by the squash diff size (NFR-003).
+        """
+        unattributable: list[tuple[str, str]] = []
+        for status, path in changed_paths_in_range(self._repo, window_base, target_ref):
+            if status.startswith("D"):
+                continue  # a deletion ships no content
+            if self._is_bookkeeping_path(path, claim):
+                continue  # status/meta/matrix/retrospective/planning churn — not content
+            blob = blob_id_at(self._repo, target_ref, path)  # raises → REFUSE (F1)
+            if (path, blob) not in claim.authored_blobs:
+                unattributable.append((path, blob))
         return unattributable
 
     def _commit_is_content(self, sha: str, claim: ApprovedWpCommitSet) -> bool:
@@ -527,7 +631,7 @@ def build_approved_wp_set(
         coord_base_ref,
         frozenset(excluded_canceled_wp_ids),
     )
-    authored_shas, authored_patch_ids = _collect_authored(repo_root, lanes_manifest, work_packages, coord_base_ref)
+    authored_shas, authored_patch_ids, authored_blobs = _collect_authored(repo_root, lanes_manifest, work_packages, coord_base_ref)
     return ApprovedWpCommitSet(
         approved=approved,
         excluded_shas=excluded_shas,
@@ -538,6 +642,7 @@ def build_approved_wp_set(
         enforce_closed_world=True,
         authored_shas=authored_shas,
         authored_patch_ids=authored_patch_ids,
+        authored_blobs=authored_blobs,
         mission_slug=lanes_manifest.mission_slug,
         planning_prefix=planning_prefix,
     )
@@ -634,36 +739,87 @@ def _collect_excluded(
     return frozenset(shas), frozenset(patch_ids)
 
 
+def _lane_is_approved(lane: object, work_packages: Mapping[str, Mapping[str, object]]) -> bool:
+    """True when at least one of *lane*'s WPs is in an approved membership lane."""
+    wp_ids = getattr(lane, "wp_ids", ())
+    return any(str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES for wp in wp_ids)
+
+
+def _lane_first_parent_spine(repo_root: Path, coord_base_ref: str, branch: str) -> list[str]:
+    """First-parent SHAs (newest-first) for a lane, TOLERATING an unresolvable range.
+
+    Mirrors :func:`_lane_tip_commits`' claim-build tolerance: an unresolvable lane
+    branch / coord base (a fully-canceled lane has no branch; some topologies cut it
+    after this read) yields no authorship rather than turning a legitimate merge into
+    a spurious refusal. The #5013 F7 fail-closed ``GitProbeError`` signal is scoped to
+    the VERIFIER's window scan, not the claim BUILDER.
+    """
+    try:
+        spine: list[str] = first_parent_commits_in_range(repo_root, coord_base_ref, branch)
+        return spine
+    except GitProbeError:
+        return []
+
+
+def _final_authored_blobs(repo_root: Path, first_parent_shas: list[str]) -> set[tuple[str, str]]:
+    """FINAL ``(path, blob)`` per path across a lane's first-parent spine (F5).
+
+    Walks the spine newest→oldest (``git rev-list`` order) and keeps the FIRST
+    (hence newest, hence final) blob seen per path — so a superseded intermediate
+    ``v1`` is dropped in favor of the lane's final ``v2``. A merge commit on the
+    spine contributes nothing (its combined diff is empty for a clean auto-merge),
+    so a second-parent-smuggled blob is never recorded as authored. A path deleted
+    by its newest touching commit has no blob at that commit (:func:`blob_id_at`
+    raises); it is marked seen and contributes no shippable blob.
+    """
+    seen_paths: set[str] = set()
+    blobs: set[tuple[str, str]] = set()
+    for sha in first_parent_shas:
+        for path in changed_paths_of(repo_root, sha):
+            if path in seen_paths:
+                continue
+            seen_paths.add(path)
+            try:
+                blobs.add((path, blob_id_at(repo_root, sha, path)))
+            except GitProbeError:
+                continue  # deleted at this (newest touching) commit — no final blob
+    return blobs
+
+
 def _collect_authored(
     repo_root: Path,
     lanes_manifest: LanesManifest,
     work_packages: Mapping[str, Mapping[str, object]],
     coord_base_ref: str,
-) -> tuple[frozenset[str], frozenset[str]]:
-    """Approved lanes → their OWN first-parent commit SHAs + patch-ids (closed-world).
+) -> tuple[frozenset[str], frozenset[str], frozenset[tuple[str, str]]]:
+    """Approved lanes → their OWN first-parent SHAs + patch-ids + FINAL blobs (closed-world).
 
-    The authorship claim the closed-world content check attributes window commits
-    against. A lane contributes its authorship only when at least one of its WPs
-    is approved/done (a fully-canceled lane's commits are NOT approved authorship).
-    Authorship is the lane's **first-parent** spine (``git rev-list
-    --first-parent``): a commit merged into a lane from another branch (a removed
-    WP's commit smuggled via a carrier merge's second parent) is excluded, so it
-    is never mistaken for approved work. Merge commits on the spine yield an empty
-    patch-id and contribute only their SHA.
+    The authorship claim the closed-world content checks attribute against. A lane
+    contributes its authorship only when at least one of its WPs is approved/done (a
+    fully-canceled lane's commits are NOT approved authorship). Authorship is the
+    lane's **first-parent** spine (``git rev-list --first-parent``): a commit a lane
+    merged IN from another branch (a removed WP's commit smuggled via a carrier
+    merge's second parent) is excluded, so it is never mistaken for approved work.
+    Merge commits on the spine yield an empty patch-id and contribute only their SHA.
+
+    ``authored_blobs`` (#5013 WS1) is the squash-sound content axis's authority: the
+    FINAL first-parent blob per (lane, path), unioned across approved lanes.
     """
     shas: set[str] = set()
     patch_ids: set[str] = set()
+    blobs: set[tuple[str, str]] = set()
     for lane in lanes_manifest.lanes:
-        lane_is_approved = any(str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES for wp in lane.wp_ids)
-        if not lane_is_approved:
+        if not _lane_is_approved(lane, work_packages):
             continue
         branch = _lane_branch_for(lanes_manifest, lane.lane_id)
-        for sha in first_parent_commits_in_range(repo_root, coord_base_ref, branch):
+        first_parent = _lane_first_parent_spine(repo_root, coord_base_ref, branch)
+        for sha in first_parent:
             shas.add(sha)
             pid = patch_id_of(repo_root, sha)
             if pid:
                 patch_ids.add(pid)
-    return frozenset(shas), frozenset(patch_ids)
+        blobs |= _final_authored_blobs(repo_root, first_parent)
+    return frozenset(shas), frozenset(patch_ids), frozenset(blobs)
 
 
 __all__ = [

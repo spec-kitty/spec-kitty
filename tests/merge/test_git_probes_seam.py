@@ -60,16 +60,14 @@ def test_linear_history_rejection_is_fail_open() -> None:
 
 def test_classify_porcelain_lines_buckets_correctly() -> None:
     lines = [
-        " M src/changed.py",     # tracked modification -> offending
-        "?? untracked.txt",      # untracked -> skipped, counted
-        "M  kitty-specs/x.md",   # staged, but expected -> dropped
-        "",                      # blank -> ignored
-        "bad",                   # malformed shape -> ignored
-        " D removed.py",         # deletion -> offending
+        " M src/changed.py",  # tracked modification -> offending
+        "?? untracked.txt",  # untracked -> skipped, counted
+        "M  kitty-specs/x.md",  # staged, but expected -> dropped
+        "",  # blank -> ignored
+        "bad",  # malformed shape -> ignored
+        " D removed.py",  # deletion -> offending
     ]
-    offending, skipped = git_probes._classify_porcelain_lines(
-        lines, expected_paths={"kitty-specs/x.md"}
-    )
+    offending, skipped = git_probes._classify_porcelain_lines(lines, expected_paths={"kitty-specs/x.md"})
     assert offending == [" M src/changed.py", " D removed.py"]
     assert skipped == 1
 
@@ -194,3 +192,123 @@ def test_raw_porcelain_status_preserves_leading_column(tmp_path: Path) -> None:
     rc, out = git_probes._raw_porcelain_status(repo)
     assert rc == 0
     assert out.startswith(" M a.txt"), repr(out)
+
+
+# --- squash-content probes (T015 / #5013) — blob_id_at, changed_paths_in_range,
+#     first_parent_commits_in_range raise-on-error ------------------------------
+
+
+def _git_seam(repo: Path, *args: str) -> str:
+    import subprocess
+
+    result = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
+def _init_committed_repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    import subprocess
+
+    subprocess.run(["git", "init", "-qb", "main", str(repo)], check=True)
+    _git_seam(repo, "config", "user.email", "t@t.co")
+    _git_seam(repo, "config", "user.name", "Probe Test")
+    _git_seam(repo, "config", "commit.gpgsign", "false")
+    (repo / "README.md").write_text("init\n", encoding="utf-8")
+    _git_seam(repo, "add", ".")
+    _git_seam(repo, "commit", "-qm", "init")
+    return repo
+
+
+def _commit_file(repo: Path, rel: str, body: str, message: str) -> str:
+    path = repo / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding="utf-8")
+    _git_seam(repo, "add", rel)
+    _git_seam(repo, "commit", "-qm", message)
+    return _git_seam(repo, "rev-parse", "HEAD")
+
+
+def test_blob_id_at_returns_blob_for_existing_path(tmp_path: Path) -> None:
+    repo = _init_committed_repo(tmp_path)
+    _commit_file(repo, "src/x.py", "content\n", "add x")
+    expected = _git_seam(repo, "rev-parse", "HEAD:src/x.py")
+    assert git_probes.blob_id_at(repo, "HEAD", "src/x.py") == expected
+    assert git_probes.blob_id_at(repo, "HEAD", "src/x.py") != ""
+
+
+def test_blob_id_at_raises_on_missing_path(tmp_path: Path) -> None:
+    repo = _init_committed_repo(tmp_path)
+    with pytest.raises(git_probes.GitProbeError):
+        git_probes.blob_id_at(repo, "HEAD", "src/absent.py")
+
+
+def test_blob_id_at_raises_on_bad_ref(tmp_path: Path) -> None:
+    repo = _init_committed_repo(tmp_path)
+    _commit_file(repo, "src/x.py", "content\n", "add x")
+    with pytest.raises(git_probes.GitProbeError):
+        git_probes.blob_id_at(repo, "no-such-ref-xyz", "src/x.py")
+
+
+def test_changed_paths_in_range_reports_status_and_path(tmp_path: Path) -> None:
+    repo = _init_committed_repo(tmp_path)
+    _commit_file(repo, "keep.py", "v1\n", "add keep")
+    _commit_file(repo, "gone.py", "bye\n", "add gone")
+    base = _git_seam(repo, "rev-parse", "HEAD")
+    # Add, modify, delete across base..tip.
+    (repo / "added.py").write_text("new\n", encoding="utf-8")
+    (repo / "keep.py").write_text("v2\n", encoding="utf-8")
+    (repo / "gone.py").unlink()
+    _git_seam(repo, "add", "-A")
+    _git_seam(repo, "commit", "-qm", "mix")
+    tip = _git_seam(repo, "rev-parse", "HEAD")
+    changes = {path: status for status, path in git_probes.changed_paths_in_range(repo, base, tip)}
+    assert changes["added.py"] == "A"
+    assert changes["keep.py"] == "M"
+    assert changes["gone.py"] == "D"
+
+
+def test_changed_paths_in_range_no_renames_shows_delete_add(tmp_path: Path) -> None:
+    repo = _init_committed_repo(tmp_path)
+    _commit_file(repo, "old.py", "same-content-so-rename-would-detect\n", "add old")
+    base = _git_seam(repo, "rev-parse", "HEAD")
+    _git_seam(repo, "mv", "old.py", "new.py")
+    _git_seam(repo, "commit", "-qm", "rename old->new")
+    tip = _git_seam(repo, "rev-parse", "HEAD")
+    changes = {path: status for status, path in git_probes.changed_paths_in_range(repo, base, tip)}
+    # --no-renames: a rename surfaces as delete + add, never an R status.
+    assert changes.get("old.py") == "D"
+    assert changes.get("new.py") == "A"
+    assert not any(status.startswith("R") for status in changes.values())
+
+
+def test_changed_paths_in_range_raises_on_git_error(tmp_path: Path) -> None:
+    repo = _init_committed_repo(tmp_path)
+    with pytest.raises(git_probes.GitProbeError):
+        git_probes.changed_paths_in_range(repo, "no-such-ref-xyz", "HEAD")
+
+
+def test_first_parent_commits_in_range_raises_on_git_error(tmp_path: Path) -> None:
+    """F7 regression: an unresolvable ref is a git ERROR, not an empty range."""
+    repo = _init_committed_repo(tmp_path)
+    with pytest.raises(git_probes.GitProbeError):
+        git_probes.first_parent_commits_in_range(repo, "no-such-ref-xyz", "HEAD")
+
+
+def test_first_parent_commits_in_range_excludes_second_parent(tmp_path: Path) -> None:
+    """Positive arm: a merged-in second parent is NOT on the first-parent spine."""
+    repo = _init_committed_repo(tmp_path)
+    base = _git_seam(repo, "rev-parse", "HEAD")
+    # side branch with its own commit
+    _git_seam(repo, "checkout", "-qb", "side")
+    side_sha = _commit_file(repo, "side.py", "side\n", "side work")
+    _git_seam(repo, "checkout", "-q", "main")
+    _commit_file(repo, "main.py", "main\n", "main work")
+    _git_seam(repo, "merge", "-q", "--no-edit", "--no-ff", "side")
+    first_parent = git_probes.first_parent_commits_in_range(repo, base, "main")
+    assert side_sha not in first_parent
