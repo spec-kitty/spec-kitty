@@ -103,6 +103,13 @@ _SEAM_NAMES: frozenset[str] = frozenset(
         "_validate_mission_slug",  # status/aggregate.py → assert_safe_path_segment
         "_validate_segment",  # review/cycle.py → assert_safe_path_segment
         "_is_safe_slug",  # status/store.py → assert_safe_path_segment
+        # cli/commands/decision.py raw-token path-traversal reject at the CLI
+        # boundary (^[A-Za-z0-9][A-Za-z0-9_-]*$, rejecting ../ before any join).
+        # #5019: after decision.py's ledger read moved off
+        # resolve_handle_to_read_path onto placement_seam(...).read_dir(
+        # PRIMARY_METADATA), this regex is the in-file guard; the seam it now
+        # calls is itself assert_safe_path_segment-guarded.
+        "_SAFE_SLUG_RE",
         "resolve_handle_to_read_path",  # missions/_read_path_resolver.py → assert_safe_path_segment (#2037 decision.py)
         # Reducer delegators: these produce a pre-sanitised snapshot slug
         # that the derived-view writers consume (lifecycle/progress/views).
