@@ -496,6 +496,7 @@ pages:
     - {slug: "last-writer-wins-by-timestamp", text: "Last-writer-wins by timestamp", level: 3}
     - {slug: "monotonic-most-advanced-lane-wins", text: "Monotonic \"most-advanced-lane-wins\"", level: 3}
     - {slug: "manual-conflict-resolution-human-decides", text: "Manual conflict resolution (human decides)", level: 3}
+    - {slug: "reconciliation-note-terminus-merge-reconciliation-gate-terminus-merge-integrity-2026-09", text: "Reconciliation note — terminus merge/reconciliation gate (terminus-merge-integrity, 2026-09)", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/2.x/2026-02-09-4-cross-repo-evidence-completion.md"
     title: "Cross-Repo Evidence-Based Completion"
