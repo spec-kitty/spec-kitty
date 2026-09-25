@@ -132,7 +132,28 @@ _APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset({"kitty-specs/common-d
 #   populated side (event_count 24, real slug) — the HEAD side was a blank reset.
 #   Follow-up: once this correction is in main's baseline, this entry is dead
 #   weight and should be removed to restore the byte-freeze on the corrected file.
-_OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset({"kitty-specs/acceptance-matrix-merge-fail-closed-01M34HG8/status.json"})
+#
+# - kitty-specs/coord-read-fail-closed-01M38VVH/status.json
+#   kitty-specs/silent-write-hardening-residuals-01M37QN4/status.json
+#   (2026-09-25, operator decision during the #4972 upgrade-stamping landing pass):
+#   both landed with a SNAPSHOT_DRIFT teamspace blocker — the committed status.json
+#   never caught up to the authoritative status.events.jsonl (coord: snapshot stale
+#   at 19 events vs 24 in the log; silent-write: the empty bootstrap snapshot vs 18
+#   events). Same surfacing path as the acceptance-matrix entry above: the upgrade
+#   module shard's corpus scan (test_public_witnesses.py :: ...no_teamspace_blockers)
+#   is path-filtered on main, and #4972 touches upgrade paths, un-skipping it. The
+#   correction regenerates each status.json from its event log via the reducer
+#   (materialize) — events are the sole authority and the materialized timestamps
+#   derive from them, so the result is deterministic and reduce(events)==persisted.
+#   Follow-up: once in main's baseline, these entries are dead weight and should be
+#   removed to restore the byte-freeze on the corrected files.
+_OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset(
+    {
+        "kitty-specs/acceptance-matrix-merge-fail-closed-01M34HG8/status.json",
+        "kitty-specs/coord-read-fail-closed-01M38VVH/status.json",
+        "kitty-specs/silent-write-hardening-residuals-01M37QN4/status.json",
+    }
+)
 
 
 def _run_git(args: list[str]) -> subprocess.CompletedProcess[str]:

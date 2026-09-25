@@ -1,18 +1,18 @@
 {
-  "event_count": 19,
-  "last_event_id": "01M392ET1BVYWRCFVV8E3M607J",
-  "materialized_at": "2026-09-24T06:43:13.067668+00:00",
+  "event_count": 24,
+  "last_event_id": "01M393CH7YKTDP109DGRV2VJ2T",
+  "materialized_at": "2026-09-24T06:59:27.102245+00:00",
   "mission_number": "",
   "mission_slug": "coord-read-fail-closed-01M38VVH",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 1,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
-    "in_progress": 1,
+    "for_review": 0,
+    "in_progress": 0,
     "in_review": 1,
     "planned": 1
   },
@@ -45,7 +45,10 @@
         "T003": "done",
         "T004": "done",
         "T005": "done"
-      }
+      },
+      "tracker_refs": [
+        "#4959"
+      ]
     },
     "WP02": {
       "actor": "claude",
@@ -53,11 +56,19 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "in_review",
-      "last_event_id": "01M392ET1BVYWRCFVV8E3M607J",
-      "last_transition_at": "2026-09-24T06:43:13.067668+00:00",
+      "lane": "approved",
+      "last_event_id": "01M392PG19T7TFFHG02V3JKZ75",
+      "last_transition_at": "2026-09-24T06:47:24.969298+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Fail-closed verified. Red-first confirmed by swapping pre-fix tracer_writer.py: all 4 new fail-closed tests fail pre-fix (unmaterialized+undecodable swallowed to '', and append_tracer_finding reaches write_artifact = the clobber), 23/23 green post-fix. Catch ordering correct: except CoordinationWorktreeUnmaterialized (StatusReadPathNotFound subclass) re-raises BEFORE the wider _NO_EXISTING_CONTENT_EXCEPTIONS return ''; UnicodeDecodeError dropped from the OSError swallow. No-silent-success proven (test asserts write_artifact never called + no staging residue). e2e proves coord-committed file byte-identical via git show. Resolved-absent/materialised-present regressions pass. ruff check + mypy clean; ruff-format 'would reformat' is pre-existing [tool.ruff.format].exclude debt (file already in exclude list), not a regression. Non-blocking follow-up: CLI tracer_append.py (outside owned_files) surfaces the propagated raise as a raw traceback, not a structured refusal."
+      ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260924",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 555742,
       "shell_pid_created_at": "1790232190.78",
@@ -65,7 +76,10 @@
         "T006": "done",
         "T007": "done",
         "T008": "done"
-      }
+      },
+      "tracker_refs": [
+        "#4959"
+      ]
     },
     "WP03": {
       "actor": "claude",
@@ -73,19 +87,30 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "for_review",
-      "last_event_id": "01M392D2M0VVYEHW9V2XGTHM9A",
-      "last_transition_at": "2026-09-24T06:42:16.320808+00:00",
+      "lane": "approved",
+      "last_event_id": "01M392WHZSJNXD1ANEKFH6QT8B",
+      "last_transition_at": "2026-09-24T06:50:43.577766+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Reviewer-renata PASS (opus): meta.json->PRIMARY + ledger-partition move; service.py & _decisions_doctor.py resolve identical PRIMARY_METADATA lock path (lockstep holds); AC-D2 flip real (216 passed); acceptance/artifacts untouched. Lockstep-test coord-variant hardening folded pre-PR."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 548356,
-      "shell_pid_created_at": "1790232117.53",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260924",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 557361,
+      "shell_pid_created_at": "1790232196.58",
       "subtasks": {
         "T009": "done",
         "T010": "done",
         "T011": "done"
-      }
+      },
+      "tracker_refs": [
+        "#4966"
+      ]
     },
     "WP04": {
       "actor": "claude",
@@ -93,21 +118,33 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01M391K9WT3FK0S7KD58X76BX0",
-      "last_transition_at": "2026-09-24T06:28:11.789148+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M393CH7YKTDP109DGRV2VJ2T",
+      "last_transition_at": "2026-09-24T06:59:27.102245+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 462525,
-      "shell_pid_created_at": "1790231288.89"
+      "role": "reviewer",
+      "shell_pid": 665353,
+      "shell_pid_created_at": "1790233164.73",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      },
+      "tracker_refs": [
+        "#4959"
+      ]
     },
     "WP05": {
       "actor": "finalize-tasks",
       "force_count": 0,
       "lane": "planned",
       "last_event_id": "01M38ZD413ZVK7SWJ3XBPJ2BJB",
-      "last_transition_at": "2026-09-24T05:49:52.035968+00:00"
+      "last_transition_at": "2026-09-24T05:49:52.035968+00:00",
+      "tracker_refs": [
+        "#4959",
+        "#4966"
+      ]
     }
   }
 }
