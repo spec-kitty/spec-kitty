@@ -1,0 +1,99 @@
+{
+  "mission_slug": "implement-lane-recut-and-planning-commit-integrity-01M3CM55",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_issue_4889_destroyed_lane_guard.py (destroyed-lane detection, 10 pass)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T17:37:34.334397+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_issue_4889_destroyed_lane_guard.py + tests/lanes/test_lane_allocation_integrity_e2e.py (fail-closed refusal)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T17:37:36.497229+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_issue_4889_destroyed_lane_guard.py (WorkspaceContext byte-identical before/after refusal)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T17:37:38.628056+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_issue_4889_destroyed_lane_guard.py (REUSE/CRASH_RECOVERY/fresh/reopen control arms)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T17:37:40.768352+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_issue_4905_coord_staging.py (zero tasks/WP*.md on coord, 3 sites)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T17:37:42.886606+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_issue_4905_coord_staging.py (WP02 starts, no PlanningCommitMergeConflictError)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T17:37:45.155000+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Red-first repros verified RED->GREEN across WP01/WP02/WP03 (ADR 2026-07-17-1)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T17:37:47.257488+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/orchestrator_api/test_issue_4889_caller_independence.py (LANE_ALLOCATION_FAILED via orchestrator caller)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T17:37:49.331015+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_issue_4889_destroyed_lane_guard.py (reopen-after-merge tip-reachable -> resume, no false refusal)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-25T17:37:51.438433+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

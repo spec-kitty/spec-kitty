@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "mission_slug": "implement-lane-recut-and-planning-commit-integrity-01M3CM55",
+  "mission_id": "01M3CM55H5GD129521HZVX663E",
+  "mission_branch": "kitty/mission-implement-lane-recut-and-planning-commit-integrity-01M3CM55",
+  "target_branch": "fix/implement-lane-recut-and-planning-commit-integrity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "tests/lanes/test_issue_4889_destroyed_lane_guard.py",
+        "tests/orchestrator_api/test_issue_4889_caller_independence.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "tests/specify_cli/cli/commands/agent/test_issue_4905_coord_staging.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/lanes/test_lane_allocation_integrity_e2e.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-25T16:24:13.905753+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6dbfead863e2f3d404b8936f82f018e1f02c217f"
+}
