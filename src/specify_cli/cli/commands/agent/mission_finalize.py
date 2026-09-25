@@ -1065,9 +1065,8 @@ def _resolve_dependencies_and_refs(
             if not wp_id_match:
                 continue
             wp_id = wp_id_match.group(1)
-            raw_content = wp_file.read_text(encoding="utf-8")
             wp_meta, _ = _read_wp_frontmatter(wp_file)
-            frontmatter_deps = list(wp_meta.dependencies) if _raw_frontmatter_has_field(raw_content, "dependencies") else []
+            frontmatter_deps = list(wp_meta.dependencies)
             if frontmatter_deps:
                 res.wp_dependencies[wp_id] = frontmatter_deps
             else:
