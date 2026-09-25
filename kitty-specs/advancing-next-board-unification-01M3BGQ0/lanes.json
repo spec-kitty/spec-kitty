@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "mission_slug": "advancing-next-board-unification-01M3BGQ0",
+  "mission_id": "01M3BGQ07M22KCP9XTCWSNH080",
+  "mission_branch": "kitty/mission-advancing-next-board-unification-01M3BGQ0",
+  "target_branch": "fix/advancing-next-board-unification",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/runtime/next/decision.py",
+        "src/runtime/next/runtime_bridge.py",
+        "tests/next/test_decision_unit.py",
+        "tests/next/test_finalized_task_routing.py",
+        "tests/runtime/test_bridge_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-25T05:55:13.177449+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6314f76af3385c95f66c4591360aad272dffa464"
+}

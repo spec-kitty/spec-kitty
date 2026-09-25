@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#3909": {
+      "evidence_ref": "Context-only cross-link in spec/research; no work owed by this mission (see spec C-004 scope boundary)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4518": {
+      "evidence_ref": "Context-only cross-link in spec/research; no work owed by this mission (see spec C-004 scope boundary)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4860": {
+      "evidence_ref": "Context-only cross-link in spec/research; no work owed by this mission (see spec C-004 scope boundary)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4898": {
+      "evidence_ref": "Context-only cross-link in spec/research; no work owed by this mission (see spec C-004 scope boundary)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4899": {
+      "evidence_ref": "Context-only cross-link in spec/research; no work owed by this mission (see spec C-004 scope boundary)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4975": {
+      "evidence_ref": "Coord implement dispatch fixed; test_coord_implement_dispatch_reaches_wp01 green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4980": {
+      "evidence_ref": "Review-branch re-dispatch fixed; test_review_reject_redispatches_implement_* green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4988": {
+      "evidence_ref": "Context-only cross-link in spec/research; no work owed by this mission (see spec C-004 scope boundary)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4990": {
+      "evidence_ref": "Context-only cross-link in spec/research; no work owed by this mission (see spec C-004 scope boundary)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

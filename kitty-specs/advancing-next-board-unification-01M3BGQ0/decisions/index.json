@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-25T05:31:35.179544Z",
+      "decision_id": "01M3BGRBWBDWG3F3EEA4Z5S8VQ",
+      "final_answer": "Advancing next must agree with query mode: dispatch the actionable WP (e.g. implement WP01 for a rejected WP that fell to planned, or a coord WP the primary dir cannot see); return kind=blocked with a named recovery command ONLY when the board has no actionable WP. Never emit the WP-less composition placeholder as a live advancing loop state.",
+      "input_key": "advance_contract",
+      "mission_id": "01M3BGQ07M22KCP9XTCWSNH080",
+      "mission_slug": "advancing-next-board-unification-01M3BGQ0",
+      "opened_by": "cli",
+      "options": [
+        "Re-dispatch actionable WP; blocked+recovery only when none actionable",
+        "Always blocked+recovery (never auto re-dispatch)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "On a rejection/coord path where advancing next currently no-ops or blocks, what is the required success contract: re-dispatch the actionable WP (agree with query mode) with a blocked+recovery floor only when no WP is actionable?",
+      "rationale": null,
+      "resolved_at": "2026-09-25T05:36:27.647093Z",
+      "resolved_by": null,
+      "slot_key": "specify.behavior.advance-contract",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3BGQ07M22KCP9XTCWSNH080",
+  "version": 1
+}
