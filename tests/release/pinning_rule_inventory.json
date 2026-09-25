@@ -26,7 +26,7 @@
       ],
       "form": "set-equality",
       "lines": [
-        40
+        53
       ],
       "dependency": true,
       "disposition": "none",
@@ -41,7 +41,7 @@
       ],
       "form": "set-equality",
       "lines": [
-        30
+        33
       ],
       "dependency": true,
       "disposition": "none",
@@ -153,7 +153,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        2059
+        2065
       ],
       "dependency": true,
       "disposition": "none",
@@ -309,6 +309,21 @@
       "form": "derived-relation",
       "lines": [
         41
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
+    },
+    {
+      "rule": "tests/architectural/test_module_length_agreement.py::<module-docstring>",
+      "file": "tests/architectural/test_module_length_agreement.py",
+      "scope": "<module-docstring>",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        60
       ],
       "dependency": false,
       "disposition": "none",
@@ -549,6 +564,21 @@
       "dependency": false,
       "disposition": "none",
       "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/architectural/test_performance_marker_guard.py::<module>",
+      "file": "tests/architectural/test_performance_marker_guard.py",
+      "scope": "<module>",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        45
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
     },
     {
       "rule": "tests/architectural/test_quarantine_marker.py::<module-docstring>",
@@ -816,7 +846,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        242
+        382
       ],
       "dependency": false,
       "disposition": "none",
@@ -831,7 +861,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        246
+        387
       ],
       "dependency": false,
       "disposition": "none",
@@ -846,7 +876,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        232
+        351
       ],
       "dependency": false,
       "disposition": "none",
@@ -861,7 +891,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        218
+        337
       ],
       "dependency": false,
       "disposition": "none",
@@ -876,8 +906,8 @@
       ],
       "form": "derived-relation",
       "lines": [
-        127,
-        130
+        230,
+        233
       ],
       "dependency": false,
       "disposition": "none",
@@ -892,24 +922,41 @@
       ],
       "form": "derived-relation",
       "lines": [
-        196,
-        198,
-        201
+        315,
+        317,
+        320
       ],
       "dependency": false,
       "disposition": "none",
       "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
     },
     {
-      "rule": "tests/ci/test_fleet_main.py::test_main_move_before_publication_refuses_obsolete_p0",
+      "rule": "tests/ci/test_fleet_main.py::test_main_head_move_before_attempt_read_yields_nothing_to_report",
       "file": "tests/ci/test_fleet_main.py",
-      "scope": "test_main_move_before_publication_refuses_obsolete_p0",
+      "scope": "test_main_head_move_before_attempt_read_yields_nothing_to_report",
       "subjects": [
         "retiring-host"
       ],
       "form": "derived-relation",
       "lines": [
-        166
+        283
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_fleet_main.py::test_main_head_move_within_attempts_own_reads_forces_genuine_retry",
+      "file": "tests/ci/test_fleet_main.py",
+      "scope": "test_main_head_move_within_attempts_own_reads_forces_genuine_retry",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        425,
+        426,
+        428
       ],
       "dependency": false,
       "disposition": "none",
@@ -924,8 +971,23 @@
       ],
       "form": "derived-relation",
       "lines": [
-        157,
-        159
+        260,
+        262
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_fleet_main.py::test_no_cross_run_coupling_between_concurrent_pr_and_main_invocations",
+      "file": "tests/ci/test_fleet_main.py",
+      "scope": "test_no_cross_run_coupling_between_concurrent_pr_and_main_invocations",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "derived-relation",
+      "lines": [
+        465
       ],
       "dependency": false,
       "disposition": "none",
@@ -940,7 +1002,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        94
+        95
       ],
       "dependency": false,
       "disposition": "none",
@@ -955,7 +1017,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        80
+        81
       ],
       "dependency": false,
       "disposition": "none",
@@ -970,7 +1032,7 @@
       ],
       "form": "set-equality",
       "lines": [
-        106
+        107
       ],
       "dependency": true,
       "disposition": "none",
@@ -985,7 +1047,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        371
+        452
       ],
       "dependency": false,
       "disposition": "none",
@@ -1000,7 +1062,7 @@
       ],
       "form": "path-anchored",
       "lines": [
-        356
+        437
       ],
       "dependency": false,
       "disposition": "none",
@@ -1015,7 +1077,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        267
+        348
       ],
       "dependency": false,
       "disposition": "none",
@@ -1623,6 +1685,21 @@
       "dependency": false,
       "disposition": "none",
       "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/upgrade/test_migration_robustness.py::TestVenvCorruptionHazardFR003b",
+      "file": "tests/upgrade/test_migration_robustness.py",
+      "scope": "TestVenvCorruptionHazardFR003b",
+      "subjects": [
+        "retiring-step"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        406
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the `make test-fast` target, which survives as a Makefile target and a local developer entry point; what retires is one workflow step's USE of it. The file does not mention the retiring job, so this rule is about the target, not about the job."
     },
     {
       "rule": "tests/zeitgeist_client/test_managed_relay_docker_local.py::pytestmark",
