@@ -227,18 +227,26 @@ def _read_catalog_mission_from_charter_yaml(repo_root: Path) -> str | None:
 def _resolve_recorded_mission_type(repo_root: Path, answers_path: Path) -> str:
     """Resolve the project's recorded mission type from its SSOT (#4908).
 
-    The catalog-recompile call sites (``charter activate``/``deactivate``'s
-    ``recompile_catalog``, ``charter pack apply --compile``'s
-    ``_compile_bundle_after_merge``) call :func:`_load_interview_for_generate`
-    with ``from_interview=False`` (the #2940 guard that keeps a malformed
-    ``answers.yaml`` from aborting a recompile) and
-    ``resolved_mission_type=None`` -- neither threads an explicit
-    ``--mission-type`` through, because a recompile is not a mission change.
-    Before this fix that combination collapsed straight to the
-    ``"software-dev"`` literal, silently discarding the project's actual
-    recorded mission on every recompile of a non-``software-dev`` project.
+    ONLY for the catalog-recompile call sites (``charter activate``/
+    ``deactivate``'s ``recompile_catalog``, ``charter pack apply --compile``'s
+    ``_compile_bundle_after_merge``) -- they pass
+    ``prefer_recorded_mission=True`` to :func:`_load_interview_for_generate`
+    because a recompile is explicitly NOT a mission change and must not
+    silently reset the project's mission. Before #4908 that combination
+    collapsed straight to the ``"software-dev"`` literal, silently discarding
+    the project's actual recorded mission on every recompile of a
+    non-``software-dev`` project.
 
-    This reads the two recorded-mission SSOTs in priority order instead:
+    The user-facing ``charter generate`` command does NOT use this function
+    (see :func:`_resolve_default_mission_type`) -- a plain regenerate must
+    re-derive ``catalog.mission`` rather than read it back from the very
+    ``charter.yaml`` it is about to overwrite, which would let a stale or
+    hand-edited ``catalog.mission`` survive every ``generate`` forever
+    (caught by
+    ``tests/agent/cli/commands/test_charter_cli.py::
+    test_generate_force_preserves_authored_charter_yaml_sections``).
+
+    This reads the two recorded-mission SSOTs in priority order:
 
     1. ``charter.yaml`` ``catalog.mission`` -- the compiled record. The
        recompile call sites only reach here after confirming ``charter.yaml``
@@ -253,11 +261,28 @@ def _resolve_recorded_mission_type(repo_root: Path, answers_path: Path) -> str:
        signal at all -- a brand-new project with no compiled charter and no
        interview answers (not the recompile path).
     """
-    from charter.activation.interview import read_interview_answers
-
     recorded = _read_catalog_mission_from_charter_yaml(repo_root)
     if recorded is not None:
         return recorded
+
+    return _resolve_default_mission_type(answers_path)
+
+
+def _resolve_default_mission_type(answers_path: Path) -> str:
+    """Resolve the mission type from recorded interview answers, defaulting to
+    ``"software-dev"`` -- never from an already-compiled ``charter.yaml``.
+
+    Used by the user-facing ``charter generate`` command (default
+    ``prefer_recorded_mission=False`` in :func:`_load_interview_for_generate`)
+    whenever no explicit ``--mission-type`` was given and interview data was
+    not loaded (``--no-from-interview``, or no interview answers on disk): a
+    plain regenerate must re-derive ``catalog.mission`` from the pre-compile
+    interview record, not read it back from the very ``charter.yaml`` catalog
+    it is regenerating -- that catalog is the DERIVED section (see the
+    docstring on :func:`_resolve_recorded_mission_type`, which reads it and
+    is reserved for the internal recompile call sites instead).
+    """
+    from charter.activation.interview import read_interview_answers
 
     interview_data = read_interview_answers(answers_path)
     if interview_data is not None and interview_data.mission:
@@ -279,8 +304,23 @@ def _load_interview_for_generate(
     from_interview: bool,
     resolved_mission_type: str | None,
     profile: str,
+    prefer_recorded_mission: bool = False,
 ) -> tuple[Any, str, str]:
-    """Resolve interview payload, source label, and mission for generation."""
+    """Resolve interview payload, source label, and mission for generation.
+
+    ``prefer_recorded_mission`` (#4908, scoped by this fix): when ``True``,
+    an unresolved mission (no ``--mission-type``, no loaded interview data)
+    falls back to the ALREADY-COMPILED ``charter.yaml`` ``catalog.mission``
+    via :func:`_resolve_recorded_mission_type` -- the correct behavior for
+    the internal recompile call sites (``recompile_catalog``,
+    ``_compile_bundle_after_merge``), which must never change the recorded
+    mission as a recompile side effect. It defaults to ``False`` for the
+    user-facing ``charter generate`` CLI command, which instead re-derives
+    the mission from interview answers or the ``"software-dev"`` default via
+    :func:`_resolve_default_mission_type` -- ``generate`` regenerates the
+    catalog, so it must not read the mission back from the catalog it is
+    about to overwrite.
+    """
     from charter.activation.interview import read_interview_answers
 
     interview_data = read_interview_answers(answers_path) if from_interview else None
@@ -310,7 +350,12 @@ def _load_interview_for_generate(
         )
 
     if interview_data is None:
-        resolved_mission = resolved_mission_type or _resolve_recorded_mission_type(repo_root, answers_path)
+        if resolved_mission_type:
+            resolved_mission = resolved_mission_type
+        elif prefer_recorded_mission:
+            resolved_mission = _resolve_recorded_mission_type(repo_root, answers_path)
+        else:
+            resolved_mission = _resolve_default_mission_type(answers_path)
         interview_data = _charter_pkg.default_interview(
             mission=resolved_mission,
             profile=profile.strip().lower(),
