@@ -70,6 +70,23 @@ _WT_METADATA_YAML = (
     "  applied: []\n"
 )
 
+# A second, reachable trigger for #4972: a project init'd already AT the
+# target version and never upgraded has NO `last_upgraded_at` on main at
+# all (the field is only ever written by an upgrade run). Main's `version`
+# already equals the target -- only its lagging worktrees need to catch up.
+_MAIN_METADATA_YAML_UNSTAMPED = (
+    "spec_kitty:\n"
+    f"  version: '{_TARGET_VERSION}'\n"
+    "  initialized_at: '2026-01-01T00:00:00'\n"
+    f"{_SCHEMA_VERSION_LINE}"
+    "environment:\n"
+    "  python_version: '3.12'\n"
+    "  platform: linux\n"
+    "  platform_version: ''\n"
+    "migrations:\n"
+    "  applied: []\n"
+)
+
 
 def _git(cwd: Path, *args: str) -> None:
     subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True)
@@ -94,7 +111,7 @@ def _dirty(wt: Path) -> list[str]:
     return [ln for ln in out.stdout.splitlines() if ln.strip()]
 
 
-def _init_repo(root: Path) -> None:
+def _init_repo(root: Path, metadata_yaml: str = _MAIN_METADATA_YAML) -> None:
     root.mkdir(parents=True, exist_ok=True)
     _git(root, "init", "-q", "-b", "main")
     _git(root, "config", "user.email", "t@example.com")
@@ -102,7 +119,7 @@ def _init_repo(root: Path) -> None:
     (root / "README.md").write_text("# repo\n", encoding="utf-8")
     (root / ".gitignore").write_text(".worktrees/\n", encoding="utf-8")
     (root / ".kittify").mkdir()
-    (root / ".kittify" / "metadata.yaml").write_text(_MAIN_METADATA_YAML, encoding="utf-8")
+    (root / ".kittify" / "metadata.yaml").write_text(metadata_yaml, encoding="utf-8")
     _git(root, "add", "-A")
     _git(root, "commit", "-q", "-m", "init")
 
@@ -183,3 +200,69 @@ def test_repeat_upgrade_is_a_true_no_op_once_worktree_has_caught_up(
         "a repeat upgrade over an already-reconciled worktree must not create a second commit (#4972 no-op-must-stay-no-op)"
     )
     assert _dirty(wt) == []
+
+
+def test_sibling_worktrees_share_one_fallback_timestamp_when_main_is_unstamped(
+    tmp_path: Path,
+) -> None:
+    """#4972: when main itself has no stamp to align to, the FALLBACK value
+    must still be shared across every sibling worktree reconciled in the
+    same run.
+
+    Concrete reachable trigger: a project init'd already at the target
+    version and never upgraded has ``last_upgraded_at: null`` on main, while
+    worktrees forked earlier still lag on ``version``.
+    ``_aligned_worktree_timestamp`` is called PER-WORKTREE inside the loop;
+    before the fix each lagging worktree's fallback minted its own,
+    independent ``now_utc()`` -- so two siblings reconciled in the SAME run
+    still diverged on this one bookkeeping line, reproducing the #4972
+    wedge class even though main had nothing of its own to diverge from.
+    """
+    root = tmp_path / "repo"
+    _init_repo(root, metadata_yaml=_MAIN_METADATA_YAML_UNSTAMPED)
+    wt_a = _add_lagging_worktree(root, "m-lane-c", "kitty/mission-m-lane-c")
+    wt_b = _add_lagging_worktree(root, "m-lane-d", "kitty/mission-m-lane-d")
+
+    result = MigrationRunner(root)._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True)
+    assert result["errors"] == []
+
+    wt_a_data = _load_metadata_yaml(wt_a / ".kittify")
+    wt_b_data = _load_metadata_yaml(wt_b / ".kittify")
+
+    stamp_a = wt_a_data["spec_kitty"].get("last_upgraded_at")
+    stamp_b = wt_b_data["spec_kitty"].get("last_upgraded_at")
+
+    assert stamp_a is not None
+    assert stamp_a == stamp_b, (
+        f"sibling worktrees reconciled in the same run must share ONE fallback timestamp when main has no stamp to align to ({stamp_a!r} != {stamp_b!r}, #4972)"
+    )
+
+
+def test_two_worktrees_aligned_to_stamped_main_are_byte_identical(
+    tmp_path: Path,
+) -> None:
+    """Strengthens the aligned-bookkeeping case: two sibling worktrees both
+    catching up to a stamped main must produce ``.kittify/metadata.yaml``
+    files that are identical at the raw ``read_text()`` level -- not merely
+    equal once parsed -- which is the real proof of conflict-free git
+    3-way-merge behavior across coord/lane branches (#4972).
+    """
+    root = tmp_path / "repo"
+    _init_repo(root)
+    wt_a = _add_lagging_worktree(root, "m-lane-e", "kitty/mission-m-lane-e")
+    wt_b = _add_lagging_worktree(root, "m-lane-f", "kitty/mission-m-lane-f")
+
+    result = MigrationRunner(root)._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True)
+    assert result["errors"] == []
+
+    # Compared against each OTHER, not against main's own file: main's
+    # metadata.yaml was never rewritten by this run (it was already at
+    # `target_version`), so it still carries this fixture's hand-written
+    # text rather than a `ProjectMetadata.save()` render (header comment,
+    # canonical isoformat, etc.) -- not a fair byte-for-byte comparison.
+    # The two worktrees, however, both went through `.save()` in the SAME
+    # run and must render identically.
+    text_a = (wt_a / ".kittify" / "metadata.yaml").read_text(encoding="utf-8-sig")
+    text_b = (wt_b / ".kittify" / "metadata.yaml").read_text(encoding="utf-8-sig")
+
+    assert text_a == text_b, "two sibling worktrees aligned to the same stamped main must be byte-identical (raw file content), not just parsed-dict equal"

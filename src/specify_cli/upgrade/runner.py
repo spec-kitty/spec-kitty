@@ -414,6 +414,15 @@ class MigrationRunner:
         # caller reaches ``_upgrade_worktrees``).
         main_metadata = ProjectMetadata.load(self.kittify_dir) if not dry_run else None
 
+        # Minted ONCE here, before the worktree loop: the shared fallback a
+        # bookkeeping-only worktree bump aligns to when main itself has no
+        # already-stamped value to align to (#4972). ``_aligned_worktree_timestamp``
+        # is called PER-WORKTREE below; a fresh ``now_utc()`` mint at that call
+        # site would give each sibling worktree in this same run a DIFFERENT
+        # fallback value, reproducing the exact main/coord/lane divergence
+        # this reconciliation path exists to prevent.
+        fallback_timestamp = now_utc()
+
         # Use deterministic ordering so migrations and logs are reproducible.
         for worktree in sorted(worktrees_dir.iterdir(), key=lambda p: p.name):
             if not worktree.is_dir():
@@ -540,7 +549,9 @@ class MigrationRunner:
             # or the version advanced); a no-op upgrade must not rewrite
             # last_upgraded_at (issue #1838).
             if not dry_run:
-                worktree_metadata_dirty = self._reconcile_worktree_bookkeeping(wt_metadata, target_version, worktree_metadata_dirty, main_metadata)
+                worktree_metadata_dirty = self._reconcile_worktree_bookkeeping(
+                    wt_metadata, target_version, worktree_metadata_dirty, main_metadata, fallback_timestamp
+                )
 
                 if worktree_metadata_dirty:
                     wt_metadata.save(wt_kittify)
@@ -579,6 +590,7 @@ class MigrationRunner:
         target_version: str,
         worktree_metadata_dirty: bool,
         main_metadata: ProjectMetadata | None,
+        fallback_timestamp: datetime,
     ) -> bool:
         """Advance ``wt_metadata.version`` to ``target_version`` and settle
         its ``last_upgraded_at`` stamp; return the resulting dirty flag.
@@ -594,10 +606,14 @@ class MigrationRunner:
 
         A version-only bump (``worktree_metadata_dirty`` was False coming
         in) is bookkeeping-only: align ``last_upgraded_at`` to the main
-        checkout's already-stamped value instead of minting a new one. A
-        genuine change (migration applied real content, or metadata was
-        freshly synthesized -- ``worktree_metadata_dirty`` was already True
-        coming in) keeps stamping ``now_utc()`` (#2385 preservation).
+        checkout's already-stamped value instead of minting a new one, or --
+        when main has no stamp of its own -- to ``fallback_timestamp``, a
+        single value minted once by the caller before the worktree loop and
+        shared by every sibling worktree reconciled in this same run (see
+        ``_aligned_worktree_timestamp``). A genuine change (migration applied
+        real content, or metadata was freshly synthesized --
+        ``worktree_metadata_dirty`` was already True coming in) keeps
+        stamping a fresh ``now_utc()`` (#2385 preservation).
         """
         bookkeeping_only_bump = not worktree_metadata_dirty and wt_metadata.version != target_version
 
@@ -606,23 +622,27 @@ class MigrationRunner:
             worktree_metadata_dirty = True
 
         if worktree_metadata_dirty:
-            wt_metadata.last_upgraded_at = MigrationRunner._aligned_worktree_timestamp(main_metadata) if bookkeeping_only_bump else now_utc()
+            wt_metadata.last_upgraded_at = MigrationRunner._aligned_worktree_timestamp(main_metadata, fallback_timestamp) if bookkeeping_only_bump else now_utc()
 
         return worktree_metadata_dirty
 
     @staticmethod
-    def _aligned_worktree_timestamp(main_metadata: ProjectMetadata | None) -> datetime:
+    def _aligned_worktree_timestamp(main_metadata: ProjectMetadata | None, fallback_timestamp: datetime) -> datetime:
         """Return the shared stamp a bookkeeping-only worktree bump aligns to.
 
-        Falls back to ``now_utc()`` only when the main checkout has no
-        stamped value to align to (missing metadata, or never upgraded) --
-        there is nothing to diverge from in that case.
+        Falls back to ``fallback_timestamp`` only when the main checkout has
+        no stamped value to align to (missing metadata, or never upgraded).
+        ``fallback_timestamp`` is minted ONCE by the caller, before the
+        worktree loop, and passed into every call this same run makes --
+        never minted fresh here -- so every sibling worktree reconciled in
+        one run shares the exact same fallback value instead of each
+        diverging on its own ``now_utc()`` (#4972).
         """
         if main_metadata is None:
-            return now_utc()
+            return fallback_timestamp
         main_stamp = main_metadata.last_upgraded_at
         if main_stamp is None:
-            return now_utc()
+            return fallback_timestamp
         return main_stamp
 
     def _create_initial_metadata(self, detected_version: str) -> ProjectMetadata:
