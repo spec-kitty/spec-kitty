@@ -22,6 +22,7 @@ import subprocess
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from specify_cli.coordination import register_lane_sparse_checkout
 from specify_cli.core.errors import StructuredError
@@ -35,6 +36,13 @@ from specify_cli.lanes.merge import (
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.planning_commit_classify import PinClass, classify_recorded_pin
 from specify_cli.mission_metadata import load_meta
+
+if TYPE_CHECKING:
+    # #4889: type-only -- the runtime import lives inside
+    # ``_refuse_if_lane_destroyed`` to avoid a module-level cross-package
+    # import (mirrors ``_fresh_lane_parent_ref``'s existing lazy-import style
+    # for the same ``workspace.context`` module).
+    from specify_cli.workspace.context import WorkspaceContext
 
 # Issue #4827 / research.md D5: the single recovery command every orphaned-pin
 # consumer (the merge helper here, `implement_support.check_claim_ancestry`,
@@ -168,6 +176,150 @@ class UnhonorableBaseError(StructuredError):
         return payload
 
 
+class DestroyedLaneError(StructuredError):
+    """Raised when a WP's lane was destroyed but its work was never reachable.
+
+    Issue #4889 (P0): when a lane's worktree AND local branch are both gone
+    while the WP is still non-terminal (``in_progress`` / ``blocked`` /
+    ``for_review`` / ``in_review``), and the persisted lane tip is not an
+    ancestor of ``lanes_manifest.target_branch``, silently falling through to
+    the FRESH route re-cuts an empty lane from the coordination/mission tip,
+    prints success, and strands the WP's committed work with nothing pointing
+    at it any more. This fails CLOSED instead: no worktree/branch is created,
+    no lane metadata is touched (FR-003), and the diagnostic names the missing
+    branch plus a concrete recovery path (the commit is not gone -- only
+    unreferenced -- so ``git reflog`` / ``git fsck --lost-found`` can locate
+    it for a manual ``git branch <name> <sha>`` recovery).
+
+    Subclasses :class:`StructuredError` (-> ``RuntimeError``), NOT bare
+    ``Exception`` (contrast :class:`DirtyWorktreeError` /
+    :class:`LaneNotFoundError` above): the orchestrator-api's existing
+    ``except (..., RuntimeError)`` arm at
+    ``orchestrator_api/commands.py::_resolve_start_workspace`` must catch this
+    and surface a structured ``LANE_ALLOCATION_FAILED`` envelope rather than a
+    raw traceback (NFR-004) -- without any edit to that file (it is outside
+    this WP's owned files).
+    """
+
+    error_code: str = "DESTROYED_LANE"
+
+    def __init__(self, *, lane_id: str, wp_id: str, branch_name: str) -> None:
+        self.lane_id = lane_id
+        self.wp_id = wp_id
+        self.branch_name = branch_name
+        self.next_step = (
+            f"the commit(s) are not deleted, only unreferenced -- recover the tip "
+            f"first: check `git reflog {branch_name}` (if the reflog entry survived) "
+            f"or `git fsck --lost-found` (dangling commits) in the repository, "
+            f"re-create the branch with `git branch {branch_name} <recovered-sha>`, "
+            f"then re-run the implement command for {wp_id!r}."
+        )
+        super().__init__(
+            f"cannot allocate lane {lane_id!r} for {wp_id!r}: its branch "
+            f"{branch_name!r} and worktree are both gone, the WP is still "
+            f"non-terminal, and its committed work is not reachable from the "
+            f"target branch -- refusing to silently re-cut an empty lane and "
+            f"strand that work. {self.next_step}"
+        )
+
+    def to_dict(self) -> dict[str, object]:
+        payload = super().to_dict()
+        payload["lane_id"] = self.lane_id
+        payload["wp_id"] = self.wp_id
+        payload["branch_name"] = self.branch_name
+        payload["next_step"] = self.next_step
+        return payload
+
+
+# #4889 FR-002: canonical WP lane values the guard treats as "allocated
+# before, work in flight" -- matches the WP prompt / contract's non-terminal
+# post-allocation set exactly. Terminal (``done``/``canceled``) and
+# pre-allocation (``planned``/``claimed``) are deliberately excluded.
+_DESTROYED_LANE_TRIGGER_STATES = frozenset({"in_progress", "blocked", "for_review", "in_review"})
+
+
+def _canonical_wp_lane_value(repo_root: Path, mission_slug: str, wp_id: str) -> str | None:
+    """Return the canonical WP lane value from the COORD status surface, or ``None``.
+
+    #4889 T004: reads via ``placement_seam(...).read_dir(STATUS_STATE)`` (the
+    coord-aware seam, already imported at module scope) rather than
+    hand-rolling ``materialize(repo_root/"kitty-specs"/mission_slug)`` -- on a
+    coord-topology mission the latter reads the sparse-excluded PRIMARY tree
+    and silently no-ops (never seeing the real event log), which would mean
+    this guard never fires on the create-time-default coord topology (#2514).
+    ``None`` when no event log has been bootstrapped yet (WP never finalized)
+    or the WP is absent from the reduced snapshot -- never a trigger.
+    """
+    from specify_cli.status.lane_reader import CanonicalStatusNotFoundError, get_wp_lane
+
+    status_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
+    try:
+        lane = get_wp_lane(status_dir, wp_id)
+    except CanonicalStatusNotFoundError:
+        return None
+    return str(lane.value)
+
+
+def _lane_tip_reachable_from_target(
+    repo_root: Path,
+    context: WorkspaceContext,
+    target_branch: str,
+) -> bool:
+    """Return True when the persisted lane tip is an ancestor of ``target_branch``.
+
+    #4889 FR-009 / contract "re-open after merge": ``context.base_commit`` is
+    the only SHA the persisted :class:`WorkspaceContext` carries. When it is
+    already reachable from ``target_branch`` the mission has since absorbed
+    that lineage (e.g. a real, non-squash merge landed it) and the guard must
+    NOT fire -- a lane re-opened in that state is not stranding anything, and
+    refusing would be a false positive (NFR-001). A missing ``base_commit``
+    fails closed (treated as unreachable, never silently waved through).
+    """
+    if not context.base_commit:
+        return False
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", context.base_commit, target_branch],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
+
+
+def _refuse_if_lane_destroyed(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    lane_id: str,
+    branch: str,
+    target_branch: str,
+) -> None:
+    """Raise :class:`DestroyedLaneError` when a WP's destroyed lane must fail closed.
+
+    Called only once neither the lane branch nor its worktree exists (the
+    REUSE / CRASH_RECOVERY gates above already ruled those two out), so this
+    is purely the decision table's last row: CTX present, STATE non-terminal,
+    tip unreachable from target (see ``../data-model.md#4889-destroyed-lane-
+    decision-table``). A genuinely fresh lane (no persisted context -- FR-001)
+    or a lane whose tip already landed on the target branch (FR-009 resume)
+    are both no-ops here, falling through to the normal FRESH route.
+    """
+    from specify_cli.workspace.context import find_context_for_wp
+
+    context = find_context_for_wp(repo_root, mission_slug, wp_id)
+    if context is None:
+        return
+
+    state = _canonical_wp_lane_value(repo_root, mission_slug, wp_id)
+    if state not in _DESTROYED_LANE_TRIGGER_STATES:
+        return
+
+    if _lane_tip_reachable_from_target(repo_root, context, target_branch):
+        return
+
+    raise DestroyedLaneError(lane_id=lane_id, wp_id=wp_id, branch_name=branch)
+
+
 class PlanningCommitMergeConflictError(StructuredError):
     """Raised when merging the recorded planning-artifact commit conflicts.
 
@@ -185,21 +337,49 @@ class PlanningCommitMergeConflictError(StructuredError):
 
     error_code: str = "PLANNING_COMMIT_MERGE_CONFLICT"
 
-    def __init__(self, lane_id: str, planning_commit_sha: str) -> None:
+    def __init__(
+        self,
+        lane_id: str,
+        planning_commit_sha: str,
+        *,
+        wp_task_conflicts: list[str] | None = None,
+    ) -> None:
         self.lane_id = lane_id
         self.planning_commit_sha = planning_commit_sha
+        # #4889 T006 (FR-009 resilience, belt-and-braces for #4905): an
+        # ``add/add`` conflict specifically on a ``tasks/WP*.md`` path at this
+        # merge site means a PRIMARY-partition WP-task blob landed on the
+        # coordination side -- the exact #4905 defect this mission's WP02
+        # fixes at the commit-routing seam. Optional and empty by default so
+        # every pre-existing raise site / caller keeps its byte-identical
+        # message (backward compatible, NFR-005-style).
+        self.wp_task_conflicts = list(wp_task_conflicts) if wp_task_conflicts else []
         self.next_step = (
             f"merge {planning_commit_sha!r} into the lane {lane_id!r} worktree "
             "manually, resolve the conflicts, commit, then re-run the implement "
             "command for this WP."
         )
-        super().__init__(f"cannot auto-merge the recorded planning commit {planning_commit_sha!r} into lane {lane_id!r}: the merge conflicts. {self.next_step}")
+        detail = ""
+        if self.wp_task_conflicts:
+            paths = ", ".join(self.wp_task_conflicts)
+            detail = (
+                f" WP task file(s) {paths} conflicted -- this shape means a "
+                "PRIMARY-partition tasks/WP*.md blob landed on the coordination "
+                "side (#4905, the coord-commit path partition fix); investigate "
+                "the commit-routing seam rather than treating this as a generic "
+                "content conflict."
+            )
+        super().__init__(
+            f"cannot auto-merge the recorded planning commit {planning_commit_sha!r} into lane {lane_id!r}: the merge conflicts.{detail} {self.next_step}"
+        )
 
     def to_dict(self) -> dict[str, object]:
         payload = super().to_dict()
         payload["lane_id"] = self.lane_id
         payload["planning_commit_sha"] = self.planning_commit_sha
         payload["next_step"] = self.next_step
+        if self.wp_task_conflicts:
+            payload["wp_task_conflicts"] = self.wp_task_conflicts
         return payload
 
 
@@ -633,6 +813,20 @@ def allocate_lane_worktree(
         _merge_dependency_lane_tips(repo_root, worktree_path, mission_slug, lane, lanes_manifest)
         return worktree_path, branch
 
+    # #4889 (P0) fail-closed pre-flight: neither the branch nor the worktree
+    # exists at this point (the REUSE / CRASH_RECOVERY gates above already
+    # returned otherwise). Before falling through to a FRESH route, refuse to
+    # silently re-cut an empty lane over a WP whose prior committed work is
+    # still non-terminal and unreachable from the target branch.
+    _refuse_if_lane_destroyed(
+        repo_root,
+        mission_slug,
+        wp_id,
+        lane.lane_id,
+        branch,
+        lanes_manifest.target_branch,
+    )
+
     # Fresh routes resolve their parent through the single seam before either
     # creation helper runs. Detached-base and dependency refusals therefore
     # leave no half-created lane, and no route computes a parent ref inline.
@@ -732,6 +926,28 @@ def allocate_lane_worktree(
     _merge_dependency_lane_tips(repo_root, worktree_path, mission_slug, lane, lanes_manifest)
 
     return worktree_path, branch
+
+
+def _wp_task_file_conflict_paths(merge_stdout: str) -> list[str]:
+    """Extract ``tasks/WP*.md`` conflict paths from a git-merge conflict report.
+
+    #4889 T006 (belt-and-braces for #4905): a plain ``git merge`` conflict
+    report includes a line per conflicting path, e.g. ``CONFLICT (add/add):
+    Merge conflict in kitty-specs/<slug>/tasks/WP01-foo.md``. This is a
+    minimal, best-effort text scan (not a duplicate of the real #4905 fix,
+    which is WP02's commit-routing partition) -- it only names the path so
+    :class:`PlanningCommitMergeConflictError` can point at the right root
+    cause instead of a bare git conflict dump. Returns an empty list when no
+    such line is present (the overwhelming majority of conflicts, which stay
+    on the existing generic diagnostic).
+    """
+    return sorted(
+        {
+            line.split("Merge conflict in", 1)[1].strip()
+            for line in merge_stdout.splitlines()
+            if "CONFLICT" in line and "Merge conflict in" in line and "tasks/WP" in line
+        }
+    )
 
 
 def _merge_recorded_planning_commit(
@@ -854,6 +1070,10 @@ def _merge_recorded_planning_commit(
             env=env,
         )
     if merge.returncode != 0:
+        # #4889 T006: capture the WP-task-file diagnostic BEFORE aborting --
+        # the conflict markers only exist in ``merge.stdout`` while the merge
+        # is still open.
+        wp_task_conflicts = _wp_task_file_conflict_paths(merge.stdout)
         subprocess.run(
             ["git", "merge", "--abort"],
             cwd=str(worktree_path),
@@ -861,7 +1081,7 @@ def _merge_recorded_planning_commit(
             text=True,
             env=env,
         )
-        raise PlanningCommitMergeConflictError(lane_id, planning_commit_sha)
+        raise PlanningCommitMergeConflictError(lane_id, planning_commit_sha, wp_task_conflicts=wp_task_conflicts)
 
 
 def _ordered_dependency_lanes(
