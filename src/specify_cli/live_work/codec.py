@@ -1,21 +1,21 @@
 """Capability-gated typed WorkObservation validation (spec-kitty#4268).
 
 The shared ``WorkObservation`` contract (``spec_kitty_events.work_observation``)
-landed in events 10.1.0 (events#55/#56) — *after* this repo's pinned
-``spec-kitty-events>=9,<10`` and ruled post-launch for the public release
-train (planning#2000: the launch CLI ships 9.1.6; the 10.x publish is
-post-launch). Events' own COMPATIBILITY.md 10.1.0 entry therefore *mandates*
-the gate implemented here: "Producers MUST capability-gate ``WorkObservation``
-emission until each intended consumer … can validate it."
+landed in events 10.1.0 (events#55/#56). The CLI now pins
+``spec-kitty-events>=10.4.0,<11`` (the post-launch adoption off the 9.1.6
+launch train, spec-kitty#4990), so the contract is present and every
+emission is model-validated: :func:`codec_state` reports ``"typed"``.
+Events' own COMPATIBILITY.md 10.1.0 entry mandated the capability gate
+implemented here — "Producers MUST capability-gate ``WorkObservation``
+emission until each intended consumer … can validate it" — and the gate is
+retained as defensive, first-class capability-matrix state (never a silent
+green) so a degraded install that somehow lacks the contract is reported as
+``"pending-events-10"`` rather than crashing.
 
 So the CLI's capture layer emits live frames through the content-agnostic
 ``event.publish`` wire using the contract's exact ``work.<kind>.v1`` payload
-IDs, and validates its records against the typed contract **when the
-installed events package provides it**. The moment the dependency is
-re-pinned to a version carrying ``work_observation`` (post-launch), every
-emission is validated by the shared models with no further change here —
-and until then, :func:`codec_state` is a first-class capability-matrix row,
-never a silent green.
+IDs, and validates its records against the typed contract whenever the
+installed events package provides it.
 
 This module owns no vocabulary of its own: the kind strings and field
 rules live in :mod:`live_work.kinds` / :mod:`live_work.models`, pinned
@@ -24,6 +24,7 @@ against the shared contract by test.
 
 from __future__ import annotations
 
+import re
 from importlib import import_module
 from types import ModuleType
 
@@ -33,6 +34,33 @@ __all__ = [
     "codec_state",
     "validate_typed",
 ]
+
+#: Characters not permitted in the shared contract's ``repository_id``
+#: (``^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$``).
+_REPO_ID_DISALLOWED = re.compile(r"[^A-Za-z0-9._-]")
+
+
+def _conforming_repository_id(slug: str) -> str:
+    """Derive a deterministic, pattern-conforming ``repository_id`` from the
+    ``owner/name`` display slug.
+
+    **Interim, pending the server-vetted id (saas#1814).** The shared
+    ``WorkObservation`` contract splits repository identity into a stable
+    ``repository_id`` (``^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`` — no slashes;
+    canonically the provider's numeric repository id, which is *server*-owned)
+    and the mutable ``display_slug`` (``owner/name``). A pure producer like the
+    CLI does not hold the server-vetted numeric id, so until saas#1814 threads
+    it through we emit a deterministic sanitized derivation of the slug that
+    satisfies the contract pattern; ``display_slug`` carries the true
+    ``owner/name`` unchanged. Stable for a given slug (a slug change is a rename
+    the server reconciles), and never a silent wire drop.
+    """
+    sanitized = _REPO_ID_DISALLOWED.sub("-", slug).lstrip("._-")
+    if not sanitized:
+        return "repository"
+    if not sanitized[0].isalnum():
+        sanitized = f"r{sanitized}"
+    return sanitized[:64]
 
 
 def _load_work_observation() -> ModuleType | None:
@@ -50,12 +78,12 @@ def codec_state() -> str:
     """The typed-codec gate state for the capability matrix.
 
     ``"typed"`` — the installed events package carries ``work_observation``
-    and every emission is validated against the shared models.
-    ``"pending-events-10"`` — the pinned events version predates the
-    WorkObservation contract (planning#2000 keeps the launch train on
-    9.1.6); emissions carry the contract's payload IDs and bounded field
-    rules but are not yet model-validated. Either state is *visible*; a
-    silent green is what this function exists to prevent.
+    and every emission is validated against the shared models. This is the
+    expected state now that the CLI pins ``spec-kitty-events>=10.4.0,<11``.
+    ``"pending-events-10"`` — a degraded install whose events package lacks
+    the WorkObservation contract; emissions carry the contract's payload IDs
+    and bounded field rules but are not yet model-validated. Either state is
+    *visible*; a silent green is what this function exists to prevent.
     """
     return "typed" if _load_work_observation() is not None else "pending-events-10"
 
@@ -142,7 +170,7 @@ def _build_shared_payload(module: ModuleType, observation: Observation) -> None:
         actor=shared_actor,
         repository=module.RepositoryIdentity(
             provider=repository.provider,
-            repository_id=repository.slug,
+            repository_id=_conforming_repository_id(repository.slug),
             display_slug=repository.slug,
         ),
         provenance=module.SourceProvenance(

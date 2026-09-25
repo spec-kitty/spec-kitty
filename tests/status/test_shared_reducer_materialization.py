@@ -19,6 +19,10 @@ _FIXTURE_NAMES = (
     "every_lane",
     "out_of_order_duplicates",
     "unknown_kinds",
+    # #4990: the CLI's materialize() inherits events 10.4.0's causal
+    # (from-lane-continuity) rejection precedence — a stale later-`at`
+    # approval never overwrites a committed `in_review -> planned` rejection.
+    "concurrent_reject_beats_approve",
 )
 _FIXTURE_ROOT = files("spec_kitty_events") / "conformance/fixtures/status_diary/replay"
 

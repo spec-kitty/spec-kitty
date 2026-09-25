@@ -25,7 +25,7 @@ _SHIPPED_TREES = ("specify_cli", "runtime")
 _RETIRED_MYPY_PREFIX = _DOTTED.join(("specify_cli", "sync"))
 _DEP_NAME_TERMINATORS = "[=<>!~;@ "
 _EXPECTED_SHARED_RANGES = {
-    "spec-kitty-events": "spec-kitty-events>=9,<10",
+    "spec-kitty-events": "spec-kitty-events>=10.4.0,<11",
     "spec-kitty-tracker": "spec-kitty-tracker>=0.5.2,<0.6",
 }
 
@@ -125,14 +125,16 @@ def test_shared_dependencies_use_public_pypi_ranges() -> None:
         assert _metadata_violations(mutated)
 
 
-def test_events_dependency_floor_rejects_pre_v9_contract() -> None:
-    """The events 9 floor prevents re-importing the sync-era event contract."""
+def test_events_dependency_floor_rejects_pre_v10_contract() -> None:
+    """The events 10 floor rejects the retired pre-10 ranges (incl. the
+    former ``>=9,<10`` launch-train pin) so the CLI cannot regress off the
+    10.x reducer-precedence contract (#4990)."""
     data = _load_pyproject()
     dependencies = data["project"]["dependencies"]
-    data["project"]["dependencies"] = ["spec-kitty-events>=6,<7" if _dep_name(entry) == "spec-kitty-events" else entry for entry in dependencies]
+    data["project"]["dependencies"] = ["spec-kitty-events>=9,<10" if _dep_name(entry) == "spec-kitty-events" else entry for entry in dependencies]
 
     failures = _dependency_config_violations(data, {"package": []}, "", "")
-    assert "retired spec-kitty-events range in project.dependencies: spec-kitty-events>=6,<7" in failures
+    assert "retired spec-kitty-events range in project.dependencies: spec-kitty-events>=9,<10" in failures
 
 
 def test_wheel_contains_every_first_party_runtime_import() -> None:
@@ -206,7 +208,7 @@ def _dependency_config_violations(
         package = _dep_name(entry)
         if package in _RETIRED_CONFIG_PACKAGES:
             failures.append(f"retired dependency in {table}: {entry}")
-        if package == "spec-kitty-events" and not Requirement(entry).specifier.contains("9"):
+        if package == "spec-kitty-events" and not Requirement(entry).specifier.contains("10.4.0"):
             failures.append(f"retired spec-kitty-events range in {table}: {entry}")
 
     sources = data.get("tool", {}).get("uv", {}).get("sources", {})
