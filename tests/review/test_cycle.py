@@ -2188,8 +2188,16 @@ def test_real_commit_preserves_unrelated_partially_staged_state(tmp_path: Path) 
         commit_router=RealCoordCommitRouter(),
     )
 
-    assert created.persistence.classification == "persistence_failed"
-    assert created.persistence.reason == "commit_error"
+    # #4888 (epic #4915) rewrote ``safe_commit`` to commit EXACTLY the
+    # requested paths via ``git commit --only``, which structurally
+    # disregards whatever else is staged/dirty in the index -- there is no
+    # stash/pop dance that could collide with the unrelated partially-staged
+    # ``unrelated.txt`` below, so the real commit succeeds and the evidence
+    # readback verifies durable. The point of this test is (and remains) the
+    # preservation assertions after it: an unrelated partially-staged file
+    # must come through the commit completely untouched.
+    assert created.persistence.classification == "durable"
+    assert created.persistence.reason is None
     assert created.artifact_path.exists()
     assert subprocess.run(
         ["git", "diff", "--cached", "--", "unrelated.txt"],
@@ -2363,9 +2371,23 @@ def test_retained_artifact_retry_preserves_unrelated_state(
 
 
 @pytest.mark.parametrize("artifact_state", ["staged", "partially_staged"])
-def test_retained_artifact_retry_preserves_unrelated_staged_index_on_refusal(
+def test_retained_artifact_retry_preserves_unrelated_staged_index_on_commit(
     tmp_path: Path, artifact_state: str
 ) -> None:
+    """A successful retry commits only the retained artifact via ``--only``.
+
+    #4888 (epic #4915) rewrote ``safe_commit`` to stage and commit EXACTLY
+    the requested path via ``git commit --only``, which structurally
+    disregards whatever else is staged or dirty in the index -- there is no
+    stash/pop dance that an unrelated staged (or partially-staged) file
+    could collide with. So a real commit of the retained, already-staged
+    artifact here succeeds (``durable``), while ``unrelated.txt`` (staged
+    *and* worktree-dirty) and the untracked ``notes.tmp`` pass through
+    completely untouched. This test was originally written against the
+    pre-#4888 stash-based ``safe_commit``, which refused to commit whenever
+    unrelated content was staged; that refusal was the bug #4888 fixed, not
+    a contract this test may keep asserting.
+    """
     from specify_cli.agent_tasks_ports import RealCoordCommitRouter
 
     repo = tmp_path / "repo"
@@ -2410,21 +2432,25 @@ def test_retained_artifact_retry_preserves_unrelated_staged_index_on_refusal(
     untracked = repo / "notes.tmp"
     untracked.write_text("untracked unrelated\n", encoding="utf-8")
 
+    # Scoped to ``unrelated.txt``/``notes.tmp`` only: unlike them, the
+    # artifact itself is EXPECTED to change state (staged -> committed) when
+    # the retry succeeds, so it is asserted separately below rather than
+    # folded into these "untouched" comparisons.
     before_cached = subprocess.run(
-        ["git", "diff", "--cached", "--", "unrelated.txt", artifact_rel],
+        ["git", "diff", "--cached", "--", "unrelated.txt"],
         cwd=repo,
         check=True,
         capture_output=True,
     ).stdout
     before_worktree = subprocess.run(
-        ["git", "diff", "--", "unrelated.txt", artifact_rel],
+        ["git", "diff", "--", "unrelated.txt"],
         cwd=repo,
         check=True,
         capture_output=True,
     ).stdout
     before_bytes = retained.artifact_path.read_bytes()
-    before_status = subprocess.run(
-        ["git", "status", "--porcelain=v1", "--", "unrelated.txt", artifact_rel, "notes.tmp"],
+    before_unrelated_status = subprocess.run(
+        ["git", "status", "--porcelain=v1", "--", "unrelated.txt", "notes.tmp"],
         cwd=repo,
         check=True,
         capture_output=True,
@@ -2442,24 +2468,42 @@ def test_retained_artifact_retry_preserves_unrelated_staged_index_on_refusal(
 
     assert retried.artifact_path == retained.artifact_path
     assert retried.artifact_path.read_bytes() == before_bytes
-    assert retried.persistence.classification == "persistence_failed"
-    assert retried.persistence.reason == "commit_error"
+    assert retried.persistence.classification == "durable"
+    assert retried.persistence.reason is None
     assert not (retained.artifact_path.parent / "review-cycle-2.md").exists()
+    shown = subprocess.run(
+        ["git", "show", f"main:{artifact_rel}"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout
+    assert shown == before_bytes
     assert subprocess.run(
-        ["git", "diff", "--cached", "--", "unrelated.txt", artifact_rel],
+        ["git", "diff", "--cached", "--", "unrelated.txt"],
         cwd=repo,
         check=True,
         capture_output=True,
     ).stdout == before_cached
     assert subprocess.run(
-        ["git", "diff", "--", "unrelated.txt", artifact_rel],
+        ["git", "diff", "--", "unrelated.txt"],
         cwd=repo,
         check=True,
         capture_output=True,
     ).stdout == before_worktree
     assert subprocess.run(
-        ["git", "status", "--porcelain=v1", "--", "unrelated.txt", artifact_rel, "notes.tmp"],
+        ["git", "status", "--porcelain=v1", "--", "unrelated.txt", "notes.tmp"],
         cwd=repo,
         check=True,
         capture_output=True,
-    ).stdout == before_status
+    ).stdout == before_unrelated_status
+    # The artifact itself is now committed and clean -- no longer staged.
+    assert (
+        subprocess.run(
+            ["git", "status", "--porcelain=v1", "--", artifact_rel],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        == ""
+    )
