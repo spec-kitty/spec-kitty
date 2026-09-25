@@ -258,3 +258,107 @@ def test_query_blocks_synthetic_canceled_wp(tmp_path: Path) -> None:
     assert decision.mission_state == "blocked"
     assert decision.preview_step is None
     assert decision.reason == "no actionable wp"
+
+
+# ===========================================================================
+# advancing-next-board-unification-01M3BGQ0 T006 -- mapping pin (CT-7):
+# the advancing board-authority selector (_resolve_wp_board_action) MUST
+# derive the SAME lane->step->action mapping as
+# _finalized_task_board_override_step / query mode, over the identical lane
+# fixtures already pinned above. Distinct from the NFR-002 negative
+# single-authority test in tests/runtime/test_bridge_parity.py::
+# test_no_advancing_path_emits_unauthorized_step -- both are required.
+# ===========================================================================
+
+
+def test_advance_authority_matches_finalized_step_for_planned_wp(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _, mission_slug = _scaffold(repo, {"WP01": Lane.PLANNED})
+
+    from runtime.next.runtime_bridge import _resolve_wp_board_action
+
+    result = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo)
+
+    assert result.board_step == "implement"
+    assert result.action == "implement"
+    assert result.wp_id == "WP01"
+    assert result.blocked_reason is None
+
+
+def test_advance_authority_matches_finalized_step_for_review_wp(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _, mission_slug = _scaffold(repo, {"WP01": Lane.FOR_REVIEW})
+
+    from runtime.next.runtime_bridge import _resolve_wp_board_action
+
+    result = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo)
+
+    assert result.board_step == "review"
+    assert result.action == "review"
+    assert result.wp_id == "WP01"
+    assert result.blocked_reason is None
+
+
+@pytest.mark.parametrize("lane", [Lane.CLAIMED, Lane.IN_PROGRESS])
+def test_advance_authority_matches_finalized_step_for_active_implementation_lanes(tmp_path: Path, lane: Lane) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _, mission_slug = _scaffold(repo, {"WP01": lane})
+
+    from runtime.next.runtime_bridge import _resolve_wp_board_action
+
+    result = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo)
+
+    assert result.board_step == "implement"
+
+
+def test_advance_authority_blocks_on_in_review_with_named_recovery(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _, mission_slug = _scaffold(repo, {"WP01": Lane.IN_REVIEW})
+
+    from runtime.next.runtime_bridge import _resolve_wp_board_action
+
+    result = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo)
+
+    assert result.board_step == "blocked:review_in_progress"
+    assert result.action is None
+    assert result.wp_id is None
+    assert result.blocked_reason is not None
+    assert f"spec-kitty agent tasks status --mission {mission_slug}" in result.blocked_reason
+
+
+def test_advance_authority_blocks_on_no_actionable_wp_with_named_recovery(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _, mission_slug = _scaffold(repo, {"WP01": Lane.BLOCKED})
+
+    from runtime.next.runtime_bridge import _resolve_wp_board_action
+
+    result = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo)
+
+    assert result.board_step == "blocked:no_actionable_wp"
+    assert result.action is None
+    assert result.blocked_reason is not None
+    assert f"spec-kitty agent tasks status --mission {mission_slug}" in result.blocked_reason
+
+
+def test_advance_authority_declines_on_accept_board_step(tmp_path: Path) -> None:
+    """The selector DECLINES (returns a fully-None result with
+    ``board_step=None``) when the board says ``accept``/``done`` -- that
+    transition is owned by the leave-step boolean
+    (``_should_advance_wp_step``), not the WP-iteration action selector
+    (FR-006 preservation of the pre-existing DAG-advance shape)."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _, mission_slug = _scaffold(repo, {"WP01": Lane.APPROVED, "WP02": Lane.DONE})
+
+    from runtime.next.runtime_bridge import _resolve_wp_board_action
+
+    result = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo)
+
+    assert result.board_step is None
+    assert result.action is None
+    assert result.blocked_reason is None
