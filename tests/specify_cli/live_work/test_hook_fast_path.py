@@ -92,16 +92,39 @@ def test_live_work_hook_invocation_skips_startup_bootstrap_modules() -> None:
     assert "ASSEMBLY=OK" in _spawn(["live-work", "hook", "claude"], script)
 
 
-def test_live_work_other_subcommands_still_register_the_full_surface() -> None:
-    """Only the hook subcommand takes the fast path: matrix/install/watch and
-    plain `live-work --help` still assemble the full command registry."""
+def test_live_work_other_subcommands_still_register_the_full_live_work_surface() -> None:
+    """A non-hook live-work subcommand resolves the live-work group -- via the
+    general single-leaf path (#4417/WP05), not the hook's even-narrower fast
+    path or a full eager registration of every sibling command.
+
+    ``register_commands`` no longer has an eager "register everything"
+    fallback for a cleanly-resolving argv like ``live-work matrix``:
+    ``_resolve_single_leaf_command`` resolves it to the ``live-work`` leaf and
+    only ``specify_cli.cli.commands.live_work`` is imported -- an unrelated
+    sibling module such as ``cli.commands.merge`` is legitimately never
+    imported (this used to be the eager-full-surface behavior; it is not
+    anymore). What *does* distinguish this path from the hook fast path is
+    that the general single-leaf branch still runs the root metadata
+    post-processing (``_enforce_top_level_empty_group_help``) that the hook
+    fast path explicitly skips for startup-latency reasons -- so the
+    live-work group ends up wrapped in ``HelpOnEmptyTopLevelGroup`` here,
+    where the hook path leaves its class untouched.
+    """
     script = (
         "import sys, typer\n"
         "sys.argv = ['spec-kitty', 'live-work', 'matrix']\n"
-        "from specify_cli.cli.commands import register_commands\n"
+        "from specify_cli.cli.commands import register_commands, HelpOnEmptyTopLevelGroup\n"
         "app = typer.Typer()\n"
         "register_commands(app)\n"
-        "assert any(m == 'specify_cli.cli.commands.merge' for m in sys.modules)\n"
+        "assert 'specify_cli.cli.commands.live_work' in sys.modules\n"
+        "assert 'specify_cli.cli.commands.merge' not in sys.modules\n"
+        "groups = app.registered_groups\n"
+        "assert [g.name for g in groups] == ['live-work'], groups\n"
+        "live_work_group = groups[0]\n"
+        "assert issubclass(live_work_group.cls, HelpOnEmptyTopLevelGroup), live_work_group.cls\n"
+        "sub_app = live_work_group.typer_instance\n"
+        "sub_commands = {c.name for c in sub_app.registered_commands}\n"
+        "assert sub_commands == {'hook', 'matrix', 'install', 'uninstall', 'watch'}, sub_commands\n"
         "sys.stderr.write('FULLPATH=OK')\n"
     )
     assert "FULLPATH=OK" in _spawn(["live-work", "matrix"], script)
