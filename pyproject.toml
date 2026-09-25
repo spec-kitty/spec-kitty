@@ -448,7 +448,6 @@ exclude = [
     "src/runtime/next/runtime_bridge_retrospective.py",
     "src/specify_cli/acceptance/__init__.py",
     "src/specify_cli/acceptance/execution_context.py",
-    "src/specify_cli/acceptance/gates_core.py",
     "src/specify_cli/acceptance/post_consolidation.py",
     "src/specify_cli/agent_tasks_ports.py",
     "src/specify_cli/agent_utils/status.py",
