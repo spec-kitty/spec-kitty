@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-09-25T13:37:03.890915+00:00",
+  "flattened": false,
+  "friendly_name": "Merge resume primary-site staged-deletion integrity",
+  "mid8": "01M3CCH9",
+  "mission_id": "01M3CCH9W6TQ24XGY1X6NWQX8E",
+  "mission_number": null,
+  "mission_slug": "resume-primary-staged-deletion-integrity-01M3CCH9",
+  "mission_type": "software-dev",
+  "purpose_context": "P0 milestone-#11 merge-integrity bug: after main is advanced but the primary checkout's reset --hard fails or is killed, --resume lists the mission's own files as staged deletions and either aborts or (on Commit) lands main with none of the mission's code while all WPs are done, exit 0. Primary-checkout sibling of the closed #4982.",
+  "purpose_tldr": "merge --resume must not drop approved WP code when the primary checkout lags its HEAD after an interrupted terminus (#4997)",
+  "slug": "resume-primary-staged-deletion-integrity-01M3CCH9",
+  "target_branch": "main",
+  "topology": "lanes"
+}
