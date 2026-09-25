@@ -762,3 +762,107 @@ def classify_resume_dirty_remedy(
             _RESUME_HINT,
         ],
     )
+
+
+def is_pure_behind_head_lag(
+    repo_root: Path,
+    *,
+    base_sha: str | None,
+) -> bool:
+    """True iff ``repo_root`` is a *provably pure* behind-own-HEAD lag of ``base_sha``.
+
+    #4997. After an interrupted terminus the ``update-ref`` that advanced the target and
+    the ``reset --hard`` that refreshes the checkout are two unlinked steps; when the
+    second never runs the checkout sits behind its own (already-advanced) HEAD and the
+    mission's files read as staged deletions. A ``git reset --hard HEAD`` fully repairs
+    that — but ONLY when the checkout carries nothing genuine that the reset would destroy.
+
+    ``BEHIND_OWN_HEAD`` (lane-ancestry, :func:`classify_resume_dirty_remedy`) proves the
+    lane is integrated; it proves NOTHING about *what* is dirty. This predicate adds the
+    missing content proof so the reset is provably non-destructive (the safety hole a
+    lane-ancestry-only gate leaves open):
+
+    * ``base_sha`` (the persisted transaction-start target tip,
+      ``MergeState.pre_mutation_target_sha``) must be a STRICT ancestor of ``HEAD`` — the
+      ref advanced past it. Equal ⇒ no lag ⇒ the dirt is genuine ⇒ ``False``.
+    * the working tree AND the index must be byte-identical to ``base_sha``'s tree
+      (``git diff --quiet <base>`` and ``git diff --cached --quiet <base>`` both clean).
+      Any genuine edit, or an intentional deletion of a file unrelated to the advance,
+      makes the tree differ from ``base_sha`` ⇒ ``False`` (fail-closed): it is preserved,
+      never reset away.
+    * no UNTRACKED file may obstruct a path the reset would restore. ``git diff`` is blind
+      to untracked files, and ``git reset --hard HEAD`` silently OVERWRITES an untracked
+      file sitting at a path present in HEAD's tree (a restored mission file). This last
+      check closes that hole by reusing the single obstruction authority
+      (:func:`ref_advance._path_obstructs_target_tree` against HEAD's tree paths); any
+      obstructing untracked path ⇒ ``False``.
+
+    Returns ``False`` on a missing ``base_sha`` or any git error (fail-closed): a state
+    that cannot be proven a pure lag is treated as genuine local work.
+    """
+    if not base_sha:
+        return False
+    head_ret, head_sha, _head_err = run_command(
+        ["git", "rev-parse", "HEAD"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if head_ret != 0 or head_sha.strip() == base_sha:
+        return False
+    ancestor_ret, _out, _err = run_command(
+        ["git", "merge-base", "--is-ancestor", base_sha, "HEAD"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ancestor_ret != 0:
+        return False
+    worktree_ret, _wout, _werr = run_command(
+        ["git", "diff", "--quiet", base_sha],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if worktree_ret != 0:
+        return False
+    index_ret, _iout, _ierr = run_command(
+        ["git", "diff", "--cached", "--quiet", base_sha],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if index_ret != 0:
+        return False
+    return not _untracked_obstructs_head(repo_root)
+
+
+def _untracked_obstructs_head(repo_root: Path) -> bool:
+    """True when an untracked file would be clobbered by ``git reset --hard HEAD``.
+
+    ``git reset --hard`` preserves untracked files that do not collide, but OVERWRITES an
+    untracked file at a path HEAD's tree carries (a restored tracked file). Reuse the
+    single obstruction authority (:func:`ref_advance._path_obstructs_target_tree` against
+    :func:`ref_advance._target_tree_paths` for HEAD) rather than a parallel predicate
+    (INV-3). Fail-closed (``True``) on any git error, so an unprovable state blocks the
+    reset. #4997 (untracked-collision hole confirmed in pre-PR review).
+    """
+    from specify_cli.git import ref_advance
+
+    try:
+        head_paths = ref_advance._target_tree_paths(repo_root, "HEAD", None)
+    except Exception:
+        return True
+    untracked_ret, untracked_out, _err = run_command(
+        ["git", "ls-files", "--others", "--exclude-standard"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if untracked_ret != 0:
+        return True
+    for line in untracked_out.splitlines():
+        path = line.strip().rstrip("/")
+        if path and ref_advance._path_obstructs_target_tree(path, head_paths):
+            return True
+    return False

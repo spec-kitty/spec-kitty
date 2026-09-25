@@ -489,6 +489,57 @@ class TestMergeMissionToTarget:
         assert retry.errors == []
         assert commits_after_retry == commits_after_first
 
+    def test_merge_strategy_noop_fails_without_resume_permission(self, tmp_path):
+        # #4997 Defect B: a MERGE-strategy "Already up to date" no-op (source already an
+        # ancestor of target) must fail loud, not silently report a successful integration
+        # (which stamped WPs done / tore the mission down while the target kept no code).
+        repo = _make_repo(tmp_path)
+        manifest = _make_manifest()
+
+        _run(["git", "branch", "kitty/mission-010-feat"], repo)
+        _run(["git", "checkout", "kitty/mission-010-feat"], repo)
+        _commit(repo, "src/feature.py", "feature\n", "feature work")
+        _run(["git", "checkout", "main"], repo)
+
+        first = integrate_mission_into_target(repo, "010-feat", manifest, strategy=MergeStrategy.MERGE)
+        commits_after_first = _git_stdout(repo, "rev-list", "--count", "main")
+
+        retry = integrate_mission_into_target(repo, "010-feat", manifest, strategy=MergeStrategy.MERGE)
+        commits_after_retry = _git_stdout(repo, "rev-list", "--count", "main")
+
+        assert first.success is True
+        assert first.already_applied is False
+        assert retry.success is False
+        assert "produced no changes" in retry.errors[0]
+        assert commits_after_retry == commits_after_first
+
+    def test_merge_strategy_retry_is_idempotent_when_resume_allows_already_applied(self, tmp_path):
+        # #4997 Defect B: with resume permission the MERGE no-op is reported as
+        # already_applied=True (changed=False) so the executor's zero-diff guard adjudicates
+        # it, instead of the pre-fix always-True that hid the no-op.
+        repo = _make_repo(tmp_path)
+        manifest = _make_manifest()
+
+        _run(["git", "branch", "kitty/mission-010-feat"], repo)
+        _run(["git", "checkout", "kitty/mission-010-feat"], repo)
+        _commit(repo, "src/feature.py", "feature\n", "feature work")
+        _run(["git", "checkout", "main"], repo)
+
+        first = integrate_mission_into_target(repo, "010-feat", manifest, strategy=MergeStrategy.MERGE)
+        commits_after_first = _git_stdout(repo, "rev-list", "--count", "main")
+
+        retry = integrate_mission_into_target(
+            repo, "010-feat", manifest, strategy=MergeStrategy.MERGE, allow_already_applied=True
+        )
+        commits_after_retry = _git_stdout(repo, "rev-list", "--count", "main")
+
+        assert first.success is True
+        assert retry.success is True
+        assert retry.already_applied is True
+        assert retry.commit is None
+        assert retry.errors == []
+        assert commits_after_retry == commits_after_first
+
     def test_merge_self_heals_event_log_merge_driver_config(self, tmp_path):
         repo = _make_repo(tmp_path)
         manifest = _make_manifest()

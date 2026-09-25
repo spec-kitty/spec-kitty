@@ -57,6 +57,7 @@ from specify_cli.core.git_ops import has_remote, run_command
 from kernel.clock import now_utc_iso
 from specify_cli.core.paths import (
     MissionMetaReadError,
+    RetentionDecision,
     get_main_repo_root,
     resolve_merge_retention,
     resolve_merge_target_branch,
@@ -147,6 +148,7 @@ from specify_cli.merge.state import (
     clear_state,
     get_state_path,
     lane_tip_cas_ok,
+    load_state,
     release_merge_lock,
     save_state,
 )
@@ -1318,12 +1320,18 @@ def _restore_pre_target_if_at_baseline(run: _MergeRunState) -> None:
         _revert_orphan_target_bake_commit(run)
 
 
-def _reject_zero_diff_noop_squash(run: _MergeRunState) -> None:
-    """FR-037 fail-loud: refuse a zero-code no-op squash when lane work remains."""
+def _reject_zero_diff_noop_integration(run: _MergeRunState) -> None:
+    """FR-037 fail-loud: refuse a zero-code no-op mission→target integration.
+
+    Strategy-neutral (#4997 Defect B): the guard condition is content-based
+    (``already_applied`` + un-integrated lane work OR the mission tree not equal to the
+    target tree), so it applies to the MERGE strategy's "Already up to date" no-op exactly
+    as it does to the squash no-op — the name no longer implies squash-only.
+    """
     console.print(
         "[red]Error:[/red] Mission→target merge integrated zero lane "
         "diffs but un-integrated lane work remains. Refusing to report a "
-        "zero-code squash as success (#1772 FR-037)."
+        "zero-code integration as success (#1772 FR-037)."
     )
     console.print(
         f"  Mission branch: {run.lanes_manifest.mission_branch}; "
@@ -1373,7 +1381,7 @@ def _handle_mission_merge_result(
         and not run.planning_artifact_only
         and (run.any_lane_had_unintegrated_code or not mission_integrated_into_target)
     ):
-        _reject_zero_diff_noop_squash(run)
+        _reject_zero_diff_noop_integration(run)
 
     if not mission_result.success:
         # #4892: a real target-content conflict carries structured paths. NEVER
@@ -3285,6 +3293,116 @@ def _report_pre_mutation_refusal(
     )
 
 
+def _recover_behind_head_primary_on_resume(
+    exc: DestructiveOpRefused,
+    main_repo: Path,
+    canonical_id: str,
+    *,
+    mission_branch: str,
+) -> bool:
+    """Recover a provably-pure behind-own-HEAD primary in place, ON A RESUME (#4997).
+
+    The pre-mutation primary dirty guard refuses ``MERGE_UNSAFE_PRIMARY_DIRTY`` when the
+    checkout carries staged deletions. After an interrupted terminus that advanced the
+    target ref but never ran the checkout's ``reset --hard`` (#1826), those deletions are
+    the mission's already-integrated files read in reverse — a pure lag, NOT genuine local
+    work. Instead of aborting (which strands the merge, or invites the catastrophic
+    "Commit" mis-remedy), a ``--resume`` repairs it here: ``git reset --hard HEAD``.
+
+    Fail-closed, and NEVER on a fresh merge:
+
+    * only on a ``--resume`` (a persisted :class:`MergeState` exists);
+    * only when :func:`~specify_cli.merge.preflight.classify_resume_dirty_remedy` reports
+      ``BEHIND_OWN_HEAD`` (lane-ancestry) AND
+      :func:`~specify_cli.merge.preflight.is_pure_behind_head_lag` proves the working tree
+      AND index are byte-identical to the persisted ``pre_mutation_target_sha`` with no
+      untracked file obstructing a restored path (so the reset destroys nothing genuine —
+      the data-loss hole a lane-ancestry-only gate would leave).
+
+    Returns ``True`` iff it reset the primary (the caller re-runs the preflight once and
+    continues); ``False`` for every non-recoverable refusal (the caller aborts unchanged).
+    """
+    if getattr(exc, "error_code", None) != MERGE_UNSAFE_PRIMARY_DIRTY:
+        return False
+    state = load_state(main_repo, canonical_id)
+    if state is None:
+        return False  # fresh merge: a dirty primary is genuine, never auto-reset.
+    from specify_cli.merge.preflight import (
+        ResumeRemedyKind,
+        classify_resume_dirty_remedy,
+        is_pure_behind_head_lag,
+    )
+
+    remedy = classify_resume_dirty_remedy(main_repo, lane_branch=mission_branch)
+    if remedy.kind is not ResumeRemedyKind.BEHIND_OWN_HEAD:
+        return False
+    if not is_pure_behind_head_lag(main_repo, base_sha=state.pre_mutation_target_sha):
+        return False
+    reset_ret, _out, reset_err = run_command(
+        ["git", "reset", "--hard", "HEAD"],
+        capture=True,
+        check_return=False,
+        cwd=main_repo,
+    )
+    if reset_ret != 0:
+        console.print(
+            f"[red]Error:[/red] behind-own-HEAD recovery `git reset --hard HEAD` failed "
+            f"in {main_repo}: {reset_err.strip()}"
+        )
+        return False
+    console.print(
+        "[yellow]Recovered a behind-own-HEAD primary checkout "
+        "(git reset --hard HEAD over phantom staged deletions); continuing resume.[/yellow]"
+    )
+    return True
+
+
+def _pre_mutation_safety_preflight_with_recovery(
+    main_repo: Path,
+    mission_slug: str,
+    lanes_manifest: LanesManifest,
+    canonical_id: str,
+    canonical_mission_id: str,
+    primary_meta_dir: Path,
+    retention: RetentionDecision,
+) -> None:
+    """Run the pre-mutation safety preflight, with #4997 behind-own-HEAD resume recovery.
+
+    On a ``DestructiveOpRefused``, a ``--resume`` first tries to recover a provably-pure
+    behind-own-HEAD primary (:func:`_recover_behind_head_primary_on_resume`) and re-runs the
+    preflight once; every non-recoverable refusal (and every fresh-merge refusal) aborts
+    fail-closed with the reported remediation. Kept as one helper so the outer
+    :func:`_run_lane_based_merge` stays within the complexity ceiling.
+    """
+
+    def _run() -> None:
+        _pre_mutation_safety_preflight(
+            main_repo,
+            mission_slug,
+            lanes_manifest.target_branch,
+            lanes_manifest,
+            canonical_mission_id,
+            primary_meta_dir,
+            remove_worktree=retention.remove_worktree,
+            teardown_coordination=retention.teardown_coordination,
+        )
+
+    try:
+        _run()
+    except DestructiveOpRefused as exc:
+        recovered = _recover_behind_head_primary_on_resume(
+            exc, main_repo, canonical_id, mission_branch=lanes_manifest.mission_branch
+        )
+        if not recovered:
+            _report_pre_mutation_refusal(exc, main_repo, mission_branch=lanes_manifest.mission_branch)
+            raise typer.Exit(1) from exc
+        try:
+            _run()
+        except DestructiveOpRefused as exc_after:
+            _report_pre_mutation_refusal(exc_after, main_repo, mission_branch=lanes_manifest.mission_branch)
+            raise typer.Exit(1) from exc_after
+
+
 def _run_lane_based_merge(
     repo_root: Path,
     mission_slug: str,
@@ -3480,21 +3598,20 @@ def _run_lane_based_merge(
     # — none of the checks above ever mutate the repository, so a refusal here
     # is still byte-identical to pre-invocation (NFR-001). Both a fresh merge
     # and ``--resume`` route through this same outer function, so ``--resume``
-    # honors the guard identically (US1 AC4).
-    try:
-        _pre_mutation_safety_preflight(
-            main_repo,
-            mission_slug,
-            lanes_manifest.target_branch,
-            lanes_manifest,
-            canonical_mission_id,
-            primary_meta_dir,
-            remove_worktree=retention.remove_worktree,
-            teardown_coordination=retention.teardown_coordination,
-        )
-    except DestructiveOpRefused as exc:
-        _report_pre_mutation_refusal(exc, main_repo, mission_branch=lanes_manifest.mission_branch)
-        raise typer.Exit(1) from exc
+    # honors the guard identically (US1 AC4). The ONE sanctioned pre-lock
+    # mutation is the #4997 behind-own-HEAD resume recovery inside the wrapper
+    # below (a provably-non-destructive ``git reset --hard HEAD`` over phantom
+    # staged deletions); every other outcome remains refuse (byte-identical) or
+    # proceed.
+    _pre_mutation_safety_preflight_with_recovery(
+        main_repo,
+        mission_slug,
+        lanes_manifest,
+        canonical_id,
+        canonical_mission_id,
+        primary_meta_dir,
+        retention,
+    )
 
     # -- Acquire global merge lock to serialize concurrent merges --
     # WP09 (C-2, FR-008, #4996): stamp the lock with this merge's owner_token =

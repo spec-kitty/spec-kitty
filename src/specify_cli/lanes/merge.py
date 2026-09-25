@@ -371,6 +371,10 @@ def integrate_mission_into_target(
             target_branch,
             strategy=strategy,
             allow_noop_squash=allow_already_applied,
+            # mission→target: a MERGE-strategy no-op must be adjudicated (never a silent
+            # success), mirroring the squash no-op (#4997 Defect B). Lane→mission keeps the
+            # default (False) so its benign consolidation no-ops do not raise.
+            raise_on_unexpected_noop=True,
         )
     except _SquashMergeConflict as exc:
         # #4892: a genuine target-content conflict. Surface the paths as
@@ -997,6 +1001,7 @@ def _merge_branch_into(
     *,
     strategy: MergeStrategy = MergeStrategy.MERGE,
     allow_noop_squash: bool = False,
+    raise_on_unexpected_noop: bool = False,
 ) -> bool:
     """Merge source_branch into target_branch using a temporary worktree.
 
@@ -1172,6 +1177,16 @@ def _merge_branch_into(
             return True  # early return — ref already updated
         else:
             # MERGE strategy (default for lane→mission): no-ff merge commit.
+            # The detached worktree sits at the target tip; capture it so a no-op
+            # ("Already up to date") can be detected by an unchanged HEAD (#4997 Defect B).
+            pre_merge_head = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=str(tmp_path),
+                capture_output=True,
+                text=True,
+                check=True,
+                env=_env,
+            ).stdout.strip()
             result = subprocess.run(
                 ["git", "merge", source_branch, "--no-edit", "-m", f"Merge {source_branch} into {target_branch}"],
                 cwd=str(tmp_path),
@@ -1187,6 +1202,32 @@ def _merge_branch_into(
                     env=_env,
                 )
                 raise RuntimeError(f"Merge of {source_branch} into {target_branch} failed: {result.stderr.strip() or result.stdout.strip()}")
+            post_merge_head = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=str(tmp_path),
+                capture_output=True,
+                text=True,
+                check=True,
+                env=_env,
+            ).stdout.strip()
+            if post_merge_head == pre_merge_head:
+                # "Already up to date": ``source_branch`` is already an ancestor of the
+                # target, so ``git merge`` moved nothing — a genuine no-op. Report it as
+                # ``changed=False`` (never the pre-#4997 always-True) so the caller's
+                # ``already_applied`` is honest. For the mission→target integration
+                # (``raise_on_unexpected_noop``) a no-op WITHOUT resume permission must fail
+                # loud, mirroring the squash zero-staged path (#4997 Defect B / FR-037):
+                # never silently reported as a successful integration (which stamped WPs
+                # done and tore the mission down while the target kept none of the code).
+                # The lane→mission consolidation, by contrast, has benign no-ops (a planning
+                # lane carrying nothing new) — it does not raise.
+                if raise_on_unexpected_noop and not allow_noop_squash:
+                    raise RuntimeError(
+                        f"Merge of {source_branch} into {target_branch} produced no changes; "
+                        "target may already contain this tree. Retry with merge resume if "
+                        "recovering an interrupted merge."
+                    )
+                return False
 
         # #3942: after the squash (never for merge/rebase), preserve any
         # target-newer PRIMARY-partition planning artifact not already handled
