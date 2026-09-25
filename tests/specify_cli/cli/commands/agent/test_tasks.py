@@ -455,8 +455,20 @@ class TestGetLatestReviewCycleVerdict:
         assert lookup.result.verdict == "changes_requested"
 
     def test_picks_highest_numbered_cycle(self, tmp_path: Path) -> None:
-        """The MOST RECENT review_result-carrying event wins -- the
-        event-sourced successor of "the highest-numbered cycle wins"."""
+        """The MOST RECENT review CYCLE's verdict wins -- the event-sourced
+        successor of "the highest-numbered cycle wins".
+
+        Cycle 1 ends with a reject (``in_review -> in_progress``, causally a
+        rollback). Cycle 2 reworks the WP back through
+        ``for_review -> in_review`` before the approve, so the approve's
+        ``from_lane`` causally follows the rework rather than branching off
+        the same pre-rollback ``in_review`` state the reject already
+        resolved (spec-kitty-events #4990: a rollback is never overwritten
+        by a forward transition that does not causally follow it, regardless
+        of wall-clock order -- see ``_should_apply_event``). This keeps the
+        "latest cycle wins" intent while being correct under the causal
+        reducer.
+        """
         from specify_cli.status import event_sourced_review_result
         from specify_cli.status._unsafe import append_event
 
@@ -475,10 +487,40 @@ class TestGetLatestReviewCycleVerdict:
                 review_result=ReviewResult(reviewer="reviewer-renata", verdict="changes_requested", reference="x"),
             ),
         )
+        # Cycle 2 rework: back into review before the second verdict, so the
+        # approve below causally follows this cycle rather than the reject.
         append_event(
             tmp_path,
             StatusEvent(
                 event_id="01T007HIGHEST000000000002",
+                mission_slug=tmp_path.name,
+                wp_id="WP01",
+                from_lane=Lane.IN_PROGRESS,
+                to_lane=Lane.FOR_REVIEW,
+                at="2026-01-01T12:00:00+00:00",
+                actor="claude",
+                force=False,
+                execution_mode="worktree",
+            ),
+        )
+        append_event(
+            tmp_path,
+            StatusEvent(
+                event_id="01T007HIGHEST000000000003",
+                mission_slug=tmp_path.name,
+                wp_id="WP01",
+                from_lane=Lane.FOR_REVIEW,
+                to_lane=Lane.IN_REVIEW,
+                at="2026-01-01T18:00:00+00:00",
+                actor="reviewer-renata",
+                force=False,
+                execution_mode="worktree",
+            ),
+        )
+        append_event(
+            tmp_path,
+            StatusEvent(
+                event_id="01T007HIGHEST000000000004",
                 mission_slug=tmp_path.name,
                 wp_id="WP01",
                 from_lane=Lane.IN_REVIEW,
