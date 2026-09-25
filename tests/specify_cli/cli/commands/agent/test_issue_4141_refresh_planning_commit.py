@@ -21,7 +21,7 @@ vs branch tip) and tells the operator the flag exists, on the console
 (``planning_commit``).
 
 These tests drive the REAL ``finalize_tasks`` entry point against a REAL git
-repo (so ``_capture_target_branch_tip`` and the ancestor check resolve actual
+repo (so ``capture_branch_tip`` and the ancestor check resolve actual
 SHAs), mirroring ``test_finalize_provenance_guard.py``'s harness:
 
 * ``test_refresh_repoints_recorded_sha_to_amended_tip`` — the crux: after

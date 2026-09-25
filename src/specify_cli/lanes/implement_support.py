@@ -18,8 +18,8 @@ from specify_cli.ownership.models import WorkProductKind
 from specify_cli.lanes.lane_env import lane_test_env
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.branch_naming import lane_branch_name, worktree_dir_name as _worktree_dir_name
+from specify_cli.core.vcs.git import capture_branch_tip
 from specify_cli.lanes._git import branch_exists
-from specify_cli.lanes.merge import _rev_parse as _rev_parse_or_none
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.lanes.planning_commit_classify import PinClass, classify_recorded_pin
 from specify_cli.lanes.worktree_allocator import (
@@ -379,7 +379,7 @@ def reenter_lane_self_heal(
     # helper here too, mirroring the allocator's own C-006 capture -- this is
     # the SECOND call site D5 centralizes detection through (the allocator's
     # reuse/crash-recovery/fresh-path calls are the other three).
-    target_tip = _rev_parse_or_none(main_repo_root, manifest.target_branch)
+    target_tip = capture_branch_tip(main_repo_root, manifest.target_branch)
     _merge_recorded_planning_commit(main_repo_root, workspace_path, lane.lane_id, manifest.planning_commit_sha, target_tip)
     _merge_dependency_lane_tips(main_repo_root, workspace_path, mission_slug, lane, manifest)
     return workspace_path
@@ -503,7 +503,7 @@ def _planning_commit_missing_diagnostic(main_repo_root: Path, manifest: LanesMan
     at that flag here would name a recovery that cannot actually work.
     """
     assert manifest.planning_commit_sha is not None
-    target_tip = _rev_parse_or_none(main_repo_root, manifest.target_branch)
+    target_tip = capture_branch_tip(main_repo_root, manifest.target_branch)
     pin_class = classify_recorded_pin(main_repo_root, manifest.planning_commit_sha, target_tip)
     if pin_class is PinClass.ORPHANED:
         return (

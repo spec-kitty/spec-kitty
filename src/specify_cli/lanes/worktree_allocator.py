@@ -25,12 +25,12 @@ from pathlib import Path
 
 from specify_cli.coordination import register_lane_sparse_checkout
 from specify_cli.core.errors import StructuredError
+from specify_cli.core.vcs.git import capture_branch_tip
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import lane_branch_name, resolve_mid8, worktree_path as _worktree_path
 from specify_cli.lanes.merge import (
     _ephemeral_merge_driver_activation,
     _make_merge_env,
-    _rev_parse,
 )
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.planning_commit_classify import PinClass, classify_recorded_pin
@@ -541,11 +541,11 @@ def allocate_lane_worktree(
     # against -- NEVER a lane worktree's own HEAD (that is a different
     # question, the pre-existing "is this lane already merged?" no-op gate;
     # see classify_recorded_pin's own C-006 docstring note and #2993). Reuses
-    # the lanes-layer `_rev_parse` (returns `None` on failure, never the
+    # the canonical `capture_branch_tip` (returns `None` on failure, never the
     # "unknown" sentinel `implement_support._rev_parse` uses for frontmatter
     # display) so an unresolvable target branch degrades the classifier to
     # `INDETERMINATE` -- the pre-#4827 behaviour -- rather than misclassifying.
-    target_tip = _rev_parse(repo_root, lanes_manifest.target_branch)
+    target_tip = capture_branch_tip(repo_root, lanes_manifest.target_branch)
 
     # Placement (path + branch) comes from the single predict seam — the write
     # authority and the read-only mirrors must never diverge on this decision.
@@ -759,7 +759,7 @@ def _merge_recorded_planning_commit(
     behaviour exactly.
 
     #4827/WP03 (D5/D6, C-006): ``target_tip`` MUST be the planning
-    target-branch tip (e.g. captured via ``_rev_parse(repo_root,
+    target-branch tip (e.g. captured via ``capture_branch_tip(repo_root,
     lanes_manifest.target_branch)``), never a lane worktree's ``HEAD`` --
     passing a lane HEAD here would misfire on every healthy fresh coord lane
     (#2993). BEFORE the pre-existing lane-HEAD no-op gate below, the recorded

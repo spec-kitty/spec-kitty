@@ -1563,7 +1563,7 @@ def _rebuild_lanes_if_wedged(
     3. ``lanes.json`` absent AND the mission is wedged -- rebuild it via
        WP01's pure :func:`~specify_cli.lanes.compute_and_persist.compute_and_write_lanes`
        core. ``planning_commit_sha`` is populated by capturing the current
-       ``target_branch`` tip (:func:`~specify_cli.cli.commands.agent.mission_finalize._capture_target_branch_tip`,
+       ``target_branch`` tip (:func:`~specify_cli.core.vcs.git.capture_branch_tip`,
        best-effort, ``None`` only on a git failure) -- the same "captured"
        semantics ``tasks_finalize._finalize_lanes`` already uses for the
        pre-execution branch. A recorded ``None`` is NOT universally
@@ -1588,9 +1588,7 @@ def _rebuild_lanes_if_wedged(
             the fail-closed path: never a partial rebuild that masks a
             corrupt/inconsistent WP ownership declaration.
     """
-    from specify_cli.cli.commands.agent.mission_finalize import (
-        _capture_target_branch_tip,
-    )
+    from specify_cli.core.vcs.git import capture_branch_tip
     from specify_cli.lanes.compute_and_persist import (
         LaneGlobValidationError,
         compute_and_write_lanes,
@@ -1617,7 +1615,7 @@ def _rebuild_lanes_if_wedged(
         return LANES_REBUILD_SKIPPED_NO_OWNED_FILES_ACTION
 
     wp_dependencies = {wp_id: list(fm.dependencies) for wp_id, fm in wp_frontmatters.items()}
-    planning_commit_sha = _capture_target_branch_tip(repo_root, target_branch)
+    planning_commit_sha = capture_branch_tip(repo_root, target_branch)
 
     try:
         compute_and_write_lanes(

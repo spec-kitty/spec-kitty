@@ -16,7 +16,7 @@ These three tests each pin a distinct, non-fakeable facet of the fix:
 
 * ``test_execution_begun_preserves_recorded_sha_against_differing_tip`` —
   the crux regression case. It runs finalize against a REAL git repo so
-  ``_capture_target_branch_tip`` would return an actual, non-``None`` SHA
+  ``capture_branch_tip`` would return an actual, non-``None`` SHA
   that DIFFERS from the recorded provenance if the buggy recompute path
   ran. A naive ``if sha is not None: keep old`` guard (which only survives
   the None-tip case the original #3311 repro covered) fails this test.
@@ -88,11 +88,11 @@ def _git(repo_root: Path, *args: str) -> str:
 
 
 def _git_init_with_first_commit(repo_root: Path) -> None:
-    """Real git repo so ``_capture_target_branch_tip`` returns a real SHA.
+    """Real git repo so ``capture_branch_tip`` returns a real SHA.
 
     Required for the non-fakeable "differing tip" preservation test — a
     non-git ``tmp_path`` always makes ``git rev-parse`` fail and
-    ``_capture_target_branch_tip`` return ``None``, which only exercises the
+    ``capture_branch_tip`` return ``None``, which only exercises the
     weaker "None tip" case the original #3311 repro already covered.
     """
     _git(repo_root, "init", "-q", "-b", "main")
@@ -173,7 +173,7 @@ def test_execution_begun_preserves_recorded_sha_against_differing_tip(
 
     The original repro only proved the ``None``-tip case (no git repo), which
     a naive ``if sha is not None: keep old`` guard fakes. Here
-    ``_capture_target_branch_tip`` is made to resolve to an actual SHA that
+    ``capture_branch_tip`` is made to resolve to an actual SHA that
     differs from the recorded provenance, so only a genuine execution-begun
     gate (not a tip-nullness check) survives.
     """

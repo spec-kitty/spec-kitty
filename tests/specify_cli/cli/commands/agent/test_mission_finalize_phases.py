@@ -1080,7 +1080,7 @@ def _preserve_or_capture(
     research.md D3, so ORPHANED is the faithful mapping, not FOREIGN).
     """
     monkeypatch.setattr(seam, "_execution_has_begun", lambda *a, **k: execution_begun)
-    monkeypatch.setattr(seam, "_capture_target_branch_tip", lambda *a, **k: tip)
+    monkeypatch.setattr(seam, "capture_branch_tip", lambda *a, **k: tip)
     monkeypatch.setattr(
         seam,
         "classify_recorded_pin",

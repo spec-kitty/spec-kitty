@@ -1184,6 +1184,59 @@ def git_rev_list_count(
     return int(stdout)
 
 
+def capture_branch_tip(
+    repo: Path,
+    branch: str,
+    *,
+    env: dict[str, str] | None = None,
+) -> str | None:
+    """Resolve a local branch's tip SHA via ``git rev-parse --verify refs/heads/{branch}``.
+
+    This is the canonical target-branch tip-capture authority for every
+    classifier-tip caller (issue #4857): resolving the bare ``branch`` name
+    (as the pre-consolidation call sites did) is ambiguous when a tag shares
+    the branch's name — ``git rev-parse``/``git rev-parse --verify`` both
+    resolve a branch+tag name collision to the **tag** SHA, not the branch
+    tip (verified identical on git 2.43.0). Qualifying the ref as
+    ``refs/heads/{branch}`` forces git to resolve the **branch** tip
+    deterministically, matching the pattern ``merge/preflight.py`` and
+    ``_coordination_doctor.py`` already use for the same target-branch-tip
+    question. ``--verify`` keeps the single-object guarantee and the clean
+    non-zero-exit-on-missing behaviour.
+
+    ``env`` is accepted for merge-env pass-through parity with sibling
+    helpers, but is inert here: ``rev-parse`` resolves refs from the local
+    repository's ref store and does not consult the merge-identity
+    environment variables (author/committer name/email) those siblings
+    exist to control.
+
+    Args:
+        repo: Repository/worktree path to run the command in.
+        branch: A plain local branch name (never a SHA, a qualified ref, or
+            a remote-tracking ref — out of contract for this helper's
+            ``refs/heads/`` domain).
+        env: Optional environment mapping passed through to the subprocess
+            call (inert for this specific git invocation; see above).
+
+    Returns:
+        The branch tip SHA on success; ``None`` when the branch does not
+        exist or the command otherwise fails. Never raises on a git
+        failure.
+    """
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", f"refs/heads/{branch}"],
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    sha = result.stdout.strip()
+    return sha or None
+
+
 def merge_base_changed_files(
     worktree: Path,
     base_ref: str,

@@ -332,9 +332,9 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
            rather than a hard failure.
         """
         from specify_cli.cli.commands.agent.mission_finalize import (
-            _capture_target_branch_tip,
             _execution_has_begun,
         )
+        from specify_cli.core.vcs.git import capture_branch_tip
         from specify_cli.lanes.compute_and_persist import (
             LaneGlobValidationError,
             compute_and_write_lanes,
@@ -377,7 +377,7 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
         raw_mission_id = raw_meta.get("mission_id")
         mission_id: str | None = raw_mission_id if isinstance(raw_mission_id, str) else None
 
-        planning_commit_sha = _capture_target_branch_tip(st.main_repo_root, st.target_branch)
+        planning_commit_sha = capture_branch_tip(st.main_repo_root, st.target_branch)
         try:
             compute_and_write_lanes(
                 st.primary_feature_dir,

@@ -689,7 +689,7 @@ def _lane_deliverable_paths(worktree_path: Path, porcelain: str) -> tuple[Path, 
 def _mt_resolve_owned_review_base(st: _MoveTaskState) -> str:
     """Resolve one immutable, suitable review base for an owned checkout."""
     from specify_cli.cli.commands.agent import tasks as _tasks
-    from specify_cli.lanes.merge import _rev_parse as _rev_parse_or_none
+    from specify_cli.core.vcs.git import capture_branch_tip
     from specify_cli.lanes.persistence import require_lanes_json
     from specify_cli.lanes.planning_commit_classify import PinClass, classify_recorded_pin
     from specify_cli.lanes.worktree_allocator import ORPHANED_PIN_RECOVERY_HINT
@@ -721,7 +721,7 @@ def _mt_resolve_owned_review_base(st: _MoveTaskState) -> str:
     # with `--allow-orphaned`, so naming that recovery for a foreign SHA
     # would point at a fix that cannot work -- the existing "must resolve to
     # commits" refusal is already the correct, unrecoverable-data diagnosis.
-    target_tip = _rev_parse_or_none(st.main_repo_root, st.target_branch)
+    target_tip = capture_branch_tip(st.main_repo_root, st.target_branch)
     pin_class = classify_recorded_pin(owned.root, declared, target_tip)
     if pin_class is PinClass.ORPHANED:
         raise ActionContextError(
