@@ -126,9 +126,10 @@ def classify_status_json(
                         "in per-work-package provenance fields (actor, "
                         "last_event_id, last_transition_at); a reducer-version "
                         "change re-attributed provenance without altering "
-                        "lane/outcome state, and the archive gate forbids "
-                        "editing the frozen snapshot, so this drift is not an "
-                        "actionable TeamSpace-readiness problem"
+                        "lane/outcome state, so this drift is not an actionable "
+                        "TeamSpace-readiness problem — an active mission's "
+                        "snapshot self-heals on the next materialize, and an "
+                        "archived mission's is frozen by the archive gate"
                     ),
                 )
             )
