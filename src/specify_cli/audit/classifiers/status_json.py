@@ -94,10 +94,7 @@ def classify_status_json(
                 code="SNAPSHOT_DRIFT",
                 severity=Severity.ERROR,
                 artifact_path="status.json",
-                detail=(
-                    "reducer raised during drift check: "
-                    f"{format_exception_detail(exc)}"
-                ),
+                detail=(f"reducer raised during drift check: {format_exception_detail(exc)}"),
             )
         )
         return findings
@@ -118,7 +115,24 @@ def classify_status_json(
         persisted_normalised = raw_text
 
     if computed_json != persisted_normalised:
-        if _is_terminal_snapshot(computed_json):
+        if _is_provenance_only_drift(computed_json, persisted_normalised):
+            findings.append(
+                MissionFinding(
+                    code="SNAPSHOT_DRIFT_PROVENANCE",
+                    severity=Severity.WARNING,
+                    artifact_path="status.json",
+                    detail=(
+                        "reducer output differs from persisted status.json only "
+                        "in per-work-package provenance fields (actor, "
+                        "last_event_id, last_transition_at); a reducer-version "
+                        "change re-attributed provenance without altering "
+                        "lane/outcome state, and the archive gate forbids "
+                        "editing the frozen snapshot, so this drift is not an "
+                        "actionable TeamSpace-readiness problem"
+                    ),
+                )
+            )
+        elif _is_terminal_snapshot(computed_json):
             findings.append(
                 MissionFinding(
                     code="SNAPSHOT_DRIFT_TERMINAL",
@@ -146,6 +160,58 @@ def classify_status_json(
     return findings
 
 
+_PROVENANCE_ONLY_WP_FIELDS = frozenset({"actor", "last_event_id", "last_transition_at"})
+
+
+def _is_provenance_only_drift(computed_json: str, persisted_json: str) -> bool:
+    """Return True iff ``computed_json`` and ``persisted_json`` (both already
+    normalised, deterministic JSON strings) differ *only* in the per-work-package
+    provenance fields ``actor``, ``last_event_id``, and ``last_transition_at`` --
+    the shape a reducer-version change produces when it re-attributes WHO/WHEN a
+    transition happened without altering WHAT happened (lane, counts, summary,
+    or any other field).
+
+    Returns False (not provenance-only, so the caller must not tolerate the
+    drift) when:
+    - any top-level field other than ``work_packages`` differs,
+    - the set of work-package IDs differs (an added/removed WP is a real
+      membership change, not a provenance re-attribution),
+    - any single work package differs in a field outside the provenance triple,
+    - or there turns out to be no difference at all (defensive; the caller only
+      invokes this after confirming ``computed_json != persisted_json``).
+    """
+    computed = json.loads(computed_json)
+    persisted = json.loads(persisted_json)
+    if not isinstance(computed, dict) or not isinstance(persisted, dict):
+        return False
+
+    computed_other = {k: v for k, v in computed.items() if k != "work_packages"}
+    persisted_other = {k: v for k, v in persisted.items() if k != "work_packages"}
+    if computed_other != persisted_other:
+        return False
+
+    computed_wps = computed.get("work_packages", {})
+    persisted_wps = persisted.get("work_packages", {})
+    if not isinstance(computed_wps, dict) or not isinstance(persisted_wps, dict):
+        return False
+    if set(computed_wps) != set(persisted_wps):
+        return False
+
+    saw_a_difference = False
+    for wp_id, computed_wp in computed_wps.items():
+        persisted_wp = persisted_wps[wp_id]
+        if not isinstance(computed_wp, dict) or not isinstance(persisted_wp, dict):
+            return False
+        diff_keys = {key for key in set(computed_wp) | set(persisted_wp) if computed_wp.get(key) != persisted_wp.get(key)}
+        if not diff_keys:
+            continue
+        if not diff_keys <= _PROVENANCE_ONLY_WP_FIELDS:
+            return False
+        saw_a_difference = True
+
+    return saw_a_difference
+
+
 def _is_terminal_snapshot(computed_json: str) -> bool:
     """Return True when every work package in the authoritative reducer
     output (``computed_json``, from ``materialize_to_json``) has reached the
@@ -159,7 +225,4 @@ def _is_terminal_snapshot(computed_json: str) -> bool:
     work_packages = json.loads(computed_json).get("work_packages", {})
     if not isinstance(work_packages, dict) or not work_packages:
         return False
-    return all(
-        isinstance(wp, dict) and wp.get("lane") == "done"
-        for wp in work_packages.values()
-    )
+    return all(isinstance(wp, dict) and wp.get("lane") == "done" for wp in work_packages.values())
