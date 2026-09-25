@@ -74,6 +74,7 @@ if TYPE_CHECKING:
 
     from mission_runtime import PlacementSeam
     from specify_cli.bulk_edit.gate import DiffCheckResult
+    from specify_cli.coordination.transaction import BookkeepingTransaction
     from specify_cli.invocation.record import OpStartedEvent
 
 from charter.activation.context import build_charter_context
@@ -88,7 +89,7 @@ from specify_cli.core.dependency_graph import (
 )
 from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root, is_worktree_context, locate_project_root
 from specify_cli.core.utils import write_text_within_directory
-from mission_runtime import CommitTarget, MissionArtifactKind
+from mission_runtime import CommitTarget, MissionArtifactKind, is_primary_artifact_kind, kind_for_mission_file
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
@@ -401,6 +402,124 @@ def _merge_event_log_bytes(existing: bytes, incoming: bytes) -> bytes:
     return merge_append_preserving_coordination_event_log_bytes(existing, incoming)
 
 
+def _partition_paths_by_primary_kind(
+    paths: list[Path], *, mission_slug: str
+) -> tuple[list[Path], list[Path]]:
+    """Split staged paths into (primary_bound, coord_bound) by artifact kind.
+
+    coord-staging-partition (#4905): a PRIMARY-partition path (``WORK_
+    PACKAGE_TASK``, spec/plan/tasks) must never be written into the
+    coordination worktree / committed to the coordination branch — only
+    ``STATUS_STATE`` bookkeeping (status.events.jsonl / status.json) stays on
+    coord. Classification reuses the ONE public write-surface authority
+    (:func:`mission_runtime.kind_for_mission_file` /
+    :func:`mission_runtime.is_primary_artifact_kind`) rather than re-deriving
+    the partition here. A path that does not classify to a recognised mission
+    artifact (``kind is None`` — e.g. a repo-root ``meta.json``/config file
+    some callers also stage) is treated as coord-bound, preserving this
+    sink's pre-fix behaviour for every non-mission-artifact path.
+    """
+    primary_bound: list[Path] = []
+    coord_bound: list[Path] = []
+    for path in paths:
+        kind = kind_for_mission_file(path, mission_slug=mission_slug)
+        if kind is not None and is_primary_artifact_kind(kind):
+            primary_bound.append(path)
+        else:
+            coord_bound.append(path)
+    return primary_bound, coord_bound
+
+
+def _stage_transaction_paths(txn: BookkeepingTransaction, paths: list[Path], *, repo_root: Path) -> None:
+    """Stage every existing path into *txn*'s worktree.
+
+    Extracted from :func:`_commit_via_coordination_transaction` (#4905) so
+    both the coord-bound and the primary-bound transaction below share one
+    staging loop. When ``commit_to_primary_target=True`` (the primary-bound
+    caller), ``txn.worktree_root`` IS ``repo_root`` (see
+    ``BookkeepingTransaction.acquire``'s docstring), so every path here
+    already lives under it and takes the ``stage_path`` fast path below —
+    no ``_transaction_path_for`` remap needed.
+    """
+    for path in paths:
+        if not path.exists():
+            continue
+        if path.resolve().is_relative_to(txn.worktree_root.resolve()):
+            txn.stage_path(path)
+            continue
+        txn_path = _transaction_path_for(
+            source_path=path,
+            repo_root=repo_root,
+            worktree_root=txn.worktree_root,
+        )
+        if txn_path.resolve() == path.resolve():
+            txn.stage_path(path)
+        else:
+            incoming = path.read_bytes()
+            # #1602: the canonical event log is append-only. Never let a
+            # main-checkout copy overwrite (clobber) the coordination
+            # branch's lane history — union-merge instead so existing
+            # coord events always survive.
+            if path.name == _STATUS_EVENTS_FILENAME and txn_path.exists():
+                incoming = _merge_event_log_bytes(txn_path.read_bytes(), incoming)
+            txn.write_artifact(txn_path, incoming)
+
+
+def _commit_primary_partition_group(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    mission_id: str,
+    mid8: str,
+    paths: list[Path],
+    message: str,
+    operation: str,
+    wp_id: str,
+) -> None:
+    """Commit the PRIMARY-bound path group to the mission's primary target ref.
+
+    coord-staging-partition (#4905): the SECOND sanctioned
+    ``commit_to_primary_target=True`` caller of ``BookkeepingTransaction.
+    acquire`` (``coordination/transaction.py:248``'s docstring names the
+    first: ``implement.py::_run_planning_artifact_commit``), so a
+    ``WORK_PACKAGE_TASK`` (or other PRIMARY-partition) path lands on the
+    mission's own PRIMARY target branch instead of being redirected onto the
+    coordination branch. Resolves the destination via the same placement
+    seam :func:`commit_workflow_change` already uses for ``STATUS_STATE`` —
+    every PRIMARY kind resolves to the identical ref for a given mission.
+    """
+    from specify_cli.coordination.transaction import (
+        BookkeepingPolicyRefused,
+        BookkeepingTransaction,
+    )
+
+    primary_ref = _resolve_workflow_placement(
+        repo_root=repo_root, mission_slug=mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    ).ref
+
+    try:
+        with BookkeepingTransaction.acquire(
+            repo_root=repo_root,
+            mission_id=mission_id,
+            mission_slug=mission_slug,
+            mid8=mid8,
+            destination_ref=primary_ref,
+            operation=operation,
+            commit_to_primary_target=True,
+        ) as txn:
+            _stage_transaction_paths(txn, paths, repo_root=repo_root)
+            receipt = txn.commit_idempotent(message)
+    except BookkeepingPolicyRefused as policy_exc:
+        _record_receipt(primary_ref, message, "refused", wp_id=wp_id)
+        print(
+            f"Error: Bookkeeping policy refused {operation}: "
+            f"{policy_exc.verdict.error_code}: {policy_exc.verdict.message}"
+        )
+        raise typer.Exit(1) from policy_exc
+
+    _record_receipt(primary_ref, message, "committed", sha=receipt.commit_sha, wp_id=wp_id)
+
+
 def _commit_via_coordination_transaction(
     *,
     coord_branch: str,
@@ -413,11 +532,42 @@ def _commit_via_coordination_transaction(
     mid8: str,
     wp_id: str,
 ) -> CommitReceipt:
-    """Commit workflow changes via BookkeepingTransaction."""
+    """Commit workflow changes via BookkeepingTransaction.
+
+    coord-staging-partition (#4905): every claim / resume-refresh /
+    review-claim staging site funnels through this ONE sink, so ``paths`` is
+    partitioned by artifact kind here, by construction, before anything is
+    staged: a PRIMARY-partition path (``WORK_PACKAGE_TASK``, spec/plan/tasks)
+    routes to the mission's PRIMARY target branch via a second,
+    ``commit_to_primary_target=True`` transaction (:func:`
+    _commit_primary_partition_group`) and NEVER reaches the coordination
+    worktree; only ``STATUS_STATE`` bookkeeping (status.events.jsonl /
+    status.json) is committed to ``coord_branch`` here, exactly as before.
+    This closes the class of add/add conflicts a later lane's FR-009
+    planning merge hit when cut from a coord tip that carried a WP file. The
+    returned receipt is always the COORD-branch commit — the only one
+    downstream callers (lane auto-rebase revert/sync) consume; the PRIMARY
+    commit's receipt is recorded for the T029 summary but not otherwise
+    surfaced.
+    """
     from specify_cli.coordination.transaction import (
         BookkeepingPolicyRefused,
         BookkeepingTransaction,
     )
+
+    primary_paths, coord_paths = _partition_paths_by_primary_kind(paths, mission_slug=mission_slug)
+
+    if primary_paths:
+        _commit_primary_partition_group(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            mission_id=mission_id,
+            mid8=mid8,
+            paths=primary_paths,
+            message=message,
+            operation=operation,
+            wp_id=wp_id,
+        )
 
     try:
         with BookkeepingTransaction.acquire(
@@ -428,30 +578,7 @@ def _commit_via_coordination_transaction(
             destination_ref=coord_branch,
             operation=operation,
         ) as txn:
-            for path in paths:
-                if not path.exists():
-                    continue
-                if path.resolve().is_relative_to(txn.worktree_root.resolve()):
-                    txn.stage_path(path)
-                    continue
-                txn_path = _transaction_path_for(
-                    source_path=path,
-                    repo_root=repo_root,
-                    worktree_root=txn.worktree_root,
-                )
-                if txn_path.resolve() == path.resolve():
-                    txn.stage_path(path)
-                else:
-                    incoming = path.read_bytes()
-                    # #1602: the canonical event log is append-only. Never let a
-                    # main-checkout copy overwrite (clobber) the coordination
-                    # branch's lane history — union-merge instead so existing
-                    # coord events always survive.
-                    if path.name == _STATUS_EVENTS_FILENAME and txn_path.exists():
-                        incoming = _merge_event_log_bytes(
-                            txn_path.read_bytes(), incoming
-                        )
-                    txn.write_artifact(txn_path, incoming)
+            _stage_transaction_paths(txn, coord_paths, repo_root=repo_root)
             # WP04/T015 (FR-004, #2861): the transactional status emit already
             # committed this lane transition to the coord worktree, so the
             # staged paths are byte-identical to HEAD. Use the idempotent commit
