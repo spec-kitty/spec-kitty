@@ -1140,6 +1140,7 @@ def git_rev_list_count(
     *,
     pathspecs: tuple[str, ...] | None = None,
     timeout: float | None = None,
+    full_history: bool = False,
 ) -> int | None:
     """Fail-closed ``git rev-list --count <rev_range> [-- <pathspecs>]``.
 
@@ -1158,12 +1159,26 @@ def git_rev_list_count(
             commits touching at least one matching path are counted.
         timeout: Optional subprocess timeout (seconds); ``TimeoutExpired``
             propagates (not swallowed).
+        full_history: When ``True``, inserts ``--full-history`` immediately
+            after ``--count`` (#4593 item1). This disables git's default
+            history simplification, so a source commit that reaches the
+            range only through a TREESAME merge (a merge whose diff against
+            its followed parent is empty for the pathspec) is no longer
+            pruned from the count. Without ``--simplify-merges``, this also
+            means source-relevant merge commits themselves get counted, so
+            the result is a conservative upper bound on the number of
+            source commits, not an exact count — acceptable for message-only
+            consumers (blocking decisions still derive from the full
+            merge-base diff, not this count).
 
     Returns:
         The commit count on success; ``None`` on non-zero exit or
         non-numeric stdout.
     """
-    cmd = ["git", "rev-list", "--count", rev_range]
+    cmd = ["git", "rev-list", "--count"]
+    if full_history:
+        cmd.append("--full-history")
+    cmd.append(rev_range)
     if pathspecs:
         cmd.extend(["--", *pathspecs])
     result = subprocess.run(
