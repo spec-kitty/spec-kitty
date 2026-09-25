@@ -279,8 +279,8 @@ class TestCheckLaneGates:
             "acceptance_matrix_verdict",
         }
 
-    def test_missing_lanes_manifest_is_a_silent_noop(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A flat/legacy mission with no lanes.json at all: no lane gates apply."""
+    def test_missing_lanes_manifest_blocks_and_skips_all_checks(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """#4891: a genuinely absent lanes.json must fail closed, not silently no-op."""
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
         activity_issues: list[str] = []
         skipped: list[AcceptanceCheckDiagnostic] = []
@@ -288,7 +288,14 @@ class TestCheckLaneGates:
 
         acceptance_module._check_lane_gates(tmp_path, tmp_path, "main", activity_issues, skipped, blocked)
 
-        assert activity_issues == [] and skipped == [] and blocked == []
+        assert {item.check for item in blocked} == {"lanes_manifest"}
+        assert activity_issues != []
+        assert {item.check for item in skipped} == {
+            "acceptance_matrix_presence",
+            "acceptance_matrix_evidence",
+            "negative_invariants",
+            "acceptance_matrix_verdict",
+        }
 
     def test_target_branch_mismatch_between_meta_and_lanes_blocks(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(

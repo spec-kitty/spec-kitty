@@ -146,7 +146,15 @@ def test_collect_feature_summary_reports_missing_canonical_metadata(feature_repo
 
 
 def test_perform_acceptance_without_commit(feature_repo: Path, mission_slug: str) -> None:
+    from tests.lane_test_utils import write_single_lane_manifest
     from tests.utils import run
+
+    # #4891: absence is now fail-closed, so this mechanics-only test (it is not
+    # exercising the acceptance-matrix gate) needs a lanes.json. A planning-lane
+    # manifest keeps the matrix gate a no-op (is_planning_artifact_only), so no
+    # acceptance-matrix.json fixture is needed either.
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    write_single_lane_manifest(feature_dir, lane_id="lane-planning")
 
     _force_lane(feature_repo, mission_slug, "WP01", "in_progress")
     run(["git", "commit", "-am", "Update to doing"], cwd=feature_repo)
@@ -163,6 +171,35 @@ def test_perform_acceptance_without_commit(feature_repo: Path, mission_slug: str
     payload = result.to_dict()
     assert payload["accepted_by"] == "Tester"
     assert payload["mode"] == ACCEPTANCE_MODE_CHECKLIST
+
+
+@pytest.mark.regression
+def test_accept_fails_closed_when_lanes_json_is_absent(feature_repo: Path, mission_slug: str) -> None:
+    # regression: #4891 -- `spec-kitty accept` must not silently skip the
+    # entire acceptance-matrix gate when lanes.json is absent. Otherwise mode
+    # (present-lanes, all WPs approved/done, no metadata issues) is the exact
+    # shape `test_perform_acceptance_without_commit` uses to reach `ok=True`;
+    # the only difference here is that lanes.json is never written.
+    from tests.utils import run
+
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    assert not (feature_dir / "lanes.json").exists()
+
+    _force_lane(feature_repo, mission_slug, "WP01", "in_progress")
+    run(["git", "commit", "-am", "Update to doing"], cwd=feature_repo)
+    _force_lane(feature_repo, mission_slug, "WP01", "done")
+
+    summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
+
+    assert summary.ok is False
+    assert {item.check for item in summary.blocked_checks} == {"lanes_manifest"}
+    assert {item.check for item in summary.skipped_checks} == {
+        "acceptance_matrix_presence",
+        "acceptance_matrix_evidence",
+        "negative_invariants",
+        "acceptance_matrix_verdict",
+    }
+    assert any("finalize-tasks" in issue for issue in summary.activity_issues)
 
 
 @_ACCEPT_COMMAND_XDIST_QUARANTINE
