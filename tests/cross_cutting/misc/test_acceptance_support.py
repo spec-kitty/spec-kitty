@@ -11,7 +11,9 @@ from typer.testing import CliRunner
 
 from specify_cli import acceptance as acc
 from specify_cli import app as cli_app
+from specify_cli.acceptance.matrix import AcceptanceCriterion, AcceptanceMatrix, write_acceptance_matrix
 from specify_cli.task_utils import support as th
+from tests.lane_test_utils import write_single_lane_manifest
 
 pytestmark = [pytest.mark.integration]
 
@@ -135,6 +137,29 @@ def _remove_runtime_annotation_field(feature_repo: Path, mission_slug: str, fiel
     )
 
 
+def _passing_acceptance_matrix(mission_slug: str) -> AcceptanceMatrix:
+    """A minimal acceptance matrix whose ``overall_verdict`` is ``pass`` (#5030).
+
+    #4891 made the lane-gate's acceptance-matrix check reachable (rather than
+    a no-op) once a non-planning ``lanes.json`` is present. The quarantined
+    accept-CLI tests that seed a lane manifest need a passing matrix too, or
+    the gate blocks on ``acceptance_matrix_verdict`` before reaching the
+    behavior under test.
+    """
+    return AcceptanceMatrix(
+        mission_slug=mission_slug,
+        criteria=[
+            AcceptanceCriterion(
+                criterion_id="AC-001",
+                description="WP01 completes as specified",
+                proof_type="automated_test",
+                pass_fail="pass",
+                evidence="test evidence",
+            )
+        ],
+    )
+
+
 def test_collect_feature_summary_reports_missing_canonical_metadata(feature_repo: Path, mission_slug: str) -> None:
     _remove_runtime_annotation_field(feature_repo, mission_slug, "assignee")
 
@@ -211,6 +236,10 @@ def test_accept_command_reports_approved_wps_without_closing(feature_repo: Path,
     _write_acceptance_meta(feature_repo, mission_slug)
     _seed_convention_dirs(feature_repo, mission_slug)
     write_wp(feature_repo, mission_slug, "planned", "WP02")
+    # #4891: accept fails closed when lanes.json is absent.
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    write_single_lane_manifest(feature_dir)
+    write_acceptance_matrix(feature_dir, _passing_acceptance_matrix(mission_slug))
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Add second WP and meta"], cwd=feature_repo)
 
@@ -295,13 +324,16 @@ def test_accept_no_commit_reports_merge_pending_without_mutation(feature_repo: P
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
     _write_acceptance_meta(feature_repo, mission_slug)
     _seed_convention_dirs(feature_repo, mission_slug)
+    # #4891: accept fails closed when lanes.json is absent.
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    write_single_lane_manifest(feature_dir)
+    write_acceptance_matrix(feature_dir, _passing_acceptance_matrix(mission_slug))
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Add meta"], cwd=feature_repo)
     _approve_wp(feature_repo, mission_slug, "WP01")
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Approve WP01"], cwd=feature_repo)
 
-    feature_dir = feature_repo / "kitty-specs" / mission_slug
     before_events = len(read_events(feature_dir))
     monkeypatch.chdir(feature_repo)
     result = runner.invoke(
@@ -534,10 +566,13 @@ def test_accept_does_not_require_done_evidence_for_approved_wp(feature_repo: Pat
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
     _write_acceptance_meta(feature_repo, mission_slug)
     _seed_convention_dirs(feature_repo, mission_slug)
+    # #4891: accept fails closed when lanes.json is absent.
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    write_single_lane_manifest(feature_dir)
+    write_acceptance_matrix(feature_dir, _passing_acceptance_matrix(mission_slug))
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Add meta"], cwd=feature_repo)
 
-    feature_dir = feature_repo / "kitty-specs" / mission_slug
     for lane in ("claimed", "in_progress", "for_review", "in_review"):
         emit_status_transition(
             feature_dir=feature_dir,
