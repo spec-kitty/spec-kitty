@@ -227,7 +227,6 @@ def test_accept_fails_closed_when_lanes_json_is_absent(feature_repo: Path, missi
     assert any("finalize-tasks" in issue for issue in summary.activity_issues)
 
 
-@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_command_reports_approved_wps_without_closing(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
     from tests.utils import run, write_wp
@@ -315,7 +314,6 @@ def test_accept_diagnose_json_reports_missing_events_bootstrap_issue(feature_rep
     assert "Traceback" not in result.output
 
 
-@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_no_commit_reports_merge_pending_without_mutation(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
     from specify_cli.status.store import read_events
@@ -555,7 +553,6 @@ def test_accept_diagnose_does_not_execute_custom_negative_invariants(feature_rep
     assert status.stdout == ""
 
 
-@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_does_not_require_done_evidence_for_approved_wp(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """Accept records mission acceptance; merge owns approved -> done closure."""
     import specify_cli.status.emit as status_emit
