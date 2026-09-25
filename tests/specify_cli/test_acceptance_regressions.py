@@ -28,10 +28,14 @@ from specify_cli.acceptance import (
     collect_feature_summary,
     perform_acceptance,
 )
+from specify_cli.acceptance.matrix import AcceptanceCriterion, AcceptanceMatrix, write_acceptance_matrix
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.task_utils import LANES
 from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPInnerStateDelta
 from specify_cli.status.store import StoreError, append_annotations_atomic_verified, append_event
 from specify_cli.cli.commands import accept as accept_module
+from tests.lane_test_utils import write_mission_meta, write_single_lane_manifest
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: subprocess CLI invocation
@@ -355,6 +359,78 @@ def _create_test_feature(
     return repo_root, feature_dir
 
 
+def _passing_acceptance_matrix(mission_slug: str) -> AcceptanceMatrix:
+    """A minimal acceptance matrix whose ``overall_verdict`` is ``pass``."""
+    return AcceptanceMatrix(
+        mission_slug=mission_slug,
+        criteria=[
+            AcceptanceCriterion(
+                criterion_id="AC-001",
+                description="WP01 completes as specified",
+                proof_type="automated_test",
+                pass_fail="pass",
+                evidence="test evidence",
+            )
+        ],
+    )
+
+
+def _seed_lane_gate(
+    repo_root: Path,
+    feature_dir: Path,
+    *,
+    target_branch: str,
+) -> None:
+    """#4891: seed a ``lane-a`` manifest + a passing matrix so BOTH the
+    now-unconditional lanes gate and the (consequently reachable, non-planning)
+    matrix gate clear for whatever branch is currently checked out, then commit
+    both so the tree stays clean for ``summary.ok``'s ``git_dirty`` check.
+
+    ``mission_branch`` is pinned to the branch that is ACTUALLY checked out
+    right now (queried live, not guessed) so this is hermetic regardless of
+    git's ambient default-branch-name config. ``target_branch`` must equal
+    meta.json's ``target_branch`` (the caller's test scenario value) — the
+    branch gate blocks on a meta/lanes ``target_branch`` mismatch.
+    """
+    write_mission_meta(feature_dir)
+    actual_branch = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", "--abbrev-ref", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+    write_lanes_json(
+        feature_dir,
+        LanesManifest(
+            version=1,
+            mission_slug=feature_dir.name,
+            mission_id=feature_dir.name,
+            mission_branch=actual_branch,
+            target_branch=target_branch,
+            lanes=[
+                ExecutionLane(
+                    lane_id="lane-a",
+                    wp_ids=("WP01",),
+                    write_scope=("src/**",),
+                    predicted_surfaces=("test",),
+                    depends_on_lanes=(),
+                    parallel_group=0,
+                )
+            ],
+            computed_at="2026-04-05T12:00:00Z",
+            computed_from="test",
+        ),
+    )
+    write_acceptance_matrix(feature_dir, _passing_acceptance_matrix(feature_dir.name))
+    subprocess.run(["git", "-C", str(repo_root), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "commit", "-m", "Add lanes manifest and acceptance matrix"],
+        check=True,
+        capture_output=True,
+    )
+
+
 # ---------------------------------------------------------------------------
 # T012: materialize() does not dirty the repo
 # ---------------------------------------------------------------------------
@@ -521,6 +597,20 @@ def test_perform_acceptance_persists_accept_commit(tmp_path: Path) -> None:
     # mission branch — the same pattern the sibling regression tests use.
     subprocess.run(
         ["git", "-C", str(repo_root), "checkout", "-b", f"kitty/mission-{_FEATURE_SLUG}"],
+        check=True,
+        capture_output=True,
+    )
+
+    # #4891: accept fails closed when lanes.json is absent. The default
+    # lane-a manifest's mission_branch (kitty/mission-{feature_dir.name}) and
+    # target_branch ("main") both already match this fixture, so the branch
+    # gate clears; the (consequently reachable) matrix gate needs a passing
+    # acceptance-matrix.json too.
+    write_single_lane_manifest(feature_dir)
+    write_acceptance_matrix(feature_dir, _passing_acceptance_matrix(feature_dir.name))
+    subprocess.run(["git", "-C", str(repo_root), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(repo_root), "commit", "-m", "Add lanes manifest and acceptance matrix"],
         check=True,
         capture_output=True,
     )
@@ -974,6 +1064,9 @@ class TestIntegrationBranchGuard:
                 capture_output=True,
             )
 
+        # #4891: accept fails closed when lanes.json is absent.
+        _seed_lane_gate(repo_root, feature_dir, target_branch=target_branch)
+
         summary = collect_feature_summary(tmp_path, _FEATURE_SLUG)
         # Override the detected branch to simulate the desired state
         object.__setattr__(summary, "branch", branch)
@@ -1032,6 +1125,11 @@ class TestIntegrationBranchGuard:
             check=True,
             capture_output=True,
         )
+
+        # #4891: accept fails closed when lanes.json is absent. meta.json has no
+        # target_branch here, so the branch-gate's meta/lanes mismatch check is
+        # a no-op regardless of the lanes manifest's target_branch value.
+        _seed_lane_gate(repo_root, feature_dir, target_branch="main")
 
         summary = collect_feature_summary(tmp_path, _FEATURE_SLUG)
         object.__setattr__(summary, "branch", "master")

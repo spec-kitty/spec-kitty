@@ -34,6 +34,7 @@ from specify_cli.acceptance import collect_feature_summary, perform_acceptance
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
+from tests.lane_test_utils import write_single_lane_manifest
 from tests.mocked_env import setup_mocked_env
 
 pytestmark = [pytest.mark.integration, pytest.mark.fast]
@@ -93,6 +94,18 @@ def _scaffold_mission(tmp_path: Path, mission_slug: str, wp_ids: list[str]) -> P
 
     for wp_id in wp_ids:
         _write_wp_file(feature_dir / "tasks", wp_id)
+
+    # #4891: accept fails closed when lanes.json is absent. A planning-lane
+    # manifest keeps the (irrelevant here) acceptance-matrix gate a no-op
+    # while satisfying the now-unconditional lanes gate; target_branch matches
+    # the mocked "main" branch _collect() uses throughout this module.
+    write_single_lane_manifest(
+        feature_dir,
+        wp_ids=tuple(wp_ids),
+        lane_id="lane-planning",
+        target_branch=_TARGET_BRANCH,
+    )
+
     return feature_dir
 
 
