@@ -3,7 +3,7 @@
 **Inputs**: Design documents from `kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/` (spec.md, plan.md rev 2, research.md, data-model.md, quickstart.md, research/*)
 **Prerequisites**: plan.md (rev 2, 13 WPs), spec.md (rev 2 + errata)
 
-**Tests**: Required. Every code WP lands a failing-first acceptance test (C-001); deletion-only WPs follow D-OP-4.
+**Tests**: Required. Every WP lands a failing-first acceptance test as its first commit (C-001), including deletion-heavy WP05 and WP07. The one exception is WP09 (operator-approved charter exception, plan D-OP-4 / Complexity Tracking), whose evidence substitute is the committed mutation script `research/wp09_mutation_matrix.py`. C-001, C-005, C-006 and NFR-005 bind every WP.
 
 **Organization**: Fine-grained subtasks (`Txxx`) roll up into work packages (`WPxx`). Subtasks are **reference rows**, not checkboxes: record completion with `spec-kitty agent tasks mark-status <Txxx> --status done`.
 
@@ -45,7 +45,7 @@
 | T024 | Non-widening, ordinal and diagnostics proofs | WP04 | |
 | T025 | 80/80 equivalence proof plus self-test output | WP04 | |
 | T026 | Full architectural run and quality gates | WP04 | |
-| T027 | Record D-OP-4 red-first evidence on base (0 callers, stale-row warning, #5117 reproduction) | WP05 | [P] |
+| T027 | RED first: `test_load_baseline_rejects_retired_keys`; base evidence (0 callers, stale-row warning, #5117 reproduction) | WP05 | [P] |
 | T028 | Delete dead machinery in `_inert_slots.py` | WP05 | |
 | T029 | Prune `_inert_slots_baseline.yaml` + parser (36 rows) | WP05 | |
 | T030 | Sequenced `_baselines.yaml` inert-leaf edit + `test_reference_enum_ratchet.py` prose | WP05 | |
@@ -56,7 +56,7 @@
 | T035 | Remove `category_1` leaf + machinery; survivor proof; ADR bullet | WP06 | |
 | T036 | Remove `skip_marker_blocks` leaf + machinery; round-trip comments | WP06 | |
 | T037 | Lower-below-live mutations, planted-leaf self-mutation, floors | WP06 | |
-| T038 | Record D-OP-4 red-first evidence (audit exit 1, STALE, token count) | WP07 | [P] |
+| T038 | RED first: survivor re-imports `_surface_resolution_scan`; base evidence (audit exit 1, STALE, token count) | WP07 | [P] |
 | T039 | `git mv` audit.py → `_surface_resolution_scan.py`, strip, pyproject L954 | WP07 | |
 | T040 | Delete remaining `surface_resolution_audit/` files, pyproject L955 | WP07 | |
 | T041 | Rewire survivor `test_single_mission_surface_resolver.py` | WP07 | |
@@ -201,10 +201,6 @@ T026 Full `tests/architectural/` run, blast radius, quality gates, campsite (WP0
 
 ---
 
-Subtask Index rows:
-
----
-
 ## WP05 – Inert-slot retirement (#3026, #3962)
 
 **Summary**
@@ -218,15 +214,16 @@ Subtask Index rows:
   - `pytest tests/architectural/test_no_inert_schema_slots.py -q -rw` passes with no "baseline shrank" warning; on base the warning names `styleguide-references, model`.
   - The retired-token search returns 0 live hits.
   - `test_walk_floors_fail_on_a_collapsed_walk` reds both walks through the real `scanned_slots`.
+  - `test_load_baseline_rejects_retired_keys` is RED on base (first commit) and GREEN after the prune.
 
 **Subtasks**
-T027 Record D-OP-4 red-first evidence on base (0 callers, stale-row warning, #5117 reproduction) (WP05)
+T027 RED first: `test_load_baseline_rejects_retired_keys` (4 cases, RED on base); base evidence (0 callers, stale-row warning, #5117 reproduction) (WP05)
 T028 Delete dead machinery in `_inert_slots.py` (caps, owner predicates, code-only record, src import) (WP05)
-T029 Prune `_inert_slots_baseline.yaml` + parser (36 rows, no owner/provisional/mission/code_only; reject retired keys) (WP05)
+T029 Prune `_inert_slots_baseline.yaml` + parser (36 rows, no owner/provisional/mission/code_only; reject retired keys, turning T027 GREEN) (WP05)
 T030 Sequenced `_baselines.yaml` edit (38→36, delete 2 inert leaves) + `test_reference_enum_ratchet.py:192` prose (WP05)
 T031 Wire per-walk floors with self-mutation; token search 0; green evidence (WP05)
 
-**Implementation sketch**: gather base evidence and confirm #5117, then do the atomic parser+YAML+module prune (T028+T029 in one commit), then the `_baselines.yaml` block edit, then the floors test and the final token search.
+**Implementation sketch**: commit the failing-first retired-key test, gather base evidence and confirm #5117, then do the atomic parser+YAML+module prune (T028+T029 in one commit), then the `_baselines.yaml` block edit, then the floors test and the final token search.
 
 **Dependencies**: none (#5117 filed as the FR-019(b) precondition).
 
@@ -286,18 +283,18 @@ T037 Lower-below-live mutation tests (19), planted-leaf self-mutation, table flo
   - Remove its own two pyproject format-exclude lines.
 - **Priority**: P1 (US2, #3011 is P1).
 - **Independent test**:
-  - The survivor `test_single_mission_surface_resolver.py` has the same 8 node IDs, all green.
+  - The survivor `test_single_mission_surface_resolver.py`, re-pointed at `_surface_resolution_scan`, is RED on base and ends with the same 8 node IDs, all green.
   - The path-qualified token search (`surface_resolution_audit|rekey_inventory|write_candidate_classification`) finds hits on base and 0 after.
   - `test_untrusted_path_containment.py` stays green.
 
 **Subtasks**
-T038 Record D-OP-4 red-first evidence (audit exit 1, `--check` STALE, base token count, survivor 8/8) (WP07)
+T038 RED first: re-point the survivor at `_surface_resolution_scan` (`ModuleNotFoundError` on base); base evidence (audit exit 1, `--check` STALE, base token count, survivor 8/8) (WP07)
 T039 `git mv` audit.py → `_surface_resolution_scan.py`, strip to scanner, fix root depth, drop bootstrap/noqa, pyproject L954 (WP07)
 T040 Delete rekey_inventory.py, inventory.md, RULESET.md, audited-surfaces.md, write_candidate_classification.yaml; pyproject L955 (WP07)
-T041 Rewire the survivor to a normal import; fix its docstrings, floor comment and failure messages (WP07)
+T041 Finish the survivor rewire (import committed in T038); fix its docstrings, floor comment and failure messages (WP07)
 T042 FR-009 references (`_ratchet_keys.py`, `test_no_worktree_name_guess.py:155`, `untrusted_path_audit/inventory.md:76`), token search 0, validation (WP07)
 
-**Implementation sketch**: record evidence, then do move + strip + rewire + pyproject line in one green step, then delete the remaining files with their pyproject line, then the reference edits and the final search.
+**Implementation sketch**: record evidence and commit the RED survivor re-import, then do move + strip + pyproject line as the green step, then delete the remaining files with their pyproject line, then the reference edits and the final search.
 
 **Dependencies**: none.
 
@@ -347,10 +344,6 @@ T048 FR-016 residue in execution-context, transition-gate and docs-CLI parity su
 
 ---
 
-Subtask Index rows:
-
----
-
 ## WP09 – Status parity retirement and relocation
 
 **Summary**: Delete `tests/status/test_parity.py` (740 LOC of 0.1x cross-branch scaffold) so that no live invariant is lost (FR-014, NFR-006). Each of the 21 test functions gets a disposition:
@@ -360,7 +353,7 @@ Subtask Index rows:
 
 The five transition-matrix tests are presumed duplicates of `test_transitions.py`. That presumption is confirmed by mutations M2–M6 before any test is retired. The WP also removes its own `pyproject.toml` format-exclude line.
 **Priority**: P2 (US3).
-**Independent test**: `pytest tests/status/ tests/architectural/test_no_retired_subsystems.py` is green after deletion. The recorded mutation matrix M1–M10 reds each named survivor or relocated test. Red-first follows D-OP-4 (tracer evidence, no tombstones).
+**Independent test**: `pytest tests/status/ tests/architectural/test_no_retired_subsystems.py` is green after deletion. The recorded mutation matrix M1–M10 reds each named survivor or relocated test. Red-first runs under the operator-approved charter exception (plan D-OP-4 / Complexity Tracking): the committed mutation script is the evidence substitute; no tombstones.
 
 **Subtasks**
 T049 Reproducible mutation matrix M1–M10 (`research/wp09_mutation_matrix.py`, committed on the planning branch); record its verbatim output via tracer-append (WP09)

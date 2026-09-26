@@ -23,6 +23,9 @@ history:
 - at: '2026-09-26T17:00:00Z'
   actor: planner-priti
   action: Folded post-tasks squad findings
+- at: '2026-09-26T18:00:00Z'
+  actor: planner-priti
+  action: Analysis remediation (D1, I1-I8, A1, C1, D2)
 agent_profile: python-pedro
 authoritative_surface: tests/status/
 create_intent: []
@@ -84,13 +87,13 @@ Done means:
 1. Every one of the file's 21 test functions (29 collected nodes incl. the 9 parametrized backport cases) has a recorded disposition. Each one is either **retire (duplicate)** with a named survivor and a mutation that reds both, **retire (scaffold)** with a cited reason and a mutation showing it could not fail, or **relocate** into `tests/status/test_reducer.py` or `tests/status/test_transitions.py`. Nothing is left without a disposition. This explicitly includes `test_reduce_then_serialize_roundtrip` (L407) and `test_realistic_log_identical_across_runs` (L660), which the plan's first draft missed.
 2. Tests are relocated **only where no survivor enforces the same invariant**. The five `TestTransitionMatrixParity` tests are presumed duplicates, per the post-plan squad. They are retired as duplicates **after** the mutation matrix confirms a survivor reds. A test with no survivor is relocated, not retired.
 3. `tests/status/test_parity.py` is gone, and its `pyproject.toml` format-exclude line is removed in the same commit.
-4. `tests/status/` and `tests/architectural/` are green, and the evidence is recorded with `spec-kitty agent tracer-append` (D-OP-4).
+4. `tests/status/` and `tests/architectural/` are green, and the evidence is recorded with `spec-kitty agent tracer-append` (charter exception, plan D-OP-4 and Complexity Tracking).
 
 ## Context & Constraints
 
 - Mission: `ratchet-baseline-census-gate-remediation-01M3EW3Z`. Feature dir: `kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/`.
-- Read before starting: `spec.md` (FR-014, NFR-006, US3-AS2), `plan.md` (the WP09 row, D-OP-4, and the pyproject coordination points), `research.md` §F2, `research/postplan-debbie.md` (the two MEDIUM WP09 findings), and `research/grounding-2631_2972.md` §N2.
-- **C-001 as amended by D-OP-4.** This is a deletion WP. The tests being relocated are already GREEN on base, so there is **no honest RED-on-base** (Debbie, post-plan). Do **not** fake one, and do **not** add "module is gone" tombstone tests (the class #3285 removed). Red-first evidence is the mutation matrix in T049, recorded in the tracer, together with the surviving tests staying green.
+- Read before starting: `spec.md` (FR-014, NFR-006, US3-AS2), `plan.md` (the WP09 row, D-OP-4, the Complexity Tracking exception row, and the pyproject coordination points), `research.md` §F2, `research/postplan-debbie.md` (the two MEDIUM WP09 findings), and `research/grounding-2631_2972.md` §N2.
+- **Charter exception to ATDD-First (C-011 / spec C-001), WP09 only.** Approved by the operator (stijn-dejongh) on 2026-09-26 as the resolution of analysis finding D1, and recorded in `plan.md` Complexity Tracking and D-OP-4. This is a pure deletion of duplicated invariants: every test kept or relocated is already GREEN on base, so there is **no honest RED-on-base** (Debbie, post-plan). Do **not** fake one, and do **not** add "module is gone" tombstone tests (the class #3285 removed). The named **evidence substitute** is the committed, reviewer-re-runnable mutation script `research/wp09_mutation_matrix.py` (T049): it must prove that every invariant of `tests/status/test_parity.py` is caught by a surviving or relocated test. The exception covers only the missing failing-first commit; NFR-006 and every other constraint still bind in full.
 - **C-005.** No `src/` changes. Mutations are applied only temporarily, in a scratch copy or via an uncommitted edit that you revert. Never commit them.
 - **Format-exclude.** `tests/status/test_reducer.py` (pyproject L2555) and `tests/status/test_transitions.py` (L2562) are in `[tool.ruff.format].exclude`:
   - Do **not** run `ruff format` on them. WP13 formats files this mission rewrites and removes their lines.
@@ -112,9 +115,9 @@ Commit in your lane worktree (`spec-kitty implement WP09` resolves it). Never pu
 
 ## Subtasks & Detailed Guidance
 
-### Subtask T049 – Mutation matrix: prove each disposition before touching code (D-OP-4 red-first evidence)
+### Subtask T049 – Mutation matrix: prove each disposition before touching code (charter-exception evidence substitute)
 
-- **Purpose**: NFR-006 forbids retiring a test without a named survivor or a mutation proof. The mutation matrix is this WP's red-first evidence: it shows which tests are genuine duplicates and which must be relocated.
+- **Purpose**: NFR-006 forbids retiring a test without a named survivor or a mutation proof. The committed mutation script is the named evidence substitute of this WP's charter exception (in place of a failing-first commit): it proves every invariant of `test_parity.py` is caught by a surviving or relocated test, and shows which tests are genuine duplicates and which must be relocated.
 - **Steps**:
   1. On the planning base (your lane head before any edit), run `.venv/bin/python -m pytest tests/status/test_parity.py tests/status/test_reducer.py tests/status/test_transitions.py tests/status/test_models.py tests/architectural/test_no_retired_subsystems.py -q`. All tests should pass. Record the counts.
   2. **Make the matrix reproducible** (Renata HIGH: the matrix is this WP's entire red-first evidence, so it must not be hand-applied prose). Write `kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/research/wp09_mutation_matrix.py`, excluded from ruff by `ruff.toml` `extend-exclude = ["kitty-specs/*/research/**"]`. It works as follows:
@@ -259,7 +262,7 @@ Non-fakeable checks (from `research/postspec-renata.md`, NFR-006 and FR-013-AS):
 - There are no tombstone tests ("test_parity.py is gone"), and no `src/` diff.
 - `research/wp09_mutation_matrix.py` is committed on the planning branch; the tracer and PR carry its verbatim output. M1 targets `spec_kitty_events.diary` (not `status/reducer.py`), and M2–M4 recompute `ALLOWED_TRANSITIONS`.
 
-**Reviewer RED reproduction** (deletion/relocation WP, D-OP-4: the RED is the mutation matrix). Re-run it yourself against a clean planning-base checkout and compare the table with the tracer:
+**Reviewer RED reproduction** (charter exception, plan D-OP-4 / Complexity Tracking: the evidence substitute is the committed mutation matrix). Re-run it yourself against a clean planning-base checkout and compare the table with the tracer:
 
 ```bash
 git worktree add /tmp/wp09-base 3717c7ea
@@ -269,7 +272,7 @@ git worktree remove /tmp/wp09-base
 
 Each "retire (duplicate)" row must show both the parity test and its survivor red. A row whose survivor stays green is a rejection. A mutation that errors at collection instead of failing an assertion is not valid evidence.
 
-**Requirement coverage** (prose; frontmatter is regenerated by the orchestrator): FR-014, NFR-005, NFR-006, C-001 (as amended by D-OP-4), C-005; contributes to SC-003 and SC-005.
+**Requirement coverage** (prose; frontmatter is regenerated by the orchestrator): FR-014, NFR-005, NFR-006, C-001 (operator-approved charter exception; evidence substitute `research/wp09_mutation_matrix.py`), C-005, C-006; contributes to SC-003 and SC-005.
 - The `pyproject.toml` exclude line is removed in the same commit as the deletion. No other exclude lines change.
 - `tests/status/` and the full `tests/architectural/` are green, and the counts are recorded.
 

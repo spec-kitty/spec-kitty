@@ -46,6 +46,9 @@ history:
 - at: '2026-09-26T17:00:00Z'
   actor: planner-priti
   action: Folded post-tasks squad findings
+- at: '2026-09-26T18:00:00Z'
+  actor: planner-priti
+  action: Analysis remediation (D1, I1-I8, A1, C1, D2)
 agent_profile: python-pedro
 authoritative_surface: tests/architectural/
 create_intent: []
@@ -179,7 +182,7 @@ This WP depends on **all** of WP01–WP12 and closes the mission.
 
 - **Purpose**: Its consuming gate was deleted, so its caps (`canonicalizer_baseline: 3`, `coord_authority_baseline: 3`) enforce nothing, which is the #3026 defect class.
 - **Steps**:
-  1. **D-OP-4 evidence** (tracer, not a tombstone test):
+  1. **Retirement evidence** (tracer, not a tombstone test; WP13's failing-first test is T068's `test_positional_anchor_exemptions_are_pinned_empty`, and D-OP-4's exception covers WP09 only):
      - `grep -rn "resolution_gate_allowlist" tests src scripts --include=*.py` shows only prose readers and the ban's YAML arm. There is no `yaml.safe_load` consumer apart from the ban scanning it.
      - `tests/architectural/test_resolution_authority_gates.py` is absent.
   2. Orphan audit: for every other data file under `tests/architectural/` (`*.yaml`, `*.txt`, `census/*.yaml`, `_exemptions/*.txt`), confirm it has at least one real loader. Record the list in the tracer. If a further orphan is found, **do not** expand scope silently: record it and add it to the FR-019(d) follow-up in T072.
@@ -278,8 +281,8 @@ This WP depends on **all** of WP01–WP12 and closes the mission.
      - #2972 stays `deferred-with-followup`, because the census is by design not fixed in this mission. Marking it `fixed` would be false.
      - Whether the epic #5104 counts as `fixed` with one child deferred by design is an operator call; ask if unsure.
   3. Close gaps. If implementation added a new `#NNNN` reference to a mission artefact (spec/plan/research/tasks), for example a follow-up number from T072, the gate now needs a row for it. Give it its truthful verdict, typically `not-applicable` for a context-only reference. Repeat step 1 until no row is `in-mission` and none is missing.
-  3. FR-020 campsite record: collect the Sonar findings each WP cleaned in its touched test files from the WP Activity Logs, and summarise them in a tracer entry. The count may be zero; say so explicitly.
-  4. Post a short tracker comment on #2972 and #2631 naming this mission and its verdicts (SO #8).
+  4. FR-020 campsite record: collect the Sonar findings each WP cleaned in its touched test files from the WP Activity Logs, and summarise them in a tracer entry. The count may be zero; say so explicitly.
+  5. Post a short tracker comment on #2972 and #2631 naming this mission and its verdicts (SO #8).
 - **Files**: none (the CLI writes the matrix; tracer via CLI).
 
 ### Subtask T074 – Final integration sweep

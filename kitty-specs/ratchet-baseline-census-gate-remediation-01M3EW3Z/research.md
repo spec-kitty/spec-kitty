@@ -653,10 +653,10 @@ WP12 joins all lanes. Critical path: WP02 → WP04 → WP05 → WP12.
 3. **Post-spec claim that `untrusted_path_audit/inventory.md:76` references the retired inventory is false:** it is that directory's own row.
 
 **Decisions**
-- **D-OP-1 (census key).** `CensusKey` = composite key + op + occurrence. Only 3/80 entries need `occurrence=1`.
+- **D-OP-1 (census key).** `CensusKey` = composite key + op + `op_ordinal` (renamed from `occurrence` in plan rev 2 to avoid clashing with `ContentDescriptor.occurrence`). Only 3/80 entries need `op_ordinal=1`.
 - **D-OP-2 (`category_1` and `skip_marker_blocks`).** Remove them, not enforce them. `category_1`'s equality pin shows the earlier toll drain was illusory.
 - **D-OP-3 (comment-only `src/` edits under C-005, for SC-003).** Recommend allowing them, with AST-equality proof.
-- **D-OP-4 (C-001 for deletion-only WP07).** Tracer evidence plus a green survivor, with no tombstones.
+- **D-OP-4 (C-001 for deletion-only WPs).** *Superseded by plan rev 2 / analysis D1:* WP05 and WP07 open with honest failing-first tests; only WP09 carries an operator-approved ATDD-First exception (plan Complexity Tracking), evidenced by a committed mutation script. No tombstones.
 - **D-OP-5 (FR-015).** Feasible; defer only if the Windows or cache-order checks fail.
 - **D-OP-6 (the text arm makes the clock and lock-ban `CALL:`/`path:line` exemption shapes unusable at 0 entries).** Intended: those gates are shrink-only at zero.
 - **Follow-ups beyond FR-019:**

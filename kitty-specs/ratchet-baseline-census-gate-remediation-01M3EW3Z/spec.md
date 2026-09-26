@@ -60,7 +60,7 @@ An agent is told to "use the canonical converter" for the surface-resolution inv
 
 1. **Given** the retirement, **When** `test_single_mission_surface_resolver.py` runs, **Then** it still passes.
 2. **Given** the retirement, **When** docs, READMEs, docstrings and `pyproject.toml` are searched, **Then** no instruction or config entry references the retired converter, inventory, audit entry point or orphaned data files.
-3. **Given** `_baselines.yaml` contains a leaf that no comparison enforces, **When** the ratchet runs, **Then** it fails and names the leaf (RED-first on the planning base: `unassigned_entries`, `masking_suppressions`).
+3. **Given** `_baselines.yaml` contains a leaf that no comparison enforces, **When** the ratchet runs, **Then** it fails and names the leaf (RED-first on the planning base, which carries 4 non-enforcing leaves: `unassigned_entries`, `masking_suppressions`, `category_1`, `skip_marker_blocks`; WP05 removes the first 2 before WP06 lands, so on WP06's lane base the check names the remaining 2).
 4. **Given** any enforced leaf, **When** its value is lowered below the live measurement, **Then** the owning gate fails (proves "enforced" is real).
 5. **Given** the inert-slot retirement, **When** `test_no_inert_schema_slots.py` runs, **Then** its remaining live checks pass and the baseline carries no stale rows.
 
@@ -85,7 +85,7 @@ A maintainer refactors code covered by a parity/equivalence suite. Today some su
 
 ### Edge Cases
 
-- **Census key collisions (majority case, not an edge)**: 28 of 80 census keys share (path, qualname, op); identity must add a deterministic within-function occurrence discriminator, or the entry is rejected at load.
+- **Census key collisions (majority case, not an edge)**: 28 of 80 census keys share (path, qualname, op); identity must add a deterministic within-function ordinal discriminator (`op_ordinal`), or the entry is rejected at load.
 - A migrated exemption whose target is renamed rather than deleted: hand-curated allowlists fail and name it; census allowlists warn (no silent re-bind in either case).
 - The #3206 kernel exemptions move while #3206 is open: migration is content-keyed and therefore order-independent with #3206.
 - A parity test retired as scaffold that actually guarded a live invariant: retirement requires naming the surviving test that enforces the invariant, or a cited reason plus a mutation demonstration that the retired test could not fail.
@@ -133,16 +133,18 @@ A maintainer refactors code covered by a parity/equivalence suite. Today some su
 
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
-| C-001 | ATDD red-first | Each WP lands a failing-first acceptance test as its first commit, RED on the planning base and GREEN at WP completion (charter C-011). Retirement WPs prove red-first through the gate that detects the defect (e.g. the widened ban or the non-enforcing-leaf check), never by adding "symbol is gone" tombstone tests (the class #3285 removed). | Technical | High | Open |
+| C-001 | ATDD red-first | Each WP lands a failing-first acceptance test as its first commit, RED on the planning base and GREEN at WP completion (charter C-011). Retirement WPs prove red-first through a behavioural test or the gate that detects the defect (e.g. the widened ban, the non-enforcing-leaf check, a stricter loader, or a survivor re-pointed at the kept module), never by adding "symbol is gone" tombstone tests (the class #3285 removed). The only exception mechanism is an operator-approved charter exception recorded in the plan's Complexity Tracking table with a named evidence substitute; one is recorded (WP09, analysis finding D1). | Technical | High | Open |
 | C-002 | Oracle retirement deferred | The bridge-parity two-run oracle is not retired or relaxed; it waits for #2633. | Technical | High | Open |
 | C-003 | Census not missioned | #2972 is consumed only as campsite work on touched files. | Business | Medium | Open |
 | C-004 | One identity mechanism | Migrations use the existing content-identity substrate (`composite_key` / `ContentDescriptor`); the census helper's duplicate qualname logic is unified onto it rather than kept as a second mechanism. | Technical | High | Open |
 | C-005 | No production behaviour change | Changes are confined to `tests/`, test helpers, docs, tooling config and mission artefacts; no `src/` behaviour changes. Comment-only `src/` edits needed for SC-003 are allowed when an AST-equality check proves the module is unchanged (plan decision D-OP-3). | Technical | High | Open |
 | C-006 | Branch and publication | Work lands on `claude/spec-kitty-remediation-wfje22`; publication is by PR to `main`; implementers do not merge. | Business | High | Open |
 
+**C-006 rationale (analysis finding D2).** The session harness pins the development branch `claude/spec-kitty-remediation-wfje22`, so the mission cannot use the charter's preferred `issue-<n>-<slug>` name. Publication is unchanged: one PR targets `main` and the operator merges. The charter's issue-branch preference is advisory guidance under "Collaboration Strategy" ("Issue branch first"); the binding rules of "Agent Push Authorization" (never push `main`, publish through a named branch and a PR, do not merge) are all met. This is a recorded naming deviation, not a charter exception.
+
 ### Key Entities
 
-- **Allowlist / exemption entry**: a record that exempts one source construct from a gate; identified by content (path + qualname + token + occurrence), never by line.
+- **Allowlist / exemption entry**: a record that exempts one source construct from a gate; identified by content, never by line. Hand-curated entries are `ContentDescriptor`s (path + qualname + token substring + `occurrence`); census entries are `CensusKey`s (path + qualname + token line + op + `op_ordinal`).
 - **Hand-curated vs census allowlist**: hand-curated lists (join, kernel, os-detect) are small and fail on stale entries; census lists record pre-existing operation sites and warn on stale entries.
 - **Baseline leaf**: a numeric ceiling in `tests/architectural/_baselines.yaml`; valid only if a comparison fails when the live measurement exceeds it.
 - **Parity suite verdict**: keep / convert / retire, with discriminator class (behavioural invariant vs positive shape), churn evidence and rationale.
@@ -156,7 +158,7 @@ A maintainer refactors code covered by a parity/equivalence suite. Today some su
 - **SC-003**: 0 references to retired files or symbols remain in live docs, tests, source or tooling config.
 - **SC-004**: 0 `_baselines.yaml` leaves are non-enforcing.
 - **SC-005**: 100% of modules in the #2631 sweep have a recorded verdict; 0 parity bans pass when their scan target is empty.
-- **SC-006**: all five child issues of #5104 plus #3962 have an issue-matrix row, and the three FR-019 follow-up issues exist.
+- **SC-006**: all five child issues of #5104 plus #3962 have an issue-matrix row, and the four FR-019 follow-up issues (a–d) exist.
 
 ## Assumptions and dependencies
 

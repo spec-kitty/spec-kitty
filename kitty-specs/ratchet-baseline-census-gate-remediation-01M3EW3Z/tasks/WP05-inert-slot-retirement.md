@@ -26,6 +26,9 @@ history:
 - at: '2026-09-26T17:00:00Z'
   actor: planner-priti
   action: Folded post-tasks squad findings
+- at: '2026-09-26T18:00:00Z'
+  actor: planner-priti
+  action: Analysis remediation (D1, I1-I8, A1, C1, D2)
 agent_profile: python-pedro
 authoritative_surface: tests/architectural/_inert_slots
 create_intent: []
@@ -94,12 +97,12 @@ Done means all of the following hold:
 
 ## Context & Constraints
 
-- **Mission artefacts**: `kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/` has `spec.md` (FR-010, US2-AS5, C-001, C-005), `plan.md` (rev 2: WP05 row, D-OP-4, Coordination points), `research.md` §D4 (exact deletions), `data-model.md` ("Baseline leaf"), and `research/postspec-renata.md` ([MEDIUM] FR-010/FR-018(b) and the SC-003 token list).
+- **Mission artefacts**: `kitty-specs/ratchet-baseline-census-gate-remediation-01M3EW3Z/` has `spec.md` (FR-010, US2-AS5, C-001, C-005), `plan.md` (rev 2: WP05 row, Charter Check ATDD row, Coordination points), `research.md` §D4 (exact deletions), `data-model.md` ("Baseline leaf"), and `research/postspec-renata.md` ([MEDIUM] FR-010/FR-018(b) and the SC-003 token list).
 - **Charter**: `.kittify/charter/charter.md`. The binding rules are: Standing Order #4 (red-first, never retry-to-green), #5 (gate non-vacuity), #6 (canonical sources), and the burn-down policy (shrink-only baselines).
 - **Governance applied while authoring this prompt**: profile `planner-priti` (decomposition, sequencing, risk); `charter context --action tasks` (DIRECTIVE_003 decision records, DIRECTIVE_041/043 content anchoring and gate non-vacuity, DIRECTIVE_044 single authority, RECONCILE_CHANGE_SCOPE_TENSIONS, USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY).
 - **Precondition (FR-019(b))**: issue **#5117** records the silent `model` suppression that `code_only_drift` detects. Before deleting `code_only_drift`, confirm the #5117 body contains the reproduction: slot `model` @ `src/charter/offering/schemas/agent-profile.schema.yaml`, suppressed by `Field(..., alias="model")` in `agent_profiles/profile.py` and `schema_models.py`. If the body lacks it, add a comment with the detector output you capture in T027. **Do not delete the detector before that record exists.**
 - **Invariant honesty** (Renata INFO): the owner "anti-weasel" invariant was already lost when #3285 removed its enforcing tests. This WP formally abandons it and does not claim to preserve it. Say so in the tracer entry.
-- **C-001 / D-OP-4 (deletion-only WP)**: this WP proves red-first through **tracer evidence plus a green surviving suite**, never through "symbol is gone" tombstone tests (the class #3285 removed). Record evidence with `spec-kitty agent tracer-append`.
+- **C-001 (no exception for this WP)**: your **first commit** is the failing-first behavioural test `test_load_baseline_rejects_retired_keys` (T027). It is honestly RED on the planning base: the base `load_baseline()` requires `mission:` and `owner:`, accepts `provisional:`, silently ignores `code_only_suppressions:`, and has no unknown-key check at all, so no base error message says `unknown key`. T028+T029 turn it GREEN. The base-side tracer evidence (0 callers, stale-row warning, #5117 reproduction) supports the retirement but is not the red-first test. Never add "symbol is gone" tombstone tests (the class #3285 removed). Only WP09 carries a charter exception (plan Complexity Tracking).
 - **C-005**: no `src/` change at all in this WP.
 - **Sequenced out-of-map edit**: `tests/architectural/_baselines.yaml` is **owned by WP06**. WP06 depends on WP05, so WP05 edits only the three `test_no_inert_schema_slots` leaves and their comment block (currently `_baselines.yaml` L239-298), in one commit. Touch nothing else in that file. **Do not edit `tests/architectural/test_ratchet_baselines.py`** either: it reads only `baseline_entries` (via `_inert_slots.BASELINE_SLOTS`, L419-424 and L581-586), and WP06 rewrites it.
 - **Format-exclude rule**: `test_no_inert_schema_slots.py` (pyproject L1005) and `test_reference_enum_ratchet.py` (L1022) are listed in `[tool.ruff.format].exclude`. Do **not** run `ruff format` on them and do **not** edit `pyproject.toml` (WP13 owns those lines). `_inert_slots.py` is **not** excluded, so it must pass `ruff format --check`. If an edit accidentally makes an excluded file format-clean, `test_ruff_format_exclude_ratchet.py::test_every_exclude_entry_still_genuinely_reformats` goes red. Stop and escalate; do not touch pyproject.
@@ -118,10 +121,11 @@ Implementers commit in their lane worktree (`spec-kitty implement WP05`). Never 
 
 ## Subtasks & Detailed Guidance
 
-### Subtask T027 – Record red-first evidence on the planning base (D-OP-4)
+### Subtask T027 – RED first: `test_load_baseline_rejects_retired_keys`, plus base evidence
 
-- **Purpose**: No committed gate detects dead inert-slot machinery, because its gate was deleted by #3285. C-001 is therefore satisfied by recorded, reproducible evidence of the defect on the base, and T031 shows the defect gone with the survivor suite green. This subtask must run **before** any edit.
+- **Purpose**: C-001. The committed gate that detected dead inert-slot machinery was deleted by #3285, but the retirement has one behavioural contract a test can pin: the pruned parser must **reject** the retired keys instead of silently carrying them. That test is RED on base and is this WP's first commit. The base evidence in steps 1-4 supports the retirement and is captured **before** any edit.
 - **Steps**:
+  0. **Failing-first commit.** Add `test_load_baseline_rejects_retired_keys(tmp_path, where, key)` to `tests/architectural/test_no_inert_schema_slots.py` (keep the file's existing style; it is format-excluded). Parametrize it over four cases: an entry key `owner`, an entry key `provisional`, a top-level key `mission`, and a top-level key `code_only_suppressions`. Each case writes a tmp YAML that is valid for the **pruned** parser (top level `entries:` only; one row with `name`, `declared_at`, `disposition: wire-the-producer`, `note`) plus the one retired key with a legal-looking value, and asserts `pytest.raises(BaselineError, match=rf"unknown key '{key}'")` around `load_baseline(path)`. Import only `BaselineError` and `load_baseline`, which exist on base. Run it: all 4 cases must be RED on base (either nothing is raised, or a different `BaselineError` such as "'owner' must be a non-empty string" is raised, which does not match). Paste the failure text into the Activity Log (#5068) and commit alone: `test(WP05): load_baseline rejects retired inert-slot keys (red-first, C-001)`. This tests behaviour, not a symbol's absence, so it is not a tombstone. Do **not** match on the bare key name: base messages already contain `'owner'` and `'mission'`, which would let a case pass for the wrong reason.
   1. In the lane worktree, before editing anything, capture the **uncalled-symbol evidence**:
      ```bash
      grep -rn -E 'MAX_UNASSIGNED_ENTRIES|MAX_MASKING_SUPPRESSIONS|owner_exists|owner_is_complete|unresolved_by_completed_owners|code_only_drift|find_code_only_suppressions|load_code_only_record|code_producer_writes|CODE_ONLY_SUPPRESSIONS|COMPLETED_LANES|UNASSIGNED_OWNER' \
@@ -142,9 +146,9 @@ Implementers commit in their lane worktree (`spec-kitty implement WP05`). Never 
      ```bash
      spec-kitty agent tracer-append --mission ratchet-baseline-census-gate-remediation-01M3EW3Z \
        --category design-decisions --actor claude \
-       --entry "WP05 red-first (D-OP-4): <symbol grep: 0 callers>; <stale rows: styleguide-references, model>; <#5117 reproduction recorded>; owner anti-weasel invariant lost in #3285, formally abandoned here (DM-01M3EW4PB6)."
+       --entry "WP05 base evidence: <failing-first test RED text>; <symbol grep: 0 callers>; <stale rows: styleguide-references, model>; <#5117 reproduction recorded>; owner anti-weasel invariant lost in #3285, formally abandoned here (DM-01M3EW4PB6)."
      ```
-- **Files**: none edited. The tracer file under `kitty-specs/` is written by the CLI, not by hand.
+- **Files**: `tests/architectural/test_no_inert_schema_slots.py` (step 0 only). The tracer file under `kitty-specs/` is written by the CLI, not by hand.
 - **Parallel?**: No. It must precede T028-T030.
 - **Notes**: Record the RED failure text verbatim (#5068, "red for the intended reason").
 
@@ -179,7 +183,7 @@ Implementers commit in their lane worktree (`spec-kitty implement WP05`). Never 
      - in `_parse_entry` (L501-522), delete the `provisional` and `owner` handling and the "named owner cannot stay provisional" rule (L509-515);
      - in `load_baseline` (L525-540), delete the `mission` read.
      Keep the `disposition in DISPOSITIONS` validation, the duplicate-slot check and the fail-loud `BaselineError` messages.
-  2. Make the parser **reject** the retired keys rather than silently ignoring them, so a copy-paste of an old row cannot reintroduce dead data. The allowed entry keys are exactly `{name, declared_at, disposition, note}`, and an unknown key raises `BaselineError` naming it. The allowed top-level keys are exactly `{entries}`. Keep complexity ≤ 15 by extracting a small `_reject_unknown_keys(raw, allowed, where)` helper. This is a new branch, so it needs a committed behavioural test (Sonar new-code coverage), not only a reviewer spot-check: add `test_load_baseline_rejects_retired_keys(tmp_path)` to `test_no_inert_schema_slots.py` (keep the file's existing style; it is format-excluded). It writes three tmp YAMLs (a row with `owner:`, a row with `provisional:`, a top-level `mission:` key) and asserts that `load_baseline(path)` raises `BaselineError` naming the key for each. This tests behaviour, not a symbol's absence, so it is not a tombstone.
+  2. Make the parser **reject** the retired keys rather than silently ignoring them, so a copy-paste of an old row cannot reintroduce dead data. The allowed entry keys are exactly `{name, declared_at, disposition, note}`, and an unknown key raises `BaselineError` naming it. The allowed top-level keys are exactly `{entries}`. Keep complexity ≤ 15 by extracting a small `_reject_unknown_keys(raw, allowed, where)` helper that raises `BaselineError(f"{where}: unknown key {key!r}; allowed keys are {sorted(allowed)}")`. That wording is what T027's committed failing-first test matches; after this commit all 4 of its cases are GREEN.
   3. In `_inert_slots_baseline.yaml`:
      - delete the top-level `mission:` (L75) and the comment above it (L73);
      - delete every `owner:` and `provisional:` line (38 rows);
@@ -187,7 +191,6 @@ Implementers commit in their lane worktree (`spec-kitty implement WP05`). Never 
      - delete the whole `code_only_suppressions:` section with its preceding comment block (from the `CODE-ONLY SUPPRESSIONS` banner at about L328 to end of file; the data is L376-488).
   4. Rewrite the header prose so it no longer teaches retired rules. Remove the `provisional` paragraph, the `unassigned` cap paragraph (L30-36), and references to the deleted tests `test_baseline_entries_are_well_formed`, `test_every_named_owner_resolves` and `test_the_scan_actually_sees_the_shipped_tree`. Also fix the L70 mention of the `unassigned_entries` counter. Keep the dispositions vocabulary, the known under-count note and the burn-down history.
 - **Files**: `tests/architectural/_inert_slots.py`, `tests/architectural/_inert_slots_baseline.yaml`.
-- **Files (test)**: `tests/architectural/test_no_inert_schema_slots.py` (the rejection test only).
 - **Validation**: `python -c "from tests.architectural._inert_slots import load_baseline; print(len(load_baseline().entries))"` prints `36`. `.venv/bin/python -m pytest tests/architectural/test_no_inert_schema_slots.py -q -W error::UserWarning` passes (the shrink warning is a `UserWarning`, so this makes "no shrink warning" mechanical).
 
 ### Subtask T030 – Sequenced `_baselines.yaml` edit and sibling prose
@@ -267,25 +270,27 @@ make test-fast
 Non-fakeable checks (from `research/postspec-renata.md`, tailored to FR-010):
 
 1. **Retirement is real, not a rename.** Run the T031 token search yourself and expect 0 live hits. Also confirm that no retired function body survives under a new name: every public function left in `_inert_slots.py` has an importer outside the module (Renata MEDIUM, SC-003).
-2. **Red-first is evidenced, not asserted.** The tracer has the base-side grep (0 callers), the base-side shrink warning naming exactly `styleguide-references, model`, and the #5117 reproduction. Do not trust tracer timestamps for ordering: re-run the T027 evidence yourself on the base (see "Reviewer RED reproduction" below).
+2. **Red-first is a real test.** The first lane commit adds only `test_load_baseline_rejects_retired_keys`, and it is RED on base for all 4 cases; the T028+T029 commit turns it GREEN. The tracer also has the base-side grep (0 callers), the base-side shrink warning naming exactly `styleguide-references, model`, and the #5117 reproduction. Do not trust tracer timestamps for ordering: re-run the RED yourself on the base (see "Reviewer RED reproduction" below).
 3. **No tombstone tests.** There is no test whose only assertion is "symbol X is absent" or "file Y does not exist".
 4. **Floors are non-vacuous through the real scan.** `test_walk_floors_fail_on_a_collapsed_walk` calls `scanned_slots` on a planted tree and fails both walks. It does not feed a synthetic list to a reimplemented counter.
 5. **Shrink-only.** `baseline_entries` went 38 → 36 with a `# justification:`. No other `_baselines.yaml` leaf changed. `git diff <base> -- tests/architectural/_baselines.yaml` touches only the `test_no_inert_schema_slots` block.
-6. **Parser rejects retired keys.** The committed `test_load_baseline_rejects_retired_keys` covers `owner:`, `provisional:` and top-level `mission:`, each raising `BaselineError` naming the key.
+6. **Parser rejects retired keys.** The committed `test_load_baseline_rejects_retired_keys` covers `owner:`, `provisional:`, top-level `mission:` and top-level `code_only_suppressions:`, each raising `BaselineError` with `unknown key '<key>'`.
 7. **Gate remedy intact.** `test_gate_remedy_presence.py` is green, and `test_live_tree_has_no_new_inert_slots` keeps its name and remedy text.
 8. The implementer ran `mypy` and `ruff format --check` on `_inert_slots.py`, and the diagnostics were clean.
 9. The issue-matrix rows #3026 and #3962 read `fixed` with a commit SHA in the evidence.
 
-**Reviewer RED reproduction** (deletion-only WP, D-OP-4: the RED is the base-side evidence, re-run on a clean base checkout):
+**Reviewer RED reproduction** (the RED is the first lane commit's test, run against the planning base; the base-side evidence is re-run alongside):
 
 ```bash
 git worktree add /tmp/wp05-base 3717c7ea && cd /tmp/wp05-base
+git show <first-lane-commit>:tests/architectural/test_no_inert_schema_slots.py > tests/architectural/test_no_inert_schema_slots.py
+PYTHONPATH=$PWD/src <main-checkout>/.venv/bin/python -m pytest tests/architectural/test_no_inert_schema_slots.py -q -k rejects_retired_keys   # expect 4 failed
 grep -rn -E 'MAX_UNASSIGNED_ENTRIES|MAX_MASKING_SUPPRESSIONS|owner_exists|owner_is_complete|unresolved_by_completed_owners|code_only_drift|find_code_only_suppressions|load_code_only_record|code_producer_writes|CODE_ONLY_SUPPRESSIONS|COMPLETED_LANES|UNASSIGNED_OWNER' --include='*.py' tests src scripts | grep -v '^tests/architectural/_inert_slots.py'   # expect 0 hits
 PYTHONPATH=$PWD/src <main-checkout>/.venv/bin/python -m pytest tests/architectural/test_no_inert_schema_slots.py -q -rw   # expect the shrink warning naming styleguide-references, model
-cd - && git worktree remove /tmp/wp05-base
+cd - && git worktree remove --force /tmp/wp05-base   # --force: the test file was overwritten
 ```
 
-**Requirement coverage** (prose; frontmatter is regenerated by the orchestrator): FR-010, NFR-002 (per-walk floors + self-mutation), NFR-003 (baseline 38 → 36, per-site total shrinks), NFR-005, NFR-006 (abandoned invariant recorded), C-001, C-005; contributes to SC-003 and SC-004 (2 unread leaves removed), SC-006 (#3026/#3962 rows).
+**Requirement coverage** (prose; frontmatter is regenerated by the orchestrator): FR-010, NFR-002 (per-walk floors + self-mutation), NFR-003 (baseline 38 → 36, per-site total shrinks), NFR-005, NFR-006 (abandoned invariant recorded), C-001 (failing-first retired-key test, no exception), C-005, C-006; contributes to SC-003 and SC-004 (2 unread leaves removed), SC-006 (#3026/#3962 rows).
 
 ## Activity Log
 

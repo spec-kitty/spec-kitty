@@ -6,21 +6,24 @@ Entities are test-infrastructure records. All identities are content-based; a li
 
 Used by: join allowlist (WP02), kernel exemptions (WP03), os-detect exemptions (WP03).
 
+The entry type is the existing substrate `NamedTuple` `tests/architectural/_ratchet_keys.py::ContentDescriptor` (no new type):
+
 | Field | Type | Rule |
 |-------|------|------|
-| `rel` | repo-relative POSIX path | must exist at test time |
-| `qualname` | dotted enclosing scope | from `_ratchet_keys.composite_key` |
-| `token_line` | normalised token string | from `composite_key` (strings stripped) |
-| `reason` | non-empty str | required |
+| `rel_path` | str, repo-relative POSIX path | must exist at test time |
+| `qualname` | str | the enclosing dotted qualname, as `_ratchet_keys.enclosing_qualname` outputs it |
+| `token_substring` | str | a substring of the finding's **normalised** token line (`code_tokens_by_line` output), never raw source |
+| `occurrence` | int ≥ 0 or `None` | 0-based ordinal among same-qualname/same-substring candidates; `None` means the substring must be unique within the qualname |
+| `rationale` | str | non-empty justification |
 
 **Invariants**
-- Resolved through `_content_identity.match(entries, findings)`: each entry suppresses **at most one** live finding (multiset semantics; `neutrality/lint.py:379/380` produce identical keys).
+- Resolved in two steps by `tests/architectural/_content_identity.py` (WP02): `resolve_allowlist(descriptors, source_for)` turns descriptors into a `Counter[CompositeKey]` (`CompositeKey = (rel_path, qualname, token_line)`) and reports every descriptor that resolves to 0 or > 1 sites as an error (`DescriptorResolutionError` semantics); `partition_findings(findings, allowed)` returns `(unexpected, unused)`. Each entry suppresses **at most one** live finding (multiset semantics; `neutrality/lint.py:379/380` produce identical keys).
 - **Stale = fail**: an entry that suppresses no live finding fails the gate and is named (FR-007, D-OP-8).
-- Exemption text files (`_exemptions/os-detect-ban-*.txt`) hold one descriptor per line in a content form parsed by `_os_detection_exemptions.py`; the `path:line` form is rejected by the widened ban.
+- Exemption text files (`_exemptions/os-detect-ban-*.txt`) hold one descriptor per line in the form `<rel_path>::<qualname>::<token_substring>[::<occurrence>]`, serialised by `_content_identity.render_descriptor_line` / `parse_descriptor_line` and loaded by `_os_detection_exemptions.py`; the `path:line` form is rejected by the widened ban.
 
 ## CensusKey (census allowlists)
 
-Used by: destructive-op (22), overwrite (2) (WP04), mutation (56) (WP05).
+Used by: destructive-op (22), mutation (56) and overwrite (2), all re-keyed in WP04 (split commits: helper → destructive + overwrite → mutation). Stale detection goes through `_content_identity.partition_findings` (D-OP-9).
 
 | Field | Type | Rule |
 |-------|------|------|
@@ -48,7 +51,7 @@ Used by: destructive-op (22), overwrite (2) (WP04), mutation (56) (WP05).
 | `site` | str | the flagged literal, verbatim |
 | `reason` | str | non-empty; names the migrating WP |
 
-**Lifecycle**: `interim (WP01: 94 rows)` → `shrinking (WP02–WP05 remove their rows)` → `pinned empty (WP12: frozenset equality with frozenset())`. Counted per site (NFR-003).
+**Lifecycle**: `interim (WP01: 94 rows)` → `shrinking (WP02–WP04 remove their rows)` → `pinned empty (WP13: frozenset equality with frozenset())`. Counted per site (NFR-003).
 
 ## Baseline leaf (`_baselines.yaml`)
 
@@ -60,7 +63,7 @@ Used by: destructive-op (22), overwrite (2) (WP04), mutation (56) (WP05).
 **Invariants (FR-011)**
 - The set of allowed leaves is **derived from the comparison table**, not from a name search; a leaf outside it fails the ratchet and is named.
 - For every enforced leaf, setting the value to `live − 1` makes the ratchet fail (mutation test; skipped only where live == 0 and the leaf is at 0, which is asserted separately).
-- Removed leaves: `unassigned_entries`, `masking_suppressions`, `category_1`, `skip_marker_blocks` (D-OP-2). `baseline_entries`: 38 → 36 (stale `styleguide-references`, `model` rows dropped).
+- Removed leaves: `unassigned_entries`, `masking_suppressions` (WP05, sequenced edit), then `category_1`, `skip_marker_blocks` (WP06, D-OP-2). `baseline_entries`: 38 → 36 (WP05; stale `styleguide-references`, `model` rows dropped).
 
 ## Parity suite verdict (FR-018)
 
@@ -68,8 +71,8 @@ Used by: destructive-op (22), overwrite (2) (WP04), mutation (56) (WP05).
 |-------|--------|
 | module | path under `tests/` |
 | discriminator | behavioural/negative invariant · positive shape · mixed |
-| churn | commits touching file / co-changed with `src/` (since 2026-03-20) |
+| churn | commits touching file / co-changed with `src/`, window `git log --since=2026-03-26` at HEAD `34f19c6fb` (blobless clone holding history since 2026-03-20; `research/grounding-2631_2972.md` Part 2) |
 | verdict | keep · convert · retire · split |
 | surviving enforcer | test node ID, or cited reason + mutation proof (NFR-006) |
 
-Recorded in the mission's design-decisions tracer in the #2620 catalog format.
+Recorded by WP12 in `research/parity-verdicts.md` and the mission's design-decisions tracer, in the #2620 catalog format.
