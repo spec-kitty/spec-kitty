@@ -109,7 +109,7 @@
       "wp": "WP07"
     },
     "#3026": {
-      "evidence_ref": "Inert-slot retirement (FR-010, DM-01M3EW4PB6)",
+      "evidence_ref": "dead inert-slot caps/predicates/code-only record retired (DM-01M3EW4PB6), baseline 38->36; commit 4668c259",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -117,7 +117,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP05"
     },
     "#3206": {
