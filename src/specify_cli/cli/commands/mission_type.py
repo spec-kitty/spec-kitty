@@ -21,6 +21,7 @@ import warnings
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root, load_meta_fail_closed
 from specify_cli.core.utils import safe_is_dir
+from specify_cli.git.remote_probes import RemoteLookup, remote_branch_lookup
 from specify_cli.lanes.branch_naming import resolve_mid8
 from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
@@ -1292,11 +1293,22 @@ def _safe_load_meta(feature_dir: Path) -> dict[str, Any] | None:
 def _branch_resolvable(repo_root: Path, branch: str) -> bool:
     """Return ``True`` when *branch* resolves in the local repo OR any remote.
 
-    Fail-closed predicate (per contract): the mission branch must exist either
-    as a local ref (``git rev-parse --verify refs/heads/<branch>``) or on any
-    configured remote (``git ls-remote --heads <remote> <branch>``). A missing
-    worktree directory alone does NOT make a mission unrecoverable — the branch
-    is re-materializable — so this check is intentionally branch-only.
+    Fail-closed predicate (per contract) — but fail-TOWARD-FALSE, the
+    opposite posture from the coordination read path's
+    ``_coord_branch_exists`` (fail-toward-present): a mission branch that
+    cannot be proven to exist anywhere is treated as unrecoverable. A missing
+    worktree directory alone does NOT make a mission unrecoverable — the
+    branch is re-materializable — so this check is intentionally branch-only.
+
+    #4979 (C-001): consumes the SAME shared
+    :func:`~specify_cli.git.remote_probes.remote_branch_lookup` primitive
+    ``_coord_branch_exists`` does, refactored off its own hand-rolled
+    ``git remote`` + ``git ls-remote`` loop (which had no ``timeout=`` and
+    could hang on an unreachable/prompting remote — the primitive fixes that
+    too). Only ``HIT`` counts as resolvable here; ``ERROR`` / ``NO_REMOTE`` /
+    ``CLEAN_MISS`` all fall through to ``False`` — the fail-closed direction
+    this predicate has always used, unlike the coordination read path's
+    ERROR-is-present posture.
     """
     from specify_cli.core import git_ops  # noqa: PLC0415
 
@@ -1309,27 +1321,7 @@ def _branch_resolvable(repo_root: Path, branch: str) -> bool:
     if code == 0:
         return True
 
-    code, remotes, _err = git_ops.run_command(
-        ["git", "remote"],
-        check_return=False,
-        capture=True,
-        cwd=repo_root,
-    )
-    if code != 0 or not remotes:
-        return False
-    for remote in remotes.splitlines():
-        remote = remote.strip()
-        if not remote:
-            continue
-        ls_code, ls_out, _ls_err = git_ops.run_command(
-            ["git", "ls-remote", "--heads", remote, branch],
-            check_return=False,
-            capture=True,
-            cwd=repo_root,
-        )
-        if ls_code == 0 and ls_out.strip():
-            return True
-    return False
+    return remote_branch_lookup(repo_root, branch) is RemoteLookup.HIT
 
 
 def _emit_mission_error(message: str, *, code: str, json_output: bool) -> None:

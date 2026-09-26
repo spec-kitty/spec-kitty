@@ -228,7 +228,7 @@ _ALLOWLIST: dict[str, str] = {
     "src/specify_cli/review/baseline.py:294:worktree_remove_force": (
         "detached temp baseline-comparison worktree, torn down in the same context manager that created it."
     ),
-    "src/specify_cli/cli/commands/mission_type.py:1181:worktree_remove_force": (
+    "src/specify_cli/cli/commands/mission_type.py:1182:worktree_remove_force": (
         "reached only via `--discard` (_discard_mission): an operator-requested, intentional mission abandonment -- not an implicit/accidental destroy."
     ),
     "src/specify_cli/git/destructive_guard.py:229:worktree_remove_force": (

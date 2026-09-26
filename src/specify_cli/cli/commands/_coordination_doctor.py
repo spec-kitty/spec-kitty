@@ -93,6 +93,20 @@ _COORD_BRANCH_ABSENT_HINT = (
     "`spec-kitty migrate backfill-topology` to re-derive and persist the topology."
 )
 
+#: Belt-and-suspenders re-verify guard at the destructive flatten site itself
+#: (FR-004 / #4979). The CHECK site (`_coord_branch_exists`) already stops
+#: emitting `COORDINATION_WORKTREE_NEVER_CREATED` for a remote-only branch
+#: after WP01 -- these hints cover the independent case where the FIX is
+#: reached anyway (a future probe regression, a race). Fail-closed toward
+#: "do not destroy": HIT and ERROR both skip the flatten.
+_COORD_BRANCH_REMOTE_HIT_SKIP_HINT = (
+    "still exists on a remote; run `git fetch` to materialize it locally -- not flattened"
+)
+_COORD_BRANCH_REMOTE_ERROR_SKIP_HINT = (
+    "could not be verified against the remote (network error or timeout); "
+    "leaving meta.json unchanged until connectivity is restored -- not flattened"
+)
+
 #: Stable error code for a coord strand that survives a rollback (#2786 / #2367-B,
 #: FR-007). Emitted only when the committed coordination ref *still* reduces a
 #: this-merge ``done`` WP to ``DONE`` — a marker whose ref re-derives coherent is
@@ -859,7 +873,33 @@ def _collect_coordination_findings(
     return findings
 
 
-def _fix_never_created_branches(findings: list[DoctorFinding]) -> list[str]:
+def _coord_branch_remote_skip_reason(repo_root: Path, coord_branch: str) -> str | None:
+    """Re-verify *coord_branch* against the remote before a destructive flatten.
+
+    Returns ``None`` when the flatten may proceed (the WP01 shared
+    :func:`~specify_cli.git.remote_probes.remote_branch_lookup` primitive
+    answered ``CLEAN_MISS`` -- a reachable remote genuinely does not have the
+    branch -- or ``NO_REMOTE`` -- there is no remote authority to consult, so
+    local-only authority is retained). Returns an actionable skip-reason
+    string when the flatten must NOT proceed: ``HIT`` (the branch is still
+    genuinely present on a remote) or ``ERROR`` (fail-closed -- an
+    inconclusive network condition must never be read as "safe to destroy",
+    NFR-002). C-001: consumes the ONE shared primitive, never a second
+    hand-rolled remote check.
+    """
+    from specify_cli.git.remote_probes import RemoteLookup, remote_branch_lookup
+
+    outcome = remote_branch_lookup(repo_root, coord_branch)
+    if outcome is RemoteLookup.HIT:
+        return _COORD_BRANCH_REMOTE_HIT_SKIP_HINT
+    if outcome is RemoteLookup.ERROR:
+        return _COORD_BRANCH_REMOTE_ERROR_SKIP_HINT
+    return None
+
+
+def _fix_never_created_branches(
+    findings: list[DoctorFinding], repo_root: Path | None = None
+) -> list[str]:
     """Remove stale ``coordination_branch`` keys from meta.json.
 
     Targets only ``COORDINATION_WORKTREE_NEVER_CREATED`` findings that carry
@@ -867,6 +907,16 @@ def _fix_never_created_branches(findings: list[DoctorFinding]) -> list[str]:
     :func:`_collect_coordination_findings`). After removal, call
     :func:`~specify_cli.migration.backfill_topology.backfill_topology_repo` so
     topology is re-derived from the now-absent key.
+
+    When *repo_root* is given (the real ``--fix`` dispatch path always passes
+    it, via :func:`_apply_never_created_fix`), each finding's coordination
+    branch is independently re-verified against the remote
+    (:func:`_coord_branch_remote_skip_reason`, FR-004 / #4979) BEFORE the
+    destructive flatten runs -- a last line of defence behind WP01's fix at
+    the CHECK site, so a remote-present branch is never flattened even if a
+    ``NEVER_CREATED`` finding is somehow reached. *repo_root* defaults to
+    ``None`` so every pre-existing caller that predates this guard keeps its
+    original unconditional-flatten behaviour unchanged.
 
     Returns a list of mission slugs that were modified.
     """
@@ -881,8 +931,17 @@ def _fix_never_created_branches(findings: list[DoctorFinding]) -> list[str]:
             continue
         mission_dir = Path(str(meta_path_str)).parent
         meta = load_meta_or_empty(mission_dir)
-        if "coordination_branch" not in meta:
+        coord_branch = meta.get("coordination_branch")
+        if not coord_branch:
             continue
+        if repo_root is not None:
+            skip_reason = _coord_branch_remote_skip_reason(repo_root, str(coord_branch))
+            if skip_reason is not None:
+                console.print(
+                    f"[yellow]Skipped:[/yellow] {mission_dir.name}/meta.json -- "
+                    f"coordination branch {coord_branch!r} {skip_reason}"
+                )
+                continue
         # Canonical three-mutation flatten (#3219 / FR-015 / D-PLAN-17), converged
         # onto the ONE shared primitive: clears `coordination_branch`, pops the
         # stale `topology` so `backfill_topology_repo` re-derives it (backfill
@@ -1220,11 +1279,15 @@ def _fix_stranded_reverts(
 
 
 def _apply_never_created_fix(findings: list[DoctorFinding], repo_root: Path) -> None:
-    """Flatten missions with a stale ``coordination_branch`` key, then re-backfill topology."""
+    """Flatten missions with a stale ``coordination_branch`` key, then re-backfill topology.
+
+    Passes *repo_root* through to :func:`_fix_never_created_branches` so every
+    finding is re-verified against the remote before it is flattened (FR-004).
+    """
     fixable = [f for f in findings if f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED"]
     if not fixable:
         return
-    fixed_slugs = _fix_never_created_branches(fixable)
+    fixed_slugs = _fix_never_created_branches(fixable, repo_root)
     for slug in fixed_slugs:
         console.print(
             f"[green]Flattened:[/green] removed coordination_branch from {slug}/meta.json"

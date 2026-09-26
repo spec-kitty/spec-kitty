@@ -20,6 +20,7 @@ from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.context_validation import require_main_repo
 from kernel.clock import now_utc_iso
+from kernel.meta_decode import decode_meta
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.vcs import VCSBackend
@@ -648,6 +649,128 @@ def _print_structural_planning_refusal(structural: list[_PorcelainEntry]) -> Non
     console.print("\nCommit these structural changes to the coordination branch yourself (e.g. `git rm`/`git mv` + commit), then re-run the claim.")
 
 
+_META_JSON_FILENAME = "meta.json"
+
+_DEMOTION_REFUSAL_MSG = (
+    "Uncommitted change to {rel_path} silently demotes {mission_slug} off its "
+    "coordination branch ('{coordination_branch}' -> absent). Auto-committing this "
+    "would carry a whole-team routing change into the planning-artifact commit.\n"
+    "Restore `coordination_branch` in meta.json if this was accidental. If the "
+    "branch is genuinely gone and you already ran `spec-kitty doctor coordination "
+    "--fix`, commit the flattened meta.json yourself (`git add` + `git commit`) "
+    "before re-running the claim -- the auto-commit intentionally will not do it "
+    "silently for you."
+)
+
+_DEMOTION_CORRUPT_MSG = "{rel_path} ({side}) is not valid JSON. Refusing to auto-commit planning artifacts until it is repaired."
+
+
+def _read_json_at_ref(repo_root: Path, ref: str, rel_path: str) -> tuple[bool, dict[str, Any] | None]:
+    """Return ``(has_baseline, parsed_or_None)`` for *rel_path* at *ref*.
+
+    ``git show <ref>:<rel_path>`` exits non-zero when *rel_path* has no
+    baseline at *ref* (e.g. a legitimate untracked/first-commit case) --
+    reported as ``(False, None)``. A present baseline that fails to parse as
+    JSON is reported as ``(True, None)``, distinct from "no baseline" so a
+    caller can fail closed on a corrupt-but-present file rather than treating
+    it as absent. The parse routes through the canonical kernel L1 decoder
+    (:func:`kernel.meta_decode.decode_meta`, ``on_malformed="none"``) rather
+    than a hand-rolled ``json.loads`` -- the single meta-decode authority
+    (FR-010 / the inline-meta-read gate).
+    """
+    result = subprocess.run(
+        ["git", "show", f"{ref}:{rel_path}"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return False, None
+    return True, decode_meta(result.stdout, on_malformed="none")
+
+
+def _meta_json_demotion_refusal(
+    repo_root: Path,
+    mission_slug: str,
+    meta_path: Path,
+    rel_path: str,
+) -> str | None:
+    """Return a REFUSE message iff the uncommitted *meta_path* is a topology
+    demotion (#4979 FR-005), else ``None`` (ALLOW).
+
+    Predicate (the robust key -- a ``topology`` coord-to-lanes demotion
+    corroborates but is NOT required, since legacy HEAD meta may lack the
+    field): HEAD's ``coordination_branch`` is present-and-non-null AND the
+    working copy drops it to absent/null. Baseline is ``git show
+    HEAD:<rel_path>``; no baseline (untracked -- a legitimate first commit,
+    including a genuinely-flat mission) ALLOWS. A HEAD baseline or working
+    copy that fails to parse as JSON fails closed to REFUSE.
+    """
+    has_baseline, head_meta = _read_json_at_ref(repo_root, "HEAD", rel_path)
+    if not has_baseline:
+        return None
+    if head_meta is None:
+        return _DEMOTION_CORRUPT_MSG.format(rel_path=rel_path, side="HEAD")
+    try:
+        working_raw = meta_path.read_text(encoding="utf-8")
+    except OSError:
+        return _DEMOTION_CORRUPT_MSG.format(rel_path=rel_path, side="working copy")
+    working_meta = decode_meta(working_raw, on_malformed="none")
+    if working_meta is None:
+        return _DEMOTION_CORRUPT_MSG.format(rel_path=rel_path, side="working copy")
+    head_branch = head_meta.get("coordination_branch")
+    working_branch = working_meta.get("coordination_branch")
+    if head_branch and not working_branch:
+        return _DEMOTION_REFUSAL_MSG.format(
+            rel_path=rel_path,
+            mission_slug=mission_slug,
+            coordination_branch=head_branch,
+        )
+    return None
+
+
+def _meta_json_repo_relative_path(repo_root: Path, artifact_source_dir: Path) -> str | None:
+    """Return the repo-relative (posix) path of *artifact_source_dir*'s
+    ``meta.json``, or ``None`` when it does not resolve under *repo_root*."""
+    try:
+        return (artifact_source_dir / _META_JSON_FILENAME).resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return None
+
+
+def _refuse_if_meta_json_demotion(
+    repo_root: Path,
+    artifact_source_dir: Path,
+    mission_slug: str,
+    files_to_commit: list[str],
+) -> None:
+    """FR-005 (#4979): REFUSE -- never silently commit -- an uncommitted
+    ``meta.json`` that demotes the mission off its coordination branch.
+
+    Hooks the staging DECISION seam: ``meta.json`` is PRIMARY-partitioned and
+    only matters here when it is itself part of the dirty set already
+    resolved by :func:`resolve_planning_artifact_staging`. This is
+    defense-in-depth alongside the structural-change refusal above -- not a
+    parallel commit gate.
+    """
+    meta_rel_path = _meta_json_repo_relative_path(repo_root, artifact_source_dir)
+    if meta_rel_path is None or meta_rel_path not in files_to_commit:
+        return
+    refusal = _meta_json_demotion_refusal(
+        repo_root,
+        mission_slug,
+        artifact_source_dir / _META_JSON_FILENAME,
+        meta_rel_path,
+    )
+    if refusal is None:
+        return
+    console.print(f"\n{_RED_ERROR_PREFIX}{refusal}")
+    raise typer.Exit(1)
+
+
 def _ensure_planning_artifacts_committed_git(
     repo_root: Path,
     feature_dir: Path,
@@ -732,6 +855,8 @@ def _ensure_planning_artifacts_committed_git(
     files_to_commit = plan.files_to_commit
     if not files_to_commit:
         return
+
+    _refuse_if_meta_json_demotion(repo_root, artifact_source_dir, mission_slug, files_to_commit)
 
     if plan.status_paths_to_commit:
         _print_uncommitted_planning_artifacts(files_to_commit)
