@@ -7378,6 +7378,7 @@ pages:
     - {slug: "the-architectural-gate-battery", text: "The architectural gate battery", level: 2}
     - {slug: "renaming-a-symbol-whose-body-is-allowlisted", text: "Renaming a symbol whose body is allowlisted", level: 3}
     - {slug: "the-ruff-format-exclude-ratchet-has-a-twin", text: "The `ruff format` exclude ratchet has a twin", level: 3}
+    - {slug: "a-scanner-that-swallows-a-parse-failure-reds-the-parse-fail-closed-gate", text: "A scanner that swallows a parse failure reds the parse fail-closed gate", level: 3}
     - {slug: "router-path-filters-are-the-tail-of-a-guarded-ssot-chain", text: "Router path filters are the tail of a guarded SSOT chain", level: 3}
     - {slug: "docs-freshness-and-registration-gates", text: "Docs-freshness and registration gates", level: 2}
     - {slug: "a-new-docs-page-needs-triple-registration-plus-a-description-band", text: "A new docs page needs triple registration plus a description band", level: 3}
