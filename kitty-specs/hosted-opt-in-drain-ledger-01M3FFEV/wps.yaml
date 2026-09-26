@@ -14,6 +14,7 @@ work_packages:
     requirement_refs: [FR-001, FR-002, FR-003, FR-008, C-002, C-003]
     plan_concern_refs: [IC-01]
     subtasks: [T001, T002, T003, T004, T005]
+    prompt_file: "tasks/WP01-posture-core.md"
   - id: WP02
     title: "Relay edges: offer DRAIN_DISABLED, stream/history gates, drill, relay CLI and MCP guidance"
     dependencies: [WP01]
@@ -29,6 +30,7 @@ work_packages:
     requirement_refs: [FR-004, FR-005, FR-006, NFR-003, C-005]
     plan_concern_refs: [IC-02, IC-06]
     subtasks: [T006, T007, T008, T009, T010]
+    prompt_file: "tasks/WP02-relay-edges.md"
   - id: WP03
     title: "Capability + fan-out: gateway method gates, resolve_* pre-cache check, adapters, runtime producer, live-work, routes"
     dependencies: [WP01]
@@ -45,6 +47,7 @@ work_packages:
     requirement_refs: [FR-004, FR-006, NFR-001, NFR-003, C-004, C-005]
     plan_concern_refs: [IC-02]
     subtasks: [T011, T012, T013, T014, T015, T016]
+    prompt_file: "tasks/WP03-capability-fanout.md"
   - id: WP04
     title: "Non-vacuous drain arch gate + NFR-001/NFR-004 posture matrix integration walk"
     dependencies: [WP02, WP03, WP05]
@@ -55,6 +58,7 @@ work_packages:
     requirement_refs: [NFR-001, NFR-002, NFR-004, FR-010]
     plan_concern_refs: [IC-03]
     subtasks: [T017, T018, T019, T020]
+    prompt_file: "tasks/WP04-drain-gate-and-matrix.md"
   - id: WP05
     title: "Ledger: single derived-view writer, execution-state projection refresh, hook sites, ledger-floor guard"
     dependencies: [WP01]
@@ -69,6 +73,7 @@ work_packages:
     requirement_refs: [FR-008, FR-009, FR-010, NFR-004]
     plan_concern_refs: [IC-04]
     subtasks: [T021, T022, T023, T024, T025]
+    prompt_file: "tasks/WP05-ledger-projection.md"
   - id: WP06
     title: "Endpoint opt-in: no packaged fallback in resolver, explicit vs automatic caller split"
     dependencies: []
@@ -92,6 +97,7 @@ work_packages:
     requirement_refs: [FR-011, FR-012, C-006]
     plan_concern_refs: [IC-05]
     subtasks: [T026, T027, T028, T029, T030]
+    prompt_file: "tasks/WP06-endpoint-opt-in.md"
   - id: WP07
     title: "Migration opt-in (retired target delete + D-6 session backfill) and remaining default-URL test re-pins"
     dependencies: [WP06]
@@ -106,6 +112,7 @@ work_packages:
     requirement_refs: [FR-013, FR-011]
     plan_concern_refs: [IC-05]
     subtasks: [T031, T032, T033]
+    prompt_file: "tasks/WP07-migration-and-repins.md"
   - id: WP08
     title: "Operator surface (moments drain), ADR, docs, changelog"
     dependencies: [WP02, WP03, WP05, WP07]
@@ -120,3 +127,4 @@ work_packages:
     requirement_refs: [FR-007, FR-014, FR-015]
     plan_concern_refs: [IC-06, IC-07]
     subtasks: [T034, T035, T036, T037]
+    prompt_file: "tasks/WP08-operator-surface-docs-adr.md"
