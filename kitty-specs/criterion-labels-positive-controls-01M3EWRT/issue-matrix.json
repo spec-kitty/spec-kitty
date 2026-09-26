@@ -25,7 +25,7 @@
       "wp": null
     },
     "#5061": {
-      "evidence_ref": "Remediated by mission criterion-labels-positive-controls-01M3EWRT (WP01 tactic+wiring, WP02 template labels, WP03 overrides); final verdict set at closeout",
+      "evidence_ref": "Branch claude/research-squad-remediation-mission-fvdk93 commits 0634b79dc (tactic+review wiring), 8930889ef (spec-template labels), bef97537a (overrides); acceptance matrix 10/10 pass",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,7 +33,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": null
     },
     "#5068": {
