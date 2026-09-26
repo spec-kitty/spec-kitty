@@ -286,13 +286,18 @@ def test_review_post_merge_requires_issue_matrix(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Post-merge mode must fail-closed when references exist but no matrix.
+    """Post-merge mode must fail-closed when gating references exist but no matrix.
 
     WP09 / FR-005 (#3035): Gate 4 is only ``not_applicable`` when the mission
-    declares ZERO canonical issue references. This fixture's ``spec.md``
-    references ``#1234``, so the fail-closed branch must still fire when
-    ``issue-matrix.md``/``issue-matrix.json`` is missing entirely -- the
-    zero-reference regression lives in
+    declares ZERO GATING issue references (#3469 narrowed this from "zero
+    canonical references" to "zero gating references" -- see
+    ``specify_cli.tasks.issue_reference_discovery.gating_issue_numbers``).
+    This fixture's ``spec.md`` cites ``#1234`` as an implementation target
+    (a gating reference, per
+    :func:`~specify_cli.tasks.issue_reference_discovery.classify_occurrence`),
+    so the fail-closed branch must still fire when
+    ``issue-matrix.md``/``issue-matrix.json`` is missing entirely.
+    The zero-reference (not_applicable) case lives in
     ``tests/specify_cli/cli/commands/review/test_zero_reference_not_applicable.py``.
     """
     repo_root, feature_dir = _setup_fixture(
@@ -301,7 +306,7 @@ def test_review_post_merge_requires_issue_matrix(
         baseline_merge_commit="0000000000000000000000000000000000000000",
     )
     (feature_dir / "spec.md").write_text(
-        "# Spec\n\nSee #1234 for background.\n",
+        "# Spec\n\nFix the pagination bug in #1234.\n",
         encoding="utf-8",
     )
 
