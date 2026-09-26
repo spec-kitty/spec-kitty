@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: lane-branch-naming-authority-01M3EVC4
 mission_id: 01M3EVC459SNRPXV6B3DX8TKHV
-generated_at: '2026-09-26T13:58:39.369939+00:00'
+generated_at: '2026-09-26T14:48:22.079481+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -12,19 +12,19 @@ input_artifacts:
     sha256: 4f37d6a37ad0629b5f1d661a596795a07a8aed87ffe515d2d3d9e3cc0b0fd688
   plan.md:
     path: kitty-specs/lane-branch-naming-authority-01M3EVC4/plan.md
-    sha256: 8d4875248bbe121b00fda5c5f060ca8d50da5414650a7e9c1e9f1618fd680370
+    sha256: ea0ef8a02b294527140c349a61d29e8bd4c58889e050c4799400282ac2a71e0d
   tasks.md:
     path: kitty-specs/lane-branch-naming-authority-01M3EVC4/tasks.md
-    sha256: 184c24bc055da8352f481e22f90290491c71dbb762310b993cb9b418caf4b57b
+    sha256: fee5cd45cfd992ea79cf8305278e8c378ae23c1f92ea54d85d7e33c8693c7fc2
   charter:
     path: .kittify/charter/charter.yaml
     sha256: a2b2f62cf1c0fa8987b67f6759d18bcc18b2fb47a8d3ad2783f8fac68b192c77
 verdict: ready
 issue_counts:
   high: 0
+  medium: 3
   low: 9
   critical: 0
-  medium: 3
   info: 0
 findings:
 - id: C1
