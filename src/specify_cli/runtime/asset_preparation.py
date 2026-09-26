@@ -149,6 +149,31 @@ _SOURCE_ENV = (
 _HELD_LOCKS: ContextVar[frozenset[Path]] = ContextVar("global_asset_locks", default=frozenset())
 
 
+class TornReadError(ValueError):
+    """Within one preparation pass, the same path was observed twice with
+    different states -- benign evidence of a concurrent peer mid-write on a
+    destination-role path, never tolerated on a source-role path (FR-003,
+    data-model.md). Carries this owner's serialization identity
+    (``lock_paths``/``anchor``, the same values ``finish()`` would put into
+    ``PreparedAssets``) so the identity survives past ``incomplete()``, which
+    drops the ``AssetPreparation`` instance that raised it.
+
+    Subclasses ``ValueError`` (never a flat replacement) so every existing
+    ``except (OSError, ValueError)`` handler keeps matching, and ``str()``
+    stays exactly ``f"Asset changed during preparation: {path}"`` -- the
+    pre-existing message text and the ``TORN_READ_SIGNAL`` assertions in
+    ``tests/runtime/test_generic_asset_scope.py`` are unchanged (research
+    D-3).
+    """
+
+    def __init__(self, *, path: Path, role: ObservationRole, lock_paths: tuple[Path, ...], anchor: Path) -> None:
+        super().__init__(f"Asset changed during preparation: {path}")
+        self.path = path
+        self.role = role
+        self.lock_paths = lock_paths
+        self.anchor = anchor
+
+
 def global_asset_root(owner: str, paths: tuple[Path, ...]) -> OperationRoot:
     """Choose a stable reporting anchor covering resolved global destinations."""
     anchor = Path(os.path.commonpath((Path.home(), *paths))).parent
@@ -235,7 +260,11 @@ class AssetPreparation:
         previous = self.observed.get(path)
         current = _observation(path, state, children if children is not None else previous.children if previous else None, role=role)
         if previous is not None and (previous.state, previous.identity) != (current.state, current.identity):
-            raise ValueError(f"Asset changed during preparation: {path}")
+            # Effective role mirrors the stickiness rule just below: a path
+            # already recorded (or now incoming) as a source read is source
+            # drift, never tolerable, regardless of which side is which.
+            effective_role: ObservationRole = "source_read" if role == "source_read" or previous.role == "source_read" else "destination_probe"
+            raise TornReadError(path=path, role=effective_role, lock_paths=(self.lock_path,), anchor=self.root.path)
         if previous is not None and previous.role == "source_read":
             current = replace(current, role="source_read")
         self.observed[path] = current
