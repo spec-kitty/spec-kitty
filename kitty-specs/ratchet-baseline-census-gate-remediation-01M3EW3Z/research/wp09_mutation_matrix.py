@@ -372,7 +372,7 @@ def _apply(tree: Path, mutation: Mutation) -> None:
 
 def _reset(tree: Path) -> None:
     _git(tree, "checkout", "--", ".")
-    _git(tree, "clean", "-fdq", "--", "src")
+    _git(tree, "clean", "-fdxq", "--", "src")  # -x: also drop ignored __pycache__ left in planted dirs
 
 
 def _run(tree: Path, mutation: Mutation | None, scratch: Path, python: str, workers: int) -> RunResult:
