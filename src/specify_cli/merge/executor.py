@@ -32,7 +32,7 @@ import typer
 
 if TYPE_CHECKING:
     from specify_cli.lanes.merge import MissionMergeResult
-    from specify_cli.lanes.models import LanesManifest
+    from specify_cli.lanes.models import ExecutionLane, LanesManifest
     from specify_cli.migration.runtime_state_cutover import CutoverResult
 
 from specify_cli.cli.console import console
@@ -581,6 +581,44 @@ def _phase_gates_and_state(run: _MergeRunState) -> None:
     )
 
 
+def _lane_branch_ref_exists(run: _MergeRunState, lane_branch: str) -> bool:
+    """True iff ``refs/heads/<lane_branch>`` currently resolves."""
+    ret, _out, _err = run_command(
+        ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{lane_branch}"],
+        capture=True,
+        check_return=False,
+        cwd=run.main_repo,
+    )
+    return bool(ret == 0)
+
+
+def _lane_completed_but_branch_gone(run: _MergeRunState, lane: ExecutionLane, lane_branch: str) -> bool:
+    """Resume tolerance (#5021 r1): a torn-down-but-already-done lane is integrated.
+
+    ``_lane_already_integrated`` is conservatively ``False`` whenever the lane
+    branch does not resolve (correct for a FRESH merge — an unresolvable branch
+    there is a real error). On ``--resume`` after a crash mid-teardown, teardown
+    may have already deleted the lane branch (:func:`_phase_cleanup_worktrees_
+    and_branches` runs LANE branch deletion before coordination teardown) even
+    though the merge had already fully landed. ``state.completed_wps`` is
+    populated only AFTER a WP's mission→target ``done`` bookkeeping already
+    committed (:func:`~specify_cli.merge.done_bookkeeping.mark_wp_complete`),
+    which itself only runs after lane consolidation + the mission→target merge
+    both already succeeded — so "branch gone" + "every WP in this lane already
+    recorded done" is a sound, durable "nothing left to merge" signal. Fails
+    closed: only fires on resume, only when the branch is truly gone, and only
+    when EVERY WP the lane carries is already done — a lane with any
+    not-yet-done WP still runs the real merge attempt (and any genuine error
+    surfaces there, exactly as the conservative branch already does).
+    """
+    if not run.is_resume or not lane.wp_ids:
+        return False
+    if _lane_branch_ref_exists(run, lane_branch):
+        return False
+    completed = set(run.state.completed_wps)
+    return all(wp in completed for wp in lane.wp_ids)
+
+
 def _phase_merge_lanes(run: _MergeRunState) -> None:
     """Merge each lane branch into the mission branch (skipping integrated lanes)."""
     from specify_cli.lanes.branch_naming import lane_branch_name
@@ -616,8 +654,9 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
             lane.lane_id,
             planning_base_branch=lanes_manifest.target_branch,
         )
-        if not is_planning_lane(lane) and _lane_already_integrated(
-            run.main_repo, _lane_branch, lanes_manifest.mission_branch
+        if not is_planning_lane(lane) and (
+            _lane_already_integrated(run.main_repo, _lane_branch, lanes_manifest.mission_branch)
+            or _lane_completed_but_branch_gone(run, lane, _lane_branch)
         ):
             console.print(
                 f"  [dim]Skipping {lane.lane_id} (already integrated into "
@@ -2099,6 +2138,56 @@ def _reconciliation_claim_for_gate(run: _MergeRunState) -> ApprovedWpCommitSet:
     return captured
 
 
+def _resume_reconciliation_already_passed(run: _MergeRunState) -> bool:
+    """Detect a completed-but-mid-teardown resume (#5021 residual 1 / Decision 3).
+
+    ``--resume`` re-runs the WHOLE phase list, including
+    :func:`_capture_reconciliation_claim`, which rebuilds ``authored_blobs`` from
+    each approved lane's first-parent spine. If a crash landed mid-teardown
+    AFTER a lane branch was already deleted (:func:`_phase_cleanup_worktrees_
+    and_branches` deletes lane branches before tearing down coordination), that
+    rebuild's ``_lane_first_parent_spine`` tolerates the now-unresolvable range
+    into an EMPTY spine, and the squash blob axis then REFUSEs an empty
+    authored set against resolved approved WPs — false-FAILing a merge that
+    already PASSed and already landed.
+
+    The signal must be an EXACT, durable proof that THIS target state already
+    PASSed — never a fuzzy "looks advanced" heuristic (a crash BETWEEN
+    ``_phase_mission_to_target`` and ``_phase_reconcile_before_teardown`` would
+    leave the target advanced but genuinely UNVERIFIED — the R2 guard).
+    ``_phase_reconcile_before_teardown`` persists ``state.reconciliation_passed_
+    target_sha`` = the target branch's tip SHA the INSTANT it records a PASS
+    (:func:`_record_reconciliation_pass`); resuming only short-circuits when
+    that persisted SHA still equals the target's CURRENT tip (a compare-and-
+    swap) — anything that moved the target since (a rollback, a further
+    mutation) falls through to the full gate, so a genuinely-incomplete or
+    genuinely-divergent merge is never silently tolerated.
+    """
+    if not run.is_resume:
+        return False
+    passed_sha = run.state.reconciliation_passed_target_sha
+    if not passed_sha:
+        return False
+    current_sha = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch)
+    return bool(current_sha) and current_sha == passed_sha
+
+
+def _record_reconciliation_pass(run: _MergeRunState) -> None:
+    """Persist the CAS anchor proving reconciliation PASSed for the target's tip.
+
+    Enables :func:`_resume_reconciliation_already_passed` to recognize a
+    completed-but-mid-teardown resume without re-running the content axis
+    against a possibly torn-down lane's now-partial ``authored_blobs`` claim
+    (#5021 r1). A no-op when the target ref cannot be resolved (nothing safe to
+    anchor).
+    """
+    target_sha = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch)
+    if not target_sha:
+        return
+    run.state.reconciliation_passed_target_sha = target_sha
+    save_state(run.state, run.main_repo)
+
+
 def _phase_reconcile_before_teardown(run: _MergeRunState) -> None:
     """S-D gate: verify the merge outcome by tree reachability BEFORE any teardown.
 
@@ -2113,12 +2202,22 @@ def _phase_reconcile_before_teardown(run: _MergeRunState) -> None:
     # it through the allowlist proves the gate is reached (a 7th, unrouted path
     # would raise here). ``merge --resume`` reuses the same executor flow.
     route_terminus("merge --resume" if run.is_resume else "merge")
+    if _resume_reconciliation_already_passed(run):
+        # #5021 r1: this exact target state already PASSed reconciliation in a
+        # prior attempt (persisted CAS proof) — do not re-run the content axis
+        # against a possibly torn-down lane's now-partial claim. Still runs the
+        # squash projection proof below (a separate, unaffected axis).
+        run.reconciliation_result = VerifyResult.passed()
+        _assert_squash_projected_content_landed(run)
+        console.print(_reconciliation_pass_message(run.strategy))
+        return
     claim = _reconciliation_claim_for_gate(run)
     result = MergeOutcomeVerifier(run.main_repo).verify(
         run.lanes_manifest.target_branch, claim
     )
     run.reconciliation_result = result
     if result.is_pass:
+        _record_reconciliation_pass(run)
         _assert_squash_projected_content_landed(run)
         console.print(_reconciliation_pass_message(run.strategy))
         return
@@ -3041,19 +3140,42 @@ def _run_lane_based_merge_locked(
     # a resumed pre-fix in-flight state (FR-012). The teardown gate compares the
     # post-merge target against this pre-mutation claim.
     _capture_reconciliation_claim(run)
-    try:
-        _phase_merge_lanes(run)
-    except Exception as exc:
-        _rollback_to_pre_mutation_checkpoint(run, error=exc)
-        raise
-    _phase_baseline_and_surface(run)
-    _phase_bake_and_pre_target_done(run)
-    _capture_pre_target_gate_artifacts(run)
-    _phase_mission_to_target(run)
-    _phase_capture_and_baseline(run)
-    _phase_record_done_and_project(run)
-    _phase_porcelain_invariant(run)
-    _phase_commit_and_assert(run)
+    # #5021 residual 1 (Decision 3): a ``--resume`` whose persisted CAS anchor
+    # proves reconciliation already PASSed for the target's CURRENT tip must
+    # not re-run the consolidation/bake/mission->target/done-bookkeeping
+    # phases at all — several of them (the pre-target ``done`` mark + status
+    # projection) write NEW bookkeeping content onto the coordination branch
+    # that a fresh ``_phase_mission_to_target`` tree-equality re-check would
+    # then see as a genuine divergence from the target's own already-projected
+    # copy, forcing a spurious second squash attempt (and, separately, a lane
+    # branch teardown already deleted collapses the rebuilt authored-blobs
+    # claim to empty). Skipping straight to the reconciliation gate — which
+    # itself short-circuits the content axis via the SAME CAS check — is what
+    # "complete teardown instead of re-running [already-verified work]" means.
+    # A genuinely incomplete resume (no PASS recorded, or the target moved
+    # since) takes the full phase list unchanged — the R2 guard.
+    if not _resume_reconciliation_already_passed(run):
+        try:
+            _phase_merge_lanes(run)
+        except Exception as exc:
+            _rollback_to_pre_mutation_checkpoint(run, error=exc)
+            raise
+        _phase_baseline_and_surface(run)
+        _phase_bake_and_pre_target_done(run)
+        _capture_pre_target_gate_artifacts(run)
+        _phase_mission_to_target(run)
+        _phase_capture_and_baseline(run)
+        _phase_record_done_and_project(run)
+        _phase_porcelain_invariant(run)
+        _phase_commit_and_assert(run)
+    else:
+        # Skipped ``_phase_baseline_and_surface`` above never set
+        # ``run.target_baseline_sha`` (default ``"HEAD~1"``, a stale window for
+        # a target that has not moved in THIS run) — ``_phase_dossier_and_stale``
+        # still runs unconditionally below and would otherwise scan an
+        # arbitrary/wrong window. Nothing new landed in this run, so the correct
+        # stale-assertion baseline IS the target's current tip (an empty window).
+        run.target_baseline_sha = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch) or run.target_baseline_sha
     # terminus-merge-integrity WP06 (S-D): the tree-authoritative reconciliation
     # gate runs strictly BEFORE any teardown/push — on FAIL/REFUSE it refuses
     # (non-zero) and mutates nothing (ordering guarantee: teardown executes only

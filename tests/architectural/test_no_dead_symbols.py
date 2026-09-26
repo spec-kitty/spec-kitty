@@ -2215,11 +2215,12 @@ _CATEGORY_C_TERMINUS_RECONCILIATION_5001: frozenset[SymbolKey] = frozenset(
         ),
         # specify_cli.merge.reconciliation::Divergence -- public vocabulary
         # of the new reconciliation gate (the verifier's FAIL-shaped
-        # structured divergence record). body_hash refreshed (#5001 #5020):
-        # the squash axis added the `unattributable_blobs` field + render branch.
+        # structured divergence record). body_hash refreshed (#5001 #5020;
+        # #5022 terminus-reconciliation-attribution-integrity): the squash axis
+        # added `unattributable_blobs`, then `unattributable_deletions` + render branch.
         SymbolKey(
             "Divergence",
-            "9ec421b65cc7b56b844793c979be3d7ba5d426065df6eed236e3fdef9324ed1e",
+            "a828263627ea91b6bca3a12e26bdccacc4011309e631bdcbcf52ec13f7d4c662",
             source_module="specify_cli.merge.reconciliation",
         ),
         # specify_cli.merge.bookkeeping_projection::ProjectionResult -- the

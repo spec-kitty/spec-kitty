@@ -316,6 +316,7 @@ def build_coord_mission(
     wps: Sequence[str] = ("WP01",),
     target_branch: str = "main",
     mid8: str = "01M5001A",
+    extra_base_files: dict[str, str] | None = None,
 ) -> CoordMission:
     """Materialize a real coord-topology mission with every WP approved.
 
@@ -328,6 +329,12 @@ def build_coord_mission(
     ``mid8`` is an uppercase ULID-style disambiguator; the slug ends with it so the
     coordination branch is ``kitty/mission-<slug>`` (the production 083+ layout
     ``CoordinationWorkspace.branch_name`` reconstructs verbatim).
+
+    ``extra_base_files`` (``{repo_relative_path: content}``) are committed as part
+    of the repo's INIT commit — i.e. BEFORE the coordination branch and every lane
+    branch are cut — so every lane inherits them as genuinely PRE-EXISTING content
+    (#5022: a canceled WP's deletion of a pre-existing product file no approved
+    lane re-authors).
     """
     mid8 = mid8.upper()
     mission_id = (mid8 + "0" * 26)[:26]
@@ -357,6 +364,10 @@ def build_coord_mission(
     _git(repo, "config", "user.name", "Terminus Test")
     _git(repo, "config", "commit.gpgsign", "false")
     (repo / "README.md").write_text("init\n", encoding="utf-8")
+    for rel_path, content in (extra_base_files or {}).items():
+        base_file = repo / rel_path
+        base_file.parent.mkdir(parents=True, exist_ok=True)
+        base_file.write_text(content, encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "init")
 
@@ -395,6 +406,142 @@ def build_coord_mission(
     # -- materialize the coordination worktree (production topology) -------
     from specify_cli.coordination.workspace import CoordinationWorkspace
 
+    CoordinationWorkspace.resolve(repo, slug, mid8)
+    return mission
+
+
+def _cancel_event(mission: CoordMission, wp_id: str, *, from_lane: str = "planned") -> dict[str, object]:
+    """A single operator-authored canceled-with-provenance transition event.
+
+    ``reason_source: "operator"`` is set explicitly (mirrors
+    :data:`specify_cli.status_lanes.OPERATOR_REASON_SOURCE`) so
+    ``has_operator_provenance`` / ``is_acceptable_ending`` recognize the
+    cancellation as an acceptable mission ending — the #5018 mixed-lane
+    fixture needs a WP that is genuinely canceled-with-provenance, not a
+    synthetic/unauthorized cancellation.
+    """
+    mission._event_seq += 1
+    return {
+        "actor": "operator",
+        "at": _now_iso(),
+        "event_id": f"01HXYZ5001{mission._event_seq:016d}",
+        "evidence": None,
+        "execution_mode": "worktree",
+        "feature_slug": mission.slug,
+        "force": False,
+        "from_lane": from_lane,
+        "reason": "operator: scope removed from mission",
+        "reason_source": "operator",
+        "review_ref": None,
+        "to_lane": "canceled",
+        "wp_id": wp_id,
+    }
+
+
+def build_coord_mission_mixed_lane(
+    tmp_path: Path,
+    *,
+    survivor_wp: str = "WP01",
+    canceled_wp: str = "WP02",
+    target_branch: str = "main",
+    mid8: str = "01M5018A",
+) -> CoordMission:
+    """A SINGLE write-scope lane holding an approved survivor + a canceled sibling (#5018).
+
+    ``_collect_excluded`` (pre-fix) is LANE-granular: it adds ALL of a lane's tip
+    commits to the excluded set the moment the lane lists ANY canceled WP — even
+    the survivor's own legitimately-approved first-parent commits. This fixture is
+    the minimal real-CLI shape that exercises exactly that granularity bug: ONE
+    lane branch (``lane-a``) whose ``wp_ids`` list both *survivor_wp* (walked to
+    ``approved``) and *canceled_wp* (canceled-with-provenance, via
+    :func:`_cancel_event`, BEFORE it ever commits any code). The lane branch
+    therefore carries exactly one commit, and that commit is 100% *survivor_wp*'s
+    own authored work — so a correct, commit-granular exclusion must never
+    exclude it, while the pre-fix lane-granular exclusion does.
+    """
+    mid8 = mid8.upper()
+    mission_id = (mid8 + "0" * 26)[:26]
+    slug = f"terminus-{mid8}"
+    repo = tmp_path / "repo"
+    home = tmp_path / "home"
+    home.mkdir(parents=True, exist_ok=True)
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+    from specify_cli.lanes.models import ExecutionLane, LanesManifest
+    from specify_cli.lanes.persistence import write_lanes_json
+
+    coord_branch = CoordinationWorkspace.branch_name(slug, mid8)
+    mission = CoordMission(
+        repo=repo,
+        home=home,
+        feature_dir=repo / "kitty-specs" / slug,
+        slug=slug,
+        mission_id=mission_id,
+        mid8=mid8,
+        coord_branch=coord_branch,
+        target_branch=target_branch,
+    )
+
+    # -- base repo ---------------------------------------------------------
+    repo.mkdir(parents=True, exist_ok=True)
+    _run(["git", "init", "-qb", target_branch, str(repo)])
+    _git(repo, "config", "user.email", "test@test.com")
+    _git(repo, "config", "user.name", "Terminus Test")
+    _git(repo, "config", "commit.gpgsign", "false")
+    (repo / "README.md").write_text("init\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "init")
+
+    # -- planning artifacts: ONE lane, TWO WPs, mixed status ----------------
+    (mission.feature_dir / "tasks").mkdir(parents=True)
+    _write_meta(mission)
+    manifest = LanesManifest(
+        version=1,
+        mission_slug=slug,
+        mission_id=mission_id,
+        mission_branch=coord_branch,
+        target_branch=target_branch,
+        lanes=[
+            ExecutionLane(
+                lane_id="lane-a",
+                wp_ids=(survivor_wp, canceled_wp),
+                write_scope=(f"src/pkg/{survivor_wp.lower()}.py",),
+                predicted_surfaces=("code",),
+                depends_on_lanes=(),
+                parallel_group=0,
+            )
+        ],
+        computed_at=_now_iso(),
+        computed_from="terminus-red-first-fixture-mixed-lane",
+    )
+    write_lanes_json(mission.feature_dir, manifest)
+    _write_wp_file(mission, survivor_wp)
+    _write_wp_file(mission, canceled_wp)
+    events = [*_approve_events(mission, survivor_wp), _cancel_event(mission, canceled_wp)]
+    (mission.feature_dir / _STATUS_EVENTS_FILENAME).write_text(
+        "".join(json.dumps(ev, sort_keys=True) + "\n" for ev in events),
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", f"chore({slug}): bootstrap mixed-lane coord mission")
+
+    # -- coordination branch at the bootstrap tip --------------------------
+    _git(repo, "branch", coord_branch)
+
+    # -- ONE shared lane branch, carrying ONLY the survivor's real commit ---
+    lane_branch = f"kitty/mission-{slug}-lane-a"
+    _git(repo, "branch", lane_branch, coord_branch)
+    _git(repo, "checkout", "-q", lane_branch)
+    code = repo / "src" / "pkg" / f"{survivor_wp.lower()}.py"
+    code.parent.mkdir(parents=True, exist_ok=True)
+    code.write_text(f"def {survivor_wp.lower()}() -> int:\n    return 0\n", encoding="utf-8")
+    _git(repo, "add", str(code))
+    _git(repo, "commit", "-qm", f"feat({slug}): {survivor_wp} approved code")
+    _git(repo, "checkout", "-q", target_branch)
+    mission.lane_branches[survivor_wp] = lane_branch
+    mission.lane_branches[canceled_wp] = lane_branch
+    mission.canceled_wps.add(canceled_wp)
+
+    # -- materialize the coordination worktree (production topology) -------
     CoordinationWorkspace.resolve(repo, slug, mid8)
     return mission
 
@@ -458,6 +605,46 @@ def plant_canceled_commit(
 
     mission.canceled_wps.add(canceled_wp)
     return canceled_sha, canceled_pid, planted_path
+
+
+def plant_canceled_deletion(
+    mission: CoordMission,
+    *,
+    canceled_wp: str,
+    carrier_wp: str,
+    path: str,
+) -> tuple[str, str]:
+    """Plant a canceled/removed WP's DELETION of a pre-existing file (#5022).
+
+    Mirrors :func:`plant_canceled_commit`'s carrier-merge mechanism, but the
+    canceled commit DELETES *path* (which must already exist on
+    ``mission.coord_branch`` — see ``build_coord_mission``'s ``extra_base_files``)
+    instead of adding new content. This is the #5022 data-loss shape: a canceled
+    WP's deletion of a pre-existing product file that no approved lane re-authors,
+    riding a carrier lane's history into the target under the DEFAULT squash.
+
+    Returns ``(canceled_sha, canceled_patch_id)``.
+    """
+    repo = mission.repo
+    slug = mission.slug
+    cancel_branch = f"kitty/mission-{slug}-lane-canceled-del"
+
+    _git(repo, "branch", cancel_branch, mission.coord_branch)
+    _git(repo, "checkout", "-q", cancel_branch)
+    _git(repo, "rm", "-q", path)
+    _git(repo, "commit", "-qm", f"fix({slug}): {canceled_wp} removes {path} (later CANCELED)")
+    canceled_sha = git_rev(repo, cancel_branch)
+    canceled_pid = patch_id(repo, canceled_sha)
+
+    # Carrier lane merges the canceled deletion in -> it now rides carrier history.
+    carrier_branch = mission.lane_branches[carrier_wp]
+    _git(repo, "checkout", "-q", carrier_branch)
+    _git(repo, "merge", "-q", "--no-edit", cancel_branch)
+    _git(repo, "checkout", "-q", mission.target_branch)
+    _git(repo, "branch", "-qD", cancel_branch)
+
+    mission.canceled_wps.add(canceled_wp)
+    return canceled_sha, canceled_pid
 
 
 # ---------------------------------------------------------------------------

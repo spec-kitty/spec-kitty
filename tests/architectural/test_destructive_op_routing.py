@@ -226,13 +226,13 @@ _ALLOWLIST: dict[str, str] = {
         "own docstring, not an unrouted/unexplained raw force-remove."
     ),
     # --- merge --abort (6) --------------------------------------------------
-    "src/specify_cli/merge/state.py:638:merge_abort": (
+    "src/specify_cli/merge/state.py:654:merge_abort": (
         "abort_git_merge's own generic primitive; its one live caller "
         "(cli.commands.merge._dispatch_abort, WP04/#4754) passes only the "
         "scoped merge-workspace path, never repo_root (INV-5). Re-pinned "
-        "from :622 (landing/coord-read-fail-closed #5001 follow-up, "
-        "PR #5020): this PR's state.py edits shifted the line, same "
-        "primitive/rationale."
+        "from :638 (terminus-reconciliation-attribution-integrity, #5021 r1): "
+        "the reconciliation_passed_target_sha resume-anchor field shifted the "
+        "line, same primitive/rationale."
     ),
     "src/specify_cli/lanes/merge.py:1071:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (squash-conflict rollback), never repo_root."),
     "src/specify_cli/lanes/merge.py:1184:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (merge-conflict rollback), never repo_root."),

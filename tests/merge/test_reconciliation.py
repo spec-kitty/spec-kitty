@@ -1026,13 +1026,15 @@ def _squash_claim(
     window_base: str | None,
     manifest_wp_ids: frozenset[str],
     planning_prefix: str | None = None,
+    authored_deletions: frozenset[str] = frozenset(),
 ) -> ApprovedWpCommitSet:
-    """A production (closed-world) SQUASH claim exercising the blob axis."""
+    """A production (closed-world) SQUASH claim exercising the blob/deletion axes."""
     return ApprovedWpCommitSet(
         approved=approved,
         manifest_wp_ids=manifest_wp_ids,
         enforce_closed_world=True,
         authored_blobs=authored_blobs,
+        authored_deletions=authored_deletions,
         excluded_window_base=window_base,
         mission_slug=_MISSION_SLUG,
         planning_prefix=planning_prefix,
@@ -1260,6 +1262,377 @@ def test_squash_vacuous_authorship_with_no_window_content_still_passes(tmp_path:
         manifest_wp_ids=frozenset({"WP01"}),
     )
     assert MergeOutcomeVerifier(repo).verify(_TARGET, claim).is_pass
+
+
+# --------------------------------------------------------------------------- #
+# #5022 / WP1 — squash DELETION-attribution axis (`authored_deletions`).
+# --------------------------------------------------------------------------- #
+
+
+def test_final_authored_deletions_add_then_delete_is_recorded(tmp_path: Path) -> None:
+    """Add-then-delete within a lane: the lane's OWN final state for the path is
+    deleted, so it must be recorded (#5022 / WP1 T002)."""
+    from specify_cli.merge.reconciliation import _final_authored_deletions
+
+    repo = _init_repo(tmp_path)
+    base = _rev(repo, _TARGET)
+    _git(repo, "branch", "lane-a", base)
+    _git(repo, "checkout", "-q", "lane-a")
+    (repo / "src").mkdir()
+    (repo / "src" / "a.py").write_text("v1\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "feat: add a.py")
+    _git(repo, "rm", "-q", "src/a.py")
+    _git(repo, "commit", "-qm", "feat: delete a.py")
+    _git(repo, "checkout", "-q", _TARGET)
+    spine = git_probes.first_parent_commits_in_range(repo, base, "lane-a")
+    assert _final_authored_deletions(repo, spine) == {"src/a.py"}
+
+
+def test_final_authored_deletions_delete_then_readd_is_not_recorded(tmp_path: Path) -> None:
+    """Delete-then-re-add within a lane: the lane's final state for the path is
+    PRESENT, so it must NOT be recorded as a deletion — it belongs in
+    ``_final_authored_blobs`` instead (#5022 / WP1 T002)."""
+    from specify_cli.merge.reconciliation import _final_authored_blobs, _final_authored_deletions
+
+    repo = _init_repo(tmp_path)
+    (repo / "src").mkdir()
+    (repo / "src" / "a.py").write_text("base\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "base: add a.py before the lane")
+    base = _rev(repo, _TARGET)
+    _git(repo, "branch", "lane-a", base)
+    _git(repo, "checkout", "-q", "lane-a")
+    _git(repo, "rm", "-q", "src/a.py")
+    _git(repo, "commit", "-qm", "feat: delete a.py")
+    (repo / "src").mkdir(exist_ok=True)  # `git rm` prunes the now-empty directory
+    (repo / "src" / "a.py").write_text("v2\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "feat: re-add a.py")
+    _git(repo, "checkout", "-q", _TARGET)
+    spine = git_probes.first_parent_commits_in_range(repo, base, "lane-a")
+    assert _final_authored_deletions(repo, spine) == set()
+    blobs = _final_authored_blobs(repo, spine)
+    assert any(path == "src/a.py" for path, _blob in blobs)
+
+
+def test_squash_authorized_deletion_passes(tmp_path: Path) -> None:
+    """S2: an approved lane's first-parent spine deletes path P — the deletion IS
+    attributable (``P in authored_deletions``) ⇒ PASS. Also exercises the F1-
+    corollary guard fix: ``authored_blobs`` is empty here (nothing was added or
+    modified) but ``authored_deletions`` is non-empty, so the axis must NOT
+    REFUSE on "empty authorship"."""
+    repo = _init_repo(tmp_path)
+    (repo / "src").mkdir()
+    (repo / "src" / "keep.py").write_text("keep\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "pre-existing: add keep.py")
+    window_base = _rev(repo, _TARGET)
+    _git(repo, "branch", "lane-a", window_base)
+    _git(repo, "checkout", "-q", "lane-a")
+    _git(repo, "rm", "-q", "src/keep.py")
+    _git(repo, "commit", "-qm", "feat: remove keep.py")
+    sha = _rev(repo, "lane-a")
+    _git(repo, "checkout", "-q", _TARGET)
+    _git(repo, "merge", "-q", "--no-edit", "lane-a")
+    claim = _squash_claim(
+        approved={"WP01": (sha,)},
+        authored_blobs=frozenset(),
+        authored_deletions=frozenset({"src/keep.py"}),
+        window_base=window_base,
+        manifest_wp_ids=frozenset({"WP01"}),
+        planning_prefix=None,
+    )
+    assert MergeOutcomeVerifier(repo).verify(_TARGET, claim).is_pass
+
+
+def test_squash_unattributed_deletion_fails(tmp_path: Path) -> None:
+    """S1 (unit-level): a deletion in the squash window with no authored-deletion
+    authority behind it is un-attributable ⇒ FAIL, named in
+    ``Divergence.unattributable_deletions`` (#5022)."""
+    repo = _init_repo(tmp_path)
+    (repo / "src").mkdir()
+    (repo / "src" / "keep.py").write_text("keep\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "pre-existing: add keep.py")
+    window_base = _rev(repo, _TARGET)
+    approved_sha = _lane_commit(repo, window_base, "lane-a", "src/other.py", "OTHER\n")
+    _git(repo, "merge", "-q", "--no-edit", "lane-a")
+    # keep.py's removal rides the target with NO authorship behind it — mirrors a
+    # canceled WP's deletion carried in via a carrier merge (#5022).
+    _git(repo, "rm", "-q", "src/keep.py")
+    _git(repo, "commit", "-qm", "squash: keep.py silently gone")
+    claim = _squash_claim(
+        approved={"WP01": (approved_sha,)},
+        authored_blobs=frozenset({("src/other.py", git_probes.blob_id_at(repo, _TARGET, "src/other.py"))}),
+        authored_deletions=frozenset(),
+        window_base=window_base,
+        manifest_wp_ids=frozenset({"WP01"}),
+        planning_prefix=None,
+    )
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
+    assert result.status is VerifyStatus.FAIL
+    assert result.divergence is not None
+    assert "src/keep.py" in result.divergence.unattributable_deletions
+    # The approved add is unaffected — never sacrificed to close the leak.
+    assert not result.divergence.unattributable_blobs
+
+
+def test_squash_bookkeeping_deletion_passes(tmp_path: Path) -> None:
+    """S3: deletion of a mission-bookkeeping path is masked before attribution —
+    PASS even with an empty ``authored_deletions`` (#5022)."""
+    repo = _init_repo(tmp_path)
+    book_dir = repo / "kitty-specs" / _MISSION_SLUG
+    book_dir.mkdir(parents=True)
+    (book_dir / "status.json").write_text('{"ok": true}\n', encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "pre-existing: bookkeeping file")
+    window_base = _rev(repo, _TARGET)
+    approved_sha = _lane_commit(repo, window_base, "lane-a", "src/wp01.py", "APPROVED\n")
+    _git(repo, "merge", "-q", "--no-edit", "lane-a")
+    _git(repo, "rm", "-q", f"kitty-specs/{_MISSION_SLUG}/status.json")
+    _git(repo, "commit", "-qm", "chore: bookkeeping cleanup")
+    claim = _squash_claim(
+        approved={"WP01": (approved_sha,)},
+        authored_blobs=frozenset({("src/wp01.py", git_probes.blob_id_at(repo, _TARGET, "src/wp01.py"))}),
+        authored_deletions=frozenset(),
+        window_base=window_base,
+        manifest_wp_ids=frozenset({"WP01"}),
+        planning_prefix=f"kitty-specs/{_MISSION_SLUG}",
+    )
+    assert MergeOutcomeVerifier(repo).verify(_TARGET, claim).is_pass
+
+
+def test_squash_rename_attributes_both_delete_and_add_halves(tmp_path: Path) -> None:
+    """A rename surfaces under ``--no-renames`` as a delete + an add; both halves
+    must be independently attributed — the deleted OLD path via
+    ``authored_deletions``, the added NEW path via ``authored_blobs`` (#5022 T003
+    adversarial)."""
+    repo = _init_repo(tmp_path)
+    (repo / "src").mkdir()
+    (repo / "src" / "old.py").write_text("content\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "pre-existing: add old.py")
+    window_base = _rev(repo, _TARGET)
+    _git(repo, "branch", "lane-a", window_base)
+    _git(repo, "checkout", "-q", "lane-a")
+    _git(repo, "mv", "src/old.py", "src/new.py")
+    _git(repo, "commit", "-qm", "feat: rename old.py to new.py")
+    sha = _rev(repo, "lane-a")
+    _git(repo, "checkout", "-q", _TARGET)
+    _git(repo, "merge", "-q", "--no-edit", "lane-a")
+    new_blob = git_probes.blob_id_at(repo, _TARGET, "src/new.py")
+    claim = _squash_claim(
+        approved={"WP01": (sha,)},
+        authored_blobs=frozenset({("src/new.py", new_blob)}),
+        authored_deletions=frozenset({"src/old.py"}),
+        window_base=window_base,
+        manifest_wp_ids=frozenset({"WP01"}),
+        planning_prefix=None,
+    )
+    assert MergeOutcomeVerifier(repo).verify(_TARGET, claim).is_pass
+
+
+def test_squash_authored_deletion_union_across_two_lanes_passes(tmp_path: Path) -> None:
+    """``authored_deletions`` is a UNION across ALL approved lanes, built end to
+    end through :func:`build_approved_wp_set` (not a hand-built claim) — a
+    deletion authored by lane-b's own first-parent spine is attributable."""
+    repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01", "WP02"))
+    lane_a = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET, mission_id=_MISSION_ID)
+    lane_b = lane_branch_name(_MISSION_SLUG, "lane-b", planning_base_branch=_TARGET, mission_id=_MISSION_ID)
+    # _build_mission already committed src/wp02.py on lane-b; WP02 now removes it.
+    _git(repo, "checkout", "-q", lane_b)
+    _git(repo, "rm", "-q", "src/wp02.py")
+    _git(repo, "commit", "-qm", "feat: wp02 removes its own file")
+    _git(repo, "checkout", "-q", _TARGET)
+    claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
+    assert "src/wp02.py" in claim.authored_deletions
+    _git(repo, "merge", "-q", "--no-edit", lane_a)
+    _git(repo, "merge", "-q", "--no-edit", lane_b)
+    squash_claim = replace(claim, verify_reachability=False)
+    assert MergeOutcomeVerifier(repo).verify(_TARGET, squash_claim).is_pass
+
+
+def test_divergence_describe_renders_unattributable_deletion() -> None:
+    """The deletion axis renders honestly — a PATH, never a blob (there is none),
+    and the wording distinguishes "deleted" from the add/modify vocabulary."""
+    div = Divergence(unattributable_deletions=("src/product/keep_me.py",))
+    text = div.describe()
+    assert "src/product/keep_me.py" in text, text
+    assert "delet" in text.lower(), text
+
+    guidance = VerifyResult.failed(div).recovery_guidance()
+    assert "src/product/keep_me.py" in guidance, guidance
+
+
+# --------------------------------------------------------------------------- #
+# #5018 / WP2 — commit-level exclusion narrowing in a mixed lane.
+# --------------------------------------------------------------------------- #
+
+
+def _build_mixed_lane_mission(tmp_path: Path) -> tuple[Path, Path, LanesManifest, str]:
+    """ONE lane (``lane-a``) whose ``wp_ids`` list an approved survivor (WP01) and
+    a canceled-with-provenance sibling (WP02). Only WP01 commits real code to the
+    shared lane branch — the minimal shape that exercises #5018's granularity bug
+    (a correct commit-granular exclusion must never exclude the survivor's own
+    commit; the pre-fix lane-granular exclusion does)."""
+    repo = _init_repo(tmp_path)
+    feature_dir = repo / "kitty-specs" / _MISSION_SLUG
+    (feature_dir / "tasks").mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": _MISSION_SLUG,
+                "mission_id": _MISSION_ID,
+                "mission_type": "software-dev",
+                "target_branch": _TARGET,
+            }
+        ),
+        encoding="utf-8",
+    )
+    manifest = LanesManifest(
+        version=1,
+        mission_slug=_MISSION_SLUG,
+        mission_id=_MISSION_ID,
+        mission_branch=f"kitty/mission-{_MISSION_SLUG}",
+        target_branch=_TARGET,
+        lanes=[
+            ExecutionLane(
+                lane_id="lane-a",
+                wp_ids=("WP01", "WP02"),
+                write_scope=("src/wp01.py",),
+                predicted_surfaces=("code",),
+                depends_on_lanes=(),
+                parallel_group=0,
+            )
+        ],
+        computed_at=_now_iso(),
+        computed_from="recon-test-mixed-lane",
+    )
+    events = [
+        *_approve_events(0, "WP01", day=1),
+        _event(9000, "WP02", "planned", "canceled", at="2026-03-01T00:00:00+00:00", lamport=1),
+    ]
+    (feature_dir / "status.events.jsonl").write_text(
+        "".join(json.dumps(e, sort_keys=True) + "\n" for e in events),
+        encoding="utf-8",
+    )
+    from specify_cli.lanes.persistence import write_lanes_json
+
+    write_lanes_json(feature_dir, manifest)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "bootstrap mixed-lane mission")
+    coord_base = _rev(repo, "HEAD")
+
+    branch = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET, mission_id=_MISSION_ID)
+    _lane_commit(repo, coord_base, branch, "src/wp01.py", "# WP01 survivor\n")
+    return repo, feature_dir, manifest, coord_base
+
+
+def test_collect_excluded_narrows_mixed_lane_to_commit_granularity(tmp_path: Path) -> None:
+    """#5018: a mixed lane's survivor commit must NOT be in ``excluded_shas`` —
+    only commits attributable to NO approved lane's first-parent authorship stay
+    excluded."""
+    repo, feature_dir, manifest, coord_base = _build_mixed_lane_mission(tmp_path)
+    claim = build_approved_wp_set(
+        repo,
+        feature_dir,
+        manifest,
+        coord_base_ref=coord_base,
+        excluded_canceled_wp_ids=frozenset({"WP02"}),
+        excluded_window_base=coord_base,
+    )
+    branch = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET, mission_id=_MISSION_ID)
+    survivor_sha = git_probes.commits_in_range(repo, coord_base, branch)[0]
+    assert survivor_sha in claim.authored_shas
+    assert survivor_sha not in claim.excluded_shas
+    _git(repo, "merge", "-q", "--no-edit", branch)
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
+    assert result.is_pass, result.divergence.describe() if result.divergence else result.refusal_reason
+
+
+def test_collect_excluded_still_catches_second_parent_smuggled_commit_in_mixed_lane(tmp_path: Path) -> None:
+    """C-001 adversarial: a canceled WP's commit smuggled into the MIXED lane via
+    a merge's SECOND parent is NOT on the survivor's first-parent spine, so it is
+    NOT subtracted from the excluded set — it stays excluded and FAILs when
+    reachable (the #4977 safety net, narrowed granularity must never widen into
+    reduced strictness)."""
+    repo, feature_dir, manifest, coord_base = _build_mixed_lane_mission(tmp_path)
+    branch = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET, mission_id=_MISSION_ID)
+    smuggled = _lane_commit(repo, coord_base, "lane-removed", "src/wp99_removed.py", "REMOVED\n")
+    smuggled_pid = git_probes.patch_id_of(repo, smuggled)
+    _git(repo, "checkout", "-q", branch)
+    _git(repo, "merge", "-q", "--no-edit", "lane-removed")
+    _git(repo, "checkout", "-q", _TARGET)
+    _git(repo, "merge", "-q", "--no-edit", branch)  # survivor + smuggled both land
+    _git(repo, "branch", "-qD", "lane-removed")
+
+    claim = build_approved_wp_set(
+        repo,
+        feature_dir,
+        manifest,
+        coord_base_ref=coord_base,
+        excluded_canceled_wp_ids=frozenset({"WP02"}),
+        excluded_window_base=coord_base,
+    )
+    assert smuggled not in claim.authored_shas
+    assert smuggled in claim.excluded_shas or smuggled_pid in claim.excluded_patch_ids
+    result = MergeOutcomeVerifier(repo).verify(_TARGET, claim)
+    assert result.status is VerifyStatus.FAIL
+    assert result.divergence is not None
+    assert any(sha == smuggled or pid == smuggled_pid for sha, pid in result.divergence.reachable_excluded)
+
+
+def test_collect_excluded_subtracts_only_authored_shas_not_all(tmp_path: Path) -> None:
+    """Unit-level pin of the #5018 subtraction formula: ``excluded_shas ←
+    lane_tips − authored_shas`` / ``excluded_patch_ids ← lane_patch_ids −
+    authored_patch_ids``. With NO authored subtraction the whole lane tip is
+    excluded (pre-#5018 behavior); subtracting the survivor's own sha/patch-id
+    removes ONLY that commit — the patch-id equivalence a re-lettered/cherry-
+    picked copy relies on (RN-F4) is preserved for anything NOT subtracted."""
+    from specify_cli.merge.reconciliation import _collect_excluded
+
+    repo, _feature_dir, manifest, coord_base = _build_mixed_lane_mission(tmp_path)
+    branch = lane_branch_name(_MISSION_SLUG, "lane-a", planning_base_branch=_TARGET, mission_id=_MISSION_ID)
+    survivor_sha = git_probes.commits_in_range(repo, coord_base, branch)[0]
+    survivor_pid = git_probes.patch_id_of(repo, survivor_sha)
+
+    shas_none, pids_none = _collect_excluded(repo, manifest, coord_base, frozenset({"WP02"}))
+    assert survivor_sha in shas_none
+    if survivor_pid:
+        assert survivor_pid in pids_none
+
+    shas_sub, pids_sub = _collect_excluded(
+        repo,
+        manifest,
+        coord_base,
+        frozenset({"WP02"}),
+        authored_shas=frozenset({survivor_sha}),
+        authored_patch_ids=frozenset({survivor_pid}) if survivor_pid else frozenset(),
+    )
+    assert survivor_sha not in shas_sub
+    if survivor_pid:
+        assert survivor_pid not in pids_sub
+
+
+def test_collect_excluded_fully_canceled_lane_stays_fully_excluded(tmp_path: Path) -> None:
+    """A fully-canceled lane (no approved WP at all) is unchanged by the #5018
+    narrowing — every one of its tip commits stays excluded, since
+    ``_collect_authored`` never contributes authorship for a lane with no
+    approved WP."""
+    repo, feature_dir, manifest, coord_base = _build_mission(tmp_path, approved_wps=("WP01",), manifest_wps=("WP01", "WP02"))
+    claim = build_approved_wp_set(
+        repo,
+        feature_dir,
+        manifest,
+        coord_base_ref=coord_base,
+        excluded_canceled_wp_ids=frozenset({"WP02"}),
+    )
+    branch = lane_branch_name(_MISSION_SLUG, "lane-b", planning_base_branch=_TARGET, mission_id=_MISSION_ID)
+    all_tip_commits = set(git_probes.commits_in_range(repo, coord_base, branch))
+    assert all_tip_commits
+    assert all_tip_commits <= claim.excluded_shas
+    assert not (all_tip_commits & claim.authored_shas)
 
 
 @pytest.mark.xfail(

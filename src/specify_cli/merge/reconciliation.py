@@ -94,11 +94,13 @@ _POST_FIX_MARKER_FILENAME = "reconciliation.post-fix"
 # shared by the merge/rebase reachability path and the squash blob-attribution
 # path, which must refuse identically when the window base cannot be resolved).
 _REFUSE_WINDOW_BASE_UNRESOLVED = "the excluded-content window base could not be resolved; the excluded/closed-world axes cannot be verified (fail-closed)"
-# Squash-only (#5013 F1 corollary): a production claim whose authorship set came
-# back empty while it lists approved WPs cannot attribute any target blob — the
-# empty loop would PASS vacuously, so refuse instead.
+# Squash-only (#5013 F1 corollary, widened by #5022): a production claim whose
+# authorship set came back empty — BOTH blobs and deletions — while it lists
+# approved WPs cannot attribute any target blob or deletion — the empty loop
+# would PASS vacuously, so refuse instead.
 _REFUSE_EMPTY_AUTHORED_BLOBS = (
-    "the approved-authorship blob set is empty while approved WPs are claimed; the squash content axis cannot attribute any target blob (fail-closed)"
+    "the approved-authorship blob and deletion sets are both empty while approved WPs are claimed; "
+    "the squash content axis cannot attribute any target blob or deletion (fail-closed)"
 )
 # FIX C (#5001 landing remediation): NO approved lane resolved any commits and no
 # authored blob exists, yet the squash window carries a non-bookkeeping A/M path —
@@ -157,13 +159,18 @@ class Divergence:
     PATH and a blob sha instead — a distinct shape from ``unattributable_content``,
     rendered with its own vocabulary (Epic #5001 landing fix; the two fields were
     previously conflated, mislabeling a path as a "content commit" truncated to 10
-    chars and a blob as a "patch-id").
+    chars and a blob as a "patch-id"). ``unattributable_deletions`` — repo-relative
+    PATHS (no blob — the path no longer has one) from the SQUASH DELETION axis
+    (#5022 / WP1): a target path deleted in ``B..target`` that is not attributable
+    to any approved lane's own first-parent authored deletion, distinct from
+    ``unattributable_blobs`` (which names an Added/Modified path plus its blob).
     """
 
     missing_approved: tuple[tuple[str, str], ...] = ()
     reachable_excluded: tuple[tuple[str, str], ...] = ()
     unattributable_content: tuple[tuple[str, str], ...] = ()
     unattributable_blobs: tuple[tuple[str, str], ...] = ()
+    unattributable_deletions: tuple[str, ...] = ()
 
     def describe(self) -> str:
         """Operator-facing, one-line-per-divergence explanation."""
@@ -183,6 +190,12 @@ class Divergence:
         for path, blob in self.unattributable_blobs:
             parts.append(
                 f"file '{path}' (blob {blob[:10]}) IS reachable on the target but belongs to NO approved WP — un-attributable (removed/canceled work would ship)"
+            )
+        for path in self.unattributable_deletions:
+            parts.append(
+                f"file '{path}' was DELETED from the target but that deletion is NOT "
+                "attributable to any approved WP's own authorship — un-attributable "
+                "(data loss: approved content may have been silently removed)"
             )
         return "; ".join(parts) if parts else "no divergence"
 
@@ -279,6 +292,19 @@ class ApprovedWpCommitSet:
     # axis stays off (``enforce_closed_world`` unset), preserving pre-widening
     # behavior byte-for-byte.
     authored_blobs: frozenset[tuple[str, str]] = frozenset()
+    # Squash-sound closed-world DELETION authority (#5022 / WP1). A path P is a
+    # member iff, walking an approved lane's first-parent spine newest→oldest,
+    # the FIRST (newest) commit that touches P DELETES it — i.e. the lane's own
+    # final state for P is "deleted" (mirrors ``authored_blobs``'s "final blob
+    # per path", the deletion analogue). A path added-then-deleted within a lane
+    # is a member (final state deleted); a path deleted-then-re-added is NOT (its
+    # final state is present, and it is in ``authored_blobs`` instead). Populated
+    # by ``_collect_authored`` only in the production claim builder, in the SAME
+    # spine walk that produces ``authored_blobs`` (:func:`_final_authored_walk`) —
+    # a hand-built claim leaves it empty and the squash deletion axis then treats
+    # every ``D`` path as unattributable unless it is bookkeeping, preserving
+    # pre-#5022 behavior for any claim that never populates it.
+    authored_deletions: frozenset[str] = frozenset()
     mission_slug: str | None = None
     # Repo-relative posix path of the mission's planning/status directory
     # (``kitty-specs/<slug>``). A window commit that touches ONLY paths under this
@@ -479,20 +505,24 @@ class MergeOutcomeVerifier:
         PASS (F1 corollary): a ``None`` window base and a git probe error REFUSE
         rather than pass on unevaluated content.
 
-        Empty ``authored_blobs`` is split by whether any approved lane RESOLVED to
-        commits. When the claim carries approved commit SHAs but no authored blobs,
-        the axis cannot attribute against a claim it should have been able to build
-        ⇒ REFUSE (fail-closed). When NO approved lane resolved to commits at all —
-        the tolerant "lane branch absent / already consolidated" state the claim
-        builder legitimately yields as empty tuples (``{"WP01": ()}``) — there is no
-        authorship authority to attribute against, so the axis defers to the
-        pre-#5013 PASS rather than false-fail every target path (NFR-004). This
-        matches the claim builder's own lane-resolution tolerance
-        (:func:`_lane_tip_commits` / :func:`_lane_first_parent_spine`).
+        Empty ``authored_blobs`` **and** empty ``authored_deletions`` (#5022 — a
+        lane whose sole approved contribution is a deletion legitimately has an
+        empty ``authored_blobs`` but a non-empty ``authored_deletions``, which is
+        real authorship authority, not an absence of one) is split by whether any
+        approved lane RESOLVED to commits. When the claim carries approved commit
+        SHAs but no authored blobs/deletions at all, the axis cannot attribute
+        against a claim it should have been able to build ⇒ REFUSE (fail-closed).
+        When NO approved lane resolved to commits at all — the tolerant "lane
+        branch absent / already consolidated" state the claim builder legitimately
+        yields as empty tuples (``{"WP01": ()}``) — there is no authorship
+        authority to attribute against, so the axis defers to the pre-#5013 PASS
+        rather than false-fail every target path (NFR-004). This matches the claim
+        builder's own lane-resolution tolerance (:func:`_lane_tip_commits` /
+        :func:`_lane_first_parent_spine`).
         """
         if not claim.enforce_closed_world:
             return VerifyResult.passed()
-        if not claim.authored_blobs:
+        if not claim.authored_blobs and not claim.authored_deletions:
             if any(shas for shas in claim.approved.values()):
                 return VerifyResult.refused(_REFUSE_EMPTY_AUTHORED_BLOBS)
             return self._verify_squash_vacuous_authorship(target_ref, claim)
@@ -500,11 +530,16 @@ class MergeOutcomeVerifier:
         if window_base is None:
             return VerifyResult.refused(_REFUSE_WINDOW_BASE_UNRESOLVED)
         try:
-            unattributable = self._unattributable_content_squash(target_ref, claim, window_base)
+            unattributable_blobs, unattributable_deletions = self._unattributable_content_squash(target_ref, claim, window_base)
         except GitProbeError as exc:
             return VerifyResult.refused(f"a git probe failed while verifying the squash window: {exc}")
-        if unattributable:
-            return VerifyResult.failed(Divergence(unattributable_blobs=tuple(unattributable)))
+        if unattributable_blobs or unattributable_deletions:
+            return VerifyResult.failed(
+                Divergence(
+                    unattributable_blobs=tuple(unattributable_blobs),
+                    unattributable_deletions=tuple(unattributable_deletions),
+                )
+            )
         return VerifyResult.passed()
 
     def _verify_squash_vacuous_authorship(self, target_ref: str, claim: ApprovedWpCommitSet) -> VerifyResult:
@@ -535,43 +570,56 @@ class MergeOutcomeVerifier:
         return VerifyResult.passed()
 
     def _window_has_non_bookkeeping_change(self, target_ref: str, claim: ApprovedWpCommitSet, window_base: str) -> bool:
-        """True iff ``window_base..target`` carries any non-bookkeeping A/M path.
+        """True iff ``window_base..target`` carries any un-authorized A/M/D path.
 
-        Mirrors :meth:`_unattributable_content_squash`'s Added/Modified + bookkeeping
-        filter, without reading blobs — this only asks WHETHER attributable content
-        exists, never WHICH blob it is (there is no authorship set to attribute
-        against here).
+        Mirrors :meth:`_unattributable_content_squash`'s bookkeeping + deletion-
+        authority filter, without reading blobs — this only asks WHETHER
+        attributable content exists, never WHICH blob it is (there is no
+        authorship set to attribute against here; ``claim.authored_deletions`` is
+        always empty in the caller's context, :meth:`_verify_squash_vacuous_authorship`
+        — no lane resolved any commits — so a ``D`` path here is never skipped as
+        authored, only as bookkeeping). A bookkeeping OR authored-deletion ``D``
+        path is not content (#5022); any other path — Added, Modified, or an
+        un-authored Deleted — is.
         """
         for status, path in changed_paths_in_range(self._repo, window_base, target_ref):
-            if status.startswith("D"):
-                continue  # a deletion ships no content
             if self._is_bookkeeping_path(path, claim):
                 continue
+            if status.startswith("D") and path in claim.authored_deletions:
+                continue  # an approved lane's own final-state deletion — not content
             return True
         return False
 
-    def _unattributable_content_squash(self, target_ref: str, claim: ApprovedWpCommitSet, window_base: str) -> list[tuple[str, str]]:
-        """Target ``(path, blob)`` pairs in ``B..target`` authored by no approved lane.
+    def _unattributable_content_squash(self, target_ref: str, claim: ApprovedWpCommitSet, window_base: str) -> tuple[list[tuple[str, str]], list[str]]:
+        """``(unattributable_blobs, unattributable_deletions)`` in ``B..target`` (#5013 / #5022).
 
         Iterates ``git diff --name-status --no-renames window_base..target``
-        (:func:`changed_paths_in_range`). For each **Added/Modified** path (a
-        Deleted path ships no content, so it is skipped — never inferring deletion
-        from a rev-parse failure, F1) that is not mission bookkeeping, reads the
-        target blob (:func:`blob_id_at`; an unexpected probe error propagates as
-        :class:`GitProbeError` ⇒ the caller REFUSEs). A ``(path, blob)`` absent from
-        :attr:`ApprovedWpCommitSet.authored_blobs` is unattributable and named in
-        the divergence. Bounded by the squash diff size (NFR-003).
+        (:func:`changed_paths_in_range`). A mission-bookkeeping path is skipped
+        entirely (status/meta/matrix/retrospective/planning churn — never content).
+        For each **Added/Modified** path, reads the target blob (:func:`blob_id_at`;
+        an unexpected probe error propagates as :class:`GitProbeError` ⇒ the caller
+        REFUSEs); a ``(path, blob)`` absent from
+        :attr:`ApprovedWpCommitSet.authored_blobs` is unattributable. For each
+        **Deleted** path (#5022 — previously unconditionally skipped, the silent
+        data-loss escape), the path is attributable iff it is in
+        :attr:`ApprovedWpCommitSet.authored_deletions` (an approved lane's own
+        first-parent spine ends by deleting it); otherwise it is a canceled/removed
+        WP's deletion that rode a carrier lane onto the target and is unattributable.
+        Bounded by the squash diff size (NFR-003).
         """
-        unattributable: list[tuple[str, str]] = []
+        unattributable_blobs: list[tuple[str, str]] = []
+        unattributable_deletions: list[str] = []
         for status, path in changed_paths_in_range(self._repo, window_base, target_ref):
-            if status.startswith("D"):
-                continue  # a deletion ships no content
             if self._is_bookkeeping_path(path, claim):
                 continue  # status/meta/matrix/retrospective/planning churn — not content
+            if status.startswith("D"):
+                if path not in claim.authored_deletions:
+                    unattributable_deletions.append(path)
+                continue
             blob = blob_id_at(self._repo, target_ref, path)  # raises → REFUSE (F1)
             if (path, blob) not in claim.authored_blobs:
-                unattributable.append((path, blob))
-        return unattributable
+                unattributable_blobs.append((path, blob))
+        return unattributable_blobs, unattributable_deletions
 
     def _commit_is_content(self, sha: str, claim: ApprovedWpCommitSet) -> bool:
         """True when *sha* changes at least one path that is NOT mission bookkeeping.
@@ -759,13 +807,18 @@ def build_approved_wp_set(
 
     work_packages = snapshot.work_packages or {}
     approved = _collect_approved_shas(repo_root, lanes_manifest, work_packages, coord_base_ref)
+    # Authored (WP1/WP2 shared prerequisite): computed BEFORE the excluded axis so
+    # #5018's commit-level narrowing (below) can subtract it. Collectors stay pure
+    # (WP2 note) — no shared mutable state, just a value threaded as a parameter.
+    authored_shas, authored_patch_ids, authored_blobs, authored_deletions = _collect_authored(repo_root, lanes_manifest, work_packages, coord_base_ref)
     excluded_shas, excluded_patch_ids = _collect_excluded(
         repo_root,
         lanes_manifest,
         coord_base_ref,
         frozenset(excluded_canceled_wp_ids),
+        authored_shas=authored_shas,
+        authored_patch_ids=authored_patch_ids,
     )
-    authored_shas, authored_patch_ids, authored_blobs = _collect_authored(repo_root, lanes_manifest, work_packages, coord_base_ref)
     return ApprovedWpCommitSet(
         approved=approved,
         excluded_shas=excluded_shas,
@@ -777,6 +830,7 @@ def build_approved_wp_set(
         authored_shas=authored_shas,
         authored_patch_ids=authored_patch_ids,
         authored_blobs=authored_blobs,
+        authored_deletions=authored_deletions,
         mission_slug=lanes_manifest.mission_slug,
         planning_prefix=planning_prefix,
     )
@@ -851,13 +905,38 @@ def _collect_excluded(
     lanes_manifest: LanesManifest,
     coord_base_ref: str,
     excluded_canceled_wp_ids: frozenset[str],
+    *,
+    authored_shas: frozenset[str] = frozenset(),
+    authored_patch_ids: frozenset[str] = frozenset(),
 ) -> tuple[frozenset[str], frozenset[str]]:
-    """Canceled WP ids → their lane-tip commit SHAs + patch-ids (RN-F4).
+    """Canceled WP ids → their lane-tip commit SHAs + patch-ids (RN-F4), COMMIT-granular (#5018).
 
     Sourced from ``acceptably_canceled_wp_ids`` (mapped to lane tips by the
     caller) so a canceled lane's commits — including cherry-picked/re-lettered
     copies caught by patch-id — never land. Empty when no provenance-canceled WP
     exists; the verifier's excluded check stays non-vacuous regardless.
+
+    A lane qualifies (the ``any(...)`` guard) the moment it lists ANY
+    canceled-with-provenance WP — that stays LANE-granular, because a lane is one
+    shared branch and there is no cheaper way to find "does this lane need
+    narrowing at all". Within a qualifying (possibly MIXED) lane, though, the
+    excluded set is narrowed to COMMIT granularity (C-001: granularity, not
+    strictness) by subtracting *authored_shas* / *authored_patch_ids* — the
+    approved lanes' OWN first-parent authorship (:func:`_collect_authored`,
+    computed BEFORE this call in :func:`build_approved_wp_set`) — from the
+    qualifying lane's tip commits: ``excluded_shas ← lane_tips − authored_shas``,
+    ``excluded_patch_ids ← lane_patch_ids − authored_patch_ids``. A survivor WP
+    sharing a mixed lane with a canceled sibling therefore keeps its own
+    legitimately-approved commits OUT of the excluded set, closing #5018's
+    false-FAIL, while a commit NOT on any approved lane's first-parent spine — a
+    canceled WP's own work, OR a removed WP's commit smuggled into the lane via a
+    merge's SECOND parent (#4977's mechanism; ``_lane_tip_commits`` walks ALL
+    ancestry, first- and second-parent alike, so a smuggled second-parent commit
+    is present here but absent from the first-parent-only ``authored_*`` sets) —
+    is never subtracted and stays excluded. A fully-canceled lane (no approved
+    WP at all) never contributes to *authored_shas*/*authored_patch_ids*
+    (:func:`_collect_authored` skips it), so the subtraction is a no-op and every
+    one of its tip commits stays excluded, unchanged from the pre-#5018 behavior.
     """
     shas: set[str] = set()
     patch_ids: set[str] = set()
@@ -865,11 +944,10 @@ def _collect_excluded(
         if not any(wp in excluded_canceled_wp_ids for wp in lane.wp_ids):
             continue
         branch = _lane_branch_for(lanes_manifest, lane.lane_id)
-        for sha in _lane_tip_commits(repo_root, coord_base_ref, branch):
-            shas.add(sha)
-            pid = patch_id_of(repo_root, sha)
-            if pid:
-                patch_ids.add(pid)
+        lane_tip_shas = set(_lane_tip_commits(repo_root, coord_base_ref, branch))
+        lane_patch_ids = {pid for sha in lane_tip_shas if (pid := patch_id_of(repo_root, sha))}
+        shas |= lane_tip_shas - authored_shas
+        patch_ids |= lane_patch_ids - authored_patch_ids
     return frozenset(shas), frozenset(patch_ids)
 
 
@@ -895,16 +973,23 @@ def _lane_first_parent_spine(repo_root: Path, coord_base_ref: str, branch: str) 
         return []
 
 
-def _final_authored_blobs(repo_root: Path, first_parent_shas: list[str]) -> set[tuple[str, str]]:
-    """FINAL ``(path, blob)`` per path across a lane's first-parent spine (F5).
+def _final_authored_walk(repo_root: Path, first_parent_shas: list[str]) -> tuple[set[tuple[str, str]], set[str]]:
+    """FINAL ``(path, blob)``s AND final DELETED paths across a lane's first-parent spine (F5, #5022).
 
-    Walks the spine newest→oldest (``git rev-list`` order) and keeps the FIRST
-    (hence newest, hence final) blob seen per path — so a superseded intermediate
-    ``v1`` is dropped in favor of the lane's final ``v2``. A merge commit on the
-    spine contributes nothing (its combined diff is empty for a clean auto-merge),
-    so a second-parent-smuggled blob is never recorded as authored. A path deleted
-    by its newest touching commit has no blob at that commit (:func:`blob_id_at`
-    raises); it is marked seen and contributes no shippable blob.
+    Walks the spine newest→oldest (``git rev-list`` order) and, per path, keeps
+    only the FIRST (hence newest, hence final) state seen — so a superseded
+    intermediate ``v1`` is dropped in favor of the lane's final ``v2``, and a path
+    deleted-then-re-added ends up present (in ``blobs``), never in ``deletions``. A
+    merge commit on the spine contributes nothing (its combined diff is empty for
+    a clean auto-merge), so a second-parent-smuggled blob/deletion is never
+    recorded as authored. A path whose newest touching commit deletes it has no
+    blob at that commit (:func:`blob_id_at` raises); it is marked seen and
+    recorded in ``deletions`` instead of ``blobs`` — the lane's own final state for
+    that path IS "deleted", so it is legitimate authored authority for the squash
+    deletion-attribution axis (#5022), not merely "no shippable blob".
+
+    Computed in ONE spine walk (not two) so :func:`_collect_authored` — the sole
+    production caller — never re-reads the same commits' diffs twice.
 
     FIX D (#5001 landing remediation) — the invariant this axis rests on: the
     squash content axis's soundness depends on lanes being sliced by DISJOINT
@@ -924,6 +1009,7 @@ def _final_authored_blobs(repo_root: Path, first_parent_shas: list[str]) -> set[
     """
     seen_paths: set[str] = set()
     blobs: set[tuple[str, str]] = set()
+    deletions: set[str] = set()
     for sha in first_parent_shas:
         for path in changed_paths_of(repo_root, sha):
             if path in seen_paths:
@@ -932,8 +1018,37 @@ def _final_authored_blobs(repo_root: Path, first_parent_shas: list[str]) -> set[
             try:
                 blobs.add((path, blob_id_at(repo_root, sha, path)))
             except GitProbeError:
-                continue  # deleted at this (newest touching) commit — no final blob
+                deletions.add(path)  # deleted at this (newest touching) commit — final state deleted
+    return blobs, deletions
+
+
+def _final_authored_blobs(repo_root: Path, first_parent_shas: list[str]) -> set[tuple[str, str]]:
+    """FINAL ``(path, blob)`` per path across a lane's first-parent spine (F5).
+
+    Thin wrapper over :func:`_final_authored_walk` kept as an independently
+    testable/importable name; :func:`_collect_authored` calls the combined walk
+    directly rather than through this wrapper, to avoid a second spine walk.
+    """
+    blobs, _deletions = _final_authored_walk(repo_root, first_parent_shas)
     return blobs
+
+
+def _final_authored_deletions(repo_root: Path, first_parent_shas: list[str]) -> set[str]:
+    """FINAL deleted paths across a lane's first-parent spine (#5022 / WP1 T002).
+
+    A path P is a member iff the FIRST (newest) commit on the spine that touches
+    P deletes it — the lane's own final state for P is "deleted". A path
+    added-then-deleted within the lane IS a member (final state deleted); a path
+    deleted-then-re-added is NOT (its final state is present, and it is in
+    :func:`_final_authored_blobs` instead — see :func:`_final_authored_walk` for
+    the shared newest-first spine walk both draw from).
+
+    Thin wrapper over :func:`_final_authored_walk`, kept as an independently
+    testable/importable name; :func:`_collect_authored` calls the combined walk
+    directly rather than through this wrapper, to avoid a second spine walk.
+    """
+    _blobs, deletions = _final_authored_walk(repo_root, first_parent_shas)
+    return deletions
 
 
 def _collect_authored(
@@ -941,8 +1056,8 @@ def _collect_authored(
     lanes_manifest: LanesManifest,
     work_packages: Mapping[str, Mapping[str, object]],
     coord_base_ref: str,
-) -> tuple[frozenset[str], frozenset[str], frozenset[tuple[str, str]]]:
-    """Approved lanes → their OWN first-parent SHAs + patch-ids + FINAL blobs (closed-world).
+) -> tuple[frozenset[str], frozenset[str], frozenset[tuple[str, str]], frozenset[str]]:
+    """Approved lanes → their OWN first-parent SHAs + patch-ids + FINAL blobs + FINAL deletions.
 
     The authorship claim the closed-world content checks attribute against. A lane
     contributes its authorship only when at least one of its WPs is approved/done (a
@@ -954,10 +1069,15 @@ def _collect_authored(
 
     ``authored_blobs`` (#5013 WS1) is the squash-sound content axis's authority: the
     FINAL first-parent blob per (lane, path), unioned across approved lanes.
+    ``authored_deletions`` (#5022 / WP1) is its deletion analogue: the FINAL
+    first-parent-DELETED path per lane, unioned across approved lanes — the
+    squash deletion-attribution axis's authority for a legitimate approved
+    deletion.
     """
     shas: set[str] = set()
     patch_ids: set[str] = set()
     blobs: set[tuple[str, str]] = set()
+    deletions: set[str] = set()
     for lane in lanes_manifest.lanes:
         if not _lane_is_approved(lane, work_packages):
             continue
@@ -968,8 +1088,10 @@ def _collect_authored(
             pid = patch_id_of(repo_root, sha)
             if pid:
                 patch_ids.add(pid)
-        blobs |= _final_authored_blobs(repo_root, first_parent)
-    return frozenset(shas), frozenset(patch_ids), frozenset(blobs)
+        lane_blobs, lane_deletions = _final_authored_walk(repo_root, first_parent)
+        blobs |= lane_blobs
+        deletions |= lane_deletions
+    return frozenset(shas), frozenset(patch_ids), frozenset(blobs), frozenset(deletions)
 
 
 __all__ = [
