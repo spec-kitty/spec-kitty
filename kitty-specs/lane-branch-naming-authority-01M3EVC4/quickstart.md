@@ -16,7 +16,7 @@
 # match-site parsers
 .venv/bin/python -m pytest tests/specify_cli/lanes/test_lane_naming_parsers.py -q
 # gate (non-vacuous)
-.venv/bin/python -m pytest tests/architectural/test_lane_naming_authority_gate.py tests/architectural/test_no_worktree_name_guess.py -q
+.venv/bin/python -m pytest tests/architectural/test_no_worktree_name_guess.py -q
 # #5113
 .venv/bin/python -m pytest tests/specify_cli/cli/commands/test_decision_fresh_coord_5113.py -q
 ```

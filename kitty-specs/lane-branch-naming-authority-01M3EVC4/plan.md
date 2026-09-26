@@ -98,7 +98,7 @@ tests/merge/ tests/lanes/ tests/specify_cli/lanes/ tests/core/ tests/integration
 tests/specify_cli/cli/commands/ tests/coordination/ tests/architectural/
 ```
 
-**Structure Decision**: existing single-project layout; no new packages. New test modules: `tests/merge/_divergent_shapes.py` (shared real-allocator fixture builder), `tests/merge/test_reconciliation_divergent.py`, `tests/merge/test_executor_lane_naming.py`, `tests/specify_cli/lanes/test_lane_naming_parsers.py`, `tests/lanes/test_refinalize_mission_branch.py`, `tests/specify_cli/cli/commands/test_decision_fresh_coord_5113.py`, `tests/architectural/test_lane_naming_authority_gate.py`.
+**Structure Decision**: existing single-project layout; no new packages. New test modules: `tests/merge/_divergent_shapes.py` (shared real-allocator fixture builder), `tests/merge/test_reconciliation_divergent.py`, `tests/merge/test_executor_lane_naming.py`, `tests/specify_cli/lanes/test_lane_naming_parsers.py`, `tests/lanes/test_refinalize_mission_branch.py`, `tests/specify_cli/cli/commands/test_decision_fresh_coord_5113.py` (gate: extend `tests/architectural/test_no_worktree_name_guess.py`, PD-11).
 
 ## Complexity Tracking
 
