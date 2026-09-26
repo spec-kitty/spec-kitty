@@ -97,7 +97,7 @@
       "wp": null
     },
     "#5045": {
-      "evidence_ref": "Integration suite red remediation: WP01, WP02, WP04 fixture re-pins + WP03 product fixes.",
+      "evidence_ref": "All 25 integration+next failures from run 36225024230 re-pinned (WP01 36e0fdbf, WP02 d22bff5e, WP04 6c7e4dce) on top of WP03 843593074f; closes on next green nightly.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,8 +105,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
-      "wp": "WP01"
+      "verdict": "fixed",
+      "wp": "WP04"
     },
     "#5049": {
       "evidence_ref": "Performance suite red: WP04 resume budget test (C1), WP05 doctor-ops sweep gate.",
