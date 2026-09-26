@@ -1,0 +1,20 @@
+{
+  "coordination_branch": "kitty/mission-asset-preservation-migrate-fetch-01M3E857",
+  "created_at": "2026-09-26T06:59:02.731840+00:00",
+  "flattened": false,
+  "friendly_name": "Preserve user assets in migrate --force and git-source fetch",
+  "mid8": "01M3E857",
+  "mission_id": "01M3E857DXYCMQ682DKMS1GWM6",
+  "mission_number": null,
+  "mission_slug": "asset-preservation-migrate-fetch-01M3E857",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Three P0 defects (#4961, #4960, #4989) let routine maintenance commands destroy operator-authored governance content with no backup and a zero/success exit. This mission routes the last two unrouted destructive flows (the migrate --force asset classifier and the git-source charter/doctrine fetch) through Spec Kitty's existing asset-preservation guard so user content is preserved or backed up, never silently lost — completing epic #4915's mutating-flow coverage.",
+  "purpose_tldr": "Stop spec-kitty migrate and charter/doctrine fetch from silently deleting a team's customised templates or hand-authored org packs.",
+  "slug": "asset-preservation-migrate-fetch-01M3E857",
+  "status_phase": "1",
+  "target_branch": "spec/asset-preservation-migrate-fetch",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-26T07:25:41.040361+00:00"
+}
