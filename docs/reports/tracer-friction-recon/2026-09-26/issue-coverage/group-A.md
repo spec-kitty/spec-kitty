@@ -1,3 +1,8 @@
+---
+doc_status: active
+updated: '2026-09-26'
+---
+
 # Planner-Priti coverage check — Group A
 
 Themes: finalize-tasks-planning (110), templates-prompts (28), plan-premise-errors (4), tracker-issue-hygiene (22), governance-overhead (14), tracer-process-itself (37). That is 215 tracer items from 70 missions, grouped into 34 clusters.

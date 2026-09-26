@@ -1,3 +1,8 @@
+---
+doc_status: active
+updated: '2026-09-26'
+---
+
 # Planner-Priti — Group B issue-coverage check
 
 **Group B themes:** coord-branch-worktree (76), status-lanes-move-task (45), merge-accept-pipeline (28), event-log-reducer (6), multi-clone-environment (6), zeitgeist-moment-publication (3), destructive-op-safety (2), safe-commit-git-plumbing (2). That is **168 tracer items from 51 missions**.

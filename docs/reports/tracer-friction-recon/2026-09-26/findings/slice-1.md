@@ -1,3 +1,8 @@
+---
+doc_status: active
+updated: '2026-09-26'
+---
+
 # Recon — slice1 (17 most recent missions)
 
 **Profile applied:** `retrospective-facilitator` (the builtin profile; `agent profile show` resolved it). I applied it like this:

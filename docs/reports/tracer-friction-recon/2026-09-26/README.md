@@ -299,7 +299,7 @@ Each theme covers four things:
   - Worktree isolation fights `single_branch` missions that live in the primary checkout.
   - Implementers were dispatched on the wrong model tier.
 - **Concerns:**
-  - Dispatch briefs omit load-bearing facts: whether sub-delegation is allowed (two writers committed to one WP), lane-merge state, and venv constraints.
+  - Dispatch briefs omit load-bearing facts: whether sub-delegation is allowed (two writers committed to one WP), lane-consolidation state, and venv constraints.
   - Implementers sometimes bypass `agent action implement`, so no lane transition is recorded.
 - **Recommendations:**
   - **One writer per checkout.** Concurrent implementers and reviewers each get their own worktree, and `git add -A`/`git stash` are forbidden in shared checkouts.
@@ -411,7 +411,7 @@ Each theme covers four things:
 | A-08 | 5 | Requirement lifecycle status (descoped, retired, satisfied-by-omission) honoured by the unmapped-FR gate | P2 | built-in |
 | B-15 | 5 | `mark-status`: `--wp` scoping, honest no-ops, terminal `skipped` status | P2 | product |
 | B-23 | 4 | `safe-commit` refuses implementation commits for an unclaimed WP | P2 | product |
-| E-25 | 4 | Dispatch-brief template: required sub-delegation, lane-merge-state and env fields | P2 | built-in |
+| E-25 | 4 | Dispatch-brief template: required sub-delegation, lane-consolidation-state and env fields | P2 | built-in |
 | A-24 | 2 | Implement prompt and WP template contradict commit/PR doctrine (raw `git commit`; the WP agent opens the PR) | P2 | built-in |
 | B-13 | 2 | Lane identity: `--base` allocation must reuse the WP's `lanes.json` lane | P2 | product |
 | E-24 | 2 | Tactic: measurement discipline for multi-agent missions | P2 | internal |

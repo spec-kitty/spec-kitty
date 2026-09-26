@@ -1,3 +1,8 @@
+---
+doc_status: active
+updated: '2026-09-26'
+---
+
 # Planner Priti — Group E issue-coverage check
 
 Themes: cli-ergonomics (51), review-loop-verdicts (54), squad-review-value (9), subagent-orchestration (33), agent-harness-sandbox (22), spec-kitty-dispatch-ops (7): **176 tracer items from 57 missions -> 31 clusters**.
@@ -34,7 +39,7 @@ Themes: cli-ergonomics (51), review-loop-verdicts (54), squad-review-value (9), 
 | E-22 | both | Cross-WP composition defects escape per-WP review (tests mock the partner seam; partition-moving commits defeat same-partition rollback guards); the integration/arch suite on the consolidated tree caught 3 regressions — run it … | 3 / 5 / high | **COVERED** | #3943 (open, exact); #1979 (open, partial) |
 | E-23 | cause | Concurrent agents share one working tree: parallel ops revert each other's edits, `git add -A` swallows another agent's source into a dossier commit, `git stash` steals a reviewer's edit, reviewers write during implementation o… | 8 / 10 / high | **PARTIAL** | #3129 (open, partial); #4228 (open, adjacent); #2017 (open, adjacent); #4227 (open, partial) |
 | E-24 | both | A shared machine/tree is not a measurement substrate: 20+ concurrent pytest runs across agents give false reds (port band, leaked daemons, 7-min runs), fill tmpfs (EDQUOT/ENOSPC) and take tools offline; killed/piped runs are mi… | 2 / 6 / high | **UNCOVERED** | #1071 (closed, adjacent); #3283 (closed, adjacent); #3943 (open, adjacent) |
-| E-25 | improvement | WP dispatch briefs omit load-bearing facts: whether sub-delegation is allowed (two writers committed to one WP), that dependency lanes are already merged into the lane-planning workspace (manual git apply failed), env overrides… | 4 / 7 / high | **UNCOVERED** | #1840 (closed, adjacent) |
+| E-25 | improvement | WP dispatch briefs omit load-bearing facts: whether sub-delegation is allowed (two writers committed to one WP), that dependency lanes are already consolidated into the lane-planning workspace (manual git apply failed), env overrides… | 4 / 7 / high | **UNCOVERED** | #1840 (closed, adjacent) |
 | E-26 | cause | Fan-out ignores model routing and budget: implementers dispatched on opus instead of sonnet (--agent model string cosmetic); opus subagents die on 429/session limits and org spend caps, discarding partial work; transient crashe… | 5 / 6 / high | **PARTIAL** | #2364 (closed, exact); #1049 (open, partial); #4205 (open, partial); #2640 (open, adjacent) |
 | E-27 | both | Harness long-run handling strands agents: foreground Bash is capped at ~600s regardless of timeout, `cmd & wait`/nohup is killed with the process group, repo-scale pytest auto-backgrounds and agents end the turn waiting for a n… | 4 / 6 / high | **PARTIAL** | #2555 (open, partial); #1707 (open, adjacent) |
 | E-28 | cause | Harness sandbox/isolation conflicts with dispatch: worktree-isolation resets cwd to an unrelated branch, refuses git after cd into the shared checkout, blocks Write/Edit there and 'complex' heredocs; auto-mode blocks combined p… | 6 / 6 / high | **PARTIAL** | #4122 (open, adjacent); #1907 (open, adjacent); #2746 (open, adjacent) |
@@ -120,7 +125,7 @@ Ordered by priority (Eisenhower: urgent+important first). Dependencies are on ot
 - **Depends on:** E-23
 - **Verdict basis:** UNCOVERED. Evidence: `journal-project-consent-3030-01KYKWQS: tracer-tooling-friction.md:315`; `spdd-reasons-activation-split-brain-01M1K6VN: tracer-tooling-friction.md:262`
 
-### E-25 · P2 · implement-review dispatch template: required fields (sub-delegation policy, lane-merge state, env/venv constraints)
+### E-25 · P2 · implement-review dispatch template: required fields (sub-delegation policy, lane-consolidation state, env/venv constraints)
 - **Scope:** Canonical WP dispatch block states sub-delegation permitted/forbidden, what is already merged into the workspace, and environment constraints; tasks finalize warns on same-hunk overlap between WPs labelled parallel.
 - **Labels:** workflow, domain:charter, enhancement
 - **Depends on:** E-23

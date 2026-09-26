@@ -1,3 +1,8 @@
+---
+doc_status: active
+updated: '2026-09-26'
+---
+
 # Recon: slice3 (12 missions, 33 tracer files, ~7,600 lines read in full)
 
 **Profile applied:** `retrospective-facilitator` (builtin; role facilitator). Directives 003, 010 and 018 were resolved from the profile. `charter context --action review` was loaded in compact mode; the Terminology Canon and DIR-032 were applied to vocabulary. I applied the initialization as written: structured findings with provenance on every finding, and proposals kept as data. I also applied the avoidance boundary: I did not implement or edit anything, and I did not auto-apply doctrine, DRG or glossary changes. This was a READ-ONLY pass. The only writes were `recon-slice3.jsonl` (229 items), this file, and scratch helpers under `s3/`.

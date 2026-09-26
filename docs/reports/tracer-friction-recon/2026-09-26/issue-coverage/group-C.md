@@ -1,3 +1,8 @@
+---
+doc_status: active
+updated: '2026-09-26'
+---
+
 # Planner-Priti — Group C issue-coverage check
 
 Themes: test-suite-speed-flakes, test-env-venv-install, ci-gates-routing, sonar-coverage, ruff-mypy-format, atdd-red-first, windows-cross-os, upgrade-migrations. Input: 212 tracer items from 70 missions (`groupC_items.json`), clustered into 34 clusters; every item is assigned to exactly one cluster.

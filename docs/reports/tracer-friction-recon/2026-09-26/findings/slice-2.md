@@ -1,3 +1,8 @@
+---
+doc_status: active
+updated: '2026-09-26'
+---
+
 # Recon: slice 2 — tracer-file retrospective (17 missions)
 
 **Profile applied:** `retrospective-facilitator` (loaded via `spec-kitty agent profile show`). I followed its avoidance boundary: I read and extracted only, made no edits to the repo and applied no doctrine. Its directive refs 003, 010 and 018 shaped the method: every finding cites a `file:line` as provenance, and proposals are recorded as data, not applied. The review-action charter context was also loaded (`charter context --action review`). From it I used the Terminology Canon and the Pre-existing Failure Reporting Rule to attribute baseline reds and the "feature" wording.

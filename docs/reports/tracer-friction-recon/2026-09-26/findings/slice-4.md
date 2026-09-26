@@ -1,3 +1,8 @@
+---
+doc_status: active
+updated: '2026-09-26'
+---
+
 # Recon — slice4 (24 older missions, 2026-06-27 → 2026-07-31)
 
 **Profile applied:** `retrospective-facilitator` (builtin; directives 003, 010, 018). I worked in its capture/propose mode: every finding has provenance (`file:line`), proposals are recorded as data and nothing is auto-applied, and the work was read-only. I also loaded the `review` charter context (Terminology Canon, Regression Vigilance, Pre-existing Failure Reporting). The profile's boundary says it runs only at mission terminus. All 24 missions here are closed or historical, so this pass fits that boundary.

@@ -1,3 +1,8 @@
+---
+doc_status: active
+updated: '2026-09-26'
+---
+
 # Planner Priti — Group D issue-coverage check
 
 Themes: arch-gate-allowlists (63), dead-code-legacy-residue (43), docs-drift (39), doctrine-drg-packs (26), charter-context-activation (20), duplicate-authorities (4) = **195 tracer items from 61 missions**.

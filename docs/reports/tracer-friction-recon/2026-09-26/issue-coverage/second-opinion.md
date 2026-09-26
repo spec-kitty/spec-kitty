@@ -1,3 +1,8 @@
+---
+doc_status: active
+updated: '2026-09-26'
+---
+
 # priti-verify: adversarial second pass on the 53 UNCOVERED / CLOSED-ONLY clusters
 
 Profile applied: planner-priti (role planner; avoidance boundary: no implementation or architecture calls, no tracker writes; DIRECTIVE_003: every verdict change carries a written rationale, in the `note` and `searched` fields of priti-verify.jsonl).
@@ -49,7 +54,7 @@ All five changes go from weaker to stronger coverage, and all are PARTIAL: an op
 - **E-19**: Acceptance criteria and red-first tests pass vacuously: 13/29 requirements passable by a no-op, refusal probes without positive controls, flag-threaded strict paths never… (closest, adjacent only: #1931, #1277, #3264)
 - **E-20**: Specs, operator rulings and dispatch briefs are issued from summaries or stale citations rather than first-hand source: line citations drift within a round, truncated quo… (closest, adjacent only: #2897, #4230, #4067)
 - **E-24**: A shared machine/tree is not a measurement substrate: 20+ concurrent pytest runs across agents give false reds (port band, leaked daemons, 7-min runs), fill tmpfs (EDQUOT… (closest, adjacent only: #3978, #1907, #3943)
-- **E-25**: WP dispatch briefs omit load-bearing facts: whether sub-delegation is allowed (two writers committed to one WP), that dependency lanes are already merged into the lane-pl… (closest, adjacent only: #3936, #1840)
+- **E-25**: WP dispatch briefs omit load-bearing facts: whether sub-delegation is allowed (two writers committed to one WP), that dependency lanes are already consolidated into the lane-pl… (closest, adjacent only: #3936, #1840)
 
 ## Confirmed CLOSED-ONLY (24)
 
