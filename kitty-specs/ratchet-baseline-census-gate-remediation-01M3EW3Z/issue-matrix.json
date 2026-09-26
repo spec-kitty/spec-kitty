@@ -157,7 +157,7 @@
       "wp": null
     },
     "#3962": {
-      "evidence_ref": "Folded into FR-010 (restore-or-delete -> delete)",
+      "evidence_ref": "same deletion as #3026; commit 4668c259",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -165,7 +165,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP05"
     },
     "#4506": {
