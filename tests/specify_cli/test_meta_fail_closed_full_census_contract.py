@@ -148,9 +148,7 @@ def scan_load_meta_call_sites(src_root: Path) -> Counter[tuple[str, str]]:
             if not isinstance(node, ast.Call):
                 continue
             func = node.func
-            is_call = (isinstance(func, ast.Name) and func.id in bindings) or (
-                isinstance(func, ast.Attribute) and func.attr == _TARGET
-            )
+            is_call = (isinstance(func, ast.Name) and func.id in bindings) or (isinstance(func, ast.Attribute) and func.attr == _TARGET)
             if is_call:
                 found[(rel, quals.get(node.lineno, "<module>"))] += 1
     return found
@@ -251,6 +249,16 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/git/sparse_checkout.py", "_load_managed_lane_policies"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/recovery.py", "_mission_id_from_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/worktree_allocator.py", "_read_coordination_branch"): (1, "silent-by-contract"),
+    # #5135: the #4474 / FR-011 primary-tree fallback for the mission_number
+    # bake was added without joining this ledger. It mirrors the mission-branch
+    # write (`_write_mission_number_to_branch`, below) exactly: a malformed
+    # primary meta.json reads as None and is surfaced through
+    # `_surface_unbaked_mission_number` (operator-visible "re-run merge
+    # --resume" line + logger warning), never raised -- the bake is
+    # best-effort bookkeeping that runs after the lanes have already landed,
+    # so a fail-closed raise would abort a merge that has nothing left to
+    # protect. silent-by-contract is the correct accounting, not a reroute.
+    ("src/specify_cli/merge/ordering.py", "_bake_mission_number_on_primary_tree"): (1, "silent-by-contract"),
     ("src/specify_cli/merge/ordering.py", "_compute_next_mission_number_or_none"): (1, "silent-by-contract"),
     ("src/specify_cli/merge/ordering.py", "_write_mission_number_to_branch"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/backfill_runtime_state.py", "_mission_id"): (1, "silent-by-contract"),
@@ -323,7 +331,7 @@ _WP09_OWNED_FILES: frozenset[str] = frozenset(
 _ROUTE_HINT = (
     "Route it through `specify_cli.core.paths.load_meta_fail_closed` (FR-007), "
     "or -- if the site is deliberately silent about corruption -- keep "
-    "`load_meta(..., on_malformed=\"none\"/\"empty\")` and add a "
+    '`load_meta(..., on_malformed="none"/"empty")` and add a '
     "`silent-by-contract` row to _ACCOUNTED_SITES explaining why."
 )
 
@@ -350,24 +358,14 @@ def test_no_unaccounted_load_meta_call_sites() -> None:
         + f"\n\n{_ROUTE_HINT}"
     )
 
-    grew = {
-        key: (live[key], expected)
-        for key, (expected, _reason) in _ACCOUNTED_SITES.items()
-        if live.get(key, 0) > expected
-    }
+    grew = {key: (live[key], expected) for key, (expected, _reason) in _ACCOUNTED_SITES.items() if live.get(key, 0) > expected}
     assert not grew, (
         "EXTRA `load_meta` call(s) added inside an already-accounted function:\n"
-        + "\n".join(
-            f"  {rel}::{qual}  live={got} accounted={exp}" for (rel, qual), (got, exp) in sorted(grew.items())
-        )
+        + "\n".join(f"  {rel}::{qual}  live={got} accounted={exp}" for (rel, qual), (got, exp) in sorted(grew.items()))
         + f"\n\n{_ROUTE_HINT}"
     )
 
-    stale = {
-        key: expected
-        for key, (expected, _reason) in _ACCOUNTED_SITES.items()
-        if live.get(key, 0) < expected
-    }
+    stale = {key: expected for key, (expected, _reason) in _ACCOUNTED_SITES.items() if live.get(key, 0) < expected}
     assert not stale, (
         "STALE _ACCOUNTED_SITES row(s): the live scan no longer finds these.\n"
         "If you just ROUTED the site, delete its row (a stale row would mask a "
@@ -382,8 +380,7 @@ def test_wp09_owned_files_retain_only_silent_sites() -> None:
     offenders = sorted(
         f"  {rel}::{qual} ({_ACCOUNTED_SITES.get((rel, qual), (0, 'UNACCOUNTED'))[1]})"
         for (rel, qual) in live
-        if rel in _WP09_OWNED_FILES
-        and _ACCOUNTED_SITES.get((rel, qual), (0, "UNACCOUNTED"))[1] != "silent-by-contract"
+        if rel in _WP09_OWNED_FILES and _ACCOUNTED_SITES.get((rel, qual), (0, "UNACCOUNTED"))[1] != "silent-by-contract"
     )
     assert not offenders, "WP09-owned files still hold non-silent `load_meta` sites:\n" + "\n".join(offenders)
 
@@ -620,9 +617,7 @@ def _reader_ids() -> list[str]:
     ("scenario", "payload"),
     [("corrupt-json", _CORRUPT_META), ("non-dict-json", _NON_DICT_META)],
 )
-def test_routed_reader_fails_closed(
-    tmp_path: Path, reader: RoutedReader, scenario: str, payload: str
-) -> None:
+def test_routed_reader_fails_closed(tmp_path: Path, reader: RoutedReader, scenario: str, payload: str) -> None:
     """NFR-003: a routed reader answers typed-or-sentinel — never raw ValueError.
 
     Each case invokes the REAL product function at a routed census site (not a
@@ -634,10 +629,7 @@ def test_routed_reader_fails_closed(
     try:
         result = reader.invoke(feature_dir)
     except MissionMetaReadError:
-        assert reader.outcome == _RAISES_TYPED, (
-            f"{reader.label} ({scenario}) raised MissionMetaReadError but its "
-            f"declared contract is {reader.outcome!r}"
-        )
+        assert reader.outcome == _RAISES_TYPED, f"{reader.label} ({scenario}) raised MissionMetaReadError but its declared contract is {reader.outcome!r}"
         return
     except ValueError as exc:  # noqa: TRY302 - the assertion IS the point
         # MissionMetaReadError is a RuntimeError, so it never lands here. A raw
@@ -648,24 +640,15 @@ def test_routed_reader_fails_closed(
             f"MissionMetaReadError (or its own typed domain error), never ValueError."
         )
     except BaseException as exc:  # noqa: BLE001 - classify anything else explicitly
-        assert reader.outcome == _RAISES_DOMAIN and reader.domain_exc is not None, (
-            f"{reader.label} ({scenario}) raised unexpected {type(exc).__name__}: {exc}"
-        )
+        assert reader.outcome == _RAISES_DOMAIN and reader.domain_exc is not None, f"{reader.label} ({scenario}) raised unexpected {type(exc).__name__}: {exc}"
         assert isinstance(exc, reader.domain_exc), (
-            f"{reader.label} ({scenario}) raised {type(exc).__name__}, "
-            f"expected the declared domain error {reader.domain_exc.__name__}"
+            f"{reader.label} ({scenario}) raised {type(exc).__name__}, expected the declared domain error {reader.domain_exc.__name__}"
         )
-        assert not isinstance(exc, ValueError), (
-            f"NFR-003 VIOLATION: {reader.label} ({scenario}) domain error "
-            f"{type(exc).__name__} subclasses ValueError"
-        )
+        assert not isinstance(exc, ValueError), f"NFR-003 VIOLATION: {reader.label} ({scenario}) domain error {type(exc).__name__} subclasses ValueError"
         return
     else:
         assert reader.outcome == _RETURNS, (
-            f"{reader.label} ({scenario}) returned {result!r} but its declared "
-            f"contract is {reader.outcome!r} (it should have raised)"
+            f"{reader.label} ({scenario}) returned {result!r} but its declared contract is {reader.outcome!r} (it should have raised)"
         )
         if reader.expected is not None or reader.label.endswith("_resolve_mission_from_feature"):
-            assert result == reader.expected, (
-                f"{reader.label} ({scenario}) returned {result!r}, expected {reader.expected!r}"
-            )
+            assert result == reader.expected, f"{reader.label} ({scenario}) returned {result!r}, expected {reader.expected!r}"
