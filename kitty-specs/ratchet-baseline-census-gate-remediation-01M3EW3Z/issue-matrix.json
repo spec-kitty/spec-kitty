@@ -37,7 +37,7 @@
       "wp": null
     },
     "#2631": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Parity remediation WP08-WP12 (FR-013..FR-018)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,8 +45,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP08"
     },
     "#2633": {
       "evidence_ref": "<link or commit>",
