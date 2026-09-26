@@ -236,8 +236,7 @@ class MissionReconciliationReport:
 def _primary_feature_dir(repo_root: Path, mission_slug: str) -> Path:
     """Resolve the PRIMARY ``kitty-specs/<mission_slug>`` dir through the
     kind-AWARE placement seam, never a kind-blind bypass
-    (``tests/architectural/test_no_read_side_bypass.py`` /
-    ``test_resolution_authority_gates.py``).
+    (``tests/architectural/test_no_read_side_bypass.py``).
 
     ``MissionArtifactKind.WORK_PACKAGE_TASK`` is a PRIMARY-partition kind
     (P-1): :func:`~mission_runtime.resolve_artifact_surface` resolves it to

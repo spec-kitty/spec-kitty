@@ -108,8 +108,8 @@ A call site's relationship to the seam falls into one of four shapes:
 
 **Semi-compliance is the headline shape, and it is invisible to a handle-hygiene gate.** A call
 site can canonicalize its mission handle perfectly — passing every check the canonicalizer
-authority gate (`tests/architectural/test_resolution_authority_gates.py`,
-`CANONICALIZER_PRIMITIVE_NAMES`) runs — and still choose its own surface by calling a
+authority gate (formerly `tests/architectural/test_resolution_authority_gates.py`,
+`CANONICALIZER_PRIMITIVE_NAMES`; that file has been deleted) ran — and still choose its own surface by calling a
 kind-blind resolver (`resolve_feature_dir_for_mission`,
 `src/specify_cli/missions/_read_path_resolver.py:1603`) directly, instead of asking
 `placement_seam(...).read_dir(<kind>)` to make the decision. The handle is canonical; the
@@ -118,8 +118,8 @@ cannot see this, because canonicality and routing-compliance are orthogonal axes
 
 **Which gate catches it, and which does not (US7.4):**
 
-- **Does NOT catch it:** the canonicalizer authority gate
-  (`tests/architectural/test_resolution_authority_gates.py`) — it verifies the *handle argument*
+- **Does NOT catch it:** the (now-deleted) canonicalizer authority gate
+  (formerly `tests/architectural/test_resolution_authority_gates.py`) — it verified the *handle argument*
   passed to a small allow-listed set of primitives is already canonical; it has no opinion on
   which primitive or surface the caller chose.
 - **Does catch it:** the read-side bypass census
@@ -180,8 +180,8 @@ current tree, not a claim about it.
 **`#3055` — one deliberately-deferred edge.** `decisions/emit.py:71`
 (`src/specify_cli/decisions/emit.py`) still calls `resolve_feature_dir_for_mission` directly
 rather than routing through the seam. It is allow-listed, not routed, because the
-coord-authority gate (`tests/architectural/test_resolution_authority_gates.py`) independently
-sanctions this exact call as a permanent legitimate coord-owned write bypass, keyed on the
+coord-authority gate (formerly `tests/architectural/test_resolution_authority_gates.py`, since
+deleted) independently sanctioned this exact call as a permanent legitimate coord-owned write bypass, keyed on the
 literal primitive name — the gate must learn the seam idiom (recognize a kind-aware
 `read_dir(<COORD kind>)` call as the same sanctioned bypass) before this site can route without
 breaking that gate. `#3055` tracks the follow-up. This is the one edge *this mission audited*

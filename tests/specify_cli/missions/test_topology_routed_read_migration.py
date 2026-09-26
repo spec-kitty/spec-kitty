@@ -27,7 +27,7 @@ routed off the topology-blind ``primary_feature_dir_for_mission`` wrapper onto
 ``decisions/emit.py:71`` (the WP02 ledger's one ``resolve_feature_dir_for_mission``
 ``migrate-fail-loud`` verdict) is deliberately OUT of scope here: this WP found
 that routing it collides with the coord-authority write gate's OWN permanent
-sanction of that exact call (``test_resolution_authority_gates.py``'s
+sanction of that exact call (the since-deleted ``test_resolution_authority_gates.py``'s
 ``_COORD_WRITE_BY_DESIGN``/allow-list), which would red 4 gate tests. It was
 left unrouted and reported as a WP02/WP01 cross-ledger gap rather than forced
 through -- see the WP04 handoff report. There is therefore no husk pin for it:

@@ -37,7 +37,8 @@ covered:
 - `primary_feature_dir_for_mission(repo_root, mission_slug)` — kind-blind
   **and** deliberately topology-blind (never routes to a coordination
   worktree); it inherits the guarantee transferred from WP01's retired
-  use-count floors (`tests/architectural/test_resolution_authority_gates.py`).
+  use-count floors (in `test_resolution_authority_gates.py`, since deleted; the
+  guarantee is now enforced by `tests/architectural/test_no_read_side_bypass.py`).
 
 The censused-callee set is now **five** primitives. The first four are
 defined in `src/specify_cli/missions/_read_path_resolver.py`; the fifth is the
@@ -312,7 +313,7 @@ allow-listed offender. A fresh live census now finds `stay-lenient 8 → 7`
 `_ALLOW_LIST_SEED` descriptor removed, and the stay-lenient index / per-site
 rows below dropped the `emit.py` entry. #3055's gate-owner follow-up is
 subsumed: the coord-authority gate keeps its own permanent `_mission_dir`
-sanction (`test_resolution_authority_gates.py`), which WP02 re-pinned 4 → 3.
+sanction (`test_resolution_authority_gates.py`, since deleted), which WP02 re-pinned 4 → 3.
 
 `primary_feature_dir_for_mission` carries a **permanent**, not transitional,
 reconciliation red. The public wrapper is DELETED (T035, SC-001): nothing in
@@ -458,7 +459,7 @@ read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T039, reconciliation
 item #5): `decisions/emit.py:71` was WP02's one `migrate-fail-loud` finding
 for this primitive (STATUS_STATE), deliberately left unrouted pending
 adjudication. WP04's reviewer confirmed routing is directory-identical to
-`test_resolution_authority_gates.py`'s coord-authority gate's own PERMANENT
+`test_resolution_authority_gates.py`'s (since deleted) coord-authority gate's own PERMANENT
 sanction of the same call (`_COORD_WRITE_BY_DESIGN`); full routing needs
 gate-owner work (teach that gate the seam idiom, re-token its allow-list,
 transfer `COORD_AUTHORITY_WRITE_FLOOR`) outside this WP's charter, so it is
@@ -567,7 +568,7 @@ Per-disposition counts: **migrate-fail-loud = 1**, **stay-lenient = 7**,
 | `cli/commands/mission_type.py:238` | `current_cmd` | stay-lenient | raise (propagates `ActionContextError`) | `project_root` (`get_project_root_or_exit()`) | n/a | Own comment: mirrors `close_cmd`/`decision.py`; shares the identical existence-probe shape needing the structured-error contract. |
 | `cli/commands/mission_type.py:582` | `close_cmd` | stay-lenient | raise (propagates `ActionContextError`) | `repo_root = _resolve_primary_repo_root(project_root)` | n/a | Own comment: pinned tests require an unresolvable/ambiguous handle to raise the structured error, never a silent "not found" or wrong pick; both `read_dir(kind)` legs are lenient by design and would swallow it. |
 | `context/resolver.py:191` | `resolve_context` | stay-lenient | degrade (catches `ActionContextError`, translates to `FeatureNotFoundError`) | `repo_root` (caller-supplied, main-repo-anchored) | n/a | Own comment: exists to canonicalize the caller's HANDLE to a directory NAME, not to read a PRIMARY-partition artifact off the returned dir; re-routing would over-claim a single funnel over the `*_feature_dir_for_mission` primitives beyond what the gate enforces. |
-| `decisions/emit.py:71` | `_mission_dir` | ~~stay-lenient (WP08 allow-list)~~ **ROUTED** (write-side WP02 → `read_dir(STATUS_STATE)`; no longer a live `resolve_feature_dir_for_mission` site — see supersession note above) | raise (`STATUS_STATE` is fail-loud-appropriate) | `repo_root` (param, passed through) | `STATUS_STATE` | Feeds `_events_path` → the shared `status.events.jsonl` coord-authoritative surface (the same file decision-point events append into). Originally classified `migrate-fail-loud`; WP08 (T039, reconciliation item #5) found `test_resolution_authority_gates.py`'s coord-authority gate PERMANENTLY sanctions this exact call as a legitimate coord-owned write (`_COORD_WRITE_BY_DESIGN`) — routing is directory-identical (WP04 reviewer-verified) but needs gate-owner work (teach that gate the seam idiom, re-token its allow-list, transfer `COORD_AUTHORITY_WRITE_FLOOR`) outside this WP's charter. Allow-listed per the WP08 prompt's escape hatch rather than routed unilaterally or left an unexplained offender; tracked at <https://github.com/Priivacy-ai/spec-kitty/issues/3055>. |
+| `decisions/emit.py:71` | `_mission_dir` | ~~stay-lenient (WP08 allow-list)~~ **ROUTED** (write-side WP02 → `read_dir(STATUS_STATE)`; no longer a live `resolve_feature_dir_for_mission` site — see supersession note above) | raise (`STATUS_STATE` is fail-loud-appropriate) | `repo_root` (param, passed through) | `STATUS_STATE` | Feeds `_events_path` → the shared `status.events.jsonl` coord-authoritative surface (the same file decision-point events append into). Originally classified `migrate-fail-loud`; WP08 (T039, reconciliation item #5) found `test_resolution_authority_gates.py`'s (since deleted) coord-authority gate PERMANENTLY sanctions this exact call as a legitimate coord-owned write (`_COORD_WRITE_BY_DESIGN`) — routing is directory-identical (WP04 reviewer-verified) but needs gate-owner work (teach that gate the seam idiom, re-token its allow-list, transfer `COORD_AUTHORITY_WRITE_FLOOR`) outside this WP's charter. Allow-listed per the WP08 prompt's escape hatch rather than routed unilaterally or left an unexplained offender; tracked at <https://github.com/Priivacy-ai/spec-kitty/issues/3055>. |
 | `lanes/recovery.py:781` | `reconcile_status` | stay-lenient | raise | `repo_root` (param) | n/a | Own comment: "KEEP coord-aware (C-001 / #2155 analog): this `feature_dir` feeds `emit_status_transition_transactional` below — a STATUS-WRITE leg. The status event log lives on the coordination worktree for coord-topology missions, so this MUST stay on the coord-aware resolver — never route it." |
 | `widen/state.py:63` | `WidenPendingStore.__init__` | stay-lenient (ambiguous — reviewer confirm) | raise | `repo_root` (constructor param) | n/a | No protective comment; `widen-pending.jsonl`'s partition (PRIMARY vs COORD) is not established anywhere else in the module, and the store's own "a missing file is equivalent to an empty store — never raises" invariant would be broken by a `read_dir(kind)` swap that CAN raise on a deleted coord branch for a COORD-partition kind. Defaulted lenient pending a bespoke kind decision (not a reason to skip classifying, per T012's vacuity guard). |
 
@@ -656,7 +657,7 @@ nothing".  That claim was false and is what manufactured
 [#3014](https://github.com/Priivacy-ai/spec-kitty/issues/3014).** It is, and
 always was, policed on the **anchoring axis** by
 `tests/architectural/test_resolution_authority_gates.py` (the retired-floor
-gate WP01 rewrites; see that mission's own ledger). What was actually true is
+gate WP01 rewrote; that file has since been deleted, see that mission's own ledger). What was actually true is
 narrower: no gate policed it on the **call-site-bypass axis** — i.e. nothing
 stopped a *new* call to it outside a tracked set. That gap is what this
 revision closes: `primary_feature_dir_for_mission` is now one of the four
