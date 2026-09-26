@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#4979": {
+      "evidence_ref": "Mission coord-branch-remote-probe: teach _coord_branch_exists to consult the remote; guard doctor flatten; guard implement auto-commit",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

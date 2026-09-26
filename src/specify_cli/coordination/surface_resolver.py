@@ -64,6 +64,7 @@ from mission_runtime import (
     routes_through_coordination,
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.git.remote_probes import RemoteLookup, remote_branch_lookup
 from specify_cli.lanes.branch_naming import mid8_from_slug, resolve_mid8
 from specify_cli.missions._read_path_resolver import (
     CoordState,
@@ -305,6 +306,16 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
     ``mission_runtime.read_dir_degrade`` and ``review.cycle`` continue to
     degrade unchanged), while the distinct ``error_code`` lets a caller that
     cares route on the materialize-vs-flatten distinction.
+
+    #4979 (FR-006): ``next_step`` branches on whether *coordination_branch* is
+    still a LOCAL head (:func:`_coord_branch_is_local_head`, the same
+    LOCAL-strict signal the write gate uses, C-002). A remote-only branch
+    (single-branch/shallow/CI clone, or a pruned remote-tracking ref) reached
+    this state via :func:`_coord_branch_exists`'s new remote arm — ``doctor
+    workspaces --fix``'s ``git worktree add`` would fail on that unfetched ref,
+    so the guidance leads with ``git fetch origin <branch>`` first. A local
+    head that is simply not yet checked out keeps the original
+    self-materializes-or-``doctor workspaces --fix`` guidance unchanged.
     """
 
     error_code: str = "COORDINATION_WORKTREE_UNMATERIALIZED"
@@ -320,16 +331,7 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
         primary_candidate: Path,
     ) -> None:
         self.coordination_branch = coordination_branch
-        self.next_step = (
-            f"The coordination branch {coordination_branch!r} declared in "
-            f"meta.json exists in git, but its coordination worktree has not "
-            f"been materialized yet. It will self-materialize on the "
-            f"mission's first coordination-branch write, or you can "
-            f"materialize it now by running "
-            f"`spec-kitty doctor workspaces --fix`. Keep the "
-            f"`coordination_branch` key in meta.json as-is — the branch is "
-            f"not lost, only not yet checked out."
-        )
+        self.next_step = self._compose_next_step(repo_root, coordination_branch)
         super().__init__(
             repo_root=repo_root,
             mission_slug=mission_slug,
@@ -340,6 +342,36 @@ class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignor
 
     def __str__(self) -> str:  # pragma: no cover - trivial formatting
         return f"Coordination branch {self.coordination_branch!r} for mission {self.mission_slug!r} is unmaterialized. {self.next_step}"
+
+    @staticmethod
+    def _compose_next_step(repo_root: Path, coordination_branch: str) -> str:
+        """Branch the recovery guidance on local-head vs remote-only (FR-006).
+
+        ``coordination_branch`` empty (the defensive ``or ""`` coercion —
+        unreachable on any real call path per :meth:`for_mission`) keeps the
+        local-head guidance: there is no branch name to fetch.
+        """
+        if coordination_branch and not _coord_branch_is_local_head(repo_root, coordination_branch):
+            return (
+                f"The coordination branch {coordination_branch!r} declared in "
+                f"meta.json exists on a remote, but this checkout has not "
+                f"fetched it, so its coordination worktree has not been "
+                f"materialized. Run `git fetch origin {coordination_branch}` "
+                f"(or fix a stale `remote.origin.fetch` refspec) first, then "
+                f"`spec-kitty doctor workspaces --fix` to materialize it. Keep "
+                f"the `coordination_branch` key in meta.json as-is — the "
+                f"branch is not lost, only not yet fetched."
+            )
+        return (
+            f"The coordination branch {coordination_branch!r} declared in "
+            f"meta.json exists in git, but its coordination worktree has not "
+            f"been materialized yet. It will self-materialize on the "
+            f"mission's first coordination-branch write, or you can "
+            f"materialize it now by running "
+            f"`spec-kitty doctor workspaces --fix`. Keep the "
+            f"`coordination_branch` key in meta.json as-is — the branch is "
+            f"not lost, only not yet checked out."
+        )
 
     @classmethod
     def for_mission(
@@ -545,8 +577,24 @@ def _roots_own_checkout(repo_root: Path) -> bool:
         return False
 
 
+def _coord_branch_exists_via_remote(repo_root: Path, coord_branch: str) -> bool:
+    """Consult the shared remote primitive (#4979 FR-001/FR-003, C-001).
+
+    The LAST arm of :func:`_coord_branch_exists`, reached only after the local
+    head and the ``refs/remotes/`` fast paths both miss (NFR-001 ordering): a
+    coordination branch that lives ONLY on a remote (single-branch / shallow /
+    CI clone, or a pruned local remote-tracking ref — neither of which the
+    ``refs/remotes/`` scan above can see) is NOT "never created". A ``HIT`` or
+    an inconclusive ``ERROR`` both fail closed toward "present"; a reachable
+    ``CLEAN_MISS`` across every remote — or zero remotes configured at all —
+    preserves the genuine-deletion verdict (FR-002/FR-003).
+    """
+    outcome = remote_branch_lookup(repo_root, coord_branch)
+    return outcome in (RemoteLookup.HIT, RemoteLookup.ERROR)
+
+
 def _coord_branch_exists(repo_root: Path, coord_branch: str) -> bool:
-    """Return whether *coord_branch* still exists in git (one rev-parse).
+    """Return whether *coord_branch* still exists in git or on any remote.
 
     Used to split #1889 row R2 (branch exists, worktree not yet materialized)
     from row R3 (branch DELETED). A registry read cannot tell these apart — only
@@ -557,6 +605,14 @@ def _coord_branch_exists(repo_root: Path, coord_branch: str) -> bool:
     as present (R2/R2′ path), because the materialization guard one level up
     still fail-closes; we never *invent* a deleted-branch error from a
     non-repo / foreign-repo context.
+
+    #4979 (FR-001): once the local head AND the already-fetched
+    ``refs/remotes/`` scan both miss, the LAST arm consults the shared
+    :func:`~specify_cli.git.remote_probes.remote_branch_lookup` primitive
+    (NFR-001 ordering — never fired when a cheaper arm already answered) so a
+    branch that lives only on a remote the local checkout never fetched
+    (single-branch / shallow / CI clone, or a pruned remote-tracking ref) is
+    still recognised as present rather than "never created".
     """
     try:
         inside = subprocess.run(
@@ -604,7 +660,11 @@ def _coord_branch_exists(repo_root: Path, coord_branch: str) -> bool:
             _, _, branch = line[len(prefix) :].partition("/")  # <remote>/<branch...>
             if branch == coord_branch:
                 return True
-    return False
+    # #4979: the already-fetched refs/remotes/ scan above cannot see a branch
+    # the local checkout never fetched at all (single-branch/shallow/CI clone)
+    # or a remote-tracking ref that was pruned while the branch still lives on
+    # the actual remote. Consult the remote authority directly.
+    return _coord_branch_exists_via_remote(repo_root, coord_branch)
 
 
 def _coord_branch_is_local_head(repo_root: Path, coord_branch: str) -> bool:
