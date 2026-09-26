@@ -121,7 +121,7 @@
       "wp": null
     },
     "#3962": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Folded into FR-010 (restore-or-delete -> delete)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -129,8 +129,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP05"
     },
     "#4506": {
       "evidence_ref": "<link or commit>",
