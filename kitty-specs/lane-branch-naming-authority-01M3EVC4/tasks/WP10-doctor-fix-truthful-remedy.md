@@ -317,3 +317,65 @@ Classification evidence (T040/T041):
 Final grep (T042): `grep -rn "doctor workspaces --fix" src/` lists only husk/EMPTY-classification emitters (workspace/context.py's WORKSPACE_HUSK_RECOVERY_COMMAND, _workspace_husk_doctor.py, status/doctor_husks.py) plus _coordination_doctor.py's _WORKSPACE_RECOVERY_CMD sites, which are a DIFFERENT classification (materialized-but-drifted: dirty/stale/mismatch/foreign-repo worktree), not unmaterialized -- out of this WP's scope, unchanged.
 
 Tests: new tests/specify_cli/cli/commands/test_coordination_remedy_5113.py (9 cases, red-first proven against the doctor-workspaces-fix baseline), plus re-pinned test_doctor_coordination.py, test_doctor_cli_surface_golden.py, tests/runtime/test_bridge_parity.py, test_implement_placement_routing.py, test_implement_writeside.py, test_implement_cores.py, agent/test_record_analysis_placement.py. All targeted suites green; fast-tier baseline (tests/unit tests/status tests/cli tests/specify_cli/runtime -m "fast or unit") shows only the 4 documented pre-existing reds (3x test_charter_json_error_contract, 1x test_agent_commands OSError fallthrough) plus the grep-sweep run additionally hit the 5th documented pre-existing red (test_audit_tail_readers::test_decision_open_corrupt_events_log_json_envelope_names_the_typed_kind) and the pre-existing test_doctor_cli_surface_golden 'decisions' subcommand drift -- both confirmed red on the lane base before this WP's changes. Diff coverage 100% on the 3 files with executable line changes (write_target_degrade.py, _coordination_doctor.py, implement_cores.py; doctor.py/implement.py/mission_record_analysis.py/core/errors.py changes are docstring/help-text/message-text only). ruff/mypy clean on new code (pre-existing format/mypy drift on 3 already-unformatted files and one pre-existing mypy no-any-return at doctor.py:396 left untouched, confirmed red on lane base).
+- 2026-09-26T18:05:36Z – unknown – Review cycle 1 (reviewer-renata) REJECTED -- fixed for cycle 2.
+
+Blocking #1 fixed: a remote-only coord branch (branch exists ONLY as
+refs/remotes/origin/<branch>) was leading with `doctor coordination --fix`,
+which correctly refuses to auto-materialize it -- looping the operator back
+to the same refused command. Fixed in _coordination_doctor.py: both the
+COORDINATION_WORKTREE_MISSING finding and _apply_missing_worktree_fix now
+classify remote-only via _coord_branch_is_local_head and lead with the
+truthful ordered steps (git fetch, git branch <coord> origin/<coord>, then
+the doctor --fix) via the ONE shared _coord_worktree_missing_remote_only_steps
+builder -- never relaying WP09's generic (loop-inducing) next_step verbatim
+for that sub-case. Extras now also carry coord_branch.
+
+Blocking #2 fixed: test_doctor_fix_remote_only_does_not_materialize was
+vacuous (any severity=="warning" finding satisfied it, including the
+pre-existing detector finding, so it passed even with an unfixed regression).
+Rewrote it to discriminate the FIXER's own warning by its message prefix,
+assert the fetch/branch/fix steps and their order, and assert meta.json is
+untouched (never flattened). Verified RED against the rejected review-cycle-1
+commit by temporarily restoring that commit's _coordination_doctor.py via
+`git show`, confirming it fails there, then restoring the fix and confirming
+green.
+
+Should-fix #3 fixed: test_write_target_degrade_remote_only_round_trip now
+extracts every backticked step from the emitted exception text via a shared
+regex (never hard-coded argv), asserts fetch -> branch -> doctor --fix
+ordering, and runs exactly the extracted commands.
+
+Should-fix #4 fixed: added test_deleted_coord_branch_surfaces_flatten_blocked_reason
+(tests/runtime/test_bridge_parity.py) covering the CoordinationBranchDeleted
+except-arm split in cycle 0 -- asserts it surfaces its own flatten-guidance
+next_step and never the sibling "Materialize it" text. runtime_bridge.py
+re-confirmed 100% diff coverage.
+
+Coverage gap closed: added test_apply_missing_worktree_fix_generic_refusal_without_coord_branch_extra
+(test_doctor_coordination.py) covering the fallback else-arm (finding without
+a coord_branch extra, or a non-remote-only CoordinationWorktreeUnmaterialized)
+that relays the exception's own next_step verbatim. Diff coverage now 100%
+across all 4 owned modules with executable changes (measured with
+test_coord_staleness.py and test_coordination_doctor.py added to the run --
+those own the pre-existing _fix_stranded_reverts / _apply_coord_staleness_fixes
+functions that a structurally-similar-shaped new function nearby had confused
+git's diff attribution into flagging as "changed" in the first coverage pass;
+re-running with the correct owning test files resolved it cleanly, not a
+real gap).
+
+Non-blocking items acknowledged: dropped the unneeded `# noqa: PLC0415`. The
+`doctor coordination --fix --json` stdout/JSON interleaving defect
+(`Materialized: ...` printed before the JSON array) is a PRE-EXISTING pattern
+shared with the sibling `Flattened:`/`Healed:` fixers -- logged as a follow-up,
+not fixed in this narrowly-scoped WP. Out-of-map edits (core/errors.py
+docstring, implement test re-pins, golden absorbing prose drift) declared
+per the same rationale as the cycle-0 entry.
+
+Tests run (targeted + owning subsystem only, no fast tier, per operator
+speed directive): test_coordination_remedy_5113.py (9), test_doctor_coordination.py
+(28, +2 new), test_coordination_doctor.py (62 passed/2 skipped),
+test_doctor_cli_surface_golden.py (only the documented pre-existing
+'decisions' subcommand red), tests/runtime/test_bridge_parity.py (26, +1 new,
+full serial run 08:24), test_coord_staleness.py (38). ruff/mypy clean on
+touched files (pre-existing baseline drift on 2 test files' format left
+untouched, confirmed via git show HEAD). Commit fc395bd6.
