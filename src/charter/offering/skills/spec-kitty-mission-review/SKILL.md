@@ -532,9 +532,8 @@ in The Convergence — see
 `docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md`
 and [`docs/context/team-kitty.md`](../../../../../docs/context/team-kitty.md).
 Do not pin `SPEC_KITTY_ENABLE_SAAS_SYNC` on the gate commands below: Gate 1's
-`tests/contract/` already runs with the flag forced on collection-wide
-(`tests/conftest.py`), and none of Gate 3's surviving E2E scenarios read the
-outer shell's value for it.
+`tests/contract/` suite does not read this flag at all, and none of Gate 3's
+surviving E2E scenarios read the outer shell's value for it either.
 
 ### Gate 1: Contract tests (FR-023)
 
@@ -652,7 +651,7 @@ traceback that is not network-related). Operator exceptions are for
 environmental blockers, not for deferred bugs.
 
 Full operator runbook for the exception path:
-[`docs/migrations/cross-repo-e2e-gate.md`](../../../../docs/migrations/cross-repo-e2e-gate.md).
+[`docs/migrations/cross-repo-e2e-gate.md`](../../../../../docs/migrations/cross-repo-e2e-gate.md).
 
 ### Recording the gate results
 

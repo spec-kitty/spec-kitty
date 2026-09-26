@@ -9165,7 +9165,7 @@ pages:
     abstract: "Operator migration guide for the cross-repo E2E gate, active since the stability-and-hygiene-hardening mission (2026-04-26): how the gate works and what operators do."
     anchors:
     - {slug: "what-the-gate-is", text: "What the gate is", level: 2}
-    - {slug: "the-four-floor-scenarios", text: "The four floor scenarios", level: 2}
+    - {slug: "the-three-floor-scenarios", text: "The three floor scenarios", level: 2}
     - {slug: "how-to-run-the-gate", text: "How to run the gate", level: 2}
     - {slug: "exception-path-mission-exception-md", text: "Exception path: `mission-exception.md`", level: 2}
     - {slug: "common-exception-cases-non-exhaustive", text: "Common exception cases (non-exhaustive)", level: 2}

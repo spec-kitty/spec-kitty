@@ -45,7 +45,7 @@ matrix has a row with an empty verdict or a verdict outside the
 allowed set (`fixed`, `verified-already-fixed`,
 `deferred-with-followup`).
 
-## The four floor scenarios
+## The three floor scenarios
 
 The e2e repo at `spec-kitty-end-to-end-testing/scenarios/` ships at
 least these scenarios. Future missions add more on top.
@@ -54,16 +54,18 @@ least these scenarios. Future missions add more on top.
 |------|-------------|----------------|
 | `dependent_wp_planning_lane.py` | FR-001, FR-005, FR-038 | A mission with sequential dependent WPs plus a planning-lane WP merges with no silent omission of approved commits. |
 | `uninitialized_repo_fail_loud.py` | FR-032, FR-039 | `spec-kitty specify`/`plan`/`tasks` in a non-Spec-Kitty directory exit non-zero with `SPEC_KITTY_REPO_NOT_INITIALIZED` and write zero files into a sibling initialized repo. |
-| `saas_sync_enabled.py` | FR-040 | A full mission run with `SPEC_KITTY_ENABLE_SAAS_SYNC=1` against a configured dev SaaS endpoint produces sync emits at the endpoint, OR records a structured "endpoint unreachable" outcome that triggers the operator-exception path. |
 | `contract_drift_caught.py` | FR-041 | Staging a fake `spec-kitty-events` candidate that drops a required envelope field causes `pytest tests/contract/` to exit non-zero with a missing-field diagnostic. |
+
+A fourth scenario, `saas_sync_enabled.py` (FR-040), was retired along with
+the CLI-to-SaaS sync transport it exercised (commit `e59564b` in
+`EXPERIMENTAL-spec-kitty-end-to-end-testing`) and is not part of the floor
+— see spec-kitty#4949.
 
 ## How to run the gate
 
 From the spec-kitty repo:
 
 ```bash
-export SPEC_KITTY_ENABLE_SAAS_SYNC=1
-
 # 0. TeamSpace mission-state gate
 spec-kitty doctor mission-state --audit --fail-on teamspace-blocker
 
