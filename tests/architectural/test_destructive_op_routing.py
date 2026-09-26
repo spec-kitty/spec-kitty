@@ -67,6 +67,7 @@ from __future__ import annotations
 
 import ast as _ast
 import warnings
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -76,6 +77,13 @@ from tests.architectural._destructive_op_census import (
     SPECIFY_CLI_ROOT,
     SRC_ROOT,
     argv_tokens,
+    assert_changed_argument_is_unexpected,
+    assert_partition_survives_drift,
+    CensusKey,
+    assert_second_identical_op_is_unexpected,
+    census_keys,
+    census_keys_for_sources,
+    describe_unexpected,
     diff_against_allowlist,
     drop_one_entry,
     enclosing_qualname,
@@ -83,7 +91,12 @@ from tests.architectural._destructive_op_census import (
     module_string_constants,
     ordered_subsequence,
     parse,
+    parse_with_source,
+    read_sources,
+    render_census_key,
     scan_planted_source,
+    with_duplicated_statement,
+    with_leading_argument,
 )
 
 pytestmark = pytest.mark.architectural
@@ -131,52 +144,62 @@ def _find_destructive_literals(path: Path) -> list[tuple[int, str]]:
     return hits
 
 
-def _scan_repo_for_destructive_literals() -> dict[str, list[tuple[int, str]]]:
-    violations: dict[str, list[tuple[int, str]]] = {}
-    for py_file in iter_py_files(SPECIFY_CLI_ROOT):
-        hits = _find_destructive_literals(py_file)
-        if hits:
-            rel = py_file.relative_to(REPO_ROOT).as_posix()
-            violations[rel] = hits
-    return violations
+def _live_sources() -> dict[str, str]:
+    """``{repo-rel path: source}`` for every file the census scans."""
+    return read_sources(iter_py_files(SPECIFY_CLI_ROOT))
 
 
-def _flatten(live: dict[str, list[tuple[int, str]]]) -> set[str]:
-    return {f"{rel}:{lineno}:{pattern}" for rel, hits in live.items() for lineno, pattern in hits}
+def _census_keys(sources: Mapping[str, str]) -> dict[CensusKey, int]:
+    """Content-keyed live census: ``{CensusKey: lineno}`` (the line is diagnostic only)."""
+    return census_keys_for_sources(sources, _find_destructive_literals)
 
 
 # ---------------------------------------------------------------------------
 # The frozen allowlist. Built from a LIVE census of the integrated tree
-# (post WP01-WP04) -- every entry below was verified present, at the line
-# shown, by the census this file's own scanner reproduces. Shrink-only: an
-# entry whose site disappears is reported by ``test_growth_fails_shrinkage_warns``-
-# style shrink warning, never a failure. A NEW entry must be justified here
-# in the SAME PR that introduces it.
+# (post WP01-WP04). Each entry is keyed by CONTENT, not by line (mission
+# ratchet-baseline-census-gate-remediation-01M3EW3Z, FR-006): ``CensusKey`` =
+# (repo-relative path, enclosing qualname, normalized token line of the argv
+# literal, op, op_ordinal among identical live sites in that function). An
+# unrelated line shift never re-pins an entry; a second identical op or a
+# changed argument is a NEW key and fails. Shrink-only: an entry whose site
+# disappears only warns (stale), never fails. A NEW entry must be justified
+# here in the SAME PR that introduces it -- paste the ``CensusKey(...)``
+# literal from the gate's failure message.
 # ---------------------------------------------------------------------------
-_ALLOWLIST: dict[str, str] = {
+_ALLOWLIST: dict[CensusKey, str] = {
     # --- reset --hard (5) --------------------------------------------------
-    "src/specify_cli/doctrine/sources/git_source.py:163:reset_hard": (
+    CensusKey(
+        rel="src/specify_cli/doctrine/sources/git_source.py",
+        qualname="GitSource._update",
+        token_line="reset_proc = self . _run_git ( [ , , str ( target_dir ) , , , reset_target ] )",
+        op="reset_hard",
+        op_ordinal=0,
+    ): (
         "guarded reset (#4989): _update runs `git reset --hard` on the persistent "
         "pack clone ONLY after _local_changes_refusal has fail-closed refused when "
         "the working tree holds uncommitted local changes OR carries local commits "
         "ahead of the reset target -- so this reset can never silently discard "
         "hand-authored pack content; the target itself is resolved by ref type "
-        "(_resolve_reset_target) rather than blanket origin/<ref>. Re-pinned from "
-        ":98 (WP03, mission asset-preservation-migrate-fetch): the old entry's "
-        "line and its 'throwaway doctrine-pack clone' rationale were both false "
-        "after WP02 rewrote _update -- the clone is persistent (.git preserved "
-        "across fetches) and the reset is now dirty/ahead-guarded, not unguarded."
+        "(_resolve_reset_target) rather than blanket origin/<ref>. Rationale "
+        "rewritten in WP03 (mission asset-preservation-migrate-fetch): the old "
+        "'throwaway doctrine-pack clone' rationale was false after WP02 rewrote "
+        "_update -- the clone is persistent (.git preserved across fetches) and "
+        "the reset is now dirty/ahead-guarded, not unguarded."
     ),
-    "src/specify_cli/merge/git_probes.py:236:reset_hard": (
+    CensusKey(
+        rel="src/specify_cli/merge/git_probes.py", qualname="_refresh_primary_checkout_after_merge", token_line="[ , , , ] ,", op="reset_hard", op_ordinal=0
+    ): (
         "guarded by WP03/T011 (#4752): refuses via assert_checkout_on_target "
         "before this reset runs whenever expected_branch is supplied; the "
-        "live merge preflight always supplies it. Re-pinned from :232 "
-        "(#5038 driver-replay projection attribution): the new "
-        "driver_replay_expected_bytes probe added code earlier in the file, "
-        "shifting this line; same _refresh_primary_checkout_after_merge "
-        "site/rationale, confirmed by a direct read -- not a new destructive op."
+        "live merge preflight always supplies it."
     ),
-    "src/specify_cli/git/ref_advance.py:514:reset_hard": (
+    CensusKey(
+        rel="src/specify_cli/git/ref_advance.py",
+        qualname="advance_branch_ref",
+        token_line="reset = _run_git ( worktree , [ , , branch ] , env = env )",
+        op="reset_hard",
+        op_ordinal=0,
+    ): (
         "the reused guard primitive's OWN resync implementation -- this "
         "module defines _dirty_entries (the residue-aware dirty check every "
         "other guard call reuses) and only resets after that check already "
@@ -187,19 +210,20 @@ _ALLOWLIST: dict[str, str] = {
         "advance_branch_ref resync site/rationale, confirmed by a direct read "
         "-- not a new destructive op."
     ),
-    "src/specify_cli/lanes/worktree_allocator.py:1321:reset_hard": (
+    CensusKey(
+        rel="src/specify_cli/lanes/worktree_allocator.py",
+        qualname="_merge_dependency_lane_tips",
+        token_line="[ , , , pre_loop_ref ] ,",
+        op="reset_hard",
+        op_ordinal=0,
+    ): (
         "atomic rollback to a pre-loop ref (#1915) AFTER the loop's own "
         "half-merge was already aborted -- lane-loop-scoped recovery, not an "
-        "arbitrary destroy of operator state. Re-pinned from :1040 (#4889 "
-        "destroyed-lane guard WP01) and again to :1321 (#5173 status.json "
-        "reconcile): earlier code shifted this line; same site/rationale, "
-        "confirmed by a direct read -- not a new destructive op."
+        "arbitrary destroy of operator state."
     ),
-    "src/specify_cli/merge/executor.py:3360:reset_hard": (
-        "Re-pinned from :3342 (#5038 driver-replay projection attribution): the "
-        "driver-replay rewrite of _assert_squash_projected_content_landed added "
-        "code earlier in the file, shifting this line; same site/rationale, "
-        "confirmed by a direct read -- not a new destructive op. "
+    CensusKey(
+        rel="src/specify_cli/merge/executor.py", qualname="_recover_behind_head_primary_on_resume", token_line="[ , , , ] ,", op="reset_hard", op_ordinal=0
+    ): (
         "#4997 behind-own-HEAD resume recovery (_recover_behind_head_primary_on_resume): "
         "runs ONLY after a provably-pure-lag proof -- classify_resume_dirty_remedy == "
         "BEHIND_OWN_HEAD (lane already an ancestor of HEAD) AND is_pure_behind_head_lag "
@@ -209,50 +233,94 @@ _ALLOWLIST: dict[str, str] = {
         "deletions), destroying nothing genuine; any deviation refuses fail-closed instead."
     ),
     # --- worktree remove --force (10) --------------------------------------
-    "src/specify_cli/core/vcs/git.py:222:worktree_remove_force": (
+    CensusKey(
+        rel="src/specify_cli/core/vcs/git.py",
+        qualname="GitVCS.remove_workspace",
+        token_line="[ , , , str ( workspace_path ) , ] ,",
+        op="worktree_remove_force",
+        op_ordinal=0,
+    ): (
         "dead adapter -- VcsProvider.remove_workspace has zero callers "
         "(contracts/routing-invariant.md); it is explicitly NOT the "
         "chokepoint (guarded_worktree_remove is)."
     ),
-    "src/specify_cli/merge/ordering.py:329:worktree_remove_force": (
-        "ephemeral detached scan worktree, torn down in the same function's own finally block; never operator-visible state."
-    ),
-    "src/specify_cli/merge/ordering.py:667:worktree_remove_force": (
-        "ephemeral detached scan worktree (mission-number bake), same class as the sibling ordering.py:329 site."
-    ),
-    "src/specify_cli/merge/workspace.py:113:worktree_remove_force": (
-        "merge scratch workspace (C-006) -- always removed unconditionally by design, out of the guard's scope."
-    ),
-    "src/specify_cli/review/baseline.py:294:worktree_remove_force": (
-        "detached temp baseline-comparison worktree, torn down in the same context manager that created it."
-    ),
-    "src/specify_cli/cli/commands/mission_type.py:1182:worktree_remove_force": (
-        "reached only via `--discard` (_discard_mission): an operator-requested, intentional mission abandonment -- not an implicit/accidental destroy."
-    ),
-    "src/specify_cli/git/destructive_guard.py:229:worktree_remove_force": (
-        "the chokepoint's OWN inline implementation (_remove_worktree_force, called only from guarded_worktree_remove) -- this IS the guard, not a bypass of it."
-    ),
-    "src/specify_cli/lanes/merge.py:1028:worktree_remove_force": (
+    CensusKey(
+        rel="src/specify_cli/merge/ordering.py",
+        qualname="_compute_next_mission_number_or_none",
+        token_line="[ , , , str ( tmp_path ) , ] ,",
+        op="worktree_remove_force",
+        op_ordinal=0,
+    ): ("ephemeral detached scan worktree, torn down in the same function's own finally block; never operator-visible state."),
+    CensusKey(
+        rel="src/specify_cli/merge/ordering.py",
+        qualname="_write_mission_number_to_branch",
+        token_line="[ , , , str ( mission_tmp_path ) , ] ,",
+        op="worktree_remove_force",
+        op_ordinal=0,
+    ): ("ephemeral detached scan worktree (mission-number bake), same class as the sibling ordering.py:329 site."),
+    CensusKey(
+        rel="src/specify_cli/merge/workspace.py",
+        qualname="cleanup_merge_workspace",
+        token_line="[ , , , , str ( workspace_path ) ] ,",
+        op="worktree_remove_force",
+        op_ordinal=0,
+    ): ("merge scratch workspace (C-006) -- always removed unconditionally by design, out of the guard's scope."),
+    CensusKey(
+        rel="src/specify_cli/review/baseline.py",
+        qualname="_baseline_worktree",
+        token_line="[ , , , str ( tmp_worktree ) , ] ,",
+        op="worktree_remove_force",
+        op_ordinal=0,
+    ): ("detached temp baseline-comparison worktree, torn down in the same context manager that created it."),
+    CensusKey(
+        rel="src/specify_cli/cli/commands/mission_type.py",
+        qualname="_remove_lane_worktrees",
+        token_line="[ , , str ( repo_root ) , , , str ( entry ) , ] ,",
+        op="worktree_remove_force",
+        op_ordinal=0,
+    ): ("reached only via `--discard` (_discard_mission): an operator-requested, intentional mission abandonment -- not an implicit/accidental destroy."),
+    CensusKey(
+        rel="src/specify_cli/git/destructive_guard.py",
+        qualname="_remove_worktree_force",
+        token_line="[ , , str ( worktree ) , ] ,",
+        op="worktree_remove_force",
+        op_ordinal=0,
+    ): ("the chokepoint's OWN inline implementation (_remove_worktree_force, called only from guarded_worktree_remove) -- this IS the guard, not a bypass of it."),
+    CensusKey(
+        rel="src/specify_cli/lanes/merge.py",
+        qualname="preview_mission_target_integration",
+        token_line="[ , , , str ( tmp_path ) , ] ,",
+        op="worktree_remove_force",
+        op_ordinal=0,
+    ): (
         "read-only forecast scratch worktree, created detached in the same "
         "ExitStack and force-removed even when the simulated merge leaves "
         "intentional conflict entries; never operator-visible state. "
         "Re-pinned from :969 (#5173 status.json reconcile inserted code "
         "earlier in the file); same site/rationale, confirmed by a direct read."
     ),
-    "src/specify_cli/lanes/merge.py:1098:worktree_remove_force": (
-        "ephemeral lane-merge tmp worktree, unconditionally cleaned up via ExitStack on exit. "
-        "Re-pinned from :1039 (#5173); same site/rationale, confirmed by a direct read."
-    ),
-    "src/specify_cli/lanes/worktree_allocator.py:1509:worktree_remove_force": (
+    CensusKey(
+        rel="src/specify_cli/lanes/merge.py", qualname="_merge_branch_into", token_line="[ , , , str ( tmp_path ) , ] ,", op="worktree_remove_force", op_ordinal=0
+    ): ("ephemeral lane-merge tmp worktree, unconditionally cleaned up via ExitStack on exit."),
+    CensusKey(
+        rel="src/specify_cli/lanes/worktree_allocator.py",
+        qualname="_remove_lane_worktree",
+        token_line="[ , , , , str ( worktree_path ) ] ,",
+        op="worktree_remove_force",
+        op_ordinal=0,
+    ): (
         "fresh-path atomicity (#3281/T010): removes a just-created worktree "
         "AFTER _merge_recorded_planning_commit already aborted the "
         "half-merge -- the tree is clean by construction; best-effort, "
-        "reports a warning rather than raising on failure. Re-pinned from "
-        ":1228 (#4889 destroyed-lane guard WP01) and again to :1509 (#5173 "
-        "status.json reconcile): earlier code shifted this line; same "
-        "site/rationale, confirmed by a direct read."
+        "reports a warning rather than raising on failure."
     ),
-    "src/specify_cli/coordination/workspace.py:204:worktree_remove_force": (
+    CensusKey(
+        rel="src/specify_cli/coordination/workspace.py",
+        qualname="_remove_worktree_registration",
+        token_line="[ , , str ( repo_root ) , _GIT_WORKTREE , , , str ( path ) ] ,",
+        op="worktree_remove_force",
+        op_ordinal=0,
+    ): (
         "_remove_worktree_registration: prunes a registration whose "
         "worktree directory is already ABSENT from disk -- the guard "
         "cannot run here even in principle (it resolves the repo root by "
@@ -260,7 +328,7 @@ _ALLOWLIST: dict[str, str] = {
         "own docstring, not an unrouted/unexplained raw force-remove."
     ),
     # --- merge --abort (6) --------------------------------------------------
-    "src/specify_cli/merge/state.py:654:merge_abort": (
+    CensusKey(rel="src/specify_cli/merge/state.py", qualname="abort_git_merge", token_line="[ , , ] ,", op="merge_abort", op_ordinal=0): (
         "abort_git_merge's own generic primitive; its one live caller "
         "(cli.commands.merge._dispatch_abort, WP04/#4754) passes only the "
         "scoped merge-workspace path, never repo_root (INV-5). Re-pinned "
@@ -268,26 +336,42 @@ _ALLOWLIST: dict[str, str] = {
         "the reconciliation_passed_target_sha resume-anchor field shifted the "
         "line, same primitive/rationale."
     ),
-    "src/specify_cli/lanes/merge.py:1135:merge_abort": (
-        "scoped to the ephemeral lane-merge tmp worktree (squash-conflict rollback), never repo_root. "
-        "Re-pinned from :1076 (#5173); same site/rationale, confirmed by a direct read."
+    CensusKey(rel="src/specify_cli/lanes/merge.py", qualname="_merge_branch_into", token_line="[ , , ] ,", op="merge_abort", op_ordinal=0): (
+        "scoped to the ephemeral lane-merge tmp worktree (squash-conflict rollback), never repo_root."
     ),
-    "src/specify_cli/lanes/merge.py:1258:merge_abort": (
-        "scoped to the ephemeral lane-merge tmp worktree (merge-conflict rollback), never repo_root. "
-        "Re-pinned from :1199 (#5173); same site/rationale, confirmed by a direct read."
+    CensusKey(rel="src/specify_cli/lanes/merge.py", qualname="_merge_branch_into", token_line="[ , , ] ,", op="merge_abort", op_ordinal=1): (
+        "scoped to the ephemeral lane-merge tmp worktree (merge-conflict rollback), never repo_root."
     ),
-    "src/specify_cli/lanes/worktree_allocator.py:1125:merge_abort": (
-        "scoped to the lane worktree (planning-commit merge-conflict rollback), never repo_root. "
-        "Re-pinned from :858 (#4889 destroyed-lane guard WP01) and again to :1125 (#5173 status.json "
-        "reconcile): earlier code shifted this line; same site/rationale, confirmed by a direct read."
+    CensusKey(
+        rel="src/specify_cli/lanes/worktree_allocator.py", qualname="_merge_recorded_planning_commit", token_line="[ , , ] ,", op="merge_abort", op_ordinal=0
+    ): ("scoped to the lane worktree (planning-commit merge-conflict rollback), never repo_root."),
+    CensusKey(rel="src/specify_cli/lanes/worktree_allocator.py", qualname="_merge_dependency_lane_tips", token_line="[ , , ] ,", op="merge_abort", op_ordinal=0): (
+        "scoped to the lane worktree (dependency-lane merge-conflict rollback), never repo_root."
     ),
-    "src/specify_cli/lanes/worktree_allocator.py:1313:merge_abort": (
-        "scoped to the lane worktree (dependency-lane merge-conflict rollback), never repo_root. "
-        "Re-pinned from :1032 (#4889 destroyed-lane guard WP01) and again to :1313 (#5173 status.json "
-        "reconcile): earlier code shifted this line; same site/rationale, confirmed by a direct read."
-    ),
-    "src/specify_cli/lanes/auto_rebase.py:739:merge_abort": ("scoped to the lane worktree (auto-rebase conflict rollback), never repo_root."),
+    CensusKey(
+        rel="src/specify_cli/lanes/auto_rebase.py", qualname="_abort_with_failure", token_line="_run ( [ , , ] , worktree_path )", op="merge_abort", op_ordinal=0
+    ): ("scoped to the lane worktree (auto-rebase conflict rollback), never repo_root."),
 }
+
+
+def _census_partition(sources: Mapping[str, str]) -> tuple[set[CensusKey], set[CensusKey]]:
+    """The gate's one detection + matching path: ``(unexpected, suppressed)``.
+
+    Runs the REAL finder over *sources* (``rel -> source``, possibly mutated in
+    memory) and partitions the keyed hits against ``_ALLOWLIST``. The gate, the
+    line-drift tests and the non-widening tests all go through this seam.
+    """
+    live = _census_keys(sources)
+    unexpected, _stale = diff_against_allowlist(live, _ALLOWLIST)
+    return unexpected, live.keys() & _ALLOWLIST.keys()
+
+
+#: Files-scanned floor (NFR-002): the finder scanned 1013 files on the planning
+#: base (3717c7ea). A scan that silently shrinks below it is vacuous.
+_FILES_SCANNED_FLOOR = 1013
+
+#: Every file carrying an allowlisted site; the line-drift test runs per file.
+_DRIFT_FILES: tuple[str, ...] = tuple(sorted({key.rel for key in _ALLOWLIST}))
 
 
 def test_destructive_commands_only_at_allowlisted_or_guard_sites() -> None:
@@ -295,16 +379,19 @@ def test_destructive_commands_only_at_allowlisted_or_guard_sites() -> None:
     ``src/specify_cli/`` is either inside the guard's own implementation or
     a member of the frozen, rationalized allowlist. A NEW site fails; a
     disappeared site only warns (shrink-only ratchet)."""
-    live_flat = _flatten(_scan_repo_for_destructive_literals())
-    unexpected, stale = diff_against_allowlist(live_flat, _ALLOWLIST)
+    sources = _live_sources()
+    assert len(sources) >= _FILES_SCANNED_FLOOR, f"census scanned {len(sources)} files, below the pinned floor {_FILES_SCANNED_FLOOR}"
+    unexpected, suppressed = _census_partition(sources)
+    stale = set(_ALLOWLIST) - suppressed
 
     assert not unexpected, (
         "New destructive git command literal(s) found outside the routed "
         "guard (guarded_worktree_remove / assert_checkout_on_target / "
         "assert_worktree_clean) and the frozen allowlist (NFR-006/FR-007). "
         "Route the site through the guard, or add a rationale entry to "
-        f"_ALLOWLIST in this file: {sorted(unexpected)}"
+        f"_ALLOWLIST in this file: {describe_unexpected(unexpected, sources, _find_destructive_literals)}"
     )
+    assert suppressed, "Non-vacuity: the census suppressed no allowlisted site at all"
     if stale:
         warnings.warn(
             f"Shrink-only allowlist: the following site(s) no longer carry a raw destructive-command literal -- safe to delete from _ALLOWLIST: {sorted(stale)}",
@@ -317,7 +404,7 @@ def test_allowlisted_files_exist() -> None:
     """Sanity: a renamed/deleted allowlisted file must not silently drop out
     of the scan (an absent file reads as zero live hits, i.e. a false
     "shrink", masking a rename the allowlist should track by path)."""
-    rel_paths = {key.rsplit(":", 2)[0] for key in _ALLOWLIST}
+    rel_paths = {key.rel for key in _ALLOWLIST}
     missing = sorted(rel for rel in rel_paths if not (REPO_ROOT / rel).is_file())
     assert not missing, f"Allowlisted file(s) no longer exist: {missing}"
 
@@ -385,12 +472,15 @@ def _status_porcelain_hits(path: Path) -> list[tuple[int, str]]:
     literal in *path* -- deliberately NOT ``git worktree list --porcelain``
     (a different subcommand, listing worktrees rather than checking
     dirtiness), tagged with its enclosing function/method's qualname."""
-    tree = parse(path)
+    parsed = parse_with_source(path)
+    if parsed is None:
+        return []
+    source, tree = parsed
     consts = module_string_constants(tree)
     hits: list[tuple[int, str]] = []
     for node in _ast.walk(tree):
         if isinstance(node, (_ast.List, _ast.Tuple)) and ordered_subsequence(argv_tokens(node, consts), "status", "--porcelain"):
-            hits.append((node.lineno, enclosing_qualname(tree, node.lineno)))
+            hits.append((node.lineno, enclosing_qualname(source, node.lineno)))
     return hits
 
 
@@ -493,16 +583,16 @@ def test_removing_an_allowlist_entry_reproduces_a_gate_failure() -> None:
     the primary gate (``test_destructive_commands_only_at_allowlisted_or_guard_sites``)
     would raise if that site were ever un-routed and un-rationalized --
     proving the primary gate is not vacuously green."""
-    live_flat = _flatten(_scan_repo_for_destructive_literals())
+    live = _census_keys(_live_sources())
     victim, shrunk_allowlist = drop_one_entry(_ALLOWLIST)
 
-    unexpected, _stale = diff_against_allowlist(live_flat, shrunk_allowlist)
+    unexpected, _stale = diff_against_allowlist(live, shrunk_allowlist)
 
     assert victim in unexpected, (
         f"Self-mutation check failed: removing {victim!r} from the allowlist "
         "did not reproduce a gate failure against the live tree. The primary "
         "routing gate is vacuous -- investigate diff_against_allowlist / "
-        "_scan_repo_for_destructive_literals before trusting a green run."
+        "_census_keys before trusting a green run."
     )
 
 
@@ -554,3 +644,139 @@ def test_removing_a_known_predicate_reproduces_a_gate_failure() -> None:
         "predicate baseline did not reproduce a gate failure against the "
         "live seam scan -- the no-new-predicate check is vacuous."
     )
+
+
+# ---------------------------------------------------------------------------
+# Line-drift tolerance (NFR-001) and non-widening (FR-006) through the seam.
+# ---------------------------------------------------------------------------
+
+_NON_WIDENING_REL = "src/specify_cli/lanes/merge.py"
+
+
+def _site_linenos(rel: str, op: str | None = None) -> list[int]:
+    return sorted(lineno for lineno, hit_op in _find_destructive_literals(REPO_ROOT / rel) if op is None or hit_op == op)
+
+
+def test_destructive_drift_files_cover_the_allowlist() -> None:
+    """Companion floor: the drift test runs over at least the 15 allowlisted files."""
+    assert len(_DRIFT_FILES) >= 15, _DRIFT_FILES
+
+
+@pytest.mark.parametrize("rel", _DRIFT_FILES)
+def test_destructive_census_survives_line_drift(rel: str) -> None:
+    """NFR-001: an unrelated line shift (blank line at the top; a probe
+    statement above every census site) leaves ``(unexpected, suppressed)``
+    unchanged. RED on the line-keyed allowlist, GREEN on content keys."""
+    source = (REPO_ROOT / rel).read_text(encoding="utf-8")
+    file_keys = [key for key in _ALLOWLIST if key.rel == rel]
+    assert_partition_survives_drift(rel, source, _census_partition, _site_linenos(rel), file_keys)
+
+
+def test_second_identical_op_in_exempted_function_fails() -> None:
+    """Non-widening guard: duplicating an exempted ``merge --abort`` statement
+    inside its function is reported as unexpected. GREEN on the line-keyed base
+    (a new line already yields a new key) and must stay GREEN on content keys
+    (``op_ordinal`` makes the duplicate a new key)."""
+    source = (REPO_ROOT / _NON_WIDENING_REL).read_text(encoding="utf-8")
+    lineno = _site_linenos(_NON_WIDENING_REL, _MERGE_ABORT)[0]
+    assert_second_identical_op_is_unexpected(_NON_WIDENING_REL, source, _census_partition, lineno)
+
+
+def test_changed_argument_on_exempted_op_fails() -> None:
+    """Non-widening guard: adding a NAME element to an exempted argv literal
+    (same line, so the line count is unchanged) makes the site unexpected and
+    its old entry stale. RED on the line-keyed base (the ``path:line:op`` key
+    silently keeps blessing the changed argument); GREEN on content keys (the
+    token line changes). Editing only a string element would not change the
+    tokens: ``composite_key`` strips strings."""
+    source = (REPO_ROOT / _NON_WIDENING_REL).read_text(encoding="utf-8")
+    lineno = _site_linenos(_NON_WIDENING_REL, _MERGE_ABORT)[0]
+    mutated = with_leading_argument(source, lineno, (_ast.List, _ast.Tuple))
+    assert_changed_argument_is_unexpected(_NON_WIDENING_REL, source, _census_partition, mutated)
+
+
+# ---------------------------------------------------------------------------
+# CensusKey construction (T018): ordinals, file and op separation, rendering.
+# ---------------------------------------------------------------------------
+
+_TWIN_SOURCE = (
+    "import subprocess\n\n\n"
+    "def rollback(wt):\n"
+    '    subprocess.run(["git", "-C", wt, "merge", "--abort"])\n'
+    "    wt.touch()\n"
+    '    subprocess.run(["git", "-C", wt, "merge", "--abort"])\n'
+)
+
+
+def test_census_keys_assign_ordinals_to_a_same_key_pair() -> None:
+    """Two identical ops in one function share ``(qualname, token_line, op)``
+    and are told apart only by ``op_ordinal``, in line order."""
+    keys = census_keys("pkg/mod.py", _TWIN_SOURCE, [(7, _MERGE_ABORT), (5, _MERGE_ABORT)])
+    token_line = "subprocess . run ( [ , , wt , , ] )"
+    assert keys == {
+        CensusKey("pkg/mod.py", "rollback", token_line, _MERGE_ABORT, 0): 5,
+        CensusKey("pkg/mod.py", "rollback", token_line, _MERGE_ABORT, 1): 7,
+    }
+
+
+def test_census_keys_are_distinct_across_files() -> None:
+    """The same site in two files yields two keys: ``rel`` is part of the key."""
+    first = census_keys("pkg/a.py", _TWIN_SOURCE, [(5, _MERGE_ABORT)])
+    second = census_keys("pkg/b.py", _TWIN_SOURCE, [(5, _MERGE_ABORT)])
+    assert first.keys().isdisjoint(second.keys())
+
+
+def test_census_keys_are_distinct_across_ops() -> None:
+    """Two op labels on one line never share an ordinal sequence."""
+    keys = census_keys("pkg/mod.py", _TWIN_SOURCE, [(5, _MERGE_ABORT), (5, _RESET_HARD)])
+    assert {(key.op, key.op_ordinal) for key in keys} == {(_MERGE_ABORT, 0), (_RESET_HARD, 0)}
+
+
+def test_render_census_key_names_identity_line_and_tokens() -> None:
+    """Failure output carries ``rel::qualname::op#ordinal``, the diagnostic line
+    and the token line, so an author can write the ``CensusKey(...)`` literal."""
+    [(key, lineno)] = census_keys("pkg/mod.py", _TWIN_SOURCE, [(7, _MERGE_ABORT)]).items()
+    rendered = render_census_key(key, lineno)
+    assert rendered == f"pkg/mod.py::rollback::{_MERGE_ABORT}#0 (line 7) tokens=subprocess . run ( [ , , wt , , ] )"
+
+
+# ---------------------------------------------------------------------------
+# T024 -- real-data ordinal non-widening and actionable failure output.
+# ---------------------------------------------------------------------------
+
+_TWIN_QUALNAME = "_merge_branch_into"
+
+
+def _twin_merge_abort_keys() -> list[CensusKey]:
+    return sorted(key for key in _ALLOWLIST if key.rel == _NON_WIDENING_REL and key.qualname == _TWIN_QUALNAME and key.op == _MERGE_ABORT)
+
+
+def test_duplicating_the_twin_merge_abort_reports_op_ordinal_2() -> None:
+    """``lanes/merge.py::_merge_branch_into`` holds the two exempted
+    ``merge --abort`` twins (``op_ordinal`` 0 and 1). A third identical one is
+    ``op_ordinal=2``: not in the allowlist, so the gate reports it."""
+    twins = _twin_merge_abort_keys()
+    assert [key.op_ordinal for key in twins] == [0, 1], twins
+    source = (REPO_ROOT / _NON_WIDENING_REL).read_text(encoding="utf-8")
+    live = census_keys(_NON_WIDENING_REL, source, _find_destructive_literals(REPO_ROOT / _NON_WIDENING_REL))
+    second_twin_line = live[twins[1]]
+
+    unexpected, suppressed = _census_partition({_NON_WIDENING_REL: with_duplicated_statement(source, second_twin_line)})
+
+    assert unexpected == {twins[1]._replace(op_ordinal=2)}
+    assert set(twins) <= suppressed
+
+
+def test_gate_failure_message_renders_identity_line_and_tokens() -> None:
+    """An unexpected key is rendered as ``rel::qualname::op#ordinal (line N)
+    tokens=...`` so the author can write the ``CensusKey(...)`` literal."""
+    twin = _twin_merge_abort_keys()[1]
+    source = (REPO_ROOT / _NON_WIDENING_REL).read_text(encoding="utf-8")
+    line = census_keys(_NON_WIDENING_REL, source, _find_destructive_literals(REPO_ROOT / _NON_WIDENING_REL))[twin]
+    mutated = with_duplicated_statement(source, line)
+    unexpected, _ = _census_partition({_NON_WIDENING_REL: mutated})
+
+    [rendered] = describe_unexpected(unexpected, {_NON_WIDENING_REL: mutated}, _find_destructive_literals)
+
+    assert rendered.startswith(f"{_NON_WIDENING_REL}::{_TWIN_QUALNAME}::{_MERGE_ABORT}#2 (line ")
+    assert rendered.endswith(f"tokens={twin.token_line}")
