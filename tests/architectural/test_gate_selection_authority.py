@@ -32,6 +32,8 @@ from scripts.ci.gate_selection import (
 
 pytestmark = pytest.mark.architectural
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
 
 @pytest.fixture(scope="module")
 def router() -> Router:
@@ -256,53 +258,69 @@ def test_select_modules_tests_only_diff_is_never_narrower_than_its_src_twin(rout
 
 
 # ---------------------------------------------------------------------------
-# spec-kitty#4454 reachability (renata MINOR-2) — every registry module that
-# owns a tests/ tree must be REACHED by a tests-only diff in that tree. The
-# canonical-mirror heuristic (`_canonical_test_mirror`) assumes a module's
-# tests live at ``tests/<src-leaf>``; a FUTURE module whose test dir differs
-# from the mirror AND lacks explicit ``test_dirs`` would silently select
-# nothing on a tests-only change -- reintroducing the exact false green #4454
-# closes. This guard ties `select_modules` reachability to the registry
-# inventory: the module/test-dir set is DERIVED from the registry (explicit
-# ``test_dirs`` when present, else the canonical mirror of each ``root``), never
-# hand-listed, so such a future module fails here instead of routing nowhere.
+# spec-kitty#4454 reachability + FR-003 / D8 phantom-mirror fix — every registry
+# module that owns a tests/ tree must be rooted at a real on-disk directory
+# (INV-2) and route SOMEWHERE (never ``frozenset()`` — the #4454 false green).
+#
+# The pre-fix derivation defaulted a row without explicit ``test_dirs`` to
+# ``_canonical_test_mirror(root)`` — the SAME transform ``select_modules`` uses
+# internally, so both sides agreed on the PHANTOM ``tests/agent_utils`` for the
+# ``agent`` row (whose leaf is ``agent_utils`` but whose real tree is
+# ``tests/agent``). The check passed while validating a directory that does not
+# exist. FR-003 defaults instead to the real ``tests/{module}`` and asserts every
+# derived dir EXISTS on disk, breaking the self-reference without reddening this
+# authority gate (C-002 — the RED lands on the NEW coverage guards, never here).
 # ---------------------------------------------------------------------------
 def _module_test_dirs(row: dict[str, object]) -> list[str]:
     """The tests/ directories a registry module owns, derived from the registry.
 
     Explicit ``test_dirs`` when the row declares them (the registry's own
-    authority); otherwise the canonical ``tests/`` mirror of each ``root`` --
-    the same deterministic transform ``select_modules`` uses to route a
-    tests-only diff back to its owning module.
+    authority); otherwise the real per-module default ``tests/{module}`` — NOT
+    ``_canonical_test_mirror`` (which yields the phantom ``tests/agent_utils`` for
+    the ``agent`` row and self-references the mirror ``select_modules`` uses, so
+    the reachability check validated nothing — FR-003 / D8).
     """
-    from scripts.ci.gate_selection import _canonical_test_mirror
-
     explicit = row.get("test_dirs")
     if isinstance(explicit, list) and explicit:
         return [str(test_dir) for test_dir in explicit]
-    roots = row.get("roots")
-    roots_list = roots if isinstance(roots, list) else []
-    return [_canonical_test_mirror(str(root)) for root in roots_list]
+    return [f"tests/{row['module']}"]
+
+
+def _row_has_explicit_test_dirs(row: dict[str, object]) -> bool:
+    explicit = row.get("test_dirs")
+    return isinstance(explicit, list) and bool(explicit)
 
 
 def test_every_registry_module_test_tree_is_reachable(router: Router) -> None:
-    """T-reach: a tests-only diff in each registry module's declared/mirrored
-    test tree selects that module (never ``frozenset()``).
+    """T-reach + INV-2 (FR-003 / #4454): every registry module's derived test tree
 
-    Reachability is derived from the registry inventory, so it fails closed for
-    a future module whose test dir does not match the canonical mirror and that
-    declares no explicit ``test_dirs`` -- exactly the silent-nothing false green
-    #4454 removed. A currently-unreachable module is a REAL finding, surfaced
-    here rather than papered over.
+    (a) is rooted at a directory that EXISTS on disk (INV-2 — no phantom mirror),
+    (b) routes to at least one owning module (never ``frozenset()`` — the #4454
+        false green where a tests-only change ran in no per-PR shard),
+    (c) for rows that DECLARE explicit ``test_dirs``, routes back to that very
+        module (strict self-reachability).
+
+    (a) and (b) apply to EVERY row. Strict self-reachability (c) is scoped to
+    explicit-``test_dirs`` rows: a row without them defaults to ``tests/{module}``
+    which may legitimately route its tree to OTHER modules — the ``agent`` row's
+    ``tests/agent`` routes to ``[cli, execution_context]`` (its own-root coverage
+    debt, tracked by the foreign-coverage guard), not a phantom. INV-2 + non-empty
+    routing still fail closed for any future phantom mirror or route-nowhere tree.
     """
     from scripts.ci.gate_selection import _registry_rows
 
-    unreachable: list[str] = []
+    problems: list[str] = []
     for row in _registry_rows():
         module = str(row["module"])
+        explicit = _row_has_explicit_test_dirs(row)
         for test_dir in _module_test_dirs(row):
+            if not (_REPO_ROOT / test_dir).is_dir():
+                problems.append(f"{module}: derived test dir {test_dir!r} does not exist on disk (INV-2 — phantom mirror)")
+                continue
             probe = f"{test_dir}/test_ci_reachability_probe.py"
             selected = select_modules([probe], router=router)
-            if module not in selected:
-                unreachable.append(f"{module}: a tests-only diff in {test_dir!r} selected {sorted(selected)} (module not reached)")
-    assert not unreachable, "registry module(s) whose test tree routes to no owning module (spec-kitty#4454 false-green vector):\n" + "\n".join(unreachable)
+            if not selected:
+                problems.append(f"{module}: a tests-only diff in {test_dir!r} routed to no module (spec-kitty#4454 false green)")
+            elif explicit and module not in selected:
+                problems.append(f"{module}: explicit test_dir {test_dir!r} routed to {sorted(selected)}, not back to {module}")
+    assert not problems, "registry module test-tree reachability violations (FR-003 / #4454):\n" + "\n".join(problems)

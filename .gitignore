@@ -144,6 +144,8 @@ sdd-*/
 # Committed module-shard registry + shard-timings (mission ci-pipeline-reinstatement-01M1X35E, WP08/FR-006)
 !.github/ci-module-registry.yml
 !.github/ci-shard-timings.json
+# Committed MEASURED coverage-honesty baseline (mission ci-coverage-honesty-01M3CZVN, WP01/FR-001+FR-002)
+!.github/ci-foreign-coverage-baseline.json
 .roo/
 .amazonq/
 .pytest_cache/

@@ -1,0 +1,90 @@
+{
+  "_provenance": {
+    "description": "MEASURED coverage-honesty baseline (never guessed). Seeds the two tests/architectural/ coverage-honesty guards so they land GREEN at today's honest debt and fail only on a REGRESSION. Every field is SHRINK-ONLY: a set that shrinks (or holds equal) passes; only NEW members (a new dark root/package) or a ratio dropping below its recorded value fail. Remediation (WP02) shrinks these sets.",
+    "generated_by": "scripts/ci/coverage_guard_lib.py (mission ci-coverage-honesty-01M3CZVN, WP01)",
+    "regenerate": "python -c \"import importlib.util,json;from pathlib import Path;s=importlib.util.spec_from_file_location('g',Path('scripts/ci/coverage_guard_lib.py').resolve());g=importlib.util.module_from_spec(s);s.loader.exec_module(g);td,imd=g.reachability_partition();print(json.dumps({'dark_roots':g.dark_roots(),'own_root_ratios':{k:round(v,6) for k,v in g.current_own_root_ratios().items()},'truly_dark_packages':td,'in_matrix_dark_packages':imd},indent=2))\"",
+    "measured_at": "2026-09-25",
+    "resolver": "module-tests.yml precedence: a row's explicit test_dirs else tests/{module}; NEVER _canonical_test_mirror (the phantom tests/agent_utils the authority bug produced).",
+    "import_analysis": "specify_cli.ast_analysis.imports (module_of_import_from) over a full ast.walk, so deferred / function-level imports count as coverage.",
+    "data_package_exclusion": "F18 refinement: a package that ships only data files (*.yaml/*.json/templates) with no non-__init__ .py module is not import-testable and is dropped from the enumeration (see excluded_data_packages). schemas has no __init__.py and is excluded by construction.",
+    "notes": [
+      "own_root_ratios omit the recorded exemptions: non-src-root rows (ci) and self-declared aggregate/inventory rows (execution_context, core_misc, unit, specify_cli_runtime).",
+      "truly_dark_packages is 20 after the data-package exclusion (the raw pre-exclusion figure from ledger finding F18 was 23; excluding the 3 named data packages charter.activation.corpus / charter.activation.packs / specify_cli.skills.data brings it to 20). specify_cli.__main__ and specify_cli.encoding are subprocess/CLI-tested and structurally invisible to static import analysis, so a hard zero-floor is unsatisfiable; the shrink-only baseline is the honest ratchet.",
+      "in_matrix_dark_packages is 22 after WP02 remediation (was 27): reachable by some out-of-matrix / nightly test but by no per-PR (in-matrix) test.",
+      "WP02 (FR-005/FR-009) shrank in_matrix_dark 27->22 by enrolling five out-of-matrix test trees into existing in-matrix module rows: tests/specify_cli/live_work + tests/calibration + tests/specify_cli/config + tests/specify_cli/tasks_authoring + tests/specify_cli/bootstrap into core_misc (cov_target specify_cli), removing {specify_cli.live_work.adapters, specify_cli.calibration, specify_cli.config, specify_cli.tasks_authoring, specify_cli.bootstrap} from this set. live_work was enrolled into core_misc rather than minting a dedicated row (a new row needs a scrub-group + ci-router filter guarded by bijection/transcription -- deferred follow-up #4732/#5037). specify_cli.diagnostics is deliberately KEPT: it is imported only by path-routed tests/e2e (per-PR covered, not a module shard), recorded honest debt. WP02 also ratcheted the agent own_root_ratio 0.012821->0.025316 by promoting tests/specify_cli/agent_utils into the agent row (FR-004). This baseline sidecar is WP01-owned; WP02's edit is an intentional sequential out-of-map edit (WP02 depends on WP01), permitted because all registry remediation lives in one owner to avoid parallel collisions."
+    ]
+  },
+  "dark_roots": [
+    "next::specify_cli.runtime"
+  ],
+  "own_root_ratios": {
+    "merge": 0.715909,
+    "missions": 0.444444,
+    "post_merge": 1.0,
+    "release": 0.2,
+    "status": 0.950495,
+    "review": 0.939394,
+    "next": 0.826087,
+    "lanes": 0.944444,
+    "dashboard": 0.814815,
+    "upgrade": 0.845238,
+    "cli": 0.887097,
+    "charter": 0.93253,
+    "agent": 0.025316,
+    "kernel": 1.0,
+    "glossary": 0.727273,
+    "auth": 0.956522
+  },
+  "truly_dark_packages": [
+    "charter.assets",
+    "charter.glossary_packs",
+    "charter.model_routing",
+    "charter.offering.import_candidates",
+    "charter.pack_paths",
+    "charter.primitives",
+    "charter.provenance",
+    "charter.spdd_reasons",
+    "charter.template_catalog",
+    "charter.versioning",
+    "glossary.semantic_events",
+    "kernel.schema_utils",
+    "mission_runtime.checkout_identity",
+    "mission_runtime.identity",
+    "mission_runtime.mission_resolver_port",
+    "mission_runtime.read_dir_degrade",
+    "specify_cli.__main__",
+    "specify_cli.agent_upgrade_prompt",
+    "specify_cli.charter_runtime.facade",
+    "specify_cli.encoding"
+  ],
+  "in_matrix_dark_packages": [
+    "charter.profiles",
+    "specify_cli.ast_analysis",
+    "specify_cli.bytecode_heal",
+    "specify_cli.charter_pack_registry",
+    "specify_cli.cli.commands.migrate",
+    "specify_cli.compat._adapters",
+    "specify_cli.completion",
+    "specify_cli.configured_command",
+    "specify_cli.diagnostics",
+    "specify_cli.docs",
+    "specify_cli.doctor",
+    "specify_cli.doctrine.template_render",
+    "specify_cli.drg_writers",
+    "specify_cli.intake_sources",
+    "specify_cli.missions.plan",
+    "specify_cli.plan_validation",
+    "specify_cli.proof",
+    "specify_cli.session_presence.hooks",
+    "specify_cli.state",
+    "specify_cli.text_sanitization",
+    "specify_cli.verify_enhanced",
+    "specify_cli.widen"
+  ],
+  "excluded_data_packages": [
+    "charter.activation.corpus",
+    "charter.activation.packs",
+    "specify_cli.dashboard.templates",
+    "specify_cli.skills.data"
+  ]
+}
