@@ -1,6 +1,6 @@
 # Review Action — Governance Guidelines
 
-These guidelines govern the quality and correctness standards for work package review in the software-dev mission. They are injected at runtime via the constitution context bootstrap.
+These guidelines govern the quality and correctness standards for work package review in the software-dev mission. They are injected at runtime via the charter context bootstrap.
 
 ---
 

@@ -5,6 +5,13 @@ subtasks:
 title: "Replace with work package title"
 task_type: "implement"  # implement | review | plan | specify | research — drives agent_profile suggestion
 phase: "Phase N - Replace with phase name"
+execution_mode: "code_change"  # code_change | planning_artifact — code_change WPs may never own kitty-specs/ paths; planning_artifact WPs must confine every owned_files entry to kitty-specs/ or docs/
+owned_files:  # Repo-root-relative paths/globs this WP owns (e.g. src/..., tests/...) — never host-absolute or worktree-prefixed; a code_change WP must never list a kitty-specs/ path (finalize-tasks rejects it with INVALID_WP_OWNED_FILES_KITTY_SPECS); per-WP design notes / kitty-specs deliverables go in a separate planning_artifact WP confined to kitty-specs/ or docs/
+  - "src/replace/with/owned/surface.py"
+  - "tests/replace/with/owned/test_surface.py"
+authoritative_surface: "src/replace/with/primary/surface/"  # Repo-root-relative prefix; must prefix at least one owned_files entry
+create_intent:  # Repo-root-relative paths this WP will CREATE (suppresses literal-path zero-match at finalize)
+  - "tests/replace/with/new/test_surface.py"
 agent_profile: ""  # Agent profile identifier (e.g., implementer-ivan, architect-alphonso)
 role: ""           # Role within the profile (e.g., "implementer", "reviewer")
 agent: ""          # CLI agent/tool identifier (claude, codex, copilot, etc.)
@@ -35,7 +42,7 @@ If no profile is specified, run `spec-kitty agent profile list` and select the b
 
 **Read this first if you are implementing this task!**
 
-- **Has review feedback?**: Check the `review_ref` field in the event log (via `spec-kitty agent status` or the Activity Log below).
+- **Has review feedback?**: Check the `review_ref` field in the event log (via `spec-kitty agent tasks status` or the Activity Log below).
 - **You must address all feedback** before your work is complete. Feedback items are your implementation TODO list.
 - **Report progress**: As you address each feedback item, update the Activity Log explaining what you changed.
 
@@ -93,6 +100,9 @@ Use language identifiers in code blocks: ````python`,````bash`
 - Specify mandatory tests and where they live.
 - Provide commands or scripts to run.
 - Describe fixtures or data seeding expectations.
+- If this WP owns typed sources (including tests), include the project's
+  configured compiler/typecheck command, matching CI. A passing test runner
+  does not replace compiler diagnostics; a failed compiler check fails the gate.
 
 ## Risks & Mitigations
 
@@ -103,6 +113,8 @@ Use language identifiers in code blocks: ````python`,````bash`
 
 - Key acceptance checkpoints for `/spec-kitty.review`.
 - Any context reviewers should revisit before approving.
+- If typed sources changed, confirm the implementer ran the configured compiler
+  check in addition to the test runner and that compiler diagnostics passed.
 
 ## Activity Log
 
