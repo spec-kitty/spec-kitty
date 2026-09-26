@@ -135,7 +135,9 @@ _MISMATCH_ALLOWLIST: dict[str, str] = {
     "dashboard": "committed=375 collected=376 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
     "upgrade": "committed=733 collected=874 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
     "cli": "committed=2704 collected=682 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
-    "agent": "committed=1173 collected=1524 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
+    # `agent` removed (ci-coverage-honesty WP02): enrolling tests/specify_cli/agent_utils into
+    # the agent row + re-measuring its timings made committed==collected, so the mismatch is
+    # gone and the allowlist entry is stale. Shrinking the ledger is always welcome.
     "kernel": "committed=270 collected=468 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
     "glossary": "committed=149 collected=185 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
     "execution_context": "committed=4106 collected=3406 (2026-09-22 baseline; predates spec-kitty#4865, never recaptured by this mission)",
