@@ -52,6 +52,7 @@ from specify_cli.missions._substantive import (
     describe_technical_context_gap,
     is_substantive,
 )
+from specify_cli.requirement_mapping import parse_requirement_ids_from_spec_md
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -713,3 +714,116 @@ def test_plan_field_declarations_cover_every_builtin_plan_md_type() -> None:
     """Every built-in mission type that ships a ``plan.md`` artifact must have
     a registered ``_PLAN_FIELD_DECLARATIONS`` entry -- no silent gap."""
     assert set(_PLAN_FIELD_DECLARATIONS) == _builtin_mission_types_requiring_plan_md()
+
+
+# ---------------------------------------------------------------------------
+# The live software-dev spec template's trailing ``Delivery`` /
+# ``No-op passable?`` columns (+ legend + filled example) must not let the
+# unfilled scaffold pass the spec-commit substantive gate, and must not add
+# a phantom declared requirement id via the legend's filled example row.
+# ---------------------------------------------------------------------------
+
+_SPEC_TEMPLATE_PATH = _REPO_ROOT / "packs" / "built-in" / "missions" / "software-dev" / "templates" / "spec-template.md"
+
+
+class TestSpecTemplateDeliveryLabels:
+    """Reads the LIVE built-in template (not the ``.kittify/overrides`` copy --
+    that copy is WP03's concern) directly off disk (repo-root relative)."""
+
+    def _template_text(self) -> str:
+        return _SPEC_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+    def test_unfilled_scaffold_is_not_substantive(self, tmp_path: Path) -> None:
+        """(1) Ratchet -- the unfilled scaffold marks itself
+        ``[ratchet] · no-op passable: yes``, controlled by (2) below on the
+        SAME fixture."""
+        scaffold = tmp_path / "spec.md"
+        scaffold.write_text(self._template_text(), encoding="utf-8")
+
+        assert is_substantive(scaffold, "spec") is False
+
+    def test_scaffold_with_title_and_user_story_filled_is_substantive(self, tmp_path: Path) -> None:
+        """(2) Positive control (same fixture as (1)): fill only the first FR
+        row's Title/User Story -- label placeholders stay untouched -- and the
+        gate must flip to True. This is what proves (1) is a real, live
+        assertion and not a vacuously-always-False detector."""
+        text = self._template_text()
+        filled = text.replace(
+            "| FR-001 | [Short title] | As a [role], I want [goal] so that [benefit]. | High | Open",
+            "| FR-001 | Real title | As a user, I want a real goal so that a real benefit. | High | Open",
+            1,
+        )
+        assert filled != text, "fixture setup: the FR-001 row text to replace was not found in the live template"
+
+        scaffold = tmp_path / "spec.md"
+        scaffold.write_text(filled, encoding="utf-8")
+
+        assert is_substantive(scaffold, "spec") is True
+
+    def test_declared_id_set_is_unchanged_by_the_new_columns(self) -> None:
+        """(3) The template's declared id set equals the frozen pre-existing
+        set (FR-001..003, NFR-001..003, C-001..003) -- the legend's filled
+        example (``FR-EXAMPLE``) declares nothing extra.
+
+        Positive control on the same fixture: the example line is genuinely
+        present in the template text, so the exact-set equality below is a
+        real id-parser result, not a vacuous pass over a template that never
+        contained the example at all.
+        """
+        text = self._template_text()
+        assert "| FR-EXAMPLE |" in text
+
+        declared = parse_requirement_ids_from_spec_md(text)
+        assert set(declared["all"]) == {
+            "FR-001",
+            "FR-002",
+            "FR-003",
+            "NFR-001",
+            "NFR-002",
+            "NFR-003",
+            "C-001",
+            "C-002",
+            "C-003",
+        }
+
+    # -----------------------------------------------------------------
+    # Build (must-pin) assertions on the LIVE template's actual content.
+    # Deletion-tested against the template's prior content -- every
+    # assertion below goes red on that content.
+    # -----------------------------------------------------------------
+
+    def test_fr_table_header_and_placeholder_rows_carry_delivery_columns(self) -> None:
+        text = self._template_text()
+        assert "| ID | Title | User Story | Priority | Status | Delivery | No-op passable? |" in text
+        for row in (
+            "| FR-001 | [Short title] | As a [role], I want [goal] so that [benefit]. | High | Open | [build/ratchet/folded] | [yes/no] |",
+            "| FR-002 | [Short title] | As a [role], I want [goal] so that [benefit]. | Medium | Open | [build/ratchet/folded] | [yes/no] |",
+            "| FR-003 | [Short title] | As a [role], I want [goal] so that [benefit]. | Low | Open | [build/ratchet/folded] | [yes/no] |",
+        ):
+            assert row in text
+
+    def test_success_criteria_bullets_carry_the_label_suffix(self) -> None:
+        text = self._template_text()
+        suffix = "— [build/ratchet/folded] · no-op passable: [yes/no]"
+        for sc_id in ("SC-001", "SC-002", "SC-003", "SC-004"):
+            marker = f"**{sc_id}**"
+            idx = text.index(marker)
+            line_end = text.index("\n", idx)
+            assert suffix in text[idx:line_end], f"{sc_id} bullet is missing the delivery-label suffix"
+
+    def test_legend_names_the_tactic_fetch_command_and_the_filled_example(self) -> None:
+        text = self._template_text()
+        assert "acceptance-criteria-non-vacuity" in text
+        assert "spec-kitty charter context --include tactic:acceptance-criteria-non-vacuity" in text
+        assert "| FR-EXAMPLE |" in text
+        # Exactly one gloss line is marked as the tactic's summary -- this
+        # must not read as a second, independent label definition.
+        assert text.count("summary of tactic") == 1
+
+    def test_nfr_and_constraint_tables_are_unchanged(self) -> None:
+        """NFR/C tables carry no Delivery/No-op columns (out of scope per spec.md)."""
+        text = self._template_text()
+        assert "| ID | Title | Requirement | Category | Priority | Status |" in text
+        assert "| NFR-001 | [Short title] | [Measurable threshold, e.g., p95 latency under 300ms] | Performance | High | Open |" in text
+        assert "| ID | Title | Constraint | Category | Priority | Status |" in text
+        assert "| C-001 | [Short title] | [Required boundary or limitation] | Technical | High | Open |" in text

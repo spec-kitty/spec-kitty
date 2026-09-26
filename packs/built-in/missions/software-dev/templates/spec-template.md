@@ -84,15 +84,30 @@
   2) Use unique IDs per type (FR-###, NFR-###, C-###)
   3) Keep Status populated for every row
   4) Non-functional requirements must include measurable thresholds
+  5) Delivery label + no-op mark on every FR row and success criterion (summary of
+     tactic `acceptance-criteria-non-vacuity`): `[build]`/`[ratchet]`/`[folded]`
+     delivery, `yes`/`no` no-op passable.
+  6) The label set and the three non-vacuity rules (same-fixture positive control,
+     half-by-half proof for compound fixes, production-path non-vacuity) are defined
+     once, in tactic `acceptance-criteria-non-vacuity` -- fetch it with
+     `spec-kitty charter context --include tactic:acceptance-criteria-non-vacuity`.
+     Do not redefine the labels here; this comment only points to that tactic.
+  7) A label never goes inside or before the ID cell, and never inline on an FR
+     bullet/heading -- it is a trailing column (or success-criterion suffix) only.
+
+  Filled example (summary of tactic acceptance-criteria-non-vacuity; `FR-EXAMPLE`
+  does not match the `FR-###` id pattern, so it declares no requirement id):
+
+  | FR-EXAMPLE | Refuses malformed input | As an operator, I want malformed input rejected so that downstream state stays consistent. | High | Open | [ratchet] | yes — paired with the well-formed-input row on the same fixture |
 -->
 
 ### Functional Requirements
 
-| ID | Title | User Story | Priority | Status |
-|----|-------|------------|----------|--------|
-| FR-001 | [Short title] | As a [role], I want [goal] so that [benefit]. | High | Open |
-| FR-002 | [Short title] | As a [role], I want [goal] so that [benefit]. | Medium | Open |
-| FR-003 | [Short title] | As a [role], I want [goal] so that [benefit]. | Low | Open |
+| ID | Title | User Story | Priority | Status | Delivery | No-op passable? |
+|----|-------|------------|----------|--------|----------|-----------------|
+| FR-001 | [Short title] | As a [role], I want [goal] so that [benefit]. | High | Open | [build/ratchet/folded] | [yes/no] |
+| FR-002 | [Short title] | As a [role], I want [goal] so that [benefit]. | Medium | Open | [build/ratchet/folded] | [yes/no] |
+| FR-003 | [Short title] | As a [role], I want [goal] so that [benefit]. | Low | Open | [build/ratchet/folded] | [yes/no] |
 
 ### Non-Functional Requirements
 
@@ -124,7 +139,10 @@
 
 ### Measurable Outcomes
 
-- **SC-001**: [Measurable metric, e.g., "Users can complete account creation in under 2 minutes"]
-- **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
-- **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
-- **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+<!-- ACTION REQUIRED: append a delivery label + no-op mark to every success criterion,
+     same as the FR table above -- "— [build/ratchet/folded] · no-op passable: [yes/no]". -->
+
+- **SC-001**: [Measurable metric, e.g., "Users can complete account creation in under 2 minutes"] — [build/ratchet/folded] · no-op passable: [yes/no]
+- **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"] — [build/ratchet/folded] · no-op passable: [yes/no]
+- **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"] — [build/ratchet/folded] · no-op passable: [yes/no]
+- **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"] — [build/ratchet/folded] · no-op passable: [yes/no]
