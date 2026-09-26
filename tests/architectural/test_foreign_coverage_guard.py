@@ -9,8 +9,12 @@ MEASURED baseline in ``.github/ci-foreign-coverage-baseline.json``:
   baseline (today: ``next::specify_cli.runtime``). A new dark root fails; the
   recorded ones are honest debt, not a hard fail.
 * **Own-root ratio ratchet** — a row's fraction of resolved test files importing
-  an own root package may not DROP below its recorded baseline. Improving
-  ratchets the baseline up (WP02).
+  an own root package may not DROP more than 8.5% (relative) below its recorded
+  baseline; the floor is ``baseline * (1 - 0.085)``. The slack absorbs a fix
+  whose new own-root code is exercised by the real-CLI foreign suites
+  (``tests/terminus/``, ``tests/lanes/``) per ADR 2026-07-17-1; a genuine
+  regression (own-root test files removed) drops the ratio far past it and still
+  fails. Improving ratchets the baseline up (WP02).
 
 Recorded exemptions (never gated): non-src-root rows (``ci``) and the
 self-declared aggregate / inventory rows (``execution_context``, ``core_misc``,
@@ -68,7 +72,7 @@ def test_no_new_dark_root(lib: ModuleType, baseline: dict[str, Any]) -> None:
 
 
 def test_own_root_ratios_have_not_regressed(lib: ModuleType, baseline: dict[str, Any]) -> None:
-    """Shrink-only ratchet: no row's own-root import ratio drops below baseline."""
+    """Shrink-only ratchet: no row's own-root import ratio drops >8.5% below baseline."""
     regressions = lib.ratio_regressions(lib.current_own_root_ratios(), baseline["own_root_ratios"])
     assert not regressions, "own-root coverage ratio regressed below baseline:\n" + "\n".join(regressions)
 

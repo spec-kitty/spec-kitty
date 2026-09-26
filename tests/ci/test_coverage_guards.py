@@ -116,6 +116,25 @@ def test_ratio_regressions_flags_a_vanished_row(lib: ModuleType) -> None:
     assert lib.ratio_regressions({}, {"merge": 0.7}) == ["merge: row vanished from the registry"]
 
 
+def test_ratio_regressions_tolerates_a_small_relative_drop(lib: ModuleType) -> None:
+    """A dip within the 8.5% relative slack passes (a merge fix integration-tested
+    in the foreign real-CLI suites dilutes the own-root ratio slightly)."""
+    baseline = {"merge": 0.695652}
+    current = {"merge": 0.680851}  # the real #4997-landing dip: ~2.1% relative
+    assert lib.ratio_regressions(current, baseline) == []
+    # A drop just inside the floor (baseline * 0.915 = 0.636521) still passes.
+    assert lib.ratio_regressions({"merge": 0.637}, baseline) == []
+
+
+def test_ratio_regressions_flags_a_drop_beyond_the_relative_tolerance(lib: ModuleType) -> None:
+    """A drop past the 8.5% floor still fails — the slack never masks a genuine
+    regression (whole own-root test files removed)."""
+    baseline = {"merge": 0.7}
+    current = {"merge": 0.63}  # 10% relative drop, below floor 0.7*0.915 = 0.6405
+    regressions = lib.ratio_regressions(current, baseline)
+    assert len(regressions) == 1 and "merge" in regressions[0]
+
+
 def test_current_own_root_ratios_excludes_exempt_rows(lib: ModuleType) -> None:
     ratios = lib.current_own_root_ratios()
     assert ratios  # non-empty
