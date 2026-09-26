@@ -61,7 +61,7 @@
       "wp": null
     },
     "#2972": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Campsite-only per C-003; matrix row + S8997 routed to #5118 (FR-020)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,8 +69,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP13"
     },
     "#3011": {
       "evidence_ref": "<link or commit>",
