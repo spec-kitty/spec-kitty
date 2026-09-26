@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "mission_slug": "nightly-red-remediation-01M3EP85",
+  "mission_id": "01M3EP854EYFN0YKNZBCM8616N",
+  "mission_branch": "kitty/mission-nightly-red-remediation-01M3EP85",
+  "target_branch": "claude/lucid-ptolemy-fjtzep",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/integration/test_coord_unprotected_lifecycle_loop.py",
+        "tests/integration/test_implement_review_retrospect_smoke.py",
+        "tests/integration/test_review_durability_matrix.py",
+        "tests/integration/test_surface_translation_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/merge.py",
+        "src/specify_cli/merge/executor.py",
+        "src/specify_cli/merge/forecast.py",
+        "tests/merge/test_nightly_remediation_merge_defects.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-nightly.yml",
+        "tests/ci/test_nightly_overrun_fail_closed.py",
+        "tests/specify_cli/invocation/test_doctor_ops.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/integration/test_merge_lane_planning_data_loss.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/integration/sparse_checkout/test_merge_refresh_and_invariant.py",
+        "tests/integration/test_merge_lane_worktree_safety.py",
+        "tests/integration/test_merge_primary_checkout_safety.py",
+        "tests/integration/test_merge_resume.py",
+        "tests/integration/test_post_merge_index_refresh.py",
+        "tests/integration/test_post_merge_unrelated_untracked.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-26T11:13:12.265623+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "3fa8195c7d92564ab1c9a897d29897551931eb73"
+}
