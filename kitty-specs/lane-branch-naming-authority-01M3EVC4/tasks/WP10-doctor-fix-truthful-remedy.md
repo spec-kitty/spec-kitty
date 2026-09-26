@@ -379,3 +379,33 @@ test_doctor_cli_surface_golden.py (only the documented pre-existing
 full serial run 08:24), test_coord_staleness.py (38). ruff/mypy clean on
 touched files (pre-existing baseline drift on 2 test files' format left
 untouched, confirmed via git show HEAD). Commit fc395bd6.
+- 2026-09-26T18:22:51Z – unknown – Review cycle 2 REJECTED for one narrow gap -- fixed for cycle 3 (final).
+
+Reviewer confirmed cycle-1's behaviour fixes are all correct (verified by hand
+on a real repo with a bare origin: ordered steps -> materialized worktree;
+MUT-B killed; noqa gone). The single BLOCKING gap: nothing tested the
+DETECTOR's remote-only classification -- only the fixer's warning was
+covered. Mutation MUT-A (`_check_coordination_worktree_health`:
+`if is_local_head:` forced to `if True:`) survived every relevant test
+(171 tests green), silently reintroducing the cycle-1 loop defect in the
+first thing an operator sees (the COORDINATION_WORKTREE_MISSING finding's
+own next_step, without --fix).
+
+Fixed: added test_missing_worktree_finding_remote_only_leads_with_ordered_steps
+(test_coordination_remedy_5113.py). Drives `doctor coordination --json`
+(no --fix) on a real repo with a bare origin, extracts the finding's
+next_step via the shared backtick regex, asserts it is EXACTLY the ordered
+fetch -> branch -> doctor --fix triple, then runs the extracted steps and
+asserts the coordination worktree exists (the round trip the reviewer
+verified by hand). Verified RED under MUT-A by temporarily forcing
+`if is_local_head:` to `if True:` in _coordination_doctor.py (confirmed the
+new test fails with the exact 2-steps-not-3 assertion the reviewer
+predicted), then restored and confirmed GREEN.
+
+No production code changed this cycle -- reviewer confirmed the behaviour
+was already correct; this closes the test gap behind it.
+
+Tests run: test_coordination_remedy_5113.py (10 passed, +1 new),
+test_doctor_coordination.py (27 passed), combined run (37 passed).
+ruff/mypy/C901 clean on _coordination_doctor.py (unchanged) and the test
+file. Commit 8a585ae3.
