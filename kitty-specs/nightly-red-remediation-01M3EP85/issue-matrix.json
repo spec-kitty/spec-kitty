@@ -73,7 +73,7 @@
       "wp": null
     },
     "#5037": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context only: C-003 keeps tests/integration nightly-only per the #5037 ruling; no per-PR routing change in scope.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,7 +81,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5045": {
