@@ -8,10 +8,10 @@
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "combined-tree (lanes a\u2013e merged on 7dac8bab): pytest tests/integration tests/next -n4 \u2192 1576 passed, 0 failed; seam+Guard4 assert CoordinationWorktreeUnmaterialized (WP01 36e0fdbf), 4 retention tests materialize coord worktree (WP02 d22bff5e)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-26T12:52:22.268001+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
