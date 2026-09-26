@@ -109,7 +109,7 @@
       "wp": "WP04"
     },
     "#5049": {
-      "evidence_ref": "Performance suite red: WP04 resume budget test (C1), WP05 doctor-ops sweep gate.",
+      "evidence_ref": "Resume budget test re-pinned (WP04 6c7e4dce); doctor-ops sweep gate re-aimed (WP05 08dea33c); closes on next green nightly.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -117,7 +117,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP05"
     }
   },
