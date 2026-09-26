@@ -122,7 +122,8 @@
       "last_transition_at": "2026-09-26T12:12:13.729433+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Re-pinned 12 red merge-path integration tests (+ perf resume budget): cause B/C1 stub _capture_reconciliation_claim + _phase_reconcile_before_teardown per 26be43c804 (#5001/#4982; appended last in test_merge_resume._patches); cause C3 seeds WP01 approved via real status emit (#4764). 6 files: 23 passed/1 perf-skipped; perf 1 passed (<1s vs 30s). Test-only, no skip/xfail."
+        "Re-pinned 12 red merge-path integration tests (+ perf resume budget): cause B/C1 stub _capture_reconciliation_claim + _phase_reconcile_before_teardown per 26be43c804 (#5001/#4982; appended last in test_merge_resume._patches); cause C3 seeds WP01 approved via real status emit (#4764). 6 files: 23 passed/1 perf-skipped; perf 1 passed (<1s vs 30s). Test-only, no skip/xfail.",
+        "Review passed: 6 test files only, no src changes, no skip/xfail/retry. 23 passed + 1 perf-gated skip; perf budget test passes under SPEC_KITTY_RUN_PERFORMANCE=1; ruff check/format clean. Reconciliation stubs appended at END of _patches() (mocks[10..12] intact); _enforce_resume_anchor_integrity only called inside _capture_reconciliation_claim, so the two stubs cover it. T015 stub rationale accepted (faked git, mocked lane consolidation). Stubbed tests assert on real spy call order/bookkeeping. Gate/FR-012/#4982 coverage kept in tests/merge/test_reconciliation.py, tests/terminus/test_repro_4982.py, test_nightly_remediation_merge_defects.py. T016 seeds WP01 approved via real emit_status_transition; dirty-refusal message asserts intact. Checklist: 1 N/A, 2 PASS, 3 N/A, 4 PASS, 5 PASS, 6 PASS, 7 PASS, 8 N/A. Nit: _seed_wp_approved duplicated in 3 test modules."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
