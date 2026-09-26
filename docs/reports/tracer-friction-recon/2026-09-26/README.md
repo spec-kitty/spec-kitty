@@ -1,3 +1,8 @@
+---
+doc_status: active
+updated: '2026-09-26'
+---
+
 # Tracer-file friction recon (2026-09-26)
 
 A recon squad read the tracer files of every mission in `kitty-specs/` that keeps them and pulled out
