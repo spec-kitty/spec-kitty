@@ -686,7 +686,13 @@ class TestCustomizedFilesMovedToOverrides:
     def test_outdated_agents_md_superseded(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """AGENTS.md with package counterpart but different content is SUPERSEDED (removed)."""
+        """AGENTS.md with a package counterpart but different content is SUPERSEDED.
+
+        Corrected contract (#4961): a differing counterpart is content-
+        indistinguishable from a team customisation, so the ownership guard
+        cannot prove ownership and PRESERVES it in place (never moved to
+        overrides, never deleted).
+        """
         global_home = tmp_path / "global"
         _setup_global(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
@@ -700,10 +706,11 @@ class TestCustomizedFilesMovedToOverrides:
 
         report = execute_migration(project)
 
-        # AGENTS.md has a package counterpart, so it's superseded (not moved to overrides)
+        # AGENTS.md differs from its package counterpart -> preserved in place.
         assert report.superseded == [kittify / "AGENTS.md"]
         assert len(report.moved) == 0
-        assert not (kittify / "AGENTS.md").exists()
+        assert (kittify / "AGENTS.md").exists()
+        assert (kittify / "AGENTS.md").read_text() == "old agents content v1"
         assert not (kittify / "overrides" / "AGENTS.md").exists()
 
     def test_mix_of_identical_customized_and_superseded(
@@ -728,13 +735,14 @@ class TestCustomizedFilesMovedToOverrides:
 
         report = execute_migration(project)
 
-        # Identical removed
+        # Identical removed (byte-identical to the shipped counterpart)
         assert report.removed == [kittify / "templates" / "spec.md"]
         assert not (kittify / "templates" / "spec.md").exists()
 
-        # Superseded removed (old default for plan.md)
+        # Superseded (differs from counterpart) -> PRESERVED in place, not removed (#4961)
         assert report.superseded == [kittify / "templates" / "plan.md"]
-        assert not (kittify / "templates" / "plan.md").exists()
+        assert (kittify / "templates" / "plan.md").exists()
+        assert (kittify / "templates" / "plan.md").read_text() == "old plan content v1"
 
         # Customized moved (user-created, no package counterpart)
         assert report.moved == [
@@ -888,10 +896,15 @@ class TestClassifyAssetSuperseded:
 class TestExecuteMigrationSuperseded:
     """Test that execute_migration() removes superseded files."""
 
-    def test_superseded_files_removed_not_moved_to_overrides(
+    def test_superseded_files_preserved_not_moved_to_overrides(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Superseded files are removed, NOT moved to overrides/."""
+        """Superseded (differing) files are preserved in place, NOT moved to overrides/.
+
+        Corrected contract (#4961): a file that differs from the shipped
+        counterpart is unprovable, so the ownership guard preserves it exactly
+        where it lives — it is neither deleted nor relocated to overrides/.
+        """
         package_root = tmp_path / "pkg"
         _setup_package_assets(package_root)
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(package_root))
@@ -913,13 +926,13 @@ class TestExecuteMigrationSuperseded:
 
         report = execute_migration(project, dry_run=False)
 
-        # Old defaults should be classified as superseded and removed
+        # Differing files are classified superseded and preserved in place.
         assert report.superseded == [kittify / "templates" / "plan.md", kittify / "templates" / "spec.md"]
         assert len(report.moved) == 0  # NOT moved to overrides
 
-        # Files should be gone from filesystem
-        assert not (kittify / "templates" / "spec.md").exists()
-        assert not (kittify / "templates" / "plan.md").exists()
+        # Files survive in place with content intact.
+        assert (kittify / "templates" / "spec.md").read_text() == "old spec content v1"
+        assert (kittify / "templates" / "plan.md").read_text() == "old plan content v1"
 
         # No overrides created
         assert not (kittify / "overrides").exists()
@@ -961,7 +974,13 @@ class TestExecuteMigrationSuperseded:
 
         This is the exact scenario from issue #285: ensure_runtime() has
         already updated ~/.kittify/ to v2, but project files are still v1.
-        With the fix, old defaults are SUPERSEDED (removed), not CUSTOMIZED.
+
+        Deliberate #4961/#285 trade-off: old defaults are classified SUPERSEDED
+        (they differ from the shipped counterpart) but are now PRESERVED in
+        place rather than deleted. An old default is content-indistinguishable
+        from a team customisation, and the preservation contract fails closed
+        toward keeping the bytes — a stale default lingering in place is
+        recoverable; a deleted customisation is not.
         """
         # Package assets represent the NEW version (immutable truth)
         package_root = tmp_path / "pkg"
@@ -995,9 +1014,9 @@ class TestExecuteMigrationSuperseded:
         assert len(report.moved) == 0
         assert not (kittify / "overrides").exists()
 
-        # Files removed from project
-        assert not (kittify / "templates" / "spec.md").exists()
-        assert not (kittify / "templates" / "plan.md").exists()
+        # Files preserved in place (fail-closed; not deleted) with content intact
+        assert (kittify / "templates" / "spec.md").read_text() == "old spec content v1"
+        assert (kittify / "templates" / "plan.md").read_text() == "old plan content v1"
 
         # Project-specific files untouched
         assert (kittify / "config.yaml").exists()
@@ -1031,3 +1050,90 @@ class TestExecuteMigrationSuperseded:
 
         assert report.removed == [kittify / "templates" / "spec.md"]  # identical
         assert report.superseded == [kittify / "templates" / "plan.md"]  # superseded (old default)
+
+# ---------------------------------------------------------------------------
+# T001 (#4961): red-first regression — a customised shipped template survives
+# ---------------------------------------------------------------------------
+
+class TestMigratePreservesCustomisedTemplate:
+    """Red-first regression for #4961.
+
+    A shipped template that a team has customised (package bytes + an appended
+    team section) differs from the shipped counterpart, so ``classify_asset``
+    labels it SUPERSEDED. Before the fix ``execute_migration`` ``unlink()``ed
+    SUPERSEDED files unconditionally, silently deleting the team's work. The fix
+    routes the removal through the ownership guard, which cannot prove ownership
+    of the differing bytes and therefore PRESERVES the file in place.
+    """
+
+    def test_customised_shipped_template_survives_migration(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A customised shipped template survives execute_migration(dry_run=False).
+
+        RED before the fix (differing SUPERSEDED file is unlinked); GREEN after
+        (the guard preserves it in place). #4961.
+        """
+        package_root = tmp_path / "pkg"
+        _setup_package_assets(package_root)
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(package_root))
+
+        global_home = tmp_path / "global"
+        _setup_global(global_home)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+
+        # Shipped package bytes + an appended team customisation section.
+        package_bytes = (
+            package_root / "software-dev" / "templates" / "spec.md"
+        ).read_text()
+        team_section = "\n\n## Team Section\nOur team's required spec addendum.\n"
+        customised = package_bytes + team_section
+
+        project = tmp_path / "project"
+        kittify = _setup_project_kittify(
+            project,
+            customized_files={"templates/spec.md": customised},
+        )
+        target = kittify / "templates" / "spec.md"
+
+        report = execute_migration(project, dry_run=False)
+
+        # The customised template SURVIVES in place with the team section intact.
+        assert target.exists(), "customised shipped template must not be deleted (#4961)"
+        assert team_section.strip() in target.read_text()
+        assert target.read_text() == customised
+
+        # Reported as preserved (differs from the package default), NOT removed,
+        # and NOT relocated to overrides/ — it survives exactly where it lived.
+        assert target not in report.removed
+        assert target in report.superseded
+        assert not (kittify / "overrides" / "templates" / "spec.md").exists()
+
+    def test_identical_shipped_template_still_removed(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A byte-identical shipped default is STILL removed (no NFR-004 regression)."""
+        package_root = tmp_path / "pkg"
+        _setup_package_assets(package_root)
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(package_root))
+
+        global_home = tmp_path / "global"
+        _setup_global(global_home)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+
+        package_bytes = (
+            package_root / "software-dev" / "templates" / "spec.md"
+        ).read_text()
+
+        project = tmp_path / "project"
+        kittify = _setup_project_kittify(
+            project,
+            identical_files={"templates/spec.md": package_bytes},
+        )
+        target = kittify / "templates" / "spec.md"
+
+        report = execute_migration(project, dry_run=False)
+
+        assert not target.exists()
+        assert target in report.removed
+        assert target not in report.superseded

@@ -296,7 +296,12 @@ class TestUpgradeLegacyProjectE2E:
         fake_package_assets: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """After migration, outdated defaults (with package counterpart) are SUPERSEDED."""
+        """A differing managed template (SUPERSEDED) is PRESERVED in place (#4961).
+
+        It differs from the shipped counterpart, so the ownership guard cannot
+        prove ownership and preserves it rather than deleting it — it is neither
+        removed nor relocated to overrides/.
+        """
         monkeypatch.setattr(
             "specify_cli.runtime.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
@@ -308,16 +313,17 @@ class TestUpgradeLegacyProjectE2E:
         project = isolated_runtime.parent / "legacy_project"
         kittify = project / ".kittify"
         (kittify / "templates").mkdir(parents=True)
-        (kittify / "templates" / "spec-template.md").write_text(
-            "# Old Spec Template v1\nThis is different from the current package default."
-        )
+        customised = "# Old Spec Template v1\nThis is different from the current package default."
+        (kittify / "templates" / "spec-template.md").write_text(customised)
 
         # Run migration
         report = execute_migration(project)
 
-        # Old default should be superseded (removed), NOT moved to overrides
+        # Differing default -> classified superseded, PRESERVED in place (not removed,
+        # not moved to overrides).
         assert len(report.superseded) >= 1
-        assert not (kittify / "templates" / "spec-template.md").exists()
+        assert (kittify / "templates" / "spec-template.md").exists()
+        assert (kittify / "templates" / "spec-template.md").read_text() == customised
         assert not (kittify / "overrides" / "templates" / "spec-template.md").exists()
 
     def test_after_migration_resolves_from_override_tier(
@@ -484,10 +490,10 @@ class TestUpgradeLegacyProjectE2E:
             "# Spec Template\nThis is the default spec template."
         )
 
-        # Superseded: old default that differs from current package (should be removed)
-        (kittify / "templates" / "plan-template.md").write_text(
-            "# Old Plan Template v1\nThis is an outdated default."
-        )
+        # Superseded: old default that differs from current package.
+        # Corrected contract (#4961): differing -> unprovable -> PRESERVED in place.
+        plan_v1 = "# Old Plan Template v1\nThis is an outdated default."
+        (kittify / "templates" / "plan-template.md").write_text(plan_v1)
 
         # Customized: user-created file with no package counterpart (should move to overrides)
         (kittify / "templates" / "my-custom-template.md").write_text(
@@ -503,9 +509,12 @@ class TestUpgradeLegacyProjectE2E:
         report = execute_migration(project)
 
         assert len(report.removed) >= 1  # spec-template.md removed (identical)
-        assert len(report.superseded) >= 1  # plan-template.md superseded (old default)
+        assert len(report.superseded) >= 1  # plan-template.md superseded (old default) -> preserved
         assert len(report.moved) >= 1  # my-custom-template.md moved (customized)
         assert len(report.kept) >= 2  # config.yaml + memory/notes.md kept
+
+        # plan-template.md (SUPERSEDED) survives in place with content intact (#4961).
+        assert (kittify / "templates" / "plan-template.md").read_text() == plan_v1
 
         # Step 4: Verify post-migration resolution
         # Identical file now resolves from GLOBAL_MISSION (mission-specific global)
@@ -527,11 +536,13 @@ class TestUpgradeLegacyProjectE2E:
         ]
         assert len(deprecation_warnings) == 0
 
-        # Superseded file removed — falls through to GLOBAL_MISSION tier
+        # Superseded file preserved in place (#4961) -> resolves from the LEGACY
+        # tier (its own .kittify/templates/ copy), not GLOBAL_MISSION.
         result_plan = resolve_template(
             "plan-template.md", project, mission="software-dev"
         )
-        assert result_plan.tier == ResolutionTier.GLOBAL_MISSION
+        assert result_plan.tier == ResolutionTier.LEGACY
+        assert result_plan.path.read_text() == plan_v1
 
         # Project-specific files untouched
         assert (kittify / "config.yaml").exists()
