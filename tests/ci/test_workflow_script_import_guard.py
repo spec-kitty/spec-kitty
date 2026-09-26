@@ -127,7 +127,12 @@ for side effects under ``<abs path> --help`` with ``cwd=tmp_path`` (writes outsi
   a missing ``rglob`` root), so ``process_site`` writes nothing and never invokes
   its PlantUML/network seam, which only runs per matched page.
 Every one of the six was additionally verified empirically (no new files outside
-its own ``tmp_path``, no non-empty stderr, exit 0) when this scoping was added.
+its own ``tmp_path``, no non-empty stderr, exit 0) when this scoping was added --
+observed under CI's installed venv. Under a *non-installed* interpreter a script
+may instead exit non-zero on a different transitive import (e.g. ``seo_verify.py``
+-> ``kernel``); that is unrelated to this guard, whose sole assertion is the
+absence of ``No module named 'scripts'``, so such a run neither passes nor fails
+it spuriously.
 """
 
 from __future__ import annotations
@@ -161,8 +166,11 @@ _WORKFLOWS_DIR = _REPO_ROOT / ".github" / "workflows"
 # mid-pipeline (`| python3 scripts/ci/foo.py`) and behind an explicit interpreter
 # path (`.venv/bin/python scripts/ci/foo.py`) -- while excluding `python3 -m
 # scripts.ci.foo`, which already runs with the repo root on `sys.path[0]` and is
-# not exposed to this defect class.
-_BARE_SCRIPT_INVOCATION = re.compile(r"(?<![\w.-])python3?\s+(?!-m\b)(scripts/[\w/]+\.py)\b")
+# not exposed to this defect class. To keep the guard true "by construction" the
+# interpreter also accepts a version suffix (`python3.11`/`python3.12`) and the
+# script path accepts `-`/`.` in a segment (`scripts/ci/foo-bar.py`), so a future
+# workflow adopting either spelling does not silently drop out of the guarded set.
+_BARE_SCRIPT_INVOCATION = re.compile(r"(?<![\w.-])python3?(?:\.\d+)?\s+(?!-m\b)(scripts/[\w./-]+\.py)\b")
 
 
 def _workflow_run_blocks(workflow_path: Path) -> list[str]:
@@ -187,7 +195,9 @@ def _workflow_invoked_scripts() -> list[str]:
     """Every distinct ``scripts/...py`` path any workflow runs as a bare script,
     matched only inside actual ``run:`` shell text (op-rereview-002)."""
     found: set[str] = set()
-    for workflow in sorted(_WORKFLOWS_DIR.glob("*.yml")):
+    # GitHub Actions honours both extensions, so discover `*.yaml` as well as
+    # `*.yml` -- a future workflow saved as `.yaml` must not be invisible here.
+    for workflow in sorted([*_WORKFLOWS_DIR.glob("*.yml"), *_WORKFLOWS_DIR.glob("*.yaml")]):
         for run_block in _workflow_run_blocks(workflow):
             found.update(_BARE_SCRIPT_INVOCATION.findall(run_block))
     return sorted(found)
@@ -338,6 +348,31 @@ def test_has_module_level_scripts_import_filter(source: str, expected: bool) -> 
     filesystem beyond an in-memory ``ast.parse``."""
     tree = ast.parse(source)
     assert _has_module_level_scripts_import(tree.body) is expected
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("run_text", "expected"),
+    [
+        pytest.param("python3 scripts/ci/foo.py", "scripts/ci/foo.py", id="python3"),
+        pytest.param("python scripts/docs/bar.py --write", "scripts/docs/bar.py", id="python-with-args"),
+        pytest.param(".venv/bin/python scripts/ci/foo.py", "scripts/ci/foo.py", id="explicit-interpreter-path"),
+        pytest.param("cat x | python3 scripts/ci/foo.py", "scripts/ci/foo.py", id="mid-pipeline"),
+        pytest.param("python3.11 scripts/ci/foo.py", "scripts/ci/foo.py", id="version-suffixed-interpreter"),
+        pytest.param("python3.12 scripts/ci/foo_bar.py", "scripts/ci/foo_bar.py", id="version-suffixed-minor"),
+        pytest.param("python3 scripts/ci/foo-bar.py", "scripts/ci/foo-bar.py", id="hyphenated-filename"),
+        pytest.param("python3 scripts/ci/foo.bar.py", "scripts/ci/foo.bar.py", id="dotted-filename"),
+        pytest.param("python3 -m scripts.ci.foo", None, id="module-mode-excluded"),
+        pytest.param("mypython3 scripts/ci/foo.py", None, id="interpreter-substring-excluded"),
+    ],
+)
+def test_bare_script_invocation_regex(run_text: str, expected: str | None) -> None:
+    """Pure-logic coverage of the discovery regex: it must catch every bare
+    `python[3[.N]] scripts/....py` spelling (including version-suffixed
+    interpreters and `-`/`.` in a filename) while still excluding `-m` module
+    mode and an interpreter-name substring like `mypython3`."""
+    match = _BARE_SCRIPT_INVOCATION.search(run_text)
+    assert (match.group(1) if match else None) == expected
 
 
 @pytest.mark.parametrize("script", _scripts_exposed_to_bare_script_import_defect(), ids=lambda s: s)
