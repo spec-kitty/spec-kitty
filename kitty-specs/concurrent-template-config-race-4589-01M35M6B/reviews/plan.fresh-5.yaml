@@ -1,0 +1,115 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh-5
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: PLAN-FRESH5-001
+    lens: contract-fidelity
+    severity: 4
+    title: The new SECOND_SITE public `.cache_clear()` forwarding fix (PLAN-FRESH4-ARCH-001) forwards only `.cache_clear`, not `.cache_info` — breaking an existing test that calls `resolve_layered_mission_types.cache_info()` on the public name
+    evidence:
+      - artifact: "plan.md §6b, \"Preserving the public `.cache_clear()` seam across the split\" (lines 399-445), binding requirement code block (lines 422-432)"
+      - artifact: "tests/charter/test_charter_import_time_io.py, module docstring point 3 (lines 34-41) and the in-subprocess `_IMPORT_SPY_SCRIPT` (lines 226-238, live call at line 231: `layered_info = resolve_layered_mission_types.cache_info()`)"
+      - artifact: "spec.md FR-003 / SC-003 (cache-contract seams must \"remain present, callable, and behave per their existing ... NFR-007 docstring contracts ... verified by the existing tests that depend on these seams continuing to pass unmodified\")"
+    claim: >
+      This round's new §6b binding requirement fixes PLAN-FRESH4-ARCH-001 (the public
+      `resolve_layered_mission_types` name losing `.cache_clear()` once the
+      `@functools.cache` decorator moves to a new private
+      `_resolve_layered_mission_types_cached`) by adding exactly one forwarding line:
+      `resolve_layered_mission_types.cache_clear =
+      _resolve_layered_mission_types_cached.cache_clear`. But `functools.cache`'s
+      decorated callable exposes more than `.cache_clear()` — it also exposes
+      `.cache_info()` (and `.cache_parameters()`), and the checkout has a live,
+      currently-passing test that calls `.cache_info()` directly on the public name:
+      `tests/charter/test_charter_import_time_io.py`'s `_IMPORT_SPY_SCRIPT` (run in a
+      subprocess) does `layered_info = resolve_layered_mission_types.cache_info()` then
+      reads `layered_info.hits + layered_info.misses` to assert NFR-004's "never called
+      at charter-module import time" bound. After the round-5 fix, the public name
+      `resolve_layered_mission_types` is a plain wrapper function, not itself
+      `@functools.cache`-decorated, and the binding requirement forwards only
+      `.cache_clear`, not `.cache_info`. Calling `.cache_info()` on the post-fix public
+      wrapper raises `AttributeError: 'function' object has no attribute 'cache_info'`,
+      which crashes the subprocess script before it reaches its own `sys.exit(1)` check —
+      turning this currently-green test red for a reason unrelated to the NFR-004 property
+      it exists to guard, directly contradicting §5/FR-003/SC-003's "cache-contract seams
+      ... remain present, callable ... verified by the existing tests that depend on these
+      seams continuing to pass unmodified" and §14's "zero test-file edits" claim for this
+      exact fix. Confirmed by direct grep: `.cache_info` is called on
+      `resolve_layered_mission_types` in exactly one place in the whole test suite
+      (`test_charter_import_time_io.py:231`) and nowhere else; the primary site's public
+      name (`resolve_all_for_mission_type`) has no equivalent `.cache_info()`/`.cache_clear()`
+      caller anywhere, so this gap is specific to SECOND_SITE and was not caught by mirroring
+      the primary site's shape.
+    remediation: >
+      Extend the binding requirement in §6b to forward every `functools.cache` public
+      attribute the test suite actually uses on the public name, not just `.cache_clear`:
+      at minimum `resolve_layered_mission_types.cache_info =
+      _resolve_layered_mission_types_cached.cache_info` alongside the existing
+      `.cache_clear` forwarding line (and note `.cache_parameters`/`__wrapped__` if a
+      future caller is found to need them). Re-run
+      `tests/charter/test_charter_import_time_io.py` as part of this fix's own gate set
+      (already in scope via the `charter` module, §11) to confirm the forwarded seam is
+      exercised and green.
+
+  - id: PLAN-FRESH5-002
+    lens: internal-consistency
+    severity: 3
+    title: "§11's baseline citations for `tests/doctrine`/`test_packaging_parity.py` are stale relative to round-5's own correction in §10, which closed the hedge §11 still states"
+    evidence:
+      - artifact: "plan.md §10, \"Round-5 extension\" (lines 1092-1110, 1166-1171): \"`tests/doctrine`'s true baseline is **3204 passed** ... 0 errors ... not the \\\"3 errors\\\" figure the round-4 text recorded\" and \"there is no remaining pre-existing red anywhere in this baseline\""
+      - artifact: "plan.md §11, `charter` module bullet (line 1228): \"`tests/doctrine` 3201 passed/13 skipped/3 environment-only setup errors\""
+      - artifact: "plan.md §11, \"Per-module test matrix\" gate bullet (lines 1339-1343): \"all five are green in the pre-fix baseline (Section 10, modulo the three environment-only `test_packaging_parity.py` setup errors, unrelated to this mission)\""
+    claim: >
+      Round 5 revised §10 to re-run `test_packaging_parity.py` after installing the missing
+      `test` extra, closing all three of its setup errors (3 passed, 0 errors) and updating
+      `tests/doctrine`'s recorded baseline from "3201 passed/13 skipped/3 errors" to "3204
+      passed/13 skipped/0 errors," explicitly stating "there is no remaining pre-existing red
+      anywhere in this baseline." §11 — which cites Section 10 for these same numbers in two
+      places — was not updated to match: its `charter` module bullet still quotes the old
+      "3201 passed/13 skipped/3 environment-only setup errors" figure, and its "Per-module
+      test matrix" gate bullet still hedges "modulo the three environment-only
+      `test_packaging_parity.py` setup errors, unrelated to this mission" as if that red still
+      exists. This is a direct, plan-internal contradiction produced by round 5's own edit:
+      §10 (revised this round) now states a fact that §11 (unrevised, cited as deriving its
+      numbers from §10) contradicts. It also reintroduces exactly the hedging CL-005
+      instructs against ("not to invent hedging when a baseline is clean") in the one section
+      (§11, the enforced-gate-set summary) most likely to be read as the final baseline
+      status.
+    remediation: >
+      Update both §11 citations to match §10's round-5 correction: change the `charter`
+      bullet's `tests/doctrine` figure to "3204 passed/13 skipped/0 errors," and drop (or
+      rewrite) the "Per-module test matrix" bullet's "modulo the three environment-only ...
+      setup errors" hedge to state plainly that the baseline is fully clean, per §10.
+
+  - id: PLAN-FRESH5-003
+    lens: internal-consistency
+    severity: 2
+    title: "§6b's \"Second-site structural note\" overstates the split's cost (\"`__all__`/import-site updates\") — contradicted by the same section's own round-5 `.cache_clear()`-forwarding analysis"
+    evidence:
+      - artifact: "plan.md §6b, \"Second-site structural note\" (line 394): \"mirroring the primary site's shape exactly, at the cost of one rename plus its `__all__`/import-site updates.\""
+      - artifact: "plan.md §6b, \"Preserving the public `.cache_clear()` seam across the split\" (lines 435-445): \"so every existing direct call site, including `MissionTypeRepository.cache_clear()`'s own body, keeps working unchanged, with **zero test-file edits**\" and \"`MissionTypeRepository.cache_clear()`'s own body ... needs **no change** under this fix, since it already calls the still-public name\""
+    claim: >
+      The (pre-round-5) "Second-site structural note" states the public/private split costs
+      "one rename plus its `__all__`/import-site updates." But the split, as specified,
+      keeps the public name `resolve_layered_mission_types` unchanged (only the
+      previously-public cached function is renamed to a new private name); `__all__`
+      contains only the string `"resolve_layered_mission_types"`, which is unaffected by
+      which object that name is bound to, and the round-5-added `.cache_clear()`-forwarding
+      paragraph in the same section explicitly establishes that every existing caller
+      (including `MissionTypeRepository.cache_clear()`'s own body and all 12 direct
+      `resolve_layered_mission_types.cache_clear()` call sites found in
+      `tests/charter/test_mission_type_path_layout_ssot.py`,
+      `tests/doctrine/missions/test_mission_type_repository.py`, and
+      `tests/charter/test_charter_import_time_io.py`) "keeps working unchanged, with zero
+      test-file edits." No `__all__` update and no import-site update is actually required
+      by this rename — the two claims, both in §6b, are in tension, and the earlier
+      "cost" framing is now stale relative to the more careful round-5 analysis directly
+      below it in the same section.
+    remediation: >
+      Correct the "Second-site structural note" to state the split's actual cost: one
+      internal rename (the previously-public cached function becomes a new private name)
+      plus the `.cache_clear` (and, per PLAN-FRESH5-001, `.cache_info`) forwarding line —
+      no `__all__` change and no import-site update, since the public name is preserved.
+
+tasks_input: []

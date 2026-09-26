@@ -1,0 +1,117 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: PLAN-VERIFY-001
+    lens: mission-derived (lock/exception design concreteness)
+    severity: 4
+    title: "Section 6c's raise-path exception choice, as literally phrased, steers toward violating the charter->specify_cli architectural import-boundary gate"
+    evidence:
+      - artifact: "plan.md § 6 (\"Both fix sites raise, never degrade (CL-006/FR-006)\")"
+      - artifact: "plan.md § 8b (SC-006 test)"
+      - code: "src/specify_cli/runtime/resolver.py:71 (class TemplateConfigurationError, defined in specify_cli, not charter)"
+      - code: "src/charter/offering/missions/mission_step_repository.py:72 (_YAML singleton, the primary fix site, lives under src/charter/)"
+      - code: "tests/architectural/test_charter_no_specify_cli_import.py:1-103 (test_charter_never_imports_specify_cli asserts zero src/charter/** -> specify_cli import edges, at any scope, module-level or in-function; docstring states the binding direction 'kernel <- doctrine <- charter <- glossary/runtime <- specify_cli')"
+      - code: ".github/workflows/ci-router.yml:510-560 (architectural-heavy job runs the full tests/architectural tree, deselecting only 4 unrelated files -- test_charter_no_specify_cli_import.py is not among them -- and is triggered whenever needs.changes.outputs.charter == 'true')"
+    claim: >
+      Section 6c names the raise target as "TemplateConfigurationError (or, for
+      mission_type_repository.py's roster-level cache ... a new, equally
+      explicit typed exception, e.g. a MissionStepCacheError/reuse of
+      TemplateConfigurationError with the caller supplying context)". For the
+      PRIMARY fix site (mission_step_repository.py, Section 1), the only
+      option the sentence actually names is reusing the existing
+      TemplateConfigurationError; the "new typed exception" alternative is
+      offered only, explicitly, "for mission_type_repository.py's roster-level
+      cache". TemplateConfigurationError is defined in
+      src/specify_cli/runtime/resolver.py -- one layer above src/charter/** in
+      the project's own documented dependency direction. Raising it from
+      inside mission_step_repository.py or mission_type_repository.py (both
+      under src/charter/) requires importing it from specify_cli.runtime.resolver,
+      which is exactly the edge tests/architectural/test_charter_no_specify_cli_import.py
+      asserts never exists, at any scope -- an always-on, PR-blocking gate
+      (ci-router.yml's architectural-heavy job, triggered here because this
+      diff is entirely under src/charter/**, feeding router-gate). Section 8b
+      compounds this: it describes the SC-006 test as monkeypatching "the
+      per-key lock (Section 6b) ... or the cache-population body" -- a vague
+      either/or with no concrete target, so two implementers could write the
+      test against two different seams and assert two different exception
+      types, one of which (the literal Section 6c reading for the primary
+      site) is a live CI-breaking architecture violation. For a High-priority,
+      "silent-success is prohibited" FR (FR-006/CL-006), leaving this
+      unresolved at plan phase risks the implementer either breaking the
+      architectural gate or inventing an inconsistent ad hoc fix mid-WP.
+    remediation: >
+      Resolve Section 6c to one concrete decision before implementation:
+      define a single NEW exception class owned by
+      src/charter/offering/missions/ for both fix sites' new lock/cache-error
+      raise paths (there is existing local precedent to follow --
+      MalformedManifestError in repository.py:39 and ActionIndexError in
+      action_index.py:12 -- both module-local typed exceptions, neither
+      imported from specify_cli). Never import TemplateConfigurationError
+      into src/charter/**; if a caller above the charter/specify_cli boundary
+      needs to surface the failure as TemplateConfigurationError, that
+      translation belongs on the specify_cli side of the boundary (e.g. in
+      mission_type_profiles.py or the runtime resolver), not inside charter.
+      Then update Section 8b to name the concrete monkeypatch target against
+      that one exception type (e.g. "monkeypatch _lock_for to return a lock
+      whose .acquire() raises <NewChartExceptionName> directly; assert it
+      propagates unmodified") so every implementer writes the same test.
+  - id: PLAN-VERIFY-002
+    lens: gates
+    severity: 3
+    title: "Section 10's Gate Set omits the always-on architectural-heavy battery, which this diff triggers and which enforces the exact boundary at risk in PLAN-VERIFY-001"
+    evidence:
+      - artifact: "plan.md § 10"
+      - code: ".github/workflows/ci-router.yml:505-560 (architectural-heavy: 'HEAVY architectural battery ... CODE-SCOPED', if: OR of every src-backed changes filter including needs.changes.outputs.charter == 'true'; runs `pytest tests/architectural -q` minus 4 explicitly deselected files, none of which is test_charter_no_specify_cli_import.py)"
+      - code: ".github/workflows/ci-router.yml:706-717 (router-gate's `needs:` list includes architectural-heavy; `if: always() && !cancelled()` -- a failed/timed-out architectural-heavy fails router-gate)"
+    claim: >
+      Section 10 enumerates diff-cover, import-linter, uv-lock, markdownlint,
+      commit-msg (found non-blocking), the absence of bandit/pip-audit, and
+      SonarCloud's non-applicability -- all correctly verified against the
+      workflows -- but never mentions the `architectural-heavy` job. This
+      mission's diff is entirely under src/charter/offering/missions/**, so
+      needs.changes.outputs.charter will be 'true' and this job runs and
+      gates the PR via router-gate. It runs the FULL tests/architectural tree,
+      which includes test_charter_no_specify_cli_import.py -- directly
+      load-bearing for this mission given the exception-design choice named in
+      Section 6c (PLAN-VERIFY-001). A reviewer relying on Section 10 alone
+      would not know to specifically watch for this gate or this test.
+    remediation: >
+      Add `architectural-heavy` ("architectural battery (heavy, code-scoped)")
+      to Section 10's enforced-gate list, name its trigger condition
+      (needs.changes.outputs.charter == 'true', since the diff is under
+      src/charter/**), and cross-reference
+      tests/architectural/test_charter_no_specify_cli_import.py explicitly,
+      given Section 6c's exception-type decision is the one place this
+      mission's new code could trip it.
+  - id: PLAN-VERIFY-003
+    lens: revert discipline
+    severity: 3
+    title: "No test in Section 8 fails specifically if the per-key lock (Section 6b) is reverted while the thread-local YAML fix (6a) is kept"
+    evidence:
+      - artifact: "plan.md § 6b (\"this is not a correctness bug post-6a\")"
+      - artifact: "plan.md § 8a, § 8d"
+    claim: >
+      Section 6b is one of the two concrete production changes this plan
+      makes at each fix site (alongside 6a), but the plan's own text
+      concedes that, once 6a is in place, "[n]either of those two computed
+      results would now be corrupt ... this is not a correctness bug
+      post-6a" -- 6b's only claimed effect is avoiding redundant concurrent
+      filesystem walks and non-deterministic cache-write ordering. None of
+      8a-8d names a test whose pass/fail depends specifically on the
+      per-key lock's presence: 8a's Barrier test's monkeypatch target is
+      `_get_yaml`/`_YAML.load` (6a's seam), not `_lock_for` (6b's seam); 8c
+      is the pre-existing natural test, unmodified; 8d exercises
+      `cache_clear()` racing an in-flight population, which tests NFR-003,
+      not the lock's redundant-work-prevention property. If an implementer
+      omits 6b, or acquires/releases the lock incorrectly, no test in
+      Section 8 as written would go red.
+    remediation: >
+      Add an explicit test to Section 8 that asserts the per-key lock's
+      actual effect -- e.g., instrument (count or Barrier-gate) calls to the
+      cache-miss filesystem-walk body and assert that two threads racing a
+      cold miss on the identical (mission_type_id, pack_context) key result
+      in exactly one execution of that body, failing this assertion if the
+      per-key lock is removed while 6a is kept.

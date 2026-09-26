@@ -1,0 +1,73 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh-4-arch
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: PLAN-FRESH4-ARCH-001
+    lens: arch
+    severity: 4
+    title: >-
+      Section 6b's SECOND_SITE split (renaming the currently-cached
+      resolve_layered_mission_types to a private name) silently strips the
+      public resolve_layered_mission_types.cache_clear() seam that ~15+
+      existing call sites across 3 test files (plus MissionTypeRepository's
+      own preserved cache_clear() staticmethod) depend on directly,
+      contradicting Section 5's "no new cache_clear() coupling" claim and
+      Section 14's "confined to ... one test file" scope claim.
+    evidence:
+      - artifact: "plan.md § 6b (\"Second-site structural note\")"
+      - artifact: "plan.md § 5 (\"The chosen fix mechanism (Section 6) adds no new lock that cache_clear() needs to know about, acquire, or release.\" / \"cache_clear() continues to do exactly one thing: call functools.cache's own .cache_clear() on the wrapped function\")"
+      - artifact: "plan.md § 14 (\"confined to three files in one package plus one test file\")"
+      - code: "src/charter/offering/missions/mission_type_repository.py:477-481 — today's `@functools.cache`-decorated `resolve_layered_mission_types`, which Section 6b renames to a private `_resolve_layered_mission_types_cached`, replacing the public name with a plain lock-wrapping function that has no `.cache_clear` attribute (functools.cache's `.cache_clear()` only exists on the decorated callable itself, confirmed via CPython functools.py/`_functools`)."
+      - code: "src/charter/offering/missions/mission_type_repository.py:188-207 — MissionTypeRepository.cache_clear()'s own body is `resolve_layered_mission_types.cache_clear()`. This is the exact seam plan.md § 5/FR-003/NFR-003/SC-003 explicitly promises stays \"present, callable, ... and unchanged in signature and observable behavior.\" After the § 6b rename this line raises AttributeError ('function' object has no attribute 'cache_clear') unless an implementer independently rewires it to `_resolve_layered_mission_types_cached.cache_clear()` — a rewiring the plan never states as required."
+      - code: "tests/charter/test_mission_type_path_layout_ssot.py:79,82 — `setup_method`/`teardown_method` of TestMissionTypePathLayoutSingleAuthority call `resolve_layered_mission_types.cache_clear()` directly (imported function attribute, bypassing the MissionTypeRepository.cache_clear() staticmethod entirely); breaks every test in the class."
+      - code: "tests/doctrine/missions/test_mission_type_repository.py:543,546,655,658,809,812,901,904 — multiple tests in TestLayeredMissionTypesCacheKeyAndClear and neighbors call `resolve_layered_mission_types.cache_clear()` directly, including the exact test plan.md § 10's own baseline cites as pinning SECOND_SITE's cache-staleness contract (`test_same_key_is_a_cache_hit`, in the same test class)."
+      - code: "tests/charter/test_charter_import_time_io.py:99,102 — an `autouse=True` pytest fixture (`_clear_builtin_mission_type_ids_cache`) calls `resolve_layered_mission_types.cache_clear()` in both setup and teardown for EVERY test in the file, so the whole file's suite would fail at fixture setup, not just one assertion."
+    claim: >-
+      Section 6b instructs, for SECOND_SITE only, splitting the single
+      function `resolve_layered_mission_types` (today simultaneously the
+      public name, the `@functools.cache` decoration target, and hence the
+      thing that carries `.cache_clear()`) into a new public lock-wrapping
+      `resolve_layered_mission_types` plus a newly-named private cached
+      function `_resolve_layered_mission_types_cached`. Section 6b explicitly
+      states the "cost" of this split is only "one rename plus its
+      `__all__`/import-site updates" — it never identifies that the rename
+      also detaches `.cache_clear()` from the name `resolve_layered_mission_types`,
+      which is a real, load-bearing, directly-invoked public API surface (not
+      merely an internal implementation detail routed only through
+      `MissionTypeRepository.cache_clear()`). Verified live: at least 3 test
+      files (test_mission_type_path_layout_ssot.py, test_mission_type_repository.py,
+      test_charter_import_time_io.py) call `resolve_layered_mission_types.cache_clear()`
+      directly — one of them via an autouse fixture that runs on every test in
+      the file — and `MissionTypeRepository.cache_clear()`'s own body
+      (mission_type_repository.py:207) also calls it directly. As Section 6b
+      literally specifies the split (mirroring the primary site's plain-wrapper
+      shape shown in its own code sample, which likewise carries no
+      `.cache_clear()`), all of these break with `AttributeError` post-fix,
+      directly contradicting Section 5's explicit claim that no cache_clear()
+      coupling changes and that the seam remains "unchanged in ... observable
+      behavior," and contradicting Section 14's claimed one-test-file diff
+      footprint (fixing this for real requires either editing >=3 additional
+      test files, or exporting `.cache_clear` as an attribute alias on the new
+      public wrapper — the plan specifies neither).
+    remediation: >-
+      Plan-level: Section 6b/9 must explicitly require one of two concrete
+      fixes and pick one as the binding mechanism, not leave it implicit: (a)
+      the new `resolve_layered_mission_types` wrapper must expose a
+      `.cache_clear` attribute forwarding to
+      `_resolve_layered_mission_types_cached.cache_clear` (e.g.
+      `resolve_layered_mission_types.cache_clear = _resolve_layered_mission_types_cached.cache_clear`
+      set immediately after the wrapper's definition), preserving every
+      existing direct call site with zero test-file edits and zero widened
+      diff footprint; or (b) the plan's Section 14 scope statement must be
+      corrected to include the >=3 test files that need their
+      `resolve_layered_mission_types.cache_clear()` calls repointed to
+      `MissionTypeRepository.cache_clear()`, and Section 5's "unchanged ...
+      observable behavior" claim must be revised to name this one exception.
+      Either way MissionTypeRepository.cache_clear()'s own body
+      (mission_type_repository.py:207) must be explicitly called out as
+      needing its internal target updated to `_resolve_layered_mission_types_cached.cache_clear()` —
+      it is currently the literal preserved seam Section 5/FR-003/NFR-003/SC-003
+      name, and it breaks under the design as written unless someone notices
+      independently during implementation.

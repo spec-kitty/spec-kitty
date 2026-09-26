@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: "Checked ci-router.yml directly (grep -n): commit-msg job is at 391-399 (run at 399) vs plan's cited 390-397; uv-lock job is at 409-418 (plan cites 406-412, which lands on markdownlint's run at 407 instead); import-linter job is at 420-433 (plan cites 418-433, and 418 is uv-lock's own run line); step_projection.py's scope-fence paragraph is lines 21-30 vs plan's cited 24-30 -- all four citations are genuinely off by several lines."
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: "mission_step_repository.py:134 is `except Exception: return None` while mission_type_repository.py:390-391 is `except YAMLError as exc: raise ValueError(...) from exc` -- a real swallow-vs-raise asymmetry -- and a full-document grep of plan.md Section 8 (lines 348-426) confirms zero mentions of resolve_layered_mission_types/_LAYERED_YAML/mission_type_repository, so no distinct forced-interleave construction is described for the second site."
+  - id: PLAN-ARCH-002
+    verdict: confirmed
+    reason: "mission_creation.py:48 imports kernel.clock.now_utc_iso and, more materially, _resolve_action_slot (part of the plan's own traced chain) at mission_type_profiles.py:950 imports and calls charter/offering/missions/repository.py's MissionTemplateRepository.default_missions_root(), and that module imports kernel.paths.MISSION_ASSETS_SIBLING_PATTERN at line 13 and binds it into a module constant actually used by default_missions_root() -- plan.md's literal 'no caller... touches src/kernel/ at any point' is factually contradicted."
+  - id: PLAN-ARCH-003
+    verdict: confirmed
+    reason: "Verified exact line matches for all three singletons and their consuming call sites (lint.py:66/99, operating_procedures.py:41/92, extractor.py:51) and confirmed via grep that plan.md never mentions any of these three files/functions and none of the three functions has a functools.cache wrapper today, matching the claim's 'dormant, unflagged, not factored out' framing."
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: "resolver.py:71 confirms TemplateConfigurationError is defined in specify_cli.runtime.resolver; mission_step_repository.py currently has zero specify_cli references; plan.md Section 6c's raise-path sentence names TemplateConfigurationError as the default target and offers the alternate typed exception only 'for mission_type_repository.py's roster-level cache', so as literally written the primary fix site (under src/charter/) would gain a new charter->specify_cli import edge; the architectural test's deselect list (ci-router.yml:557-560) confirms test_charter_no_specify_cli_import.py is not exempted, and Section 8b's SC-006 test text is indeed non-committal ('TemplateConfigurationError (or the equivalent explicit typed exception named in Section 6)')."
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: "A case-insensitive grep of plan.md for 'architectural' returns zero matches; ci-router.yml's `changes` job filters `src/charter/**` (line 129) into the `charter` output, this mission's diff is under src/charter/offering/missions/**, and architectural-heavy's `if:` (ci-router.yml:510-535) includes `needs.changes.outputs.charter == 'true'`, runs the full tests/architectural tree minus 4 deselects that exclude test_charter_no_specify_cli_import.py, and router-gate's needs list (line 711) makes it blocking -- Section 10 omits this gate entirely."
+  - id: PLAN-VERIFY-003
+    verdict: confirmed
+    reason: "Re-read Section 8a-8d in full: 8a/8d assert correctness/no-corruption/no-deadlock (properties thread-local YAML alone, per Section 6a, already guarantees), 8b tests the lock-timeout raise path, and 8c is a no-regression check -- none instruments or counts cache-miss-body executions, so no test as written would go red if the per-key lock (6b) were dropped while 6a were kept, matching the claim exactly."

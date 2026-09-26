@@ -1,0 +1,25 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: "All 4 original citations now land exactly on their described content (ci-router.yml:391-399/401-407/409-418/420-433, step_projection.py:21-30), and every new citation the fixer added (architectural-heavy job 510-560, its if condition at 528 and 515-536, router-gate needs list 699-717, test_charter_no_specify_cli_import.py:89-103 and 3-5, resolver.py:71, repository.py:39, action_index.py:12, mission_type_repository.py:12/160/318/388-391, mission_step_repository.py:72/134-135, mission_creation.py:48, missions/repository.py:13) was independently re-verified byte-accurate against the live checkout."
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: "New Section 8a-ii constructs a genuinely distinct forced-interleave test for resolve_layered_mission_types (races two mission-type YAML files under one mission_types_dirs/pack_context key via create_mission_core -> _resolve_action_slot, patching _LAYERED_YAML.load at mission_type_repository.py:389), and the Summary's new asymmetry paragraph substantively reconciles swallow-vs-raise by explaining the fix's raise-never-degrade contract holds independent of which pre-fix failure shape 8a-ii's empirical RED run reveals, rather than merely restating that the asymmetry exists."
+  - id: PLAN-ARCH-002
+    status: resolved
+    reason: "Section 1 now states the narrow, true claim that this fix's own diff does not add, remove, or modify any src/kernel file or import, while explicitly naming and not dropping the two pre-existing kernel reads (mission_creation.py:48 kernel.clock, missions/repository.py:13 kernel.paths), both verified accurate against the checkout."
+  - id: PLAN-ARCH-003
+    status: resolved
+    reason: "Section 1 (and Section 11) now names all three dormant singletons with correct file:line citations (lint.py:66, operating_procedures.py:41, extractor.py:51, all verified) and explicitly recommends a follow-up tracker issue if any of them ever grows a threaded or memoized caller, satisfying remediation option (b)."
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: "Section 6 now names exactly one concrete new exception class, MissionCacheLockError(ValueError), owned by src/charter/offering/missions (defined in mission_step_repository.py, imported by mission_type_repository.py), with verified real, module-local, non-specify_cli-importing precedents (MalformedManifestError at repository.py:39, ActionIndexError at action_index.py:12); it explicitly forbids importing TemplateConfigurationError into charter, and Section 8b now names one concrete monkeypatch target (_lock_for's acquire raising MissionCacheLockError) instead of a vague either/or."
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: "Section 10 now names architectural-heavy with the correct trigger condition (needs.changes.outputs.charter equals true at ci-router.yml:528, part of the OR-block at 515-536) and cross-references tests/architectural/test_charter_no_specify_cli_import.py:89-103, both verified accurate and confirmed not among the job's 4 deselected files."
+  - id: PLAN-VERIFY-003
+    status: resolved
+    reason: "New Section 8e instruments and counts invocations of the cache-miss filesystem-walk body specifically and asserts it executes exactly once under a Barrier-forced same-key race, which fails if the per-key lock (6b) is removed while 6a is kept -- not a re-description of 6b's existence."

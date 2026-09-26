@@ -1,0 +1,66 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: refuted
+    reason: >-
+      SC-005's own sentence already states "by the orchestrator ... (not by
+      a mission agent)", so the misread risk the finding hypothesizes is
+      already mitigated within the cited text itself and the claim rests on
+      speculative future misreading rather than a concrete defect.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      grep -rn "_resolve_template_filename" across the checkout returns zero
+      matches, while resolve_configured_template is confirmed defined at
+      src/specify_cli/runtime/resolver.py:440, exactly matching the finding's claim.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: >-
+      mission_step_repository.py:465 literally reads "never call
+      ``.cache_clear()`` on this private function directly from outside this
+      module," yet spec.md's NFR-003/FR-003 name that private seam directly,
+      and grep confirms no test in tests/ ever calls it directly (only the
+      public MissionStepRepository.cache_clear() at lines 324-333 is used).
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: >-
+      spec.md cites mission_type_repository.py:68-96 (confirmed, "Production
+      never mutates" at line 84) but never cites
+      mission_step_repository.py:324-333 anywhere (confirmed by grep), even
+      though that function carries the identical cache-safety docstring
+      language in the spec's own named "primary suspect" file.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      Origin & Framing states flatly "This is a latent production-side
+      thread-safety defect, not (yet) an empirically reproduced one," while
+      CL-002 a few paragraphs later calls the same causal chain "a
+      hypothesis... not a confirmed root cause" — a genuine framing
+      contradiction confirmed by direct read of both sections.
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: >-
+      Direct read confirms User Story 1's three Acceptance Scenarios each
+      end with an explicit "(falsifiable: ...)" clause while User Story 2's
+      two ACs and User Story 3's one AC (including the unbounded "within
+      minutes" phrasing) carry no such clause.
+  - id: SPEC-VERIFY-004
+    verdict: confirmed
+    reason: >-
+      FR-006/CL-006 state the silent-success prohibition in prose, but a
+      full read of Success Criteria SC-001 through SC-005 and all
+      Acceptance Scenarios confirms none test a lock-timeout or
+      corrupted-cache raise path.
+  - id: SPEC-VERIFY-005
+    verdict: confirmed
+    reason: >-
+      tasks/README.md:26 and meta.json confirm planning_base_branch and
+      target_branch are both this mission's own single working branch
+      (topology single_branch), so per CL-004 the branch tip will
+      accumulate both the red-first test and the fix commit, making AC1's
+      "pre-fix code on this mission's planning_base_branch" genuinely
+      ambiguous as written.

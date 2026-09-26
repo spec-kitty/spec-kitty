@@ -1,0 +1,20 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >-
+      CL-005 (spec.md:126-128) now anchors the baseline run "at the mission's
+      scaffold commit — before either the red-first test commit (CL-004) or
+      the production-fix commit has landed on planning_base_branch", matching
+      the commit-precise anchoring style AC1 (spec.md:278-282) already uses,
+      and a full-file grep confirms both remaining planning_base_branch
+      mentions are now commit-anchored with no bare occurrences left.
+  - id: SPEC-FRESH2-002
+    status: resolved
+    reason: >-
+      All four spec.md citations (lines 183, 195, 227, 425) now read
+      mission_type_repository.py:68-101, which matches the live checkout
+      (default() decorated at 67-68, docstring spanning 70-101, closing
+      triple-quote on line 101).

@@ -1,0 +1,66 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh-6-narrow
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: PLAN-FRESH6-001
+    lens: contract-fidelity
+    severity: 2
+    title: "§6b's \"15+\" cache_clear() call-site count is inflated; actual grep count is 12 (13 including the one cache_info() call)"
+    evidence:
+      - artifact: "plan.md §6b, lines 404-424 (\"at least 15+ call sites across three test files call resolve_layered_mission_types.cache_clear() directly (tests/charter/test_mission_type_path_layout_ssot.py, tests/doctrine/missions/test_mission_type_repository.py, tests/charter/test_charter_import_time_io.py)\")"
+      - code: "tests/charter/test_mission_type_path_layout_ssot.py:79,82 (2 calls)"
+      - code: "tests/charter/test_charter_import_time_io.py:99,102 (2 calls of .cache_clear(); line 231 has 1 call of .cache_info(); line 40 is a docstring mention, not code)"
+      - code: "tests/doctrine/missions/test_mission_type_repository.py:543,546,655,658,809,812,901,904 (8 calls)"
+    claim: >
+      `grep -rn 'resolve_layered_mission_types\.cache_clear()' tests/charter/test_mission_type_path_layout_ssot.py
+      tests/charter/test_charter_import_time_io.py tests/doctrine/missions/test_mission_type_repository.py`
+      returns exactly 12 executable call sites (2 + 2 + 8), not "15+" as the plan states. Adding the single
+      `.cache_info()` call site (test_charter_import_time_io.py:231) brings the total forwarding-dependent
+      attribute-access call count in the three named test files to 13, still short of the plan's "at least
+      15+" claim. The plan's own docstring-only mention at test_charter_import_time_io.py:40 does not
+      count as a call site. The design conclusion (forward .cache_clear/.cache_info/.cache_parameters) is
+      unaffected by the exact count, but the evidentiary figure supporting the "why mechanism (a) over (b)"
+      argument is factually wrong, in a section whose surrounding text otherwise cites exact, verified
+      numbers throughout the plan (e.g. §10's baseline run counts).
+    remediation: >
+      Replace "at least 15+ call sites" with the verified count (12 direct `.cache_clear()` call sites,
+      13 including the one `.cache_info()` call site, across the three named test files plus the one
+      `MissionTypeRepository.cache_clear()` body call in src/), or re-run the grep that produced the
+      original figure and reconcile the discrepancy before finalizing the plan.
+
+  - id: PLAN-FRESH6-002
+    lens: internal-consistency
+    severity: 3
+    title: "§6b's opening mechanism description says the public name resolve_layered_mission_types keeps its @functools.cache decorator \"unchanged in shape\" — directly contradicted by the same subsection's Second-site structural note a few lines later"
+    evidence:
+      - artifact: "plan.md §6b, lines 362-366: \"`_resolve_all_for_mission_type_cached` and `resolve_layered_mission_types` keep their `@functools.cache` decorator and their bodies unchanged in shape (still the plain, single uncached walk — Section 5's `cache_clear()` contract is untouched by this move, since it only ever calls the `@functools.cache` wrapper's own `.cache_clear()`).\""
+      - artifact: "plan.md §6b, \"Second-site structural note\", lines 389-399: \"...the SAME split must happen here: the currently-cached function is renamed to a private cached name (e.g. `_resolve_layered_mission_types_cached`), and `resolve_layered_mission_types` becomes the public, lock-wrapping entry point every caller...keeps using unchanged by name...at the cost of one internal rename (the previously-public cached function becomes the new private `_resolve_layered_mission_types_cached` name)...\""
+      - artifact: "plan.md §6b, \"Preserving the public .cache_clear()/.cache_info() seam\" paragraph, lines 409-411: \"the second site's public name `resolve_layered_mission_types` is itself, TODAY, the `@functools.cache`-decorated callable\" (i.e. not after the fix)."
+    claim: >
+      Lines 362-366 assert that the symbol `resolve_layered_mission_types` itself keeps the `@functools.cache`
+      decorator "unchanged in shape" post-fix. But the Second-site structural note (same subsection, ~25 lines
+      later) requires exactly the opposite for that same symbol: the decorated/cached function is renamed to
+      the new private name `_resolve_layered_mission_types_cached`, and the surviving public symbol
+      `resolve_layered_mission_types` becomes a plain, undecorated lock-wrapping function whose `.cache_clear`/
+      `.cache_info`/`.cache_parameters` are bound as forwarded attributes, not an actual `@functools.cache`
+      decoration. The subsection's own text elsewhere ("today, the `@functools.cache`-decorated callable")
+      confirms this is a pre-fix/post-fix distinction the earlier sentence blurs. This is exactly the "blur
+      the two sites' shapes" pattern the Second-site structural note itself flags as "the recurring smell
+      this ruling names" — the two sentences give a reader/implementer conflicting instructions about which
+      symbol carries the decorator after the fix, in the same subsection.
+    remediation: >
+      Correct lines 362-366 to name the private, per-site cached functions consistently — e.g.
+      "`_resolve_all_for_mission_type_cached` and `_resolve_layered_mission_types_cached` keep their
+      `@functools.cache` decorator and their bodies unchanged in shape" — so the opening mechanism
+      description agrees with the Second-site structural note's binding rename, rather than naming the
+      public wrapper symbol as the decorator-holder.
+
+out_of_scope_notes:
+  - "§6b's forwarding code block (lines 445-457) and every found resolve_layered_mission_types.<attr> call site were checked functionally and are mutually consistent — no functional defect found in the forwarding mechanism itself, only the two issues above."
+  - "§7 (re-derived NFR-002 conclusion under the always-locked design) exists and reads plausible but was not verified in depth — out of this review's scope."
+  - "§8's test obligation/fact tables were not reviewed."
+  - "The mission's review history (reviews/ directory) shows several prior rounds correcting exact baseline/module-list figures (round-3 through round-5); this round's own findings continue that pattern on a different figure (§6b's call-site count)."
+  - "docs/adr/3.x/2026-08-13-1-mission-type-roster-layering-seam.md is referenced repeatedly as the rationale source for keeping the two caches independent; its content was not verified against the plan's characterization."
+  - "MissionTypeRepository.default()'s own separate @functools.cache (mission_type_repository.py:68) is explicitly out of this fix's scope per the plan and was not otherwise investigated."

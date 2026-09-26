@@ -1,0 +1,53 @@
+{
+  "event_count": 6,
+  "last_event_id": "01M37H0EZRF689CZN2QAW4K0ER",
+  "materialized_at": "2026-09-23T16:19:02.776242+00:00",
+  "mission_number": "",
+  "mission_slug": "concurrent-template-config-race-4589-01M35M6B",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M37H0EZRF689CZN2QAW4K0ER",
+      "last_transition_at": "2026-09-23T16:19:02.776242+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "implementation committed on mission branch fix/concurrent-template-config-race-4589 (single_branch, one PR per mission, SK-245); head 057b05af7"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "kitty-specs/concurrent-template-config-race-4589-01M35M6B/reviews/wp-WP01.yaml",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 460991,
+      "shell_pid_created_at": "1790174533.12",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    }
+  }
+}

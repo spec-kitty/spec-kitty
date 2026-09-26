@@ -1,0 +1,59 @@
+schema: wp-verdict/v1
+mission: concurrent-template-config-race-4589-01M35M6B
+wp: WP01
+reviewer_profile: reviewer-renata
+directives_applied:
+  - "001 Architectural Integrity Standard"
+  - "024 Locality of Change"
+  - "030 Test and Typecheck Quality Gate"
+  - "032 Conceptual Alignment"
+  - "041 Tests as Scaffold, Not Friction"
+diff_range: 8cc7dfeed..91b54628d
+verdict: approved
+findings:
+  - id: F1
+    severity: 1
+    file: kitty-specs/concurrent-template-config-race-4589-01M35M6B/status.events.jsonl
+    line: "for_review transition event, pre_review_gate payload"
+    claim: >
+      The automated pre_review_gate event recorded at the in_progress -> for_review
+      transition (head 057b05af7) reports outcome "no_coverage" with reason
+      "no changed files detected for this WP — skipping the gate cheaply", despite
+      the WP's owned files (mission_step_repository.py, mission_type_repository.py,
+      tests/core/test_mission_creation_identity.py) having substantial diffs by that
+      point. This looks like a gate-detection quirk in the spec-kitty tooling itself
+      (comparing against the wrong base, or a stale owned_files snapshot), not
+      something the implementer caused or could have fixed from inside the WP.
+    evidence: |
+      $ git diff 8cc7dfeed..91b54628d -- '*status.events.jsonl' | grep pre_review_gate
+      "pre_review_gate": {"affected_shard_count": 0, "block_enabled": false,
+      "blocked": false, "force_bypassed": false, "matched_composite_dirs": [],
+      "matched_shard_groups": [], "new_failure_count": 0, "new_failure_nodeids": [],
+      "outcome": "no_coverage", "reason": "no changed files detected for this WP —
+      skipping the gate cheaply", "run_state": "completed", "test_targets": []}
+      This is tool-generated bookkeeping (not hand-edited), and this reviewer's own
+      independent runs of the dedicated suites and the full obligation table (below)
+      supersede this automated gate's (apparently incorrect) "no coverage" reading.
+    required_change: >
+      None required of this WP's implementer. Worth a tracker note against
+      spec-kitty's own pre_review_gate change-detection logic (orchestrator-level,
+      out of this WP's scope) so a future WP does not silently skip real gate
+      coverage. Non-blocking.
+checks_run:
+  - "git status --porcelain in checkout: clean before and after review"
+  - "git diff 8cc7dfeed..91b54628d full read: mission_step_repository.py, mission_type_repository.py, tests/core/test_mission_creation_identity.py, plus bookkeeping (lanes.json/meta.json/status.*/traces) confirmed legitimate tool output, not hand-edited"
+  - "plan.md Sections 1,5,6,7,8,9,10,11 read in full and cross-checked against the diff"
+  - "tasks/WP01-concurrent-yaml-cache-race-fix.md read: owned_files matches diff scope exactly, no scope creep"
+  - "spec.md CL-001/CL-008/SC-006/NFR-002/NFR-003/FR-003/FR-006 cross-checked against fix design"
+  - "architectural boundary: grep confirms no charter->specify_cli import edge added; tests/architectural/test_charter_no_specify_cli_import.py -q -> 3 passed"
+  - "lint: ruff check (default + --select TID251,F401) on both prod files + test file -> All checks passed"
+  - "dedicated suites in checkout at tip 91b54628d: tests/doctrine/missions/test_mission_step_resolver.py + test_mission_type_repository.py + tests/charter/test_charter_import_time_io.py + tests/charter/test_mission_type_path_layout_ssot.py + tests/core/test_mission_creation_identity.py -> 96 passed"
+  - "throwaway git worktree add (detached, outside checkout) at 91b54628d, imports verified to resolve to worktree via PYTHONPATH + python -c 'import charter;print(charter.__file__)'"
+  - "RED-FIRST at Base (both prod files reverted to 8cc7dfeed content in worktree, tests at 91b54628d): -k 'obl1 or obl2' -> 4 failed (test_obl1_primary_site_forced_interleave_distinct_keys, test_obl1_second_site_forced_interleave_distinct_pack_contexts, test_obl2_primary_site_redundant_population_count, test_obl2_second_site_redundant_population_count) -- matches claimed red-first shape exactly"
+  - "REVERT CELL 6a-reverted/6b-kept (manually reinstated shared _YAML/_LAYERED_YAML singletons via _get_yaml()/_get_layered_yaml() returning the shared instance, lock wrapper left intact): -k 'obl1 or obl2 or obl3 or obl5' -> OBL-1 red both sites (2 failed), OBL-2/OBL-3/OBL-5 green (6 passed) -- matches plan.md Section 8c row exactly"
+  - "REVERT CELL 6b-reverted/6a-kept (manually removed the _lock_for(key) wrapper at both call sites, direct call to the cached function, thread-local YAML left intact): -k 'obl1 or obl2 or obl3' -> OBL-2 red both sites (2 failed), OBL-1/OBL-3 green (4 passed) -- matches plan.md Section 8c row exactly"
+  - "FULL FIX (91b54628d, unmodified): tests/core/test_mission_creation_identity.py -q -> 12 passed"
+  - "TEST HYGIENE cross-file contamination check: tests/core + tests/doctrine/missions + tests/charter run together in ONE pytest process in the worktree -> 3745 passed, 26 skipped, 7 failed; all 7 failures independently reproduced as pre-existing in the ACTUAL checkout too (7 passed cleanly there) and root-caused to a spec-kitty charter-authoring safety guard (_charter_write_root.py) that refuses writes from a *linked git worktree* -- an artifact of this reviewer's own worktree-based revert methodology, not a regression from the diff or a cross-file mock.patch contamination; the specific OBL-2 mock.patch isolation bug the implementer found and fixed (commit c6396c851) was independently confirmed present in an intentionally-reverted state and absent in the shipped fix"
+  - "NFR-001 determinism spot check: 5 separate subprocess runs with PYTHONHASHSEED=0..4 against the checkout tip -> obl1/obl2 (4 tests) all pass, all seeds"
+  - "worktree cleanup: git worktree remove --force on the throwaway worktree; git status --porcelain in the mission checkout empty afterward; git worktree list shows only the checkout itself and the pre-existing lane-a worktree, unmodified"
+complete: true

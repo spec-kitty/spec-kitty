@@ -1,0 +1,243 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH4-ARCH-001
+    status: resolved
+    reason: >-
+      plan.md §6b now inserts "Preserving the public `.cache_clear()` seam
+      across the split (PLAN-FRESH4-ARCH-001, sev 4)" immediately after the
+      "Second-site structural note," picking mechanism (a) from the
+      finding's own remediation: the new public `resolve_layered_mission_types`
+      wrapper explicitly binds
+      `resolve_layered_mission_types.cache_clear = _resolve_layered_mission_types_cached.cache_clear`
+      right after its own definition, in the same code block as the
+      lock-wrapping `def resolve_layered_mission_types(...)`. Re-verified
+      against live call sites (`grep -rn
+      "resolve_layered_mission_types.cache_clear\|MissionTypeRepository.cache_clear"
+      src tests`): the production body at
+      `mission_type_repository.py:207` and 12 direct test call sites across
+      exactly the three files the finding named
+      (`tests/charter/test_mission_type_path_layout_ssot.py:79,82`,
+      `tests/doctrine/missions/test_mission_type_repository.py:543,546,655,658,809,812,901,904`,
+      `tests/charter/test_charter_import_time_io.py:99,102`) all call
+      `resolve_layered_mission_types.cache_clear()` or
+      `MissionTypeRepository.cache_clear()` — no other attribute-access
+      shape exists — so the forwarding assignment genuinely keeps every
+      real call site working with zero test-file edits, exactly as the plan
+      claims. §5's "no new cache_clear() coupling" text is unchanged by
+      this round and remains literally true: the fix adds a forwarding
+      *attribute*, not a new lock `cache_clear()` must acquire or release —
+      §5's claim was specifically about lock coupling, which this change
+      does not touch. §14's "confined to three files in one package plus
+      one test file" scope claim (line ~1422) also remains literally true:
+      the forwarding line lands inside `mission_type_repository.py`, one of
+      the three already-counted production files, and §6b's own text notes
+      "with zero test-file edits," so no test file is added to the diff
+      footprint by this fix. Confirmed against source
+      (`mission_type_repository.py:207` is exactly
+      `resolve_layered_mission_types.cache_clear()`, matching the plan's
+      citation) that `MissionTypeRepository.cache_clear()`'s body needs no
+      edit under this design, as the plan asserts.
+  - id: PLAN-FRESH4-DEBBIE-001
+    status: resolved
+    reason: >-
+      plan.md's OBL-3 row (§8b) is fully rewritten to test the amended
+      SC-006's actual property: a fault injected into a site's
+      cache-population path "propagates to the caller unchanged, never
+      converted to None/empty/partial," "leaves nothing partial cached,"
+      and "a subsequent call re-attempts population and succeeds" —
+      replacing the old, debunked lock-timeout/MissionCacheLockError
+      framing entirely (no residual reference to forcing "the per-key
+      concurrency-control seam... to fail" remains in the OBL-3 row). §7's
+      SC-006 paragraph and §14's commit-phasing text were rewritten in
+      lockstep (see PLAN-VERIFY5-CONSISTENCY for the cross-check). See
+      AMEND-SC006-006 below for the disposition of the specific
+      cross-artifact half of this finding.
+  - id: AMEND-SC006-006
+    status: resolved
+    reason: >-
+      This is the same underlying fix as PLAN-FRESH4-DEBBIE-001, verified
+      from the cross-artifact angle the spec verifier flagged (plan.md's
+      §7/§8b text was stale relative to the already-amended spec.md
+      SC-006). Confirmed the staleness is gone: §7 (~line 629 onward) now
+      contains a "CL-008 amendment, restated here for §7's own reasoning"
+      paragraph replacing the old fault-injection-of-the-lock-seam
+      language, and a new paragraph titled "This property holds by
+      construction, independent of 6a/6b, at both sites — stated honestly
+      rather than assumed." §8b's OBL-3 row is retitled "amended-SC-006
+      raise-not-degrade regression guard" and its "Fix half isolated"
+      column now reads "**None.**... a construction-invariant property, not
+      a fix-isolating one," with the "Why RED..." column changed to "**Not
+      red at the red-first commit — green from Base onward, at both
+      sites**." §8c's revert matrix Base row was rewritten to
+      "**OBL-3 already green at both sites**" and both revert cells now
+      read "OBL-3 does not depend on 6a/6b" instead of the stale
+      "OBL-3 red at both sites — the seam OBL-3 patches is gone again."
+      §14 item 2 now explicitly states "**OBL-3 is already GREEN at this
+      commit, not red**... committed alongside the red obligations for
+      review-diff cohesion, not because it is red-first." Verified the
+      underlying technical claims directly rather than trusting the prose:
+      (1) `functools.cache` never caches a raising call — confirmed
+      empirically (`python3 -c` test: two raising calls to the same cached
+      key both execute the wrapped body, `cache_info().currsize == 0`
+      after both), matching the plan's citation. (2) §6b's code sketch
+      (`with _lock_for(key): return _resolve_layered_mission_types_cached(...)`
+      / the mirrored primary-site sketch) contains no try/except anywhere
+      — read in full, confirmed no stray exception handling was
+      introduced; a `with lock:` block releases on the way out via
+      `__exit__` regardless of exception and does not suppress it. (3) The
+      PRIMARY_SITE/SECOND_SITE fault-injection asymmetry is handled
+      honestly: §9's new "OBL-3's fault-injection seam, per site" binding
+      note picks `_load_layered_mission_type_file` for SECOND_SITE (already
+      propagates uncaught per §8a's "Loader's catch semantics" row) and
+      `_add_step_ids_from_dir` for PRIMARY_SITE specifically because it
+      sits **outside** `_load_step_yaml`'s `except Exception: return None`
+      swallow — verified directly against
+      `mission_step_repository.py:163-169` (the function body, no
+      try/except) and its caller
+      `_resolve_all_for_mission_type_uncached` (`mission_step_repository.py:335-364`,
+      also no surrounding try/except around any of the three
+      `_add_step_ids_from_dir`/`_collect_org_step_ids` call sites), so a
+      fault injected there is a real, non-vacuous production raise
+      reachable through `create_mission_core`, not a test that only proves
+      "the code I patched raises what I told it to." (4) Applied the
+      profile's anti-laziness directive here specifically (reviewer-renata's
+      "Tests as Scaffold, Not Friction" directive/024/030, and the
+      task's explicit instruction not to rubber-stamp): sanity-checked
+      whether declaring OBL-3 "green at Base" is consistent with CL-004's
+      ATDD framing and CL-003's severity-4 bar. It is a legitimate
+      exception, not a quiet weakening, because (a) CL-004/FR-004 name **a**
+      singular failing-first Barrier-synchronized regression test (OBL-1) as
+      the binding red-first requirement, not a blanket rule that every test
+      added in the same commit must independently go red; (b) CL-003's
+      severity-4 bar specifically targets a test *presented as* red-first
+      evidence of the race that does not actually go red — plan.md's §14
+      text does the opposite, explicitly disclaiming OBL-3 as race evidence
+      ("not because it is red-first... not evidence of the corruption
+      mechanism") and OBL-1's own row explicitly claims that burden ("this
+      is the load-bearing red, the one that demonstrates the production
+      race"); (c) no other obligation row or gate references OBL-3 as
+      satisfying CL-003. The plan does not blur "committed alongside the
+      red tests" with "is itself red-first" — §14 states the distinction in
+      so many words. This closes both PLAN-FRESH4-DEBBIE-001 (plan-side)
+      and AMEND-SC006-006 (the cross-artifact gap): tasks authored from
+      plan.md's current §7/§8b/§8c/§14 text would now target the correct
+      mechanism (a loader/walk fault at each site, asserting propagation +
+      no-cache-poisoning), not the old lock-seam framing.
+  - id: PLAN-FRESH4-DEBBIE-002
+    status: resolved
+    reason: >-
+      Re-derived the actual line range of `resolve_layered_mission_types`'s
+      full body directly from source rather than trusting either citation:
+      `grep -n` plus an `awk` line-range dump of
+      `src/charter/offering/missions/mission_type_repository.py` confirms
+      the decorator/signature at lines 477-481 (`@functools.cache` /
+      `def resolve_layered_mission_types(...)` / params / return
+      annotation), the body starting at line 580
+      (`index: dict[str, MissionType] = {}`), the always-executed
+      `mission_types_dirs` loop at 582-584, the `if pack_context is not
+      None:` branch at 586-599, and `return index` at 601 — i.e. the full
+      body is exactly lines 580-601. plan.md's §8a fact table row ("What
+      does one cache-miss population contain?") now cites
+      "`mission_type_repository.py:580-601` — the `index` init, the
+      always-executed `mission_types_dirs` loop, and the `pack_context`
+      org/project branch," and §9's binding note ("Counting unit, per
+      site") now cites the same "580-601 — the full function body: `index`
+      init, the always-executed `mission_types_dirs` loop, the
+      `pack_context` branch, and the return." Both citations match the
+      re-derived range exactly; the old, wrong "588-601" (which started
+      mid-function inside the `pack_context` branch and excluded the
+      built-in-equivalent-layer loop) is gone from both locations.
+  - id: PLAN-FRESH3-ARCH-001
+    status: resolved
+    reason: >-
+      §10's "Round-5 extension (PLAN-FRESH3-ARCH-001 residual...)" now
+      covers all nine of `core_misc`'s `test_dirs`. Confirmed the set of
+      nine directly against `.github/ci-module-registry.yml`'s `core_misc`
+      row (lines ~232-243): tests/core, tests/specify_cli/core,
+      tests/coordination, tests/specify_cli/coordination, tests/decisions,
+      tests/doctrine_synthesizer, tests/specify_cli/tool_surface,
+      tests/specify_cli/asset_preservation, tests/zeitgeist_client — plan.md
+      names and records a result for all nine (tests/core carried over from
+      round 4's baseline, the other eight added this round). Spot-checked
+      two of the eight newly-added entries by re-running them myself with
+      the same `env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 .venv/bin/python
+      -m pytest <dir> -q` prefix used elsewhere in §10: `tests/decisions`
+      → "17 passed in 5.22s" (plan records "17 passed in 5.17s", exact pass
+      count match, timing consistent); `tests/doctrine_synthesizer` →
+      "131 passed in 0.92s" (plan records "131 passed in 1.00s", exact pass
+      count match). Also re-ran the `test_packaging_parity.py` re-run
+      plan.md records after `uv sync --frozen --extra test`:
+      `.venv/bin/python -m pytest tests/doctrine/test_packaging_parity.py -q`
+      → "3 passed in 21.40s" (plan records "3 passed in 21.90s", exact pass
+      count match, no errors, confirming the earlier 3-error setup failure
+      really was the missing-`build`-package environment gap, not a code
+      defect). `import build` succeeds in this checkout's `.venv`,
+      confirming the extra is installed. `git diff --stat 288aef2f9 -- src
+      tests` is confirmed empty independently, substantiating the baseline
+      is still taken at the pre-change commit. No fabricated numbers found;
+      real recorded results throughout.
+  - id: PLAN-VERIFY5-CONSISTENCY
+    status: resolved
+    reason: >-
+      spec.md's current SC-006 ("An exception raised during cache
+      population (e.g., a fault injected into the step-loader or
+      mission-type loader) propagates to the caller unchanged... and
+      nothing partial is cached... so the next call re-attempts population
+      and succeeds... verified by a test that fails if either (a) the
+      propagation is replaced with a silent-degrade return, or (b) the
+      failed population is cached") ↔ plan.md's OBL-3 row (§8b, "A fault
+      injected into a site's cache-population path... propagates to the
+      caller unchanged, never converted to None/empty/partial... leaves
+      nothing partial cached... a subsequent call re-attempts population
+      and succeeds. Replacing the propagation with a silent-degrade return,
+      or leaving the failed population cached, makes the assertion fail")
+      ↔ §8c's revert matrix (Base: "already green... the property already
+      holds — no fix code required"; all four cells: green, unaffected by
+      either half) all tell the same story with no contradiction — same
+      three-part property (propagate / no-partial-cache / re-attempt
+      succeeds), same two-part falsifiability clause, same
+      construction-invariance claim throughout. §7's SC-006 paragraph
+      ("CL-008 amendment, restated here..." plus "This property holds by
+      construction...") agrees with both §8b and §8c: same fault-injection
+      framing (loader/walk-path fault, never the lock seam), same
+      "holds at Base, stays true after 6a/6b" conclusion, same
+      falsifiability clause quoted near-verbatim. No stale
+      lock-timeout/MissionCacheLockError language survives anywhere in
+      §7/§8b/§8c (grepped for "MissionCacheLockError" within those
+      sections' text — only §6c's unrelated, still-valid exception-class
+      definition and its own conditional "if either lock acquisition needs
+      a bound" clause remain, which is correctly scoped as future/optional
+      and not tied to OBL-3).
+  - id: PLAN-VERIFY5-SCOPE
+    status: resolved
+    reason: >-
+      `git diff --stat -- kitty-specs/concurrent-template-config-race-4589-01M35M6B/plan.md`
+      shows exactly one file changed (239 insertions, 34 deletions); full
+      diff read confirms every hunk lands inside §6b (the `.cache_clear()`
+      seam fix), §7 (the SC-006/CL-008 reasoning rewrite), §8a (the fact
+      table's cache-miss-population-contents row and its line-range
+      citation), §8b (OBL-2's cross-reference note and OBL-3's full
+      rewrite), §8c (the revert matrix's Base row and two revert cells),
+      §9 (the walk-unit line-range citation fix plus a new "OBL-3's
+      fault-injection seam, per site" subsection), §10 (the round-5
+      core_misc/packaging-parity extension), and §14 (the commit-phasing
+      paragraph 2 rewrite for OBL-3) — exactly the sections the four
+      findings require, no unrelated section touched. §5 itself has no
+      diff hunk (only referenced by cross-link from §6b's new text), which
+      is correct since §5's own claims did not need editing.
+      `git status --porcelain` also shows
+      `kitty-specs/concurrent-template-config-race-4589-01M35M6B/traces/tooling-friction.md`
+      modified — outside plan.md/spec.md/tasks.md/reviews/*. Read in full:
+      it is a self-contained, dated process-trace append documenting a
+      duplicate-subagent-dispatch incident during this same round's work
+      (item 4/core_misc dispatch), with its own justification embedded
+      in the entry itself (root-cause note for a future tooling fix). It
+      does not touch mission content (spec/plan/tasks/reviews substance),
+      carries no risk of introducing an inconsistency this verification
+      needs to catch, and is the kind of process-log file this mission's
+      own `traces/` directory exists for. Flagged for completeness per the
+      task's "flag if anything else was touched" instruction, rated nit
+      (severity 1) — no effect on the plan's correctness or this phase's
+      pass/fail — not counted as a blocking scope violation.

@@ -1,0 +1,128 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh-4-debbie
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: PLAN-FRESH4-DEBBIE-001
+    lens: verify
+    severity: 4
+    title: >-
+      SC-006/OBL-3 has no production raise site: Section 6's fix mechanism
+      implements none of the three failure conditions SC-006 requires a test
+      to force
+    evidence:
+      - artifact: "spec.md § Success Criteria, SC-006"
+      - artifact: "plan.md § 6c \"Both fix sites raise, never degrade\""
+      - artifact: "plan.md § 7 \"Performance (NFR-002)\", the SC-006/fault-injection paragraph"
+      - artifact: "plan.md § 8b, OBL-3 row and its revert-matrix cells"
+      - code: "src/charter/offering/missions/mission_step_repository.py (no lock-timeout/retry/corruption-detection code exists pre-plan; plan's own Section 6b sketch adds none)"
+    claim: >-
+      spec.md's SC-006 (binding, mandatory) reads: "A dedicated test forces a
+      lock-timeout, corrupted-cache, or retry-exhaustion condition in the new
+      concurrency-safety code and asserts that it raises
+      TemplateConfigurationError (or an equivalent explicit, typed exception)
+      ... verified by that test failing if the raise is replaced with a
+      silent-degrade return." This presupposes the new concurrency-safety
+      code contains at least one of those three conditions to force. Plan
+      Section 6b's concrete design (the `_lock_for`/`_locks_guard` dict and
+      the `with _lock_for(key): return _resolve_all_for_mission_type_cached(...)`
+      wrapper) is an ordinary, unconditional blocking `threading.Lock`
+      acquisition with no timeout, no corrupted-cache detection, and no
+      retry logic — and Section 7 explicitly confirms this design choice:
+      "this plan does **not** add a lock-acquisition timeout... an ordinary
+      blocking `Lock.acquire()`, no timeout argument, no new failure mode for
+      the healthy case." There is therefore no code, anywhere in Section 6's
+      fix mechanism, capable of failing on its own and needing to be
+      "replaced with a silent-degrade return" for OBL-3's falsifiability
+      clause to mean anything. Section 6c's own conditional framing confirms
+      this gap: "If either lock acquisition needs a bound (see Section 7 —
+      this plan does not add a blocking-forever wait...), the timeout path
+      raises MissionCacheLockError" — i.e., the raise site Section 6c
+      describes is contingent on a bound that Section 7 says is not added,
+      so as specified, `MissionCacheLockError` has no real production call
+      site. Section 7's own hand-wave ("exercises FR-006's raise contract
+      under the injected-fault condition the test forces") does not name
+      what code in Section 6's design would catch an injected fault and
+      translate it into `MissionCacheLockError` — none of the sketched code
+      (the `_lock_for` helper, the lock-wrapped call site) contains a
+      try/except of any kind. Consequently OBL-3 can only be satisfied by
+      either (a) the WP inventing a new failure branch not authorized
+      anywhere in Section 6/7 (contradicting Section 7's explicit "no new
+      failure mode for the healthy case"), or (b) the test directly
+      monkeypatching `_lock_for` (or similar) to raise
+      `MissionCacheLockError` itself and asserting only that nothing on the
+      call path swallows it — which does not "force a lock-timeout,
+      corrupted-cache, or retry-exhaustion condition" as SC-006 requires,
+      and does not exercise any translation logic the fix actually adds
+      (there is none to exercise). Either way, OBL-3 as currently specified
+      is not satisfiable as a genuine test of new production failure-raising
+      code; the plan's own revert matrix (Section 8c) nonetheless claims it
+      goes green after "6a+6b applied," asserting a property the design
+      described in the same document does not support.
+    remediation: >-
+      Plan-level fix required (not a tasks-input mechanics question): either
+      (1) Section 6 must add one concrete, real failure condition among the
+      three SC-006 names (a bounded lock-acquisition timeout with an explicit
+      raise, a corrupted-cache/poison detection check, or a retry-exhaustion
+      path) and show the actual try/except or guard clause that raises
+      `MissionCacheLockError`, reconciling this with Section 7's current "no
+      new failure mode" stance; or (2) if the operator/arbiter decides no
+      such condition is introduced by this mission's design, spec.md's SC-006
+      must be revisited (it cannot be satisfied by "forcing" a condition that
+      does not exist in the shipped code) and plan.md Section 8b's OBL-3 row
+      must be rewritten to state honestly what it actually verifies (e.g.,
+      "no accidental broad except-clause exists on the new lock-wrapped call
+      path" via a directly-injected `MissionCacheLockError`), with its
+      revert-matrix claims corrected to match.
+  - id: PLAN-FRESH4-DEBBIE-002
+    lens: verify
+    severity: 3
+    title: >-
+      SECOND_SITE walk-unit line citation (588-601) omits the mission_types_dirs
+      loop and index initialization the same sentence says it covers
+    evidence:
+      - artifact: "plan.md § 8a, fact table row \"What does one cache-miss population contain?\""
+      - artifact: "plan.md § 9, \"Counting unit, per site (DEBBIE-001/ARCH-003)\""
+      - code: "src/charter/offering/missions/mission_type_repository.py:580 (`index: dict[str, MissionType] = {}`)"
+      - code: "src/charter/offering/missions/mission_type_repository.py:582-584 (the `for base_dir in mission_types_dirs:` loop — the built-in-equivalent layer)"
+      - code: "src/charter/offering/missions/mission_type_repository.py:586-601 (the `if pack_context is not None:` org/project branch and `return index`)"
+    claim: >-
+      Both Section 8a's fact table and Section 9's binding note cite
+      "mission_type_repository.py:588-601" as "the loop in
+      resolve_layered_mission_types" / "the walk loop currently inline in
+      resolve_layered_mission_types," describing it as covering "every
+      `*.yaml` file `scan_mission_types_dir` finds in every scanned layer"
+      / running "over `mission_types_dirs` + org + project layers." Direct
+      read of the source shows the function body actually spans lines
+      580-601: `index: dict[str, MissionType] = {}` at 580, the primary
+      `for base_dir in mission_types_dirs:` loop (the built-in-equivalent
+      layer, always executed regardless of `pack_context`) at 582-584, then
+      the `if pack_context is not None:` org/project branch at 586-599, and
+      `return index` at 601. The cited range 588-601 starts mid-function, at
+      `org_index: dict[str, MissionType] = {}` (inside the `pack_context`
+      branch) — it excludes lines 580-587 entirely, which include the
+      `index` initialization and the entire built-in-equivalent-layer loop
+      (582-584). That built-in loop is the one part of the walk that always
+      runs (even when `pack_context is None`), so the fact table's own claim
+      that the cited range covers "mission_types_dirs + org + project
+      layers" is not true of the cited line range — it covers only org +
+      project. Section 9 uses this same wrong citation to instruct WP
+      authors to extract "the walk loop currently inline in
+      resolve_layered_mission_types (mission_type_repository.py:588-601)"
+      into a new `_resolve_layered_mission_types_uncached` function; an
+      implementer who extracts literally the cited 588-601 span (rather than
+      reading the surrounding code for context) would produce a function
+      that never resolves the built-in-equivalent layer at all, and that
+      does not initialize its own `index` dict — a materially different,
+      broken split from "mirrors the primary site's own uncached/cached
+      split" that Section 9 claims it does.
+    remediation: >-
+      Correct both citations from "mission_type_repository.py:588-601" to
+      "mission_type_repository.py:580-601" (the actual full function body:
+      `index` init, the `mission_types_dirs` loop, the `pack_context`
+      branch, and the return) in Section 8a's fact table and Section 9's
+      binding note, so a WP author extracting
+      `_resolve_layered_mission_types_uncached` includes the
+      built-in-equivalent-layer loop the fact table already claims is
+      covered.

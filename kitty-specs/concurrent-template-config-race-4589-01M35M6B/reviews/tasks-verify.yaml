@@ -1,0 +1,19 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: Objective (line 63) and T002's headline (line 264) plus Purpose (line 266) now explicitly co-locate OBL-3 as a "green-at-Base construction-invariant regression guard" / "not red-first evidence" rather than folding it into "red-first"/"trio" language; a full-file scan for "red-first", "ATDD red-first commit", and "trio" found no remaining occurrence that labels OBL-3 as red-first without an adjacent caveat.
+  - id: TASKS-DECOMP-002
+    status: resolved
+    reason: Independent grep of the four cited files confirms 12 direct resolve_layered_mission_types.cache_clear() test-file calls (2+2+8) + 1 cache_info() call + 1 production self-call at mission_type_repository.py:207 = 14, matching the artifact's corrected "14 existing call sites" headline (line 138) and its arithmetically consistent "11 other call sites" in Risks (line 383, 14-3=11=10+1).
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: T006 step 6 (line 335) now requires N separate-process pytest runs with varied PYTHONHASHSEED, a matching DoD checkbox exists for T006 (line 371), and a Reviewer Guidance bullet (line 397) requires evidence of execution; cross-references to "step 6"/"step 9" elsewhere in T006 (lines 335, 344) and the Reviewer Guidance's "T006 step 6" (line 397) all correctly point at the new NFR-001 step under the renumbered 1-9 sequence, and no stale reference to the old step 6/7/8 content was found.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: The stale hardcoded HEAD hash 57769a254 is gone (confirmed by grep — only 288aef2f9 remains in the gate-set/baseline section, line 229), replaced with an instruction to re-run `git diff --stat 288aef2f9 -- src tests` at implementation time, and the true baseline anchor 288aef2f9 is preserved verbatim.
+  - id: TASKS-VERIFY-003
+    status: resolved
+    reason: Obligation table (line 167), revert matrix (line 176), and T006 step 3 (line 332) all now state, verbatim in substance, that OBL-5's "6b reverted, 6a kept" cell must be run and is expected green/trivially-vacuously-satisfied — no remaining disagreement (e.g. no "not applicable" language survives for this cell).

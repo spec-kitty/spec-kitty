@@ -1,0 +1,40 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh-1
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: PR-FRESH1-001
+    lens: runtime-behavior-and-introspection
+    severity: 2
+    title: "resolve_layered_mission_types.__name__/__qualname__ now report the private implementation name, contradicting the comment's own 'runtime identity ... unchanged' claim"
+    evidence:
+      - code: "src/charter/offering/missions/mission_type_repository.py:696"
+      - code: "src/charter/offering/missions/mission_type_repository.py:742-755"
+    claim: >
+      The public wrapper is now produced by `cast(_LayeredMissionTypesResolver,
+      _resolve_layered_mission_types)` (same function object, just re-typed) and bound
+      to the module-level name `resolve_layered_mission_types`. Verified empirically in
+      a throwaway worktree: `resolve_layered_mission_types.__name__ ==
+      "_resolve_layered_mission_types"` and `__qualname__` likewise carries the
+      underscored private name, not `resolve_layered_mission_types`. Before this fix
+      round the function was defined directly as `def resolve_layered_mission_types(...)`,
+      so `__name__` matched the public name it was called through. The comment
+      immediately above the cast (lines 742-751) asserts "runtime identity, call
+      behavior, and the docstring above are all unchanged" -- true for call behavior and
+      docstring, but not for `__name__`/`__qualname__`, which is exactly the kind of
+      introspection surface a `cast()`-based rename can silently break (this fresh
+      sweep's own brief flagged it as a thing to check). Concretely this means any
+      traceback, `repr()`, logger, or debugger session that surfaces this frame during a
+      real concurrency investigation (the exact scenario this mission's fix targets)
+      will show `_resolve_layered_mission_types`, not the public name callers actually
+      import and call it by -- a minor but real observability regression, and the code
+      comment overclaims correctness about it.
+    remediation: >
+      Either explicitly restore the public name after the cast (e.g.
+      `resolve_layered_mission_types.__name__ = "resolve_layered_mission_types"` and
+      `.__qualname__ = "resolve_layered_mission_types"`, alongside the existing
+      `cache_clear`/`cache_info`/`cache_parameters` assignments), or soften the comment's
+      "runtime identity ... unchanged" claim to explicitly carve out `__name__`/
+      `__qualname__` as the one accepted deviation, so the documented contract matches
+      observed behavior.

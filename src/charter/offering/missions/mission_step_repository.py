@@ -29,6 +29,7 @@ If ``pack_context.repo_root`` is available, the project layer is also queried.
 from __future__ import annotations
 
 import functools
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -66,10 +67,93 @@ __all__ = [
 ]
 
 # ---------------------------------------------------------------------------
-# YAML loader (module-level singleton — thread-safe for reads)
+# YAML loader (thread-local accessor -- WP01, mission
+# concurrent-template-config-race-4589-01M35M6B)
+#
+# A single module-level YAML(typ="safe") instance is NOT thread-safe: its
+# .load() mutates cross-call reader/scanner/parser/composer state
+# (self.reader.stream, self.tags, ...) with no synchronization. Two threads
+# racing a cache miss on `_resolve_all_for_mission_type_cached` (below) could
+# corrupt each other's in-flight parse on the shared instance -- confirmed by
+# this mission's research.md and the red-first regression tests this fix
+# turns green (tests/core/test_mission_creation_identity.py, OBL-1).
+#
+# Fix: hand each THREAD its own private YAML(typ="safe") instance, built
+# once per thread and reused by that thread only. This removes the shared
+# mutable object entirely -- there is nothing left to race on, so no lock is
+# needed for this half of the fix at all.
 # ---------------------------------------------------------------------------
 
-_YAML = YAML(typ="safe")
+class _YamlLocal(threading.local):
+    """Thread-local holder for this thread's own ``YAML(typ="safe")`` instance.
+
+    A genuine ``threading.local`` subclass (mirrors ``kernel.locks._ReentrancyState``,
+    src/kernel/locks.py:647) rather than a bare ``threading.local()`` instance, so
+    the ``instance`` attribute has a declared type and ``mypy --strict`` does not
+    infer ``Any`` on every access (PR-CONTRACT-001). ``threading.local`` calls
+    ``__init__`` once per thread on that thread's first attribute access, so this
+    keeps the exact same "build once per thread, lazily on first use" behavior as
+    the previous ``try/except AttributeError`` construction.
+    """
+
+    def __init__(self) -> None:
+        self.instance = YAML(typ="safe")
+
+
+_yaml_local = _YamlLocal()
+
+
+def _get_yaml() -> YAML:
+    """Return this thread's own ``YAML(typ="safe")`` instance, building it once."""
+    return _yaml_local.instance
+
+
+# ---------------------------------------------------------------------------
+# Single-flight per-key lock (6b) -- closes the redundant-population /
+# cache-poisoning window that 6a alone does not address: functools.cache's
+# cache-miss path never serializes concurrent execution of the wrapped body,
+# so two threads racing the SAME key could each independently run the full
+# filesystem walk. Owned here (the primary fix site); the second fix site
+# (mission_type_repository.py) imports this same helper so both sites share
+# ONE lock-key-space implementation, never two.
+# ---------------------------------------------------------------------------
+
+
+class MissionCacheLockError(ValueError):
+    """Raised by lock/cache-population code in this package on an unrecoverable
+    population failure.
+
+    Neither fix site's lock/cache-population code ever converts a failure into
+    a degraded (``None``/empty/partial) result -- CL-006's raise-never-degrade
+    contract. This mission's design (plan.md Section 6c) adds no lock-timeout,
+    corrupted-cache, or retry-exhaustion path, so nothing in THIS mission's own
+    diff raises it yet; it exists so a future bounded-wait/retry addition at
+    either fix site has one shared, typed failure to raise instead of
+    improvising a second exception class.
+    """
+
+
+_locks_guard = threading.Lock()
+_locks: dict[tuple[Any, ...], threading.Lock] = {}
+
+
+def _lock_for(key: tuple[Any, ...]) -> threading.Lock:
+    """Return the single-flight lock for *key*, creating it on first use.
+
+    The returned lock is never torn down or removed by :meth:`MissionStepRepository.cache_clear`
+    (or the sibling :meth:`MissionTypeRepository.cache_clear`) -- a leftover
+    ``threading.Lock`` for a key no longer in the data cache is harmless, and
+    reusing the same ``Lock`` object across a ``cache_clear()`` boundary is
+    safe (an unheld ``Lock`` has no memory of what it used to guard).
+    """
+    with _locks_guard:
+        lock = _locks.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _locks[key] = lock
+        return lock
+
+
 _STEP_FILENAME = "step.yaml"
 
 # ---------------------------------------------------------------------------
@@ -130,7 +214,7 @@ def _load_step_yaml(step_file: Path) -> MissionStep | None:
     if not step_file.exists():
         return None
     try:
-        raw: Any = _YAML.load(step_file.read_text(encoding="utf-8"))
+        raw: Any = _get_yaml().load(step_file.read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
         return None
     if not isinstance(raw, dict):
@@ -315,10 +399,20 @@ class MissionStepRepository:
             Mapping of ``step_id → MissionStep`` with shadowing applied.
             Only step IDs that exist in the built-in layer (or in org/project
             overrides for the same mission type) are returned.
+
+        **Single-flight lock (6b, WP01):** the entire cached call is made
+        under this key's :func:`_lock_for` lock -- not just the cache-miss
+        body -- so a losing thread's call becomes a ``functools.cache`` HIT
+        (the winner's result, read from the now-populated cache dict) rather
+        than a second, independent, redundant walk. See :func:`_lock_for`'s
+        own docstring for why ``cache_clear()`` needs no new awareness of
+        this lock.
         """
-        return _resolve_all_for_mission_type_cached(
-            self._builtin_root, mission_type_id, pack_context
-        )
+        key = (self._builtin_root, mission_type_id, pack_context)
+        with _lock_for(key):
+            return _resolve_all_for_mission_type_cached(
+                self._builtin_root, mission_type_id, pack_context
+            )
 
     @staticmethod
     def cache_clear() -> None:

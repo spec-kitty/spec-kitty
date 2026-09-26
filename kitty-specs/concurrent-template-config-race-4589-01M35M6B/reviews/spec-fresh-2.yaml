@@ -1,0 +1,63 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh2
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: SPEC-FRESH2-001
+    lens: Baseline commit-anchoring consistency (same defect class as SPEC-VERIFY-005 / User Story 1 AC1 fix)
+    severity: 3
+    title: "CL-005's baseline-capture instruction still says 'against the mission's planning_base_branch', the exact ambiguity User Story 1 AC1 was reworded to eliminate"
+    evidence:
+      - artifact: "spec.md § CL-005 (\"run the targeted test surface ... against the mission's planning_base_branch and record the result\")"
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 1 (post-fix wording: \"planning_base_branch is this mission's own single working branch and accumulates both commits\" — added specifically to disclaim reading planning_base_branch as a fixed pre-mission baseline)"
+      - artifact: "kitty-specs/concurrent-template-config-race-4589-01M35M6B/reviews/spec.confirmed.yaml (SPEC-VERIFY-005: \"planning_base_branch is this mission's own single working branch, which per CL-004 accumulates both the red-first test commit and the production-fix commit. AC1's phrase cannot mean 'the tip of planning_base_branch' by mission end\")"
+      - artifact: "kitty-specs/concurrent-template-config-race-4589-01M35M6B/tasks/README.md:26 (planning_base_branch: \"fix/concurrent-template-config-race-4589\" — a static branch-name field, not a commit pointer)"
+      - artifact: "kitty-specs/concurrent-template-config-race-4589-01M35M6B/meta.json (topology: single_branch, target_branch: fix/concurrent-template-config-race-4589)"
+    claim: >
+      The round-1 fix (SPEC-VERIFY-005) reworded User Story 1's Acceptance
+      Scenario 1 specifically because "planning_base_branch" names this
+      mission's single, continuously-accumulating working branch (per
+      tasks/README.md's frontmatter and meta.json's single_branch topology),
+      so a bare reference to "this mission's planning_base_branch" cannot by
+      itself pin down which commit on that branch is meant — the branch's
+      tip keeps moving as the mission's own commits land on it. AC1 was
+      rewritten to name the commit precisely (test-first-committed,
+      fix-not-yet-landed) instead of relying on the branch name alone. CL-005
+      — a few paragraphs earlier in the same document, and never touched by
+      either fix round — still uses exactly the pattern the AC1 fix was
+      written to eliminate: "run the targeted test surface ... against the
+      mission's planning_base_branch and record the result." Read in
+      isolation by a plan-phase agent (especially one executing CL-005 later
+      than Step 1, e.g. after the red-first test commit has already landed
+      per CL-004), this instruction gives no commit-precise anchor for what
+      "the result" is a baseline *of* — the same ambiguity class the AC1 fix
+      was written to close, left unresolved at its other occurrence.
+    remediation: >
+      Reword CL-005 the same way AC1 was reworded: replace "against the
+      mission's planning_base_branch" with an explicit commit anchor (e.g.
+      "at the mission's scaffold commit, before either the red-first test
+      commit or the production-fix commit has landed on
+      planning_base_branch") so a plan-phase or implementation agent
+      executing CL-005 out of strict Step-1 order cannot read it as "just
+      run it against the branch, whatever its current tip is."
+
+  - id: SPEC-FRESH2-002
+    lens: Citation precision (C-004 canonical-sources discipline)
+    severity: 1
+    title: "Readiness Findings cites the MissionTypeRepository.default() docstring as lines 68-96; the docstring actually runs through line 101"
+    evidence:
+      - artifact: "spec.md § Readiness Findings (\"mission_type_repository.py:68-96\")"
+      - code: "src/charter/offering/missions/mission_type_repository.py:68-101 (docstring opens at 69, closes with the terminal `\"\"\"` at line 101; the `@functools.cache`/`@classmethod` decorators sit at 67-68)"
+    claim: >
+      The cited range (68-96) undershoots the docstring's actual close by
+      five lines; the "production never mutates the bundled trees
+      mid-process" cache-safety argument text a reader is being pointed to
+      is fully inside 68-101, so the citation still lands a reader in the
+      right function, but it is not exact per this mission's own C-004
+      ("cite only checkout-verified paths").
+    remediation: >
+      Correct the citation to "mission_type_repository.py:68-101" (or
+      "69-101" if excluding the decorator lines) to match the actual
+      docstring span.

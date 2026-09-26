@@ -1,0 +1,172 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: SPEC-VERIFY-001
+    lens: Hypothesis-vs-fact discipline
+    severity: 3
+    title: "Origin & Framing asserts the defect as settled fact, contradicting CL-002's hypothesis framing"
+    evidence:
+      - artifact: "spec.md § Origin & Framing (paragraph beginning \"This is a latent production-side thread-safety defect, not (yet) an empirically reproduced one.\")"
+      - artifact: "spec.md § CL-002 (\"The YAML-singleton-corruption-drops-a-template-key causal chain below is a hypothesis, not a confirmed root cause.\")"
+    claim: >
+      Origin & Framing states flatly "This is a latent production-side
+      thread-safety defect" — asserting as fact that a production defect
+      exists — and only hedges on whether it has been *empirically
+      reproduced*, not on whether the causal mechanism itself is real. This
+      is stronger than what the evidence supports: the only signal is a
+      single 1/688 CI flake that 0/300 cold-subprocess reruns and 0/2000
+      Barrier-synchronized in-process trials both failed to reproduce
+      naturally, and CL-002 (a few paragraphs later) explicitly labels the
+      causal theory "a hypothesis... not a confirmed root cause." A
+      plan-phase author who skims Origin & Framing (the section every
+      reader hits first) and does not carry CL-002's caveat forward could
+      treat "there is definitely a production thread-safety defect" as
+      already established, short-circuiting the FR-001 research
+      requirement to investigate the mechanism on its merits.
+    remediation: >
+      Reword the Origin & Framing sentence to match CL-002's hedge, e.g.:
+      "This is a *suspected* latent production-side thread-safety defect —
+      not yet empirically reproduced, and the causal mechanism itself is
+      an unproven hypothesis (see CL-002)." Cross-reference CL-002 directly
+      from Origin & Framing so the hedge cannot be missed by a
+      section-skimming reader.
+
+  - id: SPEC-VERIFY-002
+    lens: Silent-success
+    severity: 4
+    title: "CL-006 cites a function name that does not exist anywhere in the codebase"
+    evidence:
+      - artifact: "spec.md § CL-006 (\"This applies to both the existing raise sites in src/specify_cli/runtime/resolver.py (_resolve_template_filename, TemplateConfigurationError construction around lines 474–526)\")"
+      - code: "src/specify_cli/runtime/resolver.py:440 (def resolve_configured_template(...) — the actual function containing the raise sites)"
+    claim: >
+      CL-006 names the function holding the "existing raise sites" that
+      the silent-success prohibition must preserve as
+      `_resolve_template_filename`. That identifier does not exist
+      anywhere in the repository (verified with
+      `grep -rn "_resolve_template_filename" src/ tests/` — zero hits).
+      The actual function at that location, containing the raise
+      statements for lines ~474–526 (confirmed: `assert_safe_path_segment`,
+      "has no configured template mapping", "is missing the requested
+      mapping key", "maps to a blank filename", "maps to unsafe filename",
+      "maps to unresolved filename" raises all live there), is
+      `resolve_configured_template`, defined at line 440. This directly
+      contradicts existing code and violates this same spec's own C-004
+      ("cite only checkout-verified paths") and the charter's "canonical
+      sources, never improvise" principle — inside the very clarification
+      that exists to keep the silent-success guarantee checkable. An
+      implementer or reviewer grepping for the named function to verify
+      CL-006 compliance will not find it.
+    remediation: >
+      Correct CL-006 to name `resolve_configured_template` (line 440,
+      raise sites at ~474–526) instead of `_resolve_template_filename`.
+      Re-verify every other function/symbol name cited in the spec against
+      the checkout the same way (not just line ranges) before the plan
+      phase begins.
+
+  - id: SPEC-VERIFY-003
+    lens: Falsifiability
+    severity: 3
+    title: "User Story 2 and User Story 3 Acceptance Scenarios omit the falsifiability clause present in User Story 1's"
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenarios 1–3 (each ends with an explicit \"(falsifiable: ...)\" clause)"
+      - artifact: "spec.md § User Story 2, Acceptance Scenarios 1–2 (no falsifiability clause; e.g. \"the reviewer can confirm red-before/green-after without needing to ask the implementer\")"
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 1 (\"it can determine within minutes whether this specific hypothesis was already tested\" — no falsifiability clause, and \"within minutes\" is not a checkable bound)"
+    claim: >
+      All three of User Story 1's Acceptance Scenarios state explicitly
+      how they fail (a parenthetical "falsifiable: ..." clause tied to a
+      concrete pass/fail condition). None of User Story 2's two scenarios
+      or User Story 3's one scenario carry an equivalent clause — instead
+      they describe a reviewer's or future maintainer's subjective ability
+      to "confirm" or "determine" something, with no stated condition under
+      which that ability should be judged to have failed. This is
+      particularly load-bearing for User Story 2, whose entire premise is
+      "prevents review drift... without an explicit bar, 'looks fixed'
+      becomes the de facto acceptance criterion" — the ACs meant to
+      operationalize that anti-drift guarantee are themselves not stated
+      falsifiably, which risks exactly the "looks fixed" drift the story
+      exists to prevent once a tasks-phase author tries to turn AC1/AC2
+      into a checkable review-gate deliverable.
+    remediation: >
+      Add an explicit falsifiability clause to each of User Story 2 AC1,
+      AC2, and User Story 3 AC1, e.g. for US2-AC1: "(falsifiable: if the
+      reviewer must ask the implementer what the test proves, or cannot
+      locate a red-before/green-after commit pair in the PR history, this
+      scenario fails)"; for US2-AC2: "(falsifiable: if the diff touches
+      step.yaml schema, MissionType/MissionStep models, or meta.json
+      shape, this scenario fails)"; for US3-AC1, replace "within minutes"
+      with a concrete artifact check (e.g., "(falsifiable: if research.md
+      does not name this hypothesis and its trial counts, or a future
+      investigator cannot answer 'was this tried' from the tracer files
+      alone, this scenario fails)").
+
+  - id: SPEC-VERIFY-004
+    lens: Silent-success
+    severity: 4
+    title: "CL-006's silent-success prohibition for new lock/cache code (FR-006) has no corresponding Acceptance Scenario or Success Criterion"
+    evidence:
+      - artifact: "spec.md § CL-006 (\"a lock timeout, a corrupted-cache detection, or a retry-exhaustion path must all raise, not degrade\")"
+      - artifact: "spec.md § FR-006 (\"Fail loudly on every cache/lock error path\")"
+      - artifact: "spec.md § Success Criteria (SC-001 through SC-005 — none test a lock-timeout/corrupted-cache raise path)"
+      - artifact: "spec.md § User Story 1 Acceptance Scenarios 1–3 (cover only the red-first interleaving test and the pre-existing natural test, not a new lock/cache failure-path test)"
+    claim: >
+      CL-003's red-first bar is operationalized concretely: it has its own
+      severity-4 rule, and it is checkable via User Story 1 AC1/AC2 plus
+      SC-001 (run against both pre-fix and post-fix commits). CL-006's
+      silent-success prohibition — arguably the mission's other central
+      correctness guarantee, and this lens group's namesake concern — gets
+      no equivalent treatment: FR-006 states the requirement in prose, but
+      no Acceptance Scenario or Success Criterion says how a reviewer would
+      check it (e.g., a dedicated test that forces a lock timeout or a
+      corrupted-cache condition and asserts `TemplateConfigurationError` is
+      raised rather than `None`/an empty mapping being returned). Per the
+      severity rubric this is an "FR without coverage" gap: a plan/tasks
+      author has no checkable bar to turn into a concrete test deliverable
+      for CL-006, unlike CL-003 which is fully operationalized.
+    remediation: >
+      Add an Acceptance Scenario (or a fourth Success Criterion, e.g.
+      SC-006) stating: "Given a forced lock-timeout or corrupted-cache
+      condition in the new concurrency-safety code, when cache population
+      is attempted, then TemplateConfigurationError (or an equivalent
+      explicit exception) is raised — never None, an empty mapping, or a
+      partial template_set (falsifiable: if any such path returns instead
+      of raising, this criterion fails)." Require a dedicated unit test for
+      this in FR-006/CL-006's own terms, not folded silently into the
+      red-first interleaving test.
+
+  - id: SPEC-VERIFY-005
+    lens: Red-first-by-construction honesty (mission-derived L3)
+    severity: 3
+    title: "User Story 1 AC1's 'pre-fix code on this mission's planning_base_branch' is ambiguous once planning_base_branch is the mission's own single branch"
+    evidence:
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 1 (\"Given the pre-fix code on this mission's planning_base_branch, When the new Barrier-synchronized, instrumented regression test is run, Then it fails...\")"
+      - artifact: "spec.md § CL-004 (\"A failing-first test is committed before the production fix, as a distinct commit\")"
+      - artifact: "kitty-specs/concurrent-template-config-race-4589-01M35M6B/tasks/README.md:26 (\"planning_base_branch: \\\"fix/concurrent-template-config-race-4589\\\"\")"
+      - artifact: "kitty-specs/concurrent-template-config-race-4589-01M35M6B/meta.json (\"topology\": \"single_branch\", \"target_branch\": \"fix/concurrent-template-config-race-4589\")"
+    claim: >
+      `planning_base_branch` for this mission is not a stable pre-mission
+      baseline (e.g. `main`) — it is this mission's own single working
+      branch (`fix/concurrent-template-config-race-4589`), which per
+      CL-004 will accumulate both the red-first test commit and the
+      production-fix commit as *later commits on that same branch*. AC1's
+      phrase "the pre-fix code on this mission's planning_base_branch"
+      therefore cannot mean "the tip of planning_base_branch" (by mission
+      end, the tip includes the fix) — it must mean "the commit on that
+      branch where the test exists but the fix commit has not yet been
+      added," which is exactly what CL-004 specifies, but AC1 does not say
+      so itself and does not cross-reference CL-004. A plan/tasks-phase
+      author implementing the red-first verification step from AC1 alone
+      (without re-deriving CL-004's commit-ordering intent) could
+      mistakenly check out an unrelated ref (e.g. upstream `main`, which
+      lacks the new test file entirely) and get a false negative/positive
+      on the severity-4 red-first bar.
+    remediation: >
+      Reword AC1 to name the commit precisely, e.g.: "Given the commit on
+      this mission's branch that lands the red-first regression test
+      *before* the production-fix commit is added (per CL-004), When the
+      new Barrier-synchronized, instrumented regression test is run at
+      that commit, Then it fails..." — removing the implicit assumption
+      that "planning_base_branch" denotes a fixed pre-mission baseline.

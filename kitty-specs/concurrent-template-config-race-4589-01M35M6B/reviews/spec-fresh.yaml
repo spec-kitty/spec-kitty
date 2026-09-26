@@ -1,0 +1,52 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flipped to true after the yaml self-check passes
+phase: spec
+lens_group: fresh
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: SPEC-FRESH-001
+    lens: Fix-application completeness (structural-fix-plan convergence)
+    severity: 4
+    title: "SC-003 still names the forbidden private `_resolve_all_for_mission_type_cached.cache_clear()` seam that FR-003/NFR-003 were just fixed to stop naming"
+    evidence:
+      - artifact: "spec.md § Success Criteria (SC-003, lines 446-451)"
+      - artifact: "spec.md § Functional Requirements (FR-003, line 389) — post-fix wording"
+      - artifact: "spec.md § Non-Functional Requirements (NFR-003, line 402) — post-fix wording"
+      - code: "src/charter/offering/missions/mission_step_repository.py:464-465 (\"Cleared via :meth:`MissionStepRepository.cache_clear` (test seam) -- never call ``.cache_clear()`` on this private function directly from outside this module.\")"
+      - code: "src/charter/offering/missions/mission_step_repository.py:324-333 (the public `MissionStepRepository.cache_clear()` staticmethod, the actual exercised seam)"
+      - artifact: "kitty-specs/concurrent-template-config-race-4589-01M35M6B/reviews/spec.confirmed.yaml (SPEC-ARCH-001, remediation text: \"Reword NFR-003 (and the FR-003 seam list) to name the actual public, tested seam ... with the private function's cache_clear described only as the internal mechanism\")"
+    claim: >
+      The prior fix round (commit c02a57837) correctly reworded FR-003 and
+      NFR-003 to stop naming the private, module-internal
+      `_resolve_all_for_mission_type_cached.cache_clear()` as a
+      directly-preserved contract surface, per SPEC-ARCH-001's confirmed
+      finding and its remediation ("Reword NFR-003 (and the FR-003 seam
+      list)"). But that remediation was applied only at the two cited
+      instances. An identical instance of the same defect survives verbatim
+      in Success Criteria SC-003, which still reads: "`MissionTypeRepository
+      .default.cache_clear()` and `_resolve_all_for_mission_type_cached
+      .cache_clear()` remain present, callable, and behave per their
+      existing ... docstring contracts — verified by the existing tests
+      that depend on these seams continuing to pass unmodified." This is
+      now internally contradictory with the just-fixed FR-003/NFR-003 (which
+      correctly say the private function must never be called directly from
+      outside the module), and it is independently defective on its own
+      terms: SPEC-ARCH-001's own confirmed evidence states "no test anywhere
+      calls the private function's cache_clear directly," so SC-003's claim
+      that this specific seam is "verified by the existing tests" is
+      vacuous — there is no such test, and per the code's own docstring
+      there should never be one. A plan/implementation agent reading SC-003
+      in isolation could reasonably conclude a test must be added that calls
+      `_resolve_all_for_mission_type_cached.cache_clear()` directly to
+      satisfy this success criterion, which would violate the module's own
+      documented contract.
+    remediation: >
+      Apply the same edit already made to FR-003/NFR-003 to SC-003: replace
+      the bare `_resolve_all_for_mission_type_cached.cache_clear()` mention
+      with `MissionStepRepository.cache_clear()` (mission_step_repository.py
+      :324-333) as the preserved/verified public seam, describing the
+      private function's cache_clear only as the internal mechanism that
+      wrapper calls — matching the wording pattern now used in FR-003 and
+      NFR-003 exactly, so all three requirement/criterion statements of this
+      seam agree.

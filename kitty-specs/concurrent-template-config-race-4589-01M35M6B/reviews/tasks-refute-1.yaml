@@ -1,0 +1,20 @@
+schema: review-refute/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: "Line 63 Objective and line 266 T002 Purpose verbatim-match the finding's quotes and both label the OBL-1+OBL-2+OBL-3 set 'red-first'/'ATDD red-first commit' with no co-located caveat, even though plan.md (1434-1440) and plan.ruling.md's ARB-001/global-ruling item 5 are explicit that OBL-3 must never be characterized as red-first."
+  - id: TASKS-DECOMP-002
+    verdict: confirmed
+    reason: "Direct grep confirms the cited raw counts exactly (12 cache_clear calls across the 3 test files, 1 cache_info call, 1 production self-call at mission_type_repository.py:207), so line 138's itemization sums to 14 while headlined '13', and line 382's 'and 12 other call sites' is a third, distinct, unreconciled figure."
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: "Binding constraint 6 (cross-process/varied PYTHONHASHSEED) is transcribed verbatim at line 185, but T002's 7 steps, T006's 8 steps (including the explicit NFR-002 timing step 5), and the DoD checkboxes for T002/T006 contain no step or checkbox requiring separate-process/varied-seed execution of any test."
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: "git log confirms actual HEAD is 17360cd4f, not 57769a254 (cited by WP01 line 229) nor 6390fcf51 (cited by plan.md line 986); all three differ from each other, though git diff --stat 288aef2f9 -- src tests is empty at HEAD so the underlying baseline invariant itself still holds."
+  - id: TASKS-VERIFY-003
+    verdict: confirmed
+    reason: "Line 167's OBL-5 obligation-table row states '6b reverted/6a kept: not applicable' while line 176's revert-matrix row and T006 step 3 (line 332) both require OBL-5 to run and pass 'still green'/'unaffected' in that same cell — a genuine unreconciled contradiction, inherited from the identical contradiction in plan.md's own §8b/§8c."

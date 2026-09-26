@@ -1,0 +1,111 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh-3-debbie
+mission: concurrent-template-config-race-4589-01M35M6B
+findings:
+  - id: PLAN-FRESH3-DEBBIE-001
+    lens: Test strategy is concrete per AC/FR
+    severity: 4
+    title: >-
+      §8f's SECOND_SITE invocation-count target is a per-file leaf function,
+      not the per-key cache-miss body — the "exactly once" assertion cannot
+      pass even with a correct fix
+    evidence:
+      - artifact: "plan.md §8a (_FixSiteCase table), line 511: `cache_miss_body=\"charter.offering.missions.mission_type_repository._load_layered_mission_type_file\"`"
+      - artifact: "plan.md §8f, lines 725-747 (asserts \"the instrumented body executed exactly once, not twice, for that case\")"
+      - code: "src/charter/offering/missions/mission_type_repository.py:477-481 (`resolve_layered_mission_types` is the actual `@functools.cache`-wrapped function; Section 6b's own text says its *body* -- not `_load_layered_mission_type_file` -- is what acquires `_lock_for(key)`)"
+      - code: "src/charter/offering/missions/mission_type_repository.py:456-474 (`scan_mission_types_dir` calls `_load_layered_mission_type_file` once per `*.yaml` file found in the scanned directory, inside a single `resolve_layered_mission_types` invocation)"
+      - code: "packs/built-in/missions/mission_types/ contains 4 files: documentation.yaml, plan.yaml, research.yaml, software-dev.yaml (verified via `find`)"
+    claim: >-
+      §8f's stated purpose is to prove 6b's per-key lock prevents two
+      concurrent threads from both executing the cache-miss body for the
+      same key, by counting invocations of `case.cache_miss_body` and
+      asserting the count is exactly 1. For PRIMARY_SITE the chosen target
+      (`_resolve_all_for_mission_type_uncached`) is correct: it is the
+      direct body of the `@functools.cache`-wrapped
+      `_resolve_all_for_mission_type_cached`, called exactly once per
+      cache-miss episode regardless of how many step files that episode
+      internally walks. For SECOND_SITE, the plan instead targets
+      `_load_layered_mission_type_file` -- an inner, per-*file* parse
+      function analogous to `_load_step_yaml` (PRIMARY_SITE's *un-tracked*
+      inner function), not to `_resolve_all_for_mission_type_uncached`. A
+      single, correctly-serialized call to `resolve_layered_mission_types`
+      for the built-in `mission_types_dirs` key scans all 4 yaml files in
+      that directory via `scan_mission_types_dir`, calling
+      `_load_layered_mission_type_file` 4 times -- once per file -- even
+      with zero concurrency and a fully-working per-key lock. §8f's
+      assertion ("executed exactly once") is therefore guaranteed to
+      observe a count of 4 (or at minimum 2, given `race_target_a`/
+      `race_target_b` alone are two distinct files under the same key) for
+      SECOND_SITE regardless of whether 6b is present, reverted, or
+      broken -- the test cannot distinguish "lock present" from "lock
+      absent" and cannot even reach GREEN post-fix as literally specified.
+      This is exactly the site-asymmetry class of defect this mission has
+      a documented history of (round 2's PLAN-FRESH2-001/002/003), now
+      reintroduced in the one subsection (8f) round 3's rewrite did not
+      carry a worked-through per-site granularity check for.
+    remediation: >-
+      Change SECOND_SITE's `cache_miss_body` in the `_FixSiteCase` table
+      (plan.md line 511) to `resolve_layered_mission_types` itself (or an
+      explicitly-described wrapper around its lock-guarded body, entered
+      once per cache-miss episode) -- the true analog of PRIMARY_SITE's
+      `_resolve_all_for_mission_type_uncached` -- and restate §8f's
+      SECOND_SITE assertion target accordingly so "executed exactly once"
+      is achievable and meaningful post-fix.
+
+  - id: PLAN-FRESH3-DEBBIE-002
+    lens: Determinism
+    severity: 4
+    title: >-
+      §8b's Barrier-forced-interleave construction never specifies how the
+      pause is pinned to `race_target_a` specifically, and the stated patch
+      boundary cannot see the file identity needed to do so
+    evidence:
+      - artifact: "plan.md §8b, lines 572-584 (\"the paused thread is the first to enter the cache-miss body; it blocks on a threading.Barrier(2) immediately after it has started its .load() call on case.race_target_a\")"
+      - artifact: "plan.md §8a, lines 495-514 (`_FixSiteCase.pre_fix_load_call` = `..._YAML.load` / `..._LAYERED_YAML.load`, the module-level singleton's bound `.load` method)"
+      - code: "src/charter/offering/missions/mission_step_repository.py:133 (`_YAML.load(step_file.read_text(...))` -- `.load()` receives only the parsed YAML *text*, never `step_file`'s path)"
+      - code: "src/charter/offering/missions/mission_type_repository.py:389 (`_LAYERED_YAML.load(yaml_file.read_text(...))` -- same signature limitation)"
+      - code: "src/charter/offering/missions/mission_step_repository.py:344,360 (`step_ids: set[str] = set()` populated via `.add()`, then `for step_id in step_ids:` with no `sorted()` -- CPython set iteration order for strings depends on the process's (randomized-by-default) hash seed)"
+      - code: "src/charter/offering/missions/mission_type_repository.py:471 (`sorted(entry for entry in entries if entry.name.endswith(\".yaml\"))` -- deterministic alphabetical order: documentation.yaml, plan.yaml, research.yaml, software-dev.yaml)"
+    claim: >-
+      Both fix sites' cache-miss body walks every file for the target
+      mission type in one synchronous loop before returning (12 step files
+      for `software-dev` at the primary site; all 4 built-in mission-type
+      files at the second site) -- not just the two files named
+      `race_target_a`/`race_target_b`. To pause a thread "immediately after
+      it has started its .load() call on case.race_target_a" specifically
+      (as opposed to any other file that thread also loads in the same
+      walk), the monkeypatch must be able to recognize *which* file is
+      currently being loaded. The patch boundary the plan actually names,
+      `case.pre_fix_load_call` (the shared singleton's `.load` method),
+      receives only the already-read YAML text string as its argument --
+      never the file path -- so a literal patch at that exact call
+      boundary cannot discriminate `race_target_a`'s content from any
+      other file's content without an undescribed content-sniffing
+      mechanism (e.g. substring-matching the raw YAML text). Worse, for
+      PRIMARY_SITE the per-thread walk order over `step_ids` is a raw
+      Python `set` iterated with no `sorted()` call, so which step's
+      `.load()` fires first is not controlled by the test at all and can
+      differ between separate pytest process invocations (hash-seed
+      randomization) -- undermining NFR-001's explicit falsifiability bar
+      ("run the new test 50 times in a row -- it must produce the same
+      red/green verdict every time"). For SECOND_SITE the walk order is at
+      least deterministic (alphabetical), but `race_target_a` =
+      "software-dev.yaml" is processed *last* of 4 files, not first, so
+      even there "the first .load() call" is not `race_target_a`'s call --
+      an implementer following the plan literally ("blocks... after
+      starting its .load() call on race_target_a") has no stated technique
+      that actually produces this pin deterministically at either site.
+    remediation: >-
+      State explicitly, per site: (a) which function is actually
+      monkeypatched -- a path-aware function that receives the file
+      identity as an argument (e.g. `_load_step_yaml(step_file)` /
+      `_load_layered_mission_type_file(yaml_file, ...)`, not the
+      path-blind `.load()` call), and (b) the exact predicate used to
+      recognize `race_target_a` specifically (e.g.
+      `step_file.parent.name == "specify"` /
+      `yaml_file.name == "software-dev.yaml"`), so the pause is pinned by
+      file identity rather than call order -- removing any dependency on
+      `step_ids` set-iteration order or on which file a sorted scan visits
+      first.

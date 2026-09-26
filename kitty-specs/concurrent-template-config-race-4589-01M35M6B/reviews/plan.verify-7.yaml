@@ -1,0 +1,84 @@
+schema: review-verify/v1
+phase: plan
+round: 7
+mission: concurrent-template-config-race-4589-01M35M6B
+profile: reviewer-renata
+directives_applied:
+  - "024: Locality of Change — verified the diff touches only the two cited
+    sites (git diff --stat shows one file, +4/-3, two hunks) and nothing
+    else, before assessing content."
+  - "032: Conceptual Alignment — cross-checked every plan.md mention of
+    resolve_layered_mission_types against the private/public split the
+    fix commits to, to catch terminology drift between the fixed sentence
+    and the rest of §6b."
+  - "030: Test and Typecheck Quality Gate — treated the call-site count as
+    a re-derivable fact and independently re-ran the grep the plan's claim
+    is supposed to match, rather than trusting the prose."
+results:
+  - id: PLAN-FRESH6-002
+    status: resolved
+    evidence: >-
+      git diff hunk at plan.md:362 now reads "`_resolve_all_for_mission_type_cached`
+      and `_resolve_layered_mission_types_cached` keep their `@functools.cache`
+      decorator" (was: "...and `resolve_layered_mission_types` keep..."),
+      naming the PRIVATE cached function. The paragraph's remaining claim —
+      the parenthetical "Section 5's `cache_clear()` contract is untouched by
+      this move, since it only ever calls the `@functools.cache` wrapper's own
+      `.cache_clear()`" — stays true under the forwarding design: §6b's later
+      "Preserving the public `.cache_clear()`/`.cache_info()` seam" subsection
+      (plan.md:404-458) has the public `resolve_layered_mission_types` wrapper
+      bind `.cache_clear = _resolve_layered_mission_types_cached.cache_clear`
+      (plan.md:456-458), so calling `.cache_clear()` on the public name still
+      calls "the `@functools.cache` wrapper's own `.cache_clear()`" (now the
+      private one's, reached via forwarding) — no contradiction introduced.
+      Ran `grep -n "resolve_layered_mission_types" plan.md` (36 hits) and read
+      every hit in context (lines 1-30, 90-135, 215-245, 340-480, 595-640,
+      755-790, 860-880, 944-953): all other mentions either (a) describe
+      TODAY's pre-fix code explicitly or by citing today's line numbers/body
+      location (e.g. summary line 25 "Both singletons feed `functools.cache`-
+      wrapped functions (..., `resolve_layered_mission_types`)" describing the
+      defect as found; §8a fact-table row 770 citing the walk "currently
+      inline" per §9's own line-870 phrasing at today's `580-601`), or (b)
+      reference the public name as the post-fix entry point / docstring /
+      cache-clear-forwarding target without asserting it is itself
+      `@functools.cache`-decorated after the fix (e.g. §8a row 772's "site's
+      own cache-clear seam ... resolve_layered_mission_types.cache_clear()"
+      is the forwarded attribute, not a decorator claim; §7's SECOND_SITE
+      line 601-602 cites post-fix wrapper lines 477-481, matching the
+      lock-wrapping `def resolve_layered_mission_types(...)` shown at
+      plan.md:447). No sentence states or implies the public name keeps the
+      decorator after the fix.
+  - id: PLAN-FRESH6-001
+    status: resolved
+    evidence: >-
+      git diff hunk at plan.md:412-414 now reads "12 call sites across three
+      test files call `resolve_layered_mission_types.cache_clear()` directly
+      (13 including the one `.cache_info()` call site below)" (was: "at least
+      15+ call sites"), against the same three named files
+      (`tests/charter/test_mission_type_path_layout_ssot.py`,
+      `tests/doctrine/missions/test_mission_type_repository.py`,
+      `tests/charter/test_charter_import_time_io.py`). Independently ran
+      `grep -rn "resolve_layered_mission_types\.\(cache_clear\|cache_info\|
+      cache_parameters\)" src tests`: actual `.cache_clear()` call sites in
+      those three test files = 2 (test_charter_import_time_io.py:99,102) + 2
+      (test_mission_type_path_layout_ssot.py:79,82) + 8
+      (test_mission_type_repository.py:543,546,655,658,809,812,901,904) = 12,
+      plus the one `.cache_info()` call at
+      test_charter_import_time_io.py:231 = 13 total — exact match. The two
+      other grep hits (src/.../mission_type_repository.py:207, an actual
+      `.cache_clear()` call inside the source's own `cache_clear()`
+      staticmethod, and src/.../mission_type_repository.py:522 plus
+      test_charter_import_time_io.py:40, both prose/docstring mentions in
+      backticks, not calls) are correctly excluded from "call sites across
+      three test files."
+  - id: SCOPE-DIFF
+    status: resolved
+    evidence: >-
+      `git status` shows only plan.md modified, nothing staged/committed,
+      HEAD still b6878da22. `git diff --stat` shows exactly one file changed,
+      4 insertions(+), 3 deletions(-). `git diff` shows exactly two hunks:
+      one at plan.md:362 (the PLAN-FRESH6-002 sentence) and one at
+      plan.md:412-414 (the PLAN-FRESH6-001 count sentence). No other file,
+      section, or unrelated line in plan.md was touched.
+out_of_scope_notes: []
+complete: true

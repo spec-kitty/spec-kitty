@@ -1,0 +1,28 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 1
+verdicts:
+  - id: PR-CONTRACT-001
+    verdict: confirmed
+    reason: >-
+      Reproduced exactly 6 mypy --strict errors on this branch at the cited
+      lines/codes and confirmed origin/main is clean (Success: no issues
+      found in 2 source files) in a throwaway worktree; charter.md Testing
+      Requirements and Code Review Checklist bind "mypy --strict must pass",
+      the Makefile typecheck target covers only two unrelated files, the one
+      CI-enforced mypy pytest gate targets a different module, and
+      wp-WP01.yaml's checks_run never runs mypy — all cited artifacts match
+      as stated.
+  - id: PR-TESTS-001
+    verdict: confirmed
+    reason: >-
+      Read all four OBL-1/OBL-2 tests at the cited lines: each does
+      t1.join(timeout=30)/t2.join(timeout=30) with no is_alive() check on
+      either thread, and the only post-join assertions (errors dict, which
+      is populated solely by raised exceptions, and captured/counter values
+      that only need ONE side to have completed) would not fail if the
+      other thread were permanently hung, unlike the OBL-5 test at
+      lines 769-770 which correctly pairs a timed join with
+      assert not clear_thread.is_alive().

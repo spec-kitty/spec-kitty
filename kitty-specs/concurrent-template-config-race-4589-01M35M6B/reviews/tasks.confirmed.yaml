@@ -1,0 +1,209 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+mission: concurrent-template-config-race-4589-01M35M6B
+source: reviews/tasks.merged.yaml findings with verdict=confirmed in reviews/tasks-refute-1.yaml
+findings:
+- id: TASKS-DECOMP-001
+  lens: OBL-3 red/green framing not diluted
+  severity: 3
+  title: WP01's Objective and T002's headline both label the OBL-1+OBL-2+OBL-3 commit a 'red-first ...
+    trio', re-introducing the exact confusion the arbiter's plan-phase ruling closed
+  evidence:
+  - artifact: tasks/WP01-concurrent-yaml-cache-race-fix.md § Objective, line 63
+  - artifact: tasks/WP01-concurrent-yaml-cache-race-fix.md § Subtask T002 Purpose, line 266
+  - artifact: reviews/plan.ruling.md, ARB-001/DEBBIE-001 disposition and 'Global ruling' item 5 (commit
+      phasing must state which reds are load-bearing and which are trivial; OBL-3 is never red)
+  - artifact: 'plan.md:1434-1440 (§14 commit phasing: ''OBL-3 is already GREEN at this commit, not red
+      ... it is committed alongside the red obligations for review-diff cohesion, not because it is red-first'')'
+  claim: 'The Objective section''s summary sentence reads: "by (1) landing a red-first, Barrier-synchronized
+    regression test trio proving the defect is real and reachable through create_mission_core, then (2)
+    fixing both sites ...". The "test trio" is OBL-1+OBL-2+OBL-3 (per T002''s own Purpose line, which
+    groups the same three obligations under "Land the ATDD red-first commit (C-011) — OBL-1, OBL-2, and
+    OBL-3"). Both headline statements characterize the whole three-test set, OBL-3 included, as "red-first"
+    / "the ATDD red-first commit", with no adjacent qualifier. The plan (and the arbiter ruling that produced
+    it) is explicit and unusual on this exact point: OBL-3 is a construction-invariant that is ALREADY
+    GREEN at Base and must never be characterized as red-first — this is precisely the confusion that
+    reopened PLAN-VERIFY-003 in the plan phase (reviews/plan.ruling.md, ARB-001). WP01''s body does correctly
+    disambiguate OBL-3 later (the OBL-3 table row, the revert matrix, the commit-phasing section, and
+    T002 step 7''s explicit "State plainly ... that OBL-3 is committed green (regression guard, not red-first)"),
+    but the two headline statements a reader encounters first — the Objective and T002''s own Purpose
+    line — both use "red-first"/"ATDD red-first commit" to describe a set that includes OBL-3 without
+    any co-located caveat.
+
+    '
+  remediation: 'Add an explicit, co-located qualifier to both headline sentences. Objective (line 63):
+    change "(1) landing a red-first, Barrier- synchronized regression test trio" to something like "(1)
+    landing a red-first regression test pair (OBL-1, OBL-2) plus a green-at-Base construction-invariant
+    regression guard (OBL-3), all Barrier- synchronized and committed together for review-diff cohesion".
+    T002 Purpose (line 266): change "Land the ATDD red-first commit (C-011) — OBL-1, OBL-2, and OBL-3"
+    to "Land the ATDD red-first commit (C-011) — OBL-1 and OBL-2 red-first, plus OBL-3 (already green
+    at Base, a regression guard, not red-first evidence) committed alongside them for review-diff cohesion".
+
+    '
+- id: TASKS-DECOMP-002
+  lens: Mission-derived — binding-notes fidelity (§6b's 13-call-site dependency)
+  severity: 3
+  title: WP01's restructured '13 existing call sites' claim is internally inconsistent (its own itemized
+    list sums to 14, not 13), and a second count ('12 other call sites') in the Risks section disagrees
+    with both
+  evidence:
+  - artifact: 'tasks/WP01-concurrent-yaml-cache-race-fix.md line 138 (''13 existing call sites depend
+      on this: 12 direct .cache_clear() calls ..., plus MissionTypeRepository.cache_clear()''s own body
+      ..., plus one .cache_info() call ...'')'
+  - artifact: tasks/WP01-concurrent-yaml-cache-race-fix.md line 382 ('... will silently break tests/charter/test_charter_import_time_io.py
+      and 12 other call sites with AttributeError')
+  - artifact: 'plan.md:412-414 (arbiter-corrected text, landed in commit 57769a254: ''12 call sites across
+      three test files call resolve_layered_mission_types.cache_clear() directly (13 including the one
+      .cache_info() call site below) ..., MissionTypeRepository.cache_clear()''s own body ... also calls
+      it directly'')'
+  - code: tests/charter/test_charter_import_time_io.py:99,102,231 (2 .cache_clear() + 1 .cache_info()
+      call)
+  - code: tests/charter/test_mission_type_path_layout_ssot.py:79,82 (2 .cache_clear() calls)
+  - code: tests/doctrine/missions/test_mission_type_repository.py:543,546,655,658,809,812,901,904 (8 .cache_clear()
+      calls)
+  - code: src/charter/offering/missions/mission_type_repository.py:206 (MissionTypeRepository.cache_clear()'s
+      own body calling resolve_layered_mission_types.cache_clear())
+  claim: 'Verified by direct grep: there are exactly 12 test-file `.cache_clear()` calls (2 in test_charter_import_time_io.py,
+    2 in test_mission_type_path_layout_ssot.py, 8 in test_mission_type_repository.py) plus 1 `.cache_info()`
+    call (also in test_charter_import_time_io.py) plus the production-code self-call at MissionTypeRepository.cache_clear()''s
+    own body (mission_type_repository.py:206) — 14 distinct call sites total that depend on the forwarding
+    fix. plan.md''s own text (corrected in commit 57769a254) states "12 ... (13 including the .cache_info()
+    call site)" as ONE figure, then separately names the repository''s own-body call as an ADDITIONAL
+    fact not folded into that "13" — internally consistent, if terse. WP01 restructures this into a single
+    "plus ... plus ..." enumeration that arithmetically sums to 14 while still being labeled "13 existing
+    call sites" — an internal contradiction introduced by WP01''s own rewording, not present in plan.md''s
+    phrasing. The Risks section then gives a THIRD, also-wrong figure: "12 other call sites" besides test_charter_import_time_io.py
+    — but the two other files together hold only 10 `.cache_clear()` calls (2 + 8), so "12 other" overcounts
+    by 2. This is exactly the SECOND_SITE binding requirement the WP itself calls "highest risk", so an
+    inconsistent call-site tally undermines confidence a reviewer checking "did every dependent call site
+    stay green" is working from a correct completeness bar, even though the concrete file/test names cited
+    elsewhere (T004 steps 7-8, Reviewer Guidance) are accurate.
+
+    '
+  remediation: 'Fix the arithmetic at both sites. Line 138: either change the headline to "14 existing
+    call sites" (12 cache_clear + 1 cache_info + 1 repository-body self-call) if all three items are being
+    summed, or restore plan.md''s original structure — "13 existing call sites (12 `.cache_clear()` +
+    1 `.cache_info()`) plus the repository''s own body call as a 14th, separately-tracked dependency"
+    — so the stated total matches its own itemization. Line 382: change "12 other call sites" to "9 other
+    .cache_clear() call sites plus the repository''s own body call" (or "13 other call sites total, across
+    two test files and the repository''s own cache_clear() body") to match the corrected count.
+
+    '
+- id: TASKS-VERIFY-001
+  lens: NFR-001 determinism and baseline anchoring (fakeable-DoD)
+  severity: 4
+  duplicate_of: []
+  merged_with:
+  - TASKS-DECOMP-003
+  title: NFR-001's cross-process/varied-PYTHONHASHSEED check is stated as a binding constraint but never
+    wired into an executable subtask step or DoD checkbox
+  evidence:
+  - artifact: 'tasks/WP01-concurrent-yaml-cache-race-fix.md line 185 (binding constraint 6, transcribed
+      from plan.md §8d item 6): "NFR-001 determinism verified across SEPARATE PROCESSES with varied PYTHONHASHSEED,
+      not one in-process loop"'
+  - artifact: tasks/WP01-concurrent-yaml-cache-race-fix.md § Subtask T002 (lines 264-278), § Subtask T006
+      (lines 325-346), and § Definition of Done (lines 363-376) — none of T002's 7 steps, T006's 8 steps,
+      or the DoD checkboxes for T002/T006 (lines 366, 370) mention running OBL-1 (or any test) across
+      separate processes / with varied PYTHONHASHSEED. T006's own DoD line (370) enumerates NFR-002 timing
+      explicitly but has no equivalent NFR-001 item.
+  - artifact: plan.md lines 900-905 (§9 binding note) and reviews/plan.ruling.md PLAN-FRESH3-DEBBIE-002
+      disposition (lines 134-145) — the arbiter's own sev-4 finding required this exact obligation to
+      be stated as an obligation, precisely because an in-process 50-rep loop keeps one hash seed and
+      would silently pass a test whose verdict actually depends on the seed (PRIMARY_SITE's unsorted-set
+      walk order).
+  - artifact: (from TASKS-DECOMP-003) constraints 1,2,3,4,5,7 are each traced to a concrete T001/T002/T004/T006
+      step; constraint 6 alone has no matching action item anywhere, no DoD line, and no Reviewer Guidance
+      bullet.
+  claim: 'WP01 correctly restates the plan-level NFR-001 constraint (cross-process, varied PYTHONHASHSEED,
+    never a single in-process loop) verbatim from plan.md §8d item 6/§9, but unlike every other binding
+    constraint in that list (1, 3, 4, 5, 7 are each embedded into a concrete T001/T002/T004/T006 step
+    or DoD line), constraint 6 has no corresponding subtask step, no DoD checkbox, and no Reviewer Guidance
+    bullet requiring it to actually be executed and its result recorded. An implementer can satisfy every
+    listed T001-T007 step and tick every DoD box without ever running the new OBL-1 test as N separate
+    subprocess/xdist-worker invocations with varied PYTHONHASHSEED — i.e., NFR-001 (a High-priority spec
+    requirement, and the exact subject of arbiter finding PLAN-FRESH3-DEBBIE-002, sev 4) has no operational
+    coverage anywhere in this WP''s executable instructions, only descriptive prose. This is the class
+    of gap the fakeable-DoD lens targets: the AC is stated but not made checkable/enforced. Two independent
+    lens groups (decomp and verify) found this same gap independently.
+
+    '
+  remediation: 'Add an explicit step to T006 (or a new T006 sub-step alongside the NFR-002 timing check)
+    that runs the OBL-1 test suite as N (e.g. 10-50) separate `python -m pytest` subprocess invocations
+    with `PYTHONHASHSEED` varied across runs (e.g. unset/random per invocation, or explicitly looped over
+    a handful of distinct seed values), asserts an identical red/green verdict across all of them, and
+    records the seeds/counts used. Add a corresponding DoD checkbox under T006 (mirroring the existing
+    NFR-002 line at WP01 line 370) and a Reviewer Guidance bullet requiring the reviewer to see this evidence
+    before accepting the WP.
+
+    '
+- id: TASKS-VERIFY-002
+  lens: NFR-001 determinism and baseline anchoring
+  severity: 2
+  title: WP01's cited 'current HEAD' for the baseline anchor is stale and does not match plan.md's own
+    anchor or the actual repository HEAD at tasks-authoring time
+  evidence:
+  - artifact: 'tasks/WP01-concurrent-yaml-cache-race-fix.md line 229: "All five are fully green at baseline
+      commit 288aef2f9 (current HEAD 57769a254 has zero src/tests diff against it, so it remains the valid
+      baseline)."'
+  - artifact: 'plan.md line 986: "this checkout''s HEAD (`6390fcf51`) sits on the mission''s own working
+      branch" — a different commit than the one WP01 cites.'
+  - code: 'git log --oneline at review time: HEAD is 17360cd4f ("Add tasks for feature concurrent-template-config-race-4589-01M35M6B"),
+      four commits ahead of 57769a254, which is itself several commits ahead of plan.md''s own cited 6390fcf51.
+      `git diff --stat 288aef2f9 -- src tests` is empty at all three points, so the underlying "zero src/tests
+      diff" claim still holds, but none of the three artifacts (plan.md, WP01, and the actual repo) agree
+      on which commit hash is ''current HEAD''.'
+  claim: 'The baseline invariant itself (zero src/tests diff against 288aef2f9) is true and verified,
+    so this does not currently mislead an implementer about what to fix. But WP01 cites a specific, wrong
+    HEAD hash (57769a254) as "current HEAD" rather than re-deriving it or citing plan.md''s own anchor
+    (6390fcf51) — neither matches the actual HEAD at tasks-authoring time (17360cd4f). An implementer
+    or reviewer who runs `git rev-parse HEAD` to sanity-check this claim will see a mismatch and may waste
+    time investigating whether the baseline is stale rather than re-verifying the (still-true) invariant
+    directly.
+
+    '
+  remediation: 'Replace the specific hardcoded "current HEAD" hash in WP01 with an instruction to re-run
+    `git diff --stat 288aef2f9 -- src tests` at implementation time and confirm it is empty, rather than
+    citing a point-in-time HEAD hash that will keep going stale as chore/tracer commits land on the mission
+    branch. If a hash must be cited, use plan.md''s own anchor (6390fcf51) or re-derive the value fresh
+    rather than propagating a third, different value.
+
+    '
+- id: TASKS-VERIFY-003
+  lens: OBL-1..OBL-5 revert-matrix soundness (cell by cell)
+  severity: 3
+  title: 'OBL-5''s revert-matrix cell for ''6b reverted, 6a kept'' is stated inconsistently within WP01
+    itself (and within plan.md, from which it was transcribed): ''not applicable'' in the obligation table
+    vs. ''still green'' (required) in the revert-matrix table and T006''s step'
+  evidence:
+  - artifact: 'tasks/WP01-concurrent-yaml-cache-race-fix.md line 167 (OBL-5 obligation-table row, Revert-cell
+      behavior column): "...6b reverted/6a kept: not applicable."'
+  - artifact: 'tasks/WP01-concurrent-yaml-cache-race-fix.md line 176 (Revert matrix table, ''6b reverted,
+      6a kept'' row): "OBL-2 red both sites (count becomes 2); OBL-1/3/4/5 unaffected (still green)" —
+      this requires OBL-5 to be run and pass green in this cell, contradicting line 167''s ''not applicable''.'
+  - artifact: 'tasks/WP01-concurrent-yaml-cache-race-fix.md § Subtask T006 step 3 (line 332): "Temporarily
+      revert only 6b... Re-run OBL-2 both sites: expect RED, count==2. Re-run OBL-1/3/4/5: expect unaffected
+      (still green)." — the executable step follows the revert-matrix table''s framing (OBL-5 must pass),
+      not the obligation table''s framing (OBL-5 is not applicable / need not be run).'
+  - artifact: 'plan.md line 786 (§8b OBL-5 row): "6b reverted, 6a kept: not applicable (nothing to race)."
+      vs. plan.md line 812 (§8c revert matrix): "6b reverted, 6a kept | OBL-2 red at both sites...; OBL-1,
+      OBL-3, OBL-4, OBL-5 unaffected (still green)" — the same contradiction exists at plan-level; WP01
+      faithfully inherited it rather than resolving it.'
+  claim: 'For the single revert-matrix cell "6b reverted, 6a kept," WP01 (and the plan.md it transcribes)
+    gives two different, unreconciled instructions for OBL-5: the obligation table says the test does
+    not meaningfully apply in this state (no lock exists to race `cache_clear()` against), while the revert-matrix
+    table and T006''s own executable step require it to be run and asserted green. In practice these are
+    likely compatible (with no lock, `cache_clear()` cannot deadlock, so the test would trivially pass)
+    — but the documentation gives the implementer no clear instruction on whether OBL-5 in this cell is
+    a required, meaningful assertion or a skippable no-op. This is likely to cause confusion or inconsistent
+    execution during T006.
+
+    '
+  remediation: 'Resolve the contradiction explicitly in WP01 (and flag the same fix back to plan.md §8b/§8c
+    via a tracer note, since the ambiguity pre-exists there): state plainly whether OBL-5''s "6b reverted"
+    cell is (a) run and required to pass green trivially (because without a lock there is nothing to deadlock
+    on), with that rationale spelled out, or (b) explicitly skipped/not- applicable with a one-line note
+    in T006 explaining why no assertion is made for that cell. Update T006 step 3 and the Definition of
+    Done to match whichever resolution is chosen so the two tables no longer disagree.
+
+    '

@@ -1,0 +1,99 @@
+schema: review-findings/v1
+complete: true             # flipped after the yaml self-check passed
+phase: tasks
+lens_group: verify
+mission: concurrent-template-config-race-4589-01M35M6B
+
+# Severity rubric (governs severity assignments below)
+# | # | Name     | Meaning                                                                                     |
+# |---|----------|----------------------------------------------------------------------------------------------|
+# | 1 | nit      | Wording/style; no effect on implementation                                                   |
+# | 2 | minor    | Small gap; implementation would still come out right                                         |
+# | 3 | moderate | Ambiguity or gap likely to cause rework inside one work package                              |
+# | 4 | high     | Would produce a wrong implementation: untestable/vacuous AC, FR without coverage, contradicts |
+# |   |          | existing code, tenancy/permission gap                                                        |
+# | 5 | critical | Charter or scope violation, breaks a stability contract, production-safety breach, or a      |
+# |   |          | security/credential hazard                                                                    |
+
+findings:
+  - id: TASKS-VERIFY-001
+    lens: NFR-001 determinism and baseline anchoring (fakeable-DoD)
+    severity: 4
+    title: "NFR-001's cross-process/varied-PYTHONHASHSEED check is stated as a binding constraint but never wired into an executable subtask step or DoD checkbox"
+    evidence:
+      - artifact: "tasks/WP01-concurrent-yaml-cache-race-fix.md line 185 (binding constraint 6, transcribed from plan.md §8d item 6): \"NFR-001 determinism verified across SEPARATE PROCESSES with varied PYTHONHASHSEED, not one in-process loop\""
+      - artifact: "tasks/WP01-concurrent-yaml-cache-race-fix.md § Subtask T002 (lines 264-278), § Subtask T006 (lines 325-346), and § Definition of Done (lines 363-376) — none of T002's 7 steps, T006's 8 steps, or the DoD checkboxes for T002/T006 (lines 366, 370) mention running OBL-1 (or any test) across separate processes / with varied PYTHONHASHSEED. T006's own DoD line (370) enumerates NFR-002 timing explicitly (\"NFR-002 single-threaded timing under 2s confirmed before and after\") but has no equivalent NFR-001 item."
+      - artifact: "plan.md lines 900-905 (§9 binding note) and reviews/plan.ruling.md PLAN-FRESH3-DEBBIE-002 disposition (lines 134-145) — the arbiter's own sev-4 finding required this exact obligation to be stated as an obligation, precisely because an in-process 50-rep loop keeps one hash seed and would silently pass a test whose verdict actually depends on the seed (PRIMARY_SITE's unsorted-set walk order)."
+    claim: >
+      WP01 correctly restates the plan-level NFR-001 constraint (cross-process, varied
+      PYTHONHASHSEED, never a single in-process loop) verbatim from plan.md §8d item 6/§9, but
+      unlike every other binding constraint in that list (1, 3, 4, 5, 7 are each embedded into a
+      concrete T001/T002/T004/T006 step or DoD line), constraint 6 has no corresponding subtask
+      step, no DoD checkbox, and no Reviewer Guidance bullet requiring it to actually be executed
+      and its result recorded. An implementer can satisfy every listed T001-T007 step and tick
+      every DoD box without ever running the new OBL-1 test as N separate subprocess/xdist-worker
+      invocations with varied PYTHONHASHSEED — i.e., NFR-001 (a High-priority spec requirement,
+      and the exact subject of arbiter finding PLAN-FRESH3-DEBBIE-002, sev 4) has no operational
+      coverage anywhere in this WP's executable instructions, only descriptive prose. This is the
+      class of gap the fakeable-DoD lens targets: the AC is stated but not made checkable/enforced.
+    remediation: >
+      Add an explicit step to T006 (or a new T006 sub-step alongside the NFR-002 timing check)
+      that runs the OBL-1 test suite as N (e.g. 10-50) separate `python -m pytest` subprocess
+      invocations with `PYTHONHASHSEED` varied across runs (e.g. unset/random per invocation, or
+      explicitly looped over a handful of distinct seed values), asserts an identical red/green
+      verdict across all of them, and records the seeds/counts used. Add a corresponding DoD
+      checkbox under T006 (mirroring the existing NFR-002 line at WP01 line 370) and a Reviewer
+      Guidance bullet requiring the reviewer to see this evidence before accepting the WP.
+
+  - id: TASKS-VERIFY-002
+    lens: NFR-001 determinism and baseline anchoring
+    severity: 2
+    title: "WP01's cited 'current HEAD' for the baseline anchor is stale and does not match plan.md's own anchor or the actual repository HEAD at tasks-authoring time"
+    evidence:
+      - artifact: "tasks/WP01-concurrent-yaml-cache-race-fix.md line 229: \"All five are fully green at baseline commit 288aef2f9 (current HEAD 57769a254 has zero src/tests diff against it, so it remains the valid baseline).\""
+      - artifact: "plan.md line 986: \"this checkout's HEAD (`6390fcf51`) sits on the mission's own working branch\" — a different commit than the one WP01 cites."
+      - code: "git log --oneline on this checkout at review time: HEAD is 17360cd4f (\"Add tasks for feature concurrent-template-config-race-4589-01M35M6B\"), four commits ahead of 57769a254 (\"fix(plan): ... plan phase PASSED (#4589)\"), which is itself several commits ahead of plan.md's own cited 6390fcf51. `git diff --stat 288aef2f9 -- src tests` is empty at all three points, so the underlying \"zero src/tests diff\" claim still holds, but none of the three artifacts (plan.md, WP01, and the actual repo) agree on which commit hash is 'current HEAD'."
+    claim: >
+      The baseline invariant itself (zero src/tests diff against 288aef2f9) is true and verified,
+      so this does not currently mislead an implementer about what to fix. But WP01 cites a
+      specific, wrong HEAD hash (57769a254) as "current HEAD" rather than re-deriving it or citing
+      plan.md's own anchor (6390fcf51) — neither matches the actual HEAD at tasks-authoring time
+      (17360cd4f). Per the lens's explicit instruction to check that the WP's baseline anchor
+      matches plan.md's own anchor, it does not. An implementer or reviewer who runs `git rev-parse
+      HEAD` to sanity-check this claim will see a mismatch and may waste time investigating whether
+      the baseline is stale rather than re-verifying the (still-true) invariant directly.
+    remediation: >
+      Replace the specific hardcoded "current HEAD" hash in WP01 with an instruction to re-run
+      `git diff --stat 288aef2f9 -- src tests` at implementation time and confirm it is empty,
+      rather than citing a point-in-time HEAD hash that will keep going stale as chore/tracer
+      commits land on the mission branch. If a hash must be cited, use plan.md's own anchor
+      (6390fcf51) or re-derive the value fresh rather than propagating a third, different value.
+
+  - id: TASKS-VERIFY-003
+    lens: OBL-1..OBL-5 revert-matrix soundness (cell by cell)
+    severity: 3
+    title: "OBL-5's revert-matrix cell for '6b reverted, 6a kept' is stated inconsistently within WP01 itself (and within plan.md, from which it was transcribed): 'not applicable' in the obligation table vs. 'still green' (required) in the revert-matrix table and T006's step"
+    evidence:
+      - artifact: "tasks/WP01-concurrent-yaml-cache-race-fix.md line 167 (OBL-5 obligation-table row, Revert-cell behavior column): \"...6b reverted/6a kept: not applicable.\""
+      - artifact: "tasks/WP01-concurrent-yaml-cache-race-fix.md line 176 (Revert matrix table, '6b reverted, 6a kept' row): \"OBL-2 red both sites (count becomes 2); OBL-1/3/4/5 unaffected (still green)\" — this requires OBL-5 to be run and pass green in this cell, contradicting line 167's 'not applicable'."
+      - artifact: "tasks/WP01-concurrent-yaml-cache-race-fix.md § Subtask T006 step 3 (line 332): \"Temporarily revert only 6b... Re-run OBL-2 both sites: expect RED, count==2. Re-run OBL-1/3/4/5: expect unaffected (still green).\" — the executable step follows the revert-matrix table's framing (OBL-5 must pass), not the obligation table's framing (OBL-5 is not applicable / need not be run)."
+      - artifact: "plan.md line 786 (§8b OBL-5 row): \"6b reverted, 6a kept: not applicable (nothing to race).\" vs. plan.md line 812 (§8c revert matrix): \"6b reverted, 6a kept | OBL-2 red at both sites...; OBL-1, OBL-3, OBL-4, OBL-5 unaffected (still green)\" — the same contradiction exists at plan-level; WP01 faithfully inherited it rather than resolving it."
+    claim: >
+      For the single revert-matrix cell "6b reverted, 6a kept," WP01 (and the plan.md it
+      transcribes) gives two different, unreconciled instructions for OBL-5: the obligation table
+      says the test does not meaningfully apply in this state (no lock exists to race
+      `cache_clear()` against), while the revert-matrix table and T006's own executable step
+      require it to be run and asserted green. In practice these are likely compatible (with no
+      lock, `cache_clear()` cannot deadlock, so the test would trivially pass) — but the
+      documentation gives the implementer no clear instruction on whether OBL-5 in this cell is a
+      required, meaningful assertion or a skippable no-op, which is exactly the kind of
+      cell-by-cell revert-matrix ambiguity this lens is checking for. This is likely to cause
+      confusion or inconsistent execution (does the implementer write/keep an OBL-5 assertion for
+      this cell, or explicitly skip it with a documented reason?) during T006.
+    remediation: >
+      Resolve the contradiction explicitly in WP01 (and flag the same fix back to plan.md §8b/§8c):
+      state plainly whether OBL-5's "6b reverted" cell is (a) run and required to pass green
+      trivially (because without a lock there is nothing to deadlock on), with that rationale
+      spelled out, or (b) explicitly skipped/not-applicable with a one-line note in T006 explaining
+      why no assertion is made for that cell. Update T006 step 3 and the Definition of Done to
+      match whichever resolution is chosen so the two tables no longer disagree.

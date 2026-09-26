@@ -1,0 +1,14 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+round: 2
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: "8a-ii (lines 528-532) and 8e (lines 618-621) now both call MissionTypeRepository.cache_clear() (no .default) with an explicit note that .default.cache_clear() is the wrong seam, and Section 5 (lines 204-216) adds the clarifying paragraph distinguishing the two seams, matching mission_type_repository.py's cache_clear() staticmethod docstring (lines 188-207) verbatim."
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: "8a-ii (lines 535-558) now adds a mandatory content-correctness assertion comparing each raced MissionType's fields against a known-good un-raced resolution, which would catch a corrupted-but-valid-id parse at mission_type_repository.py:397-404 (model_validate/id-mismatch check verified in the live file); the Summary (lines 62-66) was updated to match."
+  - id: PLAN-FRESH-003
+    status: resolved
+    reason: "plan.md now has an actual '### 6c. Both fix sites raise, never degrade (CL-006/FR-006)' heading (line 349), and all 3 occurrences of '6c' (Summary line 68, the heading itself, Section 10 line 783) plus every other 'Section 6'/'6a'/'6b' cross-reference in the document resolve consistently to real content."
