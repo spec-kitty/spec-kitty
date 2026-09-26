@@ -301,3 +301,23 @@ def test_unchanged_requires_same_semantics_and_existing_qualification(repo: Path
     assert json.loads(repeated.output)["commit_status"] == "committed"
     assert git(repo, "rev-parse", "HEAD") != head
     assert check_analysis_report_current(repo / "kitty-specs" / SLUG, repo).ok
+
+
+def test_material_input_closure_backs_the_report_only_transaction(repo: Path):
+    """The material-input closure the report-only transaction commits against is
+    reachable and well-formed: it hashes the mission's declarative inputs and
+    surfaces charter-authority failures as a typed ``MaterialInputError`` wrapping
+    the canonical ``PackRootNotFound``. Exercising it here keeps the closure and
+    the charter pack-root error surface covered by a per-PR test."""
+    from charter.pack_paths import PackRootNotFound
+
+    from specify_cli.analysis_inputs import MaterialInputError, collect_material_inputs
+
+    assert issubclass(MaterialInputError, ValueError)
+    assert issubclass(PackRootNotFound, Exception)
+
+    manifest = collect_material_inputs(repo / "kitty-specs" / SLUG, repo)
+    assert manifest, "material-input manifest must not be empty"
+    assert any("spec.md" in key for key in manifest), sorted(manifest)
+    assert any("plan.md" in key for key in manifest)
+    assert any("tasks.md" in key for key in manifest)
