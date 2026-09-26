@@ -10,6 +10,8 @@ import re
 import shutil
 from pathlib import Path
 
+from charter.encoding_recovery import CP1252_CODEC
+
 __all__ = [
     "sanitize_markdown_text",
     "sanitize_file",
@@ -29,7 +31,14 @@ _TEXT_BYTES = frozenset({0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x1B} | set(r
 # Fallback single-byte codec used to repair an individual invalid UTF-8 byte.
 # cp1252 is a superset of latin-1 for the printable range and is the
 # encoding that actually produced the historical mojibake reports.
-_REPAIR_CODEC = "cp1252"
+#
+# Shares its value with charter.encoding_recovery.CP1252_CODEC (#4896
+# unification, WP04) so there is exactly one definition of "which codec
+# repairs a stray high-byte" across the codebase. This module keeps its own
+# byte-offset faithful repair algorithm (see _repair_invalid_utf8 /
+# _decode_faithfully below) -- only the codec *name* converges, never the
+# whole-file detection path (see detector-contract.md Consumers table / R-5).
+_REPAIR_CODEC = CP1252_CODEC
 # Safety cap: refuse rather than loop indefinitely if a file has an
 # implausible number of invalid bytes (should not happen for real markdown;
 # genuinely binary content is already filtered out by the content sniff).

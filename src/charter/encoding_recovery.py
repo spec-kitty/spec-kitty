@@ -21,12 +21,18 @@ _BOM_UTF8_SIG = b"\xef\xbb\xbf"
 _BOM_UTF16_LE = b"\xff\xfe"
 _BOM_UTF16_BE = b"\xfe\xff"
 
+#: Canonical name of the single-byte repair codec this module treats as the
+#: cp1252 recovery target. Exported so other encoding-repair call sites
+#: (e.g. ``specify_cli.text_sanitization``) share one definition instead of
+#: duplicating the literal (#4896 unification, WP04).
+CP1252_CODEC = "cp1252"
+
 #: Tie tolerance around the minimum chaos score (WP01, test-driven; contract
 #: allows re-tuning, but only via failing tests that demand a new value).
 _TIE_EPSILON = 0.02
 
 #: cp1252 / windows-1252 are the same code page under two common aliases.
-_CP1252_FAMILY = frozenset({"cp1252", "windows-1252"})
+_CP1252_FAMILY = frozenset({CP1252_CODEC, "windows-1252"})
 
 #: The five byte values Windows-1252 leaves undefined (never legitimately
 #: decodable by strict cp1252; used only by the "0x81 fixture" ambiguity
@@ -163,8 +169,8 @@ def _tied_candidates(candidates: tuple[tuple[str, float], ...]) -> dict[str, flo
 
 def _select_from_tied(tied: dict[str, float], data: bytes) -> tuple[str, int] | None:
     cp1252_in_tied = any(encoding in _CP1252_FAMILY for encoding in tied)
-    if cp1252_in_tied and _strict_decodable(data, "cp1252"):
-        return "cp1252", len(tied)
+    if cp1252_in_tied and _strict_decodable(data, CP1252_CODEC):
+        return CP1252_CODEC, len(tied)
 
     if len(tied) == 1:
         (only_encoding,) = tied
@@ -219,10 +225,10 @@ def _selected_result(
 
 
 def _bypass_result(data: bytes, candidates: tuple[tuple[str, float], ...]) -> EncodingRecoveryResult:
-    text = data.decode("cp1252", errors=_LOSSLESS_CP1252_ERRORS)
+    text = data.decode(CP1252_CODEC, errors=_LOSSLESS_CP1252_ERRORS)
     return EncodingRecoveryResult(
         text=text,
-        source_encoding="cp1252",
+        source_encoding=CP1252_CODEC,
         confidence=_BYPASS_CONFIDENCE,
         ambiguous=False,
         candidates=candidates,
