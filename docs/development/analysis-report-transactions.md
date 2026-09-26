@@ -39,13 +39,19 @@ no-op; fresh analysis must produce and verify a new report commit instead.
 A disk write alone is never success.
 Pre/post checks compare HEAD, material inputs, unrelated index entries, dirty
 working bytes, report bytes, commit parent and changed paths. These checks detect
-cooperative-writer races; they cannot lock out arbitrary external editors.
+cooperative-writer races; they cannot lock out arbitrary external editors. The
+net is deliberately broad: because the guard snapshots the entire index and the
+full working tree (including untracked files) minus the report path, *any*
+unrelated change observed during the transaction window — not only a HEAD or
+index race — flips the outcome to `committed_unqualified`. No unrelated work is
+lost in that case; the report is simply left freshness-rejected and a rerun
+re-qualifies it.
 
 Before writing, the transaction creates a pending receipt in the local Git
 directory. Only successful verification qualifies that receipt. Freshness for
 an opt-in report requires its receipt, exact report digest and a reachable
-verified commit. Thus a process crash or HEAD/index-only race cannot unlock the
-mission merely because the retained report exists.
+verified commit. Thus a process crash or an unrelated concurrent change cannot
+unlock the mission merely because the retained report exists.
 
 Receipts are local qualification evidence, not portable attestations. Copying
 the report into another clone does not qualify it there. Preserve concurrent
