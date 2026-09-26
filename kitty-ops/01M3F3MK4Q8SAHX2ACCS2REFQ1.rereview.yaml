@@ -1,0 +1,150 @@
+schema: review-findings/v1
+phase: op-01M3F3MK4Q8SAHX2ACCS2REFQ1-rereview
+reviewer_profile: reviewer-renata
+directives_applied:
+  - "001 Architectural Integrity Standard"
+  - "024 Locality of Change"
+  - "030 Test and Typecheck Quality Gate"
+  - "032 Conceptual Alignment"
+  - "041 Tests as Scaffold, Not Friction"
+prior_findings:
+  - id: op-review-001
+    status: resolved
+    evidence: >-
+      docs/migrations/cross-repo-e2e-gate.md's "## The four floor scenarios" heading and table
+      row are fixed by commit f7aab7888: heading now "## The three floor scenarios", the
+      `saas_sync_enabled.py | FR-040 | ...` row is removed and replaced with a note that the
+      scenario "was retired along with the CLI-to-SaaS sync transport it exercised ... and is
+      not part of the floor -- see spec-kitty#4949." The `export SPEC_KITTY_ENABLE_SAAS_SYNC=1`
+      line under "## How to run the gate" is also removed (git diff main...HEAD confirmed both
+      hunks). The SKILL.md's own outbound link this finding was about
+      (`[docs/migrations/cross-repo-e2e-gate.md]`) now resolves correctly (verified via
+      `realpath -e` from src/charter/offering/skills/spec-kitty-mission-review/, see
+      op-review-004) and lands on a page whose floor-scenario table and run command no longer
+      contradict the fixed SKILL.md section. NOTE: a distinct piece of residue in the SAME file
+      (the worked mission-exception.md example and "Case A" common-exception-case section,
+      further down the doc) was NOT addressed by this fix and is filed fresh as
+      op-rereview-001 -- it is a different location/claim than what op-review-001's evidence
+      cited, so it does not reopen this finding, but it is the same defect class.
+  - id: op-review-002
+    status: resolved
+    evidence: >-
+      Commit e6e2cdd6a replaced the whole-document regex scan with a `_gate_command_surfaces()`
+      helper (tests/doctrine/test_mission_review_skill_gate3_floor.py:52-68) that extracts only
+      the ```bash fences under "### Gate 1:" / "### Gate 3:" and the `- Command:` report-template
+      lines, then asserts the flag-pin regex against that narrowed surface only. Replayed the
+      test logic standalone (scratch script reimplementing the same regex/fence-extraction
+      against git-show'd main and HEAD copies of SKILL.md, without touching the working tree):
+      on main, 3 of 4 sub-checks fail (the retired-scenario-listed check, the FR-040-in-heading
+      check, and the flag-pin check); on HEAD all 4 pass. Ran the real test file too:
+      `tests/doctrine/test_mission_review_skill_gate3_floor.py -v` -> 4 passed in 0.25s. A future
+      legitimate mention of `SPEC_KITTY_ENABLE_SAAS_SYNC=0` elsewhere in the skill's prose (the
+      still-live #3980 opt-out, as sibling skills spk-team-tracker/spk-team-sync/spk-team-auth
+      document) would no longer trip this guard, since those surfaces are outside the two gate
+      fences and the Command lines.
+  - id: op-review-003
+    status: resolved
+    evidence: >-
+      SKILL.md:534-537 now reads "Gate 1's `tests/contract/` suite does not read this flag at
+      all, and none of Gate 3's surviving E2E scenarios read the outer shell's value for it
+      either" -- exactly the audience-agnostic wording op-review-003 recommended (dropping the
+      repo-internal `tests/conftest.py` justification). Verified by grep:
+      `grep -rn SPEC_KITTY_ENABLE_SAAS_SYNC tests/contract/` returns zero hits (exit 1, no
+      output), so the claim is literally true regardless of what tests/conftest.py forces at
+      collection time for other modules.
+  - id: op-review-004
+    status: resolved
+    evidence: >-
+      SKILL.md:651 link changed from `../../../../docs/migrations/cross-repo-e2e-gate.md` (4
+      levels, resolved to the non-existent `src/docs/...`) to
+      `../../../../../docs/migrations/cross-repo-e2e-gate.md` (5 levels). Verified with
+      `realpath -e` run from src/charter/offering/skills/spec-kitty-mission-review/: both this
+      link and the diff's other new link
+      (`../../../../../docs/context/team-kitty.md`) now resolve to real files
+      (docs/migrations/cross-repo-e2e-gate.md, docs/context/team-kitty.md).
+  - id: op-review-005
+    status: resolved-by-policy
+    evidence: >-
+      Accepted per the dispatch's stated reason (history rewriting is forbidden; new work split
+      into correctly-typed commits). Verified the split: cb178a33b is untouched (still
+      `docs(skills)` typed but still carries the 67-line test-file addition -- the original
+      defect this finding named, now permanently baked in by policy). The three follow-up
+      commits are each correctly typed for their own content: e6e2cdd6a (`test(doctrine)`)
+      touches only tests/doctrine/test_mission_review_skill_gate3_floor.py (28 lines, the regex
+      re-scoping); f7aab7888 (`docs(skills)`) touches only the three doc/skill files (SKILL.md,
+      cross-repo-e2e-gate.md, docs-retrieval-index.yaml). a581d5492 (`test(ci)`) touches only
+      .github/ci-shard-timings.json -- defensible as "test" scope since the file is pytest
+      fixture data consumed by tests/architectural/test_module_length_agreement.py, but the
+      documented precedent commit for this exact operation (3a84cf2b9, "recapture charter
+      shard-timings against current main") used `chore(landing)` for identical content. This
+      inconsistency is cosmetic (see op-rereview-003) and does not change my acceptance of
+      resolved-by-policy for op-review-005 itself.
+complete: true
+findings:
+  - id: op-rereview-001
+    severity: 3
+    title: "docs/migrations/cross-repo-e2e-gate.md's worked exception example and 'Case A' still present the retired saas_sync_enabled.py scenario as live, contradicting the same doc's fixed floor-scenario section"
+    location: "docs/migrations/cross-repo-e2e-gate.md:106,116-121,133-142 (unchanged by this diff)"
+    evidence: >-
+      Three places in this file, none touched by any of the four fixer commits, still describe
+      `scenarios/saas_sync_enabled.py` as a currently-existing, currently-behaving scenario: (1)
+      the `mission-exception.md` template's example `Failing scenario:` field names
+      `spec-kitty-end-to-end-testing/scenarios/saas_sync_enabled.py::test_full_mission_with_sync`
+      (line 106); (2) its "Reproduction command" fence gives a literally copy-pasteable command,
+      `SPEC_KITTY_ENABLE_SAAS_SYNC=1 pytest spec-kitty-end-to-end-testing/scenarios/saas_sync_enabled.py -v`
+      (lines 119-120), against a file confirmed deleted from the live E2E repo (`gh api
+      repos/spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing/contents/scenarios` lists only
+      `contract_drift_caught.py`, `dependent_wp_planning_lane.py`,
+      `uninitialized_repo_fail_loud.py`, `conftest.py`, `__init__.py` -- no saas_sync file); (3)
+      "### Case A: dev SaaS endpoint is down or unreachable" (lines 133-142) states in the
+      present tense, with no retired/historical marker, "The `saas_sync_enabled.py` scenario
+      detects this with an explicit health-check assertion ... If the endpoint is unreachable,
+      the scenario records a structured 'unavailable' outcome" -- describing behavior of a
+      scenario that does not exist in the current floor. Case A is listed as one of only three
+      non-exhaustive "Common exception cases" for the *current* gate (alongside B: missing
+      Docker, C: deferred bug), and none of the three surviving floor scenarios perform a
+      dev-SaaS-endpoint reachability check, so Case A no longer maps to anything in the current
+      Gate 3 floor at all -- it is not merely stale wording, the entire case is now orphaned.
+      This sits ~10-90 lines below the "## The three floor scenarios" section this same PR just
+      fixed (f7aab7888), so a reviewer who reads past that fixed section into the exception
+      runbook lands on directly contradictory, actively-misleading guidance -- the same
+      "reachable, non-ADR operator runbook residue" pattern op-review-001 flagged, just in a
+      different part of the identical file. Judgment on the brief's specific question: this is
+      false-floor residue within #5003's intent, not acceptable illustration -- an "illustration
+      of the exception mechanism" does not need to name a real scenario at all (a placeholder
+      like `<scenario_module.py>::<test_name>` would serve the template-teaching purpose without
+      asserting anything false), and Case A in particular is framed as documentation of current
+      gate behavior, not as a worked example of filling in a template.
+    recommendation: >-
+      Fold into this PR or a fast-follow against #5003: (a) replace the worked example's
+      `Failing scenario:` / reproduction-command values with either a placeholder
+      (`<scenario_module.py>::<test_name>`) or one of the three surviving scenario names; (b)
+      either delete "Case A" entirely (nothing in the current floor performs a dev-SaaS-endpoint
+      health check) or rewrite it in clearly historical/retired framing and replace it with a
+      case that maps to a surviving scenario, so the exception runbook does not teach operators
+      to reference a deleted test.
+  - id: op-rereview-002
+    severity: 1
+    title: "Minor commit-type inconsistency with documented precedent for the shard-timings recapture commit"
+    location: "commit a581d5492 subject line ('test(ci): recapture charter shard timings for gate3-floor guard tests')"
+    evidence: >-
+      This commit touches only .github/ci-shard-timings.json (a pytest-fixture data file with no
+      test logic of its own). The documented precedent for the identical operation, commit
+      3a84cf2b9 ("chore(landing): recapture charter shard-timings against current main
+      (6156->6161)"), used `chore(landing)` for the same kind of change. `test(ci)` is
+      defensible (the file is consumed by tests/architectural/test_module_length_agreement.py)
+      but is not the type the repo's own prior art used for this exact operation. No functional
+      effect; a reader scanning history by commit type for "what changed test behavior" vs.
+      "what changed test-support data" gets a slightly inconsistent signal.
+    recommendation: >-
+      Cosmetic only; no action required. Future recaptures of this file could standardize on
+      `chore(ci)` to match the 3a84cf2b9 precedent, or explicitly note in the body why `test(ci)`
+      was chosen instead.
+findings_summary:
+  by_severity:
+    "1": 1
+    "2": 0
+    "3": 1
+    "4": 0
+    "5": 0
+  total: 2

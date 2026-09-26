@@ -1,0 +1,127 @@
+schema: review-verify/v1
+phase: op-01M3F3MK4Q8SAHX2ACCS2REFQ1-fixround2
+verifier_profile: reviewer-renata
+directives_applied:
+  - "001 Architectural Integrity Standard (used to check the doc's fixture-sharing claim against the actual scenarios/conftest.py + scenario-file architecture rather than trusting the prose)"
+  - "024 Locality of Change (confirmed the commit touches only the two files its message claims)"
+  - "030 Test and Typecheck Quality Gate (ran docs_index --strict and the dangling-anchor grep)"
+  - "032 Conceptual Alignment (checked Case A/B/C structure, heading style, and placeholder convention stay consistent with the rest of the doc)"
+  - "reverse-speccing tactic (fetched conftest.py and all three surviving scenario files fresh from the upstream repo and reconstructed actual fixture usage independently of the doc's prose, per the fabrication-check instruction)"
+complete: true
+verdicts:
+  - finding_id: op-rereview-001
+    verdict: partially-resolved
+    evidence: >-
+      The three concrete defects op-rereview-001 named are fixed. (1) The worked
+      mission-exception.md template's `Failing scenario:` field and reproduction
+      command no longer name `saas_sync_enabled.py` or export
+      `SPEC_KITTY_ENABLE_SAAS_SYNC=1` -- both now read a clearly-bracketed
+      placeholder, `<scenario_module>.py::<test_name>`, matching the doc's
+      existing placeholder convention (`<human name and email>`, `<ISO date>`).
+      Confirmed via `git show 02ceca00c -- docs/migrations/cross-repo-e2e-gate.md`
+      and `grep -n "SPEC_KITTY_ENABLE_SAAS_SYNC\|saas_sync_enabled"
+      docs/migrations/cross-repo-e2e-gate.md`: zero SPEC_KITTY_ENABLE_SAAS_SYNC
+      hits repo-wide in this file, and the one remaining `saas_sync_enabled`
+      mention (line 59, in the already-fixed floor-scenarios section from
+      f7aab7888) is explicitly retired/historical framing, not a runnable
+      instruction. (2) Case A is no longer orphaned against a deleted scenario --
+      it was rewritten from a scenario-specific health-check description to a
+      cross-scenario environmental-prerequisite description, so it no longer cites
+      dead code. (3) The FR-040 mission-spec citation (line 182) now reads
+      "FR-040 *(retired, #4949)*" without rewriting the historical FR list, exactly
+      as recommended.
+
+      However, the replacement Case A prose introduces a NEW factual defect of the
+      same class the original finding was about (a runbook describing gate
+      behavior that does not match the current code) -- see new_findings
+      op-verify-001. The literal instruction in op-rereview-001's recommendation
+      ("replace it with a case that maps to a surviving scenario, so the exception
+      runbook does not teach operators to reference a deleted test") is satisfied:
+      Case A no longer names a deleted test. But the finding's underlying intent --
+      an exception runbook that accurately describes current Gate 3 floor behavior
+      -- is not achieved, because the new Case A asserts a fixture-sharing claim
+      that is false for two of the three surviving scenarios. I am marking this
+      partially-resolved rather than resolved because the fix trades one
+      inaccuracy for another inside the same paragraph this finding is about,
+      and a reviewer relying on op-rereview-001 being "resolved" would reasonably
+      expect the replacement content to be accurate, not merely non-orphaned.
+new_findings:
+  - id: op-verify-001
+    severity: 4
+    title: "New Case A claims 'every scenario shares the spec_kitty_repo fixture' -- false for 2 of the 3 surviving floor scenarios, verified against fetched source"
+    location: "docs/migrations/cross-repo-e2e-gate.md:133-147 (added by 02ceca00c)"
+    evidence: >-
+      Fetched `scenarios/conftest.py` and all three surviving scenario files from
+      spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing via `gh api
+      repos/.../contents/scenarios/<file> --jq .content | base64 -d` and checked
+      every factual claim in the new Case A and the rewritten template against
+      them.
+
+      Claim (Case A, verbatim): "Every scenario shares the `spec_kitty_repo`
+      fixture (`scenarios/conftest.py`), which requires a resolvable sibling
+      `spec-kitty` checkout ... This is a required prerequisite, not an optional
+      one: an unresolvable checkout fails the fixture (`pytest.fail(...)`) rather
+      than skipping the scenario, so a missing prerequisite cannot silently
+      degrade into skipped (green) coverage."
+
+      Refuted by grep across all three surviving scenario files for the fixture
+      name and every related env var:
+        - `contract_drift_caught.py:258`: `def test_contract_drift_caught(tmp_path:
+          Path, spec_kitty_repo: Path) -> None:` -- this is the ONLY one of the
+          three that takes `spec_kitty_repo` as a fixture parameter or mentions it
+          anywhere in the file.
+        - `dependent_wp_planning_lane.py:546`: `def
+          test_dependent_wp_planning_lane_lifecycle_smoke(tmp_path: Path) -> None:`
+          -- no `spec_kitty_repo`, `SPEC_KITTY_REPO`, or `SK_E2E_REARCH_ROOT`
+          anywhere in the 605-line file. The scenario builds its own throwaway git
+          repo under `tmp_path` and drives the CLI directly; it does not depend on
+          a sibling `spec-kitty` checkout at all.
+        - `uninitialized_repo_fail_loud.py:65-68`: `def
+          test_uninitialized_repo_fails_loud(tmp_path: Path, subcommand: str) ->
+          None:` -- no `spec_kitty_repo` fixture use either. Worse, this scenario's
+          OWN environmental-gap mechanism directly contradicts the doc's
+          "fails, never skips" generalization: line 55-63 is
+          `@pytest.mark.skipif(not spec_kitty_cli_available(), reason=(...
+          "Environmental block -- file mission-exception.md per
+          spec-kitty/docs/migrations/cross-repo-e2e-gate.md." ))` -- this scenario
+          literally SKIPS (not `pytest.fail`s) on an unresolved environment, using
+          a different env var (`SK_E2E_SPEC_KITTY_BIN`) and a different checked
+          condition (`spec_kitty_cli_available()`, from `spec_kitty_e2e.cli`, not
+          the `spec_kitty_repo` fixture from `scenarios/conftest.py`). There is a
+          second, independent skip in the same file at line 87-90 for the sibling
+          `spec-kitty init` failing.
+
+      The `spec_kitty_repo` fixture in `scenarios/conftest.py` itself is described
+      accurately in isolation (it does call `pytest.fail(...)`, not `pytest.skip`,
+      per conftest.py:52-64, and the env vars `SPEC_KITTY_REPO` /
+      `SK_E2E_REARCH_ROOT` are named correctly per conftest.py:4-13,39). The
+      fabrication is specifically the universal quantifier "every scenario" and
+      the blanket "fails, never skips" claim generalized to the whole Gate 3
+      floor -- both false for 2 of 3 scenarios, one of which (uninitialized-repo)
+      has its own documented, code-verified skip path that this same doc
+      contradicts two paragraphs after fixing an unrelated skip-vs-fail-adjacent
+      residue. This is exactly the "wrong/fabricated/contradicts code" class of
+      defect op-rereview-001 was raised to eliminate from this section, now
+      reintroduced in the fix.
+    recommendation: >-
+      Narrow the claim to what is actually true: either (a) scope Case A to
+      "`contract_drift_caught.py`, the one surviving scenario that depends on the
+      `spec_kitty_repo` fixture," and add a separate short note (or Case, e.g.
+      "Case A2") for the `uninitialized_repo_fail_loud.py` skip-based environmental
+      gate (missing `spec-kitty` binary, env var `SK_E2E_SPEC_KITTY_BIN` /
+      `SK_E2E_SPEC_KITTY_REPO`, mechanism is `pytest.skip`, not `pytest.fail`); or
+      (b) if a single unified "environmental prerequisite" case is wanted, state
+      plainly that the three scenarios use two different mechanisms (one
+      fail-closed fixture shared by one scenario, one skip-based CLI-availability
+      guard used by another, and `dependent_wp_planning_lane.py` has no external
+      checkout dependency at all) rather than asserting a single shared fixture
+      "every scenario" depends on. Re-verify against the live scenario files
+      before publishing, the same way this verification did.
+findings_summary:
+  by_severity:
+    "1": 0
+    "2": 0
+    "3": 0
+    "4": 1
+    "5": 0
+  total: 1
