@@ -494,53 +494,84 @@ class AssetPreparation:
         )
 
 
+def _diagnostic_code(error: Exception) -> str:
+    """Route on type, never message text (research D-3): a destination-role
+    ``TornReadError`` is ``asset_torn_read`` (whether it recurred under the
+    serialization point or re-entrantly), a source-role one is
+    ``asset_source_drift``, and everything else keeps the existing
+    ``global_assets_unavailable`` code.
+    """
+    if isinstance(error, TornReadError):
+        return "asset_source_drift" if error.role == "source_read" else "asset_torn_read"
+    return "global_assets_unavailable"
+
+
 def incomplete(owner: str, root: OperationRoot, error: Exception) -> OwnerAssessment:
-    """A source/config failure never becomes a complete empty assessment."""
-    return OwnerAssessment(owner, root, complete=False, diagnostics=(Diagnostic("global_assets_unavailable", owner, "error", str(error)),))
+    """A source/config failure never becomes a complete empty assessment.
+
+    Message text is unchanged (``str(error)``); only the diagnostic ``code``
+    is distinguished for a ``TornReadError`` (FR-003).
+    """
+    return OwnerAssessment(owner, root, complete=False, diagnostics=(Diagnostic(_diagnostic_code(error), owner, "error", str(error)),))
 
 
-_RetriedBuild = TypeVar("_RetriedBuild")
-
-#: #4017 rescope, sequential after WP02's own lock-path work in this file: a
-#: SECOND, distinct race from the post-lock recheck WP03 already fixed in
-#: bootstrap.py. This one is unlocked-phase and generic to every owner.
-_TORN_READ_RETRY_ATTEMPTS = 3
-_TORN_READ_MESSAGE_PREFIX = "Asset changed during preparation:"
+_BuiltAssessment = TypeVar("_BuiltAssessment")
 
 
-def retry_torn_read(build: Callable[[], _RetriedBuild]) -> _RetriedBuild:
-    """Re-run one owner's WHOLE unlocked assess pass on a benign observe-phase torn read.
+def _is_terminal_torn_read(exc: TornReadError) -> bool:
+    """A torn read never escalates (stays terminal) when it is source-role
+    (C-001: source drift is never tolerated), or when this process already
+    holds ANY serialization point at all (C-005, stronger than a subset
+    check): every owner's cold-install sentinel is the SAME shared,
+    non-reentrant file, so a nested escalation could self-deadlock on it,
+    and batch paths take owner locks in sorted order, so a cross-owner
+    escalation also risks lock-order inversion.
+    """
+    return exc.role == "source_read" or bool(_HELD_LOCKS.get())
 
-    ``observe()`` raises "Asset changed during preparation" when the SAME
-    path is observed twice with different states within one assess pass --
-    e.g. an owner's own inventory JSON, read once at
-    ``AssetPreparation.__init__`` and again at ``finish()``'s effect
-    computation, materialized by a concurrent peer sharing this same
-    spec-kitty-home in between. That is a torn read of the peer's in-flight
-    write, not asset-input drift (FR-002/C-002 already cover genuine drift);
-    the peer converges to canonical bytes quickly, so re-running the whole
-    pass from scratch resolves it.
+
+def _waiting_message(exc: TornReadError) -> str:
+    """One INFO line (FR-008): never contains "Error" (the #3998 reproducer
+    greps for it), so a converged wait is visible but never mistaken for a
+    failure.
+    """
+    return f"{exc.path}: waiting for a concurrent spec-kitty install to finish, then re-checking assets"
+
+
+def build_serialized(build: Callable[[], _BuiltAssessment], *, logger: logging.Logger | None = None) -> _BuiltAssessment:
+    """One unlocked attempt, then escalate ONCE to the serialization point on
+    a destination-role torn read (FR-001/FR-002/FR-004/FR-008, NFR-003,
+    research D-1/D-4/D-5). Replaces the retired unlocked back-to-back
+    ``retry_torn_read`` loop.
 
     ``build`` MUST construct a fresh ``AssetPreparation`` (and do everything
-    through ``finish()``) on every call, so a retry starts from a clean,
-    re-read ``self.observed`` rather than the stale snapshot that raised --
-    and it MUST stop short of any shared, non-retriable side effect (such as
-    ``_GlobalAssetPreparation.include()``), which callers perform exactly
-    once on the stabilized result. This is generic across every global
-    owner (bootstrap/commands/skills); none is special-cased.
+    through ``finish()``) on every call, so the serialized attempt starts
+    from a clean, re-read ``self.observed`` rather than the stale snapshot
+    that raised -- and it MUST stop short of any shared, non-retriable side
+    effect (such as ``_GlobalAssetPreparation.include()``), which callers
+    perform exactly once on the stabilized result. This is generic across
+    every global owner (bootstrap/commands/skills); none is special-cased.
 
-    Only ``ValueError`` messages starting with the torn-read prefix are
-    retried, and only up to a small, fixed bound -- any other exception, or
-    a torn read that still has not stabilized on the final attempt,
-    propagates immediately so a genuine failure is never masked.
+    Only a destination-role ``TornReadError`` not already covered by a held
+    serialization point is escalated, and only once: see
+    :func:`_is_terminal_torn_read` for what stays terminal. Any other
+    exception propagates immediately and unchanged, so a genuine failure is
+    never masked.
+
+    Scope caveat (plan.md R-4): callers reached OUTSIDE startup (the skills
+    installer, ``tool_surface/providers/slash_commands.py``) adopt this same
+    helper, so they too may now block briefly on a concurrent installer
+    after a destination-role torn read. This is intended and has no flag.
     """
-    for _ in range(_TORN_READ_RETRY_ATTEMPTS - 1):
-        try:
+    log = logger if logger is not None else logging.getLogger(__name__)
+    try:
+        return build()
+    except TornReadError as exc:
+        if _is_terminal_torn_read(exc):
+            raise
+        log.info("%s", _waiting_message(exc))
+        with _serialize_owner(exc.lock_paths, exc.anchor):
             return build()
-        except ValueError as exc:
-            if not str(exc).startswith(_TORN_READ_MESSAGE_PREFIX):
-                raise
-    return build()
 
 
 class _GlobalAssetPreparation:
@@ -1180,6 +1211,11 @@ def _apply_retained_assets(assessment: OwnerAssessment) -> OwnerApplyResult:
                     # exactly that signal: nothing removes a lock file
                     # between recheck and this apply, so "exists now" implies
                     # "existed (and was locked) at recheck time."
+                    # R-1 (plan.md): the documented cold-create exception --
+                    # this lock is CREATED here, so it cannot be routed
+                    # through _serialize_owner (which only locks paths that
+                    # already exist); double-locking it there would self-
+                    # deadlock on this same non-reentrant primitive.
                     if not write.effect.destination.exists():
                         locks.enter_context(machine_file_lock(write.effect.destination, blocking=True))
                     write.effect.destination.chmod(write.effect.after.mode or 0o644)

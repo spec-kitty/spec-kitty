@@ -177,7 +177,7 @@ def assess_global_agent_skills(
     None uses the package catalog and all agents. An explicit selection keeps
     caller sources/agents and never stamps or retires unrelated global skills.
     """
-    from specify_cli.runtime.asset_preparation import global_asset_root, incomplete, retry_torn_read
+    from specify_cli.runtime.asset_preparation import build_serialized, global_asset_root, incomplete
 
     home = get_kittify_home()
     agents = (
@@ -236,10 +236,11 @@ def assess_global_agent_skills(
         return prepared, assessment
 
     try:
-        # #4017 rescope: retry ONLY the local build (never `_batch.include()`,
-        # called once below on the stabilized result) so a retry can never
-        # replay stale partial mutations into a shared, cross-owner batch.
-        prepared, assessment = retry_torn_read(_build)
+        # #4017 rescope: escalate ONLY the local build (never `_batch.include()`,
+        # called once below on the stabilized result) so an escalated rebuild
+        # can never replay stale partial mutations into a shared, cross-owner
+        # batch.
+        prepared, assessment = build_serialized(_build, logger=logger)
         if _batch is not None:
             _batch.include(prepared, assessment.effects)
         return assessment
