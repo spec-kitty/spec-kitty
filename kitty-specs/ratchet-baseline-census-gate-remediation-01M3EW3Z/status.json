@@ -1,20 +1,20 @@
 {
-  "event_count": 50,
-  "last_event_id": "01M3FC6C06RV8QEX2917R83W45",
-  "materialized_at": "2026-09-26T17:28:48.902988+00:00",
+  "event_count": 51,
+  "last_event_id": "01M3FCQBBNTM1GMXETVJ1BQYMQ",
+  "materialized_at": "2026-09-26T17:38:05.301251+00:00",
   "mission_number": "",
   "mission_slug": "ratchet-baseline-census-gate-remediation-01M3EW3Z",
   "mission_type": "",
   "schema_version": 2,
   "summary": {
-    "approved": 5,
+    "approved": 6,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 4,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 3
   },
   "work_packages": {
@@ -54,18 +54,23 @@
     "WP02": {
       "actor": "claude",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M3FAZNZW57EXD7D7ET2A06KW",
-      "last_transition_at": "2026-09-26T17:07:41.180201+00:00",
+      "lane": "approved",
+      "last_event_id": "01M3FCQBBNTM1GMXETVJ1BQYMQ",
+      "last_transition_at": "2026-09-26T17:38:05.301251+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review (moved by orchestrator; implementer blocked by unrelated dirty file, now committed). Commits 07d5d0c1 RED, b469e4de, 6c9fa5c3, 63771648."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260926",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 21011,
       "shell_pid_created_at": "1790442452.84",
@@ -151,7 +156,8 @@
       "last_transition_at": "2026-09-26T17:28:48.902988+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "WP07 (#3011) under ATDD-First exception DM-01M3F3T1G2RYW7P0ZVWQS41GEZ: no RED commit; base evidence recorded in tracer (audit.py exit=1 8 missing+8 ghost; rekey --check STALE; token count 11). Commits 343bea78 (git mv + root depth + format + survivor package import + pyproject L954), 87d1d03d (strip), 6887a622 (delete dir + L955), 1122cfd1 (prose/refs). Token search 11->0; survivor 8 passed, node-ID diff vs real 3717c7ea worktree empty; targeted arch set 33 passed + substitute arch set (positional-anchor ban, ratchet baselines, read-side bypass, legacy terminology) 205 passed; full tests/architectural NOT run per operator override (CI owns it). test-fast: 2305 passed, 4 failed = known pre-existing #4873 x3 + #5126. ruff check/format --check/mypy exit 0 on scan + survivor. Deviations: dropped _normalize_token (served only the retired markdown table); privatized 4 seed-set constants with no outside reader. Finding: survivor documents a _MIN_DISCOVERED_ROWS floor but no such constant/assertion exists on base or lane. #3011 verdict fixed."
+        "WP07 (#3011) under ATDD-First exception DM-01M3F3T1G2RYW7P0ZVWQS41GEZ: no RED commit; base evidence recorded in tracer (audit.py exit=1 8 missing+8 ghost; rekey --check STALE; token count 11). Commits 343bea78 (git mv + root depth + format + survivor package import + pyproject L954), 87d1d03d (strip), 6887a622 (delete dir + L955), 1122cfd1 (prose/refs). Token search 11->0; survivor 8 passed, node-ID diff vs real 3717c7ea worktree empty; targeted arch set 33 passed + substitute arch set (positional-anchor ban, ratchet baselines, read-side bypass, legacy terminology) 205 passed; full tests/architectural NOT run per operator override (CI owns it). test-fast: 2305 passed, 4 failed = known pre-existing #4873 x3 + #5126. ruff check/format --check/mypy exit 0 on scan + survivor. Deviations: dropped _normalize_token (served only the retired markdown table); privatized 4 seed-set constants with no outside reader. Finding: survivor documents a _MIN_DISCOVERED_ROWS floor but no such constant/assertion exists on base or lane. #3011 verdict fixed.",
+        "Review passed (reviewer-renata, recorded by orchestrator after lane re-alignment): ATDD-exception substitute re-run on 3717c7ea (audit.py exit 1, 8 missing + 8 ghost, --check STALE, tokens 11->0); survivor 8/8 same node IDs, green every commit; 33 passed; ruff/mypy clean; pyproject 954-955 only; #3011 fixed. Follow-up: _MIN_DISCOVERED_ROWS floor absent since base."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
