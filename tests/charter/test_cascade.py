@@ -199,13 +199,7 @@ def test_tension_vocabulary_excluded_from_reference_relations() -> None:
     deliberately an explicit frozenset-intersection assertion, not a "cascade
     doesn't crash" smoke test, which would pass vacuously.
     """
-    assert (
-        frozenset(
-            {Relation.IN_TENSION_WITH, Relation.RECONCILES_TENSION, Relation.REJECTS}
-        )
-        & _REFERENCE_RELATIONS
-        == frozenset()
-    )
+    assert frozenset({Relation.IN_TENSION_WITH, Relation.RECONCILES_TENSION, Relation.REJECTS}) & _REFERENCE_RELATIONS == frozenset()
 
 
 # ---------------------------------------------------------------------------
@@ -543,9 +537,7 @@ def freshly_extracted_graph() -> DRGGraph:
 
 
 @pytest.mark.parametrize("mission_type_urn", _GOVERNANCE_BEARING_MISSION_TYPE_URNS)
-def test_cascade_from_governance_bearing_mission_types_is_non_empty(
-    freshly_extracted_graph: DRGGraph, mission_type_urn: str
-) -> None:
+def test_cascade_from_governance_bearing_mission_types_is_non_empty(freshly_extracted_graph: DRGGraph, mission_type_urn: str) -> None:
     # C-CAS-1 (RED baseline: returned 0 — the #2829 action-hop dead-end).
     # Following the action hop (requires -> action -> scope -> governance) makes
     # the cascade reachable for every mission type whose steps scope governance;
@@ -553,12 +545,8 @@ def test_cascade_from_governance_bearing_mission_types_is_non_empty(
     # so all four built-in mission types now satisfy this assertion. Asserted
     # against ``freshly_extracted_graph``, not ``built_in_graph`` — see that
     # fixture's docstring for why.
-    result = cascade_activation_targets(
-        freshly_extracted_graph, mission_type_urn, CascadeScope.all()
-    )
-    assert result.activated, (
-        f"cascade from {mission_type_urn} was empty — the #2829 action-hop dead-end"
-    )
+    result = cascade_activation_targets(freshly_extracted_graph, mission_type_urn, CascadeScope.all())
+    assert result.activated, f"cascade from {mission_type_urn} was empty — the #2829 action-hop dead-end"
 
 
 def test_plan_cascade_reaches_its_authored_governance(
@@ -584,16 +572,10 @@ def test_plan_cascade_reaches_its_authored_governance(
     # against ``freshly_extracted_graph``, not ``built_in_graph`` — see that
     # fixture's docstring for why (the committed goldens ARE re-ledgered in
     # this mission, byte-identical to the canonical regen).
-    result = cascade_activation_targets(
-        freshly_extracted_graph, "mission_type:plan", CascadeScope.all()
-    )
-    assert result.activated, (
-        "mission_type:plan cascade is still empty after #3604's "
-        "governance-profile scope pass"
-    )
+    result = cascade_activation_targets(freshly_extracted_graph, "mission_type:plan", CascadeScope.all())
+    assert result.activated, "mission_type:plan cascade is still empty after #3604's governance-profile scope pass"
     assert "DIRECTIVE_031" in result.activated.get("directive", []), (
-        f"031-context-aware-design missing from plan's cascaded directives: "
-        f"{result.activated.get('directive', [])}"
+        f"031-context-aware-design missing from plan's cascaded directives: {result.activated.get('directive', [])}"
     )
     expected_tactics = {
         "problem-decomposition",
@@ -607,21 +589,16 @@ def test_plan_cascade_reaches_its_authored_governance(
         "premortem-risk-identification",
     }
     cascaded_tactics = set(result.activated.get("tactic", []))
-    assert expected_tactics <= cascaded_tactics, (
-        f"missing from plan's cascaded tactics: {expected_tactics - cascaded_tactics}"
-    )
+    assert expected_tactics <= cascaded_tactics, f"missing from plan's cascaded tactics: {expected_tactics - cascaded_tactics}"
     expected_paradigms = {
         "domain-driven-design",
         "deep-module-design",
         "c4-incremental-detail-modeling",
     }
     cascaded_paradigms = set(result.activated.get("paradigm", []))
-    assert expected_paradigms <= cascaded_paradigms, (
-        f"missing from plan's cascaded paradigms: {expected_paradigms - cascaded_paradigms}"
-    )
+    assert expected_paradigms <= cascaded_paradigms, f"missing from plan's cascaded paradigms: {expected_paradigms - cascaded_paradigms}"
     assert "planning-and-tracking" in result.activated.get("styleguide", []), (
-        f"planning-and-tracking missing from plan's cascaded styleguides: "
-        f"{result.activated.get('styleguide', [])}"
+        f"planning-and-tracking missing from plan's cascaded styleguides: {result.activated.get('styleguide', [])}"
     )
 
 
@@ -630,22 +607,15 @@ def test_cascade_from_documentation_reaches_governance_kinds(
 ) -> None:
     # C-CAS-2: documentation's actions scope onto governance artifacts; the
     # activated mapping must include at least directive, tactic, styleguide.
-    result = cascade_activation_targets(
-        built_in_graph, "mission_type:documentation", CascadeScope.all()
-    )
+    result = cascade_activation_targets(built_in_graph, "mission_type:documentation", CascadeScope.all())
     for kind_key in ("directive", "tactic", "styleguide"):
-        assert kind_key in result.activated, (
-            f"{kind_key!r} missing from documentation cascade: "
-            f"{sorted(result.activated)}"
-        )
+        assert kind_key in result.activated, f"{kind_key!r} missing from documentation cascade: {sorted(result.activated)}"
 
 
 def test_cascade_never_proposes_template_or_asset(built_in_graph: DRGGraph) -> None:
     # C-CAS-3: even for a source whose closure reaches templates/assets, neither
     # appears in ``activated`` nor in the no-cascade ``skipped`` report.
-    result = cascade_activation_targets(
-        built_in_graph, "mission_type:documentation", CascadeScope.all()
-    )
+    result = cascade_activation_targets(built_in_graph, "mission_type:documentation", CascadeScope.all())
     assert "template" not in result.activated
     assert "asset" not in result.activated
 
@@ -655,14 +625,10 @@ def test_cascade_never_proposes_template_or_asset(built_in_graph: DRGGraph) -> N
 
 
 @pytest.mark.parametrize("mission_type_urn", _BUILT_IN_MISSION_TYPE_URNS)
-def test_cascade_never_emits_action_nodes(
-    built_in_graph: DRGGraph, mission_type_urn: str
-) -> None:
+def test_cascade_never_emits_action_nodes(built_in_graph: DRGGraph, mission_type_urn: str) -> None:
     # C-CAS-4: ``action:`` is not an ArtifactKind, so it is never a bucket key —
     # the traversal passes *through* actions but never proposes one as a target.
-    result = cascade_activation_targets(
-        built_in_graph, mission_type_urn, CascadeScope.all()
-    )
+    result = cascade_activation_targets(built_in_graph, mission_type_urn, CascadeScope.all())
     assert "action" not in result.activated
 
 
@@ -700,9 +666,7 @@ def test_instantiates_is_followed_but_template_dropped_at_candidacy() -> None:
             _edge("action:gamma/step", "template:tmpl", Relation.INSTANTIATES),
         ],
     )
-    result = cascade_activation_targets(
-        graph, "mission_type:gamma", CascadeScope.all()
-    )
+    result = cascade_activation_targets(graph, "mission_type:gamma", CascadeScope.all())
     assert result.activated == {}
 
 
@@ -743,13 +707,8 @@ def test_cascade_candidate_kinds_are_all_charter_activatable(
     # is a member of CHARTER_ACTIVATABLE_KINDS — the filter admits nothing else.
     activatable_values = {kind.value for kind in CHARTER_ACTIVATABLE_KINDS}
     for mission_type_urn in _BUILT_IN_MISSION_TYPE_URNS:
-        result = cascade_activation_targets(
-            built_in_graph, mission_type_urn, CascadeScope.all()
-        )
-        assert set(result.activated) <= activatable_values, (
-            f"{mission_type_urn} proposed a non-activatable kind: "
-            f"{set(result.activated) - activatable_values}"
-        )
+        result = cascade_activation_targets(built_in_graph, mission_type_urn, CascadeScope.all())
+        assert set(result.activated) <= activatable_values, f"{mission_type_urn} proposed a non-activatable kind: {set(result.activated) - activatable_values}"
 
 
 def test_instantiates_targets_are_all_non_activatable_today(
@@ -802,12 +761,8 @@ _GOVERNANCE_PROFILE_SELECTED_FIELDS: tuple[tuple[str, str], ...] = (
 )
 
 
-@pytest.mark.parametrize(
-    "mission_type_id", ("documentation", "plan", "research", "software-dev")
-)
-def test_mission_type_scope_edges_cover_every_governance_profile_selection(
-    freshly_extracted_graph: DRGGraph, mission_type_id: str
-) -> None:
+@pytest.mark.parametrize("mission_type_id", ("documentation", "plan", "research", "software-dev"))
+def test_mission_type_scope_edges_cover_every_governance_profile_selection(freshly_extracted_graph: DRGGraph, mission_type_id: str) -> None:
     """T008 primary (robust) coverage: #3604's T007 pass must emit a ``scope``
     edge for EVERY entry of a type's shipped ``governance-profile.yaml``
     ``selected_*`` lists -- across all four built-in mission types, not just
@@ -823,15 +778,10 @@ def test_mission_type_scope_edges_cover_every_governance_profile_selection(
     itself is grounded against.
     """
     profile = MissionTypeProfileRepository().get(mission_type_id)
-    assert profile is not None, (
-        f"no shipped governance-profile.yaml for mission_type:{mission_type_id!r}"
-    )
+    assert profile is not None, f"no shipped governance-profile.yaml for mission_type:{mission_type_id!r}"
 
     source_urn = f"mission_type:{mission_type_id}"
-    scope_targets = {
-        edge.target
-        for edge in freshly_extracted_graph.edges_from(source_urn, Relation.SCOPE)
-    }
+    scope_targets = {edge.target for edge in freshly_extracted_graph.edges_from(source_urn, Relation.SCOPE)}
 
     missing: list[str] = []
     for field_name, kind in _GOVERNANCE_PROFILE_SELECTED_FIELDS:
@@ -840,10 +790,7 @@ def test_mission_type_scope_edges_cover_every_governance_profile_selection(
             if target_urn not in scope_targets:
                 missing.append(f"{field_name}: {raw_id!r} ({target_urn!r})")
 
-    assert not missing, (
-        f"mission_type:{mission_type_id} is missing scope edges for governance-"
-        f"profile.yaml selections: {missing}"
-    )
+    assert not missing, f"mission_type:{mission_type_id} is missing scope edges for governance-profile.yaml selections: {missing}"
 
 
 #: T008 secondary (ratchet) — total cascade-target counts
@@ -872,28 +819,34 @@ def test_mission_type_scope_edges_cover_every_governance_profile_selection(
 #: WILL move as doctrine grows -- that is expected; a diff here is a prompt to
 #: re-verify the new total, not a regression by itself.
 _EXPECTED_CASCADE_TOTALS: dict[str, int] = {
-    "documentation": 40,
-    "research": 109,
-    "software-dev": 160,
-    "plan": 140,
+    "documentation": 44,
+    "research": 110,
+    "software-dev": 161,
+    "plan": 141,
 }
+#: The built-in tactic ``acceptance-criteria-non-vacuity`` sits downstream of
+#: ``tactic:usage-examples-sync`` (already scoped to every governance-bearing
+#: mission type) via a forward step-level reference from
+#: ``acceptance-test-first``, and itself references
+#: ``mutation-testing-workflow`` (whose two toolguide references complete the
+#: closure). Every governance-bearing mission type gains the new tactic
+#: itself (+1). ``documentation`` alone gains +4: it was the only mission
+#: type that did not already reach ``mutation-testing-workflow`` by another
+#: path, so this new edge is also the first path to it and its two
+#: toolguides (1 + 1 + 2 = 4). ``plan``/``research``/``software-dev`` already
+#: reached ``mutation-testing-workflow`` by a pre-existing path, so the new
+#: edge is redundant for them and they move by only +1.
 
 
-@pytest.mark.parametrize(
-    "mission_type_id", ("documentation", "plan", "research", "software-dev")
-)
-def test_mission_type_cascade_total_ratchet(
-    freshly_extracted_graph: DRGGraph, mission_type_id: str
-) -> None:
+@pytest.mark.parametrize("mission_type_id", ("documentation", "plan", "research", "software-dev"))
+def test_mission_type_cascade_total_ratchet(freshly_extracted_graph: DRGGraph, mission_type_id: str) -> None:
     """T008 secondary (ratchet): pins the total cascade-target count per
     built-in mission type against ``freshly_extracted_graph`` (see
     ``_EXPECTED_CASCADE_TOTALS`` for why these values, not research.md's
     pre-mission snapshot). Every type is non-empty ("populated"), including
     ``plan`` -- #3604's headline fix.
     """
-    result = cascade_activation_targets(
-        freshly_extracted_graph, f"mission_type:{mission_type_id}", CascadeScope.all()
-    )
+    result = cascade_activation_targets(freshly_extracted_graph, f"mission_type:{mission_type_id}", CascadeScope.all())
     total = sum(len(ids) for ids in result.activated.values())
     assert total == _EXPECTED_CASCADE_TOTALS[mission_type_id], (
         f"mission_type:{mission_type_id} cascade total moved from "

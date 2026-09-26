@@ -2,6 +2,9 @@ schema_version: '1.0'
 generated_at: STATIC
 generated_by: drg-migration-v1
 nodes:
+- urn: tactic:acceptance-criteria-non-vacuity
+  kind: tactic
+  label: Acceptance Criteria Non-Vacuity
 - urn: tactic:acceptance-test-first
   kind: tactic
   label: Acceptance Test Driven Development (ATDD)
@@ -375,6 +378,14 @@ nodes:
   kind: tactic
   label: ZOMBIES TDD
 edges:
+- source: tactic:acceptance-criteria-non-vacuity
+  target: tactic:mutation-testing-workflow
+  relation: suggests
+  when: Proving a compound fix's test suite depends on every independent part of the fix.
+- source: tactic:acceptance-test-first
+  target: tactic:acceptance-criteria-non-vacuity
+  relation: suggests
+  when: Label the criterion and confirm a no-op cannot pass it
 - source: tactic:acceptance-test-first
   target: tactic:tdd-red-green-refactor
   relation: suggests
@@ -451,6 +462,10 @@ edges:
   target: toolguide:plantuml-diagramming
   relation: suggests
   when: Rendering reviewed diagrams in PlantUML syntax.
+- source: tactic:atdd-adversarial-acceptance
+  target: tactic:acceptance-criteria-non-vacuity
+  relation: suggests
+  when: Pair each refusal / state-unchanged assertion with a same-fixture positive control
 - source: tactic:atdd-adversarial-acceptance
   target: tactic:acceptance-test-first
   relation: suggests

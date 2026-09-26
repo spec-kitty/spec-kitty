@@ -24,8 +24,17 @@ steps:
       Write each selected scenario as Given/When/Then.
       Each test must assert at least one of: error message or code, state unchanged,
       rejected command not applied, audit signal exists, or user guidance provided.
+      Pair each refusal / state-unchanged assertion with a same-fixture positive
+      control so the probe is proven able to observe the thing it says is absent
+      (a one-line summary of tactic acceptance-criteria-non-vacuity's rule per
+      C-006; see that tactic for the full definition).
     examples:
       - "Given a user with an expired session / When they submit a payment / Then the payment is rejected with 'Session expired' and no charge is created."
+    references:
+      - name: Acceptance Criteria Non-Vacuity
+        type: tactic
+        id: acceptance-criteria-non-vacuity
+        when: Pair each refusal / state-unchanged assertion with a same-fixture positive control
   - title: Review for fit and redundancy
     description: >
       Verify adversarial tests do not duplicate unit tests, remain stakeholder-meaningful,

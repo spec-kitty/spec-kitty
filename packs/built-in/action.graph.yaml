@@ -539,13 +539,13 @@ edges:
   target: procedure:test-first-bug-fixing
   relation: scope
 - source: action:software-dev/review
+  target: tactic:acceptance-criteria-non-vacuity
+  relation: scope
+- source: action:software-dev/review
   target: tactic:acceptance-test-first
   relation: scope
 - source: action:software-dev/review
   target: tactic:autonomous-operation-protocol
-  relation: scope
-- source: action:software-dev/review
-  target: tactic:black-box-integration-testing
   relation: scope
 - source: action:software-dev/review
   target: tactic:boring-code-review

@@ -12,6 +12,9 @@ tactics:
   - quality-gate-verification
   - stopping-conditions
   - supply-chain-install-safety
+  - acceptance-criteria-non-vacuity
+  # Listed explicitly so graph calibration cannot drop it from review.
+  - boring-code-review
 styleguides: []
 toolguides: []
 procedures:
