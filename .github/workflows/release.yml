@@ -16,7 +16,51 @@ env:
   RELEASE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # nightly-gate: FR-008 -- a release must not publish on unproven tests. This
+  # precondition job requires a green ci-nightly.yml run for the EXACT commit the
+  # release tag points at BEFORE build-release runs (publish-pypi is blocked
+  # transitively via build-release's needs edge). It resolves the tag -> SHA,
+  # checks for an existing green nightly for that SHA, and with --dispatch kicks a
+  # fresh one BY THE TAG REF (workflow_dispatch cannot target a bare 40-hex SHA;
+  # the tag points at the release SHA so the run's head_sha matches), waiting to
+  # a terminal conclusion. It FAILS CLOSED: a missing token / red / missing /
+  # timed-out nightly all block publication (the OPPOSITE of the nightly
+  # escalation degrade). See scripts/ci/release_nightly_gate.py.
+  #
+  # `actions: write` is required to issue the workflow_dispatch. The dispatch
+  # uses a DEDICATED token (secret RELEASE_NIGHTLY_DISPATCH_TOKEN, a PAT or
+  # GitHub App token): a workflow_dispatch issued with the default GITHUB_TOKEN
+  # does NOT start a new run (documented recursion guard), so the gate would hang
+  # then fail. Operator prerequisite: create that secret.
+  nightly-gate:
+    name: Release nightly gate (green nightly for the release SHA)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_REF }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Require a green nightly for the exact release SHA (fail-closed)
+        env:
+          # A dedicated PAT / GitHub App token -- the default GITHUB_TOKEN cannot
+          # trigger a nested workflow run. Absent secret => fail-closed (no publish).
+          GH_TOKEN: ${{ secrets.RELEASE_NIGHTLY_DISPATCH_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python3 scripts/ci/release_nightly_gate.py --tag "${RELEASE_TAG}" --dispatch
+
   build-release:
+    needs: [nightly-gate]
     runs-on: ubuntu-latest
     permissions:
       contents: read
