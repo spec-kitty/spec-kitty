@@ -96,6 +96,12 @@ jobs:
     name: Performance suite (nightly-only, #3595)
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    # `issues: write` is for the nightly red -> deduped-P0 escalation step
+    # (scripts/ci/nightly_escalation.py, FR-007) below; the workflow-level
+    # default is `contents: read`.
+    permissions:
+      contents: read
+      issues: write
     env:
       # DO NOT add SPEC_KITTY_RUN_PERFORMANCE to any other job's env in this
       # file (e2e, stress, etc.) -- it is deliberately scoped to THIS job
@@ -131,6 +137,23 @@ jobs:
         with:
           name: ci-nightly-performance-reports
           path: out/reports/
+
+      # Nightly red -> deduped-P0 escalation (FR-007, DM-01M3CZWF). Runs
+      # `if: always()` BEFORE the terminal fail-loud gate so it fires whether
+      # the suite was red or green; on red it opens/updates ONE standing
+      # priority:P0 issue for this suite key, on green it closes it. It is
+      # fail-closed toward the workflow: a missing token / API outage prints a
+      # warning and exits 0 (degrade to fail-loud only), never crashing the run
+      # and never echoing the token (C-005). Exit 0 and the marker-empty exit 5
+      # both count as `success`, mirroring the fail-loud gate below.
+      - name: Escalate performance red -> deduped P0 (fail-closed)
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${PERF_EXIT:-0}" -ne 0 ] && [ "${PERF_EXIT:-0}" -ne 5 ]; then conclusion=failure; else conclusion=success; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key performance --conclusion "$conclusion" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       # Terminal fail-loud gate (#4212): the suite above ran under `set +e` +
       # `if: always()` (run-all-regardless), capturing its pytest exit into
@@ -174,6 +197,10 @@ jobs:
     name: Heavy e2e suite (nightly-only, #3595)
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    # `issues: write` for the FR-007 escalation step below.
+    permissions:
+      contents: read
+      issues: write
     env:
       PWHEADLESS: "1"
     steps:
@@ -202,6 +229,17 @@ jobs:
         with:
           name: ci-nightly-e2e-reports
           path: out/reports/
+
+      # Nightly red -> deduped-P0 escalation (FR-007): mirror of the performance
+      # job's step, scoped to this suite's key/exit. Fail-closed, if: always().
+      - name: Escalate e2e red -> deduped P0 (fail-closed)
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${E2E_EXIT:-0}" -ne 0 ] && [ "${E2E_EXIT:-0}" -ne 5 ]; then conclusion=failure; else conclusion=success; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key e2e --conclusion "$conclusion" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       # Terminal fail-loud gate (#4212): mirror of the performance job's gate
       # above, scoped to this job's own suite/exit code.
@@ -254,6 +292,10 @@ jobs:
     # performance-marked cases, blows this budget, and reproduces #4865's
     # ~16m18s+ truncation defect -- the exact regression this mission fixes.
     timeout-minutes: 10
+    # `issues: write` for the FR-007 escalation step below.
+    permissions:
+      contents: read
+      issues: write
     env:
       PWHEADLESS: "1"
     steps:
@@ -283,6 +325,17 @@ jobs:
           name: ci-nightly-stress-reports
           path: out/reports/
 
+      # Nightly red -> deduped-P0 escalation (FR-007): mirror of the performance
+      # job's step, scoped to this suite's key/exit. Fail-closed, if: always().
+      - name: Escalate stress red -> deduped P0 (fail-closed)
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${STRESS_EXIT:-0}" -ne 0 ] && [ "${STRESS_EXIT:-0}" -ne 5 ]; then conclusion=failure; else conclusion=success; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key stress --conclusion "$conclusion" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
       # Terminal fail-loud gate (#4212): mirror of the performance job's gate
       # above, scoped to this job's own suite/exit code.
       - name: Fail the job if the stress suite was red (run-all-then-fail-loud)
@@ -304,6 +357,10 @@ jobs:
     name: "Interpreter matrix (Python ${{ matrix.python-version }}, nightly-only, FR-021)"
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # `issues: write` for the FR-007 escalation step below.
+    permissions:
+      contents: read
+      issues: write
     strategy:
       fail-fast: false
       matrix:
@@ -357,6 +414,18 @@ jobs:
         with:
           name: "ci-nightly-interpreter-${{ matrix.python-version }}-reports"
           path: out/reports/
+
+      # Nightly red -> deduped-P0 escalation (FR-007): scoped per interpreter
+      # version so a 3.13 divergence gets its OWN standing issue (and two legs
+      # never race to open one issue). Fail-closed, if: always().
+      - name: Escalate interpreter ${{ matrix.python-version }} red -> deduped P0 (fail-closed)
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${INTERPRETER_EXIT:-0}" -ne 0 ] && [ "${INTERPRETER_EXIT:-0}" -ne 5 ]; then conclusion=failure; else conclusion=success; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key "interpreter-${{ matrix.python-version }}" --conclusion "$conclusion" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       # Terminal fail-loud gate (#4212): mirror of the performance/e2e/stress
       # gate on the FR-021 interpreter lane. The suite above captured its
@@ -465,13 +534,100 @@ jobs:
       test_dirs: ${{ matrix.test_dirs }}
 
   # ---------------------------------------------------------------------------
+  # integration-next: FR-006 / #4729 -- the nightly home for the integration +
+  # next behavioral corpus. Replaces the DEAD `integration_tests_next` special
+  # tier that ci-module-registry.yml declared but no workflow ever invoked (the
+  # #4729 honesty gap, retired in the same change that added this job). That
+  # tier declared roots tests/integration/** AND tests/next/**, so BOTH are run
+  # here BY DIRECTORY -- not `-m integration`: 843/1015 tests are
+  # integration-marked but no nightly marker suite selects them, and
+  # tests/next/** carries no such marker at all, so a marker-only lane would
+  # silently drop tests/next's 24 files. This is NOT a per-PR modules[] row
+  # (C-003 -- that per-PR promotion is the deferred #5037); it is a dedicated
+  # nightly lane.
+  #
+  # Runs its xdist fan-out inside ONE job (`-n auto --dist loadfile`, the
+  # retired tier's own `parallel_mode`) rather than being split across separate
+  # registry shards. Sizing (NFR-004, measured not guessed): the retired tier
+  # recorded 69.2m fully-serial; a `-n auto --dist loadfile` run of the same
+  # 1582-test corpus measured ~2m wall on a 32-core host (=> ~64m serial,
+  # consistent with the tier's figure) and projects to ~15-20m on a 4-core
+  # ubuntu-latest runner -- comfortably inside the 45m timeout below, so no
+  # cross-job sharding is needed. `--dist loadfile` keeps each file on one
+  # worker (file-scoped fixtures / collection semantics); per-worker HOME
+  # isolation (WP04, conftest) keeps parallel workers off the real
+  # ~/.spec-kitty. Same if: always() + set +e + exit-into-$GITHUB_ENV +
+  # terminal fail-loud (#4212) + FR-007 escalation pattern as the suites above.
+  # ---------------------------------------------------------------------------
+  integration-next:
+    name: Integration + next suite (nightly-only, #4729)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # `issues: write` for the FR-007 escalation step below.
+    permissions:
+      contents: read
+      issues: write
+    env:
+      PWHEADLESS: "1"
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Sync dev environment
+        shell: bash
+        run: uv sync --frozen --all-extras
+
+      - name: Run integration + next suites by directory (full-mode, run-all-regardless)
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          uv run --frozen pytest tests/integration tests/next -q -n auto --dist loadfile --junitxml=out/reports/xunit-nightly-integration-next.xml
+          code=$?
+          echo "INTEGRATION_EXIT=$code" >> "$GITHUB_ENV"
+          echo "::notice::integration+next suite exit=$code (if: always() -- full mode never short-circuits; a red suite is surfaced by the terminal fail-loud step, #4212)"
+
+      - name: Upload nightly integration+next reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-nightly-integration-next-reports
+          path: out/reports/
+
+      # Nightly red -> deduped-P0 escalation (FR-007): mirror of the suites
+      # above, scoped to the `integration` suite key. Fail-closed, if: always().
+      - name: Escalate integration+next red -> deduped P0 (fail-closed)
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${INTEGRATION_EXIT:-0}" -ne 0 ] && [ "${INTEGRATION_EXIT:-0}" -ne 5 ]; then conclusion=failure; else conclusion=success; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key integration --conclusion "$conclusion" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      # Terminal fail-loud gate (#4212): mirror of the performance job's gate,
+      # scoped to this suite/exit. 0 (all passed) and 5 (marker-empty) pass;
+      # only a genuine failure exit fails the job.
+      - name: Fail the job if the integration+next suite was red (run-all-then-fail-loud)
+        if: always()
+        shell: bash
+        run: |
+          if [ "${INTEGRATION_EXIT:-0}" -ne 0 ] && [ "${INTEGRATION_EXIT:-0}" -ne 5 ]; then
+            echo "::error::integration+next suite exited ${INTEGRATION_EXIT}"
+            exit 1
+          fi
+          echo "integration+next suite passed (exit 0 or a marker-empty exit 5)."
+
+  # ---------------------------------------------------------------------------
   # nightly-summary: terminal `if: always()` aggregator so a scheduled/dispatch
   # run's complete failure set is visible in one place, never short-circuited.
   # ---------------------------------------------------------------------------
   nightly-summary:
     name: Nightly full-mode summary
     runs-on: ubuntu-latest
-    needs: [performance, e2e, stress, interpreter-matrix, full-module-matrix]
+    needs: [performance, e2e, stress, interpreter-matrix, integration-next, full-module-matrix]
     if: always()
     steps:
       - name: Report full-mode results (run-all-regardless, never fail-fast)
@@ -481,4 +637,5 @@ jobs:
           echo "e2e: ${{ needs.e2e.result }}"
           echo "stress: ${{ needs.stress.result }}"
           echo "interpreter-matrix: ${{ needs.interpreter-matrix.result }}"
+          echo "integration-next: ${{ needs.integration-next.result }}"
           echo "full-module-matrix: ${{ needs.full-module-matrix.result }}"
