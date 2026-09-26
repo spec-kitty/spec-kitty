@@ -12,6 +12,7 @@ improvement**.
 | Findings extracted | **966** items (507 friction · 219 note · 166 concern · 74 recommendation), each with a `file:line` pointer that was checked |
 | Friction clusters | **165** distinct fixable causes or improvements, in five groups |
 | Issue coverage | **45** covered by an open issue · **72** partially covered · **24** matched only by closed issues · **24** uncovered |
+| Tracker actions | #3143 reopened into 4.0.0 scope; 40 issues filed (#5060–#5100), triaged and homed under functional epics. See [§6](#6-tracker-actions-taken-2026-09-26) |
 | Governance | Dispatched as Op `01M3EFYEP1QFP1F7A2Z8TYF4A7`. Recon delegates were profile-loaded as `retrospective-facilitator`; coverage delegates as `planner-priti`. All delegates were read-only; no issues were filed or edited |
 
 Detail lives beside this file:
@@ -447,11 +448,11 @@ The pack tier follows the CLAUDE.md rule on who the doctrine governs. **built-in
 - **#4864 → C-25:** silent uniform fallback for shard weights.
 - **#571 → E-30:** no orchestrator-side check that a dispatched WP drove the implement transitions.
 
-### 3.4 Possible close candidates (planner observations; not acted on)
+### 3.4 Close candidates (acted on in §6)
 
-- **#2493 item 1:** `mark-status` re-staling the analysis report looks fixed (`analysis_report.py::_normalize_tasks_md`).
-- **#3394:** may be stale-open; its sibling #3396 says #3395 already scoped the parser.
-- **#3398:** the forward fix `_relativize_or_raise` is on main. Only the backfill of ~171 historical files remains, so consider re-scoping it.
+- **#2493:** items 1–3 are fixed or superseded. One residual remains live: `plan.md` NEEDS-CLARIFICATION removal re-stales the analysis. Set to `triage:needs-revision` for the owner to re-scope or split.
+- **#3394:** fixed on main (declared-id scoping plus `TestDeclaredVsCitedRequirements`). **Closed as completed.**
+- **#3398:** the forward fix is on main. 192 historical reports still leak absolute paths, and sweeping them collides with the archive byte-freeze gate. Routed to a human.
 
 ---
 
@@ -501,3 +502,87 @@ The pack tier follows the CLAUDE.md rule on who the doctrine governs. **built-in
 - **Unresolvable references.** `SK-NN` ids point to a workspace-local ledger that isn't in this repository.
 - **Dates.** Mission dates come from ULID or `meta.json` `created_at`. Individual tracer entries can be days later, which affects the "post-dates the close" regression judgements.
 - **Judgement calls.** Clustering and severity are judgement calls. Each item sits in at most one cluster. Groups B and D set aside about 44 design-only or already-resolved notes that need no action; groups A, C and E clustered every item. The per-group JSONL and `.md` files record the mapping so it can be audited.
+
+---
+
+## 6. Tracker actions taken (2026-09-26)
+
+The operator asked for the report's recommendations to be actioned and for the repository's issue-triage approach to be run on the result. The work ran under Op `01M3EP3N34E82WGTBXBN656Y9H` and followed the `issue-triage-state-machine` and `tracker-organisation-workflow` procedures and `docs/development/how-to/manage-issue-tracker.md`.
+
+**Reopened.** #3143 (default per-test timeout). The 2026-09-24 grooming close cited #3144, the PR that created the gap. Since `ci-quality.yml` was retired, no per-test `--timeout` runs anywhere: not locally, not in the Linux module shards, not on Windows. It is now in milestone **4.0.0 release scope** at the operator's request. Triage moved it to `status:ready`, because moving the default into `pytest.ini` is now the only option that covers every surface.
+
+**Filed.** 40 issues, #5060–#5100 (#5066 is an unrelated PR): all 24 UNCOVERED clusters, the 8 recurrences found after a close, and the 8 largest PARTIAL gaps. Every issue carries its tracer evidence, the coverage check, the gap and a proposed scope. The cluster-to-issue mapping is in the **Tracker action** column of [`coverage-matrix.md`](coverage-matrix.md).
+
+**Triaged.** Four profile-loaded planner-priti delegates handled the issues. For each one they read the whole issue, set one native type and one state, and bounded the claim against `origin/main` (`43520a31`). Each issue then got either a durable agent brief (current and desired behaviour, contracts, acceptance criteria, out of scope; no file paths) or a "Triage: ready-for-human" note listing the decision options. They also checked priority against the P0 calibration, fixed domain labels, and removed the retired `enhancement` label.
+
+| State | Issues |
+|---|---|
+| `status:ready` (agent brief posted) | 25 |
+| ready-for-human (`status:triage` + options comment) | 12 |
+| needs-info (`status:triage` + `triage:repro-needed`) | 3 |
+
+Several premises were narrowed during triage, where part of the claim was already fixed at HEAD: #5064, #5068, #5071, #5073, #5075, #5077, #5086 and #5094. Two severities were adjusted:
+
+- **#5081** (Zeitgeist approval drop): lowered to P2. The drop is real on `agent status emit --review-result-json` and the orchestrator-api transition. `move-task` always attaches evidence, and the local log stays correct.
+- **#3143**: kept at P1.
+
+**Homed.** The tracker guide treats a source-based grouping as a catch-all root, so the temporary epic #5059 did not stay the parent. Each issue was re-parented under an existing functional epic, 21 in all, listed below. #5059 was then turned into a closed, reference-only meta-tracker.
+
+**Close candidates and duplicates.**
+
+- #3394 was closed as completed.
+- #2493 was set to `triage:needs-revision`; see §3.4.
+- #3398 was routed to a human.
+- #2803 and #5096 were judged related but not duplicates. #5096 owns the lane-interpreter root cause; #2803 keeps the pre-review `no_coverage` diagnostic, whose second cause is a hard-coded `tests.architectural` import in consumer repos. Both were cross-linked.
+
+**Open for the operator.**
+
+- **P0 candidates** (escalation is an operator decision):
+  - #5100: `single_branch` missions still get lane worktrees; code lands on undeclared lanes.
+  - #5099: the shipped implement-review skill tells agents to `git add -A` in shared checkouts.
+  - #5096: lane tests import the primary checkout's `src`.
+- **Ready-for-human decisions**, 12 of them: #5062, #5063, #5065, #5069, #5070, #5074, #5075, #5076, #5078, #5096, #5097, #5100.
+- **A label-vocabulary conflict.** The retired `type:*` family still carries `type:decision`, which the fleet dispatcher reads as "skip". The triage procedure's *ready-for-human* state therefore has no sanctioned label. These issues are held back from the fleet only by staying in `status:triage`.
+
+| Issue | Cluster | Type | Pri | Triage state | Functional parent |
+|---|---|---|---|---|---|
+| #5060 | A-20 | Task | P2 | status:ready | #1799 |
+| #5061 | E-19 | Task | P2 | status:ready | #1931 |
+| #5062 | E-20 | Task | P3 | ready-for-human | #1799 |
+| #5063 | D-04 | Feature | P2 | ready-for-human | #3448 |
+| #5064 | C-04 | Task | P3 | status:ready | #1932 |
+| #5065 | A-08 | Feature | P2 | ready-for-human | #1676 |
+| #5067 | B-15 | Bug | P2 | status:ready | #2017 |
+| #5068 | C-34 | Task | P3 | status:ready | #1931 |
+| #5069 | B-23 | Bug | P2 | ready-for-human | #1619 |
+| #5070 | E-08 | Feature | P3 | ready-for-human | #1801 |
+| #5071 | E-25 | Feature | P2 | status:ready | #3809 |
+| #5072 | A-16 | Feature | P3 | status:ready | #1676 |
+| #5073 | A-25 | Feature | P3 | status:ready | #1676 |
+| #5074 | B-30 | Feature | P3 | ready-for-human | #1619 |
+| #5075 | C-14 | Task | P3 | ready-for-human | #1931 |
+| #5076 | C-23 | Bug | P1 | ready-for-human | #1928 |
+| #5077 | D-22 | Task | P3 | status:ready | #1799 |
+| #5078 | A-24 | Bug | P2 | ready-for-human | #4441 |
+| #5079 | A-34 | Bug | P3 | status:ready | #1676 |
+| #5080 | B-13 | Bug | P2 | needs-info | #1795 |
+| #5081 | B-26 | Bug | P2 | status:ready | #3890 |
+| #5082 | E-24 | Task | P2 | status:ready | #1931 |
+| #5083 | D-19 | Bug | P2 | status:ready | #3891 |
+| #5084 | D-34 | Task | P3 | status:ready | #1928 |
+| #5085 | D-01 | Bug | P3 | status:ready | #1931 |
+| #5086 | D-05 | Task | P3 | status:ready | #1931 |
+| #5087 | E-07 | Bug | P3 | needs-info | #4514 |
+| #5088 | C-22 | Bug | P3 | status:ready | #1932 |
+| #5089 | D-27 | Bug | P2 | status:ready | #2519 |
+| #5090 | E-30 | Task | P3 | status:ready | #1619 |
+| #5091 | D-28 | Bug | P2 | needs-info | #3897 |
+| #5092 | C-25 | Bug | P2 | status:ready | #4437 |
+| #5093 | A-31 | Feature | P3 | status:ready | #1799 |
+| #5094 | A-19 | Task | P2 | status:ready | #1676 |
+| #5095 | D-17 | Task | P2 | status:ready | #849 |
+| #5096 | C-01 | Bug | P1 | ready-for-human | #2624 |
+| #5097 | C-16 | Feature | P2 | ready-for-human | #3260 |
+| #5098 | C-20 | Feature | P2 | status:ready | #1932 |
+| #5099 | E-23 | Task | P1 | status:ready | #1795 |
+| #5100 | B-11 | Bug | P1 | ready-for-human | #1619 |
