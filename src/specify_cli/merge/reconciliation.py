@@ -245,20 +245,36 @@ class VerifyResult:
 
 @dataclass(frozen=True)
 class LaneContribution:
-    """One approved lane's contribution to a multi-lane-authored content path.
+    """One approved lane's contribution to a multi-lane-authored content path,
+    PER (lane, path) — never lane-only.
 
-    ``terminus-merge-resolution-attribution`` / FR-009. ``lane_commit`` is a raw
-    SHA — the newest commit on the lane's own first-parent spine — never a
-    branch name, so it stays resolvable via git's object store for the lifetime
-    of the merge transaction even after a lane branch ref is deleted at
-    teardown. Used ONLY to supply
+    ``terminus-merge-resolution-attribution`` / FR-009 (widened by the #5124
+    landing fold's smuggled-tip guard). ``lane_commit`` is a raw SHA — the
+    newest commit on the lane's own first-parent spine — never a branch name,
+    so it stays resolvable via git's object store for the lifetime of the
+    merge transaction even after a lane branch ref is deleted at teardown.
+    ``lane_commit`` CAN be a merge commit (a lane's tip is whatever its own
+    first-parent spine's newest commit is, merge or not); its FULL tree can
+    therefore carry content beyond the lane's own first-parent authorship — a
+    disjoint second-parent hunk merged in from an unrelated (e.g. removed)
+    lane, the #4977 carrier mechanism. ``authored_blob`` is the fail-closed
+    guard input that catches that: the lane's FINAL first-parent-AUTHORED blob
+    for THIS path (the same value :attr:`ApprovedWpCommitSet.authored_blobs`
+    would record for this (lane, path)), read straight from
+    :func:`_final_authored_walk` at contribution-build time — never
+    recomputed. :func:`is_legitimate_three_way_resolution` refuses to simulate
+    unless each contributing lane's tip-tree blob at *path* equals this value,
+    so a merge-commit tip that smuggled extra content can never feed the
+    simulation. Used to supply
     :func:`~specify_cli.merge.git_probes.three_way_merge_blob`'s two merge
-    inputs; blob-identity attribution itself continues to come from
-    :attr:`ApprovedWpCommitSet.authored_blobs`, never from here.
+    inputs (via ``lane_commit``) plus the guard check (via ``authored_blob``);
+    blob-identity attribution ITSELF (the actual accepted content) continues
+    to come from :attr:`ApprovedWpCommitSet.authored_blobs`, never from here.
     """
 
     lane_id: str
     lane_commit: str
+    authored_blob: str
 
 
 @dataclass(frozen=True)
@@ -327,19 +343,30 @@ class ApprovedWpCommitSet:
     # pre-#5022 behavior for any claim that never populates it.
     authored_deletions: frozenset[str] = frozenset()
     # Merge-resolution-aware Seam A attribution (terminus-merge-resolution-
-    # attribution / #5051-adjacent, FR-009). For each content path authored by
-    # EXACTLY TWO approved lanes (a path outside the disjoint-write-scope
-    # invariant `_final_authored_walk` documents), the two contributing lanes'
-    # identities + their still-resolvable pre-squash lane commit SHAs.
+    # attribution / #5051-adjacent, FR-009; smuggled-tip guard added by the
+    # #5124 landing fold). For each content path authored by EXACTLY TWO
+    # approved lanes (a path outside the disjoint-write-scope invariant
+    # `_final_authored_walk` documents), the two contributing lanes' PER-PATH
+    # :class:`LaneContribution`s — their still-resolvable pre-squash lane
+    # commit SHAs (which CAN be a merge commit) plus, per (lane, path), the
+    # lane's own first-parent-AUTHORED blob for that path (the guard input
+    # that catches a merge-commit tip smuggling extra content — see
+    # :class:`LaneContribution`). One ``LaneContribution`` is now recorded PER
+    # (lane, path) — never one shared object reused across every path a lane
+    # touches — because the authored blob differs per path.
     # Populated in the SAME first-parent spine walk that builds
     # ``authored_blobs`` (:func:`_collect_authored` / :func:`_final_authored_walk`)
     # — never a second walk. Absent (no key) for a single-lane path (the
     # existing ``authored_blobs`` fast path already attributes those) and for a
     # path touched by three-or-more approved lanes (2-way `merge-tree` folding
     # is order-dependent/nondeterministic for N>2 — Decision 2, ``research.md``
-    # — so those stay fail-closed, never simulated). Supplies
-    # ``is_legitimate_three_way_resolution``'s two merge inputs; it never itself
-    # supplies blob identity — that authority stays with ``authored_blobs``.
+    # — so those stay fail-closed, never simulated). The "exactly two lanes"
+    # count is still one contribution per (lane, path) — i.e. per lane per
+    # path — so a path is a member iff exactly two DISTINCT lanes recorded a
+    # contribution for it, unchanged by the per-path widening. Supplies
+    # ``is_legitimate_three_way_resolution``'s two merge inputs AND its
+    # fail-closed guard; it never itself supplies the FINAL blob identity that
+    # is attributed — that authority stays with ``authored_blobs``.
     # Populated by ``_collect_authored`` only in the production claim builder; a
     # hand-built claim leaves it empty and the merge-resolution recognizer never
     # fires, preserving pre-widening behavior byte-for-byte.
@@ -787,7 +814,32 @@ def is_legitimate_three_way_resolution(
        2.38, :func:`~specify_cli.merge.git_probes.merge_tree_write_tree_available`)
        → ``False`` (Decision 3: fail-closed fallback, no unsound raw-``merge-
        file`` substitute).
-    3. Otherwise, simulate the 2-way merge of the two lanes' OWN commits
+    3. Smuggled-tip guard (#5124 landing fold — closes the reopened #4977
+       carrier-lane threat): ``lane_commit`` is a raw lane TIP and CAN be a
+       merge commit. ``three_way_merge_blob`` below feeds it that commit's
+       FULL tree, not just its first-parent authorship — so if a contributing
+       lane's tip is a merge commit that smuggled a disjoint SECOND-parent hunk
+       into *path* (content ``_final_authored_walk``/``authored_blobs``
+       deliberately excludes, being first-parent-only), the simulation would
+       reproduce the smuggled hunk right along with the legitimate edit, and a
+       target that shipped it would match. The guard: for each of the two
+       contributions, the lane's OWN tip-tree blob at *path*
+       (:func:`~specify_cli.merge.git_probes.blob_id_at`) must equal that
+       contribution's recorded first-parent-authored blob
+       (:attr:`LaneContribution.authored_blob`) — the value the same spine walk
+       already vetted as pure first-parent authorship. A mismatch means the
+       tip carries unvetted content beyond what was authored → refuse to
+       simulate → ``False`` (the path stays unattributable, FAILing the gate
+       and CAS-reverting the target, never shipping the smuggled hunk). A
+       :class:`~specify_cli.merge.git_probes.GitProbeError` from ``blob_id_at``
+       here is NOT caught — it propagates to the caller
+       (:meth:`MergeOutcomeVerifier._unattributable_content_squash`), which lets
+       it bubble to :meth:`MergeOutcomeVerifier._verify_squash_content`'s
+       ``except GitProbeError`` → REFUSE, the fail-closed outcome for an
+       unevaluable probe. The legitimate clean disjoint-hunk case (each lane's
+       tip IS its own authored blob — no second parent, or a merge commit whose
+       combined diff was empty) passes this guard unchanged.
+    4. Otherwise, simulate the 2-way merge of the two lanes' OWN commits
        (:func:`~specify_cli.merge.git_probes.three_way_merge_blob` — the ONLY
        inputs are those two commits; git derives their common ancestor, so no
        third input, e.g. a canceled/removed hunk, can ever be smuggled in) and
@@ -805,6 +857,9 @@ def is_legitimate_three_way_resolution(
     if not merge_tree_write_tree_available(repo_root):
         return False
     lane_a, lane_b = contributions
+    for contribution in (lane_a, lane_b):
+        if blob_id_at(repo_root, contribution.lane_commit, path) != contribution.authored_blob:
+            return False
     resolved_blob = three_way_merge_blob(repo_root, lane_a.lane_commit, lane_b.lane_commit, path)
     return resolved_blob == target_blob
 
@@ -1172,13 +1227,20 @@ def _record_lane_path_contribution(
     with no first-parent commits or no final blobs contributes nothing (there is
     no still-resolvable lane commit to record). ``first_parent[0]`` (newest) is
     the lane's own tip on its first-parent spine — a raw SHA, always resolvable
-    for the lifetime of the transaction even after a branch ref is deleted.
+    for the lifetime of the transaction even after a branch ref is deleted; it
+    CAN be a merge commit, which is exactly why a fresh :class:`LaneContribution`
+    is built PER PATH (never one shared object reused across every path): each
+    carries THIS path's own final first-parent-authored blob
+    (:attr:`LaneContribution.authored_blob`, ``_blob`` from *lane_blobs*) — the
+    fail-closed guard input :func:`is_legitimate_three_way_resolution` checks
+    the lane's raw tip-tree blob against before trusting a simulation that feeds
+    that tip's FULL tree (#5124 landing fold).
     """
     if not lane_blobs or not first_parent:
         return
-    contribution = LaneContribution(lane_id=lane.lane_id, lane_commit=first_parent[0])
-    for path, _blob in lane_blobs:
-        path_contributions.setdefault(path, []).append(contribution)
+    lane_commit = first_parent[0]
+    for path, blob in lane_blobs:
+        path_contributions.setdefault(path, []).append(LaneContribution(lane_id=lane.lane_id, lane_commit=lane_commit, authored_blob=blob))
 
 
 def _collect_authored(
@@ -1210,15 +1272,20 @@ def _collect_authored(
     squash deletion-attribution axis's authority for a legitimate approved
     deletion.
 
-    ``multi_lane_paths`` (terminus-merge-resolution-attribution / FR-009) is
-    derived in this SAME per-lane walk — never a second one: for each approved
-    lane, every path in that lane's own ``lane_blobs`` (its FINAL first-parent
-    blob set, :func:`_final_authored_walk`) records one :class:`LaneContribution`
-    (:func:`_record_lane_path_contribution`). A path collected from EXACTLY two
-    lanes becomes a ``multi_lane_paths`` entry; a path from one lane (the common
-    case under the disjoint-write-scope invariant) or from three-or-more lanes is
-    absent — the merge-resolution recognizer only ever runs for the exactly-two
-    case (Decision 2, ``research.md``).
+    ``multi_lane_paths`` (terminus-merge-resolution-attribution / FR-009,
+    smuggled-tip guard added by the #5124 landing fold) is derived in this SAME
+    per-lane walk — never a second one: for each approved lane, every path in
+    that lane's own ``lane_blobs`` (its FINAL first-parent blob set,
+    :func:`_final_authored_walk`) records its OWN, per-path
+    :class:`LaneContribution` (:func:`_record_lane_path_contribution`) — one
+    contribution per (lane, path), carrying that path's own authored blob,
+    never one lane-wide object reused across every path. A path collected from
+    EXACTLY two lanes (i.e. two DISTINCT lanes each recorded one contribution
+    for it — the per-path widening does not change this count) becomes a
+    ``multi_lane_paths`` entry; a path from one lane (the common case under the
+    disjoint-write-scope invariant) or from three-or-more lanes is absent — the
+    merge-resolution recognizer only ever runs for the exactly-two case
+    (Decision 2, ``research.md``).
     """
     shas: set[str] = set()
     patch_ids: set[str] = set()
