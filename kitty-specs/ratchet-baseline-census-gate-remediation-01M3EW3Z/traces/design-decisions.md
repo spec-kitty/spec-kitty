@@ -264,3 +264,202 @@ M16 | re-create module specify_cli.status.phase
       [fail] tests/status/test_parity.py::TestPhaseCap::test_phase_module_deleted
 
 EXIT=0
+
+2026-09-26 · python-pedro · WP09 mutation matrix — VERBATIM output at lane head 6329c3db (test_parity.py deleted; relocated tests exercised in their new homes):
+# WP09 mutation matrix @ 6329c3dbb290 (base-root /home/user/spec-kitty/.worktrees/ratchet-baseline-census-gate-remediation-01M3EW3Z-lane-i)
+BASELINE: collected=308 failed=0 errored=0 rc=0
+
+M1 | event sort is a no-op (shadow builtin `sorted` in spec_kitty_events.diary)
+    target: spec_kitty_events.diary.reduce_parsed (site-packages)
+    verdict: OK  (red=1 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestReducerDeterminism::test_event_order_does_not_affect_final_state
+    RED     tests/status/test_reducer.py::TestReduceOutOfOrder::test_reduce_out_of_order_events
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_reducer.py::TestReduceOutOfOrder::test_reduce_out_of_order_events
+
+M2 | add done -> planned edge (DoneState.allowed_targets) + recompute ALLOWED_TRANSITIONS
+    target: wp_state.DoneState + transitions.ALLOWED_TRANSITIONS
+    verdict: OK  (red=5 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestTransitionMatrixParity::test_terminal_lanes_have_no_outbound_transitions
+    RED     tests/status/test_transitions.py::TestConstants::test_allowed_transitions_count
+    RED     tests/status/test_transitions.py::TestIllegalTransitions::test_illegal_transition_rejected[done-planned]
+    RED     tests/status/test_transitions.py::TestBehaviorPreservationParity::test_validate_transition_matches_baseline
+    RED     tests/status/test_transitions.py::TestTerminalForceExitParity::test_terminal_exit_without_force_is_illegal[done]
+    RED     tests/status/test_transitions.py::TestBehaviorPreservationParity::test_collapsed_matrix_catches_planted_row
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_transitions.py::TestBehaviorPreservationParity::test_collapsed_matrix_catches_planted_row
+      [fail] tests/status/test_transitions.py::TestBehaviorPreservationParity::test_validate_transition_matches_baseline
+      [fail] tests/status/test_transitions.py::TestConstants::test_allowed_transitions_count
+      [fail] tests/status/test_transitions.py::TestIllegalTransitions::test_illegal_transition_rejected[done-planned]
+      [fail] tests/status/test_transitions.py::TestTerminalForceExitParity::test_terminal_exit_without_force_is_illegal[done]
+
+M3 | add claimed -> claimed self-edge + recompute ALLOWED_TRANSITIONS
+    target: wp_state.ClaimedState + transitions.ALLOWED_TRANSITIONS
+    verdict: OK  (red=3 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestTransitionMatrixParity::test_no_self_transitions_in_matrix
+    RED     tests/status/test_transitions.py::TestConstants::test_allowed_transitions_count
+    RED     tests/status/test_transitions.py::TestBehaviorPreservationParity::test_validate_transition_matches_baseline
+    RED     tests/status/test_transitions.py::TestBehaviorPreservationParity::test_collapsed_matrix_catches_planted_row
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_transitions.py::TestBehaviorPreservationParity::test_collapsed_matrix_catches_planted_row
+      [fail] tests/status/test_transitions.py::TestBehaviorPreservationParity::test_validate_transition_matches_baseline
+      [fail] tests/status/test_transitions.py::TestConstants::test_allowed_transitions_count
+
+M4 | add planned -> uninitialized (non-canonical target) + recompute ALLOWED_TRANSITIONS
+    target: wp_state.PlannedState + transitions.ALLOWED_TRANSITIONS
+    verdict: OK  (red=1 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestTransitionMatrixParity::test_transition_pairs_use_canonical_lanes
+    RED     tests/status/test_transitions.py::TestConstants::test_allowed_transitions_count
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_transitions.py::TestConstants::test_allowed_transitions_count
+
+M4b | count-preserving swap: planned -> blocked replaced by planned -> uninitialized + recompute
+    target: wp_state.PlannedState + transitions.ALLOWED_TRANSITIONS
+    note:   records whether the golden baseline (not the count test) catches a count-preserving swap
+    verdict: OK  (red=3 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestTransitionMatrixParity::test_transition_pairs_use_canonical_lanes
+    RED     tests/status/test_transitions.py::TestBehaviorPreservationParity::test_validate_transition_matches_baseline
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_transitions.py::TestBehaviorPreservationParity::test_collapsed_matrix_catches_planted_row
+      [fail] tests/status/test_transitions.py::TestBehaviorPreservationParity::test_validate_transition_matches_baseline
+      [fail] tests/status/test_transitions.py::TestLegalTransitions::test_legal_transition_accepted[planned-blocked-kwargs12]
+
+M5 | rename CANONICAL_LANES entry "in_review" -> "under_review" (count-preserving)
+    target: src/specify_cli/status_lanes.py
+    note:   "reviewing" is avoided: test_validate.py::test_non_canonical_to_lane probes that literal, a coincidental (non-survivor) red
+    verdict: OK  (red=1 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestTransitionMatrixParity::test_all_canonical_lanes_in_enum
+    RED     tests/status/test_transitions.py::TestConstants::test_all_canonical_lanes_in_enum
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_transitions.py::TestConstants::test_all_canonical_lanes_in_enum
+
+M6 | append display member Lane.SHADOW='shadow' (not in CANONICAL_LANES; zero-edge factory entry)
+    target: src/specify_cli/status/models.py (+ wp_state._STATE_MAP so import succeeds)
+    verdict: OK  (red=5 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestTransitionMatrixParity::test_all_enum_values_in_canonical_lanes
+    RED     tests/status/test_models.py::TestLaneEnum::test_lane_member_names_exact
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_models.py::TestLaneEnum::test_lane_enum_string_values
+      [fail] tests/status/test_models.py::TestLaneEnum::test_lane_member_names_exact
+      [fail] tests/status/test_models.py::TestStatusSnapshot::test_summary_has_all_lane_keys
+      [fail] tests/status/test_reducer.py::TestReduceEmpty::test_reduce_empty_events
+      [fail] tests/status/test_reducer.py::TestSummaryCounts::test_summary_counts_match_wp_states
+
+M7 | materialize_to_json drops sort_keys=True
+    target: src/specify_cli/status/reducer.py::materialize_to_json
+    verdict: OK  (red=1 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestReducerDeterminism::test_sorted_keys_in_json_output
+    RED     tests/status/test_reducer.py::TestByteIdenticalOutput::test_sorted_keys_in_json_output
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_reducer.py::TestByteIdenticalOutput::test_sorted_keys_in_json_output
+
+M8 | StatusSnapshot.from_dict drops last_event_id
+    target: src/specify_cli/status/models.py::StatusSnapshot.from_dict
+    verdict: OK  (red=1 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestReducerDeterminism::test_reduce_then_serialize_roundtrip
+    n/a     tests/status/test_parity.py::TestFullEventLogParity::test_realistic_log_json_roundtrip_stable
+    RED     tests/status/test_reducer.py::TestRealisticEventLog::test_realistic_log_json_roundtrip_stable
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_reducer.py::TestRealisticEventLog::test_realistic_log_json_roundtrip_stable
+
+M9 | materialize_to_json injects a per-call random key
+    target: src/specify_cli/status/reducer.py::materialize_to_json
+    verdict: OK  (red=5 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestFullEventLogParity::test_realistic_log_identical_across_runs
+    RED     tests/status/test_reducer.py::TestByteIdenticalOutput::test_byte_identical_across_reduce_calls
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_reducer.py::TestByteIdenticalOutput::test_byte_identical_across_reduce_calls
+      [fail] tests/status/test_reducer.py::TestByteIdenticalOutput::test_byte_identical_output
+      [fail] tests/status/test_reducer.py::TestMaterializeGitClean::test_materialize_leaves_clean_git_tree
+      [fail] tests/status/test_reducer.py::TestMaterializeIdempotency::test_second_call_with_same_events_does_not_write
+      [fail] tests/status/test_reducer.py::TestRealisticEventLog::test_realistic_log_json_roundtrip_stable
+
+M10 | plant top-level `from specify_cli.sync import x` in status/emit.py (+ stub package so imports resolve)
+    target: src/specify_cli/status/emit.py
+    note:   the stub package also trips test_no_retired_paths_exist; the import scan is the named survivor
+    verdict: OK  (red=2 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestBackportReadiness::test_emit_module_has_no_toplevel_sync_import
+    n/a     tests/status/test_parity.py::TestBackportReadiness::test_no_status_module_directly_imports_sync_at_toplevel
+    n/a     tests/status/test_parity.py::TestBackportReadiness::test_module_importable_without_sync[specify_cli.status.emit]
+    RED     tests/architectural/test_no_retired_subsystems.py::test_no_retired_import_targets_exist
+    all red node IDs (mutation-induced):
+      [fail] tests/architectural/test_no_retired_subsystems.py::test_no_retired_import_targets_exist
+      [fail] tests/architectural/test_no_retired_subsystems.py::test_no_retired_paths_exist
+
+M11 | dedup keeps the LAST occurrence of a duplicated event_id
+    target: specify_cli.status.reducer.reduce_parsed binding (wrapper)
+    verdict: OK  (red=1 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestReducerDeterminism::test_duplicate_events_deduplicated_deterministically
+    RED     tests/status/test_reducer.py::TestReduceDeduplication::test_reduce_deduplication
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_reducer.py::TestReduceDeduplication::test_reduce_deduplication
+
+M12 | force_count is never accumulated (zeroed after the fold)
+    target: specify_cli.status.reducer.reduce_parsed binding (wrapper)
+    verdict: OK  (red=1 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestReducerDeterminism::test_force_events_tracked_in_force_count
+    RED     tests/status/test_reducer.py::TestReduceForceCount::test_reduce_force_count_tracked
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_reducer.py::TestReduceForceCount::test_reduce_force_count_tracked
+
+M13 | invert rollback classification (spec_kitty_events.diary._is_rollback_event)
+    target: spec_kitty_events.diary rollback precedence (site-packages)
+    note:   precedence REMOVAL (_should_apply_event -> True) is invisible to the parity test (its rollback also sorts last); see M13b
+    verdict: OK  (red=2 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestReducerDeterminism::test_concurrent_events_rollback_precedence
+    RED     tests/status/test_reducer.py::TestReduceConcurrentRollbackPrecedence::test_in_review_to_in_progress_rollback_beats_concurrent_approval
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_reducer.py::TestReduceConcurrentRollbackPrecedence::test_in_review_to_in_progress_rollback_beats_concurrent_approval
+      [fail] tests/status/test_reducer.py::TestReduceConcurrentRollbackPrecedence::test_legacy_for_review_to_in_progress_rollback_still_beats_concurrent_forward_event
+
+M13b | remove rollback precedence entirely (_should_apply_event always applies)
+    target: spec_kitty_events.diary._should_apply_event (site-packages)
+    note:   expected: survivor RED, parity test GREEN (parity is strictly weaker than the survivor)
+    verdict: OK  (red=2 of collected=308, rc=1)
+    expected:
+    RED     tests/status/test_reducer.py::TestReduceConcurrentRollbackPrecedence::test_in_review_to_in_progress_rollback_beats_concurrent_approval
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_reducer.py::TestReduceConcurrentRollbackPrecedence::test_in_review_to_in_progress_rollback_beats_concurrent_approval
+      [fail] tests/status/test_reducer.py::TestReduceConcurrentRollbackPrecedence::test_legacy_for_review_to_in_progress_rollback_still_beats_concurrent_forward_event
+
+M14 | reduce() is per-call nondeterministic (random slot in every WP state)
+    target: specify_cli.status.reducer.reduce_parsed binding (wrapper)
+    verdict: OK  (red=1 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestReducerDeterminism::test_same_events_produce_identical_snapshots
+    RED     tests/status/test_reducer.py::TestByteIdenticalOutput::test_byte_identical_across_reduce_calls
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_reducer.py::TestByteIdenticalOutput::test_byte_identical_across_reduce_calls
+
+M15 | summary under-counts canceled WPs
+    target: specify_cli.status.reducer.reduce_parsed binding (wrapper)
+    verdict: OK  (red=1 of collected=308, rc=1)
+    expected:
+    n/a     tests/status/test_parity.py::TestFullEventLogParity::test_realistic_log_produces_expected_summary
+    RED     tests/status/test_reducer.py::TestRealisticEventLog::test_realistic_log_produces_expected_summary
+    all red node IDs (mutation-induced):
+      [fail] tests/status/test_reducer.py::TestRealisticEventLog::test_realistic_log_produces_expected_summary
+
+M16 | re-create module specify_cli.status.phase
+    target: src/specify_cli/status/phase.py (new file)
+    note:   scaffold proof: the tombstone can only fail if a module of that name is re-created; it pins no behaviour
+    verdict: NO-EXPECTED-NODE-PRESENT  (red=0 of collected=308, rc=0)
+    expected:
+    n/a     tests/status/test_parity.py::TestPhaseCap::test_phase_module_deleted
+    all red node IDs (mutation-induced):
+
+EXIT=0
