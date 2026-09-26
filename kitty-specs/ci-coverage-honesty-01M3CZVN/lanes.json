@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "mission_slug": "ci-coverage-honesty-01M3CZVN",
+  "mission_id": "01M3CZVN0ECC1E8FS3SWKZ2FK1",
+  "mission_branch": "kitty/mission-ci-coverage-honesty-01M3CZVN",
+  "target_branch": "feat/ci-coverage-honesty",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".github/ci-foreign-coverage-baseline.json",
+        "scripts/ci/coverage_guard_lib.py",
+        "tests/architectural/test_foreign_coverage_guard.py",
+        "tests/architectural/test_gate_selection_authority.py",
+        "tests/architectural/test_src_reachability_guard.py",
+        "tests/ci/test_coverage_guards.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/ci-module-registry.yml",
+        ".github/ci-shard-timings.json"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-nightly.yml",
+        "scripts/ci/nightly_escalation.py",
+        "tests/ci/test_nightly_escalation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".github/workflows/release.yml",
+        "scripts/ci/release_nightly_gate.py",
+        "tests/ci/test_release_nightly_gate.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-09-25T20:02:30.906629+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6d1f863ca9ec4867b0effa8bcdf05baee35917a8"
+}

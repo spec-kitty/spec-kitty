@@ -1,0 +1,20 @@
+{
+  "coordination_branch": "kitty/mission-ci-coverage-honesty-01M3CZVN",
+  "created_at": "2026-09-25T19:14:45.918220+00:00",
+  "flattened": false,
+  "friendly_name": "CI Coverage Honesty",
+  "mid8": "01M3CZVN",
+  "mission_id": "01M3CZVN0ECC1E8FS3SWKZ2FK1",
+  "mission_number": null,
+  "mission_slug": "ci-coverage-honesty-01M3CZVN",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty's per-module CI selector keys test shards on source roots without modeling which source each test exercises, so cross-cutting and unenrolled test suites are silently skipped on main pushes. Real regressions have shipped to a green main undetected. This mission makes coverage honest: it enforces that every shard tests its own source and every source package is reachable by an in-matrix test, enrolls the dark suites, and makes hidden nightly failures self-surfacing so 'main is green' is a truthful signal stakeholders can trust for release decisions.",
+  "purpose_tldr": "Make a green main mean the tests actually ran: close the CI shard-selection blind spots that let regressions ship undetected.",
+  "slug": "ci-coverage-honesty-01M3CZVN",
+  "status_phase": "1",
+  "target_branch": "feat/ci-coverage-honesty",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-25T20:04:57.820494+00:00"
+}

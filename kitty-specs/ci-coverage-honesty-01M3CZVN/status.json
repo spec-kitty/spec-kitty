@@ -1,0 +1,138 @@
+{
+  "event_count": 23,
+  "last_event_id": "01M3DE7AB4MF8FJR80JFD7B70N",
+  "materialized_at": "2026-09-25T23:25:48.255183+00:00",
+  "mission_number": "",
+  "mission_slug": "ci-coverage-honesty-01M3CZVN",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 3,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 1,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3D6V7X88QZKA4WD7TFZ5RYG",
+      "last_transition_at": "2026-09-25T21:16:52.520578+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Guards green-at-baseline (dark-root, truly-dark=20 post data-exclusion, in-matrix-dark=27), authority green, lib+unit tests green",
+        "reviewer-renata APPROVE: 59 passed; non-vacuity proven adversarially; authority green-preserving; baseline measured+shrink-only; ruff/mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260925",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2818164,
+      "shell_pid_created_at": "1790366693.69",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3DC9AKT006AP16H4CFS0K3E",
+      "last_transition_at": "2026-09-25T22:51:56.922699+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Enrolled live_work+4 dark pkgs+agent_utils, re-measured core_misc+agent timings (agent captured single-module to dodge basetemp-retention readonly-dir cascade), baseline shrunk 27->22; 5 guards + shard-registry + adjacent router/matrix guards green. Dedicated live_work row + tier retirement deferred to follow-up/WP03.",
+        "REJECT (reviewer-renata): enrolling tests/specify_cli/live_work into per-PR core_misc surfaces stale WP05 test test_live_work_other_subcommands_still_register_the_full_surface (asserts merge in sys.modules; invalid post-single-leaf). Fix: correct the stale test to assert WP05 single-leaf behavior (live-work matrix loads only the live-work registrar), land with the enrolment so live_work enrols green. Then re-verify 6 enrolled dirs -m 'not performance and not stress' = 0 failed + 56-guard suite.",
+        "Addressed REJECT: fixed stale WP05 live-work test; 6 enrolled dirs now 0 failed per-PR; 56 guards green. live_work enrols green.",
+        "APPROVE (re-review after reject fix): in_matrix_dark 27->22 (5 pkgs enrolled), agent ratio ratcheted, host timings re-measured, baseline shrink asserted; stale WP05 live-work test fixed -> 287 passed/0 failed on enrolled dirs per-PR; 56 guards green. diagnostics kept as recorded e2e-covered debt; dedicated live_work shard + tier retirement deferred (WP03/follow-up)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260925",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2932038,
+      "shell_pid_created_at": "1790371062.34",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T012": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M3DE5MWZD48T4GRABT4ZJ227",
+      "last_transition_at": "2026-09-25T23:24:53.535928+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Nightly integration+next lane (if:always, in nightly-summary.needs) + deduped-P0 escalation (fail-closed token-absent) + dead tier retired with guard repointed; unit+arch tests green",
+        "reviewer-renata APPROVE: 15 escalation tests + 64 arch guards green; token-leak-proof (redaction verified) + dedup (1 open P0/key); tier retired + guard repoint proven non-vacuous (mutation->red->revert); nightly integration+next lane if:always + in nightly-summary.needs; allowlist agent-shrink legit; ruff/mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260925",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3227546,
+      "shell_pid_created_at": "1790376808.79",
+      "subtasks": {
+        "T011": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M3DE7AB4MF8FJR80JFD7B70N",
+      "last_transition_at": "2026-09-25T23:25:48.255183+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 3356034,
+      "shell_pid_created_at": "1790378744.59"
+    }
+  }
+}
