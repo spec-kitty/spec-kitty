@@ -6,7 +6,7 @@ Applies to `.github/workflows/ci-nightly.yml`.
 
 - The pytest suite step carries a step-level `timeout-minutes` strictly below the job-level `timeout-minutes`. Today these are 60 and 75. Re-derive them with ceil(×1.5) from the first honest run.
 - The pytest command passes `--timeout=<seconds>`, so a single deadlocked test fails that test instead of consuming the leg.
-- The upload, escalation and fail-loud steps that follow are `if: always()`, so they still run after a step timeout.
+- The upload and fail-loud steps that follow are `if: always()`. The escalation step is `if: ${{ !cancelled() }}`: a step timeout marks that step Failed rather than Cancelled, so all three still run after an overrun. A manual cancel of the run does not file a false P0.
 - A step that never wrote `INTERPRETER_EXIT` is treated as failure (`${INTERPRETER_EXIT:-1}`):
   - escalation files or refreshes the deduplicated P0 with conclusion `failure`;
   - the leg fails.
