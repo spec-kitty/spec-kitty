@@ -154,9 +154,7 @@ fixture. Its `test_uninitialized_repo_fails_loud` is decorated with
 `spec-kitty` binary resolves, the test is SKIPPED (not failed), with a
 reason that directs the operator to set `SK_E2E_SPEC_KITTY_BIN` or
 `SK_E2E_SPEC_KITTY_REPO`, or to file `mission-exception.md` per this
-doc. No exception artifact is required for this skip — it is already
-a non-blocking, self-documenting environmental gap; file one only if
-the skip itself needs to be tracked as a follow-up.
+doc.
 
 ### Case B: e2e harness has a hard dependency this machine cannot satisfy
 
