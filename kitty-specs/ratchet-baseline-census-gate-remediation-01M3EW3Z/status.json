@@ -1,7 +1,7 @@
 {
-  "event_count": 44,
-  "last_event_id": "01M3FBF54QD96C4K70RM7D4J1E",
-  "materialized_at": "2026-09-26T17:16:08.215236+00:00",
+  "event_count": 46,
+  "last_event_id": "01M3FBK0QNQ3GMPWC67PK4A1KQ",
+  "materialized_at": "2026-09-26T17:18:14.746491+00:00",
   "mission_number": "",
   "mission_slug": "ratchet-baseline-census-gate-remediation-01M3EW3Z",
   "mission_type": "",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 2,
+    "in_progress": 3,
     "in_review": 3,
-    "planned": 5
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
@@ -103,7 +103,8 @@
       "last_transition_at": "2026-09-26T17:16:08.215236+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review (orchestrator move; implementer handoff blocked by unrelated dirty file + lane planning-artifact drift, both cleared)."
+        "Ready for review (orchestrator move; implementer handoff blocked by unrelated dirty file + lane planning-artifact drift, both cleared).",
+        "Review passed (reviewer-renata, recorded by orchestrator after lane re-alignment): RED e86a715b 4 failed for intended reason; GREEN 9+60 passed; baseline 38->36; retired keys refused; floors self-mutate via real scanned_slots; scope ok; ruff/mypy clean; #3026/#3962 fixed @4668c259; #5117 correction confirmed."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
@@ -123,11 +124,20 @@
       }
     },
     "WP06": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "python-pedro",
+      "agent_profile_version": "1.0",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M3F1245TG7Q9FBKNYQEGPFGM",
-      "last_transition_at": "2026-09-26T14:14:15.483012+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M3FBK0QNQ3GMPWC67PK4A1KQ",
+      "last_transition_at": "2026-09-26T17:18:14.746491+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 5717,
+      "shell_pid_created_at": "1790443078.71"
     },
     "WP07": {
       "actor": "claude",
