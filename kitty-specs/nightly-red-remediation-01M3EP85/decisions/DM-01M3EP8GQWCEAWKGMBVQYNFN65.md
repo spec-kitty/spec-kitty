@@ -4,8 +4,9 @@
 - **Origin flow:** `specify`
 - **Slot key:** `specify.scope.extracted-requirements`
 - **Input key:** `extracted_requirements_confirmation`
-- **Status:** `open`
+- **Status:** `resolved`
 - **Created:** `2026-09-26T11:05:30.620472+00:00`
+- **Resolved:** `2026-09-26T11:06:48.765813+00:00`
 - **Opened by:** `cli`
 - **Other answer:** `false`
 
@@ -21,7 +22,7 @@ Confirm the extracted requirement set (FR-001..FR-010, NFR-001..NFR-003, C-001..
 
 ## Final answer
 
-_(none)_
+Confirm as-is
 
 ## Rationale
 
@@ -30,3 +31,4 @@ _(none)_
 ## Change log
 
 - `2026-09-26T11:05:30.620472+00:00` — opened
+- `2026-09-26T11:06:48.765813+00:00` — resolved (final_answer="Confirm as-is")
