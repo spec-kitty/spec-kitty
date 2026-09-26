@@ -267,7 +267,7 @@ def _flatten(live: dict[str, list[tuple[int, str]]]) -> set[str]:
 # ---------------------------------------------------------------------------
 _ALLOWLIST: dict[str, str] = {
     # --- runtime/migrate.py (1): empty-only rmdir after routed removal -----
-    "src/specify_cli/runtime/migrate.py:344:Path.rmdir": (
+    "src/specify_cli/runtime/migrate.py:351:Path.rmdir": (
         "empty-only rmdir (raises OSError on non-empty): _cleanup_empty_dirs prunes a "
         "now-empty SHARED_ASSET_DIRS directory ONLY inside an `if not any(dirpath.iterdir())` "
         "emptiness check, after execute_migration's routed guard_destructive_removal already "
