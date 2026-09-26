@@ -1,0 +1,149 @@
+{
+  "rows": {
+    "#4036": {
+      "evidence_ref": "lane-b 7e7e076c8d; reviewer APPROVE",
+      "fr": "FR-001",
+      "nfr": "NFR-001",
+      "repo": null,
+      "sc": "SC-001",
+      "scope": "in-scope",
+      "source_file": "spec.md",
+      "title": "repo-root status-guard non-discriminating (absolute-nonexistence assert; xdist caveat)",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#4105": {
+      "evidence_ref": "lane-a 48ec01eb09; reviewer APPROVE",
+      "fr": "FR-002",
+      "nfr": "NFR-001",
+      "repo": null,
+      "sc": "SC-001",
+      "scope": "in-scope",
+      "source_file": "spec.md",
+      "title": "dead-src-path gate whole-file regex + unreachable prefix + over-claiming comment",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4210": {
+      "evidence_ref": "lane-b 7e7e076c8d; reviewer APPROVE",
+      "fr": "FR-003",
+      "nfr": "NFR-001",
+      "repo": null,
+      "sc": "SC-001",
+      "scope": "in-scope",
+      "source_file": "spec.md",
+      "title": "performance-marker guard parses planted text only; stale pytest.ini desc; nightly e2e double-run",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#4273": {
+      "evidence_ref": "context/out-of-scope ref",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4388": {
+      "evidence_ref": "lane-a c944b99c70; reviewer APPROVE",
+      "fr": "FR-004",
+      "nfr": "NFR-001",
+      "repo": null,
+      "sc": "SC-001",
+      "scope": "in-scope",
+      "source_file": "spec.md",
+      "title": "module-shard _PYTHON_FILE_PATTERNS unanchored vs pytest.ini python_files override",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4408": {
+      "evidence_ref": "lane-a d18b961f7c; reviewer APPROVE",
+      "fr": "FR-005",
+      "nfr": "NFR-001",
+      "repo": null,
+      "sc": "SC-001",
+      "scope": "in-scope",
+      "source_file": "spec.md",
+      "title": "_gate_coverage _composite_action_path never rejects '..' segments",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#4419": {
+      "evidence_ref": "context/out-of-scope ref",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4466": {
+      "evidence_ref": "context/out-of-scope ref",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4504": {
+      "evidence_ref": "context/out-of-scope ref",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4536": {
+      "evidence_ref": "lane-b 7e7e076c8d; reviewer APPROVE",
+      "fr": "FR-006",
+      "nfr": "NFR-001",
+      "repo": null,
+      "sc": "SC-001",
+      "scope": "in-scope",
+      "source_file": "spec.md",
+      "title": "cli-startup-budget scan: no non-vacuity floor; dynamic-import blind spot; docstring drift",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#4865": {
+      "evidence_ref": "context/out-of-scope ref",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4883": {
+      "evidence_ref": "context/out-of-scope ref",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

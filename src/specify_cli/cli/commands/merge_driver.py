@@ -1,16 +1,17 @@
 """Hidden git merge-driver entrypoints for Spec Kitty repositories.
 
-Six custom drivers keep mission bookkeeping semantic under
-``git merge --squash -X theirs`` (the squash mission→target integration in
-``lanes/merge.py::_merge_branch_into``). A custom driver overrides ``-X theirs``
-on the paths it is registered for, so target-newer canonical state is reconciled
-rather than clobbered (#2709 / FR-003 / FR-004 / FR-008):
+Six custom drivers keep mission bookkeeping semantic under the mission→target
+``git merge --squash`` in ``lanes/merge.py::_merge_branch_into`` (#4892 dropped
+the old ``-X theirs``; ordinary source paths now fail closed on conflict). A
+custom driver takes over conflict resolution on the paths it is registered for,
+so target-newer canonical state is reconciled rather than clobbered or
+hard-conflicting (#2709 / FR-003 / FR-004 / FR-008):
 
 - ``merge-driver-event-log``         — ``status.events.jsonl`` union (append-only log).
 - ``merge-driver-meta``              — ``meta.json`` field merge: acceptance/VCS keys
   target-authoritative (the accepted-newer ``ours`` side), ``acceptance_history``
   unioned, all other (planning) keys mission-authoritative (``theirs``; preserves
-  the #1732 ``-X theirs`` planning-artifact authority).
+  the #1732 planning-artifact authority — mission keys win).
 - ``merge-driver-traces``            — ``traces/*.md`` markdown union: order-preserving
   line-level dedup so both sides' sections survive without duplication.
 - ``merge-driver-acceptance-matrix`` — ``acceptance-matrix.json`` row-aware,
@@ -49,7 +50,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -80,7 +81,7 @@ _META_JSON_KWARGS: dict[str, Any] = {
 # so a squash of the older mission branch must reconcile — not revert — them.
 # Every OTHER key (mission planning identity: slug, mission_id, target_branch,
 # purpose_*, friendly_name, created_at, coordination_branch, …) stays
-# mission-authoritative to preserve the #1732 ``-X theirs`` intent (C-002).
+# mission-authoritative to preserve the #1732 mission-authoritative planning intent (C-002).
 _TARGET_AUTHORITATIVE_META_FIELDS: tuple[str, ...] = (
     *ACCEPTANCE_PROVENANCE_FIELDS,
     "mission_number",
@@ -105,9 +106,7 @@ class MergeDriverPathError(Exception):
     same-directory temp-file contract (#2970 / Sonar S2083)."""
 
 
-def _resolve_merge_driver_paths(
-    base_path: str, ours_path: str, theirs_path: str
-) -> tuple[Path, Path, Path]:
+def _resolve_merge_driver_paths(base_path: str, ours_path: str, theirs_path: str) -> tuple[Path, Path, Path]:
     """Resolve the three driver placeholders, refusing a path-injection escape.
 
     Git materializes ``%O``/``%A``/``%B`` as three sibling temp files in ONE
@@ -134,9 +133,7 @@ def _resolve_merge_driver_paths(
     return resolved
 
 
-def _resolve_merge_driver_paths_or_exit(
-    base_path: str, ours_path: str, theirs_path: str
-) -> tuple[Path, Path, Path]:
+def _resolve_merge_driver_paths_or_exit(base_path: str, ours_path: str, theirs_path: str) -> tuple[Path, Path, Path]:
     """:func:`_resolve_merge_driver_paths`, translating a refusal to ``Exit(1)``.
 
     Every driver entrypoint calls this FIRST, before any file is opened — the
@@ -260,7 +257,7 @@ def reconcile_meta_payloads(
 
     ``ours`` is the target checkout (accepted-newer authority for acceptance/VCS
     provenance); ``theirs`` is the mission branch (planning-key authority — the
-    #1732 ``-X theirs`` intent). Acceptance/VCS scalar keys are taken from ``ours``
+    #1732 mission-authoritative planning intent). Acceptance/VCS scalar keys are taken from ``ours``
     when present; ``acceptance_history`` is unioned; every other key falls back to
     ``theirs`` so mission-authoritative planning state is preserved.
     """
@@ -297,32 +294,232 @@ def merge_driver_meta(
 
 
 # ---------------------------------------------------------------------------
-# traces/*.md markdown union (FR-003)
+# traces/*.md markdown union (FR-003 / #4894 section-granularity rewrite)
 # ---------------------------------------------------------------------------
+
+# An ATX markdown heading (``#`` through ``######``) OR the explicit
+# ``<!-- section:... -->`` delimiter comment this module's docstring names --
+# either one opens a new section/block for :func:`union_trace_texts`'s
+# section-granularity dedup (#4894). Matched only OUTSIDE a fenced code block
+# (see ``_TRACE_FENCE_MARKER``), so a heading-like line quoted inside a fence
+# is never misread as a real section boundary.
+_TRACE_SECTION_BOUNDARY = re.compile(r"^(?:#{1,6}\s+\S.*|<!--\s*section:.*-->)\s*$")
+# A fenced-code-block delimiter opener/closer -- a run of 3+ backticks OR 3+
+# tildes, per CommonMark fenced-code semantics. Captures the run so
+# :func:`_match_trace_fence` can report both which character opened the
+# fence and how long the run was (#4993: the backtick-only regex misread a
+# heading-like line inside a ``~~~`` fence as a real section boundary; a
+# landing-fold follow-up then found the naive "any fence marker toggles a
+# shared boolean" toggler misread a DIFFERENT-character fence line, or a
+# shorter same-character run, appearing INSIDE an already-open fence as a
+# close -- see :func:`_split_trace_blocks`).
+_TRACE_FENCE_MARKER = re.compile(r"^(`{3,}|~{3,})")
+
+
+def _match_trace_fence(line: str) -> tuple[str, int] | None:
+    """Return *line*'s fence character + run length if it opens/closes a
+    fenced code block delimiter, else ``None``.
+
+    CommonMark fenced-code semantics: a fence line is a run of 3+ backticks
+    or 3+ tildes. A LATER fence line only closes an open fence when it uses
+    the SAME character and its run is at least as long as the opener's --
+    everything else (a different character, or a shorter same-character
+    run) is ordinary content while a fence is open.
+    """
+    match = _TRACE_FENCE_MARKER.match(line)
+    if match is None:
+        return None
+    run = match.group(1)
+    return run[0], len(run)
+
+
+# The id captured from a block's opening ``<!-- section:ID -->`` delimiter,
+# when its first line is one -- see :func:`_trace_block_key`.
+_TRACE_SECTION_ID = re.compile(r"^<!--\s*section:(.*?)\s*-->\s*$")
+
+
+def _split_trace_blocks(text: str) -> list[tuple[str, ...]]:
+    """Split *text* into ordered section/block-granularity chunks (#4894).
+
+    A new block starts at each :data:`_TRACE_SECTION_BOUNDARY` line seen
+    OUTSIDE a fenced code block; every other line (including a fence marker
+    itself) belongs to the block already open. Content before the first
+    boundary (a preamble) is its own block. Every line lands in exactly one
+    block, in original order, so concatenating every returned block's lines
+    reproduces *text* verbatim -- the property :func:`union_trace_texts`
+    relies on for INV-3 (no non-empty line is ever dropped without an
+    identical duplicate already present).
+
+    Fence tracking is CHARACTER-aware (:func:`_match_trace_fence`): once a
+    fence opens, only a later line with the SAME character and a run at
+    least as long closes it. A landing-fold-only regression had a single
+    shared ``in_fence`` boolean flip on ANY fence-marker line, so a literal
+    ``~~~`` line inside a backtick-fenced block (or vice versa) spuriously
+    closed the fence and over-split the block at the next heading-like line
+    still really inside it.
+    """
+    blocks: list[list[str]] = [[]]
+    open_fence: tuple[str, int] | None = None
+    for line in text.splitlines():
+        if open_fence is None and _TRACE_SECTION_BOUNDARY.match(line):
+            blocks.append([])
+        fence = _match_trace_fence(line)
+        if fence is not None:
+            if open_fence is None:
+                open_fence = fence
+            elif fence[0] == open_fence[0] and fence[1] >= open_fence[1]:
+                open_fence = None
+        blocks[-1].append(line)
+    return [tuple(block) for block in blocks if block]
 
 
 def union_trace_texts(ours_text: str, theirs_text: str) -> str:
-    """Union two append-only trace documents (FR-003).
+    """Union two append-only trace documents at SECTION granularity (#4894 / FR-003).
 
-    Concrete contract: concatenate ``ours`` then ``theirs`` at line granularity,
-    dropping any **non-empty** line already emitted (line-level dedup). Empty
-    lines are preserved verbatim so section spacing survives. A section present on
-    both sides collapses to one copy; the ``<!-- section:... -->`` delimiter lines
-    are ordinary non-empty lines, so distinct delimiters both survive and a naive
-    ``cat`` concat (which duplicates shared lines) fails this contract.
+    Concrete contract: split ``ours``/``theirs`` into blocks at
+    :func:`_split_trace_blocks` boundaries (markdown headings and the
+    ``<!-- section:... -->`` delimiter), then concatenate ours' blocks
+    followed by theirs' blocks, in order, dropping a theirs block only when
+    it is BYTE-IDENTICAL to a block already emitted -- a whole section
+    repeated verbatim on both sides collapses to one copy. Repeated lines
+    WITHIN one distinct section (fences, table separators, recurring prose)
+    are never touched, so every non-empty line present in either input is
+    present in the output (INV-3): a dropped theirs block's lines are, by
+    construction, already present via the identical block that superseded it.
+
+    This replaces the historical line-level GLOBAL dedup (#4894), which was
+    unsound for markdown: a fence's opening/closing ``` line recurs across
+    every distinct section and is not a duplicate to drop, so the old
+    line-granularity ``seen`` set silently destroyed every section after the
+    first.
     """
-    seen: set[str] = set()
-    merged: list[str] = []
-    for text in (ours_text, theirs_text):
-        for line in text.splitlines():
-            if line.strip() == "":
-                merged.append(line)
-                continue
-            if line in seen:
-                continue
-            seen.add(line)
-            merged.append(line)
+    ours_blocks = _split_trace_blocks(ours_text)
+    seen: set[tuple[str, ...]] = set(ours_blocks)
+    merged: list[str] = [line for block in ours_blocks for line in block]
+    for block in _split_trace_blocks(theirs_text):
+        if block in seen:
+            continue
+        seen.add(block)
+        merged.extend(block)
     return "\n".join(merged) + "\n" if merged else ""
+
+
+# A block's identity for 3-way base comparison: either the id captured from
+# an explicit ``<!-- section:ID -->`` opening line, or, when no id is
+# present, the block's first line -- EITHER WAY paired with its per-document
+# occurrence ordinal (the running count of prior blocks in the SAME document
+# sharing that same id, or that same first line when there is no id). Body-
+# insensitive by construction (never a full-block hash): an edited section
+# keeps its key, so an unchanged-vs-diverged comparison against base still
+# fires -- see :func:`_trace_block_key`.
+_TraceBlockKey = tuple[str, str, int]
+
+
+def _trace_block_key(block: tuple[str, ...], occurrence_ordinal: int) -> _TraceBlockKey:
+    """A block's identity for 3-way base comparison (non-colliding, #4993).
+
+    Prefers the explicit ``<!-- section:ID -->`` id parsed from the block's
+    opening line when present. Otherwise falls back to the block's first
+    line. Either way the key is paired with *occurrence_ordinal* -- the
+    running count of prior blocks in the SAME document sharing that same id
+    (or first line) -- so two sections sharing an identical heading, OR two
+    sections sharing an identical explicit id (itself an authoring mistake,
+    but not one this driver should silently mis-attribute), get distinct
+    keys instead of colliding on a bare id/first-line return (the pre-#4993
+    bug: ``setdefault``-based indexing kept only the FIRST same-key block,
+    so every later same-key block's base/ours comparison was silently
+    mis-attributed to the first one's).
+
+    Either way the key is body-insensitive (never a full-block hash): an
+    in-place edit to a section's body keeps its key, which is what lets
+    :func:`_drop_stale_theirs_trace_blocks` still detect "same section, body
+    changed" (``theirs_unchanged`` vs ``ours_diverged``); only
+    :func:`union_trace_texts`'s separate whole-block dedup compares full
+    block content.
+    """
+    first_line = block[0] if block else ""
+    section_id = _TRACE_SECTION_ID.match(first_line)
+    if section_id:
+        return ("id", section_id.group(1), occurrence_ordinal)
+    return ("line", first_line, occurrence_ordinal)
+
+
+def _trace_block_dedup_key(block: tuple[str, ...]) -> str:
+    """The per-document occurrence-counting key for *block*: its explicit
+    ``<!-- section:ID -->`` id when present, else its first line -- see
+    :func:`_iter_trace_blocks_with_ordinal`.
+    """
+    first_line = block[0] if block else ""
+    section_id = _TRACE_SECTION_ID.match(first_line)
+    return f"id:{section_id.group(1)}" if section_id else f"line:{first_line}"
+
+
+def _iter_trace_blocks_with_ordinal(
+    text: str,
+) -> Iterator[tuple[tuple[str, ...], int]]:
+    """Yield each of *text*'s blocks paired with its per-document occurrence
+    ordinal -- the running count of prior blocks in *this* document sharing
+    the same :func:`_trace_block_dedup_key`, which :func:`_trace_block_key`
+    folds in so duplicate-id and duplicate-heading blocks alike get distinct
+    keys.
+    """
+    occurrence_counts: dict[str, int] = {}
+    for block in _split_trace_blocks(text):
+        dedup_key = _trace_block_dedup_key(block)
+        ordinal = occurrence_counts.get(dedup_key, 0)
+        occurrence_counts[dedup_key] = ordinal + 1
+        yield block, ordinal
+
+
+def _index_trace_blocks_by_key(text: str) -> dict[_TraceBlockKey, tuple[str, ...]]:
+    """Index *text*'s blocks by :func:`_trace_block_key`, first-occurrence-wins.
+
+    Occurrence ordinals are computed per this document alone, matching the
+    identical per-document computation applied to ``theirs`` in
+    :func:`_drop_stale_theirs_trace_blocks`, so the same section lines up
+    across base/ours/theirs by key.
+    """
+    indexed: dict[_TraceBlockKey, tuple[str, ...]] = {}
+    for block, ordinal in _iter_trace_blocks_with_ordinal(text):
+        indexed.setdefault(_trace_block_key(block, ordinal), block)
+    return indexed
+
+
+def _drop_stale_theirs_trace_blocks(base_text: str, ours_text: str, theirs_text: str) -> str:
+    """Filter *theirs_text* to drop sections stale relative to *base_text* (#4894).
+
+    3-way base-awareness: a theirs block UNCHANGED from base under its
+    section identity (:func:`_trace_block_key`), while ours' same-identity
+    block DIVERGED from base, is theirs' now-superseded copy of content ours
+    already edited -- keeping it would resurrect stale prose alongside ours'
+    edit under a duplicate-looking heading. Every other theirs block (new, or
+    itself changed from base, or a key ours never touched) is kept untouched
+    and handed on to :func:`union_trace_texts`, which still performs the
+    byte-identical whole-block dedup / append-union.
+
+    A key both sides changed differently from base is deliberately NOT
+    filtered here -- both versions are kept (never silently picked), so a
+    genuine structural divergence never turns into a silent, lossy exit-0;
+    it simply appends both authored copies, preserving INV-3 without
+    aborting the merge (spec C-003: not fail-closed on an ordinary,
+    non-verdict-bearing repeat/divergence -- unlike the keyed row-matrix
+    drivers' verdict-field fail-closed rule, traces are keyless append-union
+    prose).
+    """
+    base_by_key = _index_trace_blocks_by_key(base_text)
+    ours_by_key = _index_trace_blocks_by_key(ours_text)
+
+    kept: list[str] = []
+    for block, ordinal in _iter_trace_blocks_with_ordinal(theirs_text):
+        key = _trace_block_key(block, ordinal)
+        base_block = base_by_key.get(key)
+        ours_block = ours_by_key.get(key)
+        theirs_unchanged = base_block is not None and block == base_block
+        ours_diverged = ours_block is not None and ours_block != base_block
+        if theirs_unchanged and ours_diverged:
+            continue  # theirs' stale copy of a section ours already edited
+        kept.extend(block)
+    return "\n".join(kept) + "\n" if kept else ""
 
 
 def merge_driver_traces(
@@ -330,12 +527,22 @@ def merge_driver_traces(
     ours_path: str = typer.Argument(..., metavar="OURS"),
     theirs_path: str = typer.Argument(..., metavar="THEIRS"),
 ) -> None:
-    """Union conflicting ``traces/*.md`` documents; write result to ``ours``."""
+    """Union conflicting ``traces/*.md`` documents; write result to ``ours`` (#4894).
+
+    3-way base-aware: reads ``%O`` so a section theirs left UNCHANGED from
+    base, while ours edited the same section, is recognized as stale and
+    dropped rather than resurrected alongside ours' edit (see
+    :func:`_drop_stale_theirs_trace_blocks`). The remaining union is still
+    section-granularity and append-only via :func:`union_trace_texts` --
+    never a lossy line-level global dedup, never fail-closed on an ordinary
+    repeat.
+    """
     base, ours, theirs = _resolve_merge_driver_paths_or_exit(base_path, ours_path, theirs_path)
-    _ = base  # %O ancestor: git always passes it, but the union is 2-way.
+    base_text = base.read_text(encoding="utf-8") if base.exists() else ""
     ours_text = ours.read_text(encoding="utf-8") if ours.exists() else ""
     theirs_text = theirs.read_text(encoding="utf-8") if theirs.exists() else ""
-    ours.write_text(union_trace_texts(ours_text, theirs_text), encoding="utf-8")
+    filtered_theirs_text = _drop_stale_theirs_trace_blocks(base_text, ours_text, theirs_text)
+    ours.write_text(union_trace_texts(ours_text, filtered_theirs_text), encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -461,8 +668,7 @@ def _merge_field(
     # the sides target/incoming (the ``ours``/``theirs`` primary/merge footgun).
     row_label = f"row {row_key!r}: " if row_key is not None else ""
     raise RowMatrixMergeError(
-        f"{row_label}verdict field {field_name!r} diverged on both sides with no "
-        f"common base value (target/ours={ours_v!r}, incoming/theirs={theirs_v!r})"
+        f"{row_label}verdict field {field_name!r} diverged on both sides with no common base value (target/ours={ours_v!r}, incoming/theirs={theirs_v!r})"
     )
 
 
@@ -481,12 +687,7 @@ def _merge_row_fields(
     to "changed on the side that has it")."""
     base = base_row or {}
     field_names = dict.fromkeys((*base, *ours_row, *theirs_row))
-    return {
-        name: _merge_field(
-            name, base.get(name), ours_row.get(name), theirs_row.get(name), sentinels=sentinels, row_key=row_key
-        )
-        for name in field_names
-    }
+    return {name: _merge_field(name, base.get(name), ours_row.get(name), theirs_row.get(name), sentinels=sentinels, row_key=row_key) for name in field_names}
 
 
 def _reconcile_added_row(
@@ -600,9 +801,7 @@ def _reconcile_keyed_rows(
 
     merged: dict[str, dict[str, Any]] = {}
     for key in sorted({*base, *ours, *theirs}):
-        row = _reconcile_row(
-            base_row=base.get(key), ours_row=ours.get(key), theirs_row=theirs.get(key), sentinels=sentinels, row_key=key
-        )
+        row = _reconcile_row(base_row=base.get(key), ours_row=ours.get(key), theirs_row=theirs.get(key), sentinels=sentinels, row_key=key)
         if row is not None:
             merged[key] = row
     return merged  # already inserted in sorted-key order
@@ -778,8 +977,8 @@ def merge_driver_acceptance_matrix(
 #
 #   (a) REFUSE fail-closed -- embed both raw verdict documents, verbatim and
 #       clearly demarcated (never interleaved/blended), and exit non-zero so
-#       ``git merge --squash -X theirs`` reports the path as an unresolved
-#       conflict (``_merge_branch_into`` then ``git merge --abort``s and
+#       ``git merge --squash`` reports the path as an unresolved
+#       conflict (``_merge_branch_into`` then tears down the squash and
 #       raises -- the target ref is never advanced).
 #
 #   (b) RENUMBER -- silently reassign the incoming ("theirs") record the next
@@ -807,10 +1006,10 @@ def merge_driver_acceptance_matrix(
 # a merged verdict -- the same "never silently drop a side" discipline this
 # module's row-matrix field-conflict markers use), but no longer raises
 # ``typer.Exit(1)`` -- the squash proceeds with the conflict-marked prose as
-# the resolved content. Retiring the driver entirely (falling through to
-# plain ``-X theirs``) was considered and rejected only because embedding
-# both sides costs nothing and preserves strictly more information than a
-# bare ``-X theirs`` pick would.
+# the resolved content. Retiring the driver entirely (letting the collision
+# fail closed like any other ordinary conflict) was considered and rejected
+# only because embedding both sides costs nothing and preserves strictly more
+# information than a hard conflict would.
 #
 # Identical content on both sides is NOT a collision at all -- it is the
 # trivial, common case (the same verdict was independently recorded/copied
@@ -839,7 +1038,7 @@ def merge_driver_review_cycle(
     raw documents are embedded verbatim inside standard git-style conflict
     markers (never blended field-by-field -- a review verdict has no safely
     mergeable sub-fields the way a JSON matrix row does) and the driver
-    exits 0, so ``git merge --squash -X theirs`` treats the path as resolved
+    exits 0, so ``git merge --squash`` treats the path as resolved
     and the squash proceeds.
     """
     base, ours, theirs = _resolve_merge_driver_paths_or_exit(base_path, ours_path, theirs_path)

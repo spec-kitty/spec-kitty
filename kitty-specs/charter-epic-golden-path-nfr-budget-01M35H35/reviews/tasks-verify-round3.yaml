@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: "WP04-freshness-precheck.md's Objective, Definition of Done, and Reviewer Guidance sections now all correctly split attribution: T012's three tests (a/b/c) are Ruling-6-mandated, while T015's agent_keys test is explicitly sourced from plan.md's Diff-cover >=90% requirement and marked 'not itself a Ruling-6 item', matching T015's own subtask text, while still requiring red-before-green proof for all four tests."
+  - id: TASKS-FRESH2-002
+    status: resolved
+    reason: "WP05-lazy-command-imports.md's cross-reference note now lists 'this WP or from WP02/WP03/WP04/WP07', which together with WP05 itself enumerates the same five WPs (WP02, WP03, WP04, WP05, WP07) as tracer-design-decisions.md's authoritative list at lines 776-781."

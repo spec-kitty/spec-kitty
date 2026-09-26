@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import stat
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -1666,3 +1668,227 @@ def test_command_parent_receipts_host_aware_dir_mode(tmp_path: Path, monkeypatch
     with installer._completed_command_parents(assessment, (receipt,)):
         result = installer._command_parent_receipts(assessment)
     assert set(result) == {parent}
+
+
+# ── #4923: follow_symlinks=False crash class (T003) ─────────────────────
+#
+# On a host lacking follow_symlinks support (Windows for both chmod/utime;
+# Linux already for chmod on a symlink), the pre-fix code passes the flag
+# unconditionally and raises NotImplementedError. These tests patch
+# Path.chmod / os.utime to raise deterministically when follow_symlinks=False
+# is requested -- proving the crash through the real, pre-existing entry
+# point (`_apply_project_skill_write` / `_archive_existing_path`), never a
+# no-op mock that would mask it (DIRECTIVE_041).
+
+
+def _install_raise_on_no_follow(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make chmod/utime raise exactly like an unsupported host, for any caller."""
+    real_chmod = Path.chmod
+
+    def chmod_guard(self: Path, mode: int, *, follow_symlinks: bool = True) -> None:
+        if not follow_symlinks:
+            raise NotImplementedError("chmod: follow_symlinks unavailable on this platform")
+        real_chmod(self, mode)
+
+    real_utime = os.utime
+
+    def utime_guard(path: object, *args: object, **kwargs: object) -> None:
+        if kwargs.get("follow_symlinks") is False:
+            raise NotImplementedError("utime: follow_symlinks unavailable on this platform")
+        real_utime(path, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(Path, "chmod", chmod_guard)
+    monkeypatch.setattr(os, "utime", utime_guard)
+
+
+def test_apply_project_skill_write_symlink_chmod_survives_unsupported_host(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#4923 (installer.py:969): the symlink mode-fix chmod must not crash.
+
+    A freshly created symlink always lands at the filesystem's fixed link
+    mode, so a planned mode that differs (0o600 here) drives the mode-fix
+    branch -- a real, non-suppressed vector (Phase B only removes the
+    :963 file-chmod vector, not this one). Pre-fix this raised
+    ``NotImplementedError`` on a host lacking ``follow_symlinks`` support;
+    post-fix ``chmod_no_follow`` falls back to a default-follow chmod there.
+    """
+    from specify_cli.skills.installer import PreparedProjectSkillWrite, _apply_project_skill_write
+    from specify_cli.tool_surface.operations import FileState, OperationRoot, OwnershipProof, PhysicalEffect
+
+    _install_raise_on_no_follow(monkeypatch)
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "target.md").write_text("target\n", encoding="utf-8")
+    root = OperationRoot("project", "project", project)
+    effect = PhysicalEffect(
+        "managed_skills",
+        "surface_repair",
+        root,
+        "link.md",
+        "create",
+        FileState("absent"),
+        FileState("symlink", target="target.md", mode=0o600),
+        "test symlink create",
+        (OwnershipProof("managed_path", "managed-skills:link.md"),),
+        ("managed_skills",),
+    )
+
+    _apply_project_skill_write(PreparedProjectSkillWrite(effect, None, 1))
+
+    assert (project / "link.md").is_symlink()
+
+
+def test_apply_project_skill_write_file_utime_survives_unsupported_host(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#4923 (installer.py:981): applying a carried mtime must not crash.
+
+    An ordinary reconcile write carries ``after.mtime_ns=None`` and never
+    reaches line 981; a backup-restore write (``after`` copies the replaced
+    file's real ``before`` state, mtime included) does. This reproduces that
+    mtime-carrying shape directly against the real write function. Pre-fix
+    this raised ``NotImplementedError`` on a host lacking ``follow_symlinks``
+    support; post-fix ``utime_no_follow`` falls back to a plain ``os.utime``
+    call there.
+    """
+    from specify_cli.skills.installer import PreparedProjectSkillWrite, _apply_project_skill_write
+    from specify_cli.tool_surface.operations import FileState, OperationRoot, OwnershipProof, PhysicalEffect
+
+    _install_raise_on_no_follow(monkeypatch)
+    project = tmp_path / "project"
+    project.mkdir()
+    root = OperationRoot("project", "project", project)
+    effect = PhysicalEffect(
+        "managed_skills",
+        "surface_repair",
+        root,
+        "restored.md",
+        "create",
+        FileState("absent"),
+        FileState("file", sha256="a" * 64, mode=0o644, mtime_ns=1_700_000_000_000_000_000),
+        "test backup-restore create carrying mtime",
+        (OwnershipProof("managed_path", "managed-skills:restored.md"),),
+        ("managed_skills",),
+    )
+
+    _apply_project_skill_write(PreparedProjectSkillWrite(effect, b"content", 1))
+
+    assert (project / "restored.md").read_bytes() == b"content"
+
+
+def test_archive_existing_symlink_chmod_survives_unsupported_host(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#4923 (installer.py:172): the symlink-backup chmod must not crash.
+
+    ``_archive_existing_path`` is the other symlink-backup entry point (used
+    when retaining an unowned file before an overwrite). Force the observed
+    "before" mode to diverge from the freshly created backup link's real
+    mode, so the chmod guard actually fires. Pre-fix this raised
+    ``NotImplementedError`` on a host lacking ``follow_symlinks`` support;
+    post-fix ``chmod_no_follow`` falls back to a default-follow chmod there.
+    """
+    from specify_cli.skills import paths as skills_paths
+    from specify_cli.skills.installer import _archive_existing_path
+    from specify_cli.skills.paths import SkillPathObservation
+
+    project = tmp_path / "project"
+    dest = project / ".agents" / "skills" / "my-skill" / "LINK.md"
+    dest.parent.mkdir(parents=True)
+    target = tmp_path / "target.md"
+    target.write_text("target\n", encoding="utf-8")
+    dest.symlink_to(target)
+
+    real_observe = skills_paths.observe_skill_path
+
+    def forced_mode_observe(path: Path, *, members: bool = False) -> SkillPathObservation:
+        observation = real_observe(path, members=members)
+        if path == dest and observation.state.kind == "symlink":
+            return SkillPathObservation(observation.path, replace(observation.state, mode=0o600), observation.identity, observation.children)
+        return observation
+
+    monkeypatch.setattr(skills_paths, "observe_skill_path", forced_mode_observe)
+    _install_raise_on_no_follow(monkeypatch)
+
+    _archive_existing_path(dest, project, None)
+
+    assert not dest.exists()
+
+
+# ── #4927: phantom mode divergence on a converged Windows project (T008) ──
+
+
+def _install_one_converged_skill(tmp_path: Path) -> tuple[Path, object, object]:
+    """Install one canonical skill and return (installed_file, inputs, registry)."""
+    from specify_cli.skills.installer import assess_project_skills, apply_project_skills, recheck_project_skills
+    from specify_cli.tool_surface.operations import ApplyConsent, AssessmentInputs, OperationRoot
+
+    project = tmp_path / "project"
+    project.mkdir()
+    _make_skill(tmp_path / "source", "alpha")
+    registry = SkillRegistry(tmp_path / "source")
+    consent = ApplyConsent(automatic=True)
+    inputs = AssessmentInputs(OperationRoot("project", "project", project), consent=consent)
+
+    assessment = assess_project_skills(inputs, registry, ("claude",))
+    assert assessment.complete, assessment.diagnostics
+    with recheck_project_skills(assessment) as diagnostics:
+        assert not diagnostics
+        result = apply_project_skills(assessment, consent)
+    assert result.outcome == "applied", result
+
+    installed = project / ".claude" / "skills" / "alpha" / "SKILL.md"
+    assert installed.is_file()
+    return installed, inputs, registry
+
+
+def test_converged_windows_project_emits_zero_supporting_surface_repairs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#4927 (FR-004/006, SC-002): a converged project on simulated Windows must
+    report zero repairs, matching a clean `doctor tool-surfaces`.
+
+    Pre-T005/T006 this re-planned a `chmod` effect for the managed file whose
+    Windows-observed mode differs from the fixed POSIX plan, even though the
+    project is otherwise fully converged; post-fix the divergence is
+    recognized as host-inherent and suppressed.
+    """
+    from kernel import paths as kernel_paths
+    from specify_cli.skills.installer import assess_project_skills
+
+    installed, inputs, registry = _install_one_converged_skill(tmp_path)
+    # Simulate a Windows-observed mode for the already-installed, converged
+    # file: the real host mode is host-representable but differs from the
+    # fixed POSIX plan (`_expected_project_entries` strips write bits).
+    installed.chmod(0o666)
+
+    monkeypatch.setattr(kernel_paths, "is_windows", lambda: True)
+    next_assessment = assess_project_skills(inputs, registry, ("claude",))
+
+    assert next_assessment.complete, next_assessment.diagnostics
+    assert next_assessment.effects == (), next_assessment.effects
+
+
+def test_posix_genuine_mode_divergence_still_repairs(tmp_path: Path) -> None:
+    """FR-007: the exact same divergence on a real POSIX host is still repaired.
+
+    Suppression is strictly host-conditional (NFR-003) -- this pins the
+    negative case alongside the T008 positive one above.
+    """
+    from specify_cli.skills.installer import assess_project_skills
+
+    installed, inputs, registry = _install_one_converged_skill(tmp_path)
+    installed.chmod(0o666)
+
+    next_assessment = assess_project_skills(inputs, registry, ("claude",))
+
+    assert next_assessment.complete, next_assessment.diagnostics
+    assert any(effect.action == "chmod" for effect in next_assessment.effects), next_assessment.effects
+
+
+def test_converged_windows_project_stable_across_repeated_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#4927 (FR-006): the zero-repair count is stable across repeated dry-runs."""
+    from kernel import paths as kernel_paths
+    from specify_cli.skills.installer import assess_project_skills
+
+    installed, inputs, registry = _install_one_converged_skill(tmp_path)
+    installed.chmod(0o666)
+
+    monkeypatch.setattr(kernel_paths, "is_windows", lambda: True)
+    first = assess_project_skills(inputs, registry, ("claude",))
+    second = assess_project_skills(inputs, registry, ("claude",))
+
+    assert first.effects == () and second.effects == (), (first.effects, second.effects)

@@ -1267,6 +1267,69 @@ def test_fix_stranded_reverts_pruned_worktree_yields_stuck_error_not_silent(
 
 
 # ---------------------------------------------------------------------------
+# #4950 fold: `CoordRepairOutcome.branch_mismatch` must not fall through to a
+# silent `(None, None)` -- the operator needs a reason, and the stranded-
+# revert hint (`_STRANDED_COORD_REVERT_HINT`, "run `--fix`") can never
+# succeed while the coord worktree stays on a foreign branch.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_fix_stranded_reverts_branch_mismatch_yields_error_not_silent(
+    tmp_path: Path,
+) -> None:
+    """`_fix_stranded_reverts` on a strand whose coord worktree is on a FOREIGN
+    branch -> a distinct branch-mismatch ``error``, and the marker stays pending.
+
+    Sibling of #4920/#4950's mismatched-worktree-branch bug for the
+    fast-forward path (`_coord_worktree_mismatch_fix_blocked_finding`): here the
+    equivalent refusal is on the ``git revert`` repair path
+    (`CoordRepairOutcome.branch_mismatch`, ``coordination/coherence.py``).
+    Before this fold, ``_heal_one_strand`` let that outcome fall through to
+    ``(None, None)`` -- no warning, and the ``--fix`` re-run the persistent
+    ``error`` finding still points at can never succeed while the worktree
+    stays off the coord branch.
+    """
+    repo = tmp_path / "repo"
+    _seed_doctor_coord_ref(
+        repo,
+        [_doctor_event("WP-A", "approved", event_id="01A00", from_lane="in_review")],
+    )
+    captured_sha, worktree = _bake_stranding_done(repo, tmp_path)
+    # Operator (or another process) switches the coord worktree onto a sibling
+    # branch created from its current tip -- byte-identical, but not "the"
+    # coord branch. Git permits this freely.
+    _git_doctor(worktree, "switch", "-c", "scratch")
+    scratch_tip_before = _git_doctor(worktree, "rev-parse", "scratch").stdout.strip()
+    coord_tip_before = _git_doctor(repo, "rev-parse", "coord").stdout.strip()
+
+    _save_marker_state(
+        repo,
+        stranded_wp_ids=["WP-A"],
+        captured_sha=captured_sha,
+        coord_worktree=str(worktree),
+    )
+
+    findings = cd._check_stranded_coord_revert(repo)
+    assert [f.error_code for f in findings] == [cd._STRANDED_COORD_REVERT_CODE]
+
+    healed, extra = cd._fix_stranded_reverts(findings, repo)
+
+    assert healed == []
+    assert [w.error_code for w in extra] == [cd._STRANDED_COORD_REVERT_BRANCH_MISMATCH_CODE]
+    assert [w.severity for w in extra] == ["error"]  # still a committed split-brain
+    assert "scratch" in extra[0].message
+    assert "'coord'" in extra[0].message
+    # Nothing mutated -- neither the foreign branch nor the declared coord ref.
+    assert _git_doctor(worktree, "rev-parse", "scratch").stdout.strip() == scratch_tip_before
+    assert _git_doctor(repo, "rev-parse", "coord").stdout.strip() == coord_tip_before
+    # The marker must NOT be cleared -- the strand persists for the next pass.
+    state = load_state(repo, _DOCTOR_MISSION_ID)
+    assert state is not None and state.pending_coord_reconcile is not None
+
+
+# ---------------------------------------------------------------------------
 # Safety-net warning: an un-parseable marker must not be silently dropped.
 # ---------------------------------------------------------------------------
 

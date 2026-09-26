@@ -119,14 +119,17 @@ _LOCK_FILENAME = "index.json.lock"
 _LOCK_ACQUIRE_TIMEOUT_S = 10.0
 
 
-def _decisions_lock_path(mission_dir: Path) -> Path:
+def _decisions_lock_path(ledger_dir: Path) -> Path:
     """Return the sidecar lock path guarding ``decisions/index.json``.
 
     Shared by the forward write path below and the reconciler
     (``cli/commands/_decisions_doctor.py``, T012, I8) -- both serialize
     against the SAME lock so a concurrent open/resolve cannot race a repair.
+    ``ledger_dir`` is the PRIMARY-partition dir :func:`_ledger_dir` resolves
+    (#4966 AC-D2) -- the doctor's own ``_ledger_dir`` copy must resolve the
+    SAME dir so both lock paths agree.
     """
-    return _store.decisions_dir(mission_dir) / _LOCK_FILENAME
+    return _store.decisions_dir(ledger_dir) / _LOCK_FILENAME
 
 
 _TERMINAL_STATUSES = {
@@ -148,24 +151,43 @@ def _is_allowed_terminal_reopen(
     return current_status == DecisionStatus.DEFERRED and target_status == DecisionStatus.RESOLVED
 
 
+def _primary_metadata_dir(repo_root: Path, mission_slug: str) -> Path:
+    """Return the PRIMARY-partition dir that carries ``meta.json``.
+
+    Routed through ``placement_seam(...).read_dir(PRIMARY_METADATA)`` — a
+    PRIMARY-partition kind that short-circuits to the PRIMARY checkout before
+    any coord probe (``resolution.py:886``, ``artifacts.py:169``) and so can
+    never resolve to a materialised coordination worktree. Mirrors the
+    canonical pattern every other ``meta.json`` reader in this codebase uses
+    (``status/aggregate.py``, ``merge/executor.py``, ``merge/resolve.py``,
+    ``runtime/next/runtime_bridge.py``, etc.) rather than a bespoke walk.
+    """
+    return placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+
+
 def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
     """Read mission_id from kitty-specs/<slug>/meta.json.
 
     Raises:
         DecisionError(MISSION_NOT_FOUND): if meta.json is missing or has no mission_id.
     """
-    # FR-001: route through the SAME kind-routed seam as ``_mission_dir`` (the
-    # decisions ledger's own directory authority) rather than a fresh
-    # PRIMARY_METADATA lookup. WP04's pre-existing single-read-path-authority
-    # regression test (test_decision_single_authority.py) pins this mission_id
-    # read as coord-aware: a materialized ``-coord`` worktree carries its own
-    # ``meta.json`` copy and IS the resolvable surface (unlike the #2453 husk
-    # class, which shadows a stale PRIMARY copy). Reusing ``_mission_dir`` keeps
-    # the mission_id lookup and the decisions-ledger location in agreement — a
-    # separate PRIMARY-only resolution here could disagree with where the
-    # ledger itself resolves under coord topology (C-001: no over-claiming a
-    # funnel beyond what each site's own contract needs).
-    feature_dir = _mission_dir(repo_root, mission_slug)
+    # #4966 (FR-003/FR-005/NFR-003): ``meta.json`` is a PRIMARY-partition
+    # artifact — it is written by ``mission create`` and only ever lives on
+    # the PRIMARY checkout (``resolution.py:886``, ``artifacts.py:169``). A
+    # MATERIALIZED coord worktree does NOT carry a ``meta.json`` copy: it is a
+    # STATUS-ONLY husk holding ``status.events.jsonl`` / ``status.json`` "and
+    # nothing else" (``coordination/coherence.py:168``). Resolving this read
+    # through ``_mission_dir`` (routed to the COORD-partition ``STATUS_STATE``
+    # kind) locates that husk instead and permanently misses ``meta.json`` —
+    # the split-brain that blocked THIS mission's own ``decision open``
+    # (tracer-tooling-friction.md). Route through the dedicated
+    # ``PRIMARY_METADATA`` resolution instead, so this read agrees with the
+    # SAME PRIMARY partition ``acceptance/__init__.py::
+    # _has_blocking_clarification_marker`` already reads
+    # (``load_index(file_path.parent)``). The decisions LEDGER directory
+    # itself (``decisions/index.json`` / ``DM-<id>.md``) stays COORD-routed
+    # via ``_mission_dir`` — only this identity read moves.
+    feature_dir = _primary_metadata_dir(repo_root, mission_slug)
     # FR-005 / post-#2091 + FR-007 / #3162: this site hard-fails on a missing
     # meta.json (DecisionError(MISSION_NOT_FOUND)) -- allow_missing=True would
     # MASK that guard and silently re-introduce the removed legacy tolerance.
@@ -201,16 +223,19 @@ def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
 
 
 def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
-    """Return kitty-specs/<mission_slug>/.
+    """Return the COORD-partition kitty-specs/<mission_slug>/ dir.
 
-    The decisions ledger (``decisions/index.json`` / ``DM-<id>.md``) and its
-    companion ``status.events.jsonl`` entries are coord-authority-owned
-    STATUS-partition state -- the SAME directory ``decisions/emit.py``'s
-    permanent kind-blind write target resolves to (data-model.md:31, the 2
-    permanent-by-design coord_authority writes). Routed through
+    ``status.events.jsonl`` is coord-authority-owned STATUS-partition state --
+    the SAME directory ``decisions/emit.py``'s permanent kind-blind write
+    target resolves to (data-model.md:31, the 2 permanent-by-design
+    coord_authority writes). Routed through
     ``placement_seam(...).read_dir(STATUS_STATE)`` so this read stays
-    topology-aware and agrees with where emit.py writes; splitting reads onto
-    PRIMARY here would read/write split-brain the ledger under coord topology.
+    topology-aware and agrees with where emit.py writes.
+
+    #4966 AC-D2 (WP03 residual): the decisions LEDGER directory
+    (``decisions/index.json`` / ``DM-<id>.md``) no longer resolves through
+    this helper -- see :func:`_ledger_dir` below. Only ``status.events.jsonl``
+    (:func:`_events_path`) stays COORD-routed here.
     """
     mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
     return mission_dir
@@ -219,6 +244,33 @@ def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
 def _events_path(repo_root: Path, mission_slug: str) -> Path:
     """Return kitty-specs/<mission_slug>/status.events.jsonl."""
     return _mission_dir(repo_root, mission_slug) / "status.events.jsonl"
+
+
+def _ledger_dir(repo_root: Path, mission_slug: str) -> Path:
+    """Return the PRIMARY-partition dir holding the decision ledger content.
+
+    #4966 AC-D2 (WP03 residual, closing the gap ``15971a5ef6``'s meta.json
+    fix left open): the decisions LEDGER (``decisions/index.json`` /
+    ``DM-<id>.md``) must live in the SAME PRIMARY-partition dir
+    ``acceptance/__init__.py::_has_blocking_clarification_marker`` reads
+    (``load_index(file_path.parent)``, where ``file_path`` is one of the
+    PRIMARY planning artifacts ``_planning_read_dir`` resolves via the
+    ``SPEC`` kind). Previously this resolved through ``_mission_dir`` ->
+    ``STATUS_STATE`` (COORD), so a deferred->resolved decision's ledger
+    CONTENT never reached the dir ``accept`` reads from on a materialised
+    coord husk -- a split-brain that left ``accept`` permanently blocked on a
+    resolved clarification marker. Delegates to the SAME ``PRIMARY_METADATA``
+    resolution :func:`_resolve_mission_id` uses (both are
+    ``_PRIMARY_ARTIFACT_KINDS`` members resolving to the identical
+    ``kitty-specs/<mission_slug>/`` root), so identity read and ledger
+    content read now agree on ONE partition.
+
+    ``cli/commands/_decisions_doctor.py`` carries a PARALLEL ``_ledger_dir``
+    copy that MUST resolve to this SAME dir -- both lock against the same
+    sidecar ``index.json.lock`` (see :func:`_decisions_lock_path`) so a
+    concurrent open/resolve cannot race a repair.
+    """
+    return _primary_metadata_dir(repo_root, mission_slug)
 
 
 def _parse_opened_events(content: bytes | str) -> list[dict[str, Any]]:
@@ -415,7 +467,10 @@ def open_decision(
         )
 
     mission_id = _resolve_mission_id(repo_root, mission_slug)
-    mission_dir = _mission_dir(repo_root, mission_slug)
+    # #4966 AC-D2: the ledger dir is PRIMARY-partition-resolved (see
+    # ``_ledger_dir``) -- NOT the COORD-partition ``_mission_dir`` used for
+    # ``status.events.jsonl`` below.
+    mission_dir = _ledger_dir(repo_root, mission_slug)
 
     if dry_run:
         if on_minted is not None:
@@ -615,7 +670,9 @@ def _terminal_command(
             event_lamport=None,
         )
 
-    mission_dir = _mission_dir(repo_root, mission_slug)
+    # #4966 AC-D2: the ledger dir is PRIMARY-partition-resolved (see
+    # ``_ledger_dir``) -- NOT the COORD-partition ``_mission_dir``.
+    mission_dir = _ledger_dir(repo_root, mission_slug)
     # T010 (D4/FR-004): load -> find -> idempotency/conflict-check -> mutate
     # -> save all run under ONE lock acquisition (see
     # ``_apply_terminal_under_lock``) instead of the prior lock-free

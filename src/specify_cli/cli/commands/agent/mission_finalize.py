@@ -51,6 +51,7 @@ from specify_cli.core.checkout_identity import CheckoutIdentity, Intent, resolve
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.dependency_graph import detect_cycles, validate_dependencies
+from specify_cli.core.vcs.git import capture_branch_tip
 from specify_cli.core.paths import (
     get_main_repo_root,
     get_status_read_root,
@@ -1064,9 +1065,8 @@ def _resolve_dependencies_and_refs(
             if not wp_id_match:
                 continue
             wp_id = wp_id_match.group(1)
-            raw_content = wp_file.read_text(encoding="utf-8")
             wp_meta, _ = _read_wp_frontmatter(wp_file)
-            frontmatter_deps = list(wp_meta.dependencies) if _raw_frontmatter_has_field(raw_content, "dependencies") else []
+            frontmatter_deps = list(wp_meta.dependencies)
             if frontmatter_deps:
                 res.wp_dependencies[wp_id] = frontmatter_deps
             else:
@@ -2007,36 +2007,6 @@ def _emit_local_canonical_events(
             console.print(f"[yellow]Warning:[/yellow] Local canonical WPCreated/TasksCompleted persistence failed: {local_wp_exc}")
 
 
-def _capture_target_branch_tip(repo_root: Path, target_branch: str) -> str | None:
-    """Capture ``target_branch``'s current tip SHA — the FR-009 recorded planning SHA.
-
-    ADR ``2026-07-29-1`` (WP01, out-of-map producer edit — justified: T002 requires
-    the recorded SHA to exist in ``lanes.json`` at finalize time, and this is the
-    single write authority for that file; ``lanes/worktree_allocator.py`` alone
-    cannot manufacture a value nobody ever persisted). By the time
-    ``_compute_and_write_lanes`` runs, every earlier planning-artifact commit
-    (spec-commit, setup-plan, tasks-commit) has already landed on ``target_branch``
-    (ADR ``2026-06-24-1``: PRIMARY-partition kinds commit there for every topology),
-    so this snapshot is, by construction, the recorded planning-artifact tip — never
-    re-read live at lane-allocation time (the moving-tip trap the ADR closes).
-
-    Returns ``None`` (never raises) on any git failure — a capture failure degrades
-    gracefully to the allocator's pre-WP01 fallback rather than blocking finalize.
-    """
-    import subprocess
-
-    result = subprocess.run(
-        ["git", "rev-parse", "--verify", target_branch],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        return None
-    sha = result.stdout.strip()
-    return sha or None
-
-
 def _execution_has_begun(
     repo_root: Path,
     mission_slug: str,
@@ -2063,7 +2033,7 @@ def _execution_has_begun(
         canceled). ``False`` when the event log is absent, empty, every
         seeded WP is still ``planned``, or the surface/event log cannot be
         read at all (degrades gracefully like this module's sibling
-        ``_capture_target_branch_tip`` — a signal-computation helper must
+        ``capture_branch_tip`` — a signal-computation helper must
         never crash the whole ``finalize-tasks`` command over an unreadable
         read-only surface; a corrupted event log is a pre-existing store
         problem `status doctor` surfaces separately, not something this gate
@@ -2292,7 +2262,7 @@ def _preserve_or_capture_planning_commit_sha(
     execution_has_begun = _execution_has_begun(repo_root, mission_slug, owned=owned)
     if not execution_has_begun:
         return PlanningCommitResolution(
-            sha=_capture_target_branch_tip(repo_root, target_branch),
+            sha=capture_branch_tip(repo_root, target_branch),
             action="captured",
         )
 
@@ -2335,7 +2305,7 @@ def _preserve_or_capture_planning_commit_sha(
     # #4827: captured once here (rather than separately inside each resolve_*
     # helper, the pre-#4827 shape) -- both the refresh and preserve branches
     # need the SAME tip snapshot to classify against (C-006).
-    tip = _capture_target_branch_tip(repo_root, target_branch)
+    tip = capture_branch_tip(repo_root, target_branch)
     if refresh_planning_commit:
         return _resolve_refresh_planning_commit_decision(
             repo_root=repo_root,

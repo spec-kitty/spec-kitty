@@ -1,0 +1,57 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true               # flipped to true after the yaml self-check below passed
+phase: spec
+results:                    # one entry for EVERY finding in the findings file
+  - id: SPEC-FRESH6-001
+    status: resolved
+    reason: >-
+      Judged against Ruling 5's replacement bar (not the original finding's (a)/(b)
+      remediation options): "resolved when FR-002 names no concrete mechanism and C-006
+      states the zero-commit + no-`.kittify` precondition explicitly." Both halves confirmed
+      in current spec.md. FR-002's row (spec.md line 77) no longer contains the removed
+      clause naming `clone_template`/`temp_repo`; it now reads "...reduced by real
+      restructuring of what the fixture's own per-invocation subprocess calls do —
+      replacing the `git init`/`config` subprocess calls with a faster/leaner mechanism
+      (the plan phase chooses the concrete mechanism), and/or reducing what the
+      `spec-kitty init` subprocess call itself does..." — no concrete mechanism is named;
+      the choice is explicitly deferred to the plan phase. C-006 (spec.md line 99) now
+      states the precondition explicitly and in two named, separately testable halves:
+      "The redesigned `fresh_e2e_project` fixture (FR-002) must still produce a truly
+      clean, from-scratch project per test invocation, such that `spec-kitty init` runs
+      against it under the same precondition it observes today: a repository with no
+      commits and no `.kittify` content. Explicitly, both halves are required: (1) no
+      `.kittify` content copied from the source checkout (...`assert not
+      doctrine_path.exists()`...) and (2) no commit made before `spec-kitty init` runs —
+      today's fixture performs a bare `git init` plus two `git config` calls only, then
+      invokes `spec-kitty init`; the `git add`/`commit` happens only afterward, so `init`
+      itself always observes a zero-commit repository." This is stated explicitly, not
+      merely implied by "truly clean, from-scratch," satisfying Ruling 5's stricter bar
+      over the original finding's looser (a)/(b) options.
+
+      Repo-wide sweep: `grep -n "clone_template\|temp_repo" spec.md` returns zero hits —
+      the identifier is gone from the whole file, not only from FR-002. The Edge Cases
+      bullet (User Story 1, spec.md line 66) that originally cited the same example
+      (`tests/conftest.py`'s `temp_repo` fixture / bare-repo git template) was independently
+      checked and also names no concrete mechanism: "...changes fixture-scoped state in a
+      way that breaks the single consumer's isolation assumptions (e.g. a redesigned
+      fixture-sharing mechanism reused in a way that leaks state between tests)?" — generic
+      language, same risk preserved, mechanism reference removed.
+
+      Codebase spot-check of C-006's factual claim (not just trusted from spec prose):
+      read `tests/e2e/conftest.py` lines 391-450 (`fresh_e2e_project`) directly. Step 1
+      (lines 402-420) runs `git init -b main` plus two `git config` calls only — no
+      commit. Step 2 (lines 422-434) then runs `spec-kitty init` via
+      `run_cli_subprocess`. Step 3 (lines 436-449) runs `git add .` / `git commit` only
+      AFTER `spec-kitty init` has already returned. This confirms C-006's stated
+      precondition is accurate: today's fixture does run `spec-kitty init` against a
+      zero-commit repo, exactly as C-006 now says.
+
+      tracer-design-decisions.md's final entry (dated 2026-09-23, "Ruling 5 applied
+      (SPEC-FRESH6-001), closing pass") documents this fix, cites Ruling 5 by name and
+      section ("reviews/spec.ruling.md", "Ruling 5"), enumerates the FR-002/C-006/Edge
+      Cases edits individually, records the same zero-hit grep sweep as evidence, and
+      states no other FR/NFR/Constraint/SC was touched and `tracer-approach.md` was not
+      edited in this pass — consistent with what a direct read of the current FR-002,
+      C-006, and Edge Cases text shows. No unrelated spec.md text was observed to have
+      changed as part of this fix; scope stayed inside Ruling 5's bounds.

@@ -156,27 +156,59 @@ def _flatten(live: dict[str, list[tuple[int, str]]]) -> set[str]:
 # in the SAME PR that introduces it.
 # ---------------------------------------------------------------------------
 _ALLOWLIST: dict[str, str] = {
-    # --- reset --hard (4) --------------------------------------------------
-    "src/specify_cli/doctrine/sources/git_source.py:98:reset_hard": (
-        "doctrine pack CLONE dir (not repo_root) -- git_source.py owns its own "
-        "fetch+reset consistency story for a throwaway doctrine-pack clone, "
-        "unrelated to the operator checkout the guard protects."
+    # --- reset --hard (5) --------------------------------------------------
+    "src/specify_cli/doctrine/sources/git_source.py:163:reset_hard": (
+        "guarded reset (#4989): _update runs `git reset --hard` on the persistent "
+        "pack clone ONLY after _local_changes_refusal has fail-closed refused when "
+        "the working tree holds uncommitted local changes OR carries local commits "
+        "ahead of the reset target -- so this reset can never silently discard "
+        "hand-authored pack content; the target itself is resolved by ref type "
+        "(_resolve_reset_target) rather than blanket origin/<ref>. Re-pinned from "
+        ":98 (WP03, mission asset-preservation-migrate-fetch): the old entry's "
+        "line and its 'throwaway doctrine-pack clone' rationale were both false "
+        "after WP02 rewrote _update -- the clone is persistent (.git preserved "
+        "across fetches) and the reset is now dirty/ahead-guarded, not unguarded."
     ),
-    "src/specify_cli/merge/git_probes.py:239:reset_hard": (
+    "src/specify_cli/merge/git_probes.py:236:reset_hard": (
         "guarded by WP03/T011 (#4752): refuses via assert_checkout_on_target "
         "before this reset runs whenever expected_branch is supplied; the "
-        "live merge preflight always supplies it."
+        "live merge preflight always supplies it. Re-pinned from :232 "
+        "(#5038 driver-replay projection attribution): the new "
+        "driver_replay_expected_bytes probe added code earlier in the file, "
+        "shifting this line; same _refresh_primary_checkout_after_merge "
+        "site/rationale, confirmed by a direct read -- not a new destructive op."
     ),
-    "src/specify_cli/git/ref_advance.py:415:reset_hard": (
+    "src/specify_cli/git/ref_advance.py:514:reset_hard": (
         "the reused guard primitive's OWN resync implementation -- this "
         "module defines _dirty_entries (the residue-aware dirty check every "
         "other guard call reuses) and only resets after that check already "
-        "passed for this worktree."
+        "passed for this worktree. Re-pinned from :462 (#4997 follow-up, "
+        "data-loss fix): the new public seam reset_would_obstruct_untracked "
+        "(consumed by merge/preflight.py::is_pure_behind_head_lag, INV-3) "
+        "was added earlier in the file, shifting this line; same "
+        "advance_branch_ref resync site/rationale, confirmed by a direct read "
+        "-- not a new destructive op."
     ),
-    "src/specify_cli/lanes/worktree_allocator.py:967:reset_hard": (
+    "src/specify_cli/lanes/worktree_allocator.py:1292:reset_hard": (
         "atomic rollback to a pre-loop ref (#1915) AFTER the loop's own "
         "half-merge was already aborted -- lane-loop-scoped recovery, not an "
-        "arbitrary destroy of operator state."
+        "arbitrary destroy of operator state. Re-pinned from :1040 (#4889 "
+        "destroyed-lane guard WP01): the new pre-flight (DestroyedLaneError +"
+        " helpers) added code earlier in the file, shifting this line; same "
+        "site/rationale, confirmed by a direct read -- not a new destructive op."
+    ),
+    "src/specify_cli/merge/executor.py:3360:reset_hard": (
+        "Re-pinned from :3342 (#5038 driver-replay projection attribution): the "
+        "driver-replay rewrite of _assert_squash_projected_content_landed added "
+        "code earlier in the file, shifting this line; same site/rationale, "
+        "confirmed by a direct read -- not a new destructive op. "
+        "#4997 behind-own-HEAD resume recovery (_recover_behind_head_primary_on_resume): "
+        "runs ONLY after a provably-pure-lag proof -- classify_resume_dirty_remedy == "
+        "BEHIND_OWN_HEAD (lane already an ancestor of HEAD) AND is_pure_behind_head_lag "
+        "(working tree AND index byte-identical to the persisted pre_mutation_target_sha, "
+        "HEAD its strict descendant, no untracked file obstructing a restored path). It "
+        "resets the primary to its OWN already-advanced HEAD (restoring phantom staged "
+        "deletions), destroying nothing genuine; any deviation refuses fail-closed instead."
     ),
     # --- worktree remove --force (10) --------------------------------------
     "src/specify_cli/core/vcs/git.py:222:worktree_remove_force": (
@@ -202,12 +234,19 @@ _ALLOWLIST: dict[str, str] = {
     "src/specify_cli/git/destructive_guard.py:229:worktree_remove_force": (
         "the chokepoint's OWN inline implementation (_remove_worktree_force, called only from guarded_worktree_remove) -- this IS the guard, not a bypass of it."
     ),
-    "src/specify_cli/lanes/merge.py:772:worktree_remove_force": ("ephemeral lane-merge tmp worktree, unconditionally cleaned up via ExitStack on exit."),
-    "src/specify_cli/lanes/worktree_allocator.py:1155:worktree_remove_force": (
+    "src/specify_cli/lanes/merge.py:969:worktree_remove_force": (
+        "read-only forecast scratch worktree, created detached in the same "
+        "ExitStack and force-removed even when the simulated merge leaves "
+        "intentional conflict entries; never operator-visible state."
+    ),
+    "src/specify_cli/lanes/merge.py:1039:worktree_remove_force": ("ephemeral lane-merge tmp worktree, unconditionally cleaned up via ExitStack on exit."),
+    "src/specify_cli/lanes/worktree_allocator.py:1480:worktree_remove_force": (
         "fresh-path atomicity (#3281/T010): removes a just-created worktree "
         "AFTER _merge_recorded_planning_commit already aborted the "
         "half-merge -- the tree is clean by construction; best-effort, "
-        "reports a warning rather than raising on failure."
+        "reports a warning rather than raising on failure. Re-pinned from "
+        ":1228 (#4889 destroyed-lane guard WP01): earlier code shifted this "
+        "line; same site/rationale, confirmed by a direct read."
     ),
     "src/specify_cli/coordination/workspace.py:204:worktree_remove_force": (
         "_remove_worktree_registration: prunes a registration whose "
@@ -217,15 +256,26 @@ _ALLOWLIST: dict[str, str] = {
         "own docstring, not an unrouted/unexplained raw force-remove."
     ),
     # --- merge --abort (6) --------------------------------------------------
-    "src/specify_cli/merge/state.py:493:merge_abort": (
+    "src/specify_cli/merge/state.py:654:merge_abort": (
         "abort_git_merge's own generic primitive; its one live caller "
         "(cli.commands.merge._dispatch_abort, WP04/#4754) passes only the "
-        "scoped merge-workspace path, never repo_root (INV-5)."
+        "scoped merge-workspace path, never repo_root (INV-5). Re-pinned "
+        "from :638 (terminus-reconciliation-attribution-integrity, #5021 r1): "
+        "the reconciliation_passed_target_sha resume-anchor field shifted the "
+        "line, same primitive/rationale."
     ),
-    "src/specify_cli/lanes/merge.py:812:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (squash-conflict rollback), never repo_root."),
-    "src/specify_cli/lanes/merge.py:918:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (merge-conflict rollback), never repo_root."),
-    "src/specify_cli/lanes/worktree_allocator.py:785:merge_abort": ("scoped to the lane worktree (planning-commit merge-conflict rollback), never repo_root."),
-    "src/specify_cli/lanes/worktree_allocator.py:959:merge_abort": ("scoped to the lane worktree (dependency-lane merge-conflict rollback), never repo_root."),
+    "src/specify_cli/lanes/merge.py:1076:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (squash-conflict rollback), never repo_root."),
+    "src/specify_cli/lanes/merge.py:1199:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (merge-conflict rollback), never repo_root."),
+    "src/specify_cli/lanes/worktree_allocator.py:1110:merge_abort": (
+        "scoped to the lane worktree (planning-commit merge-conflict rollback), never repo_root. "
+        "Re-pinned from :858 (#4889 destroyed-lane guard WP01): earlier code shifted this line; "
+        "same site/rationale, confirmed by a direct read."
+    ),
+    "src/specify_cli/lanes/worktree_allocator.py:1284:merge_abort": (
+        "scoped to the lane worktree (dependency-lane merge-conflict rollback), never repo_root. "
+        "Re-pinned from :1032 (#4889 destroyed-lane guard WP01): earlier code shifted this line; "
+        "same site/rationale, confirmed by a direct read."
+    ),
     "src/specify_cli/lanes/auto_rebase.py:739:merge_abort": ("scoped to the lane worktree (auto-rebase conflict rollback), never repo_root."),
 }
 

@@ -1,0 +1,53 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 2
+verdicts:
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      Verified via `grep -n` against tests/e2e/test_charter_epic_golden_path.py: line 797 is
+      `@pytest.mark.skip(`, line 805 is the decorator's closing paren, line 806 IS
+      `@pytest.mark.timeout(120)`, and line 807 is the `def` — so C-004's "lines 797-806"
+      citation in spec.md literally includes the timeout marker; tracer-approach.md's own
+      item 4 confirms this was a deliberate override of the dispatch's more accurate
+      "797-805" (not a typo), and its stated rationale for doing so is internally
+      inconsistent with the marker needing to survive.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      The arithmetic checks out exactly as claimed: spec.md's NFR-002 cites "139.7s ...
+      vs then-current local ~156s" as support for "ran 12-30s slower," but
+      156-139.7=16.3 (VM faster, not slower); the 12-30s figure only matches when 139.7s
+      and 159.5s are instead compared against the CURRENT baseline 127.55s
+      (139.7-127.55=12.15s, 159.5-127.55=31.95s), which is exactly the comparison the
+      spec's own Evidence section performs two paragraphs later — confirmed also in
+      tracer-design-decisions.md, which repeats the same flawed "vs ~156s" framing.
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: >-
+      C-005 is pure policy prose with no proposed detection mechanism, while FR-005/SC-002
+      specify a concrete two-tier gate for a different defect (lever-C cost regression) —
+      no FR in spec.md addresses mechanical detection of a future skip/xfail re-add on
+      this test, and the charter's "Architectural gate discipline" standing order
+      (verified at charter.md line 75: "Close defect classes by construction with a
+      NON-VACUOUS call-site gate") directly applies since C-005 itself frames this as
+      "exactly a prior instance" of a defect class.
+  - id: SPEC-VERIFY-004
+    verdict: confirmed
+    reason: >-
+      SC-002's exact text ("if a wall-clock assertion is warranted, it is scoped to the
+      performance-marked nightly lane") is confirmed verbatim in spec.md, and the cited
+      precedent file tests/performance/test_cli_startup_budget_4409.py ships both tiers
+      unconditionally — an unmarked structural test plus an always-present
+      `@pytest.mark.performance` wall-clock test — with no analogous "if warranted" gate,
+      so the hedge is a real deviation from the precedent SC-002 claims to follow.
+  - id: SPEC-VERIFY-005
+    verdict: confirmed
+    reason: >-
+      Confirmed verbatim in spec.md's Edge Cases: the bullet states only "the mission
+      must re-measure on a real Actions runner before declaring closure" with no fallback
+      if that re-measurement still fails; unlike the adjacent #4017 edge case (explicit
+      "it is ... an escalation, not a fix target") this bullet is the one edge case in the
+      section with no stated next step, and C-001/C-002/C-003 rule out the obvious
+      fallback levers, leaving a genuine gap.

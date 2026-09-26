@@ -278,6 +278,47 @@ class AssetPreparation:
             raise ValueError(f"Conflicting global asset outputs: {path}")
         self.writes[path] = AssetWrite(effect, content)
 
+    def overwrite_internal(self, path: Path, after: FileState, content: bytes | None, proof: OwnershipProof) -> None:
+        """Unconditionally overwrite an internal, cache-only bookkeeping file.
+
+        Public counterpart to ``_effect()``, exposing exactly its "always
+        overwrite, no drift-preservation" semantics to callers OUTSIDE this
+        module (PR-BOUNDARY-001). Deliberately NOT ``asset()``: ``asset()``'s
+        drift-preservation logic is correct for user-facing managed files
+        (never clobber an edit it cannot prove is unowned) but wrong for an
+        internal, cache-only bookkeeping file that only this owner ever
+        writes or reads -- a hand-corrupted or torn-write copy is never
+        "owned" by a prior inventory entry, so ``asset()`` would PRESERVE it
+        forever (every subsequent read stays malformed) instead of
+        self-healing on the very next successful write.
+
+        Reserved for internal bookkeeping artifacts this owner alone
+        produces and consumes (e.g. the agent-commands freshness stamp) --
+        never for files a project author might hand-edit; those must go
+        through ``asset()``.
+
+        pr-FRESH-002: a misuse-fails-loudly runtime guard, not just a
+        docstring warning. Reuses the SAME classification the ``.lock``
+        late-apply convention already encodes elsewhere in this module
+        (``_write_order``'s stage-1/stage-6 buckets, and the sibling
+        ``_VERSION_FILENAME``/``_FRESHNESS_STAMP_FILENAME`` constants in
+        ``agent_commands.py``/``agent_skills.py``): every internal,
+        cache-only bookkeeping file this class itself writes -- the
+        version stamp, the freshness stamp, the persistent owner lock --
+        lives directly in this owner's ``cache`` root (``self.inventory``'s
+        parent; ``self.inventory`` and ``self.lock_path`` are both minted
+        from the SAME ``cache`` argument at construction) and ends in
+        ``.lock``. A user-facing managed asset never satisfies both: it
+        lives under the destination tree ``asset()``/``tree()`` write to,
+        not the cache root. A target that fails either check is refused
+        before ``_effect()`` ever runs.
+        """
+        cache_root = self.inventory.parent
+        if path.parent != cache_root or not path.name.endswith(".lock"):
+            reason = f"must be a '.lock' file directly under the owner cache root {cache_root}"
+            raise ValueError(f"overwrite_internal() refuses a non-internal target: {path} ({reason})")
+        self._effect(path, after, content, proof)
+
     def parents(self, path: Path) -> None:
         for parent in reversed(path.parents):
             if parent == self.root.path or self.root.path not in parent.parents:

@@ -1,0 +1,44 @@
+{
+  "rows": {
+    "#3942": {
+      "evidence_ref": "Existing target-newer PRIMARY planning policy retained; tests/merge/test_squash_target_newer_planning_3942.py passes for both target-newer and source-newer histories.",
+      "fr": [
+        "FR-005",
+        "FR-006"
+      ],
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "Predecessor behavior referenced as a compatibility constraint; this mission preserves it rather than reopening it.",
+      "source_file": "spec.md",
+      "title": "Preserve target-newer planning artifacts during squash merge",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#4892": {
+      "evidence_ref": "WP01 implementation commit e3989901d with follow-up 5109a1d98; reviewer approval d126681c6; post-merge focused suite 43 passed.",
+      "fr": [
+        "FR-001",
+        "FR-002",
+        "FR-003",
+        "FR-004",
+        "FR-005",
+        "FR-006",
+        "FR-007",
+        "FR-008",
+        "FR-009",
+        "FR-010",
+        "FR-011"
+      ],
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "Default squash execution and dry-run conflict parity for ordinary source content, while retaining governed artifact policies.",
+      "source_file": "spec.md",
+      "title": "Default squash merge silently overwrites newer target source content",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

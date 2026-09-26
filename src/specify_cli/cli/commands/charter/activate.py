@@ -561,6 +561,7 @@ def recompile_catalog(repo_root: Path) -> list[str]:
         from_interview=False,
         resolved_mission_type=None,
         profile="minimal",
+        prefer_recorded_mission=True,
     )
     compiled = compile_charter(
         mission=resolved_mission,

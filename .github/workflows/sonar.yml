@@ -72,7 +72,7 @@ permissions:
 jobs:
   scan:
     name: SonarCloud scan (informational, nightly/dispatch)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Resolve run mode (visibility only -- no per-mode branch in this single-job workflow)

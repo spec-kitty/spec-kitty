@@ -1,0 +1,151 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh2
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: SPEC-FRESH2-001
+    lens: code-truth
+    severity: 3
+    title: FR-006's "NFR-007 budget marker" scope phrase names a class that is not mechanically identifiable in the codebase
+    evidence:
+      - artifact: "spec.md § Functional Requirements, FR-006 (\"or any other test carrying the NFR-007 `@pytest.mark.timeout` budget marker — scope is this one budget-marker class, not a repo-wide skip/xfail ban\")"
+      - code: "grep -rln '@pytest.mark.timeout' tests/ — only 8 files in the whole tree use this marker at all"
+      - code: "tests/charter/test_integration.py:227,247 (@pytest.mark.timeout(2)); tests/specify_cli/upgrade/migrations/test_provision_kitty_env.py:357+ (@pytest.mark.timeout(5), guarding a socket-accept hang, unrelated to any performance budget); tests/specify_cli/migration/test_dogfood_corpus_backfilled.py:219 (@pytest.mark.timeout(600)); tests/post_merge/test_stale_assertions.py:490 (@pytest.mark.timeout(35) — its own comment cites \"NFR-001\", not NFR-007)"
+      - code: "grep -rn NFR-007 across src/ and tests/ — dozens of files use \"NFR-007\" as a generic, per-spec-local requirement-ID label for unrelated concerns (stable error_code contracts, PII redaction in compat/history.py, determinism in charter/activation, a 4-line message-length rule in compat/messages.py, etc.), not a project-wide tag for \"this test enforces a wall-clock performance budget\""
+    claim: >
+      FR-006 scopes its structural gate to "test_charter_epic_golden_path (or any
+      other test carrying the NFR-007 @pytest.mark.timeout budget marker)" as if
+      "NFR-007" were a recognized, cross-cutting vocabulary term in this codebase
+      that reliably identifies "budget-marker" tests. It is not: "NFR-007" is
+      reused across dozens of unrelated modules and test files as each spec's own
+      local requirement-ID label (this mission's own NFR-007 happens to be about
+      the 120s timeout, but e.g. `tests/post_merge/test_stale_assertions.py`'s
+      analogous ceiling is tagged "NFR-001", and most `@pytest.mark.timeout` uses
+      in the tree — 5s socket-accept guards, a 600s migration ceiling, 2s/10s/15s/
+      30s synthesizer envelopes — have nothing to do with a "budget" in this
+      mission's sense). A WP author implementing FR-006's gate has no mechanical
+      way to enumerate "any other test carrying the NFR-007 budget marker" beyond
+      this one named test, because the class FR-006 describes does not exist as a
+      stable, greppable convention. The gate is well-defined for its one concrete
+      target (test_charter_epic_golden_path) but the parenthetical widening is
+      either vacuous (resolves to zero additional tests) or requires the
+      implementer to invent a new, project-wide tagging convention that is itself
+      out of this mission's one-PR scope.
+    remediation: >
+      Either drop the "(or any other test carrying the NFR-007 ... budget marker)"
+      clause and scope FR-006/SC-006 explicitly and only to
+      test_charter_epic_golden_path (the one test this mission actually needs to
+      protect), or state plainly that the wider class is aspirational/out of scope
+      for this mission and that a future mission would need to introduce an actual
+      marker/convention (e.g. a dedicated `@pytest.mark.budget` pytest marker)
+      before the gate could be generalized.
+
+  - id: SPEC-FRESH2-002
+    lens: scope-integrity
+    severity: 3
+    title: FR-006's new "Authorization note" self-authorizes the scope-creep SPEC-FRESH-002 flagged, and its charter citation is shaped for a different kind of gate
+    evidence:
+      - artifact: "spec.md § Functional Requirements, FR-006, \"**Authorization note**\" sentence (new this fix round)"
+      - artifact: ".kittify/charter/charter.md § Quality & Tech-Debt Standing Orders, item 5: \"Close defect classes by construction with a NON-VACUOUS call-site gate (concrete floor + self-mutation test + shrink-only allowlist); a gate-unmask cannot self-validate. After merge, run the full arch-gate sweep with a cross-base pre-existing check.\""
+      - artifact: "spec.md § FR-005 (the mission's OTHER new guard, grounded instead in the in-repo #4409/#4417 two-tier precedent, not an abstract Standing Order)"
+      - artifact: "reviews/spec-fresh.yaml § SPEC-FRESH-002 (round-1 finding this note is meant to answer; its remediation offered two options: cut FR-006/SC-006, or get an explicit operator decision adding it to scope)"
+    claim: >
+      SPEC-FRESH-002 (round 1) found that FR-006/SC-006 add a deliverable no
+      operator Clarification asked for, and offered two remediations: remove it,
+      or obtain an explicit operator decision authorizing it. This round's fix
+      takes neither path — instead the spec's own author added a paragraph
+      arguing that FR-006 is not really new scope, citing the charter's Standing
+      Order #5 as blanket authority. This is the author self-certifying its own
+      addition's legitimacy rather than resolving the underlying question (did
+      the operator actually ask for this?) the way the two offered remediations
+      would have. The citation itself is also a loose fit: Standing Order #5's
+      "concrete floor + self-mutation test + shrink-only allowlist" describes the
+      mutable-architectural-allowlist ratchet pattern used elsewhere in this
+      repository (e.g. the Burn-down Policy's `tests/architectural/_baselines.yaml`
+      growth/shrink gate) — a pattern for governing a population of grandfathered
+      violations that shrinks over time. FR-006's gate has no allowlist and
+      nothing to shrink; it is a binary presence/absence check on one decorator
+      for one (or, per SPEC-FRESH2-001, effectively one) test. Notably, FR-005 —
+      the mission's other new guard, doing structurally the same job for lever C
+      — grounds itself in the concrete, in-repo #4409/#4417 precedent rather than
+      reaching for an abstract charter standing order; FR-006 could have done the
+      same (or cited FR-005's own precedent) instead of inventing a fresh
+      charter-authority argument for materially the same kind of regression guard.
+    remediation: >
+      Replace the self-authorizing "Authorization note" with either (a) an actual
+      operator decision — a sixth Clarifications bullet, quoted verbatim like the
+      other four, authorizing this gate as in-scope — or (b) cut FR-006/SC-006
+      from this spec and file the re-skip-detection gate as its own, separately-
+      scoped follow-up issue, per SPEC-FRESH-002's original remediation options.
+      If the note is kept, cite FR-005's own #4409/#4417 precedent (a same-mission,
+      like-for-like guard) rather than a general charter standing order whose
+      "concrete floor / shrink-only allowlist" language does not describe this
+      gate's actual shape.
+
+  - id: SPEC-FRESH2-003
+    lens: acceptance-criteria
+    severity: 3
+    title: NFR-002's rewritten "documented exception" for the 110-120s band still permits closing on the exact margin the operator's binding Clarifications called insufficient, and grounds the escape valve in a constraint scoped to a different scenario
+    evidence:
+      - artifact: 'spec.md § Clarifications (verbatim, binding, unchanged): "...with a stated margin (e.g. target comfortably under 120s on Actions, not just barely under)..."'
+      - artifact: "spec.md § NFR-002 (rewritten this fix round): \"It can only reach closure through a documented exception: an explicit, written operator sign-off, recorded in the PR, stating why the achieved margin is acceptable despite missing the ≤110s target (per C-005's escalation language against silent/reflexive responses).\""
+      - artifact: "spec.md § Constraints, C-005: \"If, after this mission ships, the golden path's cost regresses past its 120s budget on CI, the test must fail loudly... Any future budget breach is a new, explicitly-scoped decision...\" (C-005 is scoped to a POST-SHIP future regression, not this mission's own initial closure measurement)"
+      - artifact: "spec.md § Success Criteria, SC-004 (contrast: gives a concrete example of what \"recorded in the PR\" means — \"e.g. Closes #4213, Closes #4211\" — SC-003/NFR-002's \"documented exception\" gives no equivalent concrete artifact/format)"
+    claim: >
+      This fix round's rewrite of NFR-002/SC-003 (answering round-1's
+      SPEC-FRESH-004) is a real improvement — it labels the 110-120s path an
+      "exception," not a routine alternate pass condition, and requires a fresh,
+      non-precedential justification each time. But two things remain unresolved.
+      First, substantively, the mechanism still lets the mission close with a
+      measurement anywhere in the 110-120s band — i.e., exactly the "barely
+      under" territory the operator's own binding Clarifications ruled
+      insufficient evidence of closure — provided someone writes a sentence
+      explaining why it is acceptable this one time. Nothing in the exception
+      text requires that sign-off to come from the operator who actually issued
+      the original "not just barely under" instruction, so it is not clear the
+      exception genuinely re-engages the same authority that set the bar, versus
+      being a self-granted escape hatch by whoever authors the closing PR.
+      Second, the exception is grounded "per C-005's escalation language against
+      silent/reflexive responses" — but C-005's own text is explicitly scoped to
+      what happens if the budget regresses AFTER this mission ships, not to this
+      mission's own initial closure decision; borrowing its "escalation, not a
+      default reaction" framing for a different scenario (first-time closure) is
+      an analogy, not the same rule applying. Third, unlike SC-004 (which gives a
+      concrete example of what "the PR description explicitly closes both issues"
+      looks like), NFR-002/SC-003 never say what artifact or format constitutes
+      "recorded in the PR" for the sign-off, leaving that half of the acceptance
+      criterion non-mechanically-checkable in exactly the band where the spec
+      most needs precision.
+    remediation: >
+      State explicitly who must give the sign-off (the same operator role that
+      issued the Clarifications, not any PR author/reviewer), give a concrete
+      example of the recorded-exception artifact the way SC-004 does for issue
+      closure (e.g. a named PR body section: "## Margin exception" with the
+      achieved number and rationale), and either drop the C-005 citation or
+      reword it to note that C-005 governs post-ship regressions while this is a
+      distinct, first-closure exception that borrows only its "explicit decision,
+      not a default reaction" spirit.
+
+  - id: SPEC-FRESH2-004
+    lens: terminology-consistency
+    severity: 1
+    title: Three near-synonymous but distinct phrases for "a recorded exception to a default rule" are scattered across the spec without a shared term
+    evidence:
+      - artifact: "spec.md § FR-006: \"an accompanying, explicit, separately-reviewed opt-out record\""
+      - artifact: "spec.md § NFR-002/SC-003: \"a documented exception: an explicit, written operator sign-off, recorded in the PR\""
+      - artifact: "spec.md § Constraints, C-005 and § Edge Cases: \"a new, explicitly-scoped decision\""
+    claim: >
+      FR-006's "opt-out record," NFR-002/SC-003's "documented exception," and
+      C-005/Edge Cases' "a new, explicitly-scoped decision" all describe the same
+      underlying shape — a deliberate, recorded, non-default departure from a
+      binding rule — but use three different names with no cross-reference
+      tying them together as instances of one pattern. A reader assembling the
+      spec's governance model has to infer they are the same concept rather than
+      being told so.
+    remediation: >
+      Pick one canonical term (or explicitly note that these are three distinct,
+      differently-scoped exception mechanisms if that is intended) and use it
+      consistently, or add a one-line cross-reference the first time each term
+      appears noting its relationship to the others.
+

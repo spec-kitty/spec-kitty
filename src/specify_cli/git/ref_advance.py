@@ -15,13 +15,17 @@ checked out behind a ref this function advanced.** An architectural ratchet
 raw ``update-ref`` subprocess invocation exists in ``src/specify_cli``
 outside this module (AC-B3).
 
-Locking: the three merge-pipeline call sites (``lanes/merge.py`` Stage-1
-lane→mission advances and ``cli/commands/merge.py`` mission-number baking)
-all run inside the global merge lock
-(``acquire_merge_lock("__global_merge__", ...)``), which serializes every
-merge operation. This helper therefore acquires NO lock of its own — adding
-one would introduce a second lock ordering. Callers outside the merge
-pipeline must hold an equivalent serialization guarantee.
+Atomicity: :func:`advance_branch_ref` moves the ref with a compare-and-swap
+``git update-ref <ref> <new> <expected_old>`` (3-arg), mirroring the
+rollback path :func:`restore_branch_ref`. Correctness rests on that CAS, not
+on any external lock: if the ref changed between the value the caller read at
+the start of its merge transaction and the write, ``update-ref`` returns
+non-zero and this function raises :class:`RefAdvanceError` rather than
+clobbering the concurrent writer's commit (FR-003). It never falls back to a
+2-arg write and never retries. The merge pipeline may still serialize its own
+call sites, but that serialization is no longer what makes the advance safe —
+the ``__global_merge__`` lock is unlinkable by ``merge --abort`` (#4996), so
+resting correctness on it was the latent hazard this CAS closes.
 """
 
 from __future__ import annotations
@@ -42,6 +46,37 @@ from kernel.vcs_lock import is_vcs_lock_only_change
 
 # Basename of the mission metadata file whose VCS-lock-only changes are tolerated.
 _META_FILENAME: str = "meta.json"
+
+# Marker substring :func:`_dirty_entries` appends to an untracked/ignored entry it
+# flags as a reset-hard obstruction (as opposed to a tracked-change entry, appended
+# raw with no suffix). :func:`reset_would_obstruct_untracked` matches on this marker
+# to ask ONLY the obstruction question through :func:`_dirty_entries` -- not "is
+# anything at all dirty" -- without re-deriving the classification itself (INV-3;
+# a second module-level ``git status --porcelain``-parsing predicate is exactly the
+# regression ``tests/architectural/test_destructive_op_routing.py`` (T019) guards
+# against).
+_RESET_OBSTRUCTION_MARKER: str = "would be overwritten by reset --hard to "
+
+# Sentinel for the short OID displayed when a ref has no current value yet.
+_UNBORN: str = "<unborn>"
+
+# The all-zero OID: ``git update-ref <ref> <new> <zero>`` asserts the ref does
+# not already exist, the CAS form of creating an unborn ref.
+_ZERO_OID: str = "0" * 40
+
+
+def _cas_expected_old(expected_old_sha: str | None, observed_old_sha: str) -> str:
+    """Resolve the compare-and-swap *old value* token for ``git update-ref``.
+
+    ``expected_old_sha`` is the value the caller read at the start of its merge
+    transaction (WP06 threads it). When absent — the interim default until that
+    wiring lands — fall back to the value :func:`advance_branch_ref` observed at
+    entry, so the write is still an atomic CAS rather than an unconditional
+    2-arg overwrite. An ``<unborn>`` observed value maps to the zero OID, which
+    ``git update-ref`` reads as "the ref must not already exist".
+    """
+    candidate = expected_old_sha if expected_old_sha is not None else observed_old_sha
+    return _ZERO_OID if candidate == _UNBORN else candidate
 
 
 class RefAdvanceError(RuntimeError):
@@ -305,11 +340,11 @@ def _dirty_entries(
                 dirty.append(f"{line} (untracked local file would be discarded by worktree removal)")
                 continue
             if _path_obstructs_target_tree(path, target_paths):
-                dirty.append(f"{line} (would be overwritten by reset --hard to {new_sha[:12]})")
+                dirty.append(f"{line} ({_RESET_OBSTRUCTION_MARKER}{new_sha[:12]})")
             continue
         if line.startswith("!!"):
             if _path_obstructs_target_tree(path, target_paths):
-                dirty.append(f"{line} (would be overwritten by reset --hard to {new_sha[:12]})")
+                dirty.append(f"{line} ({_RESET_OBSTRUCTION_MARKER}{new_sha[:12]})")
             continue
         # A tracked ``meta.json`` whose only diff against HEAD is the claim-time
         # VCS lock is a regenerable stamp, not destructive local state: the
@@ -321,11 +356,54 @@ def _dirty_entries(
     return dirty
 
 
+def reset_would_obstruct_untracked(
+    repo_root: Path,
+    ref: str = "HEAD",
+    *,
+    env: dict[str, str] | None = None,
+) -> bool:
+    """True when ``git reset --hard <ref>`` would clobber an untracked-or-ignored file.
+
+    #4997 (follow-up, data-loss). ``git reset --hard`` overwrites any UNTRACKED
+    **or IGNORED** path that collides with a path tracked in ``ref``'s tree --
+    ``git diff`` is blind to both, and scanning only untracked files (e.g. ``git
+    ls-files --others --exclude-standard``) hides gitignored paths, reopening the
+    hole for a path a mission force-added (``git add -f``) despite a
+    ``.gitignore`` entry: the operator's genuine gitignored file at that same
+    path would be silently clobbered by the reset.
+
+    This is the PUBLIC seam for a caller outside this module (the ``merge/``
+    layer, INV-3) to ask that obstruction question without reaching into this
+    module's private helpers. It delegates entirely to :func:`_dirty_entries` --
+    the single obstruction authority this module already reuses for
+    :func:`advance_branch_ref` -- and simply asks whether any of the entries it
+    returns are one it tagged as a reset-hard obstruction (``??``/``!!``
+    entries matching :data:`_RESET_OBSTRUCTION_MARKER`), ignoring tracked-change
+    entries: this seam answers only "would the reset clobber untracked/ignored
+    local state", not "is the worktree dirty" in general -- callers that also
+    need the tracked-change question (e.g. :func:`specify_cli.merge.preflight
+    .is_pure_behind_head_lag`) answer it separately (``git diff --quiet``
+    against their own base). No new ``git status --porcelain``-parsing
+    predicate is introduced (T019 of
+    ``tests/architectural/test_destructive_op_routing.py``).
+
+    Fail-closed: any git error (non-zero exit) or unexpected exception returns
+    True -- a reset whose safety could not be proven is never treated as safe.
+    """
+    try:
+        target_paths = _target_tree_paths(repo_root, ref, env)
+        dirty = _dirty_entries(repo_root, env, new_sha=ref, target_paths=target_paths)
+    except Exception:
+        return True
+    return any(_RESET_OBSTRUCTION_MARKER in entry for entry in dirty)
+
+
 def advance_branch_ref(
     repo_root: Path,
     branch: str,
     new_sha: str,
     *,
+    expected_old_sha: str | None = None,
     env: dict[str, str] | None = None,
     is_residue: Callable[[str], bool] | None = None,
 ) -> None:
@@ -335,16 +413,27 @@ def advance_branch_ref(
     this function advanced.** After a successful return, every worktree with
     ``branch`` checked out has HEAD == index == working tree == ``new_sha``
     (CONSISTENT). With no such checkout, behavior is identical to a raw
-    ``git update-ref`` plus the worktree scan.
+    compare-and-swap ``git update-ref`` plus the worktree scan.
 
     Order of operations (atomic refusal): all checked-out worktrees are
     dirty-checked BEFORE the ref moves, so a refusal leaves the ref, every
-    worktree, and the merge state exactly as found.
+    worktree, and the merge state exactly as found. The ref itself moves under
+    a compare-and-swap ``git update-ref <ref> <new_sha> <expected_old>`` — a
+    concurrent move fails the write closed (FR-003), mirroring
+    :func:`restore_branch_ref`; there is no 2-arg fallback and no retry.
 
     Args:
         repo_root: Primary repository root (where the ref lives).
         branch: Short branch name (no ``refs/heads/`` prefix).
         new_sha: Commit SHA the branch ref advances to.
+        expected_old_sha: The ref value the caller read at the start of its
+            merge transaction, used as the compare-and-swap *old value* so a
+            concurrent move between that read and this write fails closed
+            (FR-003). Keyword-only. **Interim default** ``None`` falls back to
+            the value observed at entry, keeping existing merge call sites
+            atomic until WP06 threads the transaction-start value; WP06 must
+            pass it explicitly at every call site (``lanes/merge.py``,
+            ``merge/ordering.py``, ``coordination/commit_router.py``).
         env: Optional subprocess environment (merge pipeline passes its
             ``_make_merge_env()`` result through).
         is_residue: Optional predicate excluding toolchain-generated-churn
@@ -362,15 +451,17 @@ def advance_branch_ref(
         RefAdvanceDirtyWorktreeError: a worktree with ``branch`` checked out
             holds uncommitted tracked changes (NFR-002/NFR-003); nothing was
             mutated.
-        RefAdvanceError: the worktree scan, ``update-ref``, or a resync
-            failed at the git level.
+        RefAdvanceError: the worktree scan or a resync failed at the git
+            level, or the compare-and-swap ``update-ref`` failed because the
+            ref changed since it was read (fail-closed; never a 2-arg fallback
+            or a retry).
     """
     ref = f"refs/heads/{branch}"
 
     old_sha_result = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", ref], env=env)
-    old_sha = old_sha_result.stdout.strip() if old_sha_result.returncode == 0 else "<unborn>"
+    old_sha = old_sha_result.stdout.strip() if old_sha_result.returncode == 0 else _UNBORN
 
-    if old_sha != "<unborn>":
+    if old_sha != _UNBORN:
         ff_check = _run_git(
             repo_root,
             ["merge-base", "--is-ancestor", old_sha, new_sha],
@@ -407,9 +498,17 @@ def advance_branch_ref(
                 dirty_entries=dirty,
             )
 
-    result = _run_git(repo_root, ["update-ref", ref, new_sha], env=env)
+    expected_old = _cas_expected_old(expected_old_sha, old_sha)
+    result = _run_git(repo_root, ["update-ref", ref, new_sha, expected_old], env=env)
     if result.returncode != 0:
-        raise RefAdvanceError(f"Failed to update {branch} ref: {result.stderr.strip() or result.stdout.strip()}")
+        raise RefAdvanceError(
+            f"Compare-and-swap advance of {branch!r} "
+            f"({old_sha[:12]} -> {new_sha[:12]}) failed: the ref no longer "
+            f"matches the expected value {expected_old[:12]} — it changed "
+            f"since it was read. Refusing to clobber the concurrent update "
+            f"(no 2-arg fallback, no retry). "
+            f"git: {result.stderr.strip() or result.stdout.strip()}"
+        )
 
     for worktree in checkouts:
         reset = _run_git(worktree, ["reset", "--hard", branch], env=env)

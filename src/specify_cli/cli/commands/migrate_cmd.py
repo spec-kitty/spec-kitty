@@ -190,11 +190,15 @@ def migrate(  # noqa: C901
 
     action_removed = "would remove" if dry_run else "removed"
     action_moved = "would move" if dry_run else "moved"
-    action_superseded = "would remove" if dry_run else "removed"
+    # #4961: a file that differs from its shipped counterpart is PRESERVED in
+    # place (customisation or outdated default alike), never removed. The label
+    # must not claim "superseded (outdated defaults) -- removed" for content the
+    # migration keeps (NFR-002 honest messaging).
+    action_preserved = "would preserve" if dry_run else "preserved"
 
     console.print(f"  {len(report.removed)} files identical to global -- {action_removed}")
     if report.superseded:
-        console.print(f"  {len(report.superseded)} files superseded (outdated defaults) -- {action_superseded}")
+        console.print(f"  {len(report.superseded)} files differ from package defaults (customised or outdated) -- {action_preserved} in place")
     console.print(f"  {len(report.moved)} files customized -- {action_moved} to overrides/")
     console.print(f"  {len(report.kept)} files project-specific -- kept")
 
@@ -205,7 +209,7 @@ def migrate(  # noqa: C901
         for path in report.removed:
             console.print(f"    [dim]removed: {path}[/dim]")
         for path in report.superseded:
-            console.print(f"    [dim]superseded: {path}[/dim]")
+            console.print(f"    [dim]preserved (differs from package default): {path}[/dim]")
         for src, dst in report.moved:
             console.print(f"    [blue]moved: {src} -> {dst}[/blue]")
         for path in report.kept:

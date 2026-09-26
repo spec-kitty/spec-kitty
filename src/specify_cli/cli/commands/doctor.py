@@ -1272,7 +1272,10 @@ def coordination_health(
     ``coordination_branch`` key (branch never created or already deleted),
     re-derives topology, and attempts the Gap-1 coord-vs-target fast-forward
     (FR-009) -- which fails loud with a unified diff and mutates nothing when
-    the coord branch has diverged or its worktree is dirty. Safe to run on
+    the coord branch has diverged or its worktree is dirty, and refuses
+    without mutating when the coord worktree is on another branch, detached,
+    or not a worktree of this repository. ``Fast-forwarded`` is printed only
+    once the coord branch really matches the target. Safe to run on
     100%-done missions before ``spec-kitty next`` or ``spec-kitty merge``.
 
     With ``--check-staleness``, also reports Gap-1 coord-branch-vs-target

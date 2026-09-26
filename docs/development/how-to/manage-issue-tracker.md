@@ -2,7 +2,7 @@
 title: Managing the Issue Tracker
 description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, sub-issue parenting, dependencies, triage, the label taxonomy, and the label-driven fleet workflow.'
 doc_status: active
-updated: '2026-09-17'
+updated: '2026-09-26'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -299,6 +299,7 @@ below.
 | `domain:runtime` | `src/runtime/next/_internal_runtime/` — canonical mission control loop |
 | `domain:mission-runtime` | `src/mission_runtime/` — artifact-placement seam (PlacementSeam, resolver port, identity, lifecycle_phase) |
 | `domain:cli` | `src/specify_cli/cli/` — control-plane / CLI command surface |
+| `domain:invocation` | `src/specify_cli/invocation/` — dispatch & profile-invocation routing (Op lifecycle) |
 | `domain:status` | `src/specify_cli/status/` + `lanes/` + `coordination/` + `workspace/` — status event-log & lane state machine |
 | `domain:merge` | `src/specify_cli/merge/` — mission merge / lane consolidation, retention, preflight |
 | `domain:skills` | `src/specify_cli/skills/` + `upgrade/` — command/skill rendering, install, and migration deployment |

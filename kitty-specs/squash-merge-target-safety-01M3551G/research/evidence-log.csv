@@ -1,0 +1,7 @@
+evidence_id,source_id,finding,decision_refs,confidence
+E-001,S-002,Only the squash branch supplies blanket -X theirs and target ref advances after isolated merge success,D-001;D-003,high
+E-002,S-002,Custom drivers and planning recency are existing path-scoped reconciliation authorities,D-002,high
+E-003,S-003,Dry-run checks lifecycle readiness but does not simulate mission-to-target Git integration,D-003;D-004,high
+E-004,S-001,Same-line ordinary source divergence exits zero and overwrites target under the default strategy,D-001,high
+E-005,S-005,Clean successful dry-run payload keys are contract-frozen,D-004,high
+E-006,S-006,Branch integration is distinct from lane consolidation and publishing,D-001,high

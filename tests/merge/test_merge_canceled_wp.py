@@ -171,9 +171,21 @@ def _write_manifest(feature_dir: Path) -> LanesManifest:
     manifest = LanesManifest(
         version=1,
         mission_slug=MISSION_SLUG,
-        # mission_id == slug => legacy lane_branch_name form
-        # ``kitty/mission-<slug>-lane-<id>`` (the slug already carries ``-<mid8>``).
-        mission_id=MISSION_SLUG,
+        # ``mission_id`` MUST be the ULID ``MISSION_ID`` (never the slug -- see
+        # ``LanesManifest.mission_id``'s docstring, "ULID or None; never a
+        # slug"). The prior comment here ("mission_id == slug => legacy
+        # lane_branch_name form") was WRONG: ``lane_branch_name`` takes the
+        # NEW mid8-based naming branch whenever ``mission_id is not None`` --
+        # passing the slug derived a MANGLED lane branch
+        # (``...-merge-ca-lane-mixed``) that never matched the real one this
+        # fixture creates below, so the reconciliation claim builder silently
+        # resolved empty authorship on every run (Epic #5001 landing
+        # remediation; invisible before FIX C's new fail-closed
+        # squash-vacuous-authorship guard surfaced it). ``mission_id=None``
+        # would resolve the same (legacy) branch name here too, since the
+        # slug already carries the ``-<mid8>`` suffix, but the real ULID is
+        # the contract-correct value.
+        mission_id=MISSION_ID,
         mission_branch=COORD_BRANCH,
         target_branch="main",
         lanes=[

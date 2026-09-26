@@ -1,0 +1,118 @@
+schema_version: 1
+mission_id: 01M3D4RW4J5F5HNVT3N37JF95Q
+mission_slug: terminus-reconciliation-attribution-integrity-01M3D4RW
+mission_number:
+friendly_name: Terminus Reconciliation Attribution Integrity
+mission_type: software-dev
+target_branch: fix/terminus-reconciliation-attribution-integrity
+created_at: '2026-09-25T23:38:14.526752+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-25T23:38:14.526752+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-007
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-007
+not_helpful:
+- id: n-003
+  category: doc
+  summary: analysis-report.md records 3 finding(s)
+  evidence_refs:
+  - e-010
+  details: The analysis-report.md artifact for this mission records 3 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-008
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: process
+  summary: WP02 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-009
+  details: WP WP02 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/terminus-reconciliation-attribution-integrity-01M3D4RW/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/terminus-reconciliation-attribution-integrity-01M3D4RW/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/terminus-reconciliation-attribution-integrity-01M3D4RW/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/terminus-reconciliation-attribution-integrity-01M3D4RW/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/terminus-reconciliation-attribution-integrity-01M3D4RW/tasks/WP01-reconciliation-attribution.md
+- id: e-006
+  kind: file
+  path: kitty-specs/terminus-reconciliation-attribution-integrity-01M3D4RW/tasks/WP02-executor-resume-projection.md
+- id: e-007
+  kind: file
+  path: kitty-specs/terminus-reconciliation-attribution-integrity-01M3D4RW/status.events.jsonl
+- id: e-008
+  kind: event_range
+  path: kitty-specs/terminus-reconciliation-attribution-integrity-01M3D4RW/status.events.jsonl
+  range: 01M3D8DHYGSN80XPN27RA9HE8N
+- id: e-009
+  kind: event_range
+  path: kitty-specs/terminus-reconciliation-attribution-integrity-01M3D4RW/status.events.jsonl
+  range: 01M3DD829S1FH3RCJBWEFPE3JZ..01M3DE37CVJ3FRSZWXBZKQC8KA
+- id: e-010
+  kind: file
+  path: kitty-specs/terminus-reconciliation-attribution-integrity-01M3D4RW/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

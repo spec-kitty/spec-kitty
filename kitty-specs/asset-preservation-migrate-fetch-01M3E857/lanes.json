@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "mission_slug": "asset-preservation-migrate-fetch-01M3E857",
+  "mission_id": "01M3E857DXYCMQ682DKMS1GWM6",
+  "mission_branch": "kitty/mission-asset-preservation-migrate-fetch-01M3E857",
+  "target_branch": "spec/asset-preservation-migrate-fetch",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/runtime/migrate.py",
+        "tests/runtime/test_e2e_runtime_integration.py",
+        "tests/upgrade/test_migrate_integration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/doctrine/sources/git_source.py",
+        "tests/specify_cli/doctrine/test_sources.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "tests/architectural/_destructive_op_census.py",
+        "tests/architectural/test_destructive_op_routing.py",
+        "tests/architectural/test_mutation_ownership_routing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-26T07:22:07.165927+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "c079ed317a7fe9b0bb0308a75b4e7193b3e8fdb0"
+}

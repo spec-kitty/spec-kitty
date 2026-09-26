@@ -1,0 +1,153 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: PR-TESTS-001
+    lens: shard-selection + revert-test-for-every-changed-behaviour
+    severity: 4
+    title: >-
+      WP05's own behavioral revert-test (test_lazy_command_imports.py) lives in a
+      directory NO per-PR or nightly CI automation ever selects
+    needs_operator_decision: false
+    evidence:
+      - code: "<checkout>/tests/specify_cli/cli/test_lazy_command_imports.py:1-40"
+      - code: "<checkout>/.github/ci-module-registry.yml:402-415"
+      - code: "<checkout>/.github/workflows/ci-router.yml:596-611"
+      - code: "<checkout>/.github/workflows/module-tests.yml:180-194"
+      - code: "<checkout>/.github/workflows/ci-nightly.yml:263-312"
+      - code: "<checkout>/Makefile:38"
+      - artifact: "reviews/wp-WP05.yaml (WP05-C1-001, subprocess coverage cannot be seen by diff-cover either)"
+    claim: >-
+      WP05 adds `tests/specify_cli/cli/test_lazy_command_imports.py` (T018) as the
+      ONLY behavioral (subprocess/sys.modules-based) proof that `register_commands()`'s
+      lazy command-module deferral actually works at runtime -- its own docstring
+      states it was verified red-first against the pre-fix eager-import shape. This
+      file carries no pytest marker.
+
+      `.github/ci-module-registry.yml`'s `out_of_matrix_test_dirs` (lines 402-415)
+      explicitly names `tests/specify_cli/cli` (the whole directory this new file sits
+      directly under, not just `tests/specify_cli/cli/commands`) with the stated
+      reason "Accepted named gap: the residual behavioral files in this tree remain
+      make test-full-only". Concretely, on this diff: (1) `ci-router.yml`'s hardcoded
+      `tests-cli` job runs the literal path `pytest tests/cli -q` (line ~605) --
+      NOT `tests/specify_cli/cli`; (2) the module registry's `cli` row (line ~136-142)
+      has no `test_dirs` override, so `module-tests.yml`'s per-PR matrix (via
+      `ci-modules.yml`, also PR-triggered) falls back to the `tests/{module}` mirror,
+      i.e. `tests/cli`, again not `tests/specify_cli/cli`; (3) `ci-nightly.yml`'s
+      `full-module-matrix` job (`generate-full-matrix`, lines 263-291) iterates ONLY
+      `registry["modules"]` -- it never reads `out_of_matrix_test_dirs`, so even the
+      nightly full-mode sweep skips this directory entirely; (4) the file carries no
+      marker, so it is also not swept up by any of `ci-nightly.yml`'s marker-based
+      lanes (`-m performance`, `-m e2e`, `-m "stress and not windows_ci"`, or
+      `interpreter-matrix`'s `-m "fast or unit"`); (5) `make test-full` -- the only
+      thing that would ever collect this file -- is grepped as never invoked by any
+      `.github/workflows/*.yml` file. The result: this test never runs in any
+      automated CI, pre-merge or nightly, only via a manual local invocation nobody
+      is required to make.
+
+      This directly weakens the "revert test for WP05" requirement: the CI-visible
+      surrogate for WP05's lazy-import behavior is `tests/cli/test_register_commands_lazy_import_shape.py`
+      (WP06, correctly placed in `tests/cli/` and confirmed selected by both
+      authorities per its own docstring) -- but that file is a purely structural
+      AST-shape check on `register_commands()`'s source text, not a runtime proof
+      that imports are actually deferred, and it already carries a known, separate
+      gap (K2: counts `ImportFrom` statements, not imported names). A future change
+      that kept the AST shape compliant while breaking the actual runtime deferral
+      (e.g. a lazy-looking branch that still eagerly imports via `importlib` inside
+      the "lazy" lookup, or a fallback path that imports everything regardless of
+      argv) would pass every CI-selected test and merge silently -- exactly the class
+      of defect issue #3241 named ("a test in the right folder... is collected by
+      zero jobs" -- here the folder itself, not just the marker, is the zero-job
+      trap).
+    remediation: >-
+      Move `tests/specify_cli/cli/test_lazy_command_imports.py` into `tests/cli/`
+      (the mirror `tests-cli` and the `cli` module's per-PR matrix already select),
+      matching where its sibling shape test already correctly lives -- WP06 already
+      performed exactly this kind of relocation for the two other new test files that
+      had landed in `tests/performance/` (WP06-C1-001), for the identical reason.
+      Alternatively, add an explicit `test_dirs` entry for the `cli` module covering
+      `tests/specify_cli/cli` (scoped to avoid re-claiming the already-excluded
+      `tests/specify_cli/cli/commands` subtree), or mark the file with a marker a
+      live per-PR or nightly gate positively selects.
+
+  - id: PR-TESTS-002
+    lens: e2e-un-skip-timeout-flakiness
+    severity: 3
+    title: >-
+      The 7.44s Actions closure margin is a single-sample measurement that bakes in
+      an uncached, network-variable one-time venv-install cost
+    needs_operator_decision: false
+    evidence:
+      - artifact: "reviews/wp-WP03.yaml (WP03-C1-001) — independently establishes the pip-install/setup-phase attribution"
+      - code: "<checkout>/tests/conftest.py:148-158,1048-1203 (_VENV_CACHE_PATH, _ensure_test_venv, _create_test_venv, autouse session-scoped test_venv fixture)"
+      - code: "<checkout>/.github/workflows/ci-router.yml:666-683 (tests-e2e job: `uv sync --frozen --all-extras` then `pytest tests/e2e -q`, no `actions/cache` step)"
+      - artifact: "`ls tests/e2e/` — test_charter_epic_golden_path.py sorts alphabetically first among tests/e2e/*.py, and the tests-e2e job runs pytest with no -n/xdist, so it is deterministically the first test to pay the session-scoped fixture's cost"
+      - artifact: "Actions runs 35853033595 (121.30s, pre-fix) and 35872503133 (102.56s, post-fix) — each a single sampled run"
+    claim: >-
+      `test_charter_epic_golden_path` is, by construction, always the test that pays
+      the ENTIRE one-time cost of `tests/conftest.py`'s session-scoped, autouse
+      `test_venv` fixture (`_create_test_venv` -> `pip install -e .` of ~50 packages),
+      because it is textually first among `tests/e2e/*.py` files and the `tests-e2e`
+      CI job runs `pytest tests/e2e -q` with no parallelism. This cost is NOT cached
+      across runs (`.pytest_cache/spec-kitty-test-venv` has no `actions/cache` step in
+      `ci-router.yml`), so it is rebuilt from scratch, at whatever speed the Actions
+      runner's network/package registry happens to deliver that day, on every single
+      CI invocation of this exact test. pytest-timeout's default `signal` method
+      (no alternate method configured) times setup+call+teardown as one budget, so
+      this uncontrolled cost sits INSIDE the `@pytest.mark.timeout(120)` window and
+      INSIDE the hard ≤110s Actions closure bar from Ruling 2 -- it is not orthogonal
+      overhead outside what's being measured.
+
+      The mission's own closure evidence is exactly two Actions numbers, one run
+      each (121.30s pre-fix, 102.56s post-fix). Neither isolates the venv-install
+      fraction from the golden-path's own logic, and neither is a repeated
+      measurement. A 7.44s margin against a variable, uncached, network-dependent
+      cost is a real basis for the golden-path test intermittently tripping the
+      110-120s "return to operator, not closable" zone (or the outright 120s
+      timeout) on ordinary Actions runner-to-runner variance, independent of any
+      future code change to the golden path itself. This is distinct from Ruling 2
+      (which forbids loosening the cap or treating 110-120s as an exception path,
+      and is not being relitigated here) and from WP03-C1-001 (which flags this only
+      as a completion-report-narrative honesty issue, not as an ongoing CI-flake risk
+      to the mission's own closure evidence going forward).
+    remediation: >-
+      Either (a) cache the `.pytest_cache/spec-kitty-test-venv` editable-install
+      artifact across `tests-e2e` runs via `actions/cache` keyed on
+      `pyproject.toml`/`uv.lock` hashes, removing this variable cost from the timed
+      window entirely, or (b) move the venv bootstrap to its own untimed warmup step
+      before pytest collection (mirroring `module-tests.yml`'s `.github/actions/warmup`
+      composite, which `tests-e2e` currently does not use), or (c) at minimum, before
+      relying on the single 102.56s Actions sample as durable closure evidence, take
+      several repeated Actions runs (or add a one-off measurement that isolates the
+      venv-install fraction) to confirm the margin holds independent of this
+      uncontrolled cost.
+
+  - id: PR-TESTS-003
+    lens: revert-test-for-every-changed-behaviour
+    severity: 2
+    title: "WP07's pytest.ini durations-reporting addopts change has no test that fails if reverted"
+    needs_operator_decision: false
+    evidence:
+      - code: "<checkout>/pytest.ini:10 (addopts = --tb=short --durations=0 --durations-min=1.0)"
+      - artifact: "reviews/wp-WP07.yaml — the reviewer confirms the flag's effect only via one manual local run, not a repeatable assertion"
+    claim: >-
+      No test in the repository asserts `pytest.ini`'s `addopts` contains
+      `--durations=0`/`--durations-min=1.0` (grepped `tests/architectural/*.py` for
+      `addopts`/`durations`: only unrelated matches, e.g. shard-timing-file readers
+      and an unrelated `addopts`-mention docstring). Reverting this one line to plain
+      `--tb=short` would not fail any test in the suite -- the change is pure CI-log
+      diagnostics (surfacing per-test timing so a future budget creep is visible
+      sooner), not application behavior, so its absence carries materially lower
+      risk than WP02/03/04/05's changes (each of which has a genuine, in some cases
+      mutation-proven, revert-failing test). Flagged at low severity because the
+      "tests" lens explicitly names WP07 in its per-WP revert-test check, and today
+      the honest answer is "no such test exists."
+    remediation: >-
+      Add a small architectural check asserting `pytest.ini`'s `[pytest]` section
+      parses to include `--durations=0` and `--durations-min=1.0` in `addopts`
+      (a config-parse/regex check, not a full pytest subprocess run) so a future
+      accidental revert of this line is caught mechanically instead of only by
+      someone noticing CI logs stopped showing timing breakdowns. Non-blocking;
+      safe to fold into a later touch of `tests/architectural/`.

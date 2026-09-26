@@ -47,7 +47,10 @@ from mission_runtime import (
 )
 from mission_runtime.artifacts import _PLACEMENT_ARTIFACT_KINDS
 from specify_cli.acceptance.execution_context import declared_home_surface
-from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+from specify_cli.coordination.surface_resolver import (
+    CoordinationBranchDeleted,
+    CoordinationWorktreeUnmaterialized,
+)
 
 pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 
@@ -246,16 +249,36 @@ def test_read_dir_lanes_topology_stays_lenient(repo: Path) -> None:
     assert result == feature_dir
 
 
-def test_read_dir_unmaterialized_create_window_stays_lenient(repo: Path) -> None:
-    """The declared-but-not-yet-created window (#1718 KEEP): the branch exists in
-    git, but the coord worktree was never materialised — primary stays
-    authoritative, no raise (distinct from DELETED, where the branch is GONE)."""
-    feature_dir = _build_mission_unmaterialized(repo)
+def test_read_dir_fails_loud_on_unmaterialized_coord_worktree(repo: Path) -> None:
+    """The declared-but-not-yet-materialised window now FAILS CLOSED.
+
+    Contract reversal (ADR ``docs/adr/3.x/2026-09-24-2-coord-read-fail-closed.md``,
+    #4959, operator decision DM-01M38VWD): the coord branch exists in git but its
+    worktree was never materialised. Before the ADR this cell stayed lenient
+    (#1718 KEEP: return the primary ``feature_dir``, no raise) — but that
+    empty-PRIMARY substitution is exactly what let a coord-partition reader act on
+    an empty document as authoritative and clobber a real coord-side file. A
+    coord-partition read on ``CoordState.UNMATERIALIZED`` now raises
+    ``CoordinationWorktreeUnmaterialized`` (a distinct ``StatusReadPathNotFound``
+    sibling of ``CoordinationBranchDeleted``) whose ``next_step`` names the truthful
+    recovery — materialise, not flatten. ``EMPTY``/``NONE`` stay lenient (see
+    ``test_read_dir_empty_coord_root_stays_lenient``); ``DELETED`` still raises
+    ``CoordinationBranchDeleted``.
+    """
+    _build_mission_unmaterialized(repo)
     seam = placement_seam(repo, _MISSION_SLUG)
 
-    result = seam.read_dir(MissionArtifactKind.DECISION_LOG)
+    with pytest.raises(CoordinationWorktreeUnmaterialized) as excinfo:
+        seam.read_dir(MissionArtifactKind.DECISION_LOG)
 
-    assert result == feature_dir
+    # "names the site": the raise identifies the mission + branch + candidate
+    # surfaces, and routes on a code distinct from the DELETED sibling so a
+    # caller never confuses "not yet checked out" with "gone from git".
+    err = excinfo.value
+    assert err.error_code == "COORDINATION_WORKTREE_UNMATERIALIZED"
+    assert err.mission_slug == _MISSION_SLUG
+    assert err.coordination_branch == _COORD_BRANCH
+    assert err.primary_candidate == repo / "kitty-specs" / _MISSION_SLUG
 
 
 def test_read_dir_empty_coord_root_stays_lenient(repo: Path) -> None:

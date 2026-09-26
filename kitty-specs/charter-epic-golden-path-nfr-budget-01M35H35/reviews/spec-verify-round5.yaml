@@ -1,0 +1,30 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: >
+      Per Ruling 3's superseding acceptance bar, tracer-design-decisions.md's newest
+      section ("SPEC-VERIFY-003 / SPEC-FRESH4-001 disposition superseded by operator
+      Ruling 3") explicitly states the earlier self-inference disposition is superseded
+      and cites Ruling 3 by name as the authority, quoting the operator's answer
+      verbatim; independently checked the quote word-for-word against
+      reviews/spec.ruling.md's Ruling 3 and it matches exactly.
+  - id: SPEC-FRESH4-001
+    status: resolved
+    reason: >
+      The same new tracer section names the self-authorization pattern SPEC-FRESH4-001
+      flagged (the phase agent's own inference from Ruling 1), states it is superseded,
+      and grounds the current disposition on the operator's own explicit Ruling 3
+      confirmation instead — satisfying Ruling 3's acceptance bar of citing the ruling
+      as authority rather than the phase agent's inference.
+  - id: SPEC-FRESH4-002
+    status: resolved
+    reason: >
+      FR-002's temp_repo citation now reads tests/conftest.py:1341-1353; independently
+      read tests/conftest.py and confirmed line 1341 is the @pytest.fixture() decorator,
+      1342 is the def line, and 1353 is the fixture's closing yield statement, so the
+      range now starts at the decorator consistent with the spec's other fixture-range
+      citations.

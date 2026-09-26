@@ -1,0 +1,79 @@
+{
+  "mission_slug": "windows-upgrade-mode-fidelity-01M35C25",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "commit 3d8c820; test_installer.py host-safe tests; opus review confirmed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T22:16:43.945871+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "commits 3d8c820/cb00979; new red-first tests in test_installer.py + arch gate; opus review confirmed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T22:15:26.332854+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "commits 3d8c820/cb00979; new red-first tests in test_installer.py + arch gate; opus review confirmed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T22:15:35.417960+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "commits 3d8c820/cb00979; new red-first tests in test_installer.py + arch gate; opus review confirmed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T22:15:44.401026+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "commits 3d8c820/cb00979; new red-first tests in test_installer.py + arch gate; opus review confirmed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T22:15:53.357166+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "commits 3d8c820/cb00979; new red-first tests in test_installer.py + arch gate; opus review confirmed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T22:16:02.305856+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "commits 3d8c820/cb00979; new red-first tests in test_installer.py + arch gate; opus review confirmed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T22:16:11.399550+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,14 +1,14 @@
 """Three-way recency for PRIMARY-partition planning artifacts on squash (#3942).
 
 The mission→target squash merge (``lanes/merge.py`` ``_merge_branch_into``) runs
-``git merge --squash -X theirs <mission_branch>``. ``-X theirs`` resolves every
-add/add conflict in favour of the *source* (mission branch). For the six
-driver-covered ``kitty-specs/**`` bookkeeping classes that is reconciled by
-``_MERGE_DRIVERS``; every *other* ``kitty-specs/`` file — the PRIMARY-partition
-planning artifacts ``spec.md`` / ``tasks/WP*.md`` among them — falls through to
-the blanket ``-X theirs`` resolution with **no recency guard**. When planning is
-refined on the *target* after the mission branch forks, the older mission copy
-silently clobbers the target-newer content (#3942).
+a normal three-way ``git merge --squash <mission_branch>`` (#4892 dropped the old
+blanket ``-X theirs``). The six driver-covered ``kitty-specs/**`` bookkeeping
+classes reconcile through ``_MERGE_DRIVERS``, and ordinary source conflicts now
+fail closed. For PRIMARY-partition planning artifacts (``spec.md`` /
+``tasks/WP*.md`` among them) a same-region conflict is instead resolved by this
+recency policy: when planning is refined on the *target* after the mission branch
+forks, the target-newer content must win rather than being clobbered by the older
+mission copy (#3942).
 
 A git merge driver cannot fix this: a driver sees only three blobs (base / ours /
 theirs) and has no history access, so it cannot decide *which side is newer*.
@@ -93,7 +93,7 @@ def target_newer_primary_artifacts(
     target advanced since ``merge-base(target, source)`` and the lane copy is
     base-or-ancestor (case 1), or when both sides advanced it and the
     committer-date tiebreak favours the target (case 3). Lane-advanced-only paths
-    (case 2) are NOT returned — the ``-X theirs`` result is correct there.
+    (case 2) are NOT returned — the mission (lane) copy is correct there.
 
     Pure: reads git only (merge-base, per-side name diffs, last-commit dates); it
     never writes and has no side effects. ``changed_paths``, when supplied,

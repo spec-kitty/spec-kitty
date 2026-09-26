@@ -1,0 +1,43 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: NFR-002 now states an explicit pass/fail rule for the 110-120s band (under 120s is not a defect by itself, at/under 110s closes SC-003 without discussion, 110-120s requires an explicit operator call), and SC-003 cross-references and applies that same rule verbatim.
+
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: FR-002 and Edge Case 1 now explicitly state the fixture builds no venv/editable install and drop that framing as a lever, redirecting the redesign to the fixture's actual git-init/config/spec-kitty-init subprocess costs and citing the real precedent (tests/conftest.py's temp_repo/clone_template, verified at tests/conftest.py:1342-1353 and tests/_support/git_template/__init__.py:106, both confirmed accurate against the live code).
+
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: A new Constraint C-006 and a new Acceptance Scenario 4 (User Story 1) make fixture-isolation preservation a testable requirement, cross-referencing the still-accurate tests/e2e/test_charter_epic_golden_path.py:485 assertion (verified), and FR-002 itself now cross-references C-006/Edge Cases rather than leaving the constraint only in prose.
+
+  - id: SPEC-ARCH-003
+    status: resolved
+    reason: C-003 and Key Entities now correctly attribute the golden path's run_cli/_run_cli helper to tests/conftest.py:1318-1338 and run_cli_subprocess to tests/test_isolation_helpers.py:93-124 (imported into tests/e2e/conftest.py at line 22) — all four line ranges independently re-verified against the live files and exact.
+
+  - id: SPEC-ARCH-004
+    status: resolved
+    reason: User Story 1, C-003, and SC-005 all replace "installed CLI" with "real subprocess boundary — source tree, isolated from any pip-installed package," and a new Glossary note explains the intended meaning of the operator's original phrasing; no misleading "installed" framing remains in the operative requirement text.
+
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: C-004 now cites lines 797-805 for the skip decorator only, with an explicit caveat that line 806 (@pytest.mark.timeout(120)) must remain untouched; verified against the live file — line 797 is the decorator open, line 805 is its closing paren, 806 is the timeout marker, 807 is the def — the citation is exact.
+
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: NFR-002's rationale and the Evidence section now compare 139.7s and 159.5s only against the current 127.55s post-#4417 local baseline throughout (12s and 32s slower respectively, arithmetically consistent), and explicitly disclaims the old pre-#4417 ~156s comparison as a different, non-grounding data point; tracer-design-decisions.md carries a matching correction note.
+
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: A new FR-006 (structural gate against silent re-skip) and SC-006 give C-005 a concrete, deterministic CI-check mechanism instead of policy prose alone, and C-005 itself now states the prohibition is made mechanically enforceable "by FR-006/SC-006's structural gate."
+
+  - id: SPEC-VERIFY-004
+    status: resolved
+    reason: SC-002 and FR-005 both now require the structural-plus-wall-clock two-tier pattern unconditionally, matching the #4409/#4417 precedent; the "if ... warranted" hedge has been removed from both.
+
+  - id: SPEC-VERIFY-005
+    status: resolved
+    reason: The Edge Cases bullet now adds an explicit fallback clause — if the real Actions-runner re-measurement still misses the NFR-002 margin, escalate to the operator/maintainer for a new, explicitly-scoped decision per C-005's language, rather than defaulting to one of the three already-rejected levers.

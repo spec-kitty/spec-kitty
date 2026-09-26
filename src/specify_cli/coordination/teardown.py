@@ -54,6 +54,7 @@ of the package's public surface.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -61,6 +62,102 @@ if TYPE_CHECKING:
     from specify_cli.retrospective.schema import ProvenanceKind
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class ProjectionTeardownGate:
+    """S-B / FR-004 precondition the teardown must honor before destroying anything.
+
+    Built by the merge integration hook (WP09) from the WP06 reconciliation seam:
+
+    * ``coord_ref`` — the coordination ref whose tip is compare-and-swapped.
+    * ``expected_coord_sha`` — the coord tip observed while the projection captured
+      its ``checkpoint..tip`` window (``ProjectionResult.coord_tip_sha``). Teardown
+      re-reads the ref and refuses unless it is still exactly this value, so a
+      concurrent status-emit / verdict that landed AFTER projection (and was
+      therefore never projected) can never be silently destroyed (#4981).
+    * ``reachability_ok`` — whether the WP06 ``MergeOutcomeVerifier`` PASSed (every
+      approved WP commit reachable from the target, no excluded commit reachable).
+    * ``projected_commits`` — the projected window's SHAs, carried for diagnostics.
+    """
+
+    coord_ref: str
+    expected_coord_sha: str
+    reachability_ok: bool
+    projected_commits: tuple[str, ...] = ()
+
+
+class ProjectionTeardownAbort(RuntimeError):
+    """Fail-closed refusal: the projection + CAS precondition for teardown did not hold.
+
+    Raised BEFORE persist and BEFORE any destroy, so nothing is torn down — the
+    coordination branch, marker, and worktree survive as one coupled triple
+    (CLAUDE.md merge-retention invariant). Propagates as a non-zero terminus exit.
+    """
+
+    error_code = "PROJECTION_TEARDOWN_ABORTED"
+
+    def __init__(
+        self,
+        *,
+        reason: str,
+        coord_ref: str,
+        expected_sha: str,
+        actual_sha: str | None = None,
+    ) -> None:
+        self.reason = reason
+        self.coord_ref = coord_ref
+        self.expected_sha = expected_sha
+        self.actual_sha = actual_sha
+        moved = f" (expected {expected_sha[:12]}, found {actual_sha[:12]})" if actual_sha is not None else ""
+        super().__init__(
+            f"Refusing coordination teardown for {coord_ref!r}: {reason}{moved}. "
+            "Nothing was torn down and no refs/worktrees were mutated. Resolve the "
+            "coordination-surface issue, then re-run the merge (`spec-kitty merge "
+            "--resume`)."
+        )
+
+
+def _current_coord_ref_sha(repo_root: Path, coord_ref: str) -> str:
+    """Resolve ``coord_ref``'s current tip SHA (``""`` when it does not resolve).
+
+    The git read is function-local so importing ``coordination`` never drags the
+    git-ops module in at module-import time (module docstring: acyclic discipline).
+    """
+    from specify_cli.core.git_ops import run_command  # noqa: PLC0415
+
+    ret, out, _err = run_command(
+        ["git", "rev-parse", coord_ref],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    return out.strip() if ret == 0 and out.strip() else ""
+
+
+def _enforce_projection_teardown_gate(repo_root: Path, gate: ProjectionTeardownGate) -> None:
+    """Refuse teardown unless reachability passed AND the coord tip is unchanged (CAS).
+
+    Fail-closed: any failing leg raises :class:`ProjectionTeardownAbort` before
+    persist/destroy, so a moved coord tip or an unprojected/unreachable outcome
+    never tears down the coupled triple partially (T034).
+    """
+    if not gate.reachability_ok:
+        raise ProjectionTeardownAbort(
+            reason="the reconciliation reachability check did not pass",
+            coord_ref=gate.coord_ref,
+            expected_sha=gate.expected_coord_sha,
+        )
+    current = _current_coord_ref_sha(repo_root, gate.coord_ref)
+    if current != gate.expected_coord_sha:
+        raise ProjectionTeardownAbort(
+            reason="the coordination tip moved since projection captured its window "
+            "(compare-and-swap failed); a concurrent commit may not have been "
+            "projected onto the target",
+            coord_ref=gate.coord_ref,
+            expected_sha=gate.expected_coord_sha,
+            actual_sha=current,
+        )
 
 
 def _persist_retrospective(
@@ -129,11 +226,19 @@ def teardown_coordination_topology(
     *,
     persist: bool = True,
     provenance_kind: ProvenanceKind = "runtime_post_completion",
+    projection_gate: ProjectionTeardownGate | None = None,
 ) -> bool:
     """Persist the retrospective, then destroy the coordination worktree.
 
     The single shared teardown seam (FR-004). Ordered steps:
 
+    0. **gate** (``projection_gate`` supplied, S-B / FR-004 / T034) — refuse
+       fail-closed unless the reconciliation reachability check passed AND the
+       coordination tip is unchanged since the projection captured its window
+       (compare-and-swap). This runs BEFORE persist so an aborted gate tears down
+       NOTHING — the coord branch/marker/worktree survive as one coupled triple
+       (#4981/#4970/#4973). Omitted (``None``) ⇒ the pre-existing behavior, so the
+       mission-close / ``--abort`` / not-yet-wired merge call sites are unchanged.
     1. **persist** (``persist=True``, OUTSIDE the swallow) — write any pending
        retrospective to its durable PRIMARY home
        (``kitty-specs/<slug>/retrospective.yaml``) via the WP03 authority, so the
@@ -155,16 +260,30 @@ def teardown_coordination_topology(
             ``"runtime_abandoned"`` so an abandoned mission is not tagged with
             completion provenance; the default (``runtime_post_completion``)
             preserves the merge/close-completion behaviour.
+        projection_gate: When supplied, the S-B projection + coord-ref CAS
+            precondition (:class:`ProjectionTeardownGate`) is enforced before any
+            persist/destroy; a failing gate raises :class:`ProjectionTeardownAbort`
+            and mutates nothing. ``None`` (the default) preserves the ungated
+            behavior for callers that do not run the reconciliation seam.
 
     Returns:
         ``True`` when the destroy leg succeeded (or no-op'd cleanly), ``False``
         when destroy raised and was swallowed.
+
+    Raises:
+        ProjectionTeardownAbort: ``projection_gate`` was supplied and its
+            reachability or compare-and-swap precondition failed; nothing was
+            mutated (fail-closed, non-zero terminus exit).
 
     Note:
         Persist is intentionally NOT wrapped in the destroy swallow: an
         unexpected persist-machinery error surfaces to the caller rather than
         being silently absorbed as "teardown was best-effort".
     """
+    if projection_gate is not None:
+        # Fail-closed BEFORE persist/destroy — an aborted gate mutates nothing.
+        _enforce_projection_teardown_gate(repo_root, projection_gate)
+
     if persist:
         # OUTSIDE the destroy swallow — persist-before-destroy (FR-005).
         _persist_retrospective(repo_root, mission_slug, provenance_kind)

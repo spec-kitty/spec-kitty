@@ -1,0 +1,35 @@
+{
+  "accept_commit": "0cf0d0bac1798c6d1edbf484e328f59e781924a3",
+  "acceptance_history": [
+    {
+      "accept_commit": "0cf0d0bac1798c6d1edbf484e328f59e781924a3",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-25T23:30:48.046627+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "e40d5b7a7d1b07a9ad5622dcbb658451c3faea21"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-25T23:30:48.046627+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "e40d5b7a7d1b07a9ad5622dcbb658451c3faea21",
+  "baseline_merge_commit": "032ea26f27788be96d64db8636f7eddb1f16df8c",
+  "created_at": "2026-09-25T20:40:37.790703+00:00",
+  "flattened": true,
+  "friendly_name": "Terminus Reconciliation Attribution Integrity",
+  "merged_at": "2026-09-25T23:38:02.721181+00:00",
+  "merged_commit": "eb7f52d4bb4987a9c0f57344d7ba3ff4b6b555fb",
+  "mid8": "01M3D4RW",
+  "mission_id": "01M3D4RW4J5F5HNVT3N37JF95Q",
+  "mission_number": null,
+  "mission_slug": "terminus-reconciliation-attribution-integrity-01M3D4RW",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Operators rely on 'spec-kitty merge' to land completed missions safely. Four Epic #5001 follow-ups show the terminus reconciliation gate can still (1) let a canceled work package's file deletion ship silently under squash, (2) wrongly block a valid merge whose lane mixes an approved and a canceled work package, (3) false-refuse a completed squash on resume, and (4) false-refuse a clean single-lane squash on the coordination-bookkeeping projection proof. This mission makes the gate attribute at the right granularity so it neither destroys work nor blocks legitimate merges.",
+  "purpose_tldr": "Close four merge-terminus reconciliation-gate defects so a squash or merge never silently destroys committed work, nor refuses a legitimate merge of a supported topology.",
+  "slug": "terminus-reconciliation-attribution-integrity-01M3D4RW",
+  "status_phase": "1",
+  "target_branch": "fix/terminus-reconciliation-attribution-integrity",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-25T21:10:44.046449+00:00"
+}

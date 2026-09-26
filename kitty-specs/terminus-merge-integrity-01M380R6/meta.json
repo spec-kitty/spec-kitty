@@ -1,0 +1,19 @@
+{
+  "coordination_branch": "kitty/mission-terminus-merge-integrity-01M380R6",
+  "created_at": "2026-09-23T20:54:09.597588+00:00",
+  "flattened": false,
+  "friendly_name": "Terminus / Merge-Coord Integrity",
+  "mid8": "01M380R6",
+  "mission_id": "01M380R6XD37RTPGV0FW51V3GK",
+  "mission_number": null,
+  "mission_slug": "terminus-merge-integrity-01M380R6",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Merge/resume/abort/upgrade/issue-verdict/doctor commands can currently destroy committed work, fabricate success, and exit 0. This mission builds a fail-closed transaction spine (tree-vs-claim verification before teardown, compare-and-swap ref advances, projection-before-teardown, surface-authority write gate) so the merge/coordination surface is honest by construction across 12 in-scope defects of epic 5001.",
+  "purpose_tldr": "Make Epic #5001's invariant executable: a terminus command never exits 0 while destroying committed work or landing the wrong tree.",
+  "slug": "terminus-merge-integrity-01M380R6",
+  "target_branch": "fix/terminus-merge-integrity",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-23T21:59:02.957182+00:00"
+}

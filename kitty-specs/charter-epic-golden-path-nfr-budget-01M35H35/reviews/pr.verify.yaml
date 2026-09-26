@@ -1,0 +1,122 @@
+# review-verify/v1 — R5a anchored verification (fresh verifier, no context from the fix round).
+# Mission: charter-epic-golden-path-nfr-budget-01M35H35
+# Checkout: 4211, branch issue-4213-golden-path-nfr-budget, HEAD 748b9770c.
+# Covers all 6 findings in reviews/pr.confirmed.yaml plus the two known items (K1, K2) the
+# dispatch named explicitly. Every result below is from evidence run in THIS session (test
+# runs, red-first re-proofs, and a byte-diff of CLI help surfaces), not from the fixers' reports.
+schema: review-verify/v1
+complete: true
+phase: pr
+results:
+  - id: PR-TESTS-001
+    status: resolved
+    reason: >-
+      tests/specify_cli/cli/test_lazy_command_imports.py is gone from the tree (only stale
+      __pycache__ and unrelated lane-worktree copies remain); the relocated
+      tests/cli/test_lazy_command_module_imports.py is collected by `pytest tests/cli -m "not
+      performance and not stress" --collect-only -q` (6 tests, part of 707/708 collected),
+      which is both ci-router.yml's hardcoded tests-cli job (`pytest tests/cli -q`) and
+      module-tests.yml's fallback tests/{module} mirror for the `cli` registry row (no
+      test_dirs override). Re-proved red-first myself: swapping in the pre-lazy-import
+      __init__.py (git show 6b4164dbf) failed 3 of 6 tests with the exact "imported unexpected
+      command modules" assertion; restoring HEAD's __init__.py made all 6 pass again, and
+      `git status --porcelain` came back clean after the restore.
+
+  - id: PR-BOUNDARY-001
+    status: resolved
+    reason: >-
+      AssetPreparation.overwrite_internal() (asset_preparation.py:279-300) is a genuinely
+      public method (no leading underscore), carries a docstring documenting its narrow
+      cache-only-bookkeeping contract and explicitly why it is not `asset()`, and its body is
+      a one-line delegate to `self._effect(...)` — semantically identical to the private
+      method it replaces at the call site. `grep -rn "\._effect(" src/ tests/` shows zero
+      remaining cross-module callers (agent_commands.py's `# noqa: SLF001` is gone). Ordering
+      is unchanged: the freshness-stamp write still goes through the same `_effect`/
+      `_write_order` staging as before (default stage 3, ahead of the `.lock`-suffixed
+      persistent-lock file at stage 6), so the stamp-then-lock sequencing this call site
+      depended on is untouched. Ran tests/specify_cli/runtime/test_asset_preparation_overwrite_internal.py
+      (2 passed) and the freshness/staleness suite in tests/specify_cli/runtime/test_agent_commands.py
+      (`-k "Freshness or freshness or Stamp"`, 16 passed, including TestFreshnessStampAppliesLast
+      — the M7-style "a partial/failed render-and-apply cycle must never leave a freshness
+      stamp behind" assertion). Scope: this is exactly the remediation PR-BOUNDARY-001 itself
+      specified (promote a narrow public overwrite primitive) — not opportunistic scope
+      growth, and the method is explicitly documented as reserved for internal bookkeeping
+      only, so it does not open a new contract risk on the user-facing `asset()` path.
+
+  - id: PR-CONTRACT-001
+    status: resolved
+    reason: >-
+      `_root_boolean_flag_tokens()` (__init__.py:676-696) returns an EMPTY frozenset when
+      `app.registered_callback` or its callback is absent, and only adds a token when the
+      parameter's default is a `typer.models.OptionInfo` AND its annotation is exactly `bool`
+      — any other/unexpected shape is excluded, not guessed at. `_resolve_single_leaf_command`
+      (__init__.py:699-728) then returns `None` (full/eager registration) for any `-`-prefixed
+      token not in that frozenset, so the single-leaf fast path is never taken on an
+      unrecognized or introspection-failed option — it fails toward full registration in both
+      cases, exactly what the finding demanded. Ran
+      tests/cli/test_resolve_single_leaf_command_value_options.py (11 passed), including
+      `test_unrecognized_option_token_falls_back_even_on_the_real_app` and the two synthetic
+      value-taking-root-option regression tests. (Note: this file's first run in the live
+      checkout showed one transient failure caused by a concurrent process mutating
+      __init__.py mid-run — see the report's note on checkout contention; re-run in an
+      isolated `git worktree add --detach` copy at HEAD, with PYTHONPATH pointed at that
+      tree's src, passed clean 11/11 and is what this verdict is based on.)
+
+  - id: PR-CONTRACT-002
+    status: resolved
+    reason: >-
+      tests/cli/test_command_registrar_tables_cover_each_other.py asserts
+      `set(_COMMAND_REGISTRARS.values()) == set(_ALL_COMMAND_REGISTRARS)` plus a
+      no-duplicate-entries check on `_ALL_COMMAND_REGISTRARS`; both are genuine set-equality/
+      uniqueness assertions against the real imported module, not a restated constant. Ran in
+      the isolated HEAD worktree: 2 passed.
+
+  - id: PR-TESTS-002
+    status: resolved-by-ruling
+    reason: >-
+      Per reviews/pr.ruling.md Ruling 7, this finding is closed with NO code change; its
+      acceptance bar is three Actions `tests (e2e)` runs at the PR stage, each with the golden
+      path's setup+call <=110s, evaluated on the real PR rather than in this checkout — not
+      re-verified here per the dispatch's explicit instruction.
+
+  - id: PR-TESTS-003
+    status: resolved
+    reason: >-
+      tests/architectural/test_pytest_ini_durations_addopts.py parses pytest.ini's `[pytest]`
+      addopts line and asserts it contains both `--durations=0` and `--durations-min=1.0` —
+      a real config-parse assertion, not a restated string. Ran in the isolated HEAD worktree:
+      passed.
+
+  - id: K1
+    status: resolved
+    reason: >-
+      `src/specify_cli/cli/commands/__init__.py` no longer appears in pyproject.toml's
+      `[tool.ruff.format].exclude` list (grep returns nothing); `ruff format --check` on that
+      file alone reports "1 file already formatted", confirming it genuinely conforms to the
+      live config rather than merely being un-excluded. The ratchet
+      (tests/architectural/test_ruff_format_exclude_ratchet.py) is a shrink-only baseline
+      (2808) that the single-entry removal does not need to bump; ran clean.
+
+  - id: K2
+    status: resolved
+    reason: >-
+      tests/cli/test_register_commands_lazy_import_shape.py's `_is_narrow_single_import_branch`
+      now requires BOTH exactly one `from . import` statement AND
+      `len(only_import.names) == 1` on that statement, not just a statement count. Reproduced
+      the exact gap class by hand: an `ast.parse` of a synthetic branch with one ImportFrom
+      statement importing two names (`from . import a as _a, b as _b`) has `import_stmts`
+      count 1 (would pass the OLD statement-only check) but `only_import.names` count 2 (fails
+      the NEW check) — proving the fix closes a real false-negative, not a cosmetic rewrite.
+      Ran the shape test itself in the isolated HEAD worktree: passed.
+
+additional_checks:
+  - name: cli_help_surface_unchanged_by_PR-CONTRACT-001
+    status: resolved
+    reason: >-
+      Built two detached `git worktree`s (a2bcad3d0^ and HEAD 748b9770c), invoked
+      `spec-kitty --help`, `merge --help`, `doctor --help`, and `agent --help` in each via
+      `PYTHONPATH=<tree>/src .venv/bin/python -c "...specify_cli.main()..."`, with a fresh
+      throwaway HOME/XDG set per invocation (to avoid mutating the real ~/.kittify / ~/.agent
+      global state, which is shared with other concurrently-running agent processes on this
+      host). All four outputs were byte-identical between the two trees. Both worktrees were
+      removed afterward (`git worktree remove --force`); the main checkout is unaffected.

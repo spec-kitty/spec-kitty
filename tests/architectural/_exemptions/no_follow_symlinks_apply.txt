@@ -1,0 +1,10 @@
+# Exemptions for tests/architectural/test_no_follow_symlinks_apply_ban.py (#4923, T004).
+#
+# One line per violation: <repo-relative path>:<line>. Blank lines and
+# '#'-prefixed comments are ignored.
+#
+# Shrink-only: T002 routed all five pre-existing offenders (installer.py
+# 172/174/963/969/981) through kernel.no_follow.chmod_no_follow /
+# utime_no_follow, so this file is empty at T004 landing time. A future
+# unguarded follow_symlinks=False call-site in the managed-skill apply
+# surface must be fixed at the source, not appended here.

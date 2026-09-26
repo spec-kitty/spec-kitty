@@ -821,6 +821,19 @@ _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
             "'proxy honesty')."
         ),
     ),
+    ContentDescriptor(
+        rel_path="src/specify_cli/git/bookkeeping_commit.py",
+        qualname="_commit_bookkeeping",
+        token_substring="CommitTarget ( ref = destination_ref_override )",
+        occurrence=None,
+        rationale=(
+            "landing/#5001: destination_ref_override is NOT checkout-derived -- "
+            "it is the AUTHORITATIVE caller-resolved target (the FR-007 "
+            "single-persisted-merge-target authority) passed by "
+            "commit_merge_bookkeeping, superseding placement resolution for a "
+            "PRIMARY_METADATA merge-housekeeping commit. Not a checkout read."
+        ),
+    ),
     # NOTE (placement-port-residuals-closure-01KYDEF0 WP04, FR-005): the four
     # ``decision_log.DecisionGitLog._resolve_default_target`` /
     # ``bookkeeping_commit._resolve_bookkeeping_commit_target``

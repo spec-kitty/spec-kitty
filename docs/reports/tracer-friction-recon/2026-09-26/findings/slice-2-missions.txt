@@ -1,0 +1,64 @@
+## cross-os-primitive-unification-01M2T1CM  (158 lines)
+  kitty-specs/cross-os-primitive-unification-01M2T1CM/tracer-approach.md
+  kitty-specs/cross-os-primitive-unification-01M2T1CM/tracer-design-decisions.md
+  kitty-specs/cross-os-primitive-unification-01M2T1CM/tracer-tooling-friction.md
+## blocked-wp-unblock-path-01M29093  (19 lines)
+  kitty-specs/blocked-wp-unblock-path-01M29093/tracer-tooling-friction.md
+## runtime-advance-guard-topology-wp-completion-01M1W6VZ  (613 lines)
+  kitty-specs/runtime-advance-guard-topology-wp-completion-01M1W6VZ/tracer-approach.md
+  kitty-specs/runtime-advance-guard-topology-wp-completion-01M1W6VZ/tracer-design-decisions.md
+  kitty-specs/runtime-advance-guard-topology-wp-completion-01M1W6VZ/tracer-tooling-friction.md
+## event-push-watch-channel-01M1K6W2  (297 lines)
+  kitty-specs/event-push-watch-channel-01M1K6W2/tracer-approach.md
+  kitty-specs/event-push-watch-channel-01M1K6W2/tracer-design-decisions.md
+  kitty-specs/event-push-watch-channel-01M1K6W2/tracer-tooling-friction.md
+## spdd-reasons-activation-split-brain-01M1K6VN  (520 lines)
+  kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tracer-tooling-friction.md
+## dispatch-dry-run-route-only-01M1HKV2  (211 lines)
+  kitty-specs/dispatch-dry-run-route-only-01M1HKV2/tracer-approach.md
+  kitty-specs/dispatch-dry-run-route-only-01M1HKV2/tracer-design-decisions.md
+  kitty-specs/dispatch-dry-run-route-only-01M1HKV2/tracer-tooling-friction.md
+## design-phase-orchestrator-api-01M1HE6M  (446 lines)
+  kitty-specs/design-phase-orchestrator-api-01M1HE6M/tracer-approach.md
+  kitty-specs/design-phase-orchestrator-api-01M1HE6M/tracer-design-decisions.md
+  kitty-specs/design-phase-orchestrator-api-01M1HE6M/tracer-tooling-friction.md
+## custom-mission-type-second-class-citizens-01M1FQXD  (667 lines)
+  kitty-specs/custom-mission-type-second-class-citizens-01M1FQXD/tracer-approach.md
+  kitty-specs/custom-mission-type-second-class-citizens-01M1FQXD/tracer-design-decisions.md
+  kitty-specs/custom-mission-type-second-class-citizens-01M1FQXD/tracer-tooling-friction.md
+## next-committed-state-authority-01M1CA8W  (109 lines)
+  kitty-specs/next-committed-state-authority-01M1CA8W/tracer-approach.md
+  kitty-specs/next-committed-state-authority-01M1CA8W/tracer-design-decisions.md
+  kitty-specs/next-committed-state-authority-01M1CA8W/tracer-tooling-friction.md
+## charter-authority-flip-01M14RB3  (37 lines)
+  kitty-specs/charter-authority-flip-01M14RB3/tracer-approach.md
+  kitty-specs/charter-authority-flip-01M14RB3/tracer-design-decisions.md
+  kitty-specs/charter-authority-flip-01M14RB3/tracer-tooling-friction.md
+## accept-path-remediation-honesty-01M0TWZP  (493 lines)
+  kitty-specs/accept-path-remediation-honesty-01M0TWZP/tracer-approach.md
+  kitty-specs/accept-path-remediation-honesty-01M0TWZP/tracer-design-decisions.md
+  kitty-specs/accept-path-remediation-honesty-01M0TWZP/tracer-tooling-friction.md
+## custom-mission-guard-failure-blocking-inert-01M0STY0  (327 lines)
+  kitty-specs/custom-mission-guard-failure-blocking-inert-01M0STY0/tracer-approach.md
+  kitty-specs/custom-mission-guard-failure-blocking-inert-01M0STY0/tracer-design-decisions.md
+  kitty-specs/custom-mission-guard-failure-blocking-inert-01M0STY0/tracer-tooling-friction.md
+## charter-activate-empty-action-sequence-01M0STSX  (383 lines)
+  kitty-specs/charter-activate-empty-action-sequence-01M0STSX/tracer-approach.md
+  kitty-specs/charter-activate-empty-action-sequence-01M0STSX/tracer-design-decisions.md
+  kitty-specs/charter-activate-empty-action-sequence-01M0STSX/tracer-tooling-friction.md
+## cascade-asset-silent-drop-01M0RME0  (457 lines)
+  kitty-specs/cascade-asset-silent-drop-01M0RME0/tracer-approach.md
+  kitty-specs/cascade-asset-silent-drop-01M0RME0/tracer-design-decisions.md
+  kitty-specs/cascade-asset-silent-drop-01M0RME0/tracer-tooling-friction.md
+## durable-concurrent-review-cycle-records-01M0QRX7  (56 lines)
+  kitty-specs/durable-concurrent-review-cycle-records-01M0QRX7/tracers/approach.md
+  kitty-specs/durable-concurrent-review-cycle-records-01M0QRX7/tracers/design-decisions.md
+  kitty-specs/durable-concurrent-review-cycle-records-01M0QRX7/tracers/tooling-friction.md
+## dossier-guard-reexport-analyze-cleanup-01M0NHRT  (683 lines)
+  kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/tracer-approach.md
+  kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/tracer-design-decisions.md
+  kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/tracer-tooling-friction.md
+## legacy-cleanup-split-dossier-queue-migration-01M0MGHB  (792 lines)
+  kitty-specs/legacy-cleanup-split-dossier-queue-migration-01M0MGHB/tracer-approach.md
+  kitty-specs/legacy-cleanup-split-dossier-queue-migration-01M0MGHB/tracer-design-decisions.md
+  kitty-specs/legacy-cleanup-split-dossier-queue-migration-01M0MGHB/tracer-tooling-friction.md

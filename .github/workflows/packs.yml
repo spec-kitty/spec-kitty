@@ -66,7 +66,7 @@ jobs:
   # `changes` job does, so `full` mode / a main push always selects both lanes.
   # ---------------------------------------------------------------------------
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       built_in: ${{ (inputs.mode == 'full' || github.event_name == 'push') && 'true' || steps.filter.outputs.built_in }}
       internal: ${{ (inputs.mode == 'full' || github.event_name == 'push') && 'true' || steps.filter.outputs.internal }}
@@ -97,7 +97,7 @@ jobs:
   # ===========================================================================
   built-in-regen-check:
     name: built-in / regen --check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [changes]
     if: ${{ needs.changes.outputs.built_in == 'true' }}
@@ -116,7 +116,7 @@ jobs:
 
   built-in-drg-check:
     name: built-in / DRG regenerate-graph --check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [changes]
     if: ${{ needs.changes.outputs.built_in == 'true' }}
@@ -135,7 +135,7 @@ jobs:
 
   built-in-pack-manifest:
     name: built-in / pack-manifest freshness + authored-only guard
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [changes]
     if: ${{ needs.changes.outputs.built_in == 'true' }}
@@ -150,7 +150,7 @@ jobs:
 
   built-in-corpus-suite:
     name: built-in / -m corpus suite (--cov=src/doctrine)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [changes]
     if: ${{ needs.changes.outputs.built_in == 'true' }}
@@ -179,7 +179,7 @@ jobs:
 
   built-in-plugin-validate:
     name: built-in / plugin build + claude plugin validate --strict
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [changes]
     if: ${{ needs.changes.outputs.built_in == 'true' }}
@@ -209,7 +209,7 @@ jobs:
   # ===========================================================================
   internal-org-validate:
     name: internal / DRG-fragment validity + refines-edge + org-charter required-ids
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [changes]
     if: ${{ needs.changes.outputs.internal == 'true' }}
@@ -224,7 +224,7 @@ jobs:
 
   internal-packaging-safety:
     name: internal / packaging-safety NEGATIVE guard (never ships)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [changes]
     if: ${{ needs.changes.outputs.internal == 'true' }}
@@ -244,7 +244,7 @@ jobs:
   # ---------------------------------------------------------------------------
   packs-gate:
     name: packs gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     needs:
       - changes

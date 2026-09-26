@@ -1,0 +1,125 @@
+{
+  "rows": {
+    "#2376": {
+      "evidence_ref": "Cited in research.md only as the earliest ancestor of the whack-a-field lineage (#2376 -> #3066 -> #3541 -> #4897) to explain the pattern WP01 closes structurally; closed historical issue, owes this mission no new work.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2720": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2940": {
+      "evidence_ref": "Cited in the WP02 prompt as a 'do not reintroduce the from_interview malformed-answers.yaml abort' constraint; WP02 honors it (delegation adds no abort). Closed historical issue, owes this mission no new work.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3066": {
+      "evidence_ref": "Cited as a non-regression guardrail: WP01 keeps _is_legacy_typed_lane_transition passthrough FIRST (AC-A3). The #3066 zero-WP fix is already merged/closed; this mission preserves it and owes it no new work.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3541": {
+      "evidence_ref": "Cited in research.md as lineage context (review_result is a nested field on a lane StatusEvent, not a standalone row); closed historical issue, owes this mission no new work.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4894": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4897": {
+      "evidence_ref": "Acute #4897 (DecisionPoint quarantine) fixed & merged in PR #4938. This mission generalizes that fix to preserve-by-default (WP01) so the class cannot recur for unregistered future event_types; the residual is tracked and resolved as #4993.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4908": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4938": {
+      "evidence_ref": "PR #4938 provenance reference: this mission addresses the residual findings its landing-pass squad surfaced; PR #4938 and its own three fixes are already merged, so it owes this mission no work.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4993": {
+      "evidence_ref": "commit 6fdf744562 (fix(merge): harden traces driver fence + block-key collisions); red-first AC-C1/AC-C2 verified failing pre-fix, 19/19 green post-fix, ruff+format+mypy clean",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    }
+  },
+  "schema_version": 1
+}

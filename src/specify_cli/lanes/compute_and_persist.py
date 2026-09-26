@@ -35,7 +35,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from specify_cli.lanes.compute import compute_lanes
-from specify_cli.lanes.persistence import write_lanes_json
+from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.ownership.validation import validate_glob_matches
 
 if TYPE_CHECKING:
@@ -117,6 +117,13 @@ def compute_and_write_lanes(
     if not glob_result.passed:
         raise LaneGlobValidationError(glob_result)
 
+    # WP10 integration (C-4 / #4945): read back any prior ``lanes.json`` so
+    # ``compute_lanes`` reuses each WP-group's already-assigned stable lane id
+    # instead of re-minting positional ids on a re-finalize (a WP removal must
+    # not re-letter a surviving lane's branch out from under its persisted git
+    # branch). A first finalize (no prior manifest) passes ``None`` and mints
+    # fresh positional ids exactly as before.
+    previous_lanes = read_lanes_json(planning_dir)
     lanes_manifest = compute_lanes(
         dependency_graph=wp_dependencies,
         ownership_manifests=wp_manifests,
@@ -124,6 +131,7 @@ def compute_and_write_lanes(
         target_branch=target_branch,
         wp_bodies=wp_bodies,
         mission_id=mission_id,
+        previous_lanes=previous_lanes,
     )
     lanes_manifest.planning_commit_sha = planning_commit_sha
     lanes_path = write_lanes_json(planning_dir, lanes_manifest)

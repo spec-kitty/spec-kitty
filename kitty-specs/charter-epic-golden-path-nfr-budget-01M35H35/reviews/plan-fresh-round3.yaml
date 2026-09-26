@@ -1,0 +1,67 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: plan
+lens_group: fresh-round3
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: PLAN-FRESH3-001
+    lens: wording-consistency
+    severity: 1
+    title: FR-003's user-story outcome clause is now a detached sentence fragment
+    evidence:
+      - artifact: "spec.md § Functional Requirements, FR-003 row"
+    claim: >
+      The pre-edit FR-003 cell read as one sentence ending "...reduced, so that each of the
+      golden path's 12 subprocess CLI calls costs less." — a standard "As a contributor, I want
+      X, so that Y" user story. The edit inserted the primary/secondary mechanism description
+      and a new sentence ("Both are in scope; the freshness check must be proven red-first per
+      Ruling 6's binding condition (see Clarifications).") between "I want lever C's cost
+      reduced..." and the outcome clause, then left the outcome clause as its own
+      capital-letter sentence: "So that each of the golden path's 12 subprocess CLI calls costs
+      less." Read literally, "So that ..." is now a subordinate clause with no adjoining main
+      clause in the same sentence — it no longer reads as the outcome of the "I want" clause it
+      was written to complete. The literal wording of the outcome clause itself is preserved
+      verbatim (no content was weakened), so this is a prose/style defect only, not a change to
+      the testable requirement.
+    remediation: >
+      Reflow FR-003's cell so the outcome clause is grammatically attached to its governing "I
+      want" clause again — e.g. move the red-first binding-condition sentence to the end (after
+      the "so that" clause) or rejoin "...so that each of the golden path's 12 subprocess CLI
+      calls costs less" directly onto the two-mechanism description as a single sentence, with
+      the red-first condition as a separate trailing sentence.
+  - id: PLAN-FRESH3-002
+    lens: cross-section-consistency
+    severity: 2
+    title: NFR-003's "construction cost" wording was not updated to reflect the render/freshness mechanism plan.md names as lever C's dominant contributor to the <2s rationale
+    evidence:
+      - artifact: "spec.md § Non-Functional Requirements, NFR-003 row"
+      - artifact: "plan.md § Lever C — CLI startup cost (FR-003/FR-005), \"NFR-003 (<2s CLI-operation charter standard)\" paragraph"
+    claim: >
+      This closing pass updated every other place in spec.md that names lever C's cost category
+      to "construction/render cost" so it visibly covers both the primary freshness-check
+      mechanism and the secondary Typer trim (FR-003's title: "Cut CLI command-surface
+      construction/render cost"; the Key Entities bullet: "CLI command-surface
+      construction/render cost (lever C, expanded per Ruling 6)"). NFR-003's row was left
+      unedited (absent from `git diff`) and still reads: "...so trimming lever-C's per-call
+      construction cost serves both this mission's budget and the charter's general CLI-latency
+      expectation" — using the bare, narrower "construction cost" term that, before this
+      closing pass, specifically named the Typer command-surface construction mechanism. This
+      creates an inconsistency with plan.md's own Lever C section, which explicitly attributes
+      the <2s charter-standard rationale primarily to the freshness-check/render fix, not the
+      Typer trim: "the freshness-check fix directly serves this standard for every spec-kitty
+      invocation on the machine... a spec-kitty command that currently pays several seconds for
+      an unconditional 104-template re-render on every call is the single largest concrete
+      violator of the charter's <2s standard this investigation surfaced" (the Typer trim saves
+      only ~0.2s/call in comparison). A reader relying on spec.md's NFR-003 wording alone, without
+      cross-checking plan.md, would misattribute the dominant <2s-standard win to the smaller,
+      secondary mechanism. Because NFR-003 is explicitly "supporting rationale, not a new
+      requirement" (per its own text), this does not create a wrong or untestable acceptance
+      criterion — no FR/SC bar is affected — so it is scoped as a consistency gap, not a
+      correctness defect.
+    remediation: >
+      Update NFR-003's requirement text to match the "construction/render cost" phrasing used
+      elsewhere (FR-003 title, Key Entities bullet), or explicitly name the freshness-check fix
+      as the dominant contributor to the <2s rationale in NFR-003 itself, so spec.md's own text
+      is consistent with plan.md's Lever C section on which mechanism actually drives the charter
+      standard.

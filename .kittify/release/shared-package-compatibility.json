@@ -5,10 +5,10 @@
     {
       "package": "spec-kitty-events",
       "source_repo": "spec-kitty/spec-kitty-events",
-      "cli_range": ">=9,<10",
-      "locked_version": "9.1.6",
-      "contract_surface": "volatile mission/WP families + zeitgeist attrs codecs; sync/legacy/cutover deleted",
-      "resolution_note": "The CLI consumes the public PyPI release train with a bounded range; 9.1.6 is the release-authority lock target."
+      "cli_range": ">=10.4.0,<11",
+      "locked_version": "10.4.0",
+      "contract_surface": "volatile mission/WP families + zeitgeist attrs codecs; status-diary reducer with causal (from-lane-continuity) rejection precedence (10.4.0, #4990); typed WorkObservation contract (10.1.0)",
+      "resolution_note": "The CLI consumes the public PyPI release train with a bounded range; 10.4.0 is the release-authority lock target (post-launch adoption off the 9.1.6 launch train to consume the reducer-precedence fix, spec-kitty-events#69)."
     },
     {
       "package": "spec-kitty-tracker",

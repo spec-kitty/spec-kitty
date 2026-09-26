@@ -350,7 +350,8 @@ class TestFixOrderPredicates:
 
 
 class TestResolveLanesManifestOrStop:
-    def test_missing_manifest_returns_none_with_no_side_effects(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_missing_manifest_returns_none_and_blocks_and_skips(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        # #4891: a genuinely absent lanes.json is fail-closed, not a silent no-op.
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
         activity_issues: list[str] = []
         skipped: list[AcceptanceCheckDiagnostic] = []
@@ -359,7 +360,14 @@ class TestResolveLanesManifestOrStop:
         result = _resolve_lanes_manifest_or_stop(tmp_path, activity_issues, skipped, blocked)
 
         assert result is None
-        assert activity_issues == [] and skipped == [] and blocked == []
+        assert len(blocked) == 1 and blocked[0].check == "lanes_manifest"
+        assert activity_issues != []
+        assert {item.check for item in skipped} == {
+            "acceptance_matrix_presence",
+            "acceptance_matrix_evidence",
+            "negative_invariants",
+            "acceptance_matrix_verdict",
+        }
 
     def test_corrupt_manifest_returns_none_with_blocked_and_skipped(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.lanes.persistence import CorruptLanesError

@@ -16,7 +16,7 @@ Plus focused coverage of the new pieces this WP introduces: the
 ``LanesManifest.planning_commit_sha`` schema slot (round-trip + backward
 compatibility), the ``_merge_recorded_planning_commit`` allocator helper
 (no-op / idempotent / conflict-fails-closed), and the
-``mission_finalize._capture_target_branch_tip`` producer helper.
+``core.vcs.git.capture_branch_tip`` producer helper.
 
 These tests use real git repos (subprocess), matching the project convention
 in ``tests/lanes/test_worktree_allocator.py`` and
@@ -368,28 +368,24 @@ class TestPlanningCommitShaSchema:
 
 
 # ---------------------------------------------------------------------------
-# mission_finalize._capture_target_branch_tip -- producer helper
+# core.vcs.git.capture_branch_tip -- producer helper
 # ---------------------------------------------------------------------------
 
 
 class TestCaptureTargetBranchTip:
     def test_returns_current_tip_sha(self, tmp_path: Path) -> None:
-        from specify_cli.cli.commands.agent.mission_finalize import (
-            _capture_target_branch_tip,
-        )
+        from specify_cli.core.vcs.git import capture_branch_tip
 
         repo = tmp_path / "repo"
         _init_repo(repo)
         expected = _git(repo, "rev-parse", "main")
 
-        assert _capture_target_branch_tip(repo, "main") == expected
+        assert capture_branch_tip(repo, "main") == expected
 
     def test_returns_none_for_unresolvable_branch(self, tmp_path: Path) -> None:
-        from specify_cli.cli.commands.agent.mission_finalize import (
-            _capture_target_branch_tip,
-        )
+        from specify_cli.core.vcs.git import capture_branch_tip
 
         repo = tmp_path / "repo"
         _init_repo(repo)
 
-        assert _capture_target_branch_tip(repo, "no-such-branch") is None
+        assert capture_branch_tip(repo, "no-such-branch") is None

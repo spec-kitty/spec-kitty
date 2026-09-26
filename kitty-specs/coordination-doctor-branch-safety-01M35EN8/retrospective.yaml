@@ -1,0 +1,112 @@
+schema_version: 1
+mission_id: 01M35EN8HGKWQHE4MAQ43E3J4H
+mission_slug: coordination-doctor-branch-safety-01M35EN8
+mission_number:
+friendly_name: Coordination Doctor Branch Safety
+mission_type: software-dev
+target_branch: issue-4920-coordination-doctor-branch-safety
+created_at: '2026-09-22T21:59:12.322130+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-09-22T21:59:12.322130+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-006
+not_helpful:
+- id: n-001
+  category: doc
+  summary: Generated specify output appended the substantive spec after an untouched placeholder template
+  evidence_refs:
+  - e-002
+  details: The duplicate template was removed during acceptance closeout; generation should replace rather than append.
+- id: n-002
+  category: tooling
+  summary: Pre-review coverage mapping classified the changed CLI surface as no_coverage
+  evidence_refs:
+  - e-006
+  details: The owning coordination suite had 183 passing tests, but the runtime could not map the cli composite directory to a test cone.
+gaps:
+- id: g-001
+  category: process
+  summary: Legacy issue-matrix materialization diverged from accepted event-sourced verdicts
+  evidence_refs:
+  - e-008
+  - e-009
+  details: The first mission review failed because issue-matrix.md retained #4920 as in-mission; canonical issue-verdict commands materialized issue-matrix.json and the final review passed.
+- id: g-002
+  category: tooling
+  summary: Shared gates still surface known linked-worktree and formatting baseline failures
+  evidence_refs:
+  - e-008
+  details: make test-fast failures remain tracked in #4873 and Ruff format ratchet debt in #4506; both were reproduced and classified before approval.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/coordination-doctor-branch-safety-01M35EN8/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/coordination-doctor-branch-safety-01M35EN8/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/coordination-doctor-branch-safety-01M35EN8/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/coordination-doctor-branch-safety-01M35EN8/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/coordination-doctor-branch-safety-01M35EN8/tasks/WP01-guard-coordination-fix-branch.md
+- id: e-006
+  kind: file
+  path: kitty-specs/coordination-doctor-branch-safety-01M35EN8/status.events.jsonl
+- id: e-007
+  kind: file
+  path: kitty-specs/coordination-doctor-branch-safety-01M35EN8/analysis-report.md
+- id: e-008
+  kind: file
+  path: kitty-specs/coordination-doctor-branch-safety-01M35EN8/mission-review.md
+- id: e-009
+  kind: file
+  path: kitty-specs/coordination-doctor-branch-safety-01M35EN8/mission-review-final.md
+generator_version: '1.0'
+provenance_history: []

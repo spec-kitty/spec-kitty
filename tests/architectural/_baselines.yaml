@@ -415,9 +415,12 @@ test_cli_error_surface_seam:
   # review/lock.py::_get_isolation_config) with the same safe-degrade shape as
   # the intake pair; 1 defensive plan.md scan
   # (core/wps_manifest.py::_plan_contains_implementation_concerns) that
-  # degrades to False on OSError. Scan-derived (not assumed zero) — see the
-  # gate test file's module docstring for the reproduction method.
-  justified_raw_read_residuals: 7
+  # degrades to False on OSError; 1 lock-owner ownership probe
+  # (merge/state.py::read_merge_lock_owner, #5001) whose absent/unreadable/
+  # legacy-body lock is a valid unowned→None result, not an error surface.
+  # Scan-derived (not assumed zero) — see the gate test file's module
+  # docstring for the reproduction method.
+  justified_raw_read_residuals: 8
 
 # tests/architectural/test_mutation_ownership_routing.py — the non-vacuous
 # FS-op ownership-routing gate (mission ownership-boundary-preservation-01M32KEN
@@ -440,4 +443,12 @@ test_mutation_ownership_routing:
   # op is the empty-only `root.rmdir()` on the manifest-owned branch (raises on a
   # non-empty dir), a genuinely-safe empty-only-rmdir exemplar in the same class
   # already rationalized above.
-  destructive_op_allowlist: 56
+  # justification (56 -> 61, mission asset-preservation-migrate-fetch / #4961 #4960 #4989):
+  # the FR-005 fix routes runtime/migrate.py's shared-asset removal through the ownership
+  # guard (its one remaining raw op is an empty-only `Path.rmdir` after the routed removal)
+  # and adds doctrine/sources/git_source.py to the census as scanned-not-routed — its 4
+  # raw `shutil.rmtree` sites are all ephemeral cleanup of the `.tmp-<uuid>` clone or the
+  # `.old-<uuid>` move-aside backup THIS fetch created, never the operator's target_dir,
+  # each individually rationalized in the allowlist (same ephemeral-temp/empty-only-rmdir
+  # classes already rationalized above).
+  destructive_op_allowlist: 61

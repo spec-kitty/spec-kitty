@@ -25,7 +25,7 @@ an orphan. See ``research.md`` D3/D4/D7 and
 These tests drive the REAL ``finalize_tasks`` entry point against a REAL git
 repo — mirroring ``test_issue_4141_refresh_planning_commit.py``'s harness —
 and produce the orphan via an ACTUAL ``git rebase`` (not a synthetic/fake
-SHA), so ``_capture_target_branch_tip`` and the classifier's two git
+SHA), so ``capture_branch_tip`` and the classifier's two git
 predicates resolve real objects:
 
 * ``test_plain_finalize_fails_closed_on_orphaned_pin`` — the default (no

@@ -11,6 +11,8 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
+import shutil
 import subprocess
 import tarfile
 import zipfile
@@ -93,7 +95,11 @@ class _GitRunRecorder:
         text: bool = True,
         check: bool = False,
         env: dict[str, str] | None = None,
+        cwd: str | None = None,
+        **_extra: Any,
     ) -> subprocess.CompletedProcess[str]:
+        # ``cwd``/``**_extra`` accept the ``ref_advance`` call shape (it passes
+        # ``cwd=`` and is delegated to by ``_update``'s dirty/ahead checks).
         self.calls.append(argv)
         self.envs.append(env)
         for keyword, effect in self.side_effects.items():
@@ -121,6 +127,54 @@ def _make_fake_clone(directives_count: int = 2):
             (directives / f"DIR-{i}.directive.yaml").write_text("id: x\n")
 
     return _effect
+
+
+_GIT_AVAILABLE = shutil.which("git") is not None
+_requires_git = pytest.mark.skipif(not _GIT_AVAILABLE, reason="git executable not available")
+
+
+def _git_env() -> dict[str, str]:
+    """Deterministic, non-interactive git identity for scratch repos."""
+    return {
+        **os.environ,
+        "GIT_TERMINAL_PROMPT": "0",
+        "GIT_AUTHOR_NAME": "Test",
+        "GIT_AUTHOR_EMAIL": "test@example.com",
+        "GIT_COMMITTER_NAME": "Test",
+        "GIT_COMMITTER_EMAIL": "test@example.com",
+    }
+
+
+def _run_real_git(cwd: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+    proc = subprocess.run(
+        ["git", *args],
+        cwd=str(cwd),
+        capture_output=True,
+        text=True,
+        check=False,
+        env=_git_env(),
+    )
+    if check and proc.returncode != 0:
+        raise AssertionError(f"git {' '.join(args)} failed in {cwd}: {proc.stderr or proc.stdout}")
+    return proc
+
+
+def _seed_bare_remote(tmp_path: Path, *, tag: str | None = None) -> tuple[Path, str]:
+    """Create a bare remote with one seed commit; return (remote_path, seed_sha)."""
+    seed = tmp_path / "seed"
+    seed.mkdir()
+    _run_real_git(seed, "init", "-b", "main")
+    _run_real_git(seed, "config", "commit.gpgsign", "false")
+    (seed / "directives").mkdir()
+    (seed / "directives" / "SEED.directive.yaml").write_text("id: seed\n")
+    _run_real_git(seed, "add", "-A")
+    _run_real_git(seed, "commit", "-m", "seed")
+    seed_sha = _run_real_git(seed, "rev-parse", "HEAD").stdout.strip()
+    if tag is not None:
+        _run_real_git(seed, "tag", tag)
+    remote = tmp_path / "remote.git"
+    _run_real_git(tmp_path, "clone", "--bare", str(seed), str(remote))
+    return remote, seed_sha
 
 
 class TestGitSource:
@@ -172,25 +226,35 @@ class TestGitSource:
         (target / "directives").mkdir()
         (target / "directives" / "A.yaml").write_text("id: a\n")
 
+        # Re-pinned for WP02 (#4989 / F9): between `fetch` and `reset`, `_update`
+        # now delegates a dirty check (`ls-tree` + `status`, via `ref_advance`) and
+        # an ahead check (`rev-list --count`). The scripted sequence models a
+        # clean, not-ahead pack so the reset still proceeds. `ref_advance` has its
+        # own `subprocess.run`, so both modules are patched to the one recorder.
         runner = _GitRunRecorder(
             script=[
-                (0, "", ""),  # fetch
-                (0, "", ""),  # reset
+                (0, "", ""),  # fetch --tags origin
+                (0, "", ""),  # ls-tree (target tree paths) -> empty
+                (0, "", ""),  # status --porcelain --ignored -> clean
+                (0, "0\n", ""),  # rev-list --count origin/HEAD..HEAD -> not ahead
+                (0, "", ""),  # reset --hard origin/HEAD
                 (0, "v1.3.0\n", ""),  # describe
             ],
         )
         monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
+        monkeypatch.setattr("specify_cli.git.ref_advance.subprocess.run", runner)
 
         result = GitSource(url="git@example.com:org/d.git").fetch(target)
 
         assert result.ok is True
         assert result.pack_version == "v1.3.0"
-        # First call must be `git fetch`, second must be `git reset`. No clone.
-        invocations = [call[1] if len(call) > 1 else "" for call in runner.calls]
+        # `git fetch` first; a `git reset` follows (after the interposed dirty/ahead
+        # checks) and targets the remote-tracking ref; never a clone on the update path.
         assert "fetch" in runner.calls[0]
-        assert "reset" in runner.calls[1]
+        reset_index = next(i for i, call in enumerate(runner.calls) if "reset" in call)
+        assert reset_index > 0
+        assert runner.calls[reset_index][-1] == "origin/HEAD"
         assert not any(part == "clone" for call in runner.calls for part in call)
-        assert invocations  # silence the unused-var lint
 
     def test_first_install_failure_cleans_up(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "doctrine"
@@ -278,6 +342,175 @@ class TestGitSource:
         assert result.ok is True
         # 2nd call must be checkout to ``ref``.
         assert runner.calls[1][-1] == "v1.0.0"
+
+    # -- WP02 regressions (#4960, #4989): preservation of hand-authored packs --
+
+    @pytest.mark.regression
+    @_requires_git
+    def test_first_install_refuses_and_preserves_nonempty_dir(self, tmp_path: Path) -> None:
+        """#4960: a pre-existing non-empty local_path survives a failing clone.
+
+        The old ``_first_install`` did ``git clone <url> <target>`` (which fails
+        precisely because the dir is non-empty) then ``rmtree(target)`` — deleting
+        the hand-authored pack. The fix refuses up front; only a temp is ever
+        removed.
+        """
+        target = tmp_path / "pack"
+        (target / "directives").mkdir(parents=True)
+        mine = target / "directives" / "MINE.directive.yaml"
+        mine.write_text("id: mine\n")
+        bad_url = str(tmp_path / "does-not-exist.git")
+
+        result = GitSource(url=bad_url, inject_token=False).fetch(target)
+
+        assert result.ok is False
+        assert mine.read_text() == "id: mine\n"  # hand-authored pack preserved
+        assert not any(child.name.startswith(".tmp-") for child in tmp_path.iterdir())
+
+    @pytest.mark.regression
+    @_requires_git
+    def test_first_install_refuses_successful_clone_into_nonempty_dir(self, tmp_path: Path) -> None:
+        """#4960: a VALID clone into a non-empty (non-.git) target is refused, not clobbered.
+
+        The other preservation tests drive ``_first_install`` through a FAILING
+        clone (bad_url / no-such-ref), where the temp-sibling design protects
+        ``target_dir`` regardless of the up-front refusal guard — so none of them
+        actually exercises the guard. This pins the PRIMARY #4960 protection
+        directly: a clone that WOULD succeed must still be refused up front,
+        because ``target_dir`` holds hand-authored content a successful promote
+        would overwrite. Disabling the ``if target_dir.exists() and
+        self._is_non_empty(...)`` refusal makes this clone return ok=True and
+        silently replace ``MINE.yaml`` — exactly the #4960 clobber.
+        """
+        remote, _ = _seed_bare_remote(tmp_path)
+        target = tmp_path / "pack"
+        target.mkdir()  # non-empty, non-.git dir: a hand-authored pack
+        mine = target / "MINE.yaml"
+        original = b"id: mine\ncustom: hand-authored\n"
+        mine.write_bytes(original)
+
+        # A bare, valid remote: the clone WOULD succeed if not refused up front.
+        result = GitSource(url=str(remote), inject_token=False).fetch(target)
+
+        assert result.ok is False  # refused by the #4960 up-front guard
+        assert mine.read_bytes() == original  # hand-authored file NOT clobbered
+        # The cloned pack content never landed on the target.
+        assert not (target / ".git").exists()
+        assert not (target / "directives" / "SEED.directive.yaml").exists()
+        assert not any(child.name.startswith(".tmp-") for child in tmp_path.iterdir())
+
+    @pytest.mark.regression
+    @_requires_git
+    def test_first_install_checkout_failure_removes_only_temp(self, tmp_path: Path) -> None:
+        """#4960: a checkout failure removes only the temp; the caller's dir survives."""
+        remote, _ = _seed_bare_remote(tmp_path)
+        target = tmp_path / "pack"
+        target.mkdir()  # pre-existing EMPTY dir (the _resolve_git caller pattern)
+
+        result = GitSource(url=str(remote), ref="no-such-ref", inject_token=False).fetch(target)
+
+        assert result.ok is False
+        assert target.exists()  # NOT rmtree'd by the checkout-failure path
+        assert list(target.iterdir()) == []
+        assert not any(child.name.startswith(".tmp-") for child in tmp_path.iterdir())
+
+    @pytest.mark.regression
+    @_requires_git
+    def test_first_install_permits_empty_dir(self, tmp_path: Path) -> None:
+        """F8: a pre-existing EMPTY local_path is permitted (the _resolve_git caller passes one)."""
+        remote, _ = _seed_bare_remote(tmp_path)
+        target = tmp_path / "pack"
+        target.mkdir()
+
+        result = GitSource(url=str(remote), inject_token=False).fetch(target)
+
+        assert result.ok is True
+        assert (target / ".git").exists()
+        assert (target / "directives" / "SEED.directive.yaml").read_text() == "id: seed\n"
+
+    @pytest.mark.regression
+    @_requires_git
+    def test_update_preserves_uncommitted_local_edits(self, tmp_path: Path) -> None:
+        """#4989: _update must not ``reset --hard`` away uncommitted local pack edits."""
+        remote, _ = _seed_bare_remote(tmp_path)
+        target = tmp_path / "pack"
+        _run_real_git(tmp_path, "clone", str(remote), str(target))
+        edited = target / "directives" / "SEED.directive.yaml"
+        edited.write_text("id: seed\nlocal: edit\n")  # uncommitted dirt
+
+        result = GitSource(url=str(remote), ref="main", inject_token=False).fetch(target)
+
+        assert result.ok is False
+        assert edited.read_text() == "id: seed\nlocal: edit\n"  # preserved in place
+
+    @pytest.mark.regression
+    @_requires_git
+    def test_update_preserves_committed_ahead_history(self, tmp_path: Path) -> None:
+        """#4989/F7: a clean worktree with a local commit ahead of origin is not orphaned.
+
+        Guards against the naive fix (blanket ``reset --hard origin/<ref>`` without
+        an ahead check), which would orphan the local commit. The correct fix
+        refuses, leaving HEAD — and therefore the commit — reachable.
+        """
+        remote, _ = _seed_bare_remote(tmp_path)
+        target = tmp_path / "pack"
+        _run_real_git(tmp_path, "clone", str(remote), str(target))
+        (target / "directives" / "LOCAL.directive.yaml").write_text("id: local\n")
+        _run_real_git(target, "add", "-A")
+        _run_real_git(target, "commit", "-m", "local ahead commit")
+        local_sha = _run_real_git(target, "rev-parse", "HEAD").stdout.strip()
+
+        result = GitSource(url=str(remote), ref="main", inject_token=False).fetch(target)
+
+        assert result.ok is False
+        contains = _run_real_git(target, "branch", "--contains", local_sha, check=False)
+        assert contains.returncode == 0 and contains.stdout.strip() != ""  # NOT orphaned
+        assert (target / "directives" / "LOCAL.directive.yaml").exists()
+
+    @pytest.mark.regression
+    @_requires_git
+    def test_update_branch_ref_advances_to_origin(self, tmp_path: Path) -> None:
+        """#4989 sub-bug B: ref=<branch> resets to origin/<branch> so the pack advances."""
+        remote, _ = _seed_bare_remote(tmp_path)
+        target = tmp_path / "pack"
+        _run_real_git(tmp_path, "clone", str(remote), str(target))
+
+        # Advance the remote's main via an independent clone.
+        work2 = tmp_path / "work2"
+        _run_real_git(tmp_path, "clone", str(remote), str(work2))
+        (work2 / "directives" / "NEW.directive.yaml").write_text("id: new\n")
+        _run_real_git(work2, "add", "-A")
+        _run_real_git(work2, "commit", "-m", "advance")
+        _run_real_git(work2, "push", "origin", "main")
+
+        result = GitSource(url=str(remote), ref="main", inject_token=False).fetch(target)
+
+        assert result.ok is True
+        assert (target / "directives" / "NEW.directive.yaml").read_text() == "id: new\n"
+
+    @pytest.mark.regression
+    @_requires_git
+    def test_update_tag_and_sha_pinned_refs_resolve(self, tmp_path: Path) -> None:
+        """F6: tag- and SHA-pinned refs reset to the bare ref (no ``origin/<ref>`` regression)."""
+        # Tag-pinned pack.
+        tag_root = tmp_path / "tag"
+        tag_root.mkdir()
+        tag_remote, _ = _seed_bare_remote(tag_root, tag="v1.0.0")
+        tag_target = tag_root / "pack"
+        _run_real_git(tag_root, "clone", str(tag_remote), str(tag_target))
+        tag_result = GitSource(url=str(tag_remote), ref="v1.0.0", inject_token=False).fetch(tag_target)
+        assert tag_result.ok is True
+        assert (tag_target / "directives" / "SEED.directive.yaml").read_text() == "id: seed\n"
+
+        # SHA-pinned pack.
+        sha_root = tmp_path / "sha"
+        sha_root.mkdir()
+        sha_remote, seed_sha = _seed_bare_remote(sha_root)
+        sha_target = sha_root / "pack"
+        _run_real_git(sha_root, "clone", str(sha_remote), str(sha_target))
+        sha_result = GitSource(url=str(sha_remote), ref=seed_sha, inject_token=False).fetch(sha_target)
+        assert sha_result.ok is True
+        assert (sha_target / "directives" / "SEED.directive.yaml").read_text() == "id: seed\n"
 
 
 # ---------------------------------------------------------------------------

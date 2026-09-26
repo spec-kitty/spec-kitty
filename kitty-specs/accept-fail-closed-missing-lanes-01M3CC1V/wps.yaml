@@ -1,0 +1,25 @@
+work_packages:
+  - id: WP01
+    title: "Fail-closed accept gate on absent lanes.json"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/acceptance/gates_core.py"
+      - "tests/characterization/test_trio_pure_cores.py"
+      - "tests/cross_cutting/misc/test_acceptance_support.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-005
+      - NFR-001
+      - NFR-002
+      - NFR-003
+    cross_cutting: false
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+    prompt_file: "tasks/WP01-fail-closed-accept-gate.md"

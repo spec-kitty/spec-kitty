@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "mission_slug": "windows-upgrade-mode-fidelity-01M35C25",
+  "mission_id": "01M35C25ACHT6NBVRD0K8RN0T0",
+  "mission_branch": "kitty/mission-windows-upgrade-mode-fidelity-01M35C25",
+  "target_branch": "fix/windows-upgrade-mode-fidelity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/kernel/no_follow.py",
+        "src/specify_cli/skills/command_installer.py",
+        "src/specify_cli/skills/installer.py",
+        "src/specify_cli/tool_surface/providers/managed_skills.py",
+        "tests/architectural/_exemptions/no_follow_symlinks_apply.txt",
+        "tests/architectural/test_no_follow_symlinks_apply_ban.py",
+        "tests/specify_cli/skills/test_installer.py",
+        "tests/specify_cli/tool_surface/providers/test_managed_skills_host_aware.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-22T20:34:34.939865+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "e884e8e04ddb243824b497fd7bfd200d1f056d2e"
+}

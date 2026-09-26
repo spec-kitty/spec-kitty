@@ -56,8 +56,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from mission_runtime import (
+    CommitTarget,
+    MissionArtifactKind,
     MissionTopology,
     classify_topology,
+    resolve_write_target_or_degrade,
     routes_through_coordination,
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
@@ -76,6 +79,7 @@ from specify_cli.missions._read_path_resolver import (
 
 __all__ = [
     "CoordinationBranchDeleted",
+    "CoordinationWorktreeUnmaterialized",
     "ResolvedStatusSurface",
     "WorktreeRegistryUnavailable",
     "WorktreeTopology",
@@ -84,6 +88,7 @@ __all__ = [
     "is_under_worktrees_segment",
     "read_worktree_registry",
     "resolve_declared_mid8",
+    "resolve_for_write",
     "resolve_status_surface",
     "resolve_status_surface_with_anchor",
 ]
@@ -262,6 +267,105 @@ class CoordinationBranchDeleted(StatusReadPathNotFound):  # type: ignore[misc, u
         supplied, so the ``or ""`` coercion below is unreachable on any real
         call path (kept so a future caller cannot crash the data-loss raise
         with a ``None`` branch).
+        """
+        return cls(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            mid8=mid8,
+            coordination_branch=coordination_branch or "",
+            coord_candidate=coord_feature_dir(repo_root, mission_slug, mid8),
+            primary_candidate=primary_candidate,
+        )
+
+
+# See the ``CoordinationBranchDeleted`` comment above this class for why the
+# ``StatusReadPathNotFound`` subclass triggers a mypy config artifact
+# (``src/specify_cli/missions/`` is excluded from ``[tool.mypy] exclude``) that
+# is narrowly suppressed here for the same reason, with the same pairing of
+# codes for the single-file vs. full-package mypy invocations.
+class CoordinationWorktreeUnmaterialized(StatusReadPathNotFound):  # type: ignore[misc, unused-ignore]
+    """#4959 (mission ``coord-read-fail-closed``, DM-01M38VWD): ``coordination_branch``
+    is declared in ``meta.json`` AND still exists in git, but the coordination
+    worktree has never been materialized on disk (the fresh-clone / CI /
+    removed-worktree window — :attr:`~specify_cli.missions._read_path_resolver.
+    CoordState.UNMATERIALIZED`).
+
+    Before this fix, a coord-partition read in this state silently substituted
+    the empty PRIMARY checkout for the (not-yet-existing) coord surface —
+    readers then acted on that emptiness as if it were the real document (a
+    tracer writer would clobber from its default header; a no-catch reader
+    would treat "no content" as "nothing was ever written"). The branch is NOT
+    lost — unlike :class:`CoordinationBranchDeleted` — so the actionable
+    recovery is to MATERIALIZE the coordination worktree, never to flatten the
+    mission (flattening a coord branch that still carries real history would
+    be destructive and is the wrong recovery here).
+
+    Subclasses :class:`StatusReadPathNotFound` so every existing fail-closed
+    handler keeps catching it (sanctioned read-only degraders such as
+    ``mission_runtime.read_dir_degrade`` and ``review.cycle`` continue to
+    degrade unchanged), while the distinct ``error_code`` lets a caller that
+    cares route on the materialize-vs-flatten distinction.
+    """
+
+    error_code: str = "COORDINATION_WORKTREE_UNMATERIALIZED"
+
+    def __init__(
+        self,
+        *,
+        repo_root: Path,
+        mission_slug: str,
+        mid8: str,
+        coordination_branch: str,
+        coord_candidate: Path,
+        primary_candidate: Path,
+    ) -> None:
+        self.coordination_branch = coordination_branch
+        self.next_step = (
+            f"The coordination branch {coordination_branch!r} declared in "
+            f"meta.json exists in git, but its coordination worktree has not "
+            f"been materialized yet. It will self-materialize on the "
+            f"mission's first coordination-branch write, or you can "
+            f"materialize it now by running "
+            f"`spec-kitty doctor workspaces --fix`. Keep the "
+            f"`coordination_branch` key in meta.json as-is — the branch is "
+            f"not lost, only not yet checked out."
+        )
+        super().__init__(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            mid8=mid8,
+            coord_candidate=coord_candidate,
+            primary_candidate=primary_candidate,
+        )
+
+    def __str__(self) -> str:  # pragma: no cover - trivial formatting
+        return f"Coordination branch {self.coordination_branch!r} for mission {self.mission_slug!r} is unmaterialized. {self.next_step}"
+
+    @classmethod
+    def for_mission(
+        cls,
+        *,
+        repo_root: Path,
+        mission_slug: str,
+        mid8: str,
+        coordination_branch: str | None,
+        primary_candidate: Path,
+    ) -> CoordinationWorktreeUnmaterialized:
+        """Build the #4959 unmaterialized-worktree error payload.
+
+        Mirrors :meth:`CoordinationBranchDeleted.for_mission` — the ONE
+        construction site for the ``UNMATERIALIZED`` → fail-closed policy, so
+        every seam consumer builds the same payload shape instead of
+        hand-rolling it. ``coord_candidate`` is composed via the same
+        :func:`~specify_cli.missions._read_path_resolver.coord_feature_dir`
+        single grammar as the sibling; ``primary_candidate`` stays a caller
+        parameter because its provenance genuinely differs per call site.
+
+        ``coordination_branch`` is ``str | None`` only defensively:
+        ``probe_coord_state`` can answer ``UNMATERIALIZED`` only when a
+        branch was supplied, so the ``or ""`` coercion below is unreachable
+        on any real call path (kept so a future caller cannot crash this
+        raise with a ``None`` branch).
         """
         return cls(
             repo_root=repo_root,
@@ -501,6 +605,121 @@ def _coord_branch_exists(repo_root: Path, coord_branch: str) -> bool:
             if branch == coord_branch:
                 return True
     return False
+
+
+def _coord_branch_is_local_head(repo_root: Path, coord_branch: str) -> bool:
+    """Return whether *coord_branch* exists as a LOCAL head (``refs/heads/``).
+
+    Distinct from :func:`_coord_branch_exists`, which treats a remote-only branch
+    (``refs/remotes/origin/<branch>``) as present so the READ path never fires the
+    #2614 deleted-branch false-positive on a fresh clone. The WRITE gate (S-C /
+    #4970) needs the STRICTER signal: only a local head can be checked out into a
+    coordination worktree without forking from the primary branch, so a WRITE that
+    would otherwise self-materialize the coord surface is safe ONLY when the branch
+    is a local head. Fails closed — an unreadable/foreign git context returns
+    ``False`` (no local head proven ⇒ the WRITE must refuse rather than clobber).
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"refs/heads/{coord_branch}"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return False
+    return result.returncode == 0
+
+
+def coord_branch_has_committed_artifact(
+    repo_root: Path,
+    coord_branch: str,
+    mission_slug: str,
+    kind: MissionArtifactKind,
+) -> bool:
+    """Return whether *coord_branch* carries a COMMITTED artifact of *kind*.
+
+    The committed-content probe the S-C write gate consults before sanctioning a
+    self-materialization write (FR-006 / #4970). A ``CoordState.UNMATERIALIZED``
+    local-head coordination branch that ALREADY carries committed matrix content is
+    a *stale* head, not a virgin first-write window: materializing over it would
+    fork from the primary branch and clobber committed coordination state.
+
+    The probe scans the WHOLE ``kitty-specs/<mission_slug>/`` subtree of
+    *coord_branch* (``git ls-tree -r``) and matches on the artifact BASENAME, so a
+    path-drifted committed matrix (one that migrated to a non-default sub-path) is
+    still detected rather than mis-read as "absent" (post-plan F2). Both
+    ``issue-matrix.json`` and ``issue-matrix.md`` map to ``ISSUE_MATRIX``, so a
+    not-yet-migrated legacy mission is protected too.
+
+    Fail-closed (mirrors :func:`_coord_branch_is_local_head`'s posture): an
+    unreadable git context — a missing/foreign ref, or the git binary absent, i.e.
+    anything other than a CLEAN, readable "subtree absent" — returns ``True``
+    (treated as present ⇒ the caller REFUSEs). The pathspec form ``git ls-tree -r
+    --name-only <branch> -- <subtree>`` returns exit 0 with EMPTY output for a
+    readable branch whose subtree simply holds no such file (⇒ ``False``, a genuine
+    first-write) and a non-zero exit for an unresolvable ref (⇒ fail-closed
+    ``True``), so the two cases never collapse together.
+    """
+    basenames = _artifact_basenames_for_kind(kind)
+    if not basenames:
+        return False
+    subtree = f"kitty-specs/{mission_slug}/"
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "ls-tree", "-r", "--name-only", coord_branch, "--", subtree],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return True
+    if result.returncode != 0:
+        return True
+    return any(line.rsplit("/", 1)[-1] in basenames for line in result.stdout.splitlines())
+
+
+def _artifact_basenames_for_kind(kind: MissionArtifactKind) -> frozenset[str]:
+    """Return the committed basenames that classify to *kind* (placement authority).
+
+    Derived by inverting ``mission_runtime.artifacts``'s basename→kind classifier —
+    the SAME authority that resolves the artifact home — never a hardcoded
+    ``issue-matrix.{json,md}`` literal, so the probe path can never drift out of
+    sync with the classifier (post-plan F2).
+    """
+    from mission_runtime import _MISSION_FILE_KIND_BY_BASENAME
+
+    return frozenset(name for name, mapped in _MISSION_FILE_KIND_BY_BASENAME.items() if mapped is kind)
+
+
+def resolve_for_write(
+    repo_root: Path,
+    mission_slug: str,
+    kind: MissionArtifactKind,
+) -> CommitTarget:
+    """Fail-closed WRITE-surface resolution — the thin write-side entry point (D1 / S-C).
+
+    The companion of the loud-primary-fallback READ path
+    (:func:`resolve_status_surface_with_anchor`, unchanged): one authority, two
+    postures. Reads may degrade to the primary checkout; a terminus WRITE must
+    NOT — on an unresolved/unmaterialized coordination surface it refuses rather
+    than overwrite committed coordination state (#4970).
+
+    Deliberately THIN (RN-F1): it does not re-implement resolution or the
+    materialization decision. It delegates BOTH to the real degrade point,
+    :func:`mission_runtime.resolve_write_target_or_degrade` in its
+    ``terminus_write`` mode (which resolves via the ONE placement authority and
+    then consults :func:`mission_runtime.assert_coord_write_materialized`), so the
+    write chain and this helper can never drift.
+
+    Returns the resolved :class:`~mission_runtime.CommitTarget`.
+
+    Raises:
+        ActionContextError: the mission cannot be resolved, or (code
+            ``COORD_WRITE_SURFACE_UNMATERIALIZED``) a coord-routing write's
+            coordination surface is unmaterialized/unresolved on this checkout.
+    """
+    return resolve_write_target_or_degrade(repo_root, mission_slug, kind, degrade_ref=None, terminus_write=True)
 
 
 @dataclass(frozen=True)

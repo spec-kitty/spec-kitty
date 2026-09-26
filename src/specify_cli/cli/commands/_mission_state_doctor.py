@@ -320,7 +320,17 @@ def _run_mission_repair(
             console.print("[green]Rebuilt lanes.json from the event log for:[/green]")
             for mission_result in lanes_rebuilt:
                 console.print(f"  - {mission_result.mission_slug}", soft_wrap=True)
-        console.print(f"Manifest: {report.manifest_path}")
+        # #4928 WP03: the audit trail (manifest + any quarantine) now lives at a
+        # git-TRACKED path so it survives ``git clean``. --fix writes only — it
+        # never commits (C-002/NFR-001); tell the operator to commit it so the
+        # record is preserved. Print the manifest path ALWAYS (every run leaves a
+        # manifest); print the quarantine path + count only when rows were moved.
+        console.print(f"Audit trail written to {report.manifest_path} (tracked, uncommitted).")
+        console.print("Commit it to preserve the record of this repair.")
+        quarantined = summary.get("quarantined_rows", 0)
+        if isinstance(quarantined, int) and quarantined > 0 and report.quarantine_root_path:
+            console.print(f"{quarantined} row(s) quarantined verbatim to {report.quarantine_root_path}.")
+            console.print("Commit the audit trail before running 'git clean'.")
 
     _emit_mission_state(report, json_output=json_output, pretty_renderer=_pretty_repair)
     if any(result.status == "error" for result in report.missions):

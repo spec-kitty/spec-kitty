@@ -1,0 +1,189 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: SPEC-ARCH-001
+    lens: "Fixture redesign integrity (FR-002 / Edge Case 1)"
+    severity: 4
+    title: "FR-002's proposed lever mechanism (shared venv/editable-install groundwork) does not correspond to any real per-invocation cost in the actual fixture code"
+    evidence:
+      - artifact: "spec.md § FR-002 (\"reduced by real restructuring (e.g. sharing venv/editable-install groundwork across the tests/e2e/ shard)\")"
+      - artifact: "spec.md § Edge Cases, item 1 (\"a shared venv/editable-install reused across the tests/e2e/ shard\")"
+      - code: "tests/e2e/conftest.py:390-452 (fresh_e2e_project body: git init/config x2/spec-kitty init via run_cli_subprocess/git add/commit — no venv or editable-install construction anywhere in this fixture)"
+      - code: "tests/test_isolation_helpers.py:35-41 (get_venv_python() just resolves an existing python path — os.getenv(\"SPEC_KITTY_TEST_VENV\") or sys.executable — it builds nothing; there is no per-test venv/editable-install cost to amortize)"
+    claim: >
+      FR-002 and Edge Case 1 both frame the redesign lever as "sharing cheaper-to-build
+      groundwork (e.g. a pre-built venv/editable install) across the tests/e2e/ shard."
+      But the actual fixture (tests/e2e/conftest.py:390-452) never builds a venv or
+      performs an editable install per invocation — it resolves an already-existing
+      python executable via get_venv_python(), which the whole test session already
+      shares globally (built once by `make dev-setup` / CI setup, not per-fixture-call).
+      The measured 29.36s "setup" cost (readiness evidence, corroborated in spec.md's
+      own Evidence section) is dominated by three real subprocess operations — `git
+      init`, an actual `spec-kitty init` CLI invocation that does real charter/doctrine
+      templating work, and `git add`+`commit` — none of which is a venv/editable-install
+      cost. Compounding this, the spec's own Evidence section states
+      `fresh_e2e_project` has exactly ONE consumer in the whole suite, so there is
+      nothing today that redundantly re-pays a shareable per-fixture cost within this
+      fixture's own scope — "amortize by sharing across the shard" cannot reduce a
+      cost that is already paid exactly once. A WP author following FR-002's literal
+      wording could spend real effort building a "shared venv" mechanism that does not
+      exist as a bottleneck, discover it saves nothing, and have to re-derive the actual
+      lever (e.g. replacing subprocess git plumbing with a faster mechanism, or reducing
+      the fixture's own scaffolding steps) from scratch — the FR-without-coverage /
+      contradicts-existing-code failure mode this rubric flags at severity 4.
+    remediation: >
+      Rewrite FR-002 (and Edge Case 1's parenthetical) to describe the redesign lever
+      in terms that match what the fixture actually costs: the real candidates are (a)
+      replacing the four `subprocess.run(["git", ...])` calls with a faster/leaner git
+      mechanism (e.g. porcelain library calls, or seeding a pre-built bare-repo template
+      the way `tests/conftest.py`'s `temp_repo` fixture already does via
+      `tests/_support/git_template.py::clone_template`), and/or (b) reducing what the
+      `spec-kitty init` subprocess call itself does for this fixture's specific needs.
+      Drop the "shared venv/editable-install" framing entirely unless the implementer
+      can show a concrete session-scoped cost it actually amortizes — as written it
+      describes a lever that does not exist against this code.
+
+  - id: SPEC-ARCH-002
+    lens: "Fixture redesign integrity (FR-002 / Edge Case 1)"
+    severity: 4
+    title: "The fixture's documented-contract preservation constraint (\"truly clean, from-scratch project\") lives only in Edge Cases prose — no FR, Acceptance Scenario, or Success Criterion makes it a testable requirement"
+    evidence:
+      - artifact: "spec.md § Edge Cases, item 1 (states the preservation requirement in full)"
+      - artifact: "spec.md § FR-002 (does not itself state or cross-require the isolation-preservation constraint beyond a \"see Edge Cases\" pointer)"
+      - artifact: "spec.md § Success Criteria SC-001..SC-005 (none of the five asserts anything about fixture isolation, cross-test state leakage, or the fixture's \"does NOT copy .kittify\" docstring contract)"
+      - code: "tests/e2e/conftest.py:392-398 (fresh_e2e_project docstring: \"Unlike e2e_project, this fixture does NOT copy .kittify from the source checkout... exercises the operator path from a truly clean starting state\")"
+      - code: "tests/e2e/test_charter_epic_golden_path.py:485 (the one existing runtime check in this direction: asserts .kittify/doctrine does not exist pre-synthesize — covers \"no hand-seeded doctrine,\" not venv/editable-install state leakage from a new shared-groundwork mechanism)"
+    claim: >
+      Edge Case 1 correctly names a real risk (a shared venv/editable-install reused
+      across the e2e shard could leak state between the golden-path test and other
+      tests, or silently violate the fixture's own "truly clean, from-scratch project"
+      contract), but this is the ONLY place in the spec where the constraint appears.
+      FR-002's requirement text stops at describing the cost-reduction goal; none of
+      the five Success Criteria, none of the three Acceptance Scenarios under User
+      Story 1, and no Constraint row requires verifying that the redesigned fixture
+      still produces a from-scratch, non-.kittify-copying project, or that no other
+      `tests/e2e/` test is affected by whatever the redesign shares. Per the SDD
+      convention this repo's own charter enforces (ATDD-first / C-011: "the WP cannot
+      start coding until at least one failing-first ATDD test exists that pins the
+      user-observable behaviour"), an Edge Case entry that never becomes a testable
+      AC is not binding on implementation — a WP could satisfy every literal FR/SC in
+      this spec while silently breaking fixture isolation, and nothing would catch it
+      before merge.
+    remediation: >
+      Add an explicit Acceptance Scenario (or a new Constraint, e.g. C-006) under User
+      Story 1 stating: "Given the fresh_e2e_project redesign lands, When the fixture
+      runs, Then the produced project still contains no .kittify content copied from
+      the source checkout (the existing `.kittify/doctrine` absence assertion at
+      tests/e2e/test_charter_epic_golden_path.py:485 keeps passing unmodified), and any
+      newly-shared groundwork (venv, template, or otherwise) is verified not to leak
+      state into or out of any other `tests/e2e/` test via a new isolation assertion or
+      a full `tests/e2e/` run showing no new cross-test coupling." Cross-reference this
+      new AC from FR-002 itself, not only from the Edge Cases section, so it is visibly
+      binding rather than descriptive color.
+
+  - id: SPEC-ARCH-003
+    lens: "Contracts / evidence accuracy"
+    severity: 3
+    title: "C-003 and Key Entities misattribute the golden path's actual CLI-invocation helper (_run_cli) to tests/e2e/conftest.py; it is defined in tests/conftest.py"
+    evidence:
+      - artifact: "spec.md § C-003 (\"`_run_cli` / `run_cli_subprocess` in `tests/e2e/conftest.py`\")"
+      - code: "tests/conftest.py:1318-1338 (the `run_cli` fixture, whose inner helper is literally named `_run_cli` at line 1327, is defined here — not in tests/e2e/conftest.py)"
+      - code: "tests/e2e/test_charter_epic_golden_path.py:66,808 (`RunCli` type alias and the `run_cli` fixture parameter the test actually consumes for all 12 subprocess calls resolve to tests/conftest.py's fixture, per pytest fixture resolution — tests/e2e/ has no conftest.py override of `run_cli`)"
+      - code: "tests/test_isolation_helpers.py:93-124 (`run_cli_subprocess` is defined here, only imported — not defined — into tests/e2e/conftest.py at line 22)"
+    claim: >
+      The spec's Constraints table and Key Entities section both cite `tests/e2e/conftest.py`
+      as the home of the helper(s) driving the golden path's 12 installed-CLI subprocess
+      calls. In fact: (1) the 12 `run_cli(...)` calls in the test body resolve to the
+      `run_cli` fixture defined at tests/conftest.py:1318-1338 (a completely different
+      file, with its own independent isolated_env/PYTHONPATH setup), whose inner
+      function actually IS named `_run_cli` — the spec's citation is precise about the
+      symbol name but wrong about its file; and (2) `run_cli_subprocess` (used only by
+      `fresh_e2e_project` itself, for its one `spec-kitty init` call) is defined in
+      tests/test_isolation_helpers.py and merely imported into tests/e2e/conftest.py.
+      This is a verifiable factual error about existing code location. It matters
+      operationally because FR-003 (lever C: trim ~0.2s/call Typer command-surface
+      construction cost) is only correct on the theory that whichever code path builds
+      the CLI's Typer app for each of the 12 calls is what needs trimming — a WP author
+      who trusts C-003's file citation and goes looking for a single shared helper in
+      tests/e2e/conftest.py to instrument/optimize will find only the fixture's own
+      init-call helper, not the golden path's 12-call invocation path, and will lose
+      time re-locating the actual call site.
+    remediation: >
+      Correct C-003 and the Key Entities section to read: "the golden path's 12 CLI
+      invocations run through the `run_cli` fixture (`tests/conftest.py:1318-1338`,
+      inner helper `_run_cli`); the fixture's own `spec-kitty init` setup call uses the
+      separate `run_cli_subprocess` helper (`tests/test_isolation_helpers.py:93-124`,
+      imported into `tests/e2e/conftest.py`)." Both ultimately build the same
+      `[python, -m, specify_cli.__init__, *args]` subprocess command, so FR-003's
+      technical target is unaffected — only the spec's citation needs correcting.
+
+  - id: SPEC-ARCH-004
+    lens: "Contracts / evidence accuracy"
+    severity: 2
+    title: "\"Installed CLI\" language (User Story 1, FR-001, C-003, SC-005) does not describe what the code actually exercises — it is source-tree code invoked via PYTHONPATH override, not a pip-installed package"
+    evidence:
+      - artifact: "spec.md § User Story 1 (\"through the installed CLI via subprocess, exactly as a real operator would invoke it\")"
+      - artifact: "spec.md § C-003 (\"must continue to exercise the real, installed spec-kitty CLI via subprocess\")"
+      - artifact: "spec.md § SC-005 (\"all 12 installed-CLI subprocess invocations remain real subprocess calls against the installed CLI\")"
+      - code: "tests/conftest.py:1290-1301 (`isolated_env` fixture docstring: \"This fixture guarantees that tests will never accidentally use a pip-installed version of spec-kitty-cli from the host system\" — PYTHONPATH is force-set to `REPO_ROOT / \"src\"`)"
+      - code: "tests/test_isolation_helpers.py:70-84 (`assert_test_isolation` actively fails the test if an installed package version is detected and differs from source — the design intent is to avoid the installed package, not exercise it)"
+    claim: >
+      The spec repeatedly frames the golden path as exercising "the real, installed
+      spec-kitty CLI." The actual mechanism (`python -m specify_cli.__init__` with
+      PYTHONPATH forced to the source tree, and a same-session assertion that fails if
+      an installed version is even present) is designed to guarantee the OPPOSITE: the
+      test always runs against source, deliberately isolated from any pip-installed
+      package. What C-003 is actually protecting — and what lever B/in-process
+      substitution would actually violate — is the subprocess process boundary (a real
+      child process, real module import, real Typer CLI parse), not "installed-ness."
+      This is consistent with the #4409/#4417 precedent test
+      (tests/performance/test_cli_startup_budget_4409.py:136-142), which uses the
+      identical `-m specify_cli.__init__` invocation and never claims to test an
+      installed package either — so this looks like established, if imprecise, project
+      shorthand rather than a mission-specific error. Low implementation impact (the
+      binding constraint — subprocess boundary preserved, no in-process substitution —
+      is unambiguous elsewhere in C-003's own text), but the "installed" framing could
+      mislead a reviewer or future reader of the closing PR (SC-004) into believing
+      this mission validates packaging/installation behavior, which it does not.
+    remediation: >
+      Replace "installed CLI" with "the CLI via a real subprocess boundary (source
+      tree, isolated from any pip-installed package per tests/conftest.py's
+      isolated_env)" in User Story 1, C-003, and SC-005, or add a one-line glossary
+      note clarifying that "installed-CLI subprocess call" in this spec means
+      "subprocess-invoked, not in-process" rather than "against a pip-installed
+      package."
+
+  - id: SPEC-ARCH-005
+    lens: "Reflexivity"
+    severity: 3
+    title: "Lever C touches CLI-startup machinery every other in-flight mission's CI run depends on, but the spec's only conflict check covers direct file overlap, not shared-surface behavior preservation"
+    evidence:
+      - artifact: "spec.md § Evidence (\"No open-PR lane-scope conflict: none of the four PRs open at readiness time... touch tests/e2e/test_charter_epic_golden_path.py, tests/e2e/conftest.py, or CLI-startup paths\")"
+      - artifact: "spec.md § FR-003 (\"the ~0.2s/call Typer command-surface construction cost... e.g., the init command's charter/doctrine provisioning stack\")"
+      - code: "tests/performance/test_cli_startup_budget_4409.py:1-19 (the precedent this mission must follow: deferring module-scope imports to call sites is exactly the kind of change that can silently reorder import-time side effects for every CLI command, not just the one measured)"
+    claim: >
+      FR-003/lever C proposes deferring eager module-scope imports (e.g., the `init`
+      command's charter/doctrine provisioning stack) to their call sites — the same
+      technique #4409/#4417 already used for `jsonschema`. That technique is generally
+      safe, but it changes WHEN certain modules first get imported across the CLI's
+      entire command surface, not just for the golden-path test's 12 calls. This
+      repository is spec-kitty's own tooling, actively dogfooded by every other running
+      mission via the same installed/source CLI entry point; a subtle import-order or
+      lazy-registration regression in shared CLI startup machinery would not
+      necessarily show up as a file-touch conflict (which is all the spec's "no
+      lane-scope conflict" evidence checks) — it would show up as a behavior change in
+      some OTHER command's first invocation, in some OTHER mission's e2e/integration
+      run, that this spec's evidence section does not claim to have checked. Neither
+      the FRs nor the Success Criteria require validating the broader CLI command
+      surface (beyond the golden path itself and the new FR-005 guard, which is
+      scoped narrowly to the specific pattern removed) stays behaviorally unchanged.
+    remediation: >
+      Add an explicit validation step to FR-003 or as a new Success Criterion: run the
+      existing `tests/specify_cli/cli/commands/` suite (or the charter's own
+      "blast radius" rule — the full test directory of each owning subsystem touched by
+      the lazy-import refactor) as part of this mission's acceptance evidence, and
+      record the pass count in the PR, specifically to catch import-order/registration
+      regressions in CLI commands other than the ones the golden path itself exercises.

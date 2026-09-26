@@ -35,7 +35,7 @@ concurrency:
 
 jobs:
   check-readiness:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # S8233: permissions relocated to job scope. pull-requests:write is
     # preserved (deliberately NOT dropped) to keep this a behavior-identical
     # relocation of the prior workflow-level grant; contents:read covers
@@ -193,7 +193,7 @@ jobs:
   #     to hold — an unregistered check can be ignored by a merge button.
   # ---------------------------------------------------------------------------
   cutover-guard:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     if: >-

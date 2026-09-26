@@ -341,6 +341,95 @@ def test_handle_result_resume_tolerates_already_merged(tmp_path: Path) -> None:
     ex._handle_mission_merge_result(run, result, mission_integrated_into_target=True)
 
 
+def test_handle_result_resume_never_tolerates_content_conflict(tmp_path: Path) -> None:
+    """#4892: a real target-content conflict must fail closed even on resume.
+
+    The conflicting path literally contains "already" — the substring the resume
+    tolerance keys on. Before the fix, resume read it as "already merged" and
+    continued to done-marking/cleanup while the target never moved. Now the
+    structured ``conflicting_paths`` field forces a fail-closed exit and the
+    shared ``TARGET_BRANCH_CONTENT_CONFLICT`` diagnostic.
+    """
+    run = _make_run(tmp_path, is_resume=True)
+    result = SimpleNamespace(
+        success=False,
+        errors=["Squash merge failed: unresolved content conflict(s): tests/test_already_applied.py"],
+        commit=None,
+        already_applied=False,
+        conflicting_paths=("tests/test_already_applied.py",),
+        diagnostic_code="TARGET_BRANCH_CONTENT_CONFLICT",
+    )
+    with (
+        patch.object(ex, "_restore_pre_target_if_at_baseline") as restore_mock,
+        pytest.raises(typer.Exit) as exc,
+    ):
+        ex._handle_mission_merge_result(run, result, mission_integrated_into_target=False)
+    assert exc.value.exit_code == 1
+    restore_mock.assert_called_once_with(run)
+
+
+def test_emit_mission_target_content_conflict_reports_shared_code(tmp_path: Path, capsys) -> None:
+    """The real merge prints the SAME diagnostic code the ``--dry-run`` forecast does."""
+    run = _make_run(tmp_path)
+    result = SimpleNamespace(
+        success=False,
+        errors=["unresolved content conflict(s): src/shared.py"],
+        commit=None,
+        already_applied=False,
+        conflicting_paths=("src/shared.py",),
+        diagnostic_code="TARGET_BRANCH_CONTENT_CONFLICT",
+    )
+    ex._emit_mission_target_content_conflict(run, result)
+    out = capsys.readouterr().out
+    assert "TARGET_BRANCH_CONTENT_CONFLICT" in out
+    assert "src/shared.py" in out
+    assert "remediation:" in out
+
+    # Data-driven: the printed code comes from mission_result.diagnostic_code,
+    # not a hardcoded literal — a distinct value renders verbatim.
+    result_sentinel = SimpleNamespace(
+        success=False, errors=["x"], commit=None, already_applied=False,
+        conflicting_paths=("a.py",), diagnostic_code="SOME_OTHER_CODE",
+    )
+    ex._emit_mission_target_content_conflict(run, result_sentinel)
+    assert "diagnostic_code: SOME_OTHER_CODE" in capsys.readouterr().out
+
+    # None falls back to the shared constant.
+    result_none = SimpleNamespace(
+        success=False, errors=["x"], commit=None, already_applied=False,
+        conflicting_paths=("a.py",), diagnostic_code=None,
+    )
+    ex._emit_mission_target_content_conflict(run, result_none)
+    assert "diagnostic_code: TARGET_BRANCH_CONTENT_CONFLICT" in capsys.readouterr().out
+
+
+def test_handle_result_resume_tolerance_requires_equal_trees(tmp_path: Path) -> None:
+    """#4892 hardening: the resume 'already merged' tolerance requires equal trees.
+
+    An operational RuntimeError (failed hook/driver) carries no structured
+    `conflicting_paths` and embeds raw git stderr; if that stderr contains
+    "already"/"up to date" it must NOT be tolerated on resume when the branch
+    trees are not actually equal (the target never received the mission tree).
+    """
+    run = _make_run(tmp_path, is_resume=True)
+    result = SimpleNamespace(
+        success=False,
+        errors=["Squash merge failed: hook refused: file already exists"],
+        commit=None,
+        already_applied=False,
+        conflicting_paths=(),
+        diagnostic_code=None,
+    )
+    with (
+        patch.object(ex, "_restore_pre_target_if_at_baseline") as restore_mock,
+        pytest.raises(typer.Exit) as exc,
+    ):
+        # trees NOT equal → tolerance must not fire despite "already" in the text
+        ex._handle_mission_merge_result(run, result, mission_integrated_into_target=False)
+    assert exc.value.exit_code == 1
+    restore_mock.assert_called_once_with(run)
+
+
 def test_handle_result_hard_failure_restores_and_exits(tmp_path: Path) -> None:
     run = _make_run(tmp_path, is_resume=False)
     result = SimpleNamespace(success=False, errors=["real conflict"], commit=None, already_applied=False)

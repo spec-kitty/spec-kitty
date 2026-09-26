@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "mission_slug": "mission-state-audit-trail-durability-01M37PWG",
+  "mission_id": "01M37PWGWRFNZY8X2Y7P7KJJGK",
+  "mission_branch": "kitty/mission-mission-state-audit-trail-durability-01M37PWG",
+  "target_branch": "fix/mission-state-audit-trail-durability",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/mission_state.py",
+        "src/specify_cli/state/contract.py",
+        "tests/migration/test_mission_state_repair.py",
+        "tests/specify_cli/test_gitignore_contract.py",
+        "tests/specify_cli/test_state_contract.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/coherence.py",
+        "tests/mission_runtime/test_self_bookkeeping_allowlist.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_mission_state_doctor.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "tests/cli/commands/test_doctor_mission_state.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/architectural/test_archive_root_byte_identical.py",
+        "tests/architectural/test_transition_guard_shrink_only.py",
+        "tests/architectural/test_upgrade_recovery_preservation.py",
+        "tests/integration/migration/test_audit_trail_durability_4928.py",
+        "tests/integration/migration/test_mission_state_repair_fidelity_e2e.py",
+        "tests/migration/test_teamspace_migration_rehearsal.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-09-23T20:43:46.532104+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9a36e8501b3f8de04f7f1dfecf184416e0a108be"
+}

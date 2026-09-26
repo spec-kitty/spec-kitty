@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-22T18:28:27.318562Z",
+      "decision_id": "01M3560PHPQM617TH5MZHWRF8J",
+      "final_answer": "shared-registry",
+      "input_key": "wp02_preservation_fix_depth",
+      "mission_id": "01M355VKQZMXPBNPFBQNB6JN7V",
+      "mission_slug": "silent-destructive-write-hardening-01M355VK",
+      "opened_by": "claude",
+      "options": [
+        "shared-registry",
+        "delegate-to-reader",
+        "minimal-decisionpoint-only"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How far should the #4897 fix go: minimal (add DecisionPoint to preserved set), delegate to is_non_lane_event, or a shared authoritative-non-lane-event-type registry both subsystems consult?",
+      "rationale": "Operator-chosen (grounding squad + AskUserQuestion): create ONE authoritative-non-lane-event-type registry that both status/store.py:is_non_lane_event and the mission_state repair (_is_preserved_non_lane_row) consult, closing the recurring whack-a-field class (#2376/#3066/#3541) by construction rather than adding another hand-maintained preserved-set entry.",
+      "resolved_at": "2026-09-22T18:28:35.513275Z",
+      "resolved_by": "stijn-dejongh",
+      "slot_key": "specify.wp02.repair-preservation-depth",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M355VKQZMXPBNPFBQNB6JN7V",
+  "version": 1
+}

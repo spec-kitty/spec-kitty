@@ -1,0 +1,29 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: tracer-design-decisions.md's PR-shape table now reads WP04 "2-5" files and Code-diff
+      subtotal "~8-11 files", and the Verdict prose restates "8-11 files" (not the old 1-4/7-10),
+      consistent with the row's own file-count logic.
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: WP01 is now present in wps.yaml's WP08 dependencies, tasks/WP08-final-integration-validation.md's
+      frontmatter, and tasks.md's WP08 Dependencies line; an independently re-run
+      `finalize-tasks --validate-only --json` returned result validation_passed with no
+      LANE_DEPENDENCY_CYCLE and tasks_md_stale false, confirming the same-lane edge is free as predicted.
+  - id: TASKS-SEQ-002
+    status: resolved
+    reason: WP04's prompt (step 4, "Open-PR overlap check") now records the check for
+      docs/changelog/CHANGELOG.md and pyproject.toml with real PR numbers and a stated
+      rebase/re-append resolution (not a functional merge); an independently re-run
+      `gh pr list --repo spec-kitty/spec-kitty --state open --limit 100 --json number,title,files`
+      reproduced the exact same 9 open PRs, 6 touching CHANGELOG.md (#4936/#4938/#4942/#4947/#4950/#4953)
+      and 2 touching pyproject.toml (#4936/#4953).
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: WP04's T015 now adds a fourth "agent_keys staleness" scenario holding cli_version and
+      template_source_signature constant while varying the resolved agent-key set, using the same
+      naive-stub-first red-first structure as T012's (a)/(b), closing the gap the finding identified.

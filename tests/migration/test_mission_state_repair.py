@@ -102,9 +102,10 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     assert report_dict["summary"]["missions_updated"] == 1
     result = report.missions[0]
     assert result.status == "updated"
-    # The DecisionPoint mirror row plus the dropped duplicate-event_id row: both
-    # leave the log, so both must be quarantined rather than merely hashed.
-    assert result.quarantined_rows == 2
+    # Only the dropped duplicate-event_id row is quarantined. The DecisionPoint
+    # mirror row is preserved in place (#4897): it is authoritative per the
+    # shared AUTHORITATIVE_NON_LANE_EVENT_TYPES registry, not a prunable mirror.
+    assert result.quarantined_rows == 1
     meta = _read_json(mission / "meta.json")
     assert meta["mission_id"] == deterministic_ulid(
         json.dumps(
@@ -131,7 +132,7 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     assert "mission" not in meta
 
     rows = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
-    assert len(rows) == 2
+    assert len(rows) == 3
     row = rows[0]
     assert row["mission_slug"] == "042-historical-shape"
     assert row["mission_id"] == meta["mission_id"]
@@ -142,16 +143,19 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     assert "feature_slug" not in row
     assert "work_package_id" not in row
     assert "legacy_aggregate_id" not in row
+    # The DecisionPoint mirror row is authoritative (#4897) -- preserved
+    # in place, untouched, rather than quarantined.
+    assert rows[1] == typed_row
     # Retrospective lifecycle rows are contracted provenance read back by
     # retrospective consumers — repair must preserve them untouched.
-    assert rows[1] == retrospective_row
+    assert rows[2] == retrospective_row
 
     status = _read_json(mission / "status.json")
     status_summary = cast(dict[str, object], status["summary"])
     assert status_summary["in_review"] == 1
-    quarantine = repo / ".kittify" / "migrations" / "mission-state" / "quarantine" / report.run_id / "042-historical-shape" / "status.events.jsonl"
+    quarantine = repo / ".kittify" / "mission-state-audit" / "quarantine" / report.run_id / "042-historical-shape" / "status.events.jsonl"
     quarantine_text = quarantine.read_text(encoding="utf-8")
-    assert "DecisionPointOpened" in quarantine_text
+    assert "DecisionPointOpened" not in quarantine_text
     assert "RetrospectiveCaptured" not in quarantine_text
 
     if not _has_events_5():
@@ -194,6 +198,134 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     )
 
 
+@pytest.mark.regression
+def test_repair_preserves_unregistered_future_authoritative_event_type(tmp_path: Path) -> None:
+    """RED-FIRST (#4993/#4897): an authoritative-shaped non-lane row whose
+    ``event_type`` is NOT (yet) a member of ``AUTHORITATIVE_NON_LANE_EVENT_TYPES``
+    must survive ``doctor mission-state --fix``, not be silently quarantined.
+
+    Before the FR-001 inversion, ``_is_preserved_non_lane_row`` was a registry
+    ALLOWLIST: a future subsystem's ``event_type``, written *before* it is added
+    to the registry, was silently dropped by an otherwise-successful repair
+    (exit 0, ``errors=0``) -- the recurring whack-a-field class (#2376 -> #3066
+    -> #3541 -> #4897), reopened for any type not yet on the list. After the
+    inversion the repair preserves every row the durable reader
+    (``is_non_lane_event``) treats as non-lane, pruning only an EMPTY denylist
+    of genuinely disposable mirrors -- so an unregistered future type survives
+    without a registry update.
+
+    MUST FAIL on pre-fix code (the row is dropped as
+    ``quarantined_non_status_event``); passes after the inversion.
+    """
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "042-future-authoritative"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "feature_number": "042",
+            "feature_slug": "042-future-authoritative",
+            "friendly_name": "Future Authoritative",
+            "mission": "software-dev",
+            "slug": "042-future-authoritative",
+            "target_branch": "main",
+        },
+    )
+    lane_row = {
+        "actor": "Claude Code",
+        "at": "2026-01-01T00:00:00+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGR",
+        "execution_mode": "worktree",
+        "feature_slug": "042-future-authoritative",
+        "force": False,
+        "from_lane": "planned",
+        "to_lane": "claimed",
+        "wp_id": "WP01",
+    }
+    # A synthetic future event_type deliberately NOT on
+    # AUTHORITATIVE_NON_LANE_EVENT_TYPES and carrying no lane fields -- the
+    # unregistered-future case this mission closes at the root.
+    future_row = {
+        "at": "2026-01-01T00:00:01+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
+        "event_type": "FutureAuthoritativeThing",
+        "payload": {"detail": "not yet registered"},
+    }
+    (mission / "status.events.jsonl").write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in (lane_row, future_row)) + "\n",
+        encoding="utf-8",
+    )
+
+    report = repair_repo(repo)
+
+    result = report.missions[0]
+    assert result.status != "error", result.validation_errors
+    assert result.quarantined_rows == 0, "an unregistered future event_type must not be quarantined (#4993)"
+
+    rows = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert future_row in rows, "the unregistered future authoritative row must be preserved verbatim"
+
+
+@pytest.mark.regression
+def test_repair_dedupes_duplicate_authoritative_event_id_without_erroring(tmp_path: Path) -> None:
+    """#4938 (duplicate-drop false positive against the #4897 guard).
+
+    Two byte-identical authoritative rows (``event_type`` in
+    ``AUTHORITATIVE_NON_LANE_EVENT_TYPES``, e.g. a git-merge/replay artifact
+    of an append-only log carrying the same ``DecisionPointOpened`` twice)
+    sharing one ``event_id`` is an ordinary duplicate, not data loss: the
+    survivor already carries the row in ``canonical_rows``.
+
+    Before the #4938 fix, the T010 (#4897) fail-closed guard
+    (``_registry_authoritative_quarantine_violations``) could not
+    distinguish this "duplicate whose survivor made it to canonical_rows"
+    shape from a genuinely dropped/foreign authoritative row, and hard-erred
+    the whole mission repair (``status="error"``) instead of deduping it
+    cleanly (``status="updated"``, ``errors=0``) the way it did before #4897
+    shipped.
+    """
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "099-duplicate-authoritative-event"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "feature_number": "099",
+            "feature_slug": "099-duplicate-authoritative-event",
+            "friendly_name": "Duplicate Authoritative Event",
+            "mission": "software-dev",
+            "slug": "099-duplicate-authoritative-event",
+            "target_branch": "main",
+        },
+    )
+    decision_row = {
+        "at": "2026-01-01T00:00:01+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGX",
+        "event_type": "DecisionPointOpened",
+        "payload": {"decision_point_id": "DP01"},
+    }
+    duplicate_decision_row = dict(decision_row)
+    (mission / "status.events.jsonl").write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in (decision_row, duplicate_decision_row)) + "\n",
+        encoding="utf-8",
+    )
+
+    report = repair_repo(repo)
+
+    result = report.missions[0]
+    assert result.status == "updated", f"expected a successful dedup, got validation_errors: {result.validation_errors}"
+    assert result.validation_errors == []
+    assert not any("registry_authoritative_row_quarantined" in e for e in result.validation_errors)
+    # One copy survives on disk; the byte-identical duplicate is quarantined,
+    # not lost -- the survivor is verified below.
+    assert result.quarantined_rows == 1
+    rows = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert len(rows) == 1
+    assert rows[0] == decision_row
+
+
 def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
     tmp_path: Path,
 ) -> None:
@@ -206,9 +338,20 @@ def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
     never trips — *succeeded* while regenerating a **zero-WP** ``status.json``: a
     silent, data-destroying repair. After the fix the typed lane row is passed
     through, canonicalized to a flat lane event, and folded back into
-    ``status.json`` (the WP is retained). TeamSpace replay envelopes (lane
-    fields under ``payload``) and ``DecisionPoint*`` mirrors MUST stay
-    quarantined regardless.
+    ``status.json`` (the WP is retained). This is the ``_is_legacy_typed_lane_transition``
+    passthrough that MUST stay evaluated FIRST (protects #3066) even under the
+    #4993 preserve-by-default inversion.
+
+    A TeamSpace replay envelope (same ``event_type``, but lane fields nested
+    under ``payload`` rather than top-level) now DISPOSES differently under
+    the #4993 inversion: quarantine -> preserve-verbatim. This is a SAFE,
+    intentional disposition change (squad-pinned, not a regression): the
+    envelope fails the legacy-typed-lane-transition shape (no top-level
+    ``wp_id``/``from_lane``/``to_lane``), so it is not folded into
+    ``status.json``, but it DOES carry ``event_type`` -- so the durable reader
+    already treated it as non-lane via the same catch-all, and the repair now
+    aligns with the reader instead of diverging from it. A ``DecisionPoint*``
+    mirror is likewise preserved in place (#4897), not quarantined.
     """
     repo = tmp_path
     mission = repo / "kitty-specs" / "042-legacy-typed"
@@ -252,7 +395,8 @@ def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
             "wp_id": "WP01",
         },
     }
-    # Decision-Moment mirror: a different event_type. MUST stay quarantined.
+    # Decision-Moment mirror: a different event_type. Preserved in place (#4897) --
+    # authoritative per the shared registry, not a prunable mirror.
     decision_point_row = {
         "at": "2026-01-01T00:00:02+00:00",
         "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGT",
@@ -305,18 +449,88 @@ def test_repair_preserves_legacy_typed_wpstatuschanged_lane_transition(
     # The typed discriminator is stripped by the _build_canonical_row allowlist.
     assert "event_type" not in canonical
     assert retrospective_row in rows
+    # The DecisionPoint mirror is preserved in place, untouched (#4897).
+    assert decision_point_row in rows
+    # The TeamSpace envelope is ALSO now preserved in place, untouched (#4993
+    # inversion): it carries event_type, so the durable reader already treated
+    # it as non-lane, and preserve-by-default now aligns the repair with the
+    # reader instead of diverging from it. This is a safe disposition change,
+    # not a regression -- see the docstring above.
+    assert teamspace_envelope_row in rows
 
-    # Only the TeamSpace envelope and the DecisionPoint mirror stay quarantined;
-    # the canonical-writer WPStatusChanged shape does NOT.
-    assert result.quarantined_rows == 2
-    quarantine = repo / ".kittify" / "migrations" / "mission-state" / "quarantine" / report.run_id / "042-legacy-typed" / "status.events.jsonl"
-    quarantine_rows = [json.loads(line) for line in quarantine.read_text(encoding="utf-8").splitlines() if line.strip()]
-    quarantined_event_ids = {row["event_id"] for row in quarantine_rows}
-    assert quarantined_event_ids == {
-        "01KQHRB8GCFJAX7HM4ZY52AQGS",  # TeamSpace envelope
-        "01KQHRB8GCFJAX7HM4ZY52AQGT",  # DecisionPointOpened mirror
+    # Nothing is quarantined: the canonical-writer WPStatusChanged shape is
+    # canonicalized into a lane row; the TeamSpace envelope and the
+    # DecisionPoint mirror are both preserved verbatim.
+    assert result.quarantined_rows == 0
+    quarantine = repo / ".kittify" / "mission-state-audit" / "quarantine" / report.run_id / "042-legacy-typed" / "status.events.jsonl"
+    assert not quarantine.exists()
+
+
+@pytest.mark.regression
+def test_repair_preserves_inert_partial_field_wpstatuschanged_row(tmp_path: Path) -> None:
+    """Squad-added AC (#4993/T004): a corrupted partial-field ``WPStatusChanged``
+    row (``wp_id`` + ``to_lane`` present, ``from_lane`` MISSING -- a shape no
+    writer emits) is now preserved verbatim rather than quarantined.
+
+    ``_is_legacy_typed_lane_transition`` requires ALL THREE of
+    ``wp_id``/``from_lane``/``to_lane`` to pass the lane-transition
+    passthrough, so this row fails that check and falls to
+    ``_is_preserved_non_lane_row``. It carries ``event_type``, so the
+    durable reader's catch-all already treats it as non-lane; under the
+    #4993 preserve-by-default inversion the repair now aligns with the
+    reader and preserves it too -- retained-but-inert (the reducer's own
+    lane-reduction path also skips it, per the reader). This is an
+    accepted fail-closed-toward-retention tradeoff for a corruption shape
+    no writer produces, not a data-integrity regression.
+    """
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "042-partial-wpstatuschanged"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "feature_number": "042",
+            "feature_slug": "042-partial-wpstatuschanged",
+            "friendly_name": "Partial WPStatusChanged",
+            "mission": "software-dev",
+            "slug": "042-partial-wpstatuschanged",
+            "target_branch": "main",
+        },
+    )
+    lane_row = {
+        "actor": "Claude Code",
+        "at": "2026-01-01T00:00:00+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGR",
+        "execution_mode": "worktree",
+        "feature_slug": "042-partial-wpstatuschanged",
+        "force": False,
+        "from_lane": "planned",
+        "to_lane": "claimed",
+        "wp_id": "WP01",
     }
-    assert "01KQHRB8GCFJAX7HM4ZY52AQGR" not in quarantined_event_ids
+    # Partial-field corruption: wp_id + to_lane present, from_lane MISSING.
+    # Fails _is_legacy_typed_lane_transition (requires all three fields).
+    partial_row = {
+        "at": "2026-01-01T00:00:01+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGS",
+        "event_type": "WPStatusChanged",
+        "to_lane": "in_review",
+        "wp_id": "WP01",
+    }
+    (mission / "status.events.jsonl").write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in (lane_row, partial_row)) + "\n",
+        encoding="utf-8",
+    )
+
+    report = repair_repo(repo)
+
+    result = report.missions[0]
+    assert result.status != "error", result.validation_errors
+    assert result.quarantined_rows == 0, "partial-field WPStatusChanged is now preserve-inert, not quarantined"
+
+    rows = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert partial_row in rows, "the partial-field row must be preserved verbatim"
 
 
 def test_repair_is_idempotent_after_first_canonicalization(tmp_path: Path) -> None:
@@ -921,7 +1135,7 @@ def test_manifest_includes_cli_version_command_args_generated_ids_policy(
         assert value == sorted(value), f"policy[{key!r}] must be sorted"
 
     # On-disk manifest matches the in-memory report
-    manifest_files = sorted((repo / ".kittify" / "migrations" / "mission-state").glob("*.json"))
+    manifest_files = sorted((repo / ".kittify" / "mission-state-audit").glob("*.json"))
     assert manifest_files, "manifest file must be written to disk"
     persisted = _read_json(manifest_files[-1])
 
@@ -1037,12 +1251,21 @@ def test_repair_rejects_traversal_mission_slug_from_meta(tmp_path: Path) -> None
         "to_lane": "claimed",
         "wp_id": "WP01",
     }
-    # A typed side-log row with event_type → quarantined by _rule_filter_typed_rows
+    # A side-log row using the ``event_name`` discriminator, NOT
+    # ``event_type`` (#4993): since the FR-001 preserve-by-default inversion,
+    # ANY ``event_type``-bearing row is preserved by the durable reader's
+    # catch-all (empty PRUNABLE_MIRROR_EVENT_TYPES denylist), so an
+    # ``event_type`` row like the pre-#4993 ``SomeUnrecognizedSideLogEvent``
+    # fixture would no longer reach quarantine_lines. A non-retrospective
+    # ``event_name`` row is still "genuinely non-status" (the reader's
+    # retrospective-prefix branch doesn't match, and it carries no
+    # event_type), so it is the row shape that still exercises the
+    # quarantine-path traversal guard this test targets.
     typed_row: dict[str, Any] = {
         "at": "2026-01-01T00:00:01+00:00",
         "event_id": "01KQHRB8GCFJAX7HM4ZY52BBBB",
-        "event_type": "DecisionPointOpened",
-        "payload": {"decision_point_id": "DP01"},
+        "event_name": "some_unrecognized_side_log_event",
+        "payload": {"detail": "unrelated side log"},
     }
     (mission_dir / "status.events.jsonl").write_text(
         json.dumps(status_row, sort_keys=True) + "\n" + json.dumps(typed_row, sort_keys=True) + "\n",
@@ -1067,7 +1290,7 @@ def test_repair_rejects_traversal_mission_slug_from_meta(tmp_path: Path) -> None
     )
 
     # Verify nothing was written at an escaped path
-    quarantine_root = repo / ".kittify" / "migrations" / "mission-state" / "quarantine"
+    quarantine_root = repo / ".kittify" / "mission-state-audit" / "quarantine"
     if quarantine_root.exists():
         for path in quarantine_root.rglob("*"):
             assert ".." not in str(path.relative_to(repo)), f"Escaped path found: {path}"
@@ -1268,6 +1491,188 @@ def test_repair_quarantines_dropped_duplicate_event_rows(tmp_path: Path) -> None
     rows = [line for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(rows) == 1
 
-    quarantined = list((repo / ".kittify" / "migrations" / "mission-state" / "quarantine").rglob("*"))
+    quarantined = list((repo / ".kittify" / "mission-state-audit" / "quarantine").rglob("*"))
     quarantined_text = "\n".join(p.read_text(encoding="utf-8") for p in quarantined if p.is_file())
     assert "divergent" in quarantined_text
+
+
+@pytest.mark.regression
+def test_repair_reports_no_quarantine_write_on_mixed_row_error_and_quarantine_run(tmp_path: Path) -> None:
+    """#4928 mixed-run correctness: a canonicalization row_error must not let a
+    stale ``quarantined_rows`` count claim a write that never happened.
+
+    ``_repair_mission`` returns EARLY when ``combined_row_errors`` is
+    non-empty -- before the ``if quarantine_lines:`` block that actually
+    writes the quarantine file. On a run whose ``status.events.jsonl``
+    produces BOTH a genuine canonicalization row_error (here: a row missing
+    the required ``wp_id``) AND a genuinely non-status row that would be
+    quarantined (here: an ``event_name``-discriminated side-log row, which
+    ``is_non_lane_event`` treats as non-preserved), the pre-fix code still
+    reported ``quarantined_rows=len(quarantine_lines)`` on the early-return
+    result, and ``repair_repo``'s ``quarantine_root_path`` guard keyed on
+    that same (unwritten) count -- so the ``--fix`` exit summary printed
+    "N row(s) quarantined verbatim to <path>" for a file that was never
+    created.
+    """
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "099-mixed-repair"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "friendly_name": "Mixed Repair",
+            "mission_slug": "099-mixed-repair",
+            "mission_type": "software-dev",
+            "slug": "099-mixed-repair",
+            "target_branch": "main",
+        },
+    )
+
+    # Row A: a genuine canonicalization row_error (missing required wp_id).
+    # This lands in `row_errors` via `_canonicalize_status_rows`'s
+    # `result.error is not None` branch, which `continue`s WITHOUT ever
+    # appending to `quarantine_lines`.
+    error_row = {
+        "actor": "codex",
+        "at": "2026-01-01T00:00:00+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGX",
+        "execution_mode": "worktree",
+        "force": False,
+        "from_lane": "planned",
+        "to_lane": "claimed",
+    }
+    # Row B: a genuinely non-status row. It carries `event_name` (NOT
+    # `event_type`), so `is_non_lane_event()` returns False -- it is not
+    # reader-preserved -- and `_rule_reject_non_status_event` routes it to
+    # `quarantine_lines` via the `quarantined_non_status_event` sentinel.
+    quarantine_row = {
+        "at": "2026-01-01T00:00:01+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGY",
+        "event_name": "some_unrecognized_side_log_event",
+        "payload": {"detail": "unrelated side log"},
+    }
+    (mission / "status.events.jsonl").write_text(
+        json.dumps(error_row, sort_keys=True) + "\n" + json.dumps(quarantine_row, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    _init_git_repo(repo)
+
+    report = repair_repo(repo)
+
+    assert len(report.missions) == 1
+    result = report.missions[0]
+    assert result.status == "error"
+    assert any("missing required wp_id" in e for e in result.validation_errors)
+    # `quarantined_rows` is a legitimate diagnostic count (Row B WAS
+    # classified for quarantine) and may still be reported as >0.
+    assert result.quarantined_rows == 1
+
+    quarantine_dir = repo / ".kittify" / "mission-state-audit" / "quarantine"
+    assert not quarantine_dir.exists(), "no quarantine file may exist: _repair_mission returned before the write block ran"
+    assert report.quarantine_root_path is None, (
+        "quarantine_root_path must be None when nothing was actually written to disk -- "
+        "reporting it non-None here is the false 'quarantined verbatim' claim the --fix "
+        "exit summary printed on a mixed row_error + quarantine run"
+    )
+
+
+# ---------------------------------------------------------------------------
+# #4928 — audit trail durability: relocation to a git-TRACKED root
+# ---------------------------------------------------------------------------
+
+
+def _seed_quarantining_mission(repo: Path) -> Path:
+    """Seed a mission whose repair quarantines one row (writes manifest + quarantine)."""
+    mission = repo / "kitty-specs" / "042-historical-shape"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "feature_number": "042",
+            "feature_slug": "042-historical-shape",
+            "friendly_name": "Historical Shape",
+            "mission": "software-dev",
+            "slug": "042-historical-shape",
+            "target_branch": "main",
+        },
+    )
+    status_row = {
+        "actor": "Claude Code",
+        "at": "2026-01-01T00:00:00+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGR",
+        "execution_mode": "worktree",
+        "feature_slug": "042-historical-shape",
+        "force": False,
+        "from_lane": "doing",
+        "legacy_aggregate_id": "feature:042-historical-shape",
+        "to_lane": "in_review",
+        "work_package_id": "WP01",
+    }
+    duplicate_row = dict(status_row)  # duplicate event_id → quarantined
+    (mission / "status.events.jsonl").write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in (status_row, duplicate_row)) + "\n",
+        encoding="utf-8",
+    )
+    return mission
+
+
+def _check_ignored(repo: Path, rel: str) -> bool:
+    """True when git check-ignore reports ``rel`` as ignored."""
+    result = subprocess.run(["git", "check-ignore", rel], cwd=repo, capture_output=True, text=True)
+    return result.returncode == 0
+
+
+def test_audit_trail_written_to_tracked_root_not_ignored(tmp_path: Path) -> None:
+    """#4928: manifest AND quarantine land under a git check-ignore-clean root."""
+    repo = tmp_path
+    _seed_quarantining_mission(repo)
+    _init_git_repo(repo)
+
+    report = repair_repo(repo)
+    assert report.missions[0].quarantined_rows == 1
+
+    # Manifest under the tracked audit root, NOT the legacy gitignored path.
+    manifests = sorted((repo / ".kittify" / "mission-state-audit").glob("*.json"))
+    assert manifests, "manifest must be written under .kittify/mission-state-audit/"
+    assert not (repo / ".kittify" / "migrations" / "mission-state").exists(), "no artifact may be written to the legacy gitignored path"
+
+    # check-ignore: both artifacts are trackable (NOT ignored).
+    manifest_rel = manifests[-1].relative_to(repo).as_posix()
+    assert not _check_ignored(repo, manifest_rel), f"{manifest_rel} must not be gitignored"
+    assert report.quarantine_root_path is not None
+    quarantine_root = repo / report.quarantine_root_path
+    assert quarantine_root.exists()
+    quarantine_file = next(quarantine_root.rglob("status.events.jsonl"))
+    q_rel = quarantine_file.relative_to(repo).as_posix()
+    assert not _check_ignored(repo, q_rel), f"{q_rel} must not be gitignored"
+
+
+def test_second_fix_not_blocked_by_own_uncommitted_audit_trail(tmp_path: Path) -> None:
+    """#4928/FR-009: a prior run's uncommitted (now tracked) audit trail must not
+    make the next --fix refuse. Regression guard for the _assert_git_safe self-block
+    that only becomes live once the audit root is tracked."""
+    repo = tmp_path
+    _seed_quarantining_mission(repo)
+    _init_git_repo(repo)
+
+    # Run 1: canonicalizes the mission and writes the audit trail.
+    repair_repo(repo)
+    # Operator commits ONLY the mission changes, leaving the audit trail
+    # uncommitted+tracked (the exact state that trips a self-block).
+    subprocess.run(["git", "add", "kitty-specs"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "canonicalized mission"], cwd=repo, check=True)
+
+    audit_status = subprocess.run(
+        ["git", "status", "--porcelain", "--", ".kittify/mission-state-audit"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert audit_status.strip(), "precondition: audit trail is tracked-but-uncommitted"
+
+    # Run 2 must NOT raise "dirty relevant paths" on the audit root — it is the
+    # repair's own output, dropped from the safety-checked set.
+    report = repair_repo(repo)
+    assert report.missions[0].status == "unchanged"

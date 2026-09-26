@@ -46,6 +46,10 @@ __all__ = [
     "repair_coord_strand",
 ]
 
+# Diagnostic surfaced on ``CoordRepairOutcome.error`` when a per-SHA strand
+# revert fails and git emits nothing on stderr/stdout.
+_REVERT_FAILED_MSG = "git revert failed"
+
 
 def is_self_bookkeeping_churn(path: str | Path) -> bool:
     """Return True for spec-kitty's OWN bookkeeping files (retired IC-07a).
@@ -100,10 +104,29 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
     from specify_cli.status import is_dossier_snapshot
 
     kitty_ops_op_record = re.compile(r"(?:^|/)kitty-ops/[0-9A-HJKMNP-TV-Z]{26}\.jsonl$")
+    # #4928: the mission-state repair audit trail (manifest + quarantine) moved
+    # from a gitignored path to the git-TRACKED ``.kittify/mission-state-audit/``
+    # root. It is written by ``doctor mission-state --fix`` / ``upgrade`` and left
+    # uncommitted for the operator to commit (write-only). Classify it as
+    # self-bookkeeping churn so a repair run never dirties a dirty-state gate
+    # (accept / merge / record-analysis) — preserving the #2384 non-gating
+    # property now that the path is tracked rather than ignored.
+    # ``(?:/|$)`` (not a bare ``/``): ``git status --porcelain`` collapses a
+    # wholly-untracked directory to a single ``.kittify/mission-state-audit/``
+    # entry, which ``is_self_bookkeeping_churn`` rstrips to
+    # ``.kittify/mission-state-audit`` (no trailing slash). The gates that
+    # enumerate untracked paths with a bare ``--porcelain`` (accept/merge/
+    # record-analysis) receive exactly that collapsed form on a fresh repo's
+    # first repair, so the matcher must accept the bare root too — otherwise the
+    # #2384/SC-005 non-gating property fails on the common path. ``-legacy`` /
+    # ``-notes`` siblings still miss (``$`` / ``/`` cannot follow ``-``).
+    mission_state_audit = re.compile(r"(?:^|/)\.kittify/mission-state-audit(?:/|$)")
     normalized = to_posix(path).rstrip("/")
     if PurePosixPath(normalized).name == "meta.json":
         return True
     if normalized.endswith(".kittify/encoding-provenance/global.jsonl"):
+        return True
+    if mission_state_audit.search(normalized):
         return True
     if is_dossier_snapshot(normalized):
         return True
@@ -114,8 +137,29 @@ def is_coord_residue_churn(
     path: str | Path,
     *,
     mission_slug: str | None = None,
+    topology: MissionTopology | None = None,
 ) -> bool:
     """Return True for coord-partition residue: the retired IC-07b leg (WP12).
+
+    **Topology (C-3 / D8 / #4978).** ``topology`` is the mission's STORED
+    :class:`~mission_runtime.MissionTopology`; it is threaded straight to the
+    residue authority :func:`~mission_runtime.kind_is_coordination_residue`,
+    which returns ``False`` for the two coord-less cells
+    (:attr:`~mission_runtime.MissionTopology.SINGLE_BRANCH` /
+    :attr:`~mission_runtime.MissionTopology.LANES`) — so on a lanes/single_branch
+    mission a coord-partition-KIND artifact (``issue-matrix.md``, the append-only
+    status log, ``acceptance-matrix.json``, tracer/decision dirs) is NEVER
+    residue and is never ``reset --hard``ed as such. Any caller that KNOWS the
+    mission's topology — above all the merge dirty gate, which does the
+    destructive ``reset --hard`` — MUST pass it; the classifier can no longer
+    reach a topology-blind verdict silently.
+
+    ``topology=None`` is an EXPLICIT, overridable backward-compatibility default
+    that projects ``MissionTopology.COORD`` (the historical hard-coded behaviour
+    the pre-C-3 callers — all inherently coord-context: coord staging, the
+    coord-branch implement filter, coord auto-rebase, acceptance — relied on).
+    It is deliberately NOT a silent internal assumption: the parameter exists so
+    a topology-aware caller overrides it, and the merge dirty gate does.
 
     WP12 retirement: absorbs the retired ``mission_runtime`` predicate
     ``is_coordination_artifact_residue_path`` (module
@@ -134,10 +178,9 @@ def is_coord_residue_churn(
     ``mission_runtime`` primitives the retired predicate used internally —
     :func:`~mission_runtime.kind_for_mission_file` (the file→kind classifier) and
     :func:`~mission_runtime.kind_is_coordination_residue` (the kind/topology
-    residue authority) — fixed at :attr:`~mission_runtime.MissionTopology.COORD`
-    (this predicate answers "is this COORD residue", not a topology-generic
-    question; ``routes_through_coordination(COORD)`` is always True by
-    definition, so the topology parameter is not separately gated here).
+    residue authority) — now threaded with the caller-supplied stored
+    ``topology`` (C-3) instead of the retired hard-coded
+    :attr:`~mission_runtime.MissionTopology.COORD`.
 
     Exposed as its own predicate (not folded silently into
     :func:`is_toolchain_generated_churn`'s body) because several consumers
@@ -155,7 +198,8 @@ def is_coord_residue_churn(
     kind = kind_for_mission_file(path, mission_slug=mission_slug)
     if kind is None:
         return False
-    return kind_is_coordination_residue(kind, MissionTopology.COORD)
+    effective_topology = MissionTopology.COORD if topology is None else topology
+    return kind_is_coordination_residue(kind, effective_topology)
 
 
 def is_status_state_path(path: str | Path, *, mission_slug: str | None = None) -> bool:
@@ -182,6 +226,7 @@ def is_toolchain_generated_churn(
     path: str | Path,
     *,
     mission_slug: str | None = None,
+    topology: MissionTopology | None = None,
 ) -> bool:
     """The single definition of toolchain-generated churn (FR-012).
 
@@ -210,12 +255,17 @@ def is_toolchain_generated_churn(
         path: The path to classify (posix or ``Path``; relative or absolute).
         mission_slug: When supplied, another mission's artifacts do not count as
             this mission's toolchain churn (passed to the residue authority).
+        topology: The mission's STORED topology, forwarded verbatim to
+            :func:`is_coord_residue_churn` so the coord-residue leg is
+            topology-aware (C-3 / #4978). A topology-aware gate — the merge dirty
+            gate above all — MUST pass it; ``None`` keeps the explicit,
+            overridable COORD-projecting backward-compatibility default.
 
     Returns:
         ``True`` when ``path`` is spec-kitty-generated churn a gate should ignore.
     """
     return is_self_bookkeeping_churn(path) or is_coord_residue_churn(
-        path, mission_slug=mission_slug
+        path, mission_slug=mission_slug, topology=topology
     )
 
 
@@ -301,6 +351,10 @@ class CoordRepairOutcome:
     expected ``captured_sha + this-merge's-done`` shape (e.g. a concurrent healer
     already reverted), so a blind ``git revert captured_sha..HEAD`` would re-apply
     ``done`` — the repair refuses rather than re-strand.
+    ``branch_mismatch`` flags the sibling-of-#4920 refusal: the coord worktree's
+    checked-out branch is not ``coord_ref`` (or HEAD is detached), so a
+    ``git revert`` there would mutate whatever foreign branch happens to be
+    checked out instead of the coordination branch the strand was derived from.
     """
 
     healed: bool
@@ -308,6 +362,7 @@ class CoordRepairOutcome:
     error: str | None = None
     worktree_missing: bool = False
     head_advanced: bool = False
+    branch_mismatch: bool = False
 
 
 def _rev_parse_head(coord_worktree: Path, env: dict[str, str]) -> str | None:
@@ -322,6 +377,52 @@ def _rev_parse_head(coord_worktree: Path, env: dict[str, str]) -> str | None:
     if head.returncode != 0:
         return None
     return head.stdout.strip() or None
+
+
+def _normalized_branch_name(ref: str) -> str:
+    """Strip a ``refs/heads/`` prefix so branch names compare like-for-like."""
+    prefix = "refs/heads/"
+    return ref[len(prefix) :] if ref.startswith(prefix) else ref
+
+
+def _worktree_checked_out_branch(coord_worktree: Path, env: dict[str, str]) -> str | None:
+    """Return the worktree's checked-out branch name, or ``None`` when detached.
+
+    ``git symbolic-ref HEAD`` fails (non-zero) on a detached HEAD — treated as no
+    branch identity rather than raising, so the caller can refuse uniformly.
+    """
+    ref = subprocess.run(
+        ["git", "-C", str(coord_worktree), "symbolic-ref", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    if ref.returncode != 0:
+        return None
+    return ref.stdout.strip() or None
+
+
+def _worktree_branch_matches_coord_ref(
+    coord_worktree: Path, coord_ref: str, env: dict[str, str]
+) -> bool:
+    """Branch-identity guard closing the #4920-sibling foreign-branch class.
+
+    ``_head_shape_is_expected`` is purely content-based (SHA ancestry + strand
+    liveness at HEAD) — it cannot tell whether the worktree's HEAD reached that
+    shape via ``coord_ref`` or via some OTHER branch checked out in the same
+    worktree (e.g. an operator running ``git switch -c scratch`` there after a
+    marker was persisted). A sibling branch created from the coord tip is
+    byte-identical to it and passes every content-based guard, yet a
+    ``git revert`` in that worktree would advance the sibling branch, not
+    ``coord_ref`` — reporting ``healed`` while the actual coordination ref stays
+    stranded. Require the worktree to have ``coord_ref`` itself checked out
+    (detached HEAD refuses too) before any revert is attempted.
+    """
+    checked_out = _worktree_checked_out_branch(coord_worktree, env)
+    if checked_out is None:
+        return False
+    return _normalized_branch_name(checked_out) == _normalized_branch_name(coord_ref)
 
 
 def _head_shape_is_expected(
@@ -396,6 +497,80 @@ def _clean_coord_status_paths_to_head(
         )
 
 
+def _mission_events_log_rel(feature_dir: Path) -> str:
+    """Repo-relative path to the mission's append-only coord status event log."""
+    from specify_cli.status import EVENTS_FILENAME
+
+    return f"kitty-specs/{feature_dir.name}/{EVENTS_FILENAME}"
+
+
+def _recorded_strand_shas(
+    coord_worktree: Path,
+    captured_sha: str,
+    feature_dir: Path,
+    env: dict[str, str],
+) -> list[str]:
+    """The strand's OWN commits in ``captured_sha..HEAD`` — content-scoped (#4973).
+
+    The strand is the ``done`` bookkeeping THIS merge appended to the mission's
+    append-only coordination status log. Enumerate ONLY the commits in the
+    forward range that actually touched that log path
+    (``git rev-list captured_sha..HEAD -- <events-log>``), newest-first — the
+    order a sequential ``git revert`` applies cleanly. A third party's later
+    commit that did NOT touch the log (e.g. an unrelated coord artifact) is
+    excluded BY CONSTRUCTION, so — unlike the retired content-blind
+    ``captured_sha..HEAD`` RANGE revert — the heal can never sweep it in and erase
+    it (#4973 / D4 S-B). Returns ``[]`` when the range cannot be enumerated or no
+    committed range commit touched the log (then there is no strand to revert —
+    never a blind range fallback).
+    """
+    result = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(coord_worktree),
+            "rev-list",
+            f"{captured_sha}..HEAD",
+            "--",
+            _mission_events_log_rel(feature_dir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    if result.returncode != 0:
+        return []
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def _revert_recorded_sha(coord_worktree: Path, sha: str, env: dict[str, str]) -> str | None:
+    """Revert exactly ONE recorded strand commit; return a diagnostic on failure.
+
+    ``git revert --no-edit <sha>`` appends a NEW revert commit — the append-only
+    status-log invariant holds (history is never rewritten). On failure the
+    in-progress revert is aborted and the swallowed diagnostic is returned so the
+    caller can carry it on ``CoordRepairOutcome.error``; ``None`` signals success.
+    """
+    revert = subprocess.run(
+        ["git", "-C", str(coord_worktree), "revert", "--no-edit", sha],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    if revert.returncode == 0:
+        return None
+    subprocess.run(
+        ["git", "-C", str(coord_worktree), "revert", "--abort"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    return (revert.stderr or revert.stdout or "").strip() or _REVERT_FAILED_MSG
+
+
 def repair_coord_strand(
     *,
     coord_ref: str,
@@ -428,16 +603,31 @@ def repair_coord_strand(
        (e.g. a concurrent healer already reverted), the repair refuses
        (``head_advanced=True``) rather than revert a wider range that re-applies
        ``done``.
-    3. **Scoped clean-to-HEAD** (:func:`_clean_coord_status_paths_to_head`): AFTER
-       the gate, BEFORE the revert, the mission's coord status paths are restored
+    3. **Branch-identity guard (#4920-sibling):** :func:`_worktree_branch_matches_coord_ref`
+       verifies the worktree's checked-out branch IS ``coord_ref`` (detached HEAD
+       refuses too). Guards 1-2 are purely content-based and pass identically for a
+       sibling branch created from the coord tip; without this check a
+       ``git revert`` there would mutate that foreign branch and still report
+       ``healed=True``. Refuses (``branch_mismatch=True``) before the revert.
+    4. **Scoped clean-to-HEAD** (:func:`_clean_coord_status_paths_to_head`): AFTER
+       the gates, BEFORE the revert, the mission's coord status paths are restored
        to HEAD so the forward revert can apply over the rollback's byte-restored
        (dirty) tree. Idempotent + no-op when clean; scoped to bound the blast radius.
 
-    **Transport (AC-B3/AC-F1):** a forward ``git revert`` of ``captured_sha..HEAD``
-    in the coordination worktree, subprocess env via ``_make_merge_env`` (imported
-    function-locally to avoid the import cycle). NOT ``advance_branch_ref`` (it
-    refuses the non-fast-forward move back to ``captured_sha`` by design); no raw
-    ``git update-ref``.
+    5. **SHA-scoped revert (#4973 / D4 S-B):** the heal reverts ONLY the strand's
+       own recorded commits — the ones in ``captured_sha..HEAD`` that touched the
+       mission's append-only status log (:func:`_recorded_strand_shas`) — each
+       individually via :func:`_revert_recorded_sha`, newest-first. It is NEVER a
+       content-blind ``git revert captured_sha..HEAD`` RANGE revert, which would
+       also revert a third party's later commit that landed in the same range and
+       erase it.
+
+    **Transport (AC-B3/AC-F1):** per-SHA forward ``git revert --no-edit <sha>`` of
+    each recorded strand commit in the coordination worktree, subprocess env via
+    ``_make_merge_env`` (imported function-locally to avoid the import cycle).
+    Each revert APPENDS a new commit — the append-only log invariant holds, history
+    is never rewritten. NOT ``advance_branch_ref`` (it refuses the non-fast-forward
+    move back to ``captured_sha`` by design); no raw ``git update-ref``.
 
     Args:
         coord_ref: Coordination branch ref used to re-derive coherence.
@@ -489,28 +679,35 @@ def repair_coord_strand(
             healed=False, stranded_wp_ids=stranded, head_advanced=True
         )
 
+    if not _worktree_branch_matches_coord_ref(coord_worktree, coord_ref, env):
+        # #4920-sibling: the worktree has some OTHER branch checked out (or a
+        # detached HEAD). Both content-based guards above pass for a sibling
+        # branch created from the coord tip — only a branch-identity check can
+        # catch it. Refuse before the revert would mutate that foreign branch.
+        return CoordRepairOutcome(
+            healed=False, stranded_wp_ids=stranded, branch_mismatch=True
+        )
+
     # Scoped clean-to-HEAD (after the gate, before the revert) so the forward
     # revert applies over the byte-restored (dirty) coord worktree.
     _clean_coord_status_paths_to_head(coord_worktree, feature_dir, env)
 
-    revert = subprocess.run(
-        ["git", "-C", str(coord_worktree), "revert", "--no-edit", f"{captured_sha}..HEAD"],
-        capture_output=True,
-        text=True,
-        check=False,
-        env=env,
-    )
-    if revert.returncode != 0:
-        subprocess.run(
-            ["git", "-C", str(coord_worktree), "revert", "--abort"],
-            capture_output=True,
-            text=True,
-            check=False,
-            env=env,
-        )
-        return CoordRepairOutcome(
-            healed=False,
-            stranded_wp_ids=stranded,
-            error=(revert.stderr or revert.stdout or "").strip() or "git revert failed",
-        )
+    # SHA-scoped heal (#4973 / D4 S-B): revert ONLY the strand's own recorded
+    # commits (the ones that touched the append-only status log in the range),
+    # each individually, newest-first — NEVER a content-blind
+    # ``git revert captured_sha..HEAD`` range that would also revert a third
+    # party's later commit landed in the same range and erase it.
+    strand_shas = _recorded_strand_shas(coord_worktree, captured_sha, feature_dir, env)
+    if not strand_shas:
+        # Nothing in the range actually touched the log — no strand commit to
+        # revert (no blind range fallback). Treat as an already-coherent no-op.
+        return CoordRepairOutcome(healed=False, stranded_wp_ids=stranded)
+    for sha in strand_shas:
+        revert_error = _revert_recorded_sha(coord_worktree, sha, env)
+        if revert_error is not None:
+            return CoordRepairOutcome(
+                healed=False,
+                stranded_wp_ids=stranded,
+                error=revert_error,
+            )
     return CoordRepairOutcome(healed=True, stranded_wp_ids=stranded)

@@ -686,8 +686,13 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "display_merge_order", "305ac620b2ebbb6568c8aef92428d3c8326cbca533039995280ad367fd35dd67", source_module="specify_cli.merge.ordering"
         ),  # specify_cli.merge.ordering::display_merge_order
-        # specify_cli.merge.state::MergeAmbiguousStateError
-        SymbolKey("MergeAmbiguousStateError", "d69fb84bf96a1edbfa84500b1c49c6eaf6c30fce35ce95659504abff5221d7c5", source_module="specify_cli.merge.state"),
+        # specify_cli.merge.state::MergeAmbiguousStateError -- RE-KEYED
+        # (landing/coord-read-fail-closed #5001 follow-up, PR #5020): WS2
+        # changed the body; hash recomputed via resolve_symbol_key/key_tier
+        # (tests/architectural/_symbol_key.py), not hand-guessed. Still
+        # unwired from a second src/ module today -- external consumers land
+        # with the Epic #5001 follow-ups.
+        SymbolKey("MergeAmbiguousStateError", "8cd8372b816b4d9832d81b923bb132c5a28ab45a9d64c31e8ae27356f8e87f38", source_module="specify_cli.merge.state"),
         SymbolKey(
             "detect_git_merge_state", "1ebb0846821cef8d19a05382e249a78a78e602af5c6568fcf47746664b27e1f6", source_module="specify_cli.merge.state"
         ),  # specify_cli.merge.state::detect_git_merge_state
@@ -745,8 +750,13 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.runtime::ResolutionTier -- REMOVED (#3831/#4088 landing): same
         # loader fix as specify_cli.runtime.resolver::ResolutionTier above -- the
         # re-export now has a real src/ caller too.
+        # specify_cli.runtime::classify_asset -- body-hash re-pinned 2026-09-26 (#4961):
+        # classify_asset's body was refactored to route shared-counterpart resolution
+        # through _resolve_shared_counterpart + the ownership guard. Still a re-export
+        # with no src/ caller (tests import it directly from runtime.migrate), so it
+        # stays hand-allowlisted exactly as on main -- only the pinned hash moves.
         SymbolKey(
-            "classify_asset", "7d40a0db5e655cbd1457c6f28d6a5069a31642a0cde6c94149179003e86a7932", source_module="specify_cli.runtime"
+            "classify_asset", "4c0ca6c39f4ac992dc93f2eabd525739ce05774519b897b083b76dc54fb4ae3c", source_module="specify_cli.runtime"
         ),  # specify_cli.runtime::classify_asset
         SymbolKey(
             "SkillRegistry", "c01cd024b561b9115a36d3487195aac21d78bd7262a02d993702e4346c51c16b", source_module="specify_cli.shims"
@@ -2178,6 +2188,91 @@ _CATEGORY_D_LIVE_WORK_AUTHORED_PUBLIC_SURFACE: frozenset[SymbolKey] = frozenset(
 )
 
 
+# ---------- C. Terminus reconciliation gate + merge-coord integrity (#5001) ----------
+# The terminus/merge-coord integrity spine (Epic #5001) lands its public
+# vocabulary ahead of every external caller: today each symbol is exercised
+# intra-module (the wired `route_terminus`/`VerifyResult`/claim-builder call
+# chains) and by the WP06 reconciliation test suite
+# (tests/merge/test_reconciliation.py), not yet imported from a second
+# src/ module. External consumers land with the Epic #5001 follow-ups.
+_CATEGORY_C_TERMINUS_RECONCILIATION_5001: frozenset[SymbolKey] = frozenset(
+    {
+        # specify_cli.coordination.surface_resolver::resolve_for_write --
+        # REMOVED (landing/coord-read-fail-closed #5001 follow-up, PR #5020):
+        # WS3 wired it -- ``issue_verdict.py``'s ``resolve_for_write`` call
+        # site now routes through it, so it has a real src/ caller and the
+        # allowlist entry is stale.
+        # specify_cli.merge.reconciliation::TERMINUS_ENTRY_POINTS -- public
+        # vocabulary of the new reconciliation gate (the closed-world entry
+        # point registry `route_terminus` consults).
+        SymbolKey(
+            "TERMINUS_ENTRY_POINTS",
+            "8fd87d4ce8ab8b7f9a6eae7f527026fae6020db5d0f3a9820b43cc3d00475b68",
+            source_module="specify_cli.merge.reconciliation",
+        ),
+        # specify_cli.merge.reconciliation::UnroutedTerminusPathError --
+        # public vocabulary of the new reconciliation gate (raised by
+        # `route_terminus` for an unrouted terminus path).
+        SymbolKey(
+            "UnroutedTerminusPathError",
+            "6be092c657d631005f4fc08807167d8174789d3dae9f3c9d8a8eb946a2815dab",
+            source_module="specify_cli.merge.reconciliation",
+        ),
+        # specify_cli.merge.reconciliation::Divergence -- public vocabulary
+        # of the new reconciliation gate (the verifier's FAIL-shaped
+        # structured divergence record). body_hash refreshed (#5001 #5020;
+        # #5022 terminus-reconciliation-attribution-integrity): the squash axis
+        # added `unattributable_blobs`, then `unattributable_deletions` + render branch.
+        SymbolKey(
+            "Divergence",
+            "a828263627ea91b6bca3a12e26bdccacc4011309e631bdcbcf52ec13f7d4c662",
+            source_module="specify_cli.merge.reconciliation",
+        ),
+        # specify_cli.merge.bookkeeping_projection::ProjectionResult -- the
+        # S-B/FR-004 post-checkpoint commit projection's outcome type;
+        # exercised intra-module today, external consumer deferred to the
+        # Epic #5001 follow-ups.
+        SymbolKey(
+            "ProjectionResult",
+            "397a6e1caea4f4f303ad58b212bb66cd884630a556a423605e5b4866a8a66384",
+            source_module="specify_cli.merge.bookkeeping_projection",
+        ),
+        # specify_cli.merge.bookkeeping_projection::project_post_checkpoint_commits_to_target
+        # -- same S-B/FR-004 projection helper; called only from within its
+        # own module today (the ``__all__`` claim of cross-module export
+        # keeps it caught by this gate's rules regardless).
+        SymbolKey(
+            "project_post_checkpoint_commits_to_target",
+            "fd9b9d68d3086089da9b3efbe15209dddfb6a7c1810ecddefaccdc4e2ec57fcc",
+            source_module="specify_cli.merge.bookkeeping_projection",
+        ),
+        # specify_cli.merge.git_probes::lane_integrated_by_tree_or_ancestry --
+        # T028 git probe (ancestry -> tree-equality integration under
+        # squash); consumed by the reconciliation verifier's own body
+        # (docstring cross-reference only) and exercised directly by
+        # tests/merge/test_reconciliation.py. RE-KEYED (landing/coord-read-
+        # fail-closed #5001 follow-up, PR #5020): the body changed (WS1's
+        # blob-attribution axis), so the content-tier body_hash below was
+        # recomputed via ``resolve_symbol_key``/``key_tier``
+        # (``tests/architectural/_symbol_key.py``), not hand-guessed.
+        SymbolKey(
+            "lane_integrated_by_tree_or_ancestry",
+            "ab4e79f1559ad1b71468df4342fa35d3a294f525ad4304f13abbab30e4833e99",
+            source_module="specify_cli.merge.git_probes",
+        ),
+        # specify_cli.merge.state::read_merge_lock_owner -- FR-008
+        # owner-token lock-ownership probe; consumed only from within its
+        # own module (acquire_merge_lock) and by
+        # tests/merge/test_merge_state_authority.py today.
+        SymbolKey(
+            "read_merge_lock_owner",
+            "152d2a612a16091432a35d186dbb9b234ad12e673816a683bf61f4bfae44f0d7",
+            source_module="specify_cli.merge.state",
+        ),
+    }
+)
+
+
 # ---------- C. WP-in-flight cross-OS lock primitive unification (#4714) ----------
 # ``kernel.locks`` (cross-os-primitive-unification mission, WP03) lands the
 # canonical sync facade + test-double injection seam AHEAD of its planned
@@ -2247,6 +2342,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_TEAM_KITTY_LAUNCH_DEFAULTS_3980
     | _CATEGORY_C_LIVE_WORK_CAPTURE_PUBLIC_SURFACE
     | _CATEGORY_D_LIVE_WORK_AUTHORED_PUBLIC_SURFACE
+    | _CATEGORY_C_TERMINUS_RECONCILIATION_5001
 )
 
 

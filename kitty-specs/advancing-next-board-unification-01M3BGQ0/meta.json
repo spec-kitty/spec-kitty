@@ -1,0 +1,21 @@
+{
+  "baseline_merge_commit": "92c6225c70e6cfe09d7985f4304472a7937c41d6",
+  "created_at": "2026-09-25T05:30:50.497425+00:00",
+  "flattened": true,
+  "friendly_name": "Advancing next: task-board authority unification",
+  "merged_at": "2026-09-25T07:21:41.043621+00:00",
+  "merged_commit": "79248bb4b1f3bd065081aab4684a6ca28027964b",
+  "mid8": "01M3BGQ0",
+  "mission_id": "01M3BGQ07M22KCP9XTCWSNH080",
+  "mission_number": null,
+  "mission_slug": "advancing-next-board-unification-01M3BGQ0",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The documented autonomous control loop (spec-kitty next --result success) is a release blocker on two P0 paths: after a reviewer rejects a work package the loop returns a success-shaped no-op forever and never re-dispatches the fix (#4980), and on the default coord topology it cannot issue a single implement step (#4975). Both are the same defect: the advancing loop derives the next step from a different, coord-blind authority than query mode uses. This mission unifies them so the loop stays trustworthy for any harness that drives it.",
+  "purpose_tldr": "Make the autonomous spec-kitty next loop re-dispatch work after a review rejection and dispatch implement on coord missions, instead of spinning or blocking forever.",
+  "slug": "advancing-next-board-unification-01M3BGQ0",
+  "status_phase": "1",
+  "target_branch": "fix/advancing-next-board-unification",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-25T06:01:24.396431+00:00"
+}

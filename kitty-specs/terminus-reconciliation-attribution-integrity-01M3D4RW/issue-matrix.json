@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#4857": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4883": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4977": {
+      "evidence_ref": "FR-005 adversarial: test_collect_excluded_still_catches_second_parent_smuggled_commit_in_mixed_lane; #5018 narrowing subtracts first-parent-only authored from all-ancestry lane tips, so 2nd-parent-smuggled canceled commit stays excluded",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#5001": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5013": {
+      "evidence_ref": "Pre-existing squash blob-attribution axis (terminus-integrity-followups mission); WP01 layers the deletion axis on it and its tests confirm the #5013 blob axis still holds (test_squash_* green, 3-way strict-xfail preserved)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#5018": {
+      "evidence_ref": "tests/terminus/test_repro_5018.py + test_collect_excluded_narrows_mixed_lane_to_commit_granularity; red on pre-fix (survivor commit false-excluded), green post-fix",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5021": {
+      "evidence_ref": "Owned by WP02 (FR-006 resume tolerance) per analysis-report.md; not in WP01 review scope, still in-mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    },
+    "#5022": {
+      "evidence_ref": "tests/terminus/test_repro_5022.py + test_squash_unattributed_deletion_fails; red on pre-fix base (squash exit 0 shipped canceled deletion), green post-fix",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5038": {
+      "evidence_ref": "Owned by WP02 (FR-007 projection precision) per analysis-report.md; not in WP01 review scope, still in-mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}

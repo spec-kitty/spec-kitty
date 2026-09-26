@@ -1,0 +1,106 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M35BA1HDH33X01TKRRBESWWN",
+  "materialized_at": "2026-09-22T20:00:56.365308+00:00",
+  "mission_number": "",
+  "mission_slug": "silent-destructive-write-hardening-01M355VK",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 3,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-renata",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M35B8WQ0WZX2PB56ZCGNJAQV",
+      "last_transition_at": "2026-09-22T20:00:18.656039+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "opus reviewer-renata APPROVE lane-a (#4908)",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3116366,
+      "shell_pid_created_at": "1790102516.57",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "reviewer-renata",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M35B9F6DP3QZE3FP156WTCJM",
+      "last_transition_at": "2026-09-22T20:00:37.581414+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "opus reviewer-renata APPROVE+folds lane-b (#4897)",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3121595,
+      "shell_pid_created_at": "1790102595.54",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP03": {
+      "actor": "reviewer-renata",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "approved",
+      "last_event_id": "01M35BA1HDH33X01TKRRBESWWN",
+      "last_transition_at": "2026-09-22T20:00:56.365308+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "opus reviewer-renata APPROVE lane-c (#4894)",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3125172,
+      "shell_pid_created_at": "1790102630.13",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    }
+  }
+}

@@ -100,6 +100,7 @@ Pre-flight failed. Fix these issues before merging:
 | Missing workspace for WP## | `spec-kitty implement WP##` |
 | Target is behind origin | `git checkout <target-branch> && git pull` |
 | `TARGET_BRANCH_NOT_SYNCHRONIZED` while local `main` is ahead or diverged | Inspect divergence, then open a focused PR from `kitty/mission-<mission-slug>` or `kitty/pr/<mission-slug>-to-main` instead of pushing local `main` |
+| `TARGET_BRANCH_CONTENT_CONFLICT` — the default squash would clobber newer target-branch content | Reconcile the mission branch against the current target, resolve the listed paths, then rerun. See [Target-Branch Content Conflicts During Squash](../recovery/troubleshoot-merge.md#target-branch-content-conflicts-during-squash) |
 
 ### Focused PR for Autonomous Local Runs
 

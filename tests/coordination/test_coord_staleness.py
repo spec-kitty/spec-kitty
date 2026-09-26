@@ -232,6 +232,425 @@ def test_unified_diff_returns_empty_on_os_error(monkeypatch: pytest.MonkeyPatch,
     assert cd._unified_diff(tmp_path, "coord", "main") == ""
 
 
+def test_fix_one_staleness_requires_declared_ref_postcondition(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A completed merge is not success until the declared coord ref reaches target."""
+    from specify_cli import coordination as coord_mod
+
+    monkeypatch.setattr(
+        cd,
+        "_coord_vs_target_shas",
+        lambda *_a: ("coord", "main", "coord-sha", "target-sha"),
+    )
+    monkeypatch.setattr(cd, "_is_ff_candidate", lambda *_a: True)
+    monkeypatch.setattr(
+        cd,
+        "_coordination_identity",
+        lambda *_a: ("coord", "mission", "01ABCDEF00000000000000000A"),
+    )
+    monkeypatch.setattr(cd, "_resolve_coord_short", lambda *_a: "01ABCDEF")
+    monkeypatch.setattr(
+        coord_mod.CoordinationWorkspace,
+        "worktree_path",
+        staticmethod(lambda *_a: tmp_path),
+    )
+    monkeypatch.setattr(cd, "_coord_worktree_foreign_repo_finding", lambda *_a: None)
+    monkeypatch.setattr(cd, "_coord_worktree_head_finding", lambda *_a: None)
+    monkeypatch.setattr(cd, "_coord_worktree_dirty_finding", lambda *_a: None)
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout="", stderr=""),
+    )
+    monkeypatch.setattr(cd, "_rev_parse", lambda *_a: "unexpected-sha")
+
+    finding = cd._fix_one_mission_coord_staleness(tmp_path, {})
+
+    assert finding is not None
+    # #4950 second-opinion follow-up: distinct code -- a fast-forward DID run
+    # in the worktree, so this is not the "nothing was mutated" BLOCKED case.
+    assert finding.error_code == cd._COORD_STALE_FIX_POSTCONDITION_CODE
+    assert finding.error_code != cd._COORD_STALE_FIX_BLOCKED_CODE
+    assert "postcondition" in finding.message
+    assert str(tmp_path) in finding.message
+    assert "Fast-forwarded" not in capsys.readouterr().out
+
+
+def test_fix_one_staleness_merges_target_sha_not_branch_name(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """#4950 follow-up: merge the same SHA the postcondition checks against.
+
+    ``target_branch`` can advance between resolving ``target_sha`` (via
+    ``_coord_vs_target_shas``) and running the merge; merging the SHA keeps
+    the move and the postcondition check pinned to the exact same commit.
+    """
+    from specify_cli import coordination as coord_mod
+
+    monkeypatch.setattr(
+        cd,
+        "_coord_vs_target_shas",
+        lambda *_a: ("coord", "main", "coord-sha", "target-sha"),
+    )
+    monkeypatch.setattr(cd, "_is_ff_candidate", lambda *_a: True)
+    monkeypatch.setattr(
+        cd,
+        "_coordination_identity",
+        lambda *_a: ("coord", "mission", "01ABCDEF00000000000000000A"),
+    )
+    monkeypatch.setattr(cd, "_resolve_coord_short", lambda *_a: "01ABCDEF")
+    monkeypatch.setattr(
+        coord_mod.CoordinationWorkspace,
+        "worktree_path",
+        staticmethod(lambda *_a: tmp_path),
+    )
+    monkeypatch.setattr(cd, "_coord_worktree_foreign_repo_finding", lambda *_a: None)
+    monkeypatch.setattr(cd, "_coord_worktree_head_finding", lambda *_a: None)
+    monkeypatch.setattr(cd, "_coord_worktree_dirty_finding", lambda *_a: None)
+    monkeypatch.setattr(cd, "_rev_parse", lambda *_a: "target-sha")
+
+    captured: dict[str, list[str]] = {}
+
+    def _fake_run(cmd: list[str], **_k: Any) -> subprocess.CompletedProcess[str]:
+        captured["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+
+    finding = cd._fix_one_mission_coord_staleness(tmp_path, {})
+
+    assert finding is None
+    assert captured["cmd"][-3:] == ["merge", "--ff-only", "target-sha"]
+
+
+def test_fix_one_staleness_merge_failure_returns_finding_without_raising(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """#4950 follow-up: a failed `--ff-only` must surface as a finding, not raise."""
+    from specify_cli import coordination as coord_mod
+
+    monkeypatch.setattr(
+        cd,
+        "_coord_vs_target_shas",
+        lambda *_a: ("coord", "main", "coord-sha", "target-sha"),
+    )
+    monkeypatch.setattr(cd, "_is_ff_candidate", lambda *_a: True)
+    monkeypatch.setattr(
+        cd,
+        "_coordination_identity",
+        lambda *_a: ("coord", "mission", "01ABCDEF00000000000000000A"),
+    )
+    monkeypatch.setattr(cd, "_resolve_coord_short", lambda *_a: "01ABCDEF")
+    monkeypatch.setattr(
+        coord_mod.CoordinationWorkspace,
+        "worktree_path",
+        staticmethod(lambda *_a: tmp_path),
+    )
+    monkeypatch.setattr(cd, "_coord_worktree_foreign_repo_finding", lambda *_a: None)
+    monkeypatch.setattr(cd, "_coord_worktree_head_finding", lambda *_a: None)
+    monkeypatch.setattr(cd, "_coord_worktree_dirty_finding", lambda *_a: None)
+
+    def _fake_run(cmd: list[str], **k: Any) -> subprocess.CompletedProcess[str]:
+        result = subprocess.CompletedProcess(
+            cmd, 128, stdout="", stderr="fatal: Not possible to fast-forward, aborting.",
+        )
+        if k.get("check"):
+            raise subprocess.CalledProcessError(
+                128, cmd, output=result.stdout, stderr=result.stderr,
+            )
+        return result
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+
+    finding = cd._fix_one_mission_coord_staleness(tmp_path, {})
+
+    assert finding is not None
+    assert finding.error_code == cd._COORD_STALE_FIX_BLOCKED_CODE
+    assert "fatal: Not possible to fast-forward" in finding.message
+    assert "Fast-forwarded" not in capsys.readouterr().out
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_e_merge_failure_for_one_mission_does_not_block_another(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """#4950 follow-up (renata-LOW-shaped): a failed ``--ff-only`` for one
+    mission must not raise or abort fixing an unrelated, healthy mission in
+    the same ``--fix`` run.
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    # Mission A: a real strict-ancestor candidate whose merge we force to fail.
+    fail_slug = "merge-fail-mission"
+    fail_branch = "coord-fail"
+    _git(repo, "branch", fail_branch)
+    (repo / "advance-a.txt").write_text("a\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "advance target for A")
+    fail_dir = repo / "kitty-specs" / fail_slug
+    fail_dir.mkdir(parents=True)
+    (fail_dir / "meta.json").write_text(
+        json.dumps({
+            "mission_slug": fail_slug,
+            "mission_id": "01ABCDEF0000000000000FAIL",
+            "coordination_branch": fail_branch,
+            "target_branch": _TARGET_BRANCH,
+        }),
+        encoding="utf-8",
+    )
+    fail_worktree = tmp_path / "fail-wt"
+    _git(repo, "worktree", "add", str(fail_worktree), fail_branch)
+
+    # Mission B: a real, healthy strict-ancestor candidate that must still
+    # be fast-forwarded despite mission A's merge failure.
+    ok_slug = "merge-ok-mission"
+    ok_branch = "coord-ok"
+    _git(repo, "branch", ok_branch)
+    ok_dir = repo / "kitty-specs" / ok_slug
+    ok_dir.mkdir(parents=True)
+    (ok_dir / "meta.json").write_text(
+        json.dumps({
+            "mission_slug": ok_slug,
+            "mission_id": "01ABCDEF00000000000000OK01",
+            "coordination_branch": ok_branch,
+            "target_branch": _TARGET_BRANCH,
+        }),
+        encoding="utf-8",
+    )
+    ok_worktree = tmp_path / "ok-wt"
+    _git(repo, "worktree", "add", str(ok_worktree), ok_branch)
+
+    _patch_worktree_path_by_slug(
+        monkeypatch,
+        {fail_slug: fail_worktree, ok_slug: ok_worktree},
+        fallback=tmp_path / "no-such-worktree",
+    )
+
+    real_run = subprocess.run
+
+    def _selective_merge_failure(
+        cmd: list[str], **k: Any
+    ) -> subprocess.CompletedProcess[str]:
+        if "merge" in cmd and str(fail_worktree) in cmd:
+            result = subprocess.CompletedProcess(
+                cmd, 128, stdout="", stderr="fatal: forced failure for A",
+            )
+            if k.get("check"):
+                raise subprocess.CalledProcessError(
+                    128, cmd, output=result.stdout, stderr=result.stderr,
+                )
+            return result
+        return real_run(cmd, **k)
+
+    monkeypatch.setattr(subprocess, "run", _selective_merge_failure)
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    target_sha = _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip()
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True, fix=True)
+
+    out = capsys.readouterr().out
+    assert exc.value.exit_code == 1
+    assert cd._COORD_STALE_FIX_BLOCKED_CODE in out
+    assert "fatal: forced failure for A" in out
+
+    # Mission A's merge genuinely failed -- nothing mutated there.
+    assert _git(fail_worktree, "rev-parse", "HEAD").stdout.strip() != target_sha
+    # Mission B was NOT blocked by A's failure -- it really fast-forwarded.
+    assert _git(ok_worktree, "rev-parse", "HEAD").stdout.strip() == target_sha
+    assert _git(repo, "rev-parse", ok_branch).stdout.strip() == target_sha
+
+
+def test_coord_worktree_foreign_repo_finding_resolves_relative_common_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#4950 fold: ``--path-format=absolute`` needs git >= 2.31, newer than
+    this module's declared ``_MIN_GIT_VERSION`` (2, 25). On an older git the
+    flag is echoed back unrecognised and ``--git-common-dir`` comes back
+    RELATIVE (e.g. ``.git``) in the main checkout, while the worktree side
+    still reports an absolute common dir -- a raw string compare would then
+    refuse every legitimate coordination worktree. Monkeypatch
+    ``_git_rev_parse_query`` to reproduce exactly that shape (relative from
+    the main repo, absolute from the worktree, resolving to the SAME
+    directory) and assert the finding does NOT refuse.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    worktree = tmp_path / "elsewhere" / "coord-wt"
+    worktree.mkdir(parents=True)
+    common_dir_abs = (repo_root / ".git").resolve()
+
+    def fake_rev_parse(cwd: Path, *args: str) -> str:
+        if "--show-toplevel" in args:
+            return str(worktree)
+        assert "--git-common-dir" in args
+        if cwd == repo_root:
+            return ".git"  # relative, as an old git reports in the main checkout
+        return str(common_dir_abs)  # absolute, as git reports for a linked worktree
+
+    monkeypatch.setattr(cd, "_git_rev_parse_query", fake_rev_parse)
+
+    finding = cd._coord_worktree_foreign_repo_finding(repo_root, worktree, "coord")
+
+    assert finding is None
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_a_foreign_clone_fix_fails_closed_without_mutation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """#4950 second-opinion follow-up: a foreign clone must be refused pre-mutation.
+
+    The recorded coordination worktree is a SEPARATE ``git clone`` of the
+    repo (not a linked worktree) with the coord branch checked out and the
+    target branch's commit present. Branch-NAME equality alone
+    (``_coord_worktree_head_finding``) passes -- the clone really is on a
+    branch called "coord" -- so before this fold, the fast-forward ran and
+    genuinely succeeded *inside the clone* while the declared branch in
+    ``repo_root`` never moved (a real repro of the postcondition-failure
+    code path -- see the git-common-dir/toplevel check this test now
+    exercises). ``_coord_worktree_foreign_repo_finding`` catches the
+    identity mismatch BEFORE any mutation: the clone's local branch must
+    stay put too, not just ``repo_root``'s declared ref.
+    """
+    repo = tmp_path / "repo"
+    mission_slug = "foreign-clone-mission"
+    _make_strict_ancestor_repo(repo, mission_slug)
+
+    clone = tmp_path / "foreign-clone"
+    subprocess.run(
+        ["git", "clone", "--quiet", str(repo), str(clone)],
+        check=True, capture_output=True, text=True,
+    )
+    _git(clone, "checkout", "-q", _COORD_BRANCH)
+    _git(clone, "config", "user.email", "test@test.com")
+    _git(clone, "config", "user.name", "Test")
+    _git(clone, "config", "commit.gpgsign", "false")
+    _patch_worktree_path(monkeypatch, clone)
+
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    coord_sha_before = _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip()
+    clone_head_before = _git(clone, "rev-parse", "HEAD").stdout.strip()
+    target_sha = _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip()
+    assert coord_sha_before != target_sha, "fixture precondition: coord must start behind target"
+    assert clone_head_before == coord_sha_before
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True, fix=True)
+
+    out = capsys.readouterr().out
+    assert exc.value.exit_code == 1
+    assert cd._COORD_STALE_FIX_BLOCKED_CODE in out
+    assert "does not belong to this repository" in out
+    assert "Fast-forwarded" not in out
+    # Nothing mutated -- neither the declared ref in repo_root NOR the clone.
+    assert _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip() == coord_sha_before
+    assert _git(clone, "rev-parse", "HEAD").stdout.strip() == clone_head_before
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_e_wrong_branch_mismatch_for_one_mission_does_not_block_another(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Pin: one mission's wrong-branch coord worktree must not block fixing
+    an unrelated, healthy mission in the same ``--fix`` run.
+
+    Distinct from ``test_e_one_diverged_mission_does_not_block_fix_for_other_missions``
+    (a DIVERGED coord branch) and
+    ``test_e_merge_failure_for_one_mission_does_not_block_another`` (a failed
+    merge): here mission A's coord branch is itself a perfectly good
+    fast-forward candidate -- the problem is that its recorded WORKTREE has
+    the wrong branch checked out (#4920/#4950's original bug shape).
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    # Mission A: coord branch is a strict-ancestor fast-forward candidate,
+    # but the recorded worktree has a DIFFERENT branch checked out.
+    mismatch_slug = "mismatch-mission"
+    mismatch_branch = "coord-mismatch"
+    wrong_branch = "wrong-branch-for-mismatch"
+    _git(repo, "branch", mismatch_branch)
+    _git(repo, "branch", wrong_branch, mismatch_branch)
+    (repo / "advance-a.txt").write_text("a\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "advance target for A")
+    mismatch_dir = repo / "kitty-specs" / mismatch_slug
+    mismatch_dir.mkdir(parents=True)
+    (mismatch_dir / "meta.json").write_text(
+        json.dumps({
+            "mission_slug": mismatch_slug,
+            "mission_id": "01ABCDEF0000000000MISMTCH",
+            "coordination_branch": mismatch_branch,
+            "target_branch": _TARGET_BRANCH,
+        }),
+        encoding="utf-8",
+    )
+    mismatch_worktree = tmp_path / "mismatch-wt"
+    _git(repo, "worktree", "add", str(mismatch_worktree), wrong_branch)
+
+    # Mission B: a real, healthy strict-ancestor candidate that must still
+    # be fast-forwarded despite mission A's refusal.
+    ok_slug = "healthy-mission"
+    ok_branch = "coord-healthy"
+    _git(repo, "branch", ok_branch)
+    ok_dir = repo / "kitty-specs" / ok_slug
+    ok_dir.mkdir(parents=True)
+    (ok_dir / "meta.json").write_text(
+        json.dumps({
+            "mission_slug": ok_slug,
+            "mission_id": "01ABCDEF000000000000HLTHY",
+            "coordination_branch": ok_branch,
+            "target_branch": _TARGET_BRANCH,
+        }),
+        encoding="utf-8",
+    )
+    ok_worktree = tmp_path / "healthy-wt"
+    _git(repo, "worktree", "add", str(ok_worktree), ok_branch)
+
+    _patch_worktree_path_by_slug(
+        monkeypatch,
+        {mismatch_slug: mismatch_worktree, ok_slug: ok_worktree},
+        fallback=tmp_path / "no-such-worktree",
+    )
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    mismatch_coord_sha_before = _git(repo, "rev-parse", mismatch_branch).stdout.strip()
+    mismatch_wt_head_before = _git(mismatch_worktree, "rev-parse", "HEAD").stdout.strip()
+    target_sha = _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip()
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True, fix=True)
+
+    out = capsys.readouterr().out
+    assert exc.value.exit_code == 1
+    assert cd._COORD_STALE_FIX_BLOCKED_CODE in out
+    assert f"is on {wrong_branch!r}, not {mismatch_branch!r}" in out
+
+    # Mission A refused, unmutated.
+    assert _git(repo, "rev-parse", mismatch_branch).stdout.strip() == mismatch_coord_sha_before
+    assert _git(mismatch_worktree, "rev-parse", "HEAD").stdout.strip() == mismatch_wt_head_before
+
+    # Mission B was NOT blocked by A's refusal -- it really fast-forwarded.
+    assert _git(ok_worktree, "rev-parse", "HEAD").stdout.strip() == target_sha
+    assert _git(repo, "rev-parse", ok_branch).stdout.strip() == target_sha
+
+
 def test_check_and_warn_coord_staleness_no_meta_is_silent(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -375,6 +794,111 @@ def test_a_strict_ancestor_check_staleness_reports_and_fix_fast_forwards(
 
     assert _git(worktree, "rev-parse", "HEAD").stdout.strip() == target_sha
     assert _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip() == target_sha
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_a_wrong_branch_worktree_fix_fails_closed_without_mutation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """#4920: ``--fix`` must not advance the wrong branch checked out at the coord path."""
+    repo = tmp_path / "repo"
+    mission_slug = "wrong-branch-mission"
+    _make_strict_ancestor_repo(repo, mission_slug)
+
+    wrong_branch = "wrong-branch"
+    _git(repo, "branch", wrong_branch, _COORD_BRANCH)
+    worktree = tmp_path / "wrong-branch-wt"
+    _git(repo, "worktree", "add", str(worktree), wrong_branch)
+    _patch_worktree_path(monkeypatch, worktree)
+
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    coord_sha_before = _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip()
+    wrong_sha_before = _git(repo, "rev-parse", wrong_branch).stdout.strip()
+    target_sha_before = _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip()
+    worktree_head_before = _git(worktree, "rev-parse", "HEAD").stdout.strip()
+    assert coord_sha_before == wrong_sha_before == worktree_head_before
+    assert coord_sha_before != target_sha_before
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True, fix=True)
+
+    out = capsys.readouterr().out
+    assert _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip() == coord_sha_before
+    assert _git(repo, "rev-parse", wrong_branch).stdout.strip() == wrong_sha_before
+    assert _git(worktree, "rev-parse", "HEAD").stdout.strip() == worktree_head_before
+    assert _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip() == target_sha_before
+    assert exc.value.exit_code == 1
+    assert cd._COORD_STALE_FIX_BLOCKED_CODE in out
+    # #4950: a dedicated message -- no coord..target diff, no "inspect the
+    # diff above" advice, and the actual branch name is named directly.
+    assert f"is on {wrong_branch!r}, not 'coord'" in out
+    assert "checked out in a mismatched worktree" not in out
+    assert "diff --git" not in out
+    assert "Fast-forwarded" not in out
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_a_detached_worktree_fix_fails_closed_without_mutation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """#4950: a detached-HEAD coord worktree must refuse ``--fix``, not mutate."""
+    repo = tmp_path / "repo"
+    mission_slug = "detached-mission"
+    _make_strict_ancestor_repo(repo, mission_slug)
+    worktree = _add_coord_worktree(repo, tmp_path)
+    _patch_worktree_path(monkeypatch, worktree)
+    _git(worktree, "checkout", "--detach", "HEAD")
+
+    monkeypatch.setattr(cd, "locate_project_root", lambda: repo)
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+
+    coord_sha_before = _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip()
+    worktree_head_before = _git(worktree, "rev-parse", "HEAD").stdout.strip()
+    target_sha_before = _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip()
+
+    with pytest.raises(typer.Exit) as exc:
+        cd.run_coordination_health(json_output=True, fix=True)
+
+    out = capsys.readouterr().out
+    assert _git(repo, "rev-parse", _COORD_BRANCH).stdout.strip() == coord_sha_before
+    assert _git(worktree, "rev-parse", "HEAD").stdout.strip() == worktree_head_before
+    assert _git(repo, "rev-parse", _TARGET_BRANCH).stdout.strip() == target_sha_before
+    assert exc.value.exit_code == 1
+    assert cd._COORD_STALE_FIX_BLOCKED_CODE in out
+    assert "is on '<detached>', not 'coord'" in out
+    assert "checked out in a mismatched worktree" not in out
+    assert "diff --git" not in out
+    assert "Fast-forwarded" not in out
+
+
+@pytest.mark.git_repo
+@pytest.mark.non_sandbox
+def test_a_detached_worktree_head_finding_silences_symbolic_ref_stderr(
+    tmp_path: Path, capfd: pytest.CaptureFixture[str],
+) -> None:
+    """#4950: git's `fatal: ref HEAD is not a symbolic ref` must not leak.
+
+    ``capsys`` cannot see this -- git writes straight to the real stderr
+    file descriptor, bypassing Python's ``sys.stderr`` -- so this needs
+    ``capfd``, which captures at the OS file-descriptor level.
+    """
+    repo = tmp_path / "repo"
+    _make_strict_ancestor_repo(repo, "detached-stderr-mission")
+    worktree = tmp_path / "detached-wt"
+    _git(repo, "worktree", "add", "--detach", str(worktree), _COORD_BRANCH)
+
+    capfd.readouterr()  # discard `worktree add`'s own output
+
+    finding = cd._coord_worktree_head_finding(worktree, _COORD_BRANCH)
+
+    assert finding is not None
+    assert "fatal:" not in capfd.readouterr().err
 
 
 @pytest.mark.git_repo

@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "mission_slug": "terminus-reconciliation-attribution-integrity-01M3D4RW",
+  "mission_id": "01M3D4RW4J5F5HNVT3N37JF95Q",
+  "mission_branch": "kitty/mission-terminus-reconciliation-attribution-integrity-01M3D4RW",
+  "target_branch": "fix/terminus-reconciliation-attribution-integrity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/merge/reconciliation.py",
+        "tests/merge/test_reconciliation.py",
+        "tests/terminus/test_repro_5018.py",
+        "tests/terminus/test_repro_5022.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/merge/bookkeeping_projection.py",
+        "src/specify_cli/merge/executor.py",
+        "tests/terminus/test_repro_5021.py",
+        "tests/terminus/test_repro_5038.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-25T21:04:11.472360+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2be94eba76660e67efbd29f36d41f9cdcf0dfb80"
+}

@@ -1,0 +1,35 @@
+{
+  "accept_commit": "78d5c4feda23c9ed273fb3dee2eb31a482c0b601",
+  "acceptance_history": [
+    {
+      "accept_commit": "78d5c4feda23c9ed273fb3dee2eb31a482c0b601",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-23T21:58:37.923132+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "4e8b5fb1bcbc949fa6433bfdebdd2eb2fbf1e5f9"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-23T21:58:37.923132+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "4e8b5fb1bcbc949fa6433bfdebdd2eb2fbf1e5f9",
+  "baseline_merge_commit": "199d0f65baf58852e4b8648a8fc0396439aea7fb",
+  "created_at": "2026-09-23T18:01:45.124653+00:00",
+  "flattened": true,
+  "friendly_name": "Mission-State Repair Audit-Trail Durability",
+  "merged_at": "2026-09-23T21:59:54.789331+00:00",
+  "merged_commit": "c49bdef0fb47f25e77c5a21cf2e15dc4b37f2396",
+  "mid8": "01M37PWG",
+  "mission_id": "01M37PWGWRFNZY8X2Y7P7KJJGK",
+  "mission_number": null,
+  "mission_slug": "mission-state-audit-trail-durability-01M37PWG",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The mission-state repair records what it did (a per-run manifest) and where it put any rows it removed (a quarantine tree) under a git-ignored path, so a routine working-tree clean destroys the only evidence of a destructive repair and the operator is never warned. This mission makes that audit trail durable and visible. It is the placement/visibility sibling of the row-canonicality fix already shipped for #4897; it deliberately does not touch which rows are preserved.",
+  "purpose_tldr": "Make 'doctor mission-state --fix' keep a durable, visible audit trail so its repair manifest and any quarantined rows can't silently vanish under git clean (#4928).",
+  "slug": "mission-state-audit-trail-durability-01M37PWG",
+  "status_phase": "1",
+  "target_branch": "fix/mission-state-audit-trail-durability",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-23T20:51:20.491125+00:00"
+}

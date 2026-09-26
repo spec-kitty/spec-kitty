@@ -1,0 +1,89 @@
+{
+  "mission_slug": "accept-fail-closed-missing-lanes-01M3CC1V",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "With lanes.json absent and any acceptance criterion unresolved (or the matrix missing), `spec-kitty accept` exits non-zero and AcceptanceSummary.ok is False.",
+      "proof_type": "automated_test",
+      "evidence": "42ba9d7785; RED->GREEN verified",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-25T14:16:56.185026+00:00",
+      "notes": "Regression test (#4891) in tests/cross_cutting/misc/test_acceptance_support.py + inverted characterization test."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The absent-lanes case records a blocked_checks 'lanes_manifest' diagnostic and skipped_checks for every acceptance-matrix gate that did not run (presence, evidence, negative-invariants, verdict).",
+      "proof_type": "automated_test",
+      "evidence": "42ba9d7785; RED->GREEN via test_trio_pure_cores + test_acceptance_support",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-25T14:15:20.229687+00:00",
+      "notes": "tests/characterization/test_trio_pure_cores.py inverted test asserts the diagnostic shape."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "No accepted_at / accept_commit / acceptance_history is written or committed to meta.json when lanes.json is absent.",
+      "proof_type": "automated_test",
+      "evidence": "42ba9d7785; RED->GREEN via test_trio_pure_cores + test_acceptance_support",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-25T14:15:22.302160+00:00",
+      "notes": "Follows from summary.ok=False gating perform_acceptance; asserted at the e2e boundary."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "The absent-lanes diagnostic names the recovery command (finalize-tasks / doctor mission-state --fix), matching MissingLanesError wording.",
+      "proof_type": "automated_test",
+      "evidence": "42ba9d7785; RED->GREEN via test_trio_pure_cores + test_acceptance_support",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-25T14:15:24.386941+00:00",
+      "notes": "Assert the remediation substring in the recorded activity_issue / blocked-check detail."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Present-lanes (pending matrix -> exit 1) and corrupt-lanes behaviours are unchanged (no regression).",
+      "proof_type": "automated_test",
+      "evidence": "42ba9d7785; RED->GREEN via test_trio_pure_cores + test_acceptance_support",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-25T14:15:26.485004+00:00",
+      "notes": "Existing corrupt-lanes test stays green; coord golden-path integration tests stay green."
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "The fix extends the existing _resolve_lanes_manifest_or_stop seam only; no second lanes-resolution authority and no coord-aware read introduced (lanes.json is PRIMARY-partition).",
+      "proof_type": "manual_review",
+      "evidence": "Reviewer: diff confined to _resolve_lanes_manifest_or_stop seam; no coord-aware read; merge untouched",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-25T14:15:32.724671+00:00",
+      "notes": "Reviewer confirms the diff is confined to the seam; DD-2 rejection honoured."
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "ruff check, ruff format --check, and mypy --strict pass with zero new issues; no new suppressions.",
+      "proof_type": "automated_test",
+      "evidence": "42ba9d7785; RED->GREEN via test_trio_pure_cores + test_acceptance_support",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-25T14:15:28.567997+00:00",
+      "notes": "Run the configured lint/format/type gates on the touched files."
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "Touched functions remain <=15 cyclomatic complexity (Ruff C901 / Sonar S3776).",
+      "proof_type": "automated_test",
+      "evidence": "42ba9d7785; RED->GREEN via test_trio_pure_cores + test_acceptance_support",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-25T14:15:30.651753+00:00",
+      "notes": "ruff C901 clean on gates_core.py."
+    }
+  ],
+  "negative_invariants": []
+}

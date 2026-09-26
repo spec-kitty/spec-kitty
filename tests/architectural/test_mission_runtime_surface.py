@@ -82,11 +82,21 @@ _PUBLIC_SURFACE = sorted(
         # root public symbol because ``ResolvedSurface.surface_kind`` stamps it and
         # consumers read the stamp.
         "TopologySurface",
+        # coord-read-fail-closed landing (#5001): the basename->kind classifier
+        # map itself, re-exported so ``specify_cli.coordination.surface_resolver``
+        # can invert it (kind -> basenames) without reaching into the
+        # ``mission_runtime.artifacts`` submodule directly (MR-1/MR-2).
+        "_MISSION_FILE_KIND_BY_BASENAME",
         "classify_topology",
         # coord-commit-integrity SURFACE A (#5): the ONE topology-guarded coord-read
         # helper both gates_core._acceptance_matrix_read_dir and accept._coord_
         # worktree_root consume — a package-root public symbol, so it is pinned here.
         "coord_read_dir_for",
+        # landing/coord-read-fail-closed (#5001): the ONE fail-closed WRITE
+        # decision ``specify_cli.coordination.write_seam`` consults (RN-F1) --
+        # promoted onto the package root so external callers stop reaching
+        # into the ``write_target_degrade`` submodule directly.
+        "assert_coord_write_materialized",
         # coord-write-placement-closure-01KYCF83 WP07 (T034 fold): the shared
         # materialization-BLIND partition+topology predicate both
         # ``_classify_artifact_surface`` (this package) and

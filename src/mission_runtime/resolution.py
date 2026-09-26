@@ -1932,7 +1932,10 @@ def _classify_artifact_surface(
     # classifier (GEC-3 / contract C3). ``coordination_branch`` (read from the
     # primary ``meta.json``) is what splits UNMATERIALIZED from DELETED inside the
     # probe's single ``git rev-parse`` arm.
-    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+    from specify_cli.coordination.surface_resolver import (
+        CoordinationBranchDeleted,
+        CoordinationWorktreeUnmaterialized,
+    )
     from specify_cli.missions._read_path_resolver import (
         CoordState,
         coord_feature_dir,
@@ -1960,8 +1963,26 @@ def _classify_artifact_surface(
         )
     if coord_state is CoordState.MATERIALIZED:
         return TopologySurface.COORD, coord_feature_dir(primary_root, canonical_slug, mid8)
-    # EMPTY / UNMATERIALIZED / NONE → primary + PRIMARY stamp (GEC-3): a DECLARED
-    # answer the returned stamp names, NOT an undeclared fallback (NFR-001). GEC-5
+    if coord_state is CoordState.UNMATERIALIZED:
+        # #4959 / DM-01M38VWD (mission coord-read-fail-closed): the coord
+        # branch is declared AND still present in git, but its worktree has
+        # never been materialized — the fresh-clone / CI / removed-worktree
+        # window. Before this fix the fall-through below returned an
+        # empty-PRIMARY path here, and a coord-partition reader acted on that
+        # emptiness as if it were the real document (the #4959 tracer-clobber
+        # class of bug). Raise instead of substituting — the branch is not
+        # lost (unlike DELETED), so the recovery is materialize, not flatten.
+        # EMPTY / NONE are UNCHANGED and keep returning the declared PRIMARY
+        # stamp below (out of scope per data-model.md / research.md).
+        raise CoordinationWorktreeUnmaterialized.for_mission(
+            repo_root=primary_root,
+            mission_slug=canonical_slug,
+            mid8=mid8,
+            coordination_branch=coordination_branch,
+            primary_candidate=primary_dir,
+        )
+    # EMPTY / NONE → primary + PRIMARY stamp (GEC-3): a DECLARED answer the
+    # returned stamp names, NOT an undeclared fallback (NFR-001). GEC-5
     # governs whether the consuming gate may treat the stamped surface as
     # authoritative.
     return TopologySurface.PRIMARY, None

@@ -303,3 +303,36 @@ def test_references_parity_cause_name_is_a_runner_layer() -> None:
     layer_keys = {key for key, _label in runner_module._LAYER_ORDER}
     assert references_refresh._REFERENCES_PARITY_CAUSE_NAME in layer_keys
     assert references_refresh._REFERENCES_PARITY_CAUSE_NAME == runner_module.SYNTHESIZED_DRG_LAYER
+
+
+# ---------------------------------------------------------------------------
+# T010 -- shared ``catalog.mission``/``catalog.template_set`` accessor parity
+# (Finding B, #4993)
+# ---------------------------------------------------------------------------
+
+
+def test_read_catalog_mission_and_template_set_matches_shared_accessor(
+    tmp_path: Path,
+) -> None:
+    """AC-B1: this module's ``catalog.mission``/``catalog.template_set``
+    reader must resolve the identical value the shared accessor
+    (``charter.activation.charter_yaml_io.read_catalog_field``, Finding B /
+    #4993) returns directly for the same repo -- both now read through the
+    one canonical parser rather than this module's former ad-hoc
+    ``YAML(typ="safe")`` read."""
+    from charter.activation.charter_yaml_io import read_catalog_field
+
+    seen_calls: list[list[str]] = []
+    _seed_baseline_repo(tmp_path, seen_calls)
+
+    mission, template_set = references_refresh._read_catalog_mission_and_template_set(tmp_path)
+
+    assert mission == read_catalog_field(tmp_path, "mission") == "software-dev"
+    assert template_set == read_catalog_field(tmp_path, "template_set")
+    assert template_set is not None
+
+
+def test_read_catalog_mission_and_template_set_absent_charter_yaml(tmp_path: Path) -> None:
+    """AC-B2: an absent ``charter.yaml`` yields the same absent
+    ``(None, None)`` result as before the refactor."""
+    assert references_refresh._read_catalog_mission_and_template_set(tmp_path) == (None, None)

@@ -11,7 +11,9 @@ from typer.testing import CliRunner
 
 from specify_cli import acceptance as acc
 from specify_cli import app as cli_app
+from specify_cli.acceptance.matrix import AcceptanceCriterion, AcceptanceMatrix, write_acceptance_matrix
 from specify_cli.task_utils import support as th
+from tests.lane_test_utils import write_single_lane_manifest
 
 pytestmark = [pytest.mark.integration]
 
@@ -135,6 +137,29 @@ def _remove_runtime_annotation_field(feature_repo: Path, mission_slug: str, fiel
     )
 
 
+def _passing_acceptance_matrix(mission_slug: str) -> AcceptanceMatrix:
+    """A minimal acceptance matrix whose ``overall_verdict`` is ``pass`` (#5030).
+
+    #4891 made the lane-gate's acceptance-matrix check reachable (rather than
+    a no-op) once a non-planning ``lanes.json`` is present. The quarantined
+    accept-CLI tests that seed a lane manifest need a passing matrix too, or
+    the gate blocks on ``acceptance_matrix_verdict`` before reaching the
+    behavior under test.
+    """
+    return AcceptanceMatrix(
+        mission_slug=mission_slug,
+        criteria=[
+            AcceptanceCriterion(
+                criterion_id="AC-001",
+                description="WP01 completes as specified",
+                proof_type="automated_test",
+                pass_fail="pass",
+                evidence="test evidence",
+            )
+        ],
+    )
+
+
 def test_collect_feature_summary_reports_missing_canonical_metadata(feature_repo: Path, mission_slug: str) -> None:
     _remove_runtime_annotation_field(feature_repo, mission_slug, "assignee")
 
@@ -146,7 +171,15 @@ def test_collect_feature_summary_reports_missing_canonical_metadata(feature_repo
 
 
 def test_perform_acceptance_without_commit(feature_repo: Path, mission_slug: str) -> None:
+    from tests.lane_test_utils import write_single_lane_manifest
     from tests.utils import run
+
+    # #4891: absence is now fail-closed, so this mechanics-only test (it is not
+    # exercising the acceptance-matrix gate) needs a lanes.json. A planning-lane
+    # manifest keeps the matrix gate a no-op (is_planning_artifact_only), so no
+    # acceptance-matrix.json fixture is needed either.
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    write_single_lane_manifest(feature_dir, lane_id="lane-planning")
 
     _force_lane(feature_repo, mission_slug, "WP01", "in_progress")
     run(["git", "commit", "-am", "Update to doing"], cwd=feature_repo)
@@ -165,7 +198,35 @@ def test_perform_acceptance_without_commit(feature_repo: Path, mission_slug: str
     assert payload["mode"] == ACCEPTANCE_MODE_CHECKLIST
 
 
-@_ACCEPT_COMMAND_XDIST_QUARANTINE
+@pytest.mark.regression
+def test_accept_fails_closed_when_lanes_json_is_absent(feature_repo: Path, mission_slug: str) -> None:
+    # regression: #4891 -- `spec-kitty accept` must not silently skip the
+    # entire acceptance-matrix gate when lanes.json is absent. Otherwise mode
+    # (present-lanes, all WPs approved/done, no metadata issues) is the exact
+    # shape `test_perform_acceptance_without_commit` uses to reach `ok=True`;
+    # the only difference here is that lanes.json is never written.
+    from tests.utils import run
+
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    assert not (feature_dir / "lanes.json").exists()
+
+    _force_lane(feature_repo, mission_slug, "WP01", "in_progress")
+    run(["git", "commit", "-am", "Update to doing"], cwd=feature_repo)
+    _force_lane(feature_repo, mission_slug, "WP01", "done")
+
+    summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
+
+    assert summary.ok is False
+    assert {item.check for item in summary.blocked_checks} == {"lanes_manifest"}
+    assert {item.check for item in summary.skipped_checks} == {
+        "acceptance_matrix_presence",
+        "acceptance_matrix_evidence",
+        "negative_invariants",
+        "acceptance_matrix_verdict",
+    }
+    assert any("finalize-tasks" in issue for issue in summary.activity_issues)
+
+
 def test_accept_command_reports_approved_wps_without_closing(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
     from tests.utils import run, write_wp
@@ -174,6 +235,10 @@ def test_accept_command_reports_approved_wps_without_closing(feature_repo: Path,
     _write_acceptance_meta(feature_repo, mission_slug)
     _seed_convention_dirs(feature_repo, mission_slug)
     write_wp(feature_repo, mission_slug, "planned", "WP02")
+    # #4891: accept fails closed when lanes.json is absent.
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    write_single_lane_manifest(feature_dir)
+    write_acceptance_matrix(feature_dir, _passing_acceptance_matrix(mission_slug))
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Add second WP and meta"], cwd=feature_repo)
 
@@ -249,7 +314,6 @@ def test_accept_diagnose_json_reports_missing_events_bootstrap_issue(feature_rep
     assert "Traceback" not in result.output
 
 
-@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_no_commit_reports_merge_pending_without_mutation(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
     from specify_cli.status.store import read_events
@@ -258,13 +322,16 @@ def test_accept_no_commit_reports_merge_pending_without_mutation(feature_repo: P
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
     _write_acceptance_meta(feature_repo, mission_slug)
     _seed_convention_dirs(feature_repo, mission_slug)
+    # #4891: accept fails closed when lanes.json is absent.
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    write_single_lane_manifest(feature_dir)
+    write_acceptance_matrix(feature_dir, _passing_acceptance_matrix(mission_slug))
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Add meta"], cwd=feature_repo)
     _approve_wp(feature_repo, mission_slug, "WP01")
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Approve WP01"], cwd=feature_repo)
 
-    feature_dir = feature_repo / "kitty-specs" / mission_slug
     before_events = len(read_events(feature_dir))
     monkeypatch.chdir(feature_repo)
     result = runner.invoke(
@@ -486,7 +553,6 @@ def test_accept_diagnose_does_not_execute_custom_negative_invariants(feature_rep
     assert status.stdout == ""
 
 
-@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_does_not_require_done_evidence_for_approved_wp(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """Accept records mission acceptance; merge owns approved -> done closure."""
     import specify_cli.status.emit as status_emit
@@ -497,10 +563,13 @@ def test_accept_does_not_require_done_evidence_for_approved_wp(feature_repo: Pat
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
     _write_acceptance_meta(feature_repo, mission_slug)
     _seed_convention_dirs(feature_repo, mission_slug)
+    # #4891: accept fails closed when lanes.json is absent.
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    write_single_lane_manifest(feature_dir)
+    write_acceptance_matrix(feature_dir, _passing_acceptance_matrix(mission_slug))
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Add meta"], cwd=feature_repo)
 
-    feature_dir = feature_repo / "kitty-specs" / mission_slug
     for lane in ("claimed", "in_progress", "for_review", "in_review"):
         emit_status_transition(
             feature_dir=feature_dir,

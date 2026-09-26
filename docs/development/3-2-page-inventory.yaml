@@ -1094,6 +1094,24 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-09-23-2-mission-state-repair-preserve-by-default.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-09-24-2-coord-read-fail-closed.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-09-26-1-ci-coverage-honesty.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -4845,6 +4863,78 @@
   current_target: true
   notes: null
 - path: docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/workflow-evidence.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/tracer-friction-recon/2026-09-26/README.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/tracer-friction-recon/2026-09-26/coverage-matrix.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/tracer-friction-recon/2026-09-26/findings/slice-1.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/tracer-friction-recon/2026-09-26/findings/slice-2.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/tracer-friction-recon/2026-09-26/findings/slice-3.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/tracer-friction-recon/2026-09-26/findings/slice-4.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/tracer-friction-recon/2026-09-26/issue-coverage/group-A.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/tracer-friction-recon/2026-09-26/issue-coverage/group-B.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/tracer-friction-recon/2026-09-26/issue-coverage/group-C.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/tracer-friction-recon/2026-09-26/issue-coverage/group-D.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/tracer-friction-recon/2026-09-26/issue-coverage/group-E.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/reports/tracer-friction-recon/2026-09-26/issue-coverage/second-opinion.md
   tag: current
   divio_type: none
   owning_workstream: none

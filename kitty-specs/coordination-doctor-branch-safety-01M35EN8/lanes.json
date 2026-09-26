@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "coordination-doctor-branch-safety-01M35EN8",
+  "mission_id": "01M35EN8HGKWQHE4MAQ43E3J4H",
+  "mission_branch": "kitty/mission-coordination-doctor-branch-safety-01M35EN8",
+  "target_branch": "issue-4920-coordination-doctor-branch-safety",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_coordination_doctor.py",
+        "tests/coordination/test_coord_staleness.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-22T21:15:08.187113+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "05247197a81e1094d0ed202bbc141bccc05de52b"
+}

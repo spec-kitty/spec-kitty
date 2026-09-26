@@ -1,0 +1,72 @@
+## accept-fail-closed-missing-lanes-01M3CC1V  (99 lines)
+  kitty-specs/accept-fail-closed-missing-lanes-01M3CC1V/tracer-approach.md
+  kitty-specs/accept-fail-closed-missing-lanes-01M3CC1V/tracer-design-decisions.md
+  kitty-specs/accept-fail-closed-missing-lanes-01M3CC1V/tracer-tooling-friction.md
+## upgrade-idempotent-worktree-metadata-01M38X2Y  (235 lines)
+  kitty-specs/upgrade-idempotent-worktree-metadata-01M38X2Y/traces/tracer-blast-radius.md
+  kitty-specs/upgrade-idempotent-worktree-metadata-01M38X2Y/traces/tracer-red-first.md
+  kitty-specs/upgrade-idempotent-worktree-metadata-01M38X2Y/traces/tracer-root-cause.md
+## coord-read-fail-closed-01M38VVH  (121 lines)
+  kitty-specs/coord-read-fail-closed-01M38VVH/tasks/WP02-tracer-fail-closed.md
+  kitty-specs/coord-read-fail-closed-01M38VVH/tasks/WP02-tracer-fail-closed/review-cycle-1.md
+  kitty-specs/coord-read-fail-closed-01M38VVH/tracer-approach.md
+  kitty-specs/coord-read-fail-closed-01M38VVH/tracer-design-decisions.md
+  kitty-specs/coord-read-fail-closed-01M38VVH/tracer-tooling-friction.md
+## charter-epic-golden-path-nfr-budget-01M35H35  (1335 lines)
+  kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-approach.md
+  kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-design-decisions.md
+  kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-tooling-friction.md
+## coordination-doctor-branch-safety-01M35EN8  (38 lines)
+  kitty-specs/coordination-doctor-branch-safety-01M35EN8/tracer-approach.md
+  kitty-specs/coordination-doctor-branch-safety-01M35EN8/tracer-design-decisions.md
+  kitty-specs/coordination-doctor-branch-safety-01M35EN8/tracer-tooling-friction.md
+## windows-upgrade-mode-fidelity-01M35C25  (38 lines)
+  kitty-specs/windows-upgrade-mode-fidelity-01M35C25/tracer-approach.md
+  kitty-specs/windows-upgrade-mode-fidelity-01M35C25/tracer-design-decisions.md
+  kitty-specs/windows-upgrade-mode-fidelity-01M35C25/tracer-tooling-friction.md
+## user-content-preservation-01M3549Q  (95 lines)
+  kitty-specs/user-content-preservation-01M3549Q/tracer/approach.md
+  kitty-specs/user-content-preservation-01M3549Q/tracer/design-decisions.md
+  kitty-specs/user-content-preservation-01M3549Q/tracer/tooling-friction.md
+## interpreter-matrix-3-13-env-and-divergence-01M34HVD  (1413 lines)
+  kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-approach.md
+  kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-design-decisions.md
+  kitty-specs/interpreter-matrix-3-13-env-and-divergence-01M34HVD/tracer-tooling-friction.md
+## reconcile-flake-family-01M34HR7  (714 lines)
+  kitty-specs/reconcile-flake-family-01M34HR7/tasks/WP04-integration-verification-tracer-closeout.md
+  kitty-specs/reconcile-flake-family-01M34HR7/tracer-approach.md
+  kitty-specs/reconcile-flake-family-01M34HR7/tracer-design-decisions.md
+  kitty-specs/reconcile-flake-family-01M34HR7/tracer-tooling-friction.md
+## ci-nightly-wallclock-budget-01M34HNZ  (1308 lines)
+  kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tracer-approach.md
+  kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tracer-design-decisions.md
+  kitty-specs/ci-nightly-wallclock-budget-01M34HNZ/tracer-tooling-friction.md
+## verdict-matrix-rmw-preservation-01M32M9G  (257 lines)
+  kitty-specs/verdict-matrix-rmw-preservation-01M32M9G/tracer-approach.md
+  kitty-specs/verdict-matrix-rmw-preservation-01M32M9G/tracer-design-decisions.md
+  kitty-specs/verdict-matrix-rmw-preservation-01M32M9G/tracer-squad-findings.md
+  kitty-specs/verdict-matrix-rmw-preservation-01M32M9G/tracer-tooling-friction.md
+## finalize-repin-orphaned-planning-commit-01M31TAT  (44 lines)
+  kitty-specs/finalize-repin-orphaned-planning-commit-01M31TAT/tracer-approach.md
+  kitty-specs/finalize-repin-orphaned-planning-commit-01M31TAT/tracer-design-decisions.md
+  kitty-specs/finalize-repin-orphaned-planning-commit-01M31TAT/tracer-tooling-friction.md
+## mission-type-canonical-source-01M302V9  (95 lines)
+  kitty-specs/mission-type-canonical-source-01M302V9/tracer-approach.md
+  kitty-specs/mission-type-canonical-source-01M302V9/tracer-design-decisions.md
+  kitty-specs/mission-type-canonical-source-01M302V9/tracer-tooling-friction.md
+## move-task-approval-ergonomics-01M302R0  (117 lines)
+  kitty-specs/move-task-approval-ergonomics-01M302R0/tracer-approach.md
+  kitty-specs/move-task-approval-ergonomics-01M302R0/tracer-design-decisions.md
+  kitty-specs/move-task-approval-ergonomics-01M302R0/tracer-tooling-friction.md
+## charter-catalog-coherence-01M2XQQF  (148 lines)
+  kitty-specs/charter-catalog-coherence-01M2XQQF/tracer-approach.md
+  kitty-specs/charter-catalog-coherence-01M2XQQF/tracer-design-decisions.md
+  kitty-specs/charter-catalog-coherence-01M2XQQF/tracer-tooling-friction.md
+## merge-destructive-op-safety-01M2XQF8  (82 lines)
+  kitty-specs/merge-destructive-op-safety-01M2XQF8/tracer-approach.md
+  kitty-specs/merge-destructive-op-safety-01M2XQF8/tracer-design-decisions.md
+  kitty-specs/merge-destructive-op-safety-01M2XQF8/tracer-tooling-friction.md
+## terminus-safety-invariant-01M2XFT7  (73 lines)
+  kitty-specs/terminus-safety-invariant-01M2XFT7/tracers/approach.md
+  kitty-specs/terminus-safety-invariant-01M2XFT7/tracers/design-decisions.md
+  kitty-specs/terminus-safety-invariant-01M2XFT7/tracers/tooling-friction.md

@@ -27,7 +27,13 @@ from specify_cli.lanes.persistence import (
     MissingLanesError,
     require_lanes_json,
 )
-from specify_cli.merge._constants import logger
+from specify_cli.lanes.merge import preview_mission_target_integration
+from specify_cli.merge._constants import (
+    TARGET_BRANCH_CONTENT_CONFLICT,
+    TARGET_BRANCH_CONTENT_CONFLICT_HEADER,
+    TARGET_BRANCH_CONTENT_CONFLICT_REMEDIATION_UPDATE,
+    logger,
+)
 from specify_cli.merge.config import MergeStrategy
 from specify_cli.merge.ordering import assign_next_mission_number
 from specify_cli.merge.state import needs_number_assignment
@@ -111,6 +117,46 @@ def _emit_review_artifact_block(
         for line in remediation:
             console.print(f"    remediation: {line}")
     console.print(f"  Mission: {resolved_feature}")
+
+
+def _emit_target_content_conflict(
+    *,
+    resolved_feature: str,
+    mission_branch: str,
+    target_branch: str,
+    conflicting_paths: tuple[str, ...],
+    json_output: bool,
+) -> None:
+    """Render the stable #4892 dry-run blocker."""
+    remediation = [
+        TARGET_BRANCH_CONTENT_CONFLICT_REMEDIATION_UPDATE,
+        "Resolve the listed conflicts, then rerun `spec-kitty merge --dry-run`.",
+    ]
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "spec_kitty_version": SPEC_KITTY_VERSION,
+                    "mission_slug": resolved_feature,
+                    "mission_branch": mission_branch,
+                    "target_branch": target_branch,
+                    "blocked": True,
+                    "diagnostic_code": TARGET_BRANCH_CONTENT_CONFLICT,
+                    "conflicting_paths": list(conflicting_paths),
+                    "remediation": remediation,
+                }
+            )
+        )
+        return
+
+    console.print(f"[red]Error:[/red] {TARGET_BRANCH_CONTENT_CONFLICT_HEADER}")
+    console.print(f"  diagnostic_code: {TARGET_BRANCH_CONTENT_CONFLICT}")
+    console.print(f"  mission_branch: {mission_branch}")
+    console.print(f"  target_branch: {target_branch}")
+    for path in conflicting_paths:
+        console.print(f"  conflicting_path: {path}")
+    for line in remediation:
+        console.print(f"  remediation: {line}")
 
 
 def _scan_would_assign_mission_number(repo_root: Path, feature_dir_for_preview: Path) -> int | None:
@@ -217,6 +263,32 @@ def run_dry_run_forecast(
             main_repo_for_diag=get_main_repo_root(repo_root),
             resolved_feature=resolved_feature,
             resolved_target_branch=resolved_target_branch,
+            json_output=json_output,
+        )
+        raise typer.Exit(1)
+
+    try:
+        integration_preview = preview_mission_target_integration(
+            get_main_repo_root(repo_root),
+            lanes_manifest.mission_branch,
+            resolved_target_branch,
+            strategy=resolved_strategy,
+        )
+    except (RuntimeError, OSError) as exc:
+        # A *non-conflict* preview failure — unrelated histories, a failed
+        # ``git worktree add`` (RuntimeError), or an OS-level failure from the
+        # scratch worktree (mkdtemp / write_bytes / fsdecode → OSError). Route it
+        # through the same channel as every other dry-run error so ``--json``
+        # output stays valid JSON (a raw traceback would corrupt it) and
+        # terminate the path.
+        _emit_dry_run_error(error_msg=str(exc), json_output=json_output)
+        raise typer.Exit(1) from exc
+    if integration_preview.conflicting_paths:
+        _emit_target_content_conflict(
+            resolved_feature=resolved_feature,
+            mission_branch=lanes_manifest.mission_branch,
+            target_branch=resolved_target_branch,
+            conflicting_paths=integration_preview.conflicting_paths,
             json_output=json_output,
         )
         raise typer.Exit(1)

@@ -161,8 +161,7 @@ def _build_coord_mission_for_matrix(tmp_path: Path) -> tuple[MissionCreationResu
     expected_coord_root = CoordinationWorkspace.resolve(tmp_path, result.mission_slug, mid8)
     assert coord_root == expected_coord_root
     assert coord_feature_dir != result.feature_dir, (
-        "fixture invariant violated: coord and primary must be genuinely "
-        "divergent surfaces, or every coord-landing assertion is vacuous"
+        "fixture invariant violated: coord and primary must be genuinely divergent surfaces, or every coord-landing assertion is vacuous"
     )
     assert not coord_feature_dir.exists(), (
         "fixture invariant: the coord worktree must NOT carry kitty-specs/<slug>/ "
@@ -307,9 +306,7 @@ def test_matrix_lands_on_coord_via_all_three_write_paths_no_stale_copy(tmp_path:
     tasks_dir = result.feature_dir / "tasks"
     tasks_dir.mkdir(exist_ok=True)
     wp_file = tasks_dir / "WP01.md"
-    wp_file.write_text(
-        "---\nwork_package_id: WP01\ntitle: fixture WP\n---\n# WP01\n", encoding="utf-8"
-    )
+    wp_file.write_text("---\nwork_package_id: WP01\ntitle: fixture WP\n---\n# WP01\n", encoding="utf-8")
     write_acceptance_matrix(result.feature_dir, _matrix_with_marker(slug, marker_2))
 
     # Mirrors mission_finalize.py::_commit_finalize_artifacts's EXACT call
@@ -386,12 +383,8 @@ def test_matrix_lands_on_coord_via_all_three_write_paths_no_stale_copy(tmp_path:
     # ``??`` entries for the same reason (accept.py docstring), so this
     # assertion mirrors that same tracked-vs-untracked distinction rather
     # than demanding a byte-for-byte pristine ``git status``.
-    assert not _tracked_dirty_lines(tmp_path), (
-        f"primary checkout has tracked-but-uncommitted residue: {_porcelain(tmp_path)!r}"
-    )
-    assert not _tracked_dirty_lines(coord_root), (
-        f"coord worktree has tracked-but-uncommitted residue: {_porcelain(coord_root)!r}"
-    )
+    assert not _tracked_dirty_lines(tmp_path), f"primary checkout has tracked-but-uncommitted residue: {_porcelain(tmp_path)!r}"
+    assert not _tracked_dirty_lines(coord_root), f"coord worktree has tracked-but-uncommitted residue: {_porcelain(coord_root)!r}"
 
 
 # ===========================================================================
@@ -400,9 +393,7 @@ def test_matrix_lands_on_coord_via_all_three_write_paths_no_stale_copy(tmp_path:
 # ===========================================================================
 
 
-def test_per_batch_kind_regression_would_misroute_matrix_off_coord(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_per_batch_kind_regression_would_misroute_matrix_off_coord(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Simulates a partition-classifier defect and shows the seam's guard is real.
 
     Post-#2650 (WP05) ``_group_files_by_partition`` decides membership via
@@ -421,13 +412,9 @@ def test_per_batch_kind_regression_would_misroute_matrix_off_coord(
     result, coord_root, coord_feature_dir = _build_coord_mission_for_matrix(tmp_path)
     slug = result.mission_slug
 
-    monkeypatch.setattr(
-        commit_router_mod, "is_coord_residue_churn", lambda *_a, **_kw: False
-    )
+    monkeypatch.setattr(commit_router_mod, "is_coord_residue_churn", lambda *_a, **_kw: False)
 
-    matrix_path = write_acceptance_matrix(
-        result.feature_dir, _matrix_with_marker(slug, "REGRESSION_MARKER")
-    )
+    matrix_path = write_acceptance_matrix(result.feature_dir, _matrix_with_marker(slug, "REGRESSION_MARKER"))
     policy = ProtectionPolicy.resolve(tmp_path)
     regressed_result: CommitRouterResult = commit_for_mission(
         repo_root=tmp_path,
@@ -442,10 +429,7 @@ def test_per_batch_kind_regression_would_misroute_matrix_off_coord(
     # it commits directly to the primary working branch, and the coord
     # worktree never receives it.
     assert regressed_result.status == "committed", regressed_result
-    assert not coord_feature_dir.exists(), (
-        "regression check invalid: coord dir should NOT be materialised when "
-        "the per-file classifier is disabled"
-    )
+    assert not coord_feature_dir.exists(), "regression check invalid: coord dir should NOT be materialised when the per-file classifier is disabled"
     resolved, acc_matrix = _read_back_via_accept_seam(tmp_path, slug)
     assert acc_matrix is None or acc_matrix.extras.get("marker") != "REGRESSION_MARKER" or resolved != coord_feature_dir, (
         "the per-batch-kind regression must NOT be indistinguishable from the "
@@ -483,15 +467,11 @@ def test_acceptance_matrix_read_dir_resolves_coord_surface(tmp_path: Path) -> No
     write_acceptance_matrix(coord_feature_dir, _matrix_with_marker(slug, "COORD_ONLY"))
     assert coord_feature_dir.exists()
     assert not (result.feature_dir / "acceptance-matrix.json").exists(), (
-        "fixture invariant: matrix must be COORD-only to exercise the "
-        "read-partition bug (a stray primary copy would mask it)"
+        "fixture invariant: matrix must be COORD-only to exercise the read-partition bug (a stray primary copy would mask it)"
     )
 
     resolved = _acceptance_matrix_read_dir(tmp_path, result.feature_dir)
-    assert resolved == coord_feature_dir, (
-        "coord-topology acceptance-matrix read must resolve the coord surface "
-        f"({coord_feature_dir}), got {resolved}"
-    )
+    assert resolved == coord_feature_dir, f"coord-topology acceptance-matrix read must resolve the coord surface ({coord_feature_dir}), got {resolved}"
     assert read_acceptance_matrix(resolved) is not None
 
 
@@ -515,9 +495,7 @@ def test_coord_matrix_gate_reads_from_coord_not_primary(tmp_path: Path) -> None:
     assert not (result.feature_dir / "acceptance-matrix.json").exists()
 
     # The exact feature_dir collect_feature_summary passes to _check_lane_gates.
-    read_feature_dir = placement_seam(tmp_path, slug).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
+    read_feature_dir = placement_seam(tmp_path, slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
 
     activity_issues: list[str] = []
     skipped_checks: list[AcceptanceCheckDiagnostic] = []
@@ -532,17 +510,14 @@ def test_coord_matrix_gate_reads_from_coord_not_primary(tmp_path: Path) -> None:
     )
 
     assert not any(c.check == "acceptance_matrix" for c in blocked_checks), (
-        "false 'acceptance-matrix not found' on a coord-only matrix — the gate "
-        f"read the PRIMARY dir instead of coord: {[c.to_dict() for c in blocked_checks]}"
+        f"false 'acceptance-matrix not found' on a coord-only matrix — the gate read the PRIMARY dir instead of coord: {[c.to_dict() for c in blocked_checks]}"
     )
     assert not any("was not found" in issue for issue in activity_issues), activity_issues
     # overall_verdict == "pass" → no fail/pending verdict issue appended.
     assert not any("verdict is" in issue for issue in activity_issues), activity_issues
 
 
-def test_flat_mission_matrix_read_dir_stays_primary(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_flat_mission_matrix_read_dir_stays_primary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Fallback preserved: a non-coord mission reads the matrix from PRIMARY.
 
     ``routes_through_coordination`` is False for ``SINGLE_BRANCH``, so the
@@ -582,13 +557,9 @@ def test_flat_mission_matrix_read_dir_stays_primary(
     resolved = _acceptance_matrix_read_dir(tmp_path, result.feature_dir)
 
     assert seam_calls == [], (
-        "non-coord mission must short-circuit on routes_through_coordination "
-        f"BEFORE consulting placement_seam (guard pin); seam was called: {seam_calls}"
+        f"non-coord mission must short-circuit on routes_through_coordination BEFORE consulting placement_seam (guard pin); seam was called: {seam_calls}"
     )
-    assert resolved == result.feature_dir, (
-        "non-coord mission must read the matrix from the primary feature_dir "
-        f"({result.feature_dir}), got {resolved}"
-    )
+    assert resolved == result.feature_dir, f"non-coord mission must read the matrix from the primary feature_dir ({result.feature_dir}), got {resolved}"
     assert read_acceptance_matrix(resolved) is not None
 
 
@@ -600,9 +571,7 @@ def test_flat_mission_matrix_read_dir_stays_primary(
 
 
 def _git(repo_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", "-C", str(repo_root), *args], capture_output=True, text=True, check=True
-    )
+    return subprocess.run(["git", "-C", str(repo_root), *args], capture_output=True, text=True, check=True)
 
 
 def _porcelain(repo_root: Path) -> str:
@@ -618,3 +587,188 @@ def _tracked_dirty_lines(repo_root: Path) -> list[str]:
     does not fail an assertion this WP's seam has no bearing on.
     """
     return [line for line in _porcelain(repo_root).splitlines() if not line.startswith("??")]
+
+
+# ===========================================================================
+# WP03 (T010/T011, #4966) — decision-ledger / accept-gate PRIMARY-partition
+# agreement on a MATERIALIZED status-only coord husk.
+#
+# This module's filename was already claimed by the #2404 acceptance-matrix
+# coord-partition characterization above (an unrelated, earlier mission); the
+# WP03 tasks file names this exact path in ``create_intent``, expecting a new
+# file. Appending here (rather than a colliding second file) keeps ONE test
+# per path while adding the WP03-owned coverage the WP prompt asks for.
+#
+# History: T010's first pass (commit ``15971a5ef6``) routed ONLY the
+# ``meta.json`` identity read through ``PRIMARY_METADATA``
+# (``decisions/service.py::_resolve_mission_id``), leaving the decisions
+# LEDGER's own directory (``decisions/index.json`` / ``DM-<id>.md``) on the
+# COORD partition -- a residual split-brain characterized by AC-D2 below as
+# an ``xfail``. The operator approved widening WP03's owned-files scope to
+# close that residual: ``decisions/service.py``'s ``_ledger_dir`` (new) now
+# resolves the ledger directory through the SAME ``PRIMARY_METADATA`` kind as
+# ``_resolve_mission_id``, and ``cli/commands/_decisions_doctor.py`` gained
+# its own parallel ``_ledger_dir`` resolving to the identical PRIMARY dir, so
+# the reconciler's repair target and sidecar lock stay in lockstep with the
+# forward write path. ``status.events.jsonl`` (COORD/``STATUS_STATE``) is
+# unaffected -- only the ledger identity/content dir moved. AC-D2 below is
+# now a plain (non-xfail) assertion.
+# ===========================================================================
+
+
+from unittest.mock import patch
+
+from specify_cli.acceptance import _check_needs_clarification
+from specify_cli.decisions.models import OriginFlow
+from specify_cli.decisions.service import defer_decision, open_decision, resolve_decision
+
+_DECISION_WORK_BRANCH = "decision-ledger-accept-work"
+_DECISION_HUSK_SLUG = "decision-ledger-accept-husk"
+
+
+def _build_husk_coord_mission_for_decisions(tmp_path: Path) -> tuple[MissionCreationResult, Path]:
+    """A coord-topology mission whose coord worktree is a MATERIALIZED
+    status-only husk: ``kitty-specs/<slug>/`` exists on coord (real
+    ``CoordinationWorkspace.resolve``-backed git worktree) and carries ONLY
+    ``status.events.jsonl`` -- never ``meta.json``, never ``decisions/`` --
+    the #4966 locus (``coordination/coherence.py:168``, "and nothing else").
+    """
+    _init_git_repo(tmp_path, branch=_DECISION_WORK_BRANCH)
+    result = _create_mission(tmp_path, _DECISION_HUSK_SLUG, MissionTopology.COORD)
+    coord_root = _materialize_coord_worktree(tmp_path, result)
+    coord_mission_dir = coord_root / "kitty-specs" / result.mission_slug
+    coord_mission_dir.mkdir(parents=True, exist_ok=True)
+    (coord_mission_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+
+    assert not (coord_mission_dir / "meta.json").exists()
+    assert not (coord_mission_dir / "decisions").exists()
+    assert (result.feature_dir / "meta.json").exists()
+    return result, coord_mission_dir
+
+
+def test_decision_open_resolves_via_primary_on_materialized_status_only_husk(
+    tmp_path: Path,
+) -> None:
+    """AC-D1 (#4966): the real service API resolves ``meta.json`` via PRIMARY
+    on a materialised status-only husk -- no ``MISSION_NOT_FOUND``. Mirrors
+    ``test_decision_single_authority.py``'s CLI-level pin at the service-API
+    level (T010's actual owned surface)."""
+    result, _coord_mission_dir = _build_husk_coord_mission_for_decisions(tmp_path)
+
+    with patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1):
+        resp = open_decision(
+            tmp_path,
+            result.mission_slug,
+            origin_flow=OriginFlow.PLAN,
+            step_id="plan.degrader-policy",
+            input_key="degrader_policy",
+            question="Which degrader policy?",
+            options=("fail-closed", "fail-open"),
+            actor="tester",
+        )
+
+    assert resp.decision_id != "DRY_RUN"
+    assert resp.mission_id == result.meta["mission_id"]
+
+
+def test_accept_gate_reads_resolved_decision_from_same_primary_ledger_as_service(
+    tmp_path: Path,
+) -> None:
+    """AC-D2 (#4966): a deferred->resolved decision, opened against a
+    MATERIALIZED status-only husk through the real service API, reaches the
+    SAME PRIMARY ledger ``acceptance/__init__.py::_has_blocking_clarification_marker``
+    reads (``load_index(file_path.parent)`` where ``file_path`` is a PRIMARY
+    planning artifact) -- so a resolved clarification marker stops blocking
+    ``accept``.
+
+    Previously pinned as an ``xfail`` characterization: see the module-level
+    scope note above for the residual split T010's first pass left open and
+    the WP03-scope-expansion fix (``_ledger_dir`` in both
+    ``decisions/service.py`` and ``cli/commands/_decisions_doctor.py``) that
+    closes it. ``test_open_resolves_meta_via_primary_on_materialized_status_only_husk``
+    (T009) and ``test_decision_open_resolves_via_primary_on_materialized_status_only_husk``
+    above cover the meta.json-identity part of #4966 T010 already closed.
+    """
+    result, _coord_mission_dir = _build_husk_coord_mission_for_decisions(tmp_path)
+    slug = result.mission_slug
+
+    with patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1), patch("specify_cli.decisions.emit.emit_decision_resolved", return_value=2):
+        opened = open_decision(
+            tmp_path,
+            slug,
+            origin_flow=OriginFlow.PLAN,
+            step_id="plan.degrader-policy",
+            input_key="degrader_policy",
+            question="Which degrader policy?",
+            options=("fail-closed", "fail-open"),
+            actor="tester",
+        )
+        defer_decision(
+            tmp_path,
+            slug,
+            opened.decision_id,
+            rationale="revisit after research spike",
+            actor="tester",
+        )
+        resolve_decision(
+            tmp_path,
+            slug,
+            opened.decision_id,
+            final_answer="fail-closed",
+            actor="tester",
+        )
+
+    spec_path = result.feature_dir / "spec.md"
+    spec_path.write_text(
+        f"The degrader policy must be chosen. [NEEDS CLARIFICATION: which degrader policy] <!-- decision_id: {opened.decision_id} -->\n",
+        encoding="utf-8",
+    )
+
+    blocking = _check_needs_clarification([spec_path])
+
+    assert blocking == [], (
+        "AC-D2 (#4966): accept's PRIMARY-anchored clarification-marker check "
+        f"still reports {spec_path} as blocking after decision "
+        f"{opened.decision_id!r} was resolved via the real service API on a "
+        "materialised status-only husk -- the decisions LEDGER content "
+        "(as opposed to the meta.json identity read T010 fixes) has not "
+        "reached the SAME PRIMARY partition accept reads. See the "
+        "module-level scope note above."
+    )
+
+
+def test_flat_mission_decision_accept_agreement_unchanged(tmp_path: Path) -> None:
+    """AC-D3 regression: a non-coord (``SINGLE_BRANCH``) mission's decision
+    open/resolve -> accept-marker agreement is unaffected by T010's fix --
+    ``STATUS_STATE`` and ``PRIMARY_METADATA`` already coincide with the
+    primary dir for a coord-less topology, so this path was never split."""
+    _init_git_repo(tmp_path, branch=_DECISION_WORK_BRANCH)
+    result = _create_mission(tmp_path, "flat-decision-accept", MissionTopology.SINGLE_BRANCH)
+    slug = result.mission_slug
+
+    with patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1), patch("specify_cli.decisions.emit.emit_decision_resolved", return_value=2):
+        opened = open_decision(
+            tmp_path,
+            slug,
+            origin_flow=OriginFlow.PLAN,
+            step_id="plan.degrader-policy",
+            input_key="degrader_policy",
+            question="Which degrader policy?",
+            options=("fail-closed", "fail-open"),
+            actor="tester",
+        )
+        resolve_decision(
+            tmp_path,
+            slug,
+            opened.decision_id,
+            final_answer="fail-closed",
+            actor="tester",
+        )
+
+    spec_path = result.feature_dir / "spec.md"
+    spec_path.write_text(
+        f"The degrader policy must be chosen. [NEEDS CLARIFICATION: which degrader policy] <!-- decision_id: {opened.decision_id} -->\n",
+        encoding="utf-8",
+    )
+
+    assert _check_needs_clarification([spec_path]) == []

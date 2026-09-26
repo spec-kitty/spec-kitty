@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "mission_slug": "silent-destructive-write-hardening-01M355VK",
+  "mission_id": "01M355VKQZMXPBNPFBQNB6JN7V",
+  "mission_branch": "kitty/mission-silent-destructive-write-hardening-01M355VK",
+  "target_branch": "fix/silent-destructive-write-hardening",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/activate.py",
+        "src/specify_cli/cli/commands/charter/generate.py",
+        "src/specify_cli/cli/commands/charter/pack.py",
+        "tests/specify_cli/cli/commands/charter/test_recompile_preserves_mission_4908.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/mission_state.py",
+        "src/specify_cli/status/lifecycle_events.py",
+        "src/specify_cli/status/store.py",
+        "tests/migration/test_mission_state_repair.py",
+        "tests/status/test_authoritative_non_lane_registry_4897.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/merge_driver.py",
+        "tests/merge/test_merge_driver_wrappers_2709.py",
+        "tests/merge/test_traces_driver_section_union_4894.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-22T18:39:01.697942+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2dd12ab6e4aa98af005374631df02ffcfbe8b7b3"
+}

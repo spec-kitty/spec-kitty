@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-24T04:48:18.547992Z",
+      "decision_id": "01M38VWD3KKSSTZNCK9V00N3TJ",
+      "final_answer": "Seam-level: the placement read seam (src/mission_runtime/resolution.py) raises a typed error on an unresolved/unmaterialised coord read (it already raises CoordinationBranchDeleted on NONE; extend that fail-closed posture to UNMATERIALIZED instead of returning empty PRIMARY on a coord-topology mission). Both surfaces (tracer-append writer, decision-ledger reader) and any future reader inherit fail-closed by construction. Mandatory blast-radius consequence: audit every caller of the read seam so each handles the raise correctly (refuse/materialise/resolve-to-authoritative) and none swallows it or is a non-coord caller that must keep working. NONE keeps raising; non-coord topologies (SINGLE_BRANCH/LANES route to primary) are unaffected.",
+      "input_key": "fail_closed_locus",
+      "mission_id": "01M38VVH6ZG5DX5ASSPBX61002",
+      "mission_slug": "coord-read-fail-closed-01M38VVH",
+      "opened_by": "cli",
+      "options": [
+        "Seam-level: resolution.py raises on unresolved/unmaterialised coord reads (both surfaces + all future readers inherit it; broader blast radius across seam callers)",
+        "Reader-level: each reader checks the stamp/result and fails closed itself (localized, smaller blast radius; future readers not auto-protected)",
+        "Hybrid: seam exposes an explicit unresolved/empty signal readers MUST handle; keep NONE raising, make UNMATERIALIZED a typed signal not a silent empty",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Where should the fail-closed contract for an unresolved/unmaterialised coord read live: at the placement read seam itself (resolution.py raises), or at each reader (they honour the PRIMARY/coord stamp and refuse)?",
+      "rationale": null,
+      "resolved_at": "2026-09-24T04:59:47.903664Z",
+      "resolved_by": null,
+      "slot_key": "specify.contract.fail-closed-locus",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M38VVH6ZG5DX5ASSPBX61002",
+  "version": 1
+}

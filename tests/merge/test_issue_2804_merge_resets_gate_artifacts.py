@@ -248,10 +248,17 @@ def _write_meta(feature_dir: Path) -> None:
 
 
 def _write_manifest(feature_dir: Path) -> LanesManifest:
+    # ``mission_id`` MUST be the ULID ``MISSION_ID`` (never the slug -- see
+    # ``LanesManifest.mission_id``'s docstring, "ULID or None; never a slug").
+    # Epic #5001 landing remediation: passing the slug here made
+    # ``lane_branch_name`` derive a lane branch that never matched the real
+    # one this fixture creates, so the reconciliation claim builder silently
+    # resolved empty authorship for every run -- invisible before FIX C's new
+    # fail-closed squash-vacuous-authorship guard, which correctly surfaces it.
     manifest = LanesManifest(
         version=1,
         mission_slug=MISSION_SLUG,
-        mission_id=MISSION_SLUG,
+        mission_id=MISSION_ID,
         mission_branch=MISSION_BRANCH,
         target_branch="main",
         lanes=[

@@ -99,7 +99,7 @@ on:
 jobs:
   test:
     name: "module-tests (${{ inputs.module }} shard ${{ inputs.shard }})"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # #4429: ceiling re-base on observed shard durations — the charter shard's
     # green baseline runs 24-26m (runs 34926712832 / 34924060312), and the
     # charter-heavy head 06fe4cfd grew past that into the 30m ceiling (killed

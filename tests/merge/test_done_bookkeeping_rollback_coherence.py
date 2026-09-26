@@ -112,10 +112,26 @@ def _write_meta(feature_dir: Path) -> None:
 
 
 def _write_manifest(feature_dir: Path) -> LanesManifest:
+    # ``mission_id`` MUST be the ULID ``MISSION_ID`` (never the slug -- see
+    # ``LanesManifest.mission_id``'s own docstring, "ULID or None; never a
+    # slug"). Epic #5001 landing remediation (FIX C follow-through): this was
+    # previously ``mission_id=MISSION_SLUG``, which made ``lane_branch_name``
+    # derive a WRONG lane branch name that never matched the lane branch this
+    # fixture actually creates below (``kitty/mission-<slug>-lane-a``) -- the
+    # claim builder's lane-tip lookup silently found no such branch and
+    # resolved ``approved={"WP01": ()}`` / empty ``authored_blobs`` on EVERY
+    # run, not only the resumed one. Before FIX C this was invisible because
+    # the squash content axis's vacuous-authorship branch PASSed
+    # unconditionally in that shape; FIX C's new fail-closed guard correctly
+    # REFUSEd once nothing could attribute the window's real content anymore
+    # -- surfacing this fixture bug rather than the resume/rollback behavior
+    # the test intends to pin. Passing the real ULID makes
+    # ``lane_branch_name`` resolve the SAME branch the fixture creates,
+    # restoring genuine (non-vacuous) attribution.
     manifest = LanesManifest(
         version=1,
         mission_slug=MISSION_SLUG,
-        mission_id=MISSION_SLUG,
+        mission_id=MISSION_ID,
         mission_branch=COORD_BRANCH,
         target_branch="main",
         lanes=[

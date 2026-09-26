@@ -24,8 +24,8 @@ The suite asserts, against the real objects:
   pre-fix behavior aborted the mission).
 * SC-002/003 — the real ``RepairReport.to_json()`` and
   ``TeamspaceDryRunReport.to_json()`` carry per-mission records, so triage is
-  possible from the command's own output WITHOUT reading the git-ignored
-  ``.kittify/migrations/`` manifest.
+  possible from the command's own output WITHOUT reading the audit
+  ``.kittify/mission-state-audit/`` manifest.
 * SC-004 — ``--audit`` and ``--fix`` agree that (a) is repairable, not fatal
   (audit raises no finding for the legacy value; fix heals it), and both agree
   that (b) is invalid.
@@ -159,7 +159,7 @@ def test_repair_report_json_carries_per_mission_records_e2e(tmp_path: Path) -> N
 
     The operator can identify what changed for (a) — slug, status, meta_actions,
     validation_errors — by parsing the command's own ``--json`` output, with no
-    read of the git-ignored ``.kittify/migrations/`` manifest.
+    read of the audit ``.kittify/mission-state-audit/`` manifest.
     """
     primary = _seed_repo(tmp_path)
 
@@ -189,7 +189,7 @@ def test_repair_report_json_carries_per_mission_records_e2e(tmp_path: Path) -> N
 @pytest.mark.skipif(not _has_events_5(), reason="TeamSpace dry-run requires spec-kitty-events >= 5.0.0")
 def test_dry_run_report_json_carries_per_mission_records_e2e(tmp_path: Path) -> None:
     """SC-002/003: the REAL ``TeamspaceDryRunReport.to_json()`` carries per-mission
-    error records (dry-run parity), obtainable without a git-ignored manifest read.
+    error records (dry-run parity), obtainable without an audit-manifest read.
     """
     primary = _seed_repo(tmp_path)
 

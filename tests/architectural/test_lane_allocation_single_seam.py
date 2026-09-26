@@ -23,9 +23,15 @@ _ROUTE_ENUM = "LaneAllocationRoute"
 _EXPECTED_ROUTES = frozenset(
     {"FRESH_COORD", "FRESH_LEGACY", "REUSE", "CRASH_RECOVERY"},
 )
+# ``_ensure_mission_branch`` ensures the mission INTEGRATION branch exists by
+# its topology name (created from target_branch when absent) -- a sibling of
+# the already-unpoliced ``_ensure_branch_exists``, NOT the origin-aware lane
+# parent this seam owns for #4969. Forcing its argument to
+# ``decision.parent_ref`` misnames the mission branch when a legacy lane
+# exists only on origin (#5001), so it is intentionally left off this policed
+# set; it is fed from ``decision.topology_parent_ref`` instead.
 _CREATION_PARENT_ARG: dict[str, tuple[int, str]] = {
     "_create_lane_worktree": (3, "base_branch"),
-    "_ensure_mission_branch": (1, "mission_branch"),
 }
 _RULE_INLINE = "inline parent-ref computation outside resolve_lane_base_or_refuse"
 

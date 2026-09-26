@@ -24,6 +24,17 @@ logger = logging.getLogger("specify_cli.cli.commands.merge")
 TARGET_BRANCH_NOT_SYNCHRONIZED = "TARGET_BRANCH_NOT_SYNCHRONIZED"
 TARGET_BRANCH_SYNC_INVARIANT = "local_target_branch_must_match_tracking_branch"
 
+# Squash integration would clobber newer target-branch content (#4892). Shared
+# by the dry-run forecast and the real mission→target merge so both emit the
+# SAME diagnostic code and remediation, not divergent prose.
+TARGET_BRANCH_CONTENT_CONFLICT = "TARGET_BRANCH_CONTENT_CONFLICT"
+# The operator-facing header + first remediation line for that conflict. Shared
+# so the dry-run forecast and the real merge stay byte-identical (the second
+# remediation line intentionally differs per surface: the dry-run says rerun
+# ``--dry-run``, the real merge says rerun ``spec-kitty merge``).
+TARGET_BRANCH_CONTENT_CONFLICT_HEADER = "Default squash integration would conflict with newer target-branch content."
+TARGET_BRANCH_CONTENT_CONFLICT_REMEDIATION_UPDATE = "Update the mission branch against the current target branch."
+
 # Canonical status-surface filenames.
 _STATUS_EVENTS_FILENAME = "status.events.jsonl"
 _STATUS_FILENAME = "status.json"
@@ -49,6 +60,9 @@ __all__ = [
     "logger",
     "TARGET_BRANCH_NOT_SYNCHRONIZED",
     "TARGET_BRANCH_SYNC_INVARIANT",
+    "TARGET_BRANCH_CONTENT_CONFLICT",
+    "TARGET_BRANCH_CONTENT_CONFLICT_HEADER",
+    "TARGET_BRANCH_CONTENT_CONFLICT_REMEDIATION_UPDATE",
     "_STATUS_EVENTS_FILENAME",
     "_STATUS_FILENAME",
     "_SAFE_PATH_SEGMENT_DIAGNOSTIC",

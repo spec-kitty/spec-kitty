@@ -1,0 +1,52 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-24T07:06:16.115844Z",
+      "decision_id": "01M393S0NKWJRRDGFND4WGFBMY",
+      "final_answer": "All three workstreams in scope: WS1 squash-content-soundness (#5013, unblocks #4945 #4977 #4981 for the default flow); WS2 resume-strategy + lane-tip SHA-preservation (#4982 #4997 #4985 #4991); WS3 surface-write self-materialization hardening (#4970). Out of scope: #4990 (reducer LWW / spec_kitty_events) and #4972 (upgrade stamping).",
+      "input_key": "workstream_set",
+      "mission_id": "01M393QR5P498NQ1W2GMGBT8QE",
+      "mission_slug": "terminus-integrity-followups-01M393QR",
+      "opened_by": "cli",
+      "options": [
+        "All three: WS1 squash-content (#5013), WS2 resume-strategy/SHA, WS3 surface-write (#4970)",
+        "Narrow subset"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which Epic #5001 follow-up workstreams are in scope for this mission?",
+      "rationale": null,
+      "resolved_at": "2026-09-24T07:06:38.797831Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.workstream-set",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-24T07:06:23.067113Z",
+      "decision_id": "01M393S7EVNPY707FPWYDCPDGM",
+      "final_answer": "Both (a) honor persisted MergeState.strategy on resume AND (b) lane-tip SHA-preservation on resume-consolidation, closing all four of #4982 #4997 #4985 #4991.",
+      "input_key": "ws2_depth",
+      "mission_id": "01M393QR5P498NQ1W2GMGBT8QE",
+      "mission_slug": "terminus-integrity-followups-01M393QR",
+      "opened_by": "cli",
+      "options": [
+        "Both (a)+(b) \u2014 close #4982 #4997 #4985 #4991",
+        "(a)-only \u2014 close #4985 #4991, defer #4982 #4997"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How deep on WS2 (resume): both strategy-honoring and lane-tip SHA-preservation, or strategy-only?",
+      "rationale": null,
+      "resolved_at": "2026-09-24T07:07:10.132813Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.ws2-depth",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M393QR5P498NQ1W2GMGBT8QE",
+  "version": 1
+}

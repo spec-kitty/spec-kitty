@@ -496,6 +496,7 @@ pages:
     - {slug: "last-writer-wins-by-timestamp", text: "Last-writer-wins by timestamp", level: 3}
     - {slug: "monotonic-most-advanced-lane-wins", text: "Monotonic \"most-advanced-lane-wins\"", level: 3}
     - {slug: "manual-conflict-resolution-human-decides", text: "Manual conflict resolution (human decides)", level: 3}
+    - {slug: "reconciliation-note-terminus-merge-reconciliation-gate-terminus-merge-integrity-2026-09", text: "Reconciliation note — terminus merge/reconciliation gate (terminus-merge-integrity, 2026-09)", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/2.x/2026-02-09-4-cross-repo-evidence-completion.md"
     title: "Cross-Repo Evidence-Based Completion"
@@ -3165,6 +3166,36 @@ pages:
     - {slug: "rationale-why-these-three-gates-and-no-others", text: "Rationale — why these three gates, and no others", level: 2}
     - {slug: "why-ci-aggregate-gate-is-deliberately-not-required-learned-by-testing-this", text: "Why `CI Aggregate gate` is deliberately NOT required (learned by testing this)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
+  - path: "docs/adr/3.x/2026-09-23-2-mission-state-repair-preserve-by-default.md"
+    title: "ADR: mission-state repair inverts non-lane preservation to preserve-by-default"
+    divio_type: "none"
+    abstract: "Inverts mission-state repair's non-lane row preservation from a registry allowlist to preserve-by-default with an empty denylist, closing the #4897 whack-a-field class."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "behavioral-change", text: "Behavioral change", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
+    - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/3.x/2026-09-24-2-coord-read-fail-closed.md"
+    title: "ADR: the placement read seam raises on an unmaterialized coordination worktree"
+    divio_type: "none"
+    abstract: "A coord-partition read on CoordState.UNMATERIALIZED now raises CoordinationWorktreeUnmaterialized instead of silently substituting an empty PRIMARY path."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
+    - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/3.x/2026-09-26-1-ci-coverage-honesty.md"
+    title: "ADR: a green main/nightly must mean the tests actually ran"
+    divio_type: "none"
+    abstract: "CI now enforces coverage honesty — dark-suite enrolment, foreign-coverage and src-reachability guards, a nightly run-all lane, and release gated on a green nightly for that SHA."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -5671,12 +5702,13 @@ pages:
     abstract: "Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release."
     anchors:
     - {slug: "unreleased-4-0-0rc5", text: "[Unreleased] - 4.0.0rc5", level: 2}
+    - {slug: "changed", text: "Changed", level: 3}
     - {slug: "fixed", text: "Fixed", level: 3}
     - {slug: "4-0-0rc4-2026-09-21", text: "[4.0.0rc4] - 2026-09-21", level: 2}
     - {slug: "added", text: "Added", level: 3}
     - {slug: "fixed-2", text: "Fixed", level: 3}
     - {slug: "4-0-0rc3-2026-09-15", text: "[4.0.0rc3] - 2026-09-15", level: 2}
-    - {slug: "changed", text: "Changed", level: 3}
+    - {slug: "changed-2", text: "Changed", level: 3}
     - {slug: "added-2", text: "Added", level: 3}
     - {slug: "fixed-3", text: "Fixed", level: 3}
     - {slug: "known-limitations", text: "Known limitations", level: 3}
@@ -5686,49 +5718,49 @@ pages:
     - {slug: "added-3", text: "Added", level: 3}
     - {slug: "added-4", text: "Added", level: 3}
     - {slug: "fixed-5", text: "Fixed", level: 3}
-    - {slug: "changed-2", text: "Changed", level: 3}
+    - {slug: "changed-3", text: "Changed", level: 3}
     - {slug: "4-0-0rc1-2026-09-13", text: "[4.0.0rc1] - 2026-09-13", level: 2}
     - {slug: "breaking", text: "💥 Breaking", level: 3}
-    - {slug: "changed-3", text: "Changed", level: 3}
+    - {slug: "changed-4", text: "Changed", level: 3}
     - {slug: "removed", text: "Removed", level: 3}
     - {slug: "added-5", text: "Added", level: 3}
     - {slug: "fixed-6", text: "Fixed", level: 3}
     - {slug: "3-2-6-2026-09-03", text: "[3.2.6] - 2026-09-03", level: 2}
     - {slug: "breaking-removed", text: "💥 Breaking / 🗑️ Removed", level: 3}
     - {slug: "added-6", text: "✨ Added", level: 3}
-    - {slug: "changed-4", text: "♻️ Changed", level: 3}
+    - {slug: "changed-5", text: "♻️ Changed", level: 3}
     - {slug: "fixed-7", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-6rc2-2026-08-20", text: "[3.2.6rc2] - 2026-08-20", level: 2}
     - {slug: "added-7", text: "✨ Added", level: 3}
-    - {slug: "changed-5", text: "♻️ Changed", level: 3}
+    - {slug: "changed-6", text: "♻️ Changed", level: 3}
     - {slug: "fixed-8", text: "🐛 Fixed", level: 3}
     - {slug: "breaking-changes", text: "💥 Breaking Changes", level: 3}
     - {slug: "3-2-6rc1-2026-08-12", text: "[3.2.6rc1] - 2026-08-12", level: 2}
     - {slug: "added-8", text: "✨ Added", level: 3}
     - {slug: "fixed-9", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-6", text: "♻️ Changed", level: 3}
+    - {slug: "changed-7", text: "♻️ Changed", level: 3}
     - {slug: "breaking-changes-2", text: "💥 Breaking Changes", level: 3}
     - {slug: "3-2-5-2026-07-08", text: "[3.2.5] - 2026-07-08", level: 2}
     - {slug: "added-9", text: "✨ Added", level: 3}
     - {slug: "fixed-10", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-7", text: "♻️ Changed", level: 3}
+    - {slug: "changed-8", text: "♻️ Changed", level: 3}
     - {slug: "breaking-changes-3", text: "💥 Breaking Changes", level: 3}
     - {slug: "3-2-4-2026-07-05", text: "[3.2.4] - 2026-07-05", level: 2}
     - {slug: "breaking-changes-4", text: "💥 Breaking Changes", level: 3}
-    - {slug: "changed-8", text: "♻️ Changed", level: 3}
+    - {slug: "changed-9", text: "♻️ Changed", level: 3}
     - {slug: "fixed-11", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-3-2026-06-29", text: "[3.2.3] - 2026-06-29", level: 2}
     - {slug: "added-10", text: "✨ Added", level: 3}
     - {slug: "breaking-changes-5", text: "💥 Breaking Changes", level: 3}
     - {slug: "fixed-12", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-9", text: "♻️ Changed", level: 3}
+    - {slug: "changed-10", text: "♻️ Changed", level: 3}
     - {slug: "3-2-2-2026-06-24", text: "[3.2.2] - 2026-06-24", level: 2}
     - {slug: "added-11", text: "✨ Added", level: 3}
     - {slug: "fixed-13", text: "🐛 Fixed", level: 3}
     - {slug: "contract", text: "⚠️ Contract", level: 3}
     - {slug: "3-2-1-2026-06-18", text: "[3.2.1] - 2026-06-18", level: 2}
     - {slug: "fixed-14", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-10", text: "🔧 Changed", level: 3}
+    - {slug: "changed-11", text: "🔧 Changed", level: 3}
     - {slug: "fixed-security-follow-up", text: "🐛 Fixed (security follow-up)", level: 3}
     - {slug: "3-2-0-2026-06-16", text: "[3.2.0] - 2026-06-16", level: 2}
     - {slug: "added-changed", text: "✨ Added / 🔧 Changed", level: 3}
@@ -5741,16 +5773,16 @@ pages:
     - {slug: "3-2-0rc43-2026-06-11", text: "[3.2.0rc43] - 2026-06-11", level: 2}
     - {slug: "added-changed-2", text: "✨ Added / 🔧 Changed", level: 3}
     - {slug: "3-2-0rc42-2026-06-11", text: "[3.2.0rc42] - 2026-06-11", level: 2}
-    - {slug: "changed-11", text: "💥 Changed", level: 3}
+    - {slug: "changed-12", text: "💥 Changed", level: 3}
     - {slug: "fixed-17", text: "🐛 Fixed", level: 3}
     - {slug: "added-changed-3", text: "✨ Added / 🔧 Changed", level: 3}
     - {slug: "3-2-0rc41-2026-06-08", text: "[3.2.0rc41] - 2026-06-08", level: 2}
     - {slug: "added-13", text: "✨ Added", level: 3}
-    - {slug: "changed-12", text: "🔧 Changed", level: 3}
+    - {slug: "changed-13", text: "🔧 Changed", level: 3}
     - {slug: "fixed-18", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-0rc40-2026-06-07", text: "[3.2.0rc40] - 2026-06-07", level: 2}
     - {slug: "added-14", text: "✨ Added", level: 3}
-    - {slug: "changed-13", text: "🔧 Changed", level: 3}
+    - {slug: "changed-14", text: "🔧 Changed", level: 3}
     - {slug: "fixed-19", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-0rc39-2026-06-07", text: "[3.2.0rc39] - 2026-06-07", level: 2}
     - {slug: "added-15", text: "✨ Added", level: 3}
@@ -5762,44 +5794,44 @@ pages:
     - {slug: "fixed-21", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-0rc37-2026-06-04", text: "[3.2.0rc37] - 2026-06-04", level: 2}
     - {slug: "added-17", text: "Added", level: 3}
-    - {slug: "changed-14", text: "Changed", level: 3}
+    - {slug: "changed-15", text: "Changed", level: 3}
     - {slug: "fixed-22", text: "Fixed", level: 3}
     - {slug: "3-2-0rc36-2026-06-03", text: "[3.2.0rc36] - 2026-06-03", level: 2}
-    - {slug: "changed-15", text: "Changed", level: 3}
+    - {slug: "changed-16", text: "Changed", level: 3}
     - {slug: "3-2-0rc35-2026-06-02", text: "[3.2.0rc35] - 2026-06-02", level: 2}
     - {slug: "added-18", text: "Added", level: 3}
-    - {slug: "changed-16", text: "Changed", level: 3}
+    - {slug: "changed-17", text: "Changed", level: 3}
     - {slug: "fixed-23", text: "Fixed", level: 3}
     - {slug: "3-2-0rc34-2026-06-02", text: "[3.2.0rc34] - 2026-06-02", level: 2}
-    - {slug: "changed-17", text: "Changed", level: 3}
+    - {slug: "changed-18", text: "Changed", level: 3}
     - {slug: "fixed-24", text: "Fixed", level: 3}
     - {slug: "3-2-0rc33-2026-06-01", text: "[3.2.0rc33] - 2026-06-01", level: 2}
-    - {slug: "changed-18", text: "Changed", level: 3}
+    - {slug: "changed-19", text: "Changed", level: 3}
     - {slug: "3-2-0rc32-2026-06-01", text: "[3.2.0rc32] - 2026-06-01", level: 2}
     - {slug: "added-19", text: "Added", level: 3}
-    - {slug: "changed-19", text: "Changed", level: 3}
+    - {slug: "changed-20", text: "Changed", level: 3}
     - {slug: "fixed-25", text: "Fixed", level: 3}
     - {slug: "documentation", text: "Documentation", level: 3}
     - {slug: "3-2-0rc31-rolled-into-rc32", text: "[3.2.0rc31] (rolled into rc32)", level: 2}
     - {slug: "fixed-26", text: "Fixed", level: 3}
     - {slug: "3-2-0rc30-2026-05-29", text: "[3.2.0rc30] - 2026-05-29", level: 2}
     - {slug: "added-20", text: "Added", level: 3}
-    - {slug: "changed-20", text: "Changed", level: 3}
+    - {slug: "changed-21", text: "Changed", level: 3}
     - {slug: "fixed-27", text: "Fixed", level: 3}
     - {slug: "security-lint", text: "Security / Lint", level: 3}
     - {slug: "3-2-0rc29-2026-05-29", text: "[3.2.0rc29] - 2026-05-29", level: 2}
     - {slug: "added-21", text: "Added", level: 3}
-    - {slug: "changed-21", text: "Changed", level: 3}
+    - {slug: "changed-22", text: "Changed", level: 3}
     - {slug: "fixed-28", text: "Fixed", level: 3}
     - {slug: "deferred", text: "Deferred", level: 3}
     - {slug: "3-2-0rc28-2026-05-27", text: "[3.2.0rc28] - 2026-05-27", level: 2}
-    - {slug: "changed-22", text: "Changed", level: 3}
+    - {slug: "changed-23", text: "Changed", level: 3}
     - {slug: "fixed-29", text: "Fixed", level: 3}
     - {slug: "3-2-0rc27-2026-05-26", text: "[3.2.0rc27] - 2026-05-26", level: 2}
     - {slug: "fixed-30", text: "Fixed", level: 3}
     - {slug: "3-2-0rc26-2026-05-26", text: "[3.2.0rc26] - 2026-05-26", level: 2}
     - {slug: "breaking-changes-6", text: "Breaking changes", level: 3}
-    - {slug: "changed-23", text: "Changed", level: 3}
+    - {slug: "changed-24", text: "Changed", level: 3}
     - {slug: "added-22", text: "Added", level: 3}
     - {slug: "3-2-0rc25-2026-05-23", text: "[3.2.0rc25] - 2026-05-23", level: 2}
     - {slug: "3-2-0rc24-2026-05-22", text: "[3.2.0rc24] - 2026-05-22", level: 2}
@@ -5819,31 +5851,31 @@ pages:
     - {slug: "3-2-0rc10-2026-05-17", text: "[3.2.0rc10] - 2026-05-17", level: 2}
     - {slug: "3-2-0rc9-rolled-into-rc10", text: "[3.2.0rc9] (rolled into rc10)", level: 2}
     - {slug: "added-23", text: "Added", level: 3}
-    - {slug: "changed-24", text: "Changed", level: 3}
+    - {slug: "changed-25", text: "Changed", level: 3}
     - {slug: "fixed-31", text: "Fixed", level: 3}
     - {slug: "documentation-2", text: "Documentation", level: 3}
     - {slug: "deferred-2", text: "Deferred", level: 3}
     - {slug: "removed-2", text: "Removed", level: 3}
     - {slug: "3-2-0rc8-2026-05-14", text: "[3.2.0rc8] - 2026-05-14", level: 2}
-    - {slug: "changed-25", text: "Changed", level: 3}
+    - {slug: "changed-26", text: "Changed", level: 3}
     - {slug: "fixed-32", text: "Fixed", level: 3}
     - {slug: "3-2-0rc7-2026-05-12", text: "[3.2.0rc7] - 2026-05-12", level: 2}
     - {slug: "added-24", text: "Added", level: 3}
-    - {slug: "changed-26", text: "Changed", level: 3}
+    - {slug: "changed-27", text: "Changed", level: 3}
     - {slug: "fixed-33", text: "Fixed", level: 3}
     - {slug: "3-2-0rc6-2026-05-11", text: "[3.2.0rc6] - 2026-05-11", level: 2}
-    - {slug: "changed-27", text: "Changed", level: 3}
+    - {slug: "changed-28", text: "Changed", level: 3}
     - {slug: "fixed-34", text: "Fixed", level: 3}
     - {slug: "3-2-0rc5-2026-05-11", text: "[3.2.0rc5] - 2026-05-11", level: 2}
-    - {slug: "changed-28", text: "Changed", level: 3}
+    - {slug: "changed-29", text: "Changed", level: 3}
     - {slug: "fixed-35", text: "Fixed", level: 3}
     - {slug: "3-2-0rc4-2026-05-11", text: "[3.2.0rc4] - 2026-05-11", level: 2}
-    - {slug: "changed-29", text: "Changed", level: 3}
+    - {slug: "changed-30", text: "Changed", level: 3}
     - {slug: "3-2-0rc3-2026-05-06", text: "[3.2.0rc3] - 2026-05-06", level: 2}
     - {slug: "fixed-36", text: "Fixed", level: 3}
     - {slug: "3-2-0rc2-2026-05-05", text: "[3.2.0rc2] - 2026-05-05", level: 2}
     - {slug: "added-25", text: "Added", level: 3}
-    - {slug: "changed-30", text: "Changed", level: 3}
+    - {slug: "changed-31", text: "Changed", level: 3}
     - {slug: "3-2-0rc1-2026-05-05", text: "[3.2.0rc1] - 2026-05-05", level: 2}
     - {slug: "fixed-37", text: "Fixed", level: 3}
     - {slug: "release-validation", text: "Release Validation", level: 3}
@@ -5867,45 +5899,45 @@ pages:
     - {slug: "tranche-2-acceptance-pass-sc-001-sc-008", text: "Tranche-2 acceptance pass (SC-001..SC-008)", level: 3}
     - {slug: "3-2-0a5-2026-04-27", text: "[3.2.0a5] - 2026-04-27", level: 2}
     - {slug: "fixed-43", text: "Fixed", level: 3}
-    - {slug: "changed-31", text: "Changed", level: 3}
+    - {slug: "changed-32", text: "Changed", level: 3}
     - {slug: "removed-3", text: "Removed", level: 3}
     - {slug: "internal-6", text: "Internal", level: 3}
     - {slug: "added-27", text: "Added", level: 3}
-    - {slug: "changed-32", text: "Changed", level: 3}
+    - {slug: "changed-33", text: "Changed", level: 3}
     - {slug: "removed-4", text: "Removed", level: 3}
     - {slug: "fixed-44", text: "Fixed", level: 3}
     - {slug: "added-documentation-mission-composition-rewrite-502-461-phase-6-wp6-4", text: "Added - Documentation mission composition rewrite (#502, #461, Phase 6 WP6.4)", level: 3}
     - {slug: "added-28", text: "Added", level: 3}
-    - {slug: "changed-33", text: "Changed", level: 3}
+    - {slug: "changed-34", text: "Changed", level: 3}
     - {slug: "deferred-3", text: "Deferred", level: 3}
     - {slug: "out-of-scope-tracked-separately", text: "Out of scope (tracked separately)", level: 3}
     - {slug: "migration-notes", text: "Migration notes", level: 3}
     - {slug: "added-phase-4-trail-follow-on", text: "Added (Phase 4 trail follow-on)", level: 3}
     - {slug: "fixed-45", text: "Fixed", level: 3}
-    - {slug: "changed-34", text: "Changed", level: 3}
+    - {slug: "changed-35", text: "Changed", level: 3}
     - {slug: "3-2-0a4-2026-04-21", text: "[3.2.0a4] - 2026-04-21", level: 2}
     - {slug: "added-29", text: "Added", level: 3}
     - {slug: "added-30", text: "Added", level: 3}
     - {slug: "3-2-0a3-2026-04-21", text: "[3.2.0a3] - 2026-04-21", level: 2}
     - {slug: "fixed-46", text: "Fixed", level: 3}
     - {slug: "3-2-0a2-2026-04-21", text: "[3.2.0a2] - 2026-04-21", level: 2}
-    - {slug: "changed-35", text: "Changed", level: 3}
+    - {slug: "changed-36", text: "Changed", level: 3}
     - {slug: "removed-5", text: "Removed", level: 3}
     - {slug: "3-2-0a1-2026-04-20", text: "[3.2.0a1] - 2026-04-20", level: 2}
     - {slug: "added-31", text: "Added", level: 3}
-    - {slug: "changed-36", text: "Changed", level: 3}
+    - {slug: "changed-37", text: "Changed", level: 3}
     - {slug: "fixed-47", text: "Fixed", level: 3}
     - {slug: "removed-6", text: "Removed", level: 3}
     - {slug: "3-1-8-2026-04-29", text: "[3.1.8] - 2026-04-29", level: 2}
     - {slug: "fixed-48", text: "Fixed", level: 3}
     - {slug: "3-1-7-2026-04-28", text: "[3.1.7] - 2026-04-28", level: 2}
     - {slug: "fixed-49", text: "Fixed", level: 3}
-    - {slug: "changed-37", text: "Changed", level: 3}
+    - {slug: "changed-38", text: "Changed", level: 3}
     - {slug: "3-1-6-2026-04-20", text: "[3.1.6] - 2026-04-20", level: 2}
     - {slug: "fixed-50", text: "Fixed", level: 3}
     - {slug: "docs-2", text: "Docs", level: 3}
     - {slug: "3-1-5-2026-04-16", text: "[3.1.5] - 2026-04-16", level: 2}
-    - {slug: "changed-38", text: "Changed", level: 3}
+    - {slug: "changed-39", text: "Changed", level: 3}
     - {slug: "fixed-51", text: "Fixed", level: 3}
     - {slug: "docs-3", text: "Docs", level: 3}
     - {slug: "3-1-4-2026-04-15", text: "[3.1.4] - 2026-04-15", level: 2}
@@ -5916,7 +5948,7 @@ pages:
     - {slug: "3-1-2-2026-04-15", text: "[3.1.2] - 2026-04-15", level: 2}
     - {slug: "fixed-ci-recovery-release-readiness", text: "Fixed - CI recovery & release readiness", level: 3}
     - {slug: "added-32", text: "Added", level: 3}
-    - {slug: "changed-39", text: "Changed", level: 3}
+    - {slug: "changed-40", text: "Changed", level: 3}
     - {slug: "unchanged-explicitly", text: "Unchanged (explicitly)", level: 3}
     - {slug: "refs", text: "Refs", level: 3}
     - {slug: "fixed-54", text: "Fixed", level: 3}
@@ -5929,26 +5961,26 @@ pages:
     - {slug: "fixed-56", text: "Fixed", level: 3}
     - {slug: "3-1-2a2-2026-04-11", text: "[3.1.2a2] - 2026-04-11", level: 2}
     - {slug: "added-35", text: "Added", level: 3}
-    - {slug: "changed-40", text: "Changed", level: 3}
+    - {slug: "changed-41", text: "Changed", level: 3}
     - {slug: "fixed-57", text: "Fixed", level: 3}
     - {slug: "3-1-2a1-2026-04-10", text: "[3.1.2a1] - 2026-04-10", level: 2}
     - {slug: "added-36", text: "Added", level: 3}
-    - {slug: "changed-41", text: "Changed", level: 3}
+    - {slug: "changed-42", text: "Changed", level: 3}
     - {slug: "fixed-58", text: "Fixed", level: 3}
     - {slug: "3-1-1-2026-04-09", text: "[3.1.1] - 2026-04-09", level: 2}
     - {slug: "added-37", text: "Added", level: 3}
-    - {slug: "changed-42", text: "Changed", level: 3}
+    - {slug: "changed-43", text: "Changed", level: 3}
     - {slug: "fixed-59", text: "Fixed", level: 3}
     - {slug: "3-1-1a3-2026-04-07", text: "[3.1.1a3] - 2026-04-07", level: 2}
     - {slug: "added-38", text: "Added", level: 3}
-    - {slug: "changed-43", text: "Changed", level: 3}
+    - {slug: "changed-44", text: "Changed", level: 3}
     - {slug: "3-1-1a2-2026-04-07", text: "[3.1.1a2] - 2026-04-07", level: 2}
     - {slug: "fixed-60", text: "Fixed", level: 3}
     - {slug: "added-39", text: "Added", level: 3}
-    - {slug: "changed-44", text: "Changed", level: 3}
+    - {slug: "changed-45", text: "Changed", level: 3}
     - {slug: "3-1-1a1-2026-04-07", text: "[3.1.1a1] - 2026-04-07", level: 2}
     - {slug: "added-40", text: "Added", level: 3}
-    - {slug: "changed-45", text: "Changed", level: 3}
+    - {slug: "changed-46", text: "Changed", level: 3}
     - {slug: "fixed-61", text: "Fixed", level: 3}
     - {slug: "3-1-0-2026-04-07", text: "[3.1.0] - 2026-04-07", level: 2}
     - {slug: "added-41", text: "Added", level: 3}
@@ -5968,10 +6000,10 @@ pages:
     - {slug: "fixed-66", text: "Fixed", level: 3}
     - {slug: "3-1-0a3-2026-04-05", text: "[3.1.0a3] - 2026-04-05", level: 2}
     - {slug: "fixed-67", text: "Fixed", level: 3}
-    - {slug: "changed-46", text: "Changed", level: 3}
+    - {slug: "changed-47", text: "Changed", level: 3}
     - {slug: "added-46", text: "Added", level: 3}
     - {slug: "3-1-0a2-2026-04-05", text: "[3.1.0a2] - 2026-04-05", level: 2}
-    - {slug: "changed-47", text: "Changed", level: 3}
+    - {slug: "changed-48", text: "Changed", level: 3}
     - {slug: "fixed-68", text: "Fixed", level: 3}
     - {slug: "documentation-3", text: "Documentation", level: 3}
     - {slug: "3-0-3-2026-04-01", text: "[3.0.3] - 2026-04-01", level: 2}
@@ -5998,7 +6030,7 @@ pages:
     - {slug: "fixed-74", text: "🐛 Fixed", level: 3}
     - {slug: "2-1-0-2026-03-21", text: "[2.1.0] - 2026-03-21", level: 2}
     - {slug: "added-51", text: "✅ Added", level: 3}
-    - {slug: "changed-48", text: "🔧 Changed", level: 3}
+    - {slug: "changed-49", text: "🔧 Changed", level: 3}
     - {slug: "deprecated", text: "⚠️ Deprecated", level: 3}
     - {slug: "removed-8", text: "🗑️ Removed", level: 3}
     - {slug: "2-0-11-2026-03-20", text: "[2.0.11] - 2026-03-20", level: 2}
@@ -6006,17 +6038,17 @@ pages:
     - {slug: "2-0-10-2026-03-20", text: "[2.0.10] - 2026-03-20", level: 2}
     - {slug: "added-52", text: "✅ Added", level: 3}
     - {slug: "fixed-75", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-49", text: "🔧 Changed", level: 3}
+    - {slug: "changed-50", text: "🔧 Changed", level: 3}
     - {slug: "2-0-9-2026-03-15", text: "[2.0.9] - 2026-03-15", level: 2}
     - {slug: "added-53", text: "✅ Added", level: 3}
     - {slug: "fixed-76", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-50", text: "🔧 Changed", level: 3}
+    - {slug: "changed-51", text: "🔧 Changed", level: 3}
     - {slug: "2-0-8-2026-03-11", text: "[2.0.8] - 2026-03-11", level: 2}
     - {slug: "fixed-77", text: "🐛 Fixed", level: 3}
     - {slug: "2-0-7-2026-03-11", text: "[2.0.7] - 2026-03-11", level: 2}
     - {slug: "added-54", text: "✅ Added", level: 3}
     - {slug: "fixed-78", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-51", text: "🔧 Changed", level: 3}
+    - {slug: "changed-52", text: "🔧 Changed", level: 3}
     - {slug: "2-0-6-2026-03-10", text: "[2.0.6] - 2026-03-10", level: 2}
     - {slug: "fixed-79", text: "🐛 Fixed", level: 3}
     - {slug: "2-0-5-2026-03-10", text: "[2.0.5] - 2026-03-10", level: 2}
@@ -6025,15 +6057,15 @@ pages:
     - {slug: "documentation-5", text: "📄 Documentation", level: 3}
     - {slug: "2-0-4-2026-03-06", text: "[2.0.4] - 2026-03-06", level: 2}
     - {slug: "fixed-81", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-52", text: "🔧 Changed", level: 3}
+    - {slug: "changed-53", text: "🔧 Changed", level: 3}
     - {slug: "2-0-2-2026-02-27", text: "[2.0.2] - 2026-02-27", level: 2}
     - {slug: "added-56", text: "✅ Added", level: 3}
-    - {slug: "changed-53", text: "🔧 Changed", level: 3}
+    - {slug: "changed-54", text: "🔧 Changed", level: 3}
     - {slug: "2-0-1-2026-02-26", text: "[2.0.1] - 2026-02-26", level: 2}
     - {slug: "fixed-82", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-54", text: "🔧 Changed", level: 3}
-    - {slug: "2-0-0-2026-02-22", text: "[2.0.0] - 2026-02-22", level: 2}
     - {slug: "changed-55", text: "🔧 Changed", level: 3}
+    - {slug: "2-0-0-2026-02-22", text: "[2.0.0] - 2026-02-22", level: 2}
+    - {slug: "changed-56", text: "🔧 Changed", level: 3}
     - {slug: "fixed-83", text: "🐛 Fixed", level: 3}
     - {slug: "2-0-0a5-2026-02-14", text: "[2.0.0a5] - 2026-02-14", level: 2}
     - {slug: "fixed-84", text: "🐛 Fixed", level: 3}
@@ -6058,7 +6090,7 @@ pages:
     - {slug: "0-13-6-2026-01-27", text: "[0.13.6] - 2026-01-27", level: 2}
     - {slug: "fixed-92", text: "🐛 Fixed", level: 3}
     - {slug: "added-57", text: "Added", level: 3}
-    - {slug: "changed-56", text: "Changed", level: 3}
+    - {slug: "changed-57", text: "Changed", level: 3}
     - {slug: "fixed-non-critical", text: "Fixed (Non-Critical)", level: 3}
     - {slug: "0-13-5-2026-01-26", text: "[0.13.5] - 2026-01-26", level: 2}
     - {slug: "fixed-93", text: "🐛 Fixed", level: 3}
@@ -6118,13 +6150,13 @@ pages:
     - {slug: "breaking-changes-8", text: "🔒 Breaking Changes", level: 3}
     - {slug: "0-10-8-2025-12-30", text: "[0.10.8] - 2025-12-30", level: 2}
     - {slug: "fixed-106", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-57", text: "🔧 Changed", level: 3}
+    - {slug: "changed-58", text: "🔧 Changed", level: 3}
     - {slug: "0-10-7-2025-12-30", text: "[0.10.7] - 2025-12-30", level: 2}
     - {slug: "fixed-107", text: "🐛 Fixed", level: 3}
     - {slug: "closed-2", text: "🔄 Closed", level: 3}
     - {slug: "0-10-6-2025-12-18", text: "[0.10.6] - 2025-12-18", level: 2}
     - {slug: "added-65", text: "✨ Added", level: 3}
-    - {slug: "changed-58", text: "🔧 Changed", level: 3}
+    - {slug: "changed-59", text: "🔧 Changed", level: 3}
     - {slug: "fixed-108", text: "🐛 Fixed", level: 3}
     - {slug: "0-9-4-2025-12-17", text: "[0.9.4] - 2025-12-17", level: 2}
     - {slug: "documentation-validation", text: "📚 Documentation & Validation", level: 3}
@@ -6136,13 +6168,13 @@ pages:
     - {slug: "bug-fixes-improvements", text: "🔧 Bug Fixes & Improvements", level: 3}
     - {slug: "added-66", text: "🆕 Added", level: 3}
     - {slug: "fixed-111", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-59", text: "🔧 Changed", level: 3}
+    - {slug: "changed-60", text: "🔧 Changed", level: 3}
     - {slug: "migration", text: "🚀 Migration", level: 3}
     - {slug: "0-9-0-2025-12-17", text: "[0.9.0] - 2025-12-17", level: 2}
     - {slug: "major-release-frontmatter-only-lane-management", text: "🎯 Major Release: Frontmatter-Only Lane Management", level: 3}
     - {slug: "breaking-changes-9", text: "⚠️ Breaking Changes", level: 3}
     - {slug: "added-67", text: "🆕 Added", level: 3}
-    - {slug: "changed-60", text: "🔧 Changed", level: 3}
+    - {slug: "changed-61", text: "🔧 Changed", level: 3}
     - {slug: "documentation-10", text: "📚 Documentation", level: 3}
     - {slug: "testing", text: "🧪 Testing", level: 3}
     - {slug: "migration-guide", text: "🚀 Migration Guide", level: 3}
@@ -6155,7 +6187,7 @@ pages:
     - {slug: "0-8-0-2025-12-15", text: "[0.8.0] - 2025-12-15", level: 2}
     - {slug: "breaking-changes-10", text: "Breaking Changes", level: 3}
     - {slug: "added-69", text: "Added", level: 3}
-    - {slug: "changed-61", text: "Changed", level: 3}
+    - {slug: "changed-62", text: "Changed", level: 3}
     - {slug: "deprecated-2", text: "Deprecated", level: 3}
     - {slug: "migration-guide-2", text: "Migration Guide", level: 3}
     - {slug: "0-7-4-2025-12-14", text: "[0.7.4] - 2025-12-14", level: 2}
@@ -6173,7 +6205,7 @@ pages:
     - {slug: "fixed-118", text: "Fixed", level: 3}
     - {slug: "0-6-6-2025-12-13", text: "[0.6.6] - 2025-12-13", level: 2}
     - {slug: "fixed-119", text: "Fixed", level: 3}
-    - {slug: "changed-62", text: "Changed", level: 3}
+    - {slug: "changed-63", text: "Changed", level: 3}
     - {slug: "0-6-5-2025-12-13", text: "[0.6.5] - 2025-12-13", level: 2}
     - {slug: "added-72", text: "Added", level: 3}
     - {slug: "fixed-120", text: "Fixed", level: 3}
@@ -6187,27 +6219,27 @@ pages:
     - {slug: "fixed-124", text: "Fixed", level: 3}
     - {slug: "0-6-0-2025-11-16", text: "[0.6.0] - 2025-11-16", level: 2}
     - {slug: "fixed-125", text: "Fixed", level: 3}
-    - {slug: "changed-63", text: "Changed", level: 3}
+    - {slug: "changed-64", text: "Changed", level: 3}
     - {slug: "added-73", text: "Added", level: 3}
     - {slug: "0-5-3-2025-11-15", text: "[0.5.3] - 2025-11-15", level: 2}
     - {slug: "fixed-126", text: "Fixed", level: 3}
-    - {slug: "changed-64", text: "Changed", level: 3}
-    - {slug: "added-74", text: "Added", level: 3}
     - {slug: "changed-65", text: "Changed", level: 3}
+    - {slug: "added-74", text: "Added", level: 3}
+    - {slug: "changed-66", text: "Changed", level: 3}
     - {slug: "removed-9", text: "Removed", level: 3}
     - {slug: "0-5-2-2025-11-14", text: "[0.5.2] - 2025-11-14", level: 2}
     - {slug: "fixed-127", text: "Fixed", level: 3}
-    - {slug: "changed-66", text: "Changed", level: 3}
+    - {slug: "changed-67", text: "Changed", level: 3}
     - {slug: "added-75", text: "Added", level: 3}
     - {slug: "0-5-1-2025-11-14", text: "[0.5.1] - 2025-11-14", level: 2}
     - {slug: "added-76", text: "Added", level: 3}
-    - {slug: "changed-67", text: "Changed", level: 3}
+    - {slug: "changed-68", text: "Changed", level: 3}
     - {slug: "fixed-128", text: "Fixed", level: 3}
     - {slug: "documentation-11", text: "Documentation", level: 3}
     - {slug: "testing-2", text: "Testing", level: 3}
     - {slug: "0-5-0-2025-11-13", text: "[0.5.0] - 2025-11-13", level: 2}
     - {slug: "added-77", text: "Added", level: 3}
-    - {slug: "changed-68", text: "Changed", level: 3}
+    - {slug: "changed-69", text: "Changed", level: 3}
     - {slug: "fixed-129", text: "Fixed", level: 3}
     - {slug: "documentation-12", text: "Documentation", level: 3}
     - {slug: "testing-3", text: "Testing", level: 3}
@@ -6215,16 +6247,16 @@ pages:
     - {slug: "fixed-130", text: "Fixed", level: 3}
     - {slug: "0-4-12-2025-11-13", text: "[0.4.12] - 2025-11-13", level: 2}
     - {slug: "added-78", text: "Added", level: 3}
-    - {slug: "changed-69", text: "Changed", level: 3}
+    - {slug: "changed-70", text: "Changed", level: 3}
     - {slug: "0-4-11-2025-11-13", text: "[0.4.11] - 2025-11-13", level: 2}
     - {slug: "fixed-131", text: "Fixed", level: 3}
     - {slug: "added-79", text: "Added", level: 3}
-    - {slug: "changed-70", text: "Changed", level: 3}
+    - {slug: "changed-71", text: "Changed", level: 3}
     - {slug: "0-4-10-2025-11-13", text: "[0.4.10] - 2025-11-13", level: 2}
     - {slug: "fixed-132", text: "Fixed", level: 3}
     - {slug: "0-4-9-2025-11-13", text: "[0.4.9] - 2025-11-13", level: 2}
     - {slug: "added-80", text: "Added", level: 3}
-    - {slug: "changed-71", text: "Changed", level: 3}
+    - {slug: "changed-72", text: "Changed", level: 3}
     - {slug: "fixed-133", text: "Fixed", level: 3}
     - {slug: "llm-context-improvements", text: "LLM Context Improvements", level: 3}
     - {slug: "testing-4", text: "Testing", level: 3}
@@ -6232,78 +6264,78 @@ pages:
     - {slug: "backward-compatibility", text: "Backward Compatibility", level: 3}
     - {slug: "0-4-12-2025-11-11", text: "[0.4.12] - 2025-11-11", level: 2}
     - {slug: "added-81", text: "Added", level: 3}
-    - {slug: "changed-72", text: "Changed", level: 3}
+    - {slug: "changed-73", text: "Changed", level: 3}
     - {slug: "0-4-11-2025-11-11", text: "[0.4.11] - 2025-11-11", level: 2}
     - {slug: "added-82", text: "Added", level: 3}
-    - {slug: "changed-73", text: "Changed", level: 3}
+    - {slug: "changed-74", text: "Changed", level: 3}
     - {slug: "0-4-10-2025-11-11", text: "[0.4.10] - 2025-11-11", level: 2}
     - {slug: "added-83", text: "Added", level: 3}
-    - {slug: "changed-74", text: "Changed", level: 3}
+    - {slug: "changed-75", text: "Changed", level: 3}
     - {slug: "0-4-8-2025-11-10", text: "[0.4.8] - 2025-11-10", level: 2}
     - {slug: "added-84", text: "Added", level: 3}
-    - {slug: "changed-75", text: "Changed", level: 3}
+    - {slug: "changed-76", text: "Changed", level: 3}
     - {slug: "fixed-134", text: "Fixed", level: 3}
     - {slug: "security-3", text: "Security", level: 3}
     - {slug: "removed-10", text: "Removed", level: 3}
     - {slug: "0-4-7-2025-11-07", text: "[0.4.7] - 2025-11-07", level: 2}
     - {slug: "added-85", text: "Added", level: 3}
-    - {slug: "changed-76", text: "Changed", level: 3}
+    - {slug: "changed-77", text: "Changed", level: 3}
     - {slug: "fixed-135", text: "Fixed", level: 3}
     - {slug: "0-4-5-2025-11-06", text: "[0.4.5] - 2025-11-06", level: 2}
     - {slug: "added-86", text: "Added", level: 3}
-    - {slug: "changed-77", text: "Changed", level: 3}
+    - {slug: "changed-78", text: "Changed", level: 3}
     - {slug: "security-4", text: "Security", level: 3}
     - {slug: "0-4-6-2025-11-06", text: "[0.4.6] - 2025-11-06", level: 2}
     - {slug: "fixed-136", text: "Fixed", level: 3}
     - {slug: "0-4-4-2025-11-06", text: "[0.4.4] - 2025-11-06", level: 2}
     - {slug: "security-5", text: "Security", level: 3}
-    - {slug: "changed-78", text: "Changed", level: 3}
+    - {slug: "changed-79", text: "Changed", level: 3}
     - {slug: "0-3-2-2025-11-03", text: "[0.3.2] - 2025-11-03", level: 2}
     - {slug: "added-87", text: "Added", level: 3}
-    - {slug: "changed-79", text: "Changed", level: 3}
+    - {slug: "changed-80", text: "Changed", level: 3}
     - {slug: "security-6", text: "Security", level: 3}
     - {slug: "0-3-1-2025-11-03", text: "[0.3.1] - 2025-11-03", level: 2}
-    - {slug: "changed-80", text: "Changed", level: 3}
+    - {slug: "changed-81", text: "Changed", level: 3}
     - {slug: "documentation-13", text: "Documentation", level: 3}
     - {slug: "0-3-0-2025-11-02", text: "[0.3.0] - 2025-11-02", level: 2}
     - {slug: "added-88", text: "Added", level: 3}
-    - {slug: "changed-81", text: "Changed", level: 3}
+    - {slug: "changed-82", text: "Changed", level: 3}
     - {slug: "fixed-137", text: "Fixed", level: 3}
     - {slug: "0-2-20-2025-11-02", text: "[0.2.20] - 2025-11-02", level: 2}
     - {slug: "added-89", text: "Added", level: 3}
-    - {slug: "changed-82", text: "Changed", level: 3}
+    - {slug: "changed-83", text: "Changed", level: 3}
     - {slug: "security-7", text: "Security", level: 3}
     - {slug: "0-2-3-2025-10-29", text: "[0.2.3] - 2025-10-29", level: 2}
     - {slug: "added-90", text: "Added", level: 3}
-    - {slug: "changed-83", text: "Changed", level: 3}
+    - {slug: "changed-84", text: "Changed", level: 3}
     - {slug: "0-2-2-2025-10-29", text: "[0.2.2] - 2025-10-29", level: 2}
     - {slug: "added-91", text: "Added", level: 3}
-    - {slug: "changed-84", text: "Changed", level: 3}
+    - {slug: "changed-85", text: "Changed", level: 3}
     - {slug: "0-2-1-2025-10-29", text: "[0.2.1] - 2025-10-29", level: 2}
     - {slug: "added-92", text: "Added", level: 3}
-    - {slug: "changed-85", text: "Changed", level: 3}
+    - {slug: "changed-86", text: "Changed", level: 3}
     - {slug: "0-2-0-2025-10-28", text: "[0.2.0] - 2025-10-28", level: 2}
     - {slug: "added-93", text: "Added", level: 3}
-    - {slug: "changed-86", text: "Changed", level: 3}
+    - {slug: "changed-87", text: "Changed", level: 3}
     - {slug: "fixed-138", text: "Fixed", level: 3}
     - {slug: "removed-11", text: "Removed", level: 3}
     - {slug: "0-1-3-2025-10-28", text: "[0.1.3] - 2025-10-28", level: 2}
     - {slug: "fixed-139", text: "Fixed", level: 3}
     - {slug: "0-1-2-2025-10-28", text: "[0.1.2] - 2025-10-28", level: 2}
-    - {slug: "changed-87", text: "Changed", level: 3}
+    - {slug: "changed-88", text: "Changed", level: 3}
     - {slug: "0-1-1-2025-10-07", text: "[0.1.1] - 2025-10-07", level: 2}
     - {slug: "added-94", text: "Added", level: 3}
-    - {slug: "changed-88", text: "Changed", level: 3}
-    - {slug: "0-1-0-2025-10-07", text: "[0.1.0] - 2025-10-07", level: 2}
     - {slug: "changed-89", text: "Changed", level: 3}
-    - {slug: "0-0-20-2025-10-07", text: "[0.0.20] - 2025-10-07", level: 2}
+    - {slug: "0-1-0-2025-10-07", text: "[0.1.0] - 2025-10-07", level: 2}
     - {slug: "changed-90", text: "Changed", level: 3}
-    - {slug: "0-0-19-2025-10-07", text: "[0.0.19] - 2025-10-07", level: 2}
+    - {slug: "0-0-20-2025-10-07", text: "[0.0.20] - 2025-10-07", level: 2}
     - {slug: "changed-91", text: "Changed", level: 3}
+    - {slug: "0-0-19-2025-10-07", text: "[0.0.19] - 2025-10-07", level: 2}
+    - {slug: "changed-92", text: "Changed", level: 3}
     - {slug: "added-95", text: "Added", level: 3}
     - {slug: "0-0-18-2025-10-06", text: "[0.0.18] - 2025-10-06", level: 2}
     - {slug: "added-96", text: "Added", level: 3}
-    - {slug: "changed-92", text: "Changed", level: 3}
+    - {slug: "changed-93", text: "Changed", level: 3}
   - path: "docs/changelog/index.md"
     title: "Changelog"
     divio_type: "reference"
@@ -8654,6 +8686,7 @@ pages:
     - {slug: "status-file-conflicts-automatic", text: "Status File Conflicts (Automatic)", level: 3}
     - {slug: "when-auto-resolution-fails", text: "When Auto-Resolution Fails", level: 3}
     - {slug: "code-conflicts-manual", text: "Code Conflicts (Manual)", level: 3}
+    - {slug: "target-branch-content-conflicts-during-squash", text: "Target-Branch Content Conflicts During Squash", level: 3}
     - {slug: "gate-artifact-verdict-conflicts-fail-closed", text: "Gate Artifact Verdict Conflicts (Fail-Closed)", level: 3}
     - {slug: "conflict-resolution-tips", text: "Conflict Resolution Tips", level: 3}
     - {slug: "pre-flight-validation-failures", text: "Pre-flight Validation Failures", level: 2}
@@ -13935,6 +13968,390 @@ pages:
     - {slug: "repository-and-cross-repository-gates", text: "Repository and cross-repository gates", level: 2}
     - {slug: "integrated-platform-evidence", text: "Integrated platform evidence", level: 2}
     - {slug: "fresh-clone-starts", text: "Fresh-clone starts", level: 2}
+  - path: "docs/reports/tracer-friction-recon/2026-09-26/README.md"
+    title: "Tracer-file friction recon (2026-09-26)"
+    divio_type: "none"
+    abstract: "A recon squad read the tracer files of every mission in `kitty-specs/` that keeps them and pulled out the recurring **frictions, concerns, notes and recommendations**. Then a planner squad checked whether open issues in `spec-kitty/spec-kitty` already describe each friction **cause** or **suggested improvement**."
+    anchors:
+    - {slug: "1-headline-findings", text: "1. Headline findings", level: 2}
+    - {slug: "2-theme-report", text: "2. Theme report", level: 2}
+    - {slug: "2-1-mission-tracer-process-34-missions", text: "2.1 Mission tracer process (34 missions)", level: 3}
+    - {slug: "2-2-planning-finalize-tasks-and-requirement-mapping-39-missions-the-densest-cluster", text: "2.2 Planning, finalize-tasks and requirement mapping (39 missions, the densest cluster)", level: 3}
+    - {slug: "2-3-coordination-lanes-and-status-placement-34-24-missions", text: "2.3 Coordination, lanes and status placement (34 + 24 missions)", level: 3}
+    - {slug: "2-4-test-environment-and-interpreters-32-missions", text: "2.4 Test environment and interpreters (32 missions)", level: 3}
+    - {slug: "2-5-test-suite-reliability-and-baseline-red-churn-34-missions", text: "2.5 Test-suite reliability and baseline-red churn (34 missions)", level: 3}
+    - {slug: "2-6-ci-gates-and-quality-gate-honesty-26-missions", text: "2.6 CI gates and quality-gate honesty (26 missions)", level: 3}
+    - {slug: "2-7-architectural-gates-and-allowlists-34-missions", text: "2.7 Architectural gates and allowlists (34 missions)", level: 3}
+    - {slug: "2-8-review-loop-acceptance-criteria-and-squads-28-missions", text: "2.8 Review loop, acceptance criteria and squads (28 missions)", level: 3}
+    - {slug: "2-9-multi-agent-orchestration-and-harness-20-17-missions", text: "2.9 Multi-agent orchestration and harness (20 + 17 missions)", level: 3}
+    - {slug: "2-10-cli-ergonomics-and-honest-outcomes-33-missions", text: "2.10 CLI ergonomics and honest outcomes (33 missions)", level: 3}
+    - {slug: "2-11-merge-accept-and-zeitgeist-17-missions", text: "2.11 Merge, accept and Zeitgeist (17 missions)", level: 3}
+    - {slug: "2-12-premises-docs-doctrine-and-charter-drift-25-19-missions", text: "2.12 Premises, docs, doctrine and charter drift (25 + 19 missions)", level: 3}
+    - {slug: "2-13-historical-sync-era-hangs-and-residue-16-missions-resolved", text: "2.13 Historical: sync-era hangs and residue (≈16 missions, resolved)", level: 3}
+    - {slug: "3-issue-coverage-summary", text: "3. Issue-coverage summary", level: 2}
+    - {slug: "3-1-uncovered-gaps-ranked-draft-issues-are-in-coverage-matrix-md-none-were-filed", text: "3.1 Uncovered gaps, ranked (draft issues are in `coverage-matrix.md`; none were filed)", level: 3}
+    - {slug: "3-2-the-biggest-partial-gaps-existing-issue-is-too-narrow", text: "3.2 The biggest PARTIAL gaps (existing issue is too narrow)", level: 3}
+    - {slug: "3-3-regressions-and-residuals-after-close-new-issues-or-reopen", text: "3.3 Regressions and residuals after close (new issues or reopen)", level: 3}
+    - {slug: "3-4-close-candidates-acted-on-in-6", text: "3.4 Close candidates (acted on in §6)", level: 3}
+    - {slug: "4-suggested-sequencing-planner-view", text: "4. Suggested sequencing (planner view)", level: 2}
+    - {slug: "5-method-and-honest-limits", text: "5. Method and honest limits", level: 2}
+    - {slug: "6-tracker-actions-taken-2026-09-26", text: "6. Tracker actions taken (2026-09-26)", level: 2}
+  - path: "docs/reports/tracer-friction-recon/2026-09-26/coverage-matrix.md"
+    title: "Issue-coverage matrix — all 165 friction clusters"
+    divio_type: "none"
+    abstract: "Generated from `issue-coverage/group-*.jsonl` with the second-opinion revisions from `issue-coverage/second-opinion.jsonl` applied. Issue references are to `spec-kitty/spec-kitty`. `fit` is the delegate's judgement after reading the issue body: exact / partial / adjacent."
+    anchors:
+    - {slug: "group-a-planning-templates-tracker-tracer-process", text: "Group A — Planning, templates, tracker & tracer process", level: 2}
+    - {slug: "group-b-coordination-status-merge-accept", text: "Group B — Coordination, status, merge & accept", level: 2}
+    - {slug: "group-c-tests-venv-ci-tooling", text: "Group C — Tests, venv, CI & tooling", level: 2}
+    - {slug: "group-d-arch-gates-dead-code-docs-doctrine-charter", text: "Group D — Arch gates, dead code, docs, doctrine & charter", level: 2}
+    - {slug: "group-e-cli-review-loop-orchestration-harness", text: "Group E — CLI, review loop, orchestration & harness", level: 2}
+  - path: "docs/reports/tracer-friction-recon/2026-09-26/findings/slice-1.md"
+    title: "Recon — slice1 (17 most recent missions)"
+    divio_type: "none"
+    abstract: "**Profile applied:** `retrospective-facilitator` (the builtin profile; `agent profile show` resolved it). I applied it like this: - Every finding is captured with provenance: a `file:line` evidence pointer, all validated against the checkout. - Proposals are recorded as data. Nothing was auto-applied (FR-010 boundary), and the repo is untouched. - The directives it carries are 003 (decision documentation), 010 (specification fidelity: I report what the tracers say and do not re-derive it) and 018. - I also loaded the review-action charter context (`charter context --action review --json`). From it I took the Terminology Canon, the Pre-existing Failure Reporting Rule, and Standing Order #3 (tracer files)."
+    anchors:
+    - {slug: "per-mission-digest", text: "Per-mission digest", level: 2}
+    - {slug: "accept-fail-closed-missing-lanes-01m3cc1v-4891", text: "accept-fail-closed-missing-lanes-01M3CC1V (#4891)", level: 3}
+    - {slug: "upgrade-idempotent-worktree-metadata-01m38x2y-4972", text: "upgrade-idempotent-worktree-metadata-01M38X2Y (#4972)", level: 3}
+    - {slug: "coord-read-fail-closed-01m38vvh-4959-4966", text: "coord-read-fail-closed-01M38VVH (#4959, #4966)", level: 3}
+    - {slug: "charter-epic-golden-path-nfr-budget-01m35h35-4213-4211", text: "charter-epic-golden-path-nfr-budget-01M35H35 (#4213, #4211)", level: 3}
+    - {slug: "coordination-doctor-branch-safety-01m35en8", text: "coordination-doctor-branch-safety-01M35EN8", level: 3}
+    - {slug: "windows-upgrade-mode-fidelity-01m35c25-4923-4927-4925-deferred", text: "windows-upgrade-mode-fidelity-01M35C25 (#4923, #4927; #4925 deferred)", level: 3}
+    - {slug: "user-content-preservation-01m3549q-4888-4907-2691-4895-4910-4896-4890", text: "user-content-preservation-01M3549Q (#4888, #4907, #2691, #4895, #4910, #4896, #4890)", level: 3}
+    - {slug: "interpreter-matrix-3-13-env-and-divergence-01m34hvd-4866-4922-3189", text: "interpreter-matrix-3-13-env-and-divergence-01M34HVD (#4866, #4922, #3189)", level: 3}
+    - {slug: "reconcile-flake-family-01m34hr7-4882", text: "reconcile-flake-family-01M34HR7 (#4882)", level: 3}
+    - {slug: "ci-nightly-wallclock-budget-01m34hnz-4865-4864", text: "ci-nightly-wallclock-budget-01M34HNZ (#4865, #4864)", level: 3}
+    - {slug: "verdict-matrix-rmw-preservation-01m32m9g-4858-4868", text: "verdict-matrix-rmw-preservation-01M32M9G (#4858, #4868)", level: 3}
+    - {slug: "finalize-repin-orphaned-planning-commit-01m31tat-4827", text: "finalize-repin-orphaned-planning-commit-01M31TAT (#4827)", level: 3}
+    - {slug: "mission-type-canonical-source-01m302v9-3831-4088", text: "mission-type-canonical-source-01M302V9 (#3831, #4088)", level: 3}
+    - {slug: "move-task-approval-ergonomics-01m302r0-3469", text: "move-task-approval-ergonomics-01M302R0 (#3469)", level: 3}
+    - {slug: "charter-catalog-coherence-01m2xqqf-4785", text: "charter-catalog-coherence-01M2XQQF (#4785)", level: 3}
+    - {slug: "merge-destructive-op-safety-01m2xqf8-4752-4753-4754", text: "merge-destructive-op-safety-01M2XQF8 (#4752, #4753, #4754)", level: 3}
+    - {slug: "terminus-safety-invariant-01m2xft7-4764-4765-4474-2745", text: "terminus-safety-invariant-01M2XFT7 (#4764, #4765, #4474, #2745)", level: 3}
+    - {slug: "cross-mission-themes-in-this-slice-ranked-by-mission-count", text: "Cross-mission themes in this slice (ranked by mission count)", level: 2}
+    - {slug: "honest-limits", text: "Honest limits", level: 2}
+  - path: "docs/reports/tracer-friction-recon/2026-09-26/findings/slice-2.md"
+    title: "Recon: slice 2 — tracer-file retrospective (17 missions)"
+    divio_type: "none"
+    abstract: "**Profile applied:** `retrospective-facilitator` (loaded via `spec-kitty agent profile show`). I followed its avoidance boundary: I read and extracted only, made no edits to the repo and applied no doctrine. Its directive refs 003, 010 and 018 shaped the method: every finding cites a `file:line` as provenance, and proposals are recorded as data, not applied. The review-action charter context was also loaded (`charter context --action review`). From it I used the Terminology Canon and the Pre-existing Failure Reporting Rule to attribute baseline reds and the \"feature\" wording."
+    anchors:
+    - {slug: "per-mission-digest", text: "Per-mission digest", level: 2}
+    - {slug: "cross-os-primitive-unification-01m2t1cm-planning-only-tracers", text: "cross-os-primitive-unification-01M2T1CM (planning-only tracers)", level: 3}
+    - {slug: "blocked-wp-unblock-path-01m29093-1-tracer-only", text: "blocked-wp-unblock-path-01M29093 (1 tracer only)", level: 3}
+    - {slug: "runtime-advance-guard-topology-wp-completion-01m1w6vz", text: "runtime-advance-guard-topology-wp-completion-01M1W6VZ", level: 3}
+    - {slug: "event-push-watch-channel-01m1k6w2", text: "event-push-watch-channel-01M1K6W2", level: 3}
+    - {slug: "spdd-reasons-activation-split-brain-01m1k6vn-friction-tracer-only", text: "spdd-reasons-activation-split-brain-01M1K6VN (friction tracer only)", level: 3}
+    - {slug: "dispatch-dry-run-route-only-01m1hkv2", text: "dispatch-dry-run-route-only-01M1HKV2", level: 3}
+    - {slug: "design-phase-orchestrator-api-01m1he6m", text: "design-phase-orchestrator-api-01M1HE6M", level: 3}
+    - {slug: "custom-mission-type-second-class-citizens-01m1fqxd", text: "custom-mission-type-second-class-citizens-01M1FQXD", level: 3}
+    - {slug: "next-committed-state-authority-01m1ca8w", text: "next-committed-state-authority-01M1CA8W", level: 3}
+    - {slug: "charter-authority-flip-01m14rb3-small-planning-heavy", text: "charter-authority-flip-01M14RB3 (small, planning-heavy)", level: 3}
+    - {slug: "accept-path-remediation-honesty-01m0twzp", text: "accept-path-remediation-honesty-01M0TWZP", level: 3}
+    - {slug: "custom-mission-guard-failure-blocking-inert-01m0sty0", text: "custom-mission-guard-failure-blocking-inert-01M0STY0", level: 3}
+    - {slug: "charter-activate-empty-action-sequence-01m0stsx", text: "charter-activate-empty-action-sequence-01M0STSX", level: 3}
+    - {slug: "cascade-asset-silent-drop-01m0rme0", text: "cascade-asset-silent-drop-01M0RME0", level: 3}
+    - {slug: "durable-concurrent-review-cycle-records-01m0qrx7-planning-only", text: "durable-concurrent-review-cycle-records-01M0QRX7 (planning-only)", level: 3}
+    - {slug: "dossier-guard-reexport-analyze-cleanup-01m0nhrt", text: "dossier-guard-reexport-analyze-cleanup-01M0NHRT", level: 3}
+    - {slug: "legacy-cleanup-split-dossier-queue-migration-01m0mghb", text: "legacy-cleanup-split-dossier-queue-migration-01M0MGHB", level: 3}
+    - {slug: "cross-mission-themes-in-this-slice-ranked-by-mission-count", text: "Cross-mission themes in this slice (ranked by mission count)", level: 2}
+    - {slug: "issue-and-pr-numbers-cited-in-this-slice", text: "Issue and PR numbers cited in this slice", level: 3}
+    - {slug: "honest-limits", text: "Honest limits", level: 2}
+  - path: "docs/reports/tracer-friction-recon/2026-09-26/findings/slice-3.md"
+    title: "Recon: slice3 (12 missions, 33 tracer files, ~7,600 lines read in full)"
+    divio_type: "none"
+    abstract: "**Profile applied:** `retrospective-facilitator` (builtin; role facilitator). Directives 003, 010 and 018 were resolved from the profile. `charter context --action review` was loaded in compact mode; the Terminology Canon and DIR-032 were applied to vocabulary. I applied the initialization as written: structured findings with provenance on every finding, and proposals kept as data. I also applied the avoidance boundary: I did not implement or edit anything, and I did not auto-apply doctrine, DRG or glossary changes. This was a READ-ONLY pass. The only writes were `recon-slice3.jsonl` (229 items), this file, and scratch helpers under `s3/`."
+    anchors:
+    - {slug: "per-mission-digest", text: "Per-mission digest", level: 2}
+    - {slug: "cascade-org-inert-01m07e9p-15-items", text: "cascade-org-inert-01M07E9P (15 items)", level: 3}
+    - {slug: "modular-per-package-ci-01m025gv-7-items", text: "modular-per-package-ci-01M025GV (7 items)", level: 3}
+    - {slug: "bare-prose-requirements-uncounted-01kzyv3c-30-items-the-densest-tooling-defect-record-in-the-slice", text: "bare-prose-requirements-uncounted-01KZYV3C (30 items; the densest tooling-defect record in the slice)", level: 3}
+    - {slug: "org-pack-authoring-diagnostics-01kzy463-21-items", text: "org-pack-authoring-diagnostics-01KZY463 (21 items)", level: 3}
+    - {slug: "mission-type-guard-registry-01kzy2fg-25-items", text: "mission-type-guard-registry-01KZY2FG (25 items)", level: 3}
+    - {slug: "org-activation-scan-dirs-01kzy1pt-18-items", text: "org-activation-scan-dirs-01KZY1PT (18 items)", level: 3}
+    - {slug: "up-mission-type-seam-01kzy1jb-27-items", text: "up-mission-type-seam-01KZY1JB (27 items)", level: 3}
+    - {slug: "ci-scoping-gate-reliability-01kzp80d-12-items", text: "ci-scoping-gate-reliability-01KZP80D (12 items)", level: 3}
+    - {slug: "assertive-test-suite-sanitation-01kzme3p-12-items", text: "assertive-test-suite-sanitation-01KZME3P (12 items)", level: 3}
+    - {slug: "verdict-seam-boundary-hardening-01kzg179-11-items", text: "verdict-seam-boundary-hardening-01KZG179 (11 items)", level: 3}
+    - {slug: "tracker-egress-refusal-3108-01kywf1r-19-items-sync-era-now-largely-residue", text: "tracker-egress-refusal-3108-01KYWF1R (19 items; sync-era, now largely residue)", level: 3}
+    - {slug: "egress-refusal-consolidation-3110-01kyw895-32-items-sync-era", text: "egress-refusal-consolidation-3110-01KYW895 (32 items; sync-era)", level: 3}
+    - {slug: "cross-mission-themes-in-this-slice-ranked-by-mission-count-then-item-count", text: "Cross-mission themes in this slice (ranked by mission count, then item count)", level: 2}
+    - {slug: "1-review-loop-verdicts-9-missions-20-items-squads-catch-inert-or-vacuous-fixes-and-criteria", text: "1. review-loop-verdicts: 9 missions, 20 items. Squads catch inert or vacuous fixes and criteria.", level: 3}
+    - {slug: "2-coord-branch-worktree-8-missions-27-items-the-stale-meta-json-target-branch-family-dominates", text: "2. coord-branch-worktree: 8 missions, 27 items. The stale `meta.json.target_branch` family dominates.", level: 3}
+    - {slug: "3-finalize-tasks-planning-8-missions-25-items", text: "3. finalize-tasks-planning: 8 missions, 25 items.", level: 3}
+    - {slug: "4-test-suite-speed-flakes-7-missions-18-items", text: "4. test-suite-speed-flakes: 7 missions, 18 items.", level: 3}
+    - {slug: "5-docs-drift-6-missions-13-items", text: "5. docs-drift: 6 missions, 13 items.", level: 3}
+    - {slug: "6-arch-gate-allowlists-6-missions-13-items", text: "6. arch-gate-allowlists: 6 missions, 13 items.", level: 3}
+    - {slug: "7-cli-ergonomics-6-missions-11-items", text: "7. cli-ergonomics: 6 missions, 11 items.", level: 3}
+    - {slug: "8-test-env-venv-install-6-missions-8-items", text: "8. test-env-venv-install: 6 missions, 8 items.", level: 3}
+    - {slug: "9-subagent-orchestration-and-tracker-issue-hygiene-6-missions-each", text: "9. subagent-orchestration and tracker-issue-hygiene: 6 missions each.", level: 3}
+    - {slug: "10-status-lanes-move-task-5-missions-10-items", text: "10. status-lanes-move-task: 5 missions, 10 items.", level: 3}
+    - {slug: "11-ci-gates-routing-4-missions-17-items-concentrated-in-the-ci-and-egress-missions", text: "11. ci-gates-routing: 4 missions, 17 items (concentrated in the CI and egress missions).", level: 3}
+    - {slug: "12-charter-context-activation-3-missions-9-items", text: "12. charter-context-activation: 3 missions, 9 items.", level: 3}
+    - {slug: "smaller-themes", text: "Smaller themes", level: 3}
+    - {slug: "honest-limits", text: "Honest limits", level: 2}
+  - path: "docs/reports/tracer-friction-recon/2026-09-26/findings/slice-4.md"
+    title: "Recon — slice4 (24 older missions, 2026-06-27 → 2026-07-31)"
+    divio_type: "none"
+    abstract: "**Profile applied:** `retrospective-facilitator` (builtin; directives 003, 010, 018). I worked in its capture/propose mode: every finding has provenance (`file:line`), proposals are recorded as data and nothing is auto-applied, and the work was read-only. I also loaded the `review` charter context (Terminology Canon, Regression Vigilance, Pre-existing Failure Reporting). The profile's boundary says it runs only at mission terminus. All 24 missions here are closed or historical, so this pass fits that boundary."
+    anchors:
+    - {slug: "per-mission-digest", text: "Per-mission digest", level: 2}
+    - {slug: "doctrine-built-in-seam-consolidation-01kyw3tx", text: "doctrine-built-in-seam-consolidation-01KYW3TX", level: 3}
+    - {slug: "doctrine-delivery-activation-01kyqvqk", text: "doctrine-delivery-activation-01KYQVQK", level: 3}
+    - {slug: "write-side-seam-matrix-tracer-01kyp3mh", text: "write-side-seam-matrix-tracer-01KYP3MH", level: 3}
+    - {slug: "journal-project-consent-3030-01kykwqs-the-richest-set-1421-lines", text: "journal-project-consent-3030-01KYKWQS (the richest set: 1421 lines)", level: 3}
+    - {slug: "lifecycle-gate-execution-context-01ky72gq", text: "lifecycle-gate-execution-context-01KY72GQ", level: 3}
+    - {slug: "synthesized-drg-stale-refresh-01kxn8kz", text: "synthesized-drg-stale-refresh-01KXN8KZ", level: 3}
+    - {slug: "test-suite-friction-remediation-01kxdkbx", text: "test-suite-friction-remediation-01KXDKBX", level: 3}
+    - {slug: "coord-shadows-arm-closeout-01kxast2", text: "coord-shadows-arm-closeout-01KXAST2", level: 3}
+    - {slug: "relocation-hardened-dead-code-scanners-01kx958p", text: "relocation-hardened-dead-code-scanners-01KX958P", level: 3}
+    - {slug: "content-address-ratchet-allowlists-01kx8m4d", text: "content-address-ratchet-allowlists-01KX8M4D", level: 3}
+    - {slug: "coord-authority-trio-degod-01kx7094", text: "coord-authority-trio-degod-01KX7094", level: 3}
+    - {slug: "doctrine-template-asset-kinds-01kx2yq7", text: "doctrine-template-asset-kinds-01KX2YQ7", level: 3}
+    - {slug: "mission-resolver-port-01kx1c05", text: "mission-resolver-port-01KX1C05", level: 3}
+    - {slug: "coord-primary-partition-lock-01kwz46v", text: "coord-primary-partition-lock-01KWZ46V", level: 3}
+    - {slug: "census-freshness-loc-insensitive-01kwvd6y", text: "census-freshness-loc-insensitive-01KWVD6Y", level: 3}
+    - {slug: "relocate-saas-sync-flag-to-core-01kwq3rv", text: "relocate-saas-sync-flag-to-core-01KWQ3RV", level: 3}
+    - {slug: "refactor-stable-gate-substrate-01kwk3fy", text: "refactor-stable-gate-substrate-01KWK3FY", level: 3}
+    - {slug: "tasks-py-degod-wave2-01kwh9eq", text: "tasks-py-degod-wave2-01KWH9EQ", level: 3}
+    - {slug: "tasks-py-degod-01kwf08s", text: "tasks-py-degod-01KWF08S", level: 3}
+    - {slug: "doctrine-catfooding-2196-01kwe16n", text: "doctrine-catfooding-2196-01KWE16N", level: 3}
+    - {slug: "reliability-papercut-sweep-01kwd0v5", text: "reliability-papercut-sweep-01KWD0V5", level: 3}
+    - {slug: "sync-strict-json-auth-01kwa6kn", text: "sync-strict-json-auth-01KWA6KN", level: 3}
+    - {slug: "common-docs-structural-move-01kw3sbk", text: "common-docs-structural-move-01KW3SBK", level: 3}
+    - {slug: "common-docs-consolidation-01kw3q6m", text: "common-docs-consolidation-01KW3Q6M", level: 3}
+    - {slug: "cross-mission-themes-in-this-slice", text: "Cross-mission themes in this slice", level: 2}
+    - {slug: "honest-limits", text: "Honest limits", level: 2}
+  - path: "docs/reports/tracer-friction-recon/2026-09-26/issue-coverage/group-A.md"
+    title: "Planner-Priti coverage check — Group A"
+    divio_type: "none"
+    abstract: "Themes: finalize-tasks-planning (110), templates-prompts (28), plan-premise-errors (4), tracker-issue-hygiene (22), governance-overhead (14), tracer-process-itself (37). That is 215 tracer items from 70 missions, grouped into 34 clusters."
+    anchors:
+    - {slug: "clusters-verdict-issues", text: "Clusters → verdict → issues", level: 2}
+    - {slug: "gaps-and-notes-per-cluster", text: "Gaps and notes per cluster", level: 2}
+    - {slug: "draft-issues-not-filed", text: "Draft issues (not filed)", level: 2}
+    - {slug: "a-01-p1-finalize-tasks-planning-artifact-wps-bundled-into-one-lane-planning-node-produce-false-lane-dependency-cycle-refusal-gives-no-wp-level-remedy", text: "A-01 [P1] finalize-tasks: planning_artifact WPs bundled into one lane-planning node produce false LANE_DEPENDENCY_CYCLE; refusal gives no WP-level remedy", level: 3}
+    - {slug: "a-05-p1-finalize-tasks-ignores-wps-yaml-requirement-refs-frontmatter-only-and-its-tasks-md-fallback-miscredits-prose-citations-truncates-wrapped-ref-lines", text: "A-05 [P1] finalize-tasks ignores wps.yaml requirement_refs (frontmatter-only) and its tasks.md fallback miscredits prose citations / truncates wrapped ref lines", level: 3}
+    - {slug: "a-09-p1-finalize-tasks-is-mutate-before-fail-validate-fully-then-write-commit-atomically-frontmatter-tasks-md-lanes-json-issue-matrix-events", text: "A-09 [P1] finalize-tasks is mutate-before-fail: validate fully, then write+commit atomically (frontmatter, tasks.md, lanes.json, issue-matrix, events)", level: 3}
+    - {slug: "a-04-p2-finalize-tasks-detect-dependency-conflicts-refuses-a-manifest-driven-dependency-edge-addition-only-narrowing-to-passes-make-wps-yaml-authoritative", text: "A-04 [P2] finalize-tasks: _detect_dependency_conflicts refuses a manifest-driven dependency edge addition (only narrowing to [] passes); make wps.yaml authoritative", level: 3}
+    - {slug: "a-08-p2-requirement-lifecycle-status-let-spec-md-wps-yaml-mark-an-fr-descoped-retired-satisfied-by-omission-so-the-unmapped-fr-gate-and-tasks-md-render-honour-it", text: "A-08 [P2] Requirement lifecycle status: let spec.md/wps.yaml mark an FR descoped/retired/satisfied-by-omission so the unmapped-FR gate and tasks.md render honour it", level: 3}
+    - {slug: "a-17-p2-finalize-tasks-ownership-lint-cross-check-wp-body-file-mentions-vs-owned-files-reject-zero-match-globs-warn-on-gitignored-generated-targets", text: "A-17 [P2] finalize-tasks ownership lint: cross-check WP body file mentions vs owned_files, reject zero-match globs, warn on gitignored/generated targets", level: 3}
+    - {slug: "a-19-p2-plan-tasks-prompts-require-live-re-measurement-of-census-counts-and-existence-check-of-every-named-file-test-before-wp-sizing", text: "A-19 [P2] plan/tasks prompts: require live re-measurement of census counts and existence check of every named file/test before WP sizing", level: 3}
+    - {slug: "a-20-p2-specify-add-a-premise-re-grounding-step-verify-each-cited-issue-s-claim-against-current-code-open-prs-touching-the-same-seam-and-cited-shas-before-scoping", text: "A-20 [P2] specify: add a premise re-grounding step — verify each cited issue's claim against current code, open PRs touching the same seam, and cited SHAs before scoping", level: 3}
+    - {slug: "a-21-p2-stale-kittify-overrides-content-templates-shadow-canonical-packs-built-in-templates-plan-template-constitution-check-retired-src-doctrine-path-delete-resync-add-override-staleness-doctor-check", text: "A-21 [P2] Stale .kittify/overrides content templates shadow canonical packs/built-in templates (plan-template: 'Constitution Check', retired src/doctrine path) — delete/resync + add override-staleness doctor check", level: 3}
+    - {slug: "a-24-p2-implement-prompt-footer-and-wp-template-contradict-commit-pr-doctrine-raw-git-commit-vs-safe-commit-wp-agent-vs-orchestrator-opens-pr", text: "A-24 [P2] Implement prompt/footer and WP template contradict commit & PR doctrine (raw `git commit` vs safe-commit; WP agent vs orchestrator opens PR)", level: 3}
+    - {slug: "a-28-p2-planning-squad-calibration-delta-scoped-re-sweeps-nit-severity-floor-intent-level-spec-guidance-and-flag-unreviewed-post-cap-operator-amended-text", text: "A-28 [P2] Planning-squad calibration: delta-scoped re-sweeps, nit severity floor, intent-level spec guidance, and flag unreviewed post-cap/operator-amended text", level: 3}
+    - {slug: "a-16-p3-wpsmanifest-add-optional-mission-level-notes-preamble-and-per-wp-notes-rendered-into-tasks-md-so-finalize-tasks-regeneration-preserves-cross-wp-guidance", text: "A-16 [P3] WpsManifest: add optional mission-level `notes`/preamble (and per-WP notes) rendered into tasks.md so finalize-tasks regeneration preserves cross-WP guidance", level: 3}
+    - {slug: "a-22-p3-terminology-remove-feature-from-shipped-packs-built-in-templates-prompts-plan-template-md-4-et-al-scoped-guard", text: "A-22 [P3] Terminology: remove 'Feature' from shipped packs/built-in templates/prompts (plan-template.md:4 et al.) + scoped guard", level: 3}
+    - {slug: "a-23-p3-cli-auto-commit-subjects-conventional-commit-form-mission-terminology-add-for-feature-in-mission-create-setup-plan-finalize", text: "A-23 [P3] CLI auto-commit subjects: conventional-commit form + Mission terminology ('Add … for feature <slug>' in mission create/setup-plan/finalize)", level: 3}
+    - {slug: "a-25-p3-software-dev-spec-template-optional-clarifications-out-of-scope-sizing-sections-tasks-prompts-name-the-backing-cli-verbs-blast-radius-read-vs-edit", text: "A-25 [P3] software-dev spec template: optional Clarifications/Out-of-scope/Sizing sections; tasks prompts name the backing CLI verbs; blast-radius read vs edit", level: 3}
+    - {slug: "a-26-p3-packs-internal-procedure-notes-fork-safe-hic-assignment-fallback-paginate-pr-file-lists-gh-api-beyond-100-cite-upstream-issues-not-sk-xx-in-committed-artifacts", text: "A-26 [P3] packs/internal procedure notes: fork-safe HiC assignment fallback, paginate PR file lists (gh api) beyond 100, cite upstream #issues not SK-xx in committed artifacts", level: 3}
+    - {slug: "a-31-p3-mission-tracers-auto-seed-at-mission-create-prompt-per-wp-append-at-implement-review-handoff-non-blocking-non-empty-check-at-accept-fix-stale-template-path-in-procedure", text: "A-31 [P3] Mission tracers: auto-seed at mission create, prompt per-WP append at implement/review handoff, non-blocking non-empty check at accept (+ fix stale template path in procedure)", level: 3}
+    - {slug: "a-32-p3-one-canonical-tracer-location-tracer-append-traces-md-via-placement-seam-is-the-only-writer-migrate-recognise-root-tracer-md-forbid-lane-worktree-appends", text: "A-32 [P3] One canonical tracer location: tracer-append (traces/<cat>.md via placement seam) is the only writer; migrate/recognise root tracer-*.md; forbid lane-worktree appends", level: 3}
+    - {slug: "a-34-p3-finalize-tasks-suppress-plan-concern-refs-coverage-warning-when-plan-md-declares-no-ic-concerns", text: "A-34 [P3] finalize-tasks: suppress plan_concern_refs coverage warning when plan.md declares no IC-## concerns", level: 3}
+    - {slug: "sequencing-planner-view", text: "Sequencing (planner view)", level: 3}
+    - {slug: "close-candidates-noticed-for-the-orchestrator-not-acted-on", text: "Close-candidates noticed (for the orchestrator, not acted on)", level: 2}
+    - {slug: "honest-limits", text: "Honest limits", level: 2}
+  - path: "docs/reports/tracer-friction-recon/2026-09-26/issue-coverage/group-B.md"
+    title: "Planner-Priti — Group B issue-coverage check"
+    divio_type: "none"
+    abstract: "**Group B themes:** coord-branch-worktree (76), status-lanes-move-task (45), merge-accept-pipeline (28), event-log-reducer (6), multi-clone-environment (6), zeitgeist-moment-publication (3), destructive-op-safety (2), safe-commit-git-plumbing (2). That is **168 tracer items from 51 missions**."
+    anchors:
+    - {slug: "clusters-verdict-issues", text: "Clusters → verdict → issues", level: 2}
+    - {slug: "cluster-detail-gaps-and-notes", text: "Cluster detail (gaps and notes)", level: 2}
+    - {slug: "b-01-partial", text: "B-01 — PARTIAL", level: 3}
+    - {slug: "b-02-partial", text: "B-02 — PARTIAL", level: 3}
+    - {slug: "b-03-partial", text: "B-03 — PARTIAL", level: 3}
+    - {slug: "b-04-covered", text: "B-04 — COVERED", level: 3}
+    - {slug: "b-05-partial", text: "B-05 — PARTIAL", level: 3}
+    - {slug: "b-06-covered", text: "B-06 — COVERED", level: 3}
+    - {slug: "b-07-partial", text: "B-07 — PARTIAL", level: 3}
+    - {slug: "b-08-covered", text: "B-08 — COVERED", level: 3}
+    - {slug: "b-09-covered", text: "B-09 — COVERED", level: 3}
+    - {slug: "b-10-covered", text: "B-10 — COVERED", level: 3}
+    - {slug: "b-11-partial", text: "B-11 — PARTIAL", level: 3}
+    - {slug: "b-12-partial", text: "B-12 — PARTIAL", level: 3}
+    - {slug: "b-13-uncovered", text: "B-13 — UNCOVERED", level: 3}
+    - {slug: "b-14-closed-only", text: "B-14 — CLOSED-ONLY", level: 3}
+    - {slug: "b-15-uncovered", text: "B-15 — UNCOVERED", level: 3}
+    - {slug: "b-16-covered", text: "B-16 — COVERED", level: 3}
+    - {slug: "b-17-covered", text: "B-17 — COVERED", level: 3}
+    - {slug: "b-18-closed-only", text: "B-18 — CLOSED-ONLY", level: 3}
+    - {slug: "b-19-covered", text: "B-19 — COVERED", level: 3}
+    - {slug: "b-20-partial", text: "B-20 — PARTIAL", level: 3}
+    - {slug: "b-21-partial", text: "B-21 — PARTIAL", level: 3}
+    - {slug: "b-22-covered", text: "B-22 — COVERED", level: 3}
+    - {slug: "b-23-uncovered", text: "B-23 — UNCOVERED", level: 3}
+    - {slug: "b-24-closed-only", text: "B-24 — CLOSED-ONLY", level: 3}
+    - {slug: "b-25-partial", text: "B-25 — PARTIAL", level: 3}
+    - {slug: "b-26-uncovered", text: "B-26 — UNCOVERED", level: 3}
+    - {slug: "b-27-partial", text: "B-27 — PARTIAL", level: 3}
+    - {slug: "b-28-partial", text: "B-28 — PARTIAL", level: 3}
+    - {slug: "b-29-partial", text: "B-29 — PARTIAL", level: 3}
+    - {slug: "b-30-uncovered", text: "B-30 — UNCOVERED", level: 3}
+    - {slug: "b-31-partial", text: "B-31 — PARTIAL", level: 3}
+    - {slug: "b-32-closed-only", text: "B-32 — CLOSED-ONLY", level: 3}
+    - {slug: "draft-issues-not-filed-in-priority-order", text: "Draft issues (NOT filed), in priority order", level: 2}
+    - {slug: "p1-specify-mission-create-on-a-protected-branch-mint-the-mission-branch-or-refuse-before-topology-derivation-fix-coord-materialise-then-retry-losing-uncommitted-scaffold-from-b-02-partial", text: "[P1] specify/mission create on a protected branch: mint the mission branch (or refuse) before topology derivation; fix coord materialise-then-retry losing uncommitted scaffold  _(from B-02, PARTIAL)_", level: 3}
+    - {slug: "p1-single-branch-topology-is-ignored-implement-allocates-lane-worktrees-guards-demand-lane-planning-branches-commits-strand-on-undeclared-lanes-from-b-11-partial", text: "[P1] single_branch topology is ignored: implement allocates lane worktrees, guards demand lane-planning branches, commits strand on undeclared lanes  _(from B-11, PARTIAL)_", level: 3}
+    - {slug: "p1-implement-claim-gate-before-mutate-and-roll-back-claim-side-effects-on-failure-meta-vcs-lock-frontmatter-lease-prompt-file-from-b-12-partial", text: "[P1] implement/claim: gate-before-mutate and roll back claim side effects on failure (meta vcs lock, frontmatter, lease, prompt file)  _(from B-12, PARTIAL)_", level: 3}
+    - {slug: "p1-merge-independently-assert-mission-acceptance-accepted-at-accept-commit-valid-and-current-before-lane-consolidation-from-b-20-partial", text: "[P1] merge: independently assert mission acceptance (accepted_at/accept_commit valid and current) before lane consolidation  _(from B-20, PARTIAL)_", level: 3}
+    - {slug: "p1-zeitgeist-approval-moments-dropped-review-result-is-not-mapped-onto-the-evidence-statustransitionpayload-requires-for-approved-done-from-b-26-uncovered", text: "[P1] Zeitgeist: approval moments dropped — review_result is not mapped onto the evidence StatusTransitionPayload requires for approved/done  _(from B-26, UNCOVERED)_", level: 3}
+    - {slug: "p2-commit-placement-detect-meta-json-target-branch-vs-live-branch-divergence-and-add-a-sanctioned-mission-retarget-post-3482-re-verify-of-sk-12-13-from-b-01-partial", text: "[P2] Commit placement: detect meta.json target_branch vs live-branch divergence and add a sanctioned `mission retarget` (post-#3482 re-verify of SK-12/13)  _(from B-01, PARTIAL)_", level: 3}
+    - {slug: "p2-add-a-sanctioned-spec-kitty-mission-flatten-for-live-coord-missions-that-migrates-the-full-coord-event-log-bootstrap-seeds-from-b-03-partial", text: "[P2] Add a sanctioned `spec-kitty mission flatten` for live coord missions that migrates the full coord event log (bootstrap + seeds)  _(from B-03, PARTIAL)_", level: 3}
+    - {slug: "p2-implement-refresh-or-reset-lane-branches-that-are-not-descendants-of-the-current-mission-tip-base-must-override-a-surviving-stale-lane-from-b-05-partial", text: "[P2] implement: refresh or reset lane branches that are not descendants of the current mission tip (--base must override a surviving stale lane)  _(from B-05, PARTIAL)_", level: 3}
+    - {slug: "p2-route-lane-origin-tracer-appends-through-agent-tracer-append-in-the-mission-tracer-files-procedure-and-the-implement-review-prompts-from-b-07-partial", text: "[P2] Route lane-origin tracer appends through `agent tracer-append` in the mission-tracer-files procedure and the implement/review prompts  _(from B-07, PARTIAL)_", level: 3}
+    - {slug: "p2-lane-identity-base-allocation-must-reuse-the-wp-s-lanes-json-lane-post-planning-wps-must-be-registered-or-refused-in-lanes-json-from-b-13-uncovered", text: "[P2] Lane identity: --base allocation must reuse the WP's lanes.json lane; post-planning WPs must be registered (or refused) in lanes.json  _(from B-13, UNCOVERED)_", level: 3}
+    - {slug: "p2-mark-status-add-wp-scoping-refuse-ambiguous-subtask-ids-report-honest-no-ops-and-add-a-terminal-skipped-subtask-status-from-b-15-uncovered", text: "[P2] mark-status: add --wp scoping (refuse ambiguous subtask IDs), report honest no-ops, and add a terminal `skipped` subtask status  _(from B-15, UNCOVERED)_", level: 3}
+    - {slug: "p2-safe-commit-refuse-or-require-force-implementation-commits-for-a-wp-that-is-not-claimed-detect-committed-but-planned-wps-from-b-23-uncovered", text: "[P2] safe-commit: refuse (or require --force) implementation commits for a WP that is not claimed; detect committed-but-planned WPs  _(from B-23, UNCOVERED)_", level: 3}
+    - {slug: "p2-guard-lane-start-branch-deletion-with-an-is-merged-unique-commit-check-before-git-branch-d-deferred-from-merge-destructive-op-safety-from-b-25-partial", text: "[P2] Guard lane/start-branch deletion with an is-merged/unique-commit check before `git branch -D` (deferred from merge-destructive-op-safety)  _(from B-25, PARTIAL)_", level: 3}
+    - {slug: "p2-mission-create-specify-refuse-or-isolate-when-the-checkout-is-occupied-by-another-in-flight-mission-resolve-the-canonical-upstream-remote-by-url-not-name-from-b-27-partial", text: "[P2] mission create/specify: refuse or isolate when the checkout is occupied by another in-flight mission; resolve the canonical upstream remote by URL, not name  _(from B-27, PARTIAL)_", level: 3}
+    - {slug: "p3-warn-when-approved-lanes-are-unconsolidated-and-stamp-branch-sha-on-every-gate-count-from-b-21-partial", text: "[P3] Warn when approved lanes are unconsolidated and stamp branch@sha on every gate count  _(from B-21, PARTIAL)_", level: 3}
+    - {slug: "p3-seed-status-phase-at-mission-create-birth-invariant-and-derive-artifact-presence-tags-from-the-guard-tables-from-b-28-partial", text: "[P3] Seed status_phase at mission create (birth invariant) and derive artifact-presence tags from the guard tables  _(from B-28, PARTIAL)_", level: 3}
+    - {slug: "p3-status-emit-move-task-ux-fix-the-illegal-help-example-name-the-legal-next-hop-add-note-only-annotation-update-identity-on-re-claim-from-b-29-partial", text: "[P3] status emit / move-task UX: fix the illegal help example, name the legal next hop, add note-only annotation, update identity on re-claim  _(from B-29, PARTIAL)_", level: 3}
+    - {slug: "p3-branch-context-expose-the-real-fork-point-stacked-pr-base-and-validate-configured-primary-branch-against-the-repo-default-from-b-30-uncovered", text: "[P3] branch-context: expose the real fork-point / stacked-PR base and validate configured primary_branch against the repo default  _(from B-30, UNCOVERED)_", level: 3}
+    - {slug: "p3-post-consolidation-smoke-check-and-plan-time-warning-for-shared-append-only-registries-across-parallel-wps-from-b-31-partial", text: "[P3] Post-consolidation smoke check and plan-time warning for shared append-only registries across parallel WPs  _(from B-31, PARTIAL)_", level: 3}
+    - {slug: "suggested-sequencing-planner-view", text: "Suggested sequencing (planner view)", level: 3}
+    - {slug: "honest-limits", text: "Honest limits", level: 2}
+  - path: "docs/reports/tracer-friction-recon/2026-09-26/issue-coverage/group-C.md"
+    title: "Planner-Priti — Group C issue-coverage check"
+    divio_type: "none"
+    abstract: "Themes: test-suite-speed-flakes, test-env-venv-install, ci-gates-routing, sonar-coverage, ruff-mypy-format, atdd-red-first, windows-cross-os, upgrade-migrations. Input: 212 tracer items from 70 missions (`groupC_items.json`), clustered into 34 clusters; every item is assigned to exactly one cluster."
+    anchors:
+    - {slug: "clusters-verdict-issues", text: "Clusters → verdict → issues", level: 2}
+    - {slug: "gaps-and-evidence-per-cluster", text: "Gaps and evidence per cluster", level: 2}
+    - {slug: "c-01-partial", text: "C-01 — PARTIAL", level: 3}
+    - {slug: "c-02-partial", text: "C-02 — PARTIAL", level: 3}
+    - {slug: "c-03-partial", text: "C-03 — PARTIAL", level: 3}
+    - {slug: "c-04-uncovered", text: "C-04 — UNCOVERED", level: 3}
+    - {slug: "c-05-covered", text: "C-05 — COVERED", level: 3}
+    - {slug: "c-06-covered", text: "C-06 — COVERED", level: 3}
+    - {slug: "c-07-covered", text: "C-07 — COVERED", level: 3}
+    - {slug: "c-08-partial", text: "C-08 — PARTIAL", level: 3}
+    - {slug: "c-09-closed-only", text: "C-09 — CLOSED-ONLY", level: 3}
+    - {slug: "c-10-partial", text: "C-10 — PARTIAL", level: 3}
+    - {slug: "c-11-closed-only", text: "C-11 — CLOSED-ONLY", level: 3}
+    - {slug: "c-12-partial", text: "C-12 — PARTIAL", level: 3}
+    - {slug: "c-13-partial", text: "C-13 — PARTIAL", level: 3}
+    - {slug: "c-14-uncovered", text: "C-14 — UNCOVERED", level: 3}
+    - {slug: "c-15-covered", text: "C-15 — COVERED", level: 3}
+    - {slug: "c-16-partial", text: "C-16 — PARTIAL", level: 3}
+    - {slug: "c-17-uncovered", text: "C-17 — UNCOVERED", level: 3}
+    - {slug: "c-18-partial", text: "C-18 — PARTIAL", level: 3}
+    - {slug: "c-19-covered", text: "C-19 — COVERED", level: 3}
+    - {slug: "c-20-partial", text: "C-20 — PARTIAL", level: 3}
+    - {slug: "c-21-covered", text: "C-21 — COVERED", level: 3}
+    - {slug: "c-22-closed-only", text: "C-22 — CLOSED-ONLY", level: 3}
+    - {slug: "c-23-uncovered", text: "C-23 — UNCOVERED", level: 3}
+    - {slug: "c-24-partial", text: "C-24 — PARTIAL", level: 3}
+    - {slug: "c-25-closed-only", text: "C-25 — CLOSED-ONLY", level: 3}
+    - {slug: "c-26-partial", text: "C-26 — PARTIAL", level: 3}
+    - {slug: "c-27-partial", text: "C-27 — PARTIAL", level: 3}
+    - {slug: "c-28-covered", text: "C-28 — COVERED", level: 3}
+    - {slug: "c-29-partial", text: "C-29 — PARTIAL", level: 3}
+    - {slug: "c-30-covered", text: "C-30 — COVERED", level: 3}
+    - {slug: "c-31-covered", text: "C-31 — COVERED", level: 3}
+    - {slug: "c-32-closed-only", text: "C-32 — CLOSED-ONLY", level: 3}
+    - {slug: "c-33-closed-only", text: "C-33 — CLOSED-ONLY", level: 3}
+    - {slug: "c-34-uncovered", text: "C-34 — UNCOVERED", level: 3}
+    - {slug: "draft-issues-not-filed", text: "Draft issues (NOT filed)", level: 2}
+    - {slug: "p1-lane-worktrees-provision-a-lane-scoped-interpreter-or-fail-loud-on-foreign-src-import-and-stop-hard-coding-venv-in-prompts-and-fixtures-c-01-partial", text: "[P1] Lane worktrees: provision a lane-scoped interpreter (or fail loud on foreign-src import) and stop hard-coding <worktree>/.venv in prompts and fixtures  (C-01, PARTIAL)", level: 3}
+    - {slug: "p1-wire-the-charter-s-zero-mypy-commitlint-security-audit-gates-into-live-ci-currently-absent-or-true-c-23-uncovered", text: "[P1] Wire the charter's zero-mypy / commitlint / security-audit gates into live CI (currently absent or '|| true')  (C-23, UNCOVERED)", level: 3}
+    - {slug: "p2-dogfood-checkouts-refuse-or-warn-loudly-when-the-spec-kitty-on-path-is-not-the-checkout-s-cli-version-origin-skew-guard-for-lifecycle-commands-and-test-shell-outs-c-02-partial", text: "[P2] Dogfood checkouts: refuse or warn loudly when the spec-kitty on PATH is not the checkout's CLI (version/origin skew guard for lifecycle commands and test shell-outs)  (C-02, PARTIAL)", level: 3}
+    - {slug: "p2-pytest-session-preflight-fail-fast-when-the-active-environment-does-not-match-uv-lock-pinned-cli-test-deps-c-03-partial", text: "[P2] pytest session preflight: fail fast when the active environment does not match uv.lock (pinned CLI/test deps)  (C-03, PARTIAL)", level: 3}
+    - {slug: "p2-make-tests-architectural-runnable-within-an-agent-session-parallel-safe-make-target-diff-scoped-selection-c-08-partial", text: "[P2] Make tests/architectural runnable within an agent session: parallel-safe make target + diff-scoped selection  (C-08, PARTIAL)", level: 3}
+    - {slug: "p2-residual-of-3143-add-a-default-per-test-timeout-for-local-and-module-tests-runs-c-09-closed-only", text: "[P2] Residual of #3143: add a default per-test timeout for local and module-tests runs  (C-09, CLOSED-ONLY)", level: 3}
+    - {slug: "p2-make-concurrent-pytest-sessions-on-one-host-safe-per-checkout-basetemp-no-machine-global-reaping-collection-immune-to-foreign-scratch-files-c-10-partial", text: "[P2] Make concurrent pytest sessions on one host safe: per-checkout basetemp, no machine-global reaping, collection immune to foreign scratch files  (C-10, PARTIAL)", level: 3}
+    - {slug: "p2-test-isolation-residuals-global-seed-counter-registry-reset-to-empty-cwd-defaulting-synthesize-ambient-context-state-json-c-11-closed-only", text: "[P2] Test isolation residuals: global seed counter, registry reset-to-empty, cwd-defaulting synthesize(), ambient context-state.json  (C-11, CLOSED-ONLY)", level: 3}
+    - {slug: "p2-audit-autouse-premise-fixtures-and-require-positive-controls-for-refusal-absence-tests-c-12-partial", text: "[P2] Audit autouse premise fixtures and require positive controls for refusal/absence tests  (C-12, PARTIAL)", level: 3}
+    - {slug: "p2-publish-a-machine-readable-known-red-ledger-from-the-nightly-run-and-a-canonical-baseline-selector-for-missions-c-16-partial", text: "[P2] Publish a machine-readable known-red ledger from the nightly run and a canonical baseline selector for missions  (C-16, PARTIAL)", level: 3}
+    - {slug: "p2-restore-a-non-blocking-ci-lane-for-m-quarantine-spec-kitty-run-quarantine-1-and-re-pin-its-wiring-guard-c-17-uncovered", text: "[P2] Restore a non-blocking CI lane for -m quarantine (SPEC_KITTY_RUN_QUARANTINE=1) and re-pin its wiring guard  (C-17, UNCOVERED)", level: 3}
+    - {slug: "p2-make-ci-parity-run-execute-the-ci-selected-shard-set-for-the-current-diff-locally-c-20-partial", text: "[P2] make ci-parity --run: execute the CI-selected shard set for the current diff locally  (C-20, PARTIAL)", level: 3}
+    - {slug: "p2-fail-loud-on-shard-duration-length-mismatch-instead-of-silent-uniform-fallback-c-25-closed-only", text: "[P2] Fail loud on shard-duration length mismatch instead of silent uniform fallback  (C-25, CLOSED-ONLY)", level: 3}
+    - {slug: "p3-dev-environment-make-one-documented-sync-command-yield-every-tool-the-test-suite-and-wp-gates-invoke-test-lint-extras-radon-and-skip-with-reason-when-absent-c-04-uncovered", text: "[P3] Dev environment: make one documented sync command yield every tool the test suite and WP gates invoke (test+lint extras, radon) and skip-with-reason when absent  (C-04, UNCOVERED)", level: 3}
+    - {slug: "p3-test-seam-hygiene-retire-source-text-inspection-tests-and-module-attribute-patching-of-re-exported-names-in-favour-of-injected-seams-c-13-partial", text: "[P3] Test-seam hygiene: retire source-text-inspection tests and module-attribute patching of re-exported names in favour of injected seams  (C-13, PARTIAL)", level: 3}
+    - {slug: "p3-mutation-plugins-must-prove-they-took-effect-restore-a-nightly-mutation-lane-c-14-uncovered", text: "[P3] Mutation plugins must prove they took effect; restore a (nightly) mutation lane  (C-14, UNCOVERED)", level: 3}
+    - {slug: "p3-guard-contradictory-tier-markers-module-pytestmark-function-marker-and-move-report-only-diagnostics-off-warnings-warn-c-18-partial", text: "[P3] Guard contradictory tier markers (module pytestmark + function marker) and move report-only diagnostics off warnings.warn  (C-18, PARTIAL)", level: 3}
+    - {slug: "p3-residual-of-3844-add-scaffold-for-mission-auto-commit-still-fails-commitlint-derive-the-ignore-list-from-the-generators-c-22-closed-only", text: "[P3] Residual of #3844: 'Add scaffold for mission <slug>' auto-commit still fails commitlint; derive the ignore list from the generators  (C-22, CLOSED-ONLY)", level: 3}
+    - {slug: "p3-mechanism-for-pre-merge-proof-of-workflow-run-schedule-only-ci-edits-branch-dispatch-recipe-actionlint-feeding-1271-s-evidence-gate-c-24-partial", text: "[P3] Mechanism for pre-merge proof of workflow_run/schedule-only CI edits (branch dispatch recipe + actionlint), feeding #1271's evidence gate  (C-24, PARTIAL)", level: 3}
+    - {slug: "p3-regenerate-derived-ci-census-artifacts-at-merge-instead-of-merging-them-textually-c-26-partial", text: "[P3] Regenerate derived CI census artifacts at merge instead of merging them textually  (C-26, PARTIAL)", level: 3}
+    - {slug: "p3-revisit-diff-cover-critical-paths-scope-acceptance-validators-cli-unenforced-c-27-partial", text: "[P3] Revisit diff-cover CRITICAL_PATHS scope (acceptance/, validators/, cli/ unenforced)  (C-27, PARTIAL)", level: 3}
+    - {slug: "p3-lint-policy-papercuts-sanctioned-file-digest-helper-for-tid251-single-utc-stamp-constant-clarify-init-version-bump-rule-scope-c-29-partial", text: "[P3] Lint-policy papercuts: sanctioned file-digest helper for TID251, single UTC-stamp constant, clarify __init__ version-bump rule scope  (C-29, PARTIAL)", level: 3}
+    - {slug: "p3-atdd-tactic-prove-a-red-first-anchor-is-red-on-the-base-for-the-intended-reason-record-failure-text-invert-bug-encoding-characterization-tests-c-34-uncovered", text: "[P3] ATDD tactic: prove a red-first anchor is red on the base for the intended reason (record failure text; invert bug-encoding characterization tests)  (C-34, UNCOVERED)", level: 3}
+    - {slug: "sequencing-and-dependencies-planner-view", text: "Sequencing and dependencies (planner view)", level: 2}
+    - {slug: "honest-limits", text: "Honest limits", level: 2}
+  - path: "docs/reports/tracer-friction-recon/2026-09-26/issue-coverage/group-D.md"
+    title: "Planner Priti — Group D issue-coverage check"
+    divio_type: "none"
+    abstract: "Themes: arch-gate-allowlists (63), dead-code-legacy-residue (43), docs-drift (39), doctrine-drg-packs (26), charter-context-activation (20), duplicate-authorities (4) = **195 tracer items from 61 missions**."
+    anchors:
+    - {slug: "clusters-verdict-issues", text: "Clusters → verdict → issues", level: 2}
+    - {slug: "gaps-and-notes-per-non-covered-cluster", text: "Gaps and notes per non-COVERED cluster", level: 3}
+    - {slug: "draft-issues-not-filed", text: "Draft issues (not filed)", level: 2}
+    - {slug: "d-04-p2-plan-phase-generate-a-gate-impact-census-arch-gates-allowlists-layer-ledgers-ci-shard-roots-for-the-files-a-mission-will-touch", text: "D-04 · P2 · Plan phase: generate a gate-impact census (arch gates, allowlists, layer ledgers, CI shard roots) for the files a mission will touch", level: 3}
+    - {slug: "d-07-p2-canonical-home-for-durable-cross-mission-contracts-errata-protocol-for-frozen-archived-dossiers", text: "D-07 · P2 · Canonical home for durable cross-mission contracts + errata protocol for frozen archived dossiers", level: 3}
+    - {slug: "d-17-p2-citation-discipline-for-mission-artifacts-symbol-anchored-references-analyze-time-citation-check", text: "D-17 · P2 · Citation discipline for mission artifacts: symbol-anchored references + analyze-time citation check", level: 3}
+    - {slug: "d-19-p2-security-scans-linting-cutoff-policy-claims-bandit-pip-audit-are-blocking-but-no-workflow-runs-them", text: "D-19 · P2 · Security scans: linting-cutoff-policy claims bandit + pip-audit are blocking, but no workflow runs them", level: 3}
+    - {slug: "d-27-p2-charter-synthesis-manifest-still-churns-on-cli-version-stop-restamping-adapter-synthesizer-version-on-content-identical-runs-regression-of-1912", text: "D-27 · P2 · Charter synthesis-manifest still churns on CLI version: stop restamping adapter/synthesizer_version on content-identical runs (regression of #1912)", level: 3}
+    - {slug: "d-28-p2-implement-preflight-aggregate-all-charter-drg-prerequisite-gaps-in-one-pass-post-2157-recurrence-and-stop-the-fresh-project-detector-mutating-shared-charter-state", text: "D-28 · P2 · implement preflight: aggregate all charter/DRG prerequisite gaps in one pass (post-#2157 recurrence) and stop the fresh-project detector mutating shared charter state", level: 3}
+    - {slug: "d-29-p2-analysis-report-freshness-hash-normalized-charter-content-ignore-generated-at-extracted-at-so-charter-sync-does-not-stale-the-analysis", text: "D-29 · P2 · Analysis-report freshness: hash normalized charter content (ignore generated_at/extracted_at) so charter sync does not stale the analysis", level: 3}
+    - {slug: "d-01-p3-positional-anchor-ban-close-the-scope-hole-for-path-int-allowlists-in-gates-that-do-not-import-the-ratchet-substrate", text: "D-01 · P3 · Positional-anchor ban: close the scope hole for (Path, int) allowlists in gates that do not import the ratchet substrate", level: 3}
+    - {slug: "d-02-p3-dead-symbol-gate-first-class-pending-consumer-marker-for-seam-first-wps-and-name-keyed-entries-for-all-symbols", text: "D-02 · P3 · Dead-symbol gate: first-class 'pending consumer' marker for seam-first WPs and name-keyed entries for __all__ symbols", level: 3}
+    - {slug: "d-05-p3-gate-registration-residue-after-4315-single-source-floor-constants-and-auto-derived-registries", text: "D-05 · P3 · Gate registration residue after #4315: single-source floor constants and auto-derived registries", level: 3}
+    - {slug: "d-08-p3-guard-non-vacuity-audit-census-substring-name-shaped-architectural-guards-and-add-mutation-proven-teeth", text: "D-08 · P3 · Guard non-vacuity audit: census substring/name-shaped architectural guards and add mutation-proven teeth", level: 3}
+    - {slug: "d-14-p3-delete-confirmed-dead-code-vcs-remove-workspace-protocol-git-snapshot-artifact-buckets-evaluate-inlining-core-no-follow-py-shim", text: "D-14 · P3 · Delete confirmed dead code: VCS remove_workspace (protocol+git), snapshot._ARTIFACT_BUCKETS; evaluate inlining core/no_follow.py shim", level: 3}
+    - {slug: "d-15-p3-unify-path-containment-helpers-5-copies-onto-one-kernel-primitive-route-the-stray-env-truthy-parse-through-core-env-is-truthy", text: "D-15 · P3 · Unify path-containment helpers (>=5 copies) onto one kernel primitive; route the stray env truthy parse through core.env.is_truthy", level: 3}
+    - {slug: "d-20-p3-remove-dangling-spec-kitty-ledger-md-citations-from-src-tests-and-refine-claude-md-runtime-next-layering-guidance", text: "D-20 · P3 · Remove dangling SPEC-KITTY-LEDGER.md citations from src/tests and refine CLAUDE.md runtime/next layering guidance", level: 3}
+    - {slug: "d-21-p3-add-one-make-regen-derived-target-that-refreshes-every-byte-exact-derived-artifact-from-any-worktree", text: "D-21 · P3 · Add one `make regen-derived` target that refreshes every byte-exact derived artifact from any worktree", level: 3}
+    - {slug: "d-22-p3-converge-mission-tracer-file-layout-on-traces-md-procedure-tooling-legacy-readers", text: "D-22 · P3 · Converge mission tracer file layout on traces/<category>.md (procedure, tooling, legacy readers)", level: 3}
+    - {slug: "d-25-p3-doctor-doctrine-schema-validate-every-artifact-it-counts-and-report-silently-skipped-artifacts-as-errors", text: "D-25 · P3 · doctor doctrine: schema-validate every artifact it counts, and report silently-skipped artifacts as errors", level: 3}
+    - {slug: "d-33-p3-charter-list-all-layers-show-every-org-pack-in-the-chain-consume-resolve-layer-roots-org-chain", text: "D-33 · P3 · charter list --all-layers: show every org pack in the chain (consume resolve_layer_roots org_chain)", level: 3}
+    - {slug: "d-34-p3-class-level-fail-open-audit-lint-for-permissive-default-policy-lookups-and-tri-state-is-false-checks", text: "D-34 · P3 · Class-level fail-open audit: lint for permissive-default policy lookups and tri-state `is False` checks", level: 3}
+    - {slug: "sequencing-suggestion-planner-lens", text: "Sequencing suggestion (planner lens)", level: 2}
+    - {slug: "informational-items-not-clustered-24", text: "Informational items not clustered (24)", level: 2}
+    - {slug: "honest-limits", text: "Honest limits", level: 2}
+  - path: "docs/reports/tracer-friction-recon/2026-09-26/issue-coverage/group-E.md"
+    title: "Planner Priti — Group E issue-coverage check"
+    divio_type: "none"
+    abstract: "Themes: cli-ergonomics (51), review-loop-verdicts (54), squad-review-value (9), subagent-orchestration (33), agent-harness-sandbox (22), spec-kitty-dispatch-ops (7): **176 tracer items from 57 missions -> 31 clusters**."
+    anchors:
+    - {slug: "clusters-verdict-issues", text: "Clusters -> verdict -> issues", level: 2}
+    - {slug: "gaps-per-cluster-non-null", text: "Gaps per cluster (non-null)", level: 3}
+    - {slug: "draft-issues-not-filed", text: "Draft issues (NOT filed)", level: 2}
+    - {slug: "e-23-p1-one-writer-per-checkout-concurrent-implementers-reviewers-get-their-own-worktree-incl-single-branch-forbid-git-add-a-git-stash-in-shared-checkouts", text: "E-23 · P1 · One writer per checkout: concurrent implementers/reviewers get their own worktree (incl. single_branch); forbid git add -A / git stash in shared checkouts", level: 3}
+    - {slug: "e-04-p2-safe-commit-in-a-lane-worktree-remedy-text-and-dispatch-templates-name-the-wrong-to-branch-bare-form-resolves-from-stale-meta-json", text: "E-04 · P2 · safe-commit in a lane worktree: remedy text and dispatch templates name the wrong --to-branch; bare form resolves from stale meta.json", level: 3}
+    - {slug: "e-05-p2-report-side-effect-outcome-separately-from-bookkeeping-commit-outcome-implement-base-finalize-tasks-and-surface-git-s-stderr-on-safe-commit-failure", text: "E-05 · P2 · Report side-effect outcome separately from bookkeeping-commit outcome (implement --base, finalize-tasks) and surface git's stderr on safe_commit failure", level: 3}
+    - {slug: "e-09-p2-next-must-evaluate-the-same-implement-preflight-gates-analysis-report-freshness-it-predicts", text: "E-09 · P2 · next must evaluate the same implement preflight gates (analysis-report freshness) it predicts", level: 3}
+    - {slug: "e-17-p2-pre-review-gate-fall-back-to-owned-files-vs-merge-base-when-a-wp-has-no-lane-diff-never-present-no-coverage-as-a-pass", text: "E-17 · P2 · Pre-review gate: fall back to owned_files vs merge base when a WP has no lane diff; never present no_coverage as a pass", level: 3}
+    - {slug: "e-19-p2-spec-template-review-doctrine-label-criteria-build-ratchet-and-require-positive-controls-for-refusal-absence-criteria", text: "E-19 · P2 · Spec template + review doctrine: label criteria [build]/[ratchet] and require positive controls for refusal/absence criteria", level: 3}
+    - {slug: "e-24-p2-tactic-measurement-discipline-for-multi-agent-missions-serialized-sweeps-pinned-worktree-per-claim-mission-base-attribution", text: "E-24 · P2 · Tactic: measurement discipline for multi-agent missions (serialized sweeps, pinned worktree per claim, mission-base attribution)", level: 3}
+    - {slug: "e-25-p2-implement-review-dispatch-template-required-fields-sub-delegation-policy-lane-consolidation-state-env-venv-constraints", text: "E-25 · P2 · implement-review dispatch template: required fields (sub-delegation policy, lane-consolidation state, env/venv constraints)", level: 3}
+    - {slug: "e-27-p2-implement-review-review-skills-bounded-in-turn-wait-recipe-for-long-gates-never-end-a-turn-while-your-own-gate-runs", text: "E-27 · P2 · implement-review/review skills: bounded in-turn wait recipe for long gates; never end a turn while your own gate runs", level: 3}
+    - {slug: "e-29-p2-hook-installer-must-not-pin-an-ephemeral-worktree-venv-interpreter", text: "E-29 · P2 · Hook installer must not pin an ephemeral worktree venv interpreter", level: 3}
+    - {slug: "e-06-p3-enforce-the-json-pure-stdout-contract-once-at-the-typer-boundary-cover-finalize-tasks-record-analysis", text: "E-06 · P3 · Enforce the --json pure-stdout contract once at the typer boundary (cover finalize-tasks, record-analysis)", level: 3}
+    - {slug: "e-07-p3-mutating-verbs-print-their-outcome-and-flush-before-any-slow-tail-work-bound-every-post-write-tail", text: "E-07 · P3 · Mutating verbs print their outcome (and flush) before any slow tail work; bound every post-write tail", level: 3}
+    - {slug: "e-08-p3-infer-mission-from-the-lane-coord-worktree-or-mission-branch-when-unambiguous", text: "E-08 · P3 · Infer --mission from the lane/coord worktree or mission branch when unambiguous", level: 3}
+    - {slug: "e-10-p3-guard-every-spec-kitty-invocation-in-shipped-prompts-skills-must-resolve-in-the-live-cli-registry", text: "E-10 · P3 · Guard: every `spec-kitty …` invocation in shipped prompts/skills must resolve in the live CLI registry", level: 3}
+    - {slug: "e-11-p3-spec-commit-name-the-paths-it-skipped-instead-of-silently-committing-a-subset-tool-written-meta-pr-bound-must-be-committed-atomically", text: "E-11 · P3 · spec-commit: name the paths it skipped instead of silently committing a subset; tool-written meta (pr_bound) must be committed atomically", level: 3}
+    - {slug: "e-16-p3-status-emit-review-result-json-accept-doctrine-s-rejected-as-an-alias-of-changes-requested-or-align-doctrine", text: "E-16 · P3 · status emit --review-result-json: accept doctrine's 'rejected' as an alias of changes_requested (or align doctrine)", level: 3}
+    - {slug: "e-18-p3-adversarial-squad-persist-each-lens-report-as-a-contract-named-artifact-and-validate-names-approval-review-cycle-records-need-an-evidence-floor", text: "E-18 · P3 · adversarial-squad: persist each lens report as a contract-named artifact and validate names; approval review-cycle records need an evidence floor", level: 3}
+    - {slug: "e-20-p3-internal-doctrine-rulings-and-briefs-must-re-verify-claims-against-live-source-and-the-issue-s-own-repro-before-issue", text: "E-20 · P3 · Internal doctrine: rulings and briefs must re-verify claims against live source and the issue's own repro before issue", level: 3}
+    - {slug: "e-26-p3-budget-aware-fan-out-in-implement-review-stagger-waves-detect-rate-limit-spend-cap-deaths-checkpoint-partial-work", text: "E-26 · P3 · Budget-aware fan-out in implement-review: stagger waves, detect rate-limit/spend-cap deaths, checkpoint partial work", level: 3}
+    - {slug: "e-28-p3-spk-start-agent-surface-document-claude-code-worktree-isolation-constraints-and-the-scratchpad-script-git-c-pattern", text: "E-28 · P3 · spk-start-agent-surface: document Claude Code worktree-isolation constraints and the scratchpad-script / git -C pattern", level: 3}
+    - {slug: "e-30-p3-orchestrator-verifies-a-dispatched-wp-drove-the-canonical-implement-transitions-before-accepting-the-hand-back", text: "E-30 · P3 · Orchestrator verifies a dispatched WP drove the canonical implement transitions before accepting the hand-back", level: 3}
+    - {slug: "e-31-p3-pin-the-routed-profile-per-mission-wp-so-auto-routing-is-stable-across-router-changes-drop-tk-watch-s-profile-workaround", text: "E-31 · P3 · Pin the routed profile per mission/WP so auto-routing is stable across router changes; drop tk-watch's --profile workaround", level: 3}
+    - {slug: "sequencing-note-planner-lens", text: "Sequencing note (planner lens)", level: 2}
+    - {slug: "honest-limits", text: "Honest limits", level: 2}
+  - path: "docs/reports/tracer-friction-recon/2026-09-26/issue-coverage/second-opinion.md"
+    title: "priti-verify: adversarial second pass on the 53 UNCOVERED / CLOSED-ONLY clusters"
+    divio_type: "none"
+    abstract: "Profile applied: planner-priti (role planner; avoidance boundary: no implementation or architecture calls, no tracker writes; DIRECTIVE_003: every verdict change carries a written rationale, in the `note` and `searched` fields of priti-verify.jsonl)."
+    anchors:
+    - {slug: "verdict-changes-5", text: "Verdict changes (5)", level: 2}
+    - {slug: "flags-that-do-not-change-a-verdict", text: "Flags that do not change a verdict", level: 2}
+    - {slug: "confirmed-uncovered-24", text: "Confirmed UNCOVERED (24)", level: 2}
+    - {slug: "confirmed-closed-only-24", text: "Confirmed CLOSED-ONLY (24)", level: 2}
+    - {slug: "covered-sanity-pass-45-clusters", text: "COVERED sanity pass (45 clusters)", level: 2}
   - path: "docs/retrospective-learning-loop.md"
     title: "Retrospective Learning Loop"
     divio_type: "none"

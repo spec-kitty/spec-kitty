@@ -1,0 +1,79 @@
+{
+  "mission_slug": "upgrade-idempotent-worktree-metadata-01M38X2Y",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated test + code review",
+      "evidence": "tests/upgrade/test_issue_4972_idempotent_worktree_metadata.py + tests/upgrade/test_upgrade_worktree_commit.py; review/WP01-4972",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-24T06:41:48.061532+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated test + code review",
+      "evidence": "tests/upgrade/test_issue_4972_idempotent_worktree_metadata.py + tests/upgrade/test_upgrade_worktree_commit.py; review/WP01-4972",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-24T06:41:50.237193+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated test + code review",
+      "evidence": "tests/upgrade/test_issue_4972_idempotent_worktree_metadata.py + tests/upgrade/test_upgrade_worktree_commit.py; review/WP01-4972",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-24T06:41:52.453302+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated test + code review",
+      "evidence": "tests/upgrade/test_issue_4972_idempotent_worktree_metadata.py + tests/upgrade/test_upgrade_worktree_commit.py; review/WP01-4972",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-24T06:41:54.670393+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated test + code review",
+      "evidence": "tests/upgrade/test_issue_4972_idempotent_worktree_metadata.py + tests/upgrade/test_upgrade_worktree_commit.py; review/WP01-4972",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-24T06:41:56.887535+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated test + code review",
+      "evidence": "tests/upgrade/test_issue_4972_idempotent_worktree_metadata.py + tests/upgrade/test_upgrade_worktree_commit.py; review/WP01-4972",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-24T06:41:59.147164+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated test + code review",
+      "evidence": "tests/upgrade/test_issue_4972_idempotent_worktree_metadata.py + tests/upgrade/test_upgrade_worktree_commit.py; review/WP01-4972",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-09-24T06:42:01.883342+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

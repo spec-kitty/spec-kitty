@@ -1,0 +1,73 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: contract
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: PR-CONTRACT-001
+    lens: Behavioural change from lazy registration
+    severity: 3
+    title: "_resolve_single_leaf_command's first-non-dash-token heuristic cannot distinguish a future value-taking global option from the subcommand name"
+    needs_operator_decision: false
+    evidence:
+      - code: "<checkout>/src/specify_cli/cli/commands/__init__.py:672-688"
+      - code: "<checkout>/src/specify_cli/__init__.py:119-124"
+    claim: >
+      `_resolve_single_leaf_command(argv)` walks `argv[1:]` and returns the FIRST token that
+      does not start with `-` (treating it as "the" resolved leaf command), skipping any
+      `--help`/`-h` check first. Today this is safe only because the root Typer app's one
+      configured option (`-v/--version`, `main_callback` in `src/specify_cli/__init__.py:119-124`)
+      is a boolean/eager flag with no value token — verified by reading `main_callback`'s full
+      signature, which declares no other `typer.Option`. But nothing in this function or its
+      test coverage (`tests/cli/test_register_commands_lazy_import_shape.py`,
+      `tests/specify_cli/cli/test_lazy_command_imports.py`) encodes that invariant. If a future
+      root-level option that takes a value is added (e.g. `--config PATH`, a common CLI growth
+      pattern), `spec-kitty --config doctor real-subcommand` would have its VALUE token
+      ("doctor") misread as the resolved leaf command by this heuristic, registering only the
+      `doctor` module while the user's real subcommand never gets registered at all — a silent,
+      confusing "no such command" regression, not merely a missed optimization. This differs
+      from (and is broader than) the two pre-existing fast-path predicates
+      (`_is_next_fast_path`, `_is_live_work_hook_fast_path`) this WP explicitly generalizes:
+      those match a specific literal token ANYWHERE in argv, so they are not fooled by an
+      intervening value token; the new generalized heuristic commits to positional ordering
+      instead, which is what introduces the new failure mode. No test in the diff (`tests/cli/
+      test_register_commands_lazy_import_shape.py`, `tests/specify_cli/cli/
+      test_lazy_command_imports.py`) covers a value-taking global option, so this would not be
+      caught red before it ships.
+    remediation: >
+      Add a regression test that fails if the root Typer app's registered options ever include
+      a non-eager, value-taking parameter (e.g. assert every `typer.Option`/`typer.Argument` on
+      `main_callback` is boolean/eager), so a future global option addition is forced to revisit
+      `_resolve_single_leaf_command`'s token-skipping assumption instead of silently shipping a
+      misrouting regression. Alternatively, make `_resolve_single_leaf_command` aware of root
+      option arities explicitly (a small allow-list of "option names that consume the next
+      token") rather than assuming every non-dash token is the command.
+  - id: PR-CONTRACT-002
+    lens: Behavioural change from lazy registration
+    severity: 2
+    title: "No automated test guards _COMMAND_REGISTRARS/_ALL_COMMAND_REGISTRARS consistency"
+    needs_operator_decision: false
+    evidence:
+      - code: "<checkout>/src/specify_cli/cli/commands/__init__.py:592-654"
+      - code: "<checkout>/src/specify_cli/cli/commands/__init__.py:672-688"
+    claim: >
+      `register_commands()` now maintains two hand-written parallel collections: the
+      `_COMMAND_REGISTRARS` dict (command name -> registrar, used by the single-leaf lazy path)
+      and the `_ALL_COMMAND_REGISTRARS` tuple (used by the eager fallback / `--help` / unknown-
+      command listing). I verified by AST-parsing the actual file
+      (`src/specify_cli/cli/commands/__init__.py`) that the set of registrar functions
+      referenced by the two collections is identical today (53 distinct registrar functions,
+      61 command-name keys mapping onto them). But this consistency is enforced only by
+      developer discipline — no test in the diff asserts
+      `set(_COMMAND_REGISTRARS.values()) == set(_ALL_COMMAND_REGISTRARS)`. A future edit that
+      adds a registrar to only one of the two collections would silently produce asymmetric CLI
+      behaviour: a command reachable via direct single-leaf invocation but absent from
+      `spec-kitty --help`'s listing and from "unknown command" `did-you-mean` suggestions (or,
+      the reverse, a registrar that only the eager loop reaches and the lazy dict never resolves
+      to, silently forfeiting the lazy-import benefit for that command).
+    remediation: >
+      Add a unit test in `tests/cli/test_register_commands_lazy_import_shape.py` (or
+      `tests/specify_cli/cli/test_lazy_command_imports.py`) asserting
+      `set(_COMMAND_REGISTRARS.values()) == set(_ALL_COMMAND_REGISTRARS)` by importing the real
+      module, so a future one-sided edit to either collection fails red immediately instead of
+      only being caught by manual inspection.

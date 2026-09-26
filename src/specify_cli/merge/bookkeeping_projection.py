@@ -13,6 +13,8 @@ One-way import: this module never imports the command shim.
 
 from __future__ import annotations
 
+import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 from mission_runtime import MissionArtifactKind, kind_for_mission_file, placement_seam
@@ -23,6 +25,7 @@ from specify_cli.core.git_ops import run_command
 from specify_cli.core.paths import assert_safe_path_segment, get_main_repo_root
 from specify_cli.core.utils import ensure_within_any, ensure_within_directory
 from specify_cli.merge._constants import _STATUS_EVENTS_FILENAME, _STATUS_FILENAME
+from specify_cli.merge.git_probes import GitProbeError, driver_replay_expected_bytes
 
 # The kind used to derive the PRIMARY (target-checkout) surface this projection
 # stages onto (coord-write-placement-closure-01KYCF83 WP03 / FR-003). The
@@ -284,14 +287,27 @@ def _project_status_bookkeeping_to_target(
     main_repo: Path,
     mission_slug: str,
     status_feature_dir: Path,
+    checkpoint_sha: str | None = None,
+    coord_ref: str | None = None,
 ) -> tuple[Path, Path]:
     """Copy authoritative status bookkeeping to target-checkout paths.
 
     Coord-backed missions write done transitions through the coordination
     surface, but the final target-branch housekeeping commit can only stage
-    paths tracked under ``main_repo``. Project just the status artifacts into
+    paths tracked under ``main_repo``. Project the status artifacts into
     ``kitty-specs/<slug>/`` before the commit; keep the authoritative write
     topology unchanged.
+
+    S-B / FR-004 (#4981/#4970/#4973): when BOTH ``checkpoint_sha`` and
+    ``coord_ref`` are supplied (the WP09 integration hook threads them from
+    ``run.coord_checkpoint``), this ALSO projects every NON-status file changed on
+    the coord ref after the checkpoint via
+    :func:`project_post_checkpoint_commits_to_target`, so a concurrent
+    status-emit / acceptance-verdict committed during the merge is not lost when
+    the coord branch is torn down. The status byte-sets keep their union /
+    rematerialize path below (FR-005); the general projection deliberately skips
+    them. Both kwargs default to ``None`` so the existing call site
+    (``executor._phase_record_done_and_project``) is byte-unchanged until wired.
     """
     target_events_path, target_status_path = _target_bookkeeping_status_paths(
         main_repo=main_repo,
@@ -348,7 +364,293 @@ def _project_status_bookkeeping_to_target(
         _restore_optional_bytes(trusted_target_events_path, original_events_bytes)
         _restore_optional_bytes(trusted_target_status_path, original_status_bytes)
         raise
+
+    if checkpoint_sha is not None and coord_ref is not None:
+        # S-B/FR-004: bring EVERY post-checkpoint coord commit's non-status files
+        # forward too — the status union above covers only the two status files.
+        project_post_checkpoint_commits_to_target(
+            main_repo=main_repo,
+            mission_slug=mission_slug,
+            coord_ref=coord_ref,
+            checkpoint_sha=checkpoint_sha,
+        )
     return trusted_target_events_path, trusted_target_status_path
+
+
+@dataclass(frozen=True)
+class ProjectionResult:
+    """Outcome of :func:`project_post_checkpoint_commits_to_target` (S-B/FR-004).
+
+    ``projected_paths`` — the repo-relative mission paths whose coord-ref content
+    was staged onto the target checkout. ``projected_commits`` — the SHAs in
+    ``checkpoint_sha..coord_ref`` (the bounded window, NFR-003). ``coord_tip_sha``
+    — the coord tip observed while projecting; the compare-and-swap anchor the
+    teardown gate re-checks (unchanged since projection ⇒ safe to tear down).
+    """
+
+    projected_paths: tuple[str, ...] = ()
+    projected_commits: tuple[str, ...] = ()
+    coord_tip_sha: str = ""
+
+
+def _resolve_ref_sha(main_repo: Path, ref: str) -> str:
+    """Resolve ``ref`` to a commit SHA (``""`` when it does not resolve)."""
+    ret, out, _err = run_command(["git", "rev-parse", ref], capture=True, check_return=False, cwd=main_repo)
+    return out.strip() if ret == 0 and out.strip() else ""
+
+
+def _post_checkpoint_commit_shas(main_repo: Path, checkpoint_sha: str, coord_ref: str) -> list[str]:
+    """SHAs reachable from ``coord_ref`` but not ``checkpoint_sha`` (bounded window)."""
+    ret, out, _err = run_command(
+        ["git", "rev-list", f"{checkpoint_sha}..{coord_ref}"],
+        capture=True,
+        check_return=False,
+        cwd=main_repo,
+    )
+    if ret != 0:
+        return []
+    return [line for line in out.splitlines() if line.strip()]
+
+
+def _post_checkpoint_mission_paths(main_repo: Path, mission_slug: str, checkpoint_sha: str, coord_ref: str) -> list[str]:
+    """Non-status COORD-partition mission paths changed in ``checkpoint_sha..coord_ref``.
+
+    Scoped to ``kitty-specs/<slug>/`` and with the two status byte-sets removed —
+    those stay owned by the union / rematerialize path (FR-005). Everything else a
+    concurrent coord commit touched (verdict, notes, trace, issue-matrix) is fair
+    game for projection.
+
+    WP10 integration fix: a PRIMARY-partition artifact
+    (:func:`~mission_runtime.is_primary_artifact_kind` — ``meta.json``, spec/plan/
+    tasks, ``lanes.json``, the retrospective) is EXCLUDED. Those live with the
+    mission on the PRIMARY surface and are authored by the merge itself on the
+    target (the ``mission_number`` bake / ``baseline_merge_commit`` stamp land AFTER
+    the transaction-start checkpoint), so the coord ref carries only their STALE
+    pre-merge copies. Projecting them forward would clobber the target's freshly
+    committed values — the concrete regression this guard closes (the clean-merge
+    baseline-validation failure). Unrecognised paths (kind ``None``) stay projected:
+    they cannot be a known PRIMARY artifact, and the coord surface legitimately owns
+    the coord-partition bookkeeping this projection exists to carry.
+    """
+    mission_prefix = f"{KITTY_SPECS_DIR}/{mission_slug}/"
+    ret, out, _err = run_command(
+        ["git", "diff", "--name-only", checkpoint_sha, coord_ref, "--", mission_prefix],
+        capture=True,
+        check_return=False,
+        cwd=main_repo,
+    )
+    if ret != 0:
+        return []
+    from mission_runtime import MissionArtifactKind, is_primary_artifact_kind
+
+    # DENYLIST (WP10 integration fix). Project every coord-owned bookkeeping path a
+    # concurrent commit touched that has no dedicated preservation path — recognised
+    # coord-partition bookkeeping (tracer files) AND coord bookkeeping with no single
+    # declared kind (``decision-log/*-verdict.md``, ``notes/*``): those are what
+    # #4981/#4973 must carry forward. EXCLUDE anything the target authors or preserves
+    # for itself:
+    #   * the two status byte-sets (owned by the union / rematerialize path, FR-005);
+    #   * ``meta.json`` — a PRIMARY-partition artifact that
+    #     :func:`~mission_runtime.kind_for_mission_file` returns ``None`` for, yet the
+    #     merge stamps its ``mission_number`` bake / ``baseline_merge_commit`` on the
+    #     TARGET after the checkpoint, so the coord ref holds only a stale copy;
+    #     projecting it forward clobbers the target's freshly committed value (the
+    #     clean-merge baseline-validation regression);
+    #   * every OTHER recognised PRIMARY-partition kind (spec / plan / tasks / lanes /
+    #     research / analysis-report / retrospective — :func:`is_primary_artifact_kind`);
+    #   * the accept-time gate matrices ``issue-matrix.json`` / ``acceptance-matrix.json``
+    #     (``ISSUE_MATRIX`` / ``ACCEPTANCE_MATRIX``): although coord-partition, these are
+    #     authored on the PRIMARY checkout by ``accept`` (#2404) and have their OWN
+    #     squash-merge preservation path (``executor._restore_regressed_gate_artifacts``,
+    #     #2804). The general projection must NOT overwrite an already-accepted target
+    #     fill with the coord branch's stale finalize-time placeholder.
+    # A ``None`` kind that is NOT ``meta.json`` stays projected (coord bookkeeping).
+    excluded_kinds = {MissionArtifactKind.ISSUE_MATRIX, MissionArtifactKind.ACCEPTANCE_MATRIX}
+    status_and_primary_basenames = {_STATUS_EVENTS_FILENAME, _STATUS_FILENAME, "meta.json"}
+    paths: list[str] = []
+    for line in out.splitlines():
+        candidate = line.strip()
+        if not candidate or not candidate.startswith(mission_prefix):
+            continue
+        if Path(candidate).name in status_and_primary_basenames:
+            continue
+        kind = kind_for_mission_file(candidate, mission_slug=mission_slug)
+        if kind is not None and (is_primary_artifact_kind(kind) or kind in excluded_kinds):
+            continue
+        paths.append(candidate)
+    return paths
+
+
+def _git_show_blob_bytes(main_repo: Path, ref: str, repo_rel_path: str) -> bytes | None:
+    """Return the exact bytes of ``ref:repo_rel_path`` (``None`` when absent at ``ref``).
+
+    Uses ``subprocess`` directly (not ``run_command``, which decodes to text) so a
+    JSONL/YAML/Markdown bookkeeping blob is projected byte-for-byte — mirroring the
+    raw-read pattern in :func:`specify_cli.merge.git_probes.patch_id_of`.
+    """
+    result = subprocess.run(
+        ["git", "show", f"{ref}:{repo_rel_path}"],
+        cwd=str(main_repo),
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def project_post_checkpoint_commits_to_target(
+    *,
+    main_repo: Path,
+    mission_slug: str,
+    coord_ref: str,
+    checkpoint_sha: str,
+) -> ProjectionResult:
+    """Project every non-status post-checkpoint coord commit onto the target (S-B).
+
+    Closes #4981/#4970/#4973: today only ``status.events.jsonl`` / ``status.json``
+    are projected, so a concurrent status-emit / acceptance-verdict commit landing
+    on the coord ref during the merge writes files that are dropped when the coord
+    branch is torn down. This stages the coord-ref content of every path changed
+    in ``checkpoint_sha..coord_ref`` (scoped to ``kitty-specs/<slug>/``, status
+    byte-sets excluded) into the target checkout's mission dir.
+
+    Append-only preserved (NFR): content is brought FORWARD only — a path deleted
+    at the coord tip is never deleted on the target here (WP08 owns the SHA-scoped
+    heal, and range-reverting the log would collide with it). Bounded
+    O(#post-checkpoint commits) (NFR-003).
+    """
+    safe_slug = _validate_mission_slug_path_segment(mission_slug)
+    coord_tip = _resolve_ref_sha(main_repo, coord_ref)
+    if not coord_tip or not checkpoint_sha:
+        return ProjectionResult(coord_tip_sha=coord_tip)
+
+    commits = _post_checkpoint_commit_shas(main_repo, checkpoint_sha, coord_ref)
+    if not commits:
+        return ProjectionResult(coord_tip_sha=coord_tip)
+
+    changed_paths = _post_checkpoint_mission_paths(main_repo, safe_slug, checkpoint_sha, coord_ref)
+    target_feature_dir = placement_seam(main_repo, safe_slug).read_dir(_TARGET_SURFACE_KIND)
+    mission_prefix = Path(KITTY_SPECS_DIR) / safe_slug
+    projected: list[str] = []
+    for repo_rel in changed_paths:
+        content = _git_show_blob_bytes(main_repo, coord_ref, repo_rel)
+        if content is None:
+            continue
+        rel_within = Path(repo_rel).relative_to(mission_prefix)
+        trusted = _assert_status_path_within_target_surface(
+            repo_root=main_repo,
+            mission_slug=safe_slug,
+            candidate=target_feature_dir / rel_within,
+        )
+        # WP10 integration fix (never clobber independently-filled target content,
+        # #2804): only bring the coord change forward when the target has NOT
+        # diverged from the shared checkpoint baseline for this path. If the target
+        # working-tree content differs from the checkpoint content, the target was
+        # updated on its own (e.g. an ``acceptance-matrix.json`` filled/accepted on
+        # the primary surface pre-merge) — overwriting it with the coord ref's stale
+        # copy would revert that accepted evidence. A concurrent coord commit the
+        # target never touched (the #4981/#4970/#4973 case: target == checkpoint for
+        # the path, usually both absent) is still projected.
+        checkpoint_content = _git_show_blob_bytes(main_repo, checkpoint_sha, repo_rel)
+        target_current = trusted.read_bytes() if trusted.exists() else None
+        if target_current != checkpoint_content and target_current is not None:
+            continue
+        trusted.parent.mkdir(parents=True, exist_ok=True)
+        trusted.write_bytes(content)
+        projected.append(repo_rel)
+
+    return ProjectionResult(
+        projected_paths=tuple(projected),
+        projected_commits=tuple(commits),
+        coord_tip_sha=coord_tip,
+    )
+
+
+def _projected_path_content_matches(
+    *,
+    main_repo: Path,
+    coord_ref: str,
+    target_ref: str,
+    checkpoint_sha: str,
+    pre_squash_target_ref: str,
+    repo_rel: str,
+) -> bool:
+    """Single-path proof body for :func:`projected_content_matches_target` (#5038).
+
+    Two verdicts, chosen by whether the TARGET diverged from the shared
+    checkpoint baseline for this path (``ours != base``):
+
+    * **Not diverged** (``ours == base``): the target never touched this path
+      after the checkpoint, so the original byte-equality proof still applies
+      verbatim -- PASS iff ``target_bytes == coord_bytes`` (FR-004 / INV-NO-
+      REGRESSION; never weakened by this rewrite).
+    * **Diverged**: both sides independently edited the path from the shared
+      baseline, and a legitimate squash reconciles that overlap through the
+      path's registered ``.gitattributes`` merge driver (the SAME driver git
+      invoked during the real squash) -- PASS iff the landed target blob
+      byte-equals the driver's own replayed output (FR-001), REFUSE otherwise
+      (FR-002) or when the probe cannot be evaluated at all -- no registered
+      driver, a missing blob, or a driver error (FR-003 / INV-FLOOR-2, never
+      silently PASS).
+    """
+    coord_bytes = _git_show_blob_bytes(main_repo, coord_ref, repo_rel)
+    if coord_bytes is None:
+        return False
+    target_bytes = _git_show_blob_bytes(main_repo, target_ref, repo_rel)
+    base_bytes = _git_show_blob_bytes(main_repo, checkpoint_sha, repo_rel)
+    pre_squash_target_bytes = _git_show_blob_bytes(main_repo, pre_squash_target_ref, repo_rel)
+    if pre_squash_target_bytes == base_bytes:
+        return target_bytes == coord_bytes
+    try:
+        expected_bytes = driver_replay_expected_bytes(
+            main_repo,
+            repo_rel,
+            base_ref=checkpoint_sha,
+            ours_ref=pre_squash_target_ref,
+            theirs_ref=coord_ref,
+        )
+    except GitProbeError:
+        return False
+    return target_bytes == expected_bytes
+
+
+def projected_content_matches_target(
+    *,
+    main_repo: Path,
+    coord_ref: str,
+    target_ref: str,
+    projected_paths: tuple[str, ...],
+    checkpoint_sha: str,
+    pre_squash_target_ref: str,
+) -> bool:
+    """Squash content proof (WP06 handoff, driver-replay attribution — #5038).
+
+    WP06's reconciliation gate drops content reachability for squash
+    (``verify_reachability=False``) because a squash merge preserves neither
+    lane-tip SHAs nor per-lane patch-ids, and an aggregate mission→target tree
+    comparison additionally diverges on legitimate post-merge bookkeeping. This
+    proves — SCOPED to the projected paths — that each one legitimately landed
+    on ``target_ref``: verbatim byte-equality with ``coord_ref`` when the target
+    never diverged from the shared ``checkpoint_sha`` baseline for that path
+    (the original, unweakened proof — FR-004), or driver-replay attribution
+    against ``pre_squash_target_ref`` (the target's tip BEFORE the squash
+    landed) when it did (see :func:`_projected_path_content_matches`). A
+    diverged path with no registered driver, a missing blob, or a driver error
+    REFUSEs fail-closed rather than passing vacuously (FR-003). Vacuously
+    ``True`` for an empty set — nothing projected, nothing to diverge.
+    """
+    return all(
+        _projected_path_content_matches(
+            main_repo=main_repo,
+            coord_ref=coord_ref,
+            target_ref=target_ref,
+            checkpoint_sha=checkpoint_sha,
+            pre_squash_target_ref=pre_squash_target_ref,
+            repo_rel=repo_rel,
+        )
+        for repo_rel in projected_paths
+    )
 
 
 __all__ = [
@@ -361,4 +663,7 @@ __all__ = [
     "_assert_status_surface_file_path_is_trusted",
     "_target_branch_still_at_baseline",
     "_project_status_bookkeeping_to_target",
+    "ProjectionResult",
+    "project_post_checkpoint_commits_to_target",
+    "projected_content_matches_target",
 ]

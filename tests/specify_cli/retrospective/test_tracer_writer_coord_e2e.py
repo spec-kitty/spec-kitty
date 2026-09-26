@@ -25,6 +25,10 @@ Proves, on committed git trees (not config/mock assertions):
    SECOND commit and the persisted file carries the entry line exactly once
    (I-T3 / FR-012 idempotency).
 5. A blank ``--actor`` is guarded -- no commit lands anywhere (#2960).
+6. AC-T1 (#4959 / WP02): an UNMATERIALIZED coord surface (branch declared +
+   present in git, worktree torn down again) carrying a REAL, already
+   committed ``traces/<cat>.md`` fails closed -- the coord-committed content
+   stays byte-intact, never clobbered by a from-scratch header.
 """
 
 from __future__ import annotations
@@ -39,8 +43,16 @@ from click.testing import Result
 from typer.testing import CliRunner
 from unittest.mock import patch
 
+from mission_runtime import MissionTopology
 from specify_cli.cli.commands.agent.tracer_append import tracer_append
+from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
+from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.retrospective.tracer_writer import append_tracer_finding
 from tests.integration.coord_topology_fixture import _build_coord_topology
+from tests.integration.test_placement_partition_golden_path import (
+    _create_mission,
+    _init_git_repo,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -217,3 +229,162 @@ def test_blank_actor_guarded_no_commit_lands_anywhere(tmp_path: Path) -> None:
     )
     lane_sha_after = _git(ctx.repo, "rev-parse", lane_branch)
     assert lane_sha_after == lane_sha_before
+
+
+# ---------------------------------------------------------------------------
+# 6: AC-T1 (#4959 / WP02) -- unmaterialised coord fails closed, no clobber
+# ---------------------------------------------------------------------------
+
+
+class _FixedPolicy:
+    """Duck-typed ``is_protected(ref) -> bool`` stub -- fixed "never protected"
+    answer, matching the pure-logic test module's ``_policy()`` shape."""
+
+    def is_protected(self, ref: str) -> bool:  # noqa: ARG002 - fixed-answer stub
+        return False
+
+
+def _build_unmaterialized_coord_mission_with_populated_traces(
+    tmp_path: Path, *, category_filename: str, original_content: str
+) -> tuple[Path, str, str]:
+    """A real COORD-topology mission whose coordination branch already carries
+    a committed, populated ``traces/<cat>.md`` -- but whose coord worktree is
+    torn back down (``CoordState.UNMATERIALIZED``: branch declared + present
+    in git, worktree absent on disk). This is the exact #4959 danger window:
+    real findings exist on the coord branch while the local worktree is not
+    (yet, or no longer) materialised.
+
+    Returns ``(repo, mission_slug, coordination_branch)``.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_git_repo(repo, branch="main")
+    result = _create_mission(repo, "unmat-tracer-demo", MissionTopology.COORD)
+    coordination_branch = result.coordination_branch
+    assert coordination_branch, "fixture must mint a coordination branch"
+
+    meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
+    mid8 = str(meta["mission_id"])[:8]
+
+    # Materialise ONCE to commit real, pre-existing findings onto the coord
+    # branch, then tear the worktree back down -- landing on UNMATERIALIZED
+    # with a genuinely populated coord-committed file (not a fixture stub).
+    coord_root = CoordinationWorkspace.resolve(repo, result.mission_slug, mid8)
+    coord_traces_dir = coord_root / "kitty-specs" / result.mission_slug / "traces"
+    coord_traces_dir.mkdir(parents=True)
+    (coord_traces_dir / category_filename).write_text(
+        original_content, encoding="utf-8"
+    )
+    _git(coord_root, "add", ".")
+    _git(coord_root, "commit", "-m", "seed: pre-existing tracer finding")
+    CoordinationWorkspace.teardown(repo, result.mission_slug, mid8)
+    assert not coord_root.exists(), (
+        "fixture invariant violated: coord worktree must be torn down "
+        "(unmaterialized) for this scenario"
+    )
+
+    return repo, result.mission_slug, coordination_branch
+
+
+def test_unmaterialized_coord_tracer_append_fails_closed_and_preserves_findings(
+    tmp_path: Path,
+) -> None:
+    """AC-T1: an UNMATERIALIZED coord surface with a REAL, already-committed
+    ``traces/<cat>.md`` must be left byte-intact when ``tracer-append`` is
+    invoked -- the write fails closed (raises) instead of silently clobbering
+    the real findings with a from-scratch header + the new entry.
+
+    Pre-fix (red): ``_read_current_coord_content`` swallows
+    ``CoordinationWorktreeUnmaterialized`` into ``""``, the write proceeds
+    (self-materialising the coord worktree at the commit boundary per
+    ``commit_router``'s NFR-001), and the coord-committed file is
+    OVERWRITTEN with header+new-entry-only -- the original finding is lost.
+    """
+    original_content = (
+        "# Tracer: tooling-friction\n\n"
+        "One entry per finding: `YYYY-MM-DD · actor · <text>`.\n\n"
+        "---\n\n"
+        "2026-01-01 · architect-alphonso · The daemon hung mid-decode on a 3MB payload.\n"
+    )
+    repo, slug, coord_branch = _build_unmaterialized_coord_mission_with_populated_traces(
+        tmp_path,
+        category_filename="tooling-friction.md",
+        original_content=original_content,
+    )
+    rel = f"kitty-specs/{slug}/traces/tooling-friction.md"
+
+    with pytest.raises(CoordinationWorktreeUnmaterialized):
+        append_tracer_finding(
+            repo_root=repo,
+            mission_slug=slug,
+            category="tooling-friction",
+            entry="A NEW finding that must never silently clobber the old one.",
+            actor="claude",
+            policy=_FixedPolicy(),
+        )
+
+    # (AC-T1) The coord-committed file is byte-intact -- 0 findings lost.
+    coord_show = _git_probe(repo, "show", f"{coord_branch}:{rel}")
+    assert coord_show.returncode == 0, (
+        f"the pre-existing coord-committed file must still exist: {coord_show.stderr}"
+    )
+    assert coord_show.stdout == original_content, (
+        "the coord-committed traces file must be byte-unchanged after a "
+        "fail-closed tracer-append -- 0 findings may be lost.\n"
+        f"  Expected: {original_content!r}\n"
+        f"  Got     : {coord_show.stdout!r}"
+    )
+    assert "NEW finding" not in coord_show.stdout, (
+        "a fail-closed write must never land the new entry either"
+    )
+
+    # No local staging residue on the primary checkout.
+    staged_local = repo / "kitty-specs" / slug / "traces" / "tooling-friction.md"
+    assert not staged_local.exists(), (
+        "a fail-closed read must never materialize the local staging file"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 7: CLI-level structured refusal on a corrupt (non-UTF-8) traces file
+# (coord-read-fail-closed-01M38VVH WP02/#4959, pre-PR squad fold): the
+# writer's own read-before-write already PROPAGATES ``UnicodeDecodeError`` for
+# an EXISTING, undecodable ``traces/<cat>.md`` (see
+# ``test_tracer_writer.py::TestFailClosedOnUnmaterializedCoordRead
+# ::test_undecodable_existing_file_refuses_not_empty``); the CLI boundary had
+# no catcher for it, so it surfaced as a raw traceback instead of the same
+# structured ``{"ok": false, ...}`` refusal shape every other fail-closed
+# branch in ``tracer_append.py`` uses.
+# ---------------------------------------------------------------------------
+
+
+def test_cli_returns_structured_refusal_on_corrupt_traces_file(tmp_path: Path) -> None:
+    ctx = _build_coord_topology(tmp_path, write_husk_meta=False)
+    lane_path, _lane_branch = _create_lane_worktree(ctx.repo, ctx.slug)
+
+    with patch(
+        f"{_TRACER_MODULE}.append_tracer_finding",
+        side_effect=UnicodeDecodeError("utf-8", b"\xff\xfe", 0, 1, "invalid start byte"),
+    ):
+        result = _invoke_from_lane(
+            lane_path,
+            "--mission",
+            ctx.slug,
+            "--category",
+            "tooling-friction",
+            "--entry",
+            "should never be persisted over a corrupt file",
+            "--actor",
+            "claude",
+            "--json",
+        )
+
+    assert result.exit_code == 1, result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit), (
+        f"a corrupt traces file must surface as a structured refusal, never an uncaught traceback: {result.exception!r}"
+    )
+    payload = json.loads(result.output)
+    assert payload["ok"] is False
+    assert payload["kind"] == "TRACER_FILE"
+    assert "not valid utf-8" in payload["error"].lower(), payload
+    assert "next_step" in payload, "the refusal must carry actionable recovery guidance"

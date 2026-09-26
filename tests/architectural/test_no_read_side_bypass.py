@@ -218,15 +218,16 @@ _TARGET_CALLEE_NAMES: frozenset[str] = frozenset(
 #:   the newly-censused ``primary_feature_dir_for_mission`` (:739) as one of
 #:   the four named FR-005 foundation sites -- the SAME rationale covers both
 #:   primitives (per-primitive non-vacuity for this module is asserted below).
-#: - ``mission_runtime/write_target_degrade.py`` (:183,
-#:   ``resolve_write_target_or_degrade``'s bootstrap-window existence probe) is
-#:   ALREADY excluded from ``scan_scope()`` via the shared
-#:   ``BOUNDARY_SANCTIONED_PREFIXES`` ``src/mission_runtime/`` blanket; this
-#:   entry restores the individual, rationale-bearing accountability the
-#:   write-side ``_placement_whole_tree_scan`` module docstring itself calls
-#:   out for this exact file, so the read gate's own sanctioned-module test
-#:   (below) can assert it directly rather than it going unpoliced behind the
-#:   package-wide prefix.
+#: - ``mission_runtime/write_target_degrade.py`` was REMOVED from this
+#:   per-file sanction list (landing/coord-read-fail-closed #5001 follow-up,
+#:   PR #5020): WS3's changes removed its only read-bypass call site
+#:   (the bootstrap-window existence probe at the old :183), so
+#:   ``test_read_sanctioned_modules_have_real_findings_that_would_otherwise_red``
+#:   correctly reports the sanction as vacuous. It remains excluded from
+#:   ``scan_scope()`` via the shared ``src/mission_runtime/``
+#:   ``BOUNDARY_SANCTIONED_PREFIXES`` blanket, same as every other
+#:   ``mission_runtime`` module -- only the individual, rationale-bearing
+#:   per-file entry (which requires a real finding to justify) was dropped.
 #: - ``mission_runtime/resolution.py`` (the seam itself: ``PlacementSeam.read_dir``)
 #:   is ALSO already excluded via the same ``src/mission_runtime/``
 #:   ``BOUNDARY_SANCTIONED_PREFIXES`` blanket. WP02 (FR-012 E3, "resolver-internal
@@ -258,15 +259,6 @@ _READ_SANCTIONED_MODULES: dict[str, str] = {
         "PRIMARY anchor -- one of the four named FR-005 foundation sites, "
         "already covered by this whole-module sanction rather than needing a "
         "separate per-site entry."
-    ),
-    "src/mission_runtime/write_target_degrade.py": (
-        "Bootstrap-window write-target degrade helper "
-        "(resolve_write_target_or_degrade, :183) -- already excluded from "
-        "scan_scope() via the shared src/mission_runtime/ "
-        "BOUNDARY_SANCTIONED_PREFIXES blanket; this per-file entry restores "
-        "individual, rationale-bearing accountability so this gate's own "
-        "sanctioned-module test asserts it directly (mirrors the write gate's "
-        "per-file BOUNDARY_SANCTIONED_MODULES entry for the same file)."
     ),
     "src/mission_runtime/resolution.py": (
         "The read-side seam itself (PlacementSeam.read_dir / "
@@ -1211,12 +1203,15 @@ def test_read_and_write_gates_share_the_same_scan_scope() -> None:
 
 
 def test_read_sanctioned_modules_are_excluded_from_the_read_scan_scope() -> None:
-    """None of the four sanctioned infra modules ever enters ``_read_side_scan_scope()``.
+    """None of the three sanctioned infra modules ever enters ``_read_side_scan_scope()``.
 
     Asserted directly (FR-003 "asserted, not silently skipped") rather than
     relying on incidental overlap with the write-side
     ``BOUNDARY_SANCTIONED_PREFIXES`` blanket (which only happens to cover
-    ``write_target_degrade.py`` and ``resolution.py``, not the other two).
+    ``resolution.py``, not the other two). ``write_target_degrade.py`` was
+    dropped from the per-file sanction list (landing/coord-read-fail-closed
+    #5001 follow-up, PR #5020) once its only read-bypass call site was
+    removed -- see the ``_READ_SANCTIONED_MODULES`` docstring above.
     """
     scanned_rel = {_placement_rel_path(p) for p in _read_side_scan_scope()}
     for sanctioned in _READ_SANCTIONED_MODULES:

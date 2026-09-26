@@ -1,0 +1,78 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-23T20:55:31.968899Z",
+      "decision_id": "01M380TQC06NZYNQG75NC1BSC9",
+      "final_answer": "Forward-only: new fail-closed guarantees apply to terminus commands started after the fix; pre-fix in-flight MergeState/coord state is detected and refused with a recovery instruction, never auto-healed.",
+      "input_key": "retroactive_scope",
+      "mission_id": "01M380R6XD37RTPGV0FW51V3GK",
+      "mission_slug": "terminus-merge-integrity-01M380R6",
+      "opened_by": "cli",
+      "options": [
+        "Forward-only + detect-and-refuse legacy",
+        "Retroactive incl. in-flight recovery",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should the fail-closed terminus guarantees apply to in-flight interrupted merges started before this fix (existing MergeState/coord branches), or only to terminus commands started after the fix?",
+      "rationale": null,
+      "resolved_at": "2026-09-23T20:57:22.850953Z",
+      "resolved_by": null,
+      "slot_key": "specify.migration.retroactive_scope",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-23T20:55:33.954040Z",
+      "decision_id": "01M380TSA29XFB3AXGCC92JSE5",
+      "final_answer": "Refuse + non-zero exit + explicit recovery guidance; no teardown, no auto-mutation on a divergent tree.",
+      "input_key": "divergence_response",
+      "mission_id": "01M380R6XD37RTPGV0FW51V3GK",
+      "mission_slug": "terminus-merge-integrity-01M380R6",
+      "opened_by": "cli",
+      "options": [
+        "Refuse + non-zero + recovery instruction",
+        "Attempt bounded auto-recovery then refuse",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When the Terminus Reconciliation Gate detects the target tree diverges from the claimed WP set, what is the command's contract?",
+      "rationale": null,
+      "resolved_at": "2026-09-23T20:57:24.670082Z",
+      "resolved_by": null,
+      "slot_key": "specify.behavior.divergence_response",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-23T20:55:35.868270Z",
+      "decision_id": "01M380TV5WDJJ8T2W6YR0SPGES",
+      "final_answer": "Correct docs+code in-band: CLAUDE.md CAS + sole-authority-reducer claims, ref_advance docstring, and ADR 2026-02-09-3 reconciliation land with this mission.",
+      "input_key": "doc_correction_scope",
+      "mission_id": "01M380R6XD37RTPGV0FW51V3GK",
+      "mission_slug": "terminus-merge-integrity-01M380R6",
+      "opened_by": "cli",
+      "options": [
+        "Correct docs+code in-band",
+        "Code-only, docs as follow-up",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "The squad found docs/doctrine that assert guarantees the code lacks (CLAUDE.md CAS claim, sole-authority reducer claim, teardown docstring). Correct them in-band with this mission, or code-only + docs follow-up?",
+      "rationale": null,
+      "resolved_at": "2026-09-23T20:57:26.464985Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.doc_correction",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M380R6XD37RTPGV0FW51V3GK",
+  "version": 1
+}

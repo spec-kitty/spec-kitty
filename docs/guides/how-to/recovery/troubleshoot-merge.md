@@ -197,6 +197,57 @@ For conflicts in source code files:
    spec-kitty merge --resume
    ```
 
+### Target-Branch Content Conflicts During Squash
+
+The default squash strategy fails closed when both the mission branch and a
+newer target-branch commit changed the same ordinary source hunk. Dry-run reports
+the same condition before the target ref can move — scoped to conflicts already
+present on the **mission-branch tip** (it does not first consolidate the lane
+branches, so a conflict living only in an un-consolidated lane commit surfaces at
+the real merge, not the forecast; the real merge still stops safely on it):
+
+```text
+diagnostic_code: TARGET_BRANCH_CONTENT_CONFLICT
+mission_branch: kitty/mission-017-my-feature
+target_branch: main
+conflicting_path: src/specify_cli/lanes/merge.py
+```
+
+This protects target-branch hotfixes and concurrent mission landings. Spec Kitty
+does not choose either side automatically. Update the mission branch against the
+current target, resolve the listed files on the mission branch, run the relevant
+tests, and check readiness again.
+
+Do the update in a **throwaway worktree**, not the primary checkout. `spec-kitty
+merge`'s preflight refuses to run when the primary checkout is off the target
+branch (`MERGE_UNSAFE_PRIMARY_OFF_TARGET`), so a bare `git checkout
+kitty/mission-…` in the primary checkout would leave you unable to merge. A
+worktree keeps the primary checkout on `main` the whole time:
+
+```bash
+# Reconcile the mission branch against current main in a scratch worktree.
+git worktree add /tmp/reconcile-017 kitty/mission-017-my-feature
+git -C /tmp/reconcile-017 merge main
+# Resolve the named conflicts, then commit and run the relevant tests.
+git -C /tmp/reconcile-017 commit
+git worktree remove /tmp/reconcile-017
+
+# Back in the primary checkout (still on main), re-check readiness and merge.
+spec-kitty merge --mission 017-my-feature --dry-run
+spec-kitty merge --mission 017-my-feature
+```
+
+The reconciling `git merge main` leaves an ordinary merge commit on the mission
+branch — that is fine: the mission→target squash flattens the mission branch
+into a single commit, so the merge commit is absorbed and never reaches `main`.
+If you would rather not add a worktree, run `git checkout main` in the primary
+checkout before the `spec-kitty merge` lines instead.
+
+The failed attempt does not advance the target ref, mark work packages done,
+write the retrospective, or remove lane branches and worktrees. Registered Spec
+Kitty artifact merge drivers and the target-newer planning-artifact policy still
+handle their own governed paths.
+
 ### Gate Artifact Verdict Conflicts (Fail-Closed)
 
 If a merge stops with a message like this and leaves `acceptance-matrix.json`
@@ -331,6 +382,7 @@ spec-kitty implement WP02
 | `Missing worktree for WP##. Expected at <path>. Run: spec-kitty agent action implement WP##` | The resolved execution workspace for that WP does not exist yet | Run `spec-kitty agent action implement WP##` |
 | `Branch <branch> does not exist` | Git branch was deleted manually | Recreate worktree with `spec-kitty implement WP##` |
 | `TARGET_BRANCH_NOT_SYNCHRONIZED` | target branch is ahead of, behind, or diverged from its tracking branch | Inspect commits and paths; use the focused PR path for ahead/diverged local target branches unless every ahead commit is intentionally ready for `main` |
+| `TARGET_BRANCH_CONTENT_CONFLICT` | Default squash integration found ordinary content changed differently on the mission and target branches | Update the mission branch against the target, resolve the listed paths, then rerun `spec-kitty merge --dry-run` |
 | `<branch> is N commit(s) behind origin. Run: git checkout <branch> && git pull` | Legacy target branch staleness diagnostic | Review remote-only commits, then update the local target branch |
 | `Warning: Could not fast-forward <branch>.` | Fast-forward failed, conflicts likely | Resolve conflicts manually |
 | `row '<id>': verdict field '<field>' diverged on both sides ...` | Two lanes recorded conflicting graded verdicts for the same matrix row (fail-closed, #4880) | Open the named matrix, pick the correct verdict for that row by hand, stage it, then `spec-kitty merge --resume` |

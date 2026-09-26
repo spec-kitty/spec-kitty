@@ -50,6 +50,7 @@ from tests.specify_cli.cli.commands.test_merge_coord_topology_1772 import (
     _bootstrap_coord_mission,
     _git,
     _init_git_repo,
+    _materialize_coord_worktree,
     _real_merge_external_mocks,
 )
 
@@ -207,6 +208,12 @@ def test_squash_merge_preserves_target_newer_meta_provenance(
 
     # Run the supported squash merge through the real entry point.
     _git(tmp_path, "checkout", "main")
+    # Materialize the coord worktree NOW (post-#4959 the STATUS_STATE read
+    # needs it) — every direct COORD_BRANCH checkout in the main worktree
+    # (the two `_seed_branch_provenance` calls above) is done, and the main
+    # worktree is on `main`, not `COORD_BRANCH`, so the worktree add below
+    # will not collide with an existing checkout.
+    _materialize_coord_worktree(tmp_path)
     with _real_merge_external_mocks():
         _run_lane_based_merge(
             repo_root=tmp_path,
@@ -321,6 +328,12 @@ def test_squash_merge_preserves_target_newer_trace_section(
     )
 
     _git(tmp_path, "checkout", "main")
+    # Materialize the coord worktree NOW (post-#4959 the STATUS_STATE read
+    # needs it) — every direct COORD_BRANCH checkout in the main worktree
+    # (the two `_seed_branch_provenance` calls above) is done, and the main
+    # worktree is on `main`, not `COORD_BRANCH`, so the worktree add below
+    # will not collide with an existing checkout.
+    _materialize_coord_worktree(tmp_path)
     with _real_merge_external_mocks():
         _run_lane_based_merge(
             repo_root=tmp_path,

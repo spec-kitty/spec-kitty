@@ -126,6 +126,12 @@ Present event log conflicts to a human for manual resolution, similar to git mer
 * Requires human to understand event log semantics (high cognitive load)
 * Introduces delays in integration velocity
 
+## Reconciliation note — terminus merge/reconciliation gate (terminus-merge-integrity, 2026-09)
+
+The terminus reconciliation gate (`merge/reconciliation.py::MergeOutcomeVerifier` / `build_approved_wp_set`, mission *terminus-merge-integrity*) sources its approved/canceled **WP-membership** claim through the **Lamport** reduction wrapper this ADR mandates (`status.reducer.materialize` / `reduce_shared_state`, `status/reducer.py:371`) — never the wall-clock LWW `reduce_parsed`. This is what makes the gate's own claim honor the reviewer-authority / causal-precedence guarantee above: a wall-clock-later approval cannot green-wash a causally-earlier committed rejection *in the gate's claim*.
+
+This ADR's chosen algorithm (Option 3, Lamport-primary) is therefore honored by the **Lamport** reducer only. A **second**, non-conformant reducer still ships in the codebase — the wall-clock LWW `reduce_parsed` (`spec_kitty_events.diary`, sorts `(at, event_id)`) — and its split-brain (a later wall-clock event overriding a causally-earlier one, exactly the "Last-writer-wins by timestamp" failure mode this ADR **rejected**) is **not** resolved by the terminus-merge-integrity mission. It is tracked as a **separate, open** sibling mission, **#4990**, which requires a `spec_kitty_events` change (the shared-package boundary / C-002 keeps it out of the terminus scope). Until #4990 lands, do not treat this ADR as fully enforced across *both* reducers — only the Lamport `materialize` path and the terminus gate that consumes it conform.
+
 ## More Information
 
 **Related ADRs:**

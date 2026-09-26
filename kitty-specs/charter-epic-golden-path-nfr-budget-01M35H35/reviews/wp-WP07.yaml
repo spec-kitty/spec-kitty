@@ -1,0 +1,44 @@
+schema: wp-verdict/v1
+complete: true
+wp: WP07
+cycle: 1
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+verdict: approved
+gates_observed:
+  tsc: unknown            # N/A — no TypeScript surface touched (single-line pytest.ini change)
+  tests: pass              # targeted check: tests/architectural/test_no_legacy_terminology.py,
+                            # 90 passed in 19.93s, using the lane's live addopts — confirmed the
+                            # 1.0s-floor durations report is bounded (11 lines shown out of ~270
+                            # tests, not a flood), corroborating T025's own dry-run claim
+  coverage: unknown        # N/A — no code-coverage-bearing surface touched
+feedback:
+  - id: WP07-C1-001
+    severity: 1
+    claim: >-
+      WP07's own task file (Reviewer Guidance and Definition of Done) instructs the reviewer to
+      "confirm tests/architectural/test_marker_registry_single_source.py still passes" as proof
+      pytest.ini stays the single marker-registry authority. That file no longer exists — deleted
+      by #3285 (commit 177e062694b4, "test: assertively sanitize low-signal suite cruft"). It is
+      still referenced in comments at pyproject.toml:236,
+      tests/architectural/_gate_coverage.py:1381, and
+      tests/architectural/test_quarantine_marker.py:50, none of which is in WP07's owned_files
+      (pytest.ini only). This is pre-existing task-file/comment staleness from the earlier
+      retirement, not something WP07's diff introduced or could fix within its scope.
+    remediation: >-
+      Advisory only — does not block WP07. A later WP or a tracer-file entry should either
+      restore an equivalent single-source guard or update the three stale comments plus this
+      WP's own Reviewer Guidance/DoD text to stop citing a deleted test file.
+  - id: WP07-C1-002
+    severity: 1
+    claim: >-
+      The WP agent's report that the full tests/architectural/ run had one failure
+      (test_doctrine_regenerate_graph_roundtrip.py::test_regenerate_graph_check_is_byte_identical)
+      caused by a stale global spec-kitty binary, identical under the original pytest.ini, is
+      structurally consistent with the test's own source: it resolves the CLI via
+      shutil.which("spec-kitty") (global PATH lookup) before falling back to
+      `python -m specify_cli`, and its own module docstring names this exact stale-install failure
+      mode ("Stale-install note ... a stale install reports false reds"). Not independently
+      re-run (20-minute suite, not required per the dispatch); verified by code read only.
+    remediation: >-
+      Advisory only — pre-existing environment condition, unrelated to WP07's pytest.ini change,
+      does not block this WP.

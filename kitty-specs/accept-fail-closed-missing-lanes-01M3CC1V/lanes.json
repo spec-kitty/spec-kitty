@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "accept-fail-closed-missing-lanes-01M3CC1V",
+  "mission_id": "01M3CC1VDMAEJ9T6SXPJ8Z24M8",
+  "mission_branch": "kitty/mission-accept-fail-closed-missing-lanes-01M3CC1V",
+  "target_branch": "issue-4891-accept-fail-closed-missing-lanes",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/gates_core.py",
+        "tests/characterization/test_trio_pure_cores.py",
+        "tests/cross_cutting/misc/test_acceptance_support.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-25T13:35:17.977474+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "d8f172a0bc10fd9c8e167f98ed427237bc1380b4"
+}

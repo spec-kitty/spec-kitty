@@ -92,14 +92,22 @@ ARCHIVE_PATH_PREFIXES: tuple[str, ...] = (
     "docs/migrations/",
     "docs/convergence/",
     "docs/assets/",
-    "kitty-specs/",
 )
 
 #: Frontmatter ``doc_status`` values whose pages are point-in-time records of
 #: retired designs (the retired half of the directive-042 ``DocStatus``
-#: vocabulary: draft/active pages state the current tree; these three do not).
+#: vocabulary: draft/active pages state the current tree; these three do
+#: not). Scoped to the file's own LEADING ``---...---`` frontmatter block
+#: (see :func:`_frontmatter_block`) -- a ``doc_status:``-shaped line
+#: appearing later in the document body (prose, an illustrative example, a
+#: nested fenced block) is not a lifecycle declaration and must not retire
+#: the file.
 _RETIRED_DOC_STATUS: frozenset[str] = frozenset({"deprecated", "superseded", "closeout"})
 _DOC_STATUS_RE = re.compile(r"^doc_status:\s*([A-Za-z_]+)\s*$", re.MULTILINE)
+#: The leading frontmatter block: opening ``---``, body, closing ``---``, all
+#: at the very start of the file. Non-greedy so a body that itself contains a
+#: ``---`` horizontal rule can't swallow the rest of the document.
+_FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?\r?\n)?---[ \t]*(?:\r?\n|\Z)", re.DOTALL)
 
 #: One ``src/...`` path literal, with an optional trailing slash. Segments are
 #: concrete (``[A-Za-z0-9_]`` first, then word/dot/hyphen chars -- a leading
@@ -220,9 +228,25 @@ def resolves_in_tree(literal: str, *, repo_root: Path) -> bool:
     return (repo_root / prefix).exists()
 
 
+def _frontmatter_block(text: str) -> str:
+    """The leading ``---...---`` frontmatter block's body, or ``""`` if the
+    file has none (no leading ``---`` fence, or the fence is never closed).
+    """
+    match = _FRONTMATTER_RE.match(text)
+    if match is None:
+        return ""
+    return match.group(1) or ""
+
+
 def is_retired_doc(text: str) -> bool:
-    """True iff frontmatter carries a retired lifecycle ``doc_status``."""
-    return any(match.group(1).lower() in _RETIRED_DOC_STATUS for match in _DOC_STATUS_RE.finditer(text))
+    """True iff the file's LEADING frontmatter block carries a retired
+    lifecycle ``doc_status`` -- a ``doc_status:`` line elsewhere in the body
+    (prose, an example, a nested fenced block) does not count (#4105: this
+    used to scan the whole file, vacuously retiring any doc that merely
+    *mentioned* the string ``doc_status:`` outside its frontmatter).
+    """
+    frontmatter = _frontmatter_block(text)
+    return any(match.group(1).lower() in _RETIRED_DOC_STATUS for match in _DOC_STATUS_RE.finditer(frontmatter))
 
 
 def scan_markdown(text: str, *, relpath: str, repo_root: Path) -> list[DeadPath]:
@@ -395,3 +419,50 @@ def test_retired_doc_status_skips_the_file(tmp_path: Path) -> None:
 def test_archive_prefixes_are_not_scanned(tmp_path: Path) -> None:
     findings = collect_dead_paths(docs_root=tmp_path / "does-not-exist", repo_root=tmp_path)
     assert findings == []
+
+
+# ---------------------------------------------------------------------------
+# spec-kitty#4105: ``is_retired_doc`` non-vacuity. Before the fix,
+# ``_DOC_STATUS_RE`` was applied to the WHOLE file text via ``finditer``, so a
+# ``doc_status:`` line anywhere in the document -- including deep in body
+# prose, nowhere near the leading frontmatter block -- vacuously retired the
+# file and let a genuinely dead ``src/`` literal in it pass uncaught. These
+# are the guard's permanent non-vacuity tests, not transitional scaffolding.
+# ---------------------------------------------------------------------------
+
+
+def test_is_retired_doc_scopes_to_frontmatter_only_4105() -> None:
+    """A ``doc_status:``-shaped line in the file BODY must not retire the
+    file; only a ``doc_status:`` line inside the leading ``---...---``
+    frontmatter block may.
+    """
+    body_only = "# Title\n\nSome prose.\n\ndoc_status: superseded\n\nMore prose.\n"
+    assert is_retired_doc(body_only) is False
+
+    frontmatter = "---\ndoc_status: superseded\n---\n\nBody text.\n"
+    assert is_retired_doc(frontmatter) is True
+
+    no_frontmatter_at_all = "Body text with no frontmatter at all.\n"
+    assert is_retired_doc(no_frontmatter_at_all) is False
+
+
+def test_body_doc_status_does_not_skip_a_dead_path_4105(tmp_path: Path) -> None:
+    """Integration-level non-vacuity demo: a doc whose BODY (not frontmatter)
+    carries a ``doc_status:`` line must still be scanned for dead ``src/``
+    literals; a genuinely frontmatter-retired page must still skip.
+    """
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    body_status = docs / "body-status.md"
+    body_status.write_text(
+        "# Some Doc\n\ndoc_status: superseded\n\nDead: `src/nonexistent_xyz.py`\n",
+        encoding="utf-8",
+    )
+    frontmatter_status = docs / "frontmatter-status.md"
+    frontmatter_status.write_text(
+        "---\ndoc_status: superseded\n---\n\nDead: `src/nonexistent_xyz.py`\n",
+        encoding="utf-8",
+    )
+    findings = collect_dead_paths(docs_root=docs, repo_root=tmp_path)
+    assert [d.relpath for d in findings] == ["docs/body-status.md"]
+    assert findings[0].literal == "src/nonexistent_xyz.py"

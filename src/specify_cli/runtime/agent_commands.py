@@ -19,11 +19,13 @@ for the design rationale.
 from __future__ import annotations
 
 from collections.abc import Callable
+import hashlib
+import json
 import logging
 import os
 import re
 import sys
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from importlib.util import find_spec
 from pathlib import Path
 
@@ -33,7 +35,7 @@ from specify_cli.core.config import DEFAULT_MISSION_KEY
 from specify_cli.runtime.bootstrap import _get_cli_version
 from specify_cli.runtime.home import get_kittify_home
 from specify_cli.runtime.asset_preparation import _GlobalAssetPreparation
-from specify_cli.tool_surface.operations import ApplyConsent, Disposition, OwnerAssessment
+from specify_cli.tool_surface.operations import ApplyConsent, Disposition, FileState, OperationRoot, OwnerAssessment, OwnershipProof
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,48 @@ _VERSION_FILENAME = "agent-commands.lock"
 _LOCK_FILENAME = ".agent-commands.lock"
 _VERSION_MARKER_PREFIX = "<!-- spec-kitty-command-version:"
 _VERSION_MARKER_HEAD_LINES = 20
+
+#: Freshness pre-check stamp (Lever C primary, operator Ruling 6 --
+#: ``reviews/plan.ruling.md``). Deliberately a NEW file, never a repurposing
+#: of ``_VERSION_FILENAME``: that file's on-disk shape is a plain CLI-version
+#: string (``AssetPreparation.finish(stamp, _get_cli_version())`` writes
+#: ``version.encode()`` verbatim) and an existing test
+#: (``test_current_version_lock_does_not_mask_partial_global_commands``)
+#: asserts that shape stays exactly the plain version string -- reusing that
+#: filename for JSON would either break that contract or force a dual-shape
+#: reader. A new file sidesteps both, and "no migration needed" already holds
+#: for any new file (data-model.md's stamp contract: absence degrades to the
+#: existing unconditional-render behavior).
+#:
+#: WP04-C1-003 (review cycle 1): the filename deliberately ends in ``.lock``,
+#: NOT ``.json``, even though its content is JSON. ``asset_preparation.py``'s
+#: shared ``_write_order`` sorts every apply-time write by ``(stage, depth,
+#: path)``, and its stage classification -- not source-code call order --
+#: is what actually determines apply sequence within one batch: a
+#: ``.lock``-suffixed name is stage 6 (dead last, same bucket as
+#: ``_VERSION_FILENAME`` below), while an ordinary content file is the
+#: default stage 3. Measured directly (see the WP04 report): under the
+#: PRIOR ``.json`` name, this stamp's destination path was consistently
+#: SHALLOWER than the rendered command files' destination paths, so it sorted
+#: stage 3 depth 6 -- BEFORE every stage-3 depth-7+ command-file write, not
+#: after. ``_apply_retained_assets`` applies writes in that exact sorted
+#: order and returns a "partial" outcome (with everything already applied to
+#: disk left in place) the instant one write fails -- so a command-file write
+#: failure ordered AFTER the stamp would have left a stale-but-"fresh"-looking
+#: stamp on disk from a run that never actually completed, even though the
+#: overall call still surfaced as a raised failure to its caller. The
+#: ``.lock`` suffix is the SAME late-apply convention ``_VERSION_FILENAME``
+#: already relies on (that is why IT ends in ``.lock`` despite also holding
+#: plain text content, not an empty lock): it guarantees this stamp is
+#: written to disk only after every other effect in the SAME batch -- every
+#: rendered command file, the inventory, everything -- has already applied
+#: without error, matching data-model.md's "write only after a full,
+#: successful render-and-apply cycle completes" contract for real, not only
+#: in code-comment discipline. See ``TestFreshnessStampAppliesLast`` in
+#: ``tests/specify_cli/runtime/test_agent_commands.py`` for the red/green
+#: proof (temporarily reverting this suffix back to ``.json`` reproduces the
+#: pre-fix ordering hazard and fails that test).
+_FRESHNESS_STAMP_FILENAME = "agent-commands-freshness.lock"
 
 
 # ---------------------------------------------------------------------------
@@ -340,6 +384,181 @@ def _command_effect_owners(path: Path, roots: dict[str, Path]) -> tuple[str, ...
     return owners or tuple(roots)
 
 
+# ---------------------------------------------------------------------------
+# Freshness pre-check (Lever C primary, operator Ruling 6)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _FreshnessStamp:
+    """The three SOURCE-side fields ``data-model.md``'s stamp contract names.
+
+    Deliberately excludes any DESTINATION-side fact (see PLAN-ARCH-001 in
+    ``data-model.md``) -- destination health is verified separately via
+    ``_all_global_agent_commands_healthy()``, the stamp's contract's fourth,
+    independent condition.
+    """
+
+    cli_version: str
+    template_source_signature: str
+    agent_keys: tuple[str, ...]
+
+
+def _rendering_pipeline_signature() -> bytes:
+    """Return a content hash of the rendering CODE this output depends on.
+
+    WP04-C1-004 (review cycle 1): ``_get_cli_version()`` returns the static
+    ``pyproject.toml`` version string, not a build/commit-scoped value, so on
+    an editable/dev install -- the exact install shape this mission's own WP
+    agents and reviewers run under -- a contributor changing the rendering
+    code without touching template content and without bumping
+    ``pyproject.toml``'s version would otherwise go completely undetected by
+    both the stamp comparison and the destination-health marker check (the
+    marker only encodes ``cli_version``, unchanged). Hashing this module's own
+    source plus the renderer modules it actually calls
+    (``template.asset_generator.render_command_template`` /
+    ``render_template_text``, ``shims.generator.generate_shim_content_for_agent``)
+    folds that code surface into the freshness stamp's signature so a
+    same-version rendering-code change is detected too. Deliberately not
+    caught here, matching ``_template_source_signature``: a rendering module
+    that cannot be located/read is a genuine failure the caller must fall
+    through on, never mask as "unchanged".
+
+    Landing fold (PR #4992): ``core.config.AGENT_COMMAND_CONFIG`` (each
+    agent's ``arg_format``/``ext``) is itself a rendered-content input --
+    ``render_command_template(arg_format=config["arg_format"],
+    extension=config["ext"])`` reads it directly -- but was not part of this
+    signature, so a same-version ``arg_format``-only edit changed rendered
+    content while leaving the freshness stamp matching, wrongly skipping the
+    re-render. A stable, sorted JSON dump of the config dict is folded into
+    the hash below to close that hole.
+    """
+    from specify_cli.core.config import AGENT_COMMAND_CONFIG
+    from specify_cli.shims import generator as shim_generator
+    from specify_cli.template import asset_generator
+
+    module_files: list[str] = [f for f in (__file__, asset_generator.__file__, shim_generator.__file__) if f]
+    hasher = hashlib.sha256()  # noqa: TID251 -- raw code-signature integrity hash, not charter hashing
+    for module_file in sorted(module_files):
+        hasher.update(module_file.encode("utf-8"))
+        hasher.update(b"\0")
+        hasher.update(Path(module_file).read_bytes())
+        hasher.update(b"\0")
+    hasher.update(json.dumps(AGENT_COMMAND_CONFIG, sort_keys=True).encode("utf-8"))
+    return hasher.digest()
+
+
+def _template_source_signature(templates_dir: Path) -> str:
+    """Return a content-based signature of the command-templates source tree.
+
+    Cheap relative to a full render (no YAML/Jinja parsing): one pass hashing
+    every file's relative path and bytes, plus the rendering pipeline's own
+    code (:func:`_rendering_pipeline_signature`, WP04-C1-004). Any content OR
+    filename change anywhere under *templates_dir*, or any change to the
+    rendering code itself, changes the digest -- this is what lets the
+    freshness pre-check detect a template-source change (Ruling 6 staleness
+    test (a)) without rendering anything. Deliberately not caught here: a
+    source tree that cannot be walked/read is a genuine failure the caller
+    must fall through on, never mask as "unchanged".
+    """
+    hasher = hashlib.sha256()  # noqa: TID251 -- raw source-tree integrity signature, not charter hashing
+    for path in sorted(p for p in templates_dir.rglob("*") if p.is_file()):
+        hasher.update(path.relative_to(templates_dir).as_posix().encode("utf-8"))
+        hasher.update(b"\0")
+        hasher.update(path.read_bytes())
+        hasher.update(b"\0")
+    hasher.update(_rendering_pipeline_signature())
+    return hasher.hexdigest()
+
+
+def _read_freshness_stamp(path: Path) -> _FreshnessStamp | None:
+    """Read the freshness stamp; anything unreadable or malformed reads as absent.
+
+    Narrowly scoped to the READ only (data-model.md's PLAN-ARCH-002): a
+    missing file, a torn/partial write, legacy content, or a schema this
+    version does not recognise are all treated identically to "no stamp" --
+    degrading back to today's unconditional render, never raising. This is
+    REQUIRED regardless of filename choice (see the module-level comment on
+    ``_FRESHNESS_STAMP_FILENAME``): the very first read of a freshly
+    introduced stamp file is also just "absent", handled by the same path.
+    Render/write errors are handled separately and must NOT be caught here.
+    """
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    try:
+        payload = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    cli_version = payload.get("cli_version")
+    signature = payload.get("template_source_signature")
+    agent_keys = payload.get("agent_keys")
+    if not isinstance(cli_version, str) or not isinstance(signature, str):
+        return None
+    if not isinstance(agent_keys, list) or not all(isinstance(key, str) for key in agent_keys):
+        return None
+    return _FreshnessStamp(cli_version, signature, tuple(agent_keys))
+
+
+def _freshness_stamp_matches(stamp: _FreshnessStamp | None, *, cli_version: str, template_source_signature: str, agent_keys: tuple[str, ...]) -> bool:
+    """Return True when *stamp*'s three source-side fields all match current state.
+
+    All three conditions are required (data-model.md's four-condition
+    contract, conditions 1-3); the fourth, destination-health condition is
+    checked separately by the caller so this function stays pure/testable.
+    """
+    return (
+        stamp is not None and stamp.cli_version == cli_version and stamp.template_source_signature == template_source_signature and stamp.agent_keys == agent_keys
+    )
+
+
+def _freshness_short_circuit(
+    agent_keys: list[str] | None,
+    batch: _GlobalAssetPreparation | None,
+    home: Path,
+    root: OperationRoot,
+    templates_dir: Path | None,
+    consent: ApplyConsent,
+    current_agent_keys: tuple[str, ...],
+) -> OwnerAssessment | None:
+    """Return the short-circuit assessment when fresh+healthy; else ``None``.
+
+    ``None`` means "fall through to the unconditional render path" -- the
+    only two outcomes this function has. It never itself decides to skip on
+    uncertainty: an unreadable/malformed stamp, a source tree that cannot be
+    walked, or a destination-health check that cannot complete all read as
+    "not fresh" (``None``), never as "fresh" (Ruling 6's binding condition:
+    a missed refresh must never be silent). Runs entirely without
+    constructing an ``AssetPreparation`` -- see
+    ``assess_global_agent_commands``'s docstring for the SK-243 rationale.
+
+    Only applies to the full-fleet, non-batched call shape (``agent_keys is
+    None`` and ``batch is None``) -- every other shape returns ``None``
+    unconditionally, deferring to the render path exactly as before this WP.
+    """
+    if agent_keys is not None or batch is not None:
+        return None
+    resolved_templates_dir = _get_command_templates_dir() if templates_dir is None else templates_dir
+    cli_version = _get_cli_version()
+    try:
+        signature = _template_source_signature(resolved_templates_dir)
+    except OSError:
+        return None
+    stamp = _read_freshness_stamp(home / "cache" / _FRESHNESS_STAMP_FILENAME)
+    if not _freshness_stamp_matches(stamp, cli_version=cli_version, template_source_signature=signature, agent_keys=current_agent_keys):
+        return None
+    try:
+        healthy = _all_global_agent_commands_healthy(resolved_templates_dir, cli_version, list(current_agent_keys))
+    except OSError:
+        return None
+    if not healthy:
+        return None
+    return OwnerAssessment("slash_commands", root, consent=consent)
+
+
 def assess_global_agent_commands(
     *,
     agent_keys: list[str] | None = None,
@@ -356,14 +575,35 @@ def assess_global_agent_commands(
     provenance and migrates in place even when the content changed between
     releases (#4609). Canonical command files that still cannot be migrated
     are never silent: one warning names them.
+
+    **Freshness pre-check (Lever C primary, operator Ruling 6).** For the
+    full-fleet, non-batched call shape (``agent_keys=None``, ``_batch=None``
+    -- exactly what ``ensure_global_agent_commands()`` calls on every
+    non-fast-pathed CLI startup), this reads a small on-disk stamp and,
+    only when ALL of (cli_version, template_source_signature, agent_keys)
+    match AND every configured agent's rendered destination is independently
+    verified healthy, returns immediately with an empty assessment -- no
+    render, no ``AssetPreparation`` construction at all. Both checks run
+    strictly before any ``AssetPreparation`` object exists (data-model.md's
+    SK-243 immunity property: this path never calls ``observe()`` on an
+    ``AssetPreparation``, so it can never enter ``check_assets()``'s
+    drift-recheck machinery). Any uncertainty -- an unreadable/malformed
+    stamp, a source tree that cannot be walked, an unhealthy destination --
+    falls through to the unconditional render-then-diff path below, never to
+    a skip; a missed refresh must never be silent (Ruling 6's binding
+    condition).
     """
     from specify_cli.core.config import AGENT_COMMAND_CONFIG
     from specify_cli.shims.registry import PROMPT_DRIVEN_COMMANDS
-    from specify_cli.runtime.asset_preparation import AssetPreparation, global_asset_root, incomplete, retry_torn_read
+    from specify_cli.runtime.asset_preparation import AssetPreparation, digest, global_asset_root, incomplete, retry_torn_read
 
     home = get_kittify_home()
     all_roots = tuple(get_global_command_dir(key) for key in AGENT_COMMAND_CONFIG)
     root = global_asset_root("slash_commands", (home, *all_roots))
+
+    short_circuit = _freshness_short_circuit(agent_keys, _batch, home, root, templates_dir, consent, tuple(sorted(AGENT_COMMAND_CONFIG)))
+    if short_circuit is not None:
+        return short_circuit
 
     def _build() -> tuple[AssetPreparation, OwnerAssessment]:
         prepared = AssetPreparation("slash_commands", root, home / "cache", _LOCK_FILENAME, consent)
@@ -422,6 +662,46 @@ def assess_global_agent_commands(
                 for existing in output.iterdir():
                     if existing.name not in canonical:
                         prepared.retire(existing)
+        if agent_keys is None:
+            # Written into the SAME AssetPreparation batch as the rendered
+            # command files above, staged, locked and applied atomically
+            # together with the render it describes (data-model.md's "write
+            # only after a full, successful render-and-apply cycle
+            # completes" contract): a partial/failed run never reaches here
+            # with a *different* set of effects than what actually gets
+            # applied, and a torn write cannot poison the stamp into
+            # claiming freshness the destination files don't back up.
+            #
+            # Deliberately ``prepared.overwrite_internal()`` (the public
+            # counterpart of the same primitive ``finish()`` uses for
+            # ``_VERSION_FILENAME`` below -- PR-BOUNDARY-001), NEVER
+            # ``prepared.asset()``: ``asset()``'s drift-preservation logic
+            # is correct for USER-facing command files (never clobber an
+            # edit it cannot prove is unowned) but wrong for this internal
+            # cache-only bookkeeping file -- a hand-corrupted or torn-write
+            # stamp is never "owned" by the prior inventory entry, so
+            # ``asset()`` would PRESERVE it forever (a verified failure mode:
+            # every subsequent read stays malformed, degrading this whole
+            # mechanism back to "always slow" permanently instead of
+            # self-healing on the very next successful render, contradicting
+            # data-model.md's explicit "overwrite with a fresh,
+            # correctly-shaped stamp on success" requirement).
+            freshness_path = home / "cache" / _FRESHNESS_STAMP_FILENAME
+            prepared.parents(freshness_path)
+            freshness_payload = json.dumps(
+                {
+                    "cli_version": _get_cli_version(),
+                    "template_source_signature": _template_source_signature(templates),
+                    "agent_keys": list(keys),
+                },
+                sort_keys=True,
+            ).encode("utf-8")
+            prepared.overwrite_internal(
+                freshness_path,
+                FileState("file", sha256=digest(freshness_payload), mode=0o644),
+                freshness_payload,
+                OwnershipProof("managed_path", f"{prepared.owner}:freshness-stamp"),
+            )
         stamp = home / "cache" / _VERSION_FILENAME if agent_keys is None else None
         assessment = prepared.finish(stamp, _get_cli_version())
         assessment = replace(

@@ -1,0 +1,37 @@
+{
+  "accept_commit": "9b62e85cb5388faed37ae27f07281fdbdf40c122",
+  "acceptance_history": [
+    {
+      "accept_commit": "9b62e85cb5388faed37ae27f07281fdbdf40c122",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-25T17:38:00.151730+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "4feaa0cb8e86968b5de2b4eb71c063db42b57fda"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-25T17:38:00.151730+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "4feaa0cb8e86968b5de2b4eb71c063db42b57fda",
+  "baseline_merge_commit": "26f3f5688b93e513b5c0a4b33c200ae4efbe5064",
+  "coordination_branch": "kitty/mission-implement-lane-recut-and-planning-commit-integrity-01M3CM55",
+  "created_at": "2026-09-25T15:50:14.834520+00:00",
+  "flattened": false,
+  "friendly_name": "Implement lane-allocation integrity: fail-closed on destroyed lanes + coord-branch planning-commit hygiene",
+  "merged_at": "2026-09-25T17:49:18.736070+00:00",
+  "merged_commit": "2bac5cfa116ad3ddfda3b08afafa0d50b62b0b7b",
+  "mid8": "01M3CM55",
+  "mission_id": "01M3CM55H5GD129521HZVX663E",
+  "mission_number": null,
+  "mission_slug": "implement-lane-recut-and-planning-commit-integrity-01M3CM55",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Two release-blocking reliability defects live in the implement lane-allocation path. When a lane's worktree and branch are both removed while a work package is still in progress, re-running implement silently cuts a new empty lane and reports success, stranding the committed work while status still says in_progress. Separately, on coordination-topology missions the agent claim commit writes the work-package file onto the coordination branch, so the next lane's planning-artifact merge fails with an add/add conflict and the second work package cannot start. This mission makes both paths fail closed / stay correct so the operator is never told the workspace is ready when committed work is unreachable, and every work package on a coord mission can start.",
+  "purpose_tldr": "Stop 'spec-kitty implement' from silently stranding committed work or blocking the second work package on coordination-topology missions.",
+  "slug": "implement-lane-recut-and-planning-commit-integrity-01M3CM55",
+  "status_phase": "1",
+  "target_branch": "fix/implement-lane-recut-and-planning-commit-integrity",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-25T16:27:28.064308+00:00"
+}

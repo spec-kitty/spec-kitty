@@ -1,0 +1,35 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+phase: tasks
+lens_group: decomp
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: TASKS-DECOMP-001
+    lens: pr-shape-size-estimate
+    severity: 2
+    title: "WP04 row in the PR-shape diff-size table undercounts its always-touched files by one, and the resulting subtotal inherits the error"
+    evidence:
+      - artifact: "tracer-design-decisions.md § 'PR-shape assessment (orchestrator's dispatch requirement)', row 'WP04 (freshness pre-check)'"
+      - artifact: "tasks/WP04-freshness-precheck.md § Subtask T012 ('Files: tests/specify_cli/runtime/test_agent_commands.py ... new tests added') and § Subtask T013 ('Files: src/specify_cli/runtime/agent_commands.py')"
+    claim: >
+      The PR-shape table states the WP04 row's file count as "1-4" with the parenthetical
+      "(agent_commands.py always; tests/specify_cli/runtime/* always; __init__.py/
+      pyproject.toml/CHANGELOG.md only if the call-site change is made)". That parenthetical
+      itself names two files that are always touched (agent_commands.py plus at least one
+      file under tests/specify_cli/runtime/, per T012/T013/T015's mandatory red-first tests
+      and disposition coverage) plus up to three conditional files (__init__.py,
+      pyproject.toml, CHANGELOG.md) — i.e. the row's own stated logic implies a 2-5 range,
+      not the 1-4 printed. The table's "Code-diff subtotal" row of "~7-10 files" was summed
+      using the flawed 1-4 figure (1+1+1+2+1+1=7, 1+1+4+2+1+1=10); using the row's own
+      stated logic (2-5) the correct subtotal is 8-11 files, not 7-10. This does not change
+      the table's line-count totals (verified independently: they already sum to ~445-810,
+      consistent with the stated "~450-810") or overturn the "reviewable-as-is" verdict, but
+      it means the file-count portion of the estimate the lens asked to be checked for
+      internal support is not actually self-consistent as printed.
+    remediation: >
+      In tracer-design-decisions.md's PR-shape assessment table, correct the WP04 row's file
+      count from "1-4" to "2-5" (agent_commands.py + >=1 test file always; up to 3 more
+      conditional), and correct the "Code-diff subtotal" row's file count from "~7-10" to
+      "~8-11" to match. No WP prompt file or implementation-facing content needs to change —
+      this is a tracer-artifact arithmetic fix only.
+complete: true

@@ -9,7 +9,7 @@ import subprocess
 from collections.abc import Callable, Iterable
 from io import StringIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, NamedTuple
+from typing import TYPE_CHECKING, Annotated, Any, NamedTuple, NoReturn
 
 import typer
 from pydantic import ValidationError
@@ -283,13 +283,30 @@ def resolve_feature_target_branch(mission_slug: str, repo_root: Path) -> str:
     return resolution.target
 
 
-def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
-    """Validate that a base ref resolves locally and return its full SHA.
+_BASE_REF_UNRESOLVED_MSG = "[red]Error:[/red] Base ref '{base_ref}' does not resolve. Try 'git fetch' or 'git branch -a' to see available refs."
 
-    Raises typer.Exit(1) with a clear error message if the ref is unknown.
+
+def _raise_base_ref_unresolved(base_ref: str) -> NoReturn:
+    """Print the single canonical unresolved-base error and exit non-zero."""
+    console.print(_BASE_REF_UNRESOLVED_MSG.format(base_ref=base_ref))
+    raise typer.Exit(1)
+
+
+def _rev_parse_ref(repo_root: Path, ref: str) -> str:
+    """Return the full SHA *ref* resolves to, or ``""`` when it does not resolve.
+
+    ``--end-of-options`` keeps a leading-dash ref (e.g. ``--git-dir``) from being
+    consumed as a rev-parse option (#1917); ``--verify --quiet`` yields an empty
+    stdout + non-zero exit on a missing ref, which :func:`_git_stdout` maps to
+    ``""``.
     """
+    return _git_stdout(repo_root, ["rev-parse", "--verify", "--quiet", "--end-of-options", ref])
+
+
+def _is_ancestor(repo_root: Path, maybe_ancestor: str, descendant: str) -> bool:
+    """Return whether *maybe_ancestor* is an ancestor of (or equal to) *descendant*."""
     result = subprocess.run(
-        ["git", "rev-parse", "--verify", "--end-of-options", base_ref],
+        ["git", "merge-base", "--is-ancestor", maybe_ancestor, descendant],
         cwd=str(repo_root),
         capture_output=True,
         text=True,
@@ -297,10 +314,44 @@ def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
         errors="replace",
         check=False,
     )
-    if result.returncode != 0:
-        console.print(f"[red]Error:[/red] Base ref '{base_ref}' does not resolve. Try 'git fetch' or 'git branch -a' to see available refs.")
-        raise typer.Exit(1)
-    return result.stdout.strip()
+    return result.returncode == 0
+
+
+def _resolve_base_ref(repo_root: Path, base_ref: str) -> tuple[str, str] | None:
+    """Resolve ``--base`` to ``(effective_ref, sha)``, preferring ``origin/<lane>`` (#4969).
+
+    A teammate's pushed approved lane on ``origin/<base_ref>`` must NOT be
+    shadowed by a fresh/stale local cut from ``main``: when ``origin/<base_ref>``
+    resolves AND the local ``base_ref`` is either absent or strictly behind it (an
+    ancestor of the origin tip), the origin ref wins. A local ref that is ahead of
+    (or unrelated to) origin is kept, and a ref that resolves nowhere returns
+    ``None`` so the caller can fail closed. The origin-aware base cutting itself
+    (threading ``effective_ref`` into worktree allocation) is coordinated with
+    WP04's ``workspace/context.py`` / ``lanes/compute.py``; this WP owns only the
+    ``implement.py`` resolution site.
+    """
+    local_sha = _rev_parse_ref(repo_root, base_ref)
+    origin_ref = f"origin/{base_ref}"
+    origin_sha = _rev_parse_ref(repo_root, origin_ref)
+    if origin_sha and (not local_sha or _is_ancestor(repo_root, local_sha, origin_sha)):
+        return origin_ref, origin_sha
+    if local_sha:
+        return base_ref, local_sha
+    return None
+
+
+def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
+    """Validate ``--base`` and return the effective (origin-preferred) base SHA.
+
+    #4969: consults ``origin/<base_ref>`` and prefers it over a local cut that is
+    absent or behind it, so a teammate's pushed approved lane is not shadowed (see
+    :func:`_resolve_base_ref`). Raises typer.Exit(1) with a clear error message
+    when the ref resolves neither locally nor on ``origin``.
+    """
+    resolved = _resolve_base_ref(repo_root, base_ref)
+    if resolved is None:
+        _raise_base_ref_unresolved(base_ref)
+    return resolved[1]
 
 
 def _git_stdout(repo_root: Path, args: list[str]) -> str:
@@ -1424,8 +1475,16 @@ def _resolve_active_lanes_manifest(repo_root: Path, base: str | None, resolved_w
     if is_planning_lane(resolved_workspace):
         console.print("[yellow]Warning:[/yellow] --base is ignored for repository-root planning work")
         return None, lanes_manifest
-    _validate_base_ref(repo_root, base)
-    return base, lanes_manifest
+    # #4969: resolve the effective base origin-first so a teammate's pushed
+    # approved lane (``origin/<lane>``) is threaded into allocation instead of a
+    # stale local cut. ``_resolve_base_ref`` returns the effective ref name (the
+    # ``origin/<lane>`` ref when it wins), which is what ``create_lane_workspace``
+    # cuts the lane from.
+    resolved = _resolve_base_ref(repo_root, base)
+    if resolved is None:
+        _raise_base_ref_unresolved(base)
+    effective_ref, _sha = resolved
+    return effective_ref, lanes_manifest
 
 
 def _primary_surface_status_paths(artifacts: Iterable[Path], *, routes_through_coord: bool) -> list[Path]:

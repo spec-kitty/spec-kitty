@@ -45,8 +45,21 @@ def test_repo_gitignore_covers_local_runtime() -> None:
     gitignore_content = gitignore_path.read_text()
     gitignore_lines = [line.strip() for line in gitignore_content.splitlines() if line.strip() and not line.strip().startswith("#")]
 
+    # A TRACKED (or external/git-internal) surface is version-controlled by
+    # design and must NOT be required to appear in .gitignore — this mirrors
+    # the source suite's own exemption (#4928: the mission-state audit trail is
+    # LOCAL_RUNTIME but git_class=TRACKED, so it is durable rather than ignored).
+    exempt_from_ignore = (
+        GitClass.TRACKED,
+        GitClass.OUTSIDE_REPO,
+        GitClass.GIT_INTERNAL,
+    )
     local_runtime_project = [
-        s for s in STATE_SURFACES if s.root == StateRoot.PROJECT and (s.authority == AuthorityClass.LOCAL_RUNTIME or s.git_class == GitClass.IGNORED)
+        s
+        for s in STATE_SURFACES
+        if s.root == StateRoot.PROJECT
+        and s.git_class not in exempt_from_ignore
+        and (s.authority == AuthorityClass.LOCAL_RUNTIME or s.git_class == GitClass.IGNORED)
     ]
 
     assert local_runtime_project, "Expected at least one LOCAL_RUNTIME project surface"

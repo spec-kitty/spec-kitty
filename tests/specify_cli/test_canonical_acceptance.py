@@ -20,6 +20,7 @@ from specify_cli.acceptance import collect_feature_summary
 from specify_cli.mission_metadata import load_meta, record_acceptance
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
+from tests.lane_test_utils import write_single_lane_manifest
 
 
 # ---------------------------------------------------------------------------
@@ -187,6 +188,20 @@ def _setup_feature(
                 if to_l == target_lane:
                     break
 
+    # #4891: accept fails closed when lanes.json is absent. These tests
+    # exercise collect_feature_summary()'s canonical-state logic, not the
+    # acceptance-matrix gate, so a planning-lane manifest keeps the matrix
+    # gate a no-op (is_planning_artifact_only) while still satisfying the
+    # now-unconditional lanes-gate. target_branch matches meta["target_branch"]
+    # ("main") so the mocked-git "main" branch used throughout this module
+    # clears the branch gate too.
+    write_single_lane_manifest(
+        feature_dir,
+        wp_ids=tuple(wp_ids),
+        lane_id="lane-planning",
+        target_branch=meta["target_branch"],
+    )
+
     return feature_dir
 
 
@@ -290,9 +305,22 @@ class TestCanonicalStateAuthority:
                 "mission_id": "01J6XW9KABCDEFGHJKMNPQRSTV",
                 "mid8": mid8,
                 "coordination_branch": f"kitty/mission-{mission_slug}",
+                "target_branch": f"kitty/mission-{mission_slug}",
             }
         )
         (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+        # This test checks out the mission branch (not target_branch "main"),
+        # so re-point the planning-lane manifest _setup_feature already wrote
+        # at that same branch (matching the meta.json override above) — the
+        # #4891 branch gate requires the current branch to be in
+        # {lanes.target_branch} for a planning-only manifest.
+        write_single_lane_manifest(
+            feature_dir,
+            wp_ids=("WP01",),
+            lane_id="lane-planning",
+            target_branch=f"kitty/mission-{mission_slug}",
+        )
 
         coord_feature_dir = (
             tmp_path

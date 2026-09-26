@@ -1,0 +1,67 @@
+# wp-verdict/v1 — canonical format for per-WP review verdicts.
+schema: wp-verdict/v1
+complete: true
+wp: WP04
+cycle: 2
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+verdict: approved
+gates_observed:
+  tsc: pass          # mypy --strict src/specify_cli/runtime/agent_commands.py: Success, no issues found
+  tests: pass         # 34/34 in tests/specify_cli/runtime/test_agent_commands.py; 108/108 tests/specify_cli/runtime/;
+                       # 30/30 T016 blast-radius files outside tests/runtime/; 139/139 tests/runtime/ blast-radius files
+  coverage: "100%"    # diff-cover vs merge-base 6b4164dbf on src/specify_cli/runtime/agent_commands.py (79/79 changed
+                       # lines covered); CI gate is >=90%. Confirmed only WP04's two commits (cf3dcca54, 30c6ea685)
+                       # touch this file since the merge-base.
+mutation_kill_table:  # independently re-run in the lane worktree, reverted after each run via re-editing (never
+                       # stash/checkout/restore/reset); git status --porcelain confirmed empty at the end
+  M1: killed   # pre-check compares only cli_version, ignores template signature -- killed by
+               # test_template_content_change_forces_rerender + test_rendering_pipeline_signature_change_forces_rerender
+  M2: killed   # pre-check ignores cli_version -- killed by
+               # test_cli_version_change_forces_rerender_isolated_from_destination_health (the C1-001 fix: this test
+               # patches _all_global_agent_commands_healthy to unconditionally report healthy, isolating the stamp's
+               # own cli_version comparison from the destination-health marker safety net that masked cycle-1's
+               # equivalent test). C1-001 is resolved.
+  M3: killed   # pre-check skips destination-health check -- killed on BOTH required cases:
+               # test_destination_file_altered_forces_rerender, test_destination_file_missing_forces_rerender, plus
+               # test_destination_health_check_oserror_falls_through_to_render
+  M4: killed   # pre-check ignores agent_keys -- killed by test_agent_keys_mismatch_forces_rerender
+  M5: killed   # pre-check always returns "fresh" -- killed by 12 tests (every staleness/malformed/OSError/ordering
+               # test in the suite)
+  M6: killed   # pre-check removed entirely (always renders) -- killed by
+               # test_match_short_circuits_without_render_or_asset_preparation +
+               # test_template_source_signature_oserror_falls_through_to_render
+  M7: killed   # stamp lands before command files -- tested TWO ways: (a) reverting _FRESHNESS_STAMP_FILENAME to the
+               # pre-fix "agent-commands-freshness.json" name, and (b) a leading-dot ".agent-commands-freshness.lock"
+               # variant (asset_preparation._write_order's OTHER early-apply bucket, stage 1, vs the intended stage 6).
+               # Both killed by test_stamp_absent_when_a_command_write_fails_partway. C1-003 is resolved.
+  M8: killed   # rendering-pipeline signature dropped from the template signature -- killed by
+               # test_rendering_pipeline_signature_change_forces_rerender. C1-004 is resolved (no longer even
+               # advisory: the rendering pipeline hash is now folded into template_source_signature).
+feedback:
+  - id: WP04-C2-001
+    severity: 1
+    claim: >
+      The ".lock" suffix rename (agent-commands-freshness.lock) that produces the SK-243-safe
+      apply-last ordering is a real, code-level guarantee today -- verified directly by reading
+      asset_preparation._write_order (agent_commands.py:1041-1058): a name ending in ".lock"
+      without a leading dot lands in stage 6, sorted dead last alongside _VERSION_FILENAME,
+      regardless of path depth; a leading-dot ".foo.lock" instead lands in the EARLY stage 1
+      bucket (the OS persistent-lock convention), which I independently confirmed reproduces the
+      pre-fix ordering hazard (mutation M7b above). However, this is a private implementation
+      detail of a DIFFERENT module (asset_preparation._write_order) that agent_commands.py
+      couples to only by filename convention -- there is no named constant, no public "apply-last"
+      API, and no test inside asset_preparation.py's own suite that pins "any .lock-suffixed
+      non-dotfile effect sorts last" as a contract of that module. A future refactor of
+      _write_order's stage classification (e.g. renumbering stages, or changing the suffix match)
+      would only be caught by THIS WP's own TestFreshnessStampAppliesLast test, not by anything in
+      asset_preparation.py. Grepped for other code treating "*.lock" specially (a lock to wait on,
+      or cleanup/exclusion logic): the only other suffix-based ".lock" handling found is
+      upgrade/skill_update.py's exclude_paths(".kittify/*", "*.lock"), which is an unused docstring
+      example (zero real call sites) -- not a live hazard. No stale-lock-cleanup or generic
+      home/cache-scanning code was found that would mistake this stamp for an OS lock file.
+    remediation: >
+      Advisory only, not blocking: consider a narrow regression test in
+      tests/specify_cli/runtime/test_asset_preparation*.py (or wherever _write_order is tested
+      directly, if it is) asserting the specific stage-6-for-.lock / stage-1-for-leading-dot-.lock
+      contract at the asset_preparation level, so a future change to that private sort key fails
+      closer to its source rather than only via this WP's own cross-module test.

@@ -13,6 +13,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from threading import RLock
 from kernel.clock import now_utc_iso
+from kernel.no_follow import chmod_fd, chmod_no_follow, utime_no_follow
 from pathlib import Path
 from typing import cast
 from charter.activation.compiler import _PreparedMissionTypeActivations, prepare_mission_type_activations
@@ -26,7 +27,6 @@ from specify_cli.core.config import (
 )
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.agent_config import AgentConfigError, load_agent_config
-from specify_cli.core.no_follow import chmod_fd
 from specify_cli.core.safe_delete import safe_rmdir as _safe_rmdir
 from specify_cli.core.safe_delete import safe_unlink as _safe_unlink
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
@@ -169,9 +169,9 @@ def _archive_existing_path(dest: Path, project_path: Path, backup_root: Path | N
         assert before.target is not None
         backup_path.symlink_to(before.target)
         if before.mode is not None and stat.S_IMODE(backup_path.lstat().st_mode) != before.mode:
-            backup_path.chmod(before.mode, follow_symlinks=False)
+            chmod_no_follow(backup_path, before.mode)
         if before.mtime_ns is not None:
-            os.utime(backup_path, ns=(before.mtime_ns, before.mtime_ns), follow_symlinks=False)
+            utime_no_follow(backup_path, ns=(before.mtime_ns, before.mtime_ns))
     else:
         # Delegate the verbatim regular-file copy to the single asset-preservation
         # backup core (contract C1.5 / DIRECTIVE_044 single authority); it preserves
@@ -590,6 +590,15 @@ class _ProjectSkillPreparation:
         elif before.target != after.target:
             action = "retarget"
         elif before.mode != after.mode:
+            # #4927/T006: on Windows, `before` (observed) carries a real
+            # mtime the fixed-POSIX `after` (from _expected_project_entries)
+            # never sets, so mtime_ns is normalized before consulting the
+            # shared host-aware relaxation -- mirroring the same
+            # normalization the managed-skills completion re-check already
+            # does. A host-unrepresentable mode-only divergence emits no
+            # effect at all (FR-004); a genuine divergence still chmods.
+            if windows_dir_mode_only_divergence(replace(before, mtime_ns=after.mtime_ns), after):
+                return
             action = "chmod"
         else:
             return
@@ -960,13 +969,13 @@ def _apply_project_skill_write(write: PreparedProjectSkillWrite) -> None:
         path.chmod(after.mode if after.mode is not None else 0o755)
     elif effect.action == "chmod":
         assert after.mode is not None
-        path.chmod(after.mode, follow_symlinks=False)
+        chmod_no_follow(path, after.mode)
     elif after.kind == "symlink":
         assert after.target is not None
         path.symlink_to(after.target)
         if stat.S_IMODE(path.lstat().st_mode) != after.mode:
             assert after.mode is not None
-            path.chmod(after.mode, follow_symlinks=False)
+            chmod_no_follow(path, after.mode)
     else:
         assert content is not None and after.mode is not None
         if current.kind == "absent":
@@ -978,7 +987,7 @@ def _apply_project_skill_write(write: PreparedProjectSkillWrite) -> None:
             atomic_write(path, content)
             path.chmod(after.mode)
     if after.kind in {"file", "symlink"} and after.mtime_ns is not None:
-        os.utime(path, ns=(after.mtime_ns, after.mtime_ns), follow_symlinks=False)
+        utime_no_follow(path, ns=(after.mtime_ns, after.mtime_ns))
 
 
 def apply_project_skills(assessment: OwnerAssessment, explicit_consent: ApplyConsent) -> OwnerApplyResult:

@@ -1,0 +1,5 @@
+source_id,source_type,location,accessed_at,purpose
+S1,tracker,https://github.com/spec-kitty/spec-kitty/issues/4920,2026-09-22,Reported reproduction and acceptance expectations
+S2,source,src/specify_cli/cli/commands/_coordination_doctor.py,2026-09-22,Mutation path and existing branch identity authority
+S3,test,tests/coordination/test_coord_staleness.py,2026-09-22,Existing real-git repair contract and fixture
+S4,governance,.kittify/charter/charter.md,2026-09-22,ATDD fail-closed and workflow requirements

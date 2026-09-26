@@ -84,11 +84,7 @@ def _all_work_packages_terminal(lanes: Mapping[str, list[str]]) -> bool:
     # included) is not. Provenance-aware terminality is decided by the caller
     # (``collect_feature_summary``) and threaded via
     # :func:`_normalized_unchecked_tasks`'s ``all_packages_acceptable`` override.
-    return not any(
-        wp_ids
-        for lane, wp_ids in lanes.items()
-        if not is_acceptable_ending(lane, has_provenance=False)
-    )
+    return not any(wp_ids for lane, wp_ids in lanes.items() if not is_acceptable_ending(lane, has_provenance=False))
 
 
 def _normalized_unchecked_tasks(
@@ -121,11 +117,7 @@ def _normalized_unchecked_tasks(
     """
     if unchecked_tasks == [f"{_TASKS_FILE} missing"]:
         return []
-    terminal = (
-        all_packages_acceptable
-        if all_packages_acceptable is not None
-        else _all_work_packages_terminal(lanes)
-    )
+    terminal = all_packages_acceptable if all_packages_acceptable is not None else _all_work_packages_terminal(lanes)
     if terminal:
         return []
     return unchecked_tasks
@@ -161,6 +153,24 @@ def _append_skipped_lane_checks(
         )
 
 
+def _record_lanes_manifest_stop(
+    message: str,
+    *,
+    reason: str,
+    activity_issues: list[str],
+    skipped_checks: list[AcceptanceCheckDiagnostic],
+    blocked_checks: list[AcceptanceCheckDiagnostic],
+) -> None:
+    """Record the shared blocked/skipped/activity-issue shape for a
+    ``lanes.json`` read that cannot proceed (corrupt or missing). Load-bearing:
+    the ``activity_issues`` append is what flips ``AcceptanceSummary.ok`` —
+    ``skipped_checks``/``blocked_checks`` alone are informational only.
+    """
+    activity_issues.append(message)
+    blocked_checks.append(AcceptanceCheckDiagnostic(check="lanes_manifest", detail=message))
+    _append_skipped_lane_checks(skipped_checks, reason=reason, include_matrix_presence=True)
+
+
 def _resolve_lanes_manifest_or_stop(
     feature_dir: Path,
     activity_issues: list[str],
@@ -170,23 +180,39 @@ def _resolve_lanes_manifest_or_stop(
     """Read ``lanes.json``; return ``None`` when the caller should stop.
 
     Two distinct "stop" causes collapse to the same ``None`` sentinel because
-    the caller's only remaining decision is whether to continue — corruption
-    already records its own blocked/skipped diagnostics here, and a genuinely
-    absent ``lanes.json`` (flat/legacy mission) is a silent no-op, matching the
-    pre-extraction behaviour exactly.
+    the caller's only remaining decision is whether to continue. Both
+    corruption AND genuine absence are fail-closed (#4891): each records its
+    own ``activity_issues`` / ``blocked_checks`` / ``skipped_checks``
+    diagnostics here so the acceptance-matrix gate can never be silently
+    bypassed by a missing manifest — there is no legitimate no-lanes shape on
+    4.0 (every mission gets ``lanes.json`` via ``finalize-tasks``). Routed
+    through :func:`~specify_cli.lanes.persistence.require_lanes_json` (rather
+    than the bare ``read_lanes_json`` + ``None`` check the pre-#4891 version
+    used) so the missing-manifest diagnostic is single-sourced from
+    :class:`~specify_cli.lanes.persistence.MissingLanesError`'s remediation
+    wording (``finalize-tasks`` / ``doctor mission-state --fix``) instead of a
+    second, driftable copy of that guidance living here.
     """
-    from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
+    from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 
     try:
-        return read_lanes_json(feature_dir)
+        return require_lanes_json(feature_dir)
     except CorruptLanesError as exc:
-        message = str(exc)
-        activity_issues.append(message)
-        blocked_checks.append(AcceptanceCheckDiagnostic(check="lanes_manifest", detail=message))
-        _append_skipped_lane_checks(
-            skipped_checks,
+        _record_lanes_manifest_stop(
+            str(exc),
             reason="lanes.json is corrupt or malformed",
-            include_matrix_presence=True,
+            activity_issues=activity_issues,
+            skipped_checks=skipped_checks,
+            blocked_checks=blocked_checks,
+        )
+        return None
+    except MissingLanesError as exc:
+        _record_lanes_manifest_stop(
+            str(exc),
+            reason="lanes.json is missing",
+            activity_issues=activity_issues,
+            skipped_checks=skipped_checks,
+            blocked_checks=blocked_checks,
         )
         return None
 
@@ -251,7 +277,11 @@ def _evaluate_branch_gate(
 
 
 def _acceptance_gate_context(
-    repo_root: Path, feature_dir: Path, *, branch: str | None = None, effective_root: Path | None = None,
+    repo_root: Path,
+    feature_dir: Path,
+    *,
+    branch: str | None = None,
+    effective_root: Path | None = None,
 ) -> GateExecutionContext:
     """Build the ACCEPT-phase :class:`GateExecutionContext` for the acceptance matrix.
 
@@ -389,7 +419,11 @@ def _acceptance_matrix_read_dir(repo_root: Path, feature_dir: Path) -> Path:
 
 
 def _matrix_surface_cannot_hold(
-    context: GateExecutionContext, repo_root: Path, feature_dir: Path, *, effective_root: Path | None = None,
+    context: GateExecutionContext,
+    repo_root: Path,
+    feature_dir: Path,
+    *,
+    effective_root: Path | None = None,
 ) -> CannotEvaluate | None:
     """GEC-5 / C2: refuse when the coord-homed matrix is judged on a PRIMARY stamp.
 
@@ -417,7 +451,9 @@ def _matrix_surface_cannot_hold(
 
     scope: dict[str, Any] = effective_root_kwargs(effective_root)
     home = declared_home_surface(
-        repo_root, feature_dir.name, MissionArtifactKind.ACCEPTANCE_MATRIX,
+        repo_root,
+        feature_dir.name,
+        MissionArtifactKind.ACCEPTANCE_MATRIX,
         **scope,
     )
     return context.surface_cannot_hold(home)
@@ -514,9 +550,7 @@ def _evaluate_acceptance_matrix(
         # ``getattr`` guard tolerates unit-test doubles (bare
         # ``SimpleNamespace`` fixtures elsewhere in this module's test
         # suite) that model only the fields their own test cares about.
-        acc_matrix.criteria = populate_criteria_from_review_evidence(
-            matrix_dir, acc_matrix.criteria
-        )
+        acc_matrix.criteria = populate_criteria_from_review_evidence(matrix_dir, acc_matrix.criteria)
 
     if acc_matrix.negative_invariants and mutate_matrix:
         # WP04 T023: hand the gate context to the enforcer so a pending invariant

@@ -1,0 +1,13 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: tracer-design-decisions.md now carries a dated "Follow-up correction" paragraph after the original "Resolution taken" text stating WP08 depends on WP01 in addition to WP02-WP07, explains the intra-lane-edge rationale (WP01/WP08 share lane-planning, so the edge is inert for LANE_DEPENDENCY_CYCLE) distinguishing it from the cross-lane WP02/WP03/WP04/WP05/WP07 case, and preserves rather than erases the original mistaken resolution text.
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: WP08-final-integration-validation.md's Context prose now reads "depending on WP01 (baseline artifact, needed by T027 to diff against) and every other implementation WP (WP02-WP07)", matching its frontmatter dependencies list.
+  - id: TASKS-FRESH-003
+    status: resolved
+    reason: WP04-freshness-precheck.md's Objective, Definition of Done, and Reviewer Guidance all now explicitly name "four" staleness tests as T012's (a/b/c) plus T015's agent_keys test, each requiring/checking the same red-before-green proof, not just a bare count bump.

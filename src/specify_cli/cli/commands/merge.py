@@ -228,8 +228,9 @@ from specify_cli.merge.state import (
     clear_state,
     has_active_merge,
     load_state,
+    release_merge_lock_if_owned,
 )
-from specify_cli.merge.workspace import get_merge_runtime_dir, get_merge_workspace_path
+from specify_cli.merge.workspace import get_merge_workspace_path
 from specify_cli.post_merge.retrospective_terminus import run_retrospective_postcondition
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
@@ -457,12 +458,19 @@ def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
         else:
             console.print("[yellow]No active merge state to abort.[/yellow]")
 
-    # T002: Remove the global merge lock file (idempotent — a crash between lock
-    # acquisition and release in _run_lane_based_merge leaves it behind).
-    _global_lock_path = get_merge_runtime_dir("__global_merge__", repo_root) / "lock"
-    with suppress(FileNotFoundError):
-        _global_lock_path.unlink()
+    # T002 / WP09 (C-2, FR-008, #4996 second half): release the shared
+    # ``__global_merge__`` lock ONLY when this abort provably owns it, or when
+    # its owner is a merge that is no longer live. The pre-WP09 code blindly
+    # unlinked the lock, so aborting mission A would free mission B's still-live
+    # merge lock. The owner_token is this abort's merge-state-id (the aborted
+    # mission's canonical id) — ``None`` when no state was resolved, in which
+    # case only a provably-dead lock is reclaimable, never a live one.
+    _abort_owner_token = state_entry[1].mission_id if state_entry is not None else None
+    _lock_outcome = release_merge_lock_if_owned("__global_merge__", repo_root, owner_token=_abort_owner_token)
+    if _lock_outcome in ("released_owned", "released_stale"):
         console.print("[green]Removed merge lock.[/green]")
+    elif _lock_outcome == "left_live":
+        console.print("[yellow]Left the merge lock in place[/yellow] — it is held by another mission's still-active merge (not this abort's to release).")
 
     # T003: Remove the legacy .kittify/merge-state.json (pre-mission-scoped releases).
     _legacy_state_path = repo_root / KITTIFY_DIR / "merge-state.json"
@@ -623,6 +631,67 @@ def _run_real_merge(
     )
 
 
+class MergeStrategyFlipError(RuntimeError):
+    """Raised when a ``--resume`` carries a ``--strategy`` that flips the persisted one.
+
+    terminus-integrity-followups-01M393QR WP04 (WS2, FR-003, INV-2, H1): a
+    resumed merge must run the *same* strategy the interrupted attempt executed.
+    An explicit ``--strategy`` that contradicts the persisted
+    :attr:`MergeState.strategy` is a strategy flip across the crash boundary — a
+    hazard on a recovery path, never a silent override — so it is refused
+    fail-closed rather than honored.
+    """
+
+    def __init__(self, explicit: MergeStrategy, persisted: MergeStrategy) -> None:
+        self.explicit = explicit
+        self.persisted = persisted
+        super().__init__(
+            f"--strategy {explicit.value} contradicts the persisted strategy "
+            f"{persisted.value} of the interrupted merge. A strategy flip across "
+            "--resume is refused: resume with no --strategy to honor the persisted "
+            "strategy, or --abort to start the merge fresh."
+        )
+
+
+def _persisted_strategy(state: MergeState) -> MergeStrategy | None:
+    """Coerce a persisted ``MergeState.strategy`` string to :class:`MergeStrategy`.
+
+    Returns ``None`` when the persisted value is empty or not a recognized
+    strategy — the precedence chain then falls through to config/default rather
+    than crashing on a corrupt field.
+    """
+    raw = (state.strategy or "").strip()
+    if not raw:
+        return None
+    try:
+        return MergeStrategy(raw)
+    except ValueError:
+        return None
+
+
+def _resolve_effective_merge_strategy(
+    *,
+    explicit: MergeStrategy | None,
+    persisted: MergeStrategy | None,
+    config: MergeStrategy | None,
+    is_resume: bool,
+) -> MergeStrategy:
+    """Resolve the effective merge strategy with the FR-003 precedence.
+
+    * Fresh run: ``explicit > config > SQUASH`` (the persisted value is never
+      consulted — a fresh merge has no prior attempt to honor).
+    * Resume: ``explicit > persisted > config > SQUASH``. An explicit
+      ``--strategy`` that contradicts the persisted value raises
+      :class:`MergeStrategyFlipError` (H1); an equal explicit value is honored,
+      not a flip.
+    """
+    if is_resume:
+        if explicit is not None and persisted is not None and explicit != persisted:
+            raise MergeStrategyFlipError(explicit, persisted)
+        return explicit or persisted or config or MergeStrategy.SQUASH
+    return explicit or config or MergeStrategy.SQUASH
+
+
 @require_main_repo
 def merge(
     strategy: MergeStrategy | None = typer.Option(
@@ -722,6 +791,12 @@ def merge(
         _dispatch_abort(repo_root, mission)
         return
 
+    # WP04 (terminus-integrity-followups, FR-003/H1): the persisted strategy of
+    # an interrupted merge, recovered on --resume so it wins over config/default
+    # but yields to an explicit --strategy (and a contradicting --strategy is
+    # refused below). Stays ``None`` on a fresh run, where the persisted value
+    # is never consulted.
+    persisted_strategy: MergeStrategy | None = None
     if resume:
         mission = _dispatch_resume(repo_root, mission, json_output=json_output)
         # Fall through to the normal merge flow which will detect the state.
@@ -732,13 +807,29 @@ def merge(
         # runs BEFORE MergeState is loaded inside the executor, so recover
         # the persisted choice here and OR it into this invocation's flag.
         resumed_state = _load_merge_state_for_mission(repo_root, mission)
-        if resumed_state is not None and resumed_state.skip_lanes:
-            skip_lanes = True
+        if resumed_state is not None:
+            # H2 legacy-marker fence (skip_lanes / FR-012) stays ordered BEFORE
+            # any strategy consumption (post-plan HELD).
+            if resumed_state.skip_lanes:
+                skip_lanes = True
+            persisted_strategy = _persisted_strategy(resumed_state)
 
     _enforce_git_preflight(repo_root, json_output=json_output)
 
-    # T009 — FR-005/FR-006: Resolve strategy: CLI flag > config > default (SQUASH)
-    resolved_strategy: MergeStrategy = strategy or load_merge_config(repo_root).strategy or MergeStrategy.SQUASH
+    # T009 / WP04 FR-003 — Resolve strategy precedence:
+    #   fresh:  explicit --strategy > config > SQUASH
+    #   resume: explicit --strategy > persisted > config > SQUASH,
+    #           and an explicit --strategy that flips the persisted one REFUSEs (H1).
+    try:
+        resolved_strategy: MergeStrategy = _resolve_effective_merge_strategy(
+            explicit=strategy,
+            persisted=persisted_strategy,
+            config=load_merge_config(repo_root).strategy,
+            is_resume=resume,
+        )
+    except MergeStrategyFlipError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
 
     resolved_mission = _resolve_slug_or_exit(repo_root, mission)
 

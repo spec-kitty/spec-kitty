@@ -761,7 +761,7 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
         try:
             finalize_tasks(feature=mission_slug, json_output=True, validate_only=True)
         except (typer.Exit, SystemExit) as exc:
-            exit_code = getattr(exc, "code", 1) or 1
+            exit_code = exc.exit_code if isinstance(exc, typer.Exit) else exc.code
         finally:
             for p in ctx_patches.values():
                 p.stop()

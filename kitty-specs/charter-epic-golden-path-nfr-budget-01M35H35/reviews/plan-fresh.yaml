@@ -1,0 +1,102 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: PLAN-FRESH-001
+    lens: new-claim-verification (SK-243 interaction analysis)
+    severity: 4
+    title: "SK-243 analysis misidentifies the exception type and raise site it cites as forensic evidence"
+    evidence:
+      - artifact: "data-model.md § SK-243 interaction (PLAN-GOV-002), lines 164-168"
+      - code: "src/specify_cli/runtime/asset_preparation.py:783"
+      - code: "src/specify_cli/runtime/asset_preparation.py:788-789 (check_assets's own except (OSError, ValueError) clause)"
+      - code: "src/specify_cli/runtime/agent_commands.py:491-492 (_apply_command_assessment's second raise RuntimeError)"
+    claim: >
+      data-model.md's newly-added SK-243 section states that
+      "AssetPreparation/check_assets() drift-recheck machinery spuriously raises
+      RuntimeError: Global asset input changed (src/specify_cli/runtime/asset_preparation.py:783,
+      inside check_assets(), asset_preparation.py:713-789)". This is factually wrong on two
+      counts, verified directly against this checkout: (1) line 783 raises ValueError, not
+      RuntimeError; (2) check_assets() does not "raise" this to its caller at all — its own
+      try/except (OSError, ValueError) at lines 788-789 catches that ValueError and returns a
+      Diagnostic("precondition_changed", ...) tuple normally. The RuntimeError the ledger
+      actually observed is constructed much later, by _apply_command_assessment's
+      `raise RuntimeError("; ".join(d.message for d in result.diagnostics))` at
+      agent_commands.py:492 — a different function, in a different file, not cited anywhere in
+      this section. The remediation entry (tracer-design-decisions.md, "Every line number and
+      path cited in these fixes was re-verified against this checkout's current source... none
+      were assumed either") explicitly claims this citation was checked; it was not, or the
+      check missed the exception-type/raise-site mismatch. This is new text wholly introduced by
+      this fix round (PLAN-GOV-002), not carried forward from the round-1 findings.
+    remediation: >
+      Correct the SK-243 section to say check_assets() *detects* the drift and returns a
+      Diagnostic (ValueError caught internally, asset_preparation.py:783-789), which then
+      propagates as a RuntimeError only once it reaches _apply_command_assessment's
+      diagnostic-to-exception conversion (agent_commands.py:491-492, via
+      recheck_assets/apply_with_reassess). The "structurally immune" conclusion for the fast
+      path itself is unaffected (it still correctly rests on _apply_command_assessment never
+      being reached with non-empty effects on that path) — only the exception-type/raise-site
+      citation needs fixing.
+
+  - id: PLAN-FRESH-002
+    lens: cross-artifact contradiction (plan.md vs research.md)
+    severity: 3
+    title: "research.md still asserts the pre-fix, now-falsified claim that agent_commands.py trips the router's unmatched catch-all, contradicting plan.md's PLAN-VERIFY-004 correction"
+    evidence:
+      - artifact: "research.md § CI-gate verification, lines 99-105"
+      - artifact: "plan.md § Gate set for this mission, Router-filter note (corrected per PLAN-VERIFY-004), lines 188"
+      - code: ".github/workflows/ci-router.yml:116-119 (next filter group: src/specify_cli/runtime/**)"
+      - code: ".github/workflows/ci-router.yml:218 (next is included in the unmatched union computation)"
+    claim: >
+      This fix round corrected plan.md's Router-filter note (PLAN-VERIFY-004, sev 3) to state
+      that src/specify_cli/runtime/agent_commands.py IS covered by the `next` filter group
+      (ci-router.yml:116-119) and therefore does NOT trip the fail-closed `unmatched` catch-all.
+      Verified independently against the live workflow file: this correction is accurate. But
+      research.md — an unchanged sibling artifact from the same planning pass — still contains
+      the original, now-disproven claim: "`src/specify_cli/runtime/**` is covered by no named
+      group in the list (confirmed by reading the full `filters:` block) — a diff touching only
+      `src/specify_cli/runtime/agent_commands.py` would trip `unmatched` alone." research.md even
+      claims this was "confirmed by reading the full filters: block," the same false-verification
+      pattern PLAN-VERIFY-004 found and fixed in plan.md. The mission's own planning artifacts now
+      directly contradict each other on a factual, mechanically-checkable claim about CI routing
+      that a future narrower change (per plan.md's own note, this is intentionally informational
+      for exactly that future case) would rely on.
+    remediation: >
+      Update research.md's CI-gate verification bullet (lines 99-105) to match plan.md's
+      corrected Router-filter note: agent_commands.py is covered by the `next` (and duplicate
+      `specify_cli_runtime`) filter group, participates in the `unmatched` union, and does not
+      trip the catch-all alone. Since research.md is Phase-0 supporting evidence for the same
+      mission, it should not retain a claim plan.md itself has since disproven.
+
+  - id: PLAN-FRESH-003
+    lens: scope-drift in an unchanged section (diff-cover enumeration vs. the expanded freshness contract)
+    severity: 2
+    title: "plan.md's Diff-cover section still enumerates only 2 freshness-check branches; the fix round grew the contract to 3 dispositions / 4 conditions without updating it"
+    evidence:
+      - artifact: "plan.md § Diff-cover ≥90%, lines 159-160 (unchanged by this fix round)"
+      - artifact: "data-model.md § Read/write contract (four conditions, three dispositions: Match/Miss/Unreadable-malformed), lines 93-145 (expanded by PLAN-ARCH-001/PLAN-ARCH-002)"
+    claim: >
+      Before this fix round, the freshness-check mechanism had one binary disposition (stamp
+      matches / stamp misses), and plan.md's Diff-cover section correctly named exactly those two
+      branches to test ("stamp matches, no render" and "stamp mismatches, renders and
+      re-stamps"). PLAN-ARCH-001 and PLAN-ARCH-002 grew this into four conditions and three
+      dispositions (Match-with-passing-health-check, Miss [including a stamp-matches-but-
+      destination-health-fails sub-case], and Unreadable/malformed-with-its-own-narrowly-scoped
+      catch) — genuinely new code paths each requiring their own dedicated test to actually reach
+      the mission's own diff-cover ≥90% gate (ci-aggregate.yml). plan.md's Diff-cover section was
+      not touched by this fix round and still names only the original two branches, so its own
+      coverage checklist is now an incomplete description of what diff-cover ≥90% actually
+      requires for the code this same plan now specifies.
+    remediation: >
+      Add the two new branches PLAN-ARCH-001/PLAN-ARCH-002 introduced to plan.md's Diff-cover
+      enumeration: (a) stamp matches but the destination-health check
+      (_all_global_agent_commands_healthy()) fails, and (b) the stamp is present but
+      unreadable/malformed (the narrowly-scoped catch path), so an implementer reading only
+      plan.md's Diff-cover section does not under-scope the required unit tests.
+
+# All three findings are newly authored by this review pass; none duplicate prior-round findings
+# in reviews/plan.merged.yaml or reviews/plan-refute-1.yaml (verified: those files enumerate
+# GOV-001, GOV-002, ARCH-001, ARCH-002, VERIFY-001..005, none of which name the ValueError/
+# RuntimeError mismatch, the research.md/plan.md contradiction, or the diff-cover enumeration gap).

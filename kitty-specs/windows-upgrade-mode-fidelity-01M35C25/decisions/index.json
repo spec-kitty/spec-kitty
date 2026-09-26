@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-22T20:15:01.715555Z",
+      "decision_id": "01M35C3V2KNMH4NHEHGEVFRF14",
+      "final_answer": "close-the-class: make all installer.py follow_symlinks sites (:174/:963/:969/:981) host-safe via a shared kernel helper, plus a non-vacuous architectural gate against new unguarded call-sites (Standing Order #5)",
+      "input_key": "followsymlinks_sweep_scope",
+      "mission_id": "01M35C25ACHT6NBVRD0K8RN0T0",
+      "mission_slug": "windows-upgrade-mode-fidelity-01M35C25",
+      "opened_by": "cli",
+      "options": [
+        "close-the-class (all sites + helper + gate)",
+        "proven crash site only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should the #4923 fix close the whole follow_symlinks-on-Windows class (all installer.py sites + a shared host-aware helper + an arch gate), or only the proven crash site (:981)?",
+      "rationale": null,
+      "resolved_at": "2026-09-22T20:15:50.809390Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.followsymlinks-sweep",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M35C25ACHT6NBVRD0K8RN0T0",
+  "version": 1
+}

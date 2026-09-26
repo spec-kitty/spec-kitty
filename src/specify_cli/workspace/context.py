@@ -915,6 +915,39 @@ def _resolve_workspace_for_wp_impl(
     )
 
 
+def resolve_lane_base_ref(
+    repo_root: Path,
+    lane_branch: str,
+    *,
+    fallback_base: str,
+) -> str:
+    """Return the base ref a lane worktree should be cut/attached from (#4969).
+
+    When a teammate's approved lane has been pushed and fetched, it exists as
+    ``refs/remotes/origin/<lane_branch>``. Cutting a fresh branch from local
+    ``main`` in that case *shadows* the pushed work; this resolver prefers the
+    origin ref so the lane is rooted on the teammate's tip instead.
+
+    When no such origin ref exists (offline, no remote configured, or the lane
+    was never pushed) it falls back to ``fallback_base`` — the existing
+    local-cut behavior. This is **base resolution, not a terminus write**, so it
+    must not fail closed on a missing origin ref.
+
+    The origin-ref probe mirrors the ``git rev-parse --verify`` ref-resolution
+    semantics of ``implement._validate_base_ref`` (WP03) via the canonical
+    :func:`specify_cli.lanes._git.ref_exists` helper, so the two base-resolution
+    sites agree on what "the origin lane exists" means. The returned value is the
+    fully-qualified ``refs/remotes/origin/<lane_branch>`` ref, unambiguous
+    against a same-named tag.
+    """
+    from specify_cli.lanes._git import ref_exists
+
+    origin_ref = f"refs/remotes/origin/{lane_branch}"
+    if ref_exists(repo_root, origin_ref):
+        return origin_ref
+    return fallback_base
+
+
 def resolve_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
     """Find a deterministic worktree to operate on for a feature.
 
@@ -1012,6 +1045,7 @@ __all__ = [
     "save_context",
     "load_context",
     "resolve_active_wp_for_branch",
+    "resolve_lane_base_ref",
     "delete_context",
     "list_contexts",
     "find_context_for_wp",

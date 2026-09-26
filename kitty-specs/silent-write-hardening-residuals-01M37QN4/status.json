@@ -1,0 +1,125 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M37Z4RJ5T3811SA884D1MME2",
+  "materialized_at": "2026-09-23T20:26:03.717916+00:00",
+  "mission_number": "",
+  "mission_slug": "silent-write-hardening-residuals-01M37QN4",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 2,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "in_review",
+      "last_event_id": "01M37Z4RJ5T3811SA884D1MME2",
+      "last_transition_at": "2026-09-23T20:26:03.717916+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2176169,
+      "shell_pid_created_at": "1790195154.68",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      },
+      "tracker_refs": [
+        "#4993"
+      ]
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M37Z0D2GWKPE46MKYJM65X4C",
+      "last_transition_at": "2026-09-23T20:23:40.880677+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Reviewer-renata APPROVE (opus): single-reader grep-proof pinned, parity+layer verified, 29 green, T009 byte-identical."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260923",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2095812,
+      "shell_pid_created_at": "1790194418.22",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      },
+      "tracker_refs": [
+        "#4993"
+      ]
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M37YXT7E3J1WZW09JBBEPKCE",
+      "last_transition_at": "2026-09-23T20:22:16.046767+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Reviewer-renata APPROVE (opus): red-first swap confirmed, union_trace_texts byte-identical, body-insensitive key, in-scope, 19 tests green. Matrix now complete."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260923",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2038655,
+      "shell_pid_created_at": "1790193995.8",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      },
+      "tracker_refs": [
+        "#4993"
+      ]
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M37VXWRJVZ7P235F3X0QCM3M",
+      "last_transition_at": "2026-09-23T19:29:52.914759+00:00",
+      "tracker_refs": [
+        "#4993"
+      ]
+    }
+  }
+}

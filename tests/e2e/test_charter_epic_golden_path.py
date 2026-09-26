@@ -794,15 +794,6 @@ def _run_golden_path(project: Path, run_cli: RunCli) -> None:
     _run_retrospect(project, run_cli)
 
 
-@pytest.mark.skip(
-    reason="#4213: the installed-CLI charter flow hangs — _run_charter_flow blocks "
-    "in subprocess.communicate() waiting on a spec-kitty child that never exits, "
-    "killed by this test's own 120s NFR-007 budget. The #4017 un-quarantine "
-    "restored the test but not its passing state (the failure changed from the "
-    "asset-recheck error to this hang). Re-quarantined per the controller "
-    "correction on PR #4209 (2026-09-11); the coverage gap is tracked in #4213, "
-    "whose acceptance forbids fixing this by raising the timeout."
-)
 @pytest.mark.timeout(120)
 def test_charter_epic_golden_path(
     fresh_e2e_project: Path,

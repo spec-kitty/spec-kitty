@@ -21,9 +21,15 @@ modules:
   # test_dirs list REPLACES the tests/merge fallback claim, so tests/merge is named
   # explicitly alongside it or the guard reds. shard_count re-measured in T010.
   shard_count: 1
+  # spec-kitty#5001 (terminus-merge-integrity): tests/terminus holds the real-CLI,
+  # mock-free terminus reconciliation repros. The spine they exercise lives under
+  # src/specify_cli/merge/** (reconciliation.py, executor.py, ref_advance via merge),
+  # so they are claimed here and run on every merge-touching PR. Naming an explicit
+  # test_dirs list REPLACES the tests/merge fallback claim, so tests/merge stays named.
   test_dirs:
   - tests/merge
   - tests/specify_cli/merge
+  - tests/terminus
 - module: missions
   roots:
   - src/specify_cli/mission.py
@@ -196,6 +202,17 @@ modules:
   # brushed the 30m job timeout. Three serial shards land each near ~8m;
   # inter-shard skew stays 0% under LPT of the near-uniform per-test durations.
   shard_count: 3
+  # ci-coverage-honesty-01M3CZVN (WP02 T007/FR-004): promoted the row's OWN-ROOT
+  # secondary tree tests/specify_cli/agent_utils (import census confirms
+  # specify_cli.agent_utils.status) into per-PR execution -- the #4732
+  # deferred-promotion this mission lands. Naming an explicit test_dirs list
+  # REPLACES the tests/agent fallback claim, so tests/agent is named explicitly
+  # alongside it or the guard reds; the matching out_of_matrix_test_dirs entry is
+  # removed in the same change (no double-claim). This ratchets agent's own-root
+  # import ratio up. shard_count re-measured in T009.
+  test_dirs:
+  - tests/agent
+  - tests/specify_cli/agent_utils
 - module: kernel
   roots:
   - src/kernel/**
@@ -268,6 +285,23 @@ modules:
   # unit tests, claimed alongside its tool_surface sibling so they run per-PR.
   - tests/specify_cli/asset_preservation
   - tests/zeitgeist_client
+  # ci-coverage-honesty-01M3CZVN (WP02 T008/T010, FR-005/FR-009): enrol five
+  # previously out-of-matrix trees into this aggregate row's per-PR execution so
+  # the src packages they exercise leave the in-matrix-dark baseline. This row's
+  # cov_target `specify_cli` legitimately covers every specify_cli.* subpackage
+  # below (calibration -> specify_cli.calibration, live_work ->
+  # specify_cli.live_work.adapters, config/tasks_authoring/bootstrap ->
+  # specify_cli.<pkg>). live_work is ENROLLED here rather than minting a dedicated
+  # row (a new row needs a scrub-group + ci-router filter guarded by
+  # bijection/transcription -- deferred follow-up #4732 / #5037); enrolment fully
+  # achieves FR-005's per-PR-execution intent. Each dir's matching
+  # out_of_matrix_test_dirs entry is removed in the same change (no double-claim).
+  # shard_count re-measured in T009 (capture_shard_timings.py --module core_misc).
+  - tests/calibration
+  - tests/specify_cli/config
+  - tests/specify_cli/live_work
+  - tests/specify_cli/tasks_authoring
+  - tests/specify_cli/bootstrap
 - module: unit
   roots:
   - src/specify_cli/status/**
@@ -465,15 +499,6 @@ out_of_matrix_test_dirs:
 
 - reason: >-
     Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
-    agent (cov_targets specify_cli.agent_utils; import census confirms 2x
-    specify_cli.agent_utils.status). Not in the Phase-S capped promotion set
-    (merge/status/dashboard/auth only) -- promotion warranted; deferred to a follow-up
-    (#4732) to respect the bounded single-PR cap, never silently absorbed.
-  dirs:
-  - tests/specify_cli/agent_utils
-
-- reason: >-
-    Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
     charter (cov_targets charter, specify_cli.charter_runtime; roots src/charter/**,
     src/specify_cli/charter_runtime/**; import census confirms specify_cli.charter_runtime.*
     / charter.* as top imports). Not in the Phase-S capped promotion set (merge/status/
@@ -580,10 +605,8 @@ out_of_matrix_test_dirs:
   dirs:
   - tests/specify_cli/acceptance
   - tests/specify_cli/audit
-  - tests/specify_cli/bootstrap
   - tests/specify_cli/bulk_edit
   - tests/specify_cli/compat
-  - tests/specify_cli/config
   - tests/specify_cli/context
   - tests/specify_cli/contracts
   - tests/specify_cli/decisions
@@ -596,7 +619,6 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/integration
   - tests/specify_cli/invocation
   - tests/specify_cli/invocation/cli
-  - tests/specify_cli/live_work
   - tests/specify_cli/migration
   - tests/specify_cli/mission_step_contracts
   - tests/specify_cli/orchestrator_api
@@ -610,7 +632,6 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/shims
   - tests/specify_cli/skills
   - tests/specify_cli/tasks
-  - tests/specify_cli/tasks_authoring
   - tests/specify_cli/test_cli
   - tests/specify_cli/tracker
   - tests/specify_cli/widen
@@ -629,14 +650,13 @@ out_of_matrix_test_dirs:
   - tests/orchestrator_api
 
 - reason: >-
-    Sharpen-reason (spec-kitty#4374 disposition ledger, WP01 PC3): already claimed by
-    special_tiers.integration_tests_next (roots tests/integration/**, tests/next/**; job
-    integration-tests-next, ~69min measured, -n auto). Its disposition reconciles with
-    that tier rather than minting a fresh row. The job is currently UNWIRED -- no
-    triggering workflow (ci-router.yml/ci-modules.yml/ci-nightly.yml) invokes a job named
-    integration-tests-next -- a pre-existing honesty gap this ledger surfaces rather than
-    papers over; tracked as a filed follow-up, spec-kitty#4729 (CI: wire the declared
-    integration-tests-next special tier).
+    Nightly home is ci-nightly.yml's `integration-next` job
+    (`pytest tests/integration tests/next -n auto --dist loadfile`, if: always(), in
+    nightly-summary.needs), which runs this tree run-all-regardless. It is deliberately
+    NOT a per-PR module row (C-003 -- per-PR promotion is the deferred spec-kitty#5037).
+    This replaced the dead `integration_tests_next` special tier that declared these
+    roots but was invoked by no workflow (spec-kitty#4729), retired in the same change
+    (ci-coverage-honesty-01M3CZVN WP03 T011).
   dirs:
   - tests/integration
   - tests/integration/core
@@ -786,7 +806,6 @@ out_of_matrix_test_dirs:
   - tests/acceptance
   - tests/adversarial
   - tests/ast_analysis
-  - tests/calibration
   - tests/characterization
   - tests/cli_gate
   - tests/compat
@@ -811,22 +830,12 @@ out_of_matrix_test_dirs:
   - tests/test_template
 
 special_tiers:
-  integration_tests_next:
-    job: integration-tests-next
-    parallel_mode: -n auto
-    previous_duration_minutes: 69.2
-    target_duration_minutes: 7
-    roots:
-    - tests/integration/**
-    - tests/next/**
-    note: >-
-      De-serialized from fully-serial (FR-008/NFR-001). Runs its own internal xdist fan-out
-      inside one job rather than being split across separate registry shards. WIRING GAP
-      (spec-kitty#4374 WP01 PC3 / WP03 T012) -- no triggering workflow (ci-router.yml,
-      ci-modules.yml, ci-nightly.yml) currently invokes a job named integration-tests-next;
-      this tier is declared here but unwired, a pre-existing honesty gap surfaced rather
-      than papered over. Tracked as spec-kitty#4729, "CI: wire the declared
-      integration-tests-next special tier (job unreferenced)".
+  # RETIRED (ci-coverage-honesty-01M3CZVN WP03 T011, closes spec-kitty#4729): the dead
+  # `integration_tests_next` tier -- declared here with roots tests/integration/** +
+  # tests/next/** but invoked by no workflow -- was removed. Its real, wired home is now
+  # the `integration-next` job in .github/workflows/ci-nightly.yml, which runs
+  # `pytest tests/integration tests/next -n auto --dist loadfile` nightly (FR-006). The
+  # honesty gap the old tier's own note surfaced is closed by wiring, not by re-declaring.
   architectural:
     job: architectural-heavy
     always_on: true

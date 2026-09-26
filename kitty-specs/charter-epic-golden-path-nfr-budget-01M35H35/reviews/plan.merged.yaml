@@ -1,0 +1,399 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: merged
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+- id: PLAN-GOV-001
+  lens: FR-003 mechanism-fidelity / self-authorization check (mission-derived lens)
+  severity: 4
+  title: 'Lever C''s dominant mechanism silently substitutes a different cost driver than the one the
+    operator named for FR-003, and the plan self-authorized skipping an operator ruling on that substitution.
+
+    '
+  evidence:
+  - artifact: 'spec.md § Clarifications — Operator decisions — "Lever" (verbatim operator quote): "A+C
+      — redesign the `fresh_e2e_project` fixture ... AND trim the residual ~0.2s/call Typer command-surface
+      construction that #4417 deferred."'
+  - artifact: 'spec.md § Functional Requirements — FR-003: "I want the ~0.2s/call Typer command-surface
+      construction cost that PR #4417 explicitly deferred ... reduced, so that each of the golden path''s
+      12 subprocess CLI calls costs less."'
+  - artifact: 'plan.md § Lever C — CLI startup cost (FR-003/FR-005), the "Approach" and "Secondary, complementary
+      trim" paragraphs: the freshness-stamp check inside `assess_global_agent_commands()` is the PRIMARY
+      mechanism ("~55-65% of a warm-cache init invocation''s ... wall-clock time"); the literal #4417-deferred
+      `register_commands()` lazy-import trim is demoted to "Secondary ... Estimated ~0.2s/call × ~10 ...
+      calls ≈ 2s total — small relative to the freshness-check fix above".'
+  - artifact: 'tracer-design-decisions.md § "On whether this needed an operator ruling" (2026-09-23, plan
+      phase): the plan-authoring agent explicitly considered escalating this exact substitution to the
+      operator and decided, on its own reasoning, not to — "I did not treat this as a fork needing the
+      operator''s word ... only an internal mechanism choice for an already-open FR."'
+  - code: 'src/specify_cli/runtime/agent_commands.py:1-16 (module docstring: "Bootstrap user-global canonical
+      slash commands for all configured agents") and :503 (`ensure_global_agent_commands`), :343 (`assess_global_agent_commands`)
+      — confirmed this is the agent-command-template render/cache path, not Typer''s own command-tree
+      construction.'
+  - code: 'src/specify_cli/cli/commands/__init__.py:181-257 (`register_commands`) — confirmed this IS
+      the literal Typer command-surface (module-import + `app.command`/ `app.add_typer`) construction
+      path #4417 deferred and the operator''s Lever quote names.'
+  claim: 'The operator''s own verbatim Lever decision (spec.md''s "Lever" blockquote, explicitly marked
+    as a direct quote from the original dispatch, distinct from the orchestrator''s own summarized Rulings)
+    names a SPECIFIC mechanism for lever C: "trim the residual ~0.2s/call Typer command-surface construction
+    that #4417 deferred." FR-003''s title and body repeat and pin the same specific citation. `register_commands()`
+    (`src/specify_cli/cli/commands/__init__.py`) is genuinely that mechanism — an unconditional eager
+    import of ~40 command modules on every non-fast-pathed invocation. `assess_global_agent_commands()`
+    (`src/specify_cli/runtime/agent_commands.py`) is a different subsystem entirely — it renders and caches
+    per-agent slash-command files (Claude/Gemini/Codex/etc.) into the user-global `~/.kittify`/agent directories,
+    unrelated to Typer''s own command-tree construction. The plan''s own profiling (this same planning
+    pass) found this second, unrelated path accounts for the large majority (~55-65%) of a warm-cache
+    invocation''s cost, and chose to make it the PRIMARY lever-C fix, demoting the literal, operator-named
+    mechanism to a small ("~2s total"), secondary addition. This is a real substitution of the operator-named
+    cause under the FR-003/Lever-C label, discovered via new evidence gathered mid-plan — not merely a
+    same-requirement engineering choice between two candidate implementations of the same named mechanism
+    (contrast with the `agent_keys`-scoping alternative in research.md, which correctly is NOT escalated,
+    since it is a genuine choice between two ways to implement the SAME already-open freshness-check idea).
+    The plan''s own tracer file shows the plan-authoring agent recognized this was a live question and
+    resolved it unilaterally, reasoning that FR-003''s "so that each call costs less" outcome clause outranks
+    the operator''s own verbatim cause-naming — an inference precisely of the kind this mission''s spec
+    phase HALTed five times to get an explicit operator ruling on (Rulings 1-5, `reviews/spec.ruling.md`),
+    including once (Ruling 3/SPEC-FRESH4-001) specifically because a phase agent''s own inference from
+    a prior ruling was judged a self-authorization requiring the operator''s direct word rather than the
+    agent''s own extrapolation. Unlike Ruling 5''s explicit delegation of FR-002''s mechanism choice to
+    the plan phase ("FR-002 must name no concrete mechanism... the plan chooses the mechanism"), the operator''s
+    Lever quote for lever C DID name a mechanism directly — there is no equivalent ruling delegating lever
+    C''s mechanism choice away from what the operator already specified.
+
+    '
+  remediation: 'Treat this as a genuine decision fork and return it to the operator before implementation,
+    framed precisely: "profiling found the dominant lever-C cost is NOT the #4417-deferred Typer-construction/import
+    cost you named, but a much larger, previously undiagnosed cost in the global agent-command template
+    render path (`ensure_global_agent_commands()`) — do you want the plan to (a) fix the newly-found larger
+    cost as primary and the named #4417 item as secondary [current plan], (b) fix only the literally-named
+    #4417 item even if it likely leaves the golden path short of the ≤110s bar, or (c) something else?"
+    Do not proceed to implementation on the plan''s current self-authorized answer. If the operator answers
+    (a), amend FR-003''s own text (or add a plan-level note) to record that the requirement is retroactively
+    confirmed outcome-based rather than cause-pinned, so a future reader does not have to reconstruct
+    this reasoning from a tracer-file aside.
+
+    '
+- id: PLAN-GOV-002
+  lens: Ledger
+  severity: 4
+  title: 'Lever C''s chosen mechanism adds new state into the exact code path SPEC-KITTY-LEDGER.md''s
+    SK-243 documents as having a live, verified concurrency defect, and the plan does not cite or account
+    for it.
+
+    '
+  evidence:
+  - artifact: 'SPEC-KITTY-LEDGER.md § SK-243 — "`ensure_global_agent_commands()` races on a `$HOME`-level
+      asset, so concurrent missions on one machine hit spurious `RuntimeError: Global asset input changed`"
+      — Status: open, "VERIFIED FIRST-HAND by the orchestrator on 2026-09-22" (one day before this mission''s
+      plan.md was authored).'
+  - artifact: 'plan.md § Lever C — "Approach" paragraph: the chosen primary mechanism adds a new freshness-stamp
+      file, read and written inside `assess_global_agent_commands()`, reusing "the same cache directory
+      `AssetPreparation` already uses."'
+  - artifact: 'data-model.md § "Agent-commands freshness stamp" § "Concurrency": the only concurrency
+      treatment given is torn-write protection via lock reuse — "so two concurrent `spec-kitty` invocations
+      on the same machine ... cannot race a torn stamp write against each other" — with no mention of
+      SK-243, no mention of the `RuntimeError`/`ValueError` drift-detection failure mode, and no analysis
+      of whether the new stamp file itself becomes a new observation/drift target.'
+  - code: src/specify_cli/runtime/agent_commands.py:35 (imports `_GlobalAssetPreparation` from `asset_preparation.py`)
+      and :368-369 (`AssetPreparation("slash_commands", root, home / "cache", _LOCK_FILENAME, consent)`)
+      — confirms `assess_global_agent_commands()` is built directly on the same `AssetPreparation` class
+      SK-243 implicates.
+  - code: 'src/specify_cli/runtime/asset_preparation.py:783 — `raise ValueError(f"Global asset input changed:
+      {observation.path}")` inside the drift-recheck loop that SK-243''s traceback (`RuntimeError: Global
+      asset input changed: ...`) originates from.'
+  claim: 'SK-243 is an open, first-hand-verified ledger entry (dated the day before this plan was authored)
+    documenting that `ensure_global_agent_commands()`''s underlying `AssetPreparation` drift-recheck machinery
+    spuriously raises when a sibling mission on the same machine legitimately mutates the shared `$HOME`-level
+    asset concurrently — exactly the "up to two missions at once" operating pattern the ledger entry says
+    is reachable by design, not misuse. The plan''s chosen Lever-C mechanism inserts NEW state (a freshness
+    stamp: CLI version + template-source signature + agent-key set) to be read and written inside this
+    exact function, on this exact `AssetPreparation` instance, on every non-fast-pathed CLI invocation
+    — i.e. more often than today, since the stamp read now runs unconditionally as the very first step.
+    Per CLAUDE.md''s binding instruction ("Read SPEC-KITTY-LEDGER.md before starting: it lists what is
+    currently broken in spec-kitty, found while running real missions") and this lens''s own charge ("if
+    SPEC-KITTY-LEDGER.md carries an entry on this behaviour, the plan accounts for it rather than contradicting
+    it"), the plan needed to either demonstrate the new stamp file is excluded from `AssetPreparation`''s
+    observation/drift set (so it cannot itself trigger or be caught by SK-243''s failure mode), or explicitly
+    acknowledge the interaction and either scope it out with the same rationale spec.md gave for the separate
+    #4017 carve-out, or fold a mitigation into FR-005''s regression guard. It does neither — data-model.md''s
+    "Concurrency" section addresses only torn writes to the new stamp file, a materially different hazard
+    from SK-243''s documented "legitimate concurrent mutation reported as unexplained drift" failure mode.
+
+    '
+  remediation: 'Add an explicit subsection to plan.md''s Lever C (or data-model.md''s freshness-stamp
+    section) analyzing the SK-243 interaction: state whether the new stamp file participates in `AssetPreparation`''s
+    `observations`/drift-recheck set for the `"slash_commands"` owner batch, and if so, show how a concurrent
+    sibling mission''s legitimate re-render cannot make the stamp read spuriously raise `RuntimeError:
+    Global asset input changed` (or its `ValueError` precursor) the way SK-243 documents for the adjacent
+    skills path. If the mechanism genuinely sidesteps this by construction (e.g. the stamp file is read-only
+    metadata never included in the observed-write set), say so explicitly with a code citation proving
+    it, rather than leaving the interaction unaddressed. Cite SK-243 by name so a reviewer can confirm
+    this was checked, not missed — the same treatment spec.md already gives the sibling #4017 ledger item.
+
+    '
+- id: PLAN-ARCH-001
+  lens: generated-artifacts / blast-radius
+  severity: 4
+  title: Freshness-stamp design has no destination-state check — a false "already fresh" positive silently
+    skips the existing self-healing repair pass
+  evidence:
+  - artifact: data-model.md § Agent-commands freshness stamp (Shape + Read/write contract)
+  - artifact: plan.md § Lever C, 'Approach' paragraph
+  - code: 'src/specify_cli/runtime/agent_commands.py:343-420 (assess_global_agent_commands — today''s
+      unconditional render-then-diff self-heals destination drift on every call: observes output dir,
+      renders, diffs against existing_bytes, retires non-canonical files)'
+  - code: 'src/specify_cli/runtime/agent_commands.py:296-305 (_all_global_agent_commands_healthy — an
+      existing, UNUSED, cheap destination-aware health check: directory existence, filename completeness,
+      per-file version-marker match. Zero callers anywhere in src/ or tests/, confirmed by grep.)'
+  - code: 'src/specify_cli/runtime/agent_commands.py:503-508 (ensure_global_agent_commands docstring:
+      "Ensure actual global command health, retaining unchanged bytes and mtimes")'
+  claim: 'The proposed freshness stamp''s three fields — cli_version, template_source_signature, agent_keys
+    — are all SOURCE-side inputs. None of them capture the state of the rendered DESTINATION files (~/.claude/commands/,
+    ~/.gemini/commands/, etc.). Today, `assess_global_agent_commands()` unconditionally renders and diffs
+    against destination bytes on every invocation, which is what lets it self-heal a deleted, partially-installed,
+    or externally-edited command file on the very next `spec-kitty` call — this is the documented contract
+    of `ensure_global_agent_commands()` itself ("Ensure actual global command health"). Once the freshness
+    pre-check short-circuits on a matching (cli_version, template_source_signature, agent_keys) stamp,
+    that repair pass is skipped entirely — so if a user deletes `~/.claude/commands/spec-kitty.plan.md`,
+    or another concurrent `spec-kitty` process (a real scenario under "one checkout, many agents") leaves
+    a partially-materialized destination tree, or an operator edits a command file by hand, the next invocation
+    reports the global command set healthy and does nothing, even though it is objectively not. This is
+    exactly the class of defect the arch lens brief names — "a stale render treated as fresh" — and the
+    charter explicitly calls silent success its dominant failure mode. Tellingly, the codebase already
+    contains a cheap, destination-aware health check (`_all_global_agent_commands_healthy()`) that would
+    close this exact gap, but it has zero callers today and is not mentioned anywhere in research.md or
+    plan.md despite both documents listing `agent_commands.py` as directly read.
+
+    '
+  remediation: 'Extend the freshness-check contract in data-model.md (and the eventual implementation)
+    to require BOTH a stamp match AND an independent, cheap destination-health verification before short-circuiting
+    — e.g., call `_all_global_agent_commands_healthy()` (or fold its per-agent directory/filename/version-marker
+    checks into the freshness gate) for the resolved agent-key set, and only skip `_render_agent_commands()`
+    when the stamp matches AND that check reports every configured agent''s destination as healthy. Document
+    this as a fourth condition in data-model.md''s read/write contract, not just the three source-side
+    fields.
+
+    '
+- id: PLAN-ARCH-002
+  lens: migrations
+  severity: 4
+  title: Freshness-stamp read path has no specified behavior for malformed/legacy content — a corrupt
+    or pre-mission stamp could crash every CLI invocation instead of degrading gracefully
+  evidence:
+  - artifact: data-model.md § Agent-commands freshness stamp, 'Read/write contract' and 'No migration
+      needed' bullets
+  - code: src/specify_cli/runtime/asset_preparation.py:186-204 (AssetPreparation.__init__ raises ValueError
+      on a malformed sibling cache file — 'Invalid global asset inventory' — for this exact owner's existing
+      cache directory)
+  - code: src/specify_cli/runtime/agent_commands.py:434-443 (assess_global_agent_commands's outer except
+      (OSError, ValueError, KeyError) turns that raise into an incomplete() OwnerAssessment)
+  - code: 'src/specify_cli/runtime/agent_commands.py:473-492 (_apply_command_assessment: `if not assessment.complete:
+      raise RuntimeError(...)` — propagates out of ensure_global_agent_commands() and thus main_callback())'
+  - code: src/specify_cli/runtime/agent_commands.py:40-41,425-426 (the EXISTING _VERSION_FILENAME = "agent-commands.lock"
+      file under home/cache, written today as plain version-string bytes via prepared.finish(stamp, _get_cli_version())
+      — confirmed by grep to have zero readers anywhere in the codebase today)
+  claim: 'data-model.md asserts the new stamp "degrades gracefully... never errors or requires a repair
+    command," but only demonstrates this for the ABSENT case. It does not specify what happens when the
+    stamp file exists but cannot be parsed as the new shape. Two concrete, non-hypothetical ways this
+    happens: (1) EVERY existing installation''s first post-upgrade invocation, if the new stamp reuses
+    the existing `_VERSION_FILENAME`/"agent-commands.lock" path (which the plan explicitly leaves undecided
+    — "exact filename/format is an implementation choice, not fixed by this plan") — that file already
+    exists on disk today as plain version-string bytes, not the new JSON shape, so the very first read
+    after upgrade is guaranteed to hit unparseable legacy content, not a rare edge case; (2) a torn write
+    from a crashed process or an unimplemented lock-reuse path — the plan''s own Concurrency subsection
+    admits the exact locking mechanics are "an implementation-time decision," i.e. not actually resolved
+    despite the "never errors" claim in the same document. The nearest existing precedent in this same
+    file — the sibling asset-inventory cache''s malformed-content handling — RAISES ValueError, which
+    propagates through assess_global_agent_commands()''s incomplete() path into `_apply_command_assessment`''s
+    `raise RuntimeError`, crashing `main_callback()` and therefore every `spec-kitty` invocation on the
+    machine until the file is manually removed. If the new stamp''s read path is implemented by analogy
+    to that precedent (a reasonable default absent explicit guidance), a corrupt or legacy-shaped stamp
+    produces a strictly worse regression than today''s "always slow" baseline: a hard, repeated crash.
+
+    '
+  remediation: 'Add an explicit third disposition to data-model.md''s read/write contract, alongside "match"
+    and "miss (absent or fields differ)": "unreadable/malformed (wrong schema, legacy plain-bytes content,
+    invalid encoding, torn write)" → treat identically to absent (fall through to the unconditional render-then-diff
+    path, then overwrite with a fresh, correctly-shaped stamp on success). Implement this via a narrowly-scoped
+    catch around the stamp READ only — parse errors, not render/write errors — so a corrupt or legacy-shaped
+    freshness stamp degrades the CLI back to "always slow" rather than crashing it. State explicitly in
+    the plan/data-model whether the new stamp reuses `_VERSION_FILENAME` or introduces a new file; if
+    reused, call out the guaranteed first-upgrade legacy-content case by name so the implementer does
+    not treat it as a hypothetical.
+
+    '
+- id: PLAN-VERIFY-001
+  lens: Actions evidence path / Ruling 4 compliance (clarity)
+  severity: 4
+  title: Actions evidence path §3 is a self-contradictory sentence that, read literally, instructs adding
+    `--durations=1` to `ci-router.yml`'s `tests-e2e` job — the exact CI/router edit Ruling 4 forbids
+  evidence:
+  - artifact: plan.md § Actions evidence path, line 145
+  - code: .github/workflows/ci-router.yml:681-683 (the `tests-e2e` job's only `run:` step)
+  claim: 'plan.md line 145 reads: "This plan requires adding `--durations=1` (or equivalent) to that one
+    `run:` step in `ci-router.yml`''s `tests-e2e` job **is explicitly NOT proposed** — that would be a
+    CI/router change, which Ruling 4 forbids." Parsed literally, the sentence has two grammatical subjects
+    welded together: an imperative assertion ("This plan requires adding X") immediately followed by an
+    unattached negation ("is explicitly NOT proposed") that never actually negates "requires" — it would
+    need to read "Adding X ... is explicitly NOT proposed" or "This plan does NOT require adding X" to
+    parse cleanly. An implementer skimming under time pressure (the normal condition inside a WP) can
+    plausibly stop at "This plan requires adding `--durations=1` ... to that one `run:` step in `ci-router.yml`''s
+    `tests-e2e` job" and read it as a standing instruction, since it is phrased with imperative force
+    and the disclaimer trails it rather than leading it. Acting on that literal-first reading would mean
+    editing `.github/workflows/ci-router.yml` — a CI/router change — which directly violates the binding
+    operator Ruling 4 ("no CI/router changes; the mission stays test + CLI-startup only", `reviews/spec.ruling.md`
+    Ruling 4). This is exactly the ambiguity the mission-derived lens asked me to check for, and I judge
+    the misreading plausible, not far-fetched, given the sentence''s genuine grammatical break.
+
+    '
+  remediation: 'Rewrite the sentence so the negation leads, not trails: e.g. "Adding `--durations=1` (or
+    equivalent) to that one `run:` step in `ci-router.yml`''s `tests-e2e` job is explicitly NOT proposed
+    here — that would be a CI/router change, which Ruling 4 forbids." Keep the rationale that follows
+    unchanged. This is a pure wording fix; no semantic change to the plan''s chosen mechanism is required.
+
+    '
+- id: PLAN-VERIFY-002
+  lens: Actions evidence path — measurement precision (silent success)
+  severity: 4
+  title: The proposed evidence mechanism (step-level Actions timestamps) cannot actually recover test_charter_epic_golden_path's
+    own wall-clock duration to check against the hard ≤110s bar
+  evidence:
+  - artifact: plan.md § Actions evidence path, line 145 ("the tests-e2e job step's own start/end timestamps
+      ... give the real wall-clock duration of the pytest tests/e2e -q step")
+  - code: .github/workflows/ci-router.yml:676-683 — the `tests-e2e` job has exactly one `run:` step combining
+      `uv sync --frozen --all-extras` and `uv run --frozen pytest tests/e2e -q`, with no step boundary
+      between the two
+  - code: 'tests/e2e/ directory listing: 6 files, 21 total `def test_*` functions (`test_cli_smoke.py`,
+      `test_charter_epic_golden_path.py`, `test_mission_create_clean_output.py`, `test_upgrade_post_state.py`,
+      `test_worktree_owned_root_concurrency.py`, `test_feature_alias_smoke.py`) — `pytest tests/e2e -q`
+      runs all of them, not only the golden-path test'
+  - code: 'tests/e2e/test_charter_epic_golden_path.py — grepped for `time.monotonic|time.perf_counter|elapsed|duration`:
+      zero hits. The test itself performs no internal timing/logging of its own wall-clock cost.'
+  claim: 'Ruling 2 requires "a real GitHub Actions e2e run shows the golden path at ≤110s" — specifically
+    the golden-path test''s own duration, with no exception band. The plan''s evidence mechanism is: read
+    the Actions UI''s (or `gh run view --log`''s) start/end timestamp for the `tests-e2e` job''s one `run:`
+    step and treat that as the golden path''s wall-clock time. This does not work as described, for two
+    independent, verified reasons: (1) That one step''s timestamp spans BOTH `uv sync --frozen --all-extras`
+    (dependency installation — has no fixed, negligible cost) AND the entire `pytest tests/e2e -q` invocation;
+    there is no step boundary separating them, so the recovered duration is "uv sync + all e2e tests",
+    not "the golden path test alone". (2) `pytest tests/e2e -q` collects and runs all 21 tests across
+    6 files in `tests/e2e/`, not only `test_charter_epic_golden_path`; with no `--durations` flag (confirmed
+    absent) and no internal timing instrumentation inside the test itself (confirmed absent), there is
+    nothing in the job''s console log that isolates the golden-path test''s own duration from the other
+    20 tests'' combined runtime. The mission-derived lens explicitly asked whether "a step-level duration
+    includes setup/teardown noise ... is that close enough, and does the plan say so, or does it silently
+    assume a precision it hasn''t justified" — the plan does not address this at all; it asserts the mechanism
+    "give[s] the real wall-clock duration of the pytest tests/e2e -q step" without qualification, which
+    is not the same quantity Ruling 2 requires and is not obviously "close enough" against a hard, no-band
+    110s cutoff (uv sync alone, plus 20 other tests, could easily be tens of seconds — enough to make
+    a step-level number either falsely fail a genuinely-in-budget golden path, or worse, falsely appear
+    to satisfy ≤110s while masking a golden path that is itself over-budget once isolated).
+
+    '
+  remediation: 'Do not rely on step-level Actions timestamps. Instead, get an isolated, admissible duration
+    for the golden-path test alone without touching any `.github/workflows/*.yml` file (so Ruling 4 is
+    respected): add `--durations=1` (or `-k test_charter_epic_golden_path --durations=0`) to `pytest.ini`''s
+    existing `addopts` line (`pytest.ini:11`, currently `addopts = --tb=short`) — `pytest.ini`, not `.github/workflows/*.yml`,
+    is this repo''s canonical pytest-config home (per the comment at `pyproject.toml:230-236`, which explicitly
+    forbids `[tool.pytest.ini_options]` in `pyproject.toml` in favor of `pytest.ini`). pytest''s own `--durations`
+    terminal summary is written to the console regardless of `-q` and is not subject to per-test stdout
+    capture, so it would appear in the Actions log for every pytest invocation across the repo, including
+    `tests-e2e`, without any workflow-file edit. State this concretely in the plan instead of the vaguer
+    "job''s own existing console log" framing.
+
+    '
+- id: PLAN-VERIFY-003
+  lens: Silent-success check (charter's dominant failure mode)
+  severity: 3
+  title: No mechanical check that the required Actions Evidence Log / PR-body evidence was actually recorded
+    before the mission is treated as closed
+  evidence:
+  - artifact: 'plan.md § Actions evidence path, line 145 ("copied into (a) the PR description ... and
+      (b) an evidence line appended to this plan.md (a new ## Actions Evidence Log section, added by the
+      implementer once the real measurement exists")'
+  - artifact: 'plan.md § Red-first per changed behaviour (FR-005 row) — contrast: FR-005''s regression
+      guard IS a gated, always-on test (structural half) plus a nightly wall-clock half, i.e. a mechanical
+      check'
+  claim: 'Unlike FR-005''s regression guard (a real pytest test that runs in CI), the NFR-002/SC-003 closure
+    evidence (the real Actions ≤110s measurement) is recorded purely as prose: a PR description section
+    and a new plan.md heading, both added "by the implementer" with no test, lint rule, or CI gate asserting
+    either exists or contains a real number before the mission is considered done. If an implementer forgets
+    to add the "Actions Evidence Log" section, or copies a stale/local number into the PR body instead
+    of the real Actions figure, nothing in this plan''s own gate set would catch it — closure would depend
+    entirely on a human reviewer (sk-review''s accept gate) noticing the omission by eye. The charter''s
+    Quality & Tech-Debt Standing Orders name exactly this pattern ("never trust a green check, a clean
+    diff, or a confident summary") as the dominant failure mode this repo actively defends against, and
+    this mission''s own subject matter (a prior silent re-skip, per C-005) is a direct instance of it.
+
+    '
+  remediation: 'Either (a) note explicitly in plan.md that this evidence step is human-reviewed only (sk-review''s
+    accept gate must positively confirm the Actions Evidence Log section exists and cites a real run URL
+    + measured seconds, not merely that the PR is green), making the reliance on human review an explicit,
+    acknowledged control rather than an implicit gap; or (b) add a cheap mechanical check — e.g. a small
+    script/test asserting plan.md contains a `## Actions Evidence Log` heading with a parseable seconds
+    figure once the mission reaches ready-for-squad — so the omission is caught structurally rather than
+    by memory.
+
+    '
+- id: PLAN-VERIFY-004
+  lens: Gates — router-filter citation accuracy
+  severity: 3
+  title: '"Router-filter note" claim is factually wrong: src/specify_cli/runtime/agent_commands.py IS
+    covered by a named router filter group (`next`), contradicting the plan''s own "verified against the
+    live files" claim'
+  evidence:
+  - artifact: plan.md § Gate set for this mission, line 188 ("Router-filter note ... src/specify_cli/runtime/agent_commands.py
+      is covered by no explicitly-named router filter group in .github/workflows/ci-router.yml (it is
+      not under cli, charter, agent, core_misc, or any other named src/specify_cli/** subpath group)")
+  - code: '.github/workflows/ci-router.yml:116-119 — the `next` filter group: `- ''src/specify_cli/runtime/**''`,
+      `- ''src/runtime/next/**''`, `- ''src/mission_runtime/**''`'
+  - code: .github/workflows/ci-router.yml:218 — the `unmatched` catch-all's own union list includes `"${{
+      steps.filter.outputs.next }}"`
+  - code: .github/workflows/ci-router.yml:523 — the `architectural-heavy` job's trigger OR-list includes
+      `needs.changes.outputs.next == 'true'`
+  claim: '`src/specify_cli/runtime/agent_commands.py` is a path under `src/specify_cli/runtime/`, which
+    IS matched by the `next` filter group defined at ci-router.yml:116-119. That group is also part of
+    the `unmatched` catch-all''s own union computation (line 218) and directly gates the `architectural-heavy`
+    job (line 523, among others). This means a diff touching ONLY `runtime/agent_commands.py` would set
+    `next=true`, would NOT trip the fail-closed `unmatched` catch-all (contrary to the plan''s claim),
+    and would trigger `architectural-heavy` via the `next` group rather than "matching no named group".
+    The plan''s own text frames this note as "verified against this checkout''s actual `.github/workflows/*.yml`
+    files today (not a cached number)" (line 179) and explicitly states it is meant to guide a FUTURE
+    narrower change touching only that file — so the error is not inert: it could lead a future implementer
+    to believe a runtime-only change forces an unwanted full-mode CI run (overstating cost) or, worse,
+    to attempt adding `src/specify_cli/runtime/**` to some other named group believing a real gap exists,
+    which would itself be an unnecessary, out-of-scope router change. For THIS mission''s own PR the practical
+    gate selection is unaffected (the diff also touches `tests/e2e/**` and `src/specify_cli/cli/**`, both
+    already named), so this does not change what this specific PR''s gates are — the defect is confined
+    to the informational note''s own accuracy.
+
+    '
+  remediation: 'Correct the Router-filter note: `src/specify_cli/runtime/agent_commands.py` IS covered
+    by the `next` filter group (ci-router.yml:116-119), which participates in the `unmatched` union (line
+    218) and gates `architectural-heavy` (line 523) plus any other job keyed on `needs.changes.outputs.next`.
+    A future runtime-only change would select `next` normally, not trip the catch-all. Either remove the
+    note (the risk it was written to flag does not exist) or rewrite it to state the corrected mapping.
+
+    '
+- id: PLAN-VERIFY-005
+  lens: Gates — startup fast-path enumeration accuracy
+  severity: 1
+  title: Lever C section undercounts main_callback()'s existing fast-path guards by one (omits _is_doctor_skills_invocation)
+  evidence:
+  - artifact: plan.md § Lever C, line 122 ("guarded only by the existing _is_next_invocation/_is_live_work_hook_invocation/_is_session_start_invocation
+      fast-path checks")
+  - code: 'src/specify_cli/__init__.py:151 — `if not _is_doctor_skills_invocation(sys.argv): ensure_global_agent_commands()`,
+      a fourth guard not named by the plan'
+  claim: '`ensure_global_agent_commands()` is actually skipped by four conditions, not three: the three
+    the plan names (next/live-work-hook/session-start, gating the whole `if not ... : root_callback(ctx);
+    ...` block at __init__.py:140) plus a fourth, independent guard at line 151 (`_is_doctor_skills_invocation`)
+    that gates the `ensure_global_agent_commands()` call specifically. This does not change the plan''s
+    core finding (none of the golden path''s 12 calls are `doctor skills` invocations, so the "9 of 12
+    calls hit this path" count is unaffected) and has no bearing on the correctness of the chosen fix.
+
+    '
+  remediation: 'Minor wording fix only: list all four guards, or say "guarded only by the existing argv-sniffing
+    fast-path checks (see __init__.py:137-151)" instead of naming an incomplete enumeration.
+
+    '

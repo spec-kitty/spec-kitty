@@ -1,0 +1,29 @@
+# review-findings/v1 — fresh sweep, round 2 (R5b)
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh-round2
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: PR-FRESH2-001
+    lens: tests (debugger-debbie)
+    severity: 1
+    title: "eval() on subprocess output where ast.literal_eval() would remove the need for the noqa entirely"
+    evidence:
+      - code: "tests/cli/test_lazy_command_module_imports.py:88"
+    claim: >
+      `_run_register_commands()` parses a subprocess's `repr(list[str])` stderr
+      payload with `mods: list[str] = eval(mods_repr)  # noqa: S307 -- our own
+      controlled subprocess output, not external input`. The payload is always a
+      `repr()` of a list of plain module-name strings the test's own inline
+      script constructs, which is exactly the shape `ast.literal_eval()` parses
+      safely without executing arbitrary code. Using `eval()` here buys nothing
+      (the noqa's own justification is "not external input", i.e. literal_eval
+      would already suffice) and is the pattern that becomes dangerous the
+      moment this helper is copied to parse output that is not fully
+      self-generated.
+    remediation: >
+      Replace `eval(mods_repr)` with `ast.literal_eval(mods_repr)` (adding
+      `import ast`) and drop the `# noqa: S307`. No behavior change, and no
+      suppression comment needed since ruff's S307 rule does not fire on
+      `literal_eval`.

@@ -211,6 +211,7 @@ def _compile_bundle_after_merge(repo_root: Path, *, pack_name: str) -> list[str]
         from_interview=False,
         resolved_mission_type=None,
         profile=pack_name,
+        prefer_recorded_mission=True,
     )
     compiled = compile_charter(
         mission=resolved_mission,

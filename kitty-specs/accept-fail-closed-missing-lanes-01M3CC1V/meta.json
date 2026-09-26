@@ -1,0 +1,37 @@
+{
+  "accept_commit": "2174509b8ad529b4b9c8c1a9c99ff86a203a3cfd",
+  "acceptance_history": [
+    {
+      "accept_commit": "2174509b8ad529b4b9c8c1a9c99ff86a203a3cfd",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-25T14:18:01.361098+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "fd4df98392067a6f2b098b09a066363b0421e52a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-25T14:18:01.361098+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "fd4df98392067a6f2b098b09a066363b0421e52a",
+  "baseline_merge_commit": "d5a251ad203ccc9dcf0f4719b66f0370dd9bf2e5",
+  "created_at": "2026-09-25T13:28:37.561285+00:00",
+  "flattened": false,
+  "friendly_name": "Accept fail-closed on absent lanes.json",
+  "merge_target_branch": "main",
+  "merged_at": "2026-09-25T14:19:52.098680+00:00",
+  "merged_commit": "b3b7ed3b6a376a8ce4838625943075362a6eba99",
+  "mid8": "01M3CC1V",
+  "mission_id": "01M3CC1VDMAEJ9T6SXPJ8Z24M8",
+  "mission_number": null,
+  "mission_slug": "accept-fail-closed-missing-lanes-01M3CC1V",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Fixes P0 #4891: accept currently exits 0 and records/commits acceptance on an unverified matrix whenever lanes.json is absent, because the lane-gate resolver treats a genuinely-absent manifest as a silent no-op. The fix mirrors the existing corrupt-lanes branch so absence is fail-closed, consistent with implement/review/merge which already refuse via MissingLanesError.",
+  "purpose_tldr": "Make 'spec-kitty accept' fail closed when lanes.json is absent instead of silently skipping the acceptance-matrix gate (#4891).",
+  "slug": "accept-fail-closed-missing-lanes-01M3CC1V",
+  "status_phase": "1",
+  "target_branch": "issue-4891-accept-fail-closed-missing-lanes",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-25T13:37:18.265552+00:00"
+}

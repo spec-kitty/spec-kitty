@@ -1,0 +1,186 @@
+work_packages:
+  - id: WP01
+    title: "Baseline capture at the merge-base"
+    dependencies: []
+    owned_files:
+      - "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/research/**"
+    requirement_refs:
+      - NFR-002
+    cross_cutting: true
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+    prompt_file: "tasks/WP01-baseline-capture.md"
+    agent_profile: "researcher-robbie"
+    role: "researcher"
+    agent: "claude"
+    model: ""
+
+  - id: WP02
+    title: "FR-001 un-skip: red-first ATDD anchor"
+    dependencies: []
+    owned_files:
+      - "tests/e2e/test_charter_epic_golden_path.py"
+    requirement_refs:
+      - FR-001
+      - C-004
+      - C-001
+      - C-002
+      - C-003
+      - SC-001
+    cross_cutting: true
+    subtasks:
+      - T006
+      - T007
+      - T008
+    prompt_file: "tasks/WP02-un-skip-red-first-anchor.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+    model: ""
+
+  - id: WP03
+    title: "Lever A: fresh_e2e_project fixture redesign"
+    dependencies:
+      - WP02
+    owned_files:
+      - "tests/e2e/conftest.py"
+    requirement_refs:
+      - FR-002
+      - C-006
+      - C-003
+      - SC-005
+    cross_cutting: true
+    subtasks:
+      - T009
+      - T010
+      - T011
+    prompt_file: "tasks/WP03-fixture-redesign.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+    model: ""
+
+  - id: WP04
+    title: "Lever C primary: agent-commands freshness pre-check"
+    dependencies:
+      - WP02
+    owned_files:
+      - "src/specify_cli/runtime/agent_commands.py"
+      - "src/specify_cli/__init__.py"
+      - "pyproject.toml"
+      - "docs/changelog/CHANGELOG.md"
+      - "tests/specify_cli/runtime/**"
+    requirement_refs:
+      - FR-003
+    cross_cutting: true
+    subtasks:
+      - T012
+      - T013
+      - T014
+      - T015
+      - T016
+    prompt_file: "tasks/WP04-freshness-precheck.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+    model: ""
+
+  - id: WP05
+    title: "Lever C secondary: lazy command-module imports"
+    dependencies:
+      - WP02
+    owned_files:
+      - "src/specify_cli/cli/commands/__init__.py"
+      - "tests/specify_cli/cli/**"
+      - "tests/cli/**"
+    requirement_refs:
+      - FR-003
+    cross_cutting: true
+    subtasks:
+      - T017
+      - T018
+      - T019
+    prompt_file: "tasks/WP05-lazy-command-imports.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+    model: ""
+
+  - id: WP06
+    title: "FR-005 startup regression guard (two-tier)"
+    dependencies:
+      - WP04
+      - WP05
+    owned_files:
+      - "tests/performance/test_cli_startup_agent_commands_freshness.py"
+    requirement_refs:
+      - FR-005
+      - NFR-001
+      - C-002
+      - SC-002
+    cross_cutting: true
+    subtasks:
+      - T020
+      - T021
+      - T022
+      - T023
+    prompt_file: "tasks/WP06-startup-regression-guard.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+    model: ""
+
+  - id: WP07
+    title: "Actions-evidence measurability: pytest.ini durations"
+    dependencies: []
+    owned_files:
+      - "pytest.ini"
+    requirement_refs:
+      - NFR-002
+    cross_cutting: true
+    subtasks:
+      - T024
+      - T025
+    prompt_file: "tasks/WP07-pytest-durations.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+    model: ""
+
+  - id: WP08
+    title: "Final integration validation and tracer close-out"
+    dependencies:
+      - WP01
+      - WP02
+      - WP03
+      - WP04
+      - WP05
+      - WP06
+      - WP07
+    owned_files:
+      - "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-approach.md"
+      - "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-design-decisions.md"
+      - "kitty-specs/charter-epic-golden-path-nfr-budget-01M35H35/tracer-tooling-friction.md"
+    requirement_refs:
+      - NFR-002
+      - C-005
+      - FR-004
+      - C-003
+      - SC-003
+      - SC-004
+      - SC-005
+    cross_cutting: true
+    subtasks:
+      - T026
+      - T027
+      - T028
+      - T029
+    prompt_file: "tasks/WP08-final-integration-validation.md"
+    agent_profile: "debugger-debbie"
+    role: "investigator"
+    agent: "claude"
+    model: ""

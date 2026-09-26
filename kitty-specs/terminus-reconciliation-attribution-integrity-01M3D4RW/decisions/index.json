@@ -1,0 +1,52 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-25T20:41:13.094215Z",
+      "decision_id": "01M3D4SYM66CC7JMPQS3JTMJVH",
+      "final_answer": "Fold all four (#5022 WP1, #5018 WP2, #5021-r1 WP3, #5038 WP4) into one mission; #5021-r2 (3-way merge-resolution) stays an honest xfail(strict) \u2014 grounding squad confirmed a proper fix (union-of-both-parents attribution) exceeds this mission's disjoint-write-scope soundness model.",
+      "input_key": "mission_boundary",
+      "mission_id": "01M3D4RW4J5F5HNVT3N37JF95Q",
+      "mission_slug": "terminus-reconciliation-attribution-integrity-01M3D4RW",
+      "opened_by": "cli",
+      "options": [
+        "Fold all four (#5022, #5018, #5021-r1, #5038) as WP1-WP4; keep #5021-r2 3-way as honest xfail",
+        "Only the three named issues; defer #5038 to a standalone mission"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which facets does this single mission own?",
+      "rationale": null,
+      "resolved_at": "2026-09-25T20:46:36.733436Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.mission-boundary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-25T20:46:38.182219Z",
+      "decision_id": "01M3D53W369G9MXFPWG2TXWM95",
+      "final_answer": "Keep honest xfail(strict) and document as a tracked Epic #5001 follow-up. Charter Standing Order #9: a real fix flips xfail\u2192pass; we do not green-wash a case we do not actually fix. WP1's deletion-attribution work must not silently un-strict it.",
+      "input_key": "three_way_disposition",
+      "mission_id": "01M3D4RW4J5F5HNVT3N37JF95Q",
+      "mission_slug": "terminus-reconciliation-attribution-integrity-01M3D4RW",
+      "opened_by": "cli",
+      "options": [
+        "Keep honest xfail(strict); document as tracked follow-up",
+        "Attempt union-of-both-parents attribution fix in-mission"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How is #5021 residual-2 (3-way merge-resolution content) handled?",
+      "rationale": null,
+      "resolved_at": "2026-09-25T20:46:39.596542Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.three-way-disposition",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3D4RW4J5F5HNVT3N37JF95Q",
+  "version": 1
+}

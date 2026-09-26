@@ -1,0 +1,38 @@
+{
+  "event_count": 12,
+  "last_event_id": "01M359FA6WRQG1PG2TR46231P2",
+  "materialized_at": "2026-09-22T19:28:51.932101+00:00",
+  "mission_number": "",
+  "mission_slug": "squash-merge-target-safety-01M3551G",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M359FA6WRQG1PG2TR46231P2",
+      "last_transition_at": "2026-09-22T19:28:51.932101+00:00",
+      "review_result": {
+        "feedback_path": "/home/lynn/Documents/Codex/2026-09-22/mo/work/spec-kitty-cli-rc5/.worktrees/squash-merge-target-safety-01M3551G-lane-a/kitty-specs/squash-merge-target-safety-01M3551G/tasks/WP01-fail-closed-squash-integration/review-cycle-2.md",
+        "reference": "review-cycle://squash-merge-target-safety-01M3551G/WP01-fail-closed-squash-integration/review-cycle-2.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 530558,
+      "shell_pid_created_at": "1790011237.11"
+    }
+  }
+}

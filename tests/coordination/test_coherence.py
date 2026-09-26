@@ -377,6 +377,83 @@ def test_repair_refuses_when_head_already_reverted(tmp_path: Path) -> None:
     assert _git(worktree, "rev-parse", "HEAD").stdout.strip() == head_before
 
 
+def test_repair_refuses_when_worktree_checked_out_a_foreign_branch(tmp_path: Path) -> None:
+    """Sibling of #4920: the worktree's checked-out branch must match ``coord_ref``.
+
+    Reproduces the reviewer-reported scenario for ``repair_coord_strand`` (the
+    ``git revert`` sibling of the ``git merge --ff-only`` bug #4920 fixed for
+    ``doctor coordination --fix``'s branch-mutation path): a pending-reconcile
+    marker names a coord worktree, but between capture and heal the worktree is
+    switched to a sibling branch created FROM the coord tip (``git switch -c
+    scratch``). Both existing content-based guards (``captured_sha`` ancestor of
+    HEAD, strand live at HEAD) still pass because ``scratch`` is byte-identical to
+    ``coord`` at that point — neither guard inspects which branch is checked out.
+    Without a branch-identity check, the ``git revert`` runs inside the worktree
+    (i.e. on ``scratch``), mutating a foreign branch while leaving the actual
+    ``coord`` ref untouched; the primitive would still report ``healed=True``, and
+    the caller (``_heal_one_strand`` / ``_heal_pending_coord_reconcile``) would
+    then clear the marker — after which the still-stranded ``coord`` ref is never
+    reported again (live-strand findings are enumerated only from markers).
+    """
+    repo = tmp_path / "repo"
+    feature_dir = _seed_committed_coord_ref(
+        repo,
+        [_event("WP-A", "approved", at="2026-07-18T10:00:00+00:00", event_id="01A00", from_lane="in_review")],
+    )
+    captured_sha = _git(repo, "rev-parse", "coord").stdout.strip()
+
+    worktree = tmp_path / "coord-wt"
+    _git(repo, "worktree", "add", str(worktree), "coord")
+    wt_events = worktree / "kitty-specs" / MISSION_SLUG / "status.events.jsonl"
+    with wt_events.open("a", encoding="utf-8") as fh:
+        fh.write(
+            json.dumps(
+                _event("WP-A", "done", at="2026-07-18T10:05:00+00:00", event_id="01A01", from_lane="approved"),
+                sort_keys=True,
+            )
+            + "\n"
+        )
+    _git(worktree, "add", ".")
+    _git(worktree, "commit", "-m", "bake WP-A done (strands on rollback)")
+
+    # Operator (or another process) switches the coord worktree onto a sibling
+    # branch created from its current tip. Git permits this freely — ``scratch``
+    # is not "the" coord branch, but it descends from it and is byte-identical.
+    _git(worktree, "switch", "-c", "scratch")
+    scratch_tip_before = _git(worktree, "rev-parse", "scratch").stdout.strip()
+    coord_tip_before = _git(repo, "rev-parse", "coord").stdout.strip()
+
+    # Pre-condition: WP-A is genuinely stranded done on the committed coord ref.
+    assert coord_incoherent_done_wps(
+        "coord", ["WP-A"], repo_root=repo, feature_dir=feature_dir
+    ) == ["WP-A"]
+
+    outcome = repair_coord_strand(
+        coord_ref="coord",
+        captured_sha=captured_sha,
+        coord_worktree=worktree,
+        candidate_wps=["WP-A"],
+        repo_root=repo,
+        feature_dir=feature_dir,
+    )
+
+    assert outcome.healed is False, (
+        "must refuse (not report healed) when the worktree HEAD is not on coord_ref"
+    )
+    assert outcome.branch_mismatch is True
+    # stranded_wp_ids must stay non-empty so neither caller's "clear the marker"
+    # branch fires for this outcome (both callers only clear when healed, or when
+    # stranded_wp_ids is empty AND worktree_missing is False).
+    assert outcome.stranded_wp_ids == ["WP-A"]
+    # The foreign branch was NOT mutated by an errant revert.
+    assert _git(worktree, "rev-parse", "scratch").stdout.strip() == scratch_tip_before
+    # The coord ref itself is untouched — still stranded.
+    assert _git(repo, "rev-parse", "coord").stdout.strip() == coord_tip_before
+    assert coord_incoherent_done_wps(
+        "coord", ["WP-A"], repo_root=repo, feature_dir=feature_dir
+    ) == ["WP-A"]
+
+
 def test_repair_on_already_coherent_ref_is_a_noop(tmp_path: Path) -> None:
     """A ref whose candidate WP is only ever ``approved`` heals to a no-op — the
     repair never reverts the (non-existent) strand."""

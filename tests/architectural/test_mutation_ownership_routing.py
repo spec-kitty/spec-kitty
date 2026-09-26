@@ -93,18 +93,48 @@ pytestmark = pytest.mark.architectural
 # deliberately NEVER joins ``_ROUTED_MODULES`` below. See
 # ``test_research_py_removal_literals_are_never_allowlisted`` for the
 # explicit fail-closed guard this asymmetry requires.
+#
+# runtime/migrate.py (mission asset-preservation-migrate-fetch, #4961) routes
+# its per-project asset removal through ``guard_destructive_removal`` (the
+# guard performs the delete on a proven byte-identical counterpart, preserving
+# any differing/unprovable file), so it JOINS ``_ROUTED_MODULES`` — its one raw
+# literal is an empty-only ``Path.rmdir`` (allowlisted below).
+#
+# doctrine/sources/git_source.py (#4960/#4989) preserves hand-authored packs
+# via a temp-clone + move-aside pattern and a dirty/ahead-guarded reset — NOT
+# the removal guard — so it is scanned for raw literals but deliberately NEVER
+# joins ``_ROUTED_MODULES``. Its only raw removals are ephemeral-temp cleanups
+# (allowlisted below); see ``test_git_source_removal_literals_only_target_ephemeral_temps``
+# for the explicit fail-closed guard that a user-content removal can never be
+# allowlisted for it.
 # ---------------------------------------------------------------------------
 _INIT_PY = SPECIFY_CLI_ROOT / "cli" / "commands" / "init.py"
 _AGENT_CONFIG_PY = SPECIFY_CLI_ROOT / "cli" / "commands" / "agent" / "config.py"
 _RESEARCH_PY = SPECIFY_CLI_ROOT / "cli" / "commands" / "research.py"
+_MIGRATE_PY = SPECIFY_CLI_ROOT / "runtime" / "migrate.py"
+_GIT_SOURCE_PY = SPECIFY_CLI_ROOT / "doctrine" / "sources" / "git_source.py"
 _MIGRATIONS_DIR = SPECIFY_CLI_ROOT / "upgrade" / "migrations"
 
 _GUARD_CALL = "guard_destructive_removal("
 _RESEARCH_PY_ALLOWLIST_PREFIX = "src/specify_cli/cli/commands/research.py:"
+_GIT_SOURCE_ALLOWLIST_PREFIX = "src/specify_cli/doctrine/sources/git_source.py:"
+
+#: The ONLY first-argument variable names a git_source.py raw removal may
+#: target: the ephemeral ``.tmp-<uuid>`` clone and the ``.old-<uuid>``
+#: move-aside backup THIS fetch created — never ``target_dir`` (the operator's
+#: hand-authored pack). See ``test_git_source_removal_literals_only_target_ephemeral_temps``.
+_GIT_SOURCE_EPHEMERAL_TARGETS: frozenset[str] = frozenset({"tmp_dir", "old_dir"})
 
 
 def _module_set() -> list[Path]:
-    return [_INIT_PY, _AGENT_CONFIG_PY, _RESEARCH_PY, *iter_py_files(_MIGRATIONS_DIR)]
+    return [
+        _INIT_PY,
+        _AGENT_CONFIG_PY,
+        _RESEARCH_PY,
+        _MIGRATE_PY,
+        _GIT_SOURCE_PY,
+        *iter_py_files(_MIGRATIONS_DIR),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -236,6 +266,34 @@ def _flatten(live: dict[str, list[tuple[int, str]]]) -> set[str]:
 # fix-sites are ABSENT here on purpose — they carry no raw literal.
 # ---------------------------------------------------------------------------
 _ALLOWLIST: dict[str, str] = {
+    # --- runtime/migrate.py (1): empty-only rmdir after routed removal -----
+    "src/specify_cli/runtime/migrate.py:351:Path.rmdir": (
+        "empty-only rmdir (raises OSError on non-empty): _cleanup_empty_dirs prunes a "
+        "now-empty SHARED_ASSET_DIRS directory ONLY inside an `if not any(dirpath.iterdir())` "
+        "emptiness check, after execute_migration's routed guard_destructive_removal already "
+        "removed the proven byte-identical files and preserved every differing one (#4961) — "
+        "cannot lose content."
+    ),
+    # --- doctrine/sources/git_source.py (4): ephemeral temp-clone teardown -
+    "src/specify_cli/doctrine/sources/git_source.py:91:shutil.rmtree": (
+        "ephemeral temp cleanup (#4960): removes ONLY the `.tmp-<uuid>` clone dir this "
+        "fetch created when `git clone` fails — target_dir is left exactly as found, never "
+        "touched (scanned-not-routed: git_source.py preserves via temp-clone + move-aside, "
+        "not the removal guard)."
+    ),
+    "src/specify_cli/doctrine/sources/git_source.py:97:shutil.rmtree": (
+        "ephemeral temp cleanup (#4960): removes ONLY the `.tmp-<uuid>` clone dir this fetch created when `git checkout <ref>` fails — target_dir is never touched."
+    ),
+    "src/specify_cli/doctrine/sources/git_source.py:132:shutil.rmtree": (
+        "ephemeral temp cleanup (#4960): _promote removes ONLY the `.tmp-<uuid>` clone dir on "
+        "an OSError during the move-aside promote; a moved-aside target is restored from its "
+        "`.old-<uuid>` backup, never rmtree'd."
+    ),
+    "src/specify_cli/doctrine/sources/git_source.py:142:shutil.rmtree": (
+        "ephemeral backup cleanup (#4960): _promote's finally-block removes the `.old-<uuid>` "
+        "move-aside backup ONLY after `promoted` is True (a successful promote) — the previous "
+        "content is already safely in place at target_dir."
+    ),
     # --- cli/commands/agent/config.py (1): empty-only rmdir after guard ----
     "src/specify_cli/cli/commands/agent/config.py:168:Path.rmdir": (
         "empty-only rmdir: prunes the now-possibly-empty parent `root` only on the "
@@ -450,6 +508,7 @@ _ROUTED_MODULES: frozenset[str] = frozenset(
     {
         "cli/commands/init.py",
         "cli/commands/agent/config.py",
+        "runtime/migrate.py",
         "upgrade/migrations/m_3_2_0rc45_retire_standalone_skill_surface.py",
         "upgrade/migrations/m_3_1_1_charter_rename.py",
         "upgrade/migrations/m_0_10_0_python_only.py",
@@ -542,6 +601,55 @@ def test_research_py_removal_literals_are_never_allowlisted() -> None:
         "research.py literal(s) present in _ALLOWLIST — its destructive-overwrite "
         "fabrication must be routed through guard_destructive_overwrite (T021), "
         f"never allowlisted: {research_keys}"
+    )
+
+
+def _git_source_removal_targets() -> dict[int, str | None]:
+    """Map each git_source.py destructive-removal literal line -> the name of its
+    first positional argument (``None`` when it is not a bare ``Name``).
+
+    Used by the fail-closed never-allowlist guard below to prove that every
+    allowlisted git_source.py removal targets an ephemeral temp/backup variable,
+    never ``target_dir``.
+    """
+    tree = parse(_GIT_SOURCE_PY)
+    assert tree is not None, "git_source.py must parse for the never-allowlist guard"
+    module_aliases = import_alias_map(tree)
+    from_imports = from_import_map(tree)
+    targets: dict[int, str | None] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and _classify_op(node, module_aliases, from_imports) is not None:
+            first = node.args[0] if node.args else None
+            targets[node.lineno] = first.id if isinstance(first, ast.Name) else None
+    return targets
+
+
+def test_git_source_removal_literals_only_target_ephemeral_temps() -> None:
+    """git_source.py (#4960/#4989) is scanned-but-NOT-routed: it preserves
+    hand-authored packs via a temp-clone + move-aside pattern and a
+    dirty/ahead-guarded reset, NOT ``guard_destructive_removal``. Its only
+    legitimate raw removals are of the ephemeral ``.tmp-<uuid>`` clone and the
+    ``.old-<uuid>`` move-aside backup THIS fetch created — never ``target_dir``
+    (the operator's pack).
+
+    Mirrors ``test_research_py_removal_literals_are_never_allowlisted``: without
+    this static, fail-closed guard an implementer could satisfy the live census
+    by adding a ``shutil.rmtree(target_dir)`` (destroying the operator pack) to
+    ``_ALLOWLIST`` behind a benign rationale, and the census would go green while
+    the destroyer silently returned. Independent of the live scan: every
+    allowlisted ``git_source.py`` removal literal must, in the actual on-disk
+    source, pass one of ``_GIT_SOURCE_EPHEMERAL_TARGETS`` as its first positional
+    argument. A line with no recognised removal call (``None``) also fails —
+    fail-closed against a stale/mispinned entry."""
+    targets = _git_source_removal_targets()
+    git_source_lines = {int(key.rsplit(":", 2)[1]) for key in _ALLOWLIST if key.startswith(_GIT_SOURCE_ALLOWLIST_PREFIX)}
+    offenders = {line: targets.get(line) for line in git_source_lines if targets.get(line) not in _GIT_SOURCE_EPHEMERAL_TARGETS}
+    assert not offenders, (
+        "Allowlisted git_source.py removal literal(s) do not target an ephemeral "
+        f"temp/backup ({sorted(_GIT_SOURCE_EPHEMERAL_TARGETS)}) — a user-content "
+        "removal (e.g. shutil.rmtree(target_dir)) must NEVER be allowlisted; route "
+        "the fix or fix the pin. Offending line -> first-arg name: "
+        f"{offenders}"
     )
 
 

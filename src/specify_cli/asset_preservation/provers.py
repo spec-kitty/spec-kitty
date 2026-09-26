@@ -180,6 +180,13 @@ class CanonicalContentProver:
     ``canonical`` optionally supplies shipped bytes to match exactly. No marker
     and no canonical match ⇒ ``None`` (preserve) — this is why the markerless,
     no-longer-shipped ``m_0_10_0`` scripts preserve-all.
+
+    ``check_marker`` (default ``True``) gates the version-marker branch. Set it
+    ``False`` for a canonical-**bytes-only** ownership decision, where ownership
+    must mean "byte-identical to the shipped counterpart" and the presence of
+    the marker literal must NOT by itself prove ownership (#4961/#5050): a
+    *differing* operator file that merely embeds the marker string would
+    otherwise be proven owned and deleted, silently destroying a customisation.
     """
 
     def __init__(
@@ -188,10 +195,12 @@ class CanonicalContentProver:
         marker: bytes = _VERSION_MARKER,
         scan_bytes: int | None = None,
         canonical: bytes | None = None,
+        check_marker: bool = True,
     ) -> None:
         self._marker = marker
         self._scan_bytes = scan_bytes
         self._canonical = canonical
+        self._check_marker = check_marker
 
     def prove(self, path: Path, project_path: Path) -> OwnershipProof | None:
         rel = _relposix(path, project_path)
@@ -202,7 +211,7 @@ class CanonicalContentProver:
         except OSError:
             return None
         window = content if self._scan_bytes is None else content[: self._scan_bytes]
-        if self._marker in window:
+        if self._check_marker and self._marker in window:
             return OwnershipProof("canonical_content", f"version-marker:{rel}")
         if self._canonical is not None and content == self._canonical:
             return OwnershipProof("canonical_content", f"canonical-bytes:{rel}")

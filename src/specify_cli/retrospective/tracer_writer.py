@@ -48,6 +48,7 @@ from pathlib import Path
 
 from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
 
+from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
 from specify_cli.coordination.write_seam import (
     ProtectionPolicyLike,
     WriteSeamResult,
@@ -83,6 +84,16 @@ TRACER_CATEGORIES: dict[str, str] = {
 # imported, since it is that module's private detail): a genuine mission-
 # resolution failure here degrades to an empty base (write_artifact's own
 # probe is the canonical refusal authority for the ACTUAL write).
+#
+# #4959 (WP02 / T007) carve-out: ``CoordinationWorktreeUnmaterialized`` IS a
+# ``StatusReadPathNotFound`` subclass, so it would otherwise be caught by this
+# same tuple and degraded to "" -- exactly the #4959 bug (the writer then
+# clobbers a real, already coord-committed ``traces/<cat>.md`` with a
+# from-scratch header). It is excluded here and given its own, earlier
+# ``except`` arm in ``_read_current_coord_content`` that re-raises instead:
+# the coordination branch is NOT lost (unlike a genuinely absent/unroutable
+# mission), only not yet materialised on disk, so the read must fail closed
+# rather than silently substitute emptiness for the real document.
 _NO_EXISTING_CONTENT_EXCEPTIONS: tuple[type[Exception], ...] = (
     ActionContextError,
     StatusReadPathNotFound,
@@ -149,16 +160,31 @@ def _read_current_coord_content(
     Routes through ``read_dir(MissionArtifactKind.TRACER_FILE)`` -- a plain
     read of this module's own artifact kind, NOT the forbidden
     ``read_dir(RETROSPECTIVE)`` short-circuit (Ledger-M16 / I-T4 concerns only
-    the latter). A resolution failure (no coord surface yet, an unresolvable
-    mission) degrades to an empty base: the subsequent write still goes
-    through :func:`~specify_cli.coordination.write_seam.write_artifact`, whose
-    own FR-011 probe is the canonical authority for reporting an unroutable
+    the latter). A resolution failure that means "no coord surface concept
+    applies at all" (no mission, an unresolvable handle) degrades to an empty
+    base: the subsequent write still goes through
+    :func:`~specify_cli.coordination.write_seam.write_artifact`, whose own
+    FR-011 probe is the canonical authority for reporting an unroutable
     target as a structured refusal.
+
+    Fails closed instead of degrading (#4959 / WP02 / T007) on:
+
+    * :class:`~specify_cli.coordination.surface_resolver.
+      CoordinationWorktreeUnmaterialized` -- the coordination branch exists
+      and is NOT lost, only not yet materialised on disk. Degrading this to
+      ``""`` would make the caller believe there is no existing content,
+      and the writer would then clobber the real, already coord-committed
+      file with a from-scratch header (module docstring "Why a
+      read-before-write at all").
+    * ``UnicodeDecodeError`` on an EXISTING category file -- corruption is
+      not "no content"; refusing (propagating) is the only safe response.
     """
     try:
         traces_dir = placement_seam(repo_root, mission_slug).read_dir(
             MissionArtifactKind.TRACER_FILE
         )
+    except CoordinationWorktreeUnmaterialized:
+        raise
     except _NO_EXISTING_CONTENT_EXCEPTIONS:
         return ""
     category_path = traces_dir / _TRACES_DIRNAME / filename
@@ -166,7 +192,7 @@ def _read_current_coord_content(
         return ""
     try:
         return category_path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
+    except OSError:
         return ""
 
 

@@ -46,6 +46,7 @@ import typer
 import specify_cli.status  # noqa: F401  # import-order guard (see comment above)
 
 from specify_cli.cli.commands.merge import _run_lane_based_merge
+from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.merge.config import MergeStrategy
@@ -123,13 +124,24 @@ def _write_meta(feature_dir: Path) -> None:
 
 
 def _write_manifest(feature_dir: Path) -> LanesManifest:
-    """A single code lane (legacy branch naming via mission_id == slug)."""
+    """A single code lane (legacy branch naming)."""
     manifest = LanesManifest(
         version=1,
         mission_slug=MISSION_SLUG,
-        # mission_id == slug => legacy lane_branch_name form
-        # ``kitty/mission-<slug>-lane-a`` which consolidate_lane_into_mission constructs.
-        mission_id=MISSION_SLUG,
+        # ``mission_id=None`` => the LEGACY ``lane_branch_name`` form
+        # ``kitty/mission-<slug>-lane-a`` which consolidate_lane_into_mission
+        # constructs (and which the lane branch created below matches
+        # verbatim). The prior value here, ``mission_id=MISSION_SLUG``, was a
+        # documented-contract violation (``LanesManifest.mission_id``: "ULID
+        # or None; never a slug") that also happened to derive the WRONG
+        # branch name (``lane_branch_name`` takes the NEW mid8-based naming
+        # branch whenever ``mission_id is not None``, mangling the slug into
+        # ``...-coord-to-lane-a``) -- silently masked before Epic #5001's FIX C
+        # closed the squash content axis's vacuous-authorship PASS. Passing
+        # the real ``MISSION_ID`` ULID instead would ALSO derive the wrong
+        # (mid8-suffixed) branch, since this fixture's lane branch was created
+        # without one; ``None`` is the value that is actually correct here.
+        mission_id=None,
         mission_branch=COORD_BRANCH,
         target_branch="main",
         lanes=[
@@ -197,7 +209,17 @@ def _bootstrap_coord_mission(
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({MISSION_SLUG}): bootstrap coord mission")
 
-    # Create the coordination/mission branch at the current tip.
+    # Create the coordination/mission branch at the current tip. Deliberately
+    # a bare `git branch` (NOT a materialized worktree) here: some consumers
+    # of this shared harness (tests/merge/test_issue_2709_squash_provenance.py)
+    # need to `git checkout COORD_BRANCH` in the MAIN worktree AFTER bootstrap
+    # to seed further commits directly onto it — a materialized worktree of
+    # the same branch would make that checkout fail ("already checked out in
+    # another worktree"). Consumers that drive a real `_run_lane_based_merge`
+    # and need the coord STATUS_STATE read to succeed (post-#4959,
+    # `CoordinationWorktreeUnmaterialized` otherwise) call
+    # `_materialize_coord_worktree` themselves, once any direct COORD_BRANCH
+    # checkout in the main worktree is done.
     _git(repo, "branch", COORD_BRANCH)
 
     # Create the lane branch with a REAL code diff that is NOT on the mission
@@ -213,6 +235,26 @@ def _bootstrap_coord_mission(
     _git(repo, "checkout", "main")
 
     return feature_dir
+
+
+def _materialize_coord_worktree(repo: Path) -> Path:
+    """Materialize the coordination worktree for ``COORD_BRANCH`` at its CURRENT tip.
+
+    Post-#4959, a coord-topology ``_run_lane_based_merge`` STATUS_STATE read
+    raises ``CoordinationWorktreeUnmaterialized`` when the declared
+    coordination branch exists in git but its worktree was never
+    materialized — ``_bootstrap_coord_mission`` deliberately leaves it bare
+    (see the comment there) so callers that still need to ``git checkout
+    COORD_BRANCH`` in the MAIN worktree post-bootstrap are not blocked.
+
+    Call this ONLY once every direct checkout of ``COORD_BRANCH`` in the main
+    worktree is done, with the main worktree currently on a DIFFERENT branch —
+    git refuses to check out a branch that is already checked out elsewhere,
+    including into a new worktree.
+    """
+    coord_worktree = CoordinationWorkspace.worktree_path(repo, MISSION_SLUG, MISSION_ID[:8])
+    _git(repo, "worktree", "add", "-q", str(coord_worktree), COORD_BRANCH)
+    return coord_worktree
 
 
 @contextlib.contextmanager
@@ -295,6 +337,7 @@ def test_retry_after_abort_integrates_lane_code_or_fails_loudly(tmp_path: Path) 
     """
     _init_git_repo(tmp_path)
     _bootstrap_coord_mission(tmp_path)
+    _materialize_coord_worktree(tmp_path)
     lane_code = "src/feature_code.py"
 
     # Pre-existing aborted-merge state: every WP already marked completed.
@@ -348,6 +391,7 @@ def test_fresh_merge_integrates_lane_code(tmp_path: Path) -> None:
     integrates the lane code onto the target branch."""
     _init_git_repo(tmp_path)
     _bootstrap_coord_mission(tmp_path)
+    _materialize_coord_worktree(tmp_path)
     lane_code = "src/feature_code.py"
 
     with _real_merge_external_mocks():
@@ -398,6 +442,7 @@ def test_merge_records_baseline_merge_commit_on_target(tmp_path: Path) -> None:
     """
     _init_git_repo(tmp_path)
     _bootstrap_coord_mission(tmp_path)
+    _materialize_coord_worktree(tmp_path)
 
     # The baseline the merge must record: the target branch tip BEFORE the
     # mission lands (merge.py captures it via ``git rev-parse <target>``

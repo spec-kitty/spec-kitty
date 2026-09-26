@@ -32,6 +32,8 @@ __all__ = [
     "get_state_path",
     "acquire_merge_lock",
     "release_merge_lock",
+    "release_merge_lock_if_owned",
+    "read_merge_lock_owner",
     "is_merge_locked",
     "detect_git_merge_state",
     "abort_git_merge",
@@ -51,9 +53,7 @@ class MergeAmbiguousStateError(Exception):
     def __init__(self, mission_ids: list[str]) -> None:
         self.mission_ids = mission_ids
         ids_formatted = "\n  ".join(mission_ids)
-        super().__init__(
-            f"Multiple active merge states found — pass --mission to disambiguate:\n  {ids_formatted}"
-        )
+        super().__init__(f"Multiple active merge states found — pass --mission to disambiguate:\n  {ids_formatted}")
 
 
 class MergeStateReadError(GuardedReadError, RuntimeError):
@@ -121,6 +121,53 @@ class MergeState:
     # exactly like ``mission_number_baked`` — back-compat for state files
     # written before this field existed (absent key -> default ``False``).
     skip_lanes: bool = False
+    # terminus-merge-integrity-01M380R6 #5001 pre-merge FOLD-4: the target ref's
+    # tip at TRANSACTION START (before any lane/mission->target advance) -- the
+    # excluded/closed-world reconciliation window base AND the rollback CAS anchor.
+    # Captured live ONCE on a fresh merge and persisted here, then re-read on
+    # ``--resume`` instead of recaptured: a post-fix resume runs AFTER attempt-1
+    # already advanced the target, so a live recapture would read the
+    # already-advanced tip -- collapsing the excluded window to empty (false PASS)
+    # and anchoring the rollback to the stale advanced tip. Round-trips through
+    # ``from_dict``'s known-fields filter like ``skip_lanes`` (absent key ->
+    # default ``None``).
+    pre_mutation_target_sha: str | None = None
+    # terminus-integrity-followups-01M393QR WP04 (WS2, FR-004, INV-2): the
+    # coordination ref tip captured ONCE before the first mutation of the
+    # interrupted run -- the coord-window twin of ``pre_mutation_target_sha``.
+    # Read-persisted-first on resume (WP05 executor reseed): a resume derives
+    # the reconciliation claim's ``coord_base`` from THIS value, never a live
+    # ``_capture_coord_checkpoint`` (which already contains attempt-1's partial
+    # consolidation and would collapse the approved-WP claim to empty -- a false
+    # PASS). Round-trips through ``from_dict``'s known-fields filter like
+    # ``pre_mutation_target_sha`` (absent key -> default ``None``); an absent
+    # value on a resume that requires it ⇒ the executor REFUSEs (H4).
+    pre_mutation_coord_sha: str | None = None
+    pre_mutation_coord_ref: str | None = None
+    # Per-lane branch tip (lane_id -> tip SHA) captured ONCE before the
+    # interrupted run's consolidation. On resume each persisted tip is a CAS
+    # expectation compared as a git OBJECT (see :func:`lane_tip_cas_ok`): the
+    # live state must be the persisted commit, a descendant, or a strict
+    # ancestor (behind-HEAD -- the #4982 window, which MUST NOT refuse); the
+    # lane branch ref may be gone (already consolidated). Defaults to an empty
+    # dict so a legacy state loads cleanly.
+    pre_interrupt_lane_tips: dict[str, str] = field(default_factory=dict)
+    # terminus-reconciliation-attribution-integrity-01M3D4RW WP02 (#5021 residual
+    # 1, T008): the TARGET branch tip SHA at the exact moment the reconciliation
+    # gate (``executor._phase_reconcile_before_teardown``) recorded a PASS for a
+    # squash merge. A compare-and-swap anchor, not a bare boolean: ``--resume``
+    # short-circuits the content-axis re-verification ONLY when this persisted
+    # SHA still equals the target branch's CURRENT tip (``executor._resume_
+    # reconciliation_already_passed``) -- anything that moved the target since
+    # (a rollback, a further commit) falls through to the full gate, so a
+    # genuinely-incomplete merge is never silently tolerated (R2 guard). Without
+    # this, a resume interrupted mid-teardown (e.g. the lane branch already
+    # deleted) rebuilds ``authored_blobs`` from an unresolvable lane range
+    # (``_lane_first_parent_spine`` tolerates the ``GitProbeError`` into an EMPTY
+    # spine) and the squash blob axis REFUSEs a legitimately-completed merge.
+    # Round-trips through ``from_dict``'s known-fields filter like the other
+    # anchors (absent key -> default ``None``).
+    reconciliation_passed_target_sha: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -367,15 +414,29 @@ def iter_pending_coord_reconcile_markers(repo_root: Path) -> Iterable[MergeState
 # Lock management
 # ---------------------------------------------------------------------------
 
-def acquire_merge_lock(mission_id: str, repo_root: Path) -> bool:
+
+def acquire_merge_lock(mission_id: str, repo_root: Path, *, owner_token: str | None = None) -> bool:
     """Create a lock file to prevent concurrent merge operations.
 
     Uses an atomic exclusive-create (``open(path, 'x')``) to avoid the
     TOCTOU race that exists() + write_text() is vulnerable to.
 
+    terminus-merge-integrity-01M380R6 WP09 (C-2, FR-008, D7/PP-F2): the lock
+    body now records an ``owner_token`` — the acquiring merge's
+    ``merge-state-id`` (the canonical mission id), NOT a pid. A pid cannot
+    survive the crash the lock protects (``--resume`` runs in a brand-new
+    process), so pinning the token to the durable state-id is what lets
+    ``--abort`` prove ownership across a resume (see
+    :func:`release_merge_lock_if_owned`). The body is written as JSON; a legacy
+    (pre-WP09) lock is a bare timestamp and reads back with ``owner_token=None``
+    (:func:`read_merge_lock_owner`).
+
     Args:
-        mission_id: Mission/feature slug identifier
-        repo_root: Repository root path
+        mission_id: Lock key (mission id, or the shared ``__global_merge__`` key).
+        repo_root: Repository root path.
+        owner_token: The acquiring merge's ``merge-state-id``. ``None`` writes
+            an unowned lock (backward-compatible with callers that do not yet
+            thread an owner).
 
     Returns:
         True if the lock was acquired, False if already locked
@@ -390,14 +451,113 @@ def acquire_merge_lock(mission_id: str, repo_root: Path) -> bool:
     try:
         # Atomic exclusive create — fails immediately if lock already exists.
         with lock_path.open("x", encoding="utf-8") as fh:
-            fh.write(now_utc_iso())
+            json.dump({"owner_token": owner_token, "acquired_at": now_utc_iso()}, fh)
         return True
     except FileExistsError:
         return False
 
 
+def read_merge_lock_owner(mission_id: str, repo_root: Path) -> str | None:
+    """Return the ``owner_token`` recorded in a merge lock, or ``None``.
+
+    ``None`` is returned when the lock is absent, unreadable, or carries a
+    legacy (pre-WP09) bare-timestamp body with no ``owner_token`` — an unowned
+    lock whose ownership cannot be proven.
+    """
+    lock_path = get_merge_runtime_dir(mission_id, repo_root) / _LOCK_FILE
+    try:
+        raw = lock_path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    try:
+        body = json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+    if isinstance(body, dict):
+        token = body.get("owner_token")
+        if isinstance(token, str) and token:
+            return token
+    return None
+
+
+def _any_active_merge(repo_root: Path) -> bool:
+    """Return True if ANY mission has an active merge state (remaining WPs).
+
+    A non-raising scan across every mission runtime dir — unlike
+    ``has_active_merge(repo_root, None)``, which raises on multiple active
+    states. A sibling's corrupt state is skipped (never aborts the scan).
+    """
+    runtime_merge_dir = repo_root / ".kittify" / "runtime" / "merge"
+    if not runtime_merge_dir.exists():
+        return False
+    for candidate in sorted(runtime_merge_dir.iterdir()):
+        if not candidate.is_dir():
+            continue
+        try:
+            state = _load_state_file(candidate / _STATE_FILE)
+        except MergeStateReadError:
+            continue
+        if state is not None and len(state.remaining_wps) > 0:
+            return True
+    return False
+
+
+def _lock_owner_is_dead(repo_root: Path, recorded_owner: str | None) -> bool:
+    """Liveness check for a non-owned lock (C-2 dead-owner reclaim, D7).
+
+    A known owner is dead when that mission has no active merge state; an
+    unknown (legacy, no-owner) lock is only declared dead when NO merge is
+    active anywhere — so a legacy lock is never reclaimed out from under a
+    still-running merge.
+    """
+    if recorded_owner is None:
+        return not _any_active_merge(repo_root)
+    return not has_active_merge(repo_root, recorded_owner)
+
+
+def release_merge_lock_if_owned(mission_id: str, repo_root: Path, *, owner_token: str | None) -> str:
+    """Release a merge lock ONLY when the aborting invocation may safely do so.
+
+    terminus-merge-integrity-01M380R6 WP09 (C-2, FR-008, #4996 second half):
+    the pre-WP09 ``--abort`` blindly unlinked the shared ``__global_merge__``
+    lock, freeing whatever merge held it — including a *different* mission's
+    still-live merge. This gates the release on ownership + liveness:
+
+    * ``released_owned`` — the lock's ``owner_token`` matches the aborting
+      invocation's ``merge-state-id``; it is our own lock → unlinked.
+    * ``released_stale`` — a different (or unknown) owner whose merge is no
+      longer active → reclaimed via the explicit liveness check.
+    * ``left_live`` — a different owner whose merge is still active → left
+      untouched (never free a live merge).
+    * ``absent`` — no lock file.
+
+    Args:
+        mission_id: Lock key (e.g. the shared ``__global_merge__`` key).
+        repo_root: Repository root path.
+        owner_token: The aborting invocation's ``merge-state-id`` (``None`` when
+            the abort resolved no state of its own — it can then only reclaim a
+            provably-dead lock, never a live one).
+    """
+    lock_path = get_merge_runtime_dir(mission_id, repo_root) / _LOCK_FILE
+    if not lock_path.exists():
+        return "absent"
+    recorded_owner = read_merge_lock_owner(mission_id, repo_root)
+    if recorded_owner is not None and owner_token is not None and recorded_owner == owner_token:
+        lock_path.unlink()
+        return "released_owned"
+    if _lock_owner_is_dead(repo_root, recorded_owner):
+        lock_path.unlink()
+        return "released_stale"
+    return "left_live"
+
+
 def release_merge_lock(mission_id: str, repo_root: Path) -> None:
     """Remove the merge lock file.
+
+    Unconditional unlink — used by the merge executor to release the lock it
+    itself just acquired and still holds (the happy-path ``finally``). The
+    owner-gated :func:`release_merge_lock_if_owned` is what the ``--abort`` path
+    must use, since it may run against a lock a *different* live merge owns.
 
     Args:
         mission_id: Mission/feature slug identifier
@@ -422,6 +582,7 @@ def is_merge_locked(mission_id: str, repo_root: Path) -> bool:
 # ---------------------------------------------------------------------------
 # Git merge state helpers (unchanged from original)
 # ---------------------------------------------------------------------------
+
 
 def needs_number_assignment(feature_dir: Path) -> bool:
     """Return True if the mission's ``meta.json`` lacks an integer ``mission_number``.
@@ -495,3 +656,94 @@ def abort_git_merge(repo_root: Path) -> bool:
         check=False,
     )
     return True
+
+
+# ---------------------------------------------------------------------------
+# Lane-tip compare-and-swap (WP04 — WS2 resume fidelity, FR-004)
+# ---------------------------------------------------------------------------
+
+
+def _commit_object_exists(repo: Path, sha: str) -> bool:
+    """Return True if *sha* resolves to a commit object in *repo*.
+
+    Resolves the persisted SHA as a git OBJECT, never a branch ref — a
+    already-consolidated lane's branch may be gone while its commit still lives
+    in history.
+    """
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"],
+        cwd=str(repo),
+        capture_output=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _resolve_branch_tip(repo: Path, lane_id: str) -> str | None:
+    """Return the commit SHA at ``refs/heads/<lane_id>`` or ``None`` if absent."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{lane_id}^{{commit}}"],
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def _is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
+    """Return True if *ancestor* is an ancestor of (or equal to) *descendant*."""
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+        cwd=str(repo),
+        capture_output=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def lane_tip_cas_ok(repo: Path, lane_id: str, persisted_sha: str) -> bool:
+    """Compare-and-swap check for a persisted pre-interrupt lane tip.
+
+    terminus-integrity-followups-01M393QR WP04 (WS2, FR-004, INV-2, D/F8): a
+    resumed merge judges reachability against the pre-interrupt lane tip
+    persisted in :attr:`MergeState.pre_interrupt_lane_tips`, NOT the live
+    resume-start delta. The persisted SHA is treated as a CAS expectation
+    compared **as a git object**:
+
+    * live tip **equal** to the persisted commit ⇒ OK;
+    * live tip a **descendant** (the branch advanced past the persisted tip) ⇒ OK;
+    * live tip a **strict ancestor** (behind-HEAD — the interrupted advance left
+      the ref behind its own HEAD; the exact #4982 window) ⇒ **OK, never
+      refused**;
+    * the lane **branch ref is gone** (already consolidated) but the persisted
+      commit still resolves as an object ⇒ OK (branch-ref existence is never
+      required — reachability is checked against the object DB);
+    * **true divergence** (the persisted commit is neither an ancestor of, equal
+      to, nor a descendant of the live tip) ⇒ REFUSE.
+
+    An empty or unresolvable *persisted_sha* is a required base that is absent or
+    corrupt ⇒ REFUSE (fail-closed; the caller's H4 guard). This function never
+    mutates any ref — it is a pure predicate.
+
+    Args:
+        repo: Repository (or worktree) root to probe.
+        lane_id: Lane branch short name (``refs/heads/<lane_id>``).
+        persisted_sha: The pre-interrupt tip SHA captured for this lane.
+
+    Returns:
+        ``True`` when the live state satisfies the CAS expectation; ``False`` on
+        true divergence or an absent/unresolvable persisted base.
+    """
+    if not persisted_sha or not _commit_object_exists(repo, persisted_sha):
+        return False
+    live_tip = _resolve_branch_tip(repo, lane_id)
+    if live_tip is None:
+        # Branch already consolidated away; the persisted commit still resolves
+        # as an object (checked above), so the pre-interrupt tip is preserved.
+        return True
+    # Accept equal, descendant, OR strict ancestor (behind-HEAD). REFUSE only
+    # true divergence (neither commit reachable from the other).
+    return _is_ancestor(repo, persisted_sha, live_tip) or _is_ancestor(repo, live_tip, persisted_sha)

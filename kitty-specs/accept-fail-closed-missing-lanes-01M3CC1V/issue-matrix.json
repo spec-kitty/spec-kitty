@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#3439": {
+      "evidence_ref": "Distinct closed issue (coord-husk surface-read); referenced in spec only to contrast root cause. lanes.json is PRIMARY-partition, so #4891 is not the #3439 mechanism.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4891": {
+      "evidence_ref": "42ba9d7785 fix(accept): fail closed when lanes.json is absent",
+      "fr": "FR-001,FR-002,FR-003,FR-004,FR-005",
+      "nfr": "NFR-001,NFR-002,NFR-003",
+      "repo": "spec-kitty/spec-kitty",
+      "sc": "SC-001,SC-002,SC-003,SC-004",
+      "scope": "in-scope",
+      "source_file": "spec.md",
+      "title": "accept silently skips the acceptance-matrix gate when lanes.json is absent (P0)",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

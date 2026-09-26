@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "mission_slug": "git-tip-helper-consolidation-01M3D4RT",
+  "mission_id": "01M3D4RTG6PHCGZP34PTR01N1M",
+  "mission_branch": "kitty/mission-git-tip-helper-consolidation-01M3D4RT",
+  "target_branch": "fix/git-tip-helper-consolidation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/cli/commands/agent/tasks_dependency_graph.py",
+        "src/specify_cli/cli/commands/agent/tasks_finalize.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/core/vcs/git.py",
+        "src/specify_cli/lanes/implement_support.py",
+        "src/specify_cli/lanes/planning_commit_classify.py",
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "src/specify_cli/migration/mission_state.py",
+        "tests/lanes/test_lane_base_common_ancestor.py",
+        "tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py",
+        "tests/specify_cli/cli/commands/agent/test_finalize_provenance_guard.py",
+        "tests/specify_cli/cli/commands/agent/test_issue_4141_refresh_planning_commit.py",
+        "tests/specify_cli/cli/commands/agent/test_issue_4593_behind_count_full_history.py",
+        "tests/specify_cli/cli/commands/agent/test_issue_4827_repin_orphaned_planning_commit.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py",
+        "tests/specify_cli/core/vcs/test_capture_branch_tip.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-25T21:34:03.138420+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a1017f5ac754dcc8fbbfa0dfbf84ab9c9fcfebab"
+}

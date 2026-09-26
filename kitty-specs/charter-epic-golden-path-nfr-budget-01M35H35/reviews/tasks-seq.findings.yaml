@@ -1,0 +1,94 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: tasks
+lens_group: seq
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: TASKS-SEQ-001
+    lens: lane-cycle-fix-soundness
+    severity: 3
+    title: "WP08 omits a free, mechanically-safe dependency edge on WP01, leaving its required input artifact ungated"
+    evidence:
+      - artifact: "wps.yaml § WP08 (dependencies: [WP02, WP03, WP04, WP05, WP06, WP07])"
+      - artifact: "tasks/WP08-final-integration-validation.md § Subtask T027 step 1 (\"Read WP01's recorded baseline artifact\")"
+      - artifact: "tasks/WP01-baseline-capture.md § Context (\"the orchestrator should still DISPATCH this WP first, as a process/ordering matter, so its artifact exists before WP08 needs to diff against it\")"
+      - artifact: "tracer-design-decisions.md § 2026-09-23 \"Tasks phase\" entry (\"WP08 keeps a dependency on WP02–WP07 ... but not an explicit one on WP01 (same lane as WP08 already — a same-lane edge is a no-op for the cross-lane cycle check)\")"
+      - code: "src/specify_cli/lanes/compute.py:578-585 (lane_deps only accumulates a cross-lane edge: `if dep_lane and dep_lane != my_lane`)"
+      - code: "src/specify_cli/lanes/compute.py:636-643, 697-704 (`_build_planning_lane` groups WP01+WP08 into one `lane-planning` node; `wp_to_lane[WP01] == wp_to_lane[WP08] == PLANNING_LANE_ID`)"
+    claim: >
+      The tracer entry correctly diagnoses why WP02/WP03/WP04/WP05/WP07 cannot carry a hard
+      `dependencies: [WP01]` edge (it would create `LANE_DEPENDENCY_CYCLE: lane-a -> lane-planning
+      -> lane-a` once WP08 also depends on those same code lanes) — verified directly against
+      compute.py, this is correct. But the entry then draws the wrong conclusion for WP08 itself.
+      WP01 and WP08 already share the single `lane-planning` node (`wp_to_lane[WP01] ==
+      wp_to_lane[WP08]`), so a `WP08 -> WP01` edge is a SAME-lane edge: `compute_lanes`'s own
+      cross-lane accumulation loop (compute.py:582-585) filters it out with `dep_lane != my_lane`
+      before it can reach `lane_deps`, so it can never contribute to `LANE_DEPENDENCY_CYCLE` no
+      matter what else WP08 depends on. Adding `WP01` to WP08's `dependencies` list is therefore
+      free with respect to the exact failure mode the tracer entry fixed — yet it was left out,
+      while WP08's Subtask T027 genuinely requires WP01's output artifact
+      (`research/baseline-<date>.md`) to perform its regression diff. WP-level claim gating
+      (`dependency_readiness_for_wp`, driven by the `dependencies` frontmatter, not by
+      `lanes.json`'s lane-level `depends_on_lanes`) is therefore the only thing standing between
+      an implementer and claiming WP08 before WP01 has produced that artifact, and today nothing
+      stops it — the only backstop is prose in WP01's own Context section asking the orchestrator
+      to dispatch WP01 first. If WP08 is claimed early, T027 step 1 has nothing to read.
+    remediation: >
+      Add `WP01` to WP08's `dependencies` list in both `wps.yaml` and
+      `tasks/WP08-final-integration-validation.md`'s frontmatter (and the corresponding row in
+      `tasks.md`), then re-run `spec-kitty agent mission finalize-tasks --validate-only` to
+      confirm — as the analysis above predicts — that this does NOT reproduce the
+      `LANE_DEPENDENCY_CYCLE` error, since it is a same-lane edge. This converts the current
+      process-only ordering guarantee into a mechanically-enforced one for the one WP that
+      actually consumes WP01's artifact, at zero cost to the fix the tracer entry already applied
+      correctly for WP02–WP07.
+
+  - id: TASKS-SEQ-002
+    lens: open-pr-write-scope-overlap
+    severity: 3
+    title: "WP04's conditional ownership of CHANGELOG.md/pyproject.toml is not checked against open-PR overlap anywhere, unlike WP07's identical check for pytest.ini"
+    evidence:
+      - artifact: "wps.yaml § WP04 owned_files (docs/changelog/CHANGELOG.md, pyproject.toml)"
+      - artifact: "tasks/WP04-freshness-precheck.md frontmatter owned_files (same two files) — no open-PR check mentioned anywhere in the prompt body"
+      - artifact: "tasks/WP07-pytest-durations.md:44 (\"No open PR currently touches `pytest.ini` (checked at dispatch time)\")"
+      - artifact: "tracer-tooling-friction.md, tracer-design-decisions.md — grepped for \"open PR\"/\"gh pr\"/\"overlap\"; the only hit is WP07's own prompt line above"
+    claim: >
+      A live `gh pr list --repo spec-kitty/spec-kitty --state open --limit 100 --json
+      number,title,files` query (run during this review) shows 9 open PRs, of which 6 touch
+      `docs/changelog/CHANGELOG.md` (#4953, #4950, #4947, #4942, #4938, #4936) and 2 touch
+      `pyproject.toml` (#4953, #4936) — both files WP04 conditionally owns (only if its
+      `__init__.py` call-site change is made, per WP04's frontmatter and the tracer's own
+      diff-size table). None of the mission's tracer files or WP prompts record that this
+      overlap was ever checked for WP04, even though WP07's prompt shows the mission author DID
+      perform and record exactly this check for a lower-risk file (`pytest.ini`, zero overlap
+      found). WP04 is independently flagged by the mission's own tracer entry as "the SK-243-
+      adjacent chokepoint, highest risk" — it is the WP where this check matters most, and it is
+      the one WP where it is undocumented. No other mission-owned file (`agent_commands.py`,
+      `src/specify_cli/__init__.py`, `cli/commands/__init__.py`, the two `tests/e2e/*` files,
+      the new `tests/performance/*` file) overlaps with any of the 9 open PRs' touched files
+      (verified with the same query), so the exposure is narrowly scoped to WP04's two
+      conditional files — but a reviewer or a later implementer has no way to know this was
+      checked (or that it wasn't) without independently re-running the `gh` query themselves.
+    remediation: >
+      Add a short note to WP04's prompt (mirroring WP07's line 44 pattern) recording the
+      open-PR overlap check for `docs/changelog/CHANGELOG.md` and `pyproject.toml` — either "no
+      overlap found" if a re-check clears it, or, given the actual overlap found by this review,
+      an explicit acknowledgment that WP04's landing/rebase step should expect a trivial
+      append/version-bump conflict on those two files and name the resolution (rebase and
+      re-append, not a functional merge) so a later agent does not have to rediscover this from
+      scratch at merge time.
+
+# No findings for: Phasing/risky-work-frontloading (WP04, the highest-risk chokepoint WP, is
+# scheduled at parallel_group 1, not deferred; verified via lanes.json), campsite-clean (plan.md
+# section 175-177 states "None, with reason," citing the specific touched functions and a
+# verification command rather than boilerplate — confirmed no debt class was silently omitted),
+# write-scope disjointness (lanes.json's 7 lanes have pairwise-disjoint write_scope globs;
+# verified programmatically that no WP-owned file collides with another WP-owned file within the
+# mission), and chokepoint disclosure (WP04's prompt carries an explicit "## ⚠️ CHOKEPOINT"
+# section citing `agent_commands.py` as global install machinery every concurrent mission uses,
+# and plan.md's "Gate set for this mission" section explicitly traces which shared CI gates
+# (architectural-heavy battery, tests-cli shard, tests (e2e)) each touched file selects). WP06's
+# dependency on both WP04 and WP05 was verified correct and complete against plan.md's FR-005
+# section and WP06's own prompt (T020/T021 each assert one fix's real shape) — WP06 has no
+# implicit need for WP02, since it never touches or depends on the golden-path test itself.

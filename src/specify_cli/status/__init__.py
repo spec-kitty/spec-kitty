@@ -44,6 +44,7 @@ from .reducer import (
     wp_snapshot_state,
 )
 from .store import (
+    is_non_lane_event,
     is_retrospective_lifecycle_event,
     ANNOTATION_KIND,
     EVENTS_FILENAME,
@@ -244,6 +245,7 @@ from .aggregate import (
     MissionStatus,
 )
 from .lifecycle_events import (
+    AUTHORITATIVE_NON_LANE_EVENT_TYPES,
     FOLLOW_UP_RECORDED,
     LIFECYCLE_EVENT_TYPES,
     LOCAL_ONLY_LIFECYCLE_EVENT_TYPES,
@@ -269,6 +271,7 @@ from .lifecycle_events import (
     emit_reviewer_self_approval,
     emit_wp_created_local,
     has_non_bootstrap_status_history,
+    is_authoritative_non_lane_event_type,
     _resolve_local_actor,
     mission_event_log_path,
     project_event_log_path,
@@ -427,6 +430,8 @@ __all__ = [
     "MissionMetadataUnavailable",
     "ANNOTATION_KIND",
     "LIFECYCLE_EVENT_TYPES",
+    "AUTHORITATIVE_NON_LANE_EVENT_TYPES",
+    "is_authoritative_non_lane_event_type",
     "LOCAL_ONLY_LIFECYCLE_EVENT_TYPES",
     "FOLLOW_UP_RECORDED",
     "MISSION_CREATED",
@@ -461,6 +466,7 @@ __all__ = [
     "emit_wp_created_local",
     "format_post_mission_events",
     "has_non_bootstrap_status_history",
+    "is_non_lane_event",
     "is_retrospective_lifecycle_event",
     "materialize_snapshot",
     "repo_root_for_lifecycle_log",

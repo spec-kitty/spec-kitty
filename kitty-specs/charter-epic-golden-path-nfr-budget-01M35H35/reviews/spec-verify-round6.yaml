@@ -1,0 +1,32 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true              # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+results:                    # one entry for EVERY finding in the findings file
+  - id: SPEC-FRESH5-001
+    status: resolved
+    reason: >-
+      Swept the whole spec.md (User Story 1 title/opening, "Why this priority", C-002, SC-001,
+      Acceptance Scenarios, Edge Cases) and found no remaining statement claiming or implying
+      the tests (e2e) shard runs on a CLI-source-only push; verified against
+      .github/workflows/ci-router.yml directly that the e2e filter group (lines 178-180) only
+      maps tests/e2e/** and tests/cross_cutting/**, the tests-e2e job gates solely on
+      needs.changes.outputs.e2e (line 675), and the unmatched catch-all's matched-union loop
+      (lines 210-230) includes the named cli group (src/specify_cli/cli/**, lines 126-127) so an
+      ordinary CLI-source-only push never trips it; the P1 rationale is restated on true
+      premises (acceptance mechanism for the pushes that select the shard, not a CLI-regression
+      pre-merge catch) with FR-005's structural/deterministic guard explicitly named as that
+      catch regardless of shard selection; C-002 states the real trigger condition with
+      file:line citations and explicitly forecloses any router/filter change by this mission.
+  - id: SPEC-FRESH5-002
+    status: resolved
+    reason: >-
+      NFR-002's rationale now states the cited 139.7s/159.5s CI/VM figures predate PR #4417 and
+      that the true post-#4417 CI-vs-local gap on a real Actions runner is unmeasured and could
+      differ materially from the cited ~12s/~32s figures, while leaving the hard <=110s
+      Actions rule (Ruling 2) explicitly unchanged in substance.
+  - id: SPEC-FRESH5-003
+    status: resolved
+    reason: >-
+      FR-004's parenthetical now reads '("hang" framing empirically disproved — see evidence
+      below)' with the stray "Clarifications and" cross-reference removed.

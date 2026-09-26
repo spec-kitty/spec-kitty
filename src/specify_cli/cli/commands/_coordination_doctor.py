@@ -122,6 +122,26 @@ _STRANDED_COORD_REVERT_STUCK_HINT = (
     "the coordination ref."
 )
 
+#: BRANCH_MISMATCH variant (sibling of #4920/#4950, FR-007): a live strand
+#: whose recorded coordination worktree exists but is checked out on a branch
+#: other than the coord ref (`CoordRepairOutcome.branch_mismatch`,
+#: `coordination/coherence.py`). `repair_coord_strand` refuses to run the
+#: revert there rather than mutate whatever foreign branch happens to be
+#: checked out. It is STILL a committed-ref split-brain, so it stays an
+#: ``error`` (exit 1); `--fix` cannot heal it without first putting the
+#: worktree back on the coord branch, so this carries a distinct code + a
+#: manual-recovery `next_step` instead of looping the operator back to
+#: `_STRANDED_COORD_REVERT_HINT`'s "run `--fix`", which can never succeed
+#: while the worktree stays off the coord branch.
+_STRANDED_COORD_REVERT_BRANCH_MISMATCH_CODE = "COORDINATION_STRANDED_COORD_REVERT_BRANCH_MISMATCH"
+_STRANDED_COORD_REVERT_BRANCH_MISMATCH_HINT = (
+    "The coordination worktree recorded for this strand is checked out on the "
+    "wrong branch, so `--fix` refuses to revert there (it would mutate the "
+    "wrong branch instead of the coordination ref). Switch the worktree back "
+    f"to the coordination branch (see `{_WORKSPACE_RECOVERY_CMD}`), then "
+    "re-run `--fix`."
+)
+
 #: An enumerated ``pending_coord_reconcile`` marker that cannot be parsed into
 #: repair inputs (missing ref/sha/worktree or an empty strand). A safety-net
 #: checker must NOT silently drop it — surface a ``warning`` (reviewer-renata LOW).
@@ -274,17 +294,30 @@ def _coordination_identity(
     return (coord_branch, mission_slug, mission_id)
 
 
+def _coord_worktree_actual_head(worktree: Path) -> str:
+    """Return the coord worktree's checked-out ref, or ``"<detached>"``.
+
+    Shared by :func:`_coord_worktree_head_finding` (the general health-check
+    warning) and :func:`_coord_worktree_mismatch_fix_blocked_finding` (the
+    dedicated ``--fix`` refusal, #4950 second-opinion follow-up) so both read
+    the same single git call's shape.
+    """
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(worktree), "symbolic-ref", "HEAD"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except subprocess.CalledProcessError:
+        return "<detached>"
+
+
 def _coord_worktree_head_finding(
     worktree: Path, coord_branch: str
 ) -> DoctorFinding | None:
     """Return a finding if the coord worktree HEAD is off the coord branch."""
 
-    try:
-        actual_head = subprocess.check_output(
-            ["git", "-C", str(worktree), "symbolic-ref", "HEAD"], text=True,
-        ).strip()
-    except subprocess.CalledProcessError:
-        actual_head = "<detached>"
+    actual_head = _coord_worktree_actual_head(worktree)
     expected = f"refs/heads/{coord_branch}"
     if actual_head == expected or actual_head.removeprefix("refs/heads/") == coord_branch:
         return None
@@ -1061,11 +1094,14 @@ def _heal_one_strand(
 
     Returns ``(healed_slug, warning)``: at most one is non-``None``. A genuine heal
     yields ``(slug, None)`` (and clears the marker); an un-parseable marker, an
-    unresolvable mission, or a repair that reports a pruned worktree yields
-    ``(None, warning)`` — a safety-net fixer must never silently drop a marker.
-    ``head_advanced`` / revert-error outcomes yield ``(None, None)``: the strand is
-    intentionally left for the next pass and the check's persistent ``error``
-    finding still surfaces it.
+    unresolvable mission, a repair that reports a pruned worktree
+    (``worktree_missing``), or a repair refused because the coordination
+    worktree is checked out on the wrong branch (``branch_mismatch``, sibling
+    of #4920/#4950) all yield ``(None, warning)`` — a safety-net fixer must
+    never silently drop a marker, and neither refusal is one simply re-running
+    ``--fix`` can resolve on its own. ``head_advanced`` / generic revert-error
+    outcomes yield ``(None, None)``: the strand is intentionally left for the
+    next pass and the check's persistent ``error`` finding still surfaces it.
     """
     from mission_runtime import MissionArtifactKind
 
@@ -1126,6 +1162,27 @@ def _heal_one_strand(
             ),
             next_step=_STRANDED_COORD_REVERT_STUCK_HINT,
             error_code=_STRANDED_COORD_REVERT_STUCK_CODE,
+            extra={"mission_id": mission_id, "mission_slug": mission_slug},
+        )
+    if outcome.branch_mismatch:
+        # Sibling of #4920/#4950: the repair refused to run the revert because
+        # the coord worktree is on a foreign branch — `--fix` re-run alone
+        # can never succeed, so this must not fall through to the silent
+        # `(None, None)` "leave it for the next pass" case below (that case
+        # is for outcomes the CHECK's own persistent `error` finding still
+        # surfaces; a branch-mismatch refusal needs its own actionable
+        # `next_step`, not the generic "run `--fix`" hint, which would keep
+        # telling the operator to do the one thing that cannot work).
+        actual = _coord_worktree_actual_head(Path(coord_worktree)).removeprefix("refs/heads/")
+        return None, DoctorFinding(
+            severity="error",
+            message=(
+                f"Coordination worktree {coord_worktree!r} for mission "
+                f"{mission_slug!r} is on {actual!r}, not {coord_ref!r} — `--fix` "
+                "refuses to revert its strand there."
+            ),
+            next_step=_STRANDED_COORD_REVERT_BRANCH_MISMATCH_HINT,
+            error_code=_STRANDED_COORD_REVERT_BRANCH_MISMATCH_CODE,
             extra={"mission_id": mission_id, "mission_slug": mission_slug},
         )
     return None, None
@@ -1241,9 +1298,15 @@ def _unified_diff(repo_root: Path, ref_a: str, ref_b: str) -> str:
     return result.stdout
 
 
-#: Blocked Gap-1 fix (diverged coord branch, or a dirty coord worktree): a
-#: surfaced ``error`` finding rather than an abort (renata LOW, see
-#: :func:`_coord_staleness_fix_blocked_finding`).
+#: Blocked Gap-1 fix: a surfaced ``error`` finding rather than an abort
+#: (renata LOW). Shared by every "nothing was mutated" refusal --
+#: :func:`_coord_staleness_fix_blocked_finding` (diverged coord branch, or a
+#: dirty coord worktree), :func:`_coord_worktree_foreign_repo_finding` (coord
+#: worktree does not belong to this repository), and
+#: :func:`_coord_staleness_fix_merge_failed_finding` (the ``--ff-only`` merge
+#: itself failed). :func:`_coord_worktree_mismatch_fix_blocked_finding` (coord
+#: worktree on the wrong branch) also reuses this code, even though its
+#: dedicated diff-free message differs from the others.
 _COORD_STALE_FIX_BLOCKED_CODE = "COORDINATION_BRANCH_STALE_FIX_BLOCKED"
 
 
@@ -1263,7 +1326,9 @@ def _coord_staleness_fix_blocked_finding(
     while letting :func:`_apply_coord_staleness_fixes` continue to the next
     mission. ``reason`` shapes the message (e.g. ``"diverged from"`` /
     ``"not cleanly fast-forwardable vs"``); the diff itself is always
-    ``coord_branch..target_branch``.
+    ``coord_branch..target_branch``. The wrong-branch/detached-HEAD case has
+    its own dedicated, diff-free finding -- see
+    :func:`_coord_worktree_mismatch_fix_blocked_finding`.
     """
     diff_text = _unified_diff(repo_root, coord_branch, target_branch)
     message = (
@@ -1277,9 +1342,193 @@ def _coord_staleness_fix_blocked_finding(
         message=message,
         next_step=(
             "Inspect the diff above and reconcile manually; `--fix` will not "
-            "mutate a diverged or dirty coordination branch."
+            "mutate a diverged, dirty, or mismatched coordination worktree."
         ),
         error_code=_COORD_STALE_FIX_BLOCKED_CODE,
+    )
+
+
+def _git_rev_parse_query(cwd: Path, *args: str) -> str:
+    """Return stripped stdout of ``git -C cwd rev-parse *args``, or ``""``.
+
+    Distinct from :func:`_rev_parse` (which resolves exactly one ``ref`` to
+    a SHA): this passes arbitrary ``rev-parse`` flags (``--git-common-dir``,
+    ``--show-toplevel``) used by :func:`_coord_worktree_foreign_repo_finding`.
+    """
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(cwd), "rev-parse", *args],
+            text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return ""
+
+
+def _resolved_git_rev_parse_path(cwd: Path, *args: str) -> Path | None:
+    """Run :func:`_git_rev_parse_query` and resolve its output against ``cwd``.
+
+    Deliberately does NOT pass ``--path-format=absolute`` -- that flag needs
+    git >= 2.31, newer than this module's declared ``_MIN_GIT_VERSION`` (2,
+    25). On an older git the flag is echoed back as a literal (unrecognised)
+    argument rather than rejected, and ``--git-common-dir``/``--show-toplevel``
+    come back relative to ``cwd`` (e.g. ``.git`` in the main checkout) instead
+    of absolute -- comparing that against an absolute worktree-side path would
+    always mismatch, refusing every legitimate ``--fix``. ``Path(cwd) / out``
+    is a no-op when ``out`` is already absolute (git returns an absolute path
+    for a linked worktree's common dir), so this single join+resolve handles
+    both an old-git relative result and a normal absolute one. Returns
+    ``None`` when the underlying git call failed.
+    """
+    out = _git_rev_parse_query(cwd, *args)
+    if not out:
+        return None
+    return (cwd / out).resolve()
+
+
+def _coord_worktree_foreign_repo_finding(
+    repo_root: Path, worktree: Path, coord_branch: str,
+) -> DoctorFinding | None:
+    """FR-009 (#4950 second-opinion follow-up): refuse a coord worktree that
+    does not belong to THIS repository.
+
+    Branch-NAME equality alone (:func:`_coord_worktree_head_finding`) passes
+    for a foreign clone -- or a plain directory under ``.worktrees/`` that
+    ``git -C`` silently walks up from to the main checkout -- that happens
+    to have a branch named the same as the coord branch (see the
+    postcondition repro this closes: a recorded worktree that is a separate
+    ``git clone`` genuinely fast-forwards *inside the clone* while the
+    declared branch in ``repo_root`` never moves). Before any mutation,
+    additionally require the worktree's git-common-dir to match
+    ``repo_root``'s (same repository) AND its toplevel to resolve to the
+    worktree path itself (a genuine linked worktree, not a subdirectory git
+    walked up from). Both sides are resolved via
+    :func:`_resolved_git_rev_parse_path` (no ``--path-format=absolute`` --
+    see its docstring) and compared as ``Path`` objects rather than raw
+    strings. A kept-as-a-separate-helper check (complexity ceiling).
+    """
+    repo_common_dir = _resolved_git_rev_parse_path(repo_root, "--git-common-dir")
+    wt_common_dir = _resolved_git_rev_parse_path(worktree, "--git-common-dir")
+    wt_toplevel = _resolved_git_rev_parse_path(worktree, "--show-toplevel")
+    same_repo = repo_common_dir is not None and wt_common_dir == repo_common_dir
+    is_worktree_root = wt_toplevel is not None and wt_toplevel == worktree.resolve()
+    if same_repo and is_worktree_root:
+        return None
+    return DoctorFinding(
+        severity="error",
+        message=(
+            f"Refusing to fast-forward coordination branch {coord_branch!r}: "
+            f"coordination worktree {worktree} does not belong to this "
+            "repository (git-common-dir/toplevel mismatch). `--fix` mutates "
+            "nothing."
+        ),
+        next_step=(
+            f"Inspect the worktree manually; then run `{_WORKSPACE_RECOVERY_CMD}` "
+            "to restore."
+        ),
+        error_code=_COORD_STALE_FIX_BLOCKED_CODE,
+    )
+
+
+def _coord_worktree_mismatch_fix_blocked_finding(
+    worktree: Path, coord_branch: str, head_finding: DoctorFinding,
+) -> DoctorFinding:
+    """FR-009: a dedicated refusal for a coord worktree off the coord branch.
+
+    #4950 second-opinion follow-up: the mismatch path used to feed
+    :func:`_coord_staleness_fix_blocked_finding`, whose message embeds a
+    ``coord_branch..target_branch`` diff and "inspect the diff above"
+    guidance -- both irrelevant here, since the problem is which branch (or
+    no branch, if detached) is checked out in the worktree, not branch
+    content. Reuses ``head_finding.next_step`` (the workspaces recovery
+    command) so the general health-check warning
+    (:func:`_coord_worktree_head_finding`) and this fix-blocked error point
+    to the same recovery action.
+    """
+    actual = _coord_worktree_actual_head(worktree).removeprefix("refs/heads/")
+    return DoctorFinding(
+        severity="error",
+        message=(
+            f"Refusing to fast-forward coordination branch {coord_branch!r}: "
+            f"coordination worktree {worktree} is on {actual!r}, not "
+            f"{coord_branch!r}. `--fix` mutates nothing."
+        ),
+        next_step=head_finding.next_step,
+        error_code=_COORD_STALE_FIX_BLOCKED_CODE,
+    )
+
+
+def _coord_staleness_fix_merge_failed_finding(
+    coord_branch: str, target_branch: str, stderr: str,
+) -> DoctorFinding:
+    """FR-009: a failed ``--ff-only`` merge, as a surfaced ``error`` finding.
+
+    #4950 second-opinion follow-up: every precondition above (divergence,
+    dirty worktree, branch mismatch) is checked before the merge runs, so in
+    principle the merge itself should never fail -- but ``check=True``
+    turning a real-world failure into an uncaught ``CalledProcessError``
+    would crash ``run_coordination_health`` (no JSON, no exit code, and
+    every OTHER mission's fix in the same run aborted) instead of reporting
+    it. A failed ``--ff-only`` mutates nothing, so this reuses
+    ``_COORD_STALE_FIX_BLOCKED_CODE`` -- same "nothing was mutated"
+    invariant as the other blocked-fix findings.
+    """
+    message = (
+        f"Refusing to fast-forward: coordination branch {coord_branch!r} "
+        f"failed to fast-forward to target branch {target_branch!r} — "
+        "`--fix` mutates nothing."
+    )
+    if stderr:
+        message = f"{message}\n{stderr.strip()}"
+    return DoctorFinding(
+        severity="error",
+        message=message,
+        next_step=(
+            "Inspect the coordination worktree and git's error above; "
+            "`--fix` did not attempt anything further."
+        ),
+        error_code=_COORD_STALE_FIX_BLOCKED_CODE,
+    )
+
+
+#: Postcondition failure (#4950 second-opinion follow-up): distinct from
+#: ``_COORD_STALE_FIX_BLOCKED_CODE``, whose documented meaning is "nothing
+#: was mutated." That is FALSE here -- a fast-forward genuinely ran inside
+#: the coord worktree; only the declared ref this run reads back from
+#: ``repo_root`` failed to reflect it. The original motivating example (the
+#: recorded worktree path is a separate repository/clone, so the merge
+#: landed there instead of on the branch `--fix` reports against) is now
+#: refused earlier, before any mutation, by
+#: :func:`_coord_worktree_foreign_repo_finding`'s git-common-dir/toplevel
+#: check -- so this postcondition is defence in depth against whatever can
+#: still move the declared ref between the merge and this readback (e.g. a
+#: concurrent process advancing/deleting the coord branch), not the primary
+#: guard against a foreign repository.
+_COORD_STALE_FIX_POSTCONDITION_CODE = "COORDINATION_BRANCH_STALE_FIX_POSTCONDITION_FAILED"
+
+
+def _coord_staleness_fix_postcondition_finding(
+    worktree: Path,
+    coord_branch: str,
+    target_branch: str,
+    expected_sha: str,
+    actual_sha: str,
+) -> DoctorFinding:
+    """Return a fail-loud finding when repair did not update the declared ref."""
+
+    actual = actual_sha[:8] if actual_sha else "unreadable"
+    return DoctorFinding(
+        severity="error",
+        message=(
+            "Coordination repair failed its postcondition: a fast-forward "
+            f"ran in {worktree} but declared branch {coord_branch!r} is at "
+            f"{actual}, expected {expected_sha[:8]} to match target "
+            f"{target_branch!r}."
+        ),
+        next_step=(
+            "Inspect the recorded coordination worktree and declared branch; "
+            "`--fix` did not report success."
+        ),
+        error_code=_COORD_STALE_FIX_POSTCONDITION_CODE,
     )
 
 
@@ -1292,13 +1541,20 @@ def _fix_one_mission_coord_staleness(
     coordinated, its identity/``target_branch`` is incomplete, either ref is
     unreadable, the SHAs already match, or the coord worktree does not exist
     (the existing ``COORDINATION_WORKTREE_MISSING``/``NEVER_CREATED`` findings
-    already cover that case). Otherwise: strict-ancestor + clean coord
-    worktree fast-forwards the coord worktree onto ``target_branch`` (``git
-    merge --ff-only``, itself belt-and-braces safe) and returns ``None``;
-    anything else returns a blocked-fix ``error`` finding via
-    :func:`_coord_staleness_fix_blocked_finding` instead of raising, mutating
-    nothing (renata LOW: a single mission's unsafe precondition must not
-    abort ``--fix`` for every OTHER mission in the same run).
+    already cover that case). Otherwise every precondition must hold before
+    any mutation: strict-ancestor, the coord worktree genuinely belongs to
+    this repository (:func:`_coord_worktree_foreign_repo_finding`), the
+    worktree is on the coord branch (:func:`_coord_worktree_head_finding`),
+    and the worktree is clean. Only then does the fast-forward run (``git
+    merge --ff-only``, itself belt-and-braces safe), followed by a postcondition
+    re-read (:func:`_coord_staleness_fix_postcondition_finding`). A refused
+    or failed precondition/postcondition returns an ``error`` finding instead
+    of raising, mutating nothing -- most route through
+    :func:`_coord_staleness_fix_blocked_finding`, but the foreign-repo,
+    branch-mismatch, merge-failure, and postcondition guards each return
+    their own dedicated finding instead (renata LOW: a single mission's
+    unsafe precondition must not abort ``--fix`` for every OTHER mission in
+    the same run).
     """
     shas = _coord_vs_target_shas(repo_root, mission_meta)
     if shas is None:
@@ -1328,15 +1584,41 @@ def _fix_one_mission_coord_staleness(
     if not worktree.exists():
         return None  # no coord worktree to fast-forward into; worktree-health check covers this
 
+    foreign_repo_finding = _coord_worktree_foreign_repo_finding(repo_root, worktree, coord_branch)
+    if foreign_repo_finding is not None:
+        return foreign_repo_finding
+
+    head_finding = _coord_worktree_head_finding(worktree, coord_branch)
+    if head_finding is not None:
+        return _coord_worktree_mismatch_fix_blocked_finding(worktree, coord_branch, head_finding)
+
     if _coord_worktree_dirty_finding(worktree) is not None:
         return _coord_staleness_fix_blocked_finding(
             repo_root, coord_branch, target_branch, reason="not cleanly fast-forwardable vs",
         )
 
-    subprocess.run(
-        ["git", "-C", str(worktree), "merge", "--ff-only", target_branch],
-        check=True, capture_output=True, text=True,
+    # Merge the SHA the postcondition below checks against (not the branch
+    # name) so the move and the check refer to the exact same commit --
+    # `target_branch` can advance between resolving `target_sha` above and
+    # running this merge (#4950 second-opinion follow-up).
+    #
+    # `check=False`: a failed `--ff-only` must surface as a finding, not
+    # raise `CalledProcessError` out of `run_coordination_health` (which
+    # would abort every OTHER mission's fix in the same run, and skip the
+    # JSON emission entirely) -- see `_coord_staleness_fix_merge_failed_finding`.
+    merge_result = subprocess.run(
+        ["git", "-C", str(worktree), "merge", "--ff-only", target_sha],
+        check=False, capture_output=True, text=True,
     )
+    if merge_result.returncode != 0:
+        return _coord_staleness_fix_merge_failed_finding(
+            coord_branch, target_branch, merge_result.stderr,
+        )
+    repaired_coord_sha = _rev_parse(repo_root, f"refs/heads/{coord_branch}")
+    if repaired_coord_sha != target_sha:
+        return _coord_staleness_fix_postcondition_finding(
+            worktree, coord_branch, target_branch, target_sha, repaired_coord_sha,
+        )
     console.print(
         f"[green]Fast-forwarded:[/green] coordination branch {coord_branch!r} "
         f"({coord_sha[:8]} -> {target_sha[:8]}) to match target {target_branch!r}."
@@ -1420,12 +1702,21 @@ def run_coordination_health(
     findings, re-runs :func:`~specify_cli.migration.backfill_topology.backfill_topology_repo`
     to re-derive topology from the now-absent key, then attempts the WP06
     Gap-1 coord-vs-target fast-forward (:func:`_apply_coord_staleness_fixes`)
-    for every coordinated mission. A per-mission unsafe precondition (diverged
-    coord branch, or a dirty coord worktree) surfaces as an ``error`` finding
-    rather than raising (renata LOW, coord-commit-integrity squad) -- the
-    command still exits 1 overall for that mission, but no longer aborts
-    fixing every OTHER mission in the same run. FR-009/C-005 hold either way:
-    nothing is ever mutated for the blocked mission.
+    for every coordinated mission. A per-mission unsafe precondition -- a
+    diverged coord branch, a dirty coord worktree, a coord worktree that does
+    not belong to this repository (:func:`_coord_worktree_foreign_repo_finding`),
+    or one checked out on the wrong branch
+    (:func:`_coord_worktree_mismatch_fix_blocked_finding`) -- surfaces as an
+    ``error`` finding rather than raising (renata LOW, coord-commit-integrity
+    squad) -- the command still exits 1 overall for that mission, but no
+    longer aborts fixing every OTHER mission in the same run. FR-009/C-005
+    hold for every one of those *blocked* preconditions: nothing is mutated
+    for that mission. The one exception is the postcondition re-read
+    (:func:`_coord_staleness_fix_postcondition_finding`): by the time it can
+    fire, the fast-forward has already genuinely run in the coord worktree --
+    only the declared ref this run reads back from ``repo_root`` failed to
+    reflect it -- so that specific ``error`` reports a real (if incomplete)
+    mutation, not a refusal.
 
     ``check_staleness`` (FR-008, ``--check-staleness``) additionally reports
     Gap-1 coord-branch-vs-``target_branch`` staleness findings; it is purely a

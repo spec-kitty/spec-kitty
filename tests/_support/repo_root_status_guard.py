@@ -55,6 +55,35 @@ session ends — are not caught by this guard. The observed #2815 incidents were
 plain in-test writes; a collection-time writer would be a different bug with
 different evidence.
 
+Two further boundary cases, both deliberate (#4036):
+
+* **Between-tests gap.** A write that lands strictly after test A's
+  ``pytest_runtest_teardown`` comparison has already run and strictly before
+  test B's ``pytest_runtest_setup`` snapshot is taken — the brief gap between
+  two consecutive items' hook pairs — falls inside neither test's window and
+  is attributed to neither. In practice this gap is pytest's own
+  inter-item bookkeeping (microseconds), not a window a test's own code can
+  reach into, so it has never been the observed vector for a real leak; it is
+  documented here as a known, accepted blind spot rather than a claim of
+  completeness. (Contrast: a write made DURING test A's window and left
+  on-disk — the ordinary case, proven by
+  ``tests/test_repo_root_status_guard.py::
+  test_leak_attribution_does_not_straddle_into_the_next_test`` — is
+  correctly attributed to A alone and never cascades onto a subsequent test
+  B that leaves it untouched, because B's own setup snapshot captures A's
+  leak as pre-existing state and B's teardown compare only flags a change
+  relative to THAT snapshot.)
+* **Concurrent xdist worker.** ``GUARD_ROOT`` names the same on-disk checkout
+  root for every worker process in a ``-n auto`` run, but each worker's hooks
+  only compare fingerprints against snapshots taken IN THAT WORKER'S OWN
+  process (the ``_BEFORE_SNAPSHOT`` stash is per-item, per-process). A write
+  made by a test running in worker A is attributed to whichever test is
+  current in worker A at its next teardown check; it is invisible to worker
+  B's own before/after comparisons (a different process, a different
+  in-memory stash) — so it is never misattributed to a worker-B test, but it
+  is also never cross-checked against what worker B observes. Cross-worker
+  attribution is out of scope by construction, not merely untested.
+
 The guarded root is derived from THIS file's location (``tests/_support/`` →
 two levels up), never from ``Path.cwd()`` — so it is the root of whichever
 checkout this ``tests/`` tree lives in (repo root, or a lane worktree's root

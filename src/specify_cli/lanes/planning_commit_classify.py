@@ -25,7 +25,7 @@ different question — it short-circuits when the pin is reachable from a
 *lane worktree's* HEAD, which is the normal healthy state of a fresh coord
 lane. Passing a lane HEAD as ``target_tip`` here would misfire on every
 healthy allocation (#2993). Callers must always pass the planning
-target-branch tip (e.g. ``_capture_target_branch_tip(repo_root,
+target-branch tip (e.g. ``capture_branch_tip(repo_root,
 target_branch)``), never a worktree's ``HEAD``.
 
 This module is deliberately pure: no Typer, no console output, no
@@ -116,7 +116,7 @@ def classify_recorded_pin(
     """Classify a recorded ``planning_commit_sha`` against ``target_tip``.
 
     ``target_tip`` MUST be the planning target-branch tip (e.g. from
-    ``_capture_target_branch_tip``), never a lane worktree's ``HEAD`` — see
+    ``capture_branch_tip``), never a lane worktree's ``HEAD`` — see
     the C-006 note on the module docstring.
 
     Does not compute the pre-execution "captured" case (execution-not-begun

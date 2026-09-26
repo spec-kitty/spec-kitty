@@ -45,3 +45,4 @@ surface to `ENROLMENT_SURFACES` and re-freshen from the tool output.
 | src/specify_cli/merge/bookkeeping_projection.py:304 | _project_status_bookkeeping_to_target | trusted_target_events_path . write_bytes ( union_events_byte… | .write_bytes() | pending-owner |
 | src/specify_cli/merge/bookkeeping_projection.py:305 | _project_status_bookkeeping_to_target | trusted_target_status_path . write_bytes ( | .write_bytes() | pending-owner |
 | src/specify_cli/merge/bookkeeping_projection.py:311 | _project_status_bookkeeping_to_target | trusted_target_status_path . write_bytes ( source_status_byt… | .write_bytes() | pending-owner |
+| src/specify_cli/merge/bookkeeping_projection.py:559 | project_post_checkpoint_commits_to_target | trusted . write_bytes ( content ) | .write_bytes() | pending-owner |

@@ -29,6 +29,7 @@ removed.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -63,6 +64,22 @@ def _write(repo: Path, rel: str, content: str) -> None:
     path = repo / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+def _commit_all_at(repo: Path, message: str, committed_at: str) -> None:
+    """Commit staged fixture changes with a deterministic committer timestamp."""
+    _run(["git", "add", "-A"], repo)
+    env = os.environ.copy()
+    env["GIT_AUTHOR_DATE"] = committed_at
+    env["GIT_COMMITTER_DATE"] = committed_at
+    subprocess.run(
+        ["git", "commit", "-m", message],
+        cwd=str(repo),
+        check=True,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
 
 
 def _read_on_target(repo: Path, rel: str) -> str:
@@ -137,6 +154,107 @@ def test_squash_merge_preserves_target_newer_planning_files(tmp_path: Path) -> N
     merged_wp = _read_on_target(repo, WP_REL)
     assert merged_spec == SPEC_TARGET_NEWER, "target-newer spec.md was clobbered by the older mission-branch copy via -X theirs (lanes/merge.py:635)"
     assert merged_wp == WP_TARGET_NEWER, "target-newer tasks/WP01.md was clobbered by the older mission-branch copy via -X theirs (lanes/merge.py:635)"
+
+
+def test_squash_merge_preserves_source_newer_planning_policy(tmp_path: Path) -> None:
+    """#4892 review: the historical recency policy also lets source-newer win."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _run(["git", "init", "-b", TARGET_BRANCH], repo)
+    _run(["git", "config", "user.email", "test@example.com"], repo)
+    _run(["git", "config", "user.name", "Spec Kitty"], repo)
+    _run(["git", "config", "commit.gpgsign", "false"], repo)
+
+    _write(repo, SPEC_REL, "# Spec\n\nShared planning paragraph.\n")
+    _run(["git", "add", "-A"], repo)
+    _run(["git", "commit", "-m", "base planning artifact"], repo)
+
+    _run(["git", "branch", MISSION_BRANCH], repo)
+    _write(repo, SPEC_REL, "# Spec\n\nOlder target refinement.\n")
+    _commit_all_at(
+        repo,
+        "target planning refinement",
+        "2026-09-22T10:00:00+00:00",
+    )
+
+    _run(["git", "checkout", MISSION_BRANCH], repo)
+    _write(repo, SPEC_REL, "# Spec\n\nNewer mission refinement.\n")
+    _commit_all_at(
+        repo,
+        "mission planning refinement",
+        "2026-09-22T12:00:00+00:00",
+    )
+    _run(["git", "checkout", TARGET_BRANCH], repo)
+
+    result = integrate_mission_into_target(
+        repo,
+        MISSION_SLUG,
+        _manifest(),
+        strategy=MergeStrategy.SQUASH,
+    )
+
+    assert result.success, f"merge failed: {result.errors}"
+    assert _read_on_target(repo, SPEC_REL) == "# Spec\n\nNewer mission refinement.\n"
+
+
+def test_squash_noop_when_planning_resolves_entirely_to_target(tmp_path: Path) -> None:
+    """#4892 review: a planning conflict that resolves ENTIRELY to the target is a
+    no-op — never a fabricated empty squash commit.
+
+    When the only divergence is a planning artifact the target owns (target-newer),
+    the reconciliation resolves it to the target's copy, leaving nothing net-staged
+    against the target tree. Before the fix, ``--allow-empty`` forced an empty
+    squash commit and bypassed the FR-037 no-op check; now the merge reports
+    ``already_applied`` and the target ref does not advance.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _run(["git", "init", "-b", TARGET_BRANCH], repo)
+    _run(["git", "config", "user.email", "test@example.com"], repo)
+    _run(["git", "config", "user.name", "Spec Kitty"], repo)
+    _run(["git", "config", "commit.gpgsign", "false"], repo)
+
+    # Base, then an OLDER mission edit and a NEWER target edit to the SAME
+    # paragraph — so recency resolves the whole file to the target's copy.
+    _write(repo, SPEC_REL, "# Spec\n\nOriginal shared paragraph.\n")
+    _run(["git", "add", "-A"], repo)
+    _run(["git", "commit", "-m", "base planning artifact"], repo)
+
+    _run(["git", "branch", MISSION_BRANCH], repo)
+    _run(["git", "checkout", MISSION_BRANCH], repo)
+    _write(repo, SPEC_REL, SPEC_OLDER_MISSION)
+    _commit_all_at(repo, "mission older planning edit", "2026-09-22T10:00:00+00:00")
+
+    _run(["git", "checkout", TARGET_BRANCH], repo)
+    _write(repo, SPEC_REL, SPEC_TARGET_NEWER)
+    _commit_all_at(repo, "target newer planning edit", "2026-09-22T12:00:00+00:00")
+    target_before = subprocess.run(
+        ["git", "rev-parse", TARGET_BRANCH],
+        cwd=str(repo),
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+    result = integrate_mission_into_target(
+        repo,
+        MISSION_SLUG,
+        _manifest(),
+        strategy=MergeStrategy.SQUASH,
+    )
+
+    assert result.success, f"merge failed: {result.errors}"
+    assert result.already_applied is True, "a resolve-entirely-to-target squash must report a no-op"
+    assert result.commit is None, "a no-op squash must not create a commit"
+    target_after = subprocess.run(
+        ["git", "rev-parse", TARGET_BRANCH],
+        cwd=str(repo),
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert target_after == target_before, "target ref advanced on a no-op — an empty squash commit was fabricated"
+    assert _read_on_target(repo, SPEC_REL) == SPEC_TARGET_NEWER
 
 
 def test_squash_preserves_disjoint_lane_and_target_edits(tmp_path: Path) -> None:

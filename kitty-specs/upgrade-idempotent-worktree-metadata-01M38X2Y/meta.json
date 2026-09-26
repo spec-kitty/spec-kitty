@@ -1,0 +1,34 @@
+{
+  "accept_commit": "71585a85dfd1a82c5e1e71d22df1766aadaeb400",
+  "acceptance_history": [
+    {
+      "accept_commit": "71585a85dfd1a82c5e1e71d22df1766aadaeb400",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-24T06:42:11.768013+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "dc4826b369d9c0bde7e9fc633d900e4407734f0c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-24T06:42:11.768013+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "dc4826b369d9c0bde7e9fc633d900e4407734f0c",
+  "coordination_branch": "kitty/mission-upgrade-idempotent-worktree-metadata-01M38X2Y",
+  "created_at": "2026-09-24T05:09:21.282758+00:00",
+  "flattened": false,
+  "friendly_name": "Upgrade idempotency — no divergent per-worktree metadata stamps",
+  "mid8": "01M38X2Y",
+  "mission_id": "01M38X2Y7QQYCA932A8884EJ4K",
+  "mission_number": null,
+  "mission_slug": "upgrade-idempotent-worktree-metadata-01M38X2Y",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When an operator (or a teammate who pulled an already-upgraded main) re-runs 'spec-kitty upgrade', the CLI stamps each live worktree with its own last_upgraded_at and auto-commits it per branch, so main, coord and lane branches diverge on one bookkeeping line. Every in-flight coord mission then becomes undrivable: 'implement' fails the dependency-lane auto-merge and 'merge' refuses the lane as stale — while both upgrades exit 0 'already up to date'. This mission makes upgrade idempotent for live worktrees and prevents spec-kitty's own bookkeeping from wedging the mission.",
+  "purpose_tldr": "A repeat 'spec-kitty upgrade' on an already-current project must not wedge in-flight coord missions.",
+  "slug": "upgrade-idempotent-worktree-metadata-01M38X2Y",
+  "status_phase": "1",
+  "target_branch": "fix/upgrade-idempotent-worktree-metadata",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-24T06:03:09.763068+00:00"
+}

@@ -1,0 +1,34 @@
+{
+  "accept_commit": "5bbbfb4f9572682b06ed37238c7bc626e1d9f2ca",
+  "acceptance_history": [
+    {
+      "accept_commit": "5bbbfb4f9572682b06ed37238c7bc626e1d9f2ca",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-22T19:24:12.493389+00:00",
+      "accepted_by": "lynn",
+      "accepted_from_commit": "2c283d33521a80325a92b6e42ee552dc4bc8e3e0"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-22T19:24:12.493389+00:00",
+  "accepted_by": "lynn",
+  "accepted_from_commit": "2c283d33521a80325a92b6e42ee552dc4bc8e3e0",
+  "baseline_merge_commit": "60af757ab62865cb63a6668b9d8a0dd1c0c1fc50",
+  "created_at": "2026-09-22T18:11:25.534750+00:00",
+  "flattened": true,
+  "friendly_name": "Squash merge target safety",
+  "merged_at": "2026-09-22T19:29:18.741186+00:00",
+  "merged_commit": "7422865107aae7de9e82650e41d7e2a057930c0e",
+  "mid8": "01M3551G",
+  "mission_id": "01M3551GPHBTWW4SSPATKZ3V22",
+  "mission_number": null,
+  "mission_slug": "squash-merge-target-safety-01M3551G",
+  "mission_type": "software-dev",
+  "purpose_context": "GitHub issue #4892 reports that git merge --squash -X theirs silently reverts newer target content, exits successfully, finalizes work packages, and removes lanes. The fix must prevent target mutation and cleanup on conflict while keeping custom merge-driver behavior for governed bookkeeping artifacts.",
+  "purpose_tldr": "Make default squash merge preserve target-branch source changes by failing closed on genuine conflicts and forecasting them in dry-run.",
+  "slug": "squash-merge-target-safety-01M3551G",
+  "status_phase": "1",
+  "target_branch": "issue-4892-squash-merge-target-safety",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-22T18:27:42.241948+00:00"
+}

@@ -85,7 +85,7 @@ jobs:
   # ---------------------------------------------------------------------------
   generate-matrix:
     name: Generate module-shard matrix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.build.outputs.matrix }}
       mode: ${{ steps.build.outputs.mode }}
@@ -357,7 +357,7 @@ jobs:
   # ---------------------------------------------------------------------------
   modules-gate:
     name: CI Modules gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     needs: [generate-matrix, test]
     if: ${{ always() && !cancelled() }}
@@ -411,7 +411,7 @@ jobs:
     # blip, an API 5xx) would turn a green run red -- manufacturing exactly
     # the false red this job exists to prevent.
     continue-on-error: true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Job-level permissions REPLACE the workflow-level grant, so `contents`
     # is restated; `actions: read` is the minimum the jobs API needs and is
     # scoped to this job rather than widening the whole workflow.

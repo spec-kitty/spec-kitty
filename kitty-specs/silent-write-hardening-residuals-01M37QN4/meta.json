@@ -1,0 +1,20 @@
+{
+  "coordination_branch": "kitty/mission-silent-write-hardening-residuals-01M37QN4",
+  "created_at": "2026-09-23T18:15:11.302920+00:00",
+  "flattened": false,
+  "friendly_name": "Silent-Write Hardening Residuals",
+  "mid8": "01M37QN4",
+  "mission_id": "01M37QN45TTG30ZWV82998A6E3",
+  "mission_number": null,
+  "mission_slug": "silent-write-hardening-residuals-01M37QN4",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "PR #4938 fixed three acute silent-data-loss bugs. A landing-pass review squad confirmed three residual weaknesses that do not lose data today but could as the system grows: mission-state repair can still silently drop a future record type its allowlist has not learned yet; two code paths read the same project-configuration field with different parsers that can disagree on edge cases; and the traces merge helper can misread unusual document formatting. This mission removes those latent risks and closes #4993.",
+  "purpose_tldr": "Close the remaining silent-data-loss residuals from PR #4938 so mission-state repair, charter reads, and traces merges fail-closed toward keeping data.",
+  "slug": "silent-write-hardening-residuals-01M37QN4",
+  "status_phase": "1",
+  "target_branch": "fix/silent-write-hardening-residuals",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-23T19:44:33.821786+00:00"
+}

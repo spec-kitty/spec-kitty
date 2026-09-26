@@ -1,0 +1,169 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Actions evidence path / Ruling 4 compliance (clarity)
+    severity: 4
+    title: "Actions evidence path §3 is a self-contradictory sentence that, read literally, instructs adding `--durations=1` to `ci-router.yml`'s `tests-e2e` job — the exact CI/router edit Ruling 4 forbids"
+    evidence:
+      - artifact: "plan.md § Actions evidence path, line 145"
+      - code: ".github/workflows/ci-router.yml:681-683 (the `tests-e2e` job's only `run:` step)"
+    claim: >
+      plan.md line 145 reads: "This plan requires adding `--durations=1` (or equivalent) to
+      that one `run:` step in `ci-router.yml`'s `tests-e2e` job **is explicitly NOT proposed**
+      — that would be a CI/router change, which Ruling 4 forbids." Parsed literally, the
+      sentence has two grammatical subjects welded together: an imperative assertion ("This
+      plan requires adding X") immediately followed by an unattached negation ("is explicitly
+      NOT proposed") that never actually negates "requires" — it would need to read "Adding X
+      ... is explicitly NOT proposed" or "This plan does NOT require adding X" to parse
+      cleanly. An implementer skimming under time pressure (the normal condition inside a WP)
+      can plausibly stop at "This plan requires adding `--durations=1` ... to that one `run:`
+      step in `ci-router.yml`'s `tests-e2e` job" and read it as a standing instruction, since
+      it is phrased with imperative force and the disclaimer trails it rather than leading it.
+      Acting on that literal-first reading would mean editing `.github/workflows/ci-router.yml`
+      — a CI/router change — which directly violates the binding operator Ruling 4
+      ("no CI/router changes; the mission stays test + CLI-startup only",
+      `reviews/spec.ruling.md` Ruling 4). This is exactly the ambiguity the mission-derived
+      lens asked me to check for, and I judge the misreading plausible, not far-fetched, given
+      the sentence's genuine grammatical break.
+    remediation: >
+      Rewrite the sentence so the negation leads, not trails: e.g. "Adding `--durations=1` (or
+      equivalent) to that one `run:` step in `ci-router.yml`'s `tests-e2e` job is explicitly
+      NOT proposed here — that would be a CI/router change, which Ruling 4 forbids." Keep the
+      rationale that follows unchanged. This is a pure wording fix; no semantic change to the
+      plan's chosen mechanism is required.
+
+  - id: PLAN-VERIFY-002
+    lens: Actions evidence path — measurement precision (silent success)
+    severity: 4
+    title: "The proposed evidence mechanism (step-level Actions timestamps) cannot actually recover test_charter_epic_golden_path's own wall-clock duration to check against the hard ≤110s bar"
+    evidence:
+      - artifact: "plan.md § Actions evidence path, line 145 (\"the tests-e2e job step's own start/end timestamps ... give the real wall-clock duration of the pytest tests/e2e -q step\")"
+      - code: ".github/workflows/ci-router.yml:676-683 — the `tests-e2e` job has exactly one `run:` step combining `uv sync --frozen --all-extras` and `uv run --frozen pytest tests/e2e -q`, with no step boundary between the two"
+      - code: "tests/e2e/ directory listing: 6 files, 21 total `def test_*` functions (`test_cli_smoke.py`, `test_charter_epic_golden_path.py`, `test_mission_create_clean_output.py`, `test_upgrade_post_state.py`, `test_worktree_owned_root_concurrency.py`, `test_feature_alias_smoke.py`) — `pytest tests/e2e -q` runs all of them, not only the golden-path test"
+      - code: "tests/e2e/test_charter_epic_golden_path.py — grepped for `time.monotonic|time.perf_counter|elapsed|duration`: zero hits. The test itself performs no internal timing/logging of its own wall-clock cost."
+    claim: >
+      Ruling 2 requires "a real GitHub Actions e2e run shows the golden path at ≤110s" —
+      specifically the golden-path test's own duration, with no exception band. The plan's
+      evidence mechanism is: read the Actions UI's (or `gh run view --log`'s) start/end
+      timestamp for the `tests-e2e` job's one `run:` step and treat that as the golden path's
+      wall-clock time. This does not work as described, for two independent, verified reasons:
+      (1) That one step's timestamp spans BOTH `uv sync --frozen --all-extras` (dependency
+      installation — has no fixed, negligible cost) AND the entire `pytest tests/e2e -q`
+      invocation; there is no step boundary separating them, so the recovered duration is
+      "uv sync + all e2e tests", not "the golden path test alone". (2) `pytest tests/e2e -q`
+      collects and runs all 21 tests across 6 files in `tests/e2e/`, not only
+      `test_charter_epic_golden_path`; with no `--durations` flag (confirmed absent) and no
+      internal timing instrumentation inside the test itself (confirmed absent), there is
+      nothing in the job's console log that isolates the golden-path test's own duration from
+      the other 20 tests' combined runtime. The mission-derived lens explicitly asked whether
+      "a step-level duration includes setup/teardown noise ... is that close enough, and does
+      the plan say so, or does it silently assume a precision it hasn't justified" — the plan
+      does not address this at all; it asserts the mechanism "give[s] the real wall-clock
+      duration of the pytest tests/e2e -q step" without qualification, which is not the same
+      quantity Ruling 2 requires and is not obviously "close enough" against a hard, no-band
+      110s cutoff (uv sync alone, plus 20 other tests, could easily be tens of seconds — enough
+      to make a step-level number either falsely fail a genuinely-in-budget golden path, or
+      worse, falsely appear to satisfy ≤110s while masking a golden path that is itself
+      over-budget once isolated).
+    remediation: >
+      Do not rely on step-level Actions timestamps. Instead, get an isolated, admissible
+      duration for the golden-path test alone without touching any `.github/workflows/*.yml`
+      file (so Ruling 4 is respected): add `--durations=1` (or `-k
+      test_charter_epic_golden_path --durations=0`) to `pytest.ini`'s existing `addopts` line
+      (`pytest.ini:11`, currently `addopts = --tb=short`) — `pytest.ini`, not
+      `.github/workflows/*.yml`, is this repo's canonical pytest-config home (per the comment
+      at `pyproject.toml:230-236`, which explicitly forbids `[tool.pytest.ini_options]` in
+      `pyproject.toml` in favor of `pytest.ini`). pytest's own `--durations` terminal summary is
+      written to the console regardless of `-q` and is not subject to per-test stdout capture,
+      so it would appear in the Actions log for every pytest invocation across the repo,
+      including `tests-e2e`, without any workflow-file edit. State this concretely in the plan
+      instead of the vaguer "job's own existing console log" framing.
+
+  - id: PLAN-VERIFY-003
+    lens: Silent-success check (charter's dominant failure mode)
+    severity: 3
+    title: "No mechanical check that the required Actions Evidence Log / PR-body evidence was actually recorded before the mission is treated as closed"
+    evidence:
+      - artifact: "plan.md § Actions evidence path, line 145 (\"copied into (a) the PR description ... and (b) an evidence line appended to this plan.md (a new ## Actions Evidence Log section, added by the implementer once the real measurement exists\")"
+      - artifact: "plan.md § Red-first per changed behaviour (FR-005 row) — contrast: FR-005's regression guard IS a gated, always-on test (structural half) plus a nightly wall-clock half, i.e. a mechanical check"
+    claim: >
+      Unlike FR-005's regression guard (a real pytest test that runs in CI), the NFR-002/SC-003
+      closure evidence (the real Actions ≤110s measurement) is recorded purely as prose: a PR
+      description section and a new plan.md heading, both added "by the implementer" with no
+      test, lint rule, or CI gate asserting either exists or contains a real number before the
+      mission is considered done. If an implementer forgets to add the "Actions Evidence Log"
+      section, or copies a stale/local number into the PR body instead of the real Actions
+      figure, nothing in this plan's own gate set would catch it — closure would depend
+      entirely on a human reviewer (sk-review's accept gate) noticing the omission by eye. The
+      charter's Quality & Tech-Debt Standing Orders name exactly this pattern ("never trust a
+      green check, a clean diff, or a confident summary") as the dominant failure mode this
+      repo actively defends against, and this mission's own subject matter (a prior silent
+      re-skip, per C-005) is a direct instance of it.
+    remediation: >
+      Either (a) note explicitly in plan.md that this evidence step is human-reviewed only
+      (sk-review's accept gate must positively confirm the Actions Evidence Log section exists
+      and cites a real run URL + measured seconds, not merely that the PR is green), making the
+      reliance on human review an explicit, acknowledged control rather than an implicit gap;
+      or (b) add a cheap mechanical check — e.g. a small script/test asserting plan.md contains
+      a `## Actions Evidence Log` heading with a parseable seconds figure once the mission
+      reaches ready-for-squad — so the omission is caught structurally rather than by memory.
+
+  - id: PLAN-VERIFY-004
+    lens: Gates — router-filter citation accuracy
+    severity: 3
+    title: "\"Router-filter note\" claim is factually wrong: src/specify_cli/runtime/agent_commands.py IS covered by a named router filter group (`next`), contradicting the plan's own \"verified against the live files\" claim"
+    evidence:
+      - artifact: "plan.md § Gate set for this mission, line 188 (\"Router-filter note ... src/specify_cli/runtime/agent_commands.py is covered by no explicitly-named router filter group in .github/workflows/ci-router.yml (it is not under cli, charter, agent, core_misc, or any other named src/specify_cli/** subpath group)\")"
+      - code: ".github/workflows/ci-router.yml:116-119 — the `next` filter group: `- 'src/specify_cli/runtime/**'`, `- 'src/runtime/next/**'`, `- 'src/mission_runtime/**'`"
+      - code: ".github/workflows/ci-router.yml:218 — the `unmatched` catch-all's own union list includes `\"${{ steps.filter.outputs.next }}\"`"
+      - code: ".github/workflows/ci-router.yml:523 — the `architectural-heavy` job's trigger OR-list includes `needs.changes.outputs.next == 'true'`"
+    claim: >
+      `src/specify_cli/runtime/agent_commands.py` is a path under `src/specify_cli/runtime/`,
+      which IS matched by the `next` filter group defined at ci-router.yml:116-119. That group
+      is also part of the `unmatched` catch-all's own union computation (line 218) and directly
+      gates the `architectural-heavy` job (line 523, among others). This means a diff touching
+      ONLY `runtime/agent_commands.py` would set `next=true`, would NOT trip the fail-closed
+      `unmatched` catch-all (contrary to the plan's claim), and would trigger
+      `architectural-heavy` via the `next` group rather than "matching no named group". The
+      plan's own text frames this note as "verified against this checkout's actual
+      `.github/workflows/*.yml` files today (not a cached number)" (line 179) and explicitly
+      states it is meant to guide a FUTURE narrower change touching only that file — so the
+      error is not inert: it could lead a future implementer to believe a runtime-only change
+      forces an unwanted full-mode CI run (overstating cost) or, worse, to attempt adding
+      `src/specify_cli/runtime/**` to some other named group believing a real gap exists, which
+      would itself be an unnecessary, out-of-scope router change. For THIS mission's own PR the
+      practical gate selection is unaffected (the diff also touches `tests/e2e/**` and
+      `src/specify_cli/cli/**`, both already named), so this does not change what this specific
+      PR's gates are — the defect is confined to the informational note's own accuracy.
+    remediation: >
+      Correct the Router-filter note: `src/specify_cli/runtime/agent_commands.py` IS covered by
+      the `next` filter group (ci-router.yml:116-119), which participates in the `unmatched`
+      union (line 218) and gates `architectural-heavy` (line 523) plus any other job keyed on
+      `needs.changes.outputs.next`. A future runtime-only change would select `next` normally,
+      not trip the catch-all. Either remove the note (the risk it was written to flag does not
+      exist) or rewrite it to state the corrected mapping.
+
+  - id: PLAN-VERIFY-005
+    lens: Gates — startup fast-path enumeration accuracy
+    severity: 1
+    title: "Lever C section undercounts main_callback()'s existing fast-path guards by one (omits _is_doctor_skills_invocation)"
+    evidence:
+      - artifact: "plan.md § Lever C, line 122 (\"guarded only by the existing _is_next_invocation/_is_live_work_hook_invocation/_is_session_start_invocation fast-path checks\")"
+      - code: "src/specify_cli/__init__.py:151 — `if not _is_doctor_skills_invocation(sys.argv): ensure_global_agent_commands()`, a fourth guard not named by the plan"
+    claim: >
+      `ensure_global_agent_commands()` is actually skipped by four conditions, not three: the
+      three the plan names (next/live-work-hook/session-start, gating the whole
+      `if not ... : root_callback(ctx); ...` block at __init__.py:140) plus a fourth,
+      independent guard at line 151 (`_is_doctor_skills_invocation`) that gates the
+      `ensure_global_agent_commands()` call specifically. This does not change the plan's core
+      finding (none of the golden path's 12 calls are `doctor skills` invocations, so the "9 of
+      12 calls hit this path" count is unaffected) and has no bearing on the correctness of the
+      chosen fix.
+    remediation: >
+      Minor wording fix only: list all four guards, or say "guarded only by the existing
+      argv-sniffing fast-path checks (see __init__.py:137-151)" instead of naming an
+      incomplete enumeration.

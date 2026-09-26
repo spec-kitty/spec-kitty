@@ -28,7 +28,7 @@ inputs:
       (charter Shared-Package pinned-rev policy). Bump this input, reviewed,
       when the recorded pin advances.
     required: false
-    default: "9.1.6"
+    default: "10.4.0"
 
 outputs:
   resolved-events-rev:

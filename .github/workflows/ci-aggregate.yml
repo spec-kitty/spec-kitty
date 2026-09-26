@@ -90,7 +90,7 @@ jobs:
     permissions:
       contents: read
       actions: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success' ||
@@ -294,7 +294,7 @@ jobs:
         (needs.collect.result == 'success' &&
           needs.collect.outputs.complete == 'true' &&
           needs.collect.outputs.coverage == 'true'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Budget re-checked against the BROADENED reconciled set (mission
     # sonar-per-pr-coverage-reuse WP05/T027): once coverage breadth is applied
     # to every shard the set grows ~6x, 29.8 MB -> 166.6 MiB over 34 shard
@@ -306,7 +306,7 @@ jobs:
     # so the two parses this job performs cost ~14 s of a 900 s budget. The
     # budget is NOT raised: time is not the constraint here, and the real
     # headroom to watch is MEMORY -- ~2.6 GB peak against a 16 GB stock
-    # ubuntu-latest runner. If the set grows several-fold again, re-measure
+    # ubuntu-24.04 runner. If the set grows several-fold again, re-measure
     # resident size before wall clock.
     timeout-minutes: 15
     steps:
@@ -443,7 +443,7 @@ jobs:
       contents: read
       actions: read
       pull-requests: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Evaluate the five-conjunct execution condition (§C1)
@@ -644,7 +644,7 @@ jobs:
     name: CI Aggregate gate
     needs: [collect, diff-cover]
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Evaluate the terminal verdict (skipped-tolerant)

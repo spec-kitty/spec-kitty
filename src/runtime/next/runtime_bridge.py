@@ -2920,6 +2920,219 @@ def answer_decision_via_runtime(
 # ---------------------------------------------------------------------------
 
 
+# advancing-next-board-unification-01M3BGQ0 (#4980, #4975) — the single
+# board-authority-backed WP-iteration action selector (NFR-002 / CT-7).
+#
+# Mirrors query mode's ``_build_finalized_override_query_decision`` exactly:
+# the same coord-aware ``status_dir`` (resolved via ``mission_context_for``,
+# never the bare ``feature_dir``), the same ``_finalized_task_board_
+# override_step`` step derivation, and the same per-step WP resolution
+# authority (``preview_claimable_wp`` for implement; the canonical
+# ``_find_first_wp_by_lane`` for_review reader for review — C-003 forbids
+# minting a fifth lane reader). ``_build_wp_iteration_decision`` and
+# ``_map_wp_step_decision`` both route through this instead of the bare
+# ``_state_to_action(step_id, feature_dir, ...)`` call that #4980/#4975 are
+# two faces of (research.md's parallel-authority inventory items #1/#2).
+@dataclasses.dataclass(frozen=True)
+class _WpBoardAction:
+    """Result of the single board-authority WP-iteration action selector.
+
+    Exactly one of three shapes:
+
+    * **dispatch** — ``action``/``wp_id``/``workspace_path`` set,
+      ``blocked_reason`` ``None``.
+    * **blocked floor** — ``blocked_reason`` set (a CT-4 runnable recovery
+      command embedded in backticks), ``action``/``wp_id``/``workspace_path``
+      ``None``.
+    * **decline** — every field ``None``. The board authority has no
+      finalized-board opinion yet (pre-finalize bootstrap, or the board says
+      ``accept``/``done`` — that transition is owned by the leave-step
+      boolean, not this selector). The caller falls back to
+      :func:`_state_to_action` unchanged (FR-006).
+    """
+
+    board_step: str | None
+    action: str | None
+    wp_id: str | None
+    workspace_path: str | None
+    blocked_reason: str | None
+
+
+_WP_BOARD_DECLINE = _WpBoardAction(board_step=None, action=None, wp_id=None, workspace_path=None, blocked_reason=None)
+
+#: CT-4's runnable recovery command for the coord-read fail-closed floor
+#: (CT-5) — materializing the coordination worktree, never flattening it.
+_COORD_UNMATERIALIZED_RECOVERY = "spec-kitty doctor workspaces --fix"
+
+
+def _inspect_board_recovery_command(mission_slug: str) -> str:
+    """CT-4's runnable recovery command for the generic 'inspect the board'
+    blocked arms (``no_actionable_wp`` / ``review_in_progress`` / a
+    claimable-WP race)."""
+    return f"spec-kitty agent tasks status --mission {mission_slug}"
+
+
+def _wp_blocked_action(board_step: str | None, reason: str) -> _WpBoardAction:
+    return _WpBoardAction(board_step=board_step, action=None, wp_id=None, workspace_path=None, blocked_reason=reason)
+
+
+def _wp_dispatch_action(board_step: str, action: str, wp_id: str, workspace_path: str) -> _WpBoardAction:
+    return _WpBoardAction(board_step=board_step, action=action, wp_id=wp_id, workspace_path=workspace_path, blocked_reason=None)
+
+
+def _resolve_wp_board_implement_action(
+    mission_slug: str,
+    repo_root: Path,
+    task_board_dir: Path,
+    status_dir: Path,
+) -> _WpBoardAction:
+    """CT-3 / FR-003: implement-branch WP resolution, mirroring query mode's
+    ``_build_finalized_override_query_decision`` exactly (the same
+    ``preview_claimable_wp`` dependency-aware authority, the same coord-aware
+    ``status_dir``). A ``None`` claimable WP (e.g. the only planned-lane WP
+    is dependency-walled) is a genuine blocked floor here — FR-005 forbids a
+    WP-less ``kind=step`` dispatch."""
+    from runtime.next.discovery import preview_claimable_wp
+    from specify_cli.workspace.context import resolve_workspace_for_wp
+
+    preview = preview_claimable_wp(task_board_dir, status_dir=status_dir)
+    if preview.wp_id is None:
+        reason = preview.selection_reason or "no claimable work package"
+        return _wp_blocked_action(
+            "implement",
+            f"{reason}. Inspect the board: `{_inspect_board_recovery_command(mission_slug)}`.",
+        )
+    workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, preview.wp_id).worktree_path)
+    return _wp_dispatch_action("implement", "implement", preview.wp_id, workspace_path)
+
+
+def _resolve_wp_board_review_action(
+    mission_slug: str,
+    repo_root: Path,
+    task_board_dir: Path,
+    status_dir: Path,
+) -> _WpBoardAction:
+    """CT-2 / FR-001: review-branch WP resolution via the canonical
+    ``_find_first_wp_by_lane`` for_review reader (C-003 — no fifth lane
+    reader is minted)."""
+    from specify_cli.workspace.context import resolve_workspace_for_wp
+
+    wp_id = _find_first_wp_by_lane(task_board_dir, "for_review", status_dir=status_dir)
+    if wp_id is None:
+        # A race between the board's own for_review probe and this re-read
+        # — never a WP-less dispatch (FR-005); fall to the blocked floor.
+        return _wp_blocked_action(
+            "review",
+            f"Board reported a reviewable work package but none was found on re-read. Inspect the board: `{_inspect_board_recovery_command(mission_slug)}`.",
+        )
+    workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id).worktree_path)
+    return _wp_dispatch_action("review", "review", wp_id, workspace_path)
+
+
+def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path) -> _WpBoardAction:
+    """The single board-authority-backed WP-iteration action selector
+    (NFR-002 / CT-7) both ``_build_wp_iteration_decision`` and
+    ``_map_wp_step_decision`` consult instead of the bare ``_state_to_action``
+    WP-iteration branches.
+
+    Resolves the coord-aware ``status_dir``/``task_board_dir`` via
+    ``mission_context_for`` exactly as query mode does (never the bare
+    ``feature_dir`` the two callers otherwise hold — that is the #4975
+    mechanism) and computes its OWN ``progress`` from the resolved
+    ``task_board_dir`` (never a caller-supplied, potentially coord-blind
+    ``progress`` — the bootstrap-computed ``ctx.progress`` is ``None`` for a
+    coord mission because it is read off the coord-aware ``feature_dir``,
+    which carries no ``tasks/``).
+
+    NFR-003 (CT-5): an unmaterialized/deleted coordination surface is caught
+    here and turned into a *named* blocked reason — never allowed to
+    collapse into the generic ``no_actionable_wp`` floor and never
+    substituted with an empty-primary read. ``mission_context_for``'s own
+    status-surface derivation silently composes a not-yet-materialized coord
+    path rather than raising (a pre-existing, documented "sanctioned
+    degrade" distinct from the newer fail-closed policy ADR 2026-09-24-2
+    introduced for ``resolve_artifact_surface``/``placement_seam.read_dir``)
+    — so this selector probes ``placement_seam.read_dir`` first, purely for
+    its raise, before trusting ``mission_context_for``'s directories for the
+    real board reads. Mirrors the existing ``placement_seam(repo_root,
+    mission_slug).read_dir(...)`` pattern this module already uses for
+    ``PRIMARY_METADATA`` (see ``_mission_routes_through_coordination``
+    above) — no new resolution mechanism, the canonical fail-closed
+    authority applied to one more kind.
+    """
+    from mission_runtime import ActionContextError, MissionArtifactKind, mission_context_for, placement_seam
+    from specify_cli.coordination.surface_resolver import (
+        CoordinationBranchDeleted,
+        CoordinationWorktreeUnmaterialized,
+    )
+
+    try:
+        placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
+        mission_context = mission_context_for(repo_root, mission_slug)
+    except (CoordinationWorktreeUnmaterialized, CoordinationBranchDeleted) as exc:
+        return _wp_blocked_action(
+            None,
+            f"Coordination surface for mission {mission_slug!r} is not readable ({exc}). Materialize it: `{_COORD_UNMATERIALIZED_RECOVERY}`.",
+        )
+    except ActionContextError:
+        # Mission context genuinely cannot be resolved -- decline and let the
+        # caller's FR-006 fallback (_state_to_action) produce whatever it
+        # would have produced pre-fix; bootstrap already succeeded, so this
+        # is not expected on a live advancing call.
+        return _WP_BOARD_DECLINE
+
+    task_board_dir = mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir
+    status_dir = mission_context.artifact(MissionArtifactKind.STATUS_STATE).read_dir
+    progress = _compute_wp_progress(task_board_dir, status_dir=status_dir)
+    board_step = _finalized_task_board_override_step(task_board_dir, progress, status_dir=status_dir)
+
+    if board_step is None or board_step in ("accept", "done"):
+        return _WP_BOARD_DECLINE
+    if board_step.startswith("blocked:"):
+        sentinel = board_step.split(":", 1)[1]
+        return _wp_blocked_action(
+            board_step,
+            f"No actionable work package ({sentinel.replace('_', ' ')}). Inspect the board: `{_inspect_board_recovery_command(mission_slug)}`.",
+        )
+    if board_step == "implement":
+        return _resolve_wp_board_implement_action(mission_slug, repo_root, task_board_dir, status_dir)
+    if board_step == "review":
+        return _resolve_wp_board_review_action(mission_slug, repo_root, task_board_dir, status_dir)
+    return _WP_BOARD_DECLINE  # forward-compat: an unrecognized board step declines rather than guesses
+
+
+def _wp_iteration_action_and_state(
+    step_id: str,
+    mission_slug: str,
+    mission_type: str,
+    feature_dir: Path,
+    repo_root: Path,
+) -> tuple[str | None, str | None, str | None, str | None, str]:
+    """Resolve ``(action, wp_id, workspace_path, blocked_reason,
+    mission_state)`` for a WP-iteration step through the single board
+    authority (NFR-002 / CT-7), falling back to :func:`_state_to_action`
+    only when the board authority has no finalized-board opinion yet
+    (FR-006 — bootstrap / pre-finalize behavior preserved byte-for-byte).
+
+    ``blocked_reason`` non-``None`` means the caller MUST emit
+    ``kind=blocked`` with this reason instead of a step dispatch (CT-4/CT-5)
+    — a board ``blocked:*`` sentinel or a coord-read fail-closed error.
+
+    When the board reports a step different from the stale issued
+    ``step_id`` (e.g. board=``implement`` while issued=``review``, the
+    #4980 re-dispatch), ``mission_state`` reflects the board's own step —
+    matching query mode's ``_build_finalized_override_query_decision``
+    (data-model.md's "post-fix required: mission_state = board step").
+    """
+    board = _resolve_wp_board_action(mission_slug=mission_slug, repo_root=repo_root)
+    if board.blocked_reason is not None:
+        return None, None, None, board.blocked_reason, step_id
+    if board.action is not None:
+        return board.action, board.wp_id, board.workspace_path, None, board.board_step or step_id
+    action, wp_id, workspace_path = _state_to_action(step_id, mission_slug, feature_dir, repo_root, mission_type)
+    return action, wp_id, workspace_path, None, step_id
+
+
 def _build_wp_iteration_decision(
     step_id: str,
     agent: str,
@@ -2933,14 +3146,34 @@ def _build_wp_iteration_decision(
     run_ref: MissionRunRef,
     guard_failures: list[str] | None = None,
 ) -> Decision:
-    """Build a Decision for WP iteration within a step."""
-    action, wp_id, workspace_path = _state_to_action(
+    """Build a Decision for WP iteration within a step — routed through the
+    single board-authority selector (NFR-002 / CT-7); see
+    :func:`_wp_iteration_action_and_state`."""
+    action, wp_id, workspace_path, blocked_reason, mission_state = _wp_iteration_action_and_state(
         step_id,
         mission_slug,
+        mission_type,
         feature_dir,
         repo_root,
-        mission_type,
     )
+
+    if blocked_reason is not None:
+        return _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=mission_state,
+                timestamp=timestamp,
+                reason=blocked_reason,
+                progress=progress,
+                origin=origin,
+                run_id=run_ref.run_id,
+                step_id=step_id,
+            ),
+            guard_failures or [],
+        )
 
     if action is None:
         return _materialize_decision(
@@ -2949,7 +3182,7 @@ def _build_wp_iteration_decision(
                 agent=agent,
                 mission_slug=mission_slug,
                 mission=mission_type,
-                mission_state=step_id,
+                mission_state=mission_state,
                 timestamp=timestamp,
                 reason=f"No action mapped for step '{step_id}'",
                 progress=progress,
@@ -2980,7 +3213,7 @@ def _build_wp_iteration_decision(
             agent=agent,
             mission_slug=mission_slug,
             mission=mission_type,
-            mission_state=step_id,
+            mission_state=mission_state,
             timestamp=timestamp,
             reason=prompt_error or "no_prompt_template",
             action=action,
@@ -3039,18 +3272,35 @@ def _map_wp_step_decision(
     origin: dict,
     run_id: str | None,
 ) -> Decision:
-    """WP-iteration branch of the ``kind="step"`` mapping (#2531 WP07/T026).
-
-    Extracted verbatim from ``_map_runtime_decision``'s former WP-step
-    triad — the ``action is None`` early-blocked case, plus the
-    ``step_or_blocked`` collapse of the former prompt-resolution triad."""
-    action, wp_id, workspace_path = _state_to_action(
+    """WP-iteration branch of the ``kind="step"`` mapping (#2531 WP07/T026),
+    now routed through the single board-authority selector (NFR-002 / CT-7)
+    — see :func:`_wp_iteration_action_and_state`. Reached from the
+    DAG-advance path (``_map_runtime_decision`` / ``_dn_decision_
+    materialize``) whenever the engine just issued a fresh WP-iteration
+    step (#4975: the coord implement-dispatch face)."""
+    action, wp_id, workspace_path, blocked_reason, mission_state = _wp_iteration_action_and_state(
         step_id,
         mission_slug,
+        mission_type,
         feature_dir,
         repo_root,
-        mission_type,
     )
+    if blocked_reason is not None:
+        return _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=mission_state,
+                timestamp=timestamp,
+                reason=blocked_reason,
+                progress=progress,
+                origin=origin,
+                run_id=run_id,
+                step_id=step_id,
+            )
+        )
     if action is None:
         return _materialize_decision(
             _cores.DecisionEnvelope(
@@ -3058,7 +3308,7 @@ def _map_wp_step_decision(
                 agent=agent,
                 mission_slug=mission_slug,
                 mission=mission_type,
-                mission_state=step_id,
+                mission_state=mission_state,
                 timestamp=timestamp,
                 reason=f"No action mapped for WP step '{step_id}'",
                 progress=progress,
@@ -3082,7 +3332,7 @@ def _map_wp_step_decision(
             agent=agent,
             mission_slug=mission_slug,
             mission=mission_type,
-            mission_state=step_id,
+            mission_state=mission_state,
             timestamp=timestamp,
             reason=prompt_error or "prompt_file_not_resolvable",
             action=action,

@@ -442,7 +442,13 @@ def test_runtime_bridge_materializes_every_former_decision_site() -> None:
     ``except MissionSelectorAmbiguous`` arm (alongside the existing
     ``except CanonicalStatusNotFoundError`` arm), converting an ambiguous
     ``mission_slug`` handle into a structured ``blocked`` Decision through the
-    same builder rather than letting the exception propagate uncaught. All go
+    same builder rather than letting the exception propagate uncaught. Mission
+    advancing-next-board-unification (#4980, #4975) adds the 26th and 27th: the
+    board-authority-backed WP-iteration selector routes its ``kind=blocked``
+    (no-actionable-WP / coord-read fail-closed recovery) and re-dispatch
+    ``kind=step`` envelopes through the same builder in
+    ``_build_wp_iteration_decision`` / ``_map_wp_step_decision``, replacing the
+    bare ``_state_to_action`` divergence. All go
     through ``_materialize_decision``; the zero-open-coded-``Decision``
     invariant is unchanged. A regression on this exact count catches a silent
     re-introduction of an open-coded ``Decision(...)`` construction that
@@ -450,7 +456,7 @@ def test_runtime_bridge_materializes_every_former_decision_site() -> None:
     source = inspect.getsource(rb)
     tree = ast.parse(source)
     materialize_calls = [call for call in _iter_calls(tree) if isinstance(call.func, ast.Name) and call.func.id == "_materialize_decision"]
-    assert len(materialize_calls) == 25
+    assert len(materialize_calls) == 27
 
 
 def test_cores_module_is_the_sole_home_of_raw_decision_construction() -> None:

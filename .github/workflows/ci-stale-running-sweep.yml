@@ -40,7 +40,7 @@ permissions:
 
 jobs:
   sweep:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       # Trusted default-branch checkout; the sweep executes no PR code.

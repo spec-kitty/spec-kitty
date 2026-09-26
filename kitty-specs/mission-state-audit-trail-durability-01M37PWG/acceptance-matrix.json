@@ -1,0 +1,119 @@
+{
+  "mission_slug": "mission-state-audit-trail-durability-01M37PWG",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/migration/test_audit_trail_durability_4928.py::test_audit_trail_is_durable_and_non_gating_e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-23T21:57:42.997270+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/migration/test_audit_trail_durability_4928.py (quarantine under audit root, check-ignore clean)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-23T21:58:04.700111+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_gitignore_contract.py + durability e2e (no write to old gitignored path)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-23T21:58:07.239775+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/commands/test_doctor_mission_state.py::test_fix_names_audit_trail_and_quarantine_with_json_parity",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-23T21:58:09.768335+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/commands/test_doctor_mission_state.py::test_fix_names_audit_trail_and_quarantine_with_json_parity (json parity)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-23T21:58:12.314119+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/migration/test_audit_trail_durability_4928.py::test_dup_key_repair_manifest_is_durable_and_non_gating_e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-23T21:58:14.838783+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_state_contract.py + test_gitignore_contract.py (migration_state_ledger TRACKED, derived gitignore)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-23T21:58:17.393592+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/mission_runtime/test_self_bookkeeping_allowlist.py (audit root classified churn)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-23T21:58:19.935118+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/migration/test_mission_state_repair.py::test_second_fix_not_blocked_by_own_uncommitted_audit_trail",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-23T21:58:22.455093+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_archive_root_byte_identical.py + test_transition_guard_shrink_only.py (ratchets repointed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-23T21:58:24.997640+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/migration/test_mission_state_repair.py (_POLICY_TRACKED repointed; contract tests green)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-23T21:58:27.532360+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

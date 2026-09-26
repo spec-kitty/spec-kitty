@@ -42,6 +42,7 @@ from specify_cli.decisions.service import (
     open_decision,
     resolve_decision,
 )
+from specify_cli.decisions.service import _ledger_dir as _resolve_ledger_dir
 from specify_cli.decisions.verify import verify as _verify_decisions
 
 decision_app = typer.Typer(
@@ -535,37 +536,20 @@ def cmd_verify(
     except ActionContextError as exc:
         _handle_action_context_error(exc)
         return  # unreachable — _handle_action_context_error raises
-    # Read-path mediation (WP08 T037, FR-030): in the coord-branch
-    # topology ``decisions/index.json`` lives in the coordination
-    # worktree, not the primary checkout.  The resolver returns the
-    # coord-worktree mission directory when one exists, and falls back
-    # to the primary checkout for legacy missions / early lifecycle.
-    from specify_cli.missions._read_path_resolver import (
-        MissionSelectorAmbiguous,
-        StatusReadPathNotFound,
-        resolve_handle_to_read_path,
-    )
 
-    # WP02/FR-002 (D-6 consolidation): the former D-6 factory-boundary bootstrap
-    # (raw ``KITTY_SPECS_DIR / mission_slug`` join → ``load_meta`` →
-    # ``resolve_mid8`` → ``resolve_mission_read_path``) collapses onto the single
-    # guarded read-side seam. ``resolve_handle_to_read_path`` performs the SAME
-    # primary-meta probe and the sanctioned mid8 cascade internally (reading the
-    # canonical ``mission_id`` from the primary meta, never seeding an empty
-    # identity), then routes through the existence-gated topology resolver — and
-    # adds the ``assert_safe_path_segment`` guard (FR-004) this bootstrap lacked.
-    # M5 (FR-003 / #8 class): ``cmd_verify`` still surfaces the resolver's
-    # fail-closed refusals (``StatusReadPathNotFound`` /
-    # ``CoordinationBranchDeleted``) and selector ambiguity
-    # (``MissionSelectorAmbiguous``) as structured typed diagnostics carrying the
-    # real ``error_code`` — never an uncaught traceback.
-    try:
-        mission_dir = resolve_handle_to_read_path(repo_root, mission_slug)
-    except (StatusReadPathNotFound, MissionSelectorAmbiguous) as exc:
-        _handle_action_context_error(
-            ActionContextError(exc.error_code, str(exc))
-        )
-        return  # unreachable — _handle_action_context_error raises
+    # #4966/FR-003 fold (pre-PR squad, completing WP03's residual): the
+    # decision LEDGER content (``decisions/index.json``, and the ``spec.md`` /
+    # ``plan.md`` docs this verifier cross-checks against it) lives in the
+    # SAME PRIMARY-partition dir the write path (``open``/``resolve``/
+    # ``defer``/``cancel`` in ``decisions/service.py``) already resolves via
+    # ``_ledger_dir`` (``PRIMARY_METADATA``, topology-blind). Previously this
+    # read routed through ``resolve_handle_to_read_path``, which on a
+    # MATERIALIZED status-only coord husk returns the COORD worktree — a
+    # directory the ledger writer never touches — so ``verify`` silently
+    # reported a false "clean" (empty ledger, no markers) on a mission with a
+    # real deferred decision. Reuse the ONE existing ledger-dir authority
+    # (do not add a second/third resolver here).
+    mission_dir = _resolve_ledger_dir(repo_root, mission_slug)
 
     try:
         result = _verify_decisions(mission_dir, mission_slug)
@@ -652,23 +636,14 @@ def cmd_list(
         _handle_action_context_error(exc)
         return  # unreachable — _handle_action_context_error raises
 
-    # Read-path mediation — same single guarded read-side seam as ``verify``
-    # (WP08 T037, FR-030): the decisions index lives in the coordination
-    # worktree under coord topology, and this read must never walk up to
-    # ``kitty-specs/`` on its own.
-    from specify_cli.missions._read_path_resolver import (
-        MissionSelectorAmbiguous,
-        StatusReadPathNotFound,
-        resolve_handle_to_read_path,
-    )
-
-    try:
-        mission_dir = resolve_handle_to_read_path(repo_root, mission_slug)
-    except (StatusReadPathNotFound, MissionSelectorAmbiguous) as exc:
-        _handle_action_context_error(
-            ActionContextError(exc.error_code, str(exc))
-        )
-        return  # unreachable — _handle_action_context_error raises
+    # #4966/FR-003 fold (pre-PR squad, completing WP03's residual): read the
+    # ledger from the SAME PRIMARY-partition dir the write path resolves via
+    # ``decisions/service.py::_ledger_dir`` — see the identical rationale in
+    # ``cmd_verify`` above. Previously this read routed through
+    # ``resolve_handle_to_read_path``, which on a MATERIALIZED status-only
+    # coord husk returns the COORD worktree the ledger writer never touches,
+    # so ``list`` silently reported an empty ledger.
+    mission_dir = _resolve_ledger_dir(repo_root, mission_slug)
 
     from specify_cli.decisions.store import load_index
 

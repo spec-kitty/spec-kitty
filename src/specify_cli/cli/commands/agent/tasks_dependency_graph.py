@@ -257,7 +257,7 @@ def _count_behind_commits_outside_planning_artifacts(
         ``kitty-specs/`` and ``.kittify/``, or ``behind_count`` on failure.
     """
     pathspecs = (".", *(f":(exclude){root.rstrip('/')}" for root in _PLANNING_LEDGER_ROOTS))
-    counted = git_rev_list_count(worktree_path, f"HEAD..{check_branch}", pathspecs=pathspecs)
+    counted = git_rev_list_count(worktree_path, f"HEAD..{check_branch}", pathspecs=pathspecs, full_history=True)
     if counted is None:
         return behind_count
     return counted

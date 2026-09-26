@@ -12,8 +12,12 @@ imports the command shim.
 from __future__ import annotations
 
 import contextlib
+import re
+import subprocess
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 from rich.console import Console
 
@@ -28,9 +32,7 @@ from specify_cli.git.destructive_guard import (
 from specify_cli.merge._constants import LINEAR_HISTORY_REJECTION_TOKENS, logger
 
 
-def _lane_already_integrated(
-    repo_root: Path, lane_branch: str, mission_branch: str
-) -> bool:
+def _lane_already_integrated(repo_root: Path, lane_branch: str, mission_branch: str) -> bool:
     """Return True when ``lane_branch`` carries no commits absent from ``mission_branch``.
 
     FR-037 (#1772 Bug 3): the lane-skip decision must gate on the ACTUAL lane
@@ -204,9 +206,7 @@ def _emit_remediation_hint(hint_console: Console) -> None:
     )
 
 
-def _refresh_primary_checkout_after_merge(
-    repo_root: Path, expected_branch: str | None = None
-) -> None:
+def _refresh_primary_checkout_after_merge(repo_root: Path, expected_branch: str | None = None) -> None:
     """Force the primary checkout's tracked files to match HEAD.
 
     The target ref is advanced from a detached merge worktree, so the primary
@@ -229,10 +229,7 @@ def _refresh_primary_checkout_after_merge(
         try:
             assert_checkout_on_target(repo_root, expected_branch)
         except DestructiveOpRefused:
-            console.print(
-                "[yellow]Warning:[/yellow] skipping post-merge working-tree "
-                f"refresh: {repo_root} is not checked out on {expected_branch!r}."
-            )
+            console.print(f"[yellow]Warning:[/yellow] skipping post-merge working-tree refresh: {repo_root} is not checked out on {expected_branch!r}.")
             return
 
     ret_reset, out_reset, err_reset = run_command(
@@ -242,10 +239,7 @@ def _refresh_primary_checkout_after_merge(
         cwd=repo_root,
     )
     if ret_reset != 0:
-        console.print(
-            f"[yellow]Warning:[/yellow] post-merge working-tree refresh failed: "
-            f"{(err_reset or out_reset or '').strip()}"
-        )
+        console.print(f"[yellow]Warning:[/yellow] post-merge working-tree refresh failed: {(err_reset or out_reset or '').strip()}")
         return
 
     ret_refresh, out_refresh, err_refresh = run_command(
@@ -291,6 +285,7 @@ def _paths_have_status_changes(repo_root: Path, paths: list[Path]) -> bool:
 def _is_git_repo(path: Path) -> bool:
     """Return True when *path* is inside a git working tree."""
     import subprocess as _subprocess
+
     probe = _subprocess.run(
         ["git", "rev-parse", "--is-inside-work-tree"],
         cwd=str(path),
@@ -311,6 +306,438 @@ def _has_branch_ref(repo_root: Path, ref_name: str) -> bool:
     return bool(retcode == 0)
 
 
+# ---------------------------------------------------------------------------
+# Reconciliation-gate probes (S-D / #5001) — reachability + patch-id equivalence.
+#
+# These are the ONLY git authority the Terminus Reconciliation Gate
+# (:mod:`specify_cli.merge.reconciliation`) consults: the tree at the target ref
+# cannot be faked by the bookkeeping that is itself wrong (D3). Every probe here
+# is bounded — a single ``merge-base --is-ancestor`` per commit, or a
+# ``rev-list``/``patch-id`` over the small ``base..tip`` post-merge window — so
+# the verifier is O(#approved-WP-commits), never O(repo history) (NFR-003).
+# ---------------------------------------------------------------------------
+
+
+class GitProbeError(RuntimeError):
+    """A window probe could NOT be evaluated because the underlying git command errored.
+
+    #5001 pre-merge FOLD-3: the window probes (:func:`commits_in_range`,
+    :func:`patch_ids_in_range`) must distinguish a *genuinely empty* range from a
+    *git error* (an unresolvable ref, a corrupt object store, a transient
+    failure). Collapsing an error to ``[]`` reads to the verifier as "no
+    excluded/unattributable content" and passes vacuously (fail-OPEN). Raising
+    this instead lets the caller REFUSE (fail-closed), matching the
+    :func:`sha_reachable_from` discipline where an error counts against the tree,
+    never for it.
+    """
+
+
+def sha_reachable_from(repo_root: Path, sha: str, ref: str) -> bool:
+    """Return True iff *sha* is an ancestor of (reachable from) *ref*.
+
+    Uses ``git merge-base --is-ancestor`` (exit 0 ⇒ reachable, exit 1 ⇒ not).
+    An empty *sha*, a git error, or an unknown ref is treated as NOT reachable
+    (fail-closed for the approved-reachability check: a commit we cannot prove
+    reachable is treated as missing, never as present).
+    """
+    if not sha:
+        return False
+    ret, _out, _err = run_command(
+        ["git", "merge-base", "--is-ancestor", sha, ref],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    return bool(ret == 0)
+
+
+def commits_in_range(repo_root: Path, base: str, tip: str) -> list[str]:
+    """Return the SHAs reachable from *tip* but not *base* (``git rev-list base..tip``).
+
+    The bounded window the reconciliation claim + excluded-check operate over.
+    A successful ``rev-list`` with no output is a *genuinely empty* range and
+    returns ``[]``. A git ERROR (an unresolvable ref, corrupt store, …) is NOT an
+    empty range — it means the window could not be evaluated — so it raises
+    :class:`GitProbeError` (fail-closed; #5001 FOLD-3). Callers that build the
+    claim translate that into a REFUSE-shaped claim; the verifier translates it
+    into a REFUSE result — never a vacuous PASS.
+    """
+    ret, out, err = run_command(
+        ["git", "rev-list", f"{base}..{tip}"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        raise GitProbeError(f"git rev-list {base}..{tip} failed (exit {ret}): {(err or '').strip()}")
+    return [line for line in out.splitlines() if line.strip()]
+
+
+def patch_id_of(repo_root: Path, sha: str) -> str:
+    """Return the stable patch-id of *sha* — the identity of the CHANGE, not the commit.
+
+    Patch-id equivalence lets the excluded-commit check catch cherry-picked,
+    rebased, or re-lettered copies of canceled code: the same diff under a new
+    SHA maps to the same patch-id (#4945 / #4977 / contract postcondition 1).
+    Returns ``""`` when the commit has a genuinely empty diff (e.g. a merge
+    commit) — a successful ``git show`` with nothing for ``git patch-id`` to
+    hash — so an empty patch-id is never matched and a merge commit can never
+    be mistaken for excluded content.
+
+    Raises :class:`GitProbeError` when ``git show`` itself ERRORS (non-zero
+    exit — an unresolvable sha, a corrupt object store, …). #5001 FOLD-3-lite:
+    a git error is NOT a legitimate empty patch-id — collapsing it to ``""``
+    reads to callers (``patch_ids_in_range``, the closed-world content scan,
+    the excluded/authored claim collectors) as "no content" and lets an
+    un-attributable content commit whose probe transiently errored ship
+    undetected (fail-OPEN). Raising here lets those callers REFUSE/propagate
+    instead, matching the :func:`commits_in_range` discipline.
+
+    ``git show <sha> | git patch-id --stable`` needs stdin piping, which
+    :func:`run_command` does not expose, so this uses ``subprocess`` directly
+    (mirrors :func:`_raw_porcelain_status`).
+    """
+    import subprocess as _subprocess
+
+    if not sha:
+        return ""
+    show = _subprocess.run(
+        ["git", "show", sha],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if show.returncode != 0:
+        raise GitProbeError(
+            f"git show {sha} failed (exit {show.returncode}): {(show.stderr or '').strip()}"
+        )
+    pid = _subprocess.run(
+        ["git", "patch-id", "--stable"],
+        input=show.stdout,
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    fields = pid.stdout.split()
+    return fields[0] if fields else ""
+
+
+def patch_ids_in_range(repo_root: Path, base: str, tip: str) -> set[str]:
+    """Patch-ids of every non-empty-diff commit in ``base..tip`` (bounded window).
+
+    O(#commits in the window), never O(repo history) (NFR-003). Merge commits
+    (empty patch-id) are dropped so they never masquerade as excluded content.
+    Propagates :class:`GitProbeError` from :func:`commits_in_range` when the
+    window cannot be evaluated (fail-closed; #5001 FOLD-3) — never a silent empty
+    set on a git error.
+    """
+    ids: set[str] = set()
+    for sha in commits_in_range(repo_root, base, tip):
+        pid = patch_id_of(repo_root, sha)
+        if pid:
+            ids.add(pid)
+    return ids
+
+
+def first_parent_commits_in_range(repo_root: Path, base: str, tip: str) -> list[str]:
+    """Return the FIRST-PARENT SHAs reachable from *tip* but not *base* (newest-first).
+
+    ``git rev-list --first-parent base..tip`` — the lane's OWN authorship spine.
+    A commit that a lane *merged in* from another branch (a second parent of a
+    merge commit) is NOT on the first-parent spine, so it is excluded. This is the
+    structural signal the closed-world excluded check (S-D / #4945/#4977/#4981)
+    relies on to distinguish a lane's genuinely-authored work from a removed WP's
+    commit smuggled into a carrier lane's history via a merge: the smuggled commit
+    rides a second-parent branch and is never counted as approved authorship.
+
+    A successful ``rev-list`` with no output is a *genuinely empty* range and
+    returns ``[]``. A git ERROR (an unresolvable ref, corrupt store, …) is NOT an
+    empty range — it means the spine could not be evaluated — so it raises
+    :class:`GitProbeError` (fail-closed; #5013 F7). This mirrors
+    :func:`commits_in_range`: collapsing an error to ``[]`` reads as "no authored
+    content" and lets an unattributable blob PASS vacuously (fail-OPEN). Callers
+    that build the claim tolerate the raise (an unresolvable lane yields no
+    authorship, never a spurious refusal); the verifier's window scan translates it
+    into a REFUSE.
+    """
+    ret, out, err = run_command(
+        ["git", "rev-list", "--first-parent", f"{base}..{tip}"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        raise GitProbeError(f"git rev-list --first-parent {base}..{tip} failed (exit {ret}): {(err or '').strip()}")
+    return [line for line in out.splitlines() if line.strip()]
+
+
+def blob_id_at(repo_root: Path, ref: str, path: str) -> str:
+    """Return the blob object id of *path* in the tree at *ref* (``git rev-parse ref:path``).
+
+    The CONTENT identity of a file — squash-sound, since a squash merge preserves
+    tree/blob content while destroying lane-tip SHAs and per-commit patch-ids
+    (#5013). Raises :class:`GitProbeError` on any git error, INCLUDING an absent
+    path: the squash content axis only ever calls this for an Added/Modified path
+    (a Deleted path is skipped before the call), so an "unexpected empty" blob for
+    an A/M path is a genuine probe failure that must REFUSE, never be inferred as a
+    deletion (#5013 F1). The caller therefore distinguishes "A/M path but the probe
+    errored" (→ REFUSE) from "D path" (skipped) purely by which paths it feeds here.
+    """
+    ret, out, err = run_command(
+        ["git", "rev-parse", f"{ref}:{path}"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        raise GitProbeError(f"git rev-parse {ref}:{path} failed (exit {ret}): {(err or '').strip()}")
+    blob: str = (out or "").strip()
+    if not blob:
+        raise GitProbeError(f"git rev-parse {ref}:{path} returned no blob id")
+    return blob
+
+
+def changed_paths_in_range(repo_root: Path, base: str, tip: str) -> list[tuple[str, str]]:
+    """Return ``(status, path)`` pairs for the aggregate diff ``base..tip``.
+
+    ``git diff --name-status --no-renames base..tip`` — the paths whose content
+    differs between the two trees, each tagged with its status letter (``A`` added,
+    ``M`` modified, ``D`` deleted, ``T`` type-changed, …). Net-unchanged paths never
+    appear, so the caller needs no separate base-blob comparison. ``--no-renames``
+    matches :func:`changed_paths_of`'s own flag (#5013 F6): a rename surfaces as a
+    delete + an add, so the added side is attributed by content like any other new
+    blob rather than hidden behind an ``R`` status. Raises :class:`GitProbeError` on
+    any git error (fail-closed; mirrors :func:`commits_in_range`), so the squash
+    content axis REFUSEs on an unevaluable window rather than passing vacuously.
+    """
+    ret, out, err = run_command(
+        ["git", "diff", "--name-status", "--no-renames", f"{base}..{tip}"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        raise GitProbeError(f"git diff --name-status {base}..{tip} failed (exit {ret}): {(err or '').strip()}")
+    changes: list[tuple[str, str]] = []
+    for line in out.splitlines():
+        if not line.strip():
+            continue
+        parts = line.split("\t", 1)
+        if len(parts) != 2:
+            continue
+        status, path = parts[0].strip(), parts[1].strip()
+        if status and path:
+            changes.append((status, path))
+    return changes
+
+
+def changed_paths_of(repo_root: Path, sha: str) -> list[str]:
+    """Return the repo-relative paths a single (non-merge) commit changed.
+
+    ``git show --name-only --format= --no-renames <sha>`` — the files whose
+    content the commit authored. Used by the closed-world content check to decide
+    whether a window commit is real content (touches a path outside the mission's
+    bookkeeping surface) or pure spec-kitty housekeeping (status/meta/matrix/
+    retrospective projections). Returns ``[]`` for a commit that genuinely
+    changed no files (a successful, empty ``git show``).
+
+    Raises :class:`GitProbeError` when ``git show`` itself ERRORS (non-zero
+    exit). #5001 FOLD-3-lite: a git error is NOT the same as "this commit
+    touched nothing" — collapsing it to ``[]`` lets the closed-world scan
+    (:meth:`MergeOutcomeVerifier._commit_is_content`) read an errored probe as
+    pure housekeeping and SKIP an un-attributable content commit undetected
+    (fail-OPEN). Raising here routes the caller into the existing
+    ``GitProbeError`` REFUSE path instead.
+    """
+    import subprocess as _subprocess
+
+    if not sha:
+        return []
+    result = _subprocess.run(
+        ["git", "show", "--name-only", "--format=", "--no-renames", sha],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        raise GitProbeError(
+            f"git show --name-only {sha} failed (exit {result.returncode}): "
+            f"{(result.stderr or '').strip()}"
+        )
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def lane_integrated_by_tree_or_ancestry(repo_root: Path, lane_branch: str, mission_branch: str) -> bool:
+    """Return True when ``lane_branch``'s payload has already landed on ``mission_branch``.
+
+    Upgrades the ancestry-only :func:`_lane_already_integrated` with the
+    content/identity axis the reconciliation gate needs (DEBRIEF #4982/#4997): a
+    squash merge does not preserve ancestry, so ``rev-list`` alone reports a
+    squashed-but-already-landed lane as un-integrated. This probe answers the
+    integration question on EITHER axis:
+
+    * ancestry — the lane carries no commits absent from the mission branch
+      (:func:`_lane_already_integrated`), OR
+    * tree equality — merging the lane into the mission branch would produce no
+      tree change (:func:`_branch_trees_equal`), i.e. the squash payload is
+      already present byte-for-byte.
+
+    Either being true means re-integrating the lane is a genuine no-op; both
+    being false means real, un-integrated lane work remains.
+    """
+    if _lane_already_integrated(repo_root, lane_branch, mission_branch):
+        return True
+    return _branch_trees_equal(repo_root, lane_branch, mission_branch)
+
+
+_DRIVER_COMMAND_PATTERN = re.compile(r"^spec-kitty (merge-driver-[a-z0-9-]+) %O %A %B$")
+
+
+def _read_git_blob_bytes(repo_root: Path, ref: str, repo_rel_path: str) -> bytes | None:
+    """Return the exact bytes of ``ref:repo_rel_path``, or ``None`` when absent.
+
+    Byte-exact (``subprocess`` directly, not :func:`~specify_cli.core.git_ops.run_command`,
+    which decodes to text) -- mirrors ``bookkeeping_projection._git_show_blob_bytes``'s same
+    raw-read pattern; a JSONL/YAML/Markdown bookkeeping blob must be compared byte-for-byte,
+    never re-encoded through a text decode/encode round trip.
+    """
+    result = subprocess.run(
+        ["git", "show", f"{ref}:{repo_rel_path}"],
+        cwd=str(repo_root),
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def _resolve_merge_driver_config_key(repo_root: Path, ref: str, repo_rel_path: str) -> str | None:
+    """Resolve the ``merge=<config_key>`` ``.gitattributes`` mapping for *repo_rel_path* at *ref*.
+
+    ``git check-attr --source=<ref>`` reads the tree's own committed ``.gitattributes``
+    files AND the repo-global ``$GIT_COMMON_DIR/info/attributes`` (the ephemeral seeding
+    ``lanes.merge._ensure_info_attributes`` writes for a repo with no committed mapping),
+    so the caller MUST activate the driver registry first -- see
+    :func:`driver_replay_expected_bytes`, which wraps this call in
+    ``lanes.merge._ephemeral_merge_driver_activation`` because, by the time the squash
+    projection proof runs, ``_merge_branch_into``'s own ephemeral activation has already
+    been torn down. Returns ``None`` for the three non-value attribute states
+    (``unspecified``/``unset``/``set``) -- i.e. no registered driver -- or a genuine probe
+    failure (non-zero ``git check-attr`` exit).
+    """
+    result = subprocess.run(
+        ["git", "check-attr", "--source", ref, "merge", "--", repo_rel_path],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    line = (result.stdout or "").strip()
+    if not line:
+        return None
+    _prefix, _sep, value = line.rpartition(": ")
+    value = value.strip()
+    if value in {"", "unspecified", "unset", "set"}:
+        return None
+    return value
+
+
+def _resolve_registered_driver_callable(config_key: str) -> Callable[[str, str, str], None]:
+    """Map a resolved ``config_key`` to its ``cli.commands.merge_driver`` implementation.
+
+    Reuses the canonical registry (``lanes.merge._MERGE_DRIVERS``) instead of a second,
+    hand-maintained table: a driver's ``command`` field (e.g. ``"spec-kitty
+    merge-driver-traces %O %A %B"``) names the exact ``merge_driver_<name>`` function this
+    derives and calls, so the two can never silently drift apart (C-006). Function-local
+    import: avoids paying the ``cli.commands`` package ``__init__`` import cost (and any
+    load-order risk) unless a caller actually needs to replay a driver.
+    """
+    from specify_cli.cli.commands import merge_driver as _merge_driver_module
+    from specify_cli.lanes.merge import _MERGE_DRIVERS
+
+    spec = next((candidate for candidate in _MERGE_DRIVERS if candidate.config_key == config_key), None)
+    if spec is None:
+        raise GitProbeError(f"no merge-driver registry entry for config key {config_key!r}")
+    match = _DRIVER_COMMAND_PATTERN.match(spec.command)
+    if match is None:
+        raise GitProbeError(f"unrecognized merge-driver command shape: {spec.command!r}")
+    driver = getattr(_merge_driver_module, match.group(1).replace("-", "_"), None)
+    if driver is None or not callable(driver):
+        raise GitProbeError(f"no merge-driver implementation for config key {config_key!r}")
+    return cast("Callable[[str, str, str], None]", driver)
+
+
+def driver_replay_expected_bytes(
+    repo_root: Path,
+    repo_rel_path: str,
+    *,
+    base_ref: str,
+    ours_ref: str,
+    theirs_ref: str,
+) -> bytes:
+    """Replay *repo_rel_path*'s registered merge driver on ``(base, ours, theirs)``.
+
+    The squash-projection driver-replay attribution proof (#5038): a diverged
+    coord-partition bookkeeping path is legitimately reconciled by git invoking its
+    registered custom driver DURING the real squash. This replays the SAME driver,
+    in-process, on the three blobs git would have passed it as ``%O``/``%A``/``%B``,
+    so the caller can prove the landed target blob equals the driver's own
+    deterministic output rather than demanding raw byte equality with either
+    parent (which false-REFUSEs a legitimate union).
+
+    Raises :class:`GitProbeError` (fail-closed; never silently fabricates a result)
+    when: the path has no registered merge driver at *ours_ref*
+    (:func:`_resolve_merge_driver_config_key`), the ``ours`` or ``theirs`` blob
+    cannot be read (a diverged path's two live sides must exist), or the driver
+    itself errors while reconciling the materialized blobs. ``base`` may
+    legitimately be absent (a path newly added on both sides) -- materialized as
+    an empty file, mirroring git's own ``%O`` behavior for a brand-new path.
+    """
+    from specify_cli.lanes.merge import _ephemeral_merge_driver_activation
+
+    with _ephemeral_merge_driver_activation(repo_root, restore_config=True):
+        config_key = _resolve_merge_driver_config_key(repo_root, ours_ref, repo_rel_path)
+    if config_key is None:
+        raise GitProbeError(f"driver replay for {repo_rel_path!r}: no registered merge driver at {ours_ref}")
+    driver = _resolve_registered_driver_callable(config_key)
+
+    ours_bytes = _read_git_blob_bytes(repo_root, ours_ref, repo_rel_path)
+    theirs_bytes = _read_git_blob_bytes(repo_root, theirs_ref, repo_rel_path)
+    if ours_bytes is None or theirs_bytes is None:
+        raise GitProbeError(
+            f"driver replay for {repo_rel_path!r}: missing ours ({ours_ref}) or theirs ({theirs_ref}) blob"
+        )
+    base_bytes = _read_git_blob_bytes(repo_root, base_ref, repo_rel_path) or b""
+
+    with tempfile.TemporaryDirectory(prefix="kitty-driver-replay-") as tmp_dir_name:
+        tmp_dir = Path(tmp_dir_name)
+        base_path = tmp_dir / "O"
+        ours_path = tmp_dir / "A"
+        theirs_path = tmp_dir / "B"
+        base_path.write_bytes(base_bytes)
+        ours_path.write_bytes(ours_bytes)
+        theirs_path.write_bytes(theirs_bytes)
+        try:
+            driver(str(base_path), str(ours_path), str(theirs_path))
+        except Exception as exc:
+            # Any driver failure (typer.Exit, RowMatrixMergeError, ...) REFUSEs
+            # fail-closed (FR-003) rather than escaping as an unhandled crash.
+            raise GitProbeError(f"driver replay for {repo_rel_path!r} ({config_key}) failed: {exc}") from exc
+        return ours_path.read_bytes()
+
+
 __all__ = [
     "_lane_already_integrated",
     "_branch_trees_equal",
@@ -323,4 +750,15 @@ __all__ = [
     "_paths_have_status_changes",
     "_is_git_repo",
     "_has_branch_ref",
+    "GitProbeError",
+    "sha_reachable_from",
+    "commits_in_range",
+    "patch_id_of",
+    "patch_ids_in_range",
+    "first_parent_commits_in_range",
+    "blob_id_at",
+    "changed_paths_in_range",
+    "changed_paths_of",
+    "lane_integrated_by_tree_or_ancestry",
+    "driver_replay_expected_bytes",
 ]

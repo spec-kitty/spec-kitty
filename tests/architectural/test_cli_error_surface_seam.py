@@ -27,10 +27,12 @@ regression it targets.
 The floor below is SCAN-DERIVED (run ``find_unguarded_raw_reads`` from
 ``_gate_guarded_read_callshape.py`` over the in-scope module list — see
 this file's own history for the reproduction command), not assumed zero:
-the hardened tree still carries 7 individually-justified raw reads that
+the hardened tree still carries 8 individually-justified raw reads that
 legitimately do not route through the primitive (config reads that
-degrade to a safe default rather than raising, and one legacy
-size-capped read that predates the primitive). None of the 7 in-scope
+degrade to a safe default rather than raising, one legacy
+size-capped read that predates the primitive, and one lock-owner
+ownership probe whose absent/unreadable lock is a valid result). None
+of the 7 in-scope
 command entry points named by the mission's user stories reach an
 *unguarded* read that would surface a raw traceback.
 
@@ -140,6 +142,14 @@ _JUSTIFIED_RESIDUALS: frozenset[str] = frozenset(
         # heuristic read with a safe fallback, same class as the config
         # reads above.
         "specify_cli/core/wps_manifest.py::_plan_contains_implementation_concerns",
+        # justification: lock-owner OWNERSHIP PROBE (FR-008 owner-token lock,
+        # #5001) -- an absent/unreadable/legacy-body lock is a valid
+        # "unowned" -> None RESULT, not an error surface. The function is
+        # already exception-safe (catches OSError on the raw read and
+        # ValueError/TypeError on the JSON decode, both returning None), so
+        # wrapping it in read_guarded would turn a legitimate probe outcome
+        # into a raised GuardedReadError -- a regression, not a fix.
+        "specify_cli/merge/state.py::read_merge_lock_owner",
     }
 )
 
@@ -224,7 +234,7 @@ def _scan_in_scope_modules() -> set[str]:
 def test_no_unguarded_raw_reads_beyond_the_justified_baseline() -> None:
     """Scan-derived: every raw read/decode call in the in-scope module list
     is either routed through ``kernel.guarded_read.read_guarded`` or is one
-    of the 7 individually-justified residuals above. A NEW entry here is
+    of the 8 individually-justified residuals above. A NEW entry here is
     either a genuine regression (fix it) or a new legitimate exception
     (justify it above AND bump ``_baselines.yaml``)."""
     live = _scan_in_scope_modules()

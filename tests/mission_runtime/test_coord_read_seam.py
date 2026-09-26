@@ -123,3 +123,56 @@ def test_baseline_tests_json_classifies_as_primary_work_package_task() -> None:
     )
     assert kind is MissionArtifactKind.WORK_PACKAGE_TASK
     assert is_primary_artifact_kind(kind)
+
+
+# ===========================================================================
+# coord-read-fail-closed-01M38VVH WP01 T001 — UNMATERIALIZED must raise
+# (#4959, DM-01M38VWD)
+# ===========================================================================
+#
+# Pre-fix behavior (red): ``_classify_artifact_surface`` falls through the
+# EMPTY/UNMATERIALIZED/NONE tail to ``return TopologySurface.PRIMARY, None`` —
+# a coord-partition read on an UNMATERIALIZED coordination worktree (branch
+# declared + present in git, worktree never created) silently returns the
+# empty PRIMARY checkout instead of raising. Readers then act on that
+# emptiness as if it were the real document.
+#
+# Post-fix behavior (green): the same read raises
+# ``CoordinationWorktreeUnmaterialized`` instead.
+
+
+def test_unmaterialized_coord_read_raises_instead_of_empty_primary(
+    tmp_path: Path,
+) -> None:
+    """AC-S1: a coord-partition ``read_dir`` on ``CoordState.UNMATERIALIZED``
+    raises ``CoordinationWorktreeUnmaterialized`` — never an empty-PRIMARY path.
+
+    Builds a COORD-topology mission via ``_create_mission`` (the real
+    ``mission create`` core, which mints the coordination branch in git and
+    writes ``coordination_branch`` into ``meta.json``) and deliberately never
+    materializes the coord worktree — the same fixture shape as
+    ``test_coord_read_dir_for_coord_declared_unmaterialised_is_not_coord``
+    above, which pins that the branch-declared-but-unmaterialized state is
+    real and reachable without any coord worktree on disk.
+    """
+    from mission_runtime import placement_seam
+    from specify_cli.coordination.surface_resolver import (
+        CoordinationWorktreeUnmaterialized,
+    )
+
+    repo = _repo(tmp_path)
+    result = _create_mission(repo, "coord-unmat-raise-demo", MissionTopology.COORD)
+    # No `_materialize_coord_worktree` call: the coord branch exists in git
+    # (minted by `_create_mission`) but its worktree was never created —
+    # exactly `CoordState.UNMATERIALIZED`.
+
+    seam = placement_seam(repo, result.mission_slug)
+
+    with pytest.raises(CoordinationWorktreeUnmaterialized) as excinfo:
+        seam.read_dir(MissionArtifactKind.STATUS_STATE)
+
+    assert excinfo.value.error_code == "COORDINATION_WORKTREE_UNMATERIALIZED"
+    # The recovery text must point at materializing, never at flattening —
+    # the branch exists; flattening would be a false, destructive recovery.
+    assert "materializ" in excinfo.value.next_step.lower()
+    assert "flatten" not in excinfo.value.next_step.lower()

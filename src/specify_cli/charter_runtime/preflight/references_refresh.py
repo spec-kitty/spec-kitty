@@ -56,16 +56,10 @@ from __future__ import annotations
 import logging
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-from ruamel.yaml import YAML
-
-from charter.bundle import CHARTER_YAML
+from charter.activation.charter_yaml_io import read_catalog_field
 
 from .runner import SYNTHESIZED_DRG_LAYER
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
 __all__ = ["refresh_references_if_needed"]
 
@@ -113,28 +107,14 @@ def _read_catalog_mission_and_template_set(
     given). Returns ``(None, None)`` when ``charter.yaml`` is absent,
     unparseable, or missing a ``catalog`` section — callers then fall back
     to ``generate``'s own defaults rather than failing the refresh.
+
+    Both fields are read through the single shared ``catalog.<field>``
+    reader (``charter.activation.charter_yaml_io.read_catalog_field``,
+    Finding B / #4993) rather than a second, ad-hoc ``YAML(typ="safe")``
+    parse of ``charter.yaml`` — the parser-drift risk this fold removes.
     """
-    charter_yaml_path = repo_root / CHARTER_YAML
-    if not charter_yaml_path.exists():
-        return None, None
-    try:
-        yaml = YAML(typ="safe")
-        data = yaml.load(charter_yaml_path.read_text(encoding="utf-8")) or {}
-    except Exception:  # noqa: BLE001 — best-effort; fall back to generate defaults
-        return None, None
-    if not isinstance(data, dict):
-        return None, None
-    catalog = data.get("catalog")
-    if not isinstance(catalog, dict):
-        return None, None
-    return _extract_mission_and_template_set(catalog)
-
-
-def _extract_mission_and_template_set(
-    catalog: Mapping[str, object],
-) -> tuple[str | None, str | None]:
-    mission = catalog.get("mission")
-    template_set = catalog.get("template_set")
+    mission = read_catalog_field(repo_root, "mission")
+    template_set = read_catalog_field(repo_root, "template_set")
     return (
         mission if isinstance(mission, str) and mission else None,
         template_set if isinstance(template_set, str) and template_set else None,

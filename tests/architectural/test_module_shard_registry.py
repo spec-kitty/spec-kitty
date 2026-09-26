@@ -10,12 +10,15 @@ re-scrub, and that its ``shard_count`` balancing is *measured* (from the
 captured) rather than guessed or derived from file counts, with inter-shard
 skew held to <=20% (NFR-005).
 
-Also asserts the T043 heavy-pole de-serialization decisions
-(``integration-tests-next`` parallelized, the architectural pole always-on
-and de-serialized) are encoded in the registry, and the T044 architect HIGH
-folds — single-data-source (a new module is a row, not a workflow file) and
-the <=20-reusable-workflows-per-caller ceiling — are machine-checked here
-rather than left as prose.
+Also asserts the T043 heavy-pole de-serialization decisions are encoded: the
+architectural pole always-on and de-serialized, and — after
+ci-coverage-honesty-01M3CZVN WP03 (spec-kitty#4729) — that the dead
+``integration_tests_next`` tier is RETIRED and its heavy-pole corpus is instead
+wired into ci-nightly.yml's ``integration-next`` job (both roots, by directory,
+in ``nightly-summary.needs``). The T044 architect HIGH folds — single-data-source
+(a new module is a row, not a workflow file) and the
+<=20-reusable-workflows-per-caller ceiling — are machine-checked here rather
+than left as prose.
 
 Also asserts test-directory coverage (spec-kitty#4369): every test-bearing
 directory under ``tests/`` is claimed by exactly one registry row (mirrored
@@ -30,6 +33,7 @@ an ``ImportError`` or a collection-time crash.
 
 from __future__ import annotations
 
+import configparser
 import json
 from pathlib import Path
 from typing import Any
@@ -313,19 +317,25 @@ def test_timings_excluded_dirs_are_documented() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T043: heavy-pole de-serialization encoded (integration-tests-next
-# parallelized; architectural pole always-on + de-serialized, no filter
-# group — consistent with WP07's fast/heavy split in ci-router.yml).
+# T043 (repointed by ci-coverage-honesty-01M3CZVN WP03 T011, spec-kitty#4729):
+# heavy-pole de-serialization encoded. The architectural pole stays always-on +
+# de-serialized with no filter group (WP07's fast/heavy split in ci-router.yml).
+# The formerly-asserted `integration_tests_next` special tier is now RETIRED --
+# it declared the tests/integration/** + tests/next/** heavy pole but was
+# invoked by no workflow (the #4729 honesty gap). This gate no longer requires
+# that dead tier to exist; instead it asserts the tier is GONE (a re-declaration
+# would resurrect the gap) AND that its heavy-pole corpus is really wired into
+# ci-nightly.yml's `integration-next` job (both roots, by directory, in
+# nightly-summary.needs) -- deleted-and-rehomed, never silently dropped.
 # ---------------------------------------------------------------------------
 def test_special_tiers_encode_heavy_pole_deserialization() -> None:
     registry = _load_registry()
     special = registry.get("special_tiers", {})
     assert special, "registry declares no special_tiers (T043 de-serialization must be encoded, not left to prose)"
 
-    integration_next = special.get("integration_tests_next")
-    assert integration_next is not None, "special_tiers.integration_tests_next is missing"
-    assert integration_next.get("parallel_mode") == "-n auto", (
-        f"integration-tests-next must be encoded as parallelized ('-n auto'), got {integration_next.get('parallel_mode')!r}"
+    assert "integration_tests_next" not in special, (
+        "special_tiers.integration_tests_next was retired (spec-kitty#4729); its wired home is now "
+        "ci-nightly.yml's `integration-next` job -- do not re-declare the dead tier"
     )
 
     architectural = special.get("architectural")
@@ -333,6 +343,25 @@ def test_special_tiers_encode_heavy_pole_deserialization() -> None:
     assert architectural.get("always_on") is True, "architectural pole must be encoded as always-on (no filter group)"
     assert architectural.get("deserialized") is True, "architectural pole must be encoded as de-serialized"
     assert architectural.get("filter_group") in (None, ""), "the architectural pole must add NO filter group (consistent with WP07's fast/heavy split)"
+
+    # The retired tier's heavy pole must be wired, not merely deleted: the
+    # nightly `integration-next` job runs BOTH roots by directory (not
+    # `-m integration`) and is in nightly-summary.needs so its red surfaces.
+    import yaml  # local import: keep this gate's collection cost near-zero
+
+    nightly_path = _WORKFLOWS_DIR / "ci-nightly.yml"
+    assert nightly_path.exists(), f"nightly workflow missing: {nightly_path.relative_to(_REPO_ROOT)}"
+    nightly = yaml.safe_load(nightly_path.read_text(encoding="utf-8"))
+    jobs = nightly.get("jobs", {})
+    assert "integration-next" in jobs, (
+        "ci-nightly.yml must define the `integration-next` job -- the wired home of the retired integration_tests_next heavy pole (spec-kitty#4729)"
+    )
+    integration_job_text = yaml.safe_dump(jobs["integration-next"])
+    assert "tests/integration tests/next" in integration_job_text, (
+        "the integration-next job must run `pytest tests/integration tests/next` BY DIRECTORY (not `-m integration`, which would drop tests/next's files)"
+    )
+    summary_needs = jobs.get("nightly-summary", {}).get("needs", [])
+    assert "integration-next" in summary_needs, "integration-next must be in nightly-summary.needs or its red never surfaces in the aggregator"
 
 
 # ---------------------------------------------------------------------------
@@ -410,6 +439,36 @@ def test_reusable_workflow_ceiling_respected() -> None:
 # pytest's default python_files patterns (pytest.ini does not override
 # python_files) -- the collection basis for "a directory that holds tests".
 _PYTHON_FILE_PATTERNS = ("test_*.py", "*_test.py")
+
+
+def test_pytest_ini_does_not_override_python_files_4388() -> None:
+    """Anchor for #4388: ``_PYTHON_FILE_PATTERNS`` above is a hardcoded
+    restatement of pytest's *default* collection patterns, held together with
+    ``pytest.ini`` only by a prose comment. If ``pytest.ini`` ever grew a
+    ``python_files`` override, the hardcoded basis this gate's
+    test-bearing-directory scan (:func:`_test_bearing_dirs`) relies on would
+    silently diverge from what pytest actually collects. Anchor it: either
+    ``pytest.ini`` carries no override at all (the status quo), or its
+    override equals ``_PYTHON_FILE_PATTERNS`` exactly.
+
+    Non-vacuity is verified manually, not via a committed fixture, per the
+    WP01 task note: transiently (uncommitted) add ``python_files =
+    check_*.py`` under ``[pytest]`` in the real ``pytest.ini`` and re-run this
+    test -- it fails; revert and it passes again. This test only reads
+    ``pytest.ini`` and never edits it.
+    """
+    parser = configparser.ConfigParser()
+    read_files = parser.read(_REPO_ROOT / "pytest.ini")
+    assert read_files, f"could not read {_REPO_ROOT / 'pytest.ini'}"
+    section = parser["pytest"]
+    if "python_files" not in section:
+        return
+    configured = tuple(section["python_files"].split())
+    assert configured == _PYTHON_FILE_PATTERNS, (
+        f"pytest.ini's python_files override {configured} diverges from the hardcoded "
+        f"_PYTHON_FILE_PATTERNS {_PYTHON_FILE_PATTERNS} this gate's test-bearing-directory "
+        "scan assumes -- update _PYTHON_FILE_PATTERNS to match pytest.ini"
+    )
 
 
 def _test_bearing_dirs() -> set[str]:

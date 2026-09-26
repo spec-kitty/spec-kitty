@@ -1,0 +1,56 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh4
+mission: charter-epic-golden-path-nfr-budget-01M35H35
+findings:
+  - id: SPEC-FRESH4-001
+    lens: decision-documentation / self-authorization
+    severity: 3
+    title: Orchestrator self-authorizes closure of a differently-scoped, unnamed review finding (SPEC-VERIFY-003) by extending Ruling 1's stated scope
+    evidence:
+      - artifact: "tracer-design-decisions.md § '2026-09-23 — SPEC-VERIFY-003 disposition: resolved by Ruling 1, though not named in it'"
+      - artifact: "reviews/spec.ruling.md § Ruling 1 (names only SPEC-FRESH-002, SPEC-FRESH2-001, SPEC-FRESH2-002)"
+    claim: >
+      The tracer records that a prior round (spec-verify-round3.yaml) marked SPEC-VERIFY-003
+      "unresolved" specifically because operator Ruling 1 does not name it. Rather than
+      returning to the operator to confirm the ruling also covers SPEC-VERIFY-003 (the same
+      "STOP and return to the operator on any ambiguity" discipline this very mission just
+      hardened into NFR-002/SC-003 with "no exception band... not closable through any
+      documented exception, sign-off, or other self-authorized path"), the phase orchestrator
+      unilaterally reasons that Ruling 1's answer "necessarily disposes of every finding
+      asking that same question" and marks SPEC-VERIFY-003 resolved on its own authority. This
+      is the orchestrator interpreting its own ambiguity in its own favor — precisely the
+      self-authorized-exception pattern the mission's own hardened acceptance rule was written
+      to prohibit for the closure measurement, just applied here to review-finding disposition
+      instead of to the 110s number. It does not (per the tracer's own account) change any
+      spec.md content beyond what Ruling 1 already mandated, but it does retroactively close a
+      review finding the operator was never asked about by name, creating a risk that the
+      operator disagrees at final sign-off after the finding is already marked resolved.
+    remediation: >
+      Do not mark SPEC-VERIFY-003 resolved by inference. Either (a) list it explicitly to the
+      operator alongside Ruling 1/Ruling 2 for a one-line confirmation that the "cut FR-006/
+      SC-006, prose-only C-005" ruling also disposes of SPEC-VERIFY-003's narrower "needs a
+      mechanical gate" framing, or (b) carry it forward as a still-open/deferred finding in the
+      review ledger until the operator confirms, rather than closing it on the orchestrator's
+      own extrapolation.
+  - id: SPEC-FRESH4-002
+    lens: citation-precision
+    severity: 1
+    title: "temp_repo fixture citation omits its decorator line, unlike this spec's other fixture-range citations"
+    evidence:
+      - artifact: "spec.md § FR-002 ('tests/conftest.py:1342-1353, via clone_template in tests/_support/git_template/__init__.py:106')"
+      - code: "tests/conftest.py:1341 (`@pytest.fixture()`), tests/conftest.py:1342 (`def temp_repo(tmp_path: Path) -> Iterator[Path]:`), tests/conftest.py:1353 (`yield repo_dir`)"
+    claim: >
+      FR-002 cites the `temp_repo` fixture as `tests/conftest.py:1342-1353`, starting at the
+      `def` line and omitting the `@pytest.fixture()` decorator at line 1341. This is
+      inconsistent with every other fixture-range citation in this same spec (e.g.
+      `fresh_e2e_project` is cited as `tests/e2e/conftest.py` lines 390-452, which correctly
+      starts at its decorator on line 390, not its `def` on 391). The range itself is not
+      wrong — line 1341 is simply left out — but the citation convention is not applied
+      uniformly within one document, and this is exactly the kind of one-line drift the fresh
+      round of review is meant to catch even when it does not change any binding meaning.
+    remediation: >
+      Change the citation to `tests/conftest.py:1341-1353` to include the decorator line,
+      matching the convention used elsewhere in this spec, or note explicitly that the range
+      intentionally starts at `def` rather than the decorator.

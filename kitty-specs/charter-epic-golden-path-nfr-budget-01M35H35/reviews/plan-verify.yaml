@@ -1,0 +1,65 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: unresolved
+    remaining_severity: 4
+    reason: >-
+      Deliberately untouched per dispatch scope; tracer-design-decisions.md's "On whether this
+      needed an operator ruling" section (lines 424-440) is unchanged and still self-authorizes
+      skipping the operator ruling on Lever C's cost-driver substitution — this is the correct,
+      expected outcome, not a fixer failure, and the plan-authoring agent may not resolve it itself.
+  - id: PLAN-GOV-002
+    status: resolved
+    reason: >-
+      data-model.md's new "SK-243 interaction" section correctly analyzes both dispositions against
+      current source: the stamp-match fast path never constructs an AssetPreparation (empty-effects
+      short-circuit verified at agent_commands.py's _apply_command_assessment, "if not
+      assessment.effects: return"), and the stamp-miss slow path writes via finish()'s existing
+      _effect()->observe(role="destination_probe") machinery (asset_preparation.py:261-262,391-400),
+      which is the same peer-tolerance path SK-243 already covers — verified against actual current
+      agent_commands.py and asset_preparation.py source, and against SK-243's real, open ledger entry.
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: >-
+      data-model.md's read/write contract now requires BOTH a stamp match AND an independent
+      _all_global_agent_commands_healthy() destination-health check before short-circuiting (a real,
+      existing, zero-caller function confirmed by grep at agent_commands.py:296-305) — a genuine
+      fourth condition, not a restatement.
+  - id: PLAN-ARCH-002
+    status: resolved
+    reason: >-
+      data-model.md now specifies a third "Unreadable/malformed" disposition (wrong schema, legacy
+      plain-bytes content, invalid encoding, torn write), treated identically to absent via a
+      narrowly-scoped read-only catch, closing the crash-on-upgrade gap the finding identified.
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: >-
+      plan.md line 145 now reads "Adding `--durations=1` ... is explicitly NOT proposed here — that
+      would be a CI/router change, which Ruling 4 forbids," leading with the negation instead of
+      trailing it; no plausible literal misreading remains.
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: >-
+      plan.md now specifies adding `--durations=1` to pytest.ini's addopts line instead of relying on
+      step-level Actions timestamps; verified pytest.ini:11 currently reads exactly
+      "addopts = --tb=short" as the plan claims, so the cited edit target is accurate.
+  - id: PLAN-VERIFY-003
+    status: resolved
+    reason: >-
+      plan.md now explicitly states the Actions Evidence Log step is "human-reviewed only, not
+      mechanically gated" and names sk-review's accept gate as the acknowledged control, matching
+      remediation option (a).
+  - id: PLAN-VERIFY-004
+    status: resolved
+    reason: >-
+      plan.md's Router-filter note now correctly states agent_commands.py IS covered by the `next`
+      filter group; verified against current ci-router.yml (next group at line 116, participates in
+      the unmatched union at line 218, gates architectural-heavy at line 523).
+  - id: PLAN-VERIFY-005
+    status: resolved
+    reason: >-
+      plan.md's Lever C section now names all four main_callback() fast-path guards, including
+      _is_doctor_skills_invocation, matching current src/specify_cli/__init__.py (lines 137-139 and
+      151).
