@@ -20,10 +20,16 @@ Use this checklist for releases from `main`.
 
 ### Release-Line Sanity
 
-- **P3.4b prerequisite:** `.github/workflows/release.yml` and
-  `release-readiness.yml` are deliberately deferred to the P3.4b release-topology
-  sibling. Land that sibling before relying on this checklist's automated
-  publishing or Release Readiness Check steps.
+- **Release nightly-gate prerequisite (#5034):** `.github/workflows/release.yml`
+  (`Publish Release`) gates `build-release` / `publish-pypi` on a **green
+  `ci-nightly` for the exact release SHA** — it dispatches the nightly by the
+  release tag and blocks publishing until that run is green (fail-closed on a
+  missing, stale, red, or in-progress nightly). That dispatch requires repo
+  secret **`RELEASE_NIGHTLY_DISPATCH_TOKEN`** (a PAT or GitHub App token); the
+  default `GITHUB_TOKEN` cannot trigger a nested `workflow_dispatch`, so
+  **without this secret the release gate fails closed and nothing publishes**
+  (intentional). Confirm the secret is present before tagging a release.
+  - [ ] Confirm the `RELEASE_NIGHTLY_DISPATCH_TOKEN` repo secret exists and is valid.
 - [ ] Confirm the default branch is `main`.
 - [ ] Confirm `1.x-maintenance` exists and is marked maintenance-only.
 - [ ] Confirm open PRs are targeted intentionally:

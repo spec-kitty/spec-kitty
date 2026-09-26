@@ -3187,6 +3187,15 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/3.x/2026-09-26-1-ci-coverage-honesty.md"
+    title: "ADR: a green main/nightly must mean the tests actually ran"
+    divio_type: "none"
+    abstract: "CI now enforces coverage honesty — dark-suite enrolment, foreign-coverage and src-reachability guards, a nightly run-all lane, and release gated on a green nightly for that SHA."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
