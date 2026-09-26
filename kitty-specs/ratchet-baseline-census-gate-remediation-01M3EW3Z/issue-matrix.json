@@ -145,7 +145,7 @@
       "wp": null
     },
     "#3285": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context-only citation (related/coordinated or historical); owes this mission no work",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -153,7 +153,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#3962": {
