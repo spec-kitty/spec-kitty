@@ -7,6 +7,11 @@ steps:
     description: Capture the intended user-visible outcome as an executable acceptance test before implementation starts.
     examples:
       - "Add a CLI integration test that describes expected command output before editing command handlers."
+    references:
+      - name: Acceptance Criteria Non-Vacuity
+        type: tactic
+        id: acceptance-criteria-non-vacuity
+        when: Label the criterion and confirm a no-op cannot pass it
   - title: Attach traceability metadata
     description: Link each acceptance scenario to the governing task, ticket, or requirement identifier.
     examples:

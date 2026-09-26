@@ -1,4 +1,5 @@
 """``spec-kitty charter context`` command (WP06 per-subcommand split)."""
+
 from __future__ import annotations
 
 import json
@@ -29,10 +30,7 @@ def context(
     include: str | None = typer.Option(
         None,
         "--include",
-        help=(
-            "Fetch selector, e.g. agent-profile:<id>, "
-            "template:<mission>/<name>, directive:<id>, section:<slug>."
-        ),
+        help=("Fetch selector, e.g. agent-profile:<id>, template:<mission>/<name>, directive:<id>, section:<slug>."),
     ),
     mark_loaded: bool = typer.Option(True, "--mark-loaded/--no-mark-loaded", help="Persist first-load state"),
     mission_type: str | None = typer.Option(
@@ -118,7 +116,15 @@ def context(
                     )
                 )
                 return
-            console.print(included_text)
+            # Doctrine prose can legitimately carry literal
+            # "[build]"/"[ratchet]"/"[folded]" bracket text (e.g. the
+            # acceptance-criteria-non-vacuity tactic's own legend). Rich's
+            # default markup parser treats "[...]" as a style tag and
+            # silently drops it, stripping exactly that legend from the one
+            # prescribed fetch command (``--include tactic:<id>``) that
+            # renders it. Pass ``markup=False`` so bracketed doctrine text
+            # prints verbatim instead of being consumed as a tag.
+            console.print(included_text, markup=False)
             return
 
         if action is None:
@@ -157,9 +163,7 @@ def context(
                     {
                         "result": "success",
                         "success": True,
-                        "context_schema_version": structured.get(
-                            "context_schema_version", CONTEXT_SCHEMA_VERSION
-                        ),
+                        "context_schema_version": structured.get("context_schema_version", CONTEXT_SCHEMA_VERSION),
                         "action": result.action,
                         "mode": result.mode,
                         "first_load": result.first_load,
@@ -172,9 +176,7 @@ def context(
                         "styleguides": structured.get("styleguides", []),
                         "toolguides": structured.get("toolguides", []),
                         "references": structured.get("references", []),
-                        "governance_references": structured.get(
-                            "governance_references", []
-                        ),
+                        "governance_references": structured.get("governance_references", []),
                         "project_charter": structured.get(
                             "project_charter",
                             # FR-006: kept consistent with the producer
@@ -189,9 +191,7 @@ def context(
                                 "charter_md_path": ".kittify/charter/charter.md",
                             },
                         ),
-                        "org_charter": structured.get(
-                            "org_charter", {"present": False, "packs": []}
-                        ),
+                        "org_charter": structured.get("org_charter", {"present": False, "packs": []}),
                     },
                     indent=2,
                 )
@@ -204,7 +204,10 @@ def context(
         # header, which a static BOOTSTRAP_ACTIONS check would still deny.
         if result.mode == "bootstrap":
             console.print(f"Action: {result.action} ({result.mode})")
-        console.print(result.text)
+        # Same rationale as the ``--include`` path above: the action-scoped
+        # context body is also doctrine prose that can carry literal bracket
+        # text, so it must not be parsed as Rich markup either.
+        console.print(result.text, markup=False)
 
     except TaskCliError as e:
         _emit_error(console, json_output=json_output, message=str(e))
