@@ -1,0 +1,98 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-26T12:48:12.558556Z",
+      "decision_id": "01M3EW4J8EPXGG4668TJ04Z7VZ",
+      "final_answer": "retire",
+      "input_key": "scope_3011_converter",
+      "mission_id": "01M3EW3Z4M4VVXAZMHPDFKPSE5",
+      "mission_slug": "ratchet-baseline-census-gate-remediation-01M3EW3Z",
+      "opened_by": "claude",
+      "options": [
+        "retire",
+        "fix-round-trip-safe"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#3011: the surface-resolution audit gate was deleted (01KZME3P WP13) and audit.py fails on HEAD. Retire rekey_inventory.py + inventory.md + audit.main() (keep scanner fns), or fix the converter to be round-trip-safe and re-adjudicate the 8 drifted rows?",
+      "rationale": "Gate already deleted (01KZME3P WP13); audit.py fails on HEAD; retiring removes the trap. Keep scanner functions used by test_single_mission_surface_resolver.",
+      "resolved_at": "2026-09-26T12:53:39.147564Z",
+      "resolved_by": "operator (stijn@sddevelopment.be via AskUserQuestion)",
+      "slot_key": "scope_3011_converter",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-26T12:48:16.742778Z",
+      "decision_id": "01M3EW4PB68SX15F0DY641YAXE",
+      "final_answer": "retire-dead-machinery",
+      "input_key": "scope_3026_inert_slots",
+      "mission_id": "01M3EW3Z4M4VVXAZMHPDFKPSE5",
+      "mission_slug": "ratchet-baseline-census-gate-remediation-01M3EW3Z",
+      "opened_by": "claude",
+      "options": [
+        "restore-and-cap-unfireable",
+        "retire-dead-machinery"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#3026: #3285 deleted the cap/anti-weasel/masking tests so the inert-slot caps are dead. Restore those checks and cap the unfireable-owner property (MAX_UNFIREABLE_ENTRIES), or retire the dead machinery and close #3026?",
+      "rationale": "Enforcing tests were removed in #3285; remove the dead caps/predicates/_baselines.yaml keys rather than resurrect them; close #3026 as superseded.",
+      "resolved_at": "2026-09-26T12:53:42.781642Z",
+      "resolved_by": "operator (stijn@sddevelopment.be via AskUserQuestion)",
+      "slot_key": "scope_3026_inert_slots",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-26T12:48:20.758927Z",
+      "decision_id": "01M3EW4T8PZY4YNAGHAMR63ZBG",
+      "final_answer": "in-scope",
+      "input_key": "scope_5085_census_keys",
+      "mission_id": "01M3EW3Z4M4VVXAZMHPDFKPSE5",
+      "mission_slug": "ratchet-baseline-census-gate-remediation-01M3EW3Z",
+      "opened_by": "claude",
+      "options": [
+        "in-scope",
+        "defer-follow-up-with-enumerated-exemption"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#5085: widen the positional-anchor ban and migrate _KNOWN_JOIN_ALLOWLIST + #3206 kernel exemptions. Are the 80 rel:lineno:op census keys (destructive/mutation/overwrite gates) in scope for this mission or deferred to a follow-up?",
+      "rationale": "Operator chose full migration: widen ban, migrate joins + #3206 exemptions, and re-key all 80 rel:lineno:op census keys.",
+      "resolved_at": "2026-09-26T12:53:46.300837Z",
+      "resolved_by": "operator (stijn@sddevelopment.be via AskUserQuestion)",
+      "slot_key": "scope_5085_census_keys",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-09-26T12:48:25.129275Z",
+      "decision_id": "01M3EW4YH9ASKQCWYH43N4X207",
+      "final_answer": "act-now-split-bridge-defer-oracle",
+      "input_key": "scope_2631_parity",
+      "mission_id": "01M3EW3Z4M4VVXAZMHPDFKPSE5",
+      "mission_slug": "ratchet-baseline-census-gate-remediation-01M3EW3Z",
+      "opened_by": "claude",
+      "options": [
+        "act-now-split-bridge-defer-oracle",
+        "verdicts-only-no-remediation"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#2631: act on the confirmed net-negative parity suites now (vacuous import bans, sync tombstones, private-patching context parity, stale xfails) and split test_bridge_parity (keep P0 acceptance tests; defer oracle retirement until #2633)?",
+      "rationale": "Convert/retire confirmed net-negatives; split test_bridge_parity keeping P0 acceptance tests; oracle retirement deferred to after #2633.",
+      "resolved_at": "2026-09-26T12:53:49.883811Z",
+      "resolved_by": "operator (stijn@sddevelopment.be via AskUserQuestion)",
+      "slot_key": "scope_2631_parity",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3EW3Z4M4VVXAZMHPDFKPSE5",
+  "version": 1
+}
