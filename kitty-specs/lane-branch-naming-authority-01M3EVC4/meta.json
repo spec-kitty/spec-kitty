@@ -13,5 +13,7 @@
   "purpose_tldr": "Make every merge stage agree on a lane's branch name so legitimate merges of legacy missions stop being refused.",
   "slug": "lane-branch-naming-authority-01M3EVC4",
   "target_branch": "claude/charter-load-mission-q9ajcz",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-26T13:59:49.101437+00:00"
 }
