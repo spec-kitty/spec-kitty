@@ -525,10 +525,10 @@ remaining two named FR-005/NFR-009 foundation sites that WP06/WP08 explicitly
 deferred (see the "WP06 correction" note further below):
 `retrospective/writer.py::resolve_retrospective_home` and
 `status/aggregate.py::MissionStatus._find_meta_path`. Both already called the
-leaf directly (WP03/WP08 re-pointed them in prior commits) and both already
-carry an equivalent entry in `resolution_gate_allowlist.yaml`'s canonicalizer
-allow-list — this table and `_FOUNDATION_SANCTION_SEED` were simply the two
-machine-checked entries not yet added. This closeout also adds
+leaf directly (WP03/WP08 re-pointed them in prior commits); their
+machine-checked sanction is the `ContentDescriptor` entries in
+`tests/architectural/test_no_read_side_bypass.py`'s `_FOUNDATION_SANCTION_SEED`
+descriptor table, which this closeout added. This closeout also adds
 `_compose_primary_feature_dir` itself to `_TARGET_CALLEE_NAMES` (§
 "Post-merge closeout" above) so the gate's main ratchet can flag a *new*,
 un-sanctioned call to the leaf — these five rows are precisely the sites the

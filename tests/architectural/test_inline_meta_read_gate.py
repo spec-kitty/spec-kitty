@@ -10,9 +10,7 @@ Thread B (WP05/06/07 + WP12-15) routed every non-migration, non-charter caller o
 inline meta.json JSON parsing onto ``mission_metadata.load_meta`` /
 ``load_meta_strict`` / ``load_meta_or_empty``. This module stands up the
 structural (CI-red on regression) gate that keeps the drained class from
-regrowing. **Non-vacuous** — modeled on
-``test_resolution_authority_gates.py`` + ``resolution_gate_allowlist.yaml``, this
-gate implements the SAME three mechanics (not a weaker shape):
+regrowing. **Non-vacuous** — this gate implements three mechanics:
 
 1. **Integer floor** — ``INLINE_META_READ_FLOOR`` is the live post-drain census;
    the live inline-read count MUST be ``<= floor`` (a shrink-only CEILING, unlike

@@ -539,10 +539,9 @@ class MissionStatus:
             # seam. ``bare_dir_name`` is already the on-disk composed dir NAME
             # returned by ``resolve_bare_modern_mission_dir_name`` --
             # already-canonical by provenance, not a detectable intra-function
-            # fold. This exact call is a PERMANENT fixture in
-            # ``tests/architectural/resolution_gate_allowlist.yaml``'s
-            # ``canonicalizer`` allow-list (qualname ``MissionStatus._find_meta_path``,
-            # predates this mission). WP08 deleted the public wrapper
+            # fold. This exact call carries the machine-checked sanction in
+            # ``tests/architectural/test_no_read_side_bypass.py`` (qualname
+            # ``MissionStatus._find_meta_path``). WP08 deleted the public wrapper
             # (``primary_feature_dir_for_mission``) this site used to call --
             # ``CANONICALIZER_PRIMITIVE_NAMES`` already recognises the leaf
             # ``_compose_primary_feature_dir`` by literal name, so the pinned
