@@ -1,0 +1,37 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M3EGB1NTMBE6YJR5BPJW0VNV",
+  "materialized_at": "2026-09-26T09:22:02.042579+00:00",
+  "mission_number": "",
+  "mission_slug": "terminus-projection-driver-replay-01M3EC1K",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M3EGB1NTMBE6YJR5BPJW0VNV",
+      "last_transition_at": "2026-09-26T09:22:02.042579+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260926",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 4025992,
+      "shell_pid_created_at": "1790410860.81"
+    }
+  }
+}

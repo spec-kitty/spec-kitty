@@ -1,0 +1,33 @@
+{
+  "accept_commit": "58c2df835c26b2236e9d683b821ade49458b89cc",
+  "acceptance_history": [
+    {
+      "accept_commit": "58c2df835c26b2236e9d683b821ade49458b89cc",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-26T09:21:08.607109+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "0214b88e966cfebd47e9cac610efdb5be9d6f242"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-26T09:21:08.607109+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "0214b88e966cfebd47e9cac610efdb5be9d6f242",
+  "baseline_merge_commit": "8ad050599f697a117bbe00d3742d13fdfe44fa9f",
+  "created_at": "2026-09-26T08:06:58.093776+00:00",
+  "flattened": true,
+  "friendly_name": "Terminus Projection Driver-Replay Attribution",
+  "merged_at": "2026-09-26T09:22:07.473503+00:00",
+  "merged_commit": "d21707dbe4613ed49a566d00c7cae439d08f9d16",
+  "mid8": "01M3EC1K",
+  "mission_id": "01M3EC1K91BK822A3A0796EAXS",
+  "mission_number": null,
+  "mission_slug": "terminus-projection-driver-replay-01M3EC1K",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "During a DEFAULT-squash merge, when a coord-partition bookkeeping file (e.g. a tracer) was edited on both the merge target and an approved lane, the projection proof demanded byte-equality with the coordination branch and refused the merge even though the deterministic union driver had losslessly merged both edits onto the target. This mission replaces that byte-equality check with a driver-replay attribution proof so genuine driver output passes while real non-landing or tampering still refuses, fixing #5038 without weakening the product-content data-loss guard.",
+  "purpose_tldr": "Stop the squash merge from false-REFUSing a legitimate concurrent edit of coord bookkeeping, by proving the landed blob is the merge driver's own deterministic output.",
+  "slug": "terminus-projection-driver-replay-01M3EC1K",
+  "status_phase": "1",
+  "target_branch": "fix/terminus-projection-driver-replay"
+}

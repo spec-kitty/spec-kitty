@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-09-26T08:07:27.132501Z",
+      "decision_id": "01M3EC2FMWKCKGSBX1QHC7GFCJ",
+      "final_answer": "Option B: replace the projection proof coord==target byte-check with driver-replay attribution (landed blob == deterministic merge driver output from checkpoint/pre-merge-target/coord), flipping test_5038_p1 RED->green soundly; re-ground test_5038_p2 onto a genuinely-lossy scenario so the fail-closed floor still bites; keep #5021-r2 (attribution-axis, src/shared.py stock-git manual resolution) as an honest strict-xfail and split it to its own tracked issue. Operator-confirmed floor re-adjudication.",
+      "input_key": "fix_approach",
+      "mission_id": "01M3EC1K91BK822A3A0796EAXS",
+      "mission_slug": "terminus-projection-driver-replay-01M3EC1K",
+      "opened_by": "cli",
+      "options": [
+        "Option B: driver-replay attribution for the projection proof (flips P1 to PASS soundly) + re-ground test_5038_p2 onto genuine coord-content loss; keep #5021-r2 honest xfail",
+        "Option A: keep both as honest xfails, no code",
+        "Escalate to charter/ADR first"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How should #5038 be remediated given Phase R proved P1/P2 are byte-identical lossless union-driver outputs with no discriminator, and #5021-r2 is soundly unfixable?",
+      "rationale": null,
+      "resolved_at": "2026-09-26T08:08:34.266713Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.fix-approach",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M3EC1K91BK822A3A0796EAXS",
+  "version": 1
+}

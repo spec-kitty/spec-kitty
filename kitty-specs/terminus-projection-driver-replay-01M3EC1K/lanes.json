@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "mission_slug": "terminus-projection-driver-replay-01M3EC1K",
+  "mission_id": "01M3EC1K91BK822A3A0796EAXS",
+  "mission_branch": "kitty/mission-terminus-projection-driver-replay-01M3EC1K",
+  "target_branch": "fix/terminus-projection-driver-replay",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/merge/bookkeeping_projection.py",
+        "src/specify_cli/merge/executor.py",
+        "src/specify_cli/merge/git_probes.py",
+        "tests/merge/test_bookkeeping_projection_seam.py",
+        "tests/merge/test_reconciliation.py",
+        "tests/terminus/test_repro_5038.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-09-26T08:19:01.821452+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "dd8fbbbcb9b1fa38e840c1b843df99e3ebbb8885"
+}
