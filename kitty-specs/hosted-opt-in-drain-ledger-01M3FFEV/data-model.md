@@ -24,7 +24,7 @@ server_url = "https://team.example"   # hosted endpoint (no built-in default)
   `personal_source: str`, `narrowed_by: str | None` (env kill switch), `reason: str`.
   Invariant: `enabled == (repo_value is True and personal_value is True and narrowed_by is None)`.
 - **LedgerPosture** — `enabled: bool` (default True), `source: str`.
-- **ResolvedServerTarget** — adds the `UNCONFIGURED` state (`resolved_server_url: None`). `PACKAGED_DEFAULT` is removed.
+- **ResolvedServerTarget** — unchanged shape (`resolved_server_url: str`); `PACKAGED_DEFAULT` is removed. An unconfigured machine yields `HostedEndpointUnconfigured` (explicit callers) or `None` from `resolve_server_target_or_none()` (automatic callers).
 
 ## Errors
 - `DrainDisabled(RuntimeError)` — raised at a network edge; carries a one-line human reason.

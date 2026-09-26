@@ -234,3 +234,57 @@ WP04 endpoint opt-in (independent)
 | IC-05 | Endpoint opt-in (resolver, callers, migration) | D4 | FR-011, FR-012, FR-013 |
 | IC-06 | Operator surface (moments drain CLI, zeitgeist/MCP guidance) | D5 | FR-007, FR-005 |
 | IC-07 | ADR + docs + changelog | D5 | FR-014, FR-015 |
+
+## Post-plan squad folds (2026-09-26, architect-alphonso — supersede the sections above where they conflict)
+
+- **F-1 (M1) relay gate placement.**
+  - `budget.py` stays stdlib-only; it gets no `specify_cli.core` import.
+  - Gate in `transport.ZeitgeistClient.offer` **before** `run_with_deadline`. It returns a new `OfferOutcome.DRAIN_DISABLED`, so no worker thread is spawned and the result is never misclassified as `DROPPED_UNREACHABLE`.
+  - Gate at the top of the `filtered_stream` snapshot/watch methods and `history` fetch (they call `NoRedirects.build()` directly); these raise `DrainDisabled`.
+  - `operability.timeout_drill` reports `skipped: drain off`.
+  - Relay CLI commands map `DRAIN_DISABLED` / `DrainDisabled` to the one-line guidance.
+  - Cross-link: see #4737.
+- **F-2 (M2) gateway gate placement.**
+  - Gate inside `SaasCapabilityGateway.check_repo_admission` and `mint_capability`, not `__init__` (the `_http=` test seam stays intact).
+  - `spec-kitty routes` is drain-gated as well as endpoint-gated, because it mints; it prints "Live drain is off…".
+  - `resolve_credentials`/`resolve_focus_capability` return `None` before any cache read and log a distinct debug reason `drain-off` (see #4322).
+- **F-3 (M3) projection hook sites.**
+  - Flat path: call `refresh_execution_projection` directly next to `emit.py`'s `_saas_fan_out` sites (flat and batch).
+  - Transactional path: register it as a post-commit deferred outbound (`txn.defer_outbound`), next to every `_defer_fan_out` / `queue_saas_emission` site in `coordination/status_transition.py` (enumerate all; ~5).
+  - The NFR-004 test exercises the coordination transactional path.
+- **F-4 (M4) single derived-view writer.**
+  - Add an optional `snapshot:` parameter to `write_derived_views`, `generate_progress_json` and `generate_lifecycle_json`.
+  - `refresh_execution_projection` and `materialize_if_stale` pass `reduce(read_events())`, so neither rewrites tracked `status.json` (campsite fix of a latent defect).
+  - No new parallel builder.
+- **F-5 (M5) resolver shape.**
+  - `resolve_server_target()` raises `HostedEndpointUnconfigured`.
+  - `resolve_server_target_or_none()` returns `ResolvedServerTarget | None`.
+  - `resolved_server_url` stays `str`; there is no `UNCONFIGURED` enum member (data-model.md corrected).
+  - Caller census: 14 files, including `auth/flows/{authorization_code,device_code,refresh}.py`, `auth/token_manager.py` (`resolve_token_endpoint`), `auth/http/transport.py` and `tracker/egress_verdict.py`. Each caller is classified explicit (raise → guidance) or automatic (`_or_none`).
+- **F-6 (M6, operator decision D-6).** In migration `m_4_0_0_retired_hosted_target` (or a new sibling migration if it has already been applied), when no endpoint is configured and a stored session carries an `issuer_url`, backfill `[sync].server_url` from it. A prior login counts as explicit opt-in; drain stays off.
+- **F-7 minors.**
+  - No mtime cache: read the two small files per call (m1).
+  - The new arch gate cross-references `test_egress_consent_boundary.py`, and the `resolution.py` allowlist note is updated, since drain is now a consent (m2).
+  - `moments drain status` prints all four hosted-posture files.
+  - The personal writer reuses a shared atomic TOML table rewrite extracted from `moments.write_agents_mode`.
+  - Repo root comes from `core/paths.locate_project_root` (m3).
+  - Keep the `DEFAULT_HOSTED_SAAS_URL` name. Only its fallback role goes, which reduces churn (m4).
+  - Tests: `SPECIFY_REPO_ROOT` redirect and `SPEC_KITTY_HOME` not settable from `.kitty.env` (m5).
+- **F-8 test harness.**
+  - No autouse config writes into `SPEC_KITTY_HOME`.
+  - A `drain_on` autouse fixture (monkeypatching `hosted_posture.drain_posture`) goes in `tests/zeitgeist_client/conftest.py`, `tests/status/conftest.py` and `tests/specify_cli/live_work/conftest.py`, plus a `drain_off` fixture.
+  - The real default is proven with file-based tests under `canonical_home`.
+  - Re-pin blast radius is ~55–60 test files.
+
+### Revised work-package split
+
+| WP | Scope | Depends |
+|---|---|---|
+| WP01 | Posture core: `core/hosted_posture.py`, shared TOML table writer, `DrainDisabled` | – |
+| WP02 | Relay edges: `offer` + `OfferOutcome.DRAIN_DISABLED`, stream/history gates, drill, relay CLI/MCP guidance | WP01 |
+| WP03 | Capability + fan-out: gateway methods, `resolve_*`, adapters early exits, runtime producer, live_work, routes | WP01 |
+| WP04 | Drain test harness + non-vacuous arch gate + NFR-001/NFR-004 integration walk | WP02, WP03, WP05 |
+| WP05 | Ledger: single-writer refactor + projection refresh + hook sites + ledger-floor guard | WP01 |
+| WP06 | Endpoint resolver + 14 callers (explicit vs automatic) | – |
+| WP07 | Migration (retired target delete + D-6 backfill) + default-URL test re-pin | WP06 |
+| WP08 | Operator surface (`moments drain`), ADR, docs, changelog | WP02, WP03, WP05, WP07 |
