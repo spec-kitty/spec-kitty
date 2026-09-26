@@ -1,5 +1,17 @@
 {
   "rows": {
+    "#1718": {
+      "evidence_ref": "Context only: the retired #1718 unmaterialized-coord leniency, superseded by ADR 2026-09-24-2; cited in a WP01 test docstring, no work owed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#4758": {
       "evidence_ref": "Cited for context only: the deliberate product change whose contract this mission's fixtures are re-pinned to; no work owed (see research.md R-1).",
       "fr": null,
