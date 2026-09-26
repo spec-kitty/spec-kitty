@@ -10,6 +10,9 @@ requirement_refs:
 planning_base_branch: claude/lucid-ptolemy-fjtzep
 merge_target_branch: claude/lucid-ptolemy-fjtzep
 branch_strategy: Planning artifacts for this mission were generated on claude/lucid-ptolemy-fjtzep. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into claude/lucid-ptolemy-fjtzep unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-nightly-red-remediation-01M3EP85
+base_commit: 9810f2cfa014b77704d58b99c93a915717d7f6ba
+created_at: '2026-09-26T11:58:57.329444+00:00'
 subtasks:
 - T012
 - T013
