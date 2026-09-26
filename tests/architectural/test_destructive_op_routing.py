@@ -169,14 +169,14 @@ _ALLOWLIST: dict[str, str] = {
         "after WP02 rewrote _update -- the clone is persistent (.git preserved "
         "across fetches) and the reset is now dirty/ahead-guarded, not unguarded."
     ),
-    "src/specify_cli/merge/git_probes.py:232:reset_hard": (
+    "src/specify_cli/merge/git_probes.py:236:reset_hard": (
         "guarded by WP03/T011 (#4752): refuses via assert_checkout_on_target "
         "before this reset runs whenever expected_branch is supplied; the "
-        "live merge preflight always supplies it. Re-pinned from :239 "
-        "(landing/coord-read-fail-closed #5001 follow-up, PR #5020): WS1's "
-        "blob-attribution axis added code earlier in the file, shifting this "
-        "line; same _refresh_primary_checkout_after_merge site/rationale, "
-        "confirmed by a direct read -- not a new destructive op."
+        "live merge preflight always supplies it. Re-pinned from :232 "
+        "(#5038 driver-replay projection attribution): the new "
+        "driver_replay_expected_bytes probe added code earlier in the file, "
+        "shifting this line; same _refresh_primary_checkout_after_merge "
+        "site/rationale, confirmed by a direct read -- not a new destructive op."
     ),
     "src/specify_cli/git/ref_advance.py:514:reset_hard": (
         "the reused guard primitive's OWN resync implementation -- this "
@@ -197,7 +197,11 @@ _ALLOWLIST: dict[str, str] = {
         " helpers) added code earlier in the file, shifting this line; same "
         "site/rationale, confirmed by a direct read -- not a new destructive op."
     ),
-    "src/specify_cli/merge/executor.py:3342:reset_hard": (
+    "src/specify_cli/merge/executor.py:3360:reset_hard": (
+        "Re-pinned from :3342 (#5038 driver-replay projection attribution): the "
+        "driver-replay rewrite of _assert_squash_projected_content_landed added "
+        "code earlier in the file, shifting this line; same site/rationale, "
+        "confirmed by a direct read -- not a new destructive op. "
         "#4997 behind-own-HEAD resume recovery (_recover_behind_head_primary_on_resume): "
         "runs ONLY after a provably-pure-lag proof -- classify_resume_dirty_remedy == "
         "BEHIND_OWN_HEAD (lane already an ancestor of HEAD) AND is_pure_behind_head_lag "

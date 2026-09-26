@@ -25,6 +25,7 @@ from specify_cli.core.git_ops import run_command
 from specify_cli.core.paths import assert_safe_path_segment, get_main_repo_root
 from specify_cli.core.utils import ensure_within_any, ensure_within_directory
 from specify_cli.merge._constants import _STATUS_EVENTS_FILENAME, _STATUS_FILENAME
+from specify_cli.merge.git_probes import GitProbeError, driver_replay_expected_bytes
 
 # The kind used to derive the PRIMARY (target-checkout) surface this projection
 # stages onto (coord-write-placement-closure-01KYCF83 WP03 / FR-003). The
@@ -566,32 +567,90 @@ def project_post_checkpoint_commits_to_target(
     )
 
 
+def _projected_path_content_matches(
+    *,
+    main_repo: Path,
+    coord_ref: str,
+    target_ref: str,
+    checkpoint_sha: str,
+    pre_squash_target_ref: str,
+    repo_rel: str,
+) -> bool:
+    """Single-path proof body for :func:`projected_content_matches_target` (#5038).
+
+    Two verdicts, chosen by whether the TARGET diverged from the shared
+    checkpoint baseline for this path (``ours != base``):
+
+    * **Not diverged** (``ours == base``): the target never touched this path
+      after the checkpoint, so the original byte-equality proof still applies
+      verbatim -- PASS iff ``target_bytes == coord_bytes`` (FR-004 / INV-NO-
+      REGRESSION; never weakened by this rewrite).
+    * **Diverged**: both sides independently edited the path from the shared
+      baseline, and a legitimate squash reconciles that overlap through the
+      path's registered ``.gitattributes`` merge driver (the SAME driver git
+      invoked during the real squash) -- PASS iff the landed target blob
+      byte-equals the driver's own replayed output (FR-001), REFUSE otherwise
+      (FR-002) or when the probe cannot be evaluated at all -- no registered
+      driver, a missing blob, or a driver error (FR-003 / INV-FLOOR-2, never
+      silently PASS).
+    """
+    coord_bytes = _git_show_blob_bytes(main_repo, coord_ref, repo_rel)
+    if coord_bytes is None:
+        return False
+    target_bytes = _git_show_blob_bytes(main_repo, target_ref, repo_rel)
+    base_bytes = _git_show_blob_bytes(main_repo, checkpoint_sha, repo_rel)
+    pre_squash_target_bytes = _git_show_blob_bytes(main_repo, pre_squash_target_ref, repo_rel)
+    if pre_squash_target_bytes == base_bytes:
+        return target_bytes == coord_bytes
+    try:
+        expected_bytes = driver_replay_expected_bytes(
+            main_repo,
+            repo_rel,
+            base_ref=checkpoint_sha,
+            ours_ref=pre_squash_target_ref,
+            theirs_ref=coord_ref,
+        )
+    except GitProbeError:
+        return False
+    return target_bytes == expected_bytes
+
+
 def projected_content_matches_target(
     *,
     main_repo: Path,
     coord_ref: str,
     target_ref: str,
     projected_paths: tuple[str, ...],
+    checkpoint_sha: str,
+    pre_squash_target_ref: str,
 ) -> bool:
-    """Squash content proof (WP06 handoff): projected content landed on the target.
+    """Squash content proof (WP06 handoff, driver-replay attribution — #5038).
 
     WP06's reconciliation gate drops content reachability for squash
     (``verify_reachability=False``) because a squash merge preserves neither
     lane-tip SHAs nor per-lane patch-ids, and an aggregate mission→target tree
     comparison additionally diverges on legitimate post-merge bookkeeping. This
-    proves — SCOPED to the projected paths — that each one's content at
-    ``target_ref`` equals its content at ``coord_ref``, byte-for-byte. A follow-up
-    flips squash back to full verification by asserting this over the projected
-    set (the one-line integration hook lives in the WP06-owned reconciliation
-    seam, not here). Vacuously ``True`` for an empty set — nothing projected,
-    nothing to diverge.
+    proves — SCOPED to the projected paths — that each one legitimately landed
+    on ``target_ref``: verbatim byte-equality with ``coord_ref`` when the target
+    never diverged from the shared ``checkpoint_sha`` baseline for that path
+    (the original, unweakened proof — FR-004), or driver-replay attribution
+    against ``pre_squash_target_ref`` (the target's tip BEFORE the squash
+    landed) when it did (see :func:`_projected_path_content_matches`). A
+    diverged path with no registered driver, a missing blob, or a driver error
+    REFUSEs fail-closed rather than passing vacuously (FR-003). Vacuously
+    ``True`` for an empty set — nothing projected, nothing to diverge.
     """
-    for repo_rel in projected_paths:
-        coord_bytes = _git_show_blob_bytes(main_repo, coord_ref, repo_rel)
-        target_bytes = _git_show_blob_bytes(main_repo, target_ref, repo_rel)
-        if coord_bytes is None or target_bytes != coord_bytes:
-            return False
-    return True
+    return all(
+        _projected_path_content_matches(
+            main_repo=main_repo,
+            coord_ref=coord_ref,
+            target_ref=target_ref,
+            checkpoint_sha=checkpoint_sha,
+            pre_squash_target_ref=pre_squash_target_ref,
+            repo_rel=repo_rel,
+        )
+        for repo_rel in projected_paths
+    )
 
 
 __all__ = [

@@ -12,8 +12,12 @@ imports the command shim.
 from __future__ import annotations
 
 import contextlib
+import re
+import subprocess
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 from rich.console import Console
 
@@ -595,6 +599,145 @@ def lane_integrated_by_tree_or_ancestry(repo_root: Path, lane_branch: str, missi
     return _branch_trees_equal(repo_root, lane_branch, mission_branch)
 
 
+_DRIVER_COMMAND_PATTERN = re.compile(r"^spec-kitty (merge-driver-[a-z0-9-]+) %O %A %B$")
+
+
+def _read_git_blob_bytes(repo_root: Path, ref: str, repo_rel_path: str) -> bytes | None:
+    """Return the exact bytes of ``ref:repo_rel_path``, or ``None`` when absent.
+
+    Byte-exact (``subprocess`` directly, not :func:`~specify_cli.core.git_ops.run_command`,
+    which decodes to text) -- mirrors ``bookkeeping_projection._git_show_blob_bytes``'s same
+    raw-read pattern; a JSONL/YAML/Markdown bookkeeping blob must be compared byte-for-byte,
+    never re-encoded through a text decode/encode round trip.
+    """
+    result = subprocess.run(
+        ["git", "show", f"{ref}:{repo_rel_path}"],
+        cwd=str(repo_root),
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def _resolve_merge_driver_config_key(repo_root: Path, ref: str, repo_rel_path: str) -> str | None:
+    """Resolve the ``merge=<config_key>`` ``.gitattributes`` mapping for *repo_rel_path* at *ref*.
+
+    ``git check-attr --source=<ref>`` reads the tree's own committed ``.gitattributes``
+    files AND the repo-global ``$GIT_COMMON_DIR/info/attributes`` (the ephemeral seeding
+    ``lanes.merge._ensure_info_attributes`` writes for a repo with no committed mapping),
+    so the caller MUST activate the driver registry first -- see
+    :func:`driver_replay_expected_bytes`, which wraps this call in
+    ``lanes.merge._ephemeral_merge_driver_activation`` because, by the time the squash
+    projection proof runs, ``_merge_branch_into``'s own ephemeral activation has already
+    been torn down. Returns ``None`` for the three non-value attribute states
+    (``unspecified``/``unset``/``set``) -- i.e. no registered driver -- or a genuine probe
+    failure (non-zero ``git check-attr`` exit).
+    """
+    result = subprocess.run(
+        ["git", "check-attr", "--source", ref, "merge", "--", repo_rel_path],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    line = (result.stdout or "").strip()
+    if not line:
+        return None
+    _prefix, _sep, value = line.rpartition(": ")
+    value = value.strip()
+    if value in {"", "unspecified", "unset", "set"}:
+        return None
+    return value
+
+
+def _resolve_registered_driver_callable(config_key: str) -> Callable[[str, str, str], None]:
+    """Map a resolved ``config_key`` to its ``cli.commands.merge_driver`` implementation.
+
+    Reuses the canonical registry (``lanes.merge._MERGE_DRIVERS``) instead of a second,
+    hand-maintained table: a driver's ``command`` field (e.g. ``"spec-kitty
+    merge-driver-traces %O %A %B"``) names the exact ``merge_driver_<name>`` function this
+    derives and calls, so the two can never silently drift apart (C-006). Function-local
+    import: avoids paying the ``cli.commands`` package ``__init__`` import cost (and any
+    load-order risk) unless a caller actually needs to replay a driver.
+    """
+    from specify_cli.cli.commands import merge_driver as _merge_driver_module
+    from specify_cli.lanes.merge import _MERGE_DRIVERS
+
+    spec = next((candidate for candidate in _MERGE_DRIVERS if candidate.config_key == config_key), None)
+    if spec is None:
+        raise GitProbeError(f"no merge-driver registry entry for config key {config_key!r}")
+    match = _DRIVER_COMMAND_PATTERN.match(spec.command)
+    if match is None:
+        raise GitProbeError(f"unrecognized merge-driver command shape: {spec.command!r}")
+    driver = getattr(_merge_driver_module, match.group(1).replace("-", "_"), None)
+    if driver is None or not callable(driver):
+        raise GitProbeError(f"no merge-driver implementation for config key {config_key!r}")
+    return cast("Callable[[str, str, str], None]", driver)
+
+
+def driver_replay_expected_bytes(
+    repo_root: Path,
+    repo_rel_path: str,
+    *,
+    base_ref: str,
+    ours_ref: str,
+    theirs_ref: str,
+) -> bytes:
+    """Replay *repo_rel_path*'s registered merge driver on ``(base, ours, theirs)``.
+
+    The squash-projection driver-replay attribution proof (#5038): a diverged
+    coord-partition bookkeeping path is legitimately reconciled by git invoking its
+    registered custom driver DURING the real squash. This replays the SAME driver,
+    in-process, on the three blobs git would have passed it as ``%O``/``%A``/``%B``,
+    so the caller can prove the landed target blob equals the driver's own
+    deterministic output rather than demanding raw byte equality with either
+    parent (which false-REFUSEs a legitimate union).
+
+    Raises :class:`GitProbeError` (fail-closed; never silently fabricates a result)
+    when: the path has no registered merge driver at *ours_ref*
+    (:func:`_resolve_merge_driver_config_key`), the ``ours`` or ``theirs`` blob
+    cannot be read (a diverged path's two live sides must exist), or the driver
+    itself errors while reconciling the materialized blobs. ``base`` may
+    legitimately be absent (a path newly added on both sides) -- materialized as
+    an empty file, mirroring git's own ``%O`` behavior for a brand-new path.
+    """
+    from specify_cli.lanes.merge import _ephemeral_merge_driver_activation
+
+    with _ephemeral_merge_driver_activation(repo_root, restore_config=True):
+        config_key = _resolve_merge_driver_config_key(repo_root, ours_ref, repo_rel_path)
+    if config_key is None:
+        raise GitProbeError(f"driver replay for {repo_rel_path!r}: no registered merge driver at {ours_ref}")
+    driver = _resolve_registered_driver_callable(config_key)
+
+    ours_bytes = _read_git_blob_bytes(repo_root, ours_ref, repo_rel_path)
+    theirs_bytes = _read_git_blob_bytes(repo_root, theirs_ref, repo_rel_path)
+    if ours_bytes is None or theirs_bytes is None:
+        raise GitProbeError(
+            f"driver replay for {repo_rel_path!r}: missing ours ({ours_ref}) or theirs ({theirs_ref}) blob"
+        )
+    base_bytes = _read_git_blob_bytes(repo_root, base_ref, repo_rel_path) or b""
+
+    with tempfile.TemporaryDirectory(prefix="kitty-driver-replay-") as tmp_dir_name:
+        tmp_dir = Path(tmp_dir_name)
+        base_path = tmp_dir / "O"
+        ours_path = tmp_dir / "A"
+        theirs_path = tmp_dir / "B"
+        base_path.write_bytes(base_bytes)
+        ours_path.write_bytes(ours_bytes)
+        theirs_path.write_bytes(theirs_bytes)
+        try:
+            driver(str(base_path), str(ours_path), str(theirs_path))
+        except Exception as exc:
+            # Any driver failure (typer.Exit, RowMatrixMergeError, ...) REFUSEs
+            # fail-closed (FR-003) rather than escaping as an unhandled crash.
+            raise GitProbeError(f"driver replay for {repo_rel_path!r} ({config_key}) failed: {exc}") from exc
+        return ours_path.read_bytes()
+
+
 __all__ = [
     "_lane_already_integrated",
     "_branch_trees_equal",
@@ -617,4 +760,5 @@ __all__ = [
     "changed_paths_in_range",
     "changed_paths_of",
     "lane_integrated_by_tree_or_ancestry",
+    "driver_replay_expected_bytes",
 ]

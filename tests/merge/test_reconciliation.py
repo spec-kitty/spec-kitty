@@ -1638,17 +1638,29 @@ def test_collect_excluded_fully_canceled_lane_stays_fully_excluded(tmp_path: Pat
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "3-way merge-resolution content: final blob != either parent is not "
-        "attributable to a single approved lane; bounded, file-disjoint-lane-"
-        "mitigated; tracked follow-up"
+        "#5021 residual-2: 3-way merge-resolution content on a path with NO "
+        "registered merge driver (src/shared.py -- stock `git merge-file` / "
+        "`git merge-tree`, not a `spec-kitty merge-driver-*`). The manually- "
+        "resolved blob equals neither parent and is reconstructable by no "
+        "deterministic function, so the blob-attribution axis cannot attribute "
+        "it. Distinct from the #5038 deterministic-union-driver class FIXED by "
+        "driver-replay attribution (terminus-projection-driver-replay-01M3EC1K "
+        "WP01): that class's paths (e.g. traces/*.md) carry a REGISTERED driver "
+        "whose deterministic output is reproducible in-process; this path has "
+        "none, so no analogous replay proof is possible. Soundly unfixable "
+        "(research.md Decision 3); tracked separately from #5038 as its own "
+        "dedicated follow-up issue #5051."
     ),
 )
 def test_squash_three_way_merge_resolution_is_unattributable(tmp_path: Path) -> None:
-    """C-003 residual: two approved lanes edit the SAME path; the squash resolves it
-    to a third blob (!= either lane's first-parent blob). The desired behavior is a
-    PASS (a genuine resolution is not removed content), but the blob axis cannot
-    attribute it, so it FAILs — pinned as a strict xfail, exercising a REAL 3-way
-    scenario, never a bare marker."""
+    """C-003 residual (#5021 residual-2): two approved lanes edit the SAME path
+    with NO registered merge driver; the squash resolves it to a third blob (!=
+    either lane's first-parent blob) via a stock git conflict + manual
+    resolution. The desired behavior is a PASS (a genuine resolution is not
+    removed content), but the blob axis cannot attribute it, so it FAILs --
+    pinned as a strict xfail, exercising a REAL 3-way scenario, never a bare
+    marker. NOT the #5038 class (driver-governed paths, fixed this WP via
+    driver-replay attribution) -- see the xfail reason above."""
     repo = _init_repo(tmp_path)
     (repo / "src").mkdir()
     (repo / "src" / "shared.py").write_text("base\n", encoding="utf-8")

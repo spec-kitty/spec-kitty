@@ -2320,15 +2320,19 @@ def _assert_squash_projected_content_landed(run: _MergeRunState) -> None:
     per-lane patch-ids, so SHA/patch-id reachability is unsound — see
     :func:`_reconciliation_claim_for_gate`). This restores content verification
     for squash — WITHOUT the unsound SHA reachability — by asserting, over the
-    set of bookkeeping paths the projection brought forward, that each one's
-    content at the target equals its content at the coordination ref
-    (:func:`projected_content_matches_target`). A legitimate squash merge already
-    copied that content forward, so this PASSES (NFR-004: never false-fail a
-    genuine squash); it refuses fail-closed only if a projected commit's content
-    did not actually land on the target — the divergence a bare
-    ``verify_reachability=False`` would have missed. A no-op for merge/rebase
-    (SHA reachability already covered them) and for a non-coord/legacy mission
-    (no checkpoint window to project)."""
+    set of bookkeeping paths the projection brought forward, that each one
+    legitimately landed on the target: byte-equality with the coordination ref
+    when the target never diverged from the shared checkpoint baseline for that
+    path, or driver-replay attribution against the target's PRE-squash tip
+    (``run.target_expected_old_sha``) when it did (#5038 —
+    :func:`projected_content_matches_target`). A legitimate squash merge already
+    copied that content forward (or a registered driver losslessly reconciled a
+    genuine divergence), so this PASSES (NFR-004: never false-fail a genuine
+    squash); it refuses fail-closed only if a projected path's content did not
+    actually land as either the coord ref's bytes OR the driver's own replayed
+    output — the divergence a bare ``verify_reachability=False`` would have
+    missed. A no-op for merge/rebase (SHA reachability already covered them) and
+    for a non-coord/legacy mission (no checkpoint window to project)."""
     if run.strategy is not MergeStrategy.SQUASH:
         return
     checkpoint = run.coord_checkpoint
@@ -2341,11 +2345,25 @@ def _assert_squash_projected_content_landed(run: _MergeRunState) -> None:
     )
     if not projected_paths:
         return
+    pre_squash_target_ref = run.target_expected_old_sha
+    if pre_squash_target_ref is None:
+        # Fail-closed (never tautologically diff the POST-squash target against
+        # itself): without the genuine pre-mutation tip, a diverged path's
+        # driver-replay attribution cannot be evaluated soundly.
+        console.print(
+            "\n[red]Error:[/red] SQUASH reconciliation refused: the pre-merge "
+            "target baseline could not be resolved, so the projected "
+            "coordination bookkeeping content proof cannot be evaluated. "
+            "Nothing was torn down; re-run `spec-kitty merge --resume`."
+        )
+        raise typer.Exit(1)
     if projected_content_matches_target(
         main_repo=run.main_repo,
         coord_ref=checkpoint.ref,
         target_ref=run.lanes_manifest.target_branch,
         projected_paths=projected_paths,
+        checkpoint_sha=checkpoint.sha,
+        pre_squash_target_ref=pre_squash_target_ref,
     ):
         return
     # #5001 pre-merge FOLD-5 (asymmetry rationale): unlike the reconciliation-FAIL

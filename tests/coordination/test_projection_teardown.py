@@ -243,6 +243,7 @@ def test_projected_content_matches_target_after_projection(tmp_path: Path) -> No
     repo = _init_repo(tmp_path)
     coord = _make_coord_branch(repo)
     checkpoint = _rev(repo, coord)
+    pre_squash_target_sha = _rev(repo, "main")
     verdict_rel = f"kitty-specs/{SLUG}/decision-log/WP01-verdict.md"
     _append_coord_commit(repo, coord, verdict_rel, "verdict: approved\n", "verdict(WP01)")
 
@@ -255,6 +256,8 @@ def test_projected_content_matches_target_after_projection(tmp_path: Path) -> No
         coord_ref=coord,
         target_ref="main",
         projected_paths=result.projected_paths,
+        checkpoint_sha=checkpoint,
+        pre_squash_target_ref=pre_squash_target_sha,
     )
 
 
@@ -264,6 +267,7 @@ def test_projected_content_proof_fails_when_target_diverges(tmp_path: Path) -> N
 
     repo = _init_repo(tmp_path)
     coord = _make_coord_branch(repo)
+    checkpoint = _rev(repo, coord)
     verdict_rel = f"kitty-specs/{SLUG}/decision-log/WP01-verdict.md"
     _append_coord_commit(repo, coord, verdict_rel, "verdict: approved\n", "verdict")
 
@@ -273,6 +277,8 @@ def test_projected_content_proof_fails_when_target_diverges(tmp_path: Path) -> N
         coord_ref=coord,
         target_ref="main",
         projected_paths=(verdict_rel,),
+        checkpoint_sha=checkpoint,
+        pre_squash_target_ref="main",
     )
 
 
