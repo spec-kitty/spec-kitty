@@ -145,7 +145,7 @@
       "wp": null
     },
     "#5085": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Ban widening + migrations WP01-WP04 (FR-001..FR-007)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -153,8 +153,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP01"
     },
     "#5104": {
       "evidence_ref": "<link or commit>",
