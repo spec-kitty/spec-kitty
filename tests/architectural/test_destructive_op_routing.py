@@ -189,7 +189,7 @@ _ALLOWLIST: dict[str, str] = {
         "advance_branch_ref resync site/rationale, confirmed by a direct read "
         "-- not a new destructive op."
     ),
-    "src/specify_cli/lanes/worktree_allocator.py:1260:reset_hard": (
+    "src/specify_cli/lanes/worktree_allocator.py:1292:reset_hard": (
         "atomic rollback to a pre-loop ref (#1915) AFTER the loop's own "
         "half-merge was already aborted -- lane-loop-scoped recovery, not an "
         "arbitrary destroy of operator state. Re-pinned from :1040 (#4889 "
@@ -236,7 +236,7 @@ _ALLOWLIST: dict[str, str] = {
         "intentional conflict entries; never operator-visible state."
     ),
     "src/specify_cli/lanes/merge.py:1039:worktree_remove_force": ("ephemeral lane-merge tmp worktree, unconditionally cleaned up via ExitStack on exit."),
-    "src/specify_cli/lanes/worktree_allocator.py:1448:worktree_remove_force": (
+    "src/specify_cli/lanes/worktree_allocator.py:1480:worktree_remove_force": (
         "fresh-path atomicity (#3281/T010): removes a just-created worktree "
         "AFTER _merge_recorded_planning_commit already aborted the "
         "half-merge -- the tree is clean by construction; best-effort, "
@@ -262,12 +262,12 @@ _ALLOWLIST: dict[str, str] = {
     ),
     "src/specify_cli/lanes/merge.py:1076:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (squash-conflict rollback), never repo_root."),
     "src/specify_cli/lanes/merge.py:1199:merge_abort": ("scoped to the ephemeral lane-merge tmp worktree (merge-conflict rollback), never repo_root."),
-    "src/specify_cli/lanes/worktree_allocator.py:1078:merge_abort": (
+    "src/specify_cli/lanes/worktree_allocator.py:1110:merge_abort": (
         "scoped to the lane worktree (planning-commit merge-conflict rollback), never repo_root. "
         "Re-pinned from :858 (#4889 destroyed-lane guard WP01): earlier code shifted this line; "
         "same site/rationale, confirmed by a direct read."
     ),
-    "src/specify_cli/lanes/worktree_allocator.py:1252:merge_abort": (
+    "src/specify_cli/lanes/worktree_allocator.py:1284:merge_abort": (
         "scoped to the lane worktree (dependency-lane merge-conflict rollback), never repo_root. "
         "Re-pinned from :1032 (#4889 destroyed-lane guard WP01): earlier code shifted this line; "
         "same site/rationale, confirmed by a direct read."
