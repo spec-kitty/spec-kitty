@@ -1,0 +1,79 @@
+{
+  "mission_slug": "coord-branch-remote-probe-01M3F6M7",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_coord_branch_remote_probe_4979.py::test_single_branch_clone_remote_only_coord_branch_is_not_deleted (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-09-26T17:43:19.636880+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_coord_branch_remote_probe_4979.py::test_reachable_remote_clean_miss_still_reports_absent (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-09-26T17:43:21.677589+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_remote_probes.py tri-state HIT/CLEAN_MISS/ERROR/NO_REMOTE (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-09-26T17:43:23.739989+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_doctor_flatten_remote_reverify_4979.py (WP02)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-09-26T17:43:25.834936+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_implement_demotion_guard_4979.py (WP03)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-09-26T17:43:27.886538+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_coord_branch_remote_probe_4979.py fetch-first next_step assertion (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-09-26T17:43:30.018894+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_coord_branch_remote_probe_4979.py CoordinationWorktreeUnmaterialized raise (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer",
+      "verified_at": "2026-09-26T17:43:32.110385+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

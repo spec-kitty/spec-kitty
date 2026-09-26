@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#4979": {
+      "evidence_ref": "PR #5137 three-tier fix",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

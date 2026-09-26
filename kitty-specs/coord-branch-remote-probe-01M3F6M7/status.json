@@ -1,0 +1,97 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M3FD8BH1C7M1F3M5BTNVJ0RJ",
+  "materialized_at": "2026-09-26T17:47:22.529135+00:00",
+  "mission_number": "",
+  "mission_slug": "coord-branch-remote-probe-01M3F6M7",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3FD8930GYVYW5D0VPQ6YPV4",
+      "last_transition_at": "2026-09-26T17:47:20.032555+00:00",
+      "review_result": {
+        "reference": "review/WP01-4979",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 1027310,
+      "shell_pid_created_at": "1790439068.38",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      },
+      "tracker_refs": [
+        "#4979"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3FD8AA6F615G9TAMRE8F5AY",
+      "last_transition_at": "2026-09-26T17:47:21.286818+00:00",
+      "review_result": {
+        "reference": "review/WP02-4979",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 1270935,
+      "shell_pid_created_at": "1790442723.03",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      },
+      "tracker_refs": [
+        "#4979"
+      ]
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M3FD8BH1C7M1F3M5BTNVJ0RJ",
+      "last_transition_at": "2026-09-26T17:47:22.529135+00:00",
+      "review_result": {
+        "reference": "review/WP03-4979",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 1271898,
+      "shell_pid_created_at": "1790442749.24",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      },
+      "tracker_refs": [
+        "#4979"
+      ]
+    }
+  }
+}

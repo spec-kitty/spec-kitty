@@ -1,0 +1,35 @@
+{
+  "accept_commit": "03c8dbea1b8b54e6fdc351eec7070cca559d19ab",
+  "acceptance_history": [
+    {
+      "accept_commit": "03c8dbea1b8b54e6fdc351eec7070cca559d19ab",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-09-26T17:44:01.025014+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "fe7457b1baa37c344e2032c6929f7a4279d4eed4"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-09-26T17:44:01.025014+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "fe7457b1baa37c344e2032c6929f7a4279d4eed4",
+  "baseline_merge_commit": "be40319c062fc444069642dcbed331eddc4a6252",
+  "created_at": "2026-09-26T15:51:31.792530+00:00",
+  "flattened": false,
+  "friendly_name": "Coordination branch remote-existence probe",
+  "merged_at": "2026-09-26T17:47:19.380868+00:00",
+  "merged_commit": "19aa62d449da9199fd89e1e05a59f10a3ca6618b",
+  "mid8": "01M3F6M7",
+  "mission_id": "01M3F6M7P4V0C77YPPV27Y5V9N",
+  "mission_number": null,
+  "mission_slug": "coord-branch-remote-probe-01M3F6M7",
+  "mission_type": "software-dev",
+  "purpose_context": "A single-branch/shallow/CI clone (or pruned origin ref) has no local or remote-tracking ref for the coordination branch though it exists on origin. The coord read-path and doctor coordination --fix read that absence as 'never created' and flatten the mission; implement then auto-commits the flatten to the target branch, hiding every teammate's approvals on pull. Teach the branch-existence probe to consult the remote authority, guard the doctor flatten site, and stop implement's auto-commit from carrying a topology demotion.",
+  "purpose_tldr": "Stop doctor --fix flattening a live coord mission from a checkout that can't see the remote coordination branch",
+  "slug": "coord-branch-remote-probe-01M3F6M7",
+  "status_phase": "1",
+  "target_branch": "issue-4979-coord-branch-remote-probe",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-26T16:11:20.287842+00:00"
+}
