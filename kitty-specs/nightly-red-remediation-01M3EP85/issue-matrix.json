@@ -97,7 +97,7 @@
       "wp": "WP01"
     },
     "#5049": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Performance suite red: WP04 resume budget test (C1), WP05 doctor-ops sweep gate.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,8 +105,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP05"
     }
   },
   "schema_version": 1
